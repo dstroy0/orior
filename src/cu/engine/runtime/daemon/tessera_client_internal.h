@@ -74,7 +74,7 @@ typedef enum
 
 TesseraConnect tessera_connect(TesseraClient *client, const char *endpoint);
 
-int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobAsk *ask, const char *endpoint);
+int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobSubmit *submit, const char *endpoint);
 
 int tessera_send(TesseraClient *client, const TesseraFrame *frame);
 

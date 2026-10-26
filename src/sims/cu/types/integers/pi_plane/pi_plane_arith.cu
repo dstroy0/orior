@@ -118,16 +118,16 @@ int plane_bits(SimResults *results, unsigned int count, std::vector<unsigned cha
     {
         ones += (unsigned long long)(*bits)[place];
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  pi by Machin's formula at ");
-    scriptura_decimal(line, precision, 1u);
-    scriptura_text(line, " bits, ");
-    scriptura_decimal(line, fifth_terms + far_terms, 1u);
-    scriptura_text(line, " terms: ");
-    scriptura_decimal(line, count, 1u);
-    scriptura_text(line, " bits after the point, ");
-    scriptura_decimal(line, ones, 1u);
-    scriptura_text(line, " of them ones\n");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  pi by Machin's formula at ");
+    mmgr_line_decimal(line, precision, 1u);
+    mmgr_line_put(line, " bits, ");
+    mmgr_line_decimal(line, fifth_terms + far_terms, 1u);
+    mmgr_line_put(line, " terms: ");
+    mmgr_line_decimal(line, count, 1u);
+    mmgr_line_put(line, " bits after the point, ");
+    mmgr_line_decimal(line, ones, 1u);
+    mmgr_line_put(line, " of them ones\n");
     sim_check(results, agree, "floor((pi - 3) 2^N) is one integer at both ends of Machin's bracket");
     sim_check(results, leading == PLANE_PUBLISHED_BITS, "pi's first 64 bits after the point are 0x243F6A8885A308D3");
     return agree && (leading == PLANE_PUBLISHED_BITS);
@@ -181,7 +181,7 @@ int plane_rows(PlaneExtent *extent, unsigned int count, unsigned long long width
     return plane_extent_place(extent, "rows_" + std::to_string(width), rows, columns);
 }
 
-// row k holds k + 1 bits, left aligned
+// row k stores k + 1 bits, left aligned
 int plane_tower(PlaneExtent *extent, unsigned int count)
 {
     std::vector<long long> rows(count);

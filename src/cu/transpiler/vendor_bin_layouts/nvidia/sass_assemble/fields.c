@@ -8,21 +8,22 @@ static const SassField s_register_fields[] = {
     {16u, 8u, 1u, 0u}, {24u, 8u, 1u, 0u}, {32u, 8u, 1u, 0u}, {64u, 8u, 1u, 0u}};
 
 // A predicate operand takes three bits and the fourth negates it; the probes found six places one sits in. A load's
-// predicate at 64 holds its number inverted, PT as 000, and a load whose predicate is false writes 0
+// predicate at 64 stores its number inverted, PT as 000, and a load whose predicate is false writes 0
 // (interface_sass_unprinted.md)
 static const SassField s_predicate_fields[] = {{64u, 3u, 1u, 1u}, {68u, 3u, 1u, 0u}, {77u, 3u, 1u, 0u},
                                                {81u, 3u, 1u, 0u}, {84u, 3u, 1u, 0u}, {87u, 3u, 1u, 0u}};
 
 static const SassField s_immediate_fields[] = {{32u, 32u, 1u, 0u}, {72u, 8u, 1u, 0u}};
 
-// a constant's offset counts words, and an address's bytes; both lie above the register fields
-static const SassField s_constant_fields[] = {{40u, 16u, 4u, 0u}};
+// a constant's offset counts words, and an address's bytes; both lie above the register fields. A constant's offset is
+// the vendor's 14 bits from bit 40, its bank the five bits from 54 (ConstBankAddress2, nvidia/tables/read.c)
+static const SassField s_constant_fields[] = {{40u, 14u, 4u, 0u}};
 
 static const SassField s_offset_fields[] = {{40u, 24u, 1u, 0u}};
 
 // The uniform register a memory operand reads its descriptor from, in the order an instruction fills them: bits 32 to
-// 37 where no other operand holds bit 32, as a load has it, else 64 to 69, as a store has it. A memory operand that
-// takes one is an address with a run of its own at bit 101, the bit that says whether the descriptor is printed:
+// 37 where no other operand uses bit 32, as a load has it, else 64 to 69, as a store has it. A memory operand that
+// takes one is an address with a run of its own at bit 101, the bit that specifies whether the descriptor is printed:
 // set, desc[URn]; clear, term[URn]
 static const SassField s_descriptor_fields[] = {{32u, 6u, 1u, 0u}, {64u, 6u, 1u, 0u}};
 
@@ -155,7 +156,8 @@ static const SassField *sass_fields_of(unsigned int kind, unsigned int *count)
 
 // the field of `kind` that begins inside `run`, or NULL where the kind takes none there. A run is the bits the probe
 // saw change one operand, being the field and whatever lies beside it that changes the same operand. A bit that
-// says what kind the operand is, or the low bits of an offset the operation counts in wider units
+// specifies what kind the operand is, or the low bits of an offset the operation counts in wider units. A constant's
+// run may lie anywhere inside its field: a frame form's run is the bits its place moved, as a parameter's is 42 to 44
 static const SassField *sass_field_at(unsigned int kind, const SassRun *run)
 {
     unsigned int count = 0u;
@@ -163,7 +165,10 @@ static const SassField *sass_field_at(unsigned int kind, const SassRun *run)
     const SassField *found = NULL;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        found = ((fields[at].first >= run->first) && (fields[at].first <= run->last)) ? &fields[at] : found;
+        const unsigned int last = (fields[at].first + fields[at].bits) - 1u;
+        const int begins = (fields[at].first >= run->first) && (fields[at].first <= run->last);
+        const int inside = (kind == SASS_OPERAND_CONSTANT) && (run->first <= last) && (run->last >= fields[at].first);
+        found = (begins || inside) ? &fields[at] : found;
     }
     return found;
 }
@@ -179,7 +184,7 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
     {
         memset(&places[place], 0, sizeof(places[place]));
         const unsigned int kind = form->kind[place];
-        // a label that names a symbol and not a label of the text is a relocation: the field holds nothing and
+        // a label that names a symbol and not a label of the text is a relocation: the field contains nothing and
         // the loader fills it. The instruction is then checked against the one the form was seen with
         const char *const open = strchr(base.operand[place], '(');
         const int relocated = (kind == SASS_OPERAND_LABEL) && ((open == NULL) || (open[1] != '.'));
@@ -225,9 +230,11 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
             if (field != NULL)
             {
                 places[place].value = *field;
-                // a field holds no more bits than the run the probe saw change the operand
+                // a field contains no more bits than the run the probe saw change the operand; a constant's offset is
+                // written whole, its base and its place summed, in the whole of its field
                 const unsigned int room = (run->last - field->first) + 1u;
-                places[place].value.bits = (room < field->bits) ? room : field->bits;
+                places[place].value.bits =
+                    ((kind == SASS_OPERAND_CONSTANT) || (room >= field->bits)) ? field->bits : room;
                 found = 1;
             }
             if ((kind == SASS_OPERAND_ADDRESS) && (run->first == s_offset_fields[0].first))
@@ -237,7 +244,7 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
             }
         }
         // a memory operand with a run of its own at the bit that shows the descriptor reads one, and its uniform
-        // register takes the first descriptor field no run of the form holds
+        // register takes the first descriptor field no run of the form uses
         int shown = 0;
         for (unsigned int number = 0u; (kind == SASS_OPERAND_ADDRESS) && (number < form->runs); number += 1u)
         {
@@ -247,13 +254,13 @@ int sass_places_find(const SassForm *form, SassPlace *places, unsigned int *unpl
         for (unsigned int at = 0u; shown && (places[place].has_descriptor == 0) && (at < SASS_DESCRIPTOR_FIELDS); at += 1u)
         {
             const SassField *const field = &s_descriptor_fields[at];
-            int held = 0;
+            int place_found = 0;
             for (unsigned int number = 0u; number < form->runs; number += 1u)
             {
-                held = held || ((form->run[number].first < (field->first + field->bits)) &&
-                                (form->run[number].last >= field->first));
+                place_found = place_found || ((form->run[number].first < (field->first + field->bits)) &&
+                                              (form->run[number].last >= field->first));
             }
-            if (held == 0)
+            if (place_found == 0)
             {
                 places[place].descriptor = *field;
                 places[place].has_descriptor = 1;
@@ -304,9 +311,9 @@ static void sass_high_write(unsigned long long *high, unsigned int first, unsign
 // no instruction set is already at rest, and waiting on all six costs nothing where none was set
 void sass_control_safe(const SassMachine *machine, const SassForm *form, unsigned long long *high)
 {
-    unsigned int soonest = SASS_STALL_LONGEST;
+    unsigned int soonest = SASS_STALL_MAX_LEN;
     const unsigned int schedule = sass_operation_schedule(machine, form->operation, &soonest);
-    const int fixed = (schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_LONGEST);
+    const int fixed = (schedule == SASS_SCHEDULE_FIXED) && (soonest != SASS_STALL_MAX_LEN);
     const int wrote = (schedule == SASS_SCHEDULE_LATE) ||
                       (!fixed && sass_barrier_set(form->high, SASS_WRITE_BARRIER_FIRST));
     const int read = (schedule == SASS_SCHEDULE_STORE) ||

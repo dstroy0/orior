@@ -12,12 +12,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the slots of the table an ask is found by its identity in, a power of two past every ask a record holds
+// the slots of the table a query is found by its identity in, a power of two past every query a record contains
 #define KQR_SLOTS 1048576u
 
-// the words of an ask's identity and answer in its record, before its answer's words or its refusal: the identity's
+// the words of a query's identity and answer in its record, before its answer's words or its refusal: the identity's
 // seven numbers, then the answer
-#define KQR_ASKED_WORDS 8u
+#define KQR_QUERY_WORDS 8u
 
 // the most letters of a line of the text form read
 #define KQR_LINE (1u << 20u)
@@ -26,17 +26,17 @@ int kqr_number_read(const char *text, size_t length, int base, unsigned long lon
 unsigned int kqr_slot_of(const KqrRecord *record, const KqrIdentity *identity);
 void kqr_text_copied(const KqrRecord *record, unsigned long long number, char *text, size_t room);
 unsigned long long kqr_text_number(KqrRecord *record, const char *text);
-int kqr_ask_of(const KqrRecord *record, const KrepRecord *held, KqrAsk *ask);
-unsigned int kqr_ask_words(KqrRecord *record, const KqrAsk *ask, unsigned long long *words);
-int kqr_sample_of(const KqrRecord *record, const KrepRecord *held, KqrSample *sample);
+int kqr_query_of(const KqrRecord *record, const KrepRecord *entry, KqrQuery *query);
+unsigned int kqr_query_words(KqrRecord *record, const KqrQuery *query, unsigned long long *words);
+int kqr_sample_of(const KqrRecord *record, const KrepRecord *entry, KqrSample *sample);
 unsigned int kqr_sample_words(KqrRecord *record, const KqrSample *sample, unsigned long long *words);
 void kqr_shifted(KqrRecord *record, unsigned int from, unsigned int by);
-int kqr_who_put(KqrRecord *record, unsigned int at, int held, Who who);
+int kqr_who_put(KqrRecord *record, unsigned int at, int has_who, Who who);
 unsigned int kqr_put(KqrRecord *record, unsigned int code, const unsigned long long *words, unsigned int count,
                      Who who);
 void kqr_marks_written(KqrRecord *record, Who who);
 int kqr_opened(KqrRecord *record, const char *member);
-int kqr_sample_held(KqrRecord *record, unsigned int at);
+int kqr_sample_take(KqrRecord *record, unsigned int at);
 void kqr_indexed(KqrRecord *record);
 
 #endif

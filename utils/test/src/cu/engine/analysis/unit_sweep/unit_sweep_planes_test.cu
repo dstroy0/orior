@@ -99,7 +99,7 @@ typedef struct
     unsigned long long against_constant;
     unsigned long long after_error;
     unsigned long long error;
-    unsigned long long over_width_asked;
+    unsigned long long over_width_requested;
 } PlanesTestResults;
 
 static void planes_test_request(const PlanesTestCase *test_case, const PlanesTestDevice *device,
@@ -276,7 +276,7 @@ static void planes_test_case(SimResults *results, const PlanesTestCase *test_cas
     const int errored = (over_limit == UNIT_SWEEP_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
                         (error.module == ENGINE_MODULE_UNIT_SWEEP);
     sim_check(results, errored, "a bit past the declared width errors as a request error from the unit sweep");
-    counts->over_width_asked += 1ull;
+    counts->over_width_requested += 1ull;
     counts->error += errored ? 1ull : 0ull;
     const int swept = (planes_test_sweep(test_case, device, NULL, host->planes, host->repeat_residual, &error) == 0L);
     const unsigned long long after_error =
@@ -340,37 +340,37 @@ static unsigned int planes_test_limbs(const PlanesTestCase *test_case)
 
 static void planes_test_report(SimResults *results, const PlanesTestCase *test_case, const PlanesTestResults *counts)
 {
-    scriptura_text(&results->line, "  ");
-    scriptura_decimal(&results->line, test_case->input_bits, 1u);
-    scriptura_text(&results->line, " bits in, smooth ");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_decimal(&results->line, test_case->input_bits, 1u);
+    mmgr_line_put(&results->line, " bits in, smooth ");
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
-        scriptura_decimal(&results->line, test_case->smooth[axis], 1u);
+        mmgr_line_ch(&results->line, (axis == 0u) ? '{' : ',');
+        mmgr_line_decimal(&results->line, test_case->smooth[axis], 1u);
     }
-    scriptura_text(&results->line, "} background ");
+    mmgr_line_put(&results->line, "} background ");
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
-        scriptura_decimal(&results->line, test_case->background[axis], 1u);
+        mmgr_line_ch(&results->line, (axis == 0u) ? '{' : ',');
+        mmgr_line_decimal(&results->line, test_case->background[axis], 1u);
     }
-    scriptura_text(&results->line, "}, ");
-    scriptura_decimal(&results->line, test_case->limbs, 1u);
-    scriptura_text(&results->line, " limbs out: ");
-    scriptura_decimal(&results->line, counts->lanes, 1u);
-    scriptura_text(&results->line, " lanes over the extents, ");
-    scriptura_decimal(&results->line, counts->nonzero, 1u);
-    scriptura_text(&results->line, " of them not zero, ");
-    scriptura_decimal(&results->line, counts->against_parts, 1u);
-    scriptura_text(&results->line, " differ from their parts, ");
-    scriptura_decimal(&results->line, counts->against_constant, 1u);
-    scriptura_text(&results->line, " move under a constant; a bit past the width errored ");
-    scriptura_decimal(&results->line, counts->error, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, counts->over_width_asked, 1u);
-    scriptura_text(&results->line, ", ");
-    scriptura_decimal(&results->line, counts->after_error, 1u);
-    scriptura_text(&results->line, " lanes differ after it\n");
+    mmgr_line_put(&results->line, "}, ");
+    mmgr_line_decimal(&results->line, test_case->limbs, 1u);
+    mmgr_line_put(&results->line, " limbs out: ");
+    mmgr_line_decimal(&results->line, counts->lanes, 1u);
+    mmgr_line_put(&results->line, " lanes over the extents, ");
+    mmgr_line_decimal(&results->line, counts->nonzero, 1u);
+    mmgr_line_put(&results->line, " of them not zero, ");
+    mmgr_line_decimal(&results->line, counts->against_parts, 1u);
+    mmgr_line_put(&results->line, " differ from their parts, ");
+    mmgr_line_decimal(&results->line, counts->against_constant, 1u);
+    mmgr_line_put(&results->line, " move under a constant; a bit past the width errored ");
+    mmgr_line_decimal(&results->line, counts->error, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, counts->over_width_requested, 1u);
+    mmgr_line_put(&results->line, ", ");
+    mmgr_line_decimal(&results->line, counts->after_error, 1u);
+    mmgr_line_put(&results->line, " lanes differ after it\n");
     sim_flush(results);
 }
 
@@ -481,7 +481,7 @@ int main(int count, char **arguments)
     const int passed = (admitted != 0) && planes_test_reserve(&device, &host);
     if (admitted != 0)
     {
-        sim_check(&results, passed, "the test's buffers are held on the host and the device");
+        sim_check(&results, passed, "the test's buffers are allocated on the host and the device");
     }
     if (passed)
     {

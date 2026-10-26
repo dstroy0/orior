@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // json_tree_write.c: a JSON tree written as serde_json writes it: on one line, or laid out a member or item to a line
-// with a number of spaces to each level, every object's keys in order where asked
+// with a number of spaces to each level, every object's keys in order where requested
 #include "json_tree.h"
 #include "text.h"
 
 // a byte JSON writes escaped, a quote, a backslash, a control, written so: 1, or 0 where the byte stands as it is
-static int json_letter_escaped(CliLine *out, unsigned char letter)
+static int json_letter_escaped(VerbaLinea *out, unsigned char letter)
 {
     static const char s_hex[17] = "0123456789abcdef";
     const char *const escape = (letter == '"')     ? "\\\""
@@ -19,22 +19,22 @@ static int json_letter_escaped(CliLine *out, unsigned char letter)
                                                    : NULL;
     if (escape != NULL)
     {
-        cli_line_text(out, escape);
+        mmgr_line_put(out, escape);
         return 1;
     }
     if (letter < 0x20u)
     {
-        cli_line_text(out, "\\u00");
-        cli_line_character(out, s_hex[letter >> 4u]);
-        cli_line_character(out, s_hex[letter & 0x0fu]);
+        mmgr_line_put(out, "\\u00");
+        mmgr_line_ch(out, s_hex[letter >> 4u]);
+        mmgr_line_ch(out, s_hex[letter & 0x0fu]);
         return 1;
     }
     return 0;
 }
 
-void cli_json_quoted(CliLine *out, const char *text, unsigned long long length)
+void cli_json_quoted(VerbaLinea *out, const char *text, unsigned long long length)
 {
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
     // each run of bytes that stand as they are is written in one piece; the quote, the backslash and the controls
     // are the bytes escaped
     unsigned long long run = 0ull;
@@ -45,12 +45,12 @@ void cli_json_quoted(CliLine *out, const char *text, unsigned long long length)
         {
             continue;
         }
-        cli_line_counted(out, text + run, at - run);
+        mmgr_line_put_n(out, text + run, at - run);
         (void)json_letter_escaped(out, letter);
         run = at + 1ull;
     }
-    cli_line_counted(out, text + run, length - run);
-    cli_line_character(out, '"');
+    mmgr_line_put_n(out, text + run, length - run);
+    mmgr_line_ch(out, '"');
 }
 
 // the bytes of the UTF-8 sequence that starts at `at`, or 0 where none whole and in its shortest form starts there
@@ -99,7 +99,7 @@ unsigned long long cli_lossy_letter(const unsigned char *text, unsigned long lon
     return bytes;
 }
 
-void cli_lossy(CliLine *out, const unsigned char *text, unsigned long long length)
+void cli_lossy(VerbaLinea *out, const unsigned char *text, unsigned long long length)
 {
     unsigned long long at = 0ull;
     while (at < length)
@@ -107,24 +107,24 @@ void cli_lossy(CliLine *out, const unsigned char *text, unsigned long long lengt
         const unsigned long long bytes = cli_sequence(text, length, at);
         if (bytes == 0ull)
         {
-            cli_line_text(out, "\xef\xbf\xbd");
+            mmgr_line_put(out, "\xef\xbf\xbd");
             at += 1ull;
             continue;
         }
         // a letter's bytes, each a char of the line
-        cli_line_counted(out, (const char *)(text + at), bytes);
+        mmgr_line_put_n(out, (const char *)(text + at), bytes);
         at += bytes;
     }
 }
 
-void cli_json_quoted_lossy(CliLine *out, const unsigned char *text, unsigned long long length)
+void cli_json_quoted_lossy(VerbaLinea *out, const unsigned char *text, unsigned long long length)
 {
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
     cli_json_escaped_lossy(out, text, length);
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
 }
 
-void cli_json_escaped_lossy(CliLine *out, const unsigned char *text, unsigned long long length)
+void cli_json_escaped_lossy(VerbaLinea *out, const unsigned char *text, unsigned long long length)
 {
     unsigned long long at = 0ull;
     while (at < length)
@@ -133,25 +133,25 @@ void cli_json_escaped_lossy(CliLine *out, const unsigned char *text, unsigned lo
         if (bytes == 0ull)
         {
             // a byte that starts no letter read as U+FFFD, as from_utf8_lossy reads it
-            cli_line_text(out, "\xef\xbf\xbd");
+            mmgr_line_put(out, "\xef\xbf\xbd");
             at += 1ull;
             continue;
         }
         if (!json_letter_escaped(out, text[at]))
         {
-            cli_line_counted(out, (const char *)text + at, bytes);
+            mmgr_line_put_n(out, (const char *)text + at, bytes);
         }
         at += bytes;
     }
 }
 
 // a line ended and the next begun `level` levels in, `indent` spaces to a level
-static void cli_line_begun(CliLine *out, unsigned int indent, unsigned int level)
+static void cli_line_begun(VerbaLinea *out, unsigned int indent, unsigned int level)
 {
-    cli_line_character(out, '\n');
+    mmgr_line_ch(out, '\n');
     for (unsigned long long space = 0ull; space < ((unsigned long long)indent * level); space += 1ull)
     {
-        cli_line_character(out, ' ');
+        mmgr_line_ch(out, ' ');
     }
 }
 
@@ -172,7 +172,7 @@ static unsigned int cli_next_sorted(const CliJson *json, unsigned int parent, un
     return found;
 }
 
-static void cli_written(const CliJson *json, unsigned int node, CliLine *out, unsigned int indent, int sorted,
+static void cli_written(const CliJson *json, unsigned int node, VerbaLinea *out, unsigned int indent, int sorted,
                         unsigned int level)
 {
     const CliJsonNode *const at = &json->node[node];
@@ -182,25 +182,25 @@ static void cli_written(const CliJson *json, unsigned int node, CliLine *out, un
         cli_json_quoted(out, json->text + at->text, at->length);
         return;
     case CFG_JSON_NUMBER:
-        cli_line_counted(out, json->text + at->text, at->length);
+        mmgr_line_put_n(out, json->text + at->text, at->length);
         return;
     case CFG_JSON_TRUE:
-        cli_line_text(out, "true");
+        mmgr_line_put(out, "true");
         return;
     case CFG_JSON_FALSE:
-        cli_line_text(out, "false");
+        mmgr_line_put(out, "false");
         return;
     case CFG_JSON_NULL:
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return;
     default:
         break;
     }
     const int object = at->kind == CFG_JSON_OBJECT;
-    cli_line_character(out, object ? '{' : '[');
+    mmgr_line_ch(out, object ? '{' : '[');
     if (at->first == CLI_JSON_NONE)
     {
-        cli_line_character(out, object ? '}' : ']');
+        mmgr_line_ch(out, object ? '}' : ']');
         return;
     }
     const int ordered = object && sorted;
@@ -210,7 +210,7 @@ static void cli_written(const CliJson *json, unsigned int node, CliLine *out, un
     {
         if (!first)
         {
-            cli_line_character(out, ',');
+            mmgr_line_ch(out, ',');
         }
         first = 0;
         if (indent != 0u)
@@ -221,7 +221,7 @@ static void cli_written(const CliJson *json, unsigned int node, CliLine *out, un
         {
             const char *const key = json->text + json->node[child].key;
             cli_json_quoted(out, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
-            cli_line_text(out, (indent != 0u) ? ": " : ":");
+            mmgr_line_put(out, (indent != 0u) ? ": " : ":");
         }
         cli_written(json, child, out, indent, sorted, level + 1u);
         child = ordered ? cli_next_sorted(json, node, child) : json->node[child].next;
@@ -230,10 +230,10 @@ static void cli_written(const CliJson *json, unsigned int node, CliLine *out, un
     {
         cli_line_begun(out, indent, level);
     }
-    cli_line_character(out, object ? '}' : ']');
+    mmgr_line_ch(out, object ? '}' : ']');
 }
 
-void cli_json_write(const CliJson *json, unsigned int node, CliLine *out, unsigned int indent, int sorted)
+void cli_json_write(const CliJson *json, unsigned int node, VerbaLinea *out, unsigned int indent, int sorted)
 {
     if (node != CLI_JSON_NONE)
     {

@@ -3,7 +3,7 @@
 #
 # The two commands that need a person. Everything else in this directory is keyless.
 #
-#     powershell -File maint\signing\sign.ps1
+#     powershell -File utils\maint\signing\sign.ps1
 #
 # WHAT THIS DOES AND WHAT IT ERRORS TO DO
 #
@@ -33,7 +33,7 @@ $key      = "E603975E472D00FE"
 if (-not (Test-Path $manifest))
 {
     Write-Output "  no manifest at $manifest"
-    Write-Output "  build one first:  python maint\signing\build_manifest.py"
+    Write-Output "  build one first:  python utils\maint\signing\build_manifest.py"
     exit 1
 }
 
@@ -51,7 +51,7 @@ if ($integrity -gt 2)
 {
     Write-Output ""
     Write-Output "  the manifest does not match the tree. Rebuild it before signing:"
-    Write-Output "      python maint\signing\build_manifest.py"
+    Write-Output "      python utils\maint\signing\build_manifest.py"
     exit 1
 }
 

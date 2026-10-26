@@ -19,9 +19,9 @@ void table_check(TableResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -220,11 +220,11 @@ void table_case(TableResults *results, const char *name, TableProgram *oracle, u
         table_check(results, memcmp(oracle_device, oracle_host, bytes) == 0, name);
         table_check(results, memcmp(table_device, oracle_device, bytes) == 0, name);
         table_check(results, memcmp(table_host, oracle_device, bytes) == 0, name);
-        scriptura_text(&results->line, "  ");
-        scriptura_text(&results->line, name);
-        scriptura_text(&results->line, ": the table reproduces the ops over ");
-        scriptura_decimal(&results->line, TABLE_TEST_LANES, 1u);
-        scriptura_text(&results->line, " lanes, device and host\n");
+        mmgr_line_put(&results->line, "  ");
+        mmgr_line_put(&results->line, name);
+        mmgr_line_put(&results->line, ": the table reproduces the ops over ");
+        mmgr_line_decimal(&results->line, TABLE_TEST_LANES, 1u);
+        mmgr_line_put(&results->line, " lanes, device and host\n");
     }
     free(values);
     free(atoms);

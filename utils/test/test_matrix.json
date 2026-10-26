@@ -11,6 +11,52 @@
         "src/cu/transpiler/lstar/interface"
       ]
     },
+    "chain": {
+      "desc": "The ladder's relations and the query protocol off the device: the gate, the order, the overseer, the scheduler, the file formats and the vendor's tables.",
+      "script": "utils/maint/engine/chain_check.sh",
+      "src": [
+        "+<cu/transpiler/lstar/protocol/*>",
+        "+<cu/transpiler/lstar/parser/*>",
+        "+<cu/transpiler/vendor_bin_layouts/nvidia/*>",
+        "+<cu/includes/file_defs/*>"
+      ],
+      "tests": [
+        "src/cu/transpiler/lstar/protocol",
+        "src/cu/transpiler/lstar/parser",
+        "src/cu/transpiler/vendor_bin_layouts/nvidia",
+        "src/cu/types/file_defs"
+      ]
+    },
+    "sha256": {
+      "desc": "sha256 against NIST's published SHA-256 vectors.",
+      "script": "utils/test/src/cu/includes/codecs/sha256/sha256_check.sh",
+      "src": [
+        "+<cu/includes/codecs/sha256/*>"
+      ],
+      "tests": [
+        "src/cu/includes/codecs/sha256"
+      ]
+    },
+    "ed25519": {
+      "desc": "SHA-512 against FIPS 180-4's examples and Ed25519 against RFC 8032's test vectors.",
+      "script": "utils/test/src/cu/includes/codecs/ed25519/ed25519_check.sh",
+      "src": [
+        "+<cu/includes/codecs/ed25519/*>"
+      ],
+      "tests": [
+        "src/cu/includes/codecs/ed25519"
+      ]
+    },
+    "ksg": {
+      "desc": "A file's seal against what ksg.h specifies.",
+      "script": "utils/test/src/cu/includes/file_defs/ksg/ksg_check.sh",
+      "src": [
+        "+<cu/includes/file_defs/ksg/*>"
+      ],
+      "tests": [
+        "src/cu/includes/file_defs/ksg"
+      ]
+    },
     "cli": {
       "desc": "orior's C side: the command line, the window's calls and every module under them.",
       "script": "utils/test/src/ui/cli/cli_test.sh",
@@ -60,44 +106,40 @@
     },
     "codegen_device": {
       "desc": "The compiler on the device held to the compiler on the host: layout, each language's instructions as the lane runs and scheduled into states, and the text, byte for byte; then the bootstrap in PTX, C and VHDL.",
-      "script": "utils/test/src/cu/transpiler/codegen/codegen_test.sh",
+      "script": "utils/test/src/cu/engine/rmc/codegen_test.sh",
       "src": [
         "+<cu/includes/types/integers/*>",
         "+<cu/includes/codecs/crc/*>",
-        "+<cu/transpiler/codegen/*>",
         "+<cu/includes/parsers/*>",
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/engine/rmc/*>"
       ],
       "tests": [
-        "src/cu/transpiler/codegen",
-        "src/cu/transpiler/codegen"
+        "src/cu/engine/rmc"
       ]
     },
     "web_check": {
       "desc": "The alphabet web and the word web read once each and held to what a tree is: a node reaches only nodes below it, a node's children are as many as its precept takes, and a leaf is an operand the word reads.",
-      "script": "utils/test/src/cu/transpiler/codegen/web_check.sh",
+      "script": "utils/test/src/cu/engine/rmc/web_check.sh",
       "src": [
-        "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>"
+        "+<cu/includes/parsers/*>",
+        "+<cu/engine/rmc/*>"
       ],
       "tests": [
-        "src/cu/transpiler/codegen",
-        "src/cu/transpiler/codegen"
+        "src/cu/engine/rmc"
       ]
     },
     "ruleset_read": {
       "desc": "Every ruleset read against its code generator's schema, and sass.krs's forms held to the machine code the cell's probes read back.",
-      "script": "utils/test/src/cu/transpiler/codegen/ruleset_read_test.sh",
+      "script": "utils/test/src/cu/engine/rmc/ruleset_read_test.sh",
       "src": [
-        "+<cu/transpiler/codegen/*>",
-        "+<cu/includes/parsers/*>"
+        "+<cu/includes/parsers/*>",
+        "+<cu/engine/rmc/*>"
       ],
       "tests": [
-        "src/cu/transpiler/codegen",
-        "src/cu/transpiler/codegen"
+        "src/cu/engine/rmc"
       ]
     },
     "daemon": {
@@ -105,8 +147,8 @@
       "script": "utils/test/src/cu/engine/runtime/daemon/run.sh",
       "src": [
         "+<cu/engine/runtime/obsignatio/*>",
-        "+<cu/engine/runtime/scriptura/*>",
-        "+<cu/engine/runtime/daemon/*>"
+        "+<cu/engine/runtime/daemon/*>",
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/daemon",
@@ -119,10 +161,20 @@
       "src": [
         "+<cu/includes/types/integers/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/device_pool"
+      ]
+    },
+    "spinlock_device": {
+      "desc": "embedded_types' spinlock on the GPU: one lock in global memory a grid contends for and one in shared memory each block contends for, every increment under it counted; and the host arm compiled as C++ beside the device arm.",
+      "script": "utils/test/src/cu/includes/embedded_types/spinlock_device_test.sh",
+      "src": [
+        "+<cu/includes/embedded_types/include/*>"
+      ],
+      "tests": [
+        "src/cu/includes/embedded_types"
       ]
     },
     "double_fields": {
@@ -136,19 +188,18 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/includes/types/integerfloats/double_fields"
       ]
     },
     "engine_c": {
-      "desc": "The C engine through its CMake, then its graders (test_steer, test_adversarial, test_arm_agreement and the benches), then test/python's host graders (exact_test, render_test, sift_test, shift_agreement_test) on what it built.",
+      "desc": "The C engine through its CMake, then its graders (test_steer, test_adversarial, test_arm_agreement and the benches) on what it built.",
       "script": "utils/maint/engine/build_engine.sh",
       "src": [],
       "tests": [
         "maint/engine",
-        "archive/src/python",
         "src/cu/engine/analysis/period",
         "src/cu/engine/analysis"
       ]
@@ -190,8 +241,8 @@
       "desc": "obsignatio, host and device.",
       "script": "utils/test/src/cu/engine/runtime/obsignatio/run.sh",
       "src": [
-        "+<cu/engine/runtime/scriptura/*>",
-        "+<cu/engine/runtime/obsignatio/*>"
+        "+<cu/engine/runtime/obsignatio/*>",
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/obsignatio",
@@ -205,50 +256,14 @@
         "+<cu/engine/analysis/period/*>",
         "+<cu/includes/types/integers/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/period"
       ]
     },
     
-    "python_period": {
-      "desc": "measure.period graded against period_read and period_draw, line for line: test/python/period_test.py over period_probe, a tessera job.",
-      "script": "archive/utils/test/src/python/engine/analysis/period/period_test.sh",
-      "src": [
-        "+<cu/engine/analysis/period/*>",
-        "+<cu/includes/types/integers/*>",
-        "+<python/*>",
-        "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/engine/runtime/scriptura/*>",
-        "+<sims/*>",
-        "+<sims/cu/*>",
-        "+<sims/*>"
-      ],
-      "tests": [
-        "archive/src/python",
-        "src/cu/engine/analysis/period",
-        "src/cu/engine/analysis"
-      ]
-    },
     
-    "python_periodic_energy": {
-      "desc": "measure.periodic_energy graded against src/sims/cu/engine/analysis/art/periodic_energy.h, line for line: test/python/periodic_energy_test.py over periodic_energy_probe, a tessera job.",
-      "script": "archive/utils/test/src/python/engine/analysis/periodic_energy_test.sh",
-      "src": [
-        "+<cu/includes/types/integers/*>",
-        "+<python/*>",
-        "+<cu/engine/runtime/scriptura/*>",
-        "+<sims/*>",
-        "+<sims/cu/*>",
-        "+<sims/*>"
-      ],
-      "tests": [
-        "archive/src/python",
-        "src/cu/engine/analysis/period",
-        "src/cu/engine/analysis"
-      ]
-    },
     "qasm": {
       "desc": "The QASM reader, exact field and runs.",
       "script": "examples/qasm/test/run.sh",
@@ -267,7 +282,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -288,7 +303,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -310,7 +325,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -332,7 +347,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -354,7 +369,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -376,7 +391,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -398,7 +413,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -421,7 +436,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -444,7 +459,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -467,7 +482,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -491,7 +506,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -509,7 +524,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -530,7 +545,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -552,7 +567,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -573,7 +588,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -595,7 +610,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -616,7 +631,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -638,7 +653,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -659,7 +674,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -679,7 +694,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -696,7 +711,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -717,7 +732,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -739,7 +754,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -760,7 +775,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -781,7 +796,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -803,7 +818,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -824,7 +839,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -846,7 +861,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -867,7 +882,7 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -891,7 +906,7 @@
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -900,7 +915,7 @@
       "env": {
         "CYCLE_RECORD_CHECK": "1",
         "CYCLE_RECORD_REPORT": "1",
-        "CYCLE_RECORD_KEEP_PTX": "1"
+        "CYCLE_RECORD_RETAIN_PTX": "1"
       }
     },
     "record_tower_c": {
@@ -915,7 +930,7 @@
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
         "+<cu/engine/runtime/device_pool/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -940,7 +955,7 @@
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
         "+<cu/includes/file_defs/krep/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/cycle",
@@ -960,15 +975,15 @@
         "+<cu/engine/analysis/cycle/*>",
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/residual"
       ]
     },
-    "shift_agreement_hold": {
+    "shift_agreement_reserve": {
       "desc": "Shift agreement held.",
-      "script": "utils/test/src/cu/engine/analysis/shift_agreement/shift_agreement_hold_test.sh",
+      "script": "utils/test/src/cu/engine/analysis/shift_agreement/shift_agreement_reserve_test.sh",
       "src": [
         "+<cu/engine/analysis/shift_agreement/*>",
         "+<cu/engine/runtime/device_pool/*>"
@@ -983,7 +998,7 @@
       "src": [
         "+<cu/includes/types/integers/*>",
         "+<cu/engine/runtime/daemon/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/runtime/daemon",
@@ -1007,7 +1022,7 @@
       "src": [
         "+<cu/engine/analysis/unit_sweep/*>",
         "+<cu/includes/types/integers/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/engine/analysis/unit_sweep"
@@ -1026,7 +1041,7 @@
         "+<cu/engine/analysis/key_schedule/*>",
         "+<cu/engine/analysis/keymath/*>",
         "+<cu/includes/file_defs/krep/*>",
-        "+<cu/engine/runtime/scriptura/*>"
+        "+<cu/includes/mmgr/src/verba_scribo/*>"
       ],
       "tests": [
         "src/cu/transpiler/codegen",

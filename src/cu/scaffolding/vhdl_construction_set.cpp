@@ -6,11 +6,11 @@
 // its registers and whose outputs take them, synthesized by GHDL and Yosys, and its cost the longest path from the
 // ports to the registers in Yosys's generic cells (ltp -noff). A register parameter is tried as a word and as a wide
 // word until GHDL analyzes the form; a predicate is a boolean and a count or an offset the integer 7. A form that
-// names what no form alone holds (the lane's opening and close, its states, its memory) is not measured, and costs
+// names what no form alone contains (the lane's opening and close, its states, its memory) is not measured, and costs
 // what the lane's schedule model gives a form it does not name. The set is written as a krep KCS file and read back
 // whole, and the file is removed where the two differ.
-#include "crc.h"
 #include "../includes/file_defs/krep/krep.h"
+#include "crc.h"
 #include "vhdl_target.h"
 #include "yosys_script.h"
 
@@ -58,7 +58,7 @@ static std::vector<ConstructionForm> construction_forms(const std::string &path)
         {
             continue;
         }
-        // the program resident is an entity of its own around the lane, not a form a state holds
+        // the program resident is an entity of its own around the lane, not a form a state contains
         if (line.compare(0u, 18u, "form program_unit ") == 0)
         {
             continue;
@@ -100,16 +100,18 @@ static ConstructionKind construction_kind(const std::string &parameter)
 {
     static const char *const predicates[] = {"where", "also"};
     static const char *const integers[] = {"bits", "offset", "at", "count", "state", "error"};
+    // a parameter the form takes and does not write, its name opening with an underscore, is of its name's kind
+    const std::string named = (!parameter.empty() && (parameter[0] == '_')) ? parameter.substr(1u) : parameter;
     for (const char *const name : predicates)
     {
-        if (parameter == name)
+        if (named == name)
         {
             return CONSTRUCTION_BOOLEAN;
         }
     }
     for (const char *const name : integers)
     {
-        if (parameter == name)
+        if (named == name)
         {
             return CONSTRUCTION_INTEGER;
         }
@@ -128,7 +130,7 @@ static int construction_write(const std::string &path, const std::string &text)
     return (fclose(file) == 0) && written;
 }
 
-// the number after `label` on the first line of `path` that holds it, and 1 where a line holds it
+// the number after `label` on the first line of `path` that contains it, and 1 where a line contains it
 static int construction_after(const std::string &path, const char *label, unsigned long long *number)
 {
     FILE *const file = fopen(path.c_str(), "rb");
@@ -149,7 +151,7 @@ static int construction_after(const std::string &path, const char *label, unsign
 }
 
 // the form alone in a clocked entity: each parameter a variable given by a port at the clock and taken by a port
-// after the form; the package the lane's opening holds comes first
+// after the form; the package the lane's opening contains comes first
 static std::string construction_entity(const std::string &package, const std::string &form,
                                        const std::vector<std::string> &types)
 {
@@ -189,7 +191,7 @@ static std::string construction_entity(const std::string &package, const std::st
 }
 
 // the form's cost measured in `work`: each binding of its registers to words and wide words tried until GHDL analyzes
-// the form alone, which is then synthesized; 1 and the cost where one binding holds
+// the form alone, which is then synthesized; 1 and the cost where one binding succeeds
 static int construction_measure(const Ruleset *rules, const std::string &package, const std::string &work,
                                 const ConstructionForm &form, unsigned long long *cost)
 {
@@ -268,7 +270,7 @@ int main(int argc, char **argv)
     }
     if (forms.empty())
     {
-        fprintf(stderr, "  vhdl construction set: %s holds no form\n", argv[2]);
+        fprintf(stderr, "  vhdl construction set: %s contains no form\n", argv[2]);
         return 1;
     }
     if (!ruleset_opcode(rules, "lane_open", {}, none, package))
@@ -278,7 +280,7 @@ int main(int argc, char **argv)
     }
     if (package.find(package_end) == std::string::npos)
     {
-        fprintf(stderr, "  vhdl construction set: lane_open holds no package body\n");
+        fprintf(stderr, "  vhdl construction set: lane_open contains no package body\n");
         return 1;
     }
     package = package.substr(0u, package.find(package_end) + package_end.size());

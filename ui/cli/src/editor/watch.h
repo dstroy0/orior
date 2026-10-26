@@ -3,12 +3,12 @@
 // watch.h: changes to the tree's files made outside the window, gathered in batches for the window to take: the
 // folders whose entries changed, the files whose text did, and whether git's view did.
 //
-// On Windows the system tells of each change as it is made, through ReadDirectoryChangesW over the whole tree.
-// Elsewhere, and where the system cannot watch the tree, the files git tracks or would track, and the folders holding
-// them, are read every two seconds and set against the last reading. A batch goes once 150 ms pass with no change, or
-// once a second passes from its first.
+// On Windows the system reports each change as it is made, through ReadDirectoryChangesW over the whole tree.
+// Elsewhere, and where the system cannot watch the tree, the files git tracks or would track, and the folders
+// containing them, are read every two seconds and set against the last reading. A batch goes once 150 ms pass with no
+// change, or once a second passes from its first.
 //
-// Of git's own folder only its index, HEAD and refs count, and a change to them says git's view changed. A change the
+// Of git's own folder only its index, HEAD and refs count, and a change to them means git's view changed. A change the
 // watching's patterns hide is left out (watch.c, watch_read.c)
 #ifndef WATCH_H
 #define WATCH_H

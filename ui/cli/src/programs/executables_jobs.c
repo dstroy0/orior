@@ -9,7 +9,7 @@ static const char s_this_machine[] = "this machine";
 
 static const char s_as_go_chooses[] = "as Go chooses";
 
-// the targets a Rust binary can be built for, by Rust's own names: the musl ones link as a whole file that asks for
+// the targets a Rust binary can be built for, by Rust's own names: the musl ones link as a whole file that requires
 // no glibc
 static const char *const s_rust_targets[8] = {
     s_this_machine,           "x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "x86_64-unknown-linux-gnu",
@@ -17,17 +17,17 @@ static const char *const s_rust_targets[8] = {
 
 void cli_program_file(const char *name, char *out)
 {
-    CliLine line = {out, CLI_NAME_LONGEST, 0ull};
-    cli_line_text(&line, name);
+    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put(&line, name);
 #if defined(_WIN32)
-    cli_line_text(&line, ".exe");
+    mmgr_line_put(&line, ".exe");
 #endif
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 void cli_folder_of(const char *root, const char *script, char *out)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(script, folder))
     {
         memor.cpy(&(MemoriaCfg){.dst = folder,
@@ -44,18 +44,18 @@ void cli_folder_of(const char *root, const char *script, char *out)
 
 void cli_build_folder(const char *root, const char *script, const char *tool, char *out)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     cli_folder_of(root, script, folder);
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, "build/");
-    cli_line_text(&line, tool);
-    cli_line_character(&line, '/');
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, "build/");
+    mmgr_line_put(&line, tool);
+    mmgr_line_ch(&line, '/');
     if (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = ".", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(&line, folder);
-        cli_line_character(&line, '/');
+        mmgr_line_put(&line, folder);
+        mmgr_line_ch(&line, '/');
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 void cli_go_host(const char **system, const char **processor)
@@ -87,7 +87,7 @@ const char *cli_first(const CliValues *values, const char *key, const char *fall
 }
 
 // Zig's name for a system and processor, as `zig cc -target` takes it, from Go's names or Rust's target, into `out`,
-// which holds CLI_NAME_LONGEST: 1, or 0 where Zig has none
+// sized for CLI_NAME_MAX_LEN: 1, or 0 where Zig has none
 static int cli_zig_target(const char *system, const char *processor, char *out)
 {
     const char *const zig_processor =
@@ -109,42 +109,42 @@ static int cli_zig_target(const char *system, const char *processor, char *out)
     {
         return 0;
     }
-    CliLine line = {out, CLI_NAME_LONGEST, 0ull};
-    cli_line_text(&line, zig_processor);
-    cli_line_character(&line, '-');
-    cli_line_text(&line, zig_system);
-    return cli_line_closed(&line) != 0ull;
+    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put(&line, zig_processor);
+    mmgr_line_ch(&line, '-');
+    mmgr_line_put(&line, zig_system);
+    return mmgr_line_finish(&line) != 0ull;
 }
 
-// `zig cc` or `zig c++` for a Zig target, as a variable of the environment holds it, into `out`
+// `zig cc` or `zig c++` for a Zig target, as a variable of the environment stores it, into `out`
 static void cli_zig_command(const char *zig, const char *language, const char *target, char *out,
                             unsigned long long room)
 {
-    CliLine line = {out, room, 0ull};
-    cli_line_text(&line, zig);
-    cli_line_character(&line, ' ');
-    cli_line_text(&line, language);
-    cli_line_text(&line, " -target ");
-    cli_line_text(&line, target);
-    cli_line_closed(&line);
+    VerbaLinea line = {out, room, 0ull};
+    mmgr_line_put(&line, zig);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_put(&line, language);
+    mmgr_line_put(&line, " -target ");
+    mmgr_line_put(&line, target);
+    mmgr_line_finish(&line);
 }
 
 void cli_executables_cross_env(const char *kind, const CliValues *values,
                                void (*each)(void *context, const char *name, const char *value), void *context)
 {
-    char zig[CLI_PATH_LONGEST + 2u];
-    char found[CLI_PATH_LONGEST];
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int has_zig = cli_executables_program("zig", "zig", found, &said);
-    CliLine quoted = {zig, sizeof(zig), 0ull};
+    char zig[CLI_PATH_MAX_LEN + 2u];
+    char found[CLI_PATH_MAX_LEN];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int has_zig = cli_executables_program("zig", "zig", found, &err_msg);
+    VerbaLinea quoted = {zig, sizeof(zig), 0ull};
     const int spaced = cellul.chr(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL, .byte = ' '}) != NULL;
-    cli_line_text(&quoted, (has_zig && spaced) ? "\"" : "");
-    cli_line_text(&quoted, has_zig ? found : "");
-    cli_line_text(&quoted, (has_zig && spaced) ? "\"" : "");
-    cli_line_closed(&quoted);
-    char target[CLI_NAME_LONGEST];
-    char command[CLI_PATH_LONGEST + CLI_NAME_LONGEST];
+    mmgr_line_put(&quoted, (has_zig && spaced) ? "\"" : "");
+    mmgr_line_put(&quoted, has_zig ? found : "");
+    mmgr_line_put(&quoted, (has_zig && spaced) ? "\"" : "");
+    mmgr_line_finish(&quoted);
+    char target[CLI_NAME_MAX_LEN];
+    char command[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
     if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "go", .cap = CLI_CELLS_POOL}))
     {
         const char *host_system = NULL;
@@ -176,8 +176,8 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
         return;
     }
     // the target's variables' names: the target in upper case, `_` for each `-`
-    char upper[CLI_NAME_LONGEST];
-    char lower[CLI_NAME_LONGEST];
+    char upper[CLI_NAME_MAX_LEN];
+    char lower[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = upper, .src = rust, .bytes = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL}) + 1u});
     memor.cpy(&(MemoriaCfg){
@@ -189,14 +189,14 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
                         : (((upper[at] >= 'a') && (upper[at] <= 'z')) ? (char)(upper[at] - 32) : upper[at]);
         lower[at] = (lower[at] == '-') ? '_' : lower[at];
     }
-    char linker[CLI_NAME_LONGEST * 2u];
-    CliLine named = {linker, sizeof(linker), 0ull};
-    cli_line_text(&named, "CARGO_TARGET_");
-    cli_line_text(&named, upper);
-    cli_line_text(&named, "_LINKER");
-    cli_line_closed(&named);
+    char linker[CLI_NAME_MAX_LEN * 2u];
+    VerbaLinea named = {linker, sizeof(linker), 0ull};
+    mmgr_line_put(&named, "CARGO_TARGET_");
+    mmgr_line_put(&named, upper);
+    mmgr_line_put(&named, "_LINKER");
+    mmgr_line_finish(&named);
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL});
-    char set[CLI_PATH_LONGEST];
+    char set[CLI_PATH_MAX_LEN];
 #if defined(__linux__)
     const int on_linux = 1;
 #else
@@ -208,11 +208,11 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
     {
         each(context, linker, "rust-lld");
     }
-    char processor[CLI_NAME_LONGEST];
+    char processor[CLI_NAME_MAX_LEN];
     const char *const dash = cellul.chr(&(CatenaFinitaCfg){.src = rust, .cap = CLI_CELLS_POOL, .byte = '-'});
-    CliLine part = {processor, sizeof(processor), 0ull};
-    cli_line_counted(&part, rust, (dash != NULL) ? (unsigned long long)(dash - rust) : length);
-    cli_line_closed(&part);
+    VerbaLinea part = {processor, sizeof(processor), 0ull};
+    mmgr_line_put_n(&part, rust, (dash != NULL) ? (unsigned long long)(dash - rust) : length);
+    mmgr_line_finish(&part);
     const char *const system =
         (cellul.find(&(CatenaFinitaCfg){
              .src = rust, .cap = CLI_CELLS_POOL, .other = "linux", .other_cap = CLI_CELLS_POOL}) != NULL)
@@ -226,11 +226,11 @@ void cli_executables_cross_env(const char *kind, const CliValues *values,
             : "";
     if (has_zig && cli_zig_target(system, processor, target))
     {
-        char compiler[CLI_NAME_LONGEST * 2u];
-        CliLine name = {compiler, sizeof(compiler), 0ull};
-        cli_line_text(&name, "CC_");
-        cli_line_text(&name, lower);
-        cli_line_closed(&name);
+        char compiler[CLI_NAME_MAX_LEN * 2u];
+        VerbaLinea name = {compiler, sizeof(compiler), 0ull};
+        mmgr_line_put(&name, "CC_");
+        mmgr_line_put(&name, lower);
+        mmgr_line_finish(&name);
         cli_zig_command(zig, "cc", target, command, sizeof(command));
         each(context, compiler, command);
     }
@@ -331,11 +331,11 @@ void cli_executables_jobs(const char *root, CliCatalog *catalog)
                          ? 1u
                          : 0u;
         }
-        char title[CLI_PATH_LONGEST];
-        CliLine line = {title, sizeof(title), 0ull};
+        char title[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {title, sizeof(title), 0ull};
         if (named > 1u)
         {
-            char folder[CLI_PATH_LONGEST];
+            char folder[CLI_PATH_MAX_LEN];
             const char *base = "";
             if (cli_path_parent(exe->script, folder))
             {
@@ -345,11 +345,11 @@ void cli_executables_jobs(const char *root, CliCatalog *catalog)
                     base = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : base;
                 }
             }
-            cli_line_text(&line, base);
-            cli_line_character(&line, '/');
+            mmgr_line_put(&line, base);
+            mmgr_line_ch(&line, '/');
         }
-        cli_line_text(&line, exe->name);
-        cli_line_closed(&line);
+        mmgr_line_put(&line, exe->name);
+        mmgr_line_finish(&line);
         if (cli_executables_job_begun(root, exe, title, catalog))
         {
             cli_kind_params(exe, catalog);

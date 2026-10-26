@@ -1,23 +1,23 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // builds_near.c: the names nearest one that is not known, by the fewest edits of one letter that turn one into the
-// other, near enough to be what was meant, the three nearest kept, each once. A name of more than
-// CLI_BUILD_NEAR_LONGEST letters is near none
+// other, near enough to be what was meant, the three nearest retained, each once. A name of more than
+// CLI_BUILD_NEAR_MAX_LEN letters is near none
 #include "../text/text.h"
 #include "builds.h"
 
 // the most letters of a name measured against another
-#define CLI_BUILD_NEAR_LONGEST 1024u
+#define CLI_BUILD_NEAR_MAX_LEN 1024u
 
 unsigned long long cli_build_distance(const char *a, unsigned long long a_size, const char *b,
                                       unsigned long long b_size)
 {
-    unsigned int letters[CLI_BUILD_NEAR_LONGEST];
-    unsigned long long row[CLI_BUILD_NEAR_LONGEST + 1u];
+    unsigned int letters[CLI_BUILD_NEAR_MAX_LEN];
+    unsigned long long row[CLI_BUILD_NEAR_MAX_LEN + 1u];
     unsigned int count = 0u;
     for (unsigned long long at = 0ull; at < b_size; count += 1u)
     {
-        if (count == CLI_BUILD_NEAR_LONGEST)
+        if (count == CLI_BUILD_NEAR_MAX_LEN)
         {
             return ~0ull;
         }
@@ -101,8 +101,8 @@ void cli_build_near_offered(CliBuildNear *near, const char *one, unsigned long l
     {
         return;
     }
-    const unsigned int kept = (near->count < 3u) ? near->count + 1u : 3u;
-    for (unsigned int at = kept - 1u; at > place; at -= 1u)
+    const unsigned int count = (near->count < 3u) ? near->count + 1u : 3u;
+    for (unsigned int at = count - 1u; at > place; at -= 1u)
     {
         near->near[at] = near->near[at - 1u];
         near->near_size[at] = near->near_size[at - 1u];
@@ -111,5 +111,5 @@ void cli_build_near_offered(CliBuildNear *near, const char *one, unsigned long l
     near->near[place] = one;
     near->near_size[place] = size;
     near->far[place] = far;
-    near->count = kept;
+    near->count = count;
 }

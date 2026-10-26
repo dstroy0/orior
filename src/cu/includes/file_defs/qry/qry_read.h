@@ -11,13 +11,14 @@ extern "C"
 {
 #endif
 
-    // The record at `*at` of the `size` bytes at `bytes`, held whole and to its CRC: the record where it lies in
+    // The record at `*at` of the `size` bytes at `bytes`, checked whole and against its CRC: the record where it lies
+    // in
     // `*record`, its name after its head and its blob after its name, and `*at` moved past it. 1, or 0 where no
-    // record stands at `*at` or its bytes do not hold to their CRC
+    // record stands at `*at` or its bytes do not match their CRC
     int qry_record_read(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
                         const QryRecord **record);
 
-    // the CRC-64/XZ of the `size` bytes at `bytes`, as a record's last word holds it of every byte before it
+    // the CRC-64/XZ of the `size` bytes at `bytes`, as a record's last word stores it of every byte before it
     unsigned long long qry_record_crc(const unsigned char *bytes, unsigned long long size);
 
 #ifdef __cplusplus

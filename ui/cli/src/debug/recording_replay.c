@@ -1,28 +1,28 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // recording_replay.c: where the replay goes and what it stops at: a step forward or back, a stop at a breakpoint or a
-// raise, a frame's last step, the stop told, the paths it compares, and a frame as a stack frame
+// raise, a frame's last step, the stop reported, the paths it compares, and a frame as a stack frame
 #include "recording_internal.h"
 
 // a path of the tree as the replay compares it: whole, with one kind of slash, and without case on Windows, into `key`
 void cli_replay_key(const char *path, char *key)
 {
-    CliLine out = {key, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea out = {key, CLI_PATH_MAX_LEN, 0ull};
     for (const char *letter = path; *letter != '\0'; letter += 1)
     {
         char one = (*letter == '\\') ? '/' : *letter;
 #if defined(_WIN32)
         one = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
 #endif
-        cli_line_character(&out, one);
+        mmgr_line_ch(&out, one);
     }
-    cli_line_closed(&out);
+    mmgr_line_finish(&out);
 }
 
 // the full path of the file at tree path `relative`, joined a part at a time, into `full`
 void cli_replay_full(const char *relative, char *full)
 {
-    char joined[CLI_PATH_LONGEST];
+    char joined[CLI_PATH_MAX_LEN];
     memor.cpy(
         &(MemoriaCfg){.dst = full,
                       .src = g_cli_replay->root,
@@ -34,12 +34,12 @@ void cli_replay_full(const char *relative, char *full)
                                               : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
         if (length > 0u)
         {
-            char one[CLI_PATH_LONGEST];
-            CliLine line = {one, sizeof(one), 0ull};
-            cli_line_counted(&line, part, length);
-            cli_line_closed(&line);
+            char one[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {one, sizeof(one), 0ull};
+            mmgr_line_put_n(&line, part, length);
+            mmgr_line_finish(&line);
             cli_full(full, one, joined);
-            memor.cpy(&(MemoriaCfg){.dst = full, .src = joined, .bytes = CLI_PATH_LONGEST});
+            memor.cpy(&(MemoriaCfg){.dst = full, .src = joined, .bytes = CLI_PATH_MAX_LEN});
         }
         part += length + ((slash != NULL) ? 1u : 0u);
     }
@@ -96,8 +96,8 @@ unsigned int cli_recording_last_of(unsigned int serial, unsigned int at)
 
 int cli_replay_at_breakpoint(unsigned int step)
 {
-    char full[CLI_PATH_LONGEST];
-    char key[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
+    char key[CLI_PATH_MAX_LEN];
     cli_replay_full(cli_replay_file_of(g_cli_replay->recording.steps[step].frame), full);
     cli_replay_key(full, key);
     for (unsigned int file = 0u; file < g_cli_replay->break_file_count; file += 1u)
@@ -185,54 +185,54 @@ const char *cli_replay_go(const char *how, unsigned int *step)
     return forward ? "end" : "start";
 }
 
-void cli_replay_stopped_told(CliDap *dap, const char *reason)
+void cli_replay_stopped_sent(CliDap *dap, const char *reason)
 {
-    char told[1024];
-    CliLine out = {told, sizeof(told), 0ull};
+    char out_buf[1024];
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
     const int bound = (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "end", .cap = CLI_CELLS_POOL})) ||
                       (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "start", .cap = CLI_CELLS_POOL}));
-    cli_line_text(&out, "{\"type\":\"event\",\"event\":\"stopped\",\"body\":{\"reason\":\"");
-    cli_line_text(&out, bound ? "step" : reason);
-    cli_line_text(&out, "\",\"description\":\"");
+    mmgr_line_put(&out, "{\"type\":\"event\",\"event\":\"stopped\",\"body\":{\"reason\":\"");
+    mmgr_line_put(&out, bound ? "step" : reason);
+    mmgr_line_put(&out, "\",\"description\":\"");
     if (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "end", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(&out, "the end of the recording");
+        mmgr_line_put(&out, "the end of the recording");
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "start", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(&out, "the start of the recording");
+        mmgr_line_put(&out, "the start of the recording");
     }
     else
     {
-        cli_line_text(&out, "step ");
-        cli_line_decimal(&out, (unsigned long long)g_cli_replay->at + 1ull, 1u);
-        cli_line_text(&out, " of ");
-        cli_line_decimal(&out, g_cli_replay->recording.step_count, 1u);
+        mmgr_line_put(&out, "step ");
+        mmgr_line_decimal(&out, (unsigned long long)g_cli_replay->at + 1ull, 1u);
+        mmgr_line_put(&out, " of ");
+        mmgr_line_decimal(&out, g_cli_replay->recording.step_count, 1u);
     }
-    cli_line_text(&out, "\",\"threadId\":");
-    cli_line_decimal(&out, cli_replay_thread(), 1u);
-    cli_line_text(&out, ",\"allThreadsStopped\":true}}");
-    (void)cli_dap_told(dap, out.out, out.at);
+    mmgr_line_put(&out, "\",\"threadId\":");
+    mmgr_line_decimal(&out, cli_replay_thread(), 1u);
+    mmgr_line_put(&out, ",\"allThreadsStopped\":true}}");
+    (void)cli_dap_send(dap, out.out, out.at);
 }
 
 // a frame written as a stack frame, its line the step's, its source its file
-void cli_replay_frame_written(CliLine *out, unsigned int serial, unsigned int step)
+void cli_replay_frame_written(VerbaLinea *out, unsigned int serial, unsigned int step)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
     const CliRecordedFrame *const frame = &recording->frames[serial];
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     // a frame the recording did not see reads as one of file 0, as a frame made empty does
     cli_replay_full((frame->file < recording->file_count) ? cli_recording_name(recording->files[frame->file]) : "",
                     full);
     const char *const name = frame->seen ? cli_recording_name(frame->name) : "";
-    cli_line_text(out, "{\"id\":");
-    cli_line_decimal(out, serial, 1u);
-    cli_line_text(out, ",\"name\":");
+    mmgr_line_put(out, "{\"id\":");
+    mmgr_line_decimal(out, serial, 1u);
+    mmgr_line_put(out, ",\"name\":");
     cli_json_quoted_lossy(out, (const unsigned char *)name,
                           cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"line\":");
-    cli_line_decimal(out, recording->steps[step].line, 1u);
-    cli_line_text(out, ",\"column\":1,\"source\":{\"name\":");
+    mmgr_line_put(out, ",\"line\":");
+    mmgr_line_decimal(out, recording->steps[step].line, 1u);
+    mmgr_line_put(out, ",\"column\":1,\"source\":{\"name\":");
     size_t end = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL});
     size_t start = end;
     while ((start > 0u) && (full[start - 1u] != '/') && (full[start - 1u] != '\\'))
@@ -241,16 +241,16 @@ void cli_replay_frame_written(CliLine *out, unsigned int serial, unsigned int st
     }
     if (start == end)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
     else
     {
         cli_json_quoted_lossy(out, (const unsigned char *)full + start, end - start);
     }
-    cli_line_text(out, ",\"path\":");
+    mmgr_line_put(out, ",\"path\":");
     cli_json_quoted_lossy(out, (const unsigned char *)full,
                           cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, "}}");
+    mmgr_line_put(out, "}}");
 }
 
 // the frames standing at a step, each its number and the step of its line then

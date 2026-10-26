@@ -60,16 +60,16 @@ static const char *const *cli_starts(const char *extension)
 int cli_prints_line(const char *path, const char *text, unsigned long long length)
 {
     // the extension after the path's last dot, in lower case
-    char extension[CLI_NAME_LONGEST];
+    char extension[CLI_NAME_MAX_LEN];
     const char *const dot =
         cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '.');
-    unsigned int kept = 0u;
-    for (const char *at = (dot != NULL) ? (dot + 1) : ""; (at[0] != '\0') && (kept < (CLI_NAME_LONGEST - 1u)); at += 1)
+    unsigned int count = 0u;
+    for (const char *at = (dot != NULL) ? (dot + 1) : ""; (at[0] != '\0') && (count < (CLI_NAME_MAX_LEN - 1u)); at += 1)
     {
-        extension[kept] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-        kept += 1u;
+        extension[count] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
+        count += 1u;
     }
-    extension[kept] = '\0';
+    extension[count] = '\0';
     // the line with the whitespace at its start left off
     unsigned long long from = 0ull;
     while (from < length)
@@ -130,7 +130,7 @@ static CliPrints *s_prints;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // `length` bytes put in the texts, a 0 after them: their place, or the texts' end where they do not fit
-static unsigned int cli_kept(const char *from, unsigned long long length)
+static unsigned int cli_text_stored(const char *from, unsigned long long length)
 {
     if ((s_prints->used + length + 1ull) > CLI_PRINTS_TEXT)
     {
@@ -139,7 +139,7 @@ static unsigned int cli_kept(const char *from, unsigned long long length)
     const unsigned int at = s_prints->used;
     memor.cpy(&(MemoriaCfg){.dst = s_prints->text + at, .src = from, .bytes = length});
     s_prints->text[at + length] = '\0';
-    // the texts are below CLI_PRINTS_TEXT bytes, which an unsigned int holds
+    // the texts are below CLI_PRINTS_TEXT bytes, which an unsigned int stores
     s_prints->used += (unsigned int)length + 1u;
     return at;
 }
@@ -148,21 +148,22 @@ static unsigned int cli_kept(const char *from, unsigned long long length)
 static void cli_print_put(const char *at, const char *path, unsigned long long path_length, unsigned int line,
                           const char *text, unsigned long long size)
 {
-    char whole[CLI_PATH_LONGEST];
-    CliLine named = {whole, sizeof(whole), 0ull};
-    cli_line_text(&named, at);
-    cli_line_counted(&named, path, path_length);
-    if ((cli_line_closed(&named) == 0ull) || (s_prints->count >= CLI_PRINTS_MOST))
+    char whole[CLI_PATH_MAX_LEN];
+    VerbaLinea named = {whole, sizeof(whole), 0ull};
+    mmgr_line_put(&named, at);
+    mmgr_line_put_n(&named, path, path_length);
+    if ((mmgr_line_finish(&named) == 0ull) || (s_prints->count >= CLI_PRINTS_MOST))
     {
         return;
     }
-    const unsigned int kept_path = cli_kept(whole, cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}));
-    const unsigned int kept_text = cli_kept(text, size);
-    if ((kept_path == CLI_PRINTS_TEXT) || (kept_text == CLI_PRINTS_TEXT))
+    const unsigned int stored_path =
+        cli_text_stored(whole, cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}));
+    const unsigned int stored_text = cli_text_stored(text, size);
+    if ((stored_path == CLI_PRINTS_TEXT) || (stored_text == CLI_PRINTS_TEXT))
     {
         return;
     }
-    s_prints->item[s_prints->count] = (CliPrint){kept_path, kept_text, size, line};
+    s_prints->item[s_prints->count] = (CliPrint){stored_path, stored_text, size, line};
     s_prints->count += 1u;
 }
 
@@ -170,7 +171,7 @@ static void cli_print_put(const char *at, const char *path, unsigned long long p
 // stands, from 0, and its text, put among those found with `at` before their paths
 static void cli_put_in(const char *at, const char *diff, unsigned long long size)
 {
-    char path[CLI_PATH_LONGEST] = "";
+    char path[CLI_PATH_MAX_LEN] = "";
     unsigned int line = 0u;
     unsigned long long from = 0ull;
     while (from < size)
@@ -191,9 +192,10 @@ static void cli_put_in(const char *at, const char *diff, unsigned long long size
                 ((length >= 6ull) && (memor.cmp(&(MemoriaCfg){.src = row + 4, .other = "b/", .bytes = 2u}) == 0))
                     ? 6ull
                     : 4ull;
-            const unsigned long long kept = ((length - skip) < (CLI_PATH_LONGEST - 1ull)) ? (length - skip) : 0ull;
-            memor.cpy(&(MemoriaCfg){.dst = path, .src = row + skip, .bytes = kept});
-            path[kept] = '\0';
+            const unsigned long long copied_len =
+                ((length - skip) < (CLI_PATH_MAX_LEN - 1ull)) ? (length - skip) : 0ull;
+            memor.cpy(&(MemoriaCfg){.dst = path, .src = row + skip, .bytes = copied_len});
+            path[copied_len] = '\0';
         }
         else if ((length >= 3ull) && (memor.cmp(&(MemoriaCfg){.src = row, .other = "@@ ", .bytes = 3u}) == 0))
         {
@@ -237,10 +239,10 @@ static void cli_put_in(const char *at, const char *diff, unsigned long long size
 // the prints of a file new to git, read whole as UTF-8
 static void cli_new_read(const char *root, const char *path)
 {
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     cli_full(root, path, full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(full, &size);
+    const unsigned char *const bytes = cli_file_read(full, &size);
     if (bytes == NULL)
     {
         return;
@@ -286,21 +288,21 @@ static int cli_print_before(const CliPrint *one, const CliPrint *other)
     return (order < 0) || ((order == 0) && (one->line < other->line));
 }
 
-// the prints found, sorted by path, then line, each kept once, written as `[{"path", "line", "text"}]`
-static void cli_prints_written(CliLine *out)
+// the prints found, sorted by path, then line, each listed once, written as `[{"path", "line", "text"}]`
+static void cli_prints_written(VerbaLinea *out)
 {
     for (unsigned int at = 1u; at < s_prints->count; at += 1u)
     {
-        const CliPrint held = s_prints->item[at];
+        const CliPrint pivot = s_prints->item[at];
         unsigned int place = at;
-        while ((place > 0u) && cli_print_before(&held, &s_prints->item[place - 1u]))
+        while ((place > 0u) && cli_print_before(&pivot, &s_prints->item[place - 1u]))
         {
             s_prints->item[place] = s_prints->item[place - 1u];
             place -= 1u;
         }
-        s_prints->item[place] = held;
+        s_prints->item[place] = pivot;
     }
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < s_prints->count; at += 1u)
     {
@@ -315,27 +317,27 @@ static void cli_prints_written(CliLine *out)
             continue;
         }
         const char *const path = s_prints->text + one->path;
-        cli_line_text(out, (written != 0u) ? ",{\"path\":" : "{\"path\":");
+        mmgr_line_put(out, (written != 0u) ? ",{\"path\":" : "{\"path\":");
         cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"line\":");
-        cli_line_decimal(out, one->line, 0u);
-        cli_line_text(out, ",\"text\":");
+        mmgr_line_put(out, ",\"line\":");
+        mmgr_line_decimal(out, one->line, 0u);
+        mmgr_line_put(out, ",\"text\":");
         cli_json_quoted_lossy(out, (const unsigned char *)(s_prints->text + one->text), one->size);
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
         written += 1u;
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
-// the lock taken and the prints' room a cell under it: 1, or 0 with why said and the lock given back
-static int prints_held(CliLine *said)
+// the lock taken and the prints' room a cell under it: 1, or 0 with why given and the lock given back
+static int prints_locked(VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
-    s_prints = cli_cell_taken(sizeof(*s_prints), "a search for prints");
+    s_prints = g_cli_cells->persistent_buf_alloc(sizeof(*s_prints), NULL);
     if (s_prints == NULL)
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "a search for prints could not be taken");
+        mmgr_line_put(err_msg, "a search for prints could not be taken");
         return 0;
     }
     s_prints->count = 0u;
@@ -345,18 +347,18 @@ static int prints_held(CliLine *said)
 }
 
 // the prints written into `out`, and the room and the lock given back
-static void prints_released(CliLine *out)
+static void prints_released(VerbaLinea *out)
 {
     cli_prints_written(out);
     cli_git_text_given(&s_prints->repositories.text);
-    cli_cell_given(s_prints);
+    g_cli_cells->persistent_buf_release(s_prints, NULL);
     s_prints = NULL;
     cli_lock_give(&s_lock);
 }
 
-int cli_prints_added(const char *root, CliLine *out, CliLine *said)
+int cli_prints_added(const char *root, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!prints_held(said))
+    if (!prints_locked(err_msg))
     {
         return 0;
     }
@@ -364,21 +366,21 @@ int cli_prints_added(const char *root, CliLine *out, CliLine *said)
     for (unsigned int index = 0u; index < s_prints->repositories.count; index += 1u)
     {
         const char *const repo = cli_git_text_of(&s_prints->repositories.text, s_prints->repositories.item[index].path);
-        char folder[CLI_PATH_LONGEST];
-        char at[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
+        char at[CLI_PATH_MAX_LEN];
         cli_full(root, repo, folder);
-        CliLine before = {at, sizeof(at), 0ull};
+        VerbaLinea before = {at, sizeof(at), 0ull};
         if (repo[0] != '\0')
         {
-            cli_line_text(&before, repo);
-            cli_line_character(&before, '/');
+            mmgr_line_put(&before, repo);
+            mmgr_line_ch(&before, '/');
         }
-        cli_line_closed(&before);
+        mmgr_line_finish(&before);
         static const char *const s_words[8] = {"git",        "diff",          "HEAD",       "--unified=0",
                                                "--no-color", "--no-ext-diff", "--relative", NULL};
         CliRan *const ran = cli_ran_taken();
-        char why[CLI_NAME_LONGEST];
-        CliLine unstarted = {why, sizeof(why), 0ull};
+        char why[CLI_NAME_MAX_LEN];
+        VerbaLinea unstarted = {why, sizeof(why), 0ull};
         if (cli_ran(s_words, folder, NULL, 0u, ran, &unstarted))
         {
             cli_put_in(at, ran->out, ran->out_size);
@@ -400,9 +402,9 @@ int cli_prints_added(const char *root, CliLine *out, CliLine *said)
     return 1;
 }
 
-int cli_prints_put_in(const char *diff, unsigned long long size, CliLine *out, CliLine *said)
+int cli_prints_put_in(const char *diff, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!prints_held(said))
+    if (!prints_locked(err_msg))
     {
         return 0;
     }

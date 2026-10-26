@@ -6,17 +6,17 @@
 //
 // Given a third argument, the text of every form that assembled is written to that file, a form after another.
 //
-// The ruleset read against its schema and each form's text held to the listing it came from say nothing of whether
-// the assembler can turn that text into the sixteen bytes the part runs. A form this refuses is a form the lane cannot
-// be emitted through, whatever the ruleset says.
+// The ruleset read against its schema and each form's text checked against the listing it came from indicate nothing
+// about whether the assembler can turn that text into the sixteen bytes the part runs. A form this refuses is a form
+// the lane cannot be emitted through, whatever the ruleset specifies.
 //
 // A parameter's kind is not guessed from its name, because one name is two things in two forms: `left` is a register
-// in word_bitand and a predicate in predicate_bitxor, `value` a register in test_word_nonzero and a number in word_set. Each
-// form is written instead with every assignment of kinds to its parameters, register first, and holds where any one
-// of them assembles. A form that assembles under no assignment is the gap, and the assignment that worked is what
+// in word_bitand and a predicate in predicate_bitxor, `value` a register in test_word_nonzero and a number in word_set.
+// Each form is written instead with every assignment of kinds to its parameters, register first, and passes where any
+// one of them assembles. A form that assembles under no assignment is the gap, and the assignment that worked is what
 // the form's parameters are.
 //
-// The forms and their parameters are read from the ruleset's own lines, since the schema keeps only how many
+// The forms and their parameters are read from the ruleset's own lines, since the schema records only how many
 // parameters a form takes. A form the ruleset leaves empty, and a form whose text is a label or a note and carries
 // no instruction, are each counted apart: neither is a failure here.
 // the cubin writer is C and its headers carry no guard of their own: the linkage is named here
@@ -134,7 +134,7 @@ static std::vector<KrsForm> krs_forms(const Ruleset *rules, const char *path)
     return forms;
 }
 
-// 1 where `text` holds a line the part runs: a label, a note and a blank line are none
+// 1 where `text` contains a line the part runs: a label, a note and a blank line are none
 static int krs_has_instruction(const std::string &text)
 {
     size_t at = 0u;
@@ -190,7 +190,7 @@ enum KrsOutcome
 };
 
 // form `form` written every way its parameters can be given and assembled, `wrote` the text of the assignment that
-// held or of the last one tried, and `kinds` that assignment
+// passed or of the last one tried, and `kinds` that assignment
 static unsigned int krs_form_assembles(const Ruleset *rules, const SassMachine *machine, const KrsForm &form,
                                        const std::string &labels, std::string *wrote, std::string *kinds)
 {
@@ -242,8 +242,8 @@ int main(int count, char **arguments)
 {
     const char *const ruleset = (count > 1) ? arguments[1] : "src/cu/transpiler/lstar/protocol/table/sass.krs";
     const char *const path = (count > 2) ? arguments[2] : "src/cu/transpiler/lstar/protocol/table/sm_86.khw";
-    // the writing of every form that assembled, kept where a third argument names a file for it
-    FILE *const kept = (count > 3) ? fopen(arguments[3], "w") : NULL;
+    // the writing of every form that assembled, stored where a third argument names a file for it
+    FILE *const output_file = (count > 3) ? fopen(arguments[3], "w") : NULL;
     static SassMachine machine;
     if (!sass_machine_read(&machine, path))
     {
@@ -275,9 +275,9 @@ int main(int count, char **arguments)
         if (outcome == KRS_ASSEMBLED)
         {
             assembled += 1u;
-            if (kept != NULL)
+            if (output_file != NULL)
             {
-                fprintf(kept, "%s%s", wrote.c_str(), (!wrote.empty() && (wrote.back() == '\n')) ? "" : "\n");
+                fprintf(output_file, "%s%s", wrote.c_str(), (!wrote.empty() && (wrote.back() == '\n')) ? "" : "\n");
             }
         }
         else if (outcome == KRS_NO_INSTRUCTION)
@@ -293,9 +293,9 @@ int main(int count, char **arguments)
     }
     printf("sass.krs: %u forms assembled, %u refused, %u carry no instruction, %u left empty\n", assembled, refused,
            quiet, empty);
-    if (kept != NULL)
+    if (output_file != NULL)
     {
-        fclose(kept);
+        fclose(output_file);
     }
     return (refused == 0u) ? 0 : 1;
 }

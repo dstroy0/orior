@@ -41,17 +41,17 @@ static void start_reader(CliDap *dap, unsigned long long (*read)(void *source, c
 }
 
 CliDap *cli_dap_started(const char *program, const char *const *args, unsigned int count, const char *folder,
-                        const char *path, int ends_program, CliDapHeard heard, void *context, CliLine *said)
+                        const char *path, int ends_program, CliDapEventFn emit, void *context, VerbaLinea *err_msg)
 {
     CliDap *const dap = cli_dap_place_taken();
     if (dap == NULL)
     {
-        cli_line_text(said, "no more debug adapters are held at once");
+        mmgr_line_put(err_msg, "no more debug adapters are open at once");
         return NULL;
     }
     dap->kind = CLI_DAP_PROGRAM;
     dap->ends_program = ends_program;
-    dap->heard = heard;
+    dap->emit = emit;
     dap->context = context;
     dap->words.count = 0u;
     dap->words.used = 0u;
@@ -65,7 +65,7 @@ CliDap *cli_dap_started(const char *program, const char *const *args, unsigned i
                             .src = path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     const CliSetting settings[1] = {{"PATH", dap->path}};
-    if (!cli_spawn_fed(&dap->spawned, dap->words.word, folder, settings, 1u, 1, said))
+    if (!cli_spawn_fed(&dap->spawned, dap->words.word, folder, settings, 1u, 1, err_msg))
     {
         cli_lock_take(&g_cli_daps_lock);
         dap->taken = 0;
@@ -78,26 +78,26 @@ CliDap *cli_dap_started(const char *program, const char *const *args, unsigned i
     return dap;
 }
 
-CliDap *cli_dap_connected(const char *host, unsigned int port, int ends_program, CliDapHeard heard, void *context,
-                          CliLine *said)
+CliDap *cli_dap_connected(const char *host, unsigned int port, int ends_program, CliDapEventFn emit, void *context,
+                          VerbaLinea *err_msg)
 {
-    char address[CLI_PATH_LONGEST];
-    CliLine address_line = {address, sizeof(address), 0ull};
-    cli_line_text(&address_line, host);
-    cli_line_character(&address_line, ':');
-    cli_line_decimal(&address_line, port, 1u);
-    cli_line_closed(&address_line);
-    if (!cli_net_reach(address, "a debug adapter", said))
+    char address[CLI_PATH_MAX_LEN];
+    VerbaLinea address_line = {address, sizeof(address), 0ull};
+    mmgr_line_put(&address_line, host);
+    mmgr_line_ch(&address_line, ':');
+    mmgr_line_decimal(&address_line, port, 1u);
+    mmgr_line_finish(&address_line);
+    if (!cli_net_reach(address, "a debug adapter", err_msg))
     {
         return NULL;
     }
     CliDap *const dap = cli_dap_place_taken();
     if (dap == NULL)
     {
-        cli_line_text(said, "no more debug adapters are held at once");
+        mmgr_line_put(err_msg, "no more debug adapters are open at once");
         return NULL;
     }
-    if (!cli_socket_connected_within(&dap->socket, host, port, CLI_DAP_CONNECTING, said))
+    if (!cli_socket_connected_within(&dap->socket, host, port, CLI_DAP_CONNECTING, err_msg))
     {
         cli_lock_take(&g_cli_daps_lock);
         dap->taken = 0;
@@ -106,7 +106,7 @@ CliDap *cli_dap_connected(const char *host, unsigned int port, int ends_program,
     }
     dap->kind = CLI_DAP_SOCKET;
     dap->ends_program = ends_program;
-    dap->heard = heard;
+    dap->emit = emit;
     dap->context = context;
     dap->input = (CliLspWriter){start_sent, dap};
     start_reader(dap, start_received);

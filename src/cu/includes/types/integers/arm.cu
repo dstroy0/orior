@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -11,7 +11,7 @@
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * @note There is no arbitrary precision integer here and there does not need to be. A fixed width
- *       limb array is a representation of the same value, and a device register file holds one as
+ *       limb array is a representation of the same value, and a device register file stores one as
  *       readily as a host register does. Fixed width is the only bound, it is declared, and a value
  *       that will not fit errors on the host before anything is copied.
  * @note The device arithmetic is the host arithmetic transcribed. It is not shared source, because
@@ -23,8 +23,8 @@
  *       Threads share nothing. Each writes its own displaced position and one atomic increment at
  *       most.
  * @note A repeated position sits in adjacent entries once sorted. A thread counts its position only
- *       where it holds the last of those entries. The search returns the last entry equal to the
- *       displaced position. The count matches the portable arm, which keeps the last value at a
+ *       where it contains the last of those entries. The search returns the last entry equal to the
+ *       displaced position. The count matches the portable arm, which retains the last value at a
  *       repeated position and counts it once.
  */
 
@@ -114,7 +114,7 @@ __device__ static int device_magnitude_add(const unsigned int *left, const unsig
     for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
         const unsigned long long total = (unsigned long long)left[at] + (unsigned long long)right[at] + carry;
-        // Explicit narrowing to a limb. The high half is the carry and is kept.
+        // Explicit narrowing to a limb. The high half is the carry and is retained.
         result[at] = (unsigned int)(total & 0xFFFFFFFFull);
         carry = total >> 32;
     }
@@ -134,7 +134,7 @@ __device__ static void device_magnitude_subtract(const unsigned int *left, const
     unsigned long long borrow = 0ull;
     for (unsigned int at = 0u; at < ORIOR_EXACT_LIMBS; at++)
     {
-        // The base keeps the arithmetic non negative before the narrowing. No unsigned wrap has
+        // The base maintains the arithmetic non negative before the narrowing. No unsigned wrap has
         // to be reasoned about at the point the limb is stored.
         const unsigned long long total =
             (1ull << 32) + (unsigned long long)left[at] - (unsigned long long)right[at] - borrow;
@@ -214,7 +214,7 @@ __device__ static int device_add(const OriorExactInteger *left, const OriorExact
  *       the same position counts it once, carrying the last value at that position.
  * @note The displaced position lives in device memory the host allocated, one per thread. A local
  *       integer is sized by the width, 128 KiB per thread at 32768 limbs, and local memory is
- *       reserved for every thread the device can hold resident. On the RTX 3070 here that is 1536
+ *       reserved for every thread the device can support resident. On the RTX 3070 here that is 1536
  *       threads on each of 46 SMs, 8.6 GiB, past the card's 8 GiB.
  */
 __global__ static void agreement_kernel(const OriorExactInteger *positions, const unsigned long long *values,
@@ -238,7 +238,7 @@ __global__ static void agreement_kernel(const OriorExactInteger *positions, cons
     }
 
     // Upper bound: the first entry greater than the displaced position. The entry before it is the
-    // last one no greater, and it holds the displaced position exactly where the two compare equal.
+    // last one no greater, and it finds the displaced position exactly where the two compare equal.
     size_t low = 0u;
     size_t high = count;
     while (low < high)

@@ -15,9 +15,9 @@
 // no machine therefore computes them all: Omega is approached from below and never reached.
 //
 // Every closed term of at most L bits is run by normal order reduction, which reaches a normal form
-// whenever one exists. Reaching one proves the halt. A watcher holding a copy of the term at each
-// power of two steps (Brent) sees every bit of it, and a term that comes back to a state it held
-// is proven never to halt. Held to a bounded space, a term can only halt or repeat, since the space holds
+// whenever one exists. Reaching one proves the halt. A watcher storing a copy of the term at each
+// power of two steps (Brent) sees every bit of it, and a term that comes back to a state it had
+// is proven never to halt. Confined to a bounded space, a term can only halt or repeat, since the space contains
 // finitely many terms; so the runs are split by exit: halted, looped, out of steps (the space not yet
 // searched), and outgrew the space, the one exit no bounded search closes. A grower is closed where it
 // is proven to grow forever: a part of it returns at its own head (omega_grows_forever).
@@ -116,7 +116,7 @@ size_t omega_end(const int *term, size_t at);
 
 unsigned long long omega_code_bits(const std::vector<int> &term);
 
-void omega_code_text(ScripturaLine *line, const std::vector<int> &term);
+void omega_code_text(VerbaLinea *line, const std::vector<int> &term);
 
 // the spine position of the head redex, where the term is an application spine over a lambda; otherwise the
 // step normal order takes is not a head step, and OMEGA_NOT_HEAD is returned
@@ -133,7 +133,7 @@ void omega_closed_mass(const std::vector<unsigned long long> &all_up, std::vecto
 
 void omega_normal_mass(std::vector<unsigned long long> &normal_closed);
 
-// Simple types by unification (Hindley): a type is a variable or an arrow, held in a union-find. Every simply
+// Simple types by unification (Hindley): a type is a variable or an arrow, stored in a union-find. Every simply
 // typable term is strongly normalizing (Tait 1967). A type found is a certificate that the term halts, with
 // no step run and no normal form written: it settles terms whose normal forms outgrow any space.
 typedef struct
@@ -168,8 +168,8 @@ void omega_host(const OmegaCounts *counts, unsigned int maximum, unsigned int wo
 #define OMEGA_BLOCK 128u
 
 // threads resident on a multiprocessor: each thread's buffers are read through the cache, and past this many they
-// crowd one another out of it (timings on an RTX 3070 at 38 bits, 256/256, that no kept log holds: 384 took 0.91 s,
-// 512 1.01 s, 768 1.34 s)
+// crowd one another out of it (timings on an RTX 3070 at 38 bits, 256/256, that no retained log records: 384 took 0.91
+// s, 512 1.01 s, 768 1.34 s)
 #define OMEGA_THREADS_PER_SM 384u
 
 // the device's budgets, where the full ones are larger
@@ -230,11 +230,11 @@ typedef struct
 
 int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int workers, const char *ledger,
                  unsigned int *threads_used, unsigned long long *host_runs, unsigned long long *jobs_run,
-                 unsigned long long *jobs_kept, OmegaResults *fates);
+                 unsigned long long *jobs_retained, OmegaResults *fates);
 
 // The run by the engine: every normal order step of every live term is one sweep of the engine's record machine,
 // and nothing bounds it but the machine. A term is as many records as it has tokens. It grows by adding records
-// and no register or field holds a whole term. The live terms stay on the device from admission to their fate. Each
+// and no register or field contains a whole term. The live terms stay on the device from admission to their fate. Each
 // round, a thread a term finds its leftmost redex and lays out where every token of the reduct comes from: the
 // prefix and the suffix copied, the body's tokens with the depth they sit at, and a copy of the argument for each
 // variable the redex's lambda binds, with the depth it is put under and the lambdas above each of its tokens. The
@@ -244,7 +244,7 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
 // anywhere. A thread a term then takes the same decisions as omega_run, in the same order: a normal form halts,
 // Brent's watcher proves a loop, and omega_grows_forever's proof is made on the new term. Only a settled term
 // leaves the device, as one record. There is no step budget and no token budget: a term runs until one of those
-// settles it. A term the device's memory cannot hold for its next round is parked as outgrown, the only
+// settles it. A term the device's memory cannot fit for its next round is parked as outgrown, the only
 // exit left open, and a stop leaves every live term open. The run is one tessera job.
 
 // a job: one length's terms from `from`, at most this many, admitted to the live pool as the pool drains

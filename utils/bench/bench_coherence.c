@@ -47,21 +47,21 @@ static size_t spacing_for(const BenchPeriod *found, size_t needle_len, size_t pl
 
 static double two_to_the(double exponent)
 {
-    double held = 1.0;
+    double power = 1.0;
     double remaining = exponent;
 
     while (remaining >= 1.0)
     {
-        held *= 2.0;
+        power *= 2.0;
         remaining -= 1.0;
     }
     while (remaining < 0.0)
     {
-        held *= 0.5;
+        power *= 0.5;
         remaining += 1.0;
     }
-    held *= 1.0 + (remaining * 0.6931472) + (remaining * remaining * 0.2402265);
-    return held;
+    power *= 1.0 + (remaining * 0.6931472) + (remaining * remaining * 0.2402265);
+    return power;
 }
 
 int main(void)
@@ -86,7 +86,7 @@ int main(void)
     double predicted_flat[3];
     double predicted_coherent[3];
     double independent[3];
-    BenchPeriod held[3];
+    BenchPeriod periods[3];
 
     for (size_t which = 0u; which < kind_count; which += 1u)
     {
@@ -97,7 +97,7 @@ int main(void)
         const BenchPeriod found = bench_recover_period(corpus, CORPUS_BYTES);
         const double placed = (double)ORIOR_ANCHORS;
 
-        held[which] = found;
+        periods[which] = found;
         independent[which] = independent_anchors(&found, placed);
         predicted_flat[which] = two_to_the(-placed * entropy);
         predicted_coherent[which] = two_to_the(-independent[which] * entropy);
@@ -119,8 +119,8 @@ int main(void)
                (unsigned long long)spacing_for(&found, NEEDLE_BYTES, ORIOR_ANCHORS));
     }
 
-    printf("\n  %-12s %-9s %-15s %-15s %-15s %s\n", "corpus", "anchors", "histogram says",
-           "coherence says", "measured", "which one was right");
+    printf("\n  %-12s %-9s %-15s %-15s %-15s %s\n", "corpus", "anchors", "histogram reads", "coherence reads",
+           "measured", "which one was right");
 
     int disagreed = 0;
 
@@ -164,9 +164,9 @@ int main(void)
         const double off_coherent = (predicted_coherent[which] > 0.0)
             ? (measured / predicted_coherent[which]) : 0.0;
 
-        printf("  %-12s %-9.0f %-15.9f %-15.9f %-15.9f %s\n", bench_corpus_name(KINDS[which]),
-               independent[which], predicted_flat[which], predicted_coherent[which], measured,
-               (held[which].period != 0u) ? "coherence" : "they agree");
+        printf("  %-12s %-9.0f %-15.9f %-15.9f %-15.9f %s\n", bench_corpus_name(KINDS[which]), independent[which],
+               predicted_flat[which], predicted_coherent[which], measured,
+               (periods[which].period != 0u) ? "coherence" : "they agree");
         printf("  %-12s %-9s off the histogram by %.1f, off coherence by %.2f\n", "", "",
                off_flat, off_coherent);
     }
@@ -186,7 +186,7 @@ int main(void)
 
         OriorFieldCensus census;
         orior_field_census(corpus, CORPUS_BYTES, &census);
-        const OriorPlan plan = {&census, NEEDLE_BYTES, held[which].period};
+        const OriorPlan plan = {&census, NEEDLE_BYTES, periods[which].period};
         const OriorPlan flat_plan = {&census, NEEDLE_BYTES, 0u};
         const double alignments = (double)(CORPUS_BYTES - NEEDLE_BYTES + 1u)
                                   * (double)NEEDLES_PER_ROW;
@@ -216,7 +216,7 @@ int main(void)
     }
 
     printf("  Survivors have to stay put. The anchors dropped were refuting nothing. Dropping\n");
-    printf("  them may not let one alignment through that four anchors held back.\n");
+    printf("  them may not let one alignment through that four anchors blocked.\n");
 
     free(corpus);
     free(absent);

@@ -23,8 +23,8 @@ typedef struct
     int has_service;
 } CliContainer;
 
-// The containers or pods listed, `most` of them, the order they are written in, and the texts kept of them, `text_most`
-// bytes; one cell, sized to what docker or kubectl wrote, taken with the lock and given back with it
+// The containers or pods listed, `most` of them, the order they are written in, and the texts stored of them,
+// `text_most` bytes; one cell, sized to what docker or kubectl wrote, taken with the lock and given back with it
 typedef struct
 {
     CliContainer *item;
@@ -41,21 +41,21 @@ extern CliContainers g_cli_containers;
 // the lock taken and the list's cell taken under it, for `most` items and `text_most` bytes of texts: 1, or 0 with the
 // lock given back and an empty list written into `out` with why as its problem; and the cell given back with the lock
 // (containers.c)
-int cli_containers_held(CliLine *out, unsigned int most, unsigned long long text_most);
+int cli_containers_locked(VerbaLinea *out, unsigned int most, unsigned long long text_most);
 void cli_containers_released(void);
 
-// docker or kubectl run with `args`, what it wrote into `ran`: 1, or 0 with what it said where it failed, its first
-// line where it said many
+// docker or kubectl run with `args`, what it wrote into `ran`: 1, or 0 with what it printed where it failed, its first
+// line where it printed many
 int cli_containers_tool(const char *variable, const char *program, const char *const *args, unsigned int count,
-                        CliRan *ran, CliLine *said);
+                        CliRan *ran, VerbaLinea *err_msg);
 // a list's problem written, and the list closed
-void cli_containers_problem_written(CliLine *out, int listed, const char *problem, unsigned long long length);
+void cli_containers_problem_written(VerbaLinea *out, int listed, const char *problem, unsigned long long length);
 // `size` bytes of what docker listed, a container a line, and of what kubectl listed, its pods, written as
 // cli_containers_list and cli_containers_pods write them, with `problem_size` bytes of `problem` where it is not
 // `listed` (containers.c, containers_pods.c)
 void cli_containers_listed(const char *text, unsigned long long size, int listed, const char *problem,
-                           unsigned long long problem_size, CliLine *out);
+                           unsigned long long problem_size, VerbaLinea *out);
 void cli_containers_pods_listed(const char *text, unsigned long long size, int listed, const char *problem,
-                                unsigned long long problem_size, CliLine *out);
+                                unsigned long long problem_size, VerbaLinea *out);
 
 #endif

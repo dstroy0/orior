@@ -11,7 +11,7 @@
 
 #define CLI_SIFT_COUNTED 65536u
 
-// the alignments a plan scores on, held under the lock while a plan is made
+// the alignments a plan scores on, guarded by the lock while a plan is made
 static unsigned long long s_standing[(2u * CLI_SIFT_SCORED) + 2u];
 static CliLock s_lock = CLI_LOCK_INIT;
 
@@ -74,11 +74,11 @@ static int cli_agrees(const unsigned char *window, const unsigned char *needle, 
     return cli_sift_folded(window[at + offset], fold) == cli_sift_folded(needle[offset], fold);
 }
 
-// the anchors planned for `window`, ranked by `given`, a census kept with the text, where one is given, else by a count
-// over the window
-static unsigned int cli_plan_held(const CliCensus *given, const unsigned char *window, unsigned long long length,
-                                  const unsigned char *needle, unsigned long long needle_length, int fold,
-                                  unsigned long long *anchors)
+// the anchors planned for `window`, ranked by `given`, a census stored with the text, where one is given, else by a
+// count over the window
+static unsigned int cli_plan_anchors_placed(const CliCensus *given, const unsigned char *window,
+                                            unsigned long long length, const unsigned char *needle,
+                                            unsigned long long needle_length, int fold, unsigned long long *anchors)
 {
     if ((needle_length == 0ull) || (needle_length > length))
     {
@@ -164,16 +164,16 @@ static unsigned int cli_plan_held(const CliCensus *given, const unsigned char *w
         {
             break;
         }
-        unsigned long long kept = 0ull;
+        unsigned long long count = 0ull;
         for (unsigned long long at = 0ull; at < standing; at += 1ull)
         {
             if (cli_agrees(window, needle, best_offset, s_standing[at], fold))
             {
-                s_standing[kept] = s_standing[at];
-                kept += 1ull;
+                s_standing[count] = s_standing[at];
+                count += 1ull;
             }
         }
-        standing = kept;
+        standing = count;
         anchors[placed] = best_offset;
         placed += 1u;
     }
@@ -191,7 +191,7 @@ unsigned int cli_sift_plan_with(const CliCensus *census, const unsigned char *wi
                                 unsigned long long *anchors)
 {
     cli_lock_take(&s_lock);
-    const unsigned int placed = cli_plan_held(census, window, length, needle, needle_length, fold, anchors);
+    const unsigned int placed = cli_plan_anchors_placed(census, window, length, needle, needle_length, fold, anchors);
     cli_lock_give(&s_lock);
     return placed;
 }
@@ -210,9 +210,9 @@ static int cli_stands_at(const unsigned char *window, const unsigned char *needl
     return 1;
 }
 
-int cli_sift_holds(const unsigned char *window, const unsigned char *needle, unsigned long long needle_length,
-                   const unsigned long long *anchors, unsigned int anchor_count, unsigned int from,
-                   unsigned long long at, int fold)
+int cli_sift_matches(const unsigned char *window, const unsigned char *needle, unsigned long long needle_length,
+                     const unsigned long long *anchors, unsigned int anchor_count, unsigned int from,
+                     unsigned long long at, int fold)
 {
     for (unsigned int each = from; each < anchor_count; each += 1u)
     {
@@ -234,7 +234,7 @@ unsigned long long cli_sift_plain_window(const unsigned char *window, unsigned l
     unsigned long long count = 0ull;
     for (unsigned long long at = start; at < alignments; at += 1ull)
     {
-        if (cli_sift_holds(window, needle, needle_length, anchors, anchor_count, 0u, at, fold))
+        if (cli_sift_matches(window, needle, needle_length, anchors, anchor_count, 0u, at, fold))
         {
             found(context, base + at);
             count += 1ull;
@@ -277,7 +277,7 @@ unsigned long long cli_sift_horspool(const unsigned char *text, unsigned long lo
         return 0ull;
     }
     // how far the needle moves on when the byte under its last stands nowhere in it but its last: its length; and for
-    // each byte it holds before its last, the distance from that byte's last place to the end
+    // each byte it contains before its last, the distance from that byte's last place to the end
     unsigned long long shift[256];
     for (unsigned int byte = 0u; byte < 256u; byte += 1u)
     {

@@ -3,12 +3,12 @@
 // run_cfg.cu: reading a cfg (run_cfg.h)
 #include "run_cfg.h"
 
-int run_cfg_open(const char *path, RunCfg *cfg, ScripturaLine *line)
+int run_cfg_open(const char *path, RunCfg *cfg, VerbaLinea *line)
 {
     FILE *const file = fopen(path, "rb");
     if (file == NULL)
     {
-        scriptura_text(line, "  the cfg does not open\n");
+        mmgr_line_put(line, "  the cfg does not open\n");
         return 0;
     }
     cfg->text.clear();
@@ -25,9 +25,9 @@ int run_cfg_open(const char *path, RunCfg *cfg, ScripturaLine *line)
     if (cfg_json_parse(cfg->text.data(), cfg->text.size(), cfg->tokens.data(), (unsigned int)cfg->tokens.size(),
                        &parse) == 0)
     {
-        scriptura_text(line, "  the cfg does not parse: ");
-        scriptura_text(line, parse.reason);
-        scriptura_character(line, '\n');
+        mmgr_line_put(line, "  the cfg does not parse: ");
+        mmgr_line_put(line, parse.reason);
+        mmgr_line_ch(line, '\n');
         return 0;
     }
     return 1;
@@ -150,11 +150,11 @@ int run_cfg_text(const RunCfg *cfg, const char *path, std::string *value)
     return 1;
 }
 
-void run_cfg_missing(ScripturaLine *line, const char *members)
+void run_cfg_missing(VerbaLinea *line, const char *members)
 {
-    scriptura_text(line, "  the cfg lacks a value, or one does not read: ");
-    scriptura_text(line, members);
-    scriptura_character(line, '\n');
+    mmgr_line_put(line, "  the cfg lacks a value, or one does not read: ");
+    mmgr_line_put(line, members);
+    mmgr_line_ch(line, '\n');
 }
 
 int run_cfg_short(void)

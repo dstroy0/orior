@@ -11,7 +11,7 @@
 #include "zmtp.h"
 
 // the most requests that wait on replies at once, the bytes a reader of published messages and a reader of replies
-// each holds, half for the frames read and half for the message written, the longest line a kernel writes of itself,
+// each contains, half for the frames read and half for the message written, the longest line a kernel writes of itself,
 // the most frames a message has, and the most nodes and bytes of a header read
 #define CLI_KERNEL_WAITERS 16u
 #define CLI_KERNEL_IOPUB_ROOM (1u << 24u)
@@ -21,8 +21,8 @@
 #define CLI_KERNEL_HEADER_NODES 512u
 #define CLI_KERNEL_HEADER_TEXT (1u << 14u)
 
-// the most bytes of content a request orior_cli makes carries, and how long a kernel's readers are waited for as it is let
-// go, in milliseconds
+// the most bytes of content a request orior_cli makes carries, and how long a kernel's readers are waited for as it is
+// let go, in milliseconds
 #define CLI_KERNEL_CONTENT (1u << 22u)
 #define CLI_KERNEL_READERS_WAIT 5000ull
 
@@ -35,7 +35,7 @@ typedef struct
 {
     int waiting;
     char id[CLI_KERNEL_ID];
-    CliLine *reply;
+    VerbaLinea *reply;
     int answered;
 } CliKernelWaiter;
 
@@ -56,15 +56,17 @@ typedef struct
     char text[CLI_KERNEL_HEADER_TEXT];
 } CliKernelReader;
 
-// A kernel: whether its place is taken and how many hold it; its spec; the words, settings, PATH and interrupt event's
-// number its process is started with; its process, whether it has ended and its code; its sockets and the locks a write
-// to each is made under; its key, session and connection file; the requests waiting on replies, its readers still
-// reading, under its lock and woken by its wake; the port debugpy listens at, under a lock of its own; its interrupt
-// event on Windows; who hears it; its readers and their rooms
+// A kernel: whether its place is taken and how many reference it; its spec; the words, settings, PATH and interrupt
+// event's number its process is started with; its process, whether it has ended and its code; its sockets and the locks
+// a write to each is made under; the id of the request in flight on the shell, "" for none, and the requests queued
+// behind it, each its id, its size and its message whole, a growing line read from `shell_queue_from`, under the
+// shell's lock; its key, session and connection file; the requests waiting on replies, its readers still reading, under
+// its lock and woken by its wake; the port debugpy listens at, under a lock of its own; its interrupt event on Windows;
+// who receives it; its readers and their rooms
 struct CliKernel
 {
     int taken;
-    unsigned int holds;
+    unsigned int refs;
     CliKernelSpec spec;
     CliWords words;
     CliSetting settings[CLI_KERNEL_SETTINGS + 2u];
@@ -78,9 +80,12 @@ struct CliKernel
     CliSocket iopub;
     CliLock shell_lock;
     CliLock control_lock;
+    char shell_flight[CLI_KERNEL_ID];
+    VerbaLinea shell_queue;
+    unsigned long long shell_queue_from;
     char key[72];
     char session[24];
-    char connection[CLI_PATH_LONGEST];
+    char connection[CLI_PATH_MAX_LEN];
     CliKernelWaiter waiters[CLI_KERNEL_WAITERS];
     unsigned int reading;
     CliLock lock;
@@ -89,7 +94,7 @@ struct CliKernel
     unsigned int debug_port;
     int listening;
     unsigned long long interrupt_event;
-    CliKernelHeard heard;
+    CliKernelRecvFn recv;
     void *context;
     char content[CLI_KERNEL_CONTENT];
     CliLock content_lock;
@@ -102,8 +107,8 @@ struct CliKernel
     unsigned char err_room[CLI_KERNEL_LINE * 8u];
 };
 
-// the lock a kernel's holds are counted under; each kernel is a cell of its own, taken as it starts and given back as
-// it is let go (jupyter.c)
+// the lock a kernel's references are counted under; each kernel is a cell of its own, taken as it starts and given back
+// as it is let go (jupyter.c)
 extern CliLock g_cli_kernels_lock;
 
 // a text of a spec by its place, "" for none (jupyter_specs.c)
@@ -114,14 +119,14 @@ const char *cli_kernel_text(const CliKernelSpec *spec, unsigned int at);
 #define CLI_KERNEL_PYTHONS 8u
 
 // the Pythons a notebook can run on, the tree's environment's, then the one the toolchains find, each into
-// `pythons`, which holds CLI_KERNEL_PYTHONS: their count, and whether the tree has an environment; the folders
-// Jupyter keeps its data in, in the order it reads them, the Pythons' own following the reader's, each into
-// `folders`, which holds CLI_KERNEL_FOLDERS: their count; and whether a Python holds ipykernel, by the package's
+// `pythons`, sized for CLI_KERNEL_PYTHONS: their count, and whether the tree has an environment; the folders
+// Jupyter stores its data in, in the order it reads them, the Pythons' own following the reader's, each into
+// `folders`, sized for CLI_KERNEL_FOLDERS: their count; and whether a Python contains ipykernel, by the package's
 // folder in its site-packages (jupyter_folders.c)
-unsigned int cli_kernel_pythons(char (*pythons)[CLI_PATH_LONGEST], int *has_environment);
-unsigned int cli_kernel_data_folders(const char (*pythons)[CLI_PATH_LONGEST], unsigned int python_count,
-                                     char (*folders)[CLI_PATH_LONGEST]);
-int cli_kernel_holds_ipykernel(const char *python);
+unsigned int cli_kernel_pythons(char (*pythons)[CLI_PATH_MAX_LEN], int *has_environment);
+unsigned int cli_kernel_data_folders(const char (*pythons)[CLI_PATH_MAX_LEN], unsigned int python_count,
+                                     char (*folders)[CLI_PATH_MAX_LEN]);
+int cli_kernel_has_ipykernel(const char *python);
 
 // the reader `at` of the kernel's started on a thread of its own, counted while it reads (jupyter_readers.c)
 void cli_kernel_reader_started(CliKernel *kernel, unsigned int at);
@@ -131,22 +136,25 @@ void cli_kernel_reader_started(CliKernel *kernel, unsigned int at);
 void cli_kernel_ended(CliKernel *kernel);
 void cli_kernel_forgotten(CliKernel *kernel);
 
-// a key no other process can guess, 64 hex digits, into `key`, which holds 65; the next of the numbers ids and
-// connection files are made with, from 1; an id made of the session and the next number into `id`, which holds
+// a key no other process can guess, 64 hex digits, into `key`, sized for 65; the next of the numbers ids and
+// connection files are made with, from 1; an id made of the session and the next number into `id`, which is sized for
 // CLI_KERNEL_ID; and the time now written as Jupyter's headers write it, in UTC to the microsecond (jupyter_wire.c)
 void cli_kernel_key_made(char *key);
 unsigned long long cli_kernel_next(void);
 void cli_kernel_id_made(const char *session, char *id);
-void cli_kernel_now_written(CliLine *out);
+void cli_kernel_now_written(VerbaLinea *out);
 
-// a message of `msg_type` with `length` bytes of JSON content signed and sent on `socket` under `lock`, its header
-// carrying `id`: 1, or 0 where the connection failed; and a message's frames read back, past the routing frames before
-// the mark, its signature checked, written as the page reads a message with `channel`, its parent's id into `parent`,
-// which holds CLI_KERNEL_ID, "" where it is longer: 1, or 0 where the frames are not a whole message signed with the
-// kernel's key, or what they say is no JSON (jupyter_wire.c)
-int cli_kernel_frames_sent(const CliKernel *kernel, const CliSocket *socket, CliLock *lock, const char *id,
+// a message of `msg_type` with `length` bytes of JSON content signed and sent whole on `socket` under `lock`, its
+// header carrying `id`, or on the shell queued where a request is in flight on it: 1, or 0 where the connection failed
+// or the cells cannot meet it; the reply to `parent` received on the shell, the request in flight there done where it
+// is `parent`'s, and the next queued sent; and a message's frames read back, past the routing frames before the mark,
+// its signature checked, written as the page reads a message with `channel`, its parent's id into `parent`, sized for
+// CLI_KERNEL_ID, "" where it is longer: 1, or 0 where the frames are not a whole message signed with the kernel's key,
+// or what they contain is no JSON (jupyter_wire.c)
+int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *lock, const char *id,
                            const char *msg_type, const char *content, unsigned long long length);
-int cli_kernel_message_written(CliKernelReader *reader, const CliZmtpFrame *frames, unsigned int count, CliLine *out,
+void cli_kernel_shell_answered(CliKernel *kernel, const char *parent);
+int cli_kernel_message_written(CliKernelReader *reader, const CliZmtpFrame *frames, unsigned int count, VerbaLinea *out,
                                char *parent);
 
 #endif

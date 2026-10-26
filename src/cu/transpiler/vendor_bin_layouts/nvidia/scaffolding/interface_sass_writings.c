@@ -4,12 +4,13 @@
 // from registers, predicates and numbers alone is put in place of the kernel's IADD3 with the case's first two words as
 // its sources, run on the part over every case at once, and read back against what each ladder relation and each
 // precept gives each case. A form that gives every case a relation's word is a writing of that relation in one
-// instruction, found by running it and by nothing else: no name, listing or compiler says which form adds. A number
-// whose field is eight bits wide is a truth table of three inputs, and a form holding one is put with each of its 256
-// values (precept_value.h).
+// instruction, found by running it and by nothing else: no name, listing or compiler specifies which form adds. A
+// number whose field is eight bits wide is a truth table of three inputs, and a form containing one is put with each of
+// its 256 values (precept_value.h).
 //
 // Nothing is compiled and no disassembler is run. The cubins are written here and run by interface_sass_run, which
-// holds each to cubin_safe, loads it through the driver and runs it over the cases file this writes, a thread a case.
+// checks each against cubin_safe, loads it through the driver and runs it over the cases file this writes, a thread a
+// case.
 //
 //     interface_sass_writings <pattern cubin> <kernel text> <machine file> <folder>
 //     interface_sass_writings read <folder> <record>
@@ -17,9 +18,9 @@
 //     interface_sass_writings chains-read <folder> <record>
 //
 // The first writes <folder>/list.txt, the cubins it names, <folder>/cases.txt and <folder>/forms.txt, the
-// instruction each cubin holds a line. The second reads <folder>/answers.txt, which interface_sass_run writes, against
-// every relation and writes the record. The third writes every arrangement of the .kdm node by node, each node the
-// first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
+// instruction each cubin contains a line. The second reads <folder>/answers.txt, which interface_sass_run writes,
+// against every relation and writes the record. The third writes every arrangement of the .kdm node by node, each node
+// the first writing found for its precept, into <folder>/chains, and the fourth reads the chains' answers back against
 // the relation each is a row of.
 #include "interface_sass_writings/writings_internal.h"
 #include "../../../../engine/rmc/precept_value.h"

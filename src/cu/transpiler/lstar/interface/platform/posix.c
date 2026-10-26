@@ -33,12 +33,12 @@ static void interface_pause(unsigned long long microseconds)
     struct timespec pause;
     // whole seconds of a pause fit a time_t
     pause.tv_sec = (time_t)(microseconds / INTERFACE_MILLION);
-    // the remainder is below a billion nanoseconds, which a long holds
+    // the remainder is below a billion nanoseconds, which a long represents
     pause.tv_nsec = (long)((microseconds % INTERFACE_MILLION) * 1000ull);
     nanosleep(&pause, NULL);
 }
 
-// what the pipe holds now read into the answer: 1 once it is at its end, 0 where it holds no more for now
+// what the pipe contains now read into the answer: 1 once it is at its end, 0 where it contains no more for now
 static int interface_pipe_read(int pipe_read, InterfaceAnswer *answer, unsigned long long *total)
 {
     char piece[INTERFACE_READ_BYTES];
@@ -46,24 +46,24 @@ static int interface_pipe_read(int pipe_read, InterfaceAnswer *answer, unsigned 
     while (got > 0)
     {
         // a read is at most one piece, which is not negative here
-        interface_output_kept(answer, total, piece, (unsigned long long)got);
+        interface_output_appended(answer, total, piece, (unsigned long long)got);
         got = read(pipe_read, piece, sizeof(piece));
     }
     return got == 0;
 }
 
 // the probe started in a process group of its own, its output the file or the pipe and its input empty, then run to
-// its end or its limit, the pipe read as it is written. A pipe that closes on exec tells a probe that never started
+// its end or its limit, the pipe read as it is written. A pipe that closes on exec signals a probe that never started
 // from one that exited: the probe writes its errno there where exec fails. 0 where it was waited on to its end; -1
 // where the output file or the pipe could not be made or the probe could not be waited on.
 //
-// A pipe is made, then told to close on exec: a probe forked from another thread between the two would carry the pipe
-// into its process and hold it open past this probe's end. So from the moment a probe's pipes are made to its fork, no
+// A pipe is made, then set to close on exec: a probe forked from another thread between the two would carry the pipe
+// into its process and leave it open past this probe's end. So from the moment a probe's pipes are made to its fork, no
 // other probe of this process is forked
 static pthread_mutex_t s_interface_starting = PTHREAD_MUTEX_INITIALIZER;
 
 // The launch queue (interface.h): two semaphores every process on the host opens by name, the places for the children
-// running at once and the one start under way, which its taker holds for the spacing after the start is made. A
+// running at once and the one start under way, which its taker reserves for the spacing after the start is made. A
 // process the system gives no named semaphore queues nothing
 static sem_t *s_launches = SEM_FAILED;
 static sem_t *s_launching = SEM_FAILED;
@@ -142,12 +142,12 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     }
     unsigned long long total = 0ull;
     const int input = open("/dev/null", O_RDONLY | O_CLOEXEC);
-    int told[2] = {-1, -1};
-    const int piped = pipe(told) == 0;
+    int pipe_fds[2] = {-1, -1};
+    const int piped = pipe(pipe_fds) == 0;
     if (piped)
     {
-        fcntl(told[0], F_SETFD, FD_CLOEXEC);
-        fcntl(told[1], F_SETFD, FD_CLOEXEC);
+        fcntl(pipe_fds[0], F_SETFD, FD_CLOEXEC);
+        fcntl(pipe_fds[1], F_SETFD, FD_CLOEXEC);
     }
     const unsigned long long began = interface_now();
     const pid_t made = piped ? fork() : -1;
@@ -167,8 +167,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
         dup2(output, 2);
         execvp(probe->command[0], probe->command);
         const int failed = errno;
-        const ssize_t said = write(told[1], &failed, sizeof(failed));
-        (void)said;
+        const ssize_t written = write(pipe_fds[1], &failed, sizeof(failed));
+        (void)written;
         _exit(127);
     }
     close(output);
@@ -178,13 +178,13 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     }
     if (piped)
     {
-        close(told[1]);
+        close(pipe_fds[1]);
     }
     if (made < 0)
     {
         if (piped)
         {
-            close(told[0]);
+            close(pipe_fds[0]);
         }
         if (pipe_read >= 0)
         {
@@ -199,12 +199,12 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     // the group is set from both sides. A limit that runs out before the probe has set it still reaches it
     setpgid(made, made);
     int failed = 0;
-    ssize_t heard = read(told[0], &failed, sizeof(failed));
-    while ((heard < 0) && (errno == EINTR))
+    ssize_t received = read(pipe_fds[0], &failed, sizeof(failed));
+    while ((received < 0) && (errno == EINTR))
     {
-        heard = read(told[0], &failed, sizeof(failed));
+        received = read(pipe_fds[0], &failed, sizeof(failed));
     }
-    close(told[0]);
+    close(pipe_fds[0]);
     int status = 0;
     int out_of_time = 0;
     pid_t reaped = waitpid(made, &status, WNOHANG);
@@ -231,8 +231,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     answer->microseconds = interface_now() - began;
     // every process the probe started and left ends with it
     kill(-made, SIGKILL);
-    // the rest of the pipe read to its end, once every process of the group that held its write end has ended; one a
-    // process outside the group still holds is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far kept
+    // the rest of the pipe read to its end, once every process of the group that owned its write end has ended; one a
+    // process outside the group still owns is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far retained
     if (pipe_read >= 0)
     {
         const unsigned long long drained_from = interface_now();
@@ -250,7 +250,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     {
         return -1L;
     }
-    if (heard == (ssize_t)sizeof(failed))
+    if (received == (ssize_t)sizeof(failed))
     {
         answer->ending = INTERFACE_ENDING_NOT_STARTED;
         // the probe's errno is a positive code
@@ -270,7 +270,6 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     answer->fault = signaled ? interface_fault_of(answer->code) : INTERFACE_FAULT_NONE;
     return 0L;
 }
-#endif
 
 long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error)
 {
@@ -285,10 +284,11 @@ long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *an
     while (got > 0)
     {
         // a read that gave bytes gave a positive count
-        interface_output_kept(answer, &total, piece, (unsigned long long)got);
+        interface_output_appended(answer, &total, piece, (unsigned long long)got);
         got = read(file, piece, sizeof(piece));
     }
     close(file);
     interface_output_ended(answer, total);
     return INTERFACE_CHECK(got == 0, probe->output_path, error, ENGINE_ERROR_RESOURCE) ? 0L : -1L;
 }
+#endif

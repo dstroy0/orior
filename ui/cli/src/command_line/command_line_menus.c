@@ -12,7 +12,7 @@
 
 unsigned int cli_menu_jobs(const CliCatalog *catalog, unsigned int menu, unsigned int *listed)
 {
-    static char s_groups[CLI_MENU_GROUPS][CLI_LABEL_LONGEST];
+    static char s_groups[CLI_MENU_GROUPS][CLI_LABEL_MAX_LEN];
     const unsigned int groups = cli_menu_groups(menu, s_groups, CLI_MENU_GROUPS);
     unsigned int count = 0u;
     for (unsigned int at = 0u; (at < catalog->jobs) && (count < CLI_LINE_JOBS); at += 1u)
@@ -34,8 +34,8 @@ unsigned int cli_menu_jobs(const CliCatalog *catalog, unsigned int menu, unsigne
 // the jobs `listed`, `count` of them, written by their subjects, a subject the one before has not written again
 static void menus_subjects(const CliCatalog *catalog, const unsigned int *listed, unsigned int count)
 {
-    char subject[CLI_NAME_LONGEST];
-    char last[CLI_NAME_LONGEST];
+    char subject[CLI_NAME_MAX_LEN];
+    char last[CLI_NAME_MAX_LEN];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         cli_job_subject(catalog, listed[at], subject);
@@ -50,25 +50,25 @@ static void menus_subjects(const CliCatalog *catalog, const unsigned int *listed
 int cli_menu_lines(const char *root, unsigned int menu)
 {
     static CliItem s_items[CLI_ITEMS_MOST];
-    char word[CLI_LABEL_LONGEST];
+    char word[CLI_LABEL_MAX_LEN];
     cli_menu_word(menu, word);
     const unsigned int items = cli_menu_items(menu, s_items, CLI_ITEMS_MOST);
     for (unsigned int at = 0u; at < items; at += 1u)
     {
-        char line[CLI_LABEL_LONGEST * 4u];
-        CliLine usage = {line, sizeof(line), 0ull};
-        cli_line_text(&usage, "orior_cli ");
-        cli_line_text(&usage, word);
-        cli_line_character(&usage, ' ');
-        cli_line_text(&usage, s_items[at].command);
-        cli_line_character(&usage, ' ');
-        cli_line_text(&usage, s_items[at].args);
+        char line[CLI_LABEL_MAX_LEN * 4u];
+        VerbaLinea usage = {line, sizeof(line), 0ull};
+        mmgr_line_put(&usage, "orior_cli ");
+        mmgr_line_put(&usage, word);
+        mmgr_line_ch(&usage, ' ');
+        mmgr_line_put(&usage, s_items[at].command);
+        mmgr_line_ch(&usage, ' ');
+        mmgr_line_put(&usage, s_items[at].args);
         usage.at = cli_text_trimmed_end(line, usage.at);
-        cli_line_text(&usage, s_items[at].console ? "" : "  *");
-        cli_out_line(line, cli_line_fits(&usage) ? usage.at : 0ull);
+        mmgr_line_put(&usage, s_items[at].console ? "" : "  *");
+        cli_out_line(line, mmgr_line_ok(&usage) ? usage.at : 0ull);
     }
-    char split[CLI_LABEL_LONGEST];
-    char group[1][CLI_LABEL_LONGEST];
+    char split[CLI_LABEL_MAX_LEN];
+    char group[1][CLI_LABEL_MAX_LEN];
     if (cli_menu_groups(menu, group, 1u) == 0u)
     {
         return 0;
@@ -96,19 +96,19 @@ int cli_menu_lines(const char *root, unsigned int menu)
 
 int cli_menu_job(const char *named, unsigned int menu, const char *const *words, unsigned int count)
 {
-    static char s_root[CLI_PATH_LONGEST];
+    static char s_root[CLI_PATH_MAX_LEN];
     char why[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_command_line_tree(named, s_root, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (!cli_command_line_tree(named, s_root, &err_msg))
     {
-        cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_NO_CODE;
     }
     const CliCatalog *const catalog = cli_command_line_catalog(s_root);
     static unsigned int s_listed[CLI_LINE_JOBS];
     unsigned int jobs = cli_menu_jobs(catalog, menu, s_listed);
     unsigned int next = 0u;
-    char split[CLI_LABEL_LONGEST];
+    char split[CLI_LABEL_MAX_LEN];
     cli_menu_split(menu, split);
     if (split[0] != '\0')
     {
@@ -118,32 +118,32 @@ int cli_menu_job(const char *named, unsigned int menu, const char *const *words,
         }
         const char *const name = words[0];
         next = 1u;
-        unsigned int kept = 0u;
-        char subject[CLI_NAME_LONGEST];
+        unsigned int listed_count = 0u;
+        char subject[CLI_NAME_MAX_LEN];
         for (unsigned int at = 0u; at < jobs; at += 1u)
         {
             cli_job_subject(catalog, s_listed[at], subject);
             if (cellul.eq(&(CatenaFinitaCfg){.src = subject, .other = name, .cap = CLI_CELLS_POOL}))
             {
-                s_listed[kept] = s_listed[at];
-                kept += 1u;
+                s_listed[listed_count] = s_listed[at];
+                listed_count += 1u;
             }
         }
-        jobs = kept;
+        jobs = listed_count;
         if (jobs == 0u)
         {
-            char title[CLI_LABEL_LONGEST];
-            char word[CLI_LABEL_LONGEST];
+            char title[CLI_LABEL_MAX_LEN];
+            char word[CLI_LABEL_MAX_LEN];
             cli_menu_title(menu, title);
             cli_menu_word(menu, word);
-            said.at = 0ull;
-            cli_line_text(&said, title);
-            cli_line_text(&said, " has no ");
-            cli_line_text(&said, name);
-            cli_line_text(&said, ": orior_cli ");
-            cli_line_text(&said, word);
-            cli_line_text(&said, " names what it has");
-            cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
+            err_msg.at = 0ull;
+            mmgr_line_put(&err_msg, title);
+            mmgr_line_put(&err_msg, " has no ");
+            mmgr_line_put(&err_msg, name);
+            mmgr_line_put(&err_msg, ": orior_cli ");
+            mmgr_line_put(&err_msg, word);
+            mmgr_line_put(&err_msg, " names what it has");
+            cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
             return CLI_NO_CODE;
         }
         if (count == next)
@@ -159,11 +159,11 @@ int cli_menu_job(const char *named, unsigned int menu, const char *const *words,
     {
         return cli_menu_lines(s_root, menu);
     }
-    said.at = 0ull;
-    const unsigned int job = cli_job_named(catalog, s_listed, jobs, words[next], &said);
+    err_msg.at = 0ull;
+    const unsigned int job = cli_job_named(catalog, s_listed, jobs, words[next], &err_msg);
     if (job == CLI_CATALOG_NONE)
     {
-        cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_NO_CODE;
     }
     cli_job_show(s_root, catalog, job);

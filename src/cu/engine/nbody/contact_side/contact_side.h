@@ -26,15 +26,15 @@ extern "C"
 
 #define CONTACT_SIDE_AFTER 1u
 
-#define CONTACT_SIDE_KEPT_STEPS (1u + (3u * ENGINE_AXES) + (ENGINE_AXES - 1u) + 6u)
+#define CONTACT_SIDE_SIGN_STEPS (1u + (3u * ENGINE_AXES) + (ENGINE_AXES - 1u) + 6u)
 
 #define CONTACT_SIDE_DOT 0u
 
-#define CONTACT_SIDE_KEPT 1u
+#define CONTACT_SIDE_SAME 1u
 
 #define CONTACT_SIDE_CROSSED 2u
 
-#define CONTACT_SIDE_KEPT_OUTPUTS 3u
+#define CONTACT_SIDE_SIGN_OUTPUTS 3u
 
     typedef struct
     {
@@ -46,15 +46,15 @@ extern "C"
     typedef struct
     {
         unsigned int difference_field[ENGINE_AXES];
-    } ContactSideKeptRequest;
+    } ContactSideSignRequest;
 
     long contact_side_difference_program(const ContactSideDifferenceRequest *request,
                                          EngineRecordStep program[CONTACT_SIDE_DIFFERENCE_STEPS],
                                          unsigned int outputs[CONTACT_SIDE_DIFFERENCE_OUTPUTS]);
 
-    long contact_side_kept_program(const ContactSideKeptRequest *request,
-                                   EngineRecordStep program[CONTACT_SIDE_KEPT_STEPS],
-                                   unsigned int outputs[CONTACT_SIDE_KEPT_OUTPUTS]);
+    long contact_side_sign_program(const ContactSideSignRequest *request,
+                                   EngineRecordStep program[CONTACT_SIDE_SIGN_STEPS],
+                                   unsigned int outputs[CONTACT_SIDE_SIGN_OUTPUTS]);
 
 #ifdef __cplusplus
 }

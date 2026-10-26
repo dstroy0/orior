@@ -38,7 +38,7 @@ static const char *parse_classes(const char *text, unsigned int line, int plain)
                                 ? cellul.chr(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL, .byte = '\n'})
                                 : (start + cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL}));
     const unsigned long long length = (unsigned long long)(end - start);
-    CliLine out = {s_classes, sizeof(s_classes), 0ull};
+    VerbaLinea out = {s_classes, sizeof(s_classes), 0ull};
     for (unsigned int index = 0u; index < s_parsed.line_runs[line]; index += 1u)
     {
         const CliInspectRun *const run = &s_parsed.run[s_parsed.line_first[line] + index];
@@ -58,16 +58,17 @@ static const char *parse_classes(const char *text, unsigned int line, int plain)
         {
             continue;
         }
-        cli_line_text(&out, (out.at > 0ull) ? "|" : "");
-        cli_line_counted(&out, start + from, to - from);
-        cli_line_character(&out, '=');
-        cli_line_text(&out, g_cli_inspect_classes[run->class_of]);
+        mmgr_line_put(&out, (out.at > 0ull) ? "|" : "");
+        mmgr_line_put_n(&out, start + from, to - from);
+        mmgr_line_ch(&out, '=');
+        mmgr_line_put(&out, g_cli_inspect_classes[run->class_of]);
     }
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_classes;
 }
 
-// the word at place `index` of `classes`, `word=class` as parse_classes writes it, into `out`, which holds `room`
+// the word at place `index` of `classes`, `word=class` as parse_classes writes it, into `out`, which is sized for
+// `room`
 static const char *parse_word(const char *classes, unsigned int index, char *out, unsigned long long room)
 {
     const char *at = classes;
@@ -80,47 +81,48 @@ static const char *parse_word(const char *classes, unsigned int index, char *out
     const char *const end = (cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL, .byte = '|'}) != NULL)
                                 ? cellul.chr(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL, .byte = '|'})
                                 : (at + cellul.len(&(CatenaFinitaCfg){.src = at, .cap = CLI_CELLS_POOL}));
-    CliLine line = {out, room, 0ull};
-    cli_line_counted(&line, at, (unsigned long long)(end - at));
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {out, room, 0ull};
+    mmgr_line_put_n(&line, at, (unsigned long long)(end - at));
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
 // the folds, each `first-last` joined by `|`
 static const char *parse_folds(void)
 {
-    CliLine out = {s_classes, sizeof(s_classes), 0ull};
+    VerbaLinea out = {s_classes, sizeof(s_classes), 0ull};
     for (unsigned int at = 0u; at < s_parsed.folds; at += 1u)
     {
-        cli_line_text(&out, (at > 0u) ? "|" : "");
-        cli_line_decimal(&out, s_parsed.fold_first[at], 1u);
-        cli_line_character(&out, '-');
-        cli_line_decimal(&out, s_parsed.fold_last[at], 1u);
+        mmgr_line_put(&out, (at > 0u) ? "|" : "");
+        mmgr_line_decimal(&out, s_parsed.fold_first[at], 1u);
+        mmgr_line_ch(&out, '-');
+        mmgr_line_decimal(&out, s_parsed.fold_last[at], 1u);
     }
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_classes;
 }
 
-// the spans that hold the place `line`:`col`, the least first, at most `most`, each `line:col-line:col` joined by `|`
+// the spans that contain the place `line`:`col`, the least first, at most `most`, each `line:col-line:col` joined by
+// `|`
 static const char *parse_spans(unsigned int line, unsigned int col, unsigned int most)
 {
     static CliInspectSpan s_spans[64];
     const CliInspectPlace place = {line, col};
     const unsigned int count = cli_inspect_ranges_at(s_parsed.range, s_parsed.ranges, place, place, s_spans, 64u);
-    CliLine out = {s_classes, sizeof(s_classes), 0ull};
+    VerbaLinea out = {s_classes, sizeof(s_classes), 0ull};
     for (unsigned int at = 0u; (at < count) && (at < most); at += 1u)
     {
         const unsigned int places[4] = {s_spans[at].from.line, s_spans[at].from.col, s_spans[at].to.line,
                                         s_spans[at].to.col};
         static const char *const s_marks[4] = {"", ":", "-", ":"};
-        cli_line_text(&out, (at > 0u) ? "|" : "");
+        mmgr_line_put(&out, (at > 0u) ? "|" : "");
         for (unsigned int part = 0u; part < 4u; part += 1u)
         {
-            cli_line_text(&out, s_marks[part]);
-            cli_line_decimal(&out, places[part], 1u);
+            mmgr_line_put(&out, s_marks[part]);
+            mmgr_line_decimal(&out, places[part], 1u);
         }
     }
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_classes;
 }
 
@@ -166,8 +168,8 @@ static void parse_python(void)
               "the inside of the brackets, the brackets, the statement, the block's body");
 }
 
-// whether `classes` holds the word `wanted`
-static int parse_holds(const char *classes, const char *wanted)
+// whether `classes` contains the word `wanted`
+static int parse_has_word(const char *classes, const char *wanted)
 {
     char word[256];
     for (unsigned int index = 0u; index < 64u; index += 1u)
@@ -208,11 +210,11 @@ static void parse_javascript(void)
                 "string|/a\\/b/=t-string|source=t-property",
             .cap = CLI_CELLS_POOL}),
         "a template's parts and a pattern");
-    cli_check(parse_holds(parse_classes(s_text, 6u, 0), "Shape=t-type"), "a class's name");
-    cli_check(parse_holds(parse_classes(s_text, 7u, 0), "scale=t-function") &&
-                  parse_holds(parse_classes(s_text, 7u, 0), "by=t-parameter"),
+    cli_check(parse_has_word(parse_classes(s_text, 6u, 0), "Shape=t-type"), "a class's name");
+    cli_check(parse_has_word(parse_classes(s_text, 7u, 0), "scale=t-function") &&
+                  parse_has_word(parse_classes(s_text, 7u, 0), "by=t-parameter"),
               "a method and its parameter");
-    cli_check(parse_holds(parse_classes(s_text, 8u, 0), "size=t-property"), "an object's key");
+    cli_check(parse_has_word(parse_classes(s_text, 8u, 0), "size=t-property"), "an object's key");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = parse_folds(), .other = "1-4|6-10|7-9", .cap = CLI_CELLS_POOL}),
               "the regions that fold");
     cli_check(cellul.starts(&(CatenaFinitaCfg){
@@ -222,6 +224,7 @@ static void parse_javascript(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     parse_python();
     parse_javascript();
     return cli_checked();

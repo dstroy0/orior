@@ -7,8 +7,8 @@
 #   kdm_write     writes a part's .kdm: every arrangement of primitives that produces each operator
 #   chain_check   reads how much of a relation the ladder's own cases decide
 #   gate_descent  runs the gate as orior's descent and checks it against every arrangement asked every case
-#   ask_order_check  holds the known order of asks to its exact claims and measures the contention read
-#   query_ask_check  holds the ask to what it answers at addresses whose state is known, and finds a clock
+#   hadamard_order_check  holds the known order of asks to its exact claims and measures the contention read
+#   query_put_check  holds the ask to what it answers at addresses whose state is known, and finds a clock
 #   answer_read_check holds the read of an ask to P11's four answers and gray
 #   kqr_check        holds R, the .kqr's reader and writer, to what its oracle says of it, on a record it writes and
 #                    on the part's own, written as records and read back as its bytes
@@ -79,24 +79,25 @@ cc -std=c11 -O2 -Wall -Wextra -I"$SIFT" -I"$EXACT" -o "$OUT/gate_descent" \
     "$SIFT/orior_steer_count.c" "$SIFT/orior_steer_plan.c" "$SIFT/scan.c" \
     "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" \
     "${FILE_DEFS[@]}" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/ask_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/ask_order_check.c" \
-    "$TOP/src/cu/transpiler/lstar/protocol/order/ask_order.c" \
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/hadamard_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/hadamard_order_check.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/order/hadamard_order.c" \
     "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_ask_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_ask_check.c" \
-    "$TOP/src/cu/transpiler/lstar/protocol/query/query_ask.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_put_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_put_check.c" \
+    "$TOP/src/cu/transpiler/lstar/protocol/query/query_put.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/answer_read_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/answer_read_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/query/answer_read.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/frame_relation_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c" \
+    "${FILE_DEFS_MMGR_FLAGS[@]}" "${FILE_DEFS_LINEA[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/turning_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/turning_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/turning.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/standing_check" "$TOP/utils/test/src/cu/transpiler/lstar/parser/standing_check.c" \
     "$TOP/src/cu/transpiler/lstar/protocol/khw_learn/standing.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_funnel_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_funnel_check.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/funnel.c" "$TOP/src/cu/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/tables_read_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/tables_read_check.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/constant_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/constant_check.c" \
-    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" || exit 1
+    "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/constant.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/includes/parsers/line_read.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/naming_check" "$TOP/utils/test/src/cu/transpiler/vendor_bin_layouts/nvidia/naming_check.c" \
     "$TOP/src/cu/includes/file_defs/khw/khw_machine_write/pieces.c" \
     "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c \
@@ -142,7 +143,7 @@ cc -std=c11 -O2 -Wall -Wextra -o "$OUT/overseer_carrier" "$TOP/utils/test/src/cu
 # the walk runs as its own program, in a child the cell can lose
 BOOT="$TOP/src/cu/transpiler/lstar/protocol"
 INTERFACE="$TOP/src/cu/transpiler/lstar/interface"
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_ask.c" \
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_walk" "$BOOT/query/query_walk.c" "$BOOT/query/query_put.c" \
     "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/query_interface_check" \
     "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_interface_check.c" "$BOOT/query/query_interface.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
@@ -151,14 +152,14 @@ cc -std=c11 -O2 -Wall -Wextra -pthread -I"$TOP/src/cu/engine" -o "$OUT/launch_qu
     "$TOP/utils/test/src/cu/transpiler/lstar/interface/launch_queue_check.c" "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c \
     "$INTERFACE/interface_names.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/query_order_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/query_order_check.c" \
-    "$BOOT/order/query_order.c" "$BOOT/query/query_ask.c" "$BOOT/order/ask_order.c" \
+    "$BOOT/order/query_order.c" "$BOOT/query/query_put.c" "$BOOT/order/hadamard_order.c" \
     "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/stem_group_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/stem_group_check.c" \
     "$BOOT/order/stem_group.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/branch_side_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c" \
-    "$BOOT/order/query_order.c" "$BOOT/query/query_ask.c" "$BOOT/order/ask_order.c" \
+    "$BOOT/order/query_order.c" "$BOOT/query/query_put.c" "$BOOT/order/hadamard_order.c" \
     "$EXACT/exact_integer_add.c" "$EXACT/exact_integer_multiply.c" "$EXACT/exact_integer_limbs.c" || exit 1
-cc -std=c11 -O2 -Wall -Wextra -o "$OUT/gnascor_trace" "$TOP/utils/maint/engine/gnascor_trace.c" "$BOOT/query/query_ask.c" || exit 1
+cc -std=c11 -O2 -Wall -Wextra -o "$OUT/gnascor_trace" "$TOP/utils/maint/engine/gnascor_trace.c" "$BOOT/query/query_put.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/host_entry_check" "$TOP/utils/test/src/cu/transpiler/lstar/protocol/host_entry_check.c" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -o "$OUT/classify_walk" "$BOOT/query/classify_walk.c" "${FILE_DEFS[@]}" || exit 1
 cc -std=c11 -O2 -Wall -Wextra -I"$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$OUT/bus_enum_check" \
@@ -184,8 +185,8 @@ if [ "$#" -gt 0 ]; then
 fi
 "$OUT/chain_check" || exit 1
 "$OUT/gate_descent" || exit 1
-"$OUT/ask_order_check" || exit 1
-"$OUT/query_ask_check" || exit 1
+"$OUT/hadamard_order_check" || exit 1
+"$OUT/query_put_check" || exit 1
 "$OUT/answer_read_check" || exit 1
 "$OUT/frame_relation_check" || exit 1
 "$OUT/turning_check" || exit 1

@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema.c: a JSON file checked: what kept it from reading, then its root against the schema it names or is known by;
-// a schema it names by a URL that orior_cli holds nowhere noted, with the line that fetches it to orior's own folder. A
-// file larger than CLI_SCHEMA_LARGEST is not checked. One check or completion runs at a time
+// schema.c: a JSON file checked: what prevented it from reading, then its root against the schema it names or is known
+// by; a schema it names by a URL that orior_cli stores nowhere noted, with the line that fetches it to orior's own
+// folder. A file larger than CLI_SCHEMA_LARGEST is not checked. One check or completion runs at a time
 #include "../command_line/cells.h"
 #include "schema_internal.h"
 
@@ -15,11 +15,11 @@ CliSchemaRead *g_cli_schema_read;
 CliSchemaStore *g_cli_schema_store;
 CliLock g_cli_schema_lock = CLI_LOCK_INIT;
 
-int cli_schema_held(void)
+int cli_schema_locked(void)
 {
     cli_lock_take(&g_cli_schema_lock);
-    g_cli_schema_read = cli_cell_taken(sizeof(*g_cli_schema_read), "a file read against its schema");
-    g_cli_schema_store = cli_cell_taken(sizeof(*g_cli_schema_store), "the schemas reached");
+    g_cli_schema_read = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_read), NULL);
+    g_cli_schema_store = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_store), NULL);
     if (g_cli_schema_read != NULL)
     {
         g_cli_schema_read->node = NULL;
@@ -57,17 +57,17 @@ void *cli_schema_grown(void *cells, unsigned int *most, unsigned long long neede
         grown *= 2ull;
     }
     grown = (grown < hard) ? grown : hard;
-    unsigned char *const moved = cli_cell_taken_by(&g_cli_schema_cells, grown * each, what);
+    unsigned char *const moved = g_cli_cells->persistent_buf_alloc(grown * each, &g_cli_schema_cells);
     if (moved == NULL)
     {
         return NULL;
     }
     if (cells != NULL)
     {
-        // the places held are below the list's room, which a size_t holds
+        // the places stored are below the list's room, which a size_t stores
         memor.cpy(&(MemoriaCfg){.dst = moved, .src = cells, .bytes = (size_t)*most * each});
     }
-    cli_cell_given_by(&g_cli_schema_cells, cells);
+    g_cli_cells->persistent_buf_release(cells, &g_cli_schema_cells);
     // no more than `hard`, an unsigned int
     *most = (unsigned int)grown;
     return moved;
@@ -90,9 +90,9 @@ int cli_schema_read_room(CliSchemaRead *read, unsigned long long nodes, unsigned
 
 void cli_schema_read_given(CliSchemaRead *read)
 {
-    cli_cell_given_by(&g_cli_schema_cells, read->node);
-    cli_cell_given_by(&g_cli_schema_cells, read->member);
-    cli_cell_given_by(&g_cli_schema_cells, read->pool);
+    g_cli_cells->persistent_buf_release(read->node, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(read->member, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(read->pool, &g_cli_schema_cells);
     read->node = NULL;
     read->member = NULL;
     read->pool = NULL;
@@ -111,8 +111,8 @@ void cli_schema_released(void)
     {
         cli_json_given(&g_cli_schema_store->json);
     }
-    cli_cell_given(g_cli_schema_store);
-    cli_cell_given(g_cli_schema_read);
+    g_cli_cells->persistent_buf_release(g_cli_schema_store, NULL);
+    g_cli_cells->persistent_buf_release(g_cli_schema_read, NULL);
     g_cli_schema_store = NULL;
     g_cli_schema_read = NULL;
     cli_lock_give(&g_cli_schema_lock);
@@ -147,17 +147,17 @@ int cli_schema_reads(const char *path)
            (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = "jsonc", .cap = CLI_CELLS_POOL}));
 }
 
-// a schema named by `key` and held nowhere noted over `from` to `to`, with the line that fetches a URL's
+// a schema named by `key` and stored nowhere noted over `from` to `to`, with the line that fetches a URL's
 static void schema_missing(const char *root, const char *key, const char *text, unsigned long long from,
                            unsigned long long to, const CliBuildLines *lines)
 {
-    CliLine said = cli_build_said(&s_found);
-    cli_line_text(&said, "orior_cli holds no schema at ");
-    cli_line_counted(&said, text + from, to - from);
-    const unsigned int finding = cli_build_finding(&s_found, &said, lines, from, to, CLI_BUILD_NOTE, "schema-missing");
-    char place[CLI_PATH_LONGEST];
+    VerbaLinea msg = cli_build_msg_line(&s_found);
+    mmgr_line_put(&msg, "orior_cli stores no schema at ");
+    mmgr_line_put_n(&msg, text + from, to - from);
+    const unsigned int finding = cli_build_finding(&s_found, &msg, lines, from, to, CLI_BUILD_NOTE, "schema-missing");
+    char place[CLI_PATH_MAX_LEN];
     if ((!cellul.starts(&(CatenaFinitaCfg){.src = key, .other = "http", .cap = CLI_CELLS_POOL})) ||
-        !cli_schema_kept_at(key, place))
+        !cli_schema_cache_path(key, place))
     {
         return;
     }
@@ -165,32 +165,32 @@ static void schema_missing(const char *root, const char *key, const char *text, 
     {
         *at = (*at == '\\') ? '/' : *at;
     }
-    CliLine title = cli_build_said(&s_found);
-    cli_line_text(&title, "Fetch the schema to ");
-    cli_line_text(&title, place);
-    char line[CLI_PATH_LONGEST * 3u];
-    CliLine command = {line, sizeof(line), 0ull};
-    cli_line_text(&command, "curl -fsSL --create-dirs -o '");
-    cli_line_text(&command, place);
-    cli_line_text(&command, "' '");
-    cli_line_text(&command, key);
-    cli_line_character(&command, '\'');
-    char folder[CLI_PATH_LONGEST];
+    VerbaLinea title = cli_build_msg_line(&s_found);
+    mmgr_line_put(&title, "Fetch the schema to ");
+    mmgr_line_put(&title, place);
+    char line[CLI_PATH_MAX_LEN * 3u];
+    VerbaLinea command = {line, sizeof(line), 0ull};
+    mmgr_line_put(&command, "curl -fsSL --create-dirs -o '");
+    mmgr_line_put(&command, place);
+    mmgr_line_put(&command, "' '");
+    mmgr_line_put(&command, key);
+    mmgr_line_ch(&command, '\'');
+    char folder[CLI_PATH_MAX_LEN];
     cli_build_inside(root, root, folder);
     cli_build_run_fix(&s_found, finding, &title, folder,
                       cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), line, command.at);
 }
 
-void cli_schema_check(const char *root, const char *path, const char *text, unsigned long long size, CliLine *out)
+void cli_schema_check(const char *root, const char *path, const char *text, unsigned long long size, VerbaLinea *out)
 {
     if (size > CLI_SCHEMA_LARGEST)
     {
-        cli_line_text(out, "[]");
+        mmgr_line_put(out, "[]");
         return;
     }
-    if (!cli_schema_held())
+    if (!cli_schema_locked())
     {
-        cli_line_text(out, "[]");
+        mmgr_line_put(out, "[]");
         return;
     }
     cli_build_findings_begun(&s_found);
@@ -203,10 +203,10 @@ void cli_schema_check(const char *root, const char *path, const char *text, unsi
     for (unsigned int at = 0u; at < read->errors; at += 1u)
     {
         const CliSchemaError *const error = &read->error[at];
-        const CliLine said = {read->pool + error->message_at, error->message_size + 1u, error->message_size};
-        (void)cli_build_finding(&s_found, &said, &lines, error->from, error->to, CLI_BUILD_ERROR, "json");
+        const VerbaLinea msg = {read->pool + error->message_at, error->message_size + 1u, error->message_size};
+        (void)cli_build_finding(&s_found, &msg, &lines, error->from, error->to, CLI_BUILD_ERROR, "json");
     }
-    char key[CLI_PATH_LONGEST];
+    char key[CLI_PATH_MAX_LEN];
     int named = 0;
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
@@ -227,6 +227,6 @@ void cli_schema_check(const char *root, const char *path, const char *text, unsi
     }
     cli_build_findings_written(&s_found, out);
     cli_build_findings_given(&s_found);
-    cli_cell_given_by(&g_cli_build_cells, starts);
+    g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
     cli_schema_released();
 }

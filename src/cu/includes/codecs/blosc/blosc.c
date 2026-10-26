@@ -45,7 +45,7 @@ typedef struct
     unsigned char *shuffled;
 } BloscChunk;
 
-static const EngineCodec blosc_codec_slots[BLOSC_CODEC_COUNT] = {
+static const EngineCodec blosc_engine_codecs[BLOSC_CODEC_COUNT] = {
     ENGINE_CODEC_BLOSCLZ, ENGINE_CODEC_LZ4, ENGINE_CODEC_SNAPPY, ENGINE_CODEC_ZLIB, ENGINE_CODEC_ZSTD};
 
 static unsigned long long blosc_word(const unsigned char *at)
@@ -230,7 +230,7 @@ long long blosc_decode(const BloscDecodeRequest *request)
     {
         return ENGINE_BYTES_ERROR;
     }
-    const EngineBytesDecode stream_decode = request->decode[blosc_codec_slots[codec]];
+    const EngineBytesDecode stream_decode = request->decode[blosc_engine_codecs[codec]];
     const unsigned long long block_count = (total_bytes + block_bytes - 1ull) / block_bytes;
     if ((stream_decode == NULL) || (block_count > ((chunk_bytes - BLOSC_HEADER_BYTES) / BLOSC_START_BYTES)))
     {

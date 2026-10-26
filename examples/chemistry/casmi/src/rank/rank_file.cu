@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank_file.cu: a parquet file read for the ranker, every row group in order, its pages decoded by the engine's own
-// codecs through the CASMI parquet reader. Each double keeps the 64 bits it is stored as; each text column's strings
-// are merged over every row group of every file read into one table a column, each row's id read into it
+// codecs through the CASMI parquet reader. Each double preserves the 64 bits it is stored as; each text column's
+// strings are merged over every row group of every file read into one table a column, each row's id read into it
 #include "rank_internal.h"
 
 #include "../parquet/parquet.h"
@@ -22,20 +22,20 @@ static CasmiParquetFooter s_footer;
 
 void rank_line_decimal(SimResults *results, const char *before, unsigned long long value)
 {
-    scriptura_text(&results->line, before);
-    scriptura_decimal(&results->line, value, 1u);
+    mmgr_line_put(&results->line, before);
+    mmgr_line_decimal(&results->line, value, 1u);
 }
 
 void rank_line_end(SimResults *results)
 {
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }
 
 void rank_error_line(SimResults *results, const char *what, const EngineError *error)
 {
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, what);
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, what);
     rank_line_decimal(results, ": module ", (unsigned long long)error->module);
     rank_line_decimal(results, ", site ", (unsigned long long)error->site);
     rank_line_decimal(results, ", kind ", (unsigned long long)error->kind);
@@ -126,9 +126,9 @@ static int rank_text_load(const char *path, unsigned int group, unsigned int tex
             continue;
         }
         const unsigned long long value = column.row_start[row];
-        const std::string held((const char *)(column.value_bytes + column.value_offset[value]),
-                               (size_t)column.value_length[value]);
-        const auto found = out->table[text].find(held);
+        const std::string value_text((const char *)(column.value_bytes + column.value_offset[value]),
+                                     (size_t)column.value_length[value]);
+        const auto found = out->table[text].find(value_text);
         if (found != out->table[text].end())
         {
             out->text[text].push_back(found->second);
@@ -136,8 +136,8 @@ static int rank_text_load(const char *path, unsigned int group, unsigned int tex
         else
         {
             const unsigned int named = (unsigned int)out->strings[text].size();
-            out->table[text].emplace(held, named);
-            out->strings[text].push_back(held);
+            out->table[text].emplace(value_text, named);
+            out->strings[text].push_back(value_text);
             out->text[text].push_back(named);
         }
     }
@@ -150,8 +150,8 @@ int rank_file_load(SimResults *results, const char *path, RankSet *out)
     const CasmiParquetFooterRead footer = {path, &s_footer};
     if (casmi_parquet_footer_read(&footer) < 0ll)
     {
-        scriptura_text(&results->line, "  the parquet footer did not read: ");
-        scriptura_text(&results->line, path);
+        mmgr_line_put(&results->line, "  the parquet footer did not read: ");
+        mmgr_line_put(&results->line, path);
         rank_line_end(results);
         return 0;
     }
@@ -183,8 +183,8 @@ int rank_file_load(SimResults *results, const char *path, RankSet *out)
         if (!ok)
         {
             rank_line_decimal(results, "  row group ", group);
-            scriptura_text(&results->line, " did not read, or a row is not one precursor and as many intensities as m/z: ");
-            scriptura_text(&results->line, path);
+            mmgr_line_put(&results->line, " did not read, or a row is not one precursor and as many intensities as m/z: ");
+            mmgr_line_put(&results->line, path);
             rank_line_end(results);
         }
     }

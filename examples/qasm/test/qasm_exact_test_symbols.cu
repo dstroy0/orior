@@ -123,7 +123,7 @@ static void qasm_test_mps_qubits(QasmResults *results)
     qasm_test_check(results, qasm_test_cross(qasm_test_scrambler_six, &error),
                     "mps: cross-check scrambler depth 6, compact against dense on 6 qubits, all 64 agree");
 
-    // the chain's seal repeats and tells GHZ-6 from GHZ-4 + controlled-T
+    // the chain's seal repeats and distinguishes GHZ-6 from GHZ-4 + controlled-T
     unsigned char six_root[ENGINE_SIGNUM_BYTES];
     unsigned char six_again[ENGINE_SIGNUM_BYTES];
     unsigned char t_root[ENGINE_SIGNUM_BYTES];
@@ -143,7 +143,7 @@ static void qasm_test_mps_qubits(QasmResults *results)
     // site + 1 wraps here and reads past the tensors
     qasm_test_check(results, (qasm_chain_bond(&bell, 1u) == 0u) && (qasm_chain_bond(&bell, 0xFFFFFFFFu) == 0u),
                     "mps: the bond past the last cut is 0, the widest site index included");
-    qasm_test_check(results, qasm_test_clean(&error), "mps: no error was raised on the paths that held");
+    qasm_test_check(results, qasm_test_clean(&error), "mps: no error was raised on the paths that succeeded");
     qasm_chain_release(&bell);
     qasm_chain_release(&ghz_six);
     qasm_chain_release(&ghz_t);
@@ -154,10 +154,10 @@ static void qasm_test_mps_qubits(QasmResults *results)
     printf("  mps qubits: %llu us\n", engine_clock_microseconds() - start);
 }
 
-static long qasm_test_symbol(QasmRationalFunction *slot, const QasmNumber *coefficient, int exponent,
+static long qasm_test_symbol(QasmRationalFunction *function, const QasmNumber *coefficient, int exponent,
                              EngineError *error)
 {
-    return qasm_rational_function_set(slot, coefficient, exponent, error);
+    return qasm_rational_function_set(function, coefficient, exponent, error);
 }
 
 static long qasm_test_symbols(QasmTestSymbols *symbols, EngineError *error)
@@ -218,7 +218,7 @@ static void qasm_test_symbols_release(QasmTestSymbols *symbols)
     qasm_rational_function_release(&symbols->omega);
 }
 
-// <psi|O|psi> with one site's operator per site, copied into a run of slots the chain reads
+// <psi|O|psi> with one site's operator per site, copied into a run of entries the chain reads
 static long qasm_test_lens(const QasmChain *chain, const QasmRationalFunction *const *each, QasmRationalFunction *value,
                            EngineError *error)
 {
@@ -323,7 +323,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
     }
     product_built = product_built && (qasm_chain_apply_one(&product, symbols.local_phase, 0u, &error) == 0L);
     qasm_test_check(results, product_built && qasm_test_bonds_are(&product, product_bonds),
-                    "symbolic: |+++> with a phase on wire 0 keeps bonds [1, 1]");
+                    "symbolic: |+++> with a phase on wire 0 retains bonds [1, 1]");
 
     // host against host: w = e^{i pi/4} specializes the symbolic reading to the controlled-T one
     QasmChain numeric = {NULL, 0u, NULL};
@@ -357,7 +357,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
                     "symbolic: the norm at w = e^{i pi/4} is exactly 1");
 
     // The evaluation forms one power past the highest. w^(bits - 1) at w = 2 is
-    // 2^(bits - 1), which the width holds; the power past it, 2^bits, does not.
+    // 2^(bits - 1), which the width represents; the power past it, 2^bits, does not.
     QasmRationalFunction widest;
     memset(&widest, 0, sizeof(widest));
     QasmNumber two = qasm_number_zero;
@@ -381,7 +381,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
                         qasm_rational_is_zero(&evaluated.real.sqrt2) &&
                         qasm_rational_is_zero(&evaluated.imaginary.rational) &&
                         qasm_rational_is_zero(&evaluated.imaginary.sqrt2),
-                    "symbolic: w^(bits - 1) at w = 2 evaluates to 2^(bits - 1), the widest power the width holds");
+                    "symbolic: w^(bits - 1) at w = 2 evaluates to 2^(bits - 1), the widest power the width represents");
     qasm_rational_function_release(&widest);
 
     EngineError engine_error;
@@ -396,7 +396,7 @@ static void qasm_test_symbolic_qubits(QasmResults *results)
         zero_set &&
             qasm_test_error_here(qasm_rational_function_invert(&zero_function, &inverse, &engine_error), &engine_error),
         "symbolic: inverting zero errors, a request error from qasm");
-    qasm_test_check(results, qasm_test_clean(&error), "symbolic: no error was raised on the paths that held");
+    qasm_test_check(results, qasm_test_clean(&error), "symbolic: no error was raised on the paths that succeeded");
     qasm_rational_function_release(&value);
     qasm_rational_function_release(&norm);
     qasm_rational_function_release(&xx);
@@ -458,7 +458,7 @@ static void qasm_test_boundary_lens(QasmResults *results)
     qasm_test_check(results,
                     qasm_test_error_here(qasm_lens_read(&too_wide, &measurement, &engine_error), &engine_error),
                     "lens: an aperture past the widest errors, a request error from qasm");
-    qasm_test_check(results, qasm_test_clean(&error), "lens: no error was raised on the paths that held");
+    qasm_test_check(results, qasm_test_clean(&error), "lens: no error was raised on the paths that succeeded");
     printf("  boundary lens: %llu us\n", engine_clock_microseconds() - start);
 }
 

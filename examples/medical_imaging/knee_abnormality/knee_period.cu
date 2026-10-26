@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The knee's period pass over sealed sets:
-//   - series are grouped by exact extent, and each group keeps its own null top per axis;
+//   - series are grouped by exact extent, and each group retains its own null top per axis;
 //   - a group of N series has rank * N axes, and its draws D are the least with D + 1 > rank * N: D = rank * N;
 //   - draw k uses series k mod N of its group, in set order, seeded by that series' root and k (period_draw);
 //   - each axis's top is the strongest null height over the group's D draws, and period_read reads every series
@@ -45,7 +45,7 @@
 
 #define KNEE_RANK 3u
 
-#define KNEE_HOLDING_MICROSECONDS 2000000ull
+#define KNEE_GRACE_MICROSECONDS 2000000ull
 #define KNEE_SWEEP_MICROSECONDS 20000ull
 #define KNEE_IDLE_MICROSECONDS 5000000ull
 
@@ -86,10 +86,10 @@ static const char *s_daemon = NULL;
 // how long a job waits for room on the device before the run gives the device up; 0 waits until it fits
 static unsigned long long s_waiting = 0ull;
 
-// set where a job was not taken: the daemon refused it, it found no room in time, or it was held and lost
+// set where a job was not taken: the daemon refused it, it found no room in time, or it was reserved and lost
 static int s_refused = 0;
 
-// set where every job's declaration is counted from its own buffers, and a job held over its signum's last peak is
+// set where every job's declaration is counted from its own buffers, and a job tracked over its signum's last peak is
 // confirmed on its declaration
 static int s_confirming = 0;
 
@@ -174,7 +174,7 @@ static char *knee_line(FILE *file)
 
 static int knee_job_submit(const char *kind, const unsigned long long *shape, unsigned long long declared, KneeJob *job)
 {
-    // the signum is the job's kind and the lattice's shape: jobs alike in what they hold share a kept peak
+    // the signum is the job's kind and the lattice's shape: jobs alike in what they allocate share a tracked peak
     memset(job, 0, sizeof(*job));
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -185,11 +185,11 @@ static int knee_job_submit(const char *kind, const unsigned long long *shape, un
         fprintf(stderr, "  tessera: %s: the device did not answer who it is\n", kind);
         return 0;
     }
-    TesseraJobAsk ask;
-    memset(&ask, 0, sizeof(ask));
-    memcpy(ask.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    TesseraJobSubmit submit;
+    memset(&submit, 0, sizeof(submit));
+    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&ask.luid, properties.luid, sizeof(ask.luid));
+    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
 #endif
     const size_t named = strlen(kind) + 1u;
     const size_t request_bytes = named + (KNEE_RANK * sizeof(unsigned long long));
@@ -200,23 +200,23 @@ static int knee_job_submit(const char *kind, const unsigned long long *shape, un
     }
     memcpy(request, kind, named);
     memcpy(request + named, shape, KNEE_RANK * sizeof(unsigned long long));
-    const ObsignatioSignumRequest signum = {request, request_bytes, NULL, OBSIGNATIO_MODE_HASH, ask.signum.bytes,
-                                            ENGINE_SIGNUM_BYTES, &error};
+    const ObsignatioSignumRequest signum = {
+        request, request_bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
     const long hashed = obsignatio_signum(&signum);
     free(request);
     if ((hashed != 0L) || (declared == 0ull))
     {
-        fprintf(stderr, "  tessera: %s: no job could be asked\n", kind);
+        fprintf(stderr, "  tessera: %s: no job could be requested\n", kind);
         return 0;
     }
-    ask.declared = declared;
-    ask.holding_microseconds = KNEE_HOLDING_MICROSECONDS;
-    ask.sweep_microseconds = KNEE_SWEEP_MICROSECONDS;
-    ask.idle_microseconds = KNEE_IDLE_MICROSECONDS;
-    ask.daemon_path = s_daemon;
-    ask.error = &error;
-    ask.waiting_microseconds = s_waiting;
-    if (tessera_job_submit(&ask, &job->client, &job->ticket) != 0L)
+    submit.declared = declared;
+    submit.grace_microseconds = KNEE_GRACE_MICROSECONDS;
+    submit.sweep_microseconds = KNEE_SWEEP_MICROSECONDS;
+    submit.idle_microseconds = KNEE_IDLE_MICROSECONDS;
+    submit.daemon_path = s_daemon;
+    submit.error = &error;
+    submit.waiting_microseconds = s_waiting;
+    if (tessera_job_submit(&submit, &job->client, &job->ticket) != 0L)
     {
         s_refused = 1;
         if ((s_waiting != 0ull) && (job->ticket.waited >= s_waiting))
@@ -230,19 +230,19 @@ static int knee_job_submit(const char *kind, const unsigned long long *shape, un
         }
         return 0;
     }
-    if (job->ticket.asked != 0u)
+    if (job->ticket.over_budget != 0u)
     {
-        // a declaration counted from the job's own buffers is confirmed where it is held over its signum's last peak
+        // a declaration counted from the job's own buffers is confirmed where it is tracked over its signum's last peak
         const long answered = (s_confirming != 0) ? tessera_job_override(job->client, &job->ticket, &error)
                                                   : tessera_job_wait(job->client, &job->ticket, &error);
         if ((answered != 0L) || (job->ticket.lost != 0u))
         {
             s_refused = 1;
-            fprintf(stderr, "  tessera: %s was held past its holding time and lost (ticket in %s)\n", kind,
+            fprintf(stderr, "  tessera: %s was reserved past its grace time and lost (ticket in %s)\n", kind,
                     job->ticket.lost_path);
             if (answered == 0L)
             {
-                tessera_job_precalc_kept(job->client, &error);
+                tessera_job_precalc_saved(job->client, &error);
             }
             job->client = NULL;
             return 0;
@@ -264,8 +264,8 @@ static int knee_job_release(const char *kind, KneeJob *job)
     job->client = NULL;
     if (job->ticket.last_peak > job->whole)
     {
-        printf("  tessera: %s peaked at %llu bytes, over the %llu it held and declared\n", kind, job->ticket.last_peak,
-               job->whole);
+        printf("  tessera: %s peaked at %llu bytes, over the %llu it allocated and declared\n", kind,
+               job->ticket.last_peak, job->whole);
     }
     return 1;
 }
@@ -292,13 +292,13 @@ static unsigned long long knee_file_bytes(const char *path)
     const long long end = (fseeko(file, 0, SEEK_END) == 0) ? (long long)ftello(file) : -1ll;
 #endif
     fclose(file);
-    // a file's length is not negative where it was told
+    // a file's length is not negative where it was reported
     return (end > 0ll) ? (unsigned long long)end : 0ull;
 }
 
 static unsigned long long knee_allocation_bytes(unsigned long long bytes);
 
-// a series' crystal, lowered and proved against its seal, as one job holding the tower's and the coder's pools, the
+// a series' crystal, lowered and proved against its seal, as one job allocating the tower's and the coder's pools, the
 // coder's stream, and the seal's chunk offsets, stream and leaves; the stream is at most the crystal file's bytes.
 // `side` takes its side bytes where it is not NULL
 static unsigned short *knee_load(const KneeSeries *series, EngineSignum *root, EngineSideBytes *side)
@@ -329,7 +329,7 @@ static unsigned short *knee_load(const KneeSeries *series, EngineSignum *root, E
     unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
     unsigned short *volume = NULL;
     const long loaded = engine_iapx_load(series->set, series->name, extent, &volume, root, side, &error);
-    // the tower's and the coder's pools go with the job: the process holds nothing on the device between jobs
+    // the tower's and the coder's pools go with the job: the process allocates nothing on the device between jobs
     engine_resident_release();
     const int released = knee_job_release("knee crystal load", &job);
     if ((loaded != 0L) || !released || (memcmp(extent, series->extent, sizeof(extent)) != 0))
@@ -424,8 +424,8 @@ static int knee_header(KneeText *text, unsigned long long series, const KneeGrou
     return good;
 }
 
-// a written file is kept only when its header is this run's, line for line; otherwise its lines were made under other
-// groups, and the run refuses and mixes none of them. Each body line is handed to `take`.
+// a written file is retained only when its header is this run's, line for line; otherwise its lines were made under
+// other groups, and the run refuses and mixes none of them. Each body line is handed to `take`.
 typedef int (*KneeLineTake)(const char *line, void *context);
 
 static int knee_resume(const char *path, const KneeText *header, KneeLineTake take, void *context, int *existed)
@@ -494,7 +494,7 @@ static int knee_parse_margin(const char *text, PeriodMargin *margin, const char 
     return end != denominator;
 }
 
-// the tops keep the strongest height per axis; one group's heights on an axis share their denominator, the pairs at
+// the tops retain the strongest height per axis; one group's heights on an axis share their denominator, the pairs at
 // every lag, and the numerators compare exactly
 static int knee_fold(KneeGroup *group, const PeriodMargin heights[KNEE_RANK])
 {
@@ -507,8 +507,8 @@ static int knee_fold(KneeGroup *group, const PeriodMargin heights[KNEE_RANK])
             return 0;
         }
         group->top[axis].denominator = heights[axis].denominator;
-        const unsigned long long held = group->top[axis].numerator;
-        group->top[axis].numerator = (heights[axis].numerator > held) ? heights[axis].numerator : held;
+        const unsigned long long top = group->top[axis].numerator;
+        group->top[axis].numerator = (heights[axis].numerator > top) ? heights[axis].numerator : top;
     }
     group->drawn += 1ull;
     return 1;
@@ -555,7 +555,7 @@ static int knee_take_draw(const char *line, void *context)
     return knee_fold(group, heights);
 }
 
-// a reading line starts with its series; the rest is kept as written
+// a reading line starts with its series; the rest is retained as written
 static int knee_take_reading(const char *line, void *context)
 {
     KneeRun *const run = (KneeRun *)context;
@@ -598,7 +598,7 @@ typedef struct
 } KneeNames;
 
 // the ingest: every series named in the list, one a line, read from the source and sealed into the set as a crystal,
-// one job each. A series whose crystal's head already reads is kept as it is, and a stopped ingest resumes from the
+// one job each. A series whose crystal's head already reads is retained as it is, and a stopped ingest resumes from the
 // set. A series that does not ingest is reported and the next one runs, but where the device's daemon takes no job the
 // ingest stops at that series; the exit is 1 where any did not. While one series is sealed the next one's span of the
 // source is read (engine_source_prefetch), and a list in the order the series lie in the source reads it start to end
@@ -631,8 +631,8 @@ static int knee_ingest(int argc, char **argv)
     // the list whole: the series after each one is known while it is sealed
     KneeNames listed = {NULL, 0ull, 0ull};
     char *line = NULL;
-    int held = 1;
-    while (held && ((line = knee_line(named)) != NULL))
+    int ingest_ok = 1;
+    while (ingest_ok && ((line = knee_line(named)) != NULL))
     {
         if (line[0] == '\0')
         {
@@ -643,27 +643,27 @@ static int knee_ingest(int argc, char **argv)
         {
             listed.room = (listed.room != 0ull) ? (listed.room * 2ull) : 1024ull;
             char **const grown = (char **)realloc(listed.names, (size_t)listed.room * sizeof(char *));
-            held = (grown != NULL);
-            listed.names = held ? grown : listed.names;
+            ingest_ok = (grown != NULL);
+            listed.names = ingest_ok ? grown : listed.names;
         }
-        if (held)
+        if (ingest_ok)
         {
             listed.names[listed.count] = line;
             listed.count += 1ull;
         }
     }
     fclose(named);
-    if (!held)
+    if (!ingest_ok)
     {
-        fprintf(stderr, "  %s: no room to hold the list\n", list);
+        fprintf(stderr, "  %s: no room to store the list\n", list);
         return 1;
     }
     unsigned long long count = 0ull;
-    unsigned long long kept = 0ull;
+    unsigned long long retained = 0ull;
     unsigned long long sealed = 0ull;
     unsigned long long failed = 0ull;
-    // the series whose span was last asked for ahead of it, past the list where none was
-    unsigned long long asked_ahead = listed.count;
+    // the series whose span was last requested for ahead of it, past the list where none was
+    unsigned long long queued_ahead = listed.count;
     for (unsigned long long at = 0ull; at < listed.count; at += 1ull)
     {
         char *const sample = listed.names[at];
@@ -673,16 +673,16 @@ static int knee_ingest(int argc, char **argv)
         unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
         if (engine_iapx_head(set, sample, extent, &error) == 0L)
         {
-            kept += 1ull;
+            retained += 1ull;
             continue;
         }
         memset(&error, 0, sizeof(error));
-        // this series' span is asked for where the last series did not ask for it, and the next series not yet sealed
-        // is asked for behind it: the source is read from one span into the next while each series is unpacked and
+        // this series' span is requested where the last series did not request it, and the next series not yet sealed
+        // is requested for behind it: the source is read from one span into the next while each series is unpacked and
         // sealed
         EngineError ahead;
         memset(&ahead, 0, sizeof(ahead));
-        if (asked_ahead != at)
+        if (queued_ahead != at)
         {
             engine_source_prefetch(source, sample, &ahead);
         }
@@ -694,7 +694,7 @@ static int knee_ingest(int argc, char **argv)
             {
                 memset(&ahead, 0, sizeof(ahead));
                 engine_source_prefetch(source, listed.names[next], &ahead);
-                asked_ahead = next;
+                queued_ahead = next;
                 break;
             }
         }
@@ -703,7 +703,7 @@ static int knee_ingest(int argc, char **argv)
         int good = engine_source_lanes(source, sample, &lanes, &error) == 0L;
         const unsigned long long shape[KNEE_RANK] = {lanes, 0ull, 0ull};
         KneeJob job;
-        const unsigned long long asking = knee_now_microseconds();
+        const unsigned long long started_at = knee_now_microseconds();
         const int read = good;
         good = good && knee_job_submit("knee ingest", shape,
                                        knee_allocation_bytes(lanes * sizeof(unsigned short)) +
@@ -736,8 +736,8 @@ static int knee_ingest(int argc, char **argv)
         if (good)
         {
             sealed += 1ull;
-            printf("  ingest %llu  %s  %llu lanes  %llu us  (read %llu us, job asked %llu us)\n", count, sample, lanes,
-                   spent, asking - reading, started - asking);
+            printf("  ingest %llu  %s  %llu lanes  %llu us  (read %llu us, job requested %llu us)\n", count, sample,
+                   lanes, spent, started_at - reading, started - started_at);
         }
         else
         {
@@ -752,8 +752,8 @@ static int knee_ingest(int argc, char **argv)
         free(listed.names[at]);
     }
     free(listed.names);
-    printf("  the ingest is done: %llu series named, %llu kept, %llu sealed, %llu did not ingest\n", count, kept,
-           sealed, failed);
+    printf("  the ingest is done: %llu series named, %llu retained, %llu sealed, %llu did not ingest\n", count,
+           retained, sealed, failed);
     return (failed == 0ull) ? 0 : 1;
 }
 
@@ -820,7 +820,7 @@ static KneePeriod *knee_periods_read(const char *path, unsigned long long *count
         }
         else
         {
-            fprintf(stderr, "  %s: a reading line does not hold a name, a group and P on each axis\n", path);
+            fprintf(stderr, "  %s: a reading line does not contain a name, a group and P on each axis\n", path);
             free(line);
         }
     }
@@ -844,7 +844,7 @@ static KneePeriod *knee_periods_read(const char *path, unsigned long long *count
 
 // the residual's own check of a series' orders, on one voxel: its key is encoded from the orders alone, and the orders
 // it refuses (an odd background order, or orders wider than its limbs) are refused here as they would be in the set
-static int knee_orders_held(const FlattenOrders *orders, EngineError *error)
+static int knee_orders_valid(const FlattenOrders *orders, EngineError *error)
 {
     unsigned short voxel = 0u;
     int offset_halves[ENGINE_AXES] = {0, 0, 0};
@@ -925,11 +925,11 @@ static int knee_flatten(int argc, char **argv)
         count = engine_set_samples(set, &names);
     }
     FlattenOrders *const orders = (FlattenOrders *)calloc((size_t)count + 1u, sizeof(FlattenOrders));
-    char **const kept = (char **)calloc((size_t)count + 1u, sizeof(char *));
+    char **const flat_names = (char **)calloc((size_t)count + 1u, sizeof(char *));
     unsigned long long *const lanes = (unsigned long long *)calloc((size_t)count + 1u, sizeof(unsigned long long));
-    if ((count == 0u) || (orders == NULL) || (kept == NULL) || (lanes == NULL))
+    if ((count == 0u) || (orders == NULL) || (flat_names == NULL) || (lanes == NULL))
     {
-        fprintf(stderr, "  %s: no series, or no room to hold them\n", set);
+        fprintf(stderr, "  %s: no series, or no room to store them\n", set);
         return 1;
     }
     unsigned long long largest = 0ull;
@@ -986,18 +986,18 @@ static int knee_flatten(int argc, char **argv)
         }
         else
         {
-            fits[at] = knee_orders_held(&orders[at], &refusals[at]) ? 1u : 0u;
+            fits[at] = knee_orders_valid(&orders[at], &refusals[at]) ? 1u : 0u;
         }
     }
-    unsigned int held = 0u;
+    unsigned int flattened_count = 0u;
     unsigned int left = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if (fits[at] != 0u)
         {
-            orders[held] = orders[at];
-            kept[held] = names[at];
-            held += 1u;
+            orders[flattened_count] = orders[at];
+            flat_names[flattened_count] = names[at];
+            flattened_count += 1u;
         }
         else
         {
@@ -1014,15 +1014,15 @@ static int knee_flatten(int argc, char **argv)
     FlattenSetRequest flatten;
     memset(&flatten, 0, sizeof(flatten));
     flatten.set = set;
-    flatten.names = kept;
-    flatten.count = held;
+    flatten.names = flat_names;
+    flatten.count = flattened_count;
     flatten.orders = orders;
     flatten.error = &error;
     const unsigned long long started = knee_now_microseconds();
-    const int flattened = (held != 0u) && (flatten_set(&flatten) != 0);
+    const int flattened = (flattened_count != 0u) && (flatten_set(&flatten) != 0);
     const int released = knee_job_release("knee flatten", &job);
     printf("  the flatten is done: %u series named, %u flattened, %u left out, %llu us\n", count,
-           flattened ? held : 0u, left, knee_now_microseconds() - started);
+           flattened ? flattened_count : 0u, left, knee_now_microseconds() - started);
     if (!flattened)
     {
         fprintf(stderr, "  the flatten did not finish (kind %u, module %u, site %u)\n", error.kind, error.module,
@@ -1031,8 +1031,8 @@ static int knee_flatten(int argc, char **argv)
     return (flattened && released) ? 0 : 1;
 }
 
-// the elements a voxel's size is read from: Spacing Between Slices (0018,0088) holds z, and Pixel Spacing (0028,0030)
-// holds y then x, the spacing between rows and then between columns
+// the elements a voxel's size is read from: Spacing Between Slices (0018,0088) contains z, and Pixel Spacing
+// (0028,0030) contains y then x, the spacing between rows and then between columns
 #define KNEE_SPACING_ELEMENTS 2u
 
 static const unsigned int KNEE_SPACING_GROUP[KNEE_SPACING_ELEMENTS] = {0x0018u, 0x0028u};
@@ -1159,7 +1159,7 @@ static int knee_text_order(const void *left, const void *right)
     return strcmp(*(const char *const *)left, *(const char *const *)right);
 }
 
-// a spacing line starts with its series; the names already written are kept in `context` and not read again
+// a spacing line starts with its series; the names already written are retained in `context` and not read again
 static int knee_take_spacing(const char *line, void *context)
 {
     KneeNames *const written = (KneeNames *)context;
@@ -1191,9 +1191,9 @@ static int knee_take_spacing(const char *line, void *context)
 }
 
 // the spacing: each series' voxel in mm, exactly as its DICOM headers write it, read from every slice's side bytes in
-// its crystal. A line holds the series; z, y and x, each the largest any slice writes ("-" where no slice holds the
-// element); the slices; for each element the slices that do not write that largest value; z² from the slices'
-// positions, the largest squared distance from one slice's position to the next ("-" where a slice holds no
+// its crystal. A line contains the series; z, y and x, each the largest any slice writes ("-" where no slice contains
+// the element); the slices; for each element the slices that do not write that largest value; z² from the slices'
+// positions, the largest squared distance from one slice's position to the next ("-" where a slice contains no
 // position); and the gaps whose square is not that largest. A stopped run resumes from its file.
 //
 //   knee_period spacing --daemon <tessera_daemon> --set <dir> --out <spacing.tsv>
@@ -1260,7 +1260,7 @@ static int knee_spacing(int argc, char **argv)
         good = good && (read_values != NULL) && (read_found != NULL);
         DicomDecimal largest[KNEE_RANK];
         memset(largest, 0, sizeof(largest));
-        unsigned int held[KNEE_RANK] = {0u, 0u, 0u};
+        unsigned int present[KNEE_RANK] = {0u, 0u, 0u};
         unsigned long long apart[KNEE_SPACING_ELEMENTS] = {0ull, 0ull};
         for (unsigned int element = 0u; good && (element < KNEE_SPACING_ELEMENTS); element += 1u)
         {
@@ -1274,10 +1274,10 @@ static int knee_spacing(int argc, char **argv)
                 for (unsigned int place = 0u; good && (read_found[leaf] != 0u) && (place < want); place += 1u)
                 {
                     int order = 1;
-                    good = (held[axis + place] == 0u) || knee_decimal_order(&value[place], &largest[axis + place],
-                                                                            &order);
+                    good = (present[axis + place] == 0u) ||
+                           knee_decimal_order(&value[place], &largest[axis + place], &order);
                     largest[axis + place] = (good && (order > 0)) ? value[place] : largest[axis + place];
-                    held[axis + place] = 1u;
+                    present[axis + place] = 1u;
                 }
             }
             for (size_t leaf = 0u; good && (leaf < leaves); leaf += 1u)
@@ -1330,7 +1330,7 @@ static int knee_spacing(int argc, char **argv)
         good = good && knee_text_add(&line, "%s", names[at]);
         for (unsigned int axis = 0u; good && (axis < KNEE_RANK); axis += 1u)
         {
-            good = (held[axis] != 0u) ? knee_decimal_add(&line, &largest[axis]) : knee_text_add(&line, "\t-");
+            good = (present[axis] != 0u) ? knee_decimal_add(&line, &largest[axis]) : knee_text_add(&line, "\t-");
         }
         good = good && knee_text_add(&line, "\t%llu\t%llu\t%llu", side.leaves, apart[0], apart[1]);
         good = good && (positioned ? knee_decimal_add(&line, &widest) : knee_text_add(&line, "\t-"));
@@ -1360,11 +1360,11 @@ static int knee_spacing(int argc, char **argv)
 }
 
 // each series' voxel from a spacing.tsv, as the square of z, y and x: z² from Spacing Between Slices where a slice
-// writes it and from the slices' positions where none does; `held` 0 where neither is in the line
+// writes it and from the slices' positions where none does; `present` 0 where neither is in the line
 typedef struct
 {
     char *name;
-    unsigned int held[KNEE_RANK];
+    unsigned int present[KNEE_RANK];
     DicomDecimal square[KNEE_RANK];
 } KneeSpacing;
 
@@ -1373,10 +1373,10 @@ static int knee_spacing_order(const void *left, const void *right)
     return strcmp(((const KneeSpacing *)left)->name, ((const KneeSpacing *)right)->name);
 }
 
-// a field as knee_spacing writes it, the mantissa's digits, e, then the exponent, into `value`; `held` 0 for "-"
-static int knee_spacing_field(const char *field, DicomDecimal *value, unsigned int *held)
+// a field as knee_spacing writes it, the mantissa's digits, e, then the exponent, into `value`; `present` 0 for "-"
+static int knee_spacing_field(const char *field, DicomDecimal *value, unsigned int *present)
 {
-    *held = 0u;
+    *present = 0u;
     if (strcmp(field, "-") == 0)
     {
         return 1;
@@ -1395,7 +1395,7 @@ static int knee_spacing_field(const char *field, DicomDecimal *value, unsigned i
         return 0;
     }
     value->exponent = exponent;
-    *held = 1u;
+    *present = 1u;
     return 1;
 }
 
@@ -1429,8 +1429,8 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
         // the fields read: the name, z, y and x at 1 to 3, and z² from the positions at 7
         DicomDecimal value[KNEE_RANK];
         DicomDecimal positions;
-        unsigned int value_held[KNEE_RANK] = {0u, 0u, 0u};
-        unsigned int positions_held = 0u;
+        unsigned int value_present[KNEE_RANK] = {0u, 0u, 0u};
+        unsigned int positions_present = 0u;
         char *field = line;
         unsigned int at = 0u;
         while (ok && (field != NULL))
@@ -1441,23 +1441,23 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
                 *tab = '\0';
             }
             ok = ((at == 0u) || (at > 7u) || ((at > 3u) && (at < 7u))) ||
-                 ((at <= 3u) ? knee_spacing_field(field, &value[at - 1u], &value_held[at - 1u])
-                             : knee_spacing_field(field, &positions, &positions_held));
+                 ((at <= 3u) ? knee_spacing_field(field, &value[at - 1u], &value_present[at - 1u])
+                             : knee_spacing_field(field, &positions, &positions_present));
             field = (tab != NULL) ? (tab + 1) : NULL;
             at += 1u;
         }
         ok = ok && (at >= 8u);
         for (unsigned int axis = 0u; ok && (axis < KNEE_RANK); axis += 1u)
         {
-            if (value_held[axis] != 0u)
+            if (value_present[axis] != 0u)
             {
                 ok = knee_decimal_square_into(&spacing->square[axis], &value[axis]);
-                spacing->held[axis] = 1u;
+                spacing->present[axis] = 1u;
             }
-            else if ((axis == 0u) && (positions_held != 0u))
+            else if ((axis == 0u) && (positions_present != 0u))
             {
                 spacing->square[axis] = positions;
-                spacing->held[axis] = 1u;
+                spacing->present[axis] = 1u;
             }
         }
         if (ok)
@@ -1467,7 +1467,7 @@ static KneeSpacing *knee_spacings_read(const char *path, unsigned long long *cou
         }
         else
         {
-            fprintf(stderr, "  %s: a spacing line does not hold a name, z, y, x and z² from the positions\n", path);
+            fprintf(stderr, "  %s: a spacing line does not contain a name, z, y, x and z² from the positions\n", path);
             free(line);
         }
     }
@@ -1531,7 +1531,8 @@ static void knee_residual_orders(const KneeOrders *orders, EngineResidualRequest
     memcpy(request->background_spaced, orders->background_spaced, sizeof(request->background_spaced));
 }
 
-// a rung's residual request over `extent`, in the fewest limbs that hold it; 0 where it needs more than the engine holds
+// a rung's residual request over `extent`, in the fewest limbs that represent it; 0 where it needs more than the engine
+// supports
 static unsigned int knee_rung_request(const KneeOrders *orders, const unsigned int extent[KNEE_RANK],
                                       EngineResidualRequest *request)
 {
@@ -1542,13 +1543,13 @@ static unsigned int knee_rung_request(const KneeOrders *orders, const unsigned i
     knee_residual_orders(orders, request);
     request->unit_sweep = ENGINE_RESIDUAL_BY_UNIT_SWEEP;
     const unsigned long long limbs = engine_residual_limbs(request);
-    // the limbs are held at or below ENGINE_RESIDUAL_LIMBS here, and narrow exactly
+    // the limbs are bounded at or below ENGINE_RESIDUAL_LIMBS here, and narrow exactly
     request->limbs = (limbs <= ENGINE_RESIDUAL_LIMBS) ? (unsigned int)limbs : 0u;
     return request->limbs;
 }
 
-// knee_orders_held for a rung's orders
-static int knee_rung_held(const KneeOrders *orders, EngineError *error)
+// knee_rung_valid for a rung's orders
+static int knee_rung_valid(const KneeOrders *orders, EngineError *error)
 {
     unsigned short voxel = 0u;
     int offset_halves[ENGINE_AXES] = {0, 0, 0};
@@ -1567,14 +1568,14 @@ static int knee_rung_held(const KneeOrders *orders, EngineError *error)
 
 // a rung's orders. The axis of the finest voxel takes n; every other axis the largest even n_a with n_a · d_a² ≤
 // n · d², d the finest spacing: no axis smooths wider in mm than the finest does. Returns 0 where an axis's spacing
-// is not held or does not carry exactly
+// is not bounded or does not carry exactly
 static int knee_rung_orders(const KneeSpacing *spacing, unsigned int n, const unsigned int comb[KNEE_RANK],
                             KneeOrders *orders)
 {
     memset(orders, 0, sizeof(*orders));
     for (unsigned int axis = 0u; axis < KNEE_RANK; axis += 1u)
     {
-        if ((spacing->held[axis] == 0u) || (spacing->square[axis].mantissa.sign <= 0))
+        if ((spacing->present[axis] == 0u) || (spacing->square[axis].mantissa.sign <= 0))
         {
             return 0;
         }
@@ -1634,13 +1635,13 @@ static unsigned long long knee_field_low(const unsigned int *magnitude, unsigned
 }
 
 // steps making 2^power: a constant below 2^32, times 2^32 as many times as 32 goes into power. Returns the step that
-// holds it, and moves `at` past the steps it wrote
+// stores it, and moves `at` past the steps it wrote
 static unsigned int knee_power_steps(EngineRecordStep *steps, unsigned int *at, unsigned int power)
 {
     const unsigned int made = *at;
     steps[made] = {ENGINE_RECORD_CONSTANT, 1u << (power % 32u), 0u, 0u};
     *at += 1u;
-    unsigned int held = made;
+    unsigned int step = made;
     if (power >= 32u)
     {
         const unsigned int word = *at;
@@ -1648,12 +1649,12 @@ static unsigned int knee_power_steps(EngineRecordStep *steps, unsigned int *at, 
         *at += 1u;
         for (unsigned int times = 0u; times < (power / 32u); times += 1u)
         {
-            steps[*at] = {ENGINE_RECORD_PRODUCT, held, word, 0u};
-            held = *at;
+            steps[*at] = {ENGINE_RECORD_PRODUCT, step, word, 0u};
+            step = *at;
             *at += 1u;
         }
     }
-    return held;
+    return step;
 }
 
 #define KNEE_LADDER_OWN 0u
@@ -1700,10 +1701,10 @@ static EngineRecordStep *knee_ladder_program(unsigned int rise, unsigned int fal
     steps[at++] = {ENGINE_RECORD_PRODUCT, rise_order, rise_up, 0u};
     const unsigned int fall_order = at;
     steps[at++] = {ENGINE_RECORD_COMPARE, own, 2u, 0u};
-    const unsigned int held = at;
+    const unsigned int start = at;
     steps[at++] = {ENGINE_RECORD_SUM, fall_order, 3u, 0u};
     const unsigned int peaked = at;
-    steps[at++] = {ENGINE_RECORD_PRODUCT, rose, held, 0u};
+    steps[at++] = {ENGINE_RECORD_PRODUCT, rose, start, 0u};
     outputs[KNEE_LADDER_ROSE] = rose;
     outputs[KNEE_LADDER_PEAKED] = peaked;
     *count = at;
@@ -1846,8 +1847,8 @@ static int knee_rung_cut(const unsigned short *volume, const unsigned int extent
     return ok;
 }
 
-// each body's partner on the rung after it: the voxels both rungs' bodies hold, counted for every pair of bodies
-// (body_overlap), and the heaviest matching of those counts. `runs` takes the most runs the overlap held
+// each body's partner on the rung after it: the voxels both rungs' bodies contain, counted for every pair of bodies
+// (body_overlap), and the heaviest matching of those counts. `runs` takes the most runs the overlap contained
 static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int extent[KNEE_RANK],
                           unsigned long long *runs)
 {
@@ -1913,7 +1914,7 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
     unsigned int *const weights = (unsigned int *)malloc(((size_t)pairs + 1u) * sizeof(unsigned int));
     unsigned char *const chosen = (unsigned char *)calloc((size_t)pairs + 1u, 1u);
     int ok = (total >= 0L) && (before != NULL) && (after != NULL) && (weights != NULL) && (chosen != NULL);
-    unsigned int kept = 0u;
+    unsigned int linked = 0u;
     for (unsigned int pair = 0u; ok && (pair < pairs); pair += 1u)
     {
         const unsigned int one = knee_body_of(earlier, peaks_before[pair]);
@@ -1922,17 +1923,17 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
         {
             continue;
         }
-        before[kept] = one;
-        after[kept] = other;
-        weights[kept] = counts[pair];
-        kept += 1u;
+        before[linked] = one;
+        after[linked] = other;
+        weights[linked] = counts[pair];
+        linked += 1u;
     }
     HeaviestMatchingRequest matching;
     memset(&matching, 0, sizeof(matching));
     matching.before = before;
     matching.after = after;
     matching.counts = weights;
-    matching.pairs = kept;
+    matching.pairs = linked;
     matching.before_count = earlier->count;
     matching.after_count = later->count;
     matching.chosen = chosen;
@@ -1942,7 +1943,7 @@ static int knee_rung_link(KneeRung *earlier, KneeRung *later, const unsigned int
                 total);
     }
     ok = ok && (heaviest_matching_run(&matching) != HEAVIEST_MATCHING_ERROR);
-    for (unsigned int pair = 0u; ok && (pair < kept); pair += 1u)
+    for (unsigned int pair = 0u; ok && (pair < linked); pair += 1u)
     {
         if (chosen[pair] != 0u)
         {
@@ -2047,13 +2048,13 @@ static int knee_rung_verdicts(const KneeRung *own, const KneeRung *before, const
     {
         for (unsigned int output = 0u; output < KNEE_LADDER_OUTPUTS; output += 1u)
         {
-            const unsigned int held =
+            const unsigned int verdict =
                 (knee_field_low(&device[lane * out_limbs], output_offset[output], output_bits[output]) != 0ull) ? 1u
                                                                                                                 : 0u;
-            counted[output] += held;
+            counted[output] += verdict;
             if (truthy[output] != NULL)
             {
-                truthy[output][lane] = (unsigned char)held;
+                truthy[output][lane] = (unsigned char)verdict;
             }
         }
     }
@@ -2095,30 +2096,32 @@ static unsigned long long knee_rung_window(const KneeOrders *orders, unsigned in
     return taps;
 }
 
-// the bodies a series keeps, each one packed magnitude of `limbs` words
+// the bodies a series retains, each one packed magnitude of `limbs` words
 typedef struct
 {
     unsigned int *words;
     size_t count;
     size_t room;
     unsigned int limbs;
-} KneeKept;
+} KneeMagnitudes;
 
-static int knee_kept_add(KneeKept *kept, const unsigned int *magnitude)
+static int knee_magnitudes_add(KneeMagnitudes *magnitudes, const unsigned int *magnitude)
 {
-    if (kept->count == kept->room)
+    if (magnitudes->count == magnitudes->room)
     {
-        const size_t room = (kept->room != 0u) ? (kept->room * 2u) : 1024u;
-        unsigned int *const grown = (unsigned int *)realloc(kept->words, room * kept->limbs * sizeof(unsigned int));
+        const size_t room = (magnitudes->room != 0u) ? (magnitudes->room * 2u) : 1024u;
+        unsigned int *const grown =
+            (unsigned int *)realloc(magnitudes->words, room * magnitudes->limbs * sizeof(unsigned int));
         if (grown == NULL)
         {
             return 0;
         }
-        kept->words = grown;
-        kept->room = room;
+        magnitudes->words = grown;
+        magnitudes->room = room;
     }
-    memcpy(&kept->words[kept->count * kept->limbs], magnitude, kept->limbs * sizeof(unsigned int));
-    kept->count += 1u;
+    memcpy(&magnitudes->words[magnitudes->count * magnitudes->limbs], magnitude,
+           magnitudes->limbs * sizeof(unsigned int));
+    magnitudes->count += 1u;
     return 1;
 }
 
@@ -2127,21 +2130,22 @@ static int knee_kept_add(KneeKept *kept, const unsigned int *magnitude)
 // order on z, y and x and its gain's low and high words; then the peaked bodies' magnitudes, each in its rung's FRAME
 // field, and after them the open bodies', the ones the last rung leaves rising. It is written whole and then renamed
 static int knee_ladder_write(const char *dir, const char *name, const MaxTreeLayout *layout,
-                             const unsigned int *rung_words, unsigned int rungs, const KneeKept *kept,
+                             const unsigned int *rung_words, unsigned int rungs, const KneeMagnitudes *magnitudes,
                              size_t peaked)
 {
     KneeText path = {NULL, 0u, 0u};
     KneeText part = {NULL, 0u, 0u};
     int ok = knee_text_add(&path, "%s/%s.ladder", dir, name) && knee_text_add(&part, "%s.part", path.bytes);
     FILE *const file = ok ? fopen(part.bytes, "wb") : NULL;
-    // the counts are a series' bodies and rungs, held far below 2^32 by the volume's own voxels
+    // the counts are a series' bodies and rungs, bounded far below 2^32 by the volume's own voxels
     const unsigned int head[5] = {MAX_TREE_FIELDS, layout->limbs, rungs, (unsigned int)peaked,
-                                  (unsigned int)(kept->count - peaked)};
+                                  (unsigned int)(magnitudes->count - peaked)};
     ok = (file != NULL) && (fwrite(head, sizeof(unsigned int), 5u, file) == 5u) &&
          (fwrite(layout->bits, sizeof(unsigned int), MAX_TREE_FIELDS, file) == MAX_TREE_FIELDS) &&
          (fwrite(layout->offset, sizeof(unsigned int), MAX_TREE_FIELDS, file) == MAX_TREE_FIELDS) &&
          (fwrite(rung_words, sizeof(unsigned int), (size_t)rungs * 5u, file) == ((size_t)rungs * 5u)) &&
-         (fwrite(kept->words, sizeof(unsigned int), kept->count * kept->limbs, file) == (kept->count * kept->limbs));
+         (fwrite(magnitudes->words, sizeof(unsigned int), magnitudes->count * magnitudes->limbs, file) ==
+          (magnitudes->count * magnitudes->limbs));
     ok = (file != NULL) && (fclose(file) == 0) && ok;
     remove(path.bytes);
     ok = ok && (rename(part.bytes, path.bytes) == 0);
@@ -2158,14 +2162,14 @@ static int knee_ladder_write(const char *dir, const char *name, const MaxTreeLay
 
 // a series' job declares room for KNEE_LADDER_ROOM_BODIES bodies and KNEE_LADDER_ROOM_RUNS overlap runs in every
 // thousand voxels. A rung that cuts more bodies, or a link that counts more runs, gives the device back, and the ladder
-// asks again with room for what it counted before it goes on
+// requests again with room for what it counted before it goes on
 #define KNEE_LADDER_ROOM_BODIES 20ull
 #define KNEE_LADDER_ROOM_RUNS 450ull
 
-// the pages the residual's key and a verdict program hold on the device, one an allocation
+// the pages the residual's key and a verdict program occupy on the device, one an allocation
 #define KNEE_LADDER_PROGRAM_PAGES 8ull
 
-// the series a ladder leaves to be cut in slabs: its ladder holds more device bytes whole than a series may take
+// the series a ladder leaves to be cut in slabs: its ladder occupies more device bytes whole than a series may take
 #define KNEE_LADDER_WHOLE 2
 
 // how long a ladder's job waits for room where `--waiting` is not given
@@ -2174,14 +2178,14 @@ static int knee_ladder_write(const char *dir, const char *name, const MaxTreeLay
 // the most device bytes one series' ladder may declare; a series past it is left whole for the slabs
 static unsigned long long s_device_cap = 0ull;
 
-// the bodies a rung and the runs a link may hold under a series' job
+// the bodies a rung and the runs a link may contain under a series' job
 typedef struct
 {
     unsigned long long bodies;
     unsigned long long runs;
 } KneeRoom;
 
-// the device bytes a series' ladder holds at once, those of its widest rung: the lanes, the residual and the unit
+// the device bytes a series' ladder occupies at once, those of its widest rung: the lanes, the residual and the unit
 // sweep's planes in that rung's limbs (engine_residual_bytes), the max tree over every voxel with room for its bodies,
 // a rung's bodies packed in `limbs` words with the verdicts' records, each member's packed bodies and the lanes' index
 // beside them, and the overlap's labels, sign words and runs; 0 where the ladder reaches no rung
@@ -2203,7 +2207,7 @@ static unsigned long long knee_ladder_bytes(const EngineResidualRequest *widest,
                              (KNEE_LADDER_PROGRAM_PAGES * DEVICE_POOL_PAGE_BYTES));
 }
 
-// the engine's buffers and the overlap's go with the job: the process holds nothing on the device between jobs
+// the engine's buffers and the overlap's go with the job: the process allocates nothing on the device between jobs
 static int knee_ladder_release(unsigned long long declared, KneeJob *job)
 {
     engine_resident_release();
@@ -2212,14 +2216,14 @@ static int knee_ladder_release(unsigned long long declared, KneeJob *job)
 }
 
 // rung k smooths and takes the background at n = 2^(k + 1) on the finest axis (knee_rung_orders), a difference of
-// smooths whose doubling keeps Lindeberg's t / Δt the same on every rung, each smooth laid as spaced pairs so its bits
-// grow with the count of its pairs. A rung is cut into bodies, linked to the rung before, and its verdicts run: which
-// bodies rose, and which bodies of the rung before peaked. The ladder ends where no body rose, where an axis's window
-// is longer than the axis, or where the residual refuses the orders. Each rung is one line; the last line of a series
-// says why it ended and how many bodies are still open. Where `bodies` is not NULL the peaked and open bodies are
-// written there (knee_ladder_write).
+// smooths whose doubling preserves Lindeberg's t / Δt the same on every rung, each smooth laid as spaced pairs so its
+// bits grow with the count of its pairs. A rung is cut into bodies, linked to the rung before, and its verdicts run:
+// which bodies rose, and which bodies of the rung before peaked. The ladder ends where no body rose, where an axis's
+// window is longer than the axis, or where the residual refuses the orders. Each rung is one line; the last line of a
+// series reports why it ended and how many bodies are still open. Where `bodies` is not NULL the peaked and open bodies
+// are written there (knee_ladder_write).
 //
-// The series' job declares every device byte the ladder holds at its widest rung (knee_ladder_bytes), and the device
+// The series' job declares every device byte the ladder occupies at its widest rung (knee_ladder_bytes), and the device
 // is given back before the series returns. A series whose ladder would declare more than s_device_cap is left whole
 // for the slabs, and KNEE_LADDER_WHOLE returned
 static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spacing,
@@ -2231,7 +2235,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     MaxTreeLayout layout;
     max_tree_layout(extent[0], extent[1], extent[2], KNEE_LADDER_RUNGS, 1u, &layout);
     // the widest rung the ladder can reach: every rung's limbs and planes are at least the rung's before it, and the
-    // engine holds its buffers at the most asked. The widest rung's bytes are the series' most
+    // engine allocates its buffers at the most requested. The widest rung's bytes are the series' most
     EngineResidualRequest widest;
     memset(&widest, 0, sizeof(widest));
     for (unsigned int step = 0u; step < KNEE_LADDER_RUNGS; step += 1u)
@@ -2252,12 +2256,13 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     }
     KneeRoom room = {((voxels * KNEE_LADDER_ROOM_BODIES) + 999ull) / 1000ull,
                      ((voxels * KNEE_LADDER_ROOM_RUNS) + 999ull) / 1000ull};
-    // a ladder with no rung to reach ends before it holds anything on the device, and asks no job
+    // a ladder with no rung to reach ends before it allocates anything on the device, and requests no job
     unsigned long long declared = knee_ladder_bytes(&widest, voxels, &room, layout.limbs);
     if (declared > s_device_cap)
     {
-        fprintf(stderr, "  %s: its ladder holds %llu device bytes whole, past the %llu a series may take; it is left for "
-                        "the slabs\n",
+        fprintf(stderr,
+                "  %s: its ladder occupies %llu device bytes whole, past the %llu a series may take; it is left for "
+                "the slabs\n",
                 series->name, declared, s_device_cap);
         return KNEE_LADDER_WHOLE;
     }
@@ -2282,12 +2287,12 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
     memset(&error, 0, sizeof(error));
     int ok = 1;
     int left_whole = 0;
-    int held = 1;
+    int series_ok = 1;
     const char *ended = "no body rose";
     unsigned long long open = 0ull;
     unsigned long long runs = 0ull;
     unsigned int made = 0u;
-    KneeKept kept = {NULL, 0u, 0u, layout.limbs};
+    KneeMagnitudes magnitudes = {NULL, 0u, 0u, layout.limbs};
     unsigned int rung_words[KNEE_LADDER_RUNGS * 5u];
     unsigned char *last_rose = NULL;
     const KneeRung *last = NULL;
@@ -2315,7 +2320,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
             ended = "a window is longer than its axis";
             break;
         }
-        if (!knee_rung_held(&here->orders, &refusal))
+        if (!knee_rung_valid(&here->orders, &refusal))
         {
             ended = "the residual refuses the orders";
             break;
@@ -2333,17 +2338,17 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
         ok = (cut > 0) && ((step == 0u) || knee_rung_link(before, here, extent, &runs));
         if (ok && (((unsigned long long)here->count > room.bodies) || (runs > room.runs)))
         {
-            // the rung is cut and linked, and its bodies and links are on the host: the job is given back and asked
+            // the rung is cut and linked, and its bodies and links are on the host: the job is given back and requested
             // again with room for what the rung counted, before the verdicts go on
             room.bodies = ((unsigned long long)here->count > room.bodies) ? here->count : room.bodies;
             room.runs = (runs > room.runs) ? runs : room.runs;
-            held = knee_ladder_release(declared, &job);
+            series_ok = knee_ladder_release(declared, &job);
             declared = knee_ladder_bytes(&widest, voxels, &room, layout.limbs);
-            left_whole = held && (declared > s_device_cap);
-            fprintf(stderr, "  %s: rung %u asks again with room for %llu bodies and %llu runs, %llu device bytes\n",
+            left_whole = series_ok && (declared > s_device_cap);
+            fprintf(stderr, "  %s: rung %u requests again with room for %llu bodies and %llu runs, %llu device bytes\n",
                     series->name, step, room.bodies, room.runs, declared);
-            held = held && !left_whole && knee_job_submit("knee ladder", shape, declared, &job);
-            if (!held)
+            series_ok = series_ok && !left_whole && knee_job_submit("knee ladder", shape, declared, &job);
+            if (!series_ok)
             {
                 ended = left_whole ? "the room it counted is past what a series may take" : "its job was not taken";
                 ok = 0;
@@ -2367,7 +2372,7 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
                                 (step == 0u) ? 0ull : (here->gain - before->gain), 0ull, &layout, own_counted,
                                 own_truthy, &error);
         // the rung before: each body against both its partners, now that the rung after it is cut. Its peaked bodies
-        // are kept
+        // are retained
         unsigned long long before_counted[KNEE_LADDER_OUTPUTS] = {0ull, 0ull};
         unsigned char *const peaked =
             (ok && (step != 0u)) ? (unsigned char *)calloc((size_t)before->count + 1u, 1u) : NULL;
@@ -2379,7 +2384,8 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
                                         here->gain - before->gain, &layout, before_counted, before_truthy, &error)));
         for (unsigned int body = 0u; ok && (step != 0u) && (body < before->count); body += 1u)
         {
-            ok = (peaked[body] == 0u) || knee_kept_add(&kept, &before->magnitudes[(size_t)body * layout.limbs]);
+            ok = (peaked[body] == 0u) ||
+                 knee_magnitudes_add(&magnitudes, &before->magnitudes[(size_t)body * layout.limbs]);
         }
         free(peaked);
         if (!ok)
@@ -2407,27 +2413,28 @@ static int knee_ladder_series(const KneeSeries *series, const KneeSpacing *spaci
             break;
         }
     }
-    const int released = !held || knee_ladder_release(declared, &job);
-    // the bodies the last rung leaves rising are kept after the peaked ones
-    const size_t peaked_count = kept.count;
+    const int released = !series_ok || knee_ladder_release(declared, &job);
+    // the bodies the last rung leaves rising are retained after the peaked ones
+    const size_t peaked_count = magnitudes.count;
     for (unsigned int body = 0u; ok && (last != NULL) && (body < last->count); body += 1u)
     {
-        ok = (last_rose[body] == 0u) || knee_kept_add(&kept, &last->magnitudes[(size_t)body * layout.limbs]);
+        ok =
+            (last_rose[body] == 0u) || knee_magnitudes_add(&magnitudes, &last->magnitudes[(size_t)body * layout.limbs]);
     }
-    const int written =
-        ok && ((bodies == NULL) || knee_ladder_write(bodies, series->name, &layout, rung_words, made, &kept,
-                                                      peaked_count));
-    for (unsigned int slot = 0u; slot < 3u; slot += 1u)
+    const int written = ok && ((bodies == NULL) || knee_ladder_write(bodies, series->name, &layout, rung_words, made,
+                                                                     &magnitudes, peaked_count));
+    for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        knee_rung_release(&rungs[slot]);
+        knee_rung_release(&rungs[at]);
     }
     free(last_rose);
-    free(kept.words);
+    free(magnitudes.words);
     free(volume);
     if (left_whole)
     {
-        fprintf(stderr, "  %s: its ladder holds %llu device bytes whole, past the %llu a series may take; it is left for "
-                        "the slabs\n",
+        fprintf(stderr,
+                "  %s: its ladder occupies %llu device bytes whole, past the %llu a series may take; it is left for "
+                "the slabs\n",
                 series->name, declared, s_device_cap);
         text->used = 0u;
         return KNEE_LADDER_WHOLE;
@@ -2456,9 +2463,9 @@ static int knee_take_ladder(const char *line, void *context)
 // together once its ladder ends, and its bodies' file in `--bodies` (knee_ladder_write), a directory that is there. A
 // series with no reading or no spacing on an axis is reported and left out.
 //
-// A series' job declares every device byte its ladder holds (knee_ladder_bytes), and the engine frees them before the
-// job releases. A series whose ladder declares more than `--device-bytes` (half the device's memory where it is not
-// given) is left whole for the slabs. The run stops, with what it has written kept, where a job finds no room in
+// A series' job declares every device byte its ladder occupies (knee_ladder_bytes), and the engine frees them before
+// the job releases. A series whose ladder declares more than `--device-bytes` (half the device's memory where it is not
+// given) is left whole for the slabs. The run stops, with what it has written retained, where a job finds no room in
 // `--waiting` seconds (600 where it is not given, 0 to wait until it fits) or where the daemon takes no job
 //
 //   knee_period ladder --daemon <tessera_daemon> --readings <periods.tsv> --spacing <spacing.tsv> --set <dir>
@@ -2498,7 +2505,7 @@ static int knee_ladder(int argc, char **argv)
     size_t device_total = 0u;
     if (cudaMemGetInfo(&device_free, &device_total) != cudaSuccess)
     {
-        fprintf(stderr, "  the device did not tell its memory\n");
+        fprintf(stderr, "  the device did not report its memory\n");
         return 1;
     }
     s_confirming = 1;
@@ -2586,14 +2593,14 @@ static int knee_ladder(int argc, char **argv)
         series.name = names[at];
         EngineError error;
         memset(&error, 0, sizeof(error));
-        const int whole = (spacing != NULL) && (spacing->held[0] != 0u) && (spacing->held[1] != 0u) &&
-                          (spacing->held[2] != 0u);
+        const int whole = (spacing != NULL) && (spacing->present[0] != 0u) && (spacing->present[1] != 0u) &&
+                          (spacing->present[2] != 0u);
         if ((period == NULL) || !whole || (engine_iapx_head(set, names[at], series.extent, &error) != 0L) ||
             (series.extent[0] != 1ull))
         {
             left += 1u;
             printf("  left out  %s  (%s)\n", names[at],
-                   (period == NULL) ? "no reading" : (!whole ? "a spacing not held" : "the head did not read"));
+                   (period == NULL) ? "no reading" : (!whole ? "a spacing not bounded" : "the head did not read"));
             continue;
         }
         KneeText text = {NULL, 0u, 0u};
@@ -2719,7 +2726,7 @@ int main(int argc, char **argv)
 #endif
     setvbuf(stdout, NULL, _IONBF, 0u);
 
-    // the device's context is made before the first job is asked. Its bytes stand in what submit measures, and no
+    // the device's context is made before the first job is requested. Its bytes stand in what submit measures, and no
     // job's peak carries them
     int device = 0;
     if ((cudaGetDevice(&device) != cudaSuccess) || (cudaSetDevice(device) != cudaSuccess)
@@ -2770,7 +2777,7 @@ int main(int argc, char **argv)
     run.done = (unsigned char *)calloc((size_t)run.count * KNEE_RANK, 1u);
     if ((run.count == 0ull) || (run.by_name == NULL) || (run.groups == NULL) || (run.done == NULL))
     {
-        fprintf(stderr, "  no series, or no room to hold them\n");
+        fprintf(stderr, "  no series, or no room to store them\n");
         return 1;
     }
     for (unsigned long long at = 0ull; at < run.count; at += 1ull)
@@ -2967,11 +2974,11 @@ int main(int argc, char **argv)
         fprintf(readings_file, "%s\t%u", series->name, series->group);
         for (unsigned int axis = 0u; axis < KNEE_RANK; axis += 1u)
         {
-            const PeriodAxis *const held = &call.reading.axis[axis];
-            fprintf(readings_file, "\t%llu\t%llu\t%llu/%llu\t%llu\t%llu\t%llu\t%llu\t%llu", held->period,
-                    held->candidate, held->margin.numerator, held->margin.denominator, held->lags,
-                    held->agreement_at_candidate,
-                    held->agreement_beside_candidate, held->agreement_at_double, held->agreement_beside_double);
+            const PeriodAxis *const axis_reading = &call.reading.axis[axis];
+            fprintf(readings_file, "\t%llu\t%llu\t%llu/%llu\t%llu\t%llu\t%llu\t%llu\t%llu", axis_reading->period,
+                    axis_reading->candidate, axis_reading->margin.numerator, axis_reading->margin.denominator,
+                    axis_reading->lags, axis_reading->agreement_at_candidate, axis_reading->agreement_beside_candidate,
+                    axis_reading->agreement_at_double, axis_reading->agreement_beside_double);
         }
         fprintf(readings_file, "\t%llu\n", call.microseconds);
         fflush(readings_file);

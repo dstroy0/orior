@@ -22,7 +22,7 @@ unsigned long long web_count(const TreeFrame *earlier, unsigned int object, cons
                              const unsigned int *later_near_start, const unsigned int *later_nearby, unsigned int *seen,
                              unsigned int mark);
 
-extern unsigned long long g_web_asked;
+extern unsigned long long g_web_queried;
 
 extern unsigned long long g_web_moved;
 

@@ -9,8 +9,8 @@
 #include "transfer.h"
 
 // the longest frame taken, in bytes, a longer body going through the transfer layer; the bytes of a frame read into
-// the room it is read in, and of a body written again; and the bytes of a body kept in a message's slot, a longer one
-// kept in a region
+// the room it is read in, and of a body written again; and the bytes of a body stored in a message's buffer, a longer
+// one stored in a region
 #define CLI_DOOR_MOST (16u << 20u)
 #define CLI_DOOR_FRAME (1u << 18u)
 #define CLI_DOOR_SLOT_BODY 4096u
@@ -19,8 +19,8 @@
 // it is longer
 typedef struct
 {
-    char channel[CLI_NAME_LONGEST];
-    char from[CLI_NAME_LONGEST];
+    char channel[CLI_NAME_MAX_LEN];
+    char from[CLI_NAME_MAX_LEN];
     unsigned long long size;
     char body[CLI_DOOR_SLOT_BODY];
     int has_region;
@@ -38,32 +38,33 @@ typedef struct
     unsigned long long shut;
 #endif
 #if !defined(_WIN32)
-    CliDescriptors kept;
+    CliDescriptors pending;
 #endif
 } CliDoorEnd;
 
 // A listener of its own: on Windows the pipe instance waiting for the next process to join and the pipe's name,
-// elsewhere the socket it listens on; and the lock over them, never held while a join is waited for, so a second
+// elsewhere the socket it listens on; and the lock over them, never acquired while a join is waited for, so a second
 // listener is made while the first waits
 typedef struct
 {
     unsigned long long waiting;
     CliLock lock;
 #if defined(_WIN32)
-    wchar_t name[CLI_PATH_LONGEST];
+    wchar_t name[CLI_PATH_MAX_LEN];
 #endif
 } CliDoorListener;
 
-// a listener made into `listener`, its address into `address`, which holds CLI_PATH_LONGEST; the next process to
+// a listener made into `listener`, its address into `address`, sized for CLI_PATH_MAX_LEN; the next process to
 // join it taken,
-// its end into `end` and the process at the other end into `peer`, where the system says it; the door at `address`
+// its end into `end` and the process at the other end into `peer`, where the system reports it; the door at `address`
 // joined, waiting up to five seconds while every instance of a pipe is taken; `size` bytes read whole; `size` bytes
 // written whole, the region's descriptor going with the first byte on a socket; the next descriptor that came with
 // what was read, -1 where none did or on Windows; a reader of the end woken to its end; and the end let go
 // (platform/windows_door.c, platform/posix_door.c)
-int cli_door_listening(CliDoorListener *listener, char *address, CliLine *said);
-int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer, CliLine *said);
-int cli_door_connected(const char *address, CliDoorEnd *end, CliLine *said);
+int cli_door_listening(CliDoorListener *listener, char *address, VerbaLinea *err_msg);
+int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer,
+                      VerbaLinea *err_msg);
+int cli_door_connected(const char *address, CliDoorEnd *end, VerbaLinea *err_msg);
 int cli_door_read(CliDoorEnd *end, void *bytes, unsigned long long size);
 int cli_door_written(CliDoorEnd *end, const void *bytes, unsigned long long size, const CliRegion *region);
 int cli_door_descriptor(CliDoorEnd *end);
@@ -76,18 +77,19 @@ void cli_door_closed(CliDoorEnd *end);
 #define CLI_DOOR_FRAME_BROKEN 0
 #define CLI_DOOR_FRAME_PASSED (-1)
 
-// a frame read into `frame`, which holds `room`, its size into `size`: what it came to, why said where it broke; a
+// a frame read into `frame`, sized for `room`, its size into `size`: what it came to, why given where it broke; a
 // frame of `size` bytes of `json` written, the region handed over with it where one is given: 1, or 0 where it could
-// not be; what a transfer handing over `region` says, the handle made in the process `to` where it is given on
-// Windows, written into `out`: 1, or 0 with why said; the region the transfer of `length` and `handle` hands over,
+// not be; what a transfer handing over `region` describes, the handle made in the process `to` where it is given on
+// Windows, written into `out`: 1, or 0 with why given; the region the transfer of `length` and `handle` hands over,
 // taken from the process `from` where it is given on Windows, else from the descriptors that came with the frame: 1,
-// or 0 with why said; and the transfer object at `transfer`, `size` bytes, read: 1, or 0 with why said (door.c)
-int cli_door_frame_read(CliDoorEnd *end, char *frame, unsigned long long room, unsigned long long *size, CliLine *said);
+// or 0 with why given; and the transfer object at `transfer`, `size` bytes, read: 1, or 0 with why given (door.c)
+int cli_door_frame_read(CliDoorEnd *end, char *frame, unsigned long long room, unsigned long long *size,
+                        VerbaLinea *err_msg);
 int cli_door_frame_written(CliDoorEnd *end, const char *json, unsigned long long size, const CliRegion *region);
-int cli_door_handed(const CliRegion *region, int has_to, unsigned int to, CliLine *out, CliLine *said);
+int cli_door_handed(const CliRegion *region, int has_to, unsigned int to, VerbaLinea *out, VerbaLinea *err_msg);
 int cli_door_handed_over(CliDoorEnd *end, unsigned long long length, unsigned long long handle, int has_from,
-                         unsigned int from, CliRegion *region, CliLine *said);
+                         unsigned int from, CliRegion *region, VerbaLinea *err_msg);
 int cli_door_transfer(const char *transfer, unsigned long long size, unsigned long long *length,
-                      unsigned long long *handle, CliLine *said);
+                      unsigned long long *handle, VerbaLinea *err_msg);
 
 #endif

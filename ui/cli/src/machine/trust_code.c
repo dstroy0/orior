@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// trust_code.c: the files of a tree that run as code as its tools read it, kept a while, and the words git is
-// started with where a tree's hook is held back
+// trust_code.c: the files of a tree that run as code as its tools read it, cached a while, and the words git is
+// started with where a tree's hook is disabled
 #include "../editor/files.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -14,20 +14,20 @@ static const char *const s_prettier[6] = {".prettierrc.js",     ".prettierrc.cjs
 static const char *const s_eslint[5] = {".eslintrc.js", ".eslintrc.cjs", "eslint.config.js", "eslint.config.cjs",
                                         "eslint.config.mjs"};
 
-// how long a tree's code found is kept before the tree is looked through again, in milliseconds
+// how long a tree's code found is cached before the tree is looked through again, in milliseconds
 #define CLI_TRUST_FOUND_FOR 10000ull
 
-// the most trees whose code found is kept, and the bytes the paths of a tree's code are begun to be written in,
+// the most trees whose code found is cached, and the bytes the paths of a tree's code are begun to be written in,
 // doubling as they fill
 #define CLI_TRUST_TREES 8u
 #define CLI_TRUST_PATHS_FIRST 1024u
 
-CliCellsTally g_cli_trust_cells = CLI_CELLS_TALLY("cli_trust");
+CellOwner g_cli_trust_cells = MMGR_CELL_OWNER("cli_trust");
 
 // The code found in a tree looked through, and when
 typedef struct
 {
-    char tree[CLI_PATH_LONGEST];
+    char tree[CLI_PATH_MAX_LEN];
     unsigned long long when;
     CliTrustCode code;
     int has;
@@ -38,7 +38,7 @@ static CliLock s_found_lock = CLI_LOCK_INIT;
 
 void cli_trust_code_given(CliTrustCode *code)
 {
-    cli_cell_given_by(&g_cli_trust_cells, code->paths);
+    g_cli_cells->persistent_buf_release(code->paths, &g_cli_trust_cells);
     *code = (CliTrustCode){NULL, 0ull, 0u};
 }
 
@@ -62,7 +62,7 @@ static int cli_code_copied(const char *paths, unsigned long long size, unsigned 
     {
         return 1;
     }
-    code->paths = cli_cell_taken_by(&g_cli_trust_cells, size, "the files a tree runs as code");
+    code->paths = g_cli_cells->persistent_buf_alloc(size, &g_cli_trust_cells);
     if (code->paths == NULL)
     {
         return 0;
@@ -176,18 +176,17 @@ int cli_trust_names_a_hook(const char *config)
 }
 
 // the file `name` under `folder` read whole, a zero after it, into a cell of its size given back with
-// cli_cell_given_by: the cell, or NULL where it could not be read or the cellblock could not meet it
+// g_cli_cells->persistent_buf_release: the cell, or NULL where it could not be read or the cellblock could not meet it
 static char *cli_read_in(const char *folder, const char *name)
 {
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = (cli_line_closed(&line) != 0ull) ? cli_file_held(path, &size) : NULL;
-    char *const text =
-        (bytes != NULL) ? cli_cell_taken_by(&g_cli_trust_cells, size + 1ull, "a file a tree's tools read") : NULL;
+    const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(path, &size) : NULL;
+    char *const text = (bytes != NULL) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_trust_cells) : NULL;
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
@@ -197,14 +196,14 @@ static char *cli_read_in(const char *folder, const char *name)
     return text;
 }
 
-// whether `text` holds a line that is `proc-macro=true` with its spaces left out
+// whether `text` contains a line that is `proc-macro=true` with its spaces left out
 static int cli_proc_macro(const char *text)
 {
     const char *at = text;
     while (at[0] != '\0')
     {
         // the line's letters but its spaces, and its `\r` before the `\n` left off
-        char kept[32];
+        char name_buf[32];
         unsigned int count = 0u;
         int longer = 0;
         for (; (at[0] != '\0') && (at[0] != '\n'); at += 1)
@@ -213,9 +212,9 @@ static int cli_proc_macro(const char *text)
             {
                 continue;
             }
-            if (count < (sizeof(kept) - 1u))
+            if (count < (sizeof(name_buf) - 1u))
             {
-                kept[count] = at[0];
+                name_buf[count] = at[0];
                 count += 1u;
             }
             else
@@ -223,12 +222,13 @@ static int cli_proc_macro(const char *text)
                 longer = 1;
             }
         }
-        if ((at[0] == '\n') && (count > 0u) && (kept[count - 1u] == '\r') && !longer)
+        if ((at[0] == '\n') && (count > 0u) && (name_buf[count - 1u] == '\r') && !longer)
         {
             count -= 1u;
         }
-        kept[count] = '\0';
-        if (!longer && (cellul.eq(&(CatenaFinitaCfg){.src = kept, .other = "proc-macro=true", .cap = CLI_CELLS_POOL})))
+        name_buf[count] = '\0';
+        if (!longer &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = name_buf, .other = "proc-macro=true", .cap = CLI_CELLS_POOL})))
         {
             return 1;
         }
@@ -252,9 +252,9 @@ static int cli_named(const char *name, const char *const *names, unsigned int co
 
 int cli_trust_looked_for(const char *tree, CliTrustCode *code)
 {
-    CliLine paths = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_line_growing(&paths, CLI_TRUST_PATHS_FIRST, "the files a tree runs as code, as they are found");
-    const CliFiles *const files = cli_files_held(tree);
+    VerbaLinea paths = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_growing_line_made(&paths, CLI_TRUST_PATHS_FIRST);
+    const CliFiles *const files = cli_files_view(tree);
     unsigned int found = 0u;
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
@@ -265,17 +265,17 @@ int cli_trust_looked_for(const char *tree, CliTrustCode *code)
         int is_code = 0;
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "build.rs", .cap = CLI_CELLS_POOL}))
         {
-            char beside[CLI_PATH_LONGEST];
-            CliLine line = {beside, sizeof(beside), 0ull};
-            cli_line_counted(&line, file, (unsigned long long)(name - file));
-            cli_line_text(&line, "Cargo.toml");
-            is_code = (cli_line_closed(&line) != 0ull) && cli_files_holds(files, beside);
+            char beside[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {beside, sizeof(beside), 0ull};
+            mmgr_line_put_n(&line, file, (unsigned long long)(name - file));
+            mmgr_line_put(&line, "Cargo.toml");
+            is_code = (mmgr_line_finish(&line) != 0ull) && cli_files_contains(files, beside);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Cargo.toml", .cap = CLI_CELLS_POOL}))
         {
             char *const text = cli_read_in(tree, file);
             is_code = (text != NULL) && cli_proc_macro(text);
-            cli_cell_given_by(&g_cli_trust_cells, text);
+            g_cli_cells->persistent_buf_release(text, &g_cli_trust_cells);
         }
         else
         {
@@ -283,7 +283,7 @@ int cli_trust_looked_for(const char *tree, CliTrustCode *code)
         }
         if (is_code)
         {
-            cli_line_counted(&paths, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u);
+            mmgr_line_put_n(&paths, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u);
             found += 1u;
         }
     }
@@ -291,12 +291,12 @@ int cli_trust_looked_for(const char *tree, CliTrustCode *code)
     char *const config = cli_read_in(tree, ".git/config");
     if ((config != NULL) && cli_trust_names_a_hook(config))
     {
-        cli_line_counted(&paths, ".git/config", sizeof(".git/config"));
+        mmgr_line_put_n(&paths, ".git/config", sizeof(".git/config"));
         found += 1u;
     }
-    cli_cell_given_by(&g_cli_trust_cells, config);
-    const int done = cli_line_fits(&paths) && cli_code_copied(paths.out, paths.at, found, code);
-    cli_cell_given(paths.out);
+    g_cli_cells->persistent_buf_release(config, &g_cli_trust_cells);
+    const int done = mmgr_line_ok(&paths) && cli_code_copied(paths.out, paths.at, found, code);
+    g_cli_cells->persistent_buf_release(paths.out, NULL);
     return done;
 }
 
@@ -316,7 +316,7 @@ int cli_trust_own_code(const char *tree, CliTrustCode *code)
         }
     }
     cli_lock_give(&s_found_lock);
-    // a tree whose code the cellblock could not meet is not kept, so it is looked through again when next asked of
+    // a tree whose code the cellblock could not meet is not cached, so it is looked through again when next requested
     CliTrustCode looked = {NULL, 0ull, 0u};
     if (!cli_trust_looked_for(tree, &looked))
     {
@@ -358,60 +358,60 @@ int cli_trust_own_code(const char *tree, CliTrustCode *code)
     return copied;
 }
 
-int cli_trust_held_back(const char *tree)
+int cli_trust_blocked(const char *tree)
 {
     int trusted = 0;
     if (cli_trust_answer(tree, &trusted) && trusted)
     {
         return 0;
     }
-    // a tree whose code the cellblock could not meet is held back, as one that holds code is
+    // a tree whose code the cellblock could not meet is disabled, as one that contains code is
     CliTrustCode code = {NULL, 0ull, 0u};
-    const int held = !cli_trust_own_code(tree, &code) || (code.count != 0u);
+    const int blocked = !cli_trust_own_code(tree, &code) || (code.count != 0u);
     cli_trust_code_given(&code);
-    return held;
+    return blocked;
 }
 
-int cli_trust_prettier_held_back(const char *tree)
+int cli_trust_prettier_blocked(const char *tree)
 {
-    if (!cli_trust_held_back(tree))
+    if (!cli_trust_blocked(tree))
     {
         return 0;
     }
     CliTrustCode code = {NULL, 0ull, 0u};
-    int held = !cli_trust_own_code(tree, &code);
+    int blocked = !cli_trust_own_code(tree, &code);
     const char *path = code.paths;
-    for (unsigned int at = 0u; !held && (at < code.count); at += 1u)
+    for (unsigned int at = 0u; !blocked && (at < code.count); at += 1u)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
         const char *const slash = cli_text_last(path, length, '/');
-        held = cli_named((slash != NULL) ? (slash + 1) : path, s_prettier, 6u);
+        blocked = cli_named((slash != NULL) ? (slash + 1) : path, s_prettier, 6u);
         path += length + 1u;
     }
     cli_trust_code_given(&code);
-    return held;
+    return blocked;
 }
 
 unsigned int cli_trust_git_words(const char *tree, const char **words)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = folder, .src = tree, .bytes = cellul.len(&(CatenaFinitaCfg){.src = tree, .cap = CLI_CELLS_POOL}) + 1u});
     int hook = 0;
     for (;;)
     {
-        char git[CLI_PATH_LONGEST];
-        CliLine line = {git, sizeof(git), 0ull};
-        cli_line_text(&line, folder);
-        cli_line_text(&line, "/.git");
-        if ((cli_line_closed(&line) != 0ull) && (query_is_file(git) || query_is_folder(git)))
+        char git[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {git, sizeof(git), 0ull};
+        mmgr_line_put(&line, folder);
+        mmgr_line_put(&line, "/.git");
+        if ((mmgr_line_finish(&line) != 0ull) && (query_is_file(git) || query_is_folder(git)))
         {
             char *const config = cli_read_in(folder, ".git/config");
             hook = (config != NULL) && cli_trust_names_a_hook(config);
-            cli_cell_given_by(&g_cli_trust_cells, config);
+            g_cli_cells->persistent_buf_release(config, &g_cli_trust_cells);
             break;
         }
-        char above[CLI_PATH_LONGEST];
+        char above[CLI_PATH_MAX_LEN];
         if (!cli_path_parent(folder, above))
         {
             break;
@@ -430,37 +430,37 @@ unsigned int cli_trust_git_words(const char *tree, const char **words)
     return 2u;
 }
 
-void cli_trust_told(const char *tree, CliLine *out)
+void cli_trust_state_written(const char *tree, VerbaLinea *out)
 {
     cli_trust_forget();
     int trusted = 0;
     const int answered = cli_trust_answer(tree, &trusted);
-    cli_line_text(out, "{\"answer\":");
-    cli_line_text(out, !answered ? "null" : (trusted ? "true" : "false"));
-    cli_line_text(out, ",\"code\":[");
+    mmgr_line_put(out, "{\"answer\":");
+    mmgr_line_put(out, !answered ? "null" : (trusted ? "true" : "false"));
+    mmgr_line_put(out, ",\"code\":[");
     CliTrustCode code = {NULL, 0ull, 0u};
     (void)cli_trust_own_code(tree, &code);
     const char *path = code.paths;
     for (unsigned int at = 0u; at < code.count; at += 1u)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-        cli_line_text(out, (at != 0u) ? "," : "");
+        mmgr_line_put(out, (at != 0u) ? "," : "");
         cli_json_quoted(out, path, length);
         path += length + 1u;
     }
     cli_trust_code_given(&code);
-    cli_line_text(out, "],\"tree\":");
+    mmgr_line_put(out, "],\"tree\":");
     cli_json_quoted(out, tree, cellul.len(&(CatenaFinitaCfg){.src = tree, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"above\":");
-    char above[CLI_PATH_LONGEST];
-    char beyond[CLI_PATH_LONGEST];
+    mmgr_line_put(out, ",\"above\":");
+    char above[CLI_PATH_MAX_LEN];
+    char beyond[CLI_PATH_MAX_LEN];
     if (cli_path_parent(tree, above) && cli_path_parent(above, beyond))
     {
         cli_json_quoted(out, above, cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}));
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }

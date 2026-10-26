@@ -71,13 +71,13 @@ __global__ static void max_tree_pack_bodies_kernel(const EngineBody *bodies, uns
                                                    unsigned int sample, unsigned int frame, unsigned int *magnitudes,
                                                    unsigned long long *mismatches)
 {
-    const unsigned int slot = (blockIdx.x * blockDim.x) + threadIdx.x;
-    if (slot >= count)
+    const unsigned int at = (blockIdx.x * blockDim.x) + threadIdx.x;
+    if (at >= count)
     {
         return;
     }
-    const EngineBody *const body = &bodies[slot];
-    unsigned int *const magnitude = &magnitudes[(size_t)slot * layout.limbs];
+    const EngineBody *const body = &bodies[at];
+    unsigned int *const magnitude = &magnitudes[(size_t)at * layout.limbs];
     for (unsigned int limb = 0u; limb < layout.limbs; limb += 1u)
     {
         magnitude[limb] = 0u;
@@ -123,12 +123,12 @@ extern "C" long max_tree_pack(const MaxTreePackRequest *request)
         return MAX_TREE_ERROR;
     }
     EngineError *const error = request->error;
-    const int asked =
+    const int valid =
         MAX_TREE_CHECK(request->layout != NULL, &request->layout, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK(request->device_magnitudes != NULL, &request->device_magnitudes, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK(request->mismatches != NULL, &request->mismatches, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK(resident->voxels != 0u, &resident->voxels, error, ENGINE_ERROR_REQUEST);
-    if (asked == 0)
+    if (valid == 0)
     {
         return MAX_TREE_ERROR;
     }

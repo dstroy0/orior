@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// monolith.cu: one program that holds every base primitive (precepts.h), each in its own block between two tags.
+// monolith.cu: one program that contains every base primitive (precepts.h), each in its own block between two tags.
 // NVIDIA's compiler builds it once, and its listing is the answer key: the instructions between tag n and tag n + 1
-// are NVIDIA's writing of precept n, and our compiler's SASS for the same precept is held against them. A chain to a
-// larger operator is built from these blocks per the plan.
+// are NVIDIA's writing of precept n, and our compiler's SASS for the same precept is compared against them. A chain to
+// a larger operator is built from these blocks per the plan.
 //
 // A tag is a performance-monitor event whose mask is the precept's number plus one, written in the listing as PMTRIG.
-// It changes no word and the compiler keeps it in place. Every block loads its operands and stores its answer with
+// It changes no word and the compiler leaves it in place. Every block loads its operands and stores its answer with
 // volatile accesses, and a tag clobbers memory: nothing a block does is moved across a tag. A precept's answer
 // follows precept_applied (precept_value.h): a shift takes its count from the low five bits of the right word.
 //
@@ -26,21 +26,22 @@
 // A step is one PTX instruction put under a predicate read from `flag`, which is 1 on every run. The compiler cannot
 // know the predicate, and it folds no chain of the same instruction into fewer: a chain written plainly, even with an
 // empty fence after each step, comes out of the assembler as one instruction a turn. A predicated instruction costs
-// what the bare one does. A step answers what precept_applied answers, and the runner holds every chain's last word to
-// the host's. NOP is no instruction, and MOV a copy of a word onto itself, which the assembler drops: both read what
-// the turns cost with nothing in them.
+// what the bare one does. A step answers what precept_applied answers, and the runner checks every chain's last word
+// against the host's. NOP is no instruction, and MOV a copy of a word onto itself, which the assembler drops: both read
+// what the turns cost with nothing in them.
 //
 //     left, right  the two words; turns  the turns a section runs; flag  1, the predicate every step is put under
 //     cycles[s]  section s's clock count, singles first in MONOLITH_COSTED order, then each pair i <= j
-//     sink[s]    section s's last word, kept so no chain is dead
+//     sink[s]    section s's last word, retained so no chain is dead
 #include "monolith.h"
 
 static_assert((PRECEPT_NOP == 0) && (PRECEPT_ERR == 1) && (PRECEPT_NOT == 2) &&
                   (PRECEPT_MUL == (int)MONOLITH_COSTED_COUNT),
               "monolith: the costed run is NOP, then NOT through MUL, with ERR alone left out");
 
-// the tags are in the program where MONOLITH_TAGGED is 1, its default, and out of it where 0. The two builds are held
-// against each other for what the tags cost: cycles, and the instructions the compiler keeps apart across a tag
+// the tags are in the program where MONOLITH_TAGGED is 1, its default, and out of it where 0. The two builds are
+// compared against each other for what the tags cost: cycles, and the instructions the compiler places apart across a
+// tag
 #ifndef MONOLITH_TAGGED
 #define MONOLITH_TAGGED 1
 #endif
@@ -156,7 +157,7 @@ extern "C" __global__ void monolith(const unsigned int *in, unsigned int *out)
 
     MONOLITH_TAG(PRECEPT_BRA);
     // An unconditional jump stays in the program only where something jumps around it: the arm taken on the flag ends
-    // in a jump over the other. Each arm holds four stores, more than the compiler writes as predicated stores in
+    // in a jump over the other. Each arm contains four stores, more than the compiler writes as predicated stores in
     // place of a branch. With the flag 0 the second arm runs and its last store is the answer, 0
     if (monolith_read(in, 2u) != 0u)
     {

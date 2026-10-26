@@ -15,7 +15,7 @@ int cli_validate_code_of(const char *text, unsigned long long size)
     unsigned long long depth = 0ull;
     int in_string = 0;
     int in_line = 0;
-    // each letter is kept whole or blanked as one byte, so the code is never longer than the text
+    // each letter is retained whole or blanked as one byte, so the code is never longer than the text
     if (size > CLI_VALIDATE_CODE)
     {
         return 0;
@@ -106,7 +106,7 @@ static int code_white(unsigned int letter)
            (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u);
 }
 
-// whether a letter is one a word holds: an ASCII letter or digit, one of `_.'#!?`, or a letter past ASCII that is no
+// whether a letter is one a word contains: an ASCII letter or digit, one of `_.'#!?`, or a letter past ASCII that is no
 // whitespace and no angle bracket
 static int code_word_letter(unsigned int letter)
 {
@@ -208,8 +208,8 @@ void cli_validate_theorems_in(void)
             open -= (open > 0u) ? 1u : 0u;
             continue;
         }
-        if ((next == NULL) || !cli_validate_holds(&g_cli_validate->json, tool->declarations,
-                                                  g_cli_validate->code + word->start, word->size))
+        if ((next == NULL) || !cli_validate_in_array(&g_cli_validate->json, tool->declarations,
+                                                     g_cli_validate->code + word->start, word->size))
         {
             continue;
         }
@@ -218,19 +218,19 @@ void cli_validate_theorems_in(void)
         unsigned long long name_size = next->size;
         const int rooted =
             (name_size >= 7ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "_root_.", .bytes = 7u}) == 0);
-        CliLine full = {g_cli_validate->names + g_cli_validate->name_used,
-                        CLI_VALIDATE_NAMES - g_cli_validate->name_used, 0ull};
+        VerbaLinea full = {g_cli_validate->names + g_cli_validate->name_used,
+                           CLI_VALIDATE_NAMES - g_cli_validate->name_used, 0ull};
         for (unsigned int space = 0u; !rooted && (space < open); space += 1u)
         {
             if (spaces[space] != CLI_JSON_NONE)
             {
                 const CliCodeWord *const named = &words[spaces[space]];
-                cli_line_counted(&full, g_cli_validate->code + named->start, named->size);
-                cli_line_character(&full, '.');
+                mmgr_line_put_n(&full, g_cli_validate->code + named->start, named->size);
+                mmgr_line_ch(&full, '.');
             }
         }
-        cli_line_counted(&full, rooted ? name + 7 : name, rooted ? name_size - 7ull : name_size);
-        if ((cli_line_closed(&full) == 0ull) || (g_cli_validate->theorem_count == CLI_VALIDATE_THEOREMS))
+        mmgr_line_put_n(&full, rooted ? name + 7 : name, rooted ? name_size - 7ull : name_size);
+        if ((mmgr_line_finish(&full) == 0ull) || (g_cli_validate->theorem_count == CLI_VALIDATE_THEOREMS))
         {
             continue;
         }
@@ -278,10 +278,10 @@ void cli_validate_flags_in(void)
                 continue;
             }
             char message[4096];
-            CliLine line = {message, sizeof(message), 0ull};
-            cli_line_counted(&line, bare, size);
-            cli_line_text(&line, ": ");
-            cli_line_text(&line, flagged->says);
+            VerbaLinea line = {message, sizeof(message), 0ull};
+            mmgr_line_put_n(&line, bare, size);
+            mmgr_line_put(&line, ": ");
+            mmgr_line_put(&line, flagged->phrases);
             const CliFinding finding = {
                 word->line, word->col, word->line, word->col + word->letters, flagged->severity, "flag",
                 -1,         0ull,      0ull};

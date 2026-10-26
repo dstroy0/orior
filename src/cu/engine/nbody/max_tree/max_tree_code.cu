@@ -13,8 +13,9 @@ __global__ void max_tree_iota_kernel(unsigned int voxels, unsigned int *order)
     order[place] = place;
 }
 
-__global__ void max_tree_code_gather_kernel(const unsigned int *residual, unsigned int held, const unsigned int *order,
-                                            unsigned int voxels, unsigned int limb, unsigned int *keys)
+__global__ void max_tree_code_gather_kernel(const unsigned int *residual, unsigned int limb_count,
+                                            const unsigned int *order, unsigned int voxels, unsigned int limb,
+                                            unsigned int *keys)
 {
     const unsigned int place = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (place >= voxels)
@@ -22,11 +23,11 @@ __global__ void max_tree_code_gather_kernel(const unsigned int *residual, unsign
         return;
     }
     const unsigned int voxel = order[place];
-    keys[place] = residual[((size_t)voxel * held) + limb] * max_tree_selected(residual, voxel, held);
+    keys[place] = residual[((size_t)voxel * limb_count) + limb] * max_tree_selected(residual, voxel, limb_count);
 }
 
-__global__ void max_tree_code_flags_kernel(const unsigned int *residual, unsigned int held, const unsigned int *order,
-                                           unsigned int voxels, unsigned int *flags)
+__global__ void max_tree_code_flags_kernel(const unsigned int *residual, unsigned int limb_count,
+                                           const unsigned int *order, unsigned int voxels, unsigned int *flags)
 {
     const unsigned int place = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (place >= voxels)
@@ -35,19 +36,21 @@ __global__ void max_tree_code_flags_kernel(const unsigned int *residual, unsigne
     }
     const unsigned int voxel = order[place];
     const unsigned int before = order[place - (unsigned int)(place > 0u)];
-    const unsigned int one = max_tree_selected(residual, voxel, held);
-    const unsigned int other = max_tree_selected(residual, before, held);
+    const unsigned int one = max_tree_selected(residual, voxel, limb_count);
+    const unsigned int other = max_tree_selected(residual, before, limb_count);
     unsigned int differs = one ^ other;
-    for (unsigned int limb = 0u; limb < held; limb += 1u)
+    for (unsigned int limb = 0u; limb < limb_count; limb += 1u)
     {
         differs |= one & other &
-                   (unsigned int)(residual[((size_t)voxel * held) + limb] != residual[((size_t)before * held) + limb]);
+                   (unsigned int)(residual[((size_t)voxel * limb_count) + limb] !=
+                                  residual[((size_t)before * limb_count) + limb]);
     }
     flags[place] = differs;
 }
 
-__global__ void max_tree_code_scatter_kernel(const unsigned int *residual, unsigned int held, const unsigned int *order,
-                                             const unsigned int *ranks, unsigned int voxels, unsigned int *code)
+__global__ void max_tree_code_scatter_kernel(const unsigned int *residual, unsigned int limb_count,
+                                             const unsigned int *order, const unsigned int *ranks, unsigned int voxels,
+                                             unsigned int *code)
 {
     const unsigned int place = (blockIdx.x * blockDim.x) + threadIdx.x;
     if (place >= voxels)
@@ -55,7 +58,7 @@ __global__ void max_tree_code_scatter_kernel(const unsigned int *residual, unsig
         return;
     }
     const unsigned int voxel = order[place];
-    code[voxel] = (ranks[place] + 1u) * max_tree_selected(residual, voxel, held);
+    code[voxel] = (ranks[place] + 1u) * max_tree_selected(residual, voxel, limb_count);
 }
 
 __global__ static void max_tree_code_faces_kernel(const unsigned int *code, unsigned int depth, unsigned int height,

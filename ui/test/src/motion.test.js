@@ -6,28 +6,61 @@ import { smoothScrolling } from "../../gui/src-js/editor/view.js";
 
 const { test, assert, ui } = window.__harness;
 
-// Whether the lowest work may run, asked in each frame for `ms`: the answers, in order.
+// Whether the lowest work may run, asked in each frame for `ms`: the answers, in order, of the frames
+// whose own time falls within the `ms`, and not of the last asked, which a slow frame lands past them.
 async function idleOver(ms) {
   const answers = [];
   const until = performance.now() + ms;
   while (performance.now() < until) {
-    answers.push(idle(await new Promise((next) => requestAnimationFrame(next))));
+    const at = await new Promise((next) => requestAnimationFrame(next));
+    const free = idle(at);
+    if (at < until) {
+      answers.push(free);
+    }
   }
   return answers;
 }
 
+// Whether the lowest work may run, asked in each frame from before `act` sends its input until `ms`
+// after the input's first `kind` event: the answers of the frames within those `ms`, timed from the
+// event itself and not from the driver's reply, which comes when it comes.
+async function idleAfter(kind, act, ms) {
+  let landed = null;
+  const heard = (event) => {
+    landed ??= event.timeStamp;
+  };
+  document.addEventListener(kind, heard, { capture: true });
+  const frames = [];
+  let acting = true;
+  const asking = (async () => {
+    while (acting || (landed !== null && performance.now() < landed + ms)) {
+      const at = await new Promise((next) => requestAnimationFrame(next));
+      frames.push({ at, free: idle(at) });
+    }
+  })();
+  try {
+    await act();
+  } finally {
+    acting = false;
+    await asking;
+    document.removeEventListener(kind, heard, { capture: true });
+  }
+  assert.ok(landed !== null, `the ${kind} came`);
+  return frames.filter(({ at }) => at >= landed && at < landed + ms).map(({ free }) => free);
+}
+
 test("the lowest work waits after a key is pressed", async () => {
   await ui.rest(400);
-  await ui.key("Shift");
-  const answers = await idleOver(150);
+  const answers = await idleAfter("keydown", () => ui.key("Shift"), 150);
   assert.ok(answers.length > 0, "frames came");
   assert.ok(answers.every((answer) => !answer), `no frame was free right after the key: ${answers}`);
 });
 
 test("the lowest work waits after the pointer moves", async () => {
   await ui.rest(400);
-  await ui.hover({ x: 40, y: 200 });
-  assert.ok((await idleOver(150)).every((answer) => !answer), "no frame was free right after the move");
+  const answers = await idleAfter("pointermove", () => ui.hover({ x: 40, y: 200 }), 150);
+  assert.ok(answers.length > 0, "frames came");
+  assert.ok(answers.every((answer) => !answer), `no frame was free right after the move: ${answers}`);
 });
 
 test("the lowest work runs again once nothing has come for a while", async () => {
@@ -194,10 +227,16 @@ test("a twisty's turn, on a pseudo-element, is judged as it starts", async () =>
   Object.assign(box.style, { position: "fixed", left: "-400px", top: "0" });
   getComputedStyle(box, "::before").transform;
   try {
+    // the turn looked for as the judge looks for it, once its transition runs: WebKit lists no transition as the
+    // change is read, where Chromium does
+    const ran = new Promise((done) => box.addEventListener("transitionrun", (event) => done(event.pseudoElement), { once: true }));
     box.classList.add("open");
     getComputedStyle(box, "::before").transform;
+    const pseudo = await Promise.race([ran, new Promise((done) => setTimeout(() => done("no transition run"), 1000))]);
+    assert.equal(pseudo, "::before", "the turn's transition runs on the pseudo-element");
     const turning = () => box.getAnimations({ subtree: true }).find((one) => one.effect.pseudoElement === "::before");
-    assert.ok(turning(), "the pseudo-element turns");
+    const found = box.getAnimations({ subtree: true }).map((one) => `${one.constructor.name} ${one.effect?.target?.className ?? "no target"} ${one.effect?.pseudoElement ?? "no pseudo-element"} ${one.playState}`);
+    assert.ok(turning(), `the pseudo-element turns: the animations found ${JSON.stringify(found)}`);
     await ui.waitFor(() => /^steps/.test(turning()?.effect.getComputedTiming().easing ?? ""), 200);
   } finally {
     box.remove();

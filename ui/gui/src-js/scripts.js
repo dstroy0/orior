@@ -4,7 +4,8 @@
 // Plugins that run code of their own, kind "script" (plugins.rs). Each runs in a worker of its own,
 // apart from the editor and from every other plugin: one that is slow or stuck holds up neither the
 // keys nor the others. Every second each is asked whether it is there; one that has not answered for
-// STUCK is named on the status bar with how long, and Stop there ends it. Find the Slow Plugin turns
+// STUCK is named on the status bar with how long, the status bar shown while it stands, and Stop there
+// ends it. Find the Slow Plugin turns
 // half of the plugins on off at a time, asking the reader each time whether the window is still slow,
 // until one is left, and turns them all back as they were.
 //
@@ -25,6 +26,7 @@
 // plugin_panels.js).
 
 import { invoke, onCalls } from "./bridge.js";
+import { holdShown } from "./claim.js";
 import { drawPanels as drawPanelsOf } from "./plugin_panels.js";
 import { hearServers, pluginCommands, preludeFive, SERVER_CALLS, serverStopped } from "./plugin_server.js";
 import { pluginReadings, pluginsOff } from "./plugins.js";
@@ -410,6 +412,7 @@ function drawStuck() {
   const now = performance.now();
   const stuck = [...state.running.values()].filter((one) => now - one.answered > STUCK);
   node.hidden = !stuck.length;
+  holdShown("bottom", stuck.length > 0);
   if (!stuck.length) {
     node.replaceChildren();
     return;

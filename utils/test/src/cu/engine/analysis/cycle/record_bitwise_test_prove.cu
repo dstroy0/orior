@@ -3,15 +3,15 @@
 // record_bitwise_test_prove.cu: proofs, narrow and wide, known and errored
 #include "record_bitwise_test_internal.h"
 
-// fill `lanes` atoms with edge-shaped fields, run the program on both sides, and hold both records to the oracle
+// fill `lanes` atoms with edge-shaped fields, run the program on both sides, and check both records against the oracle
 static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program, unsigned int lanes, const char *name)
 {
     BitwiseLoaded loaded;
     if (bitwise_load(program, &loaded) == 0)
     {
-        scriptura_text(&results->line, "  ");
-        scriptura_text(&results->line, name);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  ");
+        mmgr_line_put(&results->line, name);
+        mmgr_line_ch(&results->line, '\n');
         bitwise_check(results, 0, "the program loads");
         return;
     }
@@ -23,7 +23,7 @@ static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program
     BitwiseOracle *const oracle = (BitwiseOracle *)malloc(sizeof(BitwiseOracle));
     if ((atoms == NULL) || (host_out == NULL) || (device_out == NULL) || (oracle == NULL))
     {
-        bitwise_check(results, 0, "the lanes are held");
+        bitwise_check(results, 0, "the lanes are allocated");
         free(atoms);
         free(host_out);
         free(device_out);
@@ -51,17 +51,17 @@ static void bitwise_prove(BitwiseResults *results, const BitwiseProgram *program
                            ? 1u
                            : 0u;
     }
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, name);
-    scriptura_text(&results->line, ": ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes, ");
-    scriptura_decimal(&results->line, program->output_count, 1u);
-    scriptura_text(&results->line, " outputs, file ");
-    scriptura_decimal(&results->line, loaded.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs, ");
-    scriptura_decimal(&results->line, lanes_equal, 1u);
-    scriptura_text(&results->line, " lanes equal the oracle\n");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, name);
+    mmgr_line_put(&results->line, ": ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes, ");
+    mmgr_line_decimal(&results->line, program->output_count, 1u);
+    mmgr_line_put(&results->line, " outputs, file ");
+    mmgr_line_decimal(&results->line, loaded.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs, ");
+    mmgr_line_decimal(&results->line, lanes_equal, 1u);
+    mmgr_line_put(&results->line, " lanes equal the oracle\n");
     bitwise_check(results, (host_ran != 0) && (device_ran != 0), "the program runs on the host and the device");
     bitwise_check(results, memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0,
                   "the device records equal the host's word for word");
@@ -136,8 +136,8 @@ void bitwise_wide(BitwiseResults *results)
 
 // the widths keymath narrows for a register never negative: fields of 32 and 20 bits read unsigned beside a 40-bit
 // field read signed. An and with an unsigned field is no wider than that field, the and and the xor of two unsigned are
-// no wider than the narrower and the wider, and anything with a signed register keeps the extra bit. The oracle's sign
-// must hold past each narrowed width, which a bound set too narrow would break.
+// no wider than the narrower and the wider, and anything with a signed register retains the extra bit. The oracle's
+// sign must stay valid past each narrowed width, which a bound set too narrow would break.
 void bitwise_narrowed(BitwiseResults *results)
 {
     BitwiseProgram program;
@@ -210,7 +210,7 @@ void bitwise_known(BitwiseResults *results)
     unsigned int atoms[4];
     for (unsigned int lane = 0u; lane < 4u; lane += 1u)
     {
-        // a 16-bit field holds each value's low 16 bits of two's complement
+        // a 16-bit field stores each value's low 16 bits of two's complement
         atoms[lane] = ((unsigned int)cases[lane][0] & 0xFFFFu) | (((unsigned int)cases[lane][1] & 0xFFFFu) << 16u);
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
@@ -293,7 +293,8 @@ long long bitwise_wrap_native(long long value, unsigned int bits)
     const unsigned long long mask = (bits >= 64u) ? ~0ull : ((1ull << bits) - 1ull);
     const unsigned long long low = (unsigned long long)value & mask;
     const unsigned long long top = 1ull << (bits - 1u);
-    // a set top kept bit means 2^bits comes off: low - top - top, taken apart so neither half leaves the signed range
+    // a set top retained bit means 2^bits comes off: low - top - top, taken apart so neither half leaves the signed
+    // range
     return ((low & top) != 0ull) ? ((long long)(low - top) - (long long)top) : (long long)low;
 }
 

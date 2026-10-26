@@ -47,31 +47,31 @@ void witness_cube_measure(WitnessSubject subject, const void *context, const Sim
         }
         cube->component[component] = term_form_scaled(sum, sim_rational(1ll, 8ll));
     }
-    // every slot any corner holds, in key order as the corners give it
+    // every term index any corner contains, in key order as the corners give it
     std::set<unsigned int> seen;
-    cube->slot.clear();
-    cube->holding.clear();
+    cube->terms.clear();
+    cube->occupied.clear();
     for (unsigned int corner = 0u; corner < 8u; corner += 1u)
     {
-        for (unsigned int slot : term_form_slots(cube->corner[corner]))
+        for (unsigned int term_at : term_form_indices(cube->corner[corner]))
         {
-            if (seen.insert(slot).second)
+            if (seen.insert(term_at).second)
             {
-                cube->slot.push_back(slot);
+                cube->terms.push_back(term_at);
             }
         }
     }
-    for (unsigned int slot : cube->slot)
+    for (unsigned int term_at : cube->terms)
     {
         unsigned int bits = 0u;
         for (unsigned int component = 0u; component < 8u; component += 1u)
         {
-            if (term_form_holds(cube->component[component], slot))
+            if (term_form_has(cube->component[component], term_at))
             {
                 bits |= 1u << component;
             }
         }
-        cube->holding.push_back(bits);
+        cube->occupied.push_back(bits);
     }
 }
 
@@ -106,7 +106,7 @@ static unsigned int witness_cube_count(unsigned int bits)
 size_t witness_cube_characters(const WitnessCube *cube, unsigned int count)
 {
     size_t terms = 0u;
-    for (unsigned int bits : cube->holding)
+    for (unsigned int bits : cube->occupied)
     {
         terms += (witness_cube_count(bits) == count) ? 1u : 0u;
     }
@@ -137,18 +137,18 @@ void witness_cube_record(FILE *file, const char *name, const WitnessCube *cube, 
         term_form_write(file, cube->component[component], book->names);
     }
     // character: the count, the components as their numbers, the term
-    fprintf(file, "characters %zu\n", cube->slot.size());
-    for (size_t index = 0u; index < cube->slot.size(); index += 1u)
+    fprintf(file, "characters %zu\n", cube->terms.size());
+    for (size_t index = 0u; index < cube->terms.size(); index += 1u)
     {
-        fprintf(file, "%u", witness_cube_count(cube->holding[index]));
+        fprintf(file, "%u", witness_cube_count(cube->occupied[index]));
         for (unsigned int component = 0u; component < 8u; component += 1u)
         {
-            if ((cube->holding[index] >> component) & 1u)
+            if ((cube->occupied[index] >> component) & 1u)
             {
                 fprintf(file, " c%u", component);
             }
         }
-        fprintf(file, " : %s\n", term_form_key_text(cube->slot[index], book->names).c_str());
+        fprintf(file, " : %s\n", term_form_key_text(cube->terms[index], book->names).c_str());
     }
 }
 

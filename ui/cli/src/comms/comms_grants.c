@@ -33,8 +33,8 @@ int cli_comms_within(const char *inner, const char *outer)
     {
         return 0;
     }
-    char inner_under[CLI_NAME_LONGEST];
-    char outer_under[CLI_NAME_LONGEST];
+    char inner_under[CLI_NAME_MAX_LEN];
+    char outer_under[CLI_NAME_MAX_LEN];
     const size_t inner_length = cellul.len(&(CatenaFinitaCfg){.src = inner, .cap = CLI_CELLS_POOL});
     const size_t outer_length = cellul.len(&(CatenaFinitaCfg){.src = outer, .cap = CLI_CELLS_POOL});
     const int inner_all =
@@ -51,12 +51,12 @@ int cli_comms_within(const char *inner, const char *outer)
     {
         return cli_comms_grants(outer, inner);
     }
-    CliLine inner_line = {inner_under, sizeof(inner_under), 0ull};
-    cli_line_counted(&inner_line, inner, inner_length - 2u);
-    cli_line_closed(&inner_line);
-    CliLine outer_line = {outer_under, sizeof(outer_under), 0ull};
-    cli_line_counted(&outer_line, outer, outer_length - 2u);
-    cli_line_closed(&outer_line);
+    VerbaLinea inner_line = {inner_under, sizeof(inner_under), 0ull};
+    mmgr_line_put_n(&inner_line, inner, inner_length - 2u);
+    mmgr_line_finish(&inner_line);
+    VerbaLinea outer_line = {outer_under, sizeof(outer_under), 0ull};
+    mmgr_line_put_n(&outer_line, outer, outer_length - 2u);
+    mmgr_line_finish(&outer_line);
     return (cellul.eq(&(CatenaFinitaCfg){.src = inner_under, .other = outer_under, .cap = CLI_CELLS_POOL})) ||
            cli_comms_grants(outer, inner_under);
 }

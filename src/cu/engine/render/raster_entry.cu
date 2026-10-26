@@ -62,11 +62,11 @@ extern "C" int orior_volume_device(uint8_t *voxels, const OriorVolumeConfig *con
     {
         return 0;
     }
-    for (size_t slot = 0u; slot < probe_count; slot += 1u)
+    for (size_t index = 0u; index < probe_count; index += 1u)
     {
-        staged[slot].origin = probes[slot].origin;
-        staged[slot].step = probes[slot].step;
-        staged[slot].length = probes[slot].length;
+        staged[index].origin = probes[index].origin;
+        staged[index].step = probes[index].step;
+        staged[index].length = probes[index].length;
     }
 
     unsigned int *device_staging = NULL;
@@ -221,11 +221,11 @@ extern "C" int orior_raster_device(uint8_t *pixels, const OriorRasterConfig *con
     {
         return 0;
     }
-    for (size_t slot = 0u; slot < probe_count; slot += 1u)
+    for (size_t index = 0u; index < probe_count; index += 1u)
     {
-        staged[slot].origin = probes[slot].origin;
-        staged[slot].step = probes[slot].step;
-        staged[slot].length = probes[slot].length;
+        staged[index].origin = probes[index].origin;
+        staged[index].step = probes[index].step;
+        staged[index].length = probes[index].length;
     }
 
     unsigned int *device_staging = NULL;

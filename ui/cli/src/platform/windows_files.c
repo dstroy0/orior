@@ -9,11 +9,11 @@
 
 unsigned int cli_system_error(void)
 {
-    // the system's error codes are below what an unsigned int holds
+    // the system's error codes are below what an unsigned int stores
     return (unsigned int)GetLastError();
 }
 
-void cli_system_reason(unsigned int error, CliLine *said)
+void cli_system_reason(unsigned int error, VerbaLinea *err_msg)
 {
     char reason[512];
     DWORD size = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error, 0u, reason,
@@ -22,11 +22,11 @@ void cli_system_reason(unsigned int error, CliLine *said)
     {
         size -= 1u;
     }
-    cli_line_text(said, ": ");
-    cli_line_counted(said, reason, size);
-    cli_line_text(said, (size > 0u) ? " (os error " : "(os error ");
-    cli_line_decimal(said, error, 1u);
-    cli_line_character(said, ')');
+    mmgr_line_put(err_msg, ": ");
+    mmgr_line_put_n(err_msg, reason, size);
+    mmgr_line_put(err_msg, (size > 0u) ? " (os error " : "(os error ");
+    mmgr_line_decimal(err_msg, error, 1u);
+    mmgr_line_ch(err_msg, ')');
 }
 
 int cli_file_size(const char *path, unsigned long long *size)
@@ -50,13 +50,13 @@ static void file_read_from(HANDLE file, unsigned long long from, unsigned char *
     {
         OVERLAPPED at;
         memor.set(&(MemoriaCfg){.dst = &at, .val = 0, .bytes = sizeof(at)});
-        // the offset's low and high words, each what a DWORD holds
+        // the offset's low and high words, each what a DWORD stores
         at.Offset = (DWORD)((from + *got) & 0xffffffffull);
         at.OffsetHigh = (DWORD)((from + *got) >> 32u);
         // one read takes at most what a DWORD counts
-        const DWORD asked = (DWORD)(((count - *got) < 0x40000000ull) ? (count - *got) : 0x40000000ull);
+        const DWORD chunk = (DWORD)(((count - *got) < 0x40000000ull) ? (count - *got) : 0x40000000ull);
         DWORD read = 0u;
-        const BOOL done = ReadFile(file, bytes + *got, asked, &read, &at);
+        const BOOL done = ReadFile(file, bytes + *got, chunk, &read, &at);
         // a read past the file's end is the file's end
         reading = (done || (GetLastError() == ERROR_HANDLE_EOF)) && (read != 0u);
         *got += read;
@@ -138,10 +138,10 @@ unsigned long long cli_wall_milliseconds(void)
 
 int cli_moved(const char *from, const char *to)
 {
-    wchar_t wide_from[CLI_PATH_LONGEST];
-    wchar_t wide_to[CLI_PATH_LONGEST];
-    if ((MultiByteToWideChar(CP_UTF8, 0, from, -1, wide_from, CLI_PATH_LONGEST) == 0) ||
-        (MultiByteToWideChar(CP_UTF8, 0, to, -1, wide_to, CLI_PATH_LONGEST) == 0))
+    wchar_t wide_from[CLI_PATH_MAX_LEN];
+    wchar_t wide_to[CLI_PATH_MAX_LEN];
+    if ((MultiByteToWideChar(CP_UTF8, 0, from, -1, wide_from, CLI_PATH_MAX_LEN) == 0) ||
+        (MultiByteToWideChar(CP_UTF8, 0, to, -1, wide_to, CLI_PATH_MAX_LEN) == 0))
     {
         return CLI_MOVE_FAILED;
     }
@@ -154,8 +154,8 @@ int cli_moved(const char *from, const char *to)
 
 int cli_file_appended(const char *path, const void *bytes, unsigned long long size, int fresh)
 {
-    wchar_t wide[CLI_PATH_LONGEST];
-    if (MultiByteToWideChar(CP_UTF8, 0, path, -1, wide, CLI_PATH_LONGEST) == 0)
+    wchar_t wide[CLI_PATH_MAX_LEN];
+    if (MultiByteToWideChar(CP_UTF8, 0, path, -1, wide, CLI_PATH_MAX_LEN) == 0)
     {
         return 0;
     }
@@ -171,37 +171,38 @@ int cli_file_appended(const char *path, const void *bytes, unsigned long long si
     while (written && (left > 0ull))
     {
         // a piece is at most a gibibyte, which a DWORD counts
-        const DWORD asked = (DWORD)((left < (1ull << 30u)) ? left : (1ull << 30u));
+        const DWORD chunk = (DWORD)((left < (1ull << 30u)) ? left : (1ull << 30u));
         DWORD done = 0u;
-        written = WriteFile(file, at, asked, &done, NULL) && (done == asked);
+        written = WriteFile(file, at, chunk, &done, NULL) && (done == chunk);
         at += done;
         left -= done;
     }
     return CloseHandle(file) && written;
 }
 
-int cli_resource_added(const char *path, const char *name, const void *data, unsigned long long size, CliLine *said)
+int cli_resource_added(const char *path, const char *name, const void *data, unsigned long long size,
+                       VerbaLinea *err_msg)
 {
-    wchar_t wide[CLI_PATH_LONGEST];
-    wchar_t named[CLI_NAME_LONGEST];
-    if ((MultiByteToWideChar(CP_UTF8, 0, path, -1, wide, CLI_PATH_LONGEST) == 0) ||
-        (MultiByteToWideChar(CP_UTF8, 0, name, -1, named, CLI_NAME_LONGEST) == 0))
+    wchar_t wide[CLI_PATH_MAX_LEN];
+    wchar_t named[CLI_NAME_MAX_LEN];
+    if ((MultiByteToWideChar(CP_UTF8, 0, path, -1, wide, CLI_PATH_MAX_LEN) == 0) ||
+        (MultiByteToWideChar(CP_UTF8, 0, name, -1, named, CLI_NAME_MAX_LEN) == 0))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": the path or the name is too long");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": the path or the name is too long");
         return 0;
     }
     if (size > 0xffffffffull)
     {
-        cli_line_text(said, "the blob is past 4 GB");
+        mmgr_line_put(err_msg, "the blob is past 4 GB");
         return 0;
     }
     const HANDLE update = BeginUpdateResourceW(wide, FALSE);
     if (update == NULL)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": Windows said ");
-        cli_line_decimal(said, GetLastError(), 1u);
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": Windows reported ");
+        mmgr_line_decimal(err_msg, GetLastError(), 1u);
         return 0;
     }
     // the blob's size is below 4 GB, as checked above, which a DWORD counts; the RCDATA type's number stands for a
@@ -210,18 +211,91 @@ int cli_resource_added(const char *path, const char *name, const void *data, uns
     {
         const DWORD error = GetLastError();
         EndUpdateResourceW(update, TRUE);
-        cli_line_text(said, path);
-        cli_line_text(said, ": Windows said ");
-        cli_line_decimal(said, error, 1u);
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": Windows reported ");
+        mmgr_line_decimal(err_msg, error, 1u);
         return 0;
     }
     if (!EndUpdateResourceW(update, FALSE))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": Windows said ");
-        cli_line_decimal(said, GetLastError(), 1u);
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": Windows reported ");
+        mmgr_line_decimal(err_msg, GetLastError(), 1u);
         return 0;
     }
     return 1;
+}
+
+// the bytes of randomness a temporary file's name carries
+#define CLI_TEMPORARY_NAME_BYTES 8u
+
+int cli_temporary_file_made(CliTemporaryFile *file)
+{
+    char path[CLI_PATH_MAX_LEN];
+    cli_temp_folder(path);
+    unsigned char random[CLI_TEMPORARY_NAME_BYTES];
+    if (!cli_random_bytes(random, sizeof(random)))
+    {
+        return 0;
+    }
+    VerbaLinea named = {path, sizeof(path), cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL})};
+    mmgr_line_put(&named, "\\orior-");
+    mmgr_line_decimal(&named, GetCurrentProcessId(), 1u);
+    mmgr_line_ch(&named, '-');
+    for (unsigned int at = 0u; at < CLI_TEMPORARY_NAME_BYTES; at += 1u)
+    {
+        mmgr_line_hex(&named, random[at], 2u);
+    }
+    mmgr_line_put(&named, ".tmp");
+    if (mmgr_line_finish(&named) == 0ull)
+    {
+        return 0;
+    }
+    // shared so that the system deletes it as it is let go, or as the process ends however it ends
+    const HANDLE made = CreateFileA(path, GENERIC_READ | GENERIC_WRITE,
+                                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, CREATE_NEW,
+                                    FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+    // a handle is a pointer's width, which an unsigned long long stores
+    file->handle = (made != INVALID_HANDLE_VALUE) ? (unsigned long long)(uintptr_t)made : 0ull;
+    return made != INVALID_HANDLE_VALUE;
+}
+
+int cli_temporary_file_written(const CliTemporaryFile *file, unsigned long long at, const void *bytes,
+                               unsigned long long size)
+{
+    const HANDLE handle = (HANDLE)(uintptr_t)file->handle;
+    const unsigned char *const from = (const unsigned char *)bytes;
+    unsigned long long done = 0ull;
+    int written = 1;
+    while (written && (done < size))
+    {
+        OVERLAPPED place;
+        memor.set(&(MemoriaCfg){.dst = &place, .val = 0, .bytes = sizeof(place)});
+        // the offset's low and high words, each what a DWORD stores
+        place.Offset = (DWORD)((at + done) & 0xffffffffull);
+        place.OffsetHigh = (DWORD)((at + done) >> 32u);
+        // a piece is at most a gibibyte, which a DWORD counts
+        const DWORD chunk = (DWORD)(((size - done) < (1ull << 30u)) ? (size - done) : (1ull << 30u));
+        DWORD wrote = 0u;
+        written = WriteFile(handle, from + done, chunk, &wrote, &place) && (wrote == chunk);
+        done += wrote;
+    }
+    return written;
+}
+
+int cli_temporary_file_read(const CliTemporaryFile *file, unsigned long long at, void *bytes, unsigned long long size)
+{
+    unsigned long long got = 0ull;
+    file_read_from((HANDLE)(uintptr_t)file->handle, at, (unsigned char *)bytes, size, &got);
+    return got == size;
+}
+
+void cli_temporary_file_let_go(CliTemporaryFile *file)
+{
+    if (file->handle != 0ull)
+    {
+        CloseHandle((HANDLE)(uintptr_t)file->handle);
+    }
+    file->handle = 0ull;
 }
 #endif

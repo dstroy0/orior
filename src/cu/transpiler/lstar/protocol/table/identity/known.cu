@@ -3,10 +3,10 @@
 // known.cu: the known and the permute: the engine's writing of the stick sifted through what nvcc writes, and nvcc's chains put together by their categories
 #include "identity_internal.h"
 
-// Each candidate chain sifted through the identities nvcc's chains hold, before anything of it is put to the part:
+// Each candidate chain sifted through the identities nvcc's chains contain, before anything of it is put to the part:
 // its whole known at an address, or read as the longest known windows from each link, with every link whose primitive
 // nvcc never writes and every two links side by side nvcc never writes so, each known apart. A part unknown that rule 2
-// keeps off the part is marked with the rule. The run's blob known.txt holds a candidate a group of lines
+// blocks from the part is marked with the rule. The run's blob known.txt contains a candidate a group of lines
 int identity_known(const char *listing, const char *manifest, const std::string &folder,
                           const std::vector<std::string> &paths)
 {
@@ -15,7 +15,7 @@ int identity_known(const char *listing, const char *manifest, const std::string 
     {
         return 1;
     }
-    const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
+    const std::unordered_map<unsigned long long, Occurrence> windows = windows_counted(questions);
     std::vector<Question> candidates;
     for (const std::string &path : paths)
     {
@@ -23,13 +23,12 @@ int identity_known(const char *listing, const char *manifest, const std::string 
     }
     const std::string path = folder + "/known.txt";
     RunWritten file = {path, 0, std::string()};
-    // the first occurrence of a window where nvcc's chains hold it, its constituents the same link for link
+    // the first occurrence of a window where nvcc's chains contain it, its constituents the same link for link
     const auto known = [&](const Question &candidate, unsigned int link, unsigned int length,
-                           unsigned long long identity) -> const Occurrence *
-    {
-        const auto found = held.find(identity);
-        if ((found == held.end()) || (window_render(questions[found->second.question], found->second.link, length) !=
-                                      window_render(candidate, link, length)))
+                           unsigned long long identity) -> const Occurrence * {
+        const auto found = windows.find(identity);
+        if ((found == windows.end()) || (window_render(questions[found->second.question], found->second.link, length) !=
+                                         window_render(candidate, link, length)))
         {
             return nullptr;
         }
@@ -127,7 +126,7 @@ int identity_known(const char *listing, const char *manifest, const std::string 
     printf("  %s: %u candidates, %u known whole, %u not known whole but every link and every two side by side known, "
            "%u with a part nvcc never writes\n",
            path.c_str(), (unsigned int)candidates.size(), wholes, permutations, strangers);
-    printf("  parts unknown: %u links, %u of them kept off the part by rule 2, %u pairs side by side\n",
+    printf("  parts unknown: %u links, %u of them blocked from the part by rule 2, %u pairs side by side\n",
            unknown_primitives, flagged, unknown_pairs);
     return 0;
 }
@@ -152,10 +151,10 @@ static std::string category_root(std::map<std::string, std::string> *parent, con
 // The parts of nvcc's chains put together by their categories, no part's meaning read: two links a slice sets apart
 // stand for each other, and each link joined to another so, at any remove, is of its category. Each link of each chain
 // is stood for by every other of its category naming as many registers, the registers of the link it stands for given
-// to it, and asked in the window of the link before it and the link after: a window nvcc writes somewhere is known, and
-// one it never writes is a question, held at the first address it arises at with its count. A link put in that rule 2
-// keeps off the part is marked with the rule. The run's blob permutations.txt holds the categories, each with its
-// members at the first address each occurs at, then the questions in the order of their addresses
+// to it, and queried in the window of the link before it and the link after: a window nvcc writes somewhere is known,
+// and one it never writes is a question, recorded at the first address it arises at with its count. A link put in that
+// rule 2 blocks from the part is marked with the rule. The run's blob permutations.txt contains the categories, each
+// with its members at the first address each occurs at, then the questions in the order of their addresses
 int identity_permute(const char *listing, const char *manifest, const std::string &folder)
 {
     std::vector<Question> questions;
@@ -163,7 +162,7 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
     {
         return 1;
     }
-    const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
+    const std::unordered_map<unsigned long long, Occurrence> windows = windows_counted(questions);
     // the first occurrence of every kind of link, and each kind its own category before any slice joins it
     std::map<std::string, std::pair<unsigned int, unsigned int>> first_kind;
     std::map<std::string, std::string> parent;
@@ -208,8 +207,8 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         }
         categories[root].push_back(kind.second);
     }
-    std::unordered_map<unsigned long long, Permuted> asked;
-    std::vector<unsigned long long> asked_order;
+    std::unordered_map<unsigned long long, Permuted> permuted;
+    std::vector<unsigned long long> permuted_order;
     unsigned long long known = 0ull;
     unsigned long long put = 0ull;
     for (unsigned int question = 0u; question < questions.size(); question += 1u)
@@ -240,18 +239,18 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
                 const unsigned long long identity = window_identities(window, 0u).back();
                 const std::string rendered = window_render(window, 0u, length);
                 put += 1ull;
-                const auto found = held.find(identity);
-                if ((found != held.end()) &&
+                const auto found = windows.find(identity);
+                if ((found != windows.end()) &&
                     (window_render(questions[found->second.question], found->second.link, length) == rendered))
                 {
                     known += 1ull;
                     continue;
                 }
-                const auto inserted = asked.insert(std::make_pair(
-                    identity, Permuted{question, link, 0u, rendered, chain[link].kind, member}));
+                const auto inserted = permuted.insert(
+                    std::make_pair(identity, Permuted{question, link, 0u, rendered, chain[link].kind, member}));
                 if (inserted.second)
                 {
-                    asked_order.push_back(identity);
+                    permuted_order.push_back(identity);
                 }
                 inserted.first->second.count += 1u;
             }
@@ -278,9 +277,9 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         }
     }
     unsigned int flagged = 0u;
-    for (const unsigned long long identity : asked_order)
+    for (const unsigned long long identity : permuted_order)
     {
-        const Permuted &question = asked.at(identity);
+        const Permuted &question = permuted.at(identity);
         std::string window = question.window;
         window.pop_back();
         std::replace(window.begin(), window.end(), '\n', ';');
@@ -299,7 +298,8 @@ int identity_permute(const char *listing, const char *manifest, const std::strin
         return 1;
     }
     printf("  %s: %u kinds of link in %u categories of more than one, %llu windows put, %llu of them nvcc writes, "
-           "%u questions, %u of them kept off the part by rule 2\n",
-           path.c_str(), (unsigned int)first_kind.size(), joined, put, known, (unsigned int)asked_order.size(), flagged);
+           "%u questions, %u of them blocked from the part by rule 2\n",
+           path.c_str(), (unsigned int)first_kind.size(), joined, put, known, (unsigned int)permuted_order.size(),
+           flagged);
     return 0;
 }

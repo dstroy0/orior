@@ -10,16 +10,16 @@
 
 #include <stdatomic.h>
 
-// The run's shared region is laid from the bytes the writer is started with, the ask, and made whole: half of it
+// The run's shared region is laid from the bytes the writer is started with, the request, and made whole: half of it
 // rings, a member each, the most rings QRY_WRITER_MEMBERS_MOST; a place of the schedule for each
-// QRY_WRITER_PLACE_BYTES of it; and the rest the run's records. A writer started with no ask takes
+// QRY_WRITER_PLACE_BYTES of it; and the rest the run's records. A writer started with no request takes
 // QRY_WRITER_RUN_DEFAULT
 #define QRY_WRITER_MEMBERS_MOST 256u
 #define QRY_WRITER_PLACE_BYTES 256ull
 #define QRY_WRITER_RUN_DEFAULT (1ull << 30u)
 
 // The host's own steps, the fastest its sweeps of timings found, stand in qry_host.h beside this file where a sweep has
-// written one (`orior protocol sweep`), and set those it names; the rest hold the values below
+// written one (`orior protocol sweep`), and set those it names; the rest take the values below
 #if defined(__has_include)
 #if __has_include("qry_host.h")
 #include "qry_host.h"
@@ -38,7 +38,7 @@ _Static_assert((QRY_WRITER_PIECE_BYTES != 0ull) && (QRY_WRITER_PIECE_BYTES <= (1
 // start
 #define QRY_WRITER_WRAP 0xffffffffffffffffull
 
-// A member's ring: the process that holds it, 0 where none does; the bytes the writer has taken from it and the bytes
+// A member's ring: the process that owns it, 0 where none does; the bytes the writer has taken from it and the bytes
 // its member has added, each counted from the run's start, a place in the ring the count's remainder; and the bytes.
 // Only the member moves `tail` and only the writer moves `head`
 struct QryRing
@@ -51,16 +51,16 @@ struct QryRing
 };
 
 // The run's shared memory, its head. The top of the tree, a record whose name is a path under it its file; the
-// writer's stop; the records whose bytes did not hold to their CRC; the records the schedule had no place or the run no
-// room for; the places the schedule holds, each the place of a whole record in the order the writer took it; the bytes
-// of the records; the panic line, the place plus 1 of the panic that opened it and of the panic whose ruling closed
-// it, the line open while they differ; and the region's lay: the rings, a member each, the schedule's places and the
-// records' bytes, and where each starts from the region's first byte, with the region's whole bytes, which the writer
-// writes last as it makes the region; a member that finds the region before them therefore finds no run yet. The rings, the
-// schedule and the records follow the head in the region
+// writer's stop; the records whose bytes did not match their CRC; the records the schedule had no place or the run no
+// room for; the places the schedule contains, each the place of a whole record in the order the writer took it; the
+// bytes of the records; the panic line, the place plus 1 of the panic that opened it and of the panic whose ruling
+// closed it, the line open while they differ; and the region's lay: the rings, a member each, the schedule's places and
+// the records' bytes, and where each starts from the region's first byte, with the region's whole bytes, which the
+// writer writes last as it makes the region; a member that finds the region before them therefore finds no run yet. The
+// rings, the schedule and the records follow the head in the region
 struct QryShared
 {
-    char top[QRY_WRITER_TOP_LONGEST];
+    char top[QRY_WRITER_TOP_MAX_LEN];
     _Atomic unsigned int stop;
     unsigned int unused;
     _Atomic unsigned long long corrupt;
@@ -78,21 +78,21 @@ struct QryShared
     _Atomic unsigned long long whole;
 };
 
-// The region's lay from the bytes asked: the members, the places and the records' bytes into each, and the whole the
-// region takes, the head and each part on a 64-byte boundary
-static inline unsigned long long qry_shared_laid(unsigned long long asked, unsigned long long *members,
+// The region's lay from the bytes requested: the members, the places and the records' bytes into each, and the whole
+// the region takes, the head and each part on a 64-byte boundary
+static inline unsigned long long qry_shared_laid(unsigned long long requested, unsigned long long *members,
                                                  unsigned long long *places, unsigned long long *run_bytes)
 {
     const unsigned long long head = (sizeof(QryShared) + 63ull) & ~63ull;
-    const unsigned long long rings = (asked / 2ull) / sizeof(QryRing);
+    const unsigned long long rings = (requested / 2ull) / sizeof(QryRing);
     *members = (rings == 0ull) ? 1ull : ((rings > QRY_WRITER_MEMBERS_MOST) ? QRY_WRITER_MEMBERS_MOST : rings);
-    *places = (asked / QRY_WRITER_PLACE_BYTES) + 1ull;
+    *places = (requested / QRY_WRITER_PLACE_BYTES) + 1ull;
     const unsigned long long laid = head + (*members * sizeof(QryRing)) + ((*places * 8ull + 63ull) & ~63ull);
-    *run_bytes = (asked > (laid + (1ull << 20u))) ? (asked - laid) : (1ull << 20u);
+    *run_bytes = (requested > (laid + (1ull << 20u))) ? (requested - laid) : (1ull << 20u);
     return laid + *run_bytes;
 }
 
-// a ring of the region, the schedule and the records, each where the head says it starts
+// a ring of the region, the schedule and the records, each where the head specifies it starts
 static inline QryRing *qry_shared_ring(QryShared *shared, unsigned long long place)
 {
     return (QryRing *)(void *)((unsigned char *)shared + shared->rings_at + (place * sizeof(QryRing)));
@@ -136,7 +136,10 @@ int qry_writer_file_placed(const char *beside, const char *placed);
 void qry_writer_paused(void);
 void qry_writer_raised(void);
 
-// the standard input read whole into `bytes`, which holds `room`: its size, or QRY_MEMBER_UNREAD's value,
+// 1 where the process `process` (qry_member_process) has ended, and 0 where it runs or the system does not tell
+int qry_writer_process_ended(unsigned long long process);
+
+// the standard input read whole into `bytes`, which has room for `room`: its size, or QRY_MEMBER_UNREAD's value,
 // 0xffffffffffffffff, where it could not be read whole or is larger than `room`
 unsigned long long qry_writer_input_read(unsigned char *bytes, unsigned long long room);
 

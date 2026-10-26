@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_sass_probe_cubin.c: a cubin written from text. The probe learns what the part holds by reading its tools;
-// this is the other direction, putting instructions of the interface's own into a cubin the part will load and run, with
-// a cubin the toolchain built standing as the pattern for everything an ELF carries that no instruction states
+// interface_sass_probe_cubin.c: a cubin written from text. The probe learns what the part contains by reading its
+// tools; this is the other direction, putting instructions of the interface's own into a cubin the part will load and
+// run, with a cubin the toolchain built standing as the pattern for everything an ELF carries that no instruction
+// states
 #include "interface_sass_probe.h"
 #include "../cubin_write.h"
 #include "../sass_assemble.h"
@@ -22,7 +23,7 @@ static unsigned char s_code[SASS_CODE_BYTES];
 static char s_text[SASS_TEXT_BYTES];
 static unsigned int s_exits[SASS_EXITS];
 
-// `path` read whole into `bytes`, which holds `room` of them: how many were read, 0 where the file was not read
+// `path` read whole into `bytes`, which has room for `room` of them: how many were read, 0 where the file was not read
 static unsigned long long sass_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     FILE *const file = fopen(path, "rb");
@@ -59,8 +60,8 @@ unsigned int sass_cubin_text(const char *folder, const char *name, char *text, u
         return 0u;
     }
     s_listing[listing_size] = '\0';
-    const unsigned int text_size = sass_text_read((const char *)s_listing, "interface_ask", text, room);
-    // the text the listing was turned back into, kept beside it for a reader
+    const unsigned int text_size = sass_text_read((const char *)s_listing, "interface_probe", text, room);
+    // the text the listing was turned back into, stored beside it for a reader
     snprintf(path, sizeof(path), "%s/%s.text", folder, name);
     sass_file_write(path, (const unsigned char *)text, text_size);
     return text_size;
@@ -105,7 +106,7 @@ int sass_cubin_kernel(const SassMachine *machine, const char *folder, const char
 int sass_cubin_from_text(const SassMachine *machine, const char *folder, const char *pattern, const char *text,
                          const char *into)
 {
-    return sass_cubin_kernel(machine, folder, pattern, text, into, "interface_ask");
+    return sass_cubin_kernel(machine, folder, pattern, text, into, "interface_probe");
 }
 
 int sass_cubin_round(const SassMachine *machine, const char *folder, const char *name)

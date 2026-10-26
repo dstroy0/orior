@@ -6,7 +6,7 @@
 void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
                     const OriorExactInteger *measured_widest)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     static PsiValue step;
     static PsiValue widest;
     static PsiValue bound;
@@ -23,7 +23,7 @@ void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale
     unsigned int least_steps = 0u;
     for (unsigned int level = 2u; level <= depth; level += 1u)
     {
-        // the step keeps the order when u(L-1) > (gamma - 1) u(L)
+        // the step preserves the order when u(L-1) > (gamma - 1) u(L)
         psi_value_zero(&step);
         psi_value_add_term(&step, sim_rational(1ll, 1ll), psi_case->weight[level - 1u]);
         psi_value_add_term(&step, sim_rational(1ll - signed_base, 1ll), psi_case->weight[level]);
@@ -34,9 +34,9 @@ void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale
         psi_value_add_term(&step, sim_rational(-(signed_base + 1ll), 2ll), psi_case->weight[level]);
         least_steps += (psi_value_sign(&step, base) > 0) ? 1u : 0u;
     }
-    sim_check(results, monotone_steps == (depth - 1u), "the step keeps psi increasing at every level to depth");
+    sim_check(results, monotone_steps == (depth - 1u), "the step leaves psi increasing at every level to depth");
     sim_check(results, least_steps == (depth - 1u),
-              "the step keeps the least gap at gamma^-beta(L) at every level to depth");
+              "the step maintains the least gap at gamma^-beta(L) at every level to depth");
 
     psi_value_zero(&widest);
     psi_value_add_term(&widest, sim_rational(1ll, 1ll), psi_case->weight[1]);
@@ -96,36 +96,36 @@ void psi_all_scales(SimResults *results, const PsiCase *psi_case, const PsiScale
     const int deep_below = psi_value_compare(&gap, &widest, base) <= 0;
     sim_check(results, deep_above && deep_below, "a keyed point at depth has its gap between the least and the widest");
 
-    scriptura_text(line, "     every scale, by the chained step, to level ");
-    scriptura_decimal(line, depth, 1u);
-    scriptura_text(line, " (beta = ");
-    scriptura_decimal(line, psi_case->weight[depth], 1u);
-    scriptura_text(line, ", never expanded): the step keeps the order on ");
-    scriptura_decimal(line, monotone_steps, 1u);
-    scriptura_text(line, " and the least gap on ");
-    scriptura_decimal(line, least_steps, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, depth - 1u, 1u);
-    scriptura_text(line, " levels\n     the widest gap stays above the least on ");
-    scriptura_decimal(line, above_least, 1u);
-    scriptura_text(line, ", under 2^-(L-1)/gamma on ");
-    scriptura_decimal(line, under_halving, 1u);
-    scriptura_text(line, ", within Lemma 2.3 on ");
-    scriptura_decimal(line, under_lemma, 1u);
-    scriptura_text(line, ", equal to the measured gap on ");
-    scriptura_decimal(line, expanded_equal, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, PSI_EXHAUSTIVE - 1u, 1u);
-    scriptura_text(line, "\n     the widest gap at level ");
-    scriptura_decimal(line, depth, 1u);
-    scriptura_text(line, ": ");
+    mmgr_line_put(line, "     every scale, by the chained step, to level ");
+    mmgr_line_decimal(line, depth, 1u);
+    mmgr_line_put(line, " (beta = ");
+    mmgr_line_decimal(line, psi_case->weight[depth], 1u);
+    mmgr_line_put(line, ", never expanded): the step preserves the order on ");
+    mmgr_line_decimal(line, monotone_steps, 1u);
+    mmgr_line_put(line, " and the least gap on ");
+    mmgr_line_decimal(line, least_steps, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, depth - 1u, 1u);
+    mmgr_line_put(line, " levels\n     the widest gap stays above the least on ");
+    mmgr_line_decimal(line, above_least, 1u);
+    mmgr_line_put(line, ", under 2^-(L-1)/gamma on ");
+    mmgr_line_decimal(line, under_halving, 1u);
+    mmgr_line_put(line, ", within Lemma 2.3 on ");
+    mmgr_line_decimal(line, under_lemma, 1u);
+    mmgr_line_put(line, ", equal to the measured gap on ");
+    mmgr_line_decimal(line, expanded_equal, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, PSI_EXHAUSTIVE - 1u, 1u);
+    mmgr_line_put(line, "\n     the widest gap at level ");
+    mmgr_line_decimal(line, depth, 1u);
+    mmgr_line_put(line, ": ");
     psi_value_print(line, &widest);
-    scriptura_text(line, "\n     a keyed point at depth ");
-    scriptura_decimal(line, depth, 1u);
-    scriptura_text(line, ": psi is ");
+    mmgr_line_put(line, "\n     a keyed point at depth ");
+    mmgr_line_decimal(line, depth, 1u);
+    mmgr_line_put(line, ": psi is ");
     psi_value_print(line, &value);
-    scriptura_text(line, "; its gap lies between the least and the widest: ");
-    scriptura_text(line, (deep_above && deep_below) ? "yes\n" : "NO\n");
+    mmgr_line_put(line, "; its gap lies between the least and the widest: ");
+    mmgr_line_put(line, (deep_above && deep_below) ? "yes\n" : "NO\n");
     sim_flush(results);
 }
 
@@ -247,23 +247,23 @@ static int psi_grid(const PsiCase *psi_case, const PsiScale *scale, unsigned int
     return ok;
 }
 
-static void psi_point_print(ScripturaLine *line, unsigned int index, unsigned long long side, unsigned int level,
+static void psi_point_print(VerbaLinea *line, unsigned int index, unsigned long long side, unsigned int level,
                             unsigned int dimension, unsigned long long base)
 {
     unsigned long long rest = index;
     unsigned char digit[PSI_EXHAUSTIVE];
-    scriptura_character(line, '(');
+    mmgr_line_ch(line, '(');
     for (unsigned int coordinate = 0u; coordinate < dimension; coordinate += 1u)
     {
         psi_digits(rest % side, base, level, digit);
         rest /= side;
-        scriptura_text(line, (coordinate == 0u) ? "0." : ", 0.");
+        mmgr_line_put(line, (coordinate == 0u) ? "0." : ", 0.");
         for (unsigned int at = 0u; at < level; at += 1u)
         {
-            scriptura_character(line, (char)('0' + digit[at]));
+            mmgr_line_ch(line, (char)('0' + digit[at]));
         }
     }
-    scriptura_character(line, ')');
+    mmgr_line_ch(line, ')');
 }
 
 // Lemmas 3.4, 3.7 and 3.8: xi(d) = sum_p alpha_p psi(d_p) over every d in D_k^n, sorted, its least neighboring gap
@@ -271,7 +271,7 @@ static void psi_point_print(ScripturaLine *line, unsigned int index, unsigned lo
 // the image intervals T_k, and the width the supports U_k of the outer function's bumps need
 void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned int level)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const unsigned long long base = psi_case->base;
     // the dimension is 2 or 3 here
     const unsigned int dimension = (unsigned int)psi_case->dimension;
@@ -299,7 +299,7 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
     PsiImage *images = (PsiImage *)malloc((size_t)count * sizeof(PsiImage));
     if ((grid == NULL) || (images == NULL) || (psi_grid(psi_case, scale, level, grid) == 0))
     {
-        sim_check(results, 0, "the grid and its images were held");
+        sim_check(results, 0, "the grid and its images were allocated");
         free(grid);
         free(images);
         return;
@@ -402,26 +402,26 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
     SimRational scale_up;
     sim_rational_status_check(sim_exact_power(base, psi_case->weight[level + 1u], &scale_up.numerator));
     sim_exact_unsigned(&scale_up.denominator, 1ull);
-    scriptura_text(line, "     k = ");
-    scriptura_decimal(line, level, 1u);
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, count, 1u);
-    scriptura_text(line, " points: least gap ");
+    mmgr_line_put(line, "     k = ");
+    mmgr_line_decimal(line, level, 1u);
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, count, 1u);
+    mmgr_line_put(line, " points: least gap ");
     sim_rational_print(line, sim_rational_product(gap_low, scale_up));
-    scriptura_text(line, " units of g^-beta(k+1); Lemma 3.4's margin ");
+    mmgr_line_put(line, " units of g^-beta(k+1); Lemma 3.4's margin ");
     sim_rational_print(line, sim_rational_product(margin, scale_up));
-    scriptura_text(line, ", the image width ");
+    mmgr_line_put(line, ", the image width ");
     sim_rational_print(line, sim_rational_product(width_high, scale_up));
-    scriptura_text(line, ", the supports need ");
+    mmgr_line_put(line, ", the supports need ");
     sim_rational_print(line, sim_rational_product(support_high, scale_up));
-    scriptura_text(line, "\n       tightest between ");
+    mmgr_line_put(line, "\n       tightest between ");
     psi_point_print(line, images[least_at].index, side, level, dimension, base);
-    scriptura_text(line, " and ");
+    mmgr_line_put(line, " and ");
     psi_point_print(line, images[least_at + 1ull].index, side, level, dimension, base);
-    scriptura_text(line, margin_ok ? "; Lemma 3.4 holds" : "; Lemma 3.4 FAILS");
-    scriptura_text(line, supports_apart ? ", the supports are disjoint"
+    mmgr_line_put(line, margin_ok ? "; Lemma 3.4 passes" : "; Lemma 3.4 FAILS");
+    mmgr_line_put(line, supports_apart ? ", the supports are disjoint"
                                         : (supports_meet ? ", the supports OVERLAP" : ", the supports are undecided"));
-    scriptura_text(line,
+    mmgr_line_put(line,
                    narrow_apart ? ", disjoint with the narrow ramp\n" : ", overlapping even with the narrow ramp\n");
     sim_flush(results);
 
@@ -463,10 +463,10 @@ void psi_separate(SimResults *results, const PsiCase *psi_case, const PsiScale *
     const SimRational truncated_least = psi_rational_exact(&truncated_gap, &power_denominator);
     const int truncated_ok = sim_rational_sign(sim_rational_difference(truncated_least, margin)) >= 0;
     sim_check(results, truncated_ok, "with the alphas cut at r <= k the least gap is at least gamma^-n beta(k) (3.11)");
-    scriptura_text(line, "       the alphas cut at r <= k (3.11): least gap ");
+    mmgr_line_put(line, "       the alphas cut at r <= k (3.11): least gap ");
     sim_rational_print(line, sim_rational_product(truncated_least, scale_up));
-    scriptura_text(line, " units, at least the margin: ");
-    scriptura_text(line, truncated_ok ? "yes\n" : "NO\n");
+    mmgr_line_put(line, " units, at least the margin: ");
+    mmgr_line_put(line, truncated_ok ? "yes\n" : "NO\n");
     sim_flush(results);
     free(grid);
     free(images);

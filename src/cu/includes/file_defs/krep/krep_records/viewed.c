@@ -4,7 +4,7 @@
 // number and text, and the who at a row
 #include "../../../parsers/who.h"
 #include "../../qry/qry_read.h"
-#include "krep_internal.h"
+#include "krep_records_internal.h"
 
 // the file the rows among `bytes`, `size` of them, of the key `key` put together into `view`, which stands open and
 // empty of its kind: the rows joined, each whole words, its opening, the numbers its change gives, then its bytes or
@@ -13,8 +13,8 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
 {
     const unsigned long long words = size / sizeof(unsigned long long);
     unsigned long long at = 0ull;
-    int held = ((size % sizeof(unsigned long long)) == 0ull);
-    while (held && ((at + KREP_ROW_OPENING) <= words))
+    int ok = ((size % sizeof(unsigned long long)) == 0ull);
+    while (ok && ((at + KREP_ROW_OPENING) <= words))
     {
         unsigned long long opening[KREP_ROW_OPENING];
         memcpy(opening, bytes + (at * sizeof(unsigned long long)), sizeof(opening));
@@ -26,7 +26,7 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
                                                                                              : 0u;
         if ((given == 0u) || ((at + given) > words))
         {
-            held = 0;
+            ok = 0;
             break;
         }
         unsigned long long number[3] = {0ull, 0ull, 0ull};
@@ -40,7 +40,7 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
                                                                         : 0ull;
         if (following > (words - at))
         {
-            held = 0;
+            ok = 0;
             break;
         }
         const unsigned char *const after = bytes + (at * sizeof(unsigned long long));
@@ -50,28 +50,28 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
         {
             continue;
         }
-        // a place, a code and a count read here are each at most what an unsigned int holds, as held to it
+        // a place, a code and a count read here are each at most what an unsigned int represents, as bounded to it
         const int counted =
             (number[0] <= 0xffffffffull) && (number[1] <= 0xffffffffull) && (number[2] <= 0xffffffffull);
         switch (change)
         {
         case KREP_ROW_TEXT:
-            held = (number[0] == (view->texts + 1ull)) &&
-                   (krep_text_taken(view, (const char *)after, number[1]) == number[0]);
+            ok = (number[0] == (view->texts + 1ull)) &&
+                 (krep_text_taken(view, (const char *)after, number[1]) == number[0]);
             break;
         case KREP_ROW_PUT:
-            held = counted && (number[0] <= view->records) &&
-                   krep_record_put(view, (unsigned int)number[0], (unsigned int)number[1],
-                                   (const unsigned long long *)(const void *)after, (unsigned int)number[2]);
+            ok = counted && (number[0] <= view->records) &&
+                 krep_record_put(view, (unsigned int)number[0], (unsigned int)number[1],
+                                 (const unsigned long long *)(const void *)after, (unsigned int)number[2]);
             break;
         case KREP_ROW_SET:
-            held = counted && (number[0] < view->records) &&
-                   krep_record_set(view, (unsigned int)number[0], (const unsigned long long *)(const void *)after,
-                                   (unsigned int)number[1]);
+            ok = counted && (number[0] < view->records) &&
+                 krep_record_set(view, (unsigned int)number[0], (const unsigned long long *)(const void *)after,
+                                 (unsigned int)number[1]);
             break;
         case KREP_ROW_DROP:
-            held = (number[0] < view->records);
-            if (held)
+            ok = (number[0] < view->records);
+            if (ok)
             {
                 krep_record_drop(view, (unsigned int)number[0]);
             }
@@ -80,7 +80,7 @@ static int krep_rows_viewed(const unsigned char *bytes, unsigned long long size,
             break;
         }
     }
-    return held && (at == words);
+    return ok && (at == words);
 }
 
 int krep_viewed(const KrepFile *file, KrepFile *view)
@@ -89,19 +89,19 @@ int krep_viewed(const KrepFile *file, KrepFile *view)
     const size_t named = strlen(file->table);
     unsigned long long at = 0ull;
     const QryRecord *record = NULL;
-    int held = (file->key != 0ull);
-    while (held && qry_member_read(&at, &record))
+    int ok = (file->key != 0ull);
+    while (ok && qry_member_read(&at, &record))
     {
         if ((record->name_length == named) && (memcmp(QRY_RECORD_NAME(record), file->table, named) == 0))
         {
-            held = krep_rows_viewed(QRY_RECORD_BLOB(record), record->blob_length, file->key, view);
+            ok = krep_rows_viewed(QRY_RECORD_BLOB(record), record->blob_length, file->key, view);
         }
     }
-    if (!held)
+    if (!ok)
     {
         krep_open(view, file->kind);
     }
-    return held;
+    return ok;
 }
 
 // 1 where `record` is a row of `table`
@@ -112,7 +112,7 @@ static int krep_row_of(const QryRecord *record, const char *table)
 }
 
 // The head row `record` of `table` read: 1 where it heads the file `name`, or any file where `name` is NULL, its
-// kind into `kind`, which holds five
+// kind into `kind`, which has room for five
 static int krep_head_of(const QryRecord *record, const char *table, const char *name, char *kind)
 {
     const unsigned char *const bytes = QRY_RECORD_BLOB(record);
@@ -137,8 +137,8 @@ static int krep_head_of(const QryRecord *record, const char *table, const char *
     return sought;
 }
 
-// `first`, `table` and `last` said into `error`, which holds `room`
-static void krep_viewed_said(char *error, size_t room, const char *first, const char *table, const char *last)
+// `first`, `table` and `last` written into `error`, which has room for `room`
+static void krep_viewed_error(char *error, size_t room, const char *first, const char *table, const char *last)
 {
     size_t at = verba_textus.put(&(VerbaTextusCfg){.out = error, .cap = room, .at = 0u, .text = first});
     at = verba_textus.put(&(VerbaTextusCfg){.out = error, .cap = room, .at = at, .text = table});
@@ -160,23 +160,23 @@ int krep_viewed_at(const char *path, const char *table, const char *name, KrepFi
     }
     if (key == 0ull)
     {
-        krep_viewed_said(error, room, path, (bytes == NULL) ? "" : ": the table ",
-                         (bytes == NULL) ? ": the run could not be read" : table);
+        krep_viewed_error(error, room, path, (bytes == NULL) ? "" : ": the table ",
+                          (bytes == NULL) ? ": the run could not be read" : table);
     }
     krep_open(view, (key != 0ull) ? kind : "\0\0\0\0");
-    int held = (key != 0ull);
+    int ok = (key != 0ull);
     at = 0ull;
-    while (held && qry_record_read(bytes, size, &at, &record))
+    while (ok && qry_record_read(bytes, size, &at, &record))
     {
-        held = !krep_row_of(record, table) || krep_rows_viewed(QRY_RECORD_BLOB(record), record->blob_length, key, view);
+        ok = !krep_row_of(record, table) || krep_rows_viewed(QRY_RECORD_BLOB(record), record->blob_length, key, view);
     }
-    if ((key != 0ull) && !held)
+    if ((key != 0ull) && !ok)
     {
-        krep_viewed_said(error, room, path, ": a row of ", table);
+        krep_viewed_error(error, room, path, ": a row of ", table);
         krep_open(view, kind);
     }
     qry_member_file_unmapped(bytes, size);
-    return held;
+    return ok;
 }
 
 unsigned long long krep_text_number(KrepFile *file, const char *bytes, unsigned long long length)
@@ -203,17 +203,17 @@ int krep_who_at(const KrepFile *file, unsigned int at, Who *who)
 {
     for (unsigned int before = (at < file->records) ? at : file->records; before != 0u; before -= 1u)
     {
-        const KrepRecord *const held = &file->record[before - 1u];
-        if (held->code != KREP_RECORD_WHO)
+        const KrepRecord *const entry = &file->record[before - 1u];
+        if (entry->code != KREP_RECORD_WHO)
         {
             continue;
         }
-        // a who record of no words says no who is in force from it on
-        if (held->count != 2u)
+        // a who record of no words states no who is in force from it on
+        if (entry->count != 2u)
         {
             return 0;
         }
-        *who = who_of_words(held->word);
+        *who = who_of_words(entry->word);
         return 1;
     }
     return 0;

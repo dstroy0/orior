@@ -6,7 +6,7 @@
 
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -16,7 +16,7 @@
  * @date 2026-09-16
  *
  * WHY THIS SITS IN utils/test/. A driver in `utils/bench/` builds corpora, counts or times, and prints rows.
- * This file asks whether the engine is right, which is a different question. Douglas put the two
+ * This file tests whether the engine is right, which is a different question. Douglas put the two
  * questions in two directories. Every case below names the guarantee it attacks and the
  * construction that should break it, and a case that cannot fail when its guarantee is false does
  * not belong here.
@@ -145,9 +145,9 @@ typedef struct
 typedef struct
 {
     uint32_t *class_of_position;     /**< Which class each position fell in [BORROWS]. */
-    uint32_t *members_in_class;      /**< How many positions each class holds [BORROWS]. */
+    uint32_t *members_in_class;      /**< How many positions each class contains [BORROWS]. */
     uint32_t *rarity_place_of_class; /**< Where each class sits in the rarity order [BORROWS]. */
-    size_t classes_length;           /**< Entries each of the three holds. */
+    size_t classes_length;           /**< Entries each of the three contains. */
 } AdversarialClassBuffers;
 
 size_t adversarial_count_symbols(const uint32_t *corpus, size_t corpus_length, const uint32_t *needle,

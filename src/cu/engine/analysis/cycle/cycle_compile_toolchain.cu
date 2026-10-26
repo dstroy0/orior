@@ -33,7 +33,7 @@ void cycle_format(std::string &text, const char *format, ...)
     va_start(arguments, format);
     const int written = vsnprintf(line, sizeof(line), format, arguments);
     va_end(arguments);
-    // a line the capacity does not hold is cut, and the source then fails to compile and never runs wrong; written is
+    // a line the capacity does not fit is cut, and the source then fails to compile and never runs wrong; written is
     // read as a size only once it is known positive
     text.append(line, ((written > 0) && ((size_t)written < sizeof(line))) ? (size_t)written : sizeof(line) - 1u);
 }
@@ -41,7 +41,7 @@ void cycle_format(std::string &text, const char *format, ...)
 static void *cycle_compiler_symbol(void *library, const char *name)
 {
 #if defined(_WIN32)
-    // a symbol's address is the function it names, held as a plain pointer until it is cast back to that function
+    // a symbol's address is the function it names, stored as a plain pointer until it is cast back to that function
     return (void *)GetProcAddress((HMODULE)library, name);
 #else
     return dlsym(library, name);
@@ -59,7 +59,7 @@ int cycle_compiler_ready(void)
     char name[64];
 #if defined(_WIN32)
     snprintf(name, sizeof(name), "nvrtc64_%d0_0.dll", CUDART_VERSION / 1000);
-    // a module handle is held as a plain pointer beside the Linux one
+    // a module handle is stored as a plain pointer beside the Linux one
     void *const library = (void *)LoadLibraryA(name);
 #else
     snprintf(name, sizeof(name), "libnvrtc.so.%d", CUDART_VERSION / 1000);
@@ -109,7 +109,7 @@ int cycle_linker_ready(void)
     char name[64];
 #if defined(_WIN32)
     snprintf(name, sizeof(name), "nvJitLink_%d0_0.dll", CUDART_VERSION / 1000);
-    // a module handle is held as a plain pointer beside the Linux one
+    // a module handle is stored as a plain pointer beside the Linux one
     void *const library = (void *)LoadLibraryA(name);
 #else
     snprintf(name, sizeof(name), "libnvJitLink.so.%d", CUDART_VERSION / 1000);
@@ -145,7 +145,7 @@ std::string cycle_target_source(int major, int minor, int lto)
     return text;
 }
 
-// the folder compiled programs are kept in across processes: $CYCLE_CACHE, else the user's cache, then cycle
+// the folder compiled programs are cached in across processes: $CYCLE_CACHE, else the user's cache, then cycle
 std::string cycle_cache_folder(void)
 {
     const char *const named = getenv("CYCLE_CACHE");
@@ -184,9 +184,9 @@ unsigned long long cycle_source_hash(const std::string &source)
     return hash;
 }
 
-// a source's file in the cache, the image built from it (a program's linked cubin, or an answer asked of NVRTC): its
-// source's FNV-1a in hex. The name need not be unique: a file is used only where the source it
-// holds is this source, byte for byte
+// a source's file in the cache, the image built from it (a program's linked cubin, or an answer requested from NVRTC):
+// its source's FNV-1a in hex. The name need not be unique: a file is used only where the source it contains is this
+// source, byte for byte
 std::string cycle_cache_path(const std::string &folder, const std::string &source)
 {
     char name[32];

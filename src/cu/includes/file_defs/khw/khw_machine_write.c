@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // khw_machine_write.c: the vendor's writer, which reads what the query protocol answered and writes the .khw the gate
-// reads. The protocol asks and keeps the answers; this names them and lays them out in the vendor's own machine file
-// (P14). It is a program the protocol runs through the interface, and nothing of it reaches back into the protocol.
+// reads. The protocol queries and records the answers; this names them and lays them out in the vendor's own machine
+// file (P14). It is a program the protocol runs through the interface, and nothing of it reaches back into the
+// protocol.
 //
 //     orior_khw_machine_write <part> <path.khw> <layout> <mnemonics> <answers> <mode>
 //
@@ -12,25 +13,25 @@
 // does. In `krs` the file at `path.khw` is read and each form that answered a relation is given one a line: the
 // relation, 1 where the answers read a word signed and 0 where not, the encoding the form was first seen with, low
 // word first, and the form's text with each operand that stands in the relation's tuple written as its place,
-// {<place>}, for the protocol to name; nothing else is read. In `kernel` the container the layout holds is read and
+// {<place>}, for the protocol to name; nothing else is read. In `kernel` the container the layout contains is read and
 // the kernel the system accepted is appended as kernel_blob.h lays it out: its head, the places, the registers a
-// thread holds, the place the least opening begins at and the slot's place, each of the two as the part's .ksc beside
-// the machine file answers it (The frame asked, Open 6.3), then every place's encoding as the container holds it. In
-// `gate` the file holds those same places, one form a place, so that the gate reads every question of a round
-// against what the part has already run (cubin_safe.h). In `final` the file holds the forms the part answered for,
+// thread uses, the place the least opening begins at and the probe place, each of the two as the part's .ksc beside
+// the machine file answers it (Open 6.3), then every place's encoding as the container stores it. In
+// `gate` the file contains those same places, one form a place, so that the gate reads every question of a round
+// against what the part has already run (cubin_safe.h). In `final` the file contains the forms the part answered for,
 // read from `answers` as the protocol gave them, each named from the vendor's table (mnemonic_nvidia.tsv) and laid
 // out as the instruction its runs make; a form the table names none of is no form of the file. The answers are one
-// form a line: the relation the protocol read, whether it read a word signed and whether it asked, the encoding, how
+// form a line: the relation the protocol read, whether it read a word signed and whether it queried, the encoding, how
 // many runs its operands sit in, and each run's first and last bit and its place in the relation's tuple, - where it
 // has none. Each form is written with its relation, its signedness and its runs' places as the protocol read them.
-// In `costs` the file holds both: the kernel's places as `gate` lays them out, then the forms the part answered for
-// as `final` does, so that the gate reads a costs question, a form written many times over from the slot inside the
-// kernel's places, as held whole.
+// In `costs` the file contains both: the kernel's places as `gate` lays them out, then the forms the part answered for
+// as `final` does, so that the gate reads a costs question, a form written many times over from the probe place inside
+// the kernel's places, as stored whole.
 #include "khw_machine_write/khw_machine_write_internal.h"
 #include "khw_machine_write/opening.h"
 
 // the path of the part's .ksc beside the machine file at `path`, its extension put in place of the machine file's,
-// into `ksc`, which holds `room`: 1, or 0 where it does not fit
+// into `ksc`, which has room for `room`: 1, or 0 where it does not fit
 static int khw_ksc_path(const char *path, char *ksc, size_t room)
 {
     static const char s_extension[] = ".ksc";
@@ -62,19 +63,19 @@ int main(int count, char **word)
     if (strcmp(mode, "kernel") == 0)
     {
         // the kernel read out of the container and appended for the protocol as `answers` (kernel_blob.h): its head,
-        // then every place's encoding as the container holds it
+        // then every place's encoding as the container stores it
         char ksc[1024];
         if (!khw_kernel_read(layout) || !khw_ksc_path(path, ksc, sizeof(ksc)))
         {
             return 1;
         }
-        // the place the least opening begins at and the slot's place, each the part's answer in its .ksc beside the
+        // the place the least opening begins at and the probe place, each the part's answer in its .ksc beside the
         // machine file: 0 and none where it has not answered or names a place past the kernel
         const unsigned int from = khw_opening_read(ksc);
-        const unsigned int slot = khw_slot_read(ksc);
-        const KernelBlobHead head = {s_kernel_places, s_registers, (from < s_kernel_places) ? from : 0u,
-                                     ((slot != KHW_SLOT_NONE) && (slot < s_kernel_places)) ? slot
-                                                                                           : KERNEL_BLOB_SLOT_NONE};
+        const unsigned int place = khw_probe_place_read(ksc);
+        const KernelBlobHead head = {
+            s_kernel_places, s_registers, (from < s_kernel_places) ? from : 0u,
+            ((place != KHW_PROBE_PLACE_NONE) && (place < s_kernel_places)) ? place : KERNEL_BLOB_PLACE_NONE};
         static unsigned char s_kernel_blob[sizeof(KernelBlobHead) + sizeof(s_kernel_text)];
         const size_t code = (size_t)s_kernel_places * KHW_INSTRUCTION;
         memcpy(s_kernel_blob, &head, sizeof(head));
@@ -146,17 +147,17 @@ int main(int count, char **word)
         return 2;
     }
     // the kernel's places, one form a place, where the gate reads questions against them
-    unsigned int kept = 0u;
+    unsigned int kernel_forms = 0u;
     if (gate || costs)
     {
         if (!khw_kernel_read(layout))
         {
             return 1;
         }
-        kept = khw_kernel_forms_kept();
+        kernel_forms = khw_kernel_forms_store();
     }
     // the forms the part answered for, each named from the vendor's table, after the kernel's places where those are
-    // held
+    // stored
     static KhwForm s_form[SASS_MACHINE_FORMS];
     unsigned int forms = 0u;
     unsigned int named = 0u;
@@ -171,9 +172,9 @@ int main(int count, char **word)
             {
                 continue;
             }
-            if (!khw_form_kept(&s_machine, &s_form[at], text))
+            if (!khw_form_store(&s_machine, &s_form[at], text))
             {
-                printf("  orior_khw_machine_write: %s holds no more forms\n", path);
+                printf("  orior_khw_machine_write: %s contains no more forms\n", path);
                 return 1;
             }
             named += 1u;
@@ -186,14 +187,14 @@ int main(int count, char **word)
     }
     if (gate)
     {
-        printf("  the kernel's places: %u forms the gate reads a question against\n", kept);
+        printf("  the kernel's places: %u forms the gate reads a question against\n", kernel_forms);
         return 0;
     }
     if (costs)
     {
         printf("  the kernel's places, %u forms, and %u of the %u forms the part answered for named by the vendor's "
                "table: what the gate reads a costs question against, written to %s\n",
-               kept, named, forms, path);
+               kernel_forms, named, forms, path);
         return 0;
     }
     printf("  orior_khw_machine_write: %u of the %u forms the part answered for named by the vendor's table and written to "

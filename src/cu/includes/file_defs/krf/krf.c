@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// krf.c: a part's .krf read, its rows read, a removal kept, and written back whole (krf.h)
+// krf.c: a part's .krf read, its rows read, a removal stored, and written back whole (krf.h)
 #include "krf.h"
 
 #include "../../parsers/who.h"
@@ -31,8 +31,8 @@ int krf_line_add(KrfFile *file, const char *text)
     return kfile_lines_line_add(file, text);
 }
 
-// the word of `text` at `*at` into `word`, which holds `room`, the spaces before it skipped and `*at` moved past it: 1,
-// or 0 where there is no word or it does not fit
+// the word of `text` at `*at` into `word`, which has room for `room`, the spaces before it skipped and `*at` moved past
+// it: 1, or 0 where there is no word or it does not fit
 static int krf_word_read(const char *text, size_t *at, char *word, size_t room)
 {
     *at += strspn(text + *at, " \t");

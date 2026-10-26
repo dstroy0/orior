@@ -39,7 +39,7 @@ static_assert((NOISE_FLICKER_CELLS * sizeof(unsigned long long)) <= 49152u,
 // the widest squared difference less its neighbor's: each frame difference lies in [-65535, 65535]
 #define NOISE_WIDEST_SQUARE (131070ull * 131070ull)
 
-// the lane's top: a value past it was held there
+// the lane's top: a value past it was clamped there
 #define NOISE_LANE_TOP 65535u
 
 #define NOISE_VALUES 65536u
@@ -118,11 +118,11 @@ typedef struct
     OriorExactInteger plane_squares;
 } NoisePlanePool;
 
-// A sample's static voxels as an unbalanced layout, each line holding only its static members. For a line of n of
+// A sample's static voxels as an unbalanced layout, each line containing only its static members. For a line of n of
 // them with frame differences summed to R and squared to S, E[R^2 - S] = (n^2 - n)(var_row + var_plane) along a row
 // and (n^2 - n)(var_column + var_plane) along a column. A plane's static sum P over N members, squared to Q, gives
 // E[P^2 - Q] = K_row var_row + K_column var_column + (N^2 - N) var_plane, K summing n^2 - n over its rows or columns.
-// Pooled here: the ceiling (the highest voxel mean kept), the members M and their squares T, each kind's n^2 - n
+// Pooled here: the ceiling (the highest voxel mean retained), the members M and their squares T, each kind's n^2 - n
 // summed, and each kind's squared sums summed.
 typedef struct
 {
@@ -272,7 +272,7 @@ int noise_exact_add_product(OriorExactInteger *sum, const OriorExactInteger *lef
 extern "C" long noise_line_fit(const NoiseLineSums *sums, unsigned long long level_scale,
                                unsigned long long measurement_scale, NoiseLine *line, EngineError *error);
 
-// A signed sum 128 bits wide, held as its raised and lowered parts
+// A signed sum 128 bits wide, stored as its raised and lowered parts
 typedef struct
 {
     NoiseWide raised;
@@ -283,10 +283,11 @@ void noise_signed_wide_add(NoiseSignedWide *sum, unsigned long long place, long 
 
 int noise_exact_signed_wide(OriorExactInteger *value, const NoiseSignedWide *wide);
 
-// The ladder's sums over the kept blocks: a block's place x is its voxel's frames summed over the voxel's other whole
-// blocks, and its measurements e2, e3 and e4 are its k-statistics' numerators, each k_j being e_j over n (n - 1) down
-// to n - j + 1 (the formulas at NoiseMomentCell, with V = 1). By the bounds noise_ladder_sample holds, x is below 2^32,
-// every |e_j| below 2^46 and the blocks below 2^31. Sum x^2 stays below 2^95 and every sum x e_j below 2^109.
+// The ladder's sums over the retained blocks: a block's place x is its voxel's frames summed over the voxel's other
+// whole blocks, and its measurements e2, e3 and e4 are its k-statistics' numerators, each k_j being e_j over n (n - 1)
+// down to n - j + 1 (the formulas at NoiseMomentCell, with V = 1). By the bounds noise_ladder_sample enforces, x is
+// below 2^32, every |e_j| below 2^46 and the blocks below 2^31. Sum x^2 stays below 2^95 and every sum x e_j below
+// 2^109.
 typedef struct
 {
     unsigned long long blocks;
@@ -304,8 +305,8 @@ typedef struct
 // the structure pass's level bins: the pair's mean level over the frames, in bins of 8, over the summary's 40 to 199
 #define NOISE_STRUCTURE_BINS (NOISE_SUMMARY_LAST_BIN - NOISE_SUMMARY_FIRST_BIN + 1u)
 
-// the words each lag and bin holds: the pairs, then the sums of M, M^2, q, q^2, M q, y, M y and q y, each 128 bits as
-// its low word then its high word
+// the words each lag and bin contains: the pairs, then the sums of M, M^2, q, q^2, M q, y, M y and q y, each 128 bits
+// as its low word then its high word
 #define NOISE_STRUCTURE_PAIRS 0u
 
 #define NOISE_STRUCTURE_LEVEL 1u
@@ -334,8 +335,8 @@ typedef struct
 static_assert((NOISE_STRUCTURE_CELLS * sizeof(unsigned long long)) <= 49152u,
               "noise_detector: the structure sums fit one block's shared memory");
 
-// A 128 bit sum held at cell[0] (its low word) and cell[1] (its high word) gains high 2^64 + low. The low word's carry
-// is read from the value the atomic add found there. Each carry is counted once, whatever the order.
+// A 128 bit sum stored at cell[0] (its low word) and cell[1] (its high word) gains high 2^64 + low. The low word's
+// carry is read from the value the atomic add found there. Each carry is counted once, whatever the order.
 __device__ static inline void noise_wide_atomic_add(unsigned long long *cell, unsigned long long low,
                                                     unsigned long long high)
 {
@@ -358,7 +359,7 @@ void noise_exact_words(OriorExactInteger *value, const unsigned long long *words
 
 #define NOISE_HALVES_SUMS 4u
 
-// a box holds at most 2^31 voxels. A pattern value's sum of at most that many lanes fits a word
+// a box contains at most 2^31 voxels. A pattern value's sum of at most that many lanes fits a word
 #define NOISE_ROOT_VOXELS_MAX (1ull << 31u)
 
 // a price past 2^61 bits errors. The box's less a residual's and a pattern's is a long long

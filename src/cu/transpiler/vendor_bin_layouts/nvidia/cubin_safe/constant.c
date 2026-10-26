@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// constant.c: rule 13, a read of the constant bank held before the part where it reaches a bank the container has no
+// constant.c: rule 13, a read of the constant bank blocked before the part where it reaches a bank the container has no
 // section for or past the bank's end, read through the vendor's own instruction set
 #include "cubin_safe_internal.h"
 
@@ -82,7 +82,7 @@ int cubin_constant_out_of_bank(const struct TablesSetTag *tables, unsigned long 
         return 1;
     }
     // the read, from the byte offset the class's offset field scales to (tables_class_offset) and as many bytes as its
-    // size operand says, four where it names none, must end inside the bank where the bank's size is known
+    // size operand specifies, four where it names none, must end inside the bank where the bank's size is known
     const unsigned long long bytes = tables_class_offset(class_, low, high);
     return (bank_size != 0ull) && (bytes + (unsigned long long)tables_class_bytes(class_, low, high) > bank_size);
 }

@@ -41,7 +41,7 @@ TesseraConnect tessera_connect(TesseraClient *client, const char *endpoint)
         return TESSERA_CONNECT_FAILED;
     }
     memcpy(address.sun_path, endpoint, strlen(endpoint) + 1u);
-    // the connection closes on exec: a program this process starts never holds its job open
+    // the connection closes on exec: a program this process starts never leaves its job open
     client->socket_descriptor = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (client->socket_descriptor < 0)
     {
@@ -66,9 +66,9 @@ static int tessera_daemon_owns_lock(const unsigned char device[TESSERA_DEVICE_BY
     {
         return 0;
     }
-    ScripturaLine line = {lock_path, ENGINE_PATH_CAPACITY, strlen(lock_path)};
-    scriptura_text(&line, s_client_lock);
-    if (scriptura_finish(&line) == 0ull)
+    VerbaLinea line = {lock_path, ENGINE_PATH_CAPACITY, strlen(lock_path)};
+    mmgr_line_put(&line, s_client_lock);
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
@@ -83,34 +83,34 @@ static int tessera_daemon_owns_lock(const unsigned char device[TESSERA_DEVICE_BY
 }
 #endif
 
-int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobAsk *ask, const char *endpoint)
+int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobSubmit *submit, const char *endpoint)
 {
     _Alignas(8) char device_text[TESSERA_ARGUMENT_CAPACITY];
     _Alignas(8) char luid_text[TESSERA_ARGUMENT_CAPACITY];
     _Alignas(8) char idle_text[TESSERA_ARGUMENT_CAPACITY];
-    ScripturaLine device_line = {device_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
-    ScripturaLine luid_line = {luid_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
-    ScripturaLine idle_line = {idle_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
-    tessera_bytes_hex(&device_line, ask->device, TESSERA_DEVICE_BYTES);
-    scriptura_hex(&luid_line, ask->luid, 16u);
-    scriptura_decimal(&idle_line, ask->idle_microseconds, 1u);
-    if ((scriptura_finish(&device_line) == 0ull) || (scriptura_finish(&luid_line) == 0ull) ||
-        (scriptura_finish(&idle_line) == 0ull))
+    VerbaLinea device_line = {device_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
+    VerbaLinea luid_line = {luid_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
+    VerbaLinea idle_line = {idle_text, TESSERA_ARGUMENT_CAPACITY, 0ull};
+    tessera_bytes_hex(&device_line, submit->device, TESSERA_DEVICE_BYTES);
+    mmgr_line_hex(&luid_line, submit->luid, 16u);
+    mmgr_line_decimal(&idle_line, submit->idle_microseconds, 1u);
+    if ((mmgr_line_finish(&device_line) == 0ull) || (mmgr_line_finish(&luid_line) == 0ull) ||
+        (mmgr_line_finish(&idle_line) == 0ull))
     {
         return 0;
     }
 #if defined(_WIN32)
     _Alignas(8) char command[ENGINE_PATH_CAPACITY];
-    ScripturaLine line = {command, ENGINE_PATH_CAPACITY, 0ull};
-    scriptura_text(&line, s_client_quote);
-    tessera_text_staged(&line, ask->daemon_path);
-    scriptura_text(&line, s_client_device);
-    scriptura_text(&line, device_text);
-    scriptura_text(&line, s_client_luid);
-    scriptura_text(&line, luid_text);
-    scriptura_text(&line, s_client_idle);
-    scriptura_text(&line, idle_text);
-    if (scriptura_finish(&line) == 0ull)
+    VerbaLinea line = {command, ENGINE_PATH_CAPACITY, 0ull};
+    mmgr_line_put(&line, s_client_quote);
+    tessera_text_staged(&line, submit->daemon_path);
+    mmgr_line_put(&line, s_client_device);
+    mmgr_line_put(&line, device_text);
+    mmgr_line_put(&line, s_client_luid);
+    mmgr_line_put(&line, luid_text);
+    mmgr_line_put(&line, s_client_idle);
+    mmgr_line_put(&line, idle_text);
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
@@ -147,10 +147,15 @@ int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobAsk *ask, c
     if (daemon == 0)
     {
         setsid();
-        char *const arguments[] = {
-            (char *)ask->daemon_path, (char *)"--device", device_text, (char *)"--luid", luid_text,
-            (char *)"--idle",         idle_text,          NULL};
-        execv(ask->daemon_path, arguments);
+        char *const arguments[] = {(char *)submit->daemon_path,
+                                   (char *)"--device",
+                                   device_text,
+                                   (char *)"--luid",
+                                   luid_text,
+                                   (char *)"--idle",
+                                   idle_text,
+                                   NULL};
+        execv(submit->daemon_path, arguments);
         _exit(127);
     }
     int ended = 0;
@@ -159,7 +164,7 @@ int tessera_spawn_and_connect(TesseraClient *client, const TesseraJobAsk *ask, c
     {
         int status = 0;
         ended = ended || (waitpid(daemon, &status, WNOHANG) == daemon);
-        if (ended && !tessera_daemon_owns_lock(ask->device))
+        if (ended && !tessera_daemon_owns_lock(submit->device))
         {
             outcome = tessera_connect(client, endpoint);
             break;
@@ -287,7 +292,7 @@ int tessera_readable(TesseraClient *client, unsigned long long deadline)
         }
         const unsigned long long left = ((deadline - now) + 999ull) / 1000ull;
         struct pollfd watched = {client->socket_descriptor, POLLIN, 0};
-        // the milliseconds left are held below 2^31 here, and narrow to int exactly
+        // the milliseconds left are bounded below 2^31 here, and narrow to int exactly
         const int ready = poll(&watched, 1u, (int)((left < 0x7FFFFFFFull) ? left : 0x7FFFFFFFull));
         if ((ready < 0) && (errno == EINTR))
         {

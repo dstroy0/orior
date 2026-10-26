@@ -1,0 +1,234 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// windows_clipboard.c: the system's clipboard on Windows: its text, read and put as the system's own Unicode text; and
+// files on it as the file manager puts them, a list of their whole paths, a cut said in its Preferred DropEffect as the
+// file manager's own cut says it, so that a paste of files the file manager cut moves them. What goes on the clipboard
+// is put in memory the system's clipboard takes and owns from then on, as the clipboard takes nothing else. The system
+// keeps another program out while the clipboard is open, but not another thread of this one, so one thread at a time
+// opens it here, from its open to its close
+#include "../command_line/cli_internal.h"
+
+#if defined(_WIN32)
+#define NOMINMAX
+#include <windows.h>
+
+#include <shellapi.h>
+#include <shlobj.h>
+
+#include <limits.h>
+
+// how many times the clipboard is asked for while another program holds it, and the milliseconds apart
+#define CLI_CLIPBOARD_TRIES 10u
+#define CLI_CLIPBOARD_APART 5u
+
+// the drop effects a file manager reads: a copy, a move, and a link to the file
+#define CLI_CLIPBOARD_COPY 1u
+#define CLI_CLIPBOARD_MOVE 2u
+#define CLI_CLIPBOARD_LINK 4u
+
+// the units of the clipboard's text made UTF-8 at once
+#define CLI_CLIPBOARD_PIECE 4096u
+
+// the lock a thread takes as it opens the clipboard and gives back as it closes it
+static CliLock s_clipboard_lock = CLI_LOCK_INIT;
+
+// the clipboard opened for this thread, the lock taken first, asked for again while another program holds it: 1, or
+// 0 with the lock given back where it stays held
+static int clipboard_opened(void)
+{
+    cli_lock_take(&s_clipboard_lock);
+    for (unsigned int asked = 0u; asked < CLI_CLIPBOARD_TRIES; asked += 1u)
+    {
+        if (OpenClipboard(NULL))
+        {
+            return 1;
+        }
+        Sleep(CLI_CLIPBOARD_APART);
+    }
+    cli_lock_give(&s_clipboard_lock);
+    return 0;
+}
+
+// the clipboard this thread opened closed, and the lock given back
+static void clipboard_closed(void)
+{
+    CloseClipboard();
+    cli_lock_give(&s_clipboard_lock);
+}
+
+// the format a file manager says a cut or a copy in
+static UINT clipboard_effect_format(void)
+{
+    return RegisterClipboardFormatW(L"Preferred DropEffect");
+}
+
+int cli_clipboard_text_read(VerbaLinea *text)
+{
+    if (!clipboard_opened())
+    {
+        return 0;
+    }
+    const HANDLE held = GetClipboardData(CF_UNICODETEXT);
+    const wchar_t *const wide = (held != NULL) ? (const wchar_t *)GlobalLock(held) : NULL;
+    if (wide != NULL)
+    {
+        const SIZE_T units_most = GlobalSize(held) / sizeof(wchar_t);
+        SIZE_T units = 0u;
+        while ((units < units_most) && (wide[units] != L'\0'))
+        {
+            units += 1u;
+        }
+        char piece[CLI_CLIPBOARD_PIECE * 3u];
+        for (SIZE_T at = 0u; at < units;)
+        {
+            SIZE_T count = ((units - at) < CLI_CLIPBOARD_PIECE) ? (units - at) : CLI_CLIPBOARD_PIECE;
+            // a letter of two units is not cut between pieces
+            const wchar_t last = wide[at + count - 1u];
+            count -= ((at + count < units) && (last >= 0xd800u) && (last <= 0xdbffu)) ? 1u : 0u;
+            // a piece is at most CLI_CLIPBOARD_PIECE units, which an int counts
+            const int bytes =
+                WideCharToMultiByte(CP_UTF8, 0u, wide + at, (int)count, piece, (int)sizeof(piece), NULL, NULL);
+            mmgr_line_put_n(text, piece, (bytes > 0) ? (unsigned long long)bytes : 0ull);
+            at += count;
+        }
+        GlobalUnlock(held);
+    }
+    clipboard_closed();
+    return 1;
+}
+
+// `memory` put on the clipboard as `format`, and `more` as `more_format` where it is not NULL, the clipboard emptied
+// first: 1, or 0 with each the clipboard did not take given back
+static int clipboard_put(UINT format, HGLOBAL memory, UINT more_format, HGLOBAL more)
+{
+    if (!clipboard_opened())
+    {
+        GlobalFree(memory);
+        GlobalFree(more);
+        return 0;
+    }
+    EmptyClipboard();
+    const int taken = SetClipboardData(format, memory) != NULL;
+    const int more_taken = taken && ((more == NULL) || (SetClipboardData(more_format, more) != NULL));
+    clipboard_closed();
+    if (!taken)
+    {
+        GlobalFree(memory);
+    }
+    if (!more_taken)
+    {
+        GlobalFree(more);
+    }
+    return taken && more_taken;
+}
+
+int cli_clipboard_text_written(const char *text, unsigned long long size)
+{
+    if (size > INT_MAX)
+    {
+        return 0;
+    }
+    // the size is at most what an int counts, as checked above
+    const int units = (size > 0ull) ? MultiByteToWideChar(CP_UTF8, 0u, text, (int)size, NULL, 0) : 0;
+    const HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, ((SIZE_T)units + 1u) * sizeof(wchar_t));
+    wchar_t *const wide = (memory != NULL) ? (wchar_t *)GlobalLock(memory) : NULL;
+    if (wide == NULL)
+    {
+        GlobalFree(memory);
+        return 0;
+    }
+    if (units > 0)
+    {
+        // the size is at most what an int counts, as checked above
+        (void)MultiByteToWideChar(CP_UTF8, 0u, text, (int)size, wide, units);
+    }
+    wide[units] = L'\0';
+    GlobalUnlock(memory);
+    return clipboard_put(CF_UNICODETEXT, memory, 0u, NULL);
+}
+
+int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cut)
+{
+    // the list's head, then each path in UTF-16 with a 0 after it, and one 0 more at the end
+    SIZE_T units = 1u;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        const int path_units = MultiByteToWideChar(CP_UTF8, 0u, paths[at], -1, NULL, 0);
+        if (path_units <= 0)
+        {
+            return 0;
+        }
+        // a count the system gave is positive here
+        units += (SIZE_T)path_units;
+    }
+    const HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof(DROPFILES) + (units * sizeof(wchar_t)));
+    DROPFILES *const files = (memory != NULL) ? (DROPFILES *)GlobalLock(memory) : NULL;
+    const HGLOBAL effect = GlobalAlloc(GMEM_MOVEABLE, sizeof(DWORD));
+    DWORD *const effect_value = (effect != NULL) ? (DWORD *)GlobalLock(effect) : NULL;
+    if ((files == NULL) || (effect_value == NULL))
+    {
+        GlobalFree(memory);
+        GlobalFree(effect);
+        return 0;
+    }
+    files->pFiles = sizeof(DROPFILES);
+    files->fWide = TRUE;
+    wchar_t *at = (wchar_t *)(void *)((unsigned char *)files + sizeof(DROPFILES));
+    SIZE_T left = units;
+    for (unsigned int path = 0u; path < count; path += 1u)
+    {
+        // what is left is at most the units counted above, which an int counts
+        const int written = MultiByteToWideChar(CP_UTF8, 0u, paths[path], -1, at, (int)left);
+        // a count the system gave is positive here
+        at += (written > 0) ? (SIZE_T)written : 0u;
+        left -= (written > 0) ? (SIZE_T)written : 0u;
+    }
+    *at = L'\0';
+    GlobalUnlock(memory);
+    *effect_value = cut ? CLI_CLIPBOARD_MOVE : (CLI_CLIPBOARD_COPY | CLI_CLIPBOARD_LINK);
+    GlobalUnlock(effect);
+    return clipboard_put(CF_HDROP, memory, clipboard_effect_format(), effect);
+}
+
+unsigned int cli_clipboard_files_held(void (*each)(void *context, const char *path), void *context, int *cut)
+{
+    *cut = -1;
+    if (!clipboard_opened())
+    {
+        return 0u;
+    }
+    const HDROP held = (HDROP)GetClipboardData(CF_HDROP);
+    unsigned int count = 0u;
+    const UINT files = (held != NULL) ? DragQueryFileW(held, 0xffffffffu, NULL, 0u) : 0u;
+    for (UINT at = 0u; at < files; at += 1u)
+    {
+        wchar_t wide[CLI_PATH_MAX_LEN];
+        char path[CLI_PATH_MAX_LEN];
+        const int converted = (DragQueryFileW(held, at, wide, CLI_PATH_MAX_LEN) != 0u) &&
+                              (WideCharToMultiByte(CP_UTF8, 0u, wide, -1, path, (int)sizeof(path), NULL, NULL) > 0);
+        if (converted)
+        {
+            each(context, path);
+            count += 1u;
+        }
+    }
+    const HANDLE effect = (count > 0u) ? GetClipboardData(clipboard_effect_format()) : NULL;
+    const DWORD *const effect_value = (effect != NULL) ? (const DWORD *)GlobalLock(effect) : NULL;
+    if (effect_value != NULL)
+    {
+        *cut = ((*effect_value & CLI_CLIPBOARD_MOVE) != 0u) && ((*effect_value & CLI_CLIPBOARD_COPY) == 0u);
+        GlobalUnlock(effect);
+    }
+    clipboard_closed();
+    return count;
+}
+
+void cli_clipboard_emptied(void)
+{
+    if (clipboard_opened())
+    {
+        EmptyClipboard();
+        clipboard_closed();
+    }
+}
+#endif

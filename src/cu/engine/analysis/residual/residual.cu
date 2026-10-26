@@ -46,7 +46,7 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
     }
     memset(program, 0, RESIDUAL_STEPS * sizeof(EngineStep));
     unsigned int at = 0u;
-    // the comb runs before the keep, and both terms take it alike
+    // the comb runs before the save, and both terms take it alike
     program[at].operation = ENGINE_COMB;
     memcpy(program[at].orders, request->comb, sizeof(program[at].orders));
     at += 1u;
@@ -63,7 +63,7 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
         }
         at += 1u;
     }
-    program[at].operation = ENGINE_KEEP;
+    program[at].operation = ENGINE_SAVE;
     at += 1u;
     program[at].operation = ENGINE_SMOOTH;
     memcpy(program[at].orders, request->background_orders, sizeof(program[at].orders));
@@ -79,7 +79,7 @@ extern "C" long residual_program(const EngineResidualRequest *request, EngineSte
         at += 1u;
     }
     program[at].operation = ENGINE_SCALE_SUBTRACT;
-    // the gain is held at or below 2^32 - 1 above, and narrows to unsigned int exactly
+    // the gain is bounded at or below 2^32 - 1 above, and narrows to unsigned int exactly
     program[at].shift = (unsigned int)gain;
     return (long)RESIDUAL_STEPS;
 }

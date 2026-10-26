@@ -4,9 +4,9 @@
 // traceback last names
 #include "test_runs_internal.h"
 
-// one failure of unittest's report told: its name as pytest gives it, the last line of its traceback, and the line of
-// its file the traceback last names, the rule under its head and the rule after it bounding the traceback
-static void report_failure_told(CliTestWorker *worker, const char *block, unsigned long long size)
+// one failure of unittest's report reported: its name as pytest gives it, the last line of its traceback, and the line
+// of its file the traceback last names, the rule under its head and the rule after it bounding the traceback
+static void report_failure_emitted(CliTestWorker *worker, const char *block, unsigned long long size)
 {
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
@@ -22,12 +22,12 @@ static void report_failure_told(CliTestWorker *worker, const char *block, unsign
     {
         dotted_end -= 1ull;
     }
-    char id[CLI_PATH_LONGEST * 2u];
+    char id[CLI_PATH_MAX_LEN * 2u];
     if (!cli_test_unittest_id(block + open + 2ull, dotted_end - open - 2ull, id, sizeof(id)))
     {
         return;
     }
-    char wanted[CLI_PATH_LONGEST];
+    char wanted[CLI_PATH_MAX_LEN];
     const char *const path =
         cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
     memor.cpy(&(MemoriaCfg){
@@ -90,11 +90,11 @@ static void report_failure_told(CliTestWorker *worker, const char *block, unsign
     unsigned long long last = 0ull;
     unsigned long long last_size = 0ull;
     const int found = cli_report_last_line(block + body, body_end - body, 1, &last, &last_size);
-    cli_test_result_told(worker, id, "failed", found ? block + body + last : "", found ? last_size : 0ull, wanted, line,
-                         0.0);
+    cli_test_result_emitted(worker, id, "failed", found ? block + body + last : "", found ? last_size : 0ull, wanted,
+                            line, 0.0);
 }
 
-void cli_test_unittest_failures_told(CliTestWorker *worker, const char *text, unsigned long long size)
+void cli_test_unittest_failures_emitted(CliTestWorker *worker, const char *text, unsigned long long size)
 {
     static const char s_rule[] = "\n======================================================================\n";
     const unsigned long long rule = sizeof(s_rule) - 1ull;
@@ -103,7 +103,7 @@ void cli_test_unittest_failures_told(CliTestWorker *worker, const char *text, un
     {
         const unsigned long long from = at + rule;
         const unsigned long long next = from + cli_report_find(text + from, size - from, s_rule);
-        report_failure_told(worker, text + from, ((next < size) ? next : size) - from);
+        report_failure_emitted(worker, text + from, ((next < size) ? next : size) - from);
         at = next;
     }
 }

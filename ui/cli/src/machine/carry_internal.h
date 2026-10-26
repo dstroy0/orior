@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// carry_internal.h: what the carry sources share: files carried kept in order, settings read and written, and the
+// carry_internal.h: what the carry sources share: files carried saved in order, settings read and written, and the
 // files of a folder that travel
 #ifndef CARRY_INTERNAL_H
 #define CARRY_INTERNAL_H
@@ -9,7 +9,7 @@
 #include "../text/json_tree.h"
 #include "carry.h"
 
-// What a carried file says it is
+// What a carried file declares it is
 #define CLI_CARRY_MARK "orior settings"
 
 // the bytes a settings text written is begun in before it grows
@@ -40,31 +40,31 @@ const char *cli_carried_value(const CliCarried *carried, unsigned int at);
 // the object written with its keys in order, as settings.json is written, into `out`; whether `place` is one a
 // carried file may write; and the files of `folder` that travel, by place, each with its path. A settings text is
 // read into a tree begun afresh in a cell sized to it with room over for `beside` bytes of settings read beside it and
-// copied over into it, or read beside what the tree holds, into that room (carry.c)
+// copied over into it, or read beside what the tree contains, into that room (carry.c)
 int cli_carry_machine(const char *key);
 unsigned int cli_carry_settings_of(CliCarryRoom *room, const char *text, unsigned long long size,
                                    unsigned long long beside);
 unsigned int cli_carry_settings_beside(CliCarryRoom *room, const char *text, unsigned long long size);
-void cli_carry_settings_written(CliCarryRoom *room, unsigned int object, CliLine *out);
+void cli_carry_settings_written(CliCarryRoom *room, unsigned int object, VerbaLinea *out);
 int cli_carry_allowed(const char *place);
 void cli_carry_files(const char *folder, CliCarried *found);
 
-// the most takings kept, and the most files one taking writes
+// the most takings saved, and the most files one taking writes
 #define CLI_TAKINGS 1024u
 #define CLI_TAKING_FILES 4096u
 
-// A taking as kept: its id, when, from where, and each file it wrote with whether one stood there before
+// A taking as saved: its id, when, from where, and each file it wrote with whether one stood there before
 typedef struct
 {
     char id[32];
     unsigned long long at;
-    char from[CLI_PATH_LONGEST];
+    char from[CLI_PATH_MAX_LEN];
     unsigned int files;
-    char place[CLI_TAKING_FILES][CLI_NAME_LONGEST];
+    char place[CLI_TAKING_FILES][CLI_NAME_MAX_LEN];
     unsigned char stood[CLI_TAKING_FILES];
 } CliTaking;
 
 // a taking written as JSON, laid out as serde_json's pretty writer lays it out where `pretty` is set (carry_undo.c)
-void cli_carry_taking_written(const CliTaking *taking, int pretty, CliLine *out);
+void cli_carry_taking_written(const CliTaking *taking, int pretty, VerbaLinea *out);
 
 #endif

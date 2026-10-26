@@ -44,10 +44,10 @@ __global__ static void max_tree_count_kernel(const unsigned int *residual, const
     }
     __syncthreads();
     const unsigned int first = blockIdx.x * blockDim.x;
-    const unsigned int slot = first + threadIdx.x;
-    if (slot < selected_count)
+    const unsigned int index = first + threadIdx.x;
+    if (index < selected_count)
     {
-        const unsigned int voxel = order[slot];
+        const unsigned int voxel = order[index];
         const unsigned int limb = residual[((size_t)voxel * ENGINE_RESIDUAL_LIMBS) + (at / 4u)];
         const unsigned int byte = (~(limb >> ((at % 4u) * 8u))) & 0xFFu;
         atomicAdd(&mine[byte], 1u);
@@ -75,9 +75,9 @@ __global__ static void max_tree_scatter_kernel(const unsigned int *residual, con
         running[bucket] = places[((size_t)block * MAX_TREE_BUCKETS) + bucket];
     }
     const unsigned int end = ((first + MAX_TREE_BLOCK) < selected_count) ? (first + MAX_TREE_BLOCK) : selected_count;
-    for (unsigned int slot = first; slot < end; slot += 1u)
+    for (unsigned int index = first; index < end; index += 1u)
     {
-        const unsigned int voxel = order[slot];
+        const unsigned int voxel = order[index];
         const unsigned int limb = residual[((size_t)voxel * ENGINE_RESIDUAL_LIMBS) + (at / 4u)];
         const unsigned int byte = (~(limb >> ((at % 4u) * 8u))) & 0xFFu;
         sorted[running[byte]] = voxel;
@@ -175,9 +175,9 @@ extern "C" int max_tree_order_agrees(const unsigned int *residual, unsigned int 
         {
             for (unsigned int block = 0u; block < blocks; block += 1u)
             {
-                const size_t slot = ((size_t)block * MAX_TREE_BUCKETS) + bucket;
-                const unsigned int many = counts[slot];
-                counts[slot] = place;
+                const size_t index = ((size_t)block * MAX_TREE_BUCKETS) + bucket;
+                const unsigned int many = counts[index];
+                counts[index] = place;
                 place += many;
             }
         }

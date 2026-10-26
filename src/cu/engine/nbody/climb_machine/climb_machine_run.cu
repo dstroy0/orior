@@ -36,22 +36,23 @@ extern "C" const unsigned int *climb_machine_labels(const ClimbMachine *machine,
     {
         return NULL;
     }
-    const unsigned int slot = (unsigned int)(machine->scratch_frame[1] == frame);
+    const unsigned int resident = (unsigned int)(machine->scratch_frame[1] == frame);
     const unsigned int has = (unsigned int)((frame != CLIMB_MACHINE_EMPTY) && ((machine->scratch_frame[0] == frame) ||
                                                                                (machine->scratch_frame[1] == frame)));
-    return (has != 0u) ? &machine->scratch_labels[(size_t)slot * (size_t)machine->geometry.voxels] : NULL;
+    return (has != 0u) ? &machine->scratch_labels[(size_t)resident * (size_t)machine->geometry.voxels] : NULL;
 }
 
 extern "C" const unsigned long long *climb_machine_positive(const ClimbMachine *machine, unsigned int frame)
 {
-    const unsigned int slot = (machine != NULL) ? machine_slot_of(machine, frame) : CLIMB_MACHINE_EMPTY;
-    return (slot == CLIMB_MACHINE_EMPTY) ? NULL : &machine->positive[(size_t)slot * (size_t)machine->geometry.words];
+    const unsigned int resident = (machine != NULL) ? machine_resident_of(machine, frame) : CLIMB_MACHINE_EMPTY;
+    return (resident == CLIMB_MACHINE_EMPTY) ? NULL
+                                             : &machine->positive[(size_t)resident * (size_t)machine->geometry.words];
 }
 
 extern "C" int climb_machine_pend(ClimbMachine *machine, const ClimbMachinePair *pair)
 {
-    if ((machine == NULL) || (pair == NULL) || (machine_slot_of(machine, pair->earlier) == CLIMB_MACHINE_EMPTY) ||
-        (machine_slot_of(machine, pair->later) == CLIMB_MACHINE_EMPTY))
+    if ((machine == NULL) || (pair == NULL) || (machine_resident_of(machine, pair->earlier) == CLIMB_MACHINE_EMPTY) ||
+        (machine_resident_of(machine, pair->later) == CLIMB_MACHINE_EMPTY))
     {
         return 0;
     }
@@ -89,24 +90,25 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
     for (unsigned int pair = 0u; pair < machine->pending_count; pair += 1u)
     {
         const ClimbMachinePair *const pending = &machine->pending[pair];
-        const unsigned int slots[2] = {machine_slot_of(machine, pending->earlier),
-                                       machine_slot_of(machine, pending->later)};
+        const unsigned int residents[2] = {machine_resident_of(machine, pending->earlier),
+                                           machine_resident_of(machine, pending->later)};
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
-            const unsigned int slot = slots[side];
-            const unsigned int *const leaf_bundles = machine->slot_leaf_bundles[slot];
-            const unsigned int *const contact_start = machine->slot_contact_start[slot];
+            const unsigned int resident = residents[side];
+            const unsigned int *const leaf_bundles = machine->resident_leaf_bundles[resident];
+            const unsigned int *const contact_start = machine->resident_contact_start[resident];
             if (leaf_bundles == NULL)
             {
                 return 0;
             }
-            climbers += (size_t)machine->slot_leaves[slot];
-            entries += (size_t)leaf_bundles[machine->slot_leaves[slot]];
-            for (unsigned int leaf = 0u; (contact_start != NULL) && (leaf < machine->slot_leaves[slot]); leaf += 1u)
+            climbers += (size_t)machine->resident_leaves[resident];
+            entries += (size_t)leaf_bundles[machine->resident_leaves[resident]];
+            for (unsigned int leaf = 0u; (contact_start != NULL) && (leaf < machine->resident_leaves[resident]);
+                 leaf += 1u)
             {
                 for (unsigned int contact = contact_start[leaf]; contact < contact_start[leaf + 1u]; contact += 1u)
                 {
-                    const unsigned int near = machine->slot_contacts[slot][contact];
+                    const unsigned int near = machine->resident_contacts[resident][contact];
                     entries += (size_t)(leaf_bundles[near + 1u] - leaf_bundles[near]);
                 }
             }
@@ -115,7 +117,7 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
     int ok = 1;
     if (sides > machine->side_capacity)
     {
-        ok = ok && machine_grow((void **)&machine->side_slots, (void **)&machine->device_side_slots,
+        ok = ok && machine_grow((void **)&machine->side_residents, (void **)&machine->device_side_residents,
                                 sides * 2u * sizeof(unsigned int));
         machine->side_capacity = (ok != 0) ? sides : 0u;
     }
@@ -163,20 +165,20 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
     for (unsigned int pair = 0u; pair < machine->pending_count; pair += 1u)
     {
         const ClimbMachinePair *const pending = &machine->pending[pair];
-        const unsigned int earlier = machine_slot_of(machine, pending->earlier);
-        const unsigned int later = machine_slot_of(machine, pending->later);
+        const unsigned int earlier = machine_resident_of(machine, pending->earlier);
+        const unsigned int later = machine_resident_of(machine, pending->later);
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
             const unsigned int index = (2u * pair) + side;
             const unsigned int own = (side == 0u) ? earlier : later;
             const int sign = (side == 0u) ? 1 : -1;
             const unsigned int *const peaks = (side == 0u) ? pending->earlier_peaks : pending->later_peaks;
-            const unsigned int *const leaf_bundles = machine->slot_leaf_bundles[own];
-            const unsigned int *const contact_start = machine->slot_contact_start[own];
+            const unsigned int *const leaf_bundles = machine->resident_leaf_bundles[own];
+            const unsigned int *const contact_start = machine->resident_contact_start[own];
             const unsigned int run_base = (unsigned int)((size_t)own * machine->run_capacity);
-            machine->side_slots[2u * index] = own;
-            machine->side_slots[(2u * index) + 1u] = (side == 0u) ? later : earlier;
-            for (unsigned int leaf = 0u; leaf < machine->slot_leaves[own]; leaf += 1u)
+            machine->side_residents[2u * index] = own;
+            machine->side_residents[(2u * index) + 1u] = (side == 0u) ? later : earlier;
+            for (unsigned int leaf = 0u; leaf < machine->resident_leaves[own]; leaf += 1u)
             {
                 machine->climber_side[climber] = index;
                 machine->climber_peak[climber] = peaks[leaf];
@@ -192,8 +194,8 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
                 {
                     for (unsigned int bundle = leaf_bundles[part]; bundle < leaf_bundles[part + 1u]; bundle += 1u)
                     {
-                        machine->entry_first[entry] = run_base + machine->slot_bundle_first[own][bundle];
-                        machine->entry_end[entry] = run_base + machine->slot_bundle_end[own][bundle];
+                        machine->entry_first[entry] = run_base + machine->resident_bundle_first[own][bundle];
+                        machine->entry_end[entry] = run_base + machine->resident_bundle_end[own][bundle];
                         machine->entry_climber[entry] = climber;
                         entry += 1u;
                     }
@@ -201,7 +203,7 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
                     {
                         break;
                     }
-                    part = machine->slot_contacts[own][next_contact];
+                    part = machine->resident_contacts[own][next_contact];
                     next_contact += 1u;
                 }
                 climber += 1u;
@@ -209,7 +211,7 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
         }
     }
     machine->climber_entry_start[climber] = entry;
-    ok = ok && (cudaMemcpy(machine->device_side_slots, machine->side_slots, sides * 2u * sizeof(unsigned int),
+    ok = ok && (cudaMemcpy(machine->device_side_residents, machine->side_residents, sides * 2u * sizeof(unsigned int),
                            cudaMemcpyHostToDevice) == cudaSuccess);
     ok = ok && (cudaMemcpy(machine->device_climber_side, machine->climber_side, climbers * sizeof(unsigned int),
                            cudaMemcpyHostToDevice) == cudaSuccess);
@@ -246,7 +248,7 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
             {
                 machine_score_kernel<<<entry_blocks, CLIMB_MACHINE_BLOCK>>>(
                     machine->run_start, machine->run_length, machine->device_entry_first, machine->device_entry_end,
-                    machine->device_entry_climber, entry, machine->device_climber_side, machine->device_side_slots,
+                    machine->device_entry_climber, entry, machine->device_climber_side, machine->device_side_residents,
                     machine->device_centers, machine->device_active, machine->positive, geometry,
                     machine->device_scores);
                 ok = machine_launched();
@@ -277,7 +279,7 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
         if (machine->land_by_mass != 0u)
         {
             machine_land_mass_kernel<<<climber_blocks, CLIMB_MACHINE_BLOCK>>>(
-                machine->device_climber_side, machine->device_side_slots, machine->device_climber_entry_start,
+                machine->device_climber_side, machine->device_side_residents, machine->device_climber_entry_start,
                 machine->device_entry_first, machine->device_entry_end, machine->device_centers, machine->row_first,
                 machine->run_at_row, machine->run_start, machine->run_length, machine->run_leaf,
                 (unsigned int)machine->run_capacity, climber, machine->device_spiral,
@@ -286,7 +288,7 @@ extern "C" int climb_machine_run(ClimbMachine *machine)
         else
         {
             machine_land_kernel<<<climber_blocks, CLIMB_MACHINE_BLOCK>>>(
-                machine->device_climber_side, machine->device_side_slots, machine->device_climber_peak,
+                machine->device_climber_side, machine->device_side_residents, machine->device_climber_peak,
                 machine->device_centers, machine->row_first, machine->run_at_row, machine->run_start,
                 machine->run_length, machine->run_leaf, (unsigned int)machine->run_capacity, climber, geometry,
                 machine->device_landed);

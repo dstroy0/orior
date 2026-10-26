@@ -23,7 +23,7 @@ int query_trace_read(const std::string &path, QueryTrace *trace, std::string *er
     }
     std::string line;
     unsigned int number = 0u;
-    unsigned long long held = 0ull;
+    unsigned long long seen_bits = 0ull;
     while (std::getline(file, line))
     {
         number += 1u;
@@ -40,14 +40,14 @@ int query_trace_read(const std::string &path, QueryTrace *trace, std::string *er
         std::getline(cells, name, '\t');
         std::getline(cells, gloss);
         const unsigned long long word = std::stoull(flag, nullptr, 16);
-        if ((word == 0ull) || ((word & (word - 1ull)) != 0ull) || ((held & word) != 0ull) || name.empty() ||
+        if ((word == 0ull) || ((word & (word - 1ull)) != 0ull) || ((seen_bits & word) != 0ull) || name.empty() ||
             (trace->flags.count(name) != 0u))
         {
             *error =
                 path + ":" + std::to_string(number) + ": a flag of more than one bit, or one bit or one name twice";
             return 0;
         }
-        held |= word;
+        seen_bits |= word;
         trace->flags[name] = word;
         trace->named.push_back(std::make_pair(word, name));
         trace->glosses.push_back(gloss);

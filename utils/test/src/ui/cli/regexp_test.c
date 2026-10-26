@@ -4,7 +4,8 @@
 // boundaries; alternation, groups, lookahead and laziness; backreferences and case; Unicode's properties under the u
 // flag; what is not read is refused; a string of any length is taken a pass at a time; a repetition taken a pass at a
 // time matches as backtracking does; one that goes deeper gives up before the stack runs out; and a runaway pattern
-// gives up. Each runs on the program's own thread, its stack the system's, which holds more than a match may take
+// gives up. Each runs on the program's own thread, its stack the system's, which has room for more than a match may
+// take
 #include "../../../../../ui/cli/src/text/regexp.h"
 #include "cli_check.h"
 
@@ -20,9 +21,9 @@ static char s_found[1u << 18u];
 static int regexp_read(const char *source, const char *flags)
 {
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_regexp_roomed(&s_regexp, &s_room);
-    return cli_regexp_read(&s_regexp, source, flags, &said);
+    return cli_regexp_read(&s_regexp, source, flags, &err_msg);
 }
 
 // `text` decoded into s_letters, the byte each letter starts at into s_offset: the count of letters
@@ -69,12 +70,12 @@ static void regexp_is(const char *source, const char *flags, const char *text, u
     unsigned long long taken = 0ull;
     const int matched = regexp_at(source, flags, text, from, &taken);
     char what[1024];
-    CliLine line = {what, sizeof(what), 0ull};
-    cli_line_character(&line, '/');
-    cli_line_text(&line, source);
-    cli_line_text(&line, "/ at ");
-    cli_line_text(&line, text);
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {what, sizeof(what), 0ull};
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, source);
+    mmgr_line_put(&line, "/ at ");
+    mmgr_line_put(&line, text);
+    (void)mmgr_line_finish(&line);
     cli_check(
         (wanted == NULL)
             ? !matched
@@ -87,20 +88,20 @@ static void regexp_groups(const char *source, const char *text, const char *want
 {
     const unsigned long long count = regexp_letters(text);
     char out[256];
-    CliLine line = {out, sizeof(out), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ull};
     if (regexp_read(source, "") && cli_regexp_match_into(&s_regexp, s_letters, count, 0ull, s_groups))
     {
         for (unsigned int group = 0u; group <= s_regexp.groups; group += 1u)
         {
-            cli_line_text(&line, (group > 0u) ? "|" : "");
+            mmgr_line_put(&line, (group > 0u) ? "|" : "");
             if (s_groups[group].set)
             {
                 const unsigned long long start = s_offset[s_groups[group].from];
-                cli_line_counted(&line, text + start, s_offset[s_groups[group].to] - start);
+                mmgr_line_put_n(&line, text + start, s_offset[s_groups[group].to] - start);
             }
             else
             {
-                cli_line_character(&line, '-');
+                mmgr_line_ch(&line, '-');
             }
         }
     }
@@ -190,14 +191,14 @@ static void regexp_string(void)
     regexp_is(s_string, "", "\"a\\\"b\\\\\" rest", 0ull, "\"a\\\"b\\\\\"");
     regexp_is(s_keyed, "", "\"key\" : 1", 0ull, "\"key\"");
     regexp_is(s_keyed, "", "\"value\", 1", 0ull, NULL);
-    CliLine line = {s_text, sizeof(s_text), 0ull};
-    cli_line_character(&line, '"');
+    VerbaLinea line = {s_text, sizeof(s_text), 0ull};
+    mmgr_line_ch(&line, '"');
     for (unsigned int at = 0u; at < 200000u; at += 1u)
     {
-        cli_line_character(&line, ((at % 997u) == 0u) ? '\\' : 'x');
+        mmgr_line_ch(&line, ((at % 997u) == 0u) ? '\\' : 'x');
     }
-    cli_line_text(&line, "\", next");
-    (void)cli_line_closed(&line);
+    mmgr_line_put(&line, "\", next");
+    (void)mmgr_line_finish(&line);
     unsigned long long taken = 0ull;
     cli_check(regexp_at(s_string, "", s_text, 0ull, &taken) && (taken == 200002ull),
               "the whole string, its escapes taken with the character after each");
@@ -228,6 +229,7 @@ static void regexp_run(unsigned int count, const char *after)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     regexp_characters();
     regexp_sticky();
     regexp_alternation();

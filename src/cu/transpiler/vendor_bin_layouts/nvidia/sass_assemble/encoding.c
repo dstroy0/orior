@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// encoding.c: the encoding read: bits read, signed values, the open bits, a form relocated and landed, a name within, a holder named, the places an encoding holds, an encoding's form, an operand read, the encoding read, and the loop walked
+// encoding.c: the encoding read: bits read, signed values, the open bits, a form relocated and landed, a name within, a
+// holder named, the places an encoding matches, an encoding's form, an operand read, the encoding read, and the loop
+// walked
 #include "sass_assemble_internal.h"
 
-// one form that holds an encoding, where its operands sit, and how many bits it leaves to them
+// one form that matches an encoding, where its operands sit, and how many bits it leaves to them
 typedef struct
 {
     const SassForm *form;
@@ -72,7 +74,7 @@ static unsigned int sass_open_bits(const SassForm *form, const SassPlace *places
             sass_bits_write(low, high, SASS_DESCRIPTOR_SHOWN, 1u, ~0ull);
         }
     }
-    // an operand the form holds and does not print is the operand's, whatever value an encoding gives it
+    // an operand the form carries and does not print is the operand's, whatever value an encoding gives it
     for (unsigned int number = 0u; number < form->runs; number += 1u)
     {
         const SassRun *const run = &form->run[number];
@@ -89,7 +91,7 @@ static unsigned int sass_open_bits(const SassForm *form, const SassPlace *places
     return count;
 }
 
-// 1 where an operand of the form is a label that names a symbol, whose field holds nothing to read
+// 1 where an operand of the form is a label that names a symbol, whose field contains nothing to read
 static int sass_form_relocated(const SassForm *form, const SassPlace *places)
 {
     int relocated = 0;
@@ -101,7 +103,7 @@ static int sass_form_relocated(const SassForm *form, const SassPlace *places)
 }
 
 // 1 where `form` is `other`'s operation and reads as a label an operand `other` reads as a number: a branch's distance
-// is read as the place it lands, which a number in the same bits does not say
+// is read as the place it lands, which a number in the same bits does not specify
 static int sass_form_lands(const SassForm *form, const SassForm *other)
 {
     if ((other == NULL) || (strcmp(form->operation, other->operation) != 0) || (form->operands != other->operands))
@@ -136,7 +138,7 @@ static int sass_name_within(const char *plain, const char *named)
     return within;
 }
 
-// How `holder` stands against `sibling` where `holder` takes its name from one value of an operand: a sibling holding
+// How `holder` stands against `sibling` where `holder` takes its name from one value of an operand: a sibling carrying
 // the same encoding, with the same operation's name before its first dot, the same kinds and the same marks, is named
 // shorter, and the two forms' own values of an operand differ. -1 where the encoding's value there is not `holder`'s,
 // which names it away; 1 where every such value is `holder`'s, which names it; 0 where the two are no such pair.
@@ -177,22 +179,23 @@ static int sass_holder_named(const SassHolder *holder, const SassHolder *sibling
     return away ? -1 : (differs ? 1 : 0);
 }
 
-int sass_encoding_places_hold(SassMachine *machine)
+int sass_encoding_places_built(SassMachine *machine)
 {
-    SassFormPlaced *const held = malloc((size_t)machine->forms * sizeof(SassFormPlaced) + 1u);
-    if (held == NULL)
+    SassFormPlaced *const placed_all = malloc((size_t)machine->forms * sizeof(SassFormPlaced) + 1u);
+    if (placed_all == NULL)
     {
         return 0;
     }
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         unsigned int unplaced = 0u;
-        held[number].placed = sass_places_find(&machine->form[number], held[number].places, &unplaced);
-        held[number].open = held[number].placed ? sass_open_bits(&machine->form[number], held[number].places,
-                                                                 &held[number].open_low, &held[number].open_high)
-                                                : 0u;
+        placed_all[number].placed = sass_places_find(&machine->form[number], placed_all[number].places, &unplaced);
+        placed_all[number].open = placed_all[number].placed
+                                      ? sass_open_bits(&machine->form[number], placed_all[number].places,
+                                                       &placed_all[number].open_low, &placed_all[number].open_high)
+                                      : 0u;
     }
-    machine->places_held = held;
+    machine->places_built = placed_all;
     return 1;
 }
 
@@ -200,8 +203,8 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
                                           SassPlace *places)
 {
     SassHolder holders[SASS_HOLDERS];
-    unsigned int held = 0u;
-    const SassFormPlaced *const placed = (const SassFormPlaced *)machine->places_held;
+    unsigned int found_count = 0u;
+    const SassFormPlaced *const placed = (const SassFormPlaced *)machine->places_built;
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         SassHolder holder;
@@ -232,21 +235,21 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
             }
         }
         // a holder past the most the reader weighs is refused and not dropped: the form it would have been is unknown
-        if (held == SASS_HOLDERS)
+        if (found_count == SASS_HOLDERS)
         {
-            printf("  sass_assemble: more than %u forms hold the encoding %016llx %016llx\n", SASS_HOLDERS, high, low);
+            printf("  sass_assemble: more than %u forms match the encoding %016llx %016llx\n", SASS_HOLDERS, high, low);
             return NULL;
         }
-        holders[held] = holder;
-        held += 1u;
+        holders[found_count] = holder;
+        found_count += 1u;
     }
     const SassHolder *found = NULL;
     int found_relocated = 1;
-    for (unsigned int number = 0u; number < held; number += 1u)
+    for (unsigned int number = 0u; number < found_count; number += 1u)
     {
         const SassHolder *const holder = &holders[number];
         int away = 0;
-        for (unsigned int other = 0u; (away == 0) && (other < held); other += 1u)
+        for (unsigned int other = 0u; (away == 0) && (other < found_count); other += 1u)
         {
             away = (sass_holder_named(holder, &holders[other], low, high) < 0);
         }
@@ -257,10 +260,10 @@ static const SassForm *sass_encoding_form(const SassMachine *machine, unsigned l
         const SassForm *const form = holder->form;
         const SassForm *const was = (found != NULL) ? found->form : NULL;
         const int relocated = sass_form_relocated(form, holder->places);
-        // a form a value names takes the encoding from the sibling it is named past, and keeps it from that sibling
+        // a form a value names takes the encoding from the sibling it is named past, and retains it from that sibling
         const int named = (found != NULL) && (sass_holder_named(holder, found, low, high) > 0);
-        const int kept = (found != NULL) && (sass_holder_named(found, holder, low, high) > 0);
-        const int fewer = (found == NULL) || named || (!kept && (holder->open < found->open));
+        const int holder_named = (found != NULL) && (sass_holder_named(found, holder, low, high) > 0);
+        const int fewer = (found == NULL) || named || (!holder_named && (holder->open < found->open));
         const int better = (found == NULL) || (found_relocated && !relocated) ||
                            ((relocated == found_relocated) &&
                             (sass_form_lands(form, was) || (!sass_form_lands(was, form) && fewer)));
@@ -289,9 +292,10 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
         snprintf(operand, room, "%s%s", mark, base->operand[at]);
         return;
     }
-    const unsigned long long held = sass_bits_read(low, high, place->value.first, place->value.bits);
+    const unsigned long long operand_value = sass_bits_read(low, high, place->value.first, place->value.bits);
     const unsigned long long mask = (place->value.bits < 64u) ? ((1ull << place->value.bits) - 1ull) : ~0ull;
-    const unsigned long long value = ((place->value.inverted != 0u) ? (~held & mask) : held) * place->value.scale;
+    const unsigned long long value =
+        ((place->value.inverted != 0u) ? (~operand_value & mask) : operand_value) * place->value.scale;
     switch (form->kind[at])
     {
     case SASS_OPERAND_REGISTER:
@@ -316,7 +320,7 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
         snprintf(operand, room, "%s0x%llx", mark, value);
         return;
     case SASS_OPERAND_LABEL:
-        // a branch counts its target from the instruction after it, and the field holds a two's complement distance
+        // a branch counts its target from the instruction after it, and the field stores a two's complement distance
         snprintf(operand, room, "`(0x%llx)",
                  address + 16ull +
                      (unsigned long long)(sass_signed(value / place->value.scale, place->value.bits) *
@@ -339,18 +343,18 @@ static void sass_operand_read(const SassForm *form, const SassInstructionParts *
                           : snprintf(named, sizeof(named), "R%llu%s", value, wide);
         // a memory operand that reads a descriptor names its uniform register, desc[] where bit 101 shows it and term[]
         // where it does not
-        char held[24] = "";
+        char operand_value[24] = "";
         if (place->has_descriptor != 0)
         {
             const unsigned long long descriptor =
                 sass_bits_read(low, high, place->descriptor.first, place->descriptor.bits);
             const int shown = (int)sass_bits_read(low, high, SASS_DESCRIPTOR_SHOWN, 1u);
-            (descriptor == SASS_DESCRIPTOR_ZERO) ? snprintf(held, sizeof(held), "%s[URZ]", shown ? "desc" : "term")
-                                                 : snprintf(held, sizeof(held), "%s[UR%llu]", shown ? "desc" : "term",
-                                                            descriptor);
+            (descriptor == SASS_DESCRIPTOR_ZERO)
+                ? snprintf(operand_value, sizeof(operand_value), "%s[URZ]", shown ? "desc" : "term")
+                : snprintf(operand_value, sizeof(operand_value), "%s[UR%llu]", shown ? "desc" : "term", descriptor);
         }
-        (offset == 0ull) ? snprintf(operand, room, "%s[%s]", held, named)
-                         : snprintf(operand, room, "%s[%s+0x%llx]", held, named, offset);
+        (offset == 0ull) ? snprintf(operand, room, "%s[%s]", operand_value, named)
+                         : snprintf(operand, room, "%s[%s+0x%llx]", operand_value, named, offset);
         return;
     }
     default:
@@ -430,10 +434,10 @@ int sass_loop_walk(const SassMachine *machine, const SassLoopWalk *walk, unsigne
                 {
                     const unsigned long long first =
                         sass_bits_read(low, high, places[0].value.first, places[0].value.bits);
-                    for (unsigned int kept = 0u; (form->kind[0] == SASS_OPERAND_REGISTER) && (kept < walk->lives);
-                         kept += 1u)
+                    for (unsigned int live = 0u; (form->kind[0] == SASS_OPERAND_REGISTER) && (live < walk->lives);
+                         live += 1u)
                     {
-                        writes = writes || (first == walk->live[kept]);
+                        writes = writes || (first == walk->live[live]);
                     }
                     writes = writes || ((form->kind[0] == SASS_OPERAND_PREDICATE) && (first == walk->flag));
                 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -10,13 +10,14 @@
  * @brief The steering scan in portable C11, the reference every other scan arm is graded against.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * ONE PRIMITIVE. Held at one needle offset, count the alignments still standing whose corpus byte at
- * that offset equals the needle byte the level is testing. That is the operation a planner asks
+ * ONE PRIMITIVE. Fixed at one needle offset, count the alignments still standing whose corpus byte at
+ * that offset equals the needle byte the level is testing. That is the operation a planner requests
  * of a scan engine, and it is the same question every wide arm answers faster.
  *
  * @note THE REFERENCE. This arm uses no intrinsic and no compiler extension. It builds anywhere a
  *       C11 compiler runs, and every other scan arm returns the same count or has a defect. That is
- *       the contract OriorSteerEngine carries, the same one the exact arms carry in src/cu/includes/types/integers/arm.h.
+ *       the contract OriorSteerEngine carries, the same one the exact arms carry in
+ * src/cu/includes/types/integers/arm.h.
  * @note It counts a scan call and never a wide call. orior_steer_scan_calls and
  *       orior_steer_wide_calls are defined in orior_steer_count.c and declared in the header; a wide arm
  *       counts both. Wide over total is the share served on the vector path.

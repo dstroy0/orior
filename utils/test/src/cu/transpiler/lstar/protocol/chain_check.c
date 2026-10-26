@@ -18,14 +18,14 @@
 static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 #undef LADDER_TEXT
 
-static unsigned int anchor_cases(unsigned int anchor, LadderQuestion *held)
+static unsigned int anchor_cases(unsigned int anchor, LadderQuestion *cases_out)
 {
     unsigned int found = 0u;
     for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
     {
         if (s_ladder_cases[at].anchor == anchor)
         {
-            held[found] = s_ladder_cases[at];
+            cases_out[found] = s_ladder_cases[at];
             found += 1u;
         }
     }
@@ -47,17 +47,17 @@ int main(void)
         {
             continue;
         }
-        const unsigned int held = chain_build_cases(&swept, cases, found, 1);
+        const unsigned int built = chain_build_cases(&swept, cases, found, 1);
         chain_build_cases(&fitted, cases, found, 0);
-        const unsigned int let_through = fitted.chains - held;
+        const unsigned int let_through = fitted.chains - built;
         printf("  %-8s %2u cases  %5u are the relation  %5u more fit the cases and are not it\n", s_anchor_text[anchor],
-               found, held, let_through);
+               found, built, let_through);
         // the shortest arrangement the cases alone would have taken for the relation, the one a ladder
         // that stopped at its own cases would have written down
         for (unsigned int at = 0u; (at < fitted.chains) && (let_through != 0u); at += 1u)
         {
             unsigned int is_relation = 0u;
-            for (unsigned int which = 0u; which < held; which += 1u)
+            for (unsigned int which = 0u; which < built; which += 1u)
             {
                 is_relation += (memcmp(&fitted.chain[at], &swept.chain[which], sizeof(Chain)) == 0) ? 1u : 0u;
             }
@@ -70,7 +70,7 @@ int main(void)
             break;
         }
         let_through_whole += let_through;
-        chains_whole += held;
+        chains_whole += built;
     }
     printf("  chain check: %u chains are the relation, %u more fit the ladder's cases and are not\n", chains_whole,
            let_through_whole);

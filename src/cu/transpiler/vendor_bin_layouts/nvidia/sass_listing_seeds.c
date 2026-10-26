@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // sass_listing_seeds.c: the instructions a listing of NVIDIA's compiler writes, one of each operation, as the seeds a
-// discover pass asks their relation of (khw_write --seeds). The listing prints each instruction's two 64-bit words as
+// discover pass queries their relation of (khw_write --seeds). The listing prints each instruction's two 64-bit words
+// as
 // `/* 0x<low> */` and `/* 0x<high> */`; the first instruction seen of each operation key, the low word's bits 0 to
 // 11, is printed as `<low> <high>` in hex, one a line. With `--modifiers` an instruction is one of its operation and
 // its high word's bits below the scheduler's and above the fourth register's, 72 to 104, so that each modifier the
-// compiler wrote is a seed of its own. Which instructions to ask is the choice here and no fact of the part: a form
+// compiler wrote is a seed of its own. Which instructions to query is the choice here and no fact of the part: a form
 // enters the machine file only where the part answers for it (P8, Q17).
 //
 //     orior_sass_listing_seeds <listing.sass> [--modifiers]
@@ -22,7 +23,7 @@
 #define SEED_MODIFIER_FIRST 8u
 #define SEED_MODIFIER_LAST 40u
 
-// a seed seen: what tells it from the others, and the instruction it was first seen as
+// a seed seen: what distinguishes it from the others, and the instruction it was first seen as
 typedef struct
 {
     unsigned long long key;
@@ -48,15 +49,15 @@ static int seed_seen(unsigned long long key, unsigned long long modifiers)
     return 0;
 }
 
-// the instruction `low` and `high` kept as a seed where none of its key and modifiers is seen yet: 1, or 0 where
+// the instruction `low` and `high` recorded as a seed where none of its key and modifiers is seen yet: 1, or 0 where
 // there was no memory for it
-static int seed_kept(unsigned long long low, unsigned long long high, int modifiers)
+static int seed_accepted(unsigned long long low, unsigned long long high, int modifiers)
 {
     const unsigned long long key = low & ((1ull << SEED_KEY_BITS) - 1ull);
-    const unsigned long long held =
+    const unsigned long long masked =
         modifiers ? ((high >> SEED_MODIFIER_FIRST) & ((1ull << (SEED_MODIFIER_LAST - SEED_MODIFIER_FIRST + 1u)) - 1ull))
                   : 0ull;
-    if (seed_seen(key, held))
+    if (seed_seen(key, masked))
     {
         return 1;
     }
@@ -71,7 +72,7 @@ static int seed_kept(unsigned long long low, unsigned long long high, int modifi
         s_seed = grown;
         s_room = room;
     }
-    s_seed[s_seeds] = (Seed){key, held, low, high};
+    s_seed[s_seeds] = (Seed){key, masked, low, high};
     s_seeds += 1u;
     return 1;
 }
@@ -92,10 +93,10 @@ int main(int count, char **word)
     }
     // each instruction's words come as a pair of `/* 0x<16 hex digits> */`, the low word first
     char line[4096];
-    unsigned long long held[2] = {0ull, 0ull};
+    unsigned long long words[2] = {0ull, 0ull};
     unsigned int helds = 0u;
-    int kept = 1;
-    while (kept && (fgets(line, sizeof(line), listing) != NULL))
+    int accepted = 1;
+    while (accepted && (fgets(line, sizeof(line), listing) != NULL))
     {
         for (const char *at = strstr(line, "/* 0x"); at != NULL; at = strstr(at + 5, "/* 0x"))
         {
@@ -105,17 +106,17 @@ int main(int count, char **word)
             {
                 continue;
             }
-            held[helds] = value;
+            words[helds] = value;
             helds += 1u;
             if (helds == 2u)
             {
-                kept = seed_kept(held[0], held[1], modifiers);
+                accepted = seed_accepted(words[0], words[1], modifiers);
                 helds = 0u;
             }
         }
     }
     fclose(listing);
-    if (!kept)
+    if (!accepted)
     {
         printf("orior_sass_listing_seeds: no memory for the seeds\n");
         return 1;

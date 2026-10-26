@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// names.c: the names: a name held, copied and numbered, a kernel named, a line read and spaced, a guard and a form's guard, and the operation of a line
+// names.c: the names: a name stored, copied and numbered, a kernel named, a line read and spaced, a guard and a form's
+// guard, and the operation of a line
 #include "stick_internal.h"
 
 // the table of names: each operation's name at its number, and a hash of the names to their numbers
@@ -16,7 +17,7 @@ unsigned int s_engines;
 KfileLines s_file;
 
 // `pointer`, or the run ended where the system gave no memory
-void *stick_held(void *pointer)
+void *stick_allocated(void *pointer)
 {
     if (pointer == NULL)
     {
@@ -29,25 +30,26 @@ void *stick_held(void *pointer)
 // `length` letters at `text` copied into an allocation of their own, ended
 char *stick_copy(const char *text, size_t length)
 {
-    char *const copy = (char *)stick_held(malloc(length + 1u));
+    char *const copy = (char *)stick_allocated(malloc(length + 1u));
     memcpy(copy, text, length);
     copy[length] = '\0';
     return copy;
 }
 
-// `number` kept after every number `numbers` holds
+// `number` added after every number `numbers` contains
 void stick_number_add(StickNumbers *numbers, unsigned int number)
 {
     if (numbers->count == numbers->room)
     {
         numbers->room = (numbers->room == 0u) ? 64u : (numbers->room * 2u);
-        numbers->number = (unsigned int *)stick_held(realloc(numbers->number, numbers->room * sizeof(unsigned int)));
+        numbers->number =
+            (unsigned int *)stick_allocated(realloc(numbers->number, numbers->room * sizeof(unsigned int)));
     }
     numbers->number[numbers->count] = number;
     numbers->count += 1u;
 }
 
-// the number of the name `length` letters at `text`, the name put in the table where it holds none
+// the number of the name `length` letters at `text`, the name put in the table where it contains none
 unsigned int stick_named(const char *text, size_t length)
 {
     // FNV-1a over the name's letters
@@ -59,8 +61,8 @@ unsigned int stick_named(const char *text, size_t length)
     unsigned int slot = hash & (STICK_HASH - 1u);
     while (s_hash[slot] != 0u)
     {
-        const char *const held = s_name[s_hash[slot] - 1u];
-        if ((strncmp(held, text, length) == 0) && (held[length] == '\0'))
+        const char *const name_text = s_name[s_hash[slot] - 1u];
+        if ((strncmp(name_text, text, length) == 0) && (name_text[length] == '\0'))
         {
             return s_hash[slot] - 1u;
         }
@@ -68,13 +70,13 @@ unsigned int stick_named(const char *text, size_t length)
     }
     if (s_names == (STICK_HASH / 2u))
     {
-        fputs("orior_measuring_stick_read: more operations than the table holds\n", stderr);
+        fputs("orior_measuring_stick_read: more operations than the table supports\n", stderr);
         exit(2);
     }
     if (s_names == s_name_room)
     {
         s_name_room = (s_name_room == 0u) ? 256u : (s_name_room * 2u);
-        s_name = (char **)stick_held(realloc(s_name, s_name_room * sizeof(char *)));
+        s_name = (char **)stick_allocated(realloc(s_name, s_name_room * sizeof(char *)));
     }
     s_name[s_names] = stick_copy(text, length);
     s_names += 1u;
@@ -82,7 +84,7 @@ unsigned int stick_named(const char *text, size_t length)
     return s_names - 1u;
 }
 
-// the file at `path` read into s_file as the run holds it
+// the file at `path` read into s_file as the run stores it
 void stick_read(const char *path)
 {
     if (!kfile_lines_read(&s_file, path))
@@ -142,7 +144,7 @@ size_t stick_form_guard(const char *text)
 }
 
 // 1 with the number of the operation of a listing's instruction line `line`, its guard cut: `/*<hex>*/`, then the
-// instruction up to its `;`, its first word the operation; 0 where the line holds none
+// instruction up to its `;`, its first word the operation; 0 where the line contains none
 int stick_operation_of(const char *line, unsigned int *operation)
 {
     const char *at = stick_spaced(line);

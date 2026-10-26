@@ -48,7 +48,7 @@ def read_rows(handle, head, held):
             "members": int(row["object_members"]),
             "forward": int(row["forward"]),
             "departure": int(row["departure"]),
-            "held": int(row["held"]),
+            "held": int(row["retained"]),
             "object_link": int(row.get("object_link", -1)),
             "object_links": int(row.get("object_links", 0)),
             "null_draws": int(row.get("null_draws", 0)),

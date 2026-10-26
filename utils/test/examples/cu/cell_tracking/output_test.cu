@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// S11, the output (cell_tracking/src/output/output_graph), every point kept. A synthetic set written as .points and
+// S11, the output (cell_tracking/src/output/output_graph), every point retained. A synthetic set written as .points and
 // .links runs through output_graph_set: a chain of four frames in a 4 x 5 x 6 view whose points carry two limbs of
 // levels, with a link at a cost past 32 bits, a gate pair left unchosen, an end whose prediction lies outside the view,
 // a start, an empty frame and two starts after it; a sample of no frames; and a second sample of two frames whose links
@@ -29,7 +29,7 @@
 // its .links', a frame's count not its points', a flag no .faces sets, back-prediction faces not its place's,
 // prediction faces on a point the .links does not flag outside, a first-frame flag off frame 0, a last frame's point
 // without its flag, a carried flag on a point with no link out, an entering or a leaving verdict dropped, a point cut
-// short, and a word past the last frame. Then the faults: through the seam output_graph.cu holds for the test alone
+// short, and a word past the last frame. Then the faults: through the seam output_graph.cu provides for the test alone
 // (OUTPUT_TEST_FAULTS), H4 fed one end too many on each frame pair, which the one-to-one links cannot make happen, on
 // the set as worked and divided; second's .divide taken away between the two passes and put beside it there;
 // second's .faces rewritten between the passes with R carried back past a face, every count the same, and taken away
@@ -41,8 +41,8 @@
 //
 // The test links no engine_*.cu. Engine_sample_path below restates engine/engine_*.cu's, and output_graph.cu's paths
 // are built by the restatement here: a change to either format must be made in both. The CRC-64 the .divide and the
-// .faces carry is taken a bit at a time here, apart from cu/includes/codecs/crc/crc.h's table, which output_graph.cu takes
-// it by.
+// .faces carry is taken a bit at a time here, apart from cu/includes/codecs/crc/crc.h's table, which output_graph.cu
+// takes it by.
 #ifndef OUTPUT_TEST_FAULTS
 #error "output_test is built with OUTPUT_TEST_FAULTS (test/output_test.sh): its faults are the seam's"
 #endif
@@ -183,8 +183,8 @@ static void output_test_head(OutputTestWords *words, unsigned int frames, unsign
     }
 }
 
-// a pair record: sources, targets, gate pairs, components (one a gate pair here), chosen, and kept, level and crossed
-// 0, which S11 does not read
+// a pair record: sources, targets, gate pairs, components (one a gate pair here), chosen, and retained, level and
+// crossed 0, which S11 does not read
 static void output_test_pair(OutputTestWords *words, unsigned int sources, unsigned int targets, unsigned int gate,
                              unsigned int chosen)
 {
@@ -240,10 +240,10 @@ static const char *const OUTPUT_FLAW_NAMES[OUTPUT_FLAWS] = {
     "chain",  "frames",   "view",  "count",           "range",          "in",     "out",
     "chosen", "trailing", "short", "points_trailing", "points_outside", "missing"};
 
-// the chain: 4 frames in a 4 x 5 x 6 view, two limbs of levels a point. Frame 0 holds A (voxel 7), B (50) and C (100),
-// frame 1 A (8) and D (119), frame 2 nothing, frame 3 E (0) and F (31). A links on at cost 2^32 + 5; C to D is in the
-// gate and not chosen; B ends with its prediction outside the view and C ends inside it; A and D end at frame 1, D's
-// prediction outside; D starts at frame 1, E and F at frame 3. A flaw breaks it one way. Written as `sample`
+// the chain: 4 frames in a 4 x 5 x 6 view, two limbs of levels a point. Frame 0 contains A (voxel 7), B (50) and C
+// (100), frame 1 A (8) and D (119), frame 2 nothing, frame 3 E (0) and F (31). A links on at cost 2^32 + 5; C to D is
+// in the gate and not chosen; B ends with its prediction outside the view and C ends inside it; A and D end at frame 1,
+// D's prediction outside; D starts at frame 1, E and F at frame 3. A flaw breaks it one way. Written as `sample`
 static int output_test_chain_as(const char *set, const char *sample, OutputFlaw flaw)
 {
     const unsigned int head[6] = {4u, 4u, 5u, 6u, 2u, 34u};
@@ -308,7 +308,7 @@ static int output_test_empty(const char *set)
 }
 
 // how "second" is written: as worked by hand; with Q to R left unchosen, a link fewer, which changes its counts; or
-// with its links crossed the other way, P to R and Q to S, which keeps every count
+// with its links crossed the other way, P to R and Q to S, which preserves every count
 typedef enum
 {
     OUTPUT_SECOND_WORKED = 0,
@@ -510,7 +510,7 @@ static void output_test_undivide(const char *set, const char *sample)
     }
 }
 
-// chain's .divide: at frames 0 and 1, A divides, keeping its link to A and taking D, which starts, as daughter two
+// chain's .divide: at frames 0 and 1, A divides, retaining its link to A and taking D, which starts, as daughter two
 static int output_test_chain_divide(const char *set)
 {
     const unsigned int view[4] = {4u, 4u, 5u, 6u};
@@ -519,8 +519,8 @@ static int output_test_chain_divide(const char *set)
     return output_test_divide(set, "chain", view, 0ull, counts, divisions, 0u, DIVIDE_HEADER_WORDS, 0u);
 }
 
-// a copy of second as `sample` and its .divide, as worked or broken one way. As worked, P divides, keeping its link to
-// S and taking R from Q, which ends. A count past the frame's points is written with its three divisions' words, and
+// a copy of second as `sample` and its .divide, as worked or broken one way. As worked, P divides, retaining its link
+// to S and taking R from Q, which ends. A count past the frame's points is written with its three divisions' words, and
 // a short .divide stops after its count
 static int output_test_second_divide(const char *set, const char *sample, OutputDivideFlaw flaw)
 {
@@ -567,7 +567,7 @@ static int output_test_second_divide(const char *set, const char *sample, Output
                               (flaw == OUTPUT_DIVIDE_SHORT) ? DIVIDE_WORDS : 0u);
 }
 
-// fork's .divide for "divides": P takes T, which starts; then Q, keeping its link to R, takes S from P, which divides
+// fork's .divide for "divides": P takes T, which starts; then Q, retaining its link to R, takes S from P, which divides
 static int output_test_fork_divide(const char *set, const char *sample)
 {
     const unsigned int view[4] = {2u, 1u, 2u, 3u};
@@ -614,7 +614,7 @@ static const char *const OUTPUT_FACES_NAMES[OUTPUT_FACES_FLAWS] = {
     "faces_flag",     "faces_back",    "faces_ahead",  "faces_first",   "faces_last", "faces_carried",
     "faces_entering", "faces_leaving", "faces_short",  "faces_trailing"};
 
-// a point's faces as the .faces flags hold them: those its back-prediction crosses and those its prediction crosses
+// a point's faces as the .faces flags store them: those its back-prediction crosses and those its prediction crosses
 #define OUTPUT_TEST_BACK(faces_) ((unsigned int)(faces_) << FACES_BACK_SHIFT)
 #define OUTPUT_TEST_AHEAD(faces_) ((unsigned int)(faces_) << FACES_AHEAD_SHIFT)
 
@@ -871,13 +871,13 @@ static int output_test_counts(char *expected, size_t capacity, const OutputTestL
 // outside; its starts D at frame 1 and E and F at frame 3
 static int output_test_report(char *expected, size_t capacity)
 {
-    const OutputTestLine lines[3] = {{"chain", 4ull, 7ull, 1ull, "4 (2; 2), 3 (2); held on 3 of 3 frame pairs"},
-                                     {"empty", 0ull, 0ull, 0ull, "0 (0; 0), 0 (0); held on 0 of 0 frame pairs"},
-                                     {"second", 2ull, 4ull, 2ull, "0 (0; 0), 0 (0); held on 1 of 1 frame pairs"}};
+    const OutputTestLine lines[3] = {{"chain", 4ull, 7ull, 1ull, "4 (2; 2), 3 (2); satisfied on 3 of 3 frame pairs"},
+                                     {"empty", 0ull, 0ull, 0ull, "0 (0; 0), 0 (0); satisfied on 0 of 0 frame pairs"},
+                                     {"second", 2ull, 4ull, 2ull, "0 (0; 0), 0 (0); satisfied on 1 of 1 frame pairs"}};
     return output_test_counts(expected, capacity, lines,
                               "  checked 3 of 3 samples: 6 frames, 11 nodes, 3 edges; no point has two links in or two"
                               " out, and none divides; 4 ends (2 with their prediction outside the view), 3 starts,"
-                              " none explained before S8 and S9; H4 held on 4 of 4 frame pairs\n"
+                              " none explained before S8 and S9; H4 satisfied on 4 of 4 frame pairs\n"
                               "  the nodes: 11 rows after the header\n"
                               "  the submission: 14 rows after the header, 11 node rows and 3 edge rows\n");
 }
@@ -915,18 +915,19 @@ static const char OUTPUT_TEST_DIVIDED_SUBMISSION[] = OUTPUT_SUBMISSION_HEADER "0
 // starts; second's P divides, taking R from Q, which now ends. Each .divide's division and its move are counted
 static int output_test_divided_report(char *expected, size_t capacity)
 {
-    const OutputTestLine lines[3] = {{"chain", 4ull, 7ull, 2ull,
-                                      "4 (2; 2), 2 (2); held on 3 of 3 frame pairs; its .divide: 1 divisions, 0 of them"
-                                      " moving a link"},
-                                     {"empty", 0ull, 0ull, 0ull, "0 (0; 0), 0 (0); held on 0 of 0 frame pairs"},
-                                     {"second", 2ull, 4ull, 2ull,
-                                      "1 (0; 1), 0 (0); held on 1 of 1 frame pairs; its .divide: 1 divisions, 1 of them"
-                                      " moving a link"}};
+    const OutputTestLine lines[3] = {
+        {"chain", 4ull, 7ull, 2ull,
+         "4 (2; 2), 2 (2); satisfied on 3 of 3 frame pairs; its .divide: 1 divisions, 0 of them"
+         " moving a link"},
+        {"empty", 0ull, 0ull, 0ull, "0 (0; 0), 0 (0); satisfied on 0 of 0 frame pairs"},
+        {"second", 2ull, 4ull, 2ull,
+         "1 (0; 1), 0 (0); satisfied on 1 of 1 frame pairs; its .divide: 1 divisions, 1 of them"
+         " moving a link"}};
     return output_test_counts(expected, capacity, lines,
                               "  checked 3 of 3 samples: 6 frames, 11 nodes, 4 edges; no point has two links in, and"
                               " only a division's parent has two out: 2 divisions from 2 .divide files, 1 of them"
                               " moving a link; 5 ends (2 with their prediction outside the view), 2 starts, none"
-                              " explained before S8 and S9; H4 held on 4 of 4 frame pairs\n"
+                              " explained before S8 and S9; H4 satisfied on 4 of 4 frame pairs\n"
                               "  the nodes: 11 rows after the header\n"
                               "  the submission: 15 rows after the header, 11 node rows and 4 edge rows\n");
 }
@@ -953,21 +954,22 @@ static const char OUTPUT_TEST_FACED_NODES[] = OUTPUT_TEST_NODES_HEADER
 // end or a start, and second has 2 points in each of its frames
 static int output_test_faced_report(char *expected, size_t capacity)
 {
-    const OutputTestLine lines[3] = {{"chain", 4ull, 7ull, 1ull,
-                                      "4 (2; 2), 3 (2); held on 3 of 3 frame pairs; its .faces: 2 of the ends leave the"
-                                      " view, 2 of the starts enter it; 3 points in the first frame, 2 in the last"},
-                                     {"empty", 0ull, 0ull, 0ull,
-                                      "0 (0; 0), 0 (0); held on 0 of 0 frame pairs; its .faces: 0 of the ends leave the"
-                                      " view, 0 of the starts enter it; 0 points in the first frame, 0 in the last"},
-                                     {"second", 2ull, 4ull, 2ull,
-                                      "0 (0; 0), 0 (0); held on 1 of 1 frame pairs; its .faces: 0 of the ends leave the"
-                                      " view, 0 of the starts enter it; 2 points in the first frame, 2 in the last"}};
+    const OutputTestLine lines[3] = {
+        {"chain", 4ull, 7ull, 1ull,
+         "4 (2; 2), 3 (2); satisfied on 3 of 3 frame pairs; its .faces: 2 of the ends leave the"
+         " view, 2 of the starts enter it; 3 points in the first frame, 2 in the last"},
+        {"empty", 0ull, 0ull, 0ull,
+         "0 (0; 0), 0 (0); satisfied on 0 of 0 frame pairs; its .faces: 0 of the ends leave the"
+         " view, 0 of the starts enter it; 0 points in the first frame, 0 in the last"},
+        {"second", 2ull, 4ull, 2ull,
+         "0 (0; 0), 0 (0); satisfied on 1 of 1 frame pairs; its .faces: 0 of the ends leave the"
+         " view, 0 of the starts enter it; 2 points in the first frame, 2 in the last"}};
     return output_test_counts(expected, capacity, lines,
                               "  checked 3 of 3 samples: 6 frames, 11 nodes, 3 edges; no point has two links in or two"
                               " out, and none divides; 4 ends (2 with their prediction outside the view), 3 starts, and"
                               " in the 3 samples with a .faces 2 of their 4 ends leave the view and 2 of their 3 starts"
                               " enter it, the rest unexplained before S8, with 5 points in their first frames and 4 in"
-                              " their last; H4 held on 4 of 4 frame pairs\n"
+                              " their last; H4 satisfied on 4 of 4 frame pairs\n"
                               "  the nodes: 11 rows after the header\n"
                               "  the submission: 14 rows after the header, 11 node rows and 3 edge rows\n");
 }
@@ -992,24 +994,25 @@ static const char OUTPUT_TEST_FACED_DIVIDED_NODES[] = OUTPUT_TEST_NODES_HEADER
 // starts at E and F alone, E entering; second's Q, which R was taken from, ends inside the view
 static int output_test_faced_divided_report(char *expected, size_t capacity)
 {
-    const OutputTestLine lines[3] = {{"chain", 4ull, 7ull, 2ull,
-                                      "4 (2; 2), 2 (2); held on 3 of 3 frame pairs; its .divide: 1 divisions, 0 of them"
-                                      " moving a link; its .faces: 2 of the ends leave the view, 1 of the starts enter"
-                                      " it; 3 points in the first frame, 2 in the last"},
-                                     {"empty", 0ull, 0ull, 0ull,
-                                      "0 (0; 0), 0 (0); held on 0 of 0 frame pairs; its .faces: 0 of the ends leave the"
-                                      " view, 0 of the starts enter it; 0 points in the first frame, 0 in the last"},
-                                     {"second", 2ull, 4ull, 2ull,
-                                      "1 (0; 1), 0 (0); held on 1 of 1 frame pairs; its .divide: 1 divisions, 1 of them"
-                                      " moving a link; its .faces: 0 of the ends leave the view, 0 of the starts enter"
-                                      " it; 2 points in the first frame, 2 in the last"}};
+    const OutputTestLine lines[3] = {
+        {"chain", 4ull, 7ull, 2ull,
+         "4 (2; 2), 2 (2); satisfied on 3 of 3 frame pairs; its .divide: 1 divisions, 0 of them"
+         " moving a link; its .faces: 2 of the ends leave the view, 1 of the starts enter"
+         " it; 3 points in the first frame, 2 in the last"},
+        {"empty", 0ull, 0ull, 0ull,
+         "0 (0; 0), 0 (0); satisfied on 0 of 0 frame pairs; its .faces: 0 of the ends leave the"
+         " view, 0 of the starts enter it; 0 points in the first frame, 0 in the last"},
+        {"second", 2ull, 4ull, 2ull,
+         "1 (0; 1), 0 (0); satisfied on 1 of 1 frame pairs; its .divide: 1 divisions, 1 of them"
+         " moving a link; its .faces: 0 of the ends leave the view, 0 of the starts enter"
+         " it; 2 points in the first frame, 2 in the last"}};
     return output_test_counts(expected, capacity, lines,
                               "  checked 3 of 3 samples: 6 frames, 11 nodes, 4 edges; no point has two links in, and"
                               " only a division's parent has two out: 2 divisions from 2 .divide files, 1 of them"
                               " moving a link; 5 ends (2 with their prediction outside the view), 2 starts, and in the"
                               " 3 samples with a .faces 2 of their 5 ends leave the view and 1 of their 2 starts enter"
                               " it, the rest unexplained before S8, with 5 points in their first frames and 4 in their"
-                              " last; H4 held on 4 of 4 frame pairs\n"
+                              " last; H4 satisfied on 4 of 4 frame pairs\n"
                               "  the nodes: 11 rows after the header\n"
                               "  the submission: 15 rows after the header, 11 node rows and 4 edge rows\n");
 }
@@ -1058,15 +1061,15 @@ static void output_test_complete(OutputTestResults *results, const char *set)
     const OutputRequest unnamed = {set, samples, 3u, NULL, NULL, quiet.files[2]};
     const long counted = opened ? output_graph_set(&unnamed) : OUTPUT_ERROR;
     output_test_close(&quiet);
-    char *const said = output_test_text(quiet.report);
+    char *const text = output_test_text(quiet.report);
     const char *const tail = "  the nodes: no output named, none written\n"
                              "  the submission: no output named, none written\n";
     const size_t tail_length = strlen(tail);
     output_test_check(results,
-                      (counted == 0L) && (said != NULL) && (strlen(said) >= tail_length) &&
-                          (strcmp(&said[strlen(said) - tail_length], tail) == 0),
-                      "with no nodes and no submission named, the set is counted and says nothing was written");
-    free(said);
+                      (counted == 0L) && (text != NULL) && (strlen(text) >= tail_length) &&
+                          (strcmp(&text[strlen(text) - tail_length], tail) == 0),
+                      "with no nodes and no submission named, the set is counted and reports nothing was written");
+    free(text);
 }
 
 // .divide files of no divisions beside the chain, empty and second: each head as the .points' and the CRC-64 of its
@@ -1170,9 +1173,9 @@ static void output_test_faced(OutputTestResults *results, const char *set)
                           output_test_same(files.report, expected),
                       "the faced and divided counts are the hand's: the ends and starts on the output's links, the"
                       " division's daughter no start");
-    char *const said = closed_all ? output_test_text(files.report) : NULL;
-    printf("  the counts the faced and divided set wrote:\n%s", (said != NULL) ? said : "  (they did not read)\n");
-    free(said);
+    char *const text = closed_all ? output_test_text(files.report) : NULL;
+    printf("  the counts the faced and divided set wrote:\n%s", (text != NULL) ? text : "  (they did not read)\n");
+    free(text);
     free(expected);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
@@ -1450,7 +1453,7 @@ static void output_test_faces_changed(OutputTestResults *results, const char *se
 }
 
 // "second" crossed reads every count the first pass reads as worked: the counts of the set with it, nothing named, are
-// the hand's for the worked set. Only its links tell it apart
+// the hand's for the worked set. Only its links distinguish it
 static void output_test_crossed_counts(OutputTestResults *results, const char *set)
 {
     char *const samples[3] = {(char *)"chain", (char *)"empty", (char *)"second"};
@@ -1465,7 +1468,7 @@ static void output_test_crossed_counts(OutputTestResults *results, const char *s
                              "  the submission: no output named, none written\n";
     const int expected = (worked != NULL) && (counts != NULL) && output_test_report(worked, OUTPUT_TEST_TEXT) &&
                          output_test_before(counts, OUTPUT_TEST_TEXT - strlen(tail), worked, "  the nodes:");
-    // the capacity left for the counts before the tail holds the tail and its end
+    // the capacity left for the counts before the tail contains the tail and its end
     if (expected)
     {
         memcpy(&counts[strlen(counts)], tail, strlen(tail) + 1u);
@@ -1479,7 +1482,7 @@ static void output_test_crossed_counts(OutputTestResults *results, const char *s
 
 // a file opened for reading, which no row can be written to. First what the C library returns on one written to, as
 // output_flushed and then output_close meet it; then the set with its nodes such a file, and then its submission: each
-// errors, output_close fails on that file and holds on the other, which is written whole
+// errors, output_close fails on that file and succeeds on the other, which is written whole
 static void output_test_unwritable(OutputTestResults *results, const char *set)
 {
     char path[ENGINE_PATH_CAPACITY];
@@ -1526,14 +1529,15 @@ static void output_test_unwritable(OutputTestResults *results, const char *set)
         char what[256];
         snprintf(what, sizeof(what),
                  "%s opened for reading: the set errors, the file's error is set, output_close"
-                 " fails on it and holds on %s, written whole",
+                 " fails on it and succeeds on %s, written whole",
                  names[which], names[other]);
         output_test_check(results,
                           written && report_closed && (result == OUTPUT_ERROR) && unwritten && errored &&
                               other_closed && output_test_same(paths[other], expected_files[other]),
                           what);
     }
-    output_test_check(results, output_close(NULL, "no file") == 1, "output_close on no file holds: nothing was named");
+    output_test_check(results, output_close(NULL, "no file") == 1,
+                      "output_close on no file succeeds: nothing was named");
 }
 
 static void output_test_faults(OutputTestResults *results, const char *set)
@@ -1589,7 +1593,7 @@ static void output_test_line_ends(OutputTestResults *results, const char *set)
             free(text);
         }
     }
-    output_test_check(results, clean, "no file the test wrote holds a carriage return: every line ends in LF alone");
+    output_test_check(results, clean, "no file the test wrote contains a carriage return: every line ends in LF alone");
 }
 
 int main(int count, char **arguments)

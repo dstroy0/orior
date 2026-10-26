@@ -8,7 +8,7 @@
 #include "lowering_primitives.h"
 
 // the product truncated to the step's limbs, the operands' signs multiplied as the interpreter takes it: unrolled up
-// to CODEGEN_PRODUCT_MAX limb products, and past it a loop of one row a pass. The loop keeps the running sum's
+// to CODEGEN_PRODUCT_MAX limb products, and past it a loop of one row a pass. The loop retains the running sum's
 // limbs from the row's own limb up. Each pass adds the left's lowest limb left times the right at the same
 // registers, then shifts the sum and the left down a limb, the sum's lowest limb, which no later row reaches, going
 // to the top of the product's low limbs as they shift down too
@@ -97,7 +97,7 @@ CODEGEN_CORE void codegen_table(MachineFunction *lane, const IrStep *at)
     const MachineOperandRange value = codegen_limbs(at->place, step->limbs, step->limbs);
     for (unsigned int limb = 0u; limb < step->limbs; limb += 1u)
     {
-        codegen_instr2(lane, OPCODE_GLOBAL_ASK, address, codegen_number(4u * limb));
+        codegen_instr2(lane, OPCODE_GLOBAL_LOAD, address, codegen_number(4u * limb));
         codegen_instr3(lane, OPCODE_GLOBAL_LOAD_CONSTANT_WORD, codegen_at(value, limb), address,
                        codegen_number(4u * limb));
     }
@@ -141,7 +141,7 @@ CODEGEN_CORE void codegen_bitwise(MachineFunction *lane, const IrStep *at)
 
 // the left register wrapped to wrap_bits of two's complement and read back signed, as cycle_record_wrap wraps it: a
 // wrap wider than the step's limbs passes the register through, and any other takes its two's complement over the
-// limbs, keeps the wrap's bits, and negates within them where the top one is set
+// limbs, retains the wrap's bits, and negates within them where the top one is set
 CODEGEN_CORE void codegen_wrap(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -164,12 +164,12 @@ CODEGEN_CORE void codegen_wrap(MachineFunction *lane, const IrStep *at)
     const MachineOperandRange complement = codegen_temporaries(lane, limbs);
     codegen_negate(lane, complement, left, limbs);
     codegen_select(lane, value, complement, left, left_negative, limbs);
-    const unsigned int kept = bits - (32u * (limbs - 1u));
-    codegen_mask(lane, codegen_at(value, limbs - 1u), kept);
+    const unsigned int top_bits = bits - (32u * (limbs - 1u));
+    codegen_mask(lane, codegen_at(value, limbs - 1u), top_bits);
     const MachineOperand negative = codegen_bit(lane, value, bits - 1u);
     const MachineOperandRange negated = codegen_temporaries(lane, limbs);
     codegen_negate(lane, negated, value, limbs);
-    codegen_mask(lane, codegen_at(negated, limbs - 1u), kept);
+    codegen_mask(lane, codegen_at(negated, limbs - 1u), top_bits);
     codegen_select(lane, value, negated, value, negative, limbs);
     codegen_signed_negative(lane, at, negative);
 }
@@ -179,7 +179,8 @@ CODEGEN_CORE void codegen_wrap(MachineFunction *lane, const IrStep *at)
 // divisor, which is exact in 32 bits since it is below the divisor. The numerator's zero limbs above its used ones
 // divide to zero and carry nothing, as the interpreter's skipping them does. A zero divisor errors on the lane; an
 // exact quotient errors on a remainder and a quotient that outgrows its register, as the inverse's multiply back does.
-// The quotient's words are the step's own limbs where the step keeps them, below `kept`, and its own temporaries above
+// The quotient's words are the step's own limbs where the step retains them, below `top_bits`, and its own temporaries
+// above
 CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -196,14 +197,15 @@ CODEGEN_CORE void codegen_short_division(MachineFunction *lane, const IrStep *at
     const MachineOperand taken = codegen_temporary(lane);
     const MachineOperand wide_divisor = codegen_wide(lane);
     const MachineOperand part = codegen_wide(lane);
-    const unsigned int kept = (operation == ENGINE_RECORD_REMAINDER) ? 0u : ((limbs < left_limbs) ? limbs : left_limbs);
-    const MachineOperandRange above = codegen_temporaries(lane, left_limbs - kept);
+    const unsigned int top_bits =
+        (operation == ENGINE_RECORD_REMAINDER) ? 0u : ((limbs < left_limbs) ? limbs : left_limbs);
+    const MachineOperandRange above = codegen_temporaries(lane, left_limbs - top_bits);
     codegen_instr2(lane, OPCODE_WIDE_FROM_WORD, wide_divisor, divisor);
     for (unsigned int word = left_limbs; word > 0u; word -= 1u)
     {
         const MachineOperand numerator = codegen_file(at->left_place + word - 1u);
         const MachineOperand quotient_word =
-            ((word - 1u) < kept) ? codegen_at(value, word - 1u) : codegen_at(above, (word - 1u) - kept);
+            ((word - 1u) < top_bits) ? codegen_at(value, word - 1u) : codegen_at(above, (word - 1u) - top_bits);
         if (word == left_limbs)
         {
             // nothing is carried into the top limb, and its word divides alone
@@ -327,7 +329,7 @@ CODEGEN_CORE void codegen_long_division(MachineFunction *lane, const IrStep *at)
 // the gcd of the magnitudes, Stein's binary gcd, which is Euclid's gcd since the gcd is one number. While neither is
 // zero, a pass halves each even one, takes the lesser from the greater and halves the difference where both are odd,
 // and counts the twos both shared; the one left not zero is then shifted up by the shared twos, a bit a pass. Each
-// pass is emitted whole and taken only where its predicate holds: a loop the lane leaves at once changes nothing
+// pass is emitted whole and taken only where its predicate is true: a loop the lane leaves at once changes nothing
 CODEGEN_CORE void codegen_gcd(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;

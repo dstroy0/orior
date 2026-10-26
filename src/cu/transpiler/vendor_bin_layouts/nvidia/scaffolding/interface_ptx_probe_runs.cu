@@ -4,7 +4,7 @@
 // and run, and the membership, single and clocks probes
 #include "interface_ptx_probe_internal.h"
 
-// PTX's header for the device, asked of NVRTC by compiling an empty kernel to PTX: the .version, .target and
+// PTX's header for the device, requested of NVRTC by compiling an empty kernel to PTX: the .version, .target and
 // .address_size lines. Empty where NVRTC does not answer
 std::string probe_header(int major, int minor)
 {
@@ -46,8 +46,9 @@ std::string probe_header(int major, int minor)
 static std::string probe_kernel(ProbeWriter *writer, const std::string &header, const std::string &body)
 {
     std::string text = header;
-    text += "\n.visible .entry interface_ask(\n\t.param .u64 interface_ask_in,\n\t.param .u64 interface_ask_out,\n\t.param .u32 "
-            "interface_ask_count\n)\n{\n";
+    text += "\n.visible .entry interface_probe(\n\t.param .u64 interface_probe_in,\n\t.param .u64 "
+            "interface_probe_out,\n\t.param .u32 "
+            "interface_probe_count\n)\n{\n";
     text += "\t.reg .pred \t%interface_past;\n\t.reg .b32 \t%interface_word<4>;\n\t.reg .b64 \t%interface_wide<4>;\n";
     const std::string declared = std::to_string(PROBE_DECLARED);
     probe_form(writer, text, "declare_predicates", {declared});
@@ -57,8 +58,9 @@ static std::string probe_kernel(ProbeWriter *writer, const std::string &header, 
     probe_form(writer, text, "declare_fixed_words", {});
     probe_form(writer, text, "declare_fixed_wides", {});
     probe_form(writer, text, "word_set", {ruleset_physreg(writer->rules, "zero"), "0"});
-    text += "\tld.param.u64 \t%interface_wide0, [interface_ask_in];\n\tld.param.u64 \t%interface_wide1, [interface_ask_out];\n";
-    text += "\tld.param.u32 \t%interface_word0, [interface_ask_count];\n\tmov.u32 \t%interface_word1, %ctaid.x;\n";
+    text += "\tld.param.u64 \t%interface_wide0, [interface_probe_in];\n\tld.param.u64 \t%interface_wide1, "
+            "[interface_probe_out];\n";
+    text += "\tld.param.u32 \t%interface_word0, [interface_probe_count];\n\tmov.u32 \t%interface_word1, %ctaid.x;\n";
     text += "\tmov.u32 \t%interface_word2, %ntid.x;\n\tmov.u32 \t%interface_word3, %tid.x;\n";
     text += "\tmad.lo.u32 \t%interface_word1, %interface_word1, %interface_word2, %interface_word3;\n";
     text += "\tsetp.ge.u32 \t%interface_past, %interface_word1, %interface_word0;\n\t@%interface_past bra \t$Linterface_done;\n";
@@ -99,8 +101,8 @@ static int probe_assemble(const std::string &text, int major, int minor, std::ve
         return 0;
     }
     size_t size = 0u;
-    const int linked = (nvJitLinkAddData(handle, NVJITLINK_INPUT_PTX, text.c_str(), text.size() + 1u, "interface_ask") ==
-                        NVJITLINK_SUCCESS) &&
+    const int linked = (nvJitLinkAddData(handle, NVJITLINK_INPUT_PTX, text.c_str(), text.size() + 1u,
+                                         "interface_probe") == NVJITLINK_SUCCESS) &&
                        (nvJitLinkComplete(handle) == NVJITLINK_SUCCESS) &&
                        (nvJitLinkGetLinkedCubinSize(handle, &size) == NVJITLINK_SUCCESS) && (size != 0u);
     cubin.assign(linked ? size : 0u, '\0');
@@ -126,7 +128,7 @@ static int probe_build(const std::string &text, int major, int minor, cudaLibrar
     std::vector<char> cubin;
     return probe_assemble(text, major, minor, cubin) &&
            (cudaLibraryLoadData(library, cubin.data(), NULL, NULL, 0u, NULL, NULL, 0u) == cudaSuccess) &&
-           (cudaLibraryGetKernel(kernel, *library, "interface_ask") == cudaSuccess);
+           (cudaLibraryGetKernel(kernel, *library, "interface_probe") == cudaSuccess);
 }
 
 // the kernel's text assembled and written to `path`: 1, or 0 with the reason printed
@@ -153,7 +155,7 @@ static int probe_write(const std::string &text, int major, int minor, const std:
 // The program resident as its own module: an empty lane for the resident's call to reach, then program_unit with
 // the launch's own layout in its 25 parameters. No question covers this part of a program, and no hand
 // should write twice - the resident is 110 instructions of PTX that already runs, and the part's own compiler turns
-// it into SASS that already runs. The SASS probe asks this of every other form, and what comes
+// it into SASS that already runs. The SASS probe requests this of every other form, and what comes
 // back is the floor a rearrangement has to beat
 static std::string probe_resident(ProbeWriter *writer, const std::string &header)
 {
@@ -350,12 +352,12 @@ int probe_single(ProbeWriter *writer, const std::string &header, const std::stri
     return 0;
 }
 
-// the cubin at `path` loaded and its kernel interface_ask run over one case, whose input words are `arguments`: the four
-// output words printed. Exit 0 where the device answers, 3 where it errors on the run, 4 where it will not load
-// Every clock the part will name, asked of it instead of assumed. A part is a clocked thing and everything it does
+// the cubin at `path` loaded and its kernel interface_probe run over one case, whose input words are `arguments`: the
+// four output words printed. Exit 0 where the device answers, 3 where it errors on the run, 4 where it will not load
+// Every clock the part will name, queried of it instead of assumed. A part is a clocked thing and everything it does
 // is transitions at some rate: what rates it has is a question it can answer, and the answer is the unit every
 // cost is read in. The part's own clock register is not needed for that, and is not in the machine: the host's clock
-// times a run from outside (probe_cubin_run), and these say what one tick is worth
+// times a run from outside (probe_cubin_run), and these report what one tick is worth
 int probe_clocks(int device)
 {
     static const struct
@@ -363,27 +365,27 @@ int probe_clocks(int device)
         cudaDeviceAttr attribute;
         const char *name;
         const char *unit;
-    } asked[] = {
+    } clocks_queried[] = {
         {cudaDevAttrClockRate, "the part's clock", "kHz"},
         {cudaDevAttrMemoryClockRate, "the memory's clock", "kHz"},
         {cudaDevAttrGlobalMemoryBusWidth, "the memory's bus", "bits"},
         {cudaDevAttrMultiProcessorCount, "the part's multiprocessors", ""},
         {cudaDevAttrWarpSize, "a warp", "lanes"},
         {cudaDevAttrMaxThreadsPerMultiProcessor, "a multiprocessor's threads", ""},
-        // what the register file holds against what a thread may take: their ratio is how many registers a thread
-        // can hold and still fill the part, and a lane past it loses threads in step. That is where a knee is
+        // what the register file contains against what a thread may take: their ratio is how many registers a thread
+        // can use and still fill the part, and a lane past it loses threads in step. That is where a knee is
         {cudaDevAttrMaxRegistersPerMultiprocessor, "a multiprocessor's registers", ""},
         {cudaDevAttrMaxRegistersPerBlock, "a block's registers", ""},
         {cudaDevAttrL2CacheSize, "the second level cache", "bytes"},
     };
-    for (unsigned int at = 0u; at < (sizeof(asked) / sizeof(asked[0])); at += 1u)
+    for (unsigned int at = 0u; at < (sizeof(clocks_queried) / sizeof(clocks_queried[0])); at += 1u)
     {
         int value = 0;
-        const cudaError_t got = cudaDeviceGetAttribute(&value, asked[at].attribute, device);
-        printf("  %-28s %s", asked[at].name, (got == cudaSuccess) ? "" : "the part does not say\n");
+        const cudaError_t got = cudaDeviceGetAttribute(&value, clocks_queried[at].attribute, device);
+        printf("  %-28s %s", clocks_queried[at].name, (got == cudaSuccess) ? "" : "the part does not report\n");
         if (got == cudaSuccess)
         {
-            printf("%d %s\n", value, asked[at].unit);
+            printf("%d %s\n", value, clocks_queried[at].unit);
         }
     }
     return 0;
@@ -412,7 +414,7 @@ int probe_cubin_run(const char *path, int count, char **arguments)
         return 4;
     }
     const cudaError_t loaded = cudaLibraryLoadData(&library, cubin.data(), NULL, NULL, 0u, NULL, NULL, 0u);
-    if ((loaded != cudaSuccess) || (cudaLibraryGetKernel(&kernel, library, "interface_ask") != cudaSuccess))
+    if ((loaded != cudaSuccess) || (cudaLibraryGetKernel(&kernel, library, "interface_probe") != cudaSuccess))
     {
         printf("the cubin at %s did not load (%s)\n", path, cudaGetErrorName(loaded));
         return 4;
@@ -431,7 +433,7 @@ int probe_cubin_run(const char *path, int count, char **arguments)
     }
     printf("answered %08x %08x %08x %08x\n", out[0], out[1], out[2], out[3]);
     // The run timed by our own clock, which is all a cost needs: the part's clock register is not in the machine,
-    // and a run measured from outside says what a kernel costs whatever the part will name. The run above is not
+    // and a run measured from outside shows what a kernel costs whatever the part will name. The run above is not
     // counted, since it carries the library load and the first launch
     const char *const repeats = getenv("PROBE_REPEATS");
     const unsigned long runs = (repeats != NULL) ? strtoul(repeats, NULL, 10) : 0ul;

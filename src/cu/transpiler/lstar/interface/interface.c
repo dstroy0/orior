@@ -1,21 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface.c: a probe run through the interface: its output kept, ended and read back, the host's clock, and the
-// probe run to its end on whichever platform holds it (platform/windows.c, platform/posix.c)
+// interface.c: a probe run through the interface: its output stored, ended and read back, the host's clock, and the
+// probe run to its end on whichever platform runs it (platform/windows.c, platform/posix.c)
 #include "platform/interface_internal.h"
 
-// `read` bytes of the probe's output at `piece` kept in the answer, as many as its capacity holds past the `*total`
-// before them, and counted whole
-void interface_output_kept(InterfaceAnswer *answer, unsigned long long *total, const char *piece,
-                                  unsigned long long read)
+// `read` bytes of the probe's output at `piece` stored in the answer, as many as its capacity contains past the
+// `*total` before them, and counted whole
+void interface_output_appended(InterfaceAnswer *answer, unsigned long long *total, const char *piece,
+                               unsigned long long read)
 {
-    const unsigned long long kept_capacity =
-        (answer->output_capacity != 0ull) ? (answer->output_capacity - 1ull) : 0ull;
-    const unsigned long long kept = (*total < kept_capacity) ? (kept_capacity - *total) : 0ull;
-    const unsigned long long copied = (kept < read) ? kept : read;
+    const unsigned long long capacity = (answer->output_capacity != 0ull) ? (answer->output_capacity - 1ull) : 0ull;
+    const unsigned long long room_left = (*total < capacity) ? (capacity - *total) : 0ull;
+    const unsigned long long copied = (room_left < read) ? room_left : read;
     if ((answer->output != NULL) && (copied != 0ull))
     {
-        // a copy is at most one piece, which a size_t holds
+        // a copy is at most one piece, which a size_t represents
         memcpy(answer->output + *total, piece, (size_t)copied);
     }
     *total += read;
@@ -28,7 +27,7 @@ void interface_output_ended(InterfaceAnswer *answer, unsigned long long total)
     {
         const unsigned long long end =
             (total < (answer->output_capacity - 1ull)) ? total : (answer->output_capacity - 1ull);
-        // the end is inside the capacity, which the caller's buffer holds
+        // the end is inside the capacity, which the caller's buffer allocates
         answer->output[(size_t)end] = '\0';
     }
     answer->output_bytes = total;

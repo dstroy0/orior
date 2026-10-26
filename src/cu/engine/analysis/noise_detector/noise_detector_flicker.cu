@@ -180,10 +180,10 @@ static void noise_flicker_summary(const char *name, const unsigned long long ext
            extent[2], extent[3], pooled[0][NOISE_FLICKER_PAIRS]);
     const unsigned int kinds[2][2] = {{NOISE_FLICKER_SQUARES, NOISE_FLICKER_PAIRS},
                                       {NOISE_FLICKER_NEIGHBOR_SQUARES, NOISE_FLICKER_NEIGHBOR_PAIRS}};
-    const char *const said[2] = {"the frame difference         ", "less its x neighbor's       "};
+    const char *const labels[2] = {"the frame difference         ", "less its x neighbor's       "};
     for (unsigned int kind = 0u; kind < 2u; kind += 1u)
     {
-        printf("    %s", said[kind]);
+        printf("    %s", labels[kind]);
         for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
         {
             unsigned long long per_mille = 0ull;
@@ -243,7 +243,7 @@ extern "C" long noise_flicker_set(const NoiseSetRequest *request)
                                table, error);
     printf("  flicker: the structure function D(k), the mean square of I(t + k) - I(t), at lags 1 to 64, in bins of 8"
            " by the pair's mean\n");
-    printf("  each lag's mean square against lag 1's, per mille (white noise holds 1000 at every lag):\n");
+    printf("  each lag's mean square against lag 1's, per mille (white noise gives 1000 at every lag):\n");
     printf("    %-29s", "lag");
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {

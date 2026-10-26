@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// max_tree_levels_test_draw.c: draws, fills, floods and held nodes
+// max_tree_levels_test_draw.c: draws, fills, floods and stored nodes
 #include "max_tree_levels_test_internal.h"
 
 void levels_check(LevelsResults *results, int passed, const char *what, unsigned int volume, unsigned int level)
@@ -147,7 +147,7 @@ unsigned int levels_flood(const LevelsVolume *volume, unsigned int level, unsign
 }
 
 // at every level, the flood's components and the tree's components are one to one over the voxels; `node_of` is left
-// naming each flood component's node at the last level asked
+// naming each flood component's node at the last level requested
 int levels_components_agree(const LevelsVolume *volume, const MaxTreeNodes *nodes, unsigned int level,
                             const unsigned int *label, unsigned int marks, unsigned int *node_of)
 {
@@ -189,7 +189,7 @@ int levels_components_agree(const LevelsVolume *volume, const MaxTreeNodes *node
 }
 
 // the nodes' own structure: DFS ranges nest, levels rise from parent to child, roots name themselves, and every
-// admitted voxel's own node is at its rank and holds its value
+// admitted voxel's own node is at its rank and stores its value
 int levels_nodes_valid(const LevelsVolume *volume, const MaxTreeNodes *nodes)
 {
     int ok = (nodes->levels == volume->levels);

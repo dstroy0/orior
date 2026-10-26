@@ -10,7 +10,7 @@
 // a page of `room` bytes taken for `pool`, NULL with the pool marked refused where it could not be
 static CliDeployPage *read_page(CliDeployPool *pool, unsigned long long room)
 {
-    CliDeployPage *const page = cli_cell_taken(sizeof(CliDeployPage) + room, "a deployment's pool");
+    CliDeployPage *const page = g_cli_cells->persistent_buf_alloc(sizeof(CliDeployPage) + room, NULL);
     if (page == NULL)
     {
         pool->refused = 1;
@@ -26,7 +26,7 @@ void *cli_deploy_placed(CliDeployPool *pool, unsigned long long size)
     CliDeployPage *const newest = pool->page;
     if (size > CLI_DEPLOY_PAGE)
     {
-        // a page of its own goes behind the newest, which keeps the bytes it has left
+        // a page of its own goes behind the newest, which retains the bytes it has left
         CliDeployPage *const own = read_page(pool, size);
         if (own == NULL)
         {
@@ -61,16 +61,16 @@ void *cli_deploy_placed(CliDeployPool *pool, unsigned long long size)
     return page->bytes;
 }
 
-const char *cli_deploy_kept(CliDeployPool *pool, const char *text, unsigned long long size)
+const char *cli_deploy_text_stored(CliDeployPool *pool, const char *text, unsigned long long size)
 {
-    char *const kept = cli_deploy_placed(pool, size + 1u);
-    if (kept == NULL)
+    char *const stored = cli_deploy_placed(pool, size + 1u);
+    if (stored == NULL)
     {
         return "";
     }
-    memor.cpy(&(MemoriaCfg){.dst = kept, .src = text, .bytes = (size_t)size});
-    kept[size] = '\0';
-    return kept;
+    memor.cpy(&(MemoriaCfg){.dst = stored, .src = text, .bytes = (size_t)size});
+    stored[size] = '\0';
+    return stored;
 }
 
 int cli_deploy_order(const char *left, const char *right)
@@ -88,7 +88,7 @@ void cli_deploy_pool_given(CliDeployPool *pool)
     while (pool->page != NULL)
     {
         CliDeployPage *const before = pool->page->before;
-        cli_cell_given(pool->page);
+        g_cli_cells->persistent_buf_release(pool->page, NULL);
         pool->page = before;
     }
     pool->refused = 0;
@@ -101,29 +101,29 @@ static const char *read_kind(const CliJson *json, unsigned int node)
     return kinds[json->node[node].kind];
 }
 
-// that a value is not the kind wanted said, as serde says it
-static int read_invalid(const CliJson *json, unsigned int node, const char *wanted, CliLine *said)
+// that a value is not the kind wanted reported, as serde reports it
+static int read_invalid(const CliJson *json, unsigned int node, const char *wanted, VerbaLinea *err_msg)
 {
-    cli_line_text(said, "deploy.json: invalid type: ");
-    cli_line_text(said, read_kind(json, node));
-    cli_line_text(said, ", expected ");
-    cli_line_text(said, wanted);
+    mmgr_line_put(err_msg, "deploy.json: invalid type: ");
+    mmgr_line_put(err_msg, read_kind(json, node));
+    mmgr_line_put(err_msg, ", expected ");
+    mmgr_line_put(err_msg, wanted);
     return 0;
 }
 
-// that a field is missing said, as serde says it
-static int read_missing(const char *field, CliLine *said)
+// that a field is missing reported, as serde reports it
+static int read_missing(const char *field, VerbaLinea *err_msg)
 {
-    cli_line_text(said, "deploy.json: missing field `");
-    cli_line_text(said, field);
-    cli_line_character(said, '`');
+    mmgr_line_put(err_msg, "deploy.json: missing field `");
+    mmgr_line_put(err_msg, field);
+    mmgr_line_ch(err_msg, '`');
     return 0;
 }
 
 // the texts of the list `field` of `entry` into `*texts`, placed in `pool` at their count, that count into `count`:
-// 1, or 0 with why said
+// 1, or 0 with why given
 static int read_texts(const CliJson *json, unsigned int entry, const char *field, CliDeployPool *pool,
-                      const char ***texts, unsigned int *count, CliLine *said)
+                      const char ***texts, unsigned int *count, VerbaLinea *err_msg)
 {
     const unsigned int list = cli_json_member(json, entry, field);
     *texts = NULL;
@@ -134,7 +134,7 @@ static int read_texts(const CliJson *json, unsigned int entry, const char *field
     }
     if (!cli_json_is(json, list, CFG_JSON_ARRAY))
     {
-        return read_invalid(json, list, "a sequence", said);
+        return read_invalid(json, list, "a sequence", err_msg);
     }
     unsigned int items = 0u;
     for (; cli_json_item(json, list, items) != CLI_JSON_NONE; items += 1u)
@@ -142,63 +142,64 @@ static int read_texts(const CliJson *json, unsigned int entry, const char *field
         const unsigned int item = cli_json_item(json, list, items);
         if (!cli_json_is(json, item, CFG_JSON_STRING))
         {
-            return read_invalid(json, item, "a string", said);
+            return read_invalid(json, item, "a string", err_msg);
         }
     }
     if (items == 0u)
     {
         return 1;
     }
-    const char **const kept = cli_deploy_placed(pool, (unsigned long long)items * sizeof(kept[0]));
-    if (kept == NULL)
+    const char **const stored = cli_deploy_placed(pool, (unsigned long long)items * sizeof(stored[0]));
+    if (stored == NULL)
     {
-        cli_line_text(said, "deploy.json: ");
-        cli_line_text(said, field);
-        cli_line_text(said, " names more than orior_cli holds");
+        mmgr_line_put(err_msg, "deploy.json: ");
+        mmgr_line_put(err_msg, field);
+        mmgr_line_put(err_msg, " names more than orior_cli supports");
         return 0;
     }
     for (unsigned int at = 0u; at < items; at += 1u)
     {
-        kept[at] = cli_json_string(json, cli_json_item(json, list, at), NULL);
+        stored[at] = cli_json_string(json, cli_json_item(json, list, at), NULL);
     }
-    *texts = kept;
+    *texts = stored;
     *count = items;
     return 1;
 }
 
-// one deployment of the list read into `deployment`, its lists placed in `pool`: 1, or 0 with why said
+// one deployment of the list read into `deployment`, its lists placed in `pool`: 1, or 0 with why given
 static int read_deployment(const CliJson *json, unsigned int entry, CliDeployPool *pool, CliDeployment *deployment,
-                           CliLine *said)
+                           VerbaLinea *err_msg)
 {
     if (!cli_json_is(json, entry, CFG_JSON_OBJECT))
     {
-        return read_invalid(json, entry, "struct Deployment", said);
+        return read_invalid(json, entry, "struct Deployment", err_msg);
     }
     const unsigned int name = cli_json_member(json, entry, "name");
     const unsigned int from = cli_json_member(json, entry, "from");
-    const unsigned int keep = cli_json_member(json, entry, "keep");
+    const unsigned int retain_node = cli_json_member(json, entry, "retain");
     const unsigned int in_place = cli_json_member(json, entry, "inPlace");
     if (name == CLI_JSON_NONE)
     {
-        return read_missing("name", said);
+        return read_missing("name", err_msg);
     }
     if (cli_json_member(json, entry, "to") == CLI_JSON_NONE)
     {
-        return read_missing("to", said);
+        return read_missing("to", err_msg);
     }
     if (!cli_json_is(json, name, CFG_JSON_STRING) ||
         ((from != CLI_JSON_NONE) && !cli_json_is(json, from, CFG_JSON_STRING)))
     {
-        return read_invalid(json, cli_json_is(json, name, CFG_JSON_STRING) ? from : name, "a string", said);
+        return read_invalid(json, cli_json_is(json, name, CFG_JSON_STRING) ? from : name, "a string", err_msg);
     }
     deployment->name = cli_json_string(json, name, NULL);
     deployment->from = (from != CLI_JSON_NONE) ? cli_json_string(json, from, NULL) : ".";
-    deployment->keep = 5ull;
-    if (keep != CLI_JSON_NONE)
+    deployment->retain = 5ull;
+    if (retain_node != CLI_JSON_NONE)
     {
         unsigned long long length = 0ull;
-        const char *const digits = cli_json_is(json, keep, CFG_JSON_NUMBER) ? (json->text + json->node[keep].text) : "";
-        length = cli_json_is(json, keep, CFG_JSON_NUMBER) ? json->node[keep].length : 0ull;
+        const char *const digits =
+            cli_json_is(json, retain_node, CFG_JSON_NUMBER) ? (json->text + json->node[retain_node].text) : "";
+        length = cli_json_is(json, retain_node, CFG_JSON_NUMBER) ? json->node[retain_node].length : 0ull;
         unsigned long long value = 0ull;
         int whole = (length > 0u);
         for (unsigned long long at = 0ull; whole && (at < length); at += 1u)
@@ -209,21 +210,21 @@ static int read_deployment(const CliJson *json, unsigned int entry, CliDeployPoo
         }
         if (!whole)
         {
-            return read_invalid(json, keep, "usize", said);
+            return read_invalid(json, retain_node, "usize", err_msg);
         }
-        deployment->keep = value;
+        deployment->retain = value;
     }
     deployment->in_place = 0;
     if (in_place != CLI_JSON_NONE)
     {
         if (!cli_json_is(json, in_place, CFG_JSON_TRUE) && !cli_json_is(json, in_place, CFG_JSON_FALSE))
         {
-            return read_invalid(json, in_place, "a boolean", said);
+            return read_invalid(json, in_place, "a boolean", err_msg);
         }
         deployment->in_place = cli_json_is(json, in_place, CFG_JSON_TRUE);
     }
-    return read_texts(json, entry, "exclude", pool, &deployment->exclude, &deployment->excludes, said) &&
-           read_texts(json, entry, "to", pool, &deployment->to, &deployment->tos, said);
+    return read_texts(json, entry, "exclude", pool, &deployment->exclude, &deployment->excludes, err_msg) &&
+           read_texts(json, entry, "to", pool, &deployment->to, &deployment->tos, err_msg);
 }
 
 void cli_deploy_tree_given(CliDeployTree *tree)
@@ -233,15 +234,15 @@ void cli_deploy_tree_given(CliDeployTree *tree)
 }
 
 int cli_deploy_read(const char *root, CliDeployTree *tree, const CliDeployment **deployments, unsigned int *count,
-                    CliLine *said)
+                    VerbaLinea *err_msg)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, "deploy.json", path);
     cli_deploy_tree_given(tree);
     *deployments = NULL;
     *count = 0u;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
     {
         if (bytes != NULL)
@@ -250,29 +251,29 @@ int cli_deploy_read(const char *root, CliDeployTree *tree, const CliDeployment *
         }
         return 1;
     }
-    char why[CLI_SAID_LONGEST];
-    CliLine read_said = {why, sizeof(why), 0ull};
-    const unsigned int top = cli_json_taken(&tree->json, (const char *)bytes, size, 0u, 0ull, &read_said);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
+    const unsigned int top = cli_json_taken(&tree->json, (const char *)bytes, size, 0u, 0ull, &read_err_msg);
     cli_file_let_go(bytes, size);
     const CliJson *const json = &tree->json;
     if (top == CLI_JSON_NONE)
     {
-        cli_line_text(said, "deploy.json: ");
-        cli_line_counted(said, why, read_said.at);
+        mmgr_line_put(err_msg, "deploy.json: ");
+        mmgr_line_put_n(err_msg, why, read_err_msg.at);
         return 0;
     }
     if (!cli_json_is(json, top, CFG_JSON_OBJECT))
     {
-        return read_invalid(json, top, "struct Named", said);
+        return read_invalid(json, top, "struct Named", err_msg);
     }
     const unsigned int list = cli_json_member(json, top, "deployments");
     if (list == CLI_JSON_NONE)
     {
-        return read_missing("deployments", said);
+        return read_missing("deployments", err_msg);
     }
     if (!cli_json_is(json, list, CFG_JSON_ARRAY))
     {
-        return read_invalid(json, list, "a sequence", said);
+        return read_invalid(json, list, "a sequence", err_msg);
     }
     unsigned int items = 0u;
     while (cli_json_item(json, list, items) != CLI_JSON_NONE)
@@ -286,12 +287,12 @@ int cli_deploy_read(const char *root, CliDeployTree *tree, const CliDeployment *
     CliDeployment *const read = cli_deploy_placed(&tree->pool, (unsigned long long)items * sizeof(read[0]));
     if (read == NULL)
     {
-        cli_line_text(said, "deploy.json names more deployments than orior_cli holds");
+        mmgr_line_put(err_msg, "deploy.json names more deployments than orior_cli supports");
         return 0;
     }
     for (unsigned int at = 0u; at < items; at += 1u)
     {
-        if (!read_deployment(json, cli_json_item(json, list, at), &tree->pool, &read[at], said))
+        if (!read_deployment(json, cli_json_item(json, list, at), &tree->pool, &read[at], err_msg))
         {
             return 0;
         }
@@ -309,7 +310,7 @@ static int read_white(unsigned int letter)
            (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u);
 }
 
-int cli_deploy_place(const char *text, const char *root, CliDeployPlace *place, CliLine *said)
+int cli_deploy_place(const char *text, const char *root, CliDeployPlace *place, VerbaLinea *err_msg)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     unsigned long long start = 0ull;
@@ -323,7 +324,7 @@ int cli_deploy_place(const char *text, const char *root, CliDeployPlace *place, 
         end = read_white(letter) ? end : at;
     }
     end = (end < start) ? start : end;
-    char trimmed[CLI_PATH_LONGEST];
+    char trimmed[CLI_PATH_MAX_LEN];
     const unsigned long long size = (end - start < sizeof(trimmed)) ? (end - start) : (sizeof(trimmed) - 1u);
     memor.cpy(&(MemoriaCfg){.dst = trimmed, .src = text + start, .bytes = (size_t)size});
     trimmed[size] = '\0';
@@ -334,10 +335,10 @@ int cli_deploy_place(const char *text, const char *root, CliDeployPlace *place, 
     if (!drive && (trimmed[0] != '/') && (trimmed[0] != '.') && (trimmed[0] != '\\'))
     {
         place->here = 0;
-        return cli_link_address_parse(trimmed, &place->address, said);
+        return cli_link_address_parse(trimmed, &place->address, err_msg);
     }
     place->here = 1;
-    CliLine path = {place->path, sizeof(place->path), 0ull};
+    VerbaLinea path = {place->path, sizeof(place->path), 0ull};
 #if defined(_WIN32)
     // a path with a drive stands on its own, as Rust's join takes one, as does a share's
     const int whole =
@@ -345,35 +346,35 @@ int cli_deploy_place(const char *text, const char *root, CliDeployPlace *place, 
     const int rooted = !whole && !drive && ((trimmed[0] == '/') || (trimmed[0] == '\\'));
     if (rooted && (root[0] != '\0') && (root[1] == ':'))
     {
-        cli_line_counted(&path, root, 2u);
+        mmgr_line_put_n(&path, root, 2u);
     }
     else if (!whole && !rooted)
     {
-        cli_line_text(&path, root);
-        cli_line_character(&path, '\\');
+        mmgr_line_put(&path, root);
+        mmgr_line_ch(&path, '\\');
     }
 #else
     if (trimmed[0] != '/')
     {
-        cli_line_text(&path, root);
-        cli_line_character(&path, '/');
+        mmgr_line_put(&path, root);
+        mmgr_line_ch(&path, '/');
     }
 #endif
-    cli_line_text(&path, trimmed);
-    if (cli_line_closed(&path) == 0ull)
+    mmgr_line_put(&path, trimmed);
+    if (mmgr_line_finish(&path) == 0ull)
     {
-        cli_line_text(said, trimmed);
-        cli_line_text(said, ": its path is too long");
+        mmgr_line_put(err_msg, trimmed);
+        mmgr_line_put(err_msg, ": its path is too long");
         return 0;
     }
     return 1;
 }
 
-void cli_deploy_place_name(const CliDeployPlace *place, CliLine *out)
+void cli_deploy_place_name(const CliDeployPlace *place, VerbaLinea *out)
 {
     if (place->here)
     {
-        cli_line_text(out, place->path);
+        mmgr_line_put(out, place->path);
     }
     else
     {
@@ -386,22 +387,22 @@ const char *cli_deploy_place_folder(const CliDeployPlace *place)
     return place->here ? place->path : place->address.folder;
 }
 
-int cli_deploy_ask(const CliDeployPlace *place, const char *line, const char *input, unsigned long long size,
-                   CliLine *out, CliLine *said)
+int cli_deploy_remote_run(const CliDeployPlace *place, const char *line, const char *input, unsigned long long size,
+                          VerbaLinea *out, VerbaLinea *err_msg)
 {
     if (place->here)
     {
-        cli_line_text(said, "a folder on this machine takes no shell line");
+        mmgr_line_put(err_msg, "a folder on this machine takes no shell line");
         return 0;
     }
-    char why[CLI_SAID_LONGEST];
-    CliLine why_line = {why, sizeof(why) - 1u, 0ull};
-    if (cli_link_ask(&place->address, line, input, size, out, &why_line))
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea why_line = {why, sizeof(why) - 1u, 0ull};
+    if (cli_link_remote_run(&place->address, line, input, size, out, &why_line))
     {
         return 1;
     }
     why[why_line.at] = '\0';
-    cli_line_counted(said, why, why_line.at);
+    mmgr_line_put_n(err_msg, why, why_line.at);
     static const char s_denied[] = "Permission denied";
     static const char s_password[] = "password";
     if (cellul.has(
@@ -409,10 +410,11 @@ int cli_deploy_ask(const CliDeployPlace *place, const char *line, const char *in
         cellul.has(
             &(CatenaFinitaCfg){.src = why, .cap = why_line.at, .other = s_password, .other_cap = sizeof(s_password)}))
     {
-        cli_line_text(said, "; ");
-        cli_link_machine(&place->address, said);
-        cli_line_text(said, " asks for a password, which orior_cli does not keep: a key the system's ssh agent holds "
-                            "reaches it, and ssh-copy-id puts one there");
+        mmgr_line_put(err_msg, "; ");
+        cli_link_machine(&place->address, err_msg);
+        mmgr_line_put(err_msg,
+                      " prompts for a password, which orior_cli does not store: a key the system's ssh agent has "
+                      "reaches it, and ssh-copy-id puts one there");
     }
     return 0;
 }

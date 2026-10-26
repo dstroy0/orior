@@ -136,7 +136,7 @@ static const QasmExactGate qasm_test_ghz5[] = {
     {QASM_EXACT_GATE_CNOT, 3u, 4u, NULL}, {QASM_EXACT_GATE_CONTROLLED_PHASE, 3u, 4u, &qasm_number_eighth_turn},
     {QASM_EXACT_GATE_H, 4u, 0u, NULL}};
 
-// a circuit's gate count is a handful, held by an unsigned int
+// a circuit's gate count is a handful, represented by an unsigned int
 #define QASM_TEST_GATES(gates_) (unsigned int)(sizeof(gates_) / sizeof((gates_)[0]))
 
 static const QasmTestCircuit qasm_test_circuits[] = {
@@ -273,7 +273,7 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
                             unsigned long long lanes, const char *which)
 {
     const unsigned int amplitudes = 1u << circuit->qubits;
-    // the lanes are at most 2^5: the numbers are at most 2^10, held by a size_t
+    // the lanes are at most 2^5: the numbers are at most 2^10, represented by a size_t
     const size_t numbers = (size_t)(lanes * amplitudes);
     QasmNumber *const host_outputs = (QasmNumber *)calloc(numbers, sizeof(QasmNumber));
     QasmNumber *const device_outputs = (QasmNumber *)calloc(numbers, sizeof(QasmNumber));
@@ -285,7 +285,7 @@ static void qasm_test_agree(QasmResults *results, const QasmTestCircuit *circuit
                 qasm_test_run(circuit, inputs, lanes, 1, host_outputs, NULL, 0ull, &host);
     // widening: the out limbs are an unsigned int
     const unsigned long long capacity = lanes * (unsigned long long)host.out_limbs;
-    // at most 2^5 records of a layout the host just laid out, held by a size_t
+    // at most 2^5 records of a layout the host just laid out, represented by a size_t
     unsigned int *const host_records = agree ? (unsigned int *)calloc((size_t)capacity, sizeof(unsigned int)) : NULL;
     unsigned int *const device_records = agree ? (unsigned int *)calloc((size_t)capacity, sizeof(unsigned int)) : NULL;
     agree = agree && (host_records != NULL) && (device_records != NULL) &&

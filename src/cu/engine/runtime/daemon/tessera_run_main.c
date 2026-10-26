@@ -7,7 +7,7 @@ _Alignas(8) static const
     char s_run_usage[] = "  tessera_run: --processors <count> [--name <text>] [--child] -- <command> [arguments]\n"
                          "  tessera_run: --parent <records> [--name <text>] -- <command> [arguments]\n";
 _Alignas(8) static const
-    char s_run_unasked[] = "  tessera_run: the job could not be asked (its signum, or the daemon's place)\n";
+    char s_run_unsubmitted[] = "  tessera_run: the job could not be submitted (its signum, or the daemon's place)\n";
 
 int main(int count, char **arguments)
 {
@@ -19,11 +19,11 @@ int main(int count, char **arguments)
         return RUN_FAILED;
     }
     const unsigned long long mask = tessera_self_host_mask();
-    // a processor count is at most sixty-four, held whole
+    // a processor count is at most sixty-four, represented whole
     const unsigned long long given = (unsigned long long)engine_word_population(mask);
     if ((mask == 0ull) || (request.processors > given))
     {
-        fprintf(stderr, "  tessera_run: asks %llu processors, and the host gives jobs %llu\n", request.processors,
+        fprintf(stderr, "  tessera_run: requests %llu processors, and the host gives jobs %llu\n", request.processors,
                 given);
         return RUN_FAILED;
     }
@@ -35,31 +35,31 @@ int main(int count, char **arguments)
     EngineError error;
     memset(&error, 0, sizeof(error));
     char daemon[ENGINE_PATH_CAPACITY];
-    TesseraJobAsk ask;
-    memset(&ask, 0, sizeof(ask));
-    if (!run_daemon_path(daemon, sizeof(daemon)) || !run_signum(&request, arguments, count, &ask.signum, &error))
+    TesseraJobSubmit submit;
+    memset(&submit, 0, sizeof(submit));
+    if (!run_daemon_path(daemon, sizeof(daemon)) || !run_signum(&request, arguments, count, &submit.signum, &error))
     {
-        fputs(s_run_unasked, stderr);
+        fputs(s_run_unsubmitted, stderr);
         return RUN_FAILED;
     }
-    ask.declared = request.processors * TESSERA_HOST_PROCESSOR;
-    ask.holding_microseconds = RUN_RUNNING_MICROSECONDS;
-    ask.sweep_microseconds = RUN_SWEEP_MICROSECONDS;
-    ask.idle_microseconds = RUN_IDLE_MICROSECONDS;
-    // processors named past the signum's kept peak are not held for asking: the job waits only for capacity. It
-    // still reserves the kept peak where that is more than it named
-    ask.override_budget = 1u;
-    ask.daemon_path = daemon;
-    ask.error = &error;
-    const unsigned long long asked = run_now();
+    submit.declared = request.processors * TESSERA_HOST_PROCESSOR;
+    submit.grace_microseconds = RUN_RUNNING_MICROSECONDS;
+    submit.sweep_microseconds = RUN_SWEEP_MICROSECONDS;
+    submit.idle_microseconds = RUN_IDLE_MICROSECONDS;
+    // processors named past the signum's tracked peak are not reserved for requesting: the job waits only for capacity.
+    // It still reserves the tracked peak where that is more than it named
+    submit.override_budget = 1u;
+    submit.daemon_path = daemon;
+    submit.error = &error;
+    const unsigned long long submitted_at = run_now();
     TesseraClient *client = NULL;
     TesseraTicket ticket;
-    if (tessera_job_submit(&ask, &client, &ticket) != 0L)
+    if (tessera_job_submit(&submit, &client, &ticket) != 0L)
     {
         fprintf(stderr, "  tessera_run: %s was not admitted by the host's daemon (%s)\n", label, daemon);
         return RUN_FAILED;
     }
-    const unsigned long long waited = run_now() - asked;
+    const unsigned long long waited = run_now() - submitted_at;
     fprintf(stderr,
             "  tessera_run: %s admitted after %llu.%03llu s, %llu.%03llu of %llu processors reserved, on processors "
             "0x%llx at below normal priority\n",
@@ -69,12 +69,12 @@ int main(int count, char **arguments)
     memset(&channel, 0, sizeof(channel));
     int started_count = count - request.command;
     char **const watched = run_channel_open(&channel, &request, arguments + request.command, count - request.command,
-                                            &ask.signum, &started_count);
+                                            &submit.signum, &started_count);
     char *const *const words = (watched != NULL) ? watched : (arguments + request.command);
     RunChild child;
     memset(&child, 0, sizeof(child));
     int code = RUN_NOT_STARTED;
-    // the whole processors of the reservation, and never none: a job reserves its kept peak where that is more than
+    // the whole processors of the reservation, and never none: a job reserves its tracked peak where that is more than
     // it named, and the count of whole ones in it is what the command may run on
     const unsigned long long whole = ticket.granted / TESSERA_HOST_PROCESSOR;
     if (!run_processors_named((whole != 0ull) ? whole : 1ull))

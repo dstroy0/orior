@@ -70,17 +70,17 @@ int cli_deploy_fits(const char *pattern, const char *name, unsigned long long si
 // or, where the folder has a `/` in it, as a run of the path's parts
 static int gather_folder_out(const char *folder, unsigned long long folder_size, const char *path)
 {
-    char named[CLI_PATH_LONGEST];
+    char named[CLI_PATH_MAX_LEN];
     if (folder_size >= sizeof(named))
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = named, .src = folder, .bytes = (size_t)folder_size});
     named[folder_size] = '\0';
-    unsigned long long starts[CLI_PATH_LONGEST / 2u];
+    unsigned long long starts[CLI_PATH_MAX_LEN / 2u];
     unsigned int parts = 0u;
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    for (unsigned long long at = 0ull; (at <= length) && (parts < CLI_PATH_LONGEST / 2u); at += 1u)
+    for (unsigned long long at = 0ull; (at <= length) && (parts < CLI_PATH_MAX_LEN / 2u); at += 1u)
     {
         if ((at == 0u) || (path[at - 1u] == '/'))
         {
@@ -163,7 +163,7 @@ const char *cli_deploy_left_out_by(const char *const *patterns, unsigned int cou
     return NULL;
 }
 
-void cli_deploy_release_name(unsigned long long seconds, CliLine *out)
+void cli_deploy_release_name(unsigned long long seconds, VerbaLinea *out)
 {
     const unsigned long long shifted = (seconds / 86400u) + 719468u;
     const unsigned long long era = shifted / 146097u;
@@ -175,13 +175,13 @@ void cli_deploy_release_name(unsigned long long seconds, CliLine *out)
     const unsigned long long month = (month_index < 10u) ? (month_index + 3u) : (month_index - 9u);
     const unsigned long long year = year_of_era + (era * 400u) + ((month <= 2u) ? 1u : 0u);
     const unsigned long long rest = seconds % 86400u;
-    cli_line_decimal(out, year, 4u);
-    cli_line_decimal(out, month, 2u);
-    cli_line_decimal(out, day, 2u);
-    cli_line_character(out, '-');
-    cli_line_decimal(out, rest / 3600u, 2u);
-    cli_line_decimal(out, (rest % 3600u) / 60u, 2u);
-    cli_line_decimal(out, rest % 60u, 2u);
+    mmgr_line_decimal(out, year, 4u);
+    mmgr_line_decimal(out, month, 2u);
+    mmgr_line_decimal(out, day, 2u);
+    mmgr_line_ch(out, '-');
+    mmgr_line_decimal(out, rest / 3600u, 2u);
+    mmgr_line_decimal(out, (rest % 3600u) / 60u, 2u);
+    mmgr_line_decimal(out, rest % 60u, 2u);
 }
 
 // two pairs in the order of their paths, then of their texts
@@ -200,8 +200,8 @@ void cli_deploy_modes_read(CliDeployPool *pool)
     s_modes = NULL;
     s_mode_count = 0u;
     const char *const words[4] = {"git", "ls-files", "-s", NULL};
-    char why[CLI_SAID_LONGEST];
-    CliLine none = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea none = {why, sizeof(why), 0ull};
     CliRan *const ran = cli_ran_taken();
     unsigned int lines = 0u;
     if (cli_ran(words, g_cli_deploy.root, NULL, 0u, ran, &none) && (ran->out_size > 0u))
@@ -235,7 +235,7 @@ void cli_deploy_modes_read(CliDeployPool *pool)
             if (read)
             {
                 const unsigned long long path = (unsigned long long)(tab + 1 - line);
-                s_modes[s_mode_count].path = cli_deploy_kept(pool, tab + 1, size - path);
+                s_modes[s_mode_count].path = cli_deploy_text_stored(pool, tab + 1, size - path);
                 s_modes[s_mode_count].text = ((mode & 0111u) != 0u) ? "0755" : "0644";
                 s_mode_count += 1u;
             }

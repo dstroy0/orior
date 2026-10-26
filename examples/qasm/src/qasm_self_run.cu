@@ -3,7 +3,8 @@
 // qasm_self_run.cu: inputs, the device and the run
 #include "qasm_self_internal.h"
 
-// an output of `bits` bits of two's complement at bit `offset`, as a signed magnitude; 0 where the width cannot hold it
+// an output of `bits` bits of two's complement at bit `offset`, as a signed magnitude; 0 where the width cannot
+// represent it
 static int qasm_self_get(const unsigned int *record, unsigned int offset, unsigned int bits, OriorExactInteger *value)
 {
     orior_exact_zero(value);
@@ -134,7 +135,7 @@ static int qasm_self_program(const QasmSelfRequest *request, QasmSelfBuild *buil
         field_bits[field] = bits;
         field_offset[field] = field * bits;
     }
-    // the widest record is fields x bits bits, which the request's bounds keep below 2^32
+    // the widest record is fields x bits bits, which the request's bounds bound below 2^32
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {((fields * bits) + 31u) / 32u, 0u, 0u};
     if (ok)
     {
@@ -171,7 +172,7 @@ static int qasm_self_program(const QasmSelfRequest *request, QasmSelfBuild *buil
 static int qasm_self_device(const EngineRecordLayout *layout, const unsigned int *in, unsigned long long lanes,
                             unsigned int *out, EngineError *error)
 {
-    // the byte counts were bounded by the request's check against SIZE_MAX before any record was held
+    // the byte counts were bounded by the request's check against SIZE_MAX before any record was stored
     const size_t in_bytes = (size_t)(lanes * layout->in_limbs[0] * sizeof(unsigned int));
     const size_t out_bytes = (size_t)(lanes * layout->out_limbs * sizeof(unsigned int));
     CycleRecord *record = NULL;
@@ -224,7 +225,7 @@ static int qasm_self_decode(const QasmSelfRequest *request, const QasmSelfProgra
                 QasmRational fraction = {qasm_self_one, qasm_self_one};
                 ok = QASM_CHECK(qasm_self_get(record, step->out_offset, step->out_bits, &fraction.numerator), step,
                                 error, ENGINE_ERROR_RESOURCE) &&
-                     (qasm_rational_divide(&fraction, &scale, qasm_self_part_slot(number, part), error) == 0L);
+                     (qasm_rational_divide(&fraction, &scale, qasm_self_part_at(number, part), error) == 0L);
             }
         }
     }
@@ -254,7 +255,7 @@ long qasm_self_run(const QasmSelfRequest *request, QasmSelfMeasurement *measurem
     unsigned int bits = 0u;
     int ok = qasm_self_inputs(request, amplitudes, &input_denominator, &bits, NULL, 0u);
     QasmSelfBuild *const build = ok ? (QasmSelfBuild *)calloc(1u, sizeof(QasmSelfBuild)) : NULL;
-    // widening: at most 2^10 entries, held by any size_t
+    // widening: at most 2^10 entries, represented by any size_t
     const size_t entries = (size_t)amplitudes * amplitudes;
     if (build != NULL)
     {

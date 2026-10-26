@@ -7,10 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the offset a label holds before the instruction it stands before is read
+// the offset a label carries before the instruction it stands before is read
 #define CUBIN_LABEL_UNSET (~0ull)
 
-// one line of a code section the cut keeps: where it lies in the listing, and the offset the vendor printed for it
+// one line of a code section the cut retains: where it lies in the listing, and the offset the vendor printed for it
 typedef struct
 {
     size_t begin;
@@ -26,8 +26,8 @@ typedef struct
     unsigned long long offset;
 } CubinLabel;
 
-// the lines and the labels of the section the cut is in, kept in memory grown as a section needs and kept over the
-// whole cut, so that a section takes no memory of its own
+// the lines and the labels of the section the cut is in, stored in memory grown as a section needs and retained over
+// the whole cut, so that a section takes no memory of its own
 typedef struct
 {
     CubinLine *lines;
@@ -174,7 +174,8 @@ static const char *cubin_note_end(const char *listing, size_t from, size_t end)
     return NULL;
 }
 
-// the section's kept lines written into the cut as kernel `kernel`'s listing, each label they name put as its offset
+// the section's retained lines written into the cut as kernel `kernel`'s listing, each label they name put as its
+// offset
 static int cubin_section_written(const char *listing, CubinSection *section, unsigned int kernel,
                                  CubinListingCut *cut)
 {
@@ -187,12 +188,12 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             (section->labels[at].offset == CUBIN_LABEL_UNSET) ? end_offset : section->labels[at].offset;
     }
     cut->start[kernel] = cut->text_size;
-    int held = 1;
-    for (size_t line = 0u; held && (line < section->line_count); line += 1u)
+    int written_ok = 1;
+    for (size_t line = 0u; written_ok && (line < section->line_count); line += 1u)
     {
         size_t at = section->lines[line].begin;
         const size_t end = section->lines[line].end;
-        while (held && (at < end))
+        while (written_ok && (at < end))
         {
             const char *const open = (const char *)memchr(listing + at, '`', end - at);
             size_t mark = (open != NULL) ? (size_t)(open - listing) : end;
@@ -205,22 +206,22 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
                 noted ? cubin_note_end(listing, (size_t)(note - listing) + 2u, end) : NULL;
             if (note_end != NULL)
             {
-                size_t kept = (size_t)(note - listing);
-                while ((kept > at) && cubin_blank(listing[kept - 1u]))
+                size_t prefix_length = (size_t)(note - listing);
+                while ((prefix_length > at) && cubin_blank(listing[prefix_length - 1u]))
                 {
-                    kept -= 1u;
+                    prefix_length -= 1u;
                 }
-                held = cubin_text_added(cut, listing + at, kept - at) && cubin_text_added(cut, " ", 1u);
+                written_ok = cubin_text_added(cut, listing + at, prefix_length - at) && cubin_text_added(cut, " ", 1u);
                 at = (size_t)(note_end - listing);
                 continue;
             }
-            held = cubin_text_added(cut, listing + at, mark - at);
+            written_ok = cubin_text_added(cut, listing + at, mark - at);
             at = mark;
-            if (!held || (at >= end))
+            if (!written_ok || (at >= end))
             {
                 break;
             }
-            // `(<label>): the label put as its offset where the section sets it, the mark kept as printed otherwise
+            // `(<label>): the label put as its offset where the section sets it, the mark retained as printed otherwise
             const char *const close = ((at + 2u) < end) && (listing[at + 1u] == '(')
                                           ? (const char *)memchr(listing + at + 2u, ')', end - (at + 2u))
                                           : NULL;
@@ -237,23 +238,23 @@ static int cubin_section_written(const char *listing, CubinSection *section, uns
             }
             if (found == section->label_count)
             {
-                held = cubin_text_added(cut, listing + at, 1u);
+                written_ok = cubin_text_added(cut, listing + at, 1u);
                 at += 1u;
                 continue;
             }
             char offset[32];
             const int written = snprintf(offset, sizeof(offset), "0x%llx", section->labels[found].offset);
-            held = (written > 0) && cubin_text_added(cut, offset, (size_t)written);
+            written_ok = (written > 0) && cubin_text_added(cut, offset, (size_t)written);
             at = (size_t)(close - listing) + 1u;
         }
-        held = held && cubin_text_added(cut, "\n", 1u);
+        written_ok = written_ok && cubin_text_added(cut, "\n", 1u);
     }
     cut->size[kernel] = cut->text_size - cut->start[kernel];
     cut->found[kernel] = 1;
-    return held;
+    return written_ok;
 }
 
-// room for one more of `size` bytes in `*items`, which holds `*room`: 1, or 0 where the system gave no memory
+// room for one more of `size` bytes in `*items`, which has room for `*room`: 1, or 0 where the system gave no memory
 static int cubin_room(void **items, size_t *room, size_t count, size_t size)
 {
     if (count < *room)
@@ -285,9 +286,9 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
     CubinSection section;
     memset(&section, 0, sizeof(section));
     unsigned int kernel = count;
-    int held = 1;
+    int written_ok = 1;
     size_t at = 0u;
-    while (held && (at < length))
+    while (written_ok && (at < length))
     {
         const char *const newline = (const char *)memchr(listing + at, '\n', length - at);
         size_t end = (newline != NULL) ? (size_t)(newline - listing) : length;
@@ -301,7 +302,7 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
             // a section opened: the section the cut was in written as its kernel's
             if (kernel != count)
             {
-                held = cubin_section_written(listing, &section, kernel, cut);
+                written_ok = cubin_section_written(listing, &section, kernel, cut);
             }
             section.line_count = 0u;
             section.label_count = 0u;
@@ -317,8 +318,8 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
         }
         else if ((kernel != count) && cubin_instruction_line(listing, at, end, &offset))
         {
-            held = cubin_room((void **)&section.lines, &section.line_room, section.line_count, sizeof(CubinLine));
-            if (held)
+            written_ok = cubin_room((void **)&section.lines, &section.line_room, section.line_count, sizeof(CubinLine));
+            if (written_ok)
             {
                 section.lines[section.line_count] = (CubinLine){at, end, offset};
                 section.line_count += 1u;
@@ -335,8 +336,9 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
         }
         else if ((kernel != count) && cubin_label_line(listing, at, end))
         {
-            held = cubin_room((void **)&section.labels, &section.label_room, section.label_count, sizeof(CubinLabel));
-            if (held)
+            written_ok =
+                cubin_room((void **)&section.labels, &section.label_room, section.label_count, sizeof(CubinLabel));
+            if (written_ok)
             {
                 section.labels[section.label_count] = (CubinLabel){at, (end - at) - 1u, CUBIN_LABEL_UNSET};
                 section.label_count += 1u;
@@ -345,13 +347,13 @@ int cubin_listing_cut(const char *listing, size_t length, const char *const *nam
         at = next;
     }
     // the listing ended: the section the cut was in written as its kernel's
-    if (held && (kernel != count))
+    if (written_ok && (kernel != count))
     {
-        held = cubin_section_written(listing, &section, kernel, cut);
+        written_ok = cubin_section_written(listing, &section, kernel, cut);
     }
     free(section.lines);
     free(section.labels);
-    return held;
+    return written_ok;
 }
 
 void cubin_listing_cut_freed(CubinListingCut *cut)

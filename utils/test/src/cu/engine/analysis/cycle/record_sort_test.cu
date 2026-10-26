@@ -5,18 +5,20 @@
 // consecutive records, the run's lanes in the order of their fields read as magnitudes, equal fields in lane order: a
 // run that fits one thread block's shared memory by a bitonic network over (field, lane), a longer run by a radix sort
 // of four bits a pass. cycle_record_sort_host merges the same records in host memory. The two must agree word for word,
-// and each run's order must be a permutation of its own lanes whose fields never fall and whose equal fields keep their
-// lanes rising:
+// and each run's order must be a permutation of its own lanes whose fields never fall and whose equal fields retain
+// their lanes rising:
 // - random records of nine limbs, fields one bit wide, four bits across two limbs, a whole limb, 37 bits across two
 //   limbs, two hundred bits and the whole record, over runs of 1, 3, 1024, 16384 and every record, so that both the
-//   network and the radix sort run, the one-bit field holding a tie in nearly every pair;
+//   network and the radix sort run, the one-bit field containing a tie in nearly every pair;
 // - the order as an index: a record program sweeps the records through it and writes each run's fields rising.
 // A request whose count is not a whole number of runs, whose count passes 2^32 records, or whose field passes its
 // record errors on both routes before a record is read. The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -44,7 +46,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } SortResults;
 
 static unsigned long long s_sort_state = 0x5EED5027C0FFEE11ull;
@@ -63,9 +65,9 @@ static void sort_check(SortResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -96,8 +98,8 @@ static int sort_field_order(const unsigned int *records, unsigned int out_limbs,
     return 0;
 }
 
-// 1 where each run's order is a permutation of its own lanes, its fields never fall, and equal fields keep their lanes
-// rising
+// 1 where each run's order is a permutation of its own lanes, its fields never fall, and equal fields retain their
+// lanes rising
 static int sort_ordered(const unsigned int *records, const unsigned int *order, unsigned long long count,
                         unsigned long long group, unsigned int out_limbs, unsigned int offset, unsigned int bits,
                         unsigned char *seen)
@@ -133,7 +135,7 @@ static void sort_records(SortResults *results, unsigned int *records, unsigned i
     unsigned int *order_on_device = NULL;
     int ok = (device_order != NULL) && (host_order != NULL) && (seen != NULL) &&
              (cudaMalloc((void **)&order_on_device, (size_t)SORT_TEST_RECORDS * sizeof(unsigned int)) == cudaSuccess);
-    sort_check(results, ok, "the orders are held on the host and the device");
+    sort_check(results, ok, "the orders are allocated on the host and the device");
     const unsigned int offsets[SORT_TEST_FIELDS] = {0u, 30u, 32u, 7u, 7u, 0u};
     const unsigned int bits[SORT_TEST_FIELDS] = {1u, 4u, 32u, 37u, 200u, 32u * SORT_TEST_RECORD_LIMBS};
     const unsigned long long groups[SORT_TEST_GROUPS] = {1ull, 3ull, 1024ull, 16384ull, SORT_TEST_RECORDS};
@@ -314,10 +316,10 @@ int main(int count, char **arguments)
         const size_t words = (size_t)SORT_TEST_RECORDS * SORT_TEST_RECORD_LIMBS;
         unsigned int *const records = (unsigned int *)malloc(words * sizeof(unsigned int));
         unsigned int *device_records = NULL;
-        const int held = (records != NULL) &&
-                         (cudaMalloc((void **)&device_records, words * sizeof(unsigned int)) == cudaSuccess);
-        sort_check(&results, held, "the random records are held on the host and the device");
-        if (held != 0)
+        const int opened =
+            (records != NULL) && (cudaMalloc((void **)&device_records, words * sizeof(unsigned int)) == cudaSuccess);
+        sort_check(&results, opened, "the random records are allocated on the host and the device");
+        if (opened != 0)
         {
             sort_records(&results, records, device_records);
             sort_index(&results, records, device_records);
@@ -329,12 +331,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     sort_check(&results, (admitted != 0) && (job.failures == 0ull),
                "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record sort test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record sort test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

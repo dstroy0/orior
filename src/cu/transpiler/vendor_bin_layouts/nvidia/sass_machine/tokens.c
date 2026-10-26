@@ -8,7 +8,7 @@ static int sass_is_space(char letter)
     return (letter == ' ') || (letter == '\t');
 }
 
-// `length` letters of `text` copied into `token`, with the spaces at either end cut and the whole kept below
+// `length` letters of `text` copied into `token`, with the spaces at either end cut and the whole limited below
 // SASS_MACHINE_TOKEN letters
 static void sass_token_take(char *token, const char *text, size_t length)
 {
@@ -21,9 +21,9 @@ static void sass_token_take(char *token, const char *text, size_t length)
     {
         length -= 1u;
     }
-    const size_t kept = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
-    memcpy(token, text, kept);
-    token[kept] = '\0';
+    const size_t copied = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
+    memcpy(token, text, copied);
+    token[copied] = '\0';
 }
 
 // 1 where every letter of `text` from `at` is a digit, and there is one
@@ -57,9 +57,9 @@ static unsigned int sass_operand_kind(const char *text)
     {
         char stem[SASS_MACHINE_TOKEN];
         const size_t length = strlen(text) - 3u;
-        const size_t kept = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
-        memcpy(stem, text, kept);
-        stem[kept] = '\0';
+        const size_t copied = (length < (SASS_MACHINE_TOKEN - 1u)) ? length : (SASS_MACHINE_TOKEN - 1u);
+        memcpy(stem, text, copied);
+        stem[copied] = '\0';
         return sass_operand_kind(stem);
     }
     if ((text[0] == 'R') && ((strcmp(text, "RZ") == 0) || sass_all_digits(text, 1u)))
@@ -85,7 +85,7 @@ static unsigned int sass_operand_kind(const char *text)
     }
     // an address, and an address that names the uniform register its memory descriptor is read from: desc[URn]
     // where the instruction's bit 101 is set, as the disassembler prints it, and term[URn] where it is clear and the
-    // field still holds the register
+    // field still contains the register
     if ((text[0] == '[') || (strncmp(text, "desc[", 5u) == 0) || (strncmp(text, "term[", 5u) == 0))
     {
         return SASS_OPERAND_ADDRESS;
@@ -125,7 +125,7 @@ static void sass_operand_take(SassInstructionParts *parts, unsigned int place, c
                         : (token[0] == '!') ? SASS_MARK_NOT
                                             : SASS_MARK_NONE;
     const unsigned int marked = sass_operand_kind(token + ((mark == SASS_MARK_NONE) ? 0u : 1u));
-    // a minus before a number is the number's own sign, and the operand keeps it
+    // a minus before a number is the number's own sign, and the operand retains it
     mark = ((mark == SASS_MARK_NEGATE) && (marked == SASS_OPERAND_IMMEDIATE)) ? SASS_MARK_NONE : mark;
     parts->mark[place] = mark;
     parts->kind[place] = (mark == SASS_MARK_NONE) ? sass_operand_kind(token) : marked;
@@ -178,7 +178,7 @@ void sass_instruction_read(const char *text, SassInstructionParts *parts)
     }
 }
 
-// 1 where the two hold the same operation and the same kind and mark at every operand, and the same text at every
+// 1 where the two contain the same operation and the same kind and mark at every operand, and the same text at every
 // operand the assembler cannot turn into a number: a system register is named, not counted, and two instructions that
 // name different ones are two forms, each with the encoding it was seen with
 int sass_form_same(const SassForm *form, const SassInstructionParts *parts)

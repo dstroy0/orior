@@ -8,24 +8,24 @@
 static void validate_filled(CliWords *words, const char *text, const char *file)
 {
     char filled[CLI_PATH_TEXT];
-    CliLine line = {filled, sizeof(filled), 0ull};
+    VerbaLinea line = {filled, sizeof(filled), 0ull};
     for (const char *at = text; *at != '\0';)
     {
         if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = "{file}", .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line, file);
+            mmgr_line_put(&line, file);
             at += 6;
             continue;
         }
-        cli_line_character(&line, *at);
+        mmgr_line_ch(&line, *at);
         at += 1;
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     cli_words_put(words, filled);
 }
 
 int cli_validate_command_for(const char *program, const char *file, const char *project, CliWords *words,
-                             unsigned int *from, unsigned int *settings, char *dir, CliLine *said)
+                             unsigned int *from, unsigned int *settings, char *dir, VerbaLinea *err_msg)
 {
     const CliJson *const json = &g_cli_validate->json;
     const CliTool *const tool = &g_cli_validate->tool;
@@ -45,14 +45,14 @@ int cli_validate_command_for(const char *program, const char *file, const char *
     }
     if (inside)
     {
-        memor.cpy(&(MemoriaCfg){.dst = dir, .src = project, .bytes = CLI_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = dir, .src = project, .bytes = CLI_PATH_MAX_LEN});
     }
     else if (!cli_path_parent(file, dir))
     {
         dir[0] = '\0';
     }
-    char runs[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char runs[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     const char *const first = s_named.word[0];
     if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = tool->program, .cap = CLI_CELLS_POOL}))
     {
@@ -62,11 +62,11 @@ int cli_validate_command_for(const char *program, const char *file, const char *
     }
     else if (!cli_path_parent(program, folder) || !cli_toolchains_program_in(folder, &first, 1u, runs))
     {
-        cli_line_text(said, tool->name);
-        cli_line_text(said, " has no ");
-        cli_line_text(said, first);
-        cli_line_text(said, " beside ");
-        cli_line_text(said, program);
+        mmgr_line_put(err_msg, tool->name);
+        mmgr_line_put(err_msg, " has no ");
+        mmgr_line_put(err_msg, first);
+        mmgr_line_put(err_msg, " beside ");
+        mmgr_line_put(err_msg, program);
         return 0;
     }
     unsigned int at = 1u;
@@ -90,20 +90,20 @@ int cli_validate_command_for(const char *program, const char *file, const char *
     for (unsigned int key = 0u; key < grown; key += 1u)
     {
         char value[24];
-        CliLine value_line = {value, sizeof(value), 0ull};
-        cli_line_decimal(&value_line, g_cli_validate->grown[keys[key]], 1u);
-        cli_line_closed(&value_line);
-        char setting[CLI_PATH_LONGEST];
-        CliLine line = {setting, sizeof(setting), 0ull};
+        VerbaLinea value_line = {value, sizeof(value), 0ull};
+        mmgr_line_decimal(&value_line, g_cli_validate->grown[keys[key]], 1u);
+        mmgr_line_finish(&value_line);
+        char setting[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {setting, sizeof(setting), 0ull};
         for (const char *letter = tool->barriers[keys[key]].lift; *letter != '\0';)
         {
             const int marked =
                 (cellul.starts(&(CatenaFinitaCfg){.src = letter, .other = "{value}", .cap = CLI_CELLS_POOL}));
-            cli_line_text(&line, marked ? value : "");
-            cli_line_counted(&line, letter, marked ? 0ull : 1ull);
+            mmgr_line_put(&line, marked ? value : "");
+            mmgr_line_put_n(&line, letter, marked ? 0ull : 1ull);
             letter += marked ? 7 : 1;
         }
-        cli_line_closed(&line);
+        mmgr_line_finish(&line);
         cli_words_put(words, setting);
     }
     for (unsigned int word = at; word < s_named.count; word += 1u)
@@ -113,35 +113,35 @@ int cli_validate_command_for(const char *program, const char *file, const char *
     return 1;
 }
 
-int cli_validate_checked(const CliWords *words, const char *dir, double *seconds, CliLine *said)
+int cli_validate_checked(const CliWords *words, const char *dir, double *seconds, VerbaLinea *err_msg)
 {
     cli_toolchains_run_path(g_cli_validate->path, CLI_PATH_TEXT);
     const CliSetting settings[1] = {{"PATH", g_cli_validate->path}};
     CliRan *const ran = cli_ran_taken();
     const unsigned long long began = cli_clock_milliseconds();
-    char why[CLI_SAID_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     const int started = cli_ran_within(words->word, (dir[0] != '\0') ? dir : NULL, settings, 1u, NULL, 0ull,
                                        g_cli_validate->tool.patience * 1000ull, ran, &unstarted);
     *seconds = (double)(cli_clock_milliseconds() - began) / 1000.0;
     if (!started)
     {
         cli_ran_given(ran);
-        cli_line_text(said, "the prover did not start: ");
-        cli_line_counted(said, why, unstarted.at);
+        mmgr_line_put(err_msg, "the prover did not start: ");
+        mmgr_line_put_n(err_msg, why, unstarted.at);
         return 0;
     }
     // an output that is not UTF-8 reads as nothing, as Rust's read_to_string leaves it
     const unsigned long long out = cli_utf8_whole(ran->out, ran->out_size) ? ran->out_size : 0ull;
     const unsigned long long err = cli_utf8_whole(ran->err, ran->err_size) ? ran->err_size : 0ull;
-    // the output kept in a cell of its size, the one kept before given back
-    cli_cell_given(g_cli_validate->output);
+    // the output stored in a cell of its size, the one stored before given back
+    g_cli_cells->persistent_buf_release(g_cli_validate->output, NULL);
     g_cli_validate->output_size = 0ull;
-    g_cli_validate->output = cli_cell_taken(out + err + 2ull, "a check's output");
+    g_cli_validate->output = g_cli_cells->persistent_buf_alloc(out + err + 2ull, NULL);
     if (g_cli_validate->output == NULL)
     {
         cli_ran_given(ran);
-        cli_line_text(said, "a check's output could not be kept");
+        mmgr_line_put(err_msg, "a check's output could not be stored");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = g_cli_validate->output, .src = ran->out, .bytes = out});

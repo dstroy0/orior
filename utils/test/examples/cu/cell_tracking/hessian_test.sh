@@ -14,7 +14,7 @@ SHIFT_CU="$ENGINE/../../cu/engine/analysis/shift_agreement"
 DEVICE_POOL="$ENGINE/runtime/device_pool"
 DEVICE_POOL_CU="$ENGINE/../../cu/engine/runtime/device_pool"
 NO_ROUNDING="$ENGINE/../types/integers"
-SCRIPTURA="$ENGINE/runtime/scriptura"
+source "$ENGINE/../includes/file_defs/file_defs.sh"
 build_stamp hessian_test
 
 HOST_FLAGS=()
@@ -49,12 +49,12 @@ for one in $ARCHES; do
     GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
-INCLUDES=(-I "$ENGINE" -I "$PEAKS" -I "$SCAN" -I "$SHIFT" -I "$SHIFT_CU" -I "$DEVICE_POOL" -I "$NO_ROUNDING" -I "$SCRIPTURA"
+INCLUDES=(-I "$ENGINE" -I "$PEAKS" -I "$SCAN" -I "$SHIFT" -I "$SHIFT_CU" -I "$DEVICE_POOL" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}"
           "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+LINEA_OBJECTS=()
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$SHIFT/shift_agreement.c"; do
     object="$OUT/$(basename "$source" .c)_hessian.$EXTENSION"
     rm -f "$object"
@@ -66,12 +66,12 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
 # the test is a job on the device's tessera daemon, built beside it
-tessera_build hessian "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build hessian "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST/hessian_test.cu" "$ENGINE/../../engine/sims/sim_job.cu" "$PEAKS/hessian.cu" "$SCAN/drift.cu" \

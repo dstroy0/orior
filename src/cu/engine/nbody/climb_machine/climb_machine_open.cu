@@ -3,7 +3,7 @@
 // climb_machine_open.cu: the runs cut, the machine opened and a frame stored
 #include "climb_machine_internal.h"
 
-static int machine_split_runs(ClimbMachine *machine, unsigned int slot, const unsigned int *labels,
+static int machine_split_runs(ClimbMachine *machine, unsigned int resident, const unsigned int *labels,
                               const ClimbMachineFrame *frame)
 {
     const MachineGeometry geometry = machine->geometry;
@@ -98,33 +98,36 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int slot, const un
     if (runs > machine->run_capacity)
     {
         const size_t capacity = runs + (runs / 4u) + 1u;
-        const size_t slots = (size_t)machine->capacity;
+        const size_t residents = (size_t)machine->capacity;
         unsigned int *grown[4] = {NULL, NULL, NULL, NULL};
-        unsigned int *const kept[4] = {machine->run_start, machine->run_length, machine->run_leaf, machine->run_at_row};
-        ok = ok && ((slots * capacity) <= 0xFFFFFFFFull);
+        unsigned int *const current[4] = {machine->run_start, machine->run_length, machine->run_leaf,
+                                          machine->run_at_row};
+        ok = ok && ((residents * capacity) <= 0xFFFFFFFFull);
         for (unsigned int which = 0u; (ok != 0) && (which < 4u); which += 1u)
         {
-            ok = (cudaMalloc((void **)&grown[which], slots * capacity * sizeof(unsigned int)) == cudaSuccess) ? 1 : 0;
+            ok = (cudaMalloc((void **)&grown[which], residents * capacity * sizeof(unsigned int)) == cudaSuccess) ? 1
+                                                                                                                  : 0;
         }
-        for (unsigned int other_slot = 0u; (ok != 0) && (other_slot < machine->capacity); other_slot += 1u)
+        for (unsigned int other_resident = 0u; (ok != 0) && (other_resident < machine->capacity); other_resident += 1u)
         {
-            const size_t count = (size_t)machine->slot_runs[other_slot];
-            if ((other_slot == slot) || (machine->slot_frame[other_slot] == CLIMB_MACHINE_EMPTY) || (count == 0u))
+            const size_t count = (size_t)machine->resident_runs[other_resident];
+            if ((other_resident == resident) || (machine->resident_frame[other_resident] == CLIMB_MACHINE_EMPTY) ||
+                (count == 0u))
             {
                 continue;
             }
             for (unsigned int which = 0u; (ok != 0) && (which < 4u); which += 1u)
             {
-                ok = (cudaMemcpy(&grown[which][(size_t)other_slot * capacity],
-                                 &kept[which][(size_t)other_slot * machine->run_capacity], count * sizeof(unsigned int),
-                                 cudaMemcpyDeviceToDevice) == cudaSuccess)
+                ok = (cudaMemcpy(&grown[which][(size_t)other_resident * capacity],
+                                 &current[which][(size_t)other_resident * machine->run_capacity],
+                                 count * sizeof(unsigned int), cudaMemcpyDeviceToDevice) == cudaSuccess)
                          ? 1
                          : 0;
             }
         }
         for (unsigned int which = 0u; which < 4u; which += 1u)
         {
-            cudaFree(kept[which]);
+            cudaFree(current[which]);
         }
         machine->run_start = grown[0];
         machine->run_length = grown[1];
@@ -136,7 +139,7 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int slot, const un
                                             cudaMemcpyHostToDevice) == cudaSuccess));
     if ((ok != 0) && (runs != 0u))
     {
-        const size_t base = (size_t)slot * machine->run_capacity;
+        const size_t base = (size_t)resident * machine->run_capacity;
         const unsigned int run_blocks = (unsigned int)((runs + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK);
         machine_gather_kernel<<<run_blocks, CLIMB_MACHINE_BLOCK>>>(
             machine->device_order, (unsigned int)runs, machine->device_unsorted_start, machine->device_unsorted_length,
@@ -146,7 +149,7 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int slot, const un
     }
     if (ok != 0)
     {
-        const size_t offsets = (size_t)slot * ((size_t)rows + 1u);
+        const size_t offsets = (size_t)resident * ((size_t)rows + 1u);
         const unsigned int total = (unsigned int)runs;
         ok = (cudaMemcpy(&machine->row_first[offsets], machine->row_counts, (size_t)rows * sizeof(unsigned int),
                          cudaMemcpyHostToDevice) == cudaSuccess)
@@ -156,25 +159,25 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int slot, const un
                                cudaMemcpyHostToDevice) == cudaSuccess);
     }
 
-    free(machine->slot_leaf_bundles[slot]);
-    free(machine->slot_bundle_first[slot]);
-    free(machine->slot_bundle_end[slot]);
-    machine->slot_leaf_bundles[slot] = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
+    free(machine->resident_leaf_bundles[resident]);
+    free(machine->resident_bundle_first[resident]);
+    free(machine->resident_bundle_end[resident]);
+    machine->resident_leaf_bundles[resident] = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
     const size_t bundle_capacity = (runs / CLIMB_MACHINE_BUNDLE) + (size_t)leaves + 1u;
-    machine->slot_bundle_first[slot] = (unsigned int *)malloc(bundle_capacity * sizeof(unsigned int));
-    machine->slot_bundle_end[slot] = (unsigned int *)malloc(bundle_capacity * sizeof(unsigned int));
-    ok = ok && (machine->slot_leaf_bundles[slot] != NULL) && (machine->slot_bundle_first[slot] != NULL) &&
-         (machine->slot_bundle_end[slot] != NULL);
+    machine->resident_bundle_first[resident] = (unsigned int *)malloc(bundle_capacity * sizeof(unsigned int));
+    machine->resident_bundle_end[resident] = (unsigned int *)malloc(bundle_capacity * sizeof(unsigned int));
+    ok = ok && (machine->resident_leaf_bundles[resident] != NULL) &&
+         (machine->resident_bundle_first[resident] != NULL) && (machine->resident_bundle_end[resident] != NULL);
     unsigned int bundles = 0u;
     unsigned int leaf_first = 0u;
     for (unsigned int leaf = 0u; (ok != 0) && (leaf < leaves); leaf += 1u)
     {
         const unsigned int leaf_end = counts[leaf];
-        machine->slot_leaf_bundles[slot][leaf] = bundles;
+        machine->resident_leaf_bundles[resident][leaf] = bundles;
         for (unsigned int first = leaf_first; first < leaf_end; first += CLIMB_MACHINE_BUNDLE)
         {
-            machine->slot_bundle_first[slot][bundles] = first;
-            machine->slot_bundle_end[slot][bundles] =
+            machine->resident_bundle_first[resident][bundles] = first;
+            machine->resident_bundle_end[resident][bundles] =
                 ((leaf_end - first) < CLIMB_MACHINE_BUNDLE) ? leaf_end : (first + CLIMB_MACHINE_BUNDLE);
             bundles += 1u;
         }
@@ -182,8 +185,8 @@ static int machine_split_runs(ClimbMachine *machine, unsigned int slot, const un
     }
     if (ok != 0)
     {
-        machine->slot_leaf_bundles[slot][leaves] = bundles;
-        machine->slot_runs[slot] = (unsigned int)runs;
+        machine->resident_leaf_bundles[resident][leaves] = bundles;
+        machine->resident_runs[resident] = (unsigned int)runs;
     }
     return ok;
 }
@@ -208,31 +211,31 @@ extern "C" ClimbMachine *climb_machine_open(const ClimbMachineExtent *extent)
     geometry->words = (geometry->voxels + 63ull) / 64ull;
     machine->peak_capacity = extent->peak_capacity;
     machine->capacity = (extent->frames < 2u) ? 2u : extent->frames;
-    const size_t slots = (size_t)machine->capacity;
+    const size_t residents = (size_t)machine->capacity;
     int ok = 1;
     ok = ok && (cudaMalloc((void **)&machine->scratch_labels, 2u * (size_t)geometry->voxels * sizeof(unsigned int)) ==
                 cudaSuccess);
     machine->scratch_frame[0] = CLIMB_MACHINE_EMPTY;
     machine->scratch_frame[1] = CLIMB_MACHINE_EMPTY;
-    ok = ok && (cudaMalloc((void **)&machine->positive, slots * (size_t)geometry->words * sizeof(unsigned long long)) ==
-                cudaSuccess);
-    ok = ok && (cudaMalloc((void **)&machine->row_first, slots * (((size_t)extent->depth * extent->height) + 1u) *
+    ok = ok && (cudaMalloc((void **)&machine->positive,
+                           residents * (size_t)geometry->words * sizeof(unsigned long long)) == cudaSuccess);
+    ok = ok && (cudaMalloc((void **)&machine->row_first, residents * (((size_t)extent->depth * extent->height) + 1u) *
                                                              sizeof(unsigned int)) == cudaSuccess);
-    machine->slot_frame = (unsigned int *)malloc(slots * sizeof(unsigned int));
-    machine->slot_leaves = (unsigned int *)calloc(slots, sizeof(unsigned int));
-    machine->slot_runs = (unsigned int *)calloc(slots, sizeof(unsigned int));
-    machine->slot_leaf_bundles = (unsigned int **)calloc(slots, sizeof(unsigned int *));
-    machine->slot_bundle_first = (unsigned int **)calloc(slots, sizeof(unsigned int *));
-    machine->slot_bundle_end = (unsigned int **)calloc(slots, sizeof(unsigned int *));
-    machine->slot_contact_start = (unsigned int **)calloc(slots, sizeof(unsigned int *));
-    machine->slot_contacts = (unsigned int **)calloc(slots, sizeof(unsigned int *));
-    ok = ok && (machine->slot_frame != NULL) && (machine->slot_leaves != NULL) && (machine->slot_runs != NULL) &&
-         (machine->slot_leaf_bundles != NULL) && (machine->slot_bundle_first != NULL) &&
-         (machine->slot_bundle_end != NULL) && (machine->slot_contact_start != NULL) &&
-         (machine->slot_contacts != NULL);
-    for (size_t slot = 0u; (ok != 0) && (slot < slots); slot += 1u)
+    machine->resident_frame = (unsigned int *)malloc(residents * sizeof(unsigned int));
+    machine->resident_leaves = (unsigned int *)calloc(residents, sizeof(unsigned int));
+    machine->resident_runs = (unsigned int *)calloc(residents, sizeof(unsigned int));
+    machine->resident_leaf_bundles = (unsigned int **)calloc(residents, sizeof(unsigned int *));
+    machine->resident_bundle_first = (unsigned int **)calloc(residents, sizeof(unsigned int *));
+    machine->resident_bundle_end = (unsigned int **)calloc(residents, sizeof(unsigned int *));
+    machine->resident_contact_start = (unsigned int **)calloc(residents, sizeof(unsigned int *));
+    machine->resident_contacts = (unsigned int **)calloc(residents, sizeof(unsigned int *));
+    ok = ok && (machine->resident_frame != NULL) && (machine->resident_leaves != NULL) &&
+         (machine->resident_runs != NULL) && (machine->resident_leaf_bundles != NULL) &&
+         (machine->resident_bundle_first != NULL) && (machine->resident_bundle_end != NULL) &&
+         (machine->resident_contact_start != NULL) && (machine->resident_contacts != NULL);
+    for (size_t resident = 0u; (ok != 0) && (resident < residents); resident += 1u)
     {
-        machine->slot_frame[slot] = CLIMB_MACHINE_EMPTY;
+        machine->resident_frame[resident] = CLIMB_MACHINE_EMPTY;
     }
     const size_t rows = (size_t)extent->depth * extent->height;
     ok = ok && (cudaMalloc((void **)&machine->device_map, (size_t)geometry->voxels * sizeof(int)) == cudaSuccess);
@@ -266,27 +269,27 @@ extern "C" int climb_machine_store(ClimbMachine *machine, const ClimbMachineFram
     {
         return 0;
     }
-    unsigned int slot = machine_slot_of(machine, CLIMB_MACHINE_EMPTY);
+    unsigned int resident = machine_resident_of(machine, CLIMB_MACHINE_EMPTY);
     int ok = 1;
-    if (slot == CLIMB_MACHINE_EMPTY)
+    if (resident == CLIMB_MACHINE_EMPTY)
     {
         ok = climb_machine_run(machine);
-        for (unsigned int other_slot = 0u; (ok != 0) && (other_slot < machine->capacity); other_slot += 1u)
+        for (unsigned int other_resident = 0u; (ok != 0) && (other_resident < machine->capacity); other_resident += 1u)
         {
-            if (other_slot != machine->newest)
+            if (other_resident != machine->newest)
             {
-                machine->slot_frame[other_slot] = CLIMB_MACHINE_EMPTY;
+                machine->resident_frame[other_resident] = CLIMB_MACHINE_EMPTY;
             }
         }
-        slot = machine_slot_of(machine, CLIMB_MACHINE_EMPTY);
-        ok = ok && (slot != CLIMB_MACHINE_EMPTY);
+        resident = machine_resident_of(machine, CLIMB_MACHINE_EMPTY);
+        ok = ok && (resident != CLIMB_MACHINE_EMPTY);
     }
     if (ok == 0)
     {
         return 0;
     }
     const MachineGeometry *const geometry = &machine->geometry;
-    const size_t at = (size_t)slot;
+    const size_t at = (size_t)resident;
     const unsigned int half = machine->scratch_next;
     unsigned int *const labels = &machine->scratch_labels[(size_t)half * (size_t)geometry->voxels];
     machine->scratch_frame[half] = CLIMB_MACHINE_EMPTY;
@@ -297,33 +300,33 @@ extern "C" int climb_machine_store(ClimbMachine *machine, const ClimbMachineFram
     ok =
         ok && (cudaMemcpy(&machine->positive[at * (size_t)geometry->words], frame->positive,
                           (size_t)geometry->words * sizeof(unsigned long long), cudaMemcpyHostToDevice) == cudaSuccess);
-    free(machine->slot_contact_start[slot]);
-    free(machine->slot_contacts[slot]);
-    machine->slot_contact_start[slot] = NULL;
-    machine->slot_contacts[slot] = NULL;
-    machine->slot_leaves[slot] = frame->leaf_count;
-    machine->slot_runs[slot] = 0u;
-    free(machine->slot_leaf_bundles[slot]);
-    machine->slot_leaf_bundles[slot] = NULL;
+    free(machine->resident_contact_start[resident]);
+    free(machine->resident_contacts[resident]);
+    machine->resident_contact_start[resident] = NULL;
+    machine->resident_contacts[resident] = NULL;
+    machine->resident_leaves[resident] = frame->leaf_count;
+    machine->resident_runs[resident] = 0u;
+    free(machine->resident_leaf_bundles[resident]);
+    machine->resident_leaf_bundles[resident] = NULL;
     if ((ok != 0) && (frame->peaks != NULL))
     {
-        ok = machine_split_runs(machine, slot, labels, frame);
+        ok = machine_split_runs(machine, resident, labels, frame);
     }
     if ((ok != 0) && (frame->contact_start != NULL) && (frame->contacts != NULL))
     {
         const size_t contacts = (size_t)frame->contact_start[frame->leaf_count];
-        machine->slot_contact_start[slot] =
+        machine->resident_contact_start[resident] =
             (unsigned int *)malloc(((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
-        machine->slot_contacts[slot] = (unsigned int *)malloc((contacts + 1u) * sizeof(unsigned int));
-        ok = (machine->slot_contact_start[slot] != NULL) && (machine->slot_contacts[slot] != NULL);
+        machine->resident_contacts[resident] = (unsigned int *)malloc((contacts + 1u) * sizeof(unsigned int));
+        ok = (machine->resident_contact_start[resident] != NULL) && (machine->resident_contacts[resident] != NULL);
         if (ok != 0)
         {
-            memcpy(machine->slot_contact_start[slot], frame->contact_start,
+            memcpy(machine->resident_contact_start[resident], frame->contact_start,
                    ((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
-            memcpy(machine->slot_contacts[slot], frame->contacts, contacts * sizeof(unsigned int));
+            memcpy(machine->resident_contacts[resident], frame->contacts, contacts * sizeof(unsigned int));
         }
     }
-    machine->slot_frame[slot] = (ok != 0) ? frame->frame : CLIMB_MACHINE_EMPTY;
-    machine->newest = (ok != 0) ? slot : machine->newest;
+    machine->resident_frame[resident] = (ok != 0) ? frame->frame : CLIMB_MACHINE_EMPTY;
+    machine->newest = (ok != 0) ? resident : machine->newest;
     return ok;
 }

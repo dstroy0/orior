@@ -37,21 +37,21 @@ int main(int count, char **arguments)
                                            (pi_tower_compare(digits, pi_tower_unsigned(PI_TOWER_SEGMENT_MAX)) <= 0));
         if ((placed != 0) && (sized != 0))
         {
-            // at most PI_TOWER_SEGMENT_MAX. An unsigned int holds it
+            // at most PI_TOWER_SEGMENT_MAX. An unsigned int stores it
             pi_tower_segment_request(&results, count, arguments, position, (unsigned int)pi_tower_word(digits));
             return sim_close(&results, "pi tower");
         }
     }
     if ((count > 1) && (single == 0) && (ranged == 0))
     {
-        scriptura_text(&results.line,
+        mmgr_line_put(&results.line,
                        "  usage: pi_tower [n] or pi_tower [from] [to], resolutions 2^1 to 2^1048576 cells; pi_tower "
                        "n\n  past 2^20, n whole or base^exponent, reads the depth-n turn on the engine alone; pi_tower "
                        "segment d [digits]\n  reads that many hex digits (1 to ");
-        scriptura_decimal(&results.line, PI_TOWER_SEGMENT_MAX, 1u);
-        scriptura_text(&results.line, ", ");
-        scriptura_decimal(&results.line, PI_TOWER_SEGMENT_DIGITS, 1u);
-        scriptura_text(&results.line, " if none) from position d + 1 on the engine\n");
+        mmgr_line_decimal(&results.line, PI_TOWER_SEGMENT_MAX, 1u);
+        mmgr_line_put(&results.line, ", ");
+        mmgr_line_decimal(&results.line, PI_TOWER_SEGMENT_DIGITS, 1u);
+        mmgr_line_put(&results.line, " if none) from position d + 1 on the engine\n");
         sim_check(&results, 0, "the request names its resolutions");
         return sim_close(&results, "pi tower");
     }
@@ -59,15 +59,15 @@ int main(int count, char **arguments)
     unsigned int precision = (((3u * to_bits) + 64u + 63u) / 64u) * 64u;
     precision = (precision < PI_TOWER_BITS) ? PI_TOWER_BITS : precision;
     const unsigned long long needed = (3ull * (precision + PI_TOWER_GUARD)) + 64ull;
-    scriptura_text(&results.line, "  resolutions 2^");
-    scriptura_decimal(&results.line, from_bits, 1u);
-    scriptura_text(&results.line, " to 2^");
-    scriptura_decimal(&results.line, to_bits, 1u);
-    scriptura_text(&results.line, " cells, the turn held to ");
-    scriptura_decimal(&results.line, precision, 1u);
-    scriptura_text(&results.line, " bits, in an exact width of ");
-    scriptura_decimal(&results.line, (unsigned long long)ORIOR_EXACT_BITS, 1u);
-    scriptura_text(&results.line, " bits\n");
+    mmgr_line_put(&results.line, "  resolutions 2^");
+    mmgr_line_decimal(&results.line, from_bits, 1u);
+    mmgr_line_put(&results.line, " to 2^");
+    mmgr_line_decimal(&results.line, to_bits, 1u);
+    mmgr_line_put(&results.line, " cells, the turn computed to ");
+    mmgr_line_decimal(&results.line, precision, 1u);
+    mmgr_line_put(&results.line, " bits, in an exact width of ");
+    mmgr_line_decimal(&results.line, (unsigned long long)ORIOR_EXACT_BITS, 1u);
+    mmgr_line_put(&results.line, " bits\n");
     if (needed > (unsigned long long)ORIOR_EXACT_BITS)
     {
         unsigned long long limbs = 1ull;
@@ -75,12 +75,12 @@ int main(int count, char **arguments)
         {
             limbs *= 2ull;
         }
-        scriptura_text(&results.line, "  the turn needs an exact width of ");
-        scriptura_decimal(&results.line, needed, 1u);
-        scriptura_text(&results.line, " bits: run with SIM_EXACT_LIMBS=");
-        scriptura_decimal(&results.line, limbs, 1u);
-        scriptura_character(&results.line, '\n');
-        sim_check(&results, 0, "the exact width holds the turn the resolutions ask for");
+        mmgr_line_put(&results.line, "  the turn needs an exact width of ");
+        mmgr_line_decimal(&results.line, needed, 1u);
+        mmgr_line_put(&results.line, " bits: run with SIM_EXACT_LIMBS=");
+        mmgr_line_decimal(&results.line, limbs, 1u);
+        mmgr_line_ch(&results.line, '\n');
+        sim_check(&results, 0, "the exact width fits the turn the resolutions request");
         return sim_close(&results, "pi tower");
     }
     PiTowerTurn turn;
@@ -128,7 +128,7 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
         (from_bits > PI_TOWER_WALK_MAX)
             ? 0u
             : (((to_bits < PI_TOWER_WALK_MAX) ? to_bits : PI_TOWER_WALK_MAX) - from_bits + 1u);
-    scriptura_text(&results->line, "  2^k cells: the step that fills the boundary, its ratio to the cells, the last "
+    mmgr_line_put(&results->line, "  2^k cells: the step that fills the boundary, its ratio to the cells, the last "
                                    "cell filled as a place on the circle, and the floor it fills on\n");
     for (unsigned int bits = from_bits; bits <= to_bits; bits += 1u)
     {
@@ -192,51 +192,51 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
         {
             level += 1u;
         }
-        scriptura_text(&results->line, "    2^");
-        scriptura_decimal(&results->line, bits, 1u);
-        scriptura_text(&results->line, "  step ");
+        mmgr_line_put(&results->line, "    2^");
+        mmgr_line_decimal(&results->line, bits, 1u);
+        mmgr_line_put(&results->line, "  step ");
         pi_tower_print_exponent(&results->line, fill, one);
-        scriptura_text(&results->line, " = ");
+        mmgr_line_put(&results->line, " = ");
         pi_tower_print_decimal(&results->line, fill);
-        scriptura_text(&results->line, "  x");
+        mmgr_line_put(&results->line, "  x");
         sim_ratio_print(&results->line, &fill, &cells, 4u);
-        scriptura_text(&results->line, "  last cell at ");
+        mmgr_line_put(&results->line, "  last cell at ");
         sim_ratio_print(&results->line, &last, &cells, 12u);
-        scriptura_text(&results->line, "  floor ");
-        scriptura_decimal(&results->line, level, 1u);
+        mmgr_line_put(&results->line, "  floor ");
+        mmgr_line_decimal(&results->line, level, 1u);
         if ((level + 1u) < floors.size())
         {
-            scriptura_text(&results->line, " (a ");
+            mmgr_line_put(&results->line, " (a ");
             pi_tower_print_decimal(&results->line, floors[level + 1u]);
-            scriptura_character(&results->line, ')');
+            mmgr_line_ch(&results->line, ')');
         }
         if (homed != 0)
         {
-            scriptura_text(&results->line, "  cell 0 again at step ");
+            mmgr_line_put(&results->line, "  cell 0 again at step ");
             pi_tower_print_decimal(&results->line, home);
-            scriptura_text(&results->line, ", ");
+            mmgr_line_put(&results->line, ", ");
             pi_tower_print_decimal(&results->line, pi_tower_difference(home, fill));
-            scriptura_text(&results->line, " after the fill");
+            mmgr_line_put(&results->line, " after the fill");
         }
         if (closed != 0)
         {
             const PiWide second = pi_tower_difference(closing, home);
             const int order = pi_tower_compare(second, fill);
-            scriptura_text(&results->line, "; the last cell again at step ");
+            mmgr_line_put(&results->line, "; the last cell again at step ");
             pi_tower_print_decimal(&results->line, closing);
-            scriptura_text(&results->line, ", ");
+            mmgr_line_put(&results->line, ", ");
             pi_tower_print_decimal(&results->line, second);
-            scriptura_text(&results->line, " after cell 0: ");
+            mmgr_line_put(&results->line, " after cell 0: ");
             if (order == 0)
             {
-                scriptura_text(&results->line, "the same period");
+                mmgr_line_put(&results->line, "the same period");
                 same_period += 1u;
             }
             else
             {
                 pi_tower_print_decimal(&results->line, (order < 0) ? pi_tower_difference(fill, second)
                                                                    : pi_tower_difference(second, fill));
-                scriptura_text(&results->line, (order < 0) ? " shorter" : " longer");
+                mmgr_line_put(&results->line, (order < 0) ? " shorter" : " longer");
             }
         }
         if (bits <= PI_TOWER_WALK_MAX)
@@ -252,31 +252,31 @@ static void pi_tower_fill(SimResults *results, const PiTowerTurn &turn, const st
                      (closed != 0) && (walked_home == pi_tower_word(home)) &&
                      (walked_closing == pi_tower_word(closing));
             walks += 1u;
-            scriptura_text(&results->line, "  walked ");
-            scriptura_decimal(&results->line, walked_fill, 1u);
-            scriptura_text(&results->line, ", longest stall ");
-            scriptura_decimal(&results->line, stall, 1u);
-            scriptura_text(&results->line, ", etched again by ");
-            scriptura_decimal(&results->line, again, 1u);
+            mmgr_line_put(&results->line, "  walked ");
+            mmgr_line_decimal(&results->line, walked_fill, 1u);
+            mmgr_line_put(&results->line, ", longest stall ");
+            mmgr_line_decimal(&results->line, stall, 1u);
+            mmgr_line_put(&results->line, ", etched again by ");
+            mmgr_line_decimal(&results->line, again, 1u);
         }
-        scriptura_character(&results->line, '\n');
+        mmgr_line_ch(&results->line, '\n');
         sim_flush(results);
     }
     sim_check(results, certain,
               "the integer turn lands in the real turn's cell on every step searched, at every resolution");
     sim_check(results, walked && (walks == walks_expected),
               "the step, the last cell and cell 0's next etch read from the floors equal a walk of every step, at "
-              "every resolution asked for up to 2^24 cells");
+              "every resolution requested up to 2^24 cells");
     sim_check(results, found_home,
               "at every resolution cell 0 is etched again after the fill, then the fill's last cell, at steps the "
               "floors name");
     sim_check(results, g_pi_tower_records_short == 0, "every count searched stands within the records' range");
-    scriptura_text(&results->line,
+    mmgr_line_put(&results->line,
                    "  the second run, cell 0 to the first run's last cell, has the first run's period at ");
-    scriptura_decimal(&results->line, same_period, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, (to_bits - from_bits) + 1u, 1u);
-    scriptura_text(&results->line, " resolutions\n");
+    mmgr_line_decimal(&results->line, same_period, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, (to_bits - from_bits) + 1u, 1u);
+    mmgr_line_put(&results->line, " resolutions\n");
     sim_flush(results);
     sim_check(results, touched, "at every resolution the last cell's first touch is the step that fills the boundary");
     sim_check(results, g_pi_tower_error == 0, "no exact operation outgrew the width");

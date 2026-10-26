@@ -11,7 +11,7 @@ static char s_out[1u << 18u];
 // the file `name` of the folder `dir` written with `text`, in its own `gradle` folder where it is one
 static void gradle_file(const char *dir, const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(dir, "gradle", path);
     (void)query_folder_made(path);
     cli_full(dir, name, path);
@@ -21,7 +21,7 @@ static void gradle_file(const char *dir, const char *name, const char *text)
 // the findings of the script at `path` of the tree at `root`, `text` its text: the array's node in the shared tree
 static unsigned int gradle_checked(const char *root, const char *path, const char *text, const CliJson **json)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_build_check(root, path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &out);
     unsigned int found = CLI_JSON_NONE;
     *json = cli_check_parsed(s_out, out.at, &found);
@@ -38,8 +38,8 @@ static void gradle_script(void)
         "runtimeOnly(\"g:a:2.0-SNAPSHOT\")\n"
         "    implementation(libs.versions.groovy.get())\n    integrationTestImplementation(\"x:y:1\")\n"
         "    constraints {\n        implementation(\"c:d:1\")\n    }\n}\n// } a brace in a comment\nval s = \"{\"\n";
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("gradle_check", root);
     gradle_file(root, "settings.gradle.kts", "rootProject.name = \"x\"\n");
     gradle_file(
@@ -88,8 +88,8 @@ static void gradle_braces(void)
 // a script completes by its block and its catalog
 static void gradle_completes(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("gradle_complete", root);
     gradle_file(root, "gradle/libs.versions.toml",
                 "[versions]\ngroovy = \"3\"\n[libraries]\ngroovy-core = \"g:groovy:3\"\ngroovy-json = \"g:json:3\"\n"
@@ -116,13 +116,14 @@ static void gradle_completes(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     gradle_script();
     gradle_braces();
     gradle_completes();
-    cli_check((g_cli_gradle_cells.holds == 0ull) && (g_cli_gradle_cells.hw != 0ull),
-              "every script read is given back, the most the scripts held marked");
-    cli_check(g_cli_versions_cells.holds == 0ull, "and every catalog's aliases");
-    cli_check((g_cli_build_cells.holds == 0ull) && (g_cli_build_cells.hw != 0ull),
+    cli_check((g_cli_gradle_cells.in_use == 0ull) && (g_cli_gradle_cells.hw != 0ull),
+              "every script read is given back, the most the scripts used marked");
+    cli_check(g_cli_versions_cells.in_use == 0ull, "and every catalog's aliases");
+    cli_check((g_cli_build_cells.in_use == 0ull) && (g_cli_build_cells.hw != 0ull),
               "and the findings and the lines indexed, once the findings are written");
     return cli_checked();
 }

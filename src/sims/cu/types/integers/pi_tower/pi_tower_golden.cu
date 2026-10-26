@@ -49,7 +49,7 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
         fibonacci_before = fibonacci;
         fibonacci = next_fibonacci;
     }
-    scriptura_text(&results->line, "  the golden helix: floor j (a_(j+1)), the residue's shrink |delta_j| / "
+    mmgr_line_put(&results->line, "  the golden helix: floor j (a_(j+1)), the residue's shrink |delta_j| / "
                                    "|delta_(j-1)|, against 1/phi = 0.6180\n");
     int band_ok = 1;
     int decided = 1;
@@ -81,13 +81,13 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
         const int one_floor = pi_tower_compare(floors[at + 1u], pi_tower_unsigned(1ull)) == 0;
         band_ok = band_ok && (wide == one_floor);
         banded += (wide != 0) ? 1u : 0u;
-        scriptura_text(&results->line, "    ");
-        scriptura_decimal(&results->line, at, 2u);
-        scriptura_text(&results->line, " (");
+        mmgr_line_put(&results->line, "    ");
+        mmgr_line_decimal(&results->line, at, 2u);
+        mmgr_line_put(&results->line, " (");
         pi_tower_print_decimal(&results->line, floors[at + 1u]);
-        scriptura_text(&results->line, ")  ");
+        mmgr_line_put(&results->line, ")  ");
         sim_ratio_print(&results->line, &low[at], &high[at - 1u], 4u);
-        scriptura_text(&results->line, (under != 0) ? "  below the golden shrink\n" : "  above the golden shrink\n");
+        mmgr_line_put(&results->line, (under != 0) ? "  below the golden shrink\n" : "  above the golden shrink\n");
         sim_flush(results);
     }
     // the mean growth a floor, q_J^(1 / J), to 6 places: the largest r with r^J <= q_J 10^(6 J)
@@ -119,25 +119,25 @@ void pi_tower_golden(SimResults *results, const PiTowerTurn &turn, const std::ve
     // phi = (1 + sqrt 5) / 2 to 6 places: (10^6 + floor(sqrt(5 10^12))) / 2, the root's floor taken exactly
     const unsigned long long golden =
         (1000000ull + pi_tower_word(pi_tower_root(pi_tower_unsigned(5000000000000ull)))) / 2ull;
-    scriptura_text(&results->line, "    ");
-    scriptura_decimal(&results->line, below, 1u);
-    scriptura_text(&results->line, " floors shrink below the golden 1/phi and ");
-    scriptura_decimal(&results->line, above, 1u);
-    scriptura_text(&results->line, " above; ");
-    scriptura_decimal(&results->line, banded, 1u);
-    scriptura_text(&results->line, " shrink between 1/2 and 1, the floors of 1\n    growth a floor, q_");
-    scriptura_decimal(&results->line, last, 1u);
-    scriptura_text(&results->line, "^(1/");
-    scriptura_decimal(&results->line, last, 1u);
-    scriptura_text(&results->line, ") = ");
-    scriptura_decimal(&results->line, root_low / 1000000ull, 1u);
-    scriptura_character(&results->line, '.');
-    scriptura_decimal(&results->line, root_low % 1000000ull, 6u);
-    scriptura_text(&results->line, ", against the golden phi = ");
-    scriptura_decimal(&results->line, golden / 1000000ull, 1u);
-    scriptura_character(&results->line, '.');
-    scriptura_decimal(&results->line, golden % 1000000ull, 6u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, "    ");
+    mmgr_line_decimal(&results->line, below, 1u);
+    mmgr_line_put(&results->line, " floors shrink below the golden 1/phi and ");
+    mmgr_line_decimal(&results->line, above, 1u);
+    mmgr_line_put(&results->line, " above; ");
+    mmgr_line_decimal(&results->line, banded, 1u);
+    mmgr_line_put(&results->line, " shrink between 1/2 and 1, the floors of 1\n    growth a floor, q_");
+    mmgr_line_decimal(&results->line, last, 1u);
+    mmgr_line_put(&results->line, "^(1/");
+    mmgr_line_decimal(&results->line, last, 1u);
+    mmgr_line_put(&results->line, ") = ");
+    mmgr_line_decimal(&results->line, root_low / 1000000ull, 1u);
+    mmgr_line_ch(&results->line, '.');
+    mmgr_line_decimal(&results->line, root_low % 1000000ull, 6u);
+    mmgr_line_put(&results->line, ", against the golden phi = ");
+    mmgr_line_decimal(&results->line, golden / 1000000ull, 1u);
+    mmgr_line_ch(&results->line, '.');
+    mmgr_line_decimal(&results->line, golden % 1000000ull, 6u);
+    mmgr_line_ch(&results->line, '\n');
     sim_check(results, alternates,
               "the residues flip sign on every floor, a half turn: from above on even floors, from below on odd");
     sim_check(results, above_golden_floor && under_next,
@@ -197,7 +197,7 @@ unsigned int pi_tower_field(std::vector<EngineRecordStep> *steps, unsigned int f
     return step;
 }
 
-// a register holding a non-negative integer: one constant below 2^64, and past it Horner's rule over the 32-bit limbs
+// a register storing a non-negative integer: one constant below 2^64, and past it Horner's rule over the 32-bit limbs
 // from the top, a product by 2^32 and a sum a limb
 unsigned int pi_tower_constant(std::vector<EngineRecordStep> *steps, const PiWide &value)
 {

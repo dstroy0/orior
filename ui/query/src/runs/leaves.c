@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// leaves.c: what a run leaves held against what the tree holds, shown and asked before the writer writes it in place:
-// a text file apart a line diff, a record file its byte counts; `y`, `n`, `all` or `none` at the terminal, or
-// `--leave` where no one is there. A refused file is handed back as the tree holds it with the writer's `file` word,
+// leaves.c: what a run leaves compared with what the tree has, shown and confirmed before the writer writes it in
+// place: a text file apart a line diff, a record file its byte counts; `y`, `n`, `all` or `none` at the terminal, or
+// `--leave` where no one is there. A refused file is handed back as the tree has it with the writer's `file` word,
 // so that the one writer still writes every current file and the tree's copy comes out unchanged. Nothing here
 // touches the disk
 #include "../../../cli/src/text/pieces.h"
@@ -12,16 +12,16 @@
 // the bytes of each piece what is shown of a file is written in
 #define QUERY_SHOWN_PIECE 4096u
 
-static QueryAnswer query_terminal_asked(void *context, const char *path)
+static QueryAnswer query_terminal_prompt(void *context, const char *path)
 {
     (void)context;
     for (;;)
     {
-        char question[QUERY_PATH_LONGEST + 64u];
-        CliLine line = {question, sizeof(question), 0ull};
-        cli_line_text(&line, "leave ");
-        cli_line_text(&line, path);
-        cli_line_text(&line, " as the run leaves it? [y/n/all/none] ");
+        char question[QUERY_PATH_MAX_LEN + 64u];
+        VerbaLinea line = {question, sizeof(question), 0ull};
+        mmgr_line_put(&line, "leave ");
+        mmgr_line_put(&line, path);
+        mmgr_line_put(&line, " as the run leaves it? [y/n/all/none] ");
         query_terminal_written(1, question, line.at);
         char answer[64];
         const unsigned long long read = query_terminal_line_read(answer, sizeof(answer));
@@ -29,7 +29,7 @@ static QueryAnswer query_terminal_asked(void *context, const char *path)
         {
             return QUERY_ANSWER_NONE;
         }
-        // an answer longer than any of the four is no answer, and the question is asked again
+        // an answer longer than any of the four is no answer, and the question is repeated again
         if (read >= sizeof(answer))
         {
             continue;
@@ -57,10 +57,10 @@ static QueryAnswer query_terminal_asked(void *context, const char *path)
     }
 }
 
-QueryAsker query_terminal(void)
+QueryPrompter query_terminal(void)
 {
-    const QueryAsker asker = {query_terminal_asked, NULL};
-    return asker;
+    const QueryPrompter prompter = {query_terminal_prompt, NULL};
+    return prompter;
 }
 
 // the lines of `size` bytes at `bytes` cut at their ends into `line` and `length`, or counted where `line` is NULL:
@@ -100,7 +100,7 @@ static int query_line_same(const char *a, unsigned int a_length, const char *b, 
 #define QUERY_DIFF_EDITS 2048u
 
 // A diff of two texts' lines, each part in a cell of the texts' counts given back as the diff is: the lines of each
-// side and their lengths; the shortest edit script's reach, Myers' way, the furthest x on each diagonal k held at
+// side and their lengths; the shortest edit script's reach, Myers' way, the furthest x on each diagonal k recorded at
 // k + `reach_middle`, and its trace, the reach on diagonals -d to d before each step d, step d's band from d * d; and
 // each line of the diff, 0 the same, 1 added by the run, 2 removed by it, and the line, in order
 typedef struct
@@ -121,27 +121,27 @@ typedef struct
 
 #define QUERY_REACH(diff_, k_) (diff_)->reach[(k_) + (diff_)->reach_middle]
 
-// the reach on diagonal `k` before step `d`, as the band of that step holds it
+// the reach on diagonal `k` before step `d`, as the band of that step records it
 #define QUERY_TRACED(diff_, d_, k_) (diff_)->band[((d_) * (d_)) + ((k_) + (d_))]
 
 // `count` items of `size` bytes each in a cell of their own, NULL where none are or the cells cannot meet them
 static void *query_diff_part(unsigned long long count, size_t size, const char *what)
 {
-    return (count > 0ull) ? cli_cell_taken_by(&g_query_cells, count * size, what) : NULL;
+    return (count > 0ull) ? g_cli_cells->persistent_buf_alloc(count * size, &g_query_cells) : NULL;
 }
 
 // the diff's parts given back
 static void query_diff_given(QueryDiff *diff)
 {
-    cli_cell_given_by(&g_query_cells, (void *)diff->before);
-    cli_cell_given_by(&g_query_cells, diff->before_length);
-    cli_cell_given_by(&g_query_cells, (void *)diff->after);
-    cli_cell_given_by(&g_query_cells, diff->after_length);
-    cli_cell_given_by(&g_query_cells, diff->reach);
-    cli_cell_given_by(&g_query_cells, diff->band);
-    cli_cell_given_by(&g_query_cells, diff->change);
-    cli_cell_given_by(&g_query_cells, (void *)diff->change_line);
-    cli_cell_given_by(&g_query_cells, diff->change_length);
+    g_cli_cells->persistent_buf_release((void *)diff->before, &g_query_cells);
+    g_cli_cells->persistent_buf_release(diff->before_length, &g_query_cells);
+    g_cli_cells->persistent_buf_release((void *)diff->after, &g_query_cells);
+    g_cli_cells->persistent_buf_release(diff->after_length, &g_query_cells);
+    g_cli_cells->persistent_buf_release(diff->reach, &g_query_cells);
+    g_cli_cells->persistent_buf_release(diff->band, &g_query_cells);
+    g_cli_cells->persistent_buf_release(diff->change, &g_query_cells);
+    g_cli_cells->persistent_buf_release((void *)diff->change_line, &g_query_cells);
+    g_cli_cells->persistent_buf_release(diff->change_length, &g_query_cells);
     memor.set(&(MemoriaCfg){.dst = diff, .val = 0, .bytes = sizeof(*diff)});
 }
 
@@ -153,7 +153,7 @@ static int query_diff_taken(QueryDiff *diff, const unsigned char *before, unsign
     memor.set(&(MemoriaCfg){.dst = diff, .val = 0, .bytes = sizeof(*diff)});
     diff->n = query_lines_cut(before, before_size, NULL, NULL);
     diff->m = query_lines_cut(after, after_size, NULL, NULL);
-    // the counts of two texts' lines, which an int holds
+    // the counts of two texts' lines, which an int represents
     diff->reach_middle = (int)(diff->n + diff->m) + 1;
     diff->before = query_diff_part(diff->n, sizeof(char *), "a diff's lines before");
     diff->before_length = query_diff_part(diff->n, sizeof(unsigned int), "a diff's lines before");
@@ -172,10 +172,10 @@ static int query_diff_taken(QueryDiff *diff, const unsigned char *before, unsign
 }
 
 // the shortest edit script of the diff's lines, Myers' way, each step's furthest reach traced into the band where
-// the diff holds one: its steps, or -1 where it takes more than QUERY_DIFF_EDITS edits
+// the diff has one: its steps, or -1 where it takes more than QUERY_DIFF_EDITS edits
 static int query_diff_steps(QueryDiff *diff)
 {
-    // the counts of two texts' lines, which an int holds
+    // the counts of two texts' lines, which an int represents
     const int lines_before = (int)diff->n;
     const int lines_after = (int)diff->m;
     const int most = lines_before + lines_after;
@@ -278,26 +278,26 @@ static unsigned int query_diff(QueryDiff *diff)
 
 // a run of `count` unchanged lines of the diff from `first` written, each on a line of its own begun by its break:
 // more than six folded to the first three, a count, and the last three
-static void query_same_flushed(const QueryDiff *diff, unsigned int first, unsigned int count, CliLine *shown)
+static void query_same_flushed(const QueryDiff *diff, unsigned int first, unsigned int count, VerbaLinea *shown)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if ((count > 6u) && (at == 3u))
         {
-            cli_line_text(shown, "\n ... ");
-            cli_line_decimal(shown, (unsigned long long)count - 6ull, 0u);
-            cli_line_text(shown, " lines the same ...");
+            mmgr_line_put(shown, "\n ... ");
+            mmgr_line_decimal(shown, (unsigned long long)count - 6ull, 0u);
+            mmgr_line_put(shown, " lines the same ...");
             at = count - 4u;
             continue;
         }
-        cli_line_text(shown, "\n ");
-        cli_line_counted(shown, diff->change_line[first + at], diff->change_length[first + at]);
+        mmgr_line_put(shown, "\n ");
+        mmgr_line_put_n(shown, diff->change_line[first + at], diff->change_length[first + at]);
     }
 }
 
 // the diff's changes as lines, each begun by its break, `-`, `+` and ` ` led, a run of more than six unchanged lines
 // folded
-static void query_rendered(const QueryDiff *diff, unsigned int changes, CliLine *shown)
+static void query_rendered(const QueryDiff *diff, unsigned int changes, VerbaLinea *shown)
 {
     unsigned int same_first = 0u;
     unsigned int same = 0u;
@@ -311,15 +311,15 @@ static void query_rendered(const QueryDiff *diff, unsigned int changes, CliLine 
         }
         query_same_flushed(diff, same_first, same, shown);
         same = 0u;
-        cli_line_character(shown, '\n');
-        cli_line_character(shown, (diff->change[at] == 1u) ? '+' : '-');
-        cli_line_counted(shown, diff->change_line[at], diff->change_length[at]);
+        mmgr_line_ch(shown, '\n');
+        mmgr_line_ch(shown, (diff->change[at] == 1u) ? '+' : '-');
+        mmgr_line_put_n(shown, diff->change_line[at], diff->change_length[at]);
     }
     query_same_flushed(diff, same_first, same, shown);
 }
 
 void query_leaf_shown(const char *path, const unsigned char *tree, unsigned long long tree_size,
-                      const unsigned char *held, unsigned long long held_size, CliLine *shown)
+                      const unsigned char *stored, unsigned long long stored_size, VerbaLinea *shown)
 {
     static const char *const s_text[] = {"khw", "krs", "klq", "klm", "md", "tsv", "txt", "h", "gsm", NULL};
     const char *name = path;
@@ -338,34 +338,35 @@ void query_leaf_shown(const char *path, const unsigned char *tree, unsigned long
     if (is_text)
     {
         QueryDiff diff;
-        const int taken = query_diff_taken(&diff, tree, tree_size, held, held_size);
+        const int taken = query_diff_taken(&diff, tree, tree_size, stored, stored_size);
         const unsigned int changes = taken ? query_diff(&diff) : 0u;
         if (taken && ((changes != 0u) || ((diff.n == 0u) && (diff.m == 0u))))
         {
-            cli_line_text(shown, name);
-            cli_line_character(shown, ':');
+            mmgr_line_put(shown, name);
+            mmgr_line_ch(shown, ':');
             query_rendered(&diff, changes, shown);
             query_diff_given(&diff);
             return;
         }
         query_diff_given(&diff);
     }
-    cli_line_text(shown, name);
-    if (held_size > tree_size)
+    mmgr_line_put(shown, name);
+    if (stored_size > tree_size)
     {
-        cli_line_text(shown, " grew by ");
-        cli_line_decimal(shown, held_size - tree_size, 0u);
-        cli_line_text(shown, " bytes");
+        mmgr_line_put(shown, " grew by ");
+        mmgr_line_decimal(shown, stored_size - tree_size, 0u);
+        mmgr_line_put(shown, " bytes");
         return;
     }
-    cli_line_text(shown, ": ");
-    cli_line_decimal(shown, tree_size, 0u);
-    cli_line_text(shown, " bytes in the tree, ");
-    cli_line_decimal(shown, held_size, 0u);
-    cli_line_text(shown, " as the run leaves it");
+    mmgr_line_put(shown, ": ");
+    mmgr_line_decimal(shown, tree_size, 0u);
+    mmgr_line_put(shown, " bytes in the tree, ");
+    mmgr_line_decimal(shown, stored_size, 0u);
+    mmgr_line_put(shown, " as the run leaves it");
 }
 
-int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryAsker asker, QueryContext *context, CliLine *said)
+int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryPrompter prompter, QueryContext *context,
+                         VerbaLinea *err_msg)
 {
     QueryLeave standing = leave;
     const unsigned int reads = run->read.count;
@@ -380,42 +381,42 @@ int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryAsker asker
             const char *const other = (before < reads) ? run->read.path[before] : run->left.path[before - reads];
             named_before = cellul.eq(&(CatenaFinitaCfg){.src = other, .other = path, .cap = CLI_CELLS_POOL});
         }
-        const unsigned char *held = NULL;
-        unsigned long long held_size = 0ull;
-        if (named_before || !query_writer_current(&run->writer, path, &held, &held_size))
+        const unsigned char *stored = NULL;
+        unsigned long long stored_size = 0ull;
+        if (named_before || !query_writer_current(&run->writer, path, &stored, &stored_size))
         {
             continue;
         }
         unsigned long long tree_size = 0ull;
         const unsigned char *tree = qry_member_file_mapped(path, &tree_size);
-        const int same = (tree_size == held_size) &&
+        const int same = (tree_size == stored_size) &&
                          ((tree_size == 0ull) ||
-                          (memor.cmp(&(MemoriaCfg){.src = tree, .other = held, .bytes = (size_t)held_size}) == 0));
+                          (memor.cmp(&(MemoriaCfg){.src = tree, .other = stored, .bytes = (size_t)stored_size}) == 0));
         if (!same)
         {
             // what is shown of the file written through pieces into a cell of its size
             char piece[QUERY_SHOWN_PIECE];
             CliPieces pieces;
-            CliLine shown;
+            VerbaLinea shown;
             cli_pieces_begun(&pieces, &shown, piece, sizeof(piece));
-            query_leaf_shown(path, (tree != NULL) ? tree : (const unsigned char *)"", tree_size, held, held_size,
+            query_leaf_shown(path, (tree != NULL) ? tree : (const unsigned char *)"", tree_size, stored, stored_size,
                              &shown);
             unsigned long long shown_size = 0ull;
             char *const text = cli_pieces_joined(&pieces, &shown, "what is shown of a file left", &shown_size);
             if (text != NULL)
             {
-                query_said(context, text);
+                query_print(context, text);
             }
-            cli_cell_given(text);
+            g_cli_cells->persistent_buf_release(text, NULL);
             const QueryAnswer answer = (standing == QUERY_LEAVE_ALL)    ? QUERY_ANSWER_YES
                                        : (standing == QUERY_LEAVE_NONE) ? QUERY_ANSWER_NO
-                                                                        : asker.asked(asker.context, path);
+                                                                        : prompter.prompt(prompter.context, path);
             standing = (answer == QUERY_ANSWER_ALL) ? QUERY_LEAVE_ALL : standing;
             standing = (answer == QUERY_ANSWER_NONE) ? QUERY_LEAVE_NONE : standing;
             if ((answer == QUERY_ANSWER_NO) || (answer == QUERY_ANSWER_NONE))
             {
                 if (!query_writer_file(&run->writer, path, (tree != NULL) ? tree : (const unsigned char *)"", tree_size,
-                                       said))
+                                       err_msg))
                 {
                     if (tree != NULL)
                     {
@@ -423,14 +424,14 @@ int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryAsker asker
                     }
                     return 0;
                 }
-                char kept_text[QUERY_PATH_LONGEST + 64u];
-                CliLine kept = {kept_text, sizeof(kept_text), 0ull};
-                cli_line_text(&kept, "  ");
-                cli_line_text(&kept, path);
-                cli_line_text(&kept, " is left as the tree holds it");
-                if (cli_line_closed(&kept) != 0ull)
+                char left_text[QUERY_PATH_MAX_LEN + 64u];
+                VerbaLinea left_line = {left_text, sizeof(left_text), 0ull};
+                mmgr_line_put(&left_line, "  ");
+                mmgr_line_put(&left_line, path);
+                mmgr_line_put(&left_line, " is left as the tree has it");
+                if (mmgr_line_finish(&left_line) != 0ull)
                 {
-                    query_said(context, kept_text);
+                    query_print(context, left_text);
                 }
             }
         }

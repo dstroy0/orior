@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// record_bitwise_test_oracle.cu: fields, the oracle and held records
+// record_bitwise_test_oracle.cu: fields, the oracle and stored records
 #include "record_bitwise_test_internal.h"
 
 static unsigned long long s_bitwise_state = 0xB17B15E0A4D5EEDull;
@@ -19,9 +19,9 @@ void bitwise_check(BitwiseResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -273,13 +273,13 @@ static unsigned int bitwise_oracle_bit(const BitwiseOracle *oracle, unsigned int
     }
     if (step->operation == ENGINE_RECORD_WRAP)
     {
-        // the low `right` bits kept, and the kept top bit extended as the sign
+        // the low `right` bits retained, and the retained top bit extended as the sign
         return bitwise_oracle_bit(oracle, step->left, (bit < step->right) ? bit : (step->right - 1u));
     }
     return bitwise_exact_bit(&oracle->product[at], &oracle->product_less_one[at], bit);
 }
 
-// every written bit of each output equals the oracle's, and the oracle's sign already holds BITWISE_TEST_BEYOND bits
+// every written bit of each output equals the oracle's, and the oracle's sign already carries BITWISE_TEST_BEYOND bits
 // past the written width
 int bitwise_record_valid(const BitwiseOracle *oracle, const DeviceRecordStep *table, const unsigned int *record)
 {

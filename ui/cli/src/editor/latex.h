@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // latex.h: a LaTeX file made into pages for the live preview, from the text in the editor, saved or not.
 //
-// The text is written into a folder orior_cli keeps for the file, under the file's own name where that name is a plain
-// one, and made there: each make finds the last one's .aux, and its references settle. The file's own folder is put on
-// TEXINPUTS after the make's; what the file inputs, the images it takes and a bibliography made beside it are found
-// where the file is, and nothing is written into the tree. The engine a `% !TEX program = ...` line at the top of the
-// file names makes it, else LuaLaTeX where the file takes fontspec or unicode-math, else pdfLaTeX, each told to stop at
-// the first error.
+// The text is written into a folder orior_cli reserves for the file, under the file's own name where that name is a
+// plain one, and made there: each make finds the last one's .aux, and its references settle. The file's own folder is
+// put on TEXINPUTS after the make's; what the file inputs, the images it takes and a bibliography made beside it are
+// found where the file is, and nothing is written into the tree. The engine a `% !TEX program = ...` line at the top of
+// the file names makes it, else LuaLaTeX where the file takes fontspec or unicode-math, else pdfLaTeX, each instructed
+// to stop at the first error.
 //
 // The PDF is drawn as SVG by pdftocairo, its pages sharing one set of glyphs, and the SyncTeX file the engine writes
 // is read here into the boxes the text set on each page, each with the lines that set it, in the page's own points:
@@ -29,10 +29,10 @@ const char *cli_latex_engine_of(const char *text, unsigned long long length);
 
 // the LaTeX text of the file `path` of the tree `root` made into pages, in orior's own folder, written as `{"engine",
 // "defs", "pages": [{"width", "height", "svg"}], "boxes": [{"page", "file", "x", "y", "w", "h", "lines"}], "errors":
-// [{"file", "line", "text"}], "ms"}`; and the same with its files kept under `kept`. Each 1, or 0 with why said
-int cli_latex_make(const char *root, const char *path, const char *text, unsigned long long length, CliLine *out,
-                   CliLine *said);
-int cli_latex_make_in(const char *root, const char *path, const char *text, unsigned long long length, const char *kept,
-                      CliLine *out, CliLine *said);
+// [{"file", "line", "text"}], "ms"}`; and the same with its files stored under `out_dir`. Each 1, or 0 with why given
+int cli_latex_make(const char *root, const char *path, const char *text, unsigned long long length, VerbaLinea *out,
+                   VerbaLinea *err_msg);
+int cli_latex_make_in(const char *root, const char *path, const char *text, unsigned long long length,
+                      const char *out_dir, VerbaLinea *out, VerbaLinea *err_msg);
 
 #endif

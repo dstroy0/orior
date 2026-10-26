@@ -5,16 +5,16 @@
 
 static void terms_within(SimResults *results, const char *what, long long read, long long expected, long long tolerance)
 {
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "    ");
-    scriptura_text(line, what);
-    scriptura_text(line, ": read ");
-    scriptura_signed(line, read);
-    scriptura_text(line, ", the plant predicts ");
-    scriptura_signed(line, expected);
-    scriptura_text(line, " within ");
-    scriptura_signed(line, tolerance);
-    scriptura_character(line, '\n');
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "    ");
+    mmgr_line_put(line, what);
+    mmgr_line_put(line, ": read ");
+    mmgr_line_decimal_signed(line, read);
+    mmgr_line_put(line, ", the plant predicts ");
+    mmgr_line_decimal_signed(line, expected);
+    mmgr_line_put(line, " within ");
+    mmgr_line_decimal_signed(line, tolerance);
+    mmgr_line_ch(line, '\n');
     const long long apart = (read > expected) ? (read - expected) : (expected - read);
     sim_check(results, apart <= tolerance, what);
 }
@@ -78,13 +78,14 @@ void terms_lines(SimResults *results, const unsigned short *lanes, unsigned long
                                                        3ll,
                                                        6ll,
                                                        1000ll};
-    const char *const said[NOISE_PLANE_READINGS] = {
+    const char *const labels[NOISE_PLANE_READINGS] = {
         "whole planes, rows per mille",       "whole planes, columns per mille", "whole planes, the plane per mille",
         "whole planes, the independent part", "static, var_row / s per mille",   "static, var_col / s per mille",
         "static, var_plane / s per mille",    "static, s in thousandths"};
     for (unsigned int measurement = 0u; measurement < NOISE_PLANE_READINGS; measurement += 1u)
     {
-        terms_within(results, said[measurement], readings[measurement], expected[measurement], tolerance[measurement]);
+        terms_within(results, labels[measurement], readings[measurement], expected[measurement],
+                     tolerance[measurement]);
     }
 }
 
@@ -126,14 +127,14 @@ void terms_flicker(SimResults *results, const unsigned short *lanes, unsigned lo
             weight[lag] += flicker_square * terms_crossings(1ull << lag, octave);
         }
     }
-    const char *const said[NOISE_FLICKER_LAGS] = {"lag 1", "lag 2", "lag 4", "lag 8", "lag 16", "lag 32", "lag 64"};
+    const char *const labels[NOISE_FLICKER_LAGS] = {"lag 1", "lag 2", "lag 4", "lag 8", "lag 16", "lag 32", "lag 64"};
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {
         // each factor is below 2^20 here. The product is far under 2^63
         const long long expected = (long long)((1000ull * weight[lag] * pairs[0]) / (weight[0] * pairs[lag]));
-        scriptura_text(&results->line, "    ");
-        scriptura_text(&results->line, said[lag]);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "    ");
+        mmgr_line_put(&results->line, labels[lag]);
+        mmgr_line_ch(&results->line, '\n');
         // a mean square per mille is far below 2^63
         terms_within(results, "  the frame difference", (long long)per_mille[lag], expected, 10ll);
         terms_within(results, "  less its x neighbor's", (long long)neighbor_per_mille[lag], expected, 10ll);
@@ -156,12 +157,12 @@ void terms_neighbors(SimResults *results, const unsigned short *lanes, long long
     terms_within(results, "z neighbor, per mille", per_mille[0], expected_z, 6ll);
     terms_within(results, "y neighbor, per mille", per_mille[1], 0ll, 5ll);
     terms_within(results, "x neighbor, per mille", per_mille[2], 0ll, 5ll);
-    const char *const said[NOISE_NEIGHBOR_RADII - ENGINE_AXES] = {
+    const char *const labels[NOISE_NEIGHBOR_RADII - ENGINE_AXES] = {
         "2 planes on along z, per mille", "4 planes on along z, per mille", "8 planes on along z, per mille",
         "16 planes on along z, per mille", "32 planes on along z, per mille"};
     for (unsigned int radius = ENGINE_AXES; radius < NOISE_NEIGHBOR_RADII; radius += 1u)
     {
-        terms_within(results, said[radius - ENGINE_AXES], per_mille[radius], 0ll, 5ll);
+        terms_within(results, labels[radius - ENGINE_AXES], per_mille[radius], 0ll, 5ll);
     }
 }
 
@@ -188,11 +189,11 @@ void terms_shot_law(SimResults *results, const unsigned short *lanes, unsigned l
                                                         poisson ? ((1000ll * shot) - (500ll * read))
                                                                 : ((-500ll * shot) - (500ll * read))};
     const long long range[NOISE_MOMENT_CUMULANTS] = {100ll, 500ll, 7000ll};
-    const char *const said[NOISE_MOMENT_CUMULANTS] = {
+    const char *const labels[NOISE_MOMENT_CUMULANTS] = {
         "the second cumulant, thousandths", "the third cumulant, thousandths", "the fourth cumulant, thousandths"};
     for (unsigned int order = 0u; order < NOISE_MOMENT_CUMULANTS; order += 1u)
     {
-        terms_within(results, said[order], cumulants[order], expected[order], range[order]);
+        terms_within(results, labels[order], cumulants[order], expected[order], range[order]);
     }
 }
 
@@ -204,12 +205,12 @@ void terms_ratio_within(SimResults *results, const char *what, const OriorExactI
                         unsigned long long expected_denominator, unsigned long long range_numerator,
                         unsigned long long range_denominator)
 {
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "    ");
-    scriptura_text(line, what);
-    scriptura_text(line, ": read ");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "    ");
+    mmgr_line_put(line, what);
+    mmgr_line_put(line, ": read ");
     sim_ratio_print(line, numerator, denominator, 4u);
-    scriptura_text(line, ", the plant predicts ");
+    mmgr_line_put(line, ", the plant predicts ");
     // printed in lowest terms: a magnitude below 2^63 re-signs exactly
     unsigned long long common =
         (expected_numerator < 0ll) ? (unsigned long long)(-expected_numerator) : (unsigned long long)expected_numerator;
@@ -221,21 +222,21 @@ void terms_ratio_within(SimResults *results, const char *what, const OriorExactI
         other = rest;
     }
     common = (common == 0ull) ? 1ull : common;
-    // the common factor divides the numerator's magnitude. The quotient keeps its sign and range
-    scriptura_signed(line, expected_numerator / (long long)common);
+    // the common factor divides the numerator's magnitude. The quotient preserves its sign and range
+    mmgr_line_decimal_signed(line, expected_numerator / (long long)common);
     if ((expected_denominator / common) != 1ull)
     {
-        scriptura_character(line, '/');
-        scriptura_decimal(line, expected_denominator / common, 1u);
+        mmgr_line_ch(line, '/');
+        mmgr_line_decimal(line, expected_denominator / common, 1u);
     }
-    scriptura_text(line, " within ");
-    scriptura_decimal(line, range_numerator, 1u);
+    mmgr_line_put(line, " within ");
+    mmgr_line_decimal(line, range_numerator, 1u);
     if (range_denominator != 1ull)
     {
-        scriptura_character(line, '/');
-        scriptura_decimal(line, range_denominator, 1u);
+        mmgr_line_ch(line, '/');
+        mmgr_line_decimal(line, range_denominator, 1u);
     }
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
     OriorExactInteger left;
     OriorExactInteger right;
     OriorExactInteger term;

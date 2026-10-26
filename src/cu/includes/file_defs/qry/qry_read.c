@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// qry_read.c: a .qry's records read where they lie, each held to its CRC
+// qry_read.c: a .qry's records read where they lie, each checked against its CRC
 #include "qry_read.h"
 
 #include "../../codecs/crc/crc_key.h"
@@ -29,14 +29,14 @@ int qry_record_read(const unsigned char *bytes, unsigned long long size, unsigne
     }
     memcpy(&head, bytes + *at, sizeof(head));
     const unsigned long long whole = QRY_RECORD_BYTES(head.name_length, head.blob_length);
-    if ((head.name_length == 0u) || (head.name_length > QRY_NAME_LONGEST) || (head.blob_length > size) ||
+    if ((head.name_length == 0u) || (head.name_length > QRY_NAME_MAX_LEN) || (head.blob_length > size) ||
         (whole > (size - *at)))
     {
         return 0;
     }
-    unsigned long long held = 0ull;
-    memcpy(&held, bytes + *at + whole - 8ull, sizeof(held));
-    if (qry_record_crc(bytes + *at, whole - 8ull) != held)
+    unsigned long long stored_crc = 0ull;
+    memcpy(&stored_crc, bytes + *at + whole - 8ull, sizeof(stored_crc));
+    if (qry_record_crc(bytes + *at, whole - 8ull) != stored_crc)
     {
         return 0;
     }

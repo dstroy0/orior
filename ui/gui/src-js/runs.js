@@ -3,10 +3,11 @@
 
 // Runs: every query run of the tree (src/cu/transpiler/lstar/protocol), each a .qry in a folder of runs,
 // found by its file wherever it was started, from the command line or anywhere else, and live while its
-// writer runs. The runs are listed every LIST_LIVE ms while one is live or the pane shows, and every
-// LIST_IDLE ms while neither. A run opened in the pane is read again every READ_LIVE ms while it is
-// live, its blobs coming in from its buffer as they are handed, and read by its table once it has
-// ended.
+// writer runs. The runs are listed as the tree opens, as the pane comes into sight, and as the tree's
+// watch sees a run or an overseer's lessons written or loses changes; while a run is live they are
+// listed again every LIST_LIVE ms besides, for a panic its buffer holds. A run opened in the pane is
+// read again every READ_LIVE ms while it is live, its blobs coming in from its buffer as they are
+// handed, and read by its table once it has ended. While no run is live nothing is asked.
 //
 // A panic shows the moment it lands: said on the status bar, at the head of its run, and the strip's
 // Runs icon marked in the error's color. A conference, the blobs `conference_` and its question's
@@ -14,12 +15,11 @@
 // written, and the line that starts `overseer:` as the ruling. The lessons of each folder's
 // overseer.txt, one `lesson <cause> <carrier or *> <stand-in>` a line, show under its runs.
 
-import { invoke } from "./bridge.js";
+import { invoke, listen } from "./bridge.js";
 import { paneOpen, shownGroup } from "./explorer.js";
 import { say } from "./statusbar.js";
 
 const LIST_LIVE = 1000;
-const LIST_IDLE = 5000;
 const READ_LIVE = 400;
 // The latest blobs an open run lists; its panics and conferences show however many came before.
 const SHOWN_BLOBS = 200;
@@ -36,7 +36,9 @@ const state = {
   // The first panic of each run told on the status bar, by its path.
   told: new Map(),
   listedAt: 0,
-  reading: 0,
+  // The timer of the next beat while a run is live, and whether a beat is under way.
+  timer: 0,
+  beating: false,
 };
 
 function element(tag, props = {}, ...children) {
@@ -225,38 +227,66 @@ export function draw() {
   );
 }
 
-// Lists the tree's runs on a beat, more often while one is live or the pane shows, and while the pane shows reads
-// each run open in it that was live as last read on from where that read stopped, or whole by its table once it
-// has ended.
+// The next beat asked for where a run is live and none is under way or asked for already.
+function beatWhileLive() {
+  if (!state.timer && !state.beating && state.listing.runs.some((run) => run.live)) {
+    state.timer = window.setTimeout(beat, READ_LIVE);
+  }
+}
+
+// One beat while a run is live: the runs listed again where LIST_LIVE has passed, and while the pane shows each run
+// open in it that was live as last read read on from where that read stopped, or whole by its table once it has ended.
+async function beat() {
+  state.timer = 0;
+  state.beating = true;
+  if (performance.now() - state.listedAt >= LIST_LIVE) {
+    state.listedAt = performance.now();
+    await list();
+  }
+  const live = shown() ? [...state.open].filter(([, held]) => held.live).map(([path]) => path) : [];
+  for (const path of live) {
+    await opening(path);
+  }
+  if (live.length) {
+    draw();
+  }
+  state.beating = false;
+  beatWhileLive();
+}
+
+// The runs listed now, and the beat asked for where one is live.
+async function relist() {
+  state.listedAt = performance.now();
+  await list();
+  beatWhileLive();
+}
+
+// A file the tree's watch saw written that changes the runs listed: a run, or a folder's overseer's lessons.
+const ofRuns = (file) => file.endsWith(".qry") || file === "overseer.txt" || file.endsWith("/overseer.txt");
+
+// Lists the tree's runs now and as they change, and keeps a live run's beat.
 export function startRuns() {
-  const beat = async () => {
-    const often = shown() || state.listing.runs.some((run) => run.live);
-    if (performance.now() - state.listedAt >= (often ? LIST_LIVE : LIST_IDLE)) {
-      state.listedAt = performance.now();
-      await list();
+  relist();
+  listen("tree-changed", ({ payload }) => {
+    if (payload?.lost || (payload?.files ?? []).some(ofRuns)) {
+      relist();
     }
-    const live = shown() ? [...state.open].filter(([, held]) => held.live).map(([path]) => path) : [];
-    for (const path of live) {
-      await opening(path);
-    }
-    if (live.length) {
-      draw();
-    }
-    window.setTimeout(beat, READ_LIVE);
-  };
-  window.setTimeout(beat, 0);
+  });
   window.addEventListener("panes-changed", () => {
     if (shown()) {
-      state.listedAt = 0;
+      relist();
+    } else {
+      draw();
     }
-    draw();
   });
 }
 
-// The runs of a tree no longer shown are let go.
+// The runs of a tree no longer shown are let go, and the tree shown now's listed.
 export function forgetRuns() {
+  window.clearTimeout(state.timer);
+  state.timer = 0;
   state.open.clear();
   state.told.clear();
   state.listing = { runs: [], folders: [] };
-  state.listedAt = 0;
+  relist();
 }

@@ -19,12 +19,12 @@ const ScheduleModel *CodeGenerator::program_schedule_model(void) const
     return NULL;
 }
 
-unsigned int CodeGenerator::register_file_holds(void) const
+unsigned int CodeGenerator::register_file_size(void) const
 {
     return 0u;
 }
 
-// a language writes its own resident unless it says otherwise
+// a language writes its own resident unless it specifies otherwise
 int CodeGenerator::program_unit_written(void) const
 {
     return 1;

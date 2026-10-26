@@ -27,7 +27,7 @@ typedef struct
     unsigned char room[32];
 } CubinRunXidEvent;
 
-// The part's fault telemetry as the system's own log holds it, beside the management layer: every error the display
+// The part's fault telemetry as the system's own log records it, beside the management layer: every error the display
 // driver, the provider nvlddmkm, writes to the System log, read through the system's event log reader, reached by name
 // and by its own entry points as the driver is. The driver writes each Xid there whether its management layer
 // is reached: the event's ID its Xid, and its text what the part did, as `Graphics SM Warp Exception on (GPC 1, TPC 0,
@@ -55,7 +55,7 @@ int cubin_run_driver(CubinRunDriver *driver)
         return 0;
     }
     // each entry point's address is the function the driver exports under that name, which takes what its member
-    // says: an object pointer is turned into a function pointer here and nowhere else
+    // allows: an object pointer is turned into a function pointer here and nowhere else
     *(void **)&driver->init = cubin_run_entry(library, "cuInit");
     *(void **)&driver->device_get = cubin_run_entry(library, "cuDeviceGet");
     *(void **)&driver->context_retain = cubin_run_entry(library, "cuDevicePrimaryCtxRetain");
@@ -99,15 +99,15 @@ int s_events_ready = 0;
 // against the launch to come
 static void *s_events_subscription = NULL;
 
-unsigned long long s_xid_data[CUBIN_RUN_XID_KEPT];
-char s_xid_text[CUBIN_RUN_XID_KEPT][CUBIN_RUN_XID_TEXT];
+unsigned long long s_xid_data[CUBIN_RUN_XID_MOST];
+char s_xid_text[CUBIN_RUN_XID_MOST][CUBIN_RUN_XID_TEXT];
 unsigned int s_xid_count = 0u;
 
-// an Xid and the text the driver wrote of it kept against the last launch, a `;` of the text written `,`, since the
+// an Xid and the text the driver wrote of it recorded against the last launch, a `;` of the text written `,`, since the
 // listener's account ends in clauses after one
-static void cubin_run_xid_kept(unsigned long long xid, const char *text)
+static void cubin_run_xid_stored(unsigned long long xid, const char *text)
 {
-    if (s_xid_count < CUBIN_RUN_XID_KEPT)
+    if (s_xid_count < CUBIN_RUN_XID_MOST)
     {
         s_xid_data[s_xid_count] = xid;
         snprintf(s_xid_text[s_xid_count], sizeof(s_xid_text[s_xid_count]), "%s", text);
@@ -120,7 +120,7 @@ static void cubin_run_xid_kept(unsigned long long xid, const char *text)
     s_xid_count += 1u;
 }
 
-// `event` rendered as its XML into `xml`, which holds `room`: 1, or 0 where it could not be
+// `event` rendered as its XML into `xml`, which has room for `room`: 1, or 0 where it could not be
 static int cubin_run_event_xml(void *event, char *xml, size_t room)
 {
     static wchar_t s_wide[16384];
@@ -134,7 +134,7 @@ static int cubin_run_event_xml(void *event, char *xml, size_t room)
     return WideCharToMultiByte(CP_UTF8, 0u, s_wide, -1, xml, (int)room, NULL, NULL) > 0;
 }
 
-// the number `xml` holds in the tag `tag`, past its attributes, or 0 where it holds no such tag
+// the number `xml` contains in the tag `tag`, past its attributes, or 0 where it contains no such tag
 static unsigned long long cubin_run_event_number(const char *xml, const char *tag)
 {
     const char *const opened = strstr(xml, tag);
@@ -142,8 +142,8 @@ static unsigned long long cubin_run_event_number(const char *xml, const char *ta
     return (closed != NULL) ? strtoull(closed + 1, NULL, 10) : 0ull;
 }
 
-// the text of the driver's error in `xml` into `text`, which holds `room`: its second datum, the first the device, or
-// its first where it holds one alone
+// the text of the driver's error in `xml` into `text`, which has room for `room`: its second datum, the first the
+// device, or its first where it contains one alone
 static void cubin_run_event_text(const char *xml, char *text, size_t room)
 {
     const char *datum = strstr(xml, "<Data>");
@@ -154,9 +154,9 @@ static void cubin_run_event_text(const char *xml, char *text, size_t room)
     snprintf(text, room, "%.*s", (end != NULL) ? (int)(end - datum - 6) : 0, (datum != NULL) ? datum + 6 : "");
 }
 
-// The driver's errors written since the last pull, read off the subscription in the order written, each kept against
-// the launch where `keep` (cubin_run_xid_kept): the count read
-static unsigned int cubin_run_events_read(int keep)
+// The driver's errors written since the last pull, read off the subscription in the order written, each recorded
+// against the launch where `store` (cubin_run_xid_stored): the count read
+static unsigned int cubin_run_events_read(int store)
 {
     static char s_xml[32768];
     char text[CUBIN_RUN_XID_TEXT];
@@ -167,10 +167,10 @@ static unsigned int cubin_run_events_read(int keep)
     {
         for (unsigned long at = 0ul; at < returned; at += 1ul)
         {
-            if (keep && cubin_run_event_xml(event[at], s_xml, sizeof(s_xml)))
+            if (store && cubin_run_event_xml(event[at], s_xml, sizeof(s_xml)))
             {
                 cubin_run_event_text(s_xml, text, sizeof(text));
-                cubin_run_xid_kept(cubin_run_event_number(s_xml, "<EventID"), text);
+                cubin_run_xid_stored(cubin_run_event_number(s_xml, "<EventID"), text);
             }
             s_events.close(event[at]);
             read += 1u;
@@ -180,7 +180,7 @@ static unsigned int cubin_run_events_read(int keep)
 }
 
 // the system's log of the driver's errors subscribed to, the errors written from now on: 1 where it is ready to pull,
-// 0 where its reader or an entry point of it is not there, or the system keeps no such log
+// 0 where its reader or an entry point of it is not there, or the system records no such log
 static int cubin_run_events_open(void)
 {
 #if defined(_WIN32)
@@ -256,7 +256,7 @@ static int cubin_run_management_open(void)
 }
 
 // The part's fault telemetry opened: the management layer's Xid critical errors, and the driver's errors in the
-// system's log where the system keeps one. 1 where either is ready to read, 0 with a warning where neither is
+// system's log where the system records one. 1 where either is ready to read, 0 with a warning where neither is
 int cubin_run_telemetry_open(void)
 {
     const int management = cubin_run_management_open();
@@ -292,9 +292,9 @@ void cubin_run_telemetry_drain(void)
 }
 
 // 1 where the part stamped an Xid critical error or the driver wrote an error of it to the system's log, every one
-// read without waiting and kept: the launch just carried faulted the part. A launch the driver answered with `status`
-// other than 0 waits for the driver's error up to CUBIN_RUN_EVENTS_WAIT_MILLISECONDS, since the driver writes it as the
-// fault comes back. 0 where none is stamped or written, or the telemetry is not ready
+// read without waiting and recorded: the launch just carried faulted the part. A launch the driver answered with
+// `status` other than 0 waits for the driver's error up to CUBIN_RUN_EVENTS_WAIT_MILLISECONDS, since the driver writes
+// it as the fault comes back. 0 where none is stamped or written, or the telemetry is not ready
 int cubin_run_telemetry_faulted(CubinRunStatus status)
 {
     const unsigned int before = s_xid_count;
@@ -308,7 +308,7 @@ int cubin_run_telemetry_faulted(CubinRunStatus status)
         }
         if ((event.event_type & CUBIN_RUN_XID) != 0ull)
         {
-            cubin_run_xid_kept(event.event_data, "");
+            cubin_run_xid_stored(event.event_data, "");
         }
     }
 #if defined(_WIN32)

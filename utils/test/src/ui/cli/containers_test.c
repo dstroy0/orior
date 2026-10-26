@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // containers_test.c: the containers' check: docker's list gives each container its Compose project and service,
-// kubectl's list gives each pod its containers and how many are ready, and a container is not asked to do what it does
-// not
+// kubectl's list gives each pod its containers and how many are ready, and a container is not requested to do what it
+// does not
 #include "../../../../../ui/cli/src/deploy/containers.h"
 #include "../../../../../ui/cli/src/deploy/containers_internal.h"
 #include "cli_check.h"
@@ -17,7 +17,7 @@ static void containers_docker(void)
         "cache\",\"Names\":\"shop-cache-1\",\"Ports\":\"6379/tcp\",\"State\":\"running\",\"Status\":\"Up 2 hours\"}\n"
         "{\"ID\":\"a1\",\"Image\":\"python:3.12-slim\",\"Labels\":\"\",\"Names\":\"loose\",\"Ports\":\"\",\"State\":"
         "\"exited\",\"Status\":\"Exited (0) 3 minutes ago\"}\n";
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_containers_listed(s_text, sizeof(s_text) - 1u, 1, "", 0ull, &out);
     unsigned int list = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &list);
@@ -47,7 +47,7 @@ static void containers_pods(void)
         "\"containerStatuses\":[{\"ready\":true},{\"ready\":false}]}},{\"metadata\":{\"name\":\"dns\",\"namespace\":"
         "\"kube-system\"},\"spec\":{\"containers\":[{\"name\":\"coredns\"}]},\"status\":{\"phase\":\"Running\","
         "\"containerStatuses\":[{\"ready\":true}]}}]}";
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_containers_pods_listed(s_text, sizeof(s_text) - 1u, 1, "", 0ull, &out);
     unsigned int list = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &list);
@@ -79,10 +79,11 @@ static void containers_pods(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     containers_docker();
     containers_pods();
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(!cli_containers_act("loose", "remove", &said), "a container is not asked to do what it does not");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(!cli_containers_act("loose", "remove", &err_msg), "a container is not requested to do what it does not");
     return cli_checked();
 }

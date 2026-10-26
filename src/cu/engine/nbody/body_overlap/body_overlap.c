@@ -122,18 +122,18 @@ long body_overlap_host(const BodyOverlapRequest *args)
         answer = (long)distinct;
         if (distinct <= (size_t)args->capacity)
         {
-            size_t slot = 0u;
+            size_t at = 0u;
             for (size_t pair = 0u; pair < total; pair += 1u)
             {
                 if ((pair != 0u) && (pairs[pair] == pairs[pair - 1u]))
                 {
-                    args->counts[slot - 1u] += 1u;
+                    args->counts[at - 1u] += 1u;
                     continue;
                 }
-                args->peaks_before[slot] = (unsigned int)(pairs[pair] >> 32u);
-                args->peaks_after[slot] = (unsigned int)(pairs[pair] & 0xFFFFFFFFull);
-                args->counts[slot] = 1u;
-                slot += 1u;
+                args->peaks_before[at] = (unsigned int)(pairs[pair] >> 32u);
+                args->peaks_after[at] = (unsigned int)(pairs[pair] & 0xFFFFFFFFull);
+                args->counts[at] = 1u;
+                at += 1u;
             }
         }
     }

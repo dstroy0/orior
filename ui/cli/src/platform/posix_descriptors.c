@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// posix_descriptors.c: what comes on a socket read, each descriptor that comes with the bytes kept in the order it
+// posix_descriptors.c: what comes on a socket read, each descriptor that comes with the bytes queued in the order it
 // came, marked to close as a program starts, until it is taken; those never taken are closed with the rest
 #if !defined(_WIN32)
 // sendmsg's control headers are POSIX, outside strict C11
@@ -22,23 +22,23 @@
 // the most descriptors one read brings
 #define CLI_DESCRIPTORS_READ 16u
 
-// a descriptor that came kept, or closed where the kept are full
-static void descriptors_kept(CliDescriptors *kept, int fd)
+// a descriptor that came queued, or closed where the queued are full
+static void descriptors_put(CliDescriptors *pending, int fd)
 {
     (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
-    cli_lock_take(&kept->lock);
-    if (kept->count < CLI_DESCRIPTORS_KEPT)
+    cli_lock_take(&pending->lock);
+    if (pending->count < CLI_DESCRIPTORS_PENDING_MAX)
     {
-        kept->fd[(kept->start + kept->count) % CLI_DESCRIPTORS_KEPT] = fd;
-        kept->count += 1u;
-        cli_lock_give(&kept->lock);
+        pending->fd[(pending->start + pending->count) % CLI_DESCRIPTORS_PENDING_MAX] = fd;
+        pending->count += 1u;
+        cli_lock_give(&pending->lock);
         return;
     }
-    cli_lock_give(&kept->lock);
+    cli_lock_give(&pending->lock);
     close(fd);
 }
 
-long long cli_socket_received(int socket, void *buffer, unsigned long long room, CliDescriptors *kept)
+long long cli_socket_received(int socket, void *buffer, unsigned long long room, CliDescriptors *pending)
 {
     union {
         struct cmsghdr header;
@@ -79,29 +79,29 @@ long long cli_socket_received(int socket, void *buffer, unsigned long long room,
         {
             int fd = -1;
             memor.cpy(&(MemoriaCfg){.dst = &fd, .src = CMSG_DATA(header) + (one * sizeof(int)), .bytes = sizeof(int)});
-            descriptors_kept(kept, fd);
+            descriptors_put(pending, fd);
         }
     }
     return (long long)got;
 }
 
-int cli_descriptor_taken(CliDescriptors *kept)
+int cli_descriptor_taken(CliDescriptors *pending)
 {
-    cli_lock_take(&kept->lock);
+    cli_lock_take(&pending->lock);
     int fd = -1;
-    if (kept->count > 0u)
+    if (pending->count > 0u)
     {
-        fd = kept->fd[kept->start];
-        kept->start = (kept->start + 1u) % CLI_DESCRIPTORS_KEPT;
-        kept->count -= 1u;
+        fd = pending->fd[pending->start];
+        pending->start = (pending->start + 1u) % CLI_DESCRIPTORS_PENDING_MAX;
+        pending->count -= 1u;
     }
-    cli_lock_give(&kept->lock);
+    cli_lock_give(&pending->lock);
     return fd;
 }
 
-void cli_descriptors_closed(CliDescriptors *kept)
+void cli_descriptors_closed(CliDescriptors *pending)
 {
-    for (int fd = cli_descriptor_taken(kept); fd >= 0; fd = cli_descriptor_taken(kept))
+    for (int fd = cli_descriptor_taken(pending); fd >= 0; fd = cli_descriptor_taken(pending))
     {
         close(fd);
     }

@@ -32,7 +32,7 @@ unsigned int cli_maven_compiler_plugin(const CliXml *xml, unsigned int project)
         for (unsigned int one = (lists[list] != CLI_XML_NONE) ? xml->element[lists[list]].first : CLI_XML_NONE;
              one != CLI_XML_NONE; one = xml->element[one].next)
         {
-            CliLine artifact = {s_artifact, sizeof(s_artifact), 0ull};
+            VerbaLinea artifact = {s_artifact, sizeof(s_artifact), 0ull};
             if (cli_xml_named(xml, one, "plugin") && cli_xml_text_of(xml, one, "artifactId", &artifact) &&
                 (artifact.at == 21u) &&
                 (memor.cmp(&(MemoriaCfg){.src = s_artifact, .other = "maven-compiler-plugin", .bytes = 21u}) == 0))
@@ -46,42 +46,42 @@ unsigned int cli_maven_compiler_plugin(const CliXml *xml, unsigned int project)
 
 int cli_maven_home(char *out)
 {
-    if (query_environment_read("MAVEN_HOME", out, CLI_PATH_LONGEST) ||
-        query_environment_read("M2_HOME", out, CLI_PATH_LONGEST))
+    if (query_environment_read("MAVEN_HOME", out, CLI_PATH_MAX_LEN) ||
+        query_environment_read("M2_HOME", out, CLI_PATH_MAX_LEN))
     {
         return 1;
     }
-    char program[CLI_PATH_LONGEST];
+    char program[CLI_PATH_MAX_LEN];
     int found = cli_toolchains_chosen_program("maven", program);
     if (!found)
     {
         static const char *const s_names[1] = {"mvn"};
         found = cli_toolchains_on_path(s_names, 1u, program);
     }
-    char bin[CLI_PATH_LONGEST];
+    char bin[CLI_PATH_MAX_LEN];
     return found && cli_path_parent(program, bin) && cli_path_parent(bin, out);
 }
 
 // a setting row written
-static void settings_row(CliLine *out, int first, const char *key, const char *group, const char *label,
+static void settings_row(VerbaLinea *out, int first, const char *key, const char *group, const char *label,
                          const char *value, unsigned long long value_size, const char *file, int settable)
 {
-    cli_line_text(out, first ? "{\"key\":" : ",{\"key\":");
+    mmgr_line_put(out, first ? "{\"key\":" : ",{\"key\":");
     cli_json_quoted(out, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"group\":");
+    mmgr_line_put(out, ",\"group\":");
     cli_json_quoted(out, group, cellul.len(&(CatenaFinitaCfg){.src = group, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"label\":");
+    mmgr_line_put(out, ",\"label\":");
     cli_json_quoted(out, label, cellul.len(&(CatenaFinitaCfg){.src = label, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"value\":");
+    mmgr_line_put(out, ",\"value\":");
     cli_json_quoted_lossy(out, (const unsigned char *)value, value_size);
-    cli_line_text(out, ",\"file\":");
+    mmgr_line_put(out, ",\"file\":");
     cli_json_quoted_lossy(out, (const unsigned char *)file,
                           cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, settable ? ",\"settable\":true}" : ",\"settable\":false}");
+    mmgr_line_put(out, settable ? ",\"settable\":true}" : ",\"settable\":false}");
 }
 
 // the POM's compiler settings written as rows
-static void settings_pom(const char *pom, const char *text, unsigned long long size, const char *shown, CliLine *out)
+static void settings_pom(const char *pom, const char *text, unsigned long long size, const char *shown, VerbaLinea *out)
 {
     static CliXml s_xml;
     static CliMavenModel s_model;
@@ -103,7 +103,7 @@ static void settings_pom(const char *pom, const char *text, unsigned long long s
         const char *value = cli_maven_property(
             &s_model, g_cli_maven_compiler[at][2],
             cellul.len(&(CatenaFinitaCfg){.src = g_cli_maven_compiler[at][2], .cap = CLI_CELLS_POOL}), &value_size);
-        CliLine line = {s_value, sizeof(s_value), 0ull};
+        VerbaLinea line = {s_value, sizeof(s_value), 0ull};
         if ((value == NULL) && cli_xml_text_of(&s_xml, configuration, g_cli_maven_compiler[at][3], &line))
         {
             value = s_value;
@@ -112,11 +112,11 @@ static void settings_pom(const char *pom, const char *text, unsigned long long s
         settings_row(out, at == 0u, g_cli_maven_compiler[at][0], "pom", g_cli_maven_compiler[at][1],
                      (value != NULL) ? value : "", value_size, shown, 1);
     }
-    CliLine version = {s_value, sizeof(s_value), 0ull};
+    VerbaLinea version = {s_value, sizeof(s_value), 0ull};
     const int has_version = cli_xml_text_of(&s_xml, plugin, "version", &version);
     settings_row(out, 0, "compiler-plugin", "pom", "Compiler plugin version", s_value, has_version ? version.at : 0u,
                  shown, has_version);
-    CliLine arguments = {s_value, sizeof(s_value), 0ull};
+    VerbaLinea arguments = {s_value, sizeof(s_value), 0ull};
     const unsigned int args =
         (configuration != CLI_XML_NONE) ? cli_xml_child(&s_xml, configuration, "compilerArgs") : CLI_XML_NONE;
     int first = 1;
@@ -124,7 +124,7 @@ static void settings_pom(const char *pom, const char *text, unsigned long long s
          one = s_xml.element[one].next)
     {
         const unsigned long long before = arguments.at;
-        cli_line_text(&arguments, first ? "" : " ");
+        mmgr_line_put(&arguments, first ? "" : " ");
         if (cli_xml_text(&s_xml, one, &arguments))
         {
             first = 0;
@@ -151,8 +151,8 @@ typedef struct
 
 static CliMavenSettingsFiles s_files;
 
-// the text of the root's child `name` in the first settings file that holds it into `out`: 1, or 0 where none does
-static int settings_value(const char *name, CliLine *out)
+// the text of the root's child `name` in the first settings file that contains it into `out`: 1, or 0 where none does
+static int settings_value(const char *name, VerbaLinea *out)
 {
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
@@ -168,7 +168,7 @@ static int settings_value(const char *name, CliLine *out)
 // each `each` of the root's `list` in both settings files, shown by its children `parts` joined by `between`, all
 // joined by `; `, into `out`
 static void settings_listed(const char *list, const char *each, const char *const *parts, unsigned int count,
-                            const char *const *between, CliLine *out)
+                            const char *const *between, VerbaLinea *out)
 {
     int first = 1;
     for (unsigned int at = 0u; at < 2u; at += 1u)
@@ -183,7 +183,7 @@ static void settings_listed(const char *list, const char *each, const char *cons
             {
                 continue;
             }
-            cli_line_text(out, first ? "" : "; ");
+            mmgr_line_put(out, first ? "" : "; ");
             first = 0;
             if (count == 0u)
             {
@@ -191,7 +191,7 @@ static void settings_listed(const char *list, const char *each, const char *cons
             }
             for (unsigned int part = 0u; part < count; part += 1u)
             {
-                cli_line_text(out, (part > 0u) ? between[part - 1u] : "");
+                mmgr_line_put(out, (part > 0u) ? between[part - 1u] : "");
                 (void)cli_xml_text_of(xml, one, parts[part], out);
             }
         }
@@ -203,7 +203,7 @@ static void settings_listed(const char *list, const char *each, const char *cons
 static void settings_read(unsigned int at, const char *path)
 {
     s_files.size[at] = 0ull;
-    s_files.bytes[at] = (path[0] != '\0') ? cli_file_held(path, &s_files.size[at]) : NULL;
+    s_files.bytes[at] = (path[0] != '\0') ? cli_file_read(path, &s_files.size[at]) : NULL;
     s_files.read[at] = (s_files.bytes[at] != NULL) && (s_files.size[at] <= CLI_MAVEN_SETTINGS_TEXT);
     // the file's bytes are read as its text
     cli_xml_parse(s_files.read[at] ? (const char *)s_files.bytes[at] : "", s_files.read[at] ? s_files.size[at] : 0ull,
@@ -225,23 +225,23 @@ static void settings_let_go(void)
     }
 }
 
-void cli_maven_settings(const char *root, const char *pom, const char *text, unsigned long long size, CliLine *out)
+void cli_maven_settings(const char *root, const char *pom, const char *text, unsigned long long size, VerbaLinea *out)
 {
     static char s_value[1u << 16u];
     cli_lock_take(&s_settings_lock);
-    char shown[CLI_PATH_LONGEST];
+    char shown[CLI_PATH_MAX_LEN];
     cli_build_inside(root, pom, shown);
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     const unsigned long long start = out->at;
     settings_pom(pom, text, size, shown, out);
     const int first = (out->at == start);
-    char home[CLI_PATH_LONGEST] = {0};
-    char user[CLI_PATH_LONGEST] = {0};
-    char global[CLI_PATH_LONGEST] = {0};
-    char repository[CLI_PATH_LONGEST] = {0};
+    char home[CLI_PATH_MAX_LEN] = {0};
+    char user[CLI_PATH_MAX_LEN] = {0};
+    char global[CLI_PATH_MAX_LEN] = {0};
+    char repository[CLI_PATH_MAX_LEN] = {0};
     if (cli_maven_home(home))
     {
-        char conf[CLI_PATH_LONGEST];
+        char conf[CLI_PATH_MAX_LEN];
         cli_full(home, "conf", conf);
         cli_full(conf, "settings.xml", global);
         if (!query_is_file(global))
@@ -260,16 +260,16 @@ void cli_maven_settings(const char *root, const char *pom, const char *text, uns
                  user_there ? cellul.len(&(CatenaFinitaCfg){.src = user, .cap = CLI_CELLS_POOL}) : 0u, user_file, 0);
     settings_row(out, 0, "global-settings", "settings", "Global settings", global,
                  cellul.len(&(CatenaFinitaCfg){.src = global, .cap = CLI_CELLS_POOL}), global, 0);
-    CliLine value = {s_value, sizeof(s_value), 0ull};
+    VerbaLinea value = {s_value, sizeof(s_value), 0ull};
     if (!settings_value("localRepository", &value) && cli_maven_local_repository(repository))
     {
-        cli_line_text(&value, repository);
+        mmgr_line_put(&value, repository);
     }
     settings_row(out, 0, "local-repository", "settings", "Local repository", s_value, value.at, user_file, 1);
     value.at = 0ull;
     if (!settings_value("offline", &value))
     {
-        cli_line_text(&value, "false");
+        mmgr_line_put(&value, "false");
     }
     settings_row(out, 0, "offline", "settings", "Work offline", s_value, value.at, user_file, 1);
     static const char *const s_mirror[3] = {"id", "url", "mirrorOf"};
@@ -285,7 +285,7 @@ void cli_maven_settings(const char *root, const char *pom, const char *text, uns
     value.at = 0ull;
     settings_listed("activeProfiles", "activeProfile", NULL, 0u, NULL, &value);
     settings_row(out, 0, "active-profiles", "settings", "Active profiles", s_value, value.at, user_file, 0);
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     settings_let_go();
     cli_lock_give(&s_settings_lock);
 }

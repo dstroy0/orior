@@ -15,17 +15,17 @@
 #define IDENTITY_WRITER "identity.writer"
 
 // the longest path a setting names, and the longest part
-#define IDENTITY_PATH_LONGEST 1024u
-#define IDENTITY_PART_LONGEST 64u
+#define IDENTITY_PATH_MAX_LEN 1024u
+#define IDENTITY_PART_MAX_LEN 64u
 
 // the vendor's writer: its program, the part it writes for, and the part's layout and mnemonics files, each ended by a
 // NUL within its room
 typedef struct
 {
-    char program[IDENTITY_PATH_LONGEST];
-    char part[IDENTITY_PART_LONGEST];
-    char layout[IDENTITY_PATH_LONGEST];
-    char mnemonics[IDENTITY_PATH_LONGEST];
+    char program[IDENTITY_PATH_MAX_LEN];
+    char part[IDENTITY_PART_MAX_LEN];
+    char layout[IDENTITY_PATH_MAX_LEN];
+    char mnemonics[IDENTITY_PATH_MAX_LEN];
 } IdentityWriter;
 
 #ifdef __cplusplus

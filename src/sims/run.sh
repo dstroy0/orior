@@ -9,9 +9,9 @@ TOP="$(cd "$SIMS/.." && pwd)"
 SIM="${1:-}"
 shift || true
 case "$SIM" in
-    nbody_lattice|knf_identity|noise_floor|noise_terms|noise_root|period_power|root_universal|ask_state|ka_psi|chaitin_omega|goodstein|pi_tower|pi_plane|omega_computer|floor_match|floor_track|fixed_pattern|classify_reject_recover) ;;
+    nbody_lattice|knf_identity|noise_floor|noise_terms|noise_root|period_power|root_universal|povm_state|ka_psi|chaitin_omega|goodstein|pi_tower|pi_plane|omega_computer|floor_match|floor_track|fixed_pattern|classify_reject_recover) ;;
     *)
-        echo "  usage: run.sh nbody_lattice|knf_identity|noise_floor|noise_terms|noise_root|period_power|root_universal|ask_state|ka_psi|chaitin_omega|goodstein|pi_tower|pi_plane|omega_computer|floor_match|floor_track|fixed_pattern|classify_reject_recover [-- sim arguments]"
+        echo "  usage: run.sh nbody_lattice|knf_identity|noise_floor|noise_terms|noise_root|period_power|root_universal|povm_state|ka_psi|chaitin_omega|goodstein|pi_tower|pi_plane|omega_computer|floor_match|floor_track|fixed_pattern|classify_reject_recover [-- sim arguments]"
         exit 2
         ;;
 esac
@@ -21,7 +21,7 @@ if [ "${1:-}" = "--" ]; then
     SIM_ARGUMENTS=("$@")
 fi
 
-SCRIPTURA="$TOP/cu/engine/runtime/scriptura"
+source "$TOP/cu/includes/file_defs/file_defs.sh"
 NO_ROUNDING="$TOP/cu/includes/types/integers"
 PERIOD="$TOP/cu/engine/analysis/period"
 PERIOD_CU="$TOP/cu/engine/analysis/period"
@@ -85,7 +85,7 @@ fi
 # chaitin_omega runs its reduction and pi_tower its BBP terms, as programs on the engine's record machine
 HOST_SOURCES=()
 if [ "$SIM" = "chaitin_omega" ] || [ "$SIM" = "pi_tower" ]; then
-    MODULE_SOURCES+=("$CYCLE_CU/cycle_compile_cache.cu" "$CYCLE_CU/cycle_compile.cu" "$CYCLE_CU/cycle_compile_route.cu" "$CYCLE_CU/cycle_compile_toolchain.cu" "$CYCLE_CU/cycle_launch.cu" "$CYCLE_CU/cycle_prelude.cu" "$CYCLE_CU/cycle_record.cu" "$CYCLE_CU/cycle_record_launch.cu" "$CYCLE_CU/cycle_sweep.cu" "$CODEGEN_CU/asm_printer_layout.cu" "$CODEGEN_CU/asm_printer_program.cu" "$CODEGEN_CU/c_target.cu" "$CODEGEN_CU/code_generator.cu" "$CODEGEN_CU/code_generator_entries.cu" "$CODEGEN_CU/codegen.cu" "$CODEGEN_CU/codegen_lowering.cu" "$CODEGEN_CU/codegen_output.cu" "$CODEGEN_CU_2/codegen_reader.cu" "$CODEGEN_CU/codegen_rules.cu" "$CODEGEN_CU/ptx_target.cu" "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$CODEGEN_CU/sass_target.cu" "$CODEGEN_CU_2/target_parse.cu" "$CODEGEN_CU/target_rulesets.cu" "$CODEGEN_CU/vhdl_target.cu" "$CODEGEN_CU/yosys_script.cu" "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu")
+    MODULE_SOURCES+=("$CYCLE_CU/cycle_compile_cache.cu" "$CYCLE_CU/cycle_compile.cu" "$CYCLE_CU/cycle_compile_route.cu" "$CYCLE_CU/cycle_compile_toolchain.cu" "$CYCLE_CU/cycle_launch.cu" "$CYCLE_CU/cycle_prelude.cu" "$CYCLE_CU/cycle_record.cu" "$CYCLE_CU/cycle_record_launch.cu" "$CYCLE_CU/cycle_sweep.cu" "$CODEGEN_CU/asm_printer_layout.cu" "$CODEGEN_CU/asm_printer_program.cu" "$CODEGEN_CU/code_generator.cu" "$CODEGEN_CU/code_generator_entries.cu" "$CODEGEN_CU/codegen.cu" "$CODEGEN_CU/codegen_lowering.cu" "$CODEGEN_CU/codegen_output.cu" "$CODEGEN_CU_2/codegen_reader.cu" "$CODEGEN_CU/codegen_rules.cu" "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$CODEGEN_CU_2/target_parse.cu" "$CODEGEN_CU/target_rulesets.cu" "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu")
     HOST_SOURCES+=("$CYCLE/cycle.c")
 fi
 
@@ -126,7 +126,7 @@ done
 DAEMON_DIRECTORY="$TOP/cu/engine/runtime/daemon"
 OBSIGNATIO="$TOP/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$TOP/cu/engine/runtime/obsignatio"
-INCLUDES=(-I "$TOP/cu/engine" -I "$SIMS" -I "$SIMS_CU" -I "$SCRIPTURA" -I "$NO_ROUNDING" -I "$PERIOD" -I "$PERIOD_CU" -I "$TOWER" -I "$TOWER_CU" -I "$DEVICE_POOL"
+INCLUDES=(-I "$TOP/cu/engine" -I "$SIMS" -I "$SIMS_CU" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$NO_ROUNDING" -I "$PERIOD" -I "$PERIOD_CU" -I "$TOWER" -I "$TOWER_CU" -I "$DEVICE_POOL"
           -I "$COMPRESSION" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$DAEMON_DIRECTORY" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
 if [ "$SIM" = "knf_identity" ]; then
     INCLUDES+=(-I "$TOP/cu/includes/codecs/crc" -I "$TOP/cu/includes/codecs/crc" -I "$ENTROPY_HISTORY")
@@ -147,21 +147,21 @@ build_object()
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
             cc -std=c11 -O2 -fPIC "${WIDTH[@]}" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
 }
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+LINEA_OBJECTS=()
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "${HOST_SOURCES[@]}"; do
     object="$OUT/$(basename "$source" .c)_sim.$EXTENSION"
     build_object "$source" "$object"
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
 
@@ -191,7 +191,7 @@ case "$(uname -s)" in
     *) DAEMON="$OUT/tessera_daemon"; DAEMON_LIBRARIES=(-ldl -lpthread) ;;
 esac
 rm -f "$DAEMON"
-nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" "${SCRIPTURA_OBJECTS[@]}" \
+nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" "${LINEA_OBJECTS[@]}" \
     "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 

@@ -6,7 +6,7 @@
 // the link written with each register by its class and the order the window first names it in, r for R, p for P, ur
 // for UR, each literal operand as a part of its own, k, in the order the window first writes its value, and each target
 // of a control transfer as a part of its own, t, in the order the window first aims at it: two windows the same but for
-// the registers they were given, the values they hold and where they sit write the same text
+// the registers they were given, the values they carry and where they sit write the same text
 static std::string link_render(const Link &link, std::map<std::string, std::string> *names, unsigned int counts[5])
 {
     std::string text;
@@ -90,37 +90,37 @@ std::string address_text(const std::vector<Question> &questions, unsigned int qu
     return questions[question].number + ":" + questions[question].chain[link].position;
 }
 
-// The chains of every question, each window of each an identity held at its first occurrence, the lowest address it
+// The chains of every question, each window of each an identity recorded at its first occurrence, the lowest address it
 // occurs at: every later occurrence reaffirms it at a new address, with the same constituents. A link whose identity
 // first occurs where it stands is a primitive. Each question's chain is read from its first link as the constituents
 // that came before it, at each link the longest window whose identity first occurs at a lower address, or the link
 // alone where nothing does, and its signature is those constituents in order, each an identity at its address, with
 // the primitive of each link and the literal operands in that order: identity:address with its primitives.
 //
-// The run's blob chains.txt holds the primitives in the order of their addresses, each with its count and its link,
+// The run's blob chains.txt contains the primitives in the order of their addresses, each with its count and its link,
 // then for each question its chain: the identity of the whole at its address and its count, the constituents, each an
 // address and a length, the primitives, and the operands every window of every question's chain, each identity at its
 // first occurrence with its count
-std::unordered_map<unsigned long long, Occurrence> windows_held(const std::vector<Question> &questions)
+std::unordered_map<unsigned long long, Occurrence> windows_counted(const std::vector<Question> &questions)
 {
-    std::unordered_map<unsigned long long, Occurrence> held;
+    std::unordered_map<unsigned long long, Occurrence> windows;
     for (unsigned int question = 0u; question < questions.size(); question += 1u)
     {
         for (unsigned int link = 0u; link < questions[question].chain.size(); link += 1u)
         {
             for (const unsigned long long identity : window_identities(questions[question], link))
             {
-                const auto found = held.insert(std::make_pair(identity, Occurrence{question, link, 0u})).first;
+                const auto found = windows.insert(std::make_pair(identity, Occurrence{question, link, 0u})).first;
                 found->second.count += 1u;
             }
         }
     }
-    return held;
+    return windows;
 }
 
 static int chains_write(const std::vector<Question> &questions, const std::string &folder)
 {
-    const std::unordered_map<unsigned long long, Occurrence> held = windows_held(questions);
+    const std::unordered_map<unsigned long long, Occurrence> windows = windows_counted(questions);
     const std::string path = folder + "/chains.txt";
     RunWritten file = {path, 0, std::string()};
     std::string primitives;
@@ -132,29 +132,29 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
     std::set<unsigned long long> wholes;
     for (unsigned int question = 0u; question < questions.size(); question += 1u)
     {
-        const Question &asked = questions[question];
-        if (asked.chain.empty())
+        const Question &current = questions[question];
+        if (current.chain.empty())
         {
             continue;
         }
-        const unsigned long long whole_identity = window_identities(asked, 0u).back();
-        const Occurrence &whole = held.at(whole_identity);
+        const unsigned long long whole_identity = window_identities(current, 0u).back();
+        const Occurrence &whole = windows.at(whole_identity);
         wholes.insert(whole_identity);
         reaffirmed += ((whole.question != question) || (whole.link != 0u)) ? 1u : 0u;
         std::string read;
         std::string primitive_row;
         std::string operand_row;
-        for (unsigned int link = 0u; link < asked.chain.size();)
+        for (unsigned int link = 0u; link < current.chain.size();)
         {
-            const std::vector<unsigned long long> identities = window_identities(asked, link);
+            const std::vector<unsigned long long> identities = window_identities(current, link);
             unsigned int length = 0u;
             for (unsigned int longest = (unsigned int)identities.size(); (longest > 0u) && (length == 0u); longest -= 1u)
             {
-                const Occurrence &first = held.at(identities[longest - 1u]);
+                const Occurrence &first = windows.at(identities[longest - 1u]);
                 const int lower = (first.question < question) || ((first.question == question) && (first.link < link));
                 // the constituents of a reaffirmation are the same, link for link, as those of its first occurrence
                 if (lower && (window_render(questions[first.question], first.link, longest) ==
-                              window_render(asked, link, longest)))
+                              window_render(current, link, longest)))
                 {
                     read += " " + address_text(questions, first.question, first.link) + "/" + std::to_string(longest);
                     constituents.insert(identities[longest - 1u]);
@@ -164,7 +164,7 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
             if (length == 0u)
             {
                 primitives += "primitive " + address_text(questions, question, link) + " " +
-                              std::to_string(held.at(identities[0]).count) + " " + window_render(asked, link, 1u);
+                              std::to_string(windows.at(identities[0]).count) + " " + window_render(current, link, 1u);
                 read += " " + address_text(questions, question, link) + "/1";
                 primitive_count += 1u;
                 length = 1u;
@@ -172,10 +172,10 @@ static int chains_write(const std::vector<Question> &questions, const std::strin
             constituent_count += 1u;
             for (unsigned int within = link; within < link + length; within += 1u)
             {
-                const Occurrence &primitive = held.at(window_identities(asked, within)[0]);
+                const Occurrence &primitive = windows.at(window_identities(current, within)[0]);
                 primitive_row += " " + address_text(questions, primitive.question, primitive.link);
                 // the literal operands and the distances of the targets, in the order the link writes them
-                const Link &written = asked.chain[within];
+                const Link &written = current.chain[within];
                 size_t literal = 0u;
                 size_t target = 0u;
                 for (const char part : written.marked)
@@ -244,7 +244,7 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
     stick << stick_file.rdbuf();
     const std::string path = folder + "/slices.txt";
     RunWritten file = {path, 0, std::string()};
-    std::set<std::string> asked;
+    std::set<std::string> queried;
     unsigned int slices = 0u;
     std::set<std::string> identities;
     for (size_t one = 0u; one < questions.size(); one += 1u)
@@ -276,8 +276,8 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
             slices += 1u;
             if (question_integer(lead) && question_integer(rite))
             {
-                asked.insert(lead.number);
-                asked.insert(rite.number);
+                queried.insert(lead.number);
+                queried.insert(rite.number);
             }
         }
     }
@@ -293,7 +293,7 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
         const int written = !ours.empty() && std::filesystem::exists(ours + "/" + question.number + ".bin");
         if (question_integer(question) && ((question.category == "pressure") || (written != 0)))
         {
-            asked.insert(question.number);
+            queried.insert(question.number);
         }
     }
     printf("  %s: %u questions, %u slices, %u identities\n", path.c_str(), (unsigned int)questions.size(), slices,
@@ -302,5 +302,5 @@ int identity_slice(const char *listing, const char *manifest, const char *stick_
     {
         return 1;
     }
-    return host_questions_write(folder + "/host_questions.cpp", stick.str(), asked) ? 0 : 1;
+    return host_questions_write(folder + "/host_questions.cpp", stick.str(), queried) ? 0 : 1;
 }

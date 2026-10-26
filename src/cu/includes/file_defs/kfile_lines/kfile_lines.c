@@ -25,7 +25,7 @@ static char *kfile_lines_copy(const char *text, size_t length)
     return copy;
 }
 
-// `file` given room for `more` lines past those it holds: 1, or 0 where there was no memory
+// `file` given room for `more` lines past those it contains: 1, or 0 where there was no memory
 static int kfile_lines_room(KfileLines *file, unsigned int more)
 {
     if ((file->lines + more) <= file->room)
@@ -50,16 +50,16 @@ static int kfile_lines_room(KfileLines *file, unsigned int more)
 int kfile_lines_read(KfileLines *file, const char *path)
 {
     kfile_lines_free(file);
-    // the file as the run holds it: its latest blob, or the file where the run holds none (qry_member_file)
+    // the file as the run stores it: its latest blob, or the file where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if (!qry_member_file_blob(path, &bytes, &size))
     {
         return 1;
     }
-    int held = 1;
+    int ok = 1;
     unsigned long long at = 0ull;
-    while (held && (at < size))
+    while (ok && (at < size))
     {
         // a file read whole is at most what a size_t counts
         const char *const start = (const char *)(bytes + at);
@@ -68,8 +68,8 @@ int kfile_lines_read(KfileLines *file, const char *path)
         at += (unsigned long long)length + ((end != NULL) ? 1ull : 0ull);
         length -= ((length != 0u) && (start[length - 1u] == '\r')) ? 1u : 0u;
         char *const copy = kfile_lines_copy(start, length);
-        held = (copy != NULL) && kfile_lines_room(file, 1u);
-        if (held)
+        ok = (copy != NULL) && kfile_lines_room(file, 1u);
+        if (ok)
         {
             file->line[file->lines] = copy;
             file->lines += 1u;
@@ -79,7 +79,7 @@ int kfile_lines_read(KfileLines *file, const char *path)
             free(copy);
         }
     }
-    return held;
+    return ok;
 }
 
 int kfile_lines_write_by(const KfileLines *file, const char *path, Who who)
@@ -154,7 +154,7 @@ void kfile_lines_line_drop(KfileLines *file, unsigned int at)
     file->lines -= 1u;
 }
 
-int kfile_lines_who_line(const char *line, Who *who, int *held)
+int kfile_lines_who_line(const char *line, Who *who, int *has_who)
 {
     if (strncmp(line, "who ", 4u) != 0)
     {
@@ -162,32 +162,32 @@ int kfile_lines_who_line(const char *line, Who *who, int *held)
     }
     if (strcmp(line + 4, "-") == 0)
     {
-        *held = 0;
+        *has_who = 0;
         return 1;
     }
-    *held = who_read(line + 4, who) && (line[4u + WHO_CODE_LETTERS] == '\0');
-    return *held;
+    *has_who = who_read(line + 4, who) && (line[4u + WHO_CODE_LETTERS] == '\0');
+    return *has_who;
 }
 
 int kfile_lines_who_at(const KfileLines *file, unsigned int at, Who *who)
 {
     for (unsigned int before = (at < file->lines) ? at : file->lines; before != 0u; before -= 1u)
     {
-        int held = 0;
-        if (kfile_lines_who_line(file->line[before - 1u], who, &held))
+        int has_who = 0;
+        if (kfile_lines_who_line(file->line[before - 1u], who, &has_who))
         {
-            return held;
+            return has_who;
         }
     }
     return 0;
 }
 
-// the who line of `who` into `line`, which holds WHO_CODE_LETTERS + 5, `who -` where `held` is 0
-static void kfile_lines_who_written(Who who, int held, char *line, size_t room)
+// the who line of `who` into `line`, which has room for WHO_CODE_LETTERS + 5, `who -` where `has_who` is 0
+static void kfile_lines_who_written(Who who, int has_who, char *line, size_t room)
 {
     char code[WHO_CODE_LETTERS + 1u];
     who_code(who, code, sizeof(code));
-    snprintf(line, room, "who %s", held ? code : "-");
+    snprintf(line, room, "who %s", has_who ? code : "-");
 }
 
 unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *const *lines, unsigned int count,
@@ -195,13 +195,13 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
 {
     at = (at < file->lines) ? at : file->lines;
     Who there;
-    const int there_held = kfile_lines_who_at(file, at, &there);
+    const int there_has_who = kfile_lines_who_at(file, at, &there);
     const int own =
-        there_held && (there.source == who.source) && (there.line == who.line) && (there.program == who.program);
+        there_has_who && (there.source == who.source) && (there.line == who.line) && (there.program == who.program);
     // lines of the file follow where `at` stands before one that is no who line of its own
     Who next_who;
-    int next_held = 0;
-    const int follows = (at < file->lines) && !kfile_lines_who_line(file->line[at], &next_who, &next_held);
+    int next_has_who = 0;
+    const int follows = (at < file->lines) && !kfile_lines_who_line(file->line[at], &next_who, &next_has_who);
     // the lines put, each its own allocation, made before the file is touched
     const unsigned int put = count + (own ? 0u : 1u) + ((!own && follows) ? 1u : 0u);
     char **const made = (char **)calloc((size_t)put + 1u, sizeof(char *));
@@ -212,28 +212,28 @@ unsigned int kfile_lines_put_by(KfileLines *file, unsigned int at, const char *c
     }
     char whose[WHO_CODE_LETTERS + 8u];
     unsigned int next = 0u;
-    int held = 1;
+    int ok = 1;
     if (!own)
     {
         kfile_lines_who_written(who, 1, whose, sizeof(whose));
         made[next] = kfile_lines_copy(whose, strlen(whose));
-        held = held && (made[next] != NULL);
+        ok = ok && (made[next] != NULL);
         next += 1u;
     }
     for (unsigned int line = 0u; line < count; line += 1u)
     {
         made[next] = kfile_lines_copy(lines[line], strlen(lines[line]));
-        held = held && (made[next] != NULL);
+        ok = ok && (made[next] != NULL);
         next += 1u;
     }
     if (!own && follows)
     {
-        kfile_lines_who_written(there, there_held, whose, sizeof(whose));
+        kfile_lines_who_written(there, there_has_who, whose, sizeof(whose));
         made[next] = kfile_lines_copy(whose, strlen(whose));
-        held = held && (made[next] != NULL);
+        ok = ok && (made[next] != NULL);
         next += 1u;
     }
-    if (!held)
+    if (!ok)
     {
         for (unsigned int line = 0u; line < next; line += 1u)
         {
@@ -301,8 +301,8 @@ int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned i
     KlangBlock block;
     const int found = verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_text_bytes), .at = joined}) &&
                       klang_block_find(s_text_bytes, joined, 0u, lang, &block);
-    // the line holding the opener and the line holding the closer: the last to start at or before each, the starts
-    // rising line by line
+    // the line containing the opener and the line containing the closer: the last to start at or before each, the
+    // starts rising line by line
     unsigned int opener = file->lines;
     unsigned int closer = file->lines;
     for (unsigned int at = from; found && (at < file->lines); at += 1u)
@@ -320,18 +320,18 @@ int kfile_lines_block_lines(const KfileLines *file, const char *lang, unsigned i
     return 1;
 }
 
-// a line the file held that is no who line: its text and its place among such lines
+// a line the file contained that is no who line: its text and its place among such lines
 typedef struct
 {
     const char *text;
     unsigned int at;
-} KfileLinesHeld;
+} KfileLinesEntry;
 
-// the order of two held lines, by their text and then by their place
-static int kfile_lines_held_order(const void *left, const void *right)
+// the order of two contained lines, by their text and then by their place
+static int kfile_lines_entry_order(const void *left, const void *right)
 {
-    const KfileLinesHeld *const one = (const KfileLinesHeld *)left;
-    const KfileLinesHeld *const other = (const KfileLinesHeld *)right;
+    const KfileLinesEntry *const one = (const KfileLinesEntry *)left;
+    const KfileLinesEntry *const other = (const KfileLinesEntry *)right;
     const int order = strcmp(one->text, other->text);
     return (order != 0) ? order : ((one->at < other->at) ? -1 : ((one->at > other->at) ? 1 : 0));
 }
@@ -345,75 +345,76 @@ static int kfile_lines_who_equal(Who one, Who other)
 
 int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *const *lines, unsigned int count, Who who)
 {
-    // each line the file holds that is no who line, in the order of its text, and the who in force over it
-    KfileLinesHeld *const held = (KfileLinesHeld *)calloc((size_t)file->lines + 1u, sizeof(KfileLinesHeld));
+    // each line the file contains that is no who line, in the order of its text, and the who in force over it
+    KfileLinesEntry *const entries = (KfileLinesEntry *)calloc((size_t)file->lines + 1u, sizeof(KfileLinesEntry));
     Who *const whose = (Who *)calloc((size_t)file->lines + 1u, sizeof(Who));
-    unsigned char *const whose_held = (unsigned char *)calloc((size_t)file->lines + 1u, 1u);
+    unsigned char *const whose_has_who = (unsigned char *)calloc((size_t)file->lines + 1u, 1u);
     unsigned char *const taken = (unsigned char *)calloc((size_t)file->lines + 1u, 1u);
-    int written = (held != NULL) && (whose != NULL) && (whose_held != NULL) && (taken != NULL);
-    unsigned int kept = 0u;
+    int written = (entries != NULL) && (whose != NULL) && (whose_has_who != NULL) && (taken != NULL);
+    unsigned int entry_count = 0u;
     Who now = {0u, 0u, 0u, 0ull};
-    int now_held = 0;
+    int now_has_who = 0;
     for (unsigned int at = 0u; written && (at < file->lines); at += 1u)
     {
         Who read;
-        int read_held = 0;
-        if (kfile_lines_who_line(file->line[at], &read, &read_held))
+        int read_has_who = 0;
+        if (kfile_lines_who_line(file->line[at], &read, &read_has_who))
         {
             now = read;
-            now_held = read_held;
+            now_has_who = read_has_who;
             continue;
         }
-        held[kept].text = file->line[at];
-        held[kept].at = kept;
-        whose[kept] = now;
-        whose_held[kept] = (unsigned char)now_held;
-        kept += 1u;
+        entries[entry_count].text = file->line[at];
+        entries[entry_count].at = entry_count;
+        whose[entry_count] = now;
+        whose_has_who[entry_count] = (unsigned char)now_has_who;
+        entry_count += 1u;
     }
     if (written)
     {
-        qsort(held, kept, sizeof(KfileLinesHeld), kfile_lines_held_order);
+        qsort(entries, entry_count, sizeof(KfileLinesEntry), kfile_lines_entry_order);
     }
     KfileLines made = {NULL, 0u, 0u};
     Who in_force = {0u, 0u, 0u, 0ull};
-    int in_force_held = 0;
+    int in_force_has_who = 0;
     for (unsigned int line = 0u; written && (line < count); line += 1u)
     {
-        // the first line the file held of this text and not yet taken: the first of the text, by its place
+        // the first line the file contained of this text and not yet taken: the first of the text, by its place
         unsigned int low = 0u;
-        unsigned int high = kept;
+        unsigned int high = entry_count;
         while (low < high)
         {
             const unsigned int middle = low + ((high - low) / 2u);
-            low = (strcmp(held[middle].text, lines[line]) < 0) ? (middle + 1u) : low;
-            high = (strcmp(held[middle].text, lines[line]) < 0) ? high : middle;
+            low = (strcmp(entries[middle].text, lines[line]) < 0) ? (middle + 1u) : low;
+            high = (strcmp(entries[middle].text, lines[line]) < 0) ? high : middle;
         }
-        while ((low < kept) && (strcmp(held[low].text, lines[line]) == 0) && taken[held[low].at])
+        while ((low < entry_count) && (strcmp(entries[low].text, lines[line]) == 0) && taken[entries[low].at])
         {
             low += 1u;
         }
-        const int found = (low < kept) && (strcmp(held[low].text, lines[line]) == 0);
+        const int found = (low < entry_count) && (strcmp(entries[low].text, lines[line]) == 0);
         if (found)
         {
-            taken[held[low].at] = 1u;
+            taken[entries[low].at] = 1u;
         }
-        const Who wanted = found ? whose[held[low].at] : who;
-        const int wanted_held = found ? (int)whose_held[held[low].at] : 1;
-        const int same = (wanted_held == in_force_held) && (!wanted_held || kfile_lines_who_equal(wanted, in_force));
+        const Who wanted = found ? whose[entries[low].at] : who;
+        const int wanted_has_who = found ? (int)whose_has_who[entries[low].at] : 1;
+        const int same =
+            (wanted_has_who == in_force_has_who) && (!wanted_has_who || kfile_lines_who_equal(wanted, in_force));
         if ((line >= first) && !same)
         {
             char whose_line[WHO_CODE_LETTERS + 8u];
-            kfile_lines_who_written(wanted, wanted_held, whose_line, sizeof(whose_line));
+            kfile_lines_who_written(wanted, wanted_has_who, whose_line, sizeof(whose_line));
             written = kfile_lines_line_add(&made, whose_line);
             in_force = wanted;
-            in_force_held = wanted_held;
+            in_force_has_who = wanted_has_who;
         }
         written = written && kfile_lines_line_add(&made, lines[line]);
     }
     free(taken);
-    free(whose_held);
+    free(whose_has_who);
     free(whose);
-    free(held);
+    free(entries);
     if (!written)
     {
         kfile_lines_free(&made);
@@ -427,13 +428,13 @@ int kfile_lines_written_by(KfileLines *file, unsigned int first, const char *con
 void kfile_lines_who_tidied(KfileLines *file)
 {
     Who who;
-    int held = 0;
+    int has_who = 0;
     unsigned int at = file->lines;
     while (at != 0u)
     {
         at -= 1u;
-        const int over_none = ((at + 1u) >= file->lines) || kfile_lines_who_line(file->line[at + 1u], &who, &held);
-        if (kfile_lines_who_line(file->line[at], &who, &held) && over_none)
+        const int over_none = ((at + 1u) >= file->lines) || kfile_lines_who_line(file->line[at + 1u], &who, &has_who);
+        if (kfile_lines_who_line(file->line[at], &who, &has_who) && over_none)
         {
             kfile_lines_line_drop(file, at);
         }

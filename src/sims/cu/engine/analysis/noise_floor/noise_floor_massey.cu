@@ -176,26 +176,26 @@ void floor_mock(SimResults *results, FloorStream *streams, unsigned int *lengths
         rebuilt += regenerated[index];
         description += 2ull * lengths[index];
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  the Kolmogorov mock: ");
-    scriptura_decimal(line, FLOOR_STREAMS, 1u);
-    scriptura_text(line, " streams of ");
-    scriptura_decimal(line, FLOOR_STREAM_BITS, 1u);
-    scriptura_text(line, " bits, each from a linear generator of degree ");
-    scriptura_decimal(line, FLOOR_DEGREE_LEAST, 1u);
-    scriptura_text(line, " to ");
-    scriptura_decimal(line, FLOOR_DEGREE_MAX, 1u);
-    scriptura_text(line, " and a drawn seed\n    Berlekamp-Massey: complexity within the degree on ");
-    scriptura_decimal(line, within, 1u);
-    scriptura_text(line, ", the whole stream regenerated from its first L bits on ");
-    scriptura_decimal(line, rebuilt, 1u);
-    scriptura_text(line, "\n    the streams' description, 2L bits each: ");
-    scriptura_decimal(line, description, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, (unsigned long long)FLOOR_STREAMS * FLOOR_STREAM_BITS, 1u);
-    scriptura_text(line, " bits (");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  the Kolmogorov mock: ");
+    mmgr_line_decimal(line, FLOOR_STREAMS, 1u);
+    mmgr_line_put(line, " streams of ");
+    mmgr_line_decimal(line, FLOOR_STREAM_BITS, 1u);
+    mmgr_line_put(line, " bits, each from a linear generator of degree ");
+    mmgr_line_decimal(line, FLOOR_DEGREE_LEAST, 1u);
+    mmgr_line_put(line, " to ");
+    mmgr_line_decimal(line, FLOOR_DEGREE_MAX, 1u);
+    mmgr_line_put(line, " and a drawn seed\n    Berlekamp-Massey: complexity within the degree on ");
+    mmgr_line_decimal(line, within, 1u);
+    mmgr_line_put(line, ", the whole stream regenerated from its first L bits on ");
+    mmgr_line_decimal(line, rebuilt, 1u);
+    mmgr_line_put(line, "\n    the streams' description, 2L bits each: ");
+    mmgr_line_decimal(line, description, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, (unsigned long long)FLOOR_STREAMS * FLOOR_STREAM_BITS, 1u);
+    mmgr_line_put(line, " bits (");
     sim_fraction_print(line, description * 100ull, (unsigned long long)FLOOR_STREAMS * FLOOR_STREAM_BITS, 2u);
-    scriptura_text(line, "%)\n");
+    mmgr_line_put(line, "%)\n");
     sim_check(results, within == FLOOR_STREAMS, "every seeded stream's complexity lies within its degree");
     sim_check(results, rebuilt == FLOOR_STREAMS, "every seeded stream regenerates from its recovered seed");
 }
@@ -220,14 +220,14 @@ void floor_random(SimResults *results, FloorStream *streams, unsigned int *lengt
         least = (lengths[index] < least) ? lengths[index] : least;
         maximum = (lengths[index] > maximum) ? lengths[index] : maximum;
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  keyed draws, the same count: complexity from ");
-    scriptura_decimal(line, least, 1u);
-    scriptura_text(line, " to ");
-    scriptura_decimal(line, maximum, 1u);
-    scriptura_text(line, " against n/2 = ");
-    scriptura_decimal(line, FLOOR_STREAM_BITS / 2u, 1u);
-    scriptura_character(line, '\n');
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  keyed draws, the same count: complexity from ");
+    mmgr_line_decimal(line, least, 1u);
+    mmgr_line_put(line, " to ");
+    mmgr_line_decimal(line, maximum, 1u);
+    mmgr_line_put(line, " against n/2 = ");
+    mmgr_line_decimal(line, FLOOR_STREAM_BITS / 2u, 1u);
+    mmgr_line_ch(line, '\n');
     sim_check(results,
               ((least + FLOOR_RANDOM_RANGE) >= (FLOOR_STREAM_BITS / 2u)) &&
                   (maximum <= ((FLOOR_STREAM_BITS / 2u) + FLOOR_RANDOM_RANGE)),
@@ -263,12 +263,12 @@ void floor_planes(SimResults *results, const unsigned short *lanes, unsigned lon
     }
     if (ok && (floor_massey(results, streams, count, lengths, regenerated) != 0))
     {
-        ScripturaLine *const line = &results->line;
-        scriptura_text(line, "  the camera lattice's bit planes, ");
-        scriptura_decimal(line, per_plane, 1u);
-        scriptura_text(line, " streams of ");
-        scriptura_decimal(line, FLOOR_STREAM_BITS, 1u);
-        scriptura_text(line, " consecutive lanes a plane\n    plane  mean complexity / n   streams read as random (at "
+        VerbaLinea *const line = &results->line;
+        mmgr_line_put(line, "  the camera lattice's bit planes, ");
+        mmgr_line_decimal(line, per_plane, 1u);
+        mmgr_line_put(line, " streams of ");
+        mmgr_line_decimal(line, FLOOR_STREAM_BITS, 1u);
+        mmgr_line_put(line, " consecutive lanes a plane\n    plane  mean complexity / n   streams read as random (at "
                              "least n/2 - 16)\n");
         unsigned long long random_low_planes = 0ull;
         for (unsigned int plane = 0u; plane < FLOOR_PLANES; plane += 1u)
@@ -281,15 +281,15 @@ void floor_planes(SimResults *results, const unsigned short *lanes, unsigned lon
                 total += length;
                 random += ((length + FLOOR_RANDOM_RANGE) >= (FLOOR_STREAM_BITS / 2u)) ? 1ull : 0ull;
             }
-            scriptura_text(line, "    ");
-            scriptura_decimal_columns(line, plane, 5u);
-            scriptura_text(line, "  ");
+            mmgr_line_put(line, "    ");
+            mmgr_line_decimal_columns(line, plane, 5u);
+            mmgr_line_put(line, "  ");
             sim_fraction_print(line, total, (unsigned long long)per_plane * FLOOR_STREAM_BITS, 4u);
-            scriptura_text(line, "              ");
-            scriptura_decimal(line, random, 1u);
-            scriptura_text(line, " of ");
-            scriptura_decimal(line, per_plane, 1u);
-            scriptura_character(line, '\n');
+            mmgr_line_put(line, "              ");
+            mmgr_line_decimal(line, random, 1u);
+            mmgr_line_put(line, " of ");
+            mmgr_line_decimal(line, per_plane, 1u);
+            mmgr_line_ch(line, '\n');
             random_low_planes += ((plane == 0u) && (random == per_plane)) ? 1ull : 0ull;
         }
         sim_check(results, random_low_planes == 1ull, "the lowest bit plane reads as random on every stream");
@@ -335,7 +335,7 @@ __global__ void floor_transfer_kernel(unsigned short *lanes, const unsigned int 
     // the square of a difference of two differences is below 2^34
     atomicAdd(&coherent.count[quad], 1ull);
     atomicAdd(&coherent.total[quad], (unsigned long long)(across * across));
-    // a product of two differences is below 2^32 in magnitude; added modulo 2^64 it keeps its sign in the total
+    // a product of two differences is below 2^32 in magnitude; added modulo 2^64 it preserves its sign in the total
     const unsigned long long product = (unsigned long long)(difference * beside);
     // a square of a difference is non-negative
     const unsigned long long beside_square = (unsigned long long)(beside * beside);

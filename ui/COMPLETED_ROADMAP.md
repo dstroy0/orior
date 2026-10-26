@@ -8,7 +8,7 @@ What the window does that [the roadmap](ROADMAP.md) asked of it, by area. Each t
 
 ## When it opens
 
-1. **Nothing in the way as it opens.** The window opens on the tree and the tabs left, with no page of welcome, of release notes, of walkthroughs or of plugins to try, and no plugin updates as it opens. Help, What's New shows what each release changed, from CHANGES.md, for the reader who asks. Not again, beside a notice on the status bar, puts that kind of notice away for good, a number in it read as any, and the bell still keeps it; Preferences, Notices, brings a kind back.
+1. **Nothing in the way as it opens.** The window opens on the tree and the tabs left, with no page of welcome, of release notes, of walkthroughs or of plugins to try, and no plugin updates as it opens. Help, What's New shows what each release changed, from CHANGES.md, for the reader who asks. Silence, beside a notice on the status bar, puts that kind of notice away for good, a number in it read as any, and the bell still keeps it; Preferences, Notices, brings a kind back.
 
 2. **A tree put back as it was left, and only that tree.** The tabs, panes and window of the tree opened, on a screen there is. orior keeps each tree's state with that tree, and a file gone since is left out without an error. The window's place is kept for each tree as it closes, and put back on a monitor there is, at a size that fits it. The tabs opened again as the tree starts leave the keys in a field the reader is typing in.
 

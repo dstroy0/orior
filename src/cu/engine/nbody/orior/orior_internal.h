@@ -6,7 +6,7 @@
 
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -27,7 +27,7 @@
 /* The dispatch rule in orior_steer_prefers_free compares 100 * total^2 against
  * 85 * distinct * sum(count^2) for a census whose total is a 64 bit count. The right side is below
  * 2^7 * 2^8 * 2^128 = 2^143: 85 is below 2^7, at most 256 symbols are distinct, and a sum of squared
- * counts is at most total^2. The narrowest power of two width holding 143 bits is 256, which is
+ * counts is at most total^2. The narrowest power of two width containing 143 bits is 256, which is
  * 8 limbs. Narrower, the rule errors on a large enough corpus, and which engine a corpus is given
  * would change with the width. The engine errors on the width here instead. The exact integer on its
  * own builds and grades down to 1 limb. Written in the three forms exact_integer.h uses for its

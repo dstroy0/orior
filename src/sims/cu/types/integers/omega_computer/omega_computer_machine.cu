@@ -63,7 +63,7 @@ static int omega_computer_node(OmegaComputerMachine *machine, int kind, int left
     node.left = left;
     node.right = right;
     machine->nodes.push_back(node);
-    // the arena holds a program, its input and U, far below 2^31 nodes
+    // the arena contains a program, its input and U, far below 2^31 nodes
     return (int)(machine->nodes.size() - 1u);
 }
 
@@ -131,7 +131,7 @@ static int omega_computer_thunk(OmegaComputerMachine *machine, int term, int env
     thunk.value = 0;
     thunk.value_cells = -1;
     machine->thunks.push_back(thunk);
-    // the cells are held below OMEGA_COMPUTER_CELLS_MAX, 2^27
+    // the cells are bounded below OMEGA_COMPUTER_CELLS_MAX, 2^27
     return (int)(machine->thunks.size() - 1u);
 }
 
@@ -141,7 +141,7 @@ static int omega_computer_cell(std::vector<OmegaComputerCell> &cells, int thunk,
     cell.thunk = thunk;
     cell.next = next;
     cells.push_back(cell);
-    // the cells are held below OMEGA_COMPUTER_CELLS_MAX, 2^27
+    // the cells are bounded below OMEGA_COMPUTER_CELLS_MAX, 2^27
     return (int)(cells.size() - 1u);
 }
 
@@ -156,7 +156,7 @@ static int omega_computer_lookup(const OmegaComputerMachine *machine, int enviro
     return machine->environments[(size_t)cell].thunk;
 }
 
-// The thunk to its weak head normal form, by Krivine's machine with Sestoft's update frames: the stack holds arguments
+// The thunk to its weak head normal form, by Krivine's machine with Sestoft's update frames: the stack stores arguments
 // (a thunk, shifted up one) and updates (a thunk, shifted up one, with the low bit set). A lambda meeting an argument
 // is a beta step; meeting an update, it becomes that thunk's value. A variable whose thunk is evaluated continues as
 // its value; one not yet evaluated is entered under an update; one already entered is needed to make its own value.
@@ -323,7 +323,7 @@ static OmegaComputerFate omega_computer_normal(OmegaComputerMachine *machine, in
         {
             arguments.push_back(machine->spines[(size_t)cell].thunk);
         }
-        // the spine holds its last argument first
+        // the spine stores its last argument first
         out.insert(out.end(), arguments.size(), OMEGA_COMPUTER_APPLY);
         out.push_back(item.depth - thunk.value);
         for (size_t at = 0u; at < arguments.size(); at += 1u)

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fill.c: Fill Paragraph: the text's lines walked from the cursor's, the paragraph's words gathered by the texts they
 // stand in, and filled into lines no wider than the margin. A paragraph of a comment a line takes the lines that start
-// with the cursor line's indent and mark and hold text after it, a line of a longer mark not among them; a docstring's
-// the lines of its quotes that are not blank; plain text's the lines that are not blank. One fill runs at a time
+// with the cursor line's indent and mark and contain text after it, a line of a longer mark not among them; a
+// docstring's the lines of its quotes that are not blank; plain text's the lines that are not blank. One fill runs at a
+// time
 #include "fill_internal.h"
 
 const char **g_cli_fill_slice;
@@ -75,7 +76,7 @@ void cli_filled_begun(CliFilled *filled)
 {
     if (filled->lines > 0u)
     {
-        cli_line_character(filled->out, '\n');
+        mmgr_line_ch(filled->out, '\n');
     }
     filled->line_start = filled->out->at;
     filled->lines += 1u;
@@ -90,7 +91,7 @@ const char *cli_filled_last(const CliFilled *filled, unsigned long long *size)
 void cli_filled_line(CliFilled *filled, const char *bytes, unsigned long long size)
 {
     cli_filled_begun(filled);
-    cli_line_counted(filled->out, bytes, size);
+    mmgr_line_put_n(filled->out, bytes, size);
 }
 
 void cli_filled_dropped(CliFilled *filled)
@@ -142,10 +143,10 @@ void cli_fill_words(CliFilled *filled, unsigned int slice, unsigned int count, c
             }
             if (!empty)
             {
-                cli_line_character(filled->out, ' ');
+                mmgr_line_ch(filled->out, ' ');
                 letters += 1u;
             }
-            cli_line_counted(filled->out, text + word, length);
+            mmgr_line_put_n(filled->out, text + word, length);
             letters += word_letters;
             empty = 0;
         }
@@ -197,7 +198,7 @@ static int fill_body_of(const char *text, const CliFillLine *line, const char *p
     return 1;
 }
 
-// whether a line is of the paragraph of the comment of mark `mark` and `prefix`: it starts with the prefix and holds
+// whether a line is of the paragraph of the comment of mark `mark` and `prefix`: it starts with the prefix and contains
 // text after it, and starts with no longer mark
 static int fill_in_comment(const char *text, const CliFillLine *line, unsigned int mark, const char *prefix,
                            unsigned long long prefix_size)
@@ -224,14 +225,14 @@ static int fill_in_comment(const char *text, const CliFillLine *line, unsigned i
 
 // the paragraph of a comment a line around `here`, whose mark is the one at `mark`
 static int fill_comment_lines(const char *text, unsigned long long size, const CliFillLine *here, unsigned int mark,
-                              unsigned int width, CliFilled *filled, CliTextEdit *edit, CliLine *said)
+                              unsigned int width, CliFilled *filled, CliTextEdit *edit, VerbaLinea *err_msg)
 {
     const char *const prefix = text + here->start;
     const unsigned long long prefix_size = cli_text_lead(prefix, here->end - here->start) +
                                            cellul.len(&(CatenaFinitaCfg){.src = s_marks[mark], .cap = CLI_CELLS_POOL});
     if (!fill_in_comment(text, here, mark, prefix, prefix_size))
     {
-        cli_line_text(said, "Fill Paragraph fills the paragraph the cursor is in.");
+        mmgr_line_put(err_msg, "Fill Paragraph fills the paragraph the cursor is in.");
         return 0;
     }
     CliFillLine first = *here;
@@ -260,9 +261,9 @@ static int fill_comment_lines(const char *text, unsigned long long size, const C
         }
     }
     static char s_lead[1u << 16u];
-    CliLine lead = {s_lead, sizeof(s_lead), 0ull};
-    cli_line_counted(&lead, prefix, prefix_size);
-    cli_line_character(&lead, ' ');
+    VerbaLinea lead = {s_lead, sizeof(s_lead), 0ull};
+    mmgr_line_put_n(&lead, prefix, prefix_size);
+    mmgr_line_ch(&lead, ' ');
     cli_fill_words(filled, 0u, count, s_lead, lead.at, s_lead, lead.at, width);
     cli_fill_edit_of(text, &first, &last, filled, edit);
     return 1;
@@ -276,11 +277,11 @@ static int fill_blank(const char *text, const CliFillLine *line)
 
 // the paragraph of plain text around `here`
 static int fill_plain(const char *text, unsigned long long size, const CliFillLine *here, unsigned int width,
-                      CliFilled *filled, CliTextEdit *edit, CliLine *said)
+                      CliFilled *filled, CliTextEdit *edit, VerbaLinea *err_msg)
 {
     if (fill_blank(text, here))
     {
-        cli_line_text(said, "Fill Paragraph fills the paragraph the cursor is in.");
+        mmgr_line_put(err_msg, "Fill Paragraph fills the paragraph the cursor is in.");
         return 0;
     }
     CliFillLine first = *here;
@@ -313,30 +314,30 @@ static int fill_plain(const char *text, unsigned long long size, const CliFillLi
     return 1;
 }
 
-int cli_fill(const char *text, unsigned long long size, unsigned int line, unsigned int width, CliLine *written,
-             CliTextEdit *edit, CliLine *said)
+int cli_fill(const char *text, unsigned long long size, unsigned int line, unsigned int width, VerbaLinea *written,
+             CliTextEdit *edit, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_fill_lock);
-    if (!cli_fill_comment_held(said))
+    if (!cli_fill_comment_locked(err_msg))
     {
         cli_lock_give(&s_fill_lock);
         return 0;
     }
-    // a slice is a line of the text, and one place is left after the lines, so its newlines and two hold them
+    // a slice is a line of the text, and one place is left after the lines, so its newlines and two fit them
     unsigned long long slices = 2ull;
     for (unsigned long long at = 0ull; (at < size) && (slices < CLI_FILL_SLICES); at += 1ull)
     {
         slices += (text[at] == '\n') ? 1ull : 0ull;
     }
-    // the slices are under CLI_FILL_SLICES, which an unsigned int holds
+    // the slices are under CLI_FILL_SLICES, which an unsigned int stores
     g_cli_fill_slices = (unsigned int)slices;
     g_cli_fill_slice =
-        cli_cell_taken(slices * (sizeof(const char *) + sizeof(unsigned long long)), "the texts a fill fills");
+        g_cli_cells->persistent_buf_alloc(slices * (sizeof(const char *) + sizeof(unsigned long long)), NULL);
     if (g_cli_fill_slice == NULL)
     {
         cli_fill_comment_released();
         cli_lock_give(&s_fill_lock);
-        cli_line_text(said, "the texts a fill fills could not be taken");
+        mmgr_line_put(err_msg, "the texts a fill fills could not be taken");
         return 0;
     }
     g_cli_fill_slice_size = (unsigned long long *)(void *)(g_cli_fill_slice + slices);
@@ -346,7 +347,7 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
     int done = 0;
     if (!cli_fill_line_at(text, size, line, &here))
     {
-        cli_line_text(said, "No line is there.");
+        mmgr_line_put(err_msg, "No line is there.");
     }
     else if (cli_fill_comment(text, size, &here, width, &filled, edit))
     {
@@ -358,7 +359,7 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
         const unsigned int mark = fill_mark_of(text + here.start + lead, here.end - here.start - lead);
         if (mark < 6u)
         {
-            done = fill_comment_lines(text, size, &here, mark, width, &filled, edit, said);
+            done = fill_comment_lines(text, size, &here, mark, width, &filled, edit, err_msg);
         }
         else if (cli_fill_docstring(text, size, &here, width, &filled, edit))
         {
@@ -366,11 +367,11 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
         }
         else
         {
-            done = fill_plain(text, size, &here, width, &filled, edit, said);
+            done = fill_plain(text, size, &here, width, &filled, edit, err_msg);
         }
     }
-    done = done && cli_line_fits(written);
-    cli_cell_given(g_cli_fill_slice);
+    done = done && mmgr_line_ok(written);
+    g_cli_cells->persistent_buf_release(g_cli_fill_slice, NULL);
     g_cli_fill_slice = NULL;
     g_cli_fill_slice_size = NULL;
     g_cli_fill_slices = 0u;

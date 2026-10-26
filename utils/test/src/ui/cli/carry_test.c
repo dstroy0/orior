@@ -9,13 +9,13 @@
 static CliCarried s_packed;
 static CliCarried s_there;
 static char s_out[1u << 20u];
-static char s_root[CLI_PATH_LONGEST];
+static char s_root[CLI_PATH_MAX_LEN];
 
 // `text` written to the file `name` under the root, its folder made
 static void carry_written(const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_full(s_root, name, path);
     if (cli_path_parent(path, folder))
     {
@@ -24,10 +24,10 @@ static void carry_written(const char *name, const char *text)
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-// the file `name` under the root read into `text`, which holds `room`, ended by a 0
+// the file `name` under the root read into `text`, which is sized for `room`, ended by a 0
 static void carry_read(const char *name, char *text, unsigned long long room)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_root, name, path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)text, room - 1u);
     text[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
@@ -36,7 +36,7 @@ static void carry_read(const char *name, char *text, unsigned long long room)
 // whether the file `name` is under the root
 static int carry_is(const char *name)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_root, name, path);
     return query_is_file(path);
 }
@@ -44,11 +44,11 @@ static int carry_is(const char *name)
 // settings go by a file, differ before they are taken, and a taking is undone
 static void carry_by_file(void)
 {
-    char one[CLI_PATH_LONGEST];
-    char two[CLI_PATH_LONGEST];
-    char file[CLI_PATH_LONGEST];
+    char one[CLI_PATH_MAX_LEN];
+    char two[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("carry", s_root);
     cli_full(s_root, "one", one);
     cli_full(s_root, "two", two);
@@ -61,7 +61,7 @@ static void carry_by_file(void)
     carry_written("one/state.json", "{\"panes\": {}}");
     carry_written("two/settings.json",
                   "{\"zoom\": 1.0, \"sticky\": false, \"memory-budget\": 400, \"machine\": {\"zoom\": 2}}");
-    cli_check(cli_carry_pack(one, &s_packed, &said), "the reader's settings pack");
+    cli_check(cli_carry_pack(one, &s_packed, &err_msg), "the reader's settings pack");
     static const char *const s_places[4] = {"plugin_settings/marks.json", "plugins/marks/plugin.json", "settings.json",
                                             "themes/Night.json"};
     int places = (s_packed.count == 4u);
@@ -83,11 +83,11 @@ static void carry_by_file(void)
                                                   .other_cap = CLI_CELLS_POOL}) == NULL),
               "this machine's own settings stay");
     cli_full(s_root, "carried.json", file);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    said.at = 0ull;
-    cli_check(cli_carry_send(one, file, &out, &said), "the settings are sent to a file");
-    said.at = 0ull;
-    int same = cli_carry_read(file, &s_there, &said) && (s_there.count == s_packed.count);
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    err_msg.at = 0ull;
+    cli_check(cli_carry_send(one, file, &out, &err_msg), "the settings are sent to a file");
+    err_msg.at = 0ull;
+    int same = cli_carry_read(file, &s_there, &err_msg) && (s_there.count == s_packed.count);
     for (unsigned int at = 0u; same && (at < s_there.count); at += 1u)
     {
         same = (cellul.eq(&(CatenaFinitaCfg){.src = cli_carried_place(&s_there, at),
@@ -129,12 +129,12 @@ static void carry_by_file(void)
     }
     cli_check(keys, "the settings that differ are named, this machine's own differ not");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = night, .other = "there", .cap = CLI_CELLS_POOL}),
-              "a file only there is said to be there");
+              "a file only there is reported to be there");
     static const char *const s_take[3] = {"settings.json", "themes/Night.json", "../outside.json"};
     static const char *const s_take_keys[2] = {"zoom", "sticky"};
     out.at = 0ull;
-    said.at = 0ull;
-    const int taken = cli_carry_take(two, "carried.json", &s_there, s_take, 3u, s_take_keys, 2u, &out, &said);
+    err_msg.at = 0ull;
+    const int taken = cli_carry_take(two, "carried.json", &s_there, s_take, 3u, s_take_keys, 2u, &out, &err_msg);
     cli_check(taken, "the chosen files and settings are taken");
     unsigned int taking = CLI_JSON_NONE;
     json = cli_check_parsed(s_out, out.at, &taking);
@@ -170,10 +170,11 @@ static void carry_by_file(void)
     cli_carry_takings(two, &out);
     unsigned int takings = CLI_JSON_NONE;
     json = cli_check_parsed(s_out, out.at, &takings);
-    cli_check(cli_json_is(json, takings, CFG_JSON_ARRAY) && (json->node[takings].count == 1u), "the taking is kept");
+    cli_check(cli_json_is(json, takings, CFG_JSON_ARRAY) && (json->node[takings].count == 1u),
+              "the taking is recorded");
     out.at = 0ull;
-    said.at = 0ull;
-    cli_check(cli_carry_undo(two, id, &out, &said), "the taking is undone");
+    err_msg.at = 0ull;
+    cli_check(cli_carry_undo(two, id, &out, &err_msg), "the taking is undone");
     carry_read("two/settings.json", s_now, sizeof(s_now));
     cli_check(cellul.find(&(CatenaFinitaCfg){
                   .src = s_now, .cap = CLI_CELLS_POOL, .other = "\"sticky\": false", .other_cap = CLI_CELLS_POOL}) !=
@@ -183,12 +184,12 @@ static void carry_by_file(void)
     out.at = 0ull;
     cli_carry_takings(two, &out);
     json = cli_check_parsed(s_out, out.at, &takings);
-    cli_check(cli_json_is(json, takings, CFG_JSON_ARRAY) && (json->node[takings].count == 0u), "no taking is kept");
+    cli_check(cli_json_is(json, takings, CFG_JSON_ARRAY) && (json->node[takings].count == 0u), "no taking is recorded");
     carry_written("other.json", "{\"files\": {}}");
     cli_full(s_root, "other.json", file);
-    said.at = 0ull;
-    const int other = cli_carry_read(file, &s_there, &said);
-    (void)cli_line_closed(&said);
+    err_msg.at = 0ull;
+    const int other = cli_carry_read(file, &s_there, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     cli_check(!other && (cellul.find(&(CatenaFinitaCfg){.src = why,
                                                         .cap = CLI_CELLS_POOL,
                                                         .other = "no settings orior_cli carried",
@@ -197,28 +198,28 @@ static void carry_by_file(void)
 }
 
 // git run in `repo` with `count` words: what it wrote into `out`
-static int carry_git(const char *repo, const char *const *words, unsigned int count, CliLine *out)
+static int carry_git(const char *repo, const char *const *words, unsigned int count, VerbaLinea *out)
 {
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     out->at = 0ull;
-    return cli_git_run(repo, words, count, out, &said);
+    return cli_git_run(repo, words, count, out, &err_msg);
 }
 
 // settings go by a folder that is a repository and are committed
 static void carry_by_repository(void)
 {
-    char home[CLI_PATH_LONGEST];
-    char repo[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char repo[CLI_PATH_MAX_LEN];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("carry_repo", s_root);
     cli_full(s_root, "home", home);
     cli_full(s_root, "repo", repo);
     (void)query_folder_made(repo);
     carry_written("home/settings.json", "{\"zoom\": 1.1}");
     carry_written("home/themes/Day.json", "{\"name\": \"Day\"}");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     static const char *const s_init[2] = {"init", "-q"};
     static const char *const s_email[3] = {"config", "user.email", "orior@example.com"};
     static const char *const s_name[3] = {"config", "user.name", "orior"};
@@ -227,17 +228,18 @@ static void carry_by_repository(void)
               "the folder is made a repository");
     carry_written("repo/themes/Gone.json", "{}");
     out.at = 0ull;
-    const int sent = cli_carry_send(home, repo, &out, &said);
+    const int sent = cli_carry_send(home, repo, &out, &err_msg);
     s_out[out.at] = '\0';
     cli_check(
         sent && (cellul.find(&(CatenaFinitaCfg){
                      .src = s_out, .cap = CLI_CELLS_POOL, .other = "committed", .other_cap = CLI_CELLS_POOL}) != NULL),
         "the settings are sent and committed");
     cli_check(carry_is("repo/themes/Day.json") && !carry_is("repo/themes/Gone.json"),
-              "the folder holds what travels and no more");
+              "the folder contains what travels and no more");
     static const char *const s_log[2] = {"log", "--format=%s"};
     (void)carry_git(repo, s_log, 2u, &out);
-    // git's answer comes back trimmed; a log that is not empty therefore holds one line more than it holds line ends
+    // git's answer comes back trimmed; a log that is not empty therefore contains one line more than it contains line
+    // ends
     unsigned int lines = (out.at != 0ull) ? 1u : 0u;
     for (unsigned long long at = 0ull; at < out.at; at += 1ull)
     {
@@ -245,15 +247,15 @@ static void carry_by_repository(void)
     }
     cli_check(lines == 1u, "one commit is made");
     out.at = 0ull;
-    said.at = 0ull;
-    const int again = cli_carry_send(home, repo, &out, &said);
+    err_msg.at = 0ull;
+    const int again = cli_carry_send(home, repo, &out, &err_msg);
     s_out[out.at] = '\0';
     cli_check(again &&
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = s_out, .cap = CLI_CELLS_POOL, .other = "already", .other_cap = CLI_CELLS_POOL}) != NULL),
               "sending what is there already commits nothing");
-    said.at = 0ull;
-    const int read = cli_carry_read(repo, &s_there, &said);
+    err_msg.at = 0ull;
+    const int read = cli_carry_read(repo, &s_there, &err_msg);
     const unsigned int day = cli_carried_find(&s_there, "themes/Day.json");
     cli_check(read && (day < s_there.count) &&
                   (cellul.eq(&(CatenaFinitaCfg){
@@ -263,6 +265,7 @@ static void carry_by_repository(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     carry_by_file();
     carry_by_repository();
     return cli_checked();

@@ -63,8 +63,8 @@ static unsigned long long tessera_get_long(const unsigned char *bytes, unsigned 
 
 static int tessera_kind_known(unsigned int kind)
 {
-    return ((kind >= TESSERA_ASK_SUBMIT) && (kind <= TESSERA_ASK_MEASURED)) ||
-           ((kind >= TESSERA_TELL_ADMITTED) && (kind <= TESSERA_TELL_ERROR));
+    return ((kind >= TESSERA_REQUEST_SUBMIT) && (kind <= TESSERA_REQUEST_MEASURED)) ||
+           ((kind >= TESSERA_NOTICE_ADMITTED) && (kind <= TESSERA_NOTICE_ERROR));
 }
 
 int tessera_frame_pack(const TesseraFrame *frame, unsigned char bytes[TESSERA_FRAME_BYTES])
@@ -81,7 +81,7 @@ int tessera_frame_pack(const TesseraFrame *frame, unsigned char bytes[TESSERA_FR
     memcpy(bytes + TESSERA_AT_DEVICE, frame->device, TESSERA_DEVICE_BYTES);
     memcpy(bytes + TESSERA_AT_SIGNUM, frame->signum.bytes, ENGINE_SIGNUM_BYTES);
     tessera_put_long(bytes, TESSERA_AT_DECLARED, frame->declared);
-    tessera_put_long(bytes, TESSERA_AT_RUNNING, frame->holding_microseconds);
+    tessera_put_long(bytes, TESSERA_AT_RUNNING, frame->grace_microseconds);
     tessera_put_long(bytes, TESSERA_AT_SWEEP, frame->sweep_microseconds);
     tessera_put_long(bytes, TESSERA_AT_IDLE, frame->idle_microseconds);
     tessera_put_long(bytes, TESSERA_AT_BYTES, frame->bytes);
@@ -101,7 +101,7 @@ int tessera_frame_unpack(const unsigned char bytes[TESSERA_FRAME_BYTES], Tessera
     memcpy(read.device, bytes + TESSERA_AT_DEVICE, TESSERA_DEVICE_BYTES);
     memcpy(read.signum.bytes, bytes + TESSERA_AT_SIGNUM, ENGINE_SIGNUM_BYTES);
     read.declared = tessera_get_long(bytes, TESSERA_AT_DECLARED);
-    read.holding_microseconds = tessera_get_long(bytes, TESSERA_AT_RUNNING);
+    read.grace_microseconds = tessera_get_long(bytes, TESSERA_AT_RUNNING);
     read.sweep_microseconds = tessera_get_long(bytes, TESSERA_AT_SWEEP);
     read.idle_microseconds = tessera_get_long(bytes, TESSERA_AT_IDLE);
     read.bytes = tessera_get_long(bytes, TESSERA_AT_BYTES);

@@ -40,7 +40,7 @@ static int score_flattened_slice(const char *sample, const TreeFrame *frames, un
     }
     if (named_at == rules->flattened_samples)
     {
-        fprintf(stderr, "  %s: not among the samples flattened.iapx holds; flatten it first\n", sample);
+        fprintf(stderr, "  %s: not among the samples flattened.iapx contains; flatten it first\n", sample);
         return 0;
     }
     *first = rules->flattened_start[named_at];
@@ -52,7 +52,7 @@ static int score_flattened_slice(const char *sample, const TreeFrame *frames, un
     }
     if ((leaves != *bodies) || (*bodies > 0xFFFFFFFFull))
     {
-        fprintf(stderr, "  %s: the tracker holds %llu bodies and flattened.iapx %llu; flatten it again\n", sample,
+        fprintf(stderr, "  %s: the tracker contains %llu bodies and flattened.iapx %llu; flatten it again\n", sample,
                 leaves, *bodies);
         return 0;
     }
@@ -78,7 +78,7 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
     }
     if (capacity > 0x3FFFFFFFull)
     {
-        fprintf(stderr, "  %s: %llu candidate pairs are more than one sweep's index holds\n", sample, capacity);
+        fprintf(stderr, "  %s: %llu candidate pairs are more than one sweep's index can store\n", sample, capacity);
         return 0;
     }
     unsigned int *const frame_first = (unsigned int *)malloc(((size_t)frame_count + 1u) * sizeof(unsigned int));
@@ -138,7 +138,7 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
     }
     unsigned int matched = 0u;
     unsigned int changed = 0u;
-    unsigned int asked = 0u;
+    unsigned int queried = 0u;
     for (unsigned int frame = 0u; ok && (frame < frame_count); frame += 1u)
     {
         TreeFrame *const tree = &frames[frame];
@@ -165,13 +165,13 @@ static int score_print_match(const char *sample, TreeFrame *frames, unsigned int
             changed += (landed != tree->forward[leaf]) ? 1u : 0u;
             tree->forward[leaf] = landed;
         }
-        asked += tree->leaf_count;
+        queried += tree->leaf_count;
     }
     if (ok)
     {
         printf("  %s: the print match swept %u pairs at once in %llu us; %u of %u leaves matched one to one, %u "
                "forwards changed\n",
-               sample, made, sweep, matched, asked, changed);
+               sample, made, sweep, matched, queried, changed);
     }
     else
     {
@@ -353,12 +353,12 @@ static unsigned int *score_key_successors(const AnswerKey *key)
     unsigned int *const successors = (unsigned int *)calloc((size_t)key->node_count + 1u, 3u * sizeof(unsigned int));
     for (unsigned int edge = 0u; (successors != NULL) && (edge < key->edge_count); edge += 1u)
     {
-        const long source = node_slot_of(key, key->edge_ends[2u * edge]);
-        const long target = node_slot_of(key, key->edge_ends[(2u * edge) + 1u]);
+        const long source = node_index_of(key, key->edge_ends[2u * edge]);
+        const long target = node_index_of(key, key->edge_ends[(2u * edge) + 1u]);
         if ((source >= 0L) && (target >= 0L))
         {
             unsigned int *const node_successors = &successors[3L * source];
-            // target is a node slot, non-negative and below node_count. It narrows from long to unsigned int exactly
+            // target is a node index, non-negative and below node_count. It narrows from long to unsigned int exactly
             node_successors[(node_successors[0] < 2u) ? (node_successors[0] + 1u) : 0u] =
                 (node_successors[0] < 2u) ? (unsigned int)target : node_successors[0];
             node_successors[0] += 1u;
@@ -383,7 +383,7 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
     const unsigned long long capacity = ok ? score_division_capacity(frames, frame_count, start) : 0ull;
     if (ok && (capacity > 0x3FFFFFFFull))
     {
-        fprintf(stderr, "  %s: %llu division triples are more than one sweep's index holds\n", sample, capacity);
+        fprintf(stderr, "  %s: %llu division triples are more than one sweep's index can store\n", sample, capacity);
         ok = 0;
     }
     unsigned int *const index =
@@ -544,10 +544,11 @@ static int score_division(const char *sample, const TreeFrame *frames, unsigned 
                " conserved on %u, split along the parent's long axis on %u, both on %u; %u differ from the host\n",
                sample, lanes, sweep, output_true[DIVISION_BY_MASS], output_true[DIVISION_BY_AXIS],
                output_true[DIVISION_BY_BOTH], differ);
-        printf("  %s: the key holds %u divisions, %u on three separate leaves, %u among the triples: mass on %u, axis"
-               " on %u, both on %u\n",
-               sample, truths, resolved, among, truth_true[DIVISION_BY_MASS], truth_true[DIVISION_BY_AXIS],
-               truth_true[DIVISION_BY_BOTH]);
+        printf(
+            "  %s: the key contains %u divisions, %u on three separate leaves, %u among the triples: mass on %u, axis"
+            " on %u, both on %u\n",
+            sample, truths, resolved, among, truth_true[DIVISION_BY_MASS], truth_true[DIVISION_BY_AXIS],
+            truth_true[DIVISION_BY_BOTH]);
         printf("  %s: of the key's divisions, %u fall outside consecutive tracked frames, %u have a node on no leaf,"
                " %u have both children on one leaf; on three separate leaves, %u of the %u children climb back to"
                " their parent\n",
@@ -593,8 +594,8 @@ typedef struct
     unsigned int option_count;
     size_t source_capacity;
     size_t option_capacity;
-    unsigned int *asked_leaf;
-    unsigned int *asked_frame;
+    unsigned int *queried_leaf;
+    unsigned int *queried_frame;
 } ScoreMarginalSet;
 
 static int score_marginal_capacity(ScoreMarginalSet *set, size_t sources, size_t options)
@@ -650,9 +651,9 @@ static ScoreChoices score_choices_of(const TreeFrame *frames, const ScoreChoices
     return ((stars != NULL) && (stars[frame].start != NULL)) ? stars[frame] : triples;
 }
 
-static int score_marginal_ask(ScoreMarginalSet *set, const TreeFrame *tree, const ScoreChoices *choices,
-                              const unsigned int *target_start, const unsigned int *target_sources, unsigned int leaf,
-                              int alone)
+static int score_marginal_query(ScoreMarginalSet *set, const TreeFrame *tree, const ScoreChoices *choices,
+                                const unsigned int *target_start, const unsigned int *target_sources, unsigned int leaf,
+                                int alone)
 {
     unsigned int local_leaf[MARGINAL_SOURCES_MAX];
     unsigned int local_target[MARGINAL_TARGETS_MAX];
@@ -699,19 +700,19 @@ static int score_marginal_ask(ScoreMarginalSet *set, const TreeFrame *tree, cons
         for (unsigned int triple = choices->start[own]; triple < choices->start[own + 1u]; triple += 1u)
         {
             const unsigned int target = choices->target[triple];
-            unsigned int slot = targets;
+            unsigned int target_at = targets;
             for (unsigned int seen = 0u; seen < targets; seen += 1u)
             {
-                slot = (local_target[seen] == target) ? seen : slot;
+                target_at = (local_target[seen] == target) ? seen : target_at;
             }
-            if ((slot == targets) && (targets == MARGINAL_TARGETS_MAX))
+            if ((target_at == targets) && (targets == MARGINAL_TARGETS_MAX))
             {
                 set->option_count = option_mark;
                 return 0;
             }
-            local_target[slot] = target;
-            targets += (slot == targets) ? 1u : 0u;
-            set->options[set->option_count].target = slot;
+            local_target[target_at] = target;
+            targets += (target_at == targets) ? 1u : 0u;
+            set->options[set->option_count].target = target_at;
             set->options[set->option_count].weight = choices->weight[triple];
             set->option_count += 1u;
             source->options += 1u;
@@ -719,13 +720,13 @@ static int score_marginal_ask(ScoreMarginalSet *set, const TreeFrame *tree, cons
     }
     const MarginalRequest probe = {set->questions,    0u,   set->sources, source_first + leaves, set->options,
                                    set->option_count, NULL, NULL};
-    const MarginalQuestion asked = {source_first, leaves};
-    if (marginal_arrangements(&probe, &asked) == MARGINAL_ERROR)
+    const MarginalQuestion question = {source_first, leaves};
+    if (marginal_arrangements(&probe, &question) == MARGINAL_ERROR)
     {
         set->option_count = option_mark;
         return 0;
     }
-    set->questions[set->question_count] = asked;
+    set->questions[set->question_count] = question;
     set->source_count += leaves;
     return 1;
 }
@@ -761,10 +762,10 @@ static unsigned int score_box_cell(const ClimbMachineBox *box, unsigned int boxe
 
 static int score_box(const char *sample, const TreeFrame *frames, unsigned int frame_count, ClimbMachine *machine,
                      const int *tree_index_of_time, unsigned int volume_frames, ScoreStars *stars,
-                     ClimbMachineBox *kept)
+                     ClimbMachineBox *box_out)
 {
     ClimbMachineBox box;
-    memset(kept, 0, sizeof(*kept));
+    memset(box_out, 0, sizeof(*box_out));
     if (climb_machine_box(machine, &box) == 0)
     {
         fprintf(stderr,
@@ -792,7 +793,7 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
     }
     unsigned int placed = 0u;
     unsigned int frame_base = 0u;
-    unsigned int drift_asked = 0u;
+    unsigned int drift_queried = 0u;
     unsigned int drift_differ = 0u;
     unsigned int starred = 0u;
     for (unsigned int boxed = 0u; ok && (boxed < box.climbers); boxed += 1u)
@@ -841,7 +842,7 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
         {
             continue;
         }
-        drift_asked += 1u;
+        drift_queried += 1u;
         unsigned int labeled = 0u;
         unsigned int agreed = 0u;
         for (unsigned int entry = box.entry_first[drifted]; entry < box.entry_first[drifted + 1u]; entry += 1u)
@@ -869,17 +870,18 @@ static int score_box(const char *sample, const TreeFrame *frames, unsigned int f
                " lag and the drift), %u entries (%u cells met more bodies than the fast table and were merged exactly),"
                " in %llu us\n",
                sample, box.climbers, box.cells, box.entries, box.crowded, box.microseconds);
-        printf("  %s: at the climbed lag C sums to the climb's held count on all but %u; the climbed lag is highest in"
-               " its neighborhood on all but %u; at the drift C equals the overlap triples on all but %u of %u bodies;"
-               " T* laid out for %u bodies, %u options\n",
-               sample, box.final_score_differ, box.not_highest, drift_differ, drift_asked, starred, placed);
+        printf(
+            "  %s: at the climbed lag C sums to the climb's retained count on all but %u; the climbed lag is highest in"
+            " its neighborhood on all but %u; at the drift C equals the overlap triples on all but %u of %u bodies;"
+            " T* laid out for %u bodies, %u options\n",
+            sample, box.final_score_differ, box.not_highest, drift_differ, drift_queried, starred, placed);
     }
     else
     {
         fprintf(stderr, "  %s: a climbed lag fell outside its own box\n", sample);
         score_stars_release(stars);
     }
-    *kept = ok ? box : *kept;
+    *box_out = ok ? box : *box_out;
     return (ok && (box.final_score_differ == 0u) && (drift_differ == 0u)) ? 1 : 0;
 }
 
@@ -1175,13 +1177,13 @@ static int score_core(const char *sample, ClimbMachine *machine, const ClimbMach
             within_half_voxel_at[width] += within_half_voxel;
         }
     }
-    printf(
-        "  %s: the core, %u climbers on adjacent frames (both sides), %u widths kept, in %llu us; the width-0 core mass"
-        " equals C at the climbed lag on all but %u of %u forward climbers (%u not in a box)\n",
-        sample, core.climbers, core.widths, core.microseconds, differing_climbers, proved, unboxed);
+    printf("  %s: the core, %u climbers on adjacent frames (both sides), %u widths retained, in %llu us; the width-0 "
+           "core mass"
+           " equals C at the climbed lag on all but %u of %u forward climbers (%u not in a box)\n",
+           sample, core.climbers, core.widths, core.microseconds, differing_climbers, proved, unboxed);
     for (unsigned int width = 0u; width < max_widths; width += 1u)
     {
-        printf("    width %u: %llu climbers reach it, core mass %llu; %llu mutual pairs hold both cores, the core"
+        printf("    width %u: %llu climbers reach it, core mass %llu; %llu mutual pairs contain both cores, the core"
                " displacement within half a voxel of the climbed lag on every axis for %llu\n",
                width, climbers_at[width], mass_at[width], pairs_at[width], within_half_voxel_at[width]);
     }
@@ -1204,10 +1206,11 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
         leaves += frames[frame].leaf_count;
     }
     set.questions = (MarginalQuestion *)malloc(((size_t)leaves + 1u) * sizeof(MarginalQuestion));
-    set.asked_leaf = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
-    set.asked_frame = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
+    set.queried_leaf = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
+    set.queried_frame = (unsigned int *)malloc(((size_t)leaves + 1u) * sizeof(unsigned int));
     unsigned int **const question_of = (unsigned int **)calloc((size_t)frame_count + 1u, sizeof(unsigned int *));
-    int ok = (set.questions != NULL) && (set.asked_leaf != NULL) && (set.asked_frame != NULL) && (question_of != NULL);
+    int ok =
+        (set.questions != NULL) && (set.queried_leaf != NULL) && (set.queried_frame != NULL) && (question_of != NULL);
     unsigned int in_context = 0u;
     unsigned int alone = 0u;
     unsigned int error = 0u;
@@ -1263,11 +1266,11 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
             {
                 continue;
             }
-            int made = score_marginal_ask(&set, tree, &choices, target_start, target_sources, leaf, 0);
+            int made = score_marginal_query(&set, tree, &choices, target_start, target_sources, leaf, 0);
             in_context += (made > 0) ? 1u : 0u;
             if (made == 0)
             {
-                made = score_marginal_ask(&set, tree, &choices, target_start, target_sources, leaf, 1);
+                made = score_marginal_query(&set, tree, &choices, target_start, target_sources, leaf, 1);
                 alone += (made > 0) ? 1u : 0u;
                 error += (made == 0) ? 1u : 0u;
             }
@@ -1275,8 +1278,8 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
             if (made > 0)
             {
                 question_of[frame][leaf] = set.question_count;
-                set.asked_leaf[set.question_count] = leaf;
-                set.asked_frame[set.question_count] = frame;
+                set.queried_leaf[set.question_count] = leaf;
+                set.queried_frame[set.question_count] = frame;
                 set.question_count += 1u;
             }
         }
@@ -1310,8 +1313,8 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
     unsigned int by_climb = 0u;
     for (unsigned int edge = 0u; ok && (edge < key->edge_count); edge += 1u)
     {
-        const long source = node_slot_of(key, key->edge_ends[2u * edge]);
-        const long target = node_slot_of(key, key->edge_ends[(2u * edge) + 1u]);
+        const long source = node_index_of(key, key->edge_ends[2u * edge]);
+        const long target = node_index_of(key, key->edge_ends[(2u * edge) + 1u]);
         if ((source < 0L) || (target < 0L))
         {
             continue;
@@ -1357,12 +1360,12 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
     }
     if (ok)
     {
-        printf(
-            "  %s: marginal, %u bodies asked (%u in their context, %u alone, %u too wide to ask), %u options, in %llu"
-            " us; device %s the host\n",
-            sample, set.question_count, in_context, alone, error, set.option_count, swept,
-            same ? "equals" : "DIFFERS FROM");
-        printf("  %s: of %u key edges asked, the most probable in context lands on the truth for %u (no link is the"
+        printf("  %s: marginal, %u bodies queried (%u in their context, %u alone, %u too wide to query), %u options, "
+               "in %llu"
+               " us; device %s the host\n",
+               sample, set.question_count, in_context, alone, error, set.option_count, swept,
+               same ? "equals" : "DIFFERS FROM");
+        printf("  %s: of %u key edges queried, the most probable in context lands on the truth for %u (no link is the"
                " most probable for %u), the heaviest candidate alone for %u, the climb's forward for %u\n",
                sample, edges, by_context, by_absent, by_weight, by_climb);
     }
@@ -1378,8 +1381,8 @@ static int score_marginal(const char *sample, const TreeFrame *frames, unsigned 
     free(set.questions);
     free(set.sources);
     free(set.options);
-    free(set.asked_leaf);
-    free(set.asked_frame);
+    free(set.queried_leaf);
+    free(set.queried_frame);
     free(device_questions);
     free(device_options);
     free(host_questions);
@@ -1442,17 +1445,19 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     }
     const unsigned int *const magnitudes = &rules->flattened[first * rules->flattened_limbs];
     const unsigned int apart_limbs = cycle_record_out_limbs(rules->contact_difference_record);
-    const unsigned int kept_limbs = cycle_record_out_limbs(rules->contact_kept_record);
+    const unsigned int retained_limbs = cycle_record_out_limbs(rules->contact_retained_record);
     const unsigned int differences = 2u * contacts;
     const size_t apart_words = (size_t)differences * apart_limbs;
-    const size_t kept_words = (size_t)contacts * kept_limbs;
+    const size_t retained_words = (size_t)contacts * retained_limbs;
     unsigned int *const apart_device = ok ? (unsigned int *)malloc((apart_words + 1u) * sizeof(unsigned int)) : NULL;
     unsigned int *const apart_host = ok ? (unsigned int *)malloc((apart_words + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const kept_device = ok ? (unsigned int *)malloc((kept_words + 1u) * sizeof(unsigned int)) : NULL;
-    unsigned int *const kept_host = ok ? (unsigned int *)malloc((kept_words + 1u) * sizeof(unsigned int)) : NULL;
-    ok = ok && (apart_device != NULL) && (apart_host != NULL) && (kept_device != NULL) && (kept_host != NULL);
+    unsigned int *const retained_device =
+        ok ? (unsigned int *)malloc((retained_words + 1u) * sizeof(unsigned int)) : NULL;
+    unsigned int *const retained_host =
+        ok ? (unsigned int *)malloc((retained_words + 1u) * sizeof(unsigned int)) : NULL;
+    ok = ok && (apart_device != NULL) && (apart_host != NULL) && (retained_device != NULL) && (retained_host != NULL);
     unsigned long long apart_sweep = 0ull;
-    unsigned long long kept_sweep = 0ull;
+    unsigned long long retained_sweep = 0ull;
     EngineError error;
     memset(&error, 0, sizeof(error));
     const EngineRecordSweep apart_run = {rules->contact_difference_record,
@@ -1465,48 +1470,50 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
                                          &error};
     const EngineRecordSweep apart_host_run = {
         NULL, {magnitudes, magnitudes}, {bodies, bodies}, pairs, differences, apart_host, NULL, &error};
-    const EngineRecordSweep kept_run = {rules->contact_kept_record,
-                                        {apart_device, apart_device},
-                                        {differences, differences},
-                                        sides,
-                                        contacts,
-                                        kept_device,
-                                        &kept_sweep,
-                                        &error};
-    const EngineRecordSweep kept_host_run = {
-        NULL, {apart_device, apart_device}, {differences, differences}, sides, contacts, kept_host, NULL, &error};
+    const EngineRecordSweep retained_run = {rules->contact_retained_record,
+                                            {apart_device, apart_device},
+                                            {differences, differences},
+                                            sides,
+                                            contacts,
+                                            retained_device,
+                                            &retained_sweep,
+                                            &error};
+    const EngineRecordSweep retained_host_run = {
+        NULL, {apart_device, apart_device}, {differences, differences}, sides, contacts, retained_host, NULL, &error};
     ok = ok && ((contacts == 0u) ||
                 ((engine_record_sweep(&apart_run) == (long)differences) &&
                  (engine_record_host(rules->contact_difference_encode_request, &apart_host_run) == (long)differences) &&
-                 (engine_record_sweep(&kept_run) == (long)contacts) &&
-                 (engine_record_host(rules->contact_kept_encode_request, &kept_host_run) == (long)contacts)));
+                 (engine_record_sweep(&retained_run) == (long)contacts) &&
+                 (engine_record_host(rules->contact_retained_encode_request, &retained_host_run) == (long)contacts)));
     if (error.kind != ENGINE_ERROR_NONE)
     {
         track_error_report("contact side sweep", &error);
     }
     const unsigned int differ =
         ok ? ((memcmp(apart_device, apart_host, apart_words * sizeof(unsigned int)) != 0) ? 1u : 0u) : 0u;
-    const unsigned int *const offset = ok ? rules->contact_kept_encode_request->output_offset : NULL;
-    const unsigned int *const bits = ok ? rules->contact_kept_encode_request->output_bits : NULL;
-    unsigned int kept = 0u;
+    const unsigned int *const offset = ok ? rules->contact_retained_encode_request->output_offset : NULL;
+    const unsigned int *const bits = ok ? rules->contact_retained_encode_request->output_bits : NULL;
+    unsigned int retained = 0u;
     unsigned int crossed = 0u;
-    unsigned int kept_differ = 0u;
+    unsigned int retained_differ = 0u;
     for (unsigned int contact = 0u; ok && (contact < contacts); contact += 1u)
     {
-        const unsigned int *const record = &kept_device[(size_t)contact * kept_limbs];
-        kept += (unsigned int)score_field_truthy(record, offset[CONTACT_SIDE_KEPT], bits[CONTACT_SIDE_KEPT]);
+        const unsigned int *const record = &retained_device[(size_t)contact * retained_limbs];
+        retained += (unsigned int)score_field_truthy(record, offset[CONTACT_SIDE_SAME], bits[CONTACT_SIDE_SAME]);
         crossed += (unsigned int)score_field_truthy(record, offset[CONTACT_SIDE_CROSSED], bits[CONTACT_SIDE_CROSSED]);
-        kept_differ +=
-            (memcmp(record, &kept_host[(size_t)contact * kept_limbs], kept_limbs * sizeof(unsigned int)) != 0) ? 1u
-                                                                                                               : 0u;
+        retained_differ += (memcmp(record, &retained_host[(size_t)contact * retained_limbs],
+                                   retained_limbs * sizeof(unsigned int)) != 0)
+                               ? 1u
+                               : 0u;
     }
     if (ok)
     {
-        printf("  %s: contact side, %u touching pairs whose bodies both climb onward (%u differences in %llu us, the"
-               " verdicts in %llu us): the centroid difference keeps its side on %u, crosses on %u, meets on %u (%u of"
-               " them landed on one body); the differences %s the host, %u verdicts differ from it\n",
-               sample, contacts, differences, apart_sweep, kept_sweep, kept, crossed, contacts - kept - crossed,
-               landed_together, (differ == 0u) ? "equal" : "DIFFER FROM", kept_differ);
+        printf(
+            "  %s: contact side, %u touching pairs whose bodies both climb onward (%u differences in %llu us, the"
+            " verdicts in %llu us): the centroid difference retains its side on %u, crosses on %u, meets on %u (%u of"
+            " them landed on one body); the differences %s the host, %u verdicts differ from it\n",
+            sample, contacts, differences, apart_sweep, retained_sweep, retained, crossed,
+            contacts - retained - crossed, landed_together, (differ == 0u) ? "equal" : "DIFFER FROM", retained_differ);
     }
     else
     {
@@ -1517,9 +1524,9 @@ static int score_contact_side(const char *sample, const TreeFrame *frames, unsig
     free(sides);
     free(apart_device);
     free(apart_host);
-    free(kept_device);
-    free(kept_host);
-    return (ok && (differ == 0u) && (kept_differ == 0u)) ? 1 : 0;
+    free(retained_device);
+    free(retained_host);
+    return (ok && (differ == 0u) && (retained_differ == 0u)) ? 1 : 0;
 }
 
 static unsigned long long s_web_logged[5] = {0ull, 0ull, 0ull, 0ull, 0ull};
@@ -1555,8 +1562,7 @@ static int score_truth_load(const char *source, const char *sample, AnswerKey *k
     engine_geff_release(&geff);
     if (ok == 0)
     {
-        fprintf(stderr,
-                "  %s: the answer key at %s does not hold: ids past 63 bits, places off the grid or ids twice\n",
+        fprintf(stderr, "  %s: the answer key at %s is not valid: ids past 63 bits, places off the grid or ids twice\n",
                 sample, path);
     }
     return ok;
@@ -1648,19 +1654,19 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     buffers.overlap_before = (unsigned int *)malloc((size_t)buffers.overlap_capacity * sizeof(unsigned int));
     buffers.overlap_after = (unsigned int *)malloc((size_t)buffers.overlap_capacity * sizeof(unsigned int));
     buffers.overlap_shared = (unsigned int *)malloc((size_t)buffers.overlap_capacity * sizeof(unsigned int));
-    for (unsigned int slot = 0u; slot < 2u; slot += 1u)
+    for (unsigned int target_at = 0u; target_at < 2u; target_at += 1u)
     {
-        buffers.labels[slot] = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-        buffers.positive[slot] = (unsigned long long *)malloc(((voxels + 63u) / 64u) * sizeof(unsigned long long));
+        buffers.labels[target_at] = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+        buffers.positive[target_at] = (unsigned long long *)malloc(((voxels + 63u) / 64u) * sizeof(unsigned long long));
         if ((rules->climb != 0) || (rules->cast != 0) || (rules->parallax != 0))
         {
-            buffers.leaf_at_peak[slot] = (int *)malloc(voxels * sizeof(int));
-            buffers.leaf_start[slot] =
+            buffers.leaf_at_peak[target_at] = (int *)malloc(voxels * sizeof(int));
+            buffers.leaf_start[target_at] =
                 (unsigned int *)malloc(((size_t)buffers.peak_capacity + 2u) * sizeof(unsigned int));
-            buffers.leaf_voxels[slot] = (unsigned int *)malloc(voxels * sizeof(unsigned int));
-            for (size_t voxel = 0u; (buffers.leaf_at_peak[slot] != NULL) && (voxel < voxels); voxel += 1u)
+            buffers.leaf_voxels[target_at] = (unsigned int *)malloc(voxels * sizeof(unsigned int));
+            for (size_t voxel = 0u; (buffers.leaf_at_peak[target_at] != NULL) && (voxel < voxels); voxel += 1u)
             {
-                buffers.leaf_at_peak[slot][voxel] = -1;
+                buffers.leaf_at_peak[target_at][voxel] = -1;
             }
         }
     }
@@ -1798,7 +1804,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             {
                 object_leaf_code[tree->peaks[leaf]] = leaf + 1u;
             }
-            // three words a run while the frame is walked: its first voxel, its leaf, and its length less one. Slot
+            // three words a run while the frame is walked: its first voxel, its leaf, and its length less one. Entry
             // 0 takes the writes of voxels outside every leaf. A run stays in its row and is at most a row long
             runs[0] = 0u;
             runs[1] = 0u;
@@ -1816,9 +1822,9 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                     const unsigned int begins = coded & (unsigned int)(code != previous);
                     runs[3u * (count + 1u)] = (unsigned int)voxel;
                     count += begins;
-                    const size_t slot = count * coded;
-                    runs[(3u * slot) + 1u] = code - coded;
-                    runs[(3u * slot) + 2u] = (unsigned int)voxel - runs[3u * slot];
+                    const size_t target_at = count * coded;
+                    runs[(3u * target_at) + 1u] = code - coded;
+                    runs[(3u * target_at) + 2u] = (unsigned int)voxel - runs[3u * target_at];
                     previous = code;
                     voxel += 1u;
                 }
@@ -1830,9 +1836,9 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                 leaf_runs[2u * leaf] = 0u;
                 leaf_runs[(2u * leaf) + 1u] = 0u;
             }
-            for (size_t slot = 1u; slot <= count; slot += 1u)
+            for (size_t target_at = 1u; target_at <= count; target_at += 1u)
             {
-                leaf_runs[(2u * runs[(3u * slot) + 1u]) + 1u] += 1u;
+                leaf_runs[(2u * runs[(3u * target_at) + 1u]) + 1u] += 1u;
             }
             unsigned int placed = (unsigned int)object_run_count;
             for (unsigned int leaf = 0u; leaf < tree->leaf_count; leaf += 1u)
@@ -1841,11 +1847,11 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                 placed += leaf_runs[(2u * leaf) + 1u];
             }
             // two words a run in the object: its first voxel in the frame, and its length
-            for (size_t slot = 1u; slot <= count; slot += 1u)
+            for (size_t target_at = 1u; target_at <= count; target_at += 1u)
             {
-                unsigned int *const cursor = &leaf_runs[2u * runs[(3u * slot) + 1u]];
-                object_runs[2u * (size_t)*cursor] = runs[3u * slot];
-                object_runs[(2u * (size_t)*cursor) + 1u] = runs[(3u * slot) + 2u] + 1u;
+                unsigned int *const cursor = &leaf_runs[2u * runs[(3u * target_at) + 1u]];
+                object_runs[2u * (size_t)*cursor] = runs[3u * target_at];
+                object_runs[(2u * (size_t)*cursor) + 1u] = runs[(3u * target_at) + 2u] + 1u;
                 *cursor += 1u;
             }
             for (unsigned int leaf = 0u; leaf < tree->leaf_count; leaf += 1u)
@@ -2016,14 +2022,14 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         for (unsigned int at = 1u; at < floors; at += 1u)
         {
             const unsigned int moving = aimed[at];
-            unsigned int slot = at;
-            while ((slot > 0u) &&
-                   (cloud[(own_floor * floors) + aimed[slot - 1u]] > cloud[(own_floor * floors) + moving]))
+            unsigned int target_at = at;
+            while ((target_at > 0u) &&
+                   (cloud[(own_floor * floors) + aimed[target_at - 1u]] > cloud[(own_floor * floors) + moving]))
             {
-                aimed[slot] = aimed[slot - 1u];
-                slot -= 1u;
+                aimed[target_at] = aimed[target_at - 1u];
+                target_at -= 1u;
             }
-            aimed[slot] = moving;
+            aimed[target_at] = moving;
         }
         for (unsigned int draw = 0u; (ok != 0) && (draw < draw_capacity); draw += 1u)
         {
@@ -2084,9 +2090,10 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             (int **)realloc(arm_scratch, ((size_t)arm_scratch_count + (3u * rules->arms)) * sizeof(int *));
         ok = (tree->arm_forward != NULL) && (grown != NULL);
         arm_scratch = (grown != NULL) ? grown : arm_scratch;
-        for (size_t slot = 0u; (ok != 0) && (slot < ((size_t)tree->leaf_count + 1u) * rules->arms); slot += 1u)
+        for (size_t target_at = 0u; (ok != 0) && (target_at < ((size_t)tree->leaf_count + 1u) * rules->arms);
+             target_at += 1u)
         {
-            tree->arm_forward[slot] = CLIMB_MACHINE_NO_LEAF;
+            tree->arm_forward[target_at] = CLIMB_MACHINE_NO_LEAF;
         }
         for (unsigned int arm = 0u; (ok != 0) && (arm < rules->arms); arm += 1u)
         {
@@ -2282,14 +2289,14 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                                ((links == 0u) || (memcmp(was_target[frame], frames[frame].link_target,
                                                          (size_t)links * sizeof(unsigned int)) == 0)));
             moving += (unsigned int)(same == 0u);
-            unsigned int *const kept =
+            unsigned int *const retained =
                 (links != 0u) ? (unsigned int *)malloc((size_t)links * sizeof(unsigned int)) : NULL;
-            if (kept != NULL)
+            if (retained != NULL)
             {
-                memcpy(kept, frames[frame].link_target, (size_t)links * sizeof(unsigned int));
+                memcpy(retained, frames[frame].link_target, (size_t)links * sizeof(unsigned int));
             }
             free(was_target[frame]);
-            was_target[frame] = kept;
+            was_target[frame] = retained;
             was_count[frame] = links;
         }
     }
@@ -2353,13 +2360,13 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             {
                 continue;
             }
-            for (unsigned int first_slot = 0u; (ok != 0) && (first_slot < child_count); first_slot += 1u)
+            for (unsigned int first_child = 0u; (ok != 0) && (first_child < child_count); first_child += 1u)
             {
-                for (unsigned int second_slot = first_slot + 1u; (ok != 0) && (second_slot < child_count);
-                     second_slot += 1u)
+                for (unsigned int second_child = first_child + 1u; (ok != 0) && (second_child < child_count);
+                     second_child += 1u)
                 {
-                    const unsigned int first = next_offset + children[first_slot];
-                    const unsigned int second = next_offset + children[second_slot];
+                    const unsigned int first = next_offset + children[first_child];
+                    const unsigned int second = next_offset + children[second_child];
                     if (engine_find_root(parent, first) == engine_find_root(parent, second))
                     {
                         continue;
@@ -2495,7 +2502,7 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     }
     for (unsigned int edge = 0u; (ok != 0) && (edge < key.edge_count); edge += 1u)
     {
-        const long source = node_slot_of(&key, key.edge_ends[2u * edge]);
+        const long source = node_index_of(&key, key.edge_ends[2u * edge]);
         if (source >= 0L)
         {
             successors[(unsigned long)source] += 1u;
@@ -2503,8 +2510,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     }
     for (unsigned int edge = 0u; (ok != 0) && (edge < key.edge_count); edge += 1u)
     {
-        const long source = node_slot_of(&key, key.edge_ends[2u * edge]);
-        const long target = node_slot_of(&key, key.edge_ends[2u * edge + 1u]);
+        const long source = node_index_of(&key, key.edge_ends[2u * edge]);
+        const long target = node_index_of(&key, key.edge_ends[2u * edge + 1u]);
         if ((source < 0L) || (target < 0L))
         {
             continue;
@@ -2576,8 +2583,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
         {
             continue;
         }
-        const long source = node_slot_of(&key, key.edge_ends[2u * edge]);
-        const long target = node_slot_of(&key, key.edge_ends[2u * edge + 1u]);
+        const long source = node_index_of(&key, key.edge_ends[2u * edge]);
+        const long target = node_index_of(&key, key.edge_ends[2u * edge + 1u]);
         const int *const from = &key.node_coordinates[(size_t)source * 4u];
         const int *const to = &key.node_coordinates[(size_t)target * 4u];
         const TreeFrame *const tree = &frames[tree_index_of_time[from[0]]];
@@ -2713,12 +2720,12 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             fprintf(rules->edges, "%s%u", (draw == 0u) ? "" : ",",
                     tree->null_final_score[((size_t)draw * ((size_t)tree->leaf_count + 1u)) + leaf]);
         }
-        const int kept_pool = (rules->pool != NULL) && (tree->pool_start != NULL);
-        const unsigned int pool_first = (kept_pool != 0) ? tree->pool_start[own_object] : 0u;
-        const unsigned int pool_end = (kept_pool != 0) ? tree->pool_start[own_object + 1u] : 0u;
-        for (unsigned int slot = pool_first; slot < pool_end; slot += 1u)
+        const int pool_present = (rules->pool != NULL) && (tree->pool_start != NULL);
+        const unsigned int pool_first = (pool_present != 0) ? tree->pool_start[own_object] : 0u;
+        const unsigned int pool_end = (pool_present != 0) ? tree->pool_start[own_object + 1u] : 0u;
+        for (unsigned int target_at = pool_first; target_at < pool_end; target_at += 1u)
         {
-            const unsigned int candidate = tree->pool_target[slot];
+            const unsigned int candidate = tree->pool_target[target_at];
             unsigned int candidate_voxels = 0u;
             for (unsigned int member = next_tree->member_start[candidate];
                  member < next_tree->member_start[candidate + 1u]; member += 1u)
@@ -2732,8 +2739,8 @@ int score_sample(const char *set, const char *source, const char *sample, const 
             }
             fprintf(rules->pool, "%s\t%d\t%s\t%u\t%u\t%u\t%u\t%u\t%llu\t%llu\t%u\t%u\t%llu\t%u\n", sample, from[0],
                     EDGE_STATUS_NAMES[status], own_object, candidate, (unsigned int)(candidate == truth_object), linked,
-                    tree->pool_weight[slot], tree->pool_cost[slot] >> LINK_MAGNITUDE_BITS,
-                    tree->pool_cost[slot] & LINK_MAGNITUDE_MASK, candidate_voxels,
+                    tree->pool_weight[target_at], tree->pool_cost[target_at] >> LINK_MAGNITUDE_BITS,
+                    tree->pool_cost[target_at] & LINK_MAGNITUDE_MASK, candidate_voxels,
                     next_tree->member_start[candidate + 1u] - next_tree->member_start[candidate],
                     (unsigned long long)tree->sizes[leaf], members);
         }
@@ -2898,12 +2905,12 @@ int score_sample(const char *set, const char *source, const char *sample, const 
                     results->correct, results->branched, results->wrong, results->unlinked, results->missed,
                     clocks.read / 1000ULL, clocks.bodies / 1000ULL, clocks.store / 1000ULL, clocks.ties / 1000ULL,
                     clocks.motion / 1000ULL, clocks.landing / 1000ULL, clocks.overlap / 1000ULL, clocks.climb / 1000ULL,
-                    engines_done - started, finished - engines_done, g_web_asked - s_web_logged[0],
+                    engines_done - started, finished - engines_done, g_web_queried - s_web_logged[0],
                     g_web_moved - s_web_logged[1], g_web_capped - s_web_logged[2], WEB_MEMBERS,
                     g_damp_leaves - s_web_logged[3], g_damp_landings - s_web_logged[4],
                     (unsigned long long)DAMP_DEVIATIONS);
             fclose(log);
-            s_web_logged[0] = g_web_asked;
+            s_web_logged[0] = g_web_queried;
             s_web_logged[1] = g_web_moved;
             s_web_logged[2] = g_web_capped;
             s_web_logged[3] = g_damp_leaves;
@@ -2975,13 +2982,13 @@ int score_sample(const char *set, const char *source, const char *sample, const 
     free(buffers.overlap_before);
     free(buffers.overlap_after);
     free(buffers.overlap_shared);
-    for (unsigned int slot = 0u; slot < 2u; slot += 1u)
+    for (unsigned int target_at = 0u; target_at < 2u; target_at += 1u)
     {
-        free(buffers.labels[slot]);
-        free(buffers.positive[slot]);
-        free(buffers.leaf_at_peak[slot]);
-        free(buffers.leaf_start[slot]);
-        free(buffers.leaf_voxels[slot]);
+        free(buffers.labels[target_at]);
+        free(buffers.positive[target_at]);
+        free(buffers.leaf_at_peak[target_at]);
+        free(buffers.leaf_start[target_at]);
+        free(buffers.leaf_voxels[target_at]);
     }
     climb_machine_close(buffers.machine);
     release_answer_key(&key);

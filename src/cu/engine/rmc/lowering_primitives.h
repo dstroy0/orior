@@ -33,7 +33,7 @@ CODEGEN_CORE CarryChain codegen_borrow_chain(void)
     return chain;
 }
 
-// the lane leaves the step being decided errored where `error` holds, for the store of the record words it has not
+// the lane leaves the step being decided errored where `error` is set, for the store of the record words it has not
 // stored yet: those whose last put is this step's or a later one's
 CODEGEN_CORE void codegen_error(MachineFunction *lane, MachineOperand error)
 {
@@ -71,17 +71,17 @@ CODEGEN_CORE MachineOperand codegen_borrowed(MachineFunction *lane)
     return borrowed;
 }
 
-// a limb kept to its low `kept` bits where kept is under 32; kept is reckoned as the interpreter reckons it, in 32
+// a limb limited to its low `bits` bits where bits is under 32; bits is reckoned as the interpreter reckons it, in 32
 // bits, wrapping
-CODEGEN_CORE void codegen_mask(MachineFunction *lane, MachineOperand limb, unsigned int kept)
+CODEGEN_CORE void codegen_mask(MachineFunction *lane, MachineOperand limb, unsigned int bits)
 {
-    if (kept < 32u)
+    if (bits < 32u)
     {
-        codegen_instr3(lane, OPCODE_WORD_BITAND, limb, limb, codegen_immediate((1u << kept) - 1u));
+        codegen_instr3(lane, OPCODE_WORD_BITAND, limb, limb, codegen_immediate((1u << bits) - 1u));
     }
 }
 
-// to = chosen where `where` holds, else otherwise, limb by limb
+// to = chosen where `where` is true, else otherwise, limb by limb
 CODEGEN_CORE void codegen_select(MachineFunction *lane, const MachineOperandRange &to,
                                  const MachineOperandRange &chosen, const MachineOperandRange &otherwise,
                                  MachineOperand where, unsigned int limbs)
@@ -142,7 +142,7 @@ CODEGEN_CORE void codegen_signed(MachineFunction *lane, const IrStep *at, Machin
     codegen_instr4(lane, OPCODE_SIGN_SELECT, codegen_sign(at->place), value, codegen_number(0u), nonzero);
 }
 
-// the step's sign as -1 where `negative` holds and 1 where not, and 0 where its register is zero
+// the step's sign as -1 where `negative` is true and 1 where not, and 0 where its register is zero
 CODEGEN_CORE void codegen_signed_negative(MachineFunction *lane, const IrStep *at, MachineOperand negative)
 {
     const MachineOperand operand = codegen_temporary(lane);
@@ -165,7 +165,7 @@ CODEGEN_CORE MachineOperand codegen_atom(MachineFunction *lane, unsigned int mem
     if ((program->atom_reader[at] == lane->at) && (at >= lane->atom_seen))
     {
         const MachineOperand address = codegen_register(REGCLASS_MEMBER, member);
-        codegen_instr2(lane, OPCODE_GLOBAL_ASK, address, codegen_number(4u * word));
+        codegen_instr2(lane, OPCODE_GLOBAL_LOAD, address, codegen_number(4u * word));
         codegen_instr3(lane, OPCODE_GLOBAL_LOAD_CONSTANT_WORD, name, address, codegen_number(4u * word));
     }
     lane->atom_seen = (at >= lane->atom_seen) ? (at + 1u) : lane->atom_seen;
@@ -174,7 +174,7 @@ CODEGEN_CORE MachineOperand codegen_atom(MachineFunction *lane, unsigned int mem
 
 // a field, unsigned or signed, gathered as cycle_record_field gathers it: each limb its two atom words funnel-shifted,
 // masked to the bits left where fewer than 32 are. A signed field whose top bit is set is negated within its bits, the
-// magnitude kept and the sign -1
+// magnitude retained and the sign -1
 CODEGEN_CORE void codegen_field(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -296,7 +296,7 @@ CODEGEN_CORE void codegen_compare(MachineFunction *lane, const IrStep *at)
 // the sum or the difference of two signed registers, branch-free: the magnitudes' sum, their difference with its
 // borrow, and that difference negated are all taken, and the signs choose among them as cycle_record_operate does.
 // Signs that agree, or either one zero, add, and take the left's sign where it has one; signs that differ subtract the
-// lesser magnitude from the greater, the borrow saying which is greater, and take the greater's sign
+// lesser magnitude from the greater, the borrow indicating which is greater, and take the greater's sign
 CODEGEN_CORE void codegen_sum(MachineFunction *lane, const IrStep *at)
 {
     const DeviceRecordStep *const step = at->step;
@@ -307,7 +307,7 @@ CODEGEN_CORE void codegen_sum(MachineFunction *lane, const IrStep *at)
     const MachineOperand left_sign = codegen_sign(at->left_place);
     codegen_chain(lane, codegen_add_chain(), value, codegen_limbs(at->left_place, step->left_limbs, limbs),
                   codegen_limbs(at->right_place, step->right_limbs, limbs), limbs);
-    // the difference runs over every limb either operand holds, and its borrow is their order
+    // the difference runs over every limb either operand has, and its borrow is their order
     const MachineOperandRange difference = codegen_temporaries(lane, range);
     codegen_chain(lane, codegen_borrow_chain(), difference, codegen_limbs(at->left_place, step->left_limbs, range),
                   codegen_limbs(at->right_place, step->right_limbs, range), range);
@@ -330,10 +330,10 @@ CODEGEN_CORE void codegen_sum(MachineFunction *lane, const IrStep *at)
     const MachineOperand greater = codegen_temporary(lane);
     codegen_instr4(lane, OPCODE_SIGN_SELECT, greater, addend_sign, left_sign, below);
     const MachineOperand leads = codegen_predicate(lane);
-    const MachineOperand kept = codegen_temporary(lane);
+    const MachineOperand temporary = codegen_temporary(lane);
     codegen_instr3(lane, OPCODE_TEST_SIGN_NE, leads, left_sign, codegen_number(0u));
-    codegen_instr4(lane, OPCODE_SIGN_SELECT, kept, left_sign, addend_sign, leads);
-    codegen_instr4(lane, OPCODE_SIGN_SELECT, greater, greater, kept, opposed);
+    codegen_instr4(lane, OPCODE_SIGN_SELECT, temporary, left_sign, addend_sign, leads);
+    codegen_instr4(lane, OPCODE_SIGN_SELECT, greater, greater, temporary, opposed);
     codegen_signed(lane, at, greater);
 }
 
@@ -387,7 +387,7 @@ CODEGEN_CORE void codegen_multiply(MachineFunction *lane, const MachineOperandRa
     }
 }
 
-// the loops a lane has written, each named by its number: a label, and a branch back to it where `where` holds
+// the loops a lane has written, each named by its number: a label, and a branch back to it where `where` is true
 CODEGEN_CORE MachineOperand codegen_loop_open(MachineFunction *lane)
 {
     const MachineOperand loop = codegen_number(lane->loops);

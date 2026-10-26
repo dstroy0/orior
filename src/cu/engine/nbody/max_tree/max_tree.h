@@ -68,10 +68,10 @@ extern "C"
     // The tree as nodes (A2). A node is one component of one upper level set, the nodes of a tree built by
     // max_tree_build. A node's level is the dense rank of its value among the admitted values, 1 the least, and
     // `levels` is the most. Nodes are numbered in DFS order: a node's subtree is a single range [node,
-    // subtree_end[node]), its parent is the node of the next lower level that holds it, a root is its own parent, and
-    // `root` names each node's root. A child's level is above its parent's. `own` names each voxel's own node, the node
-    // at its own level that holds it, and is MAX_TREE_ABSENT for a voxel that is not admitted. The component at level r
-    // holding voxel x is the ancestor a of own[x] with level[a] >= r > level[parent[a]]: max_tree_node_at.
+    // subtree_end[node]), its parent is the node of the next lower level that contains it, a root is its own parent,
+    // and `root` names each node's root. A child's level is above its parent's. `own` names each voxel's own node, the
+    // node at its own level that contains it, and is MAX_TREE_ABSENT for a voxel that is not admitted. The component at
+    // level r containing voxel x is the ancestor a of own[x] with level[a] >= r > level[parent[a]]: max_tree_node_at.
     typedef struct
     {
         unsigned int count;
@@ -102,17 +102,17 @@ extern "C"
 
     void max_tree_nodes_release(MaxTreeNodes *nodes);
 
-    // the component at `level` that holds `node`'s voxels: `node` itself or its ancestor, or MAX_TREE_ABSENT where the
-    // node's level is below `level`
+    // the component at `level` that contains `node`'s voxels: `node` itself or its ancestor, or MAX_TREE_ABSENT where
+    // the node's level is below `level`
     unsigned int max_tree_node_at(const MaxTreeNodes *nodes, unsigned int node, unsigned int level);
 
     // The probe partition at every level at once (A2). `sorted` lists the probes by their own nodes' DFS order, a probe
     // whose voxel is not admitted last. `own_level` is each probe's own level, 0 where its voxel is not admitted.
-    // `joined[i]` is the level of the LCA of sorted probes i and i + 1, 0 where no level holds both. At level r a probe
-    // is present where its own level is r or more, and two present probes are in one component exactly where every
-    // joined level between them in the order is r or more. Each joined level is read in one scan of the DFS order: for
-    // u before v in one tree, the LCA's level is the least level among the parents of the nodes in (u, v], since each
-    // of those nodes lies under the LCA and the LCA's child toward v is one of them.
+    // `joined[i]` is the level of the LCA of sorted probes i and i + 1, 0 where no level contains both. At level r a
+    // probe is present where its own level is r or more, and two present probes are in one component exactly where
+    // every joined level between them in the order is r or more. Each joined level is read in one scan of the DFS
+    // order: for u before v in one tree, the LCA's level is the least level among the parents of the nodes in (u, v],
+    // since each of those nodes lies under the LCA and the LCA's child toward v is one of them.
     typedef struct
     {
         const MaxTreeNodes *nodes;
@@ -158,10 +158,10 @@ extern "C"
 
     void max_tree_pairs_release(MaxTreePairs *pairs);
 
-    // The overlap at every pair of levels from the single table (A2). For each asked pair of nodes, a of the earlier
-    // frame and b of the later, `sums` is the table summed over a's subtree and b's subtree: C_{r,r'}[A, B](v) for the
-    // components A and B those nodes are, at any level each is a component at. The sums are answered together in one
-    // sweep of the table.
+    // The overlap at every pair of levels from the single table (A2). For each requested pair of nodes, a of the
+    // earlier frame and b of the later, `sums` is the table summed over a's subtree and b's subtree: C_{r,r'}[A, B](v)
+    // for the components A and B those nodes are, at any level each is a component at. The sums are answered together
+    // in one sweep of the table.
     typedef struct
     {
         const MaxTreeNodes *earlier;
@@ -169,7 +169,7 @@ extern "C"
         const MaxTreePairs *pairs;
         const unsigned int *earlier_nodes;
         const unsigned int *later_nodes;
-        unsigned int asked;
+        unsigned int pair_count;
         unsigned long long *sums;
         EngineError *error;
     } MaxTreeOverlapSumsRequest;
@@ -192,18 +192,19 @@ extern "C"
         unsigned int *level_code;
         unsigned int *proof_count;
         EngineError *error;
-        // the limbs a lane of `device_residual` is held in, as EngineResidualRequest's: 0 is ENGINE_RESIDUAL_LIMBS. A
-        // graded request, or one made while frames are kept, holds ENGINE_RESIDUAL_LIMBS
+        // the limbs a lane of `device_residual` is stored in, as EngineResidualRequest's: 0 is ENGINE_RESIDUAL_LIMBS. A
+        // graded request, or one made while frames are retained, uses ENGINE_RESIDUAL_LIMBS
         unsigned int limbs;
     } MaxTreeObjectsRequest;
 
     long max_tree_objects(const MaxTreeObjectsRequest *request);
 
-    // the device bytes max_tree_objects holds over `voxels` lanes with no frames kept, its bodies' room for `bodies`
-    // with them, each allocation in whole pages (DEVICE_POOL_PAGE_BYTES); 0 where the sort's workspace is not told
+    // the device bytes max_tree_objects allocates over `voxels` lanes with no frames retained, its bodies' room for
+    // `bodies` with them, each allocation in whole pages (DEVICE_POOL_PAGE_BYTES); 0 where the sort's workspace is not
+    // given
     unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodies);
 
-    // frees the buffers max_tree_objects holds between calls
+    // frees the buffers max_tree_objects allocates between calls
     void max_tree_resident_release(void);
 
 #define MAX_TREE_FIELD_MOMENT_ZZ 0u
@@ -268,7 +269,7 @@ extern "C"
 
     long max_tree_slide(const MaxTreeSlideRequest *request);
 
-    int max_tree_keep_frames(void);
+    int max_tree_retain_frames(void);
 
     typedef struct
     {

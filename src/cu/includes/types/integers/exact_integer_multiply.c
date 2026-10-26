@@ -268,7 +268,8 @@ static int fermat_multiply(uint32_t *result, const uint32_t *left, const uint32_
     return fermat_transform(result, left, right, limbs, depth);
 }
 
-// the product of used limbs by the transform, into wide (left_used + right_used limbs); 0 when workspace cannot be held
+// the product of used limbs by the transform, into wide (left_used + right_used limbs); 0 when workspace cannot be
+// allocated
 int transform_product(uint32_t *wide, const uint32_t *left, size_t left_used, const uint32_t *right, size_t right_used)
 {
     const size_t bits = (left_used + right_used) * LIMB_BITS;
@@ -294,8 +295,8 @@ int transform_product(uint32_t *wide, const uint32_t *left, size_t left_used, co
     return product_ok;
 }
 
-// the product by the rung of the ladder the operands reach, or by the transform alone when it is asked for; a rung
-// that cannot hold its workspace steps down to the one below, and long multiplication needs none
+// the product by the rung of the ladder the operands reach, or by the transform alone when it is requested for; a rung
+// that cannot allocate its workspace steps down to the one below, and long multiplication needs none
 static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const OriorExactInteger *right,
                                            OriorExactInteger *result, int transform_only)
 {
@@ -316,7 +317,7 @@ static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const O
         return ORIOR_EXACT_WILL_NOT_FIT;
     }
     // The product is below 2^(32 * range) and occupies at most `range` limbs, at most one past the
-    // width. An overrun shows in that extra limb, and the accumulator keeps it instead of wrapping
+    // width. An overrun shows in that extra limb, and the accumulator retains it instead of wrapping
     // it away.
     EXACT_SCRATCH(wide, EXACT_LIMBS + 1u);
     if (!EXACT_SCRATCH_VALID(wide))
@@ -347,9 +348,9 @@ static OriorExactStatus exact_multiply_by(const OriorExactInteger *left, const O
     {
         // Written only now, and the sign taken first, since `result` may be either factor.
         const int32_t sign = (left->sign == right->sign) ? 1 : -1;
-        const size_t kept = (range < EXACT_LIMBS) ? range : EXACT_LIMBS;
-        memcpy(result->limb, wide, kept * sizeof(uint32_t));
-        memset(&result->limb[kept], 0, (EXACT_LIMBS - kept) * sizeof(uint32_t));
+        const size_t range_used = (range < EXACT_LIMBS) ? range : EXACT_LIMBS;
+        memcpy(result->limb, wide, range_used * sizeof(uint32_t));
+        memset(&result->limb[range_used], 0, (EXACT_LIMBS - range_used) * sizeof(uint32_t));
         settle_sign(result, sign);
     }
     EXACT_SCRATCH_RELEASE(wide);

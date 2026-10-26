@@ -3,6 +3,8 @@ git	all	the repositories the tests make and read
 python	all	the files the tests run and the debugger they attach
 clangd	all	the language server the C tests ask
 clang	all	the compiler the C tests build with
+pdflatex	all	the LaTeX file the preview's tests make into pages
+pdftocairo	all	the pages the preview's tests draw
 bash	posix	the jobs the tests start
 gdb	posix	the debugger the tests attach
 lldb-dap	posix	the debugger the tests attach

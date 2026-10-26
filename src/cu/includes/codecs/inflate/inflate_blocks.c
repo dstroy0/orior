@@ -99,14 +99,14 @@ static int inflate_dynamic(InflateStream *stream)
     }
     unsigned char code_lengths[INFLATE_CODE_LENGTH_CODES];
     memset(code_lengths, 0u, sizeof(code_lengths));
-    for (unsigned int slot = 0u; slot < code_length_count; slot += 1u)
+    for (unsigned int at = 0u; at < code_length_count; at += 1u)
     {
         unsigned int value = 0u;
         if (!inflate_take(stream, 3u, &value))
         {
             return 0;
         }
-        code_lengths[inflate_code_length_order[slot]] = (unsigned char)value;
+        code_lengths[inflate_code_length_order[at]] = (unsigned char)value;
     }
     InflateHuffman code_huffman;
     if (!inflate_build(&code_huffman, code_lengths, INFLATE_CODE_LENGTH_CODES, 0))

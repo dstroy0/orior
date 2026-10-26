@@ -92,11 +92,11 @@ function draw() {
 
 function onLink({ payload }) {
   state.link = payload.state;
-  state.said = payload.said ?? "";
+  state.said = payload.message ?? "";
   draw();
   if (payload.state === "dropped" || payload.state === "failed") {
     state.dropped = state.dropped || payload.state === "dropped";
-    state.hooks.say?.(payload.said ? `${state.remote?.machine}: ${payload.said}` : `The link to ${state.remote?.machine} dropped`);
+    state.hooks.say?.(payload.message ? `${state.remote?.machine}: ${payload.message}` : `The link to ${state.remote?.machine} dropped`);
   }
   if (payload.state === "joined") {
     waiting.splice(0).forEach((resolve) => resolve());
@@ -130,7 +130,7 @@ export async function startRemote(hooks) {
   await listen("link", onLink);
   if (state.remote) {
     state.link = state.remote.state;
-    state.said = state.remote.said ?? "";
+    state.said = state.remote.message ?? "";
     if (state.link === "joined") {
       hooks.joined?.(false);
     }

@@ -47,7 +47,7 @@ TesseraJobRequest test_request(unsigned long long seed, unsigned long long decla
     memset(&request, 0, sizeof(request));
     request.signum = test_signum(seed);
     request.declared = declared;
-    request.holding_microseconds = 1000ull;
+    request.grace_microseconds = 1000ull;
     request.sweep_microseconds = 100ull;
     request.idle_microseconds = 5000ull;
     return request;
@@ -173,16 +173,16 @@ void test_budget(TestResults *results)
     unsigned long long second = 0ull;
     const TesseraJobRequest greedy = test_request(7ull, 600ull);
     test_check(results, tessera_ledger_submit(&ledger, &greedy, 100ull, &second, &event) &&
-                            (event.kind == TESSERA_EVENT_ASKED) && (event.measured == 450ull) &&
-                            (tessera_ledger_job(&ledger, second)->state == TESSERA_JOB_HELD));
+                            (event.kind == TESSERA_EVENT_OVER_BUDGET) && (event.measured == 450ull) &&
+                            (tessera_ledger_job(&ledger, second)->state == TESSERA_JOB_OVER_BUDGET));
     test_check(results, tessera_ledger_admit(&ledger, 100ull, events, TEST_EVENTS) == 0ull);
     test_check(results, !tessera_ledger_fire(&ledger, 100ull + 999ull, &event));
     test_check(results, tessera_ledger_fire(&ledger, 100ull + 1000ull, &event) && (event.kind == TESSERA_EVENT_LOST) &&
                             (event.identity == second) && (tessera_ledger_job(&ledger, second) == NULL));
 
     unsigned long long third = 0ull;
-    test_check(results,
-               tessera_ledger_submit(&ledger, &greedy, 2000ull, &third, &event) && (event.kind == TESSERA_EVENT_ASKED));
+    test_check(results, tessera_ledger_submit(&ledger, &greedy, 2000ull, &third, &event) &&
+                            (event.kind == TESSERA_EVENT_OVER_BUDGET));
     test_check(results, tessera_ledger_override(&ledger, third, 2500ull) &&
                             (tessera_ledger_job(&ledger, third)->state == TESSERA_JOB_WAITING));
     test_check(results,
@@ -204,21 +204,21 @@ void test_budget(TestResults *results)
     test_check(results, !tessera_ledger_submit(&ledger, &empty, 6000ull, &error, &event));
     tessera_ledger_close(&ledger);
 
-    // declaring under its kept peak, a job is reserved the peak: with room for its declaration but not its peak it
-    // waits, and once the peak fits it is admitted holding the peak
-    TesseraLedger kept;
-    tessera_ledger_open(&kept);
-    tessera_ledger_device(&kept, 1000ull, 700ull);
+    // declaring under its recorded peak, a job is reserved the peak: with room for its declaration but not its peak it
+    // waits, and once the peak fits it is admitted with the peak reserved
+    TesseraLedger saved;
+    tessera_ledger_open(&saved);
+    tessera_ledger_device(&saved, 1000ull, 700ull);
     const TesseraHistory remembered = {request.signum, 450ull, 90ull};
-    test_check(results, tessera_ledger_remember(&kept, &remembered));
+    test_check(results, tessera_ledger_remember(&saved, &remembered));
     unsigned long long modest = 0ull;
     const TesseraJobRequest under = test_request(7ull, 100ull);
-    test_check(results, tessera_ledger_submit(&kept, &under, 7000ull, &modest, &event) &&
+    test_check(results, tessera_ledger_submit(&saved, &under, 7000ull, &modest, &event) &&
                             (event.kind == TESSERA_EVENT_NONE) &&
-                            (tessera_ledger_wants(&kept, tessera_ledger_job(&kept, modest)) == 450ull));
-    test_check(results, tessera_ledger_admit(&kept, 7000ull, events, TEST_EVENTS) == 0ull);
-    tessera_ledger_device(&kept, 1000ull, 500ull);
-    test_check(results, (tessera_ledger_admit(&kept, 7100ull, events, TEST_EVENTS) == 1ull) &&
-                            (events[0].bytes == 450ull) && (tessera_ledger_job(&kept, modest)->reservation == 450ull));
-    tessera_ledger_close(&kept);
+                            (tessera_ledger_wants(&saved, tessera_ledger_job(&saved, modest)) == 450ull));
+    test_check(results, tessera_ledger_admit(&saved, 7000ull, events, TEST_EVENTS) == 0ull);
+    tessera_ledger_device(&saved, 1000ull, 500ull);
+    test_check(results, (tessera_ledger_admit(&saved, 7100ull, events, TEST_EVENTS) == 1ull) &&
+                            (events[0].bytes == 450ull) && (tessera_ledger_job(&saved, modest)->reservation == 450ull));
+    tessera_ledger_close(&saved);
 }

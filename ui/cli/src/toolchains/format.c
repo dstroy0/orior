@@ -11,7 +11,7 @@ CliLock g_cli_format_lock = CLI_LOCK_INIT;
 void cli_format_released(void)
 {
     cli_json_given(&g_cli_format.json);
-    cli_cell_given(g_cli_format.settings);
+    g_cli_cells->persistent_buf_release(g_cli_format.settings, NULL);
     g_cli_format.settings = NULL;
     g_cli_format.settings_size = 0ull;
     cli_lock_give(&g_cli_format_lock);
@@ -20,8 +20,8 @@ void cli_format_released(void)
 // A choice of a file's language: the extension in lower case, and the plugin chosen and where it came from
 typedef struct
 {
-    char extension[CLI_NAME_LONGEST];
-    char id[CLI_NAME_LONGEST];
+    char extension[CLI_NAME_MAX_LEN];
+    char id[CLI_NAME_MAX_LEN];
     int chosen;
 } CliLanguageChoice;
 
@@ -50,8 +50,8 @@ static void cli_plugin_each(void *context, const CliPlugin *plugin)
 {
     (void)context;
     CliJson json;
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &unread);
     const unsigned int extensions = cli_json_member(&json, root, "extensions");
     int names = 0;
@@ -88,13 +88,13 @@ int cli_format_language_of(const char *path, char *id)
         return 0;
     }
     cli_lock_take(&s_lock);
-    unsigned int kept = 0u;
-    for (const char *at = dot + 1; (at[0] != '\0') && (kept < (CLI_NAME_LONGEST - 1u)); at += 1)
+    unsigned int count = 0u;
+    for (const char *at = dot + 1; (at[0] != '\0') && (count < (CLI_NAME_MAX_LEN - 1u)); at += 1)
     {
-        s_choice.extension[kept] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-        kept += 1u;
+        s_choice.extension[count] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
+        count += 1u;
     }
-    s_choice.extension[kept] = '\0';
+    s_choice.extension[count] = '\0';
     s_choice.chosen = 0;
     cli_plugins_each(cli_plugin_each, NULL);
     const int chosen = s_choice.chosen;
@@ -109,11 +109,11 @@ int cli_format_language_of(const char *path, char *id)
     return chosen;
 }
 
-void cli_format_languages(CliLine *out)
+void cli_format_languages(VerbaLinea *out)
 {
     cli_lock_take(&g_cli_format_lock);
     const unsigned int manifest = cli_toolchains_manifest(&g_cli_format.json, 0u, 0ull);
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     unsigned int written = 0u;
     for (unsigned int index = 0u; cli_json_item(&g_cli_format.json, manifest, index) != CLI_JSON_NONE; index += 1u)
     {
@@ -130,17 +130,17 @@ void cli_format_languages(CliLine *out)
                 cli_json_string(&g_cli_format.json, cli_json_item(&g_cli_format.json, formats, at), &length);
             if (one != NULL)
             {
-                cli_line_text(out, (written != 0u) ? "," : "");
+                mmgr_line_put(out, (written != 0u) ? "," : "");
                 cli_json_quoted(out, one, length);
                 written += 1u;
             }
         }
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_format_released();
 }
 
-unsigned int cli_format_tool(const char *language, CliLine *said)
+unsigned int cli_format_tool(const char *language, VerbaLinea *err_msg)
 {
     CliJson *const json = &g_cli_format.json;
     cli_json_given(json);
@@ -160,9 +160,9 @@ unsigned int cli_format_tool(const char *language, CliLine *said)
             }
         }
     }
-    cli_line_text(said, "orior_cli has no formatter for ");
-    cli_line_text(said, language);
-    cli_line_text(said, ": it formats with ");
+    mmgr_line_put(err_msg, "orior_cli has no formatter for ");
+    mmgr_line_put(err_msg, language);
+    mmgr_line_put(err_msg, ": it formats with ");
     unsigned int written = 0u;
     for (unsigned int index = 0u; cli_json_item(json, manifest, index) != CLI_JSON_NONE; index += 1u)
     {
@@ -170,8 +170,8 @@ unsigned int cli_format_tool(const char *language, CliLine *said)
         const char *const name = cli_json_string(json, cli_json_member(json, tool, "name"), NULL);
         if ((cli_json_member(json, tool, "format") != CLI_JSON_NONE) && (name != NULL))
         {
-            cli_line_text(said, (written != 0u) ? ", " : "");
-            cli_line_text(said, name);
+            mmgr_line_put(err_msg, (written != 0u) ? ", " : "");
+            mmgr_line_put(err_msg, name);
             written += 1u;
         }
     }
@@ -181,8 +181,8 @@ unsigned int cli_format_tool(const char *language, CliLine *said)
 int cli_format_program_of(const char *language, char *program)
 {
     cli_lock_take(&g_cli_format_lock);
-    char why[CLI_NAME_LONGEST * 4u];
-    CliLine unknown = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN * 4u];
+    VerbaLinea unknown = {why, sizeof(why), 0ull};
     const unsigned int tool = cli_format_tool(language, &unknown);
     const char *const named =
         (tool != CLI_JSON_NONE)
@@ -242,7 +242,7 @@ void cli_format_edition_of(const char *path, char *edition)
                 }
                 // the edition lies between its quotes, its end at or past its start
                 const unsigned long long length = (unsigned long long)(stop - at);
-                if (length < CLI_NAME_LONGEST)
+                if (length < CLI_NAME_MAX_LEN)
                 {
                     memor.cpy(&(MemoriaCfg){.dst = edition, .src = at, .bytes = length});
                     edition[length] = '\0';
@@ -259,27 +259,27 @@ void cli_format_edition_of(const char *path, char *edition)
 static const char *cli_word_filled(const char *word, const char *file, const char *edition, unsigned long long *used)
 {
     char *const start = g_cli_format.words + *used;
-    CliLine line = {start, CLI_WORDS_TEXT - *used, 0ull};
+    VerbaLinea line = {start, CLI_WORDS_TEXT - *used, 0ull};
     for (const char *at = word; at[0] != '\0';)
     {
         if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = "{file}", .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line, file);
+            mmgr_line_put(&line, file);
             at += 6;
         }
         else if (cellul.starts(&(CatenaFinitaCfg){.src = at, .other = "{edition}", .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line, edition);
+            mmgr_line_put(&line, edition);
             at += 9;
         }
         else
         {
-            cli_line_character(&line, at[0]);
+            mmgr_line_ch(&line, at[0]);
             at += 1;
         }
     }
-    cli_line_closed(&line);
-    if (!cli_line_fits(&line))
+    mmgr_line_finish(&line);
+    if (!mmgr_line_ok(&line))
     {
         return NULL;
     }
@@ -287,12 +287,12 @@ static const char *cli_word_filled(const char *word, const char *file, const cha
     return start;
 }
 
-int cli_format(const char *path, const char *language, const char *text, unsigned long long length, CliLine *out,
-               CliLine *said)
+int cli_format(const char *path, const char *language, const char *text, unsigned long long length, VerbaLinea *out,
+               VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_format_lock);
     CliJson *const json = &g_cli_format.json;
-    const unsigned int tool = cli_format_tool(language, said);
+    const unsigned int tool = cli_format_tool(language, err_msg);
     if (tool == CLI_JSON_NONE)
     {
         cli_format_released();
@@ -303,21 +303,21 @@ int cli_format(const char *path, const char *language, const char *text, unsigne
     const char *const tool_name = cli_json_string(json, cli_json_member(json, tool, "name"), NULL);
     const char *const program_name = (named != NULL) ? named : "";
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&count);
-    cli_toolchains_find(json, tool, (const char (*)[CLI_PATH_LONGEST])folders, count, &g_cli_format.found);
-    cli_cell_given(folders);
-    char program[CLI_PATH_LONGEST];
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+    cli_toolchains_find(json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &g_cli_format.found);
+    g_cli_cells->persistent_buf_release(folders, NULL);
+    char program[CLI_PATH_MAX_LEN];
     const char *const names[1] = {program_name};
     if ((g_cli_format.found.folder[0] == '\0') ||
         !cli_toolchains_program_in(g_cli_format.found.folder, names, 1u, program))
     {
-        cli_line_text(said, (tool_name != NULL) ? tool_name : program_name);
-        cli_line_text(said, " is not found: File, Toolchains opens its install page or takes its folder");
+        mmgr_line_put(err_msg, (tool_name != NULL) ? tool_name : program_name);
+        mmgr_line_put(err_msg, " is not found: File, Toolchains opens its install page or takes its folder");
         cli_format_released();
         return 0;
     }
     const unsigned int args = cli_json_member(json, format, "args");
-    char edition[CLI_NAME_LONGEST] = "";
+    char edition[CLI_NAME_MAX_LEN] = "";
     for (unsigned int at = 0u; cli_json_item(json, args, at) != CLI_JSON_NONE; at += 1u)
     {
         const char *const word = cli_json_string(json, cli_json_item(json, args, at), NULL);
@@ -346,34 +346,34 @@ int cli_format(const char *path, const char *language, const char *text, unsigne
     words[word_count] = NULL;
     cli_toolchains_run_path(g_cli_format.path, sizeof(g_cli_format.path));
     const CliSetting settings[1] = {{"PATH", g_cli_format.path}};
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     const int in_folder = cli_path_parent(path, folder) && query_is_folder(folder);
     CliRan *const ran = cli_ran_taken();
-    char why[CLI_NAME_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     const int started = cli_ran_within(words, in_folder ? folder : NULL, settings, 1u, text, length,
                                        CLI_FORMAT_PATIENCE, ran, &unstarted);
     cli_format_released();
     const int formatted = started && !ran->stopped && (ran->code == 0ll);
     if (!started)
     {
-        cli_line_text(said, program);
-        cli_line_text(said, ": ");
-        cli_line_counted(said, why, unstarted.at);
+        mmgr_line_put(err_msg, program);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, why, unstarted.at);
     }
     else if (ran->stopped)
     {
-        cli_line_text(said, program_name);
-        cli_line_text(said, " took longer than 30 s and was stopped");
+        mmgr_line_put(err_msg, program_name);
+        mmgr_line_put(err_msg, " took longer than 30 s and was stopped");
     }
     else if (!formatted)
     {
-        cli_format_failed(program_name, path, ran, said);
+        cli_format_failed(program_name, path, ran, err_msg);
     }
     else if (!cli_format_utf8(ran->out, ran->out_size))
     {
-        cli_line_text(said, program_name);
-        cli_line_text(said, " wrote text that is not UTF-8");
+        mmgr_line_put(err_msg, program_name);
+        mmgr_line_put(err_msg, " wrote text that is not UTF-8");
         cli_ran_given(ran);
         return 0;
     }

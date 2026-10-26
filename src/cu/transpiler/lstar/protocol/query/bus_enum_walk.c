@@ -41,7 +41,7 @@ static unsigned long long bus_enum_walk_read(const QueryWalk *walk, const char *
         {
             break;
         }
-        // a kind is one of the few HostKind values, which an unsigned int holds
+        // a kind is one of the few HostKind values, which an unsigned int represents
         kinds[next + read] = (unsigned int)kind;
         read += 1ull;
     }

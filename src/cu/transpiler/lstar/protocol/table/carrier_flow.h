@@ -296,7 +296,7 @@ static inline std::vector<std::string> carrier_form_reads(const std::vector<Carr
 }
 
 // the literal values the text `form_text` writes, an operand that is a number alone, and no operand of memory or of a
-// bank of constants: the values a form brings of its own, whatever carrier holds it
+// bank of constants: the values a form brings of its own, whatever carrier carries it
 static inline std::set<unsigned long long> carrier_literals(const std::string &form_text)
 {
     static const std::regex s_literal("^\\s*(0x[0-9a-fA-F]+|[0-9]+)\\s*$");

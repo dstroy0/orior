@@ -142,12 +142,12 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
     {
         running[0].rows[axis].assign(1u, ExactLimbs(1u, 1u));
     }
-    std::vector<EncodeTerm> kept;
-    int have_kept = 0;
-    // whether the running terms' and the kept terms' centers sit half a voxel before the voxel on each axis: an order
-    // o's window starts floor((o + 1) / 2) before it, and the center moves half a voxel with each odd order
+    std::vector<EncodeTerm> saved;
+    int has_saved = 0;
+    // whether the running terms' and the retained terms' centers sit half a voxel before the voxel on each axis: an
+    // order o's window starts floor((o + 1) / 2) before it, and the center moves half a voxel with each odd order
     unsigned int running_half[ENGINE_AXES] = {0u, 0u, 0u};
-    unsigned int kept_half[ENGINE_AXES] = {0u, 0u, 0u};
+    unsigned int saved_half[ENGINE_AXES] = {0u, 0u, 0u};
     for (unsigned int step = 0u; step < request->count; step += 1u)
     {
         const EngineStep &doing = request->steps[step];
@@ -200,21 +200,21 @@ extern "C" long keymath_encode(const KeymathEncodeRequest *request)
                 }
             }
         }
-        else if (doing.operation == ENGINE_KEEP)
+        else if (doing.operation == ENGINE_SAVE)
         {
-            kept = running;
-            have_kept = 1;
-            memcpy(kept_half, running_half, sizeof(kept_half));
+            saved = running;
+            has_saved = 1;
+            memcpy(saved_half, running_half, sizeof(saved_half));
         }
-        else if ((doing.operation == ENGINE_SCALE_SUBTRACT) && (have_kept != 0))
+        else if ((doing.operation == ENGINE_SCALE_SUBTRACT) && (has_saved != 0))
         {
             // terms subtracted half a voxel apart are no residual of one voxel
-            if (!KEYMATH_CHECK(memcmp(kept_half, running_half, sizeof(kept_half)) == 0, &doing, error,
+            if (!KEYMATH_CHECK(memcmp(saved_half, running_half, sizeof(saved_half)) == 0, &doing, error,
                                ENGINE_ERROR_REQUEST))
             {
                 return KEYMATH_ERROR;
             }
-            std::vector<EncodeTerm> next = kept;
+            std::vector<EncodeTerm> next = saved;
             for (EncodeTerm &term : next)
             {
                 term.shift += (unsigned long long)doing.shift;
@@ -371,7 +371,7 @@ extern "C" long keymath_record_encode(const KeymathRecordRequest *request)
         for (unsigned int table = 0u; table < request->table_count; table += 1u)
         {
             const EngineRecordTable &source = request->tables[table];
-            // index_bits is at most 32, and the entry count at most 2^32, which an unsigned long long holds
+            // index_bits is at most 32, and the entry count at most 2^32, which an unsigned long long represents
             const unsigned long long entries = 1ull << source.index_bits;
             const unsigned int out_limbs = (source.out_bits + 31u) / 32u;
             key->table[table].index_bits = source.index_bits;

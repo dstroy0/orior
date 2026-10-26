@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// parquet_read.c: a parquet file's members, the one held decoded, and its lanes and side
+// parquet_read.c: a parquet file's members, the one cached decoded, and its lanes and side
 #include "parquet_internal.h"
 
 #define PARQUET_FOOTER_MEMBER "footer"
 
-// the side leaves of a member, in the order they are kept: a footer has the first alone, a fixed-width leaf the first
+// the side leaves of a member, in the order they are stored: a footer has the first alone, a fixed-width leaf the first
 // three, a BYTE_ARRAY leaf all four
 #define PARQUET_SIDE_LEAVES_MOST 4u
 
 static const char *const PARQUET_SIDE_NAMES[PARQUET_SIDE_LEAVES_MOST] = {"bytes", "definition", "repetition",
                                                                          "lengths"};
 
-// the member held decoded, its file and name, and the footer it was found through. A footer member holds the footer's
-// own bytes as its values and no levels
+// the member cached decoded, its file and name, and the footer it was found through. A footer member contains the
+// footer's own bytes as its values and no levels
 typedef struct
 {
     char *path;
@@ -113,7 +113,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
             range.bytes = resident->footer->footer_bytes;
             range.out = values->bytes;
             values->count = resident->footer->footer_bytes;
-            // the footer's bytes were held to 16 MiB when it was read, a count that fits a long long
+            // the footer's bytes were limited to 16 MiB when it was read, a count that fits a long long
             ok = PARQUET_CHECK(tools->read(&range) == (long long)values->count, path, error, ENGINE_ERROR_REQUEST);
         }
     }
@@ -134,7 +134,7 @@ static int parquet_open(const EngineIngestTools *tools, const char *path, const 
     return 1;
 }
 
-// the lanes the held member's bytes take, two bytes to a lane and one lane where it has none
+// the lanes the cached member's bytes take, two bytes to a lane and one lane where it has none
 static unsigned long long parquet_lanes(void)
 {
     const unsigned long long bytes = s_parquet_resident.column.values.count;
@@ -169,7 +169,7 @@ long parquet_describe(const EngineDescribeRequest *request)
 static void parquet_side_release(EngineSideBytes *side)
 {
     free(side->pixel_at);
-    free(side->pixel_kept);
+    free(side->pixel_stored);
     free(side->byte_start);
     free(side->bytes);
     free(side->name_start);
@@ -179,8 +179,8 @@ static void parquet_side_release(EngineSideBytes *side)
     memset(side, 0, sizeof(*side));
 }
 
-// the held member's side leaves: its byte count eight bytes little-endian, and a leaf's levels and a BYTE_ARRAY
-// leaf's lengths as they were decoded. No lane sits inside a side leaf, and each is kept whole
+// the cached member's side leaves: its byte count eight bytes little-endian, and a leaf's levels and a BYTE_ARRAY
+// leaf's lengths as they were decoded. No lane sits inside a side leaf, and each is stored whole
 static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
 {
     const ParquetResident *const resident = &s_parquet_resident;
@@ -198,23 +198,23 @@ static int parquet_side_fill(EngineSideBytes *side, EngineError *error)
     const int byte_array =
         (resident->leafed != 0) && (resident->footer->leaf[resident->leaf].physical == PARQUET_BYTE_ARRAY);
     const unsigned long long leaves = (resident->leafed == 0) ? 1ull : (byte_array ? 4ull : 3ull);
-    unsigned long long kept = 0ull;
+    unsigned long long byte_total = 0ull;
     unsigned long long named = 0ull;
     for (unsigned long long leaf = 0ull; leaf < leaves; leaf += 1ull)
     {
-        kept += sizes[leaf];
+        byte_total += sizes[leaf];
         named += strlen(PARQUET_SIDE_NAMES[leaf]);
     }
     memset(side, 0, sizeof(*side));
     side->pixel_at = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    side->pixel_kept = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
+    side->pixel_stored = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
     side->byte_start = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    side->bytes = (unsigned char *)malloc((size_t)kept + 1u);
+    side->bytes = (unsigned char *)malloc((size_t)byte_total + 1u);
     side->name_start = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
     side->names = (char *)malloc((size_t)named + 1u);
     side->member_crc = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
     side->member_bytes = (unsigned long long *)calloc((size_t)leaves + 1u, sizeof(unsigned long long));
-    if (!PARQUET_CHECK((side->pixel_at != NULL) && (side->pixel_kept != NULL) && (side->byte_start != NULL) &&
+    if (!PARQUET_CHECK((side->pixel_at != NULL) && (side->pixel_stored != NULL) && (side->byte_start != NULL) &&
                            (side->bytes != NULL) && (side->name_start != NULL) && (side->names != NULL) &&
                            (side->member_crc != NULL) && (side->member_bytes != NULL),
                        side, error, ENGINE_ERROR_RESOURCE))
@@ -316,9 +316,9 @@ unsigned int parquet_members(const EngineIngestTools *tools, const char *path, c
     free(footer);
     if (!ok)
     {
-        for (unsigned int slot = 0u; (listed != NULL) && (slot < count); slot += 1u)
+        for (unsigned int index = 0u; (listed != NULL) && (index < count); index += 1u)
         {
-            free(listed[slot]);
+            free(listed[index]);
         }
         free(listed);
         return 0u;

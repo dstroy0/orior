@@ -63,7 +63,7 @@ int entry_side_same(const EngineSideBytes *one, const EngineSideBytes *other)
         return 1;
     }
     return (memcmp(one->pixel_at, other->pixel_at, words) == 0) &&
-           (memcmp(one->pixel_kept, other->pixel_kept, words) == 0) &&
+           (memcmp(one->pixel_stored, other->pixel_stored, words) == 0) &&
            (memcmp(one->byte_start, other->byte_start, fenced) == 0) &&
            (memcmp(one->name_start, other->name_start, fenced) == 0) &&
            (memcmp(one->member_crc, other->member_crc, words) == 0) &&
@@ -216,7 +216,7 @@ static int entry_seal_members(const EngineSideSection *section, EngineSignum *ro
         unsigned char *at = buffer;
         entry_words_place(at, side->pixel_at, leaves);
         at = &at[8ull * leaves];
-        entry_words_place(at, side->pixel_kept, leaves);
+        entry_words_place(at, side->pixel_stored, leaves);
         at = &at[8ull * leaves];
         entry_words_place(at, side->byte_start, leaves + 1ull);
         at = &at[8ull * (leaves + 1ull)];
@@ -369,107 +369,107 @@ int entry_set_root(const EngineSignum *roots, unsigned long long count, EngineSi
     return entry_keyed(OBSIGNATIO_LEVEL_SET, (const unsigned char *)roots, count * ENGINE_SIGNUM_BYTES, root, error);
 }
 
-void entry_signum_text(ScripturaLine *line, const EngineSignum *signum)
+void entry_signum_text(VerbaLinea *line, const EngineSignum *signum)
 {
     for (unsigned int byte = 0u; byte < ENGINE_SIGNUM_BYTES; byte += 1u)
     {
-        scriptura_hex(line, signum->bytes[byte], 2u);
+        mmgr_line_hex(line, signum->bytes[byte], 2u);
     }
 }
 
-void entry_percent(ScripturaLine *line, unsigned long long part, unsigned long long total)
+void entry_percent(VerbaLinea *line, unsigned long long part, unsigned long long total)
 {
-    scriptura_decimal_columns(line, (total != 0ull) ? ((100ull * part) / total) : 0ull, 3u);
-    scriptura_character(line, '.');
-    scriptura_decimal(line, (total != 0ull) ? (((1000ull * part) / total) % 10ull) : 0ull, 1u);
-    scriptura_character(line, '%');
+    mmgr_line_decimal_columns(line, (total != 0ull) ? ((100ull * part) / total) : 0ull, 3u);
+    mmgr_line_ch(line, '.');
+    mmgr_line_decimal(line, (total != 0ull) ? (((1000ull * part) / total) % 10ull) : 0ull, 1u);
+    mmgr_line_ch(line, '%');
 }
 
 unsigned long long entry_report_capacity(char *const *samples, unsigned long long reached, const char *source,
                                          const char *set)
 {
     const unsigned long long fixed =
-        scriptura_length(source, ENTRY_PATH_CAPACITY) + scriptura_length(set, ENTRY_PATH_CAPACITY);
+        strnlen(source, ENTRY_PATH_CAPACITY) + strnlen(set, ENTRY_PATH_CAPACITY);
     unsigned long long needed = (2ull * ENTRY_ROW_TEXT) + fixed;
     for (unsigned long long sample = 0ull; sample < reached; sample += 1ull)
     {
-        needed += ENTRY_ROW_TEXT + fixed + scriptura_length(samples[sample], ENTRY_PATH_CAPACITY);
+        needed += ENTRY_ROW_TEXT + fixed + strnlen(samples[sample], ENTRY_PATH_CAPACITY);
     }
     return needed;
 }
 
-void entry_report_total(ScripturaLine *line, const EngineSetReport *report, unsigned int count)
+void entry_report_total(VerbaLinea *line, const EngineSetReport *report, unsigned int count)
 {
-    scriptura_text(line, "\n  ");
-    scriptura_decimal(line, report->sealed, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, count, 1u);
-    scriptura_text(line, " samples held, ");
-    scriptura_decimal(line, report->voxels, 1u);
-    scriptura_text(line, " voxels: ");
-    scriptura_decimal(line, report->crystal_bytes, 1u);
-    scriptura_text(line, " bytes of ");
-    scriptura_decimal(line, report->raw_bytes, 1u);
-    scriptura_text(line, " raw, ");
+    mmgr_line_put(line, "\n  ");
+    mmgr_line_decimal(line, report->sealed, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, count, 1u);
+    mmgr_line_put(line, " samples verified, ");
+    mmgr_line_decimal(line, report->voxels, 1u);
+    mmgr_line_put(line, " voxels: ");
+    mmgr_line_decimal(line, report->crystal_bytes, 1u);
+    mmgr_line_put(line, " bytes of ");
+    mmgr_line_decimal(line, report->raw_bytes, 1u);
+    mmgr_line_put(line, " raw, ");
     entry_percent(line, report->crystal_bytes, report->raw_bytes);
-    scriptura_text(line, ", in ");
-    scriptura_decimal(line, report->microseconds / 1000ull, 1u);
+    mmgr_line_put(line, ", in ");
+    mmgr_line_decimal(line, report->microseconds / 1000ull, 1u);
     if (report->sealed != count)
     {
-        scriptura_text(line, " ms\n  no set root: it seals every sample's, and not every sample held\n");
+        mmgr_line_put(line, " ms\n  no set root: it seals every sample's, and not every sample verified\n");
         return;
     }
-    scriptura_text(line, " ms\n  the set's root, sealing every sample's in the order named: ");
+    mmgr_line_put(line, " ms\n  the set's root, sealing every sample's in the order named: ");
     entry_signum_text(line, &report->set_root);
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
 }
 
-void entry_seal_failure(ScripturaLine *line, const EngineSampleRecord *record)
+void entry_seal_failure(VerbaLinea *line, const EngineSampleRecord *record)
 {
     if (record->crystal_read == 0ull)
     {
-        scriptura_text(line, "the file did not read as a crystal (missing, short, or laid out otherwise than its head "
+        mmgr_line_put(line, "the file did not read as a crystal (missing, short, or laid out otherwise than its head "
                              "describes), so no node was compared");
         return;
     }
     if (record->extent_differ != 0ull)
     {
-        scriptura_text(line, "the head's extent disagrees with its seal's node counts, so no node was compared");
+        mmgr_line_put(line, "the head's extent disagrees with its seal's node counts, so no node was compared");
         return;
     }
-    scriptura_decimal(line, record->chunks_differ, 1u);
-    scriptura_text(line, " stored chunks differ");
+    mmgr_line_decimal(line, record->chunks_differ, 1u);
+    mmgr_line_put(line, " stored chunks differ");
     if (record->chunks_differ != 0ull)
     {
-        scriptura_text(line, " (first chunk ");
-        scriptura_decimal(line, record->first_chunk_differ, 1u);
-        scriptura_character(line, ')');
+        mmgr_line_put(line, " (first chunk ");
+        mmgr_line_decimal(line, record->first_chunk_differ, 1u);
+        mmgr_line_ch(line, ')');
     }
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, record->rows_differ, 1u);
-    scriptura_text(line, " rows differ");
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, record->rows_differ, 1u);
+    mmgr_line_put(line, " rows differ");
     if ((record->rows_differ != 0ull) && (record->extent[1] != 0ull) && (record->extent[2] != 0ull))
     {
         const unsigned long long row = record->first_row_differ;
-        scriptura_text(line, " (first at t ");
-        scriptura_decimal(line, row / (record->extent[1] * record->extent[2]), 1u);
-        scriptura_text(line, ", z ");
-        scriptura_decimal(line, (row / record->extent[2]) % record->extent[1], 1u);
-        scriptura_text(line, ", y ");
-        scriptura_decimal(line, row % record->extent[2], 1u);
-        scriptura_character(line, ')');
+        mmgr_line_put(line, " (first at t ");
+        mmgr_line_decimal(line, row / (record->extent[1] * record->extent[2]), 1u);
+        mmgr_line_put(line, ", z ");
+        mmgr_line_decimal(line, (row / record->extent[2]) % record->extent[1], 1u);
+        mmgr_line_put(line, ", y ");
+        mmgr_line_decimal(line, row % record->extent[2], 1u);
+        mmgr_line_ch(line, ')');
     }
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, record->roots_differ, 1u);
-    scriptura_text(line, " other nodes differ; ");
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, record->roots_differ, 1u);
+    mmgr_line_put(line, " other nodes differ; ");
     if (record->root_rebuilt == 0ull)
     {
-        scriptura_text(line, "the check stopped before a root was rebuilt, against the file's ");
+        mmgr_line_put(line, "the check stopped before a root was rebuilt, against the file's ");
         entry_signum_text(line, &record->root);
         return;
     }
-    scriptura_text(line, "root ");
+    mmgr_line_put(line, "root ");
     entry_signum_text(line, &record->rebuilt_root);
-    scriptura_text(line, " rebuilt against the file's ");
+    mmgr_line_put(line, " rebuilt against the file's ");
     entry_signum_text(line, &record->root);
 }

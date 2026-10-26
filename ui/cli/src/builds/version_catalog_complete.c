@@ -5,7 +5,7 @@
 // table's keys after its `{` or a `,`, by the section the cursor's line stands under
 #include "version_catalog_internal.h"
 
-// the sections a catalog holds, and the keys of a library's, a plugin's and a version's tables
+// the sections a catalog contains, and the keys of a library's, a plugin's and a version's tables
 static const char *const s_sections[5] = {"versions", "libraries", "bundles", "plugins", "metadata"};
 static const char *const s_library_keys[5] = {"module", "group", "name", "version", "version.ref"};
 static const char *const s_plugin_keys[3] = {"id", "version", "version.ref"};
@@ -66,7 +66,7 @@ static void complete_names(const char *text, unsigned long long size, const char
     // a description names texts of the catalog's, with a few bytes between them and two a string of a list
     const int read = cli_versions_parse(text, size);
     const unsigned long long room = g_cli_versions.used + 16ull + (2ull * g_cli_versions.items);
-    char *const about_text = read ? cli_cell_taken_by(&g_cli_versions_cells, room, "a catalog's description") : NULL;
+    char *const about_text = read ? g_cli_cells->persistent_buf_alloc(room, &g_cli_versions_cells) : NULL;
     for (unsigned int at = 0u; (about_text != NULL) && (at < g_cli_versions.sections); at += 1u)
     {
         const CliVersionsSection *const section = &g_cli_versions.section[at];
@@ -78,13 +78,13 @@ static void complete_names(const char *text, unsigned long long size, const char
         for (unsigned int entry = section->first; entry != CLI_VERSIONS_NONE; entry = g_cli_versions.field[entry].next)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
-            CliLine about = {about_text, room, 0ull};
+            VerbaLinea about = {about_text, room, 0ull};
             cli_versions_describe(field, &about);
             cli_build_relative(items, token, token_size, cli_versions_text(field->key_at), field->key_size, "constant",
                                about_text, about.at);
         }
     }
-    cli_cell_given_by(&g_cli_versions_cells, about_text);
+    g_cli_cells->persistent_buf_release(about_text, &g_cli_versions_cells);
     cli_versions_released();
     cli_lock_give(&g_cli_versions_lock);
 }
@@ -189,10 +189,10 @@ void cli_versions_complete(const char *text, unsigned long long size, unsigned l
         count = 5u;
     }
     static char s_detail[1u << 12u];
-    CliLine detail = {s_detail, sizeof(s_detail), 0ull};
-    cli_line_text(&detail, "key of [");
-    cli_line_counted(&detail, section, section_size);
-    cli_line_character(&detail, ']');
+    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+    mmgr_line_put(&detail, "key of [");
+    mmgr_line_put_n(&detail, section, section_size);
+    mmgr_line_ch(&detail, ']');
     const unsigned long long start = cli_build_run_before(text, at, complete_key_letter);
     for (unsigned int one = 0u; one < count; one += 1u)
     {

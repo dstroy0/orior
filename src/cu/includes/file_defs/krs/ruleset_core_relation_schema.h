@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ruleset_core_relation_schema.h: the schema the entries are held to, the counts, the device maps, and every
+// ruleset_core_relation_schema.h: the schema the entries are checked against, the counts, the device maps, and every
 // relation read together (ruleset_core_relation.h includes the parts in order)
 #ifndef RULESET_CORE_RELATION_SCHEMA_H
 #define RULESET_CORE_RELATION_SCHEMA_H
@@ -23,7 +23,7 @@ CODEGEN_CORE unsigned int ruleset_core_relation_schema_find(const RulesetCoreRel
     return count;
 }
 
-// every entry held against the schema, and every name of the schema against the entries
+// every entry checked against the schema, and every name of the schema against the entries
 CODEGEN_CORE void ruleset_core_relation_schema(RulesetCoreRelations *relations)
 {
     const RulesetCoreSchema *const schema = &relations->schema;
@@ -43,12 +43,12 @@ CODEGEN_CORE void ruleset_core_relation_schema(RulesetCoreRelations *relations)
         const unsigned int named = ruleset_core_relation_schema_find(relations, lists[list], counts[list], entry->name);
         if (named == counts[list])
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_SCHEMA_NOT_NAMED, at, list);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_SCHEMA_NOT_NAMED, at, list);
         }
         else if ((list == 0u) && (ruleset_core_relation_parts(relations->text, entry->head, (unsigned char)' ') !=
                                   schema->form_parameters[named]))
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_SCHEMA_PARAMETERS, at, named);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_SCHEMA_PARAMETERS, at, named);
         }
     }
     for (unsigned int list = 0u; list < 3u; list += 1u)
@@ -68,13 +68,13 @@ CODEGEN_CORE void ruleset_core_relation_schema(RulesetCoreRelations *relations)
             }
             if (given == 0)
             {
-                ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN, named, list);
+                ruleset_core_relation_add(relations, RULESET_CORE_RELATION_SCHEMA_NOT_GIVEN, named, list);
             }
         }
     }
 }
 
-// a classification's counts held against the questions its file writes, and each question's class against the
+// a classification's counts checked against the questions its file writes, and each question's class against the
 // classes its file names: a channel is named `channel <name> ...`, a class `class <name> ...`, a count `count
 // <channel> <class> <number>`, and a question opens with a channel's name, its class the next word
 CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, unsigned int at)
@@ -87,7 +87,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
     }
     const RulesetCoreSpan first = ruleset_core_relation_part(text, entry->head, (unsigned char)' ', 0u);
     const RulesetCoreSpan second = ruleset_core_relation_part(text, entry->head, (unsigned char)' ', 1u);
-    unsigned int asked = 0u;
+    unsigned int parameter_count = 0u;
     int question = 0;
     int class_named = 0;
     for (unsigned int other_at = 0u; other_at < relations->entry_count; other_at += 1u)
@@ -102,7 +102,7 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
             ruleset_core_relation_same(text, other->name, first) &&
             ruleset_core_relation_same(text, other_first, second))
         {
-            asked += 1u;
+            parameter_count += 1u;
         }
         question = question || (ruleset_core_relation_is(text, other->name, "channel") &&
                                 ruleset_core_relation_same(text, other_first, entry->name));
@@ -115,31 +115,32 @@ CODEGEN_CORE void ruleset_core_relation_counts(RulesetCoreRelations *relations, 
         unsigned int number = 0u;
         for (unsigned int digit = 0u; digit < digits.length; digit += 1u)
         {
-            // a count is a few digits, and one past 32 bits is written as no count holds
+            // a count is a few digits, and one past 32 bits is written as no count represents
             number = (number * 10u) + (unsigned int)(text[digits.first + digit] - '0');
         }
-        if (number != asked)
+        if (number != parameter_count)
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_COUNT_DISAGREES, at, asked);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_COUNT_DISAGREES, at, parameter_count);
         }
     }
     else if (question && !class_named)
     {
-        ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_CLASS_NOT_NAMED, at, RULESET_CORE_NONE);
+        ruleset_core_relation_add(relations, RULESET_CORE_RELATION_CLASS_NOT_NAMED, at, RULESET_CORE_NONE);
     }
 }
 
 // The relations of a map from one set of files to another, the two read apart, each name written in `from` against the
 // same name written in `to`, each relation between an entry of `from` and `other`:
 //
-//     BREAKS     two names one text in `from` and two texts in `to`: a reading of `from` cannot say which `to` writes,
+//     BREAKS     two names one text in `from` and two texts in `to`: a reading of `from` cannot determine which `to`
+//     writes,
 //                `other` the second name's entry in `from`
 //     COLLAPSES  two names two texts in `from` and one text in `to`, `other` the second name's entry in `from`
 //     KIND       a name `from` gives as one kind and `to` as another, of form, nop, err and construct, `other` the
 //                entry of `to`
 //     ABSENT     a name `from` gives and no entry of `to` does, which a file of `to` added undoes: open
 //
-// Each of the others is a line a lane cannot be read through as it stands (P8): it holds between two languages that
+// Each of the others is a line a lane cannot be read through as it stands (P8): it is true between two languages that
 // each write their own names rightly, and is no verdict on either set
 #define RULESET_CORE_MAP_BREAKS 0u
 #define RULESET_CORE_MAP_COLLAPSES 1u
@@ -174,10 +175,10 @@ CODEGEN_CORE int ruleset_core_map_same(const RulesetCoreRelations *relations, un
            ruleset_core_relation_walk(relations, left, right, 0, 0);
 }
 
-// Every relation of the map from `from` to `to`, both read by ruleset_core_relations, into `maps`, which holds
+// Every relation of the map from `from` to `to`, both read by ruleset_core_relations, into `maps`, which has room for
 // `capacity`: for each name `from` gives, its kind and whether `to` gives it, and the first earlier name it is one text
-// with on one side and two on the other. The count found, those past the capacity counted and not kept; three an entry
-// of `from` at most
+// with on one side and two on the other. The count found, those past the capacity counted and not stored; three an
+// entry of `from` at most
 CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, const RulesetCoreRelations *to,
                                            RulesetCoreRelation *maps, unsigned int capacity)
 {
@@ -210,20 +211,20 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
             found[0] = ((found[0] == RULESET_CORE_NONE) && both_forms && same_from && !same_to) ? earlier : found[0];
             found[1] = ((found[1] == RULESET_CORE_NONE) && both_forms && !same_from && same_to) ? earlier : found[1];
         }
-        const RulesetCoreRelation kept[4] = {{RULESET_CORE_MAP_BREAKS, at, found[0]},
-                                             {RULESET_CORE_MAP_COLLAPSES, at, found[1]},
-                                             {RULESET_CORE_MAP_KIND, at, giver},
-                                             {RULESET_CORE_MAP_ABSENT, at, RULESET_CORE_NONE}};
-        const int holds[4] = {found[0] != RULESET_CORE_NONE, found[1] != RULESET_CORE_NONE,
-                              (giver != RULESET_CORE_NONE) && (to->entries[giver].kind != entry->kind),
-                              giver == RULESET_CORE_NONE};
+        const RulesetCoreRelation candidates[4] = {{RULESET_CORE_MAP_BREAKS, at, found[0]},
+                                                   {RULESET_CORE_MAP_COLLAPSES, at, found[1]},
+                                                   {RULESET_CORE_MAP_KIND, at, giver},
+                                                   {RULESET_CORE_MAP_ABSENT, at, RULESET_CORE_NONE}};
+        const int present[4] = {found[0] != RULESET_CORE_NONE, found[1] != RULESET_CORE_NONE,
+                                (giver != RULESET_CORE_NONE) && (to->entries[giver].kind != entry->kind),
+                                giver == RULESET_CORE_NONE};
         for (unsigned int kind = 0u; kind < 4u; kind += 1u)
         {
-            if (holds[kind] != 0)
+            if (present[kind] != 0)
             {
                 if (count < capacity)
                 {
-                    maps[count] = kept[kind];
+                    maps[count] = candidates[kind];
                 }
                 count += 1u;
             }
@@ -232,7 +233,7 @@ CODEGEN_CORE unsigned int ruleset_core_map(const RulesetCoreRelations *from, con
     return count;
 }
 
-// every file's entries read, and every absurd relation among them kept: each entry against every other, each
+// every file's entries read, and every absurd relation among them recorded: each entry against every other, each
 // construct's lines and walk, each classification's counts, and where a schema is given, the whole against it
 CODEGEN_CORE void ruleset_core_relations(RulesetCoreRelations *relations)
 {

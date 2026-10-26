@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // query.h: the query: the run's lifecycle and every loop of the protocol, each a command of `orior_cli protocol`. The
 // writer, the carrier, the cross and the teacher are C programs the query builds when their sources are newer and
-// runs as processes, the run a database they share; the query holds which program runs after which and with what
+// runs as processes, the run a database they share; the query records which program runs after which and with what
 // words. Every program it needs comes by role through QueryPrograms, which the command line gives over its
 // toolchains.
 #ifndef QUERY_H
@@ -17,10 +17,10 @@ extern "C"
 {
 #endif
 
-// the longest path the query names, and the longest line it says
-#define QUERY_PATH_LONGEST 1024u
+// the longest path the query names, and the longest line it prints
+#define QUERY_PATH_MAX_LEN 1024u
 
-#define QUERY_SAID_LONGEST 4096u
+#define QUERY_LINE_MAX_LEN 4096u
 
     // A program by what it is for
     typedef enum
@@ -37,7 +37,7 @@ extern "C"
         QUERY_ROLE_CL,
         // the tree's Python
         QUERY_ROLE_PYTHON,
-        // nvidia-smi, which says whether the part is free
+        // nvidia-smi, which reports whether the part is free
         QUERY_ROLE_NVIDIA_SMI,
         // docker, which runs the harness's images; curl, which fetches the vendor's archives; tar, which unpacks them
         QUERY_ROLE_DOCKER,
@@ -46,29 +46,29 @@ extern "C"
         QUERY_ROLE_COUNT
     } QueryRole;
 
-    // Where the query's programs are found: the program of a role into `path`, which holds `room`, 1, or 0 with why
-    // it is not found said into `said` in words that say what to do; and the PATH every program the query starts runs
-    // with
+    // Where the query's programs are found: the program of a role into `path`, sized for `room`, 1, or 0 with why
+    // it is not found written into `err_msg` in words that explain what to do; and the PATH every program the query
+    // starts runs with
     typedef struct
     {
-        int (*program)(void *context, QueryRole role, char *path, size_t room, CliLine *said);
+        int (*program)(void *context, QueryRole role, char *path, size_t room, VerbaLinea *err_msg);
         const char *(*run_path)(void *context);
         void *context;
     } QueryPrograms;
 
-    // what a line said goes to: `length` bytes of `text`, one line without its end
+    // what a line printed goes to: `length` bytes of `text`, one line without its end
     typedef struct
     {
-        void (*said)(void *context, const char *text, unsigned long long length);
+        void (*print)(void *context, const char *text, unsigned long long length);
         void *context;
     } QuerySink;
 
-    // Whether a run's files are left as it leaves them: every one, none, or each asked
+    // Whether a run's files are left as it leaves them: every one, none, or each confirmed
     typedef enum
     {
         QUERY_LEAVE_ALL,
         QUERY_LEAVE_NONE,
-        QUERY_LEAVE_ASK
+        QUERY_LEAVE_PROMPT
     } QueryLeave;
 
     // what is answered of one file: this one left or not, or every one from here on
@@ -83,9 +83,9 @@ extern "C"
     // whoever answers for a file: whether the file at `path` is left as the run leaves it, its difference shown
     typedef struct
     {
-        QueryAnswer (*asked)(void *context, const char *path);
+        QueryAnswer (*prompt)(void *context, const char *path);
         void *context;
-    } QueryAsker;
+    } QueryPrompter;
 
     // One input a command takes: a choice among `choices`, a word, or free words
     typedef struct
@@ -132,7 +132,7 @@ extern "C"
     } QueryCommand;
 
     // the commands, each with its params and the words that run it, the languages and the parts the bridge's folder
-    // under `root` holds whole offered as its choices: their count, the list at `commands`
+    // under `root` contains whole offered as its choices: their count, the list at `commands`
     unsigned int query_commands(const char *root, const QueryCommand **commands);
 
     // the role as a person reads it in a message
@@ -142,10 +142,11 @@ extern "C"
     QueryPrograms query_on_path(void);
 
     // the person at the terminal
-    QueryAsker query_terminal(void);
+    QueryPrompter query_terminal(void);
 
     // The words `words`, `count` of them, run under the tree at `root`, every program found through `programs`, each
-    // line said through `sink`: the code to exit with, or -1 with why the words could not be run said through `sink`
+    // line printed through `sink`: the code to exit with, or -1 with why the words could not be run printed through
+    // `sink`
     int query_run(const char *root, const QueryPrograms *programs, const char *const *words, unsigned int count,
                   QuerySink sink);
 

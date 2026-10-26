@@ -81,8 +81,8 @@ examples/0_experimental/exact_navier_stokes_on_torus.py	1
 examples/0_experimental/exact_residue_code_detects_uncertainty.py	10
 examples/0_experimental/exact_zeta_demon.py	1
 examples/0_experimental/exact_zeta_gram.py	1
-examples/0_experimental/exact_zeta_held.cu	33
-examples/0_experimental/exact_zeta_held.sh	1
+examples/0_experimental/exact_zeta_scaled.cu	33
+examples/0_experimental/exact_zeta_scaled.sh	1
 examples/0_experimental/exact_zeta_lobes.cu	1
 examples/0_experimental/exact_zeta_lobes.py	4
 examples/0_experimental/exact_zeta_miss_map.py	3
@@ -288,8 +288,6 @@ src/cu/engine/runtime/daemon/tessera_run_common.c	1
 src/cu/engine/runtime/daemon/tessera_run_internal.h	1
 src/cu/engine/runtime/daemon/tessera_run_main.c	2
 src/cu/engine/runtime/device_pool/device_pool.h	3
-src/cu/engine/runtime/scriptura/scriptura.c	2
-src/cu/engine/runtime/scriptura/scriptura_arm_avx512.c	1
 src/cu/includes/codecs/zip/zip.h	2
 src/cu/includes/codecs/zip/zip_index.c	1
 src/cu/includes/file_defs/kdm/kdm.h	1
@@ -310,8 +308,8 @@ src/cu/includes/file_defs/khw/khw_write/relation.c	22
 src/cu/includes/file_defs/khw/khw_write/turning.c	1
 src/cu/includes/file_defs/klq/klq_write/klq_write.cu	7
 src/cu/includes/file_defs/kqr/kqr.h	5
-src/cu/includes/file_defs/kqr/kqr_record/asks.c	5
-src/cu/includes/file_defs/kqr/kqr_record/kept.c	1
+src/cu/includes/file_defs/kqr/kqr_record/queries.c	5
+src/cu/includes/file_defs/kqr/kqr_record/store.c	1
 src/cu/includes/file_defs/kqr/kqr_record/kqr_internal.h	1
 src/cu/includes/file_defs/kqr/kqr_record/read.c	3
 src/cu/includes/file_defs/krep/krep_records.c	1
@@ -365,7 +363,7 @@ src/cu/transpiler/lstar/protocol/buffer/text.c	1
 src/cu/transpiler/lstar/protocol/buffer/writer.c	8
 src/cu/transpiler/lstar/protocol/counterexample/ladder.h	1
 src/cu/transpiler/lstar/protocol/gate/survivors.h	1
-src/cu/transpiler/lstar/protocol/order/ask_order.h	1
+src/cu/transpiler/lstar/protocol/order/hadamard_order.h	1
 src/cu/transpiler/lstar/protocol/overseer/overseer.h	15
 src/cu/transpiler/lstar/protocol/overseer/ruling.c	2
 src/cu/transpiler/lstar/protocol/qry_buffer.h	3
@@ -375,15 +373,15 @@ src/cu/transpiler/lstar/protocol/qry_sweep.c	3
 src/cu/transpiler/lstar/protocol/query/answer_read.c	1
 src/cu/transpiler/lstar/protocol/query/answer_read.h	1
 src/cu/transpiler/lstar/protocol/query/bus_enum.h	2
-src/cu/transpiler/lstar/protocol/query/query_ask.c	2
-src/cu/transpiler/lstar/protocol/query/query_ask.h	3
+src/cu/transpiler/lstar/protocol/query/query_put.c	2
+src/cu/transpiler/lstar/protocol/query/query_put.h	3
 src/cu/transpiler/lstar/protocol/record/kqr.c	9
 src/cu/transpiler/lstar/protocol/table/concept_product.h	4
 src/cu/transpiler/lstar/protocol/table/decoder/bridge.cu	3
 src/cu/transpiler/lstar/protocol/table/decoder/decoder_internal.h	1
 src/cu/transpiler/lstar/protocol/table/decoder/puts.cu	1
 src/cu/transpiler/lstar/protocol/table/identity/alike.cu	1
-src/cu/transpiler/lstar/protocol/table/identity/asks.cu	4
+src/cu/transpiler/lstar/protocol/table/identity/queries.cu	4
 src/cu/transpiler/lstar/protocol/table/identity/carriers.cu	2
 src/cu/transpiler/lstar/protocol/table/identity/cost.cu	4
 src/cu/transpiler/lstar/protocol/table/identity/curve.cu	2
@@ -441,8 +439,8 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_descent.m
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_held.py	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_krs.md	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe.h	20
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_ask/cubin.c	1
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_ask/cubin_asks.c	5
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_query/cubin.c	1
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_query/cubin_queries.c	5
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fields.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fields/cubin.c	1
@@ -450,7 +448,7 @@ src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_fie
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/operands.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/probe_machine_internal.h	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_machine/widened.c	3
-src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_main/asks.c	3
+src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_main/queries.c	3
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_read.c	1
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_unprinted/forms.c	2
 src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_unprinted/probe.c	2
@@ -503,7 +501,7 @@ src/sims/cu/includes/types/integers/pi_tower/pi_tower_walk.cu	1
 src/sims/cu/sim_camera_render.h	3
 src/sims/cu/sim_camera_scene.h	4
 src/sims/cu/sim_job.cu	1
-src/sims/cu/transpiler/ask_state/ask_state_main.cu	1
+src/sims/cu/transpiler/povm_state/povm_state_main.cu	1
 theory/figures/theory/boundary/state-deformation/README.md	2
 theory/theory/Salishan/chapters/chapter_Salishan_alphabet.tex	1
 theory/theory/Salishan/chapters/chapter_Salishan_corpus_derivation.tex	4
@@ -738,7 +736,7 @@ utils/test/src/cu/transpiler/lstar/parser/frame_relation_check.c	1
 utils/test/src/cu/transpiler/lstar/parser/standing_check.c	2
 utils/test/src/cu/transpiler/lstar/parser/turning_check.c	3
 utils/test/src/cu/transpiler/lstar/protocol/answer_read_check.c	1
-utils/test/src/cu/transpiler/lstar/protocol/ask_order_check.c	1
+utils/test/src/cu/transpiler/lstar/protocol/hadamard_order_check.c	1
 utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c	4
 utils/test/src/cu/transpiler/lstar/protocol/bus_enum_check.c	3
 utils/test/src/cu/transpiler/lstar/protocol/frame_check.c	5

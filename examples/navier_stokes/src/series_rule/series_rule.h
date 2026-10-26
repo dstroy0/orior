@@ -1,17 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// series_rule.h: series in X held by the rule of their entries at a general order k, every expression in one normal form
+// series_rule.h: series in X stored by the rule of their entries at a general order k, every expression in one normal
+// form
 #ifndef SERIES_RULE_H
 #define SERIES_RULE_H
 
-// A series in X is the sum over k of its entries f_k X^k, each entry a function of eta, and an entry at a negative order
-// is 0. An expression is the entry at a general order k of a series built from the fields' series, held as a sum of
-// parts:
+// A series in X is the sum over k of its entries f_k X^k, each entry a function of eta, and an entry at a negative
+// order is 0. An expression is the entry at a general order k of a series built from the fields' series, stored as a
+// sum of parts:
 //     a factor times one entry at k + s, or
 //     a Cauchy product, the sum over every whole i of a factor times one entry at i and one at k + c - i.
 // A factor is a polynomial in eta, h, k and i with exact rational coefficients over a power of L = 1 - 2 h eta^2, and
-// an entry carries the order of its derivative in eta. In a Cauchy product the pair of entries is held in one order,
-// and where both entries are the same the factor is held even under i -> k + c - i. Parts with the same entries are
+// an entry carries the order of its derivative in eta. In a Cauchy product the pair of entries is stored in one order,
+// and where both entries are the same the factor is stored even under i -> k + c - i. Parts with the same entries are
 // added over the higher power of L. An expression is 0 exactly when every factor's polynomial is 0: a polynomial in
 // k that is 0 at every order past a bound, or in i and k at every point of a sum, is the polynomial 0.
 // Every operand of a product is an expression the operations build from entries at k, 0 at every negative order.
@@ -23,7 +24,7 @@
 #include <string>
 #include <vector>
 
-// the variables of a factor, in the order its powers are held
+// the variables of a factor, in the order its powers are stored
 typedef enum
 {
     SERIES_RULE_ETA = 0,
@@ -114,7 +115,7 @@ int series_rule_parity(const SeriesRule &rule, const std::vector<int> &parities)
 // the expression as text, each field by its name
 std::string series_rule_text(const SeriesRule &rule, const std::vector<std::string> &names);
 
-// the parts the expression holds
+// the parts the expression contains
 size_t series_rule_parts(const SeriesRule &rule);
 
 // 1 where a value in this module outgrew the build's width

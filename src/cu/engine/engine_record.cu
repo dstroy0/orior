@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// engine_record.cu: the error kept for the caller, and the record layout on the device
+// engine_record.cu: the error recorded for the caller, and the record layout on the device
 #include "engine_internal.h"
 
 extern "C" void engine_percent_of(unsigned long long numerator, unsigned long long denominator,
@@ -25,21 +25,21 @@ extern "C" unsigned int engine_sort_unique(unsigned long long *keys, unsigned in
         return 0u;
     }
     qsort(keys, count, sizeof(unsigned long long), engine_order_keys);
-    unsigned int kept = 1u;
+    unsigned int unique_count = 1u;
     for (unsigned int position = 1u; position < count; position += 1u)
     {
-        if (keys[position] != keys[kept - 1u])
+        if (keys[position] != keys[unique_count - 1u])
         {
-            keys[kept] = keys[position];
-            kept += 1u;
+            keys[unique_count] = keys[position];
+            unique_count += 1u;
         }
     }
-    return kept;
+    return unique_count;
 }
 
 static EngineError s_engine_error;
 
-void engine_error_keep(const EngineError *error)
+void engine_error_latch(const EngineError *error)
 {
     if ((error->kind != ENGINE_ERROR_NONE) && (s_engine_error.kind == ENGINE_ERROR_NONE))
     {
@@ -91,9 +91,10 @@ extern "C" void engine_key_release(CycleKey *key)
     cycle_key_release(key);
 }
 
-// The program laid out on the device (layout_device_held, codegen_device.h), keymath's encoding and key_schedule's
-// layout each in one thread, the path every program takes, and held to the host's layout word for word: 1 and the
-// device's layout in `layout` where the two agree, else 0 with the reason on stderr, the host's layout left in `layout`
+// The program laid out on the device (layout_device_agrees, codegen_device.h), keymath's encoding and key_schedule's
+// layout each in one thread, the path every program takes, and checked against the host's layout word for word: 1 and
+// the device's layout in `layout` where the two agree, else 0 with the reason on stderr, the host's layout left in
+// `layout`
 static int engine_record_layout_device(const EngineRecordRequest *request, EngineRecordLayout *layout)
 {
     const LayoutRequest layout_request = {request->steps,        request->count,       request->field_bits,
@@ -101,7 +102,7 @@ static int engine_record_layout_device(const EngineRecordRequest *request, Engin
                                           request->in_limbs,     request->outputs,     request->output_count,
                                           request->tables,       request->table_count, request->reuse};
     const char *const report = getenv("CYCLE_RECORD_REPORT");
-    return layout_device_held(&layout_request, layout, (report != NULL) && (report[0] == '1'));
+    return layout_device_agrees(&layout_request, layout, (report != NULL) && (report[0] == '1'));
 }
 
 extern "C" long engine_record_encode(const EngineRecordRequest *request, CycleRecord **record, EngineError *error)

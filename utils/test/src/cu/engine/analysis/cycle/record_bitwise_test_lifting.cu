@@ -13,7 +13,7 @@ static void bitwise_stack(BitwiseResults *results)
     long long *const oracle = (long long *)malloc((size_t)count * sizeof(long long));
     if ((steps == NULL) || (oracle == NULL))
     {
-        bitwise_check(results, 0, "the stack is held");
+        bitwise_check(results, 0, "the stack is allocated");
         free(steps);
         free(oracle);
         return;
@@ -136,17 +136,17 @@ static void bitwise_stack(BitwiseResults *results)
             lanes_equal += (lane_ok != 0) ? 1u : 0u;
         }
     }
-    scriptura_text(&results->line, "  stack: ");
-    scriptura_decimal(&results->line, BITWISE_TEST_FLOORS, 1u);
-    scriptura_text(&results->line, " floors, ");
-    scriptura_decimal(&results->line, count, 1u);
-    scriptura_text(&results->line, " steps, file ");
-    scriptura_decimal(&results->line, loaded.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs, ");
-    scriptura_decimal(&results->line, lanes_equal, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes equal the CPU's rounds at every tapped floor\n");
+    mmgr_line_put(&results->line, "  stack: ");
+    mmgr_line_decimal(&results->line, BITWISE_TEST_FLOORS, 1u);
+    mmgr_line_put(&results->line, " floors, ");
+    mmgr_line_decimal(&results->line, count, 1u);
+    mmgr_line_put(&results->line, " steps, file ");
+    mmgr_line_decimal(&results->line, loaded.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs, ");
+    mmgr_line_decimal(&results->line, lanes_equal, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes equal the CPU's rounds at every tapped floor\n");
     bitwise_check(results, (host_ran != 0) && (device_ran != 0), "the stack runs on the host and the device");
     bitwise_check(results,
                   (host_ran != 0) && (device_ran != 0) &&
@@ -204,7 +204,7 @@ static void bitwise_lifting(BitwiseResults *results)
     BitwiseLift *const steps = (BitwiseLift *)calloc(1u, sizeof(BitwiseLift));
     if (steps == NULL)
     {
-        bitwise_check(results, 0, "the lifting is held");
+        bitwise_check(results, 0, "the lifting is allocated");
         return;
     }
     unsigned int sample[BITWISE_TEST_LIFT_SAMPLES];
@@ -364,17 +364,17 @@ static void bitwise_lifting(BitwiseResults *results)
         coefficients_ok += (coefficients != 0) ? 1u : 0u;
         rebuilt_ok += (samples != 0) ? 1u : 0u;
     }
-    scriptura_text(&results->line, "  lifting: one 5/3 level and its inverse, ");
-    scriptura_decimal(&results->line, steps->count, 1u);
-    scriptura_text(&results->line, " steps, file ");
-    scriptura_decimal(&results->line, loaded.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs; ");
-    scriptura_decimal(&results->line, coefficients_ok, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes equal tower_*.cu's coefficients, ");
-    scriptura_decimal(&results->line, rebuilt_ok, 1u);
-    scriptura_text(&results->line, " rebuilt exactly\n");
+    mmgr_line_put(&results->line, "  lifting: one 5/3 level and its inverse, ");
+    mmgr_line_decimal(&results->line, steps->count, 1u);
+    mmgr_line_put(&results->line, " steps, file ");
+    mmgr_line_decimal(&results->line, loaded.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs; ");
+    mmgr_line_decimal(&results->line, coefficients_ok, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes equal tower_*.cu's coefficients, ");
+    mmgr_line_decimal(&results->line, rebuilt_ok, 1u);
+    mmgr_line_put(&results->line, " rebuilt exactly\n");
     bitwise_check(results,
                   (host_ran != 0) && (device_ran != 0) &&
                       (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
@@ -418,12 +418,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     bitwise_check(&results, (admitted != 0) && (job.failures == 0ull),
                   "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record bitwise test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record bitwise test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

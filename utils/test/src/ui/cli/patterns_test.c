@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// patterns_test.c: the patterns' check: a pattern hides what it names and what is in it, a pattern that keeps hides
+// patterns_test.c: the patterns' check: a pattern hides what it names and what is in it, a pattern that includes hides
 // every other file, a set names its files and takes some out, git picks the files the patterns leave, and the pathspecs
 // name what the patterns name
 #include "../../../../../ui/cli/src/text/patterns.h"
@@ -38,33 +38,34 @@ static void patterns_hiding(void)
     cli_check(!cli_patterns_hides(p, "note", 0), "and a note hides nothing");
 }
 
-// a pattern that keeps hides every other file
-static void patterns_keeping(void)
+// a pattern that includes hides every other file
+static void patterns_include(void)
 {
     static const char *const s_lines[3] = {"!src/**", "!*.md", "src/**/*.o"};
     const CliPatterns *const p = patterns_read(s_lines, 3u);
-    cli_check(cli_patterns_keeps_only(p), "a pattern of `!` keeps only what it names");
+    cli_check(cli_patterns_include_only(p), "a pattern of `!` includes only what it names");
     cli_check(!cli_patterns_hides(p, "src/ui/main.rs", 0) && !cli_patterns_hides(p, "README.md", 0) &&
                   !cli_patterns_hides(p, "docs/guide.md", 0),
               "what it names stays");
     cli_check(cli_patterns_hides(p, "Cargo.toml", 0) && cli_patterns_hides(p, "src/ui/main.o", 0),
-              "every other file is hidden, and what a pattern hides among the kept");
+              "every other file is hidden, and what a pattern hides among the included");
     cli_check(!cli_patterns_hides(p, "docs", 1), "a folder is hidden only where a pattern names it");
-    cli_check(cli_patterns_keeps_folder(p, "src/ui") && !cli_patterns_keeps_folder(p, "docs"),
-              "a kept folder is known");
+    cli_check(cli_patterns_include_folder(p, "src/ui") && !cli_patterns_include_folder(p, "docs"),
+              "an included folder is known");
     static const char *const s_src[1] = {"!src"};
-    cli_check(!cli_patterns_hides(patterns_read(s_src, 1u), "src/a.rs", 0), "a kept folder keeps what is in it");
+    cli_check(!cli_patterns_hides(patterns_read(s_src, 1u), "src/a.rs", 0),
+              "an included folder includes what is in it");
 }
 
-// git run in `root` with `count` words, its lines sorted and joined by `|` into `out`, which holds 1024
+// git run in `root` with `count` words, its lines sorted and joined by `|` into `out`, which is sized for 1024
 static void patterns_git(const char *root, const char *const *words, unsigned int count, char *out)
 {
-    static char s_lines[64][CLI_PATH_LONGEST];
+    static char s_lines[64][CLI_PATH_MAX_LEN];
     CliRan *const ran = cli_ran_taken();
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned int lines = 0u;
-    if (cli_ran(words, root, NULL, 0u, ran, &said))
+    if (cli_ran(words, root, NULL, 0u, ran, &err_msg))
     {
         for (unsigned long long at = 0ull; (at < ran->out_size) && (lines < 64u);)
         {
@@ -73,9 +74,9 @@ static void patterns_git(const char *root, const char *const *words, unsigned in
             // a line ends inside the output, at or past its start
             const unsigned long long length =
                 (end != NULL) ? (unsigned long long)(end - (ran->out + at)) : ran->out_size - at;
-            CliLine line = {s_lines[lines], CLI_PATH_LONGEST, 0ull};
-            cli_line_counted(&line, ran->out + at, length);
-            (void)cli_line_closed(&line);
+            VerbaLinea line = {s_lines[lines], CLI_PATH_MAX_LEN, 0ull};
+            mmgr_line_put_n(&line, ran->out + at, length);
+            (void)mmgr_line_finish(&line);
             lines += (length > 0ull) ? 1u : 0u;
             at += length + 1ull;
         }
@@ -83,13 +84,13 @@ static void patterns_git(const char *root, const char *const *words, unsigned in
     cli_ran_given(ran);
     for (unsigned int at = 1u; at < lines; at += 1u)
     {
-        char held[CLI_PATH_LONGEST];
+        char entry[CLI_PATH_MAX_LEN];
         memor.cpy(
-            &(MemoriaCfg){.dst = held,
+            &(MemoriaCfg){.dst = entry,
                           .src = s_lines[at],
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_lines[at], .cap = CLI_CELLS_POOL}) + 1u});
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(s_lines[place - 1u], held) > 0))
+        while ((place > 0u) && (cli_text_order(s_lines[place - 1u], entry) > 0))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = s_lines[place],
@@ -98,16 +99,16 @@ static void patterns_git(const char *root, const char *const *words, unsigned in
             place -= 1u;
         }
         memor.cpy(&(MemoriaCfg){.dst = s_lines[place],
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
+                                .src = entry,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = entry, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    CliLine joined = {out, 1024u, 0ull};
+    VerbaLinea joined = {out, 1024u, 0ull};
     for (unsigned int at = 0u; at < lines; at += 1u)
     {
-        cli_line_text(&joined, (at > 0u) ? "|" : "");
-        cli_line_text(&joined, s_lines[at]);
+        mmgr_line_put(&joined, (at > 0u) ? "|" : "");
+        mmgr_line_put(&joined, s_lines[at]);
     }
-    (void)cli_line_closed(&joined);
+    (void)mmgr_line_finish(&joined);
 }
 
 // git picks the files the patterns leave
@@ -119,8 +120,8 @@ static void patterns_with_git(void)
                                              {"!*.md", NULL, NULL},
                                              {"**/*.min.js", "!lib/**", NULL}};
     static const unsigned int s_counts[4] = {3u, 2u, 1u, 2u};
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("patterns_git", root);
     static const char *const s_all[9] = {"src/a.rs",      "src/gen/b.rs",       "docs/gen/x.md",
                                          "docs/guide.md", "target/debug/o.exe", "run.log",
@@ -156,7 +157,7 @@ static void patterns_with_git(void)
         s_words.word[s_words.count] = NULL;
         patterns_git(root, s_words.word, s_words.count, listed);
         char left[1024];
-        CliLine line = {left, sizeof(left), 0ull};
+        VerbaLinea line = {left, sizeof(left), 0ull};
         static const char *const s_sorted[9] = {"README.md",     "deep/run.log",        "docs/gen/x.md",
                                                 "docs/guide.md", "lib/vendor/a.min.js", "run.log",
                                                 "src/a.rs",      "src/gen/b.rs",        "target/debug/o.exe"};
@@ -164,11 +165,11 @@ static void patterns_with_git(void)
         {
             if (!cli_patterns_hides(p, s_sorted[at], 0))
             {
-                cli_line_text(&line, (line.at > 0ull) ? "|" : "");
-                cli_line_text(&line, s_sorted[at]);
+                mmgr_line_put(&line, (line.at > 0ull) ? "|" : "");
+                mmgr_line_put(&line, s_sorted[at]);
             }
         }
-        (void)cli_line_closed(&line);
+        (void)mmgr_line_finish(&line);
         same &= cellul.eq(&(CatenaFinitaCfg){.src = listed, .other = left, .cap = CLI_CELLS_POOL});
     }
     cli_check(same, "git picks the files the patterns leave");
@@ -176,8 +177,9 @@ static void patterns_with_git(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     patterns_hiding();
-    patterns_keeping();
+    patterns_include();
     static const char *const s_set[4] = {"src/**", "!src/gen/**", "", "# a note"};
     cli_patterns_read_set(s_set, 4u, &s_patterns);
     cli_check(!cli_patterns_hides(&s_patterns, "src/a.rs", 0) && cli_patterns_hides(&s_patterns, "src/gen/b.rs", 0) &&

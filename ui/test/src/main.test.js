@@ -53,7 +53,7 @@ test("the tree's symbols, while they are read, show their bar, how many of how m
 test("the window reaches no address on the network as it opens, and files no error report the reader has not let file", async () => {
   const reached = (await invoke("network_reached")).filter((one) => one.at >= performance.timeOrigin);
   assert.deepEqual(reached, [], "no address reached since this window opened");
-  if (!(await invoke("report_asked"))[0]) {
+  if (!(await invoke("report_prompted"))[0]) {
     assert.equal(await invoke("report_auto"), false, "no report files before the reader answers");
   }
 });

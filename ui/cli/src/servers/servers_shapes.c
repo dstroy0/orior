@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_shapes.c: a server's answer read, and what it says written in orior's own shapes: a place, a path, a hover
-// as Markdown, a completion as the editor's item, a diagnostic and a location
+// servers_shapes.c: a server's answer read, and what it reports written in orior's own shapes: a place, a path, a hover
+// as Markdown, a completion as the editor's item, a diagnostic and a location. No request about a place reaches a
+// server given the tree's slices, so a place goes and comes back on the file's own lines
 #include "../command_line/cells.h"
 #include "../text/measured.h"
 #include "servers_internal.h"
 
-void cli_servers_reading_held(CliServersReading *reading)
+void cli_servers_reading_locked(CliServersReading *reading)
 {
     cli_lock_take(&reading->lock);
     reading->answer = NULL;
@@ -17,7 +18,7 @@ void cli_servers_reading_held(CliServersReading *reading)
 // the reading's answer given back, and its pieces
 static void reading_answer_given(CliServersReading *reading)
 {
-    cli_cell_given(reading->answer);
+    g_cli_cells->persistent_buf_release(reading->answer, NULL);
     reading->answer = NULL;
     reading->answer_size = 0ull;
     cli_pieces_given(&reading->pieces);
@@ -30,13 +31,13 @@ void cli_servers_reading_released(CliServersReading *reading)
     cli_lock_give(&reading->lock);
 }
 
-void cli_servers_answer_begun(CliServersReading *reading, CliLine *line)
+void cli_servers_answer_begun(CliServersReading *reading, VerbaLinea *line)
 {
     reading_answer_given(reading);
     cli_pieces_begun(&reading->pieces, line, reading->piece, sizeof(reading->piece));
 }
 
-int cli_servers_answer_joined(CliServersReading *reading, CliLine *line)
+int cli_servers_answer_joined(CliServersReading *reading, VerbaLinea *line)
 {
     reading->answer = cli_pieces_joined(&reading->pieces, line, "a server's answer", &reading->answer_size);
     reading->answer_size = (reading->answer != NULL) ? reading->answer_size : 0ull;
@@ -47,39 +48,43 @@ unsigned int cli_servers_read(CliServersReading *reading, const char *text, unsi
 {
     cli_json_given(&reading->json);
     char quiet[256];
-    CliLine said = {quiet, sizeof(quiet), 0ull};
-    return cli_json_taken(&reading->json, text, size, 0u, 0ull, &said);
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    return cli_json_taken(&reading->json, text, size, 0u, 0ull, &err_msg);
 }
 
-unsigned int cli_servers_answer_read(CliServersReading *reading, CliLine *line)
+unsigned int cli_servers_answer_read(CliServersReading *reading, VerbaLinea *line)
 {
     return cli_servers_answer_joined(reading, line) ? cli_servers_read(reading, reading->answer, reading->answer_size)
                                                     : CLI_JSON_NONE;
 }
 
-int cli_servers_asked(CliLsp *server, const char *method, CliPieces *pieces, CliLine *params, unsigned long long wait,
-                      CliLine *result, CliLine *said)
+int cli_servers_request(CliLsp *server, const char *method, CliPieces *pieces, VerbaLinea *params,
+                        unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg)
 {
     unsigned long long length = 0ull;
-    char *const asked_with = cli_pieces_joined(pieces, params, "the params a server is asked with", &length);
-    if (asked_with == NULL)
+    char *const params_json = cli_pieces_joined(pieces, params, "the params a server is queried with", &length);
+    if (params_json == NULL)
     {
-        cli_line_text(said, "the asking could not be written: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the request could not be written: the cells cannot meet it");
     }
-    const int asked = (asked_with != NULL) && cli_lsp_requested(server, method, asked_with, length, wait, result, said);
-    cli_cell_given(asked_with);
-    return asked;
+    // a server given the tree's slices is waited on until it answers
+    cli_servers_ask_begun(server);
+    const int requested =
+        (params_json != NULL) && cli_lsp_requested(server, method, params_json, length, wait, result, err_msg);
+    cli_servers_ask_ended(server);
+    g_cli_cells->persistent_buf_release(params_json, NULL);
+    return requested;
 }
 
-int cli_servers_asked_at(CliLsp *server, const char *method, const char *path, unsigned int line, unsigned int col,
-                         const char *added, unsigned long long wait, CliLine *result, CliLine *said)
+int cli_servers_request_at(CliLsp *server, const char *method, const char *path, unsigned int line, unsigned int col,
+                           const char *added, unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg)
 {
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
-    CliLine params;
+    VerbaLinea params;
     cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
     cli_lsp_at(path, line, col, added, &params);
-    return cli_servers_asked(server, method, &pieces, &params, wait, result, said);
+    return cli_servers_request(server, method, &pieces, &params, wait, result, err_msg);
 }
 
 unsigned long long cli_servers_whole(const CliJson *json, unsigned int node, unsigned long long otherwise)
@@ -109,21 +114,21 @@ CliTextPlace cli_servers_place(const CliJson *json, unsigned int node)
     return place;
 }
 
-void cli_servers_path_written(const char *tree, const char *path, CliLine *out)
+void cli_servers_path_written(const char *tree, const char *path, VerbaLinea *out)
 {
-    char written[CLI_PATH_LONGEST];
-    CliLine shown = {written, sizeof(written), 0ull};
+    char written[CLI_PATH_MAX_LEN];
+    VerbaLinea shown = {written, sizeof(written), 0ull};
     cli_servers_tree_path(tree, path, &shown);
-    cli_json_quoted_lossy(out, (const unsigned char *)written, cli_line_fits(&shown) ? shown.at : 0ull);
+    cli_json_quoted_lossy(out, (const unsigned char *)written, mmgr_line_ok(&shown) ? shown.at : 0ull);
 }
 
-void cli_servers_markdown_of(const CliJson *json, unsigned int contents, CliLine *out)
+void cli_servers_markdown_of(const CliJson *json, unsigned int contents, VerbaLinea *out)
 {
     unsigned long long size = 0ull;
     const char *const text = cli_json_string(json, contents, &size);
     if (text != NULL)
     {
-        cli_line_counted(out, text, size);
+        mmgr_line_put_n(out, text, size);
         return;
     }
     if (cli_json_is(json, contents, CFG_JSON_ARRAY))
@@ -133,14 +138,14 @@ void cli_servers_markdown_of(const CliJson *json, unsigned int contents, CliLine
         for (unsigned int part = json->node[contents].first; part != CLI_JSON_NONE; part = json->node[part].next)
         {
             char piece[64];
-            CliLine measure;
+            VerbaLinea measure;
             cli_measure_begun(&measure, piece, sizeof(piece));
             cli_servers_markdown_of(json, part, &measure);
             if (cli_measured(&measure) == 0ull)
             {
                 continue;
             }
-            cli_line_text(out, written ? "\n\n" : "");
+            mmgr_line_put(out, written ? "\n\n" : "");
             cli_servers_markdown_of(json, part, out);
             written = 1;
         }
@@ -156,14 +161,14 @@ void cli_servers_markdown_of(const CliJson *json, unsigned int contents, CliLine
     }
     if (language != NULL)
     {
-        cli_line_text(out, "```");
-        cli_line_counted(out, language, language_size);
-        cli_line_character(out, '\n');
-        cli_line_counted(out, value, value_size);
-        cli_line_text(out, "\n```");
+        mmgr_line_put(out, "```");
+        mmgr_line_put_n(out, language, language_size);
+        mmgr_line_ch(out, '\n');
+        mmgr_line_put_n(out, value, value_size);
+        mmgr_line_put(out, "\n```");
         return;
     }
-    cli_line_counted(out, value, value_size);
+    mmgr_line_put_n(out, value, value_size);
 }
 
 // the kind the editor shows for the protocol's kind of a completion
@@ -247,16 +252,16 @@ void cli_servers_item_of(const CliJson *json, unsigned int one, CliCompletions *
         insert_size = name_size;
     }
     static char s_detail[CLI_COMPLETIONS_TEXT];
-    CliLine detail = {s_detail, sizeof(s_detail), 0ull};
-    unsigned long long said_size = 0ull;
-    const char *const said = shapes_member(json, one, "detail", &said_size);
-    if (said != NULL)
+    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+    unsigned long long detail_src_size = 0ull;
+    const char *const detail_src = shapes_member(json, one, "detail", &detail_src_size);
+    if (detail_src != NULL)
     {
-        cli_line_counted(&detail, said, said_size);
-        cli_line_character(&detail, ' ');
+        mmgr_line_put_n(&detail, detail_src, detail_src_size);
+        mmgr_line_ch(&detail, ' ');
     }
-    cli_line_counted(&detail, shown, shown_size);
-    const unsigned long long detail_size = cli_line_fits(&detail) ? detail.at : 0ull;
+    mmgr_line_put_n(&detail, shown, shown_size);
+    const unsigned long long detail_size = mmgr_line_ok(&detail) ? detail.at : 0ull;
     unsigned long long detail_from = 0ull;
     unsigned long long detail_to = 0ull;
     cli_text_trimmed(s_detail, detail_size, &detail_from, &detail_to);
@@ -266,36 +271,36 @@ void cli_servers_item_of(const CliJson *json, unsigned int one, CliCompletions *
 }
 
 // a string member of `one` written as a JSON string, empty where it has none
-static void shapes_string_written(const CliJson *json, unsigned int one, const char *name, CliLine *out)
+static void shapes_string_written(const CliJson *json, unsigned int one, const char *name, VerbaLinea *out)
 {
     unsigned long long size = 0ull;
     const char *const text = shapes_member(json, one, name, &size);
     cli_json_quoted(out, (text != NULL) ? text : "", size);
 }
 
-void cli_servers_diagnostic_of(const CliJson *json, unsigned int one, CliLine *out)
+void cli_servers_diagnostic_of(const CliJson *json, unsigned int one, VerbaLinea *out)
 {
     const unsigned int range = cli_json_member(json, one, "range");
-    cli_line_text(out, "{\"from\":");
+    mmgr_line_put(out, "{\"from\":");
     cli_text_place_written(cli_servers_place(json, cli_json_member(json, range, "start")), out);
-    cli_line_text(out, ",\"to\":");
+    mmgr_line_put(out, ",\"to\":");
     cli_text_place_written(cli_servers_place(json, cli_json_member(json, range, "end")), out);
-    cli_line_text(out, ",\"severity\":");
+    mmgr_line_put(out, ",\"severity\":");
     // the severity is cut to its low byte, as the protocol's 1 to 4 always fits
-    cli_line_decimal(out, cli_servers_whole(json, cli_json_member(json, one, "severity"), 1ull) & 0xffull, 1u);
+    mmgr_line_decimal(out, cli_servers_whole(json, cli_json_member(json, one, "severity"), 1ull) & 0xffull, 1u);
     const unsigned int message = cli_json_member(json, one, "message");
     unsigned long long size = 0ull;
     const char *text = cli_json_string(json, message, &size);
     text = (text != NULL) ? text : shapes_member(json, message, "value", &size);
-    cli_line_text(out, ",\"message\":");
+    mmgr_line_put(out, ",\"message\":");
     cli_json_quoted(out, (text != NULL) ? text : "", size);
     unsigned long long kind_size = 0ull;
     const char *const kind = shapes_member(json, message, "kind", &kind_size);
     const int markdown = (kind != NULL) && (kind_size == 8ull) &&
                          (memor.cmp(&(MemoriaCfg){.src = kind, .other = "markdown", .bytes = 8u}) == 0);
-    cli_line_text(out, markdown ? ",\"markdown\":true,\"source\":" : ",\"markdown\":false,\"source\":");
+    mmgr_line_put(out, markdown ? ",\"markdown\":true,\"source\":" : ",\"markdown\":false,\"source\":");
     shapes_string_written(json, one, "source", out);
-    cli_line_text(out, ",\"code\":");
+    mmgr_line_put(out, ",\"code\":");
     const unsigned int code = cli_json_member(json, one, "code");
     if (cli_json_is(json, code, CFG_JSON_NUMBER))
     {
@@ -308,17 +313,17 @@ void cli_servers_diagnostic_of(const CliJson *json, unsigned int one, CliLine *o
     unsigned long long href_size = 0ull;
     const char *const href = shapes_member(json, cli_json_member(json, one, "codeDescription"), "href", &href_size);
     const int secure = (href != NULL) && cli_text_starts(href, href_size, "https://");
-    cli_line_text(out, ",\"href\":");
+    mmgr_line_put(out, ",\"href\":");
     cli_json_quoted(out, secure ? href : "", secure ? href_size : 0ull);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
-int cli_servers_found_of(const CliJson *json, unsigned int location, const char *tree, CliLine *out)
+int cli_servers_found_of(const CliJson *json, unsigned int location, const char *tree, VerbaLinea *out)
 {
     unsigned long long length = 0ull;
     const char *uri = shapes_member(json, location, "uri", &length);
     uri = (uri != NULL) ? uri : shapes_member(json, location, "targetUri", &length);
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if ((uri == NULL) || !cli_lsp_path_of(uri, length, path))
     {
         return 0;
@@ -327,12 +332,12 @@ int cli_servers_found_of(const CliJson *json, unsigned int location, const char 
     const unsigned int span =
         cli_json_is(json, range, CFG_JSON_OBJECT) ? range : cli_json_member(json, location, "targetSelectionRange");
     const CliTextPlace at = cli_servers_place(json, cli_json_member(json, span, "start"));
-    cli_line_text(out, "{\"path\":");
+    mmgr_line_put(out, "{\"path\":");
     cli_servers_path_written(tree, path, out);
-    cli_line_text(out, ",\"line\":");
-    cli_line_decimal(out, at.line, 1u);
-    cli_line_text(out, ",\"col\":");
-    cli_line_decimal(out, at.col, 1u);
-    cli_line_character(out, '}');
+    mmgr_line_put(out, ",\"line\":");
+    mmgr_line_decimal(out, at.line, 1u);
+    mmgr_line_put(out, ",\"col\":");
+    mmgr_line_decimal(out, at.col, 1u);
+    mmgr_line_ch(out, '}');
     return 1;
 }

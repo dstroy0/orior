@@ -36,7 +36,7 @@ static void archive_le(unsigned char *out, unsigned long long *at, unsigned long
 {
     for (unsigned int each = 0u; each < width; each += 1u)
     {
-        // a byte of the value, its low eight bits kept
+        // a byte of the value, its low eight bits retained
         out[*at + each] = (unsigned char)((value >> (8u * each)) & 0xffu);
     }
     *at += width;
@@ -151,7 +151,8 @@ static unsigned long long archive_tar_of(const char *const (*entries)[2], unsign
     return at + 1024ull;
 }
 
-// a record of `name` holding `blob`, written at `time`, ordinary, put after the `at` bytes of s_run: the bytes after it
+// a record of `name` containing `blob`, written at `time`, ordinary, put after the `at` bytes of s_run: the bytes after
+// it
 static unsigned long long archive_record(unsigned long long at, const char *name, const char *blob,
                                          unsigned long long time)
 {
@@ -175,28 +176,28 @@ static unsigned long long archive_record(unsigned long long at, const char *name
 // a file of the folder `dir` written: 1, or 0
 static int archive_written(const char *dir, const char *name, const void *bytes, unsigned long long size)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(dir, name, path);
     return query_file_written(path, bytes, size);
 }
 
-// what the folder `path` of the tree `dir` holds, each child `name dir archive` joined by `|`, into `out`, which holds
-// `room`: 1, or 0 where it does not list
+// what the folder `path` of the tree `dir` contains, each child `name dir archive` joined by `|`, into `out`, which is
+// sized for `room`: 1, or 0 where it does not list
 static int archive_listed(const char *dir, const char *path, char *out, unsigned long long room)
 {
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine line = {out, room, 0ull};
-    const int listed = cli_archive_list(dir, path, &s_children, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea line = {out, room, 0ull};
+    const int listed = cli_archive_list(dir, path, &s_children, &err_msg);
     for (unsigned int at = 0u; listed && (at < s_children.count); at += 1u)
     {
         const CliChild *const child = &s_children.item[at];
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, s_children.text + child->name);
-        cli_line_text(&line, child->dir ? " 1" : " 0");
-        cli_line_text(&line, child->archive ? " 1" : " 0");
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, s_children.text + child->name);
+        mmgr_line_put(&line, child->dir ? " 1" : " 0");
+        mmgr_line_put(&line, child->archive ? " 1" : " 0");
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return listed;
 }
 
@@ -204,19 +205,19 @@ static int archive_listed(const char *dir, const char *path, char *out, unsigned
 static void archive_read_is(const char *dir, const char *path, const char *wanted, const char *what)
 {
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_read, sizeof(s_read), 0ull};
-    cli_check(cli_archive_read(dir, path, &out, &said), what);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_read, sizeof(s_read), 0ull};
+    cli_check(cli_archive_read(dir, path, &out, &err_msg), what);
     cli_check_text(s_read, out.at, wanted, what);
 }
 
 // `text` saved as the file `path` of the tree `dir`: 1, or 0 with why into `why`
 static int archive_saved(const char *dir, const char *path, const char *text, char *why, unsigned long long room)
 {
-    CliLine said = {why, room, 0ull};
+    VerbaLinea err_msg = {why, room, 0ull};
     const int saved = cli_archive_write(dir, path, (const unsigned char *)text,
-                                        cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &said);
-    (void)cli_line_closed(&said);
+                                        cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     return saved;
 }
 
@@ -225,10 +226,10 @@ static int archive_round(const unsigned char *data, unsigned long long size)
 {
     const unsigned long long packed = cli_deflate(data, size, s_packed, sizeof(s_packed));
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long back = 0ull;
     unsigned long long used = 0ull;
-    return cli_inflate(s_packed, packed, s_back, sizeof(s_back), &back, &used, &said) && (back == size) &&
+    return cli_inflate(s_packed, packed, s_back, sizeof(s_back), &back, &used, &err_msg) && (back == size) &&
            ((size == 0ull) || (memor.cmp(&(MemoriaCfg){.src = s_back, .other = data, .bytes = size}) == 0));
 }
 
@@ -250,9 +251,9 @@ static void archive_deflate(void)
               "runs come back as lengths and distances");
     const unsigned long long zipped = cli_gzip(s_text, sizeof(s_text), s_packed, sizeof(s_packed));
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long back = 0ull;
-    cli_check(cli_gunzip(s_packed, zipped, s_back, sizeof(s_back), &back, &said) && (back == sizeof(s_text)) &&
+    cli_check(cli_gunzip(s_packed, zipped, s_back, sizeof(s_back), &back, &err_msg) && (back == sizeof(s_text)) &&
                   (memor.cmp(&(MemoriaCfg){.src = s_back, .other = s_text, .bytes = sizeof(s_text)}) == 0),
               "gzip and gunzip give back every byte");
 }
@@ -266,7 +267,7 @@ static void archive_dos(void)
         high[at] = (unsigned char)(0x80u + at);
     }
     char out[512];
-    CliLine line = {out, sizeof(out), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ull};
     cli_dos(high, sizeof(high), &line);
     unsigned int characters = 0u;
     for (unsigned long long at = 0ull; at < line.at; at += 1ull)
@@ -287,7 +288,7 @@ static void archive_zip(void)
                                               {"docs/", "", 0ull, 0, 1},
                                               {"top.txt", "top", 3ull, 0, 1},
                                               {"caf\x82.txt", "dos", 3ull, 0, 0}};
-    char dir[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
     char listed[1024];
     char why[1024];
     cli_check_folder("archive_zip", dir);
@@ -300,7 +301,7 @@ static void archive_zip(void)
         s_children.item[1].has_raw &&
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = s_children.text + s_children.item[1].raw, .other = "636166822e747874", .cap = CLI_CELLS_POOL})),
-        "a name not in UTF-8 keeps its bytes");
+        "a name not in UTF-8 retains its bytes");
     cli_check(archive_listed(dir, "a.jar/docs", listed, sizeof(listed)) && (s_children.count > 0u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_children.text + s_children.item[0].path,
                                                 .other = "a.jar/docs/read.me",
@@ -311,7 +312,7 @@ static void archive_zip(void)
     archive_read_is(dir, "a.jar/docs/read.me", "changed in place\n", "and reads as saved");
     archive_read_is(dir, "a.jar/top.txt", "top", "the other files are as they were");
     cli_check(archive_listed(dir, "a.jar", listed, sizeof(listed)) && (s_children.count == 3u), "and as many");
-    char saving[CLI_PATH_LONGEST];
+    char saving[CLI_PATH_MAX_LEN];
     cli_full(dir, ".a.jar.saving", saving);
     cli_check(!query_is_file(saving), "the archive written anew is put in the old one's place");
 }
@@ -319,7 +320,7 @@ static void archive_zip(void)
 // a run's .qry opens as a folder of its blobs, each name's joined, and is never written back
 static void archive_qry(void)
 {
-    char dir[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
     char listed[1024];
     char why[1024];
     cli_check_folder("archive_qry", dir);
@@ -341,7 +342,7 @@ static void archive_qry(void)
             (cellul.find(&(CatenaFinitaCfg){
                  .src = why, .cap = CLI_CELLS_POOL, .other = "not written back", .other_cap = CLI_CELLS_POOL}) != NULL),
         "a run's record is not written back");
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(dir, "query1-x.qry", path);
     const unsigned long long read = qry_member_file_read(path, (unsigned char *)s_read, sizeof(s_read));
     cli_check((read == size) && (memor.cmp(&(MemoriaCfg){.src = s_read, .other = s_run, .bytes = size}) == 0),
@@ -352,7 +353,7 @@ static void archive_qry(void)
 static void archive_nested(void)
 {
     static const char *const s_inner[2][2] = {{"lib/", ""}, {"lib/x.py", "print(1)\n"}};
-    char dir[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
     char listed[1024];
     char why[1024];
     cli_check_folder("archive_nested", dir);
@@ -374,7 +375,7 @@ static void archive_nested(void)
 static void archive_gz(void)
 {
     static const char *const s_entries[2][2] = {{"a/b.txt", "one"}, {"c.txt", "two"}};
-    char dir[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
     char listed[1024];
     char why[1024];
     cli_check_folder("archive_gz", dir);
@@ -395,28 +396,29 @@ static void archive_gz(void)
     archive_read_is(dir, "big.log.gz/big.log", "line\n", "which reads");
 }
 
-// what Python wrote out, its lines joined by `|`, into `out`, which holds `room`: 1, or 0 where it did not run whole
+// what Python wrote out, its lines joined by `|`, into `out`, which is sized for `room`: 1, or 0 where it did not run
+// whole
 static int archive_python(const char *python, const char *code, const char *dir, char *out, unsigned long long room)
 {
     const char *const words[5] = {python, "-c", code, dir, NULL};
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliRan *const ran = cli_ran_taken();
-    const int whole = cli_ran(words, NULL, NULL, 0u, ran, &said) && (ran->code == 0ll);
-    CliLine line = {out, room, 0ull};
+    const int whole = cli_ran(words, NULL, NULL, 0u, ran, &err_msg) && (ran->code == 0ll);
+    VerbaLinea line = {out, room, 0ull};
     for (unsigned long long at = 0ull; whole && (at < ran->out_size); at += 1ull)
     {
         const char letter = ran->out[at];
         if ((letter == '\n') && (at + 1ull < ran->out_size))
         {
-            cli_line_character(&line, '|');
+            mmgr_line_ch(&line, '|');
         }
         else if ((letter != '\n') && (letter != '\r'))
         {
-            cli_line_character(&line, letter);
+            mmgr_line_ch(&line, letter);
         }
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     cli_ran_given(ran);
     return whole;
 }
@@ -433,8 +435,8 @@ static void archive_python_made(void)
         "import sys, zipfile, tarfile\nd = sys.argv[1]\nz = zipfile.ZipFile(d + '/py.zip')\nassert z.testzip() is "
         "None\nprint(z.read('notes.txt').decode())\nprint(len(z.read('src/m.py')))\nprint(tarfile.open(d + "
         "'/py.tar.gz').extractfile('pkg/a.txt').read().decode())\n";
-    char dir[CLI_PATH_LONGEST];
-    char python[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char python[CLI_PATH_MAX_LEN];
     char out[1024];
     char why[1024];
     cli_check_folder("archive_python", dir);
@@ -460,7 +462,7 @@ static void archive_python_made(void)
               "and Python reads what orior_cli wrote");
 }
 
-// `path` with its backslashes made slashes, into `out`, which holds CLI_PATH_LONGEST
+// `path` with its backslashes made slashes, into `out`, which is sized for CLI_PATH_MAX_LEN
 static void archive_slashed(const char *path, char *out)
 {
     memor.cpy(&(MemoriaCfg){
@@ -475,18 +477,18 @@ static void archive_slashed(const char *path, char *out)
 static void archive_split(void)
 {
     static const ArchiveEntry s_entry = {"x", "x", 1ull, 0, 1};
-    char dir[CLI_PATH_LONGEST];
-    char lib[CLI_PATH_LONGEST];
-    char file[CLI_PATH_LONGEST];
-    char inner[CLI_PATH_LONGEST];
-    char wanted[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char lib[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
+    char inner[CLI_PATH_MAX_LEN];
+    char wanted[CLI_PATH_MAX_LEN];
     cli_check_folder("archive_split", dir);
     cli_full(dir, "lib", lib);
     (void)query_folder_made(lib);
     cli_check(archive_written(dir, "lib/a.zip", s_zip, archive_zip_of(&s_entry, 1u)) &&
                   archive_written(dir, "lib/plain.txt", "", 0ull),
               "a zip and a plain file are written");
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     cli_full(dir, "lib/a.zip", full);
     archive_slashed(full, wanted);
     const int split = cli_archive_split(dir, "lib/a.zip/x", file, inner);
@@ -497,14 +499,15 @@ static void archive_split(void)
     cli_check(!cli_archive_split(dir, "lib/plain.txt", file, inner), "a plain file is no archive");
     cli_check(!cli_archive_split(dir, "lib", file, inner), "nor a folder");
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_read, sizeof(s_read), 0ull};
-    cli_check(!cli_archive_read(dir, "lib/a.zip/missing", &out, &said),
-              "a file an archive does not hold does not read");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_read, sizeof(s_read), 0ull};
+    cli_check(!cli_archive_read(dir, "lib/a.zip/missing", &out, &err_msg),
+              "a file an archive does not contain does not read");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     archive_deflate();
     cli_check((cli_crc32((const unsigned char *)"123456789", 9ull) == 0xCBF43926u) &&
                   (cli_crc32((const unsigned char *)"", 0ull) == 0u),

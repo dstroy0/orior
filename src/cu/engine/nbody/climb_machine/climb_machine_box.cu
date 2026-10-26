@@ -32,7 +32,7 @@ static int machine_box_piece_order(const void *left, const void *right)
 
 static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw, size_t cell_count)
 {
-    size_t kept = 0u;
+    size_t merged = 0u;
     size_t widest = 0u;
     for (size_t cell = 0u; cell < cell_count; cell += 1u)
     {
@@ -48,14 +48,14 @@ static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw
     for (size_t cell = 0u; cell < cell_count; cell += 1u)
     {
         const unsigned int end = machine->box_entry_first[cell + 1u];
-        machine->box_entry_first[cell] = (unsigned int)kept;
+        machine->box_entry_first[cell] = (unsigned int)merged;
         if (cell_raw[cell] == 0u)
         {
             for (unsigned int entry = from; entry < end; entry += 1u)
             {
-                machine->box_target[kept] = machine->box_target[entry];
-                machine->box_count[kept] = machine->box_count[entry];
-                kept += 1u;
+                machine->box_target[merged] = machine->box_target[entry];
+                machine->box_count[merged] = machine->box_count[entry];
+                merged += 1u;
             }
             from = end;
             continue;
@@ -74,20 +74,20 @@ static int machine_box_merge(ClimbMachine *machine, const unsigned int *cell_raw
         for (size_t piece = 0u; piece < piece_count; piece += 1u)
         {
             const int same = (piece != 0u) && (pieces[piece].target == pieces[piece - 1u].target);
-            machine->box_target[kept - (same ? 1u : 0u)] = pieces[piece].target;
-            machine->box_count[kept - (same ? 1u : 0u)] =
-                same ? (machine->box_count[kept - 1u] + pieces[piece].count) : pieces[piece].count;
-            kept += same ? 0u : 1u;
+            machine->box_target[merged - (same ? 1u : 0u)] = pieces[piece].target;
+            machine->box_count[merged - (same ? 1u : 0u)] =
+                same ? (machine->box_count[merged - 1u] + pieces[piece].count) : pieces[piece].count;
+            merged += same ? 0u : 1u;
         }
         if (outside != 0u)
         {
-            machine->box_target[kept] = CLIMB_MACHINE_BOX_NONE;
-            machine->box_count[kept] = outside;
-            kept += 1u;
+            machine->box_target[merged] = CLIMB_MACHINE_BOX_NONE;
+            machine->box_count[merged] = outside;
+            merged += 1u;
         }
         from = end;
     }
-    machine->box_entry_first[cell_count] = (unsigned int)kept;
+    machine->box_entry_first[cell_count] = (unsigned int)merged;
     free(pieces);
     return 1;
 }
@@ -202,7 +202,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     if (ok && (cell_count != 0u))
     {
         machine_box_kernel<<<cell_blocks, CLIMB_MACHINE_BLOCK>>>(
-            (unsigned int)cell_count, 0u, device, machine->device_climber_side, machine->device_side_slots,
+            (unsigned int)cell_count, 0u, device, machine->device_climber_side, machine->device_side_residents,
             machine->device_climber_entry_start, machine->device_entry_first, machine->device_entry_end,
             machine->row_first, machine->run_at_row, machine->run_start, machine->run_length, machine->run_leaf,
             (unsigned int)machine->run_capacity, machine->positive, machine->geometry);
@@ -240,7 +240,7 @@ extern "C" int climb_machine_box(ClimbMachine *machine, ClimbMachineBox *box)
     if (ok && (cell_count != 0u))
     {
         machine_box_kernel<<<cell_blocks, CLIMB_MACHINE_BLOCK>>>(
-            (unsigned int)cell_count, 1u, device, machine->device_climber_side, machine->device_side_slots,
+            (unsigned int)cell_count, 1u, device, machine->device_climber_side, machine->device_side_residents,
             machine->device_climber_entry_start, machine->device_entry_first, machine->device_entry_end,
             machine->row_first, machine->run_at_row, machine->run_start, machine->run_length, machine->run_leaf,
             (unsigned int)machine->run_capacity, machine->positive, machine->geometry);

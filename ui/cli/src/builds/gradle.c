@@ -2,17 +2,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // gradle.c: a Gradle script read: each byte classed as code, a string's or a comment's, a string's `${}` the string's;
 // its blocks by their braces, each named by the last word of the call before its brace, past its arguments and its
-// type arguments; the statements a block holds itself; the configurations it declares; the build a script belongs to,
-// the program that runs it, and the catalogs of its `gradle` folder. One script is read at a time, under the reader's
-// lock, and a script larger than CLI_GRADLE_TEXT is not read; its classes, blocks and stray braces are cells taken at
-// the sizes it gives and given back as its reader is done with it
+// type arguments; the statements a block contains itself; the configurations it declares; the build a script belongs
+// to, the program that runs it, and the catalogs of its `gradle` folder. One script is read at a time, under the
+// reader's lock, and a script larger than CLI_GRADLE_TEXT is not read; its classes, blocks and stray braces are cells
+// taken at the sizes it gives and given back as its reader is done with it
 #include "gradle_internal.h"
 
 #include <stdlib.h>
 
 CliGradleScript g_cli_gradle;
 CliLock g_cli_gradle_lock = CLI_LOCK_INIT;
-CliCellsTally g_cli_gradle_cells = CLI_CELLS_TALLY("cli_gradle");
+CellOwner g_cli_gradle_cells = MMGR_CELL_OWNER("cli_gradle");
 
 const char *const g_cli_gradle_configurations[30] = {"implementation",
                                                      "api",
@@ -226,9 +226,9 @@ static unsigned long long gradle_name_before(unsigned long long at, unsigned lon
 void cli_gradle_released(void)
 {
     CliGradleScript *const script = &g_cli_gradle;
-    cli_cell_given_by(&g_cli_gradle_cells, script->stray);
-    cli_cell_given_by(&g_cli_gradle_cells, script->block);
-    cli_cell_given_by(&g_cli_gradle_cells, script->class_of);
+    g_cli_cells->persistent_buf_release(script->stray, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->block, &g_cli_gradle_cells);
+    g_cli_cells->persistent_buf_release(script->class_of, &g_cli_gradle_cells);
     script->class_of = NULL;
     script->block = NULL;
     script->stray = NULL;
@@ -246,7 +246,7 @@ int cli_gradle_read(const char *text, unsigned long long size)
     script->declares = 0u;
     // a byte past the text, so a script of no bytes is a cell too
     script->class_of =
-        (size <= CLI_GRADLE_TEXT) ? cli_cell_taken_by(&g_cli_gradle_cells, size + 1ull, "a script's classes") : NULL;
+        (size <= CLI_GRADLE_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_gradle_cells) : NULL;
     if (script->class_of == NULL)
     {
         return 0;
@@ -262,15 +262,14 @@ int cli_gradle_read(const char *text, unsigned long long size)
     }
     opens = (opens < CLI_GRADLE_BLOCKS) ? opens : CLI_GRADLE_BLOCKS;
     closes = (closes < CLI_GRADLE_BLOCKS) ? closes : CLI_GRADLE_BLOCKS;
-    script->block =
-        cli_cell_taken_by(&g_cli_gradle_cells, (opens + 1ull) * sizeof(CliGradleBlock), "a script's blocks");
+    script->block = g_cli_cells->persistent_buf_alloc((opens + 1ull) * sizeof(CliGradleBlock), &g_cli_gradle_cells);
     script->stray =
-        cli_cell_taken_by(&g_cli_gradle_cells, (closes + 1ull) * sizeof(unsigned long long), "a script's stray braces");
+        g_cli_cells->persistent_buf_alloc((closes + 1ull) * sizeof(unsigned long long), &g_cli_gradle_cells);
     unsigned int *const opened =
-        cli_cell_taken_by(&g_cli_gradle_cells, (opens + 1ull) * sizeof(unsigned int), "a script's braces open");
+        g_cli_cells->persistent_buf_alloc((opens + 1ull) * sizeof(unsigned int), &g_cli_gradle_cells);
     if ((script->block == NULL) || (script->stray == NULL) || (opened == NULL))
     {
-        cli_cell_given_by(&g_cli_gradle_cells, opened);
+        g_cli_cells->persistent_buf_release(opened, &g_cli_gradle_cells);
         cli_gradle_released();
         return 0;
     }
@@ -302,7 +301,7 @@ int cli_gradle_read(const char *text, unsigned long long size)
             script->strays += 1u;
         }
     }
-    cli_cell_given_by(&g_cli_gradle_cells, opened);
+    g_cli_cells->persistent_buf_release(opened, &g_cli_gradle_cells);
     return 1;
 }
 
@@ -330,14 +329,14 @@ int cli_gradle_block_named(const CliGradleBlock *block, const char *name)
 void cli_gradle_statements(const CliBuildLines *lines, unsigned int block, unsigned long long end,
                            CliGradleStatement each, void *context)
 {
-    const CliGradleBlock *const held = &g_cli_gradle.block[block];
+    const CliGradleBlock *const block_at = &g_cli_gradle.block[block];
     const char *const text = g_cli_gradle.text;
-    const unsigned int first = cli_build_place(lines, held->open + 1u).line;
+    const unsigned int first = cli_build_place(lines, block_at->open + 1u).line;
     const unsigned int last = cli_build_place(lines, end).line;
     for (unsigned int line = first; line <= last; line += 1u)
     {
         unsigned long long start = cli_build_line_start(lines, line);
-        start = (start > held->open + 1u) ? start : held->open + 1u;
+        start = (start > block_at->open + 1u) ? start : block_at->open + 1u;
         unsigned long long found = 0ull;
         unsigned long long line_end =
             (start < g_cli_gradle.size) && cli_text_find(text + start, g_cli_gradle.size - start, "\n", 1u, &found)
@@ -370,7 +369,7 @@ void cli_gradle_statements(const CliBuildLines *lines, unsigned int block, unsig
     }
 }
 
-// a configuration the script declares kept, where it is not kept already
+// a configuration the script declares stored, where it is not stored already
 static void gradle_declare(const char *name, unsigned long long size)
 {
     CliGradleScript *const script = &g_cli_gradle;
@@ -461,10 +460,10 @@ void cli_gradle_declared(const CliBuildLines *lines)
     }
     for (unsigned int block = 0u; block < g_cli_gradle.blocks; block += 1u)
     {
-        const CliGradleBlock *const held = &g_cli_gradle.block[block];
-        if (cli_gradle_block_named(held, "configurations"))
+        const CliGradleBlock *const block_at = &g_cli_gradle.block[block];
+        if (cli_gradle_block_named(block_at, "configurations"))
         {
-            cli_gradle_statements(lines, block, (held->close != CLI_GRADLE_NONE) ? held->close : size,
+            cli_gradle_statements(lines, block, (block_at->close != CLI_GRADLE_NONE) ? block_at->close : size,
                                   gradle_declared_statement, NULL);
         }
     }

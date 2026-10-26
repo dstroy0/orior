@@ -69,7 +69,7 @@ static PiWide pi_tower_words_wide(const unsigned long long *words)
     return value;
 }
 
-// 10. the billiard from the corner at slope pi, walked through its unfolded lattice. Column i holds the cells
+// 10. the billiard from the corner at slope pi, walked through its unfolded lattice. Column i contains the cells
 // j = floor(pi i) .. floor(pi (i + 1)), each one segment between walls, in the order the ball runs them; each floor
 // is 3 n + floor(alpha n), read from the integer turn's carries.
 void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vector<PiWide> &denominators)
@@ -203,39 +203,39 @@ void pi_tower_billiard(SimResults *results, const PiWide &alpha, const std::vect
     {
         matched = matched && (near_corners[at] == pi_tower_word(denominators[at]));
     }
-    scriptura_text(&results->line, "  the billiard from the corner at slope pi, 2^");
-    scriptura_decimal(&results->line, PI_TOWER_BILLIARD_BITS, 1u);
-    scriptura_text(&results->line, " columns: ");
-    scriptura_decimal(&results->line, segments, 1u);
-    scriptura_text(&results->line, " segments between ");
-    scriptura_decimal(&results->line, vertical, 1u);
-    scriptura_text(&results->line, " side-wall and ");
-    scriptura_decimal(&results->line, horizontal, 1u);
-    scriptura_text(&results->line, " floor-wall hits, ");
-    scriptura_decimal(&results->line, corners, 1u);
-    scriptura_text(&results->line, " corners\n    the lead in L about the center changed hands ");
-    scriptura_decimal(&results->line, changes, 1u);
-    scriptura_text(&results->line, " times, the longest lead ");
-    scriptura_decimal(&results->line, longest, 1u);
-    scriptura_text(&results->line, " segments, one side ahead on ");
-    scriptura_decimal(&results->line, ahead, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, segments, 1u);
-    scriptura_text(&results->line, "\n    the nearest tie: |L| = ");
+    mmgr_line_put(&results->line, "  the billiard from the corner at slope pi, 2^");
+    mmgr_line_decimal(&results->line, PI_TOWER_BILLIARD_BITS, 1u);
+    mmgr_line_put(&results->line, " columns: ");
+    mmgr_line_decimal(&results->line, segments, 1u);
+    mmgr_line_put(&results->line, " segments between ");
+    mmgr_line_decimal(&results->line, vertical, 1u);
+    mmgr_line_put(&results->line, " side-wall and ");
+    mmgr_line_decimal(&results->line, horizontal, 1u);
+    mmgr_line_put(&results->line, " floor-wall hits, ");
+    mmgr_line_decimal(&results->line, corners, 1u);
+    mmgr_line_put(&results->line, " corners\n    the lead in L about the center changed hands ");
+    mmgr_line_decimal(&results->line, changes, 1u);
+    mmgr_line_put(&results->line, " times, the longest lead ");
+    mmgr_line_decimal(&results->line, longest, 1u);
+    mmgr_line_put(&results->line, " segments, one side ahead on ");
+    mmgr_line_decimal(&results->line, ahead, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, segments, 1u);
+    mmgr_line_put(&results->line, "\n    the nearest tie: |L| = ");
     pi_tower_print_exponent(&results->line, pi_tower_words_wide(nearest), pi_tower_power_two(PI_TOWER_BITS + 1u));
-    scriptura_text(&results->line, " (p = (1, pi)) in cell (");
-    scriptura_decimal(&results->line, nearest_column, 1u);
-    scriptura_text(&results->line, ", ");
-    scriptura_decimal(&results->line, nearest_row, 1u);
-    scriptura_text(&results->line, "), where pi stands nearest ");
-    scriptura_decimal(&results->line, (2ull * nearest_row) + 1ull, 1u);
-    scriptura_character(&results->line, '/');
-    scriptura_decimal(&results->line, (2ull * nearest_column) + 1ull, 1u);
-    scriptura_text(&results->line, "\n    the record near-corners at the side walls: ");
+    mmgr_line_put(&results->line, " (p = (1, pi)) in cell (");
+    mmgr_line_decimal(&results->line, nearest_column, 1u);
+    mmgr_line_put(&results->line, ", ");
+    mmgr_line_decimal(&results->line, nearest_row, 1u);
+    mmgr_line_put(&results->line, "), where pi stands nearest ");
+    mmgr_line_decimal(&results->line, (2ull * nearest_row) + 1ull, 1u);
+    mmgr_line_ch(&results->line, '/');
+    mmgr_line_decimal(&results->line, (2ull * nearest_column) + 1ull, 1u);
+    mmgr_line_put(&results->line, "\n    the record near-corners at the side walls: ");
     for (size_t at = 0u; at < near_corners.size(); at += 1u)
     {
-        scriptura_decimal(&results->line, near_corners[at], 1u);
-        scriptura_text(&results->line, (at + 1u < near_corners.size()) ? ", " : "\n");
+        mmgr_line_decimal(&results->line, near_corners[at], 1u);
+        mmgr_line_put(&results->line, (at + 1u < near_corners.size()) ? ", " : "\n");
     }
     // pi is irrational. No corner and no zero L can occur on the real walk; what these two checks measure is that
     // the integer turn's carries decide every floor (uncertain is 0). The walk read is the real one
@@ -271,13 +271,13 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
     // p_(j-2) and p_(j-1), from p_(-1) = 1 and p_0 = 0
     unsigned long long numerator_before = 1ull;
     unsigned long long numerator = 0ull;
-    scriptura_text(&results->line, "  the residue: floor j, pi's identity P/q, the residue q pi - P, and q steps "
+    mmgr_line_put(&results->line, "  the residue: floor j, pi's identity P/q, the residue q pi - P, and q steps "
                                    "walked as the permutation n -> n p mod q\n");
     for (size_t at = 0u; (at < denominators.size()) && (pi_tower_compare(denominators[at], limit) <= 0); at += 1u)
     {
         if (at > 0u)
         {
-            // a_j p_(j-1) + p_(j-2): each p_j is below q_j, below 2^21. The words hold them
+            // a_j p_(j-1) + p_(j-2): each p_j is below q_j, below 2^21. The words store them
             const unsigned long long next = (pi_tower_word(floors[at]) * numerator) + numerator_before;
             numerator_before = numerator;
             numerator = next;
@@ -315,16 +315,16 @@ void pi_tower_residues(SimResults *results, const PiWide &walk_alpha, const std:
                    (pi_tower_compare(standing, (negative != 0) ? pi_tower_difference(modulus, size) : size) == 0);
         ok = ok && floor_ok;
         walked += 1u;
-        scriptura_text(&results->line, "    ");
-        scriptura_decimal(&results->line, at, 2u);
-        scriptura_text(&results->line, "  ");
-        scriptura_decimal(&results->line, (3ull * steps) + numerator, 1u);
-        scriptura_character(&results->line, '/');
-        scriptura_decimal(&results->line, steps, 1u);
-        scriptura_text(&results->line, "  residue ");
-        scriptura_character(&results->line, (negative != 0) ? '-' : '+');
+        mmgr_line_put(&results->line, "    ");
+        mmgr_line_decimal(&results->line, at, 2u);
+        mmgr_line_put(&results->line, "  ");
+        mmgr_line_decimal(&results->line, (3ull * steps) + numerator, 1u);
+        mmgr_line_ch(&results->line, '/');
+        mmgr_line_decimal(&results->line, steps, 1u);
+        mmgr_line_put(&results->line, "  residue ");
+        mmgr_line_ch(&results->line, (negative != 0) ? '-' : '+');
         pi_tower_print_exponent(&results->line, size, modulus);
-        scriptura_text(&results->line, (floor_ok != 0) ? "  the permutation's whole parts, and the residue at step q\n"
+        mmgr_line_put(&results->line, (floor_ok != 0) ? "  the permutation's whole parts, and the residue at step q\n"
                                                        : "  NOT the permutation\n");
         sim_flush(results);
     }

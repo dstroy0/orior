@@ -28,12 +28,12 @@ static int sim_job_daemon(char *path, size_t capacity)
         return (written > 0) && ((size_t)written < capacity);
     }
 #if defined(_WIN32)
-    // the capacity is a buffer size this file holds, which a DWORD counts on every Windows target
+    // the capacity is a buffer size this file defines, which a DWORD counts on every Windows target
     const size_t length = (size_t)GetModuleFileNameA(NULL, path, (DWORD)capacity);
     const char *const daemon = "tessera_daemon.exe";
 #else
     const ssize_t read = readlink("/proc/self/exe", path, capacity - 1u);
-    // a failed read is -1 and is held as no length at all
+    // a failed read is -1 and is treated as no length at all
     const size_t length = (read > 0) ? (size_t)read : 0u;
     const char *const daemon = "tessera_daemon";
 #endif
@@ -58,8 +58,8 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     int device = 0;
     cudaDeviceProp properties;
     char daemon[ENGINE_PATH_CAPACITY];
-    TesseraJobAsk ask;
-    memset(&ask, 0, sizeof(ask));
+    TesseraJobSubmit submit;
+    memset(&submit, 0, sizeof(submit));
     // the request is the sim's name and every argument, each ended by a zero byte
     unsigned long long bytes = strlen(name) + 1ull;
     for (int at = 1; at < count; at += 1)
@@ -67,7 +67,7 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
         bytes += strlen(arguments[at]) + 1ull;
     }
     unsigned char *const request = (unsigned char *)malloc((size_t)bytes);
-    // the context is made before the job asks: the daemon measures it with the process and counts it beside the
+    // the context is made before the job requests: the daemon measures it with the process and counts it beside the
     // declaration
     int ok = (request != NULL) && (declared != 0ull) && sim_job_daemon(daemon, sizeof(daemon)) &&
              (cudaGetDevice(&device) == cudaSuccess) && (cudaGetDeviceProperties(&properties, device) == cudaSuccess) &&
@@ -83,39 +83,39 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
             at_byte += strlen(arguments[at]) + 1ull;
         }
         const ObsignatioSignumRequest signum = {
-            request, bytes, NULL, OBSIGNATIO_MODE_HASH, ask.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
+            request, bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
         ok = obsignatio_signum(&signum) == 0L;
     }
     free(request);
     if (!ok)
     {
         sim_check(results, 0,
-                  "tessera: the sim's job is asked (its signum, declaration, device and the daemon's place)");
+                  "tessera: the sim's job is requested (its signum, declaration, device and the daemon's place)");
         return 0;
     }
-    memcpy(ask.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&ask.luid, properties.luid, sizeof(ask.luid));
+    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
 #endif
-    ask.declared = declared;
-    ask.holding_microseconds = SIM_JOB_RUNNING_MICROSECONDS;
-    ask.sweep_microseconds = SIM_JOB_SWEEP_MICROSECONDS;
-    ask.idle_microseconds = SIM_JOB_IDLE_MICROSECONDS;
-    ask.override_budget = (getenv("TESSERA_OVERRIDE") != NULL) ? 1u : 0u;
-    ask.daemon_path = daemon;
-    ask.error = &error;
+    submit.declared = declared;
+    submit.grace_microseconds = SIM_JOB_RUNNING_MICROSECONDS;
+    submit.sweep_microseconds = SIM_JOB_SWEEP_MICROSECONDS;
+    submit.idle_microseconds = SIM_JOB_IDLE_MICROSECONDS;
+    submit.override_budget = (getenv("TESSERA_OVERRIDE") != NULL) ? 1u : 0u;
+    submit.daemon_path = daemon;
+    submit.error = &error;
     TesseraTicket ticket;
     TesseraClient *client = NULL;
-    ok = tessera_job_submit(&ask, &client, &ticket) == 0L;
-    if (ok && (ticket.asked != 0u))
+    ok = tessera_job_submit(&submit, &client, &ticket) == 0L;
+    if (ok && (ticket.over_budget != 0u))
     {
-        printf("  tessera: %s declares %llu bytes over its kept peak of %llu; TESSERA_OVERRIDE=1 admits it\n", name,
+        printf("  tessera: %s declares %llu bytes over its recorded peak of %llu; TESSERA_OVERRIDE=1 admits it\n", name,
                declared, ticket.last_peak);
         ok = (tessera_job_wait(client, &ticket, &error) == 0L) && (ticket.lost == 0u);
         if (!ok && (ticket.lost != 0u))
         {
-            printf("  tessera: %s was held past its holding time and lost (ticket in %s)\n", name, ticket.lost_path);
-            tessera_job_precalc_kept(client, &error);
+            printf("  tessera: %s was reserved past its grace time and lost (ticket in %s)\n", name, ticket.lost_path);
+            tessera_job_precalc_saved(client, &error);
         }
     }
     sim_check(results, ok, "tessera: the device's daemon admits the sim's job");
@@ -123,7 +123,8 @@ int sim_job_submit(SimResults *results, const char *name, int count, char *const
     {
         return 0;
     }
-    printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process held as it asked\n",
+    printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process occupied as it "
+           "requested\n",
            name, ticket.granted, declared, ticket.standing);
     results->job = client;
     results->job_declared = declared + ticket.standing;

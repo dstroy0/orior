@@ -9,21 +9,21 @@
 
 #include "../text/text.h"
 
-void cli_link_quote(const char *text, unsigned long long size, CliLine *out)
+void cli_link_quote(const char *text, unsigned long long size, VerbaLinea *out)
 {
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
     unsigned long long from = 0ull;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
         if (text[at] == '\'')
         {
-            cli_line_counted(out, text + from, at - from);
-            cli_line_text(out, "'\\''");
+            mmgr_line_put_n(out, text + from, at - from);
+            mmgr_line_put(out, "'\\''");
             from = at + 1u;
         }
     }
-    cli_line_counted(out, text + from, size - from);
-    cli_line_character(out, '\'');
+    mmgr_line_put_n(out, text + from, size - from);
+    mmgr_line_ch(out, '\'');
 }
 
 // whether a letter is white as Rust's char::is_whitespace has it
@@ -61,10 +61,10 @@ static void address_trimmed(const char *text, unsigned long long *start, unsigne
     *size = end - begin;
 }
 
-// `size` bytes of `text` kept as a field of an address: 1, or 0 where they are empty or do not fit
-static int address_kept(char *field, const char *text, unsigned long long size)
+// `size` bytes of `text` stored as a field of an address: 1, or 0 where they are empty or do not fit
+static int address_field_set(char *field, const char *text, unsigned long long size)
 {
-    if ((size == 0u) || (size >= CLI_PATH_LONGEST))
+    if ((size == 0u) || (size >= CLI_PATH_MAX_LEN))
     {
         return 0;
     }
@@ -73,7 +73,7 @@ static int address_kept(char *field, const char *text, unsigned long long size)
     return 1;
 }
 
-int cli_link_address_parse(const char *text, CliLinkAddress *address, CliLine *said)
+int cli_link_address_parse(const char *text, CliLinkAddress *address, VerbaLinea *err_msg)
 {
     unsigned long long start = 0ull;
     unsigned long long size = 0ull;
@@ -94,37 +94,38 @@ int cli_link_address_parse(const char *text, CliLinkAddress *address, CliLine *s
     {
         address->way = docker ? CLI_LINK_DOCKER : CLI_LINK_WSL;
         const unsigned long long name_size = (unsigned long long)(second - rest);
-        read = address_kept(address->name, rest, name_size) &&
-               address_kept(address->folder, second + 1, rest_size - name_size - 1u);
+        read = address_field_set(address->name, rest, name_size) &&
+               address_field_set(address->folder, second + 1, rest_size - name_size - 1u);
     }
     else if (read)
     {
         address->way = CLI_LINK_SSH;
-        read = address_kept(address->name, trimmed, first_size) && address_kept(address->folder, rest, rest_size);
+        read = address_field_set(address->name, trimmed, first_size) &&
+               address_field_set(address->folder, rest, rest_size);
     }
     if (!read)
     {
-        cli_line_counted(said, trimmed, size);
-        cli_line_text(said, " names no machine and folder: user@host:folder, docker:container:folder or "
-                            "wsl:distribution:folder");
+        mmgr_line_put_n(err_msg, trimmed, size);
+        mmgr_line_put(err_msg, " names no machine and folder: user@host:folder, docker:container:folder or "
+                               "wsl:distribution:folder");
     }
     return read;
 }
 
-void cli_link_address_text(const CliLinkAddress *address, CliLine *out)
+void cli_link_address_text(const CliLinkAddress *address, VerbaLinea *out)
 {
     static const char *const ways[3] = {"", "docker:", "wsl:"};
-    cli_line_text(out, ways[address->way]);
-    cli_line_text(out, address->name);
-    cli_line_character(out, ':');
-    cli_line_text(out, address->folder);
+    mmgr_line_put(out, ways[address->way]);
+    mmgr_line_put(out, address->name);
+    mmgr_line_ch(out, ':');
+    mmgr_line_put(out, address->folder);
 }
 
-void cli_link_machine(const CliLinkAddress *address, CliLine *out)
+void cli_link_machine(const CliLinkAddress *address, VerbaLinea *out)
 {
     const char *const at =
         cli_text_last(address->name, cellul.len(&(CatenaFinitaCfg){.src = address->name, .cap = CLI_CELLS_POOL}), '@');
-    cli_line_text(out, ((address->way == CLI_LINK_SSH) && (at != NULL)) ? (at + 1) : address->name);
+    mmgr_line_put(out, ((address->way == CLI_LINK_SSH) && (at != NULL)) ? (at + 1) : address->name);
 }
 
 void cli_link_runs(const CliLinkAddress *address, const char *line, int terminal, CliWords *words)
@@ -175,18 +176,18 @@ void cli_link_runs(const CliLinkAddress *address, const char *line, int terminal
     cli_words_put(words, line);
 }
 
-void cli_link_shell_line(const CliLinkAddress *address, const char *folder, CliLine *out)
+void cli_link_shell_line(const CliLinkAddress *address, const char *folder, VerbaLinea *out)
 {
     const char *const into = (folder != NULL) ? folder : address->folder;
-    cli_line_text(out, "cd ");
+    mmgr_line_put(out, "cd ");
     cli_link_quote(into, cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL}), out);
-    cli_line_text(out, " 2>/dev/null || cd; exec \"${SHELL:-sh}\" -l");
+    mmgr_line_put(out, " 2>/dev/null || cd; exec \"${SHELL:-sh}\" -l");
 }
 
-int cli_link_ask(const CliLinkAddress *address, const char *line, const char *input, unsigned long long size,
-                 CliLine *out, CliLine *said)
+int cli_link_remote_run(const CliLinkAddress *address, const char *line, const char *input, unsigned long long size,
+                        VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if ((address->way == CLI_LINK_SSH) && !cli_net_reach(address->name, "a command run over ssh", said))
+    if ((address->way == CLI_LINK_SSH) && !cli_net_reach(address->name, "a command run over ssh", err_msg))
     {
         return 0;
     }
@@ -194,10 +195,10 @@ int cli_link_ask(const CliLinkAddress *address, const char *line, const char *in
     cli_link_runs(address, line, 0, &words);
     CliRan *const ran = cli_ran_taken();
     const int started = !words.full && cli_ran_fed(words.word, NULL, NULL, 0u, (input != NULL) ? input : "",
-                                                   (input != NULL) ? size : 0ull, ran, said);
+                                                   (input != NULL) ? size : 0ull, ran, err_msg);
     if (words.full)
     {
-        cli_line_text(said, "the line is longer than orior_cli runs");
+        mmgr_line_put(err_msg, "the line is longer than orior_cli runs");
     }
     const int done = started && (ran->code == 0);
     if (started && !done)
@@ -207,12 +208,12 @@ int cli_link_ask(const CliLinkAddress *address, const char *line, const char *in
         address_trimmed(ran->err, &start, &length);
         if (length > 0u)
         {
-            cli_lossy(said, (const unsigned char *)ran->err + start, length);
+            cli_lossy(err_msg, (const unsigned char *)ran->err + start, length);
         }
         else
         {
-            cli_link_machine(address, said);
-            cli_line_text(said, " could not be reached");
+            cli_link_machine(address, err_msg);
+            mmgr_line_put(err_msg, " could not be reached");
         }
     }
     if (done)

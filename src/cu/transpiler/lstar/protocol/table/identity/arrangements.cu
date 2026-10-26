@@ -70,13 +70,13 @@ static int arrangement_read(const std::string &text, size_t *at, std::vector<Pre
         return 0;
     }
     *at += 1u;
-    // a node the tree holds already is that node, as chain_build.c counts it, and is written once
-    for (size_t held = 0u; held < nodes->size(); held += 1u)
+    // a node the tree contains already is that node, as chain_build.c counts it, and is written once
+    for (size_t node_at = 0u; node_at < nodes->size(); node_at += 1u)
     {
-        const PreceptNode &node = (*nodes)[held];
+        const PreceptNode &node = (*nodes)[node_at];
         if ((node.precept == precept) && (node.left == left) && (node.right == right))
         {
-            *child = (unsigned char)held;
+            *child = (unsigned char)node_at;
             return 1;
         }
     }
@@ -125,7 +125,7 @@ std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNo
                                        const std::string &to, unsigned int next)
 {
     const auto none = [](const std::string &) { return std::string(); };
-    std::vector<std::string> held;
+    std::vector<std::string> lines;
     std::string written;
     for (size_t at = 0u; at < nodes.size(); at += 1u)
     {
@@ -135,8 +135,8 @@ std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNo
         {
             return std::string();
         }
-        held.push_back(((at + 1u) == nodes.size()) ? to : ruleset_register(sass, "file", next + at));
-        std::vector<std::string> arguments = {held[at]};
+        lines.push_back(((at + 1u) == nodes.size()) ? to : ruleset_register(sass, "file", next + at));
+        std::vector<std::string> arguments = {lines[at]};
         const unsigned char child[2] = {nodes[at].left, nodes[at].right};
         for (unsigned int which = 0u; which < word->reads; which += 1u)
         {
@@ -150,7 +150,7 @@ std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNo
             arguments.push_back((leaf == PRECEPT_ZERO)   ? ruleset_physreg(sass, "zero")
                                 : (leaf == PRECEPT_ONES) ? ones
                                 : (leaf >= PRECEPT_ARG)  ? operands[place]
-                                                         : held[leaf]);
+                                                         : lines[leaf]);
         }
         std::string line;
         if (ruleset_opcode(sass, word->name, arguments, none, line) == 0)
@@ -167,14 +167,14 @@ std::string arrangement_written(const Ruleset *sass, const std::vector<PreceptNo
 void kdm_rows_read(const char *kdm, std::vector<std::string> *lines, std::vector<CostRow> *rows,
                           std::map<std::string, std::vector<size_t>> *operators)
 {
-    // the .kdm as the run holds it (kdm.h), a line each
-    KdmFile held = {};
-    kdm_read(&held, kdm);
-    for (unsigned int at = 0u; at < held.lines; at += 1u)
+    // the .kdm as the run stores it (kdm.h), a line each
+    KdmFile kdm_file = {};
+    kdm_read(&kdm_file, kdm);
+    for (unsigned int at = 0u; at < kdm_file.lines; at += 1u)
     {
-        lines->push_back(held.line[at]);
+        lines->push_back(kdm_file.line[at]);
     }
-    kdm_free(&held);
+    kdm_free(&kdm_file);
     for (size_t at = 0u; at < lines->size(); at += 1u)
     {
         std::vector<std::string> fields;

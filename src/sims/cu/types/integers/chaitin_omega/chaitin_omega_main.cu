@@ -40,13 +40,13 @@ static OmegaFate omega_fate_of(const char *code, unsigned int steps, unsigned in
 }
 
 // the bits of a mass scaled by 2^64
-static void omega_bits(ScripturaLine *line, const OriorExactInteger *value, unsigned int bits)
+static void omega_bits(VerbaLinea *line, const OriorExactInteger *value, unsigned int bits)
 {
-    scriptura_text(line, "0.");
+    mmgr_line_put(line, "0.");
     for (unsigned int bit = 0u; bit < bits; bit += 1u)
     {
         const unsigned int place = 63u - bit;
-        scriptura_character(line, (((value->limb[place / 32u] >> (place % 32u)) & 1u) != 0u) ? '1' : '0');
+        mmgr_line_ch(line, (((value->limb[place / 32u] >> (place % 32u)) & 1u) != 0u) ? '1' : '0');
     }
 }
 
@@ -74,7 +74,7 @@ int main(int argc, char **argv)
     sim_open(&results, line_buffer);
     static OmegaCounts counts;
     // L alone runs on the engine, bounded by nothing. L, steps and tokens run the budgeted kernel on the device
-    // ("cpu" after them: on the host), kept as the cross-check. "--ledger <path>" plans either run as jobs.
+    // ("cpu" after them: on the host), retained as the cross-check. "--ledger <path>" plans either run as jobs.
     counts.length = (argc > 1) ? (unsigned int)strtoul(argv[1], NULL, 10) : OMEGA_LENGTH_DEFAULT;
     const int budgeted = (argc > 2) && (argv[2][0] >= '0') && (argv[2][0] <= '9');
     counts.steps = budgeted ? (unsigned int)strtoul(argv[2], NULL, 10) : OMEGA_STEPS_DEFAULT;
@@ -96,14 +96,14 @@ int main(int argc, char **argv)
     }
     if ((counts.length < 4u) || (counts.length > OMEGA_LENGTH_MAX))
     {
-        scriptura_text(&results.line, "  the length must be from 4 to 60 bits\n");
+        mmgr_line_put(&results.line, "  the length must be from 4 to 60 bits\n");
         sim_flush(&results);
         return 2;
     }
     if ((on_device != 0) && ((counts.tokens < 64u) || (counts.tokens > 16383u)))
     {
-        // the device holds a term, its indices and its spine ends in 16 bits, in buffers twice the token budget
-        scriptura_text(&results.line, "  on the device the token budget must be from 64 to 16383\n");
+        // the device stores a term, its indices and its spine ends in 16 bits, in buffers twice the token budget
+        mmgr_line_put(&results.line, "  on the device the token budget must be from 64 to 16383\n");
         sim_flush(&results);
         return 2;
     }
@@ -150,21 +150,21 @@ int main(int argc, char **argv)
               "(x x x)(x x x) is proven to grow forever: it returns at its own head");
 
     // a run on the device is one tessera job. The kernel's run declares the count table it copies there, and the
-    // engine's run its first round's pool; the daemon measures the buffers each grows to and keeps that peak under the
-    // run's arguments
+    // engine's run its first round's pool; the daemon measures the buffers each grows to and records that peak under
+    // the run's arguments
     const unsigned long long declared = (on_engine != 0) ? omega_engine_declared(&counts) : sizeof(counts.count);
     if (((on_engine != 0) || (on_device != 0)) && !sim_job_submit(&results, "chaitin_omega", argc, argv, declared))
     {
         return sim_close(&results, "chaitin_omega");
     }
 
-    // every closed term of at most L bits, run on the device unless the host is asked for
+    // every closed term of at most L bits, run on the device unless the host is requested for
     const unsigned int workers = (std::thread::hardware_concurrency() == 0u) ? 1u : std::thread::hardware_concurrency();
     static OmegaResults fates;
     unsigned int device_threads = 0u;
     unsigned long long host_runs = 0ull;
     unsigned long long jobs_run = 0ull;
-    unsigned long long jobs_kept = 0ull;
+    unsigned long long jobs_retained = 0ull;
     const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     OmegaEngineReport engine_report;
     memset(&engine_report, 0, sizeof(engine_report));
@@ -178,7 +178,7 @@ int main(int argc, char **argv)
     }
     else if (on_device != 0)
     {
-        if (omega_device(&results, &counts, workers, ledger, &device_threads, &host_runs, &jobs_run, &jobs_kept,
+        if (omega_device(&results, &counts, workers, ledger, &device_threads, &host_runs, &jobs_run, &jobs_retained,
                          &fates) == 0)
         {
             return sim_close(&results, "chaitin_omega");
@@ -337,102 +337,102 @@ int main(int argc, char **argv)
             totals[fate] += fates.fate[fate][length];
         }
     }
-    scriptura_text(&results.line, "  Chaitin's Omega for the binary lambda calculus, every closed term through ");
-    scriptura_decimal(&results.line, counts.length, 1u);
-    scriptura_text(&results.line, " bits (");
+    mmgr_line_put(&results.line, "  Chaitin's Omega for the binary lambda calculus, every closed term through ");
+    mmgr_line_decimal(&results.line, counts.length, 1u);
+    mmgr_line_put(&results.line, " bits (");
     if (on_engine != 0)
     {
-        scriptura_text(&results.line, "no step or token budget, ");
+        mmgr_line_put(&results.line, "no step or token budget, ");
     }
     else
     {
-        scriptura_decimal(&results.line, counts.steps, 1u);
-        scriptura_text(&results.line, " steps, ");
-        scriptura_decimal(&results.line, counts.tokens, 1u);
-        scriptura_text(&results.line, " tokens, ");
+        mmgr_line_decimal(&results.line, counts.steps, 1u);
+        mmgr_line_put(&results.line, " steps, ");
+        mmgr_line_decimal(&results.line, counts.tokens, 1u);
+        mmgr_line_put(&results.line, " tokens, ");
     }
     if (on_device != 0)
     {
-        scriptura_decimal(&results.line, device_threads, 1u);
-        scriptura_text(&results.line, " device threads, ");
-        scriptura_decimal(&results.line, host_runs, 1u);
-        scriptura_text(&results.line, " runs past the device's budgets ran on the host, ");
-        scriptura_decimal(&results.line, jobs_run, 1u);
-        scriptura_text(&results.line, " jobs run, ");
-        scriptura_decimal(&results.line, jobs_kept, 1u);
-        scriptura_text(&results.line, " from the ledger, ");
+        mmgr_line_decimal(&results.line, device_threads, 1u);
+        mmgr_line_put(&results.line, " device threads, ");
+        mmgr_line_decimal(&results.line, host_runs, 1u);
+        mmgr_line_put(&results.line, " runs past the device's budgets ran on the host, ");
+        mmgr_line_decimal(&results.line, jobs_run, 1u);
+        mmgr_line_put(&results.line, " jobs run, ");
+        mmgr_line_decimal(&results.line, jobs_retained, 1u);
+        mmgr_line_put(&results.line, " from the ledger, ");
     }
     else if (on_engine != 0)
     {
-        scriptura_text(&results.line, "on the device's record machine, ");
-        scriptura_decimal(&results.line, engine_report.rounds, 1u);
-        scriptura_text(&results.line, " rounds, ");
-        scriptura_decimal(&results.line, engine_report.records, 1u);
-        scriptura_text(&results.line, " records swept, ");
-        scriptura_decimal(&results.line, engine_report.parked, 1u);
-        scriptura_text(&results.line, " parked as outgrown, ");
+        mmgr_line_put(&results.line, "on the device's record machine, ");
+        mmgr_line_decimal(&results.line, engine_report.rounds, 1u);
+        mmgr_line_put(&results.line, " rounds, ");
+        mmgr_line_decimal(&results.line, engine_report.records, 1u);
+        mmgr_line_put(&results.line, " records swept, ");
+        mmgr_line_decimal(&results.line, engine_report.parked, 1u);
+        mmgr_line_put(&results.line, " parked as outgrown, ");
     }
     else
     {
-        scriptura_decimal(&results.line, workers, 1u);
-        scriptura_text(&results.line, " host threads, ");
+        mmgr_line_decimal(&results.line, workers, 1u);
+        mmgr_line_put(&results.line, " host threads, ");
     }
-    scriptura_decimal(&results.line, (unsigned long long)(seconds * 1000.0), 1u);
-    scriptura_text(&results.line,
+    mmgr_line_decimal(&results.line, (unsigned long long)(seconds * 1000.0), 1u);
+    mmgr_line_put(&results.line,
                    " ms)\n  length    closed      halts  typed halts     loops  grows forever  out of steps"
                    "  outgrew\n");
     for (unsigned int length = 2u; length <= counts.length; length += 1u)
     {
-        scriptura_decimal_columns(&results.line, length, 8u);
-        scriptura_decimal_columns(&results.line, omega_count(&counts, length, 0u), 10u);
-        scriptura_decimal_columns(&results.line, fates.fate[OMEGA_HALTS][length], 11u);
-        scriptura_decimal_columns(&results.line, fates.fate[OMEGA_TYPED][length], 13u);
-        scriptura_decimal_columns(&results.line, fates.fate[OMEGA_LOOPS][length], 10u);
-        scriptura_decimal_columns(&results.line, fates.fate[OMEGA_DIVERGES][length], 15u);
-        scriptura_decimal_columns(&results.line, fates.fate[OMEGA_OPEN][length], 14u);
-        scriptura_decimal_columns(&results.line, fates.fate[OMEGA_GREW][length], 9u);
-        scriptura_character(&results.line, '\n');
+        mmgr_line_decimal_columns(&results.line, length, 8u);
+        mmgr_line_decimal_columns(&results.line, omega_count(&counts, length, 0u), 10u);
+        mmgr_line_decimal_columns(&results.line, fates.fate[OMEGA_HALTS][length], 11u);
+        mmgr_line_decimal_columns(&results.line, fates.fate[OMEGA_TYPED][length], 13u);
+        mmgr_line_decimal_columns(&results.line, fates.fate[OMEGA_LOOPS][length], 10u);
+        mmgr_line_decimal_columns(&results.line, fates.fate[OMEGA_DIVERGES][length], 15u);
+        mmgr_line_decimal_columns(&results.line, fates.fate[OMEGA_OPEN][length], 14u);
+        mmgr_line_decimal_columns(&results.line, fates.fate[OMEGA_GREW][length], 9u);
+        mmgr_line_ch(&results.line, '\n');
     }
-    scriptura_text(&results.line, "  terms run ");
-    scriptura_decimal(&results.line, totals[0] + totals[1] + totals[2] + totals[3] + totals[4] + totals[5], 1u);
-    scriptura_text(&results.line, ": halted ");
-    scriptura_decimal(&results.line, totals[OMEGA_HALTS], 1u);
-    scriptura_text(&results.line, ", proven to halt by a simple type ");
-    scriptura_decimal(&results.line, totals[OMEGA_TYPED], 1u);
-    scriptura_text(&results.line, ", proven to loop ");
-    scriptura_decimal(&results.line, totals[OMEGA_LOOPS], 1u);
-    scriptura_text(&results.line, ", proven to grow forever ");
-    scriptura_decimal(&results.line, totals[OMEGA_DIVERGES], 1u);
-    scriptura_text(&results.line, ", out of steps ");
-    scriptura_decimal(&results.line, totals[OMEGA_OPEN], 1u);
-    scriptura_text(&results.line, ", outgrew the space ");
-    scriptura_decimal(&results.line, totals[OMEGA_GREW], 1u);
-    scriptura_text(&results.line, "\n  program mass through L  ");
+    mmgr_line_put(&results.line, "  terms run ");
+    mmgr_line_decimal(&results.line, totals[0] + totals[1] + totals[2] + totals[3] + totals[4] + totals[5], 1u);
+    mmgr_line_put(&results.line, ": halted ");
+    mmgr_line_decimal(&results.line, totals[OMEGA_HALTS], 1u);
+    mmgr_line_put(&results.line, ", proven to halt by a simple type ");
+    mmgr_line_decimal(&results.line, totals[OMEGA_TYPED], 1u);
+    mmgr_line_put(&results.line, ", proven to loop ");
+    mmgr_line_decimal(&results.line, totals[OMEGA_LOOPS], 1u);
+    mmgr_line_put(&results.line, ", proven to grow forever ");
+    mmgr_line_decimal(&results.line, totals[OMEGA_DIVERGES], 1u);
+    mmgr_line_put(&results.line, ", out of steps ");
+    mmgr_line_decimal(&results.line, totals[OMEGA_OPEN], 1u);
+    mmgr_line_put(&results.line, ", outgrew the space ");
+    mmgr_line_decimal(&results.line, totals[OMEGA_GREW], 1u);
+    mmgr_line_put(&results.line, "\n  program mass through L  ");
     omega_bits(&results.line, &programs, 64u);
-    scriptura_text(&results.line, "\n  normal forms past L     ");
+    mmgr_line_put(&results.line, "\n  normal forms past L     ");
     omega_bits(&results.line, &normal, 64u);
-    scriptura_text(&results.line, "\n  Omega lower             ");
+    mmgr_line_put(&results.line, "\n  Omega lower             ");
     omega_bits(&results.line, &lower, 64u);
-    scriptura_text(&results.line, "\n  open mass               ");
+    mmgr_line_put(&results.line, "\n  open mass               ");
     omega_bits(&results.line, &open, 64u);
-    scriptura_text(&results.line, "\n  closed mass past L      ");
+    mmgr_line_put(&results.line, "\n  closed mass past L      ");
     omega_bits(&results.line, &tail, 64u);
-    scriptura_text(&results.line, "\n  Omega upper             ");
+    mmgr_line_put(&results.line, "\n  Omega upper             ");
     omega_bits(&results.line, &upper, 64u);
-    scriptura_text(&results.line, "\n  Omega = 0.");
+    mmgr_line_put(&results.line, "\n  Omega = 0.");
     for (unsigned int bit = 0u; bit < shared; bit += 1u)
     {
         const unsigned int place = 63u - bit;
-        scriptura_character(&results.line, (((lower.limb[place / 32u] >> (place % 32u)) & 1u) != 0u) ? '1' : '0');
+        mmgr_line_ch(&results.line, (((lower.limb[place / 32u] >> (place % 32u)) & 1u) != 0u) ? '1' : '0');
     }
-    scriptura_text(&results.line, "...  (");
-    scriptura_decimal(&results.line, shared, 1u);
-    scriptura_text(&results.line, " bits proven)\n");
+    mmgr_line_put(&results.line, "...  (");
+    mmgr_line_decimal(&results.line, shared, 1u);
+    mmgr_line_put(&results.line, " bits proven)\n");
     sim_flush(&results);
 
     // the busy beaver table: a length with an open term reads "at least", since the open one may halt later
     // and larger
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "\n  busy beavers of the halting terms (>= where a term of that length is still open)\n"
                    "  length  most steps  step champion                             BB lambda  normal form "
                    "champion\n");
@@ -445,29 +445,29 @@ int main(int argc, char **argv)
         }
         // a typed halt proves a normal form exists without writing it. Its size is still unknown
         const int settled = ((unsettled[length] + fates.fate[OMEGA_TYPED][length]) == 0ull);
-        scriptura_decimal_columns(&results.line, length, 8u);
-        scriptura_text(&results.line, settled ? "    " : "  >=");
-        scriptura_decimal_columns(&results.line, fates.max_steps[length], 8u);
-        scriptura_text(&results.line, "  ");
+        mmgr_line_decimal_columns(&results.line, length, 8u);
+        mmgr_line_put(&results.line, settled ? "    " : "  >=");
+        mmgr_line_decimal_columns(&results.line, fates.max_steps[length], 8u);
+        mmgr_line_put(&results.line, "  ");
         std::vector<int> champion;
         omega_unrank(&counts, length, 0u, fates.steps_champion[length], champion);
         omega_code_text(&results.line, champion);
         for (unsigned int pad = length; pad < 42u; pad += 1u)
         {
-            scriptura_character(&results.line, ' ');
+            mmgr_line_ch(&results.line, ' ');
         }
-        scriptura_text(&results.line, settled ? "  " : ">=");
-        scriptura_decimal_columns(&results.line, fates.max_bits[length], 8u);
-        scriptura_text(&results.line, "  ");
+        mmgr_line_put(&results.line, settled ? "  " : ">=");
+        mmgr_line_decimal_columns(&results.line, fates.max_bits[length], 8u);
+        mmgr_line_put(&results.line, "  ");
         champion.clear();
         omega_unrank(&counts, length, 0u, fates.bits_champion[length], champion);
         omega_code_text(&results.line, champion);
-        scriptura_character(&results.line, '\n');
+        mmgr_line_ch(&results.line, '\n');
         sim_flush(&results);
     }
     // BusyBeaverWiki's BB lambda (OEIS A333479) from 4 through 33 bits; 0 where no closed term exists. The entries
     // equal the terms of OEIS's b-file for A333479 at 4 to 33. A row with a term still open
-    // holds only a lower bound, and the published value is the true maximum. The two meeting means the run
+    // gives only a lower bound, and the published value is the true maximum. The two meeting means the run
     // reached the maximum; past 33 the maxima outgrow any space here (327686 bits at 34)
     static const unsigned long long published_max[34] = {
         0ull,  0ull,  0ull,  0ull,  4ull,  0ull,   6ull,   7ull,   8ull,   9ull,   10ull, 11ull,

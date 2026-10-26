@@ -24,18 +24,18 @@ static CliLock s_lock = CLI_LOCK_INIT;
 void cli_print_take(void)
 {
     cli_lock_take(&s_lock);
-    s_room = cli_cell_taken(sizeof(*s_room), "a listing printed");
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
 }
 
 void cli_print_give(void)
 {
-    cli_cell_given(s_room);
+    g_cli_cells->persistent_buf_release(s_room, NULL);
     s_room = NULL;
     cli_lock_give(&s_lock);
 }
 
-// `length` bytes of `text` kept among the listing's texts: where they start
-static unsigned int cli_kept(CliPrintListing *listing, const char *text, unsigned long long length, int *full)
+// `length` bytes of `text` stored among the listing's texts: where they start
+static unsigned int cli_text_stored(CliPrintListing *listing, const char *text, unsigned long long length, int *full)
 {
     if ((listing->text_used + length) > CLI_PRINT_TEXT)
     {
@@ -49,22 +49,22 @@ static unsigned int cli_kept(CliPrintListing *listing, const char *text, unsigne
     return at;
 }
 
-int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListing **listing, CliLine *said)
+int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListing **listing, VerbaLinea *err_msg)
 {
     if (s_room == NULL)
     {
-        cli_line_text(said, "the listing could not be read: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the listing could not be read: the cells cannot meet it");
         return 0;
     }
-    CliPrintListing *const held = &s_room->listing;
+    CliPrintListing *const listing_at = &s_room->listing;
     int full = 0;
-    held->lines = 0u;
-    held->runs = 0u;
-    held->text_used = 0u;
-    held->tab = 4ull;
+    listing_at->lines = 0u;
+    listing_at->runs = 0u;
+    listing_at->text_used = 0u;
+    listing_at->tab = 4ull;
     const char *const title = cli_json_string(json, cli_json_member(json, node, "title"), NULL);
     memor.cpy(&(MemoriaCfg){
-        .dst = held->title,
+        .dst = listing_at->title,
         .src = (title != NULL) ? title : "",
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (title != NULL) ? title : "", .cap = CLI_CELLS_POOL}) + 1u});
     const unsigned int tab = cli_json_member(json, node, "tab");
@@ -73,18 +73,18 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
     {
         const CfgJsonToken token = {CFG_JSON_NUMBER, json->node[tab].text,
                                     json->node[tab].text + json->node[tab].length, 0u, 0u};
-        held->tab = cfg_json_unsigned(json->text, &token, &tab_value) ? tab_value : held->tab;
+        listing_at->tab = cfg_json_unsigned(json->text, &token, &tab_value) ? tab_value : listing_at->tab;
     }
     const unsigned int lines = cli_json_member(json, node, "lines");
     for (unsigned int item = cli_json_is(json, lines, CFG_JSON_ARRAY) ? json->node[lines].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
-        if (held->lines >= CLI_PRINT_LINES)
+        if (listing_at->lines >= CLI_PRINT_LINES)
         {
             full = 1;
             break;
         }
-        CliPrintLine *const line = &held->line[held->lines];
+        CliPrintLine *const line = &listing_at->line[listing_at->lines];
         const unsigned int number = cli_json_member(json, item, "number");
         unsigned long long value = 0ull;
         line->numbered = 0;
@@ -95,39 +95,41 @@ int cli_print_listing_read(const CliJson *json, unsigned int node, CliPrintListi
             line->numbered = cfg_json_unsigned(json->text, &token, &value);
         }
         line->number = value;
-        line->first = held->runs;
+        line->first = listing_at->runs;
         line->runs = 0u;
         const unsigned int runs = cli_json_member(json, item, "runs");
         for (unsigned int run = cli_json_is(json, runs, CFG_JSON_ARRAY) ? json->node[runs].first : CLI_JSON_NONE;
              run != CLI_JSON_NONE; run = json->node[run].next)
         {
-            if (held->runs >= CLI_PRINT_RUNS)
+            if (listing_at->runs >= CLI_PRINT_RUNS)
             {
                 full = 1;
                 break;
             }
-            CliPrintRun *const kept = &held->run[held->runs];
+            CliPrintRun *const run_at = &listing_at->run[listing_at->runs];
             unsigned long long length = 0ull;
             unsigned long long color_length = 0ull;
             const char *const text = cli_json_string(json, cli_json_member(json, run, "text"), &length);
             const char *const color = cli_json_string(json, cli_json_member(json, run, "color"), &color_length);
-            kept->text = cli_kept(held, (text != NULL) ? text : "", (text != NULL) ? length : 0ull, &full);
-            kept->length = (text != NULL) ? (unsigned int)length : 0u;
-            kept->color = cli_kept(held, (color != NULL) ? color : "", (color != NULL) ? color_length : 0ull, &full);
-            kept->color_length = (color != NULL) ? (unsigned int)color_length : 0u;
-            kept->bold = cli_json_is(json, cli_json_member(json, run, "bold"), CFG_JSON_TRUE);
-            kept->italic = cli_json_is(json, cli_json_member(json, run, "italic"), CFG_JSON_TRUE);
-            held->runs += 1u;
+            run_at->text =
+                cli_text_stored(listing_at, (text != NULL) ? text : "", (text != NULL) ? length : 0ull, &full);
+            run_at->length = (text != NULL) ? (unsigned int)length : 0u;
+            run_at->color =
+                cli_text_stored(listing_at, (color != NULL) ? color : "", (color != NULL) ? color_length : 0ull, &full);
+            run_at->color_length = (color != NULL) ? (unsigned int)color_length : 0u;
+            run_at->bold = cli_json_is(json, cli_json_member(json, run, "bold"), CFG_JSON_TRUE);
+            run_at->italic = cli_json_is(json, cli_json_member(json, run, "italic"), CFG_JSON_TRUE);
+            listing_at->runs += 1u;
             line->runs += 1u;
         }
-        held->lines += 1u;
+        listing_at->lines += 1u;
     }
     if (full)
     {
-        cli_line_text(said, "the listing holds more than orior_cli prints");
+        mmgr_line_put(err_msg, "the listing contains more than orior_cli prints");
         return 0;
     }
-    *listing = held;
+    *listing = listing_at;
     return 1;
 }
 
@@ -152,7 +154,7 @@ void cli_print_layout_read(const CliJson *json, unsigned int node, CliPrintLayou
                                     json->node[copies].text + json->node[copies].length, 0u, 0u};
         value = (cfg_json_unsigned(json->text, &token, &value) && (value <= 0xffffffffull)) ? value : 1ull;
     }
-    // checked against the most 32 bits hold above
+    // checked against the most 32 bits represent above
     layout->copies = (unsigned int)value;
 }
 
@@ -282,7 +284,7 @@ int cli_print_prints(const CliPrintLayout *layout, unsigned long long page)
     return cli_parts(layout, cli_prints_part, &page) != 0;
 }
 
-// The ranges kept as they are read
+// The ranges stored as they are read
 typedef struct
 {
     int *low;
@@ -320,7 +322,7 @@ static int cli_range_part(void *context, const char *from, const char *dash, con
     }
     if (ranges->count < ranges->room)
     {
-        // each is below the most an int holds, checked as it was read
+        // each is below the most an int represents, checked as it was read
         ranges->low[ranges->count] = (int)low;
         ranges->high[ranges->count] = (int)high;
         ranges->count += 1u;
@@ -372,7 +374,7 @@ void cli_print_color(const char *text, unsigned long long length, int gray, unsi
     }
 }
 
-// The piece being made ended where it holds text: put after the row's pieces
+// The piece being made ended where it contains text: put after the row's pieces
 static void cli_piece_put(CliPrintLaid *laid, CliPrintRow *row, CliPrintPiece *piece)
 {
     if (piece->length == 0u)
@@ -413,9 +415,9 @@ static void cli_row_put(CliPrintLaid *laid, CliPrintRow *row)
 // one letter put after the piece being made, in UTF-8 among the layout's texts
 static void cli_letter_put(CliPrintLaid *laid, CliPrintPiece *piece, unsigned int letter)
 {
-    CliLine line = {laid->text + laid->text_used, CLI_PRINT_TEXT - laid->text_used, 0ull};
+    VerbaLinea line = {laid->text + laid->text_used, CLI_PRINT_TEXT - laid->text_used, 0ull};
     cli_utf8_put(&line, letter);
-    if (!cli_line_fits(&line))
+    if (!mmgr_line_ok(&line))
     {
         laid->full = 1;
         return;
@@ -454,7 +456,7 @@ const CliPrintLaid *cli_print_lay_out(const CliPrintListing *listing, const CliP
     const unsigned long long columns = (left > 8ull) ? left : 8ull;
     const unsigned long long rows =
         (unsigned long long)floorf((height - (2.0f * CLI_PRINT_MARGIN)) / CLI_PRINT_LEADING);
-    // a page holds far fewer rows than an unsigned int counts
+    // a page contains far fewer rows than an unsigned int counts
     laid->rows_per_page = (rows > 1ull) ? (unsigned int)rows : 1u;
     const unsigned long long tab = listing->tab;
     for (unsigned int index = 0u; index < listing->lines; index += 1u)

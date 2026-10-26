@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_test.c: the editor's files: a paste copies or moves and writes over nothing; a file and a folder go to a tree
-// on another machine a part at a time; a file and a folder brought in are copied whole, each file telling its end; a
+// on another machine a part at a time; a file and a folder brought in are copied whole, each file reporting its end; a
 // tree in a folder its repository ignores lists its files from the disk; and a file in a folder made after git's view
 // was read is tracked, and one in an ignored folder is not
 #include "../../../../../ui/cli/src/code/git.h"
@@ -10,27 +10,27 @@
 #include "../../../../../ui/cli/src/text/base64.h"
 #include "cli_check.h"
 
-// What a bringing told: each path, the bytes done and its size
+// What a bringing reported: each path, the bytes done and its size
 typedef struct
 {
-    char path[64][CLI_PATH_LONGEST];
+    char path[64][CLI_PATH_MAX_LEN];
     unsigned long long done[64];
     unsigned long long size[64];
     unsigned int count;
-} FilesHeard;
+} FilesProgress;
 
-static FilesHeard s_heard;
+static FilesProgress s_progress;
 static CliLock s_lock = CLI_LOCK_INIT;
 static unsigned char s_big[3u << 20u];
 static unsigned char s_read[(3u << 20u) + 1u];
 static unsigned char s_part[2u << 20u];
 static char s_out[1u << 16u];
-static char s_there[CLI_PATH_LONGEST];
+static char s_there[CLI_PATH_MAX_LEN];
 
 // a file of the tree `root` written at `name`, `size` bytes of `bytes`
 static void files_written(const char *root, const char *name, const void *bytes, unsigned long long size)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
     (void)query_file_written(path, bytes, size);
 }
@@ -45,13 +45,13 @@ static void files_folder(const char *root, const char *name, char *path)
 // the file `name` of `root` read into s_read: its size, or QRY_MEMBER_UNREAD
 static unsigned long long files_read(const char *root, const char *name)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
     return qry_member_file_read(path, s_read, sizeof(s_read) - 1u);
 }
 
-// whether the file `name` of `root` holds `text`
-static int files_holds(const char *root, const char *name, const char *text)
+// whether the file `name` of `root` contains `text`
+static int files_file_has(const char *root, const char *name, const char *text)
 {
     const unsigned long long size = files_read(root, name);
     return (size == cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL})) &&
@@ -61,7 +61,7 @@ static int files_holds(const char *root, const char *name, const char *text)
 // whether the file `name` of `root` is there
 static int files_there(const char *root, const char *name)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
     return query_is_file(path);
 }
@@ -72,18 +72,18 @@ static const char *files_pairs(const char *written, unsigned long long size)
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(written, size, &read);
     static char s_pairs[4096];
-    CliLine line = {s_pairs, sizeof(s_pairs), 0ull};
+    VerbaLinea line = {s_pairs, sizeof(s_pairs), 0ull};
     for (unsigned int at = 0u; cli_json_item(json, read, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int pair = cli_json_item(json, read, at);
         const char *const from = cli_json_string(json, cli_json_member(json, pair, "from"), NULL);
         const char *const to = cli_json_string(json, cli_json_member(json, pair, "to"), NULL);
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, (from != NULL) ? from : "-");
-        cli_line_character(&line, '>');
-        cli_line_text(&line, (to != NULL) ? to : "-");
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, (from != NULL) ? from : "-");
+        mmgr_line_ch(&line, '>');
+        mmgr_line_put(&line, (to != NULL) ? to : "-");
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return s_pairs;
 }
 
@@ -92,10 +92,10 @@ static int files_pasted(const char *root, const char *into, const char *from, in
 {
     char why[1024];
     char written[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {written, sizeof(written), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {written, sizeof(written), 0ull};
     const char *const froms[1] = {from};
-    if (!cli_files_paste(root, into, froms, 1u, moving, &out, &said))
+    if (!cli_files_paste(root, into, froms, 1u, moving, &out, &err_msg))
     {
         return 0;
     }
@@ -109,8 +109,8 @@ static int files_pasted(const char *root, const char *into, const char *from, in
 // a paste copies or moves and writes over nothing
 static void files_paste(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("files_paste", root);
     files_folder(root, "a/inner", path);
     files_folder(root, "b", path);
@@ -120,11 +120,11 @@ static void files_paste(void)
     cli_check(files_pasted(root, "a", path, 0) &&
                   (cellul.eq(&(CatenaFinitaCfg){
                       .src = s_out, .other = "a/notes.txt>a/notes (2).txt", .cap = CLI_CELLS_POOL})) &&
-                  files_holds(root, "a/notes (2).txt", "one"),
+                  files_file_has(root, "a/notes (2).txt", "one"),
               "a copy beside its own name is numbered");
     cli_full(root, "a", path);
-    cli_check(files_pasted(root, "b", path, 0) && files_holds(root, "b/a/inner/deep.rs", "two"),
-              "a folder is copied with all it holds");
+    cli_check(files_pasted(root, "b", path, 0) && files_file_has(root, "b/a/inner/deep.rs", "two"),
+              "a folder is copied with all it contains");
     cli_check(!files_pasted(root, "a/inner", path, 0), "a folder is not pasted into itself");
     cli_full(root, "a/notes.txt", path);
     cli_check(
@@ -137,7 +137,7 @@ static void files_paste(void)
         files_pasted(root, "b", path, 1) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "b/notes.txt>b/notes.txt", .cap = CLI_CELLS_POOL})),
         "a move to where it is leaves it");
-    char outside[CLI_PATH_LONGEST];
+    char outside[CLI_PATH_MAX_LEN];
     cli_check_folder("files_paste_out", outside);
     files_written(outside, "out.txt", "three", 5ull);
     cli_full(outside, "out.txt", path);
@@ -147,34 +147,34 @@ static void files_paste(void)
               "a file from outside the tree has no from");
 }
 
-// what a bringing tells kept
-static void files_told(void *context, const char *path, unsigned long long done, unsigned long long size)
+// what a bringing reports recorded
+static void bring_progress_capture(void *context, const char *path, unsigned long long done, unsigned long long size)
 {
     (void)context;
     cli_lock_take(&s_lock);
-    if (s_heard.count < 64u)
+    if (s_progress.count < 64u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_heard.path[s_heard.count],
+        memor.cpy(&(MemoriaCfg){.dst = s_progress.path[s_progress.count],
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-        s_heard.done[s_heard.count] = done;
-        s_heard.size[s_heard.count] = size;
-        s_heard.count += 1u;
+        s_progress.done[s_progress.count] = done;
+        s_progress.size[s_progress.count] = size;
+        s_progress.count += 1u;
     }
     cli_lock_give(&s_lock);
 }
 
-// how many times `path` was told, and whether it was told with `done` of `size`
-static unsigned int files_heard(const char *path, unsigned long long done, unsigned long long size, int *with)
+// how many times `path` was reported, and whether it was reported with `done` of `size`
+static unsigned int files_progress_count(const char *path, unsigned long long done, unsigned long long size, int *with)
 {
     unsigned int count = 0u;
     *with = 0;
-    for (unsigned int at = 0u; at < s_heard.count; at += 1u)
+    for (unsigned int at = 0u; at < s_progress.count; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = s_heard.path[at], .other = path, .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = s_progress.path[at], .other = path, .cap = CLI_CELLS_POOL}))
         {
             count += 1u;
-            *with = *with || ((s_heard.done[at] == done) && (s_heard.size[at] == size));
+            *with = *with || ((s_progress.done[at] == done) && (s_progress.size[at] == size));
         }
     }
     return count;
@@ -193,7 +193,7 @@ static unsigned long long files_whole(const CliJson *json, unsigned int node, co
 }
 
 // the tree's side, as serve.c answers the calls there
-static int files_call(void *context, const char *name, const char *arguments, CliLine *out, CliLine *said)
+static int files_call(void *context, const char *name, const char *arguments, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)context;
     unsigned int root = CLI_JSON_NONE;
@@ -202,16 +202,16 @@ static int files_call(void *context, const char *name, const char *arguments, Cl
     const char *const path = cli_json_string(json, cli_json_member(json, root, "path"), NULL);
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "bring_name", .cap = CLI_CELLS_POOL}))
     {
-        char found[CLI_PATH_LONGEST] = {0};
+        char found[CLI_PATH_MAX_LEN] = {0};
         const int named = cli_files_free_in(s_there, cli_check_member_text(root, "into"),
-                                            cli_check_member_text(root, "name"), found, said);
+                                            cli_check_member_text(root, "name"), found, err_msg);
         cli_json_quoted(out, found, cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}));
         return named;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "folder_create", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(out, "null");
-        return cli_files_create_folder(s_there, (path != NULL) ? path : "", said);
+        mmgr_line_put(out, "null");
+        return cli_files_create_folder(s_there, (path != NULL) ? path : "", err_msg);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "file_part", .cap = CLI_CELLS_POOL}))
     {
@@ -219,13 +219,13 @@ static int files_call(void *context, const char *name, const char *arguments, Cl
         const char *const data = cli_json_string(json, cli_json_member(json, root, "data"), &length);
         unsigned long long size = 0ull;
         const int last = cli_json_is(json, cli_json_member(json, root, "last"), CFG_JSON_TRUE);
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return (data != NULL) && cli_unbase64(data, length, s_part, sizeof(s_part), &size) &&
                cli_files_write_part(s_there, (path != NULL) ? path : "", files_whole(json, root, "at"), s_part, size,
-                                    last, said);
+                                    last, err_msg);
     }
-    cli_line_text(said, "no call ");
-    cli_line_text(said, name);
+    mmgr_line_put(err_msg, "no call ");
+    mmgr_line_put(err_msg, name);
     return 0;
 }
 
@@ -234,25 +234,25 @@ static const char *files_tos(const char *written, unsigned long long size)
 {
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(written, size, &read);
-    CliLine line = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea line = {s_out, sizeof(s_out), 0ull};
     for (unsigned int at = 0u; cli_json_item(json, read, at) != CLI_JSON_NONE; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, cli_check_member_text(cli_json_item(json, read, at), "to"));
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, cli_check_member_text(cli_json_item(json, read, at), "to"));
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return s_out;
 }
 
 // a file and a folder go to a tree on another machine a part at a time
 static void files_bring_over(void)
 {
-    char base[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char base[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[1024];
     static char s_written[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_written, sizeof(s_written), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_written, sizeof(s_written), 0ull};
     cli_check_folder("files_bring_over", base);
     files_folder(base, "there/in", path);
     files_folder(base, "here/folder", path);
@@ -266,39 +266,40 @@ static void files_bring_over(void)
     files_written(base, "here/folder/note.txt", "note", 4ull);
     files_written(base, "there/in/big.bin", "here first", 10ull);
     cli_full(base, "there", s_there);
-    char big_path[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char big_path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_full(base, "here/big.bin", big_path);
     cli_full(base, "here/folder", folder);
     const char *const from[2] = {big_path, folder};
-    s_heard.count = 0u;
+    s_progress.count = 0u;
     cli_check(
-        cli_files_bring_over(files_call, NULL, "in", from, 2u, files_told, NULL, &out, &said) &&
+        cli_files_bring_over(files_call, NULL, "in", from, 2u, bring_progress_capture, NULL, &out, &err_msg) &&
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = files_tos(s_written, out.at), .other = "in/big (2).bin|in/folder", .cap = CLI_CELLS_POOL})),
         "a file and a folder go to the tree on another machine");
     const unsigned long long size = files_read(s_there, "in/big (2).bin");
     cli_check((size == big) && (memor.cmp(&(MemoriaCfg){.src = s_read, .other = s_big, .bytes = big}) == 0),
               "the file whole, part by part");
-    cli_check(files_holds(s_there, "in/folder/note.txt", "note"), "the folder's file");
-    cli_check(files_holds(s_there, "in/big.bin", "here first"), "nothing is written over");
+    cli_check(files_file_has(s_there, "in/folder/note.txt", "note"), "the folder's file");
+    cli_check(files_file_has(s_there, "in/big.bin", "here first"), "nothing is written over");
     cli_check(!files_there(s_there, "in/.big (2).bin.orior-part"), "the parts' file is moved over the file");
     int with = 0;
-    cli_check((files_heard("in/big (2).bin", big, big, &with) >= 4u) && with, "each part told, and the end");
-    cli_check(!cli_files_write_part(s_there, "in/late.txt", 5ull, "x", 1ull, 1, &said),
+    cli_check((files_progress_count("in/big (2).bin", big, big, &with) >= 4u) && with,
+              "each part reported, and the end");
+    cli_check(!cli_files_write_part(s_there, "in/late.txt", 5ull, "x", 1ull, 1, &err_msg),
               "a part out of its place is refused");
 }
 
-// a file and a folder brought in are copied whole, each file telling its end
+// a file and a folder brought in are copied whole, each file reporting its end
 static void files_bring(void)
 {
-    char base[CLI_PATH_LONGEST];
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char base[CLI_PATH_MAX_LEN];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[1024];
     static char s_written[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_written, sizeof(s_written), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_written, sizeof(s_written), 0ull};
     cli_check_folder("files_bring", base);
     files_folder(base, "tree/in", path);
     files_folder(base, "outside/folder", path);
@@ -307,61 +308,62 @@ static void files_bring(void)
     files_written(base, "outside/folder/note.txt", "note", 4ull);
     files_written(base, "tree/in/big.bin", "here first", 10ull);
     cli_full(base, "tree", root);
-    char big_path[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char big_path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_full(base, "outside/big.bin", big_path);
     cli_full(base, "outside/folder", folder);
     const char *const from[2] = {big_path, folder};
-    s_heard.count = 0u;
+    s_progress.count = 0u;
     cli_check(
-        cli_files_bring(root, "in", from, 2u, files_told, NULL, &out, &said) &&
+        cli_files_bring(root, "in", from, 2u, bring_progress_capture, NULL, &out, &err_msg) &&
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = files_tos(s_written, out.at), .other = "in/big (2).bin|in/folder", .cap = CLI_CELLS_POOL})),
         "a file and a folder are brought in");
     cli_check(files_read(root, "in/big (2).bin") == (3ull << 20u), "the file whole");
-    cli_check(files_holds(root, "in/folder/note.txt", "note") && files_holds(root, "in/big.bin", "here first"),
+    cli_check(files_file_has(root, "in/folder/note.txt", "note") && files_file_has(root, "in/big.bin", "here first"),
               "the folder's file, and nothing written over");
     int with = 0;
-    (void)files_heard("in/big (2).bin", 3ull << 20u, 3ull << 20u, &with);
-    cli_check(with, "the big file tells its end");
-    (void)files_heard("in/folder/note.txt", 4ull, 4ull, &with);
+    (void)files_progress_count("in/big (2).bin", 3ull << 20u, 3ull << 20u, &with);
+    cli_check(with, "the big file reports its end");
+    (void)files_progress_count("in/folder/note.txt", 4ull, 4ull, &with);
     cli_check(with, "and the small one");
 }
 
 // a tree in a folder its repository ignores lists its files from the disk; and what is tracked
 static void files_listing(void)
 {
-    char repo[CLI_PATH_LONGEST];
-    char tree[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char repo[CLI_PATH_MAX_LEN];
+    char tree[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     static const char *const s_init[2] = {"init", "-q"};
     cli_check_folder("files_listing", repo);
     files_folder(repo, "runs/tree/src", path);
     files_written(repo, ".gitignore", "runs/\n", 6ull);
     files_written(repo, "runs/tree/a.js", "one", 3ull);
     files_written(repo, "runs/tree/src/b.js", "two", 3ull);
-    cli_check(cli_git_run(repo, s_init, 2u, &out, &said), "a repository is made");
+    cli_check(cli_git_run(repo, s_init, 2u, &out, &err_msg), "a repository is made");
     cli_full(repo, "runs/tree", tree);
-    const CliFiles *const files = cli_files_held(tree);
+    const CliFiles *const files = cli_files_view(tree);
     cli_check(
         (files != NULL) && (files->count == 2u) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = cli_files_at(files, 0u), .other = "a.js", .cap = CLI_CELLS_POOL})) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = cli_files_at(files, 1u), .other = "src/b.js", .cap = CLI_CELLS_POOL})),
         "a tree its repository ignores lists its files from the disk");
     cli_files_let(files);
-    const CliFiles *const kinds = cli_files_kinds_held(tree);
-    cli_check((kinds != NULL) && (kinds->count == 3u) && cli_files_holds(kinds, ".js") &&
-                  cli_files_holds(kinds, "a.js") && cli_files_holds(kinds, "b.js") && !cli_files_holds(kinds, ".lean"),
-              "and the view keeps each file's name and ending once, as it reads them");
+    const CliFiles *const kinds = cli_files_kinds_view(tree);
+    cli_check((kinds != NULL) && (kinds->count == 3u) && cli_files_contains(kinds, ".js") &&
+                  cli_files_contains(kinds, "a.js") && cli_files_contains(kinds, "b.js") &&
+                  !cli_files_contains(kinds, ".lean"),
+              "and the view records each file's name and ending once, as it reads them");
     cli_files_let(kinds);
     cli_check_folder("files_tracked", repo);
     files_folder(repo, "made", path);
     files_written(repo, ".gitignore", "out/\n", 5ull);
     files_written(repo, "a.txt", "one", 3ull);
-    cli_check(cli_git_run(repo, s_init, 2u, &out, &said), "a repository is made");
+    cli_check(cli_git_run(repo, s_init, 2u, &out, &err_msg), "a repository is made");
     cli_files_forget_seen();
     cli_check(cli_files_tracked(repo, "a.txt"), "a file git would track");
     files_written(repo, "made/new.txt", "two", 3ull);
@@ -375,26 +377,26 @@ static void files_listing(void)
     cli_files_forget_seen();
 }
 
-// a search holds what it finds in cells that grow past their first room as lines are found, each given back as it ends
+// a search stores what it finds in cells that grow past their first room as lines are found, each given back as it ends
 static void files_searched(void)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("files_search", root);
     char many[100u * 12u];
-    CliLine lines = {many, sizeof(many), 0ull};
+    VerbaLinea lines = {many, sizeof(many), 0ull};
     for (unsigned int at = 0u; at < 100u; at += 1u)
     {
-        cli_line_text(&lines, "a needle\n");
+        mmgr_line_put(&lines, "a needle\n");
     }
     files_written(root, "a.txt", many, lines.at);
     files_written(root, "b.txt", "no\nthe needle\n", 14ull);
     cli_files_forget_seen();
     const CliPatterns none = {0};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    const int found = cli_files_search(root, "needle", (CliSearching){0, 0, 0}, &none, &out, &said);
-    (void)cli_line_closed(&out);
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    const int found = cli_files_search(root, "needle", (CliSearching){0, 0, 0}, &none, &out, &err_msg);
+    (void)mmgr_line_finish(&out);
     unsigned int hits = 0u;
     for (const char *at = s_out;
          (at = cellul.find(&(CatenaFinitaCfg){
@@ -403,49 +405,51 @@ static void files_searched(void)
     {
         hits += 1u;
     }
-    cli_check(found && (hits == 101u), "every line that holds the query is found");
-    cli_check((g_cli_search_cells.holds == 0ull) && (g_cli_search_cells.hw > (64ull * sizeof(CliHeldHit))),
-              "the lines found are held in cells grown past their first room, each given back");
+    cli_check(found && (hits == 101u), "every line that contains the query is found");
+    cli_check((g_cli_search_cells.in_use == 0ull) && (g_cli_search_cells.hw > (64ull * sizeof(CliSearchHit))),
+              "the lines found are stored in cells grown past their first room, each given back");
     cli_files_forget_seen();
 }
 
-// a find walks the folders of a tree git does not read and names each file whose path holds the query's words, sorted
+// a find walks the folders of a tree git does not read and names each file whose path contains the query's words,
+// sorted
 static void files_found(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("files_find", root);
     files_folder(root, "beta", path);
     files_written(root, "alpha.txt", "a", 1ull);
     files_written(root, "beta/alpha.js", "b", 1ull);
     files_written(root, "gamma.txt", "c", 1ull);
     cli_files_forget_seen();
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_files_find(root, "alpha", &out);
-    cli_check_text(s_out, out.at, "[\"alpha.txt\",\"beta/alpha.js\"]", "a find names the files that hold the query");
+    cli_check_text(s_out, out.at, "[\"alpha.txt\",\"beta/alpha.js\"]", "a find names the files that contain the query");
     cli_files_forget_seen();
 }
 
-// a file written where a folder stands is refused with the system's reason, for the window to tell a refusal of rights
+// a file written where a folder stands is refused with the system's reason, for the window to report a refusal of
+// rights
 static void files_refused(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_check_folder("files_refused", root);
     cli_full(root, "taken", folder);
     query_folder_made(folder);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int written = cli_files_write(root, "taken", "x", 1ull, &said);
-    (void)cli_line_closed(&said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int written = cli_files_write(root, "taken", "x", 1ull, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     cli_check(!written &&
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = why, .cap = CLI_CELLS_POOL, .other = "(os error ", .other_cap = CLI_CELLS_POOL}) != NULL),
               why);
 }
 
-// whether `text` holds `part`
-static int files_text_holds(const char *text, const char *part)
+// whether `text` contains `part`
+static int files_text_has(const char *text, const char *part)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
     for (const char *at = text; *at != '\0'; at += 1)
@@ -459,16 +463,16 @@ static int files_text_holds(const char *text, const char *part)
 }
 
 // a file past the size the window pages: read for the window, its shape is answered from its first bytes, read at
-// their offset, and a slice of its lines from the bytes about them, the cellblock holding no cell of the file's size
+// their offset, and a slice of its lines from the bytes about them, the cellblock having no cell of the file's size
 // either time
 static unsigned char s_huge[128u << 20u];
 
 static void files_large(void)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_check_folder("files_large", root);
     for (unsigned long long at = 0ull; at < sizeof(s_huge); at += 1ull)
     {
@@ -479,24 +483,26 @@ static void files_large(void)
     unsigned long long pool = 0ull;
     unsigned long long peak = 0ull;
     unsigned long long temporary = 0ull;
-    cli_check(cli_files_read(root, "huge.log", &out, &said), "a file past the paging size is read for the window");
-    (void)cli_line_closed(&out);
-    cli_check(files_text_holds(s_out, "\"windowed\":true") && files_text_holds(s_out, "\"size\":134217728"),
+    cli_check(cli_files_read(root, "huge.log", &out, &err_msg), "a file past the paging size is read for the window");
+    (void)mmgr_line_finish(&out);
+    cli_check(files_text_has(s_out, "\"windowed\":true") && files_text_has(s_out, "\"size\":134217728"),
               "as windowed, with its size");
     cli_cells_report(&pool, &peak, &temporary);
     cli_check(peak < sizeof(s_huge),
-              "the cellblock's peak stays under the file's size: its first bytes alone were held");
+              "the cellblock's peak stays under the file's size: its first bytes alone were stored");
     out.at = 0ull;
-    cli_check(cli_files_slice(root, "huge.log", 8000000ull, 8001000ull, &out, &said), "a slice of its lines is read");
-    (void)cli_line_closed(&out);
-    cli_check(files_text_holds(s_out, "\"start\":8000000") && files_text_holds(s_out, "\"end\":8001000"),
+    cli_check(cli_files_slice(root, "huge.log", 8000000ull, 8001000ull, &out, &err_msg),
+              "a slice of its lines is read");
+    (void)mmgr_line_finish(&out);
+    cli_check(files_text_has(s_out, "\"start\":8000000") && files_text_has(s_out, "\"end\":8001000"),
               "from the line start at the offset to the one at the end");
     cli_cells_report(&pool, &peak, &temporary);
-    cli_check(peak < sizeof(s_huge), "the slice held the bytes about it alone");
+    cli_check(peak < sizeof(s_huge), "the slice stored the bytes about it alone");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     files_refused();
     files_found();
     files_searched();
@@ -506,11 +512,12 @@ int main(void)
     files_listing();
     files_large();
     char report[256];
-    CliLine said = {report, sizeof(report), 0ull};
-    cli_line_text(&said, "the files count what the views and their lists hold in the cellblock, their report ");
-    const unsigned long long numbers = said.at;
-    cli_files_cells_said(&said);
-    (void)cli_line_closed(&said);
+    VerbaLinea report_line = {report, sizeof(report), 0ull};
+    mmgr_line_put(&report_line,
+                  "the files count what the views and their lists occupy in the cellblock, their report ");
+    const unsigned long long numbers = report_line.at;
+    cli_files_cells_usage_written(&report_line);
+    (void)mmgr_line_finish(&report_line);
     const char *const mark =
         cellul.chr(&(CatenaFinitaCfg){.src = report + numbers, .cap = CLI_CELLS_POOL, .byte = ' '});
     cli_check((mark != NULL) && (mark[1] != '0'), report);

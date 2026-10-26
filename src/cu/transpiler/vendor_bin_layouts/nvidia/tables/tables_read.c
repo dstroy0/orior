@@ -8,9 +8,9 @@
 //     orior_tables_read <instructions.txt> spans
 //
 // `class` prints one line an encoding, `<low> <high> <class> [bank <n> offset 0x<bytes> reads <bytes> <verdict>]`,
-// the verdict `held` where rule 13 holds the read against the bank of `--bank` bytes, `passes` where it does not,
-// and `unknown` where no size is given, the bank alone then held against (cubin_safe/constant.c). `spans` prints each
-// distinct pair of a bank field's span and an offset field's span with the count of classes laying their constant
+// the verdict `gated` where rule 13 blocks the read against the bank of `--bank` bytes, `passes` where it does not,
+// and `unknown` where no size is given, the bank alone then checked against (cubin_safe/constant.c). `spans` prints
+// each distinct pair of a bank field's span and an offset field's span with the count of classes laying their constant
 // operand so, `bank <first>..<last> offset <first>..<last> <count>`. Exit 0, 2 where the words are not as above, and 1
 // where the instruction set could not be read
 #include "../cubin_safe.h"
@@ -131,7 +131,7 @@ int main(int count, char **words)
     TablesSet set = {NULL, 0u, 0u};
     if ((text == NULL) || !tables_set_read(&set, text, size) || (set.count == 0u))
     {
-        fprintf(stderr, "orior_tables_read: %s holds no instruction set\n", words[1]);
+        fprintf(stderr, "orior_tables_read: %s contains no instruction set\n", words[1]);
         free(text);
         return 1;
     }
@@ -161,7 +161,7 @@ int main(int count, char **words)
         if (constant)
         {
             verdict = (bank_size == 0ull)                                      ? " unknown"
-                      : cubin_constant_out_of_bank(&set, low, high, bank_size) ? " held"
+                      : cubin_constant_out_of_bank(&set, low, high, bank_size) ? " gated"
                                                                                : " passes";
         }
         printf("%s%s\n", line, verdict);

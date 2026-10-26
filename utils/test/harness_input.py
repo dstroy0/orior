@@ -221,30 +221,35 @@ def number(step, name):
 # the programs a step left running, each stopped once the window's tests have run
 STARTED = []
 STARTED_LOCK = threading.Lock()
+# How much of what a step's program wrote to its standard error its failure tells, from the end, in characters.
+STEP_SAID = 600
 
 
 def run(step):
     """The program a step names run with its words, its environment and what its standard input reads; waited for and
-    failed where it fails, or left running where `wait` is false."""
+    failed where it fails, with the last of what it wrote to its standard error, or left running where `wait` is
+    false."""
     program = step.get("program")
     if not program:
         raise ValueError("the step names no program")
     words = [word for word in step.get("args", []) if isinstance(word, str)]
     env = dict(os.environ)
     env.update({key_: str(value) for key_, value in (step.get("env") or {}).items()})
-    child = subprocess.Popen([program, *words], env=env, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    waited = step.get("wait") is not False
+    child = subprocess.Popen([program, *words], env=env, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE if waited else subprocess.DEVNULL)
     try:
         child.stdin.write((step.get("input") or "").encode())
         child.stdin.close()
     except OSError:
         pass
-    if step.get("wait") is False:
+    if not waited:
         with STARTED_LOCK:
             STARTED.append(child)
         return
+    said = child.stderr.read().decode("utf-8", "replace").strip()
     code = child.wait()
     if code != 0:
-        raise RuntimeError("%s %s ended, exit code: %d" % (program, " ".join(words), code))
+        raise RuntimeError("%s %s ended, exit code: %d%s" % (program, " ".join(words), code, ": " + said[-STEP_SAID:] if said else ""))
 
 
 def stop_started():
@@ -290,6 +295,8 @@ def perform(conn, step, frames):
         conn.call("Emulation.setFocusEmulationEnabled", timeout=WAIT, enabled=step.get("on", True) is not False)
     elif op == "media":
         conn.call("Emulation.setEmulatedMedia", timeout=WAIT, features=[{"name": step.get("name") or "", "value": step.get("value") or ""}])
+    elif op == "gc":
+        conn.call("HeapProfiler.collectGarbage", timeout=WAIT)
     elif op == "run":
         run(step)
     elif op == "browser_trace" and step.get("end") is True:
@@ -344,11 +351,36 @@ def pointer_source(ticks):
     return {"type": "pointer", "id": "mouse", "parameters": {"pointerType": "mouse"}, "actions": ticks}
 
 
-DRIVEN_BUTTONS = {"left": 0, "middle": 1, "right": 2, "back": 3, "forward": 4}
+DRIVEN_BUTTONS = {"left": 0, "middle": 1, "right": 2}
 
 
 def driven_move(x, y, ms):
     return {"type": "pointerMove", "origin": "viewport", "x": int(round(x)), "y": int(round(y)), "duration": ms}
+
+
+# The events a page has as the pointer leaves the window, from the element under the edge it crossed: out, bubbling, then
+# leave on that element and every element holding it, each with no element it went to
+LEFT_WINDOW = """const [x, y, edgeX, edgeY] = arguments;
+const under = document.elementFromPoint(edgeX, edgeY) ?? document.documentElement;
+const fields = { clientX: x, clientY: y, relatedTarget: null, pointerType: "mouse", pointerId: 1, isPrimary: true };
+under.dispatchEvent(new PointerEvent("pointerout", { ...fields, bubbles: true, cancelable: true }));
+under.dispatchEvent(new MouseEvent("mouseout", { ...fields, bubbles: true, cancelable: true }));
+for (let node = under; node; node = node.parentElement) {
+  node.dispatchEvent(new PointerEvent("pointerleave", fields));
+  node.dispatchEvent(new MouseEvent("mouseleave", fields));
+}
+return true;"""
+
+
+def driven_move_to(session, x, y):
+    """The pointer moved to (x, y) in the viewport. WebDriver moves it to no point outside the viewport, so a point
+    outside is reached at the nearest edge, and the page is given the events of the pointer leaving the window there."""
+    width, height = session.execute("return [window.innerWidth, window.innerHeight];", [])
+    edge_x = min(max(x, 0), width - 1)
+    edge_y = min(max(y, 0), height - 1)
+    session.actions([pointer_source([driven_move(edge_x, edge_y, 0)])])
+    if (edge_x, edge_y) != (x, y):
+        session.execute(LEFT_WINDOW, [x, y, edge_x, edge_y])
 
 
 WHEELS = [0]
@@ -358,6 +390,8 @@ def perform_driven(session, step):
     """One step the runner asked for, sent as WebDriver's actions; a step only the debugging port can take is said not
     to be taken."""
     op = step.get("op", "")
+    if op == "click" and (step.get("button") or "left") in ("back", "forward"):
+        raise RuntimeError("%s it presses no back or forward button, which WebKit's WebDriver has none of, and the window with its debugging port presses" % NOT_HERE)
     if op == "click":
         x, y = number(step, "x"), number(step, "y")
         button = DRIVEN_BUTTONS.get(step.get("button") or "left", 0)
@@ -371,7 +405,7 @@ def perform_driven(session, step):
         finally:
             session.actions([keys_source(driven_modifiers(bits, True))])
     elif op == "move":
-        session.actions([pointer_source([driven_move(number(step, "x"), number(step, "y"), 0)])])
+        driven_move_to(session, number(step, "x"), number(step, "y"))
     elif op == "drag":
         x, y, to_x, to_y = (number(step, name) for name in ("x", "y", "toX", "toY"))
         steps = max(int(step.get("steps") or 12), 1)
@@ -389,6 +423,9 @@ def perform_driven(session, step):
         session.execute(script, [step.get("on", True) is not False])
     elif op == "media":
         raise RuntimeError("%s it is told no media feature, which the window with its debugging port is told" % NOT_HERE)
+    elif op == "gc":
+        # WebDriver collects no garbage of the page's, and the window's memory readout reads no web view under it
+        return
     elif op == "browser_trace":
         raise RuntimeError("%s it gives no trace of its frames, which the window with its debugging port gives" % NOT_HERE)
     elif op == "run":

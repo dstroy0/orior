@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// editorconfig_names.c: a section's pattern, its braces spread one text at a time, each text held against the file's
+// editorconfig_names.c: a section's pattern, its braces spread one text at a time, each text matched against the file's
 // name or path
 #include "../text/regexp.h"
 #include "editorconfig.h"
@@ -8,13 +8,13 @@
 // the most texts a pattern's braces spread into
 #define CLI_SPREAD_MOST 1024u
 
-// A pattern spread: the file's name or path its texts are held against, the text spread so far, and how many texts
-// were held
+// A pattern spread: the file's name or path its texts are matched against, the text spread so far, and how many texts
+// were matched
 typedef struct
 {
     const unsigned int *target;
     unsigned long long target_length;
-    unsigned int built[CLI_PATH_LONGEST];
+    unsigned int built[CLI_PATH_MAX_LEN];
     unsigned int tried;
 } CliSpreading;
 
@@ -114,11 +114,11 @@ static int cli_glob(const unsigned int *pattern, unsigned long long pattern_leng
 }
 
 // `length` letters at `at` put after the text spread so far, which ends at `built`: 1, or 0 where the text would not
-// fit and is not held
+// fit and is not matched
 static int cli_built(CliSpreading *spreading, unsigned long long *built, const unsigned int *at,
                      unsigned long long length)
 {
-    if ((*built + length) > CLI_PATH_LONGEST)
+    if ((*built + length) > CLI_PATH_MAX_LEN)
     {
         return 0;
     }
@@ -128,7 +128,7 @@ static int cli_built(CliSpreading *spreading, unsigned long long *built, const u
 }
 
 // the whole number written in `length` letters at `at`, an optional sign before its digits: 1, or 0 where they are not
-// one or it is past what a long long holds
+// one or it is past what a long long stores
 static int cli_whole(const unsigned int *at, unsigned long long length, long long *number)
 {
     const int below = (length != 0ull) && (at[0] == '-');
@@ -137,7 +137,7 @@ static int cli_whole(const unsigned int *at, unsigned long long length, long lon
     {
         return 0;
     }
-    // the size of the number kept unsigned, one past the most a long long holds allowed below zero
+    // the size of the number stored unsigned, one past the most a long long stores allowed below zero
     unsigned long long size = 0ull;
     const unsigned long long most = below ? 9223372036854775808ull : 9223372036854775807ull;
     for (unsigned long long step = sign; step < length; step += 1ull)
@@ -157,7 +157,7 @@ static int cli_whole(const unsigned int *at, unsigned long long length, long lon
 static int cli_spread_matched(CliSpreading *spreading, unsigned long long built, const unsigned int *at,
                               unsigned long long length, const CliPending *pending);
 
-// what is left after a piece spread: the next piece, or the text held where nothing is
+// what is left after a piece spread: the next piece, or the text matched where nothing is
 static int cli_spread_on(CliSpreading *spreading, unsigned long long built, const CliPending *pending)
 {
     if (pending != NULL)
@@ -199,8 +199,8 @@ static int cli_braced(CliSpreading *spreading, unsigned long long built, const u
             // the count stays below the span from low to high, so the sum stays inside a long long
             const long long number = low + (long long)count;
             char digits[24];
-            CliLine line = {digits, sizeof(digits), 0ull};
-            cli_line_signed(&line, number);
+            VerbaLinea line = {digits, sizeof(digits), 0ull};
+            mmgr_line_decimal_signed(&line, number);
             unsigned int letters[24];
             for (unsigned long long step = 0ull; step < line.at; step += 1ull)
             {
@@ -251,7 +251,7 @@ static int cli_braced(CliSpreading *spreading, unsigned long long built, const u
 }
 
 // the piece at `at` spread: its first pair of braces at depth zero, or the piece as it stands where it has none, and
-// what is left after it. A backslash escapes nothing here; it is kept for the glob
+// what is left after it. A backslash escapes nothing here; it is retained for the glob
 static int cli_spread_matched(CliSpreading *spreading, unsigned long long built, const unsigned int *at,
                               unsigned long long length, const CliPending *pending)
 {
@@ -284,10 +284,10 @@ static int cli_spread_matched(CliSpreading *spreading, unsigned long long built,
 // one
 int cli_editorconfig_names(const char *pattern, unsigned long long size, const char *relative, const char *name)
 {
-    static unsigned int s_pattern[CLI_PATH_LONGEST];
-    static unsigned int s_target[CLI_PATH_LONGEST];
+    static unsigned int s_pattern[CLI_PATH_MAX_LEN];
+    static unsigned int s_target[CLI_PATH_MAX_LEN];
     static CliSpreading s_spreading;
-    const unsigned long long length = cli_regexp_letters(pattern, size, s_pattern, CLI_PATH_LONGEST);
+    const unsigned long long length = cli_regexp_letters(pattern, size, s_pattern, CLI_PATH_MAX_LEN);
     unsigned long long slash = 0ull;
     while ((slash < length) && (s_pattern[slash] != '/'))
     {
@@ -301,7 +301,7 @@ int cli_editorconfig_names(const char *pattern, unsigned long long size, const c
     }
     s_spreading.target = s_target;
     s_spreading.target_length = cli_regexp_letters(
-        target, cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}), s_target, CLI_PATH_LONGEST);
+        target, cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL}), s_target, CLI_PATH_MAX_LEN);
     s_spreading.tried = 0u;
     return cli_spread_matched(&s_spreading, 0ull, s_pattern + from, length - from, NULL);
 }

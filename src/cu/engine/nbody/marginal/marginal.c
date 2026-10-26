@@ -6,20 +6,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-_Static_assert(MARGINAL_LIMBS <= ORIOR_EXACT_LIMBS, "marginal: the host's exact integer must hold every sum");
+_Static_assert(MARGINAL_LIMBS <= ORIOR_EXACT_LIMBS, "marginal: the host's exact integer must represent every sum");
 
-long marginal_arrangements(const MarginalRequest *request, const MarginalQuestion *asked)
+long marginal_arrangements(const MarginalRequest *request, const MarginalQuestion *one)
 {
-    if ((asked->sources == 0u) || (asked->sources > MARGINAL_SOURCES_MAX) ||
-        (asked->source_first > request->source_count) ||
-        (asked->sources > (request->source_count - asked->source_first)))
+    if ((one->sources == 0u) || (one->sources > MARGINAL_SOURCES_MAX) || (one->source_first > request->source_count) ||
+        (one->sources > (request->source_count - one->source_first)))
     {
         return MARGINAL_ERROR;
     }
     unsigned long long arrangements = 1ull;
-    for (unsigned int local = 0u; local < asked->sources; local += 1u)
+    for (unsigned int local = 0u; local < one->sources; local += 1u)
     {
-        const MarginalSource *const source = &request->sources[asked->source_first + local];
+        const MarginalSource *const source = &request->sources[one->source_first + local];
         if ((source->option_first > request->option_count) ||
             (source->options > (request->option_count - source->option_first)))
         {
@@ -66,8 +65,8 @@ static int marginal_host_put(const OriorExactInteger *value, unsigned int *limbs
 
 static int marginal_host_question(const MarginalRequest *request, unsigned int question)
 {
-    const MarginalQuestion *const asked = &request->questions[question];
-    const MarginalSource *const sources = &request->sources[asked->source_first];
+    const MarginalQuestion *const one = &request->questions[question];
+    const MarginalSource *const sources = &request->sources[one->source_first];
     OriorExactInteger *const totals =
         (OriorExactInteger *)malloc(((size_t)sources[0].options + MARGINAL_SUMS) * sizeof(OriorExactInteger));
     if (totals == NULL)
@@ -88,7 +87,7 @@ static int marginal_host_question(const MarginalRequest *request, unsigned int q
     int ok = 1;
     while (ok)
     {
-        if (depth == asked->sources)
+        if (depth == one->sources)
         {
             OriorExactInteger sum;
             const unsigned int outcome = (choice[0] == 0u) ? MARGINAL_ABSENT : (MARGINAL_SUMS + choice[0] - 1u);

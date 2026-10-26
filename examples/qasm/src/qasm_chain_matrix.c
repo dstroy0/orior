@@ -39,7 +39,7 @@ long qasm_matrix_alloc(const QasmField *field, unsigned int rows, unsigned int c
     matrix->field = field;
     matrix->rows = rows;
     matrix->columns = columns;
-    // an empty matrix still holds one zero-byte slot. Its storage is never a zero-byte allocation
+    // an empty matrix still contains one zero-byte element. Its storage is never a zero-byte allocation
     matrix->elements = (unsigned char *)calloc((count > 0u) ? count : 1u, field->element_bytes);
     if (QASM_CHECK(matrix->elements != NULL, matrix, error, ENGINE_ERROR_RESOURCE) == 0)
     {
@@ -71,7 +71,7 @@ long qasm_matrix_multiply(const QasmMatrix *left, const QasmMatrix *right, QasmM
 {
     const QasmField *const field = left->field;
     long status = qasm_matrix_alloc(field, left->rows, right->columns, product, error);
-    QasmSlot term;
+    QasmElement term;
     memset(&term, 0, sizeof(term));
     for (unsigned int row = 0u; (status == 0L) && (row < left->rows); row += 1u)
     {
@@ -100,7 +100,7 @@ static long qasm_matrix_scaled_add(QasmMatrix *accumulated, const void *scalar, 
     {
         return 0L;
     }
-    QasmSlot term;
+    QasmElement term;
     memset(&term, 0, sizeof(term));
     long status = 0L;
     for (unsigned int row = 0u; (status == 0L) && (row < matrix->rows); row += 1u)
@@ -134,7 +134,7 @@ static void qasm_matrix_swap_rows(QasmMatrix *matrix, unsigned int first, unsign
 {
     // the columns widen to size_t exactly
     const size_t row_bytes = (size_t)matrix->columns * matrix->field->element_bytes;
-    // moving a slot's bytes moves the element whole, whatever it owns
+    // moving an element's bytes moves the element whole, whatever it owns
     memcpy(swap_row, qasm_matrix_at(matrix, first, 0u), row_bytes);
     memcpy(qasm_matrix_at(matrix, first, 0u), qasm_matrix_at(matrix, second, 0u), row_bytes);
     memcpy(qasm_matrix_at(matrix, second, 0u), swap_row, row_bytes);
@@ -144,9 +144,9 @@ static void qasm_matrix_swap_rows(QasmMatrix *matrix, unsigned int first, unsign
 static long qasm_matrix_eliminate(QasmMatrix *rows, unsigned int pivot, unsigned int column, EngineError *error)
 {
     const QasmField *const field = rows->field;
-    QasmSlot inverse;
-    QasmSlot factor;
-    QasmSlot term;
+    QasmElement inverse;
+    QasmElement factor;
+    QasmElement term;
     memset(&inverse, 0, sizeof(inverse));
     memset(&factor, 0, sizeof(factor));
     memset(&term, 0, sizeof(term));
@@ -249,8 +249,8 @@ long qasm_chain_alloc(QasmChain *chain, const QasmField *field, unsigned int sit
     {
         return QASM_ERROR;
     }
-    const int ok = (chain != NULL) && (field != NULL) && (field->element_bytes <= sizeof(QasmSlot)) && (sites >= 1u) &&
-                   (sites <= (UINT_MAX / 2u));
+    const int ok = (chain != NULL) && (field != NULL) && (field->element_bytes <= sizeof(QasmElement)) &&
+                   (sites >= 1u) && (sites <= (UINT_MAX / 2u));
     if (QASM_CHECK(ok, chain, error, ENGINE_ERROR_REQUEST) == 0)
     {
         return QASM_ERROR;

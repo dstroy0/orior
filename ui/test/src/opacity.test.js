@@ -19,6 +19,41 @@ test("each setting stands at its fallback where nothing is kept", () =>
     }
   }));
 
+test("the stylesheet stands each part at its setting's fallback, the editor short of whole so the lattice's dots show through it", () => {
+  const declared = (name) => {
+    for (const sheet of document.styleSheets) {
+      for (const rule of sheet.cssRules) {
+        const value = rule.selectorText === ":root" ? rule.style.getPropertyValue(name).trim() : "";
+        if (value) {
+          return value;
+        }
+      }
+    }
+    return "";
+  };
+  for (const setting of OPACITY_SETTINGS) {
+    assert.equal(declared(setting.name), `${setting.fallback}%`, setting.label);
+  }
+  const editor = OPACITY_SETTINGS.find((setting) => setting.name === "--editor-opacity");
+  assert.ok(editor.fallback < 100, `the editor at ${editor.fallback}%`);
+});
+
+test("the explorer and the terminal say what they are on the ink at half and hold their text on the editor's own ground", async () => {
+  showView("edit");
+  await openFile("hello.py");
+  await ui.waitFor(() => editing().editor?.s, 5000);
+  const ground = (node) => getComputedStyle(node).backgroundColor;
+  const probe = document.body.appendChild(document.createElement("i"));
+  probe.style.background = "color-mix(in srgb, var(--ink) 50%, transparent)";
+  const ink = ground(probe);
+  probe.remove();
+  const editor = ground(document.querySelector(".editor.ed"));
+  assert.equal(ground(document.getElementById("explorer")), ink, "the explorer's head on the ink at half");
+  assert.equal(ground(document.getElementById("term")), ink, "the terminal's head on the ink at half");
+  assert.equal(ground(document.querySelector("#explorer .pane-body")), editor, "the explorer's text on the editor's ground");
+  assert.equal(ground(document.getElementById("term-views")), editor, "the terminal's text on the editor's ground");
+});
+
 test("a kept share that is no step reads as the fallback", () =>
   keepingStorage(KEYS, () => {
     const [bar] = OPACITY_SETTINGS;
@@ -73,7 +108,7 @@ test("each of the panes, the tabs, the editor, the panels and the sheets lays it
       ["--pane-opacity", document.querySelector(".side")],
       ["--tab-opacity", document.querySelector(".tabs")],
       ["--editor-opacity", document.querySelector(".editor.ed")],
-      ["--panel-opacity", document.querySelector(".term")],
+      ["--panel-opacity", document.querySelector(".debug")],
       ["--sheet-opacity", sheet],
     ];
     const kept = OPACITY_SETTINGS.map((setting) => [setting, cssVariable(setting.name)]);

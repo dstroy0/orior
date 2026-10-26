@@ -7,22 +7,22 @@
 #include <stdlib.h>
 #include <string.h>
 
-// one tab-separated word of `line` from `at`, into `held`; the place the next word starts, or 0 at the end
-static unsigned int layout_word(const char *line, unsigned int at, char *held, unsigned int room)
+// one tab-separated word of `line` from `at`, into `word`; the place the next word starts, or 0 at the end
+static unsigned int layout_word(const char *line, unsigned int at, char *word, unsigned int room)
 {
     while ((line[at] == '\t') || (line[at] == ' '))
     {
         at += 1u;
     }
-    unsigned int kept = 0u;
+    unsigned int copied = 0u;
     while ((line[at] != '\0') && (line[at] != '\t') && (line[at] != '\n') && (line[at] != '\r'))
     {
-        held[(kept < (room - 1u)) ? kept : (room - 1u)] = line[at];
-        kept += (kept < (room - 1u)) ? 1u : 0u;
+        word[(copied < (room - 1u)) ? copied : (room - 1u)] = line[at];
+        copied += (copied < (room - 1u)) ? 1u : 0u;
         at += 1u;
     }
-    held[kept] = '\0';
-    return (kept == 0u) ? 0u : at;
+    word[copied] = '\0';
+    return (copied == 0u) ? 0u : at;
 }
 
 int container_layout_read(ContainerLayout *layout, const char *path)
@@ -43,7 +43,7 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         {
             continue;
         }
-        char kind[LAYOUT_NAME_LONGEST];
+        char kind[LAYOUT_NAME_MAX_LEN];
         unsigned int at = layout_word(line, 0u, kind, sizeof(kind));
         if (at == 0u)
         {
@@ -60,11 +60,11 @@ int container_layout_read(ContainerLayout *layout, const char *path)
         {
             continue;
         }
-        char value[LAYOUT_TEXT_LONGEST];
+        char value[LAYOUT_TEXT_MAX_LEN];
         at = layout_word(line, at, value, sizeof(value));
         if (strcmp(kind, "field") == 0)
         {
-            char width[LAYOUT_TEXT_LONGEST];
+            char width[LAYOUT_TEXT_MAX_LEN];
             row->kind = LAYOUT_FIELD;
             row->offset = strtoull(value, NULL, 10);
             layout_word(line, at, width, sizeof(width));
@@ -95,7 +95,7 @@ int container_layout_read(ContainerLayout *layout, const char *path)
     fclose(file);
     if (refused != 0u)
     {
-        printf("  container_layout: %s holds %u rows this does not read\n", path, refused);
+        printf("  container_layout: %s contains %u rows this does not read\n", path, refused);
     }
     return (layout->rows != 0u);
 }
@@ -117,7 +117,7 @@ int layout_field(const ContainerLayout *layout, const char *name, unsigned long 
     const LayoutRow *const row = layout_row(layout, name, LAYOUT_FIELD);
     if (row == NULL)
     {
-        printf("  container_layout: %s says nothing about %s\n", layout->from, name);
+        printf("  container_layout: %s specifies nothing about %s\n", layout->from, name);
         return 0;
     }
     *offset = row->offset;
@@ -137,7 +137,7 @@ int layout_text(const ContainerLayout *layout, const char *name, const char *par
     const LayoutRow *const row = layout_row(layout, name, LAYOUT_NAME);
     if (row == NULL)
     {
-        printf("  container_layout: %s says nothing about %s\n", layout->from, name);
+        printf("  container_layout: %s specifies nothing about %s\n", layout->from, name);
         return 0;
     }
     // {part} is all a name stands in for. What a part is called belongs to the program and not to the format

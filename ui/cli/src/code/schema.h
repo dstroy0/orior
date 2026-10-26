@@ -5,11 +5,11 @@
 // value it allows. A schema is checked against its own schema in turn: the meta-schemas of drafts 4, 6 and 7, 2019-09
 // and 2020-12 come with orior.
 //
-// A schema is found by its path beside the file, by its URL among those orior_cli holds, or in `schemas/` of orior's own
-// folder, where a schema fetched is kept. One named by a URL and found in none of these is noted, and its note offers
-// the line that fetches it with curl, run in the terminal; nothing is fetched without that press.
+// A schema is found by its path beside the file, by its URL among those orior_cli bundles, or in `schemas/` of orior's
+// own folder, where a schema fetched is stored. One named by a URL and found in none of these is noted, and its note
+// offers the line that fetches it with curl, run in the terminal; nothing is fetched without that press.
 //
-// The keywords read are those of the drafts from 4 to 2020-12 that say what a value is: `type`, `enum`, `const`, the
+// The keywords read are those of the drafts from 4 to 2020-12 that define what a value is: `type`, `enum`, `const`, the
 // bounds of numbers, strings, arrays and objects, `pattern`, `required`, `properties`, `patternProperties`,
 // `additionalProperties`, `propertyNames`, `dependencies`, `dependentRequired`, `dependentSchemas`, `items`,
 // `prefixItems`, `additionalItems`, `contains`, `uniqueItems`, `allOf`, `anyOf`, `oneOf`, `not`, `if`, `then`, `else`,
@@ -23,13 +23,13 @@
 // whether the file at `path` is JSON this reader reads, by its extension, `json` or `jsonc`
 int cli_schema_reads(const char *path);
 
-// the diagnostics of the JSON file at `path` of the tree at `root`, `size` bytes of its text: what kept it from
+// the diagnostics of the JSON file at `path` of the tree at `root`, `size` bytes of its text: what prevented it from
 // reading, and what its schema finds, written as the protocol's array of them into `out`
-void cli_schema_check(const char *root, const char *path, const char *text, unsigned long long size, CliLine *out);
+void cli_schema_check(const char *root, const char *path, const char *text, unsigned long long size, VerbaLinea *out);
 
 // what completes the word before `line`, `col` of the JSON file at `path`, `size` bytes of its text: the keys its
-// schema gives the object the cursor is in and that it does not hold yet, or the values the schema allows the value the
-// cursor is at, into `items`
+// schema gives the object the cursor is in and that it does not contain yet, or the values the schema allows the value
+// the cursor is at, into `items`
 void cli_schema_complete(const char *path, const char *text, unsigned long long size, unsigned int line,
                          unsigned int col, CliCompletions *items);
 

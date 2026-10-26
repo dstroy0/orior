@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter_specs.c: every kernel the machine has, each name once, in Jupyter's order: the specs in the folders Jupyter
-// keeps its data in, then a kernel for each Python orior_cli finds that has no spec of its own
+// stores its data in, then a kernel for each Python orior_cli finds that has no spec of its own
 #include "../toolchains/toolchains.h"
 #include "jupyter_internal.h"
 
@@ -20,10 +20,10 @@
 // kernels folder's entries, a spec read and the spec made
 typedef struct
 {
-    char folders[CLI_KERNEL_FOLDERS][CLI_PATH_LONGEST];
-    char pythons[CLI_KERNEL_PYTHONS][CLI_PATH_LONGEST];
+    char folders[CLI_KERNEL_FOLDERS][CLI_PATH_MAX_LEN];
+    char pythons[CLI_KERNEL_PYTHONS][CLI_PATH_MAX_LEN];
     char names[CLI_KERNEL_LISTED][CLI_KERNEL_ENTRY];
-    char programs[CLI_KERNEL_LISTED][CLI_PATH_LONGEST];
+    char programs[CLI_KERNEL_LISTED][CLI_PATH_MAX_LEN];
     unsigned int listed;
     char entries[CLI_KERNEL_ENTRIES][CLI_KERNEL_ENTRY];
     unsigned int entry_count;
@@ -61,7 +61,7 @@ static unsigned int jupyter_put(CliKernelSpec *spec, const char *text, unsigned 
     return at;
 }
 
-// an entry of a kernels folder kept
+// an entry of a kernels folder recorded
 static void jupyter_entry(void *context, const char *name, int is_folder)
 {
     (void)context;
@@ -101,8 +101,8 @@ static int jupyter_member(unsigned int object, const char *name, const char *fal
     return *at != CLI_KERNEL_NONE;
 }
 
-// the spec a kernel.json says, its name `name` and its folder `folder`, read into the listing's spec: 1, or 0 where it
-// is not one, as serde reads a Spec
+// the spec a kernel.json specifies, its name `name` and its folder `folder`, read into the listing's spec: 1, or 0
+// where it is not one, as serde reads a Spec
 static int jupyter_spec_read(unsigned int root, const char *name, const char *folder)
 {
     CliKernelSpec *const spec = &s_listing.spec;
@@ -163,18 +163,18 @@ static int jupyter_spec_read(unsigned int root, const char *name, const char *fo
     return !spec->full;
 }
 
-// the spec listed: its name and first word kept, and handed on: 1 to go on, 0 to stop
+// the spec listed: its name and first word recorded, and handed on: 1 to go on, 0 to stop
 static int jupyter_listed(CliKernelEach each, void *context)
 {
     if (s_listing.listed < CLI_KERNEL_LISTED)
     {
-        CliLine name = {s_listing.names[s_listing.listed], CLI_KERNEL_ENTRY, 0ull};
-        cli_line_text(&name, cli_kernel_text(&s_listing.spec, s_listing.spec.name));
-        cli_line_closed(&name);
-        CliLine program = {s_listing.programs[s_listing.listed], CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&program,
+        VerbaLinea name = {s_listing.names[s_listing.listed], CLI_KERNEL_ENTRY, 0ull};
+        mmgr_line_put(&name, cli_kernel_text(&s_listing.spec, s_listing.spec.name));
+        mmgr_line_finish(&name);
+        VerbaLinea program = {s_listing.programs[s_listing.listed], CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&program,
                       (s_listing.spec.argv_count > 0u) ? cli_kernel_text(&s_listing.spec, s_listing.spec.argv[0]) : "");
-        cli_line_closed(&program);
+        mmgr_line_finish(&program);
         s_listing.listed += 1u;
     }
     return each(context, &s_listing.spec);
@@ -184,7 +184,7 @@ static int jupyter_listed(CliKernelEach each, void *context)
 // stop
 static int jupyter_folder_specs(const char *data, CliKernelEach each, void *context)
 {
-    char kernels[CLI_PATH_LONGEST];
+    char kernels[CLI_PATH_MAX_LEN];
     cli_full(data, "kernels", kernels);
     s_listing.entry_count = 0u;
     (void)query_folder_each(kernels, jupyter_entry, NULL);
@@ -197,19 +197,19 @@ static int jupyter_folder_specs(const char *data, CliKernelEach each, void *cont
         {
             seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_listing.names[one], .other = name, .cap = CLI_CELLS_POOL}));
         }
-        char folder[CLI_PATH_LONGEST];
-        char file[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
+        char file[CLI_PATH_MAX_LEN];
         cli_full(kernels, name, folder);
         cli_full(folder, "kernel.json", file);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = seen ? NULL : cli_file_held(file, &size);
+        const unsigned char *const bytes = seen ? NULL : cli_file_read(file, &size);
         if (bytes == NULL)
         {
             continue;
         }
         cli_json_begun(&s_listing.json, s_listing.nodes, CLI_KERNEL_SPEC_NODES, s_listing.text, CLI_KERNEL_SPEC_TEXT);
-        char why[CLI_SAID_LONGEST];
-        CliLine unread = {why, sizeof(why), 0ull};
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea unread = {why, sizeof(why), 0ull};
         // a spec is read as a text, which is UTF-8 whole
         const unsigned int root = cli_utf8_whole((const char *)bytes, size)
                                       ? cli_json_read(&s_listing.json, (const char *)bytes, size, s_listing.tokens,
@@ -234,23 +234,23 @@ static void jupyter_python_specs(unsigned int pythons, int has_environment, CliK
         CliKernelSpec *const spec = &s_listing.spec;
         memor.set(&(MemoriaCfg){.dst = spec, .val = 0, .bytes = sizeof(*spec)});
         char name[32];
-        CliLine name_line = {name, sizeof(name), 0ull};
+        VerbaLinea name_line = {name, sizeof(name), 0ull};
         if ((index == 0u) && has_environment)
         {
-            cli_line_text(&name_line, "python3-tree");
+            mmgr_line_put(&name_line, "python3-tree");
         }
         else
         {
-            cli_line_text(&name_line, "python3-");
-            cli_line_decimal(&name_line, index + 1u, 1u);
+            mmgr_line_put(&name_line, "python3-");
+            mmgr_line_decimal(&name_line, index + 1u, 1u);
         }
-        cli_line_closed(&name_line);
-        char shown[CLI_PATH_LONGEST + 16u];
-        CliLine shown_line = {shown, sizeof(shown), 0ull};
-        cli_line_text(&shown_line, "Python (");
-        cli_line_text(&shown_line, python);
-        cli_line_text(&shown_line, ")");
-        cli_line_closed(&shown_line);
+        mmgr_line_finish(&name_line);
+        char shown[CLI_PATH_MAX_LEN + 16u];
+        VerbaLinea shown_line = {shown, sizeof(shown), 0ull};
+        mmgr_line_put(&shown_line, "Python (");
+        mmgr_line_put(&shown_line, python);
+        mmgr_line_put(&shown_line, ")");
+        mmgr_line_finish(&shown_line);
         static const char *const words[4] = {"-m", "ipykernel_launcher", "-f", "{connection_file}"};
         spec->name = jupyter_put(spec, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
         spec->display_name =
@@ -266,14 +266,14 @@ static void jupyter_python_specs(unsigned int pythons, int has_environment, CliK
         spec->interrupt_mode = jupyter_put(spec, "signal", 6u);
         spec->folder = jupyter_put(spec, "", 0ull);
         spec->install = CLI_KERNEL_NONE;
-        if (!cli_kernel_holds_ipykernel(python))
+        if (!cli_kernel_has_ipykernel(python))
         {
-            char install[CLI_PATH_LONGEST + 48u];
-            CliLine line = {install, sizeof(install), 0ull};
-            cli_line_character(&line, '"');
-            cli_line_text(&line, python);
-            cli_line_text(&line, "\" -m pip install ipykernel");
-            cli_line_closed(&line);
+            char install[CLI_PATH_MAX_LEN + 48u];
+            VerbaLinea line = {install, sizeof(install), 0ull};
+            mmgr_line_ch(&line, '"');
+            mmgr_line_put(&line, python);
+            mmgr_line_put(&line, "\" -m pip install ipykernel");
+            mmgr_line_finish(&line);
             spec->install =
                 jupyter_put(spec, install, cellul.len(&(CatenaFinitaCfg){.src = install, .cap = CLI_CELLS_POOL}));
         }
@@ -298,7 +298,7 @@ static void jupyter_specs_each(CliKernelEach each, void *context)
     int has_environment = 0;
     const unsigned int pythons = cli_kernel_pythons(s_listing.pythons, &has_environment);
     const unsigned int folders =
-        cli_kernel_data_folders((const char (*)[CLI_PATH_LONGEST])s_listing.pythons, pythons, s_listing.folders);
+        cli_kernel_data_folders((const char (*)[CLI_PATH_MAX_LEN])s_listing.pythons, pythons, s_listing.folders);
     int going = 1;
     for (unsigned int folder = 0u; going && (folder < folders); folder += 1u)
     {
@@ -314,31 +314,31 @@ static void jupyter_specs_each(CliKernelEach each, void *context)
 // a spec written as serde writes one, a comma before it where it is not the first
 static int jupyter_spec_written(void *context, const CliKernelSpec *spec)
 {
-    CliLine *const out = (CliLine *)context;
+    VerbaLinea *const out = (VerbaLinea *)context;
     const char last = (out->at > 0ull) ? out->out[out->at - 1ull] : '[';
-    cli_line_text(out, (last == '[') ? "{\"name\":" : ",{\"name\":");
+    mmgr_line_put(out, (last == '[') ? "{\"name\":" : ",{\"name\":");
     const char *const texts[3] = {cli_kernel_text(spec, spec->name), cli_kernel_text(spec, spec->display_name),
                                   cli_kernel_text(spec, spec->language)};
     cli_json_quoted(out, texts[0], cellul.len(&(CatenaFinitaCfg){.src = texts[0], .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"display_name\":");
+    mmgr_line_put(out, ",\"display_name\":");
     cli_json_quoted(out, texts[1], cellul.len(&(CatenaFinitaCfg){.src = texts[1], .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"language\":");
+    mmgr_line_put(out, ",\"language\":");
     cli_json_quoted(out, texts[2], cellul.len(&(CatenaFinitaCfg){.src = texts[2], .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"argv\":[");
+    mmgr_line_put(out, ",\"argv\":[");
     for (unsigned int word = 0u; word < spec->argv_count; word += 1u)
     {
         const char *const text = cli_kernel_text(spec, spec->argv[word]);
-        cli_line_text(out, (word > 0u) ? "," : "");
+        mmgr_line_put(out, (word > 0u) ? "," : "");
         cli_json_quoted(out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
     }
     const char *const mode = cli_kernel_text(spec, spec->interrupt_mode);
-    cli_line_text(out, "],\"interrupt_mode\":");
+    mmgr_line_put(out, "],\"interrupt_mode\":");
     cli_json_quoted(out, mode, cellul.len(&(CatenaFinitaCfg){.src = mode, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"env\":{");
+    mmgr_line_put(out, ",\"env\":{");
     unsigned int order[CLI_KERNEL_SETTINGS];
     for (unsigned int at = 0u; at < spec->env_count; at += 1u)
     {
-        // the names in their bytes' order, as a BTreeMap keeps them
+        // the names in their bytes' order, as a BTreeMap orders them
         unsigned int place = at;
         while ((place > 0u) && (cli_text_order(cli_kernel_text(spec, spec->env_name[order[place - 1u]]),
                                                cli_kernel_text(spec, spec->env_name[at])) > 0))
@@ -352,33 +352,33 @@ static int jupyter_spec_written(void *context, const CliKernelSpec *spec)
     {
         const char *const name = cli_kernel_text(spec, spec->env_name[order[at]]);
         const char *const value = cli_kernel_text(spec, spec->env_value[order[at]]);
-        cli_line_text(out, (at > 0u) ? "," : "");
+        mmgr_line_put(out, (at > 0u) ? "," : "");
         cli_json_quoted(out, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-        cli_line_character(out, ':');
+        mmgr_line_ch(out, ':');
         cli_json_quoted(out, value, cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}));
     }
     const char *const folder = cli_kernel_text(spec, spec->folder);
-    cli_line_text(out, "},\"folder\":");
+    mmgr_line_put(out, "},\"folder\":");
     cli_json_quoted(out, folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"install\":");
+    mmgr_line_put(out, ",\"install\":");
     if (spec->install == CLI_KERNEL_NONE)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
     else
     {
         const char *const install = cli_kernel_text(spec, spec->install);
         cli_json_quoted(out, install, cellul.len(&(CatenaFinitaCfg){.src = install, .cap = CLI_CELLS_POOL}));
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
     return 1;
 }
 
-void cli_jupyter_specs_written(CliLine *out)
+void cli_jupyter_specs_written(VerbaLinea *out)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     jupyter_specs_each(jupyter_spec_written, out);
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
 // The spec sought by name, and where it is put

@@ -152,9 +152,9 @@
   --ed-error: #ff6b81;
   --ed-warning: #e8c46a;
   --ed-note: #7aa2f7;
-  --ed-bracket-1: #f2d48a;
-  --ed-bracket-2: #b49cff;
-  --ed-bracket-3: #7fd8e8;
+  --ed-bracket-lightness: 0.84;
+  --ed-bracket-chroma: 0.12;
+  --ed-bracket-hue: 88;
   --lifted: rgba(8, 6, 30, 0.45);
   --t-comment: #6e6b99;
   --t-keyword: #a48cff;
@@ -217,9 +217,9 @@
   --ed-error: #c4314b;
   --ed-warning: #9a6700;
   --ed-note: #2563eb;
-  --ed-bracket-1: #8a6100;
-  --ed-bracket-2: #5b3fd1;
-  --ed-bracket-3: #0f6f80;
+  --ed-bracket-lightness: 0.5;
+  --ed-bracket-chroma: 0.14;
+  --ed-bracket-hue: 88;
   --lifted: rgba(23, 22, 58, 0.16);
   --t-comment: #8a88a8;
   --t-keyword: #5b3fd1;
@@ -423,8 +423,10 @@ select {
 .ed::after {
   --fillet-ed-tl: radial-gradient(circle at 100% 100%, var(--ed-bg) 6.4px, var(--line) 7px);
   --fillet-ed-bl: radial-gradient(circle at 100% 0, var(--ed-bg) 6.4px, var(--line) 7px);
+  /* the minimap's corners stand inside its line wherever its column has closed to, and past the
+     editor's right edge once it has closed, at the editor's --map-corner */
   background-image: var(--fillet-ed-tl), var(--fillet-ed-bl), var(--fillet-ed-tl), var(--fillet-ed-bl);
-  background-position: left top, left bottom, right 76px top, right 76px bottom;
+  background-position: left top, left bottom, right var(--map-corner) top, right var(--map-corner) bottom;
 }
 
 .term::after,
@@ -449,13 +451,15 @@ select {
    window's edges and gives them back: the signal line along its top, a line as thin as the strip's
    down its left, a line in the link color mixed with 35% black, as thick as the signal line, down
    its right, and one in the same color, as thin as the left's, along its foot. Its four corners are
-   curves of one radius, and the lines bend round each from one into the next. */
+   curves of one radius, and the lines bend round each from one into the next. What the work holds
+   stands inside the lines, each side in by its line's width, so nothing it holds lies under a line. */
 .statusbar {
   position: relative;
 }
 
 .work {
   clip-path: inset(0 round 7px);
+  padding: 2px 2px 1px 1px;
 }
 
 .work::after {
@@ -490,7 +494,7 @@ select {
 :root {
   --pane-opacity: 100%;
   --tab-opacity: 100%;
-  --editor-opacity: 100%;
+  --editor-opacity: 80%;
   --panel-opacity: 100%;
   --sheet-opacity: 100%;
   --theme-bg: var(--bg);
@@ -565,15 +569,18 @@ select {
     radial-gradient(circle 7px at 0 0, transparent 6.6px, var(--glass-tint) 7px) right var(--frame-right) bottom var(--claim-gap) / 7px 7px no-repeat;
 }
 
-/* The window's lattice, behind the whole page, on the deep of the lattices in the views, and the
-   body clear over it. The lattice of an empty view is the window's, seen through it. */
+/* The window's lattice, the one lattice of the page, behind the whole of it on the deep, and the body
+   clear over it: every view is glass over it, an empty one and the loading and open panes as well. */
 .lattice-window {
   z-index: -1;
   background: var(--deep);
 }
 
-.empty > .lattice {
-  display: none;
+/* While the loading pane or the open pane shows, the modes under it are not drawn, and the lattice
+   shows through the pane. */
+.shell:has(> .loading:not([hidden]):not([data-leaving="true"])) > .mode,
+.shell:has(> .open:not([hidden])) > .mode {
+  visibility: hidden;
 }
 
 /* The glass's top edge catches the light. */
@@ -665,7 +672,7 @@ body[data-strip-edge] .strip {
   left: 0;
   z-index: 45;
   transform: translateX(-100%);
-  transition: transform 0.18s ease;
+  transition: var(--claim-moves), transform 0.18s ease;
 }
 
 body[data-strip-edge] .strip.shown {
@@ -692,122 +699,340 @@ body[data-strip-edge] .strip-edge {
    claim, runs from 0 to 1 and back on one curve, and every edge's place is a product of it: the
    frame's gap, the bar's and the toolbar's rise, the strip's and the status bar's leave, so no edge
    runs ahead of another and the work's edge never passes its resting place. A reveal is a number of
-   its own for its edge, 1 while the edge's part is back. */
+   its own for its edge, 1 while the edge's part is back. Each part that moves holds its numbers
+   itself and runs them on the same curve, and passes none of them to what it holds: a number every
+   element inherited would have every element's style on the page worked out again on each frame of
+   a slide. */
 @property --claim {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
   initial-value: 0;
 }
 
 @property --reveal-top {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
   initial-value: 0;
 }
 
 @property --reveal-bottom {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
   initial-value: 0;
 }
 
 @property --reveal-left {
   syntax: "<number>";
-  inherits: true;
+  inherits: false;
+  initial-value: 0;
+}
+
+/* How far down the controls stand from the bar's place while the bar is away, in bar heights: the
+   whole way in their tab, and part of it as their ghost. */
+@property --reveal-down {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* The gap is the claim's share of the frame's right gap. */
+@property --claim-gap {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/* Inside the work, the tabs row and the editor's minimap each away while the claim holds and their
+   edge is not shown, 1 the whole way, on the same curve as the claim. */
+@property --tabs-away {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --map-away {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+/* An edge's room: 1 once the work has taken the room of the edge's part. A part comes in as a slat
+   (slat.js) over the work, the work standing where it stood and giving way round it, and only once the
+   slat spans its edge, a slide later, does the work take its room and the text move over; going, the
+   work takes the room back as the part goes. Until then the part's place in the page is given back by
+   as much as it has come in less the room. */
+@property --room-top {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --room-left {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --room-bottom {
+  syntax: "<number>";
+  inherits: false;
   initial-value: 0;
 }
 
 :root {
-  --claim-slide: 0.35s;
+  --slide: 0.3s;
+  --claim-moves: --claim var(--slide) ease, --reveal-top var(--slide) ease,
+    --reveal-bottom var(--slide) ease, --reveal-left var(--slide) ease, --reveal-down var(--slide) ease,
+    --room-top var(--slide) ease, --room-left var(--slide) ease, --room-bottom var(--slide) ease;
 }
 
-/* The gap is the claim's share of the frame's right gap, worked out where the claim is set. */
-body {
+body:has(> .toolbar:not([hidden])) {
+  --toolbar-tall: 30px;
+}
+
+body[data-claim][data-reveal="top"] .frame {
+  --reveal-top: 1;
+  --room-top: 1;
+  transition: var(--claim-moves), --room-top var(--slide) ease var(--slide);
+}
+
+body[data-claim][data-reveal="left"] .strip {
+  --room-left: 1;
+  transition: var(--claim-moves), --room-left var(--slide) ease var(--slide);
+}
+
+body[data-claim][data-reveal="bottom"] .statusbar {
+  --room-bottom: 1;
+  transition: var(--claim-moves), --room-bottom var(--slide) ease var(--slide);
+}
+
+/* A part lying over the work stands above it. */
+body[data-claim][data-reveal="top"] .bar,
+body[data-claim][data-reveal="top"] .toolbar,
+body[data-claim][data-reveal="left"] .strip {
+  position: relative;
+  z-index: 50;
+}
+
+.frame {
+  margin-top: calc(-1 * var(--claim) * (var(--reveal-top) - var(--room-top)) * (var(--bar-height) + var(--frame-right) + var(--toolbar-tall, 0px)));
+}
+
+.frame,
+.bar,
+.toolbar,
+.strip,
+.statusbar,
+.window-controls,
+.window-controls::before,
+.bar-mark {
+  transition: var(--claim-moves);
+}
+
+.frame,
+.strip {
   --claim-gap: calc(var(--claim) * var(--frame-right));
-  transition: --claim var(--claim-slide) ease, --reveal-top var(--claim-slide) ease, --reveal-bottom var(--claim-slide) ease, --reveal-left var(--claim-slide) ease;
 }
 
 body[data-claim] {
   --strip-width: 0px;
+}
+
+body[data-claim] .frame,
+body[data-claim] .bar,
+body[data-claim] .toolbar,
+body[data-claim] .strip,
+body[data-claim] .statusbar,
+body[data-claim] .window-controls,
+body[data-claim] .bar-mark {
   --claim: 1;
 }
 
-body[data-claim][data-reveal="top"] {
+body[data-claim][data-reveal="top"] .bar,
+body[data-claim][data-reveal="top"] .toolbar,
+body[data-claim][data-reveal="top"] .window-controls,
+body[data-claim][data-reveal="top"] .window-controls::before,
+body[data-claim][data-reveal="top"] .bar-mark,
+body[data-claim][data-reveal="top"] .strip {
   --reveal-top: 1;
 }
 
-body[data-claim][data-reveal="bottom"] {
+body[data-claim][data-reveal="bottom"] .statusbar {
   --reveal-bottom: 1;
 }
 
-body[data-claim][data-reveal="left"] {
+body[data-claim][data-reveal="left"] .strip,
+body[data-claim][data-reveal="left"] .bar-mark {
   --reveal-left: 1;
+}
+
+body[data-claim]:not([data-reveal="top"]) #mode-edit .desk[data-tabs="row"] > .tabs {
+  --tabs-away: 1;
+  pointer-events: none;
+}
+
+/* The tabs row comes back as the work takes the bar's room, once the bar's slat spans the head. */
+body[data-claim][data-reveal="top"] #mode-edit .desk[data-tabs="row"] > .tabs {
+  transition: min-height var(--slide) ease, margin-bottom var(--slide) ease, --tabs-away var(--slide) ease var(--slide);
+}
+
+body[data-claim]:not([data-reveal="right"]) #mode-edit .editor.ed {
+  --map-away: 1;
 }
 
 .frame {
   padding: var(--claim-gap) var(--frame-right) var(--claim-gap) var(--claim-gap);
 }
 
+/* While the claim holds, each glass part comes in as a pane of its own, rounded as the work is and
+   standing in from the window's edges by the frame's gap. The corner at the top left, as wide as the
+   strip and as tall as the bar, is the wordmark's: the bar comes in to its right, from the gap past it
+   to the gap at the right, with the toolbar under it; the strip comes in under it, from the gap below
+   it to the gap at the foot; and the status bar comes in along the foot, the gap on each side. */
 .bar {
-  margin-top: calc(-1 * var(--bar-height) * var(--claim) * (1 - var(--reveal-top)));
+  margin: calc(var(--claim) * (var(--reveal-top) * var(--frame-right) - (1 - var(--reveal-top)) * var(--bar-height)))
+    calc(var(--claim) * var(--frame-right)) 0 calc(var(--claim) * (44px + 2 * var(--frame-right)));
+  border-radius: calc(var(--claim) * 7px);
 }
 
 .toolbar {
-  margin-top: calc(-30px * var(--claim) * (1 - var(--reveal-top)));
+  margin: calc(-30px * var(--claim) * (1 - var(--reveal-top))) calc(var(--claim) * var(--frame-right)) 0
+    calc(var(--claim) * (44px + 2 * var(--frame-right)));
+  border-radius: 0 0 calc(var(--claim) * 7px) calc(var(--claim) * 7px);
 }
 
+.bar:has(~ .toolbar:not([hidden])) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* The strip stands below the wordmark's corner however far the bar has come in. */
 .strip {
+  margin-top: calc(var(--claim) * (1 - var(--reveal-top)) * (var(--bar-height) + var(--frame-right)));
   margin-left: calc((-44px - var(--frame-right)) * var(--claim) * (1 - var(--reveal-left)));
-  margin-right: var(--claim-gap);
+  margin-right: calc(var(--claim-gap) - var(--claim) * (var(--reveal-left) - var(--room-left)) * (44px + var(--frame-right)));
+  border-radius: calc(var(--claim) * 7px);
 }
 
 .statusbar {
-  margin-bottom: calc(-27px * var(--claim) * (1 - var(--reveal-bottom)));
+  margin: calc(-1 * var(--claim) * (var(--reveal-bottom) - var(--room-bottom)) * (27px + var(--frame-right))) calc(var(--claim) * var(--frame-right))
+    calc(var(--claim) * (var(--reveal-bottom) * var(--frame-right) - (1 - var(--reveal-bottom)) * 27px))
+    calc(var(--claim) * var(--frame-right));
+  border-radius: calc(var(--claim) * 7px);
 }
 
-/* With the bar away, the controls stand ready above the window's top right as a rounded tab, the
-   eye at their head: a ghost of them as the pointer nears their corner, and the whole tab down on a
-   rest there. With the bar back they stand in it as before. */
+/* The wordmark lives at the top left, where the bar lays it out, and while the claim holds in the
+   corner that is its own, the gap in from where it lives across and down. However the bar slides it
+   stays where it stands: it stands in the bar's row, its room there given up while the claim holds, so
+   nothing in the bar moves along it as the bar comes and goes, and is moved against the bar by as much
+   as the bar moves. It stands whole at the head of the bar or the strip while either is out, grown into
+   its corner as the work gives the corner up and shrunk from it as the work takes it back, so the two
+   never stand in one place; while both are away it is shrunk out toward the top left. */
+.bar-mark {
+  z-index: 61;
+  transform-origin: 0 0;
+  transform: translate(calc(-1 * var(--claim) * (44px + var(--frame-right))),
+      calc(var(--claim) * (1 - var(--reveal-top)) * (var(--bar-height) + var(--frame-right))))
+    scale(calc(1 - var(--claim) * (1 - var(--room-top) - var(--room-left))));
+}
+
+body[data-claim][data-reveal="top"] .bar-mark {
+  --room-top: 1;
+  transition: var(--claim-moves), --room-top var(--slide) ease var(--slide);
+}
+
+body[data-claim][data-reveal="left"] .bar-mark {
+  --room-left: 1;
+  transition: var(--claim-moves), --room-left var(--slide) ease var(--slide);
+}
+
+/* While the claim holds, the controls stay in the bar's row, so nothing in the bar moves along it as
+   they come and go. With the bar away they stand where they stand in it while it is in, its height and
+   the gap down from its place, as their tab, in a pane of glass of their own: part of the way and faint
+   as their ghost while the pointer nears their corner, and the whole way on a rest there. The bar comes
+   back in under them where they stand, and as it goes they go with it. */
 body[data-claim] .window-controls {
-  position: fixed;
-  top: 0;
-  right: var(--frame-right);
+  position: relative;
   z-index: 60;
-  padding: 3px 6px 5px 8px;
-  border-radius: 0 0 9px 9px;
+  transform: translateY(calc(var(--claim) * (var(--reveal-down) - var(--reveal-top)) * (var(--bar-height) + var(--frame-right))));
+  transition: var(--claim-moves), opacity var(--slide) ease;
+}
+
+body[data-claim] .window-controls::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 -8px;
+  z-index: -1;
+  border-radius: 7px;
   background-color: var(--glass-tint);
   background-image: var(--glass-grain);
   background-attachment: fixed;
   box-shadow: 0 6px 18px var(--lifted);
-  transform: translateY(-100%);
-  opacity: 0;
-  transition: transform var(--claim-slide) ease, opacity var(--claim-slide) ease;
+  opacity: calc(var(--reveal-down) - var(--reveal-top));
+  pointer-events: none;
+}
+
+body[data-claim][data-near] .window-controls,
+body[data-claim][data-near] .window-controls::before {
+  --reveal-down: 0.45;
 }
 
 body[data-claim][data-near] .window-controls {
-  transform: translateY(-55%);
   opacity: 0.35;
 }
 
-body[data-claim][data-reveal="controls"] .window-controls {
-  transform: none;
-  opacity: 1;
+body[data-claim][data-reveal="controls"] .window-controls,
+body[data-claim][data-reveal="controls"] .window-controls::before,
+body[data-claim][data-reveal="top"] .window-controls,
+body[data-claim][data-reveal="top"] .window-controls::before {
+  --reveal-down: 1;
 }
 
+body[data-claim][data-reveal="controls"] .window-controls,
 body[data-claim][data-reveal="top"] .window-controls {
-  position: static;
-  padding: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  transform: none;
   opacity: 1;
 }
 
-.window-controls .bar-mark {
-  left: 0;
-  top: 0;
-  margin-right: 0.3rem;
+/* A part that comes onto the work takes room the work gives up to it, as water takes room from oil:
+   bend.js sets the work's outline round each part on it and draws the work's line along that outline,
+   each stretch in the color and width of the edge it bends from. While it does, the line the work draws
+   on itself stands down. */
+.work[data-bent]::after {
+  border-color: transparent;
+}
+
+.work-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 40;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+}
+
+.work-line .top {
+  stroke: var(--bar-signal);
+  stroke-width: 2px;
+}
+
+.work-line .right,
+.work-line .foot {
+  stroke: color-mix(in srgb, var(--link), black 35%);
+}
+
+.work-line .right {
+  stroke-width: 2px;
+}
+
+.work-line .foot {
+  stroke-width: 1px;
+}
+
+.work-line .left {
+  stroke: var(--status-line);
+  stroke-width: 1px;
 }
 
 /* Less motion asked for, by the system or by View, Reduce Motion: every animation and transition of the
@@ -1364,9 +1589,18 @@ body[data-claim][data-reveal="top"] .window-controls {
   font: 12px var(--head);
 }
 
+/* The lock ends as far in from the work's right line as the file's icon at the bar's other end starts
+   from its left: the crumb's own padding past the bar's, and the frame's gap besides where the bar runs
+   to the window's edge, which it does not while the claim holds. */
 .statusbar .status-lock {
   display: grid;
   place-items: center;
+  margin-right: calc(var(--frame-right) * (1 - var(--claim)) + 4px);
+  transition: var(--claim-moves);
+}
+
+body[data-claim] .statusbar .status-lock {
+  --claim: 1;
 }
 
 .statusbar .status-lock .glyph {
@@ -2100,6 +2334,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .empty-body,
+.loading-body,
 .open-body {
   position: relative;
   text-align: center;
@@ -2107,6 +2342,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .empty-body h1,
+.loading-body h1,
 .open-body h1 {
   margin: 0;
   font: 700 clamp(3rem, 7vw, 5.5rem) / 1 var(--head);
@@ -2139,6 +2375,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
    middle: orior, the eye, tabula. The eye goes to the bar from where it stands; tabula fades in a
    moment after the name stands, and the words show only while it stands. */
 .empty-body .wordmark,
+.loading-body .wordmark,
 .open-body .wordmark {
   width: fit-content;
   margin-inline: auto;
@@ -2148,6 +2385,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .empty-body .wordmark .eye-mark,
+.loading-body .wordmark .eye-mark,
 .open-body .wordmark .eye-mark {
   width: 1.6em;
   height: 1.58em;
@@ -2155,13 +2393,42 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   vertical-align: baseline;
 }
 
+/* tabula is cut into the ground the name stands on, as writing was cut into a tablet: its cuts lie
+   below the ground, the upper wall of each in shade and its lower lip catching the light. orior stands
+   on the ground in ink above it. */
 .wordmark-under {
+  display: block;
+  color: oklch(from color-mix(in srgb, var(--deep) 80%, black) calc(l * 1.15) c h);
   opacity: 0;
   transition: opacity 500ms ease-in-out 300ms;
 }
 
+.wordmark-under .incised {
+  display: block;
+  height: 0.56em;
+  width: auto;
+  overflow: visible;
+}
+
+.wordmark-under .incised .cuts {
+  filter:
+    drop-shadow(0 1px 0 color-mix(in srgb, var(--open-fg) 36%, transparent))
+    drop-shadow(0 -1px 1px var(--lifted));
+}
+
+.incised .cut {
+  fill: currentColor;
+}
+
 .wordmark[data-standing] .wordmark-under {
   opacity: 1;
+}
+
+/* A large name is hidden until it stands, so no frame shows it before it does, and a heading the name is not
+   set in yet, as the page loads, shows nothing. */
+.wordmark:not(.bar-mark):not([data-standing]),
+[data-wordmark]:not(.wordmark) {
+  visibility: hidden;
 }
 
 /* The canvas the name pours up to the bar on, over the view it leaves. */
@@ -2206,12 +2473,13 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* The eye stands down and left of the place the bar's flow gives it, and the menu after it keeps
-   its own place. */
+   its own place; while the claim holds the eye stands in its corner, and its room in the bar, its
+   width and the gap after it, is given up. */
 .bar-mark {
   position: relative;
   left: -7px;
   top: 5.2px;
-  margin-right: -4.4px;
+  margin-right: calc(-4.4px - var(--claim) * (1.164em * 1.475 + 0.7rem));
 }
 
 .bar-mark .eye-mark path {
@@ -2233,7 +2501,6 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   z-index: 5;
   display: grid;
   place-items: center;
-  background: var(--deep);
   transition: opacity 0.35s ease;
 }
 
@@ -2241,33 +2508,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   opacity: 0;
 }
 
-/* The eye floats in the pane's bottom right corner, three tenths of an inch and five pixels in from
-   the right and a fifth above the status bar. Its drawing leaves 17% of the box to each side of the
-   lids and 22% under the plasma, which the box reaches past the corner by. */
-.loading .eye-box {
-  --eye-size: min(7.26rem, 11.88vw, 15.18vh);
-  position: absolute;
-  right: calc(0.3in + 5px - var(--eye-size) * 0.17);
-  bottom: calc(0.2in - var(--eye-size) * 0.22);
-  width: var(--eye-size);
-  aspect-ratio: 1;
-  opacity: 0.25;
-}
-
-.loading .eye-box canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
 .open {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  background: var(--deep);
   overflow: hidden;
 }
 
@@ -2863,12 +3108,41 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 .tabs {
+  --tabs-tall: 1.955rem;
   display: flex;
   overflow-x: auto;
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   flex: none;
-  min-height: 2.3rem;
+  min-height: var(--tabs-tall);
+}
+
+/* The row of tabs above the editor holds each tab at its own height however many it holds. While it
+   holds more than it shows, it grows down over the editor's top by its scrollbar's thickness, over the
+   slide, and the scrollbar stands in what it grew: the row keeps only the tabs' height in the desk, so
+   the editor never moves. Away in the claim, the row rises out of the desk's top whole, its band with
+   it, fading as it goes, and the editor rises into its room. */
+.desk[data-tabs="row"] > .tabs {
+  --tabs-band: 0px;
+  position: relative;
+  z-index: 2;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  min-height: calc(var(--tabs-tall) + var(--tabs-band));
+  margin-top: calc(-1 * var(--tabs-away) * (var(--tabs-tall) + var(--tabs-band)));
+  margin-bottom: calc(-1 * var(--tabs-band) * (1 - var(--tabs-away)));
+  opacity: calc(1 - var(--tabs-away));
+  transition: min-height var(--slide) ease, margin-bottom var(--slide) ease, --tabs-away var(--slide) ease;
+}
+
+.desk[data-tabs="row"] > .tabs[data-overflowing] {
+  --tabs-band: 10px;
+}
+
+.desk[data-tabs="row"] > .tabs > * {
+  flex: none;
+  align-self: flex-start;
+  height: calc(var(--tabs-tall) - 1px);
 }
 
 .tab {
@@ -3835,11 +4109,16 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 }
 
 /* The editor. Its rows, marks and carets sit in one scrolling space, the gutter and the minimap
- * either side of it, and the status line under all three. */
+ * either side of it, and the status line under all three. Away in the claim, the minimap's column
+ * closes and the map slides out past the editor's right edge, the text taking its room. */
 .ed {
   position: relative;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) 84px;
+  grid-template-columns: auto minmax(0, 1fr) calc(84px * (1 - var(--map-away)));
+  transition: --map-away var(--slide) ease;
+  /* where the minimap's corners stand from the editor's right edge, an inherited property its ::after
+     reads, as --map-away is registered not to inherit */
+  --map-corner: calc(84px * (1 - var(--map-away)) - 8px);
   grid-template-rows: minmax(0, 1fr) auto;
   background: var(--ed-bg);
   color: var(--ed-fg);
@@ -3930,17 +4209,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   bottom: -4px;
 }
 
-/* A bracket's pair colored by how deep it stands, in three colors by turns. */
-.ed-br-0 {
-  color: var(--ed-bracket-1);
-}
-
-.ed-br-1 {
-  color: var(--ed-bracket-2);
-}
-
-.ed-br-2 {
-  color: var(--ed-bracket-3);
+/* A bracket's pair colored by how deep it stands, each depth a color of its own: the first depth's hue
+ * turned by the golden angle once for each depth, which never comes back to a hue it gave, at the
+ * scheme's one lightness and chroma. */
+.ed-br {
+  color: oklch(var(--ed-bracket-lightness) var(--ed-bracket-chroma) calc(var(--ed-bracket-hue) + var(--depth) * 137.508));
 }
 
 /* Line History: the date and author of the commit that last changed a line, on the first line of each
@@ -4022,6 +4295,7 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 .ed-space {
   position: relative;
+  min-width: 100%;
   min-height: 100%;
 }
 
@@ -4376,7 +4650,8 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .t-keyword-directive-condition {
   color: var(--t-keyword);
 }
-.t-keyword-directive-define {
+.t-keyword-directive-define,
+.t-keyword-directive-undef {
   color: var(--t-function);
 }
 .t-keyword-directive-include {
@@ -4595,6 +4870,11 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 .ed-signature pre b {
   color: var(--t-type);
   text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ed-signature pre .ed-signature-differs {
+  text-decoration: underline wavy var(--ed-warning);
   text-underline-offset: 3px;
 }
 
@@ -6840,6 +7120,20 @@ body[data-solo] [data-solo-tool] > .dock-sash {
   box-shadow: inset 0 2px 0 var(--signal);
 }
 
+/* The explorer and the terminal share the editor's space: each says what it is in the negative space of
+   the window's ink at half, its head and its sections' heads on it, and holds its text on the editor's
+   own ground, so text reads on one ground whichever of them it stands in, the backdrop between them the
+   floor the eye expects. */
+.side.explorer,
+.term {
+  background: color-mix(in srgb, var(--ink) 50%, transparent);
+}
+
+.side.explorer .pane-body,
+.term-views {
+  background: color-mix(in srgb, var(--theme-ed-bg) var(--editor-opacity), transparent);
+}
+
 .term-view {
   flex: 1;
   min-width: 0;
@@ -8621,9 +8915,9 @@ textarea.report-field {
 }
 
 .code-peek-editor {
+  --map-away: 1;
   flex: 1;
   min-width: 0;
-  grid-template-columns: auto minmax(0, 1fr) 0;
 }
 
 .code-peek-editor .ed-mini {
@@ -8776,7 +9070,7 @@ textarea.report-field {
 }
 
 .gather-editor {
-  grid-template-columns: auto minmax(0, 1fr) 0;
+  --map-away: 1;
 }
 
 .gather-editor .ed-mini {
@@ -9089,7 +9383,7 @@ textarea.report-field {
   flex: 1;
   width: 100%;
   border: 0;
-  background: var(--paper);
+  background: transparent;
 }
 
 .plugin-badge {

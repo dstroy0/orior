@@ -98,14 +98,14 @@ static void pattern_impulses(long long *values, unsigned long long count, unsign
     }
 }
 
-static void pattern_print_share(ScripturaLine *line, const OriorExactInteger *numerator,
+static void pattern_print_share(VerbaLinea *line, const OriorExactInteger *numerator,
                                 const OriorExactInteger *denominator)
 {
     OriorExactInteger percent;
     if (sim_exact_scaled(numerator, 100ull, &percent) != 0)
     {
         sim_ratio_print(line, &percent, denominator, 4u);
-        scriptura_character(line, '%');
+        mmgr_line_ch(line, '%');
     }
 }
 
@@ -137,17 +137,17 @@ int main(void)
         free(work);
         return sim_close(&results, "fixed pattern");
     }
-    ScripturaLine *const line = &results.line;
+    VerbaLinea *const line = &results.line;
     pattern_moving_scene(work->scene, PATTERN_KEY);
     pattern_fixed(work->pattern, PATTERN_KEY);
     for (unsigned long long at = 0ull; at < PATTERN_LENGTH; at += 1ull)
     {
         work->stack[at] = work->scene[at] + work->pattern[at % PATTERN_FRAME];
     }
-    scriptura_text(line, "  fixed-pattern video noise removed to the bit (ART-4-005, ported)\n  declared inputs: "
+    mmgr_line_put(line, "  fixed-pattern video noise removed to the bit (ART-4-005, ported)\n  declared inputs: "
                          "frame=8x8 frames=48 swing=20 pattern=40 draws=8 key=0x");
-    scriptura_hex(line, PATTERN_KEY, 1u);
-    scriptura_text(line, "\n\n");
+    mmgr_line_hex(line, PATTERN_KEY, 1u);
+    mmgr_line_put(line, "\n\n");
 
     EnergyMeasurement live;
     int ok = energy_recover(&results, work->stack, PATTERN_LENGTH, PATTERN_FRAME, work->sums, &live);
@@ -162,20 +162,20 @@ int main(void)
         dead = ok && energy_ratio(work->shuffled, PATTERN_LENGTH, work->sums, live.period, &dead_numerator,
                                   &dead_denominator);
     }
-    scriptura_text(line, "  identify: detector period ");
-    scriptura_decimal(line, live.period, 1u);
-    scriptura_text(line, " (frame size 64)\n  identify: dispersion ratio live ");
+    mmgr_line_put(line, "  identify: detector period ");
+    mmgr_line_decimal(line, live.period, 1u);
+    mmgr_line_put(line, " (frame size 64)\n  identify: dispersion ratio live ");
     energy_print(line, &live);
-    scriptura_text(line, " against its own shuffle ");
+    mmgr_line_put(line, " against its own shuffle ");
     if (dead)
     {
         sim_ratio_print(line, &dead_numerator, &dead_denominator, 3u);
     }
     else
     {
-        scriptura_text(line, "none");
+        mmgr_line_put(line, "none");
     }
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
     sim_check(&results, ok && live.found && (live.period == PATTERN_FRAME), "the detector reads the frame period");
 
     ok = ok && (energy_recover(&results, work->stack, PATTERN_LENGTH, PATTERN_FRAME, work->sums, &live) != 0);
@@ -207,19 +207,19 @@ int main(void)
     OriorExactInteger share_denominator;
     ok = ok &&
          pattern_remove(&results, work, work->stack, work->scene, PATTERN_FRAME, &share_numerator, &share_denominator);
-    scriptura_text(line, "  reject: batch and incremental (Welford) routes agree on ");
-    scriptura_decimal(line, agree, 1u);
-    scriptura_text(line, " of 64 phases\n  reject: the broken route splits from both on ");
-    scriptura_decimal(line, broken_from_batch, 1u);
-    scriptura_text(line, " and ");
-    scriptura_decimal(line, broken_from_welford, 1u);
-    scriptura_text(line, " phases\n  reject: residual equals the moving scene on ");
-    scriptura_decimal(line, exact, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, PATTERN_LENGTH, 1u);
-    scriptura_text(line, " values\n  reject: noise reduction ");
+    mmgr_line_put(line, "  reject: batch and incremental (Welford) routes agree on ");
+    mmgr_line_decimal(line, agree, 1u);
+    mmgr_line_put(line, " of 64 phases\n  reject: the broken route splits from both on ");
+    mmgr_line_decimal(line, broken_from_batch, 1u);
+    mmgr_line_put(line, " and ");
+    mmgr_line_decimal(line, broken_from_welford, 1u);
+    mmgr_line_put(line, " phases\n  reject: residual equals the moving scene on ");
+    mmgr_line_decimal(line, exact, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, PATTERN_LENGTH, 1u);
+    mmgr_line_put(line, " values\n  reject: noise reduction ");
     pattern_print_share(line, &share_numerator, &share_denominator);
-    scriptura_text(line, "\n\n");
+    mmgr_line_put(line, "\n\n");
     sim_check(&results, agree == PATTERN_FRAME, "batch and incremental routes agree bit-exact");
     sim_check(&results, (broken_from_batch != 0ull) && (broken_from_welford != 0ull),
               "the broken route splits from both");
@@ -233,25 +233,25 @@ int main(void)
     OriorExactInteger wrong_denominator;
     ok = ok && pattern_remove(&results, work, work->stack, work->scene, PATTERN_FRAME - 1ull, &wrong_numerator,
                               &wrong_denominator);
-    scriptura_text(line, "  null: the shuffled stack reads period ");
-    scriptura_decimal(line, null_measurement.period, 1u);
-    scriptura_text(line, " at ");
+    mmgr_line_put(line, "  null: the shuffled stack reads period ");
+    mmgr_line_decimal(line, null_measurement.period, 1u);
+    mmgr_line_put(line, " at ");
     energy_print(line, &null_measurement);
-    scriptura_text(line, "\n  null: rejecting at the wrong period 63 reduces the noise by ");
+    mmgr_line_put(line, "\n  null: rejecting at the wrong period 63 reduces the noise by ");
     pattern_print_share(line, &wrong_numerator, &wrong_denominator);
-    scriptura_text(line, "\n\n");
+    mmgr_line_put(line, "\n\n");
     sim_flush(&results);
 
     EnergyMeasurement top;
     unsigned long long reached = 0ull;
     ok = ok && energy_band_top(&results, work->stack, PATTERN_LENGTH, PATTERN_FRAME, PATTERN_DRAWS,
                                PATTERN_KEY ^ 0x42414E44ull, work->shuffled, work->sums, &top, &reached);
-    scriptura_text(line, "  negative controls: the 100% is licensed by the band declining the wrong noise\n  null band "
+    mmgr_line_put(line, "  negative controls: the 100% is licensed by the band declining the wrong noise\n  null band "
                          "over 8 shuffles (");
-    scriptura_decimal(line, reached, 1u);
-    scriptura_text(line, " reached a period), top ");
+    mmgr_line_decimal(line, reached, 1u);
+    mmgr_line_put(line, " reached a period), top ");
     energy_print(line, &top);
-    scriptura_text(line, "\n  case                      live ratio   above band  outcome\n");
+    mmgr_line_put(line, "\n  case                      live ratio   above band  outcome\n");
     const char *const case_name[3] = {"matched pattern         ", "no pattern              ",
                                       "wrong kind (impulses)   "};
     for (unsigned int arm = 0u; ok && (arm < 3u); arm += 1u)
@@ -267,34 +267,35 @@ int main(void)
         EnergyMeasurement seen;
         ok = energy_recover(&results, work->arm, PATTERN_LENGTH, PATTERN_FRAME, work->sums, &seen);
         const int present = ok && energy_above(&seen, &top);
-        scriptura_text(line, "  ");
-        scriptura_text(line, case_name[arm]);
+        mmgr_line_put(line, "  ");
+        mmgr_line_put(line, case_name[arm]);
         energy_print(line, &seen);
-        scriptura_text(line, present ? "   yes         " : "   no          ");
+        mmgr_line_put(line, present ? "   yes         " : "   no          ");
         if (present)
         {
             OriorExactInteger got_numerator;
             OriorExactInteger got_denominator;
             ok = pattern_remove(&results, work, work->arm, work->scene, seen.period, &got_numerator, &got_denominator);
-            scriptura_text(line, "remove, reduction ");
+            mmgr_line_put(line, "remove, reduction ");
             pattern_print_share(line, &got_numerator, &got_denominator);
         }
         else if (arm == 1u)
         {
-            scriptura_text(line, "decline, returned untouched");
+            mmgr_line_put(line, "decline, returned untouched");
         }
         else
         {
-            scriptura_text(line, "decline, the noise left intact (nothing removed)");
+            mmgr_line_put(line, "decline, the noise left intact (nothing removed)");
         }
-        scriptura_character(line, '\n');
+        mmgr_line_ch(line, '\n');
         sim_check(&results, present == (arm == 0u), "only the matched pattern clears the band");
     }
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
     sim_flush(&results);
 
     const long long depth[PATTERN_DEPTHS] = {0ll, 5ll, 15ll, 30ll};
-    scriptura_text(line, "  floor: a static scene feature cannot be told from a fixed pattern\n  depth   reduction\n");
+    mmgr_line_put(
+        line, "  floor: a static scene feature cannot be distinguished from a fixed pattern\n  depth   reduction\n");
     int falling = 1;
     OriorExactInteger last_numerator;
     OriorExactInteger last_denominator;
@@ -309,12 +310,12 @@ int main(void)
         OriorExactInteger floor_denominator;
         ok = pattern_remove(&results, work, work->arm, work->target, PATTERN_FRAME, &floor_numerator,
                             &floor_denominator);
-        scriptura_text(line, "  ");
+        mmgr_line_put(line, "  ");
         // every depth is a small non-negative integer
-        scriptura_decimal_columns(line, (unsigned long long)depth[level], 5u);
-        scriptura_text(line, "   ");
+        mmgr_line_decimal_columns(line, (unsigned long long)depth[level], 5u);
+        mmgr_line_put(line, "   ");
         pattern_print_share(line, &floor_numerator, &floor_denominator);
-        scriptura_text(line, (level == 0u) ? "  full rejection\n" : "  a static feature, removed with the pattern\n");
+        mmgr_line_put(line, (level == 0u) ? "  full rejection\n" : "  a static feature, removed with the pattern\n");
         if (level > 0u)
         {
             int order = 0;

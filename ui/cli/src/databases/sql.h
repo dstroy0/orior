@@ -63,10 +63,10 @@ typedef struct
 // for an index or a trigger, the table it is on where `has_on` is 1
 typedef struct
 {
-    char verb[CLI_NAME_LONGEST];
-    char kind[CLI_NAME_LONGEST];
-    char name[CLI_PATH_LONGEST];
-    char on[CLI_PATH_LONGEST];
+    char verb[CLI_NAME_MAX_LEN];
+    char kind[CLI_NAME_MAX_LEN];
+    char name[CLI_PATH_MAX_LEN];
+    char on[CLI_PATH_MAX_LEN];
     int has_on;
 } CliShaped;
 
@@ -84,13 +84,13 @@ void cli_sql_statements(const char *text, unsigned long long length, unsigned in
 // or in a comment of its own
 int cli_sql_statement_at(const char *text, unsigned long long length, unsigned long long at, unsigned int dialect,
                          CliSqlSpan *span);
-// what a statement does (sql_does.c); whether running it changes anything the database holds; the query that counts
+// what a statement does (sql_does.c); whether running it changes anything the database stores; the query that counts
 // the rows it reaches into `out` where it is an UPDATE or a DELETE with no WHERE at its own level, or a TRUNCATE: 1,
 // or 0 where it is none; and the object a statement that shapes one makes, changes or drops: 1, or 0 where it shapes
 // none
 unsigned int cli_sql_does(const char *statement, unsigned long long length, unsigned int dialect);
 int cli_sql_changes(const char *statement, unsigned long long length, unsigned int dialect);
-int cli_sql_unbounded(const char *statement, unsigned long long length, unsigned int dialect, CliLine *out);
+int cli_sql_unbounded(const char *statement, unsigned long long length, unsigned int dialect, VerbaLinea *out);
 int cli_sql_shaped(const char *statement, unsigned long long length, unsigned int dialect, CliShaped *shaped);
 
 #endif

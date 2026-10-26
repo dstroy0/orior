@@ -1,23 +1,23 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// debug_start.c: what a session is started with, as its start says: its language, the adapter that debugs it, the
+// debug_start.c: what a session is started with, as its start specifies: its language, the adapter that debugs it, the
 // program built where its language is built, and the request, launch or attach, with its arguments, its name and the
 // session that started it
 #include "debug_start.h"
 #include "../tests/cargo_tests.h"
 #include "../tests/test_runs.h"
 
-// a string member `name` of the object `object` of `json` into `out`, which holds `room`: 1, or 0 with the member said
+// a string member `name` of the object `object` of `json` into `out`, sized for `room`: 1, or 0 with the member named
 // missing where it is not a string
 static int start_field(const CliJson *json, unsigned int object, const char *name, char *out, unsigned long long room,
-                       CliLine *said)
+                       VerbaLinea *err_msg)
 {
     const char *const text = cli_json_string(json, cli_json_member(json, object, name), NULL);
     if (text == NULL)
     {
-        cli_line_text(said, "missing field `");
-        cli_line_text(said, name);
-        cli_line_character(said, '`');
+        mmgr_line_put(err_msg, "missing field `");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_ch(err_msg, '`');
         return 0;
     }
     memor.cpy(&(MemoriaCfg){
@@ -47,25 +47,25 @@ static int start_parent_language(unsigned long long parent, char *language)
 }
 
 // the language, the adapter, and for a C file of a CMake or Meson build orior_cli configured the program that build
-// makes from it, read into `plan`: 1, or 0 with why said
+// makes from it, read into `plan`: 1, or 0 with why given
 static int start_adapter(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                         CliDebugPlan *plan, CliLine *said)
+                         CliDebugPlan *plan, VerbaLinea *err_msg)
 {
     CliJson *const to = &place->start;
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned long long parent = 0ull;
     plan->has_made = 0;
     if ((cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "process", .cap = CLI_CELLS_POOL})))
     {
-        if (!start_field(json, start, "language", plan->language, sizeof(plan->language), said))
+        if (!start_field(json, start, "language", plan->language, sizeof(plan->language), err_msg))
         {
             return 0;
         }
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
     {
-        if (!start_field(json, start, "id", plan->id, sizeof(plan->id), said))
+        if (!start_field(json, start, "id", plan->id, sizeof(plan->id), err_msg))
         {
             return 0;
         }
@@ -80,12 +80,12 @@ static int start_adapter(CliDebugSession *place, const char *root, const CliJson
     {
         if (!cli_debug_unsigned(json, cli_json_member(json, start, "parent"), &parent))
         {
-            cli_line_text(said, "missing field `parent`");
+            mmgr_line_put(err_msg, "missing field `parent`");
             return 0;
         }
         if (!start_parent_language(parent, plan->language))
         {
-            cli_line_text(said, "that session has ended");
+            mmgr_line_put(err_msg, "that session has ended");
             return 0;
         }
     }
@@ -98,17 +98,17 @@ static int start_adapter(CliDebugSession *place, const char *root, const CliJson
     }
     else
     {
-        cli_line_text(said, "unknown variant `");
-        cli_line_text(said, plan->kind);
-        cli_line_text(said, "`, expected one of `file`, `test`, `process`, `address`, `child`, `record`");
+        mmgr_line_put(err_msg, "unknown variant `");
+        mmgr_line_put(err_msg, plan->kind);
+        mmgr_line_put(err_msg, "`, expected one of `file`, `test`, `process`, `address`, `child`, `record`");
         return 0;
     }
     plan->recording = (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "record", .cap = CLI_CELLS_POOL}));
     if ((cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "file", .cap = CLI_CELLS_POOL})) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = plan->language, .other = "c", .cap = CLI_CELLS_POOL})))
     {
-        char full[CLI_PATH_LONGEST];
-        if (!start_field(json, start, "path", path, sizeof(path), said))
+        char full[CLI_PATH_MAX_LEN];
+        if (!start_field(json, start, "path", path, sizeof(path), err_msg))
         {
             return 0;
         }
@@ -132,32 +132,32 @@ static int start_adapter(CliDebugSession *place, const char *root, const CliJson
         !plan->has_made                                                                                      ? ""
         : (cellul.eq(&(CatenaFinitaCfg){.src = plan->made.compiler, .other = "GNU", .cap = CLI_CELLS_POOL})) ? "gcc"
                                                                                                              : "llvm";
-    return cli_debug_adapter(plan->language, ahead, to, &plan->spec, plan->tool, plan->tool_id, plan->program, said);
+    return cli_debug_adapter(plan->language, ahead, to, &plan->spec, plan->tool, plan->tool_id, plan->program, err_msg);
 }
 
 // the launch of a file: the program built where its language is built, the file itself where it runs from its source
 static int start_file(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                      CliDebugPlan *plan, CliLine *said)
+                      CliDebugPlan *plan, VerbaLinea *err_msg)
 {
     CliJson *const to = &place->start;
-    char path[CLI_PATH_LONGEST];
-    char file[CLI_PATH_LONGEST];
-    char program[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
+    char program[CLI_PATH_MAX_LEN];
     int built = 0;
-    if (!start_field(json, start, "path", path, sizeof(path), said))
+    if (!start_field(json, start, "path", path, sizeof(path), err_msg))
     {
         return 0;
     }
     cli_full(root, path, file);
     if (plan->has_made)
     {
-        built = cli_debug_build_program(&plan->made, program, said);
+        built = cli_debug_build_program(&plan->made, program, err_msg);
         if (!built)
         {
             return 0;
         }
     }
-    else if (!cli_debug_build(root, file, plan->language, plan->tool_id, program, &built, said))
+    else if (!cli_debug_build(root, file, plan->language, plan->tool_id, program, &built, err_msg))
     {
         return 0;
     }
@@ -173,7 +173,7 @@ static int start_file(CliDebugSession *place, const char *root, const CliJson *j
 
 // the launch of one test: a Rust test's program, built as cargo test builds it, run for that test alone, or pytest
 // run on a Python test, in place of a program
-static int start_test(CliDebugSession *place, const char *root, CliDebugPlan *plan, CliLine *said)
+static int start_test(CliDebugSession *place, const char *root, CliDebugPlan *plan, VerbaLinea *err_msg)
 {
     CliJson *const to = &place->start;
     const unsigned int launch = cli_json_member(to, plan->spec, "launch");
@@ -183,10 +183,10 @@ static int start_test(CliDebugSession *place, const char *root, CliDebugPlan *pl
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = plan->id, .cap = CLI_CELLS_POOL}) + 1u});
     if (cli_cargo_is_rust(plan->id))
     {
-        char program[CLI_PATH_LONGEST];
-        char full[CLI_PATH_LONGEST];
-        char folder[CLI_PATH_LONGEST];
-        if (!cli_cargo_binary(root, plan->id, program, full, folder, said))
+        char program[CLI_PATH_MAX_LEN];
+        char full[CLI_PATH_MAX_LEN];
+        char folder[CLI_PATH_MAX_LEN];
+        if (!cli_cargo_binary(root, plan->id, program, full, folder, err_msg))
         {
             return 0;
         }
@@ -217,7 +217,7 @@ static int start_test(CliDebugSession *place, const char *root, CliDebugPlan *pl
     plan->arguments = cli_debug_filled(to, to, launch, names, withs, 3u, 0);
     if (cli_json_is(to, plan->arguments, CFG_JSON_OBJECT))
     {
-        char python[CLI_PATH_LONGEST];
+        char python[CLI_PATH_MAX_LEN];
         const char *const words[4] = {plan->id, "-p", "no:cacheprovider", "-q"};
         const unsigned int args = cli_json_made(to, CFG_JSON_ARRAY);
         for (unsigned int at = 0u; at < 4u; at += 1u)
@@ -242,22 +242,22 @@ static int start_test(CliDebugSession *place, const char *root, CliDebugPlan *pl
 
 // the attach to a process by its number, its native code where a session started it
 static int start_process(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                         CliDebugPlan *plan, CliLine *said)
+                         CliDebugPlan *plan, VerbaLinea *err_msg)
 {
     CliJson *const to = &place->start;
     unsigned long long pid = 0ull;
     if (!cli_debug_unsigned(json, cli_json_member(json, start, "pid"), &pid) || (pid > 0xffffffffull))
     {
-        cli_line_text(said, "missing field `pid`");
+        mmgr_line_put(err_msg, "missing field `pid`");
         return 0;
     }
     plan->has_parent = cli_debug_unsigned(json, cli_json_member(json, start, "parent"), &plan->parent);
     plan->has_pid = 1;
     plan->pid = (unsigned int)pid;
     char number[32];
-    CliLine pid_line = {number, sizeof(number), 0ull};
-    cli_line_decimal(&pid_line, pid, 1u);
-    cli_line_closed(&pid_line);
+    VerbaLinea pid_line = {number, sizeof(number), 0ull};
+    mmgr_line_decimal(&pid_line, pid, 1u);
+    mmgr_line_finish(&pid_line);
     unsigned int template = cli_json_member(to, plan->spec, "attach");
     if (template == CLI_JSON_NONE)
     {
@@ -268,16 +268,16 @@ static int start_process(CliDebugSession *place, const char *root, const CliJson
     const char *const withs[2] = {number, root};
     plan->request = "attach";
     plan->arguments = cli_debug_filled(to, to, template, names, withs, 2u, 1);
-    CliLine name = {plan->name, sizeof(plan->name), 0ull};
-    cli_line_text(&name, plan->has_parent ? "the native code of process " : "process ");
-    cli_line_text(&name, number);
-    cli_line_closed(&name);
+    VerbaLinea name = {plan->name, sizeof(plan->name), 0ull};
+    mmgr_line_put(&name, plan->has_parent ? "the native code of process " : "process ");
+    mmgr_line_put(&name, number);
+    mmgr_line_finish(&name);
     return 1;
 }
 
 // the attach to a debugger listening at an address, and to the child a session's program started
 static int start_reached(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                         CliDebugPlan *plan, CliLine *said)
+                         CliDebugPlan *plan, VerbaLinea *err_msg)
 {
     CliJson *const to = &place->start;
     plan->request = "attach";
@@ -290,25 +290,25 @@ static int start_reached(CliDebugSession *place, const char *root, const CliJson
             (config != CLI_JSON_NONE) ? cli_json_copy_from(to, json, config) : cli_json_made(to, CFG_JSON_NULL);
         const char *const named = cli_json_string(json, cli_json_member(json, config, "name"), NULL);
         unsigned long long sub = 0ull;
-        CliLine name = {plan->name, sizeof(plan->name), 0ull};
+        VerbaLinea name = {plan->name, sizeof(plan->name), 0ull};
         if (named != NULL)
         {
-            cli_line_text(&name, named);
+            mmgr_line_put(&name, named);
         }
         else if (cli_debug_unsigned(json, cli_json_member(json, config, "subProcessId"), &sub))
         {
-            cli_line_text(&name, "process ");
-            cli_line_decimal(&name, sub, 1u);
+            mmgr_line_put(&name, "process ");
+            mmgr_line_decimal(&name, sub, 1u);
         }
         else
         {
-            cli_line_text(&name, "child");
+            mmgr_line_put(&name, "child");
         }
-        cli_line_closed(&name);
+        mmgr_line_finish(&name);
         const unsigned int connect = cli_json_member(json, config, "connect");
         unsigned long long port = 0ull;
         plan->listening = cli_debug_unsigned(json, cli_json_member(json, connect, "port"), &port);
-        // a port keeps its low 16 bits, as the protocol's ports are
+        // a port retains its low 16 bits, as the protocol's ports are
         plan->port = (unsigned int)(port & 0xffffull);
         memor.cpy(
             &(MemoriaCfg){.dst = plan->host,
@@ -321,13 +321,13 @@ static int start_reached(CliDebugSession *place, const char *root, const CliJson
         return 1;
     }
     unsigned long long port = 0ull;
-    if (!start_field(json, start, "host", plan->host, sizeof(plan->host), said))
+    if (!start_field(json, start, "host", plan->host, sizeof(plan->host), err_msg))
     {
         return 0;
     }
     if (!cli_debug_unsigned(json, cli_json_member(json, start, "port"), &port) || (port > 0xffffull))
     {
-        cli_line_text(said, "missing field `port`");
+        mmgr_line_put(err_msg, "missing field `port`");
         return 0;
     }
     plan->port = (unsigned int)port;
@@ -339,9 +339,9 @@ static int start_reached(CliDebugSession *place, const char *root, const CliJson
         to, connect, "host",
         cli_json_string_made(to, plan->host, cellul.len(&(CatenaFinitaCfg){.src = plan->host, .cap = CLI_CELLS_POOL})));
     char number[32];
-    CliLine port_line = {number, sizeof(number), 0ull};
-    cli_line_decimal(&port_line, port, 1u);
-    cli_line_closed(&port_line);
+    VerbaLinea port_line = {number, sizeof(number), 0ull};
+    mmgr_line_decimal(&port_line, port, 1u);
+    mmgr_line_finish(&port_line);
     cli_json_set(to, connect, "port", cli_json_number_made(to, number));
     cli_json_set(to, plan->arguments, "connect", connect);
     const char *const remote = cli_json_string(json, cli_json_member(json, start, "remote"), NULL);
@@ -358,51 +358,51 @@ static int start_reached(CliDebugSession *place, const char *root, const CliJson
         cli_json_append(to, mappings, mapping);
         cli_json_set(to, plan->arguments, "pathMappings", mappings);
     }
-    CliLine name = {plan->name, sizeof(plan->name), 0ull};
-    cli_line_text(&name, plan->host);
-    cli_line_character(&name, ':');
-    cli_line_text(&name, number);
-    cli_line_closed(&name);
+    VerbaLinea name = {plan->name, sizeof(plan->name), 0ull};
+    mmgr_line_put(&name, plan->host);
+    mmgr_line_ch(&name, ':');
+    mmgr_line_put(&name, number);
+    mmgr_line_finish(&name);
     return 1;
 }
 
 int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                      unsigned int options, CliDebugPlan *plan, CliLine *said)
+                      unsigned int options, CliDebugPlan *plan, VerbaLinea *err_msg)
 {
     CliJson *const to = &place->start;
-    // the spec and the arguments the session starts with, made in a tree of the most they take, its cell held by the
+    // the spec and the arguments the session starts with, made in a tree of the most they take, its cell owned by the
     // place until it is freed
     cli_json_given(to);
-    if (!cli_json_held(to, CLI_DEBUG_START_NODES, CLI_DEBUG_START_TEXT, "the tree a debug session starts with"))
+    if (!cli_json_reserved(to, CLI_DEBUG_START_NODES, CLI_DEBUG_START_TEXT, "the tree a debug session starts with"))
     {
-        cli_line_text(said, "the cells cannot meet the tree a debug session starts with");
+        mmgr_line_put(err_msg, "the cells cannot meet the tree a debug session starts with");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = plan, .val = 0, .bytes = sizeof(*plan)});
-    if (!start_field(json, start, "kind", plan->kind, sizeof(plan->kind), said) ||
-        !start_adapter(place, root, json, start, plan, said))
+    if (!start_field(json, start, "kind", plan->kind, sizeof(plan->kind), err_msg) ||
+        !start_adapter(place, root, json, start, plan, err_msg))
     {
         return 0;
     }
     int made = 0;
     if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "file", .cap = CLI_CELLS_POOL}))
     {
-        made = start_file(place, root, json, start, plan, said);
+        made = start_file(place, root, json, start, plan, err_msg);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "test", .cap = CLI_CELLS_POOL}))
     {
-        made = start_test(place, root, plan, said);
+        made = start_test(place, root, plan, err_msg);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = plan->kind, .other = "process", .cap = CLI_CELLS_POOL}))
     {
-        made = start_process(place, root, json, start, plan, said);
+        made = start_process(place, root, json, start, plan, err_msg);
     }
     else if (plan->recording)
     {
-        char path[CLI_PATH_LONGEST];
-        char full[CLI_PATH_LONGEST];
-        char python[CLI_PATH_LONGEST];
-        made = start_field(json, start, "path", path, sizeof(path), said);
+        char path[CLI_PATH_MAX_LEN];
+        char full[CLI_PATH_MAX_LEN];
+        char python[CLI_PATH_MAX_LEN];
+        made = start_field(json, start, "path", path, sizeof(path), err_msg);
         cli_full(root, path, full);
         python[0] = '\0';
         (void)cli_test_python(python);
@@ -420,7 +420,7 @@ int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *j
     }
     else
     {
-        made = start_reached(place, root, json, start, plan, said);
+        made = start_reached(place, root, json, start, plan, err_msg);
     }
     if (!made)
     {
@@ -447,7 +447,7 @@ int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *j
     }
     if (to->full)
     {
-        cli_line_text(said, "the session's start does not fit the room it is made in");
+        mmgr_line_put(err_msg, "the session's start does not fit the room it is made in");
         return 0;
     }
     return 1;

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // rank_machine.cu: the record machine as the ranker reaches it: a built program loaded, a sweep of it run on the
-// device over records the host holds, and a record's fields read and written as exact integers
+// device over records the host stores, and a record's fields read and written as exact integers
 #include "rank_internal.h"
 
 #include <cuda_runtime.h>
@@ -27,8 +27,8 @@ int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram 
                                          program->table_count, &machine->key, &error};
     if ((program->failed != 0) || (keymath_record_encode(&encode) == KEYMATH_ERROR))
     {
-        scriptura_text(&results->line, "  program ");
-        scriptura_text(&results->line, name);
+        mmgr_line_put(&results->line, "  program ");
+        mmgr_line_put(&results->line, name);
         rank_error_line(results, "did not imprint", &error);
         return 0;
     }
@@ -37,8 +37,8 @@ int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram 
     if (key_schedule_record_layout(&layout) == KEY_SCHEDULE_ERROR)
     {
         keymath_record_release(&machine->key);
-        scriptura_text(&results->line, "  program ");
-        scriptura_text(&results->line, name);
+        mmgr_line_put(&results->line, "  program ");
+        mmgr_line_put(&results->line, name);
         rank_error_line(results, "did not lay out", &error);
         return 0;
     }
@@ -46,18 +46,18 @@ int rank_machine_load(SimResults *results, const char *name, ExactRecordProgram 
     {
         key_schedule_record_release(&machine->layout);
         keymath_record_release(&machine->key);
-        scriptura_text(&results->line, "  program ");
-        scriptura_text(&results->line, name);
+        mmgr_line_put(&results->line, "  program ");
+        mmgr_line_put(&results->line, name);
         rank_error_line(results, "did not load", &error);
         return 0;
     }
     machine->loaded = 1;
-    scriptura_text(&results->line, "  program ");
-    scriptura_text(&results->line, name);
+    mmgr_line_put(&results->line, "  program ");
+    mmgr_line_put(&results->line, name);
     rank_line_decimal(results, ": ", program->count);
     rank_line_decimal(results, " steps, record ", (unsigned long long)machine->layout.out_bits);
     rank_line_decimal(results, " bits, ", (unsigned long long)machine->layout.out_limbs);
-    scriptura_text(&results->line, " limbs");
+    mmgr_line_put(&results->line, " limbs");
     rank_line_end(results);
     return 1;
 }
@@ -106,9 +106,9 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
     {
         return 1;
     }
-    // a piece of lanes at a time, as many as hold RANK_SWEEP_BYTES on the device and at least one. Of each member, the
-    // records from the least a piece's lanes read to the most go to the device, once for every member that names the
-    // same records, and the piece's index counts from that least. With no index lane i reads record i: a piece is
+    // a piece of lanes at a time, as many as fit in RANK_SWEEP_BYTES on the device and at least one. Of each member,
+    // the records from the least a piece's lanes read to the most go to the device, once for every member that names
+    // the same records, and the piece's index counts from that least. With no index lane i reads record i: a piece is
     // the lanes one lane's bytes fill; through an index every record goes at once where every lane fits beside them,
     // and otherwise each lane's records are read to find where a piece ends
     const unsigned int count = machine->members;
@@ -175,9 +175,9 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
             for (unsigned int member = 0u; member < count; member += 1u)
             {
                 const unsigned long long record = index[((start + piece) * count) + member];
-                const unsigned int held = same[member];
-                low[held] = (record < low[held]) ? record : low[held];
-                high[held] = (record > high[held]) ? record : high[held];
+                const unsigned int same_member = same[member];
+                low[same_member] = (record < low[same_member]) ? record : low[same_member];
+                high[same_member] = (record > high[same_member]) ? record : high[same_member];
             }
             unsigned long long bytes = (piece + 1ull) * lane_bytes;
             for (unsigned int member = 0u; member < count; member += 1u)
@@ -198,16 +198,16 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
         unsigned long long piece_bodies[ENGINE_RECORD_MEMBERS_MAX] = {0ull, 0ull, 0ull};
         for (unsigned int member = 0u; ok && (member < count); member += 1u)
         {
-            const unsigned int held = same[member];
-            piece_bodies[member] = most[held] - least[held] + 1ull;
-            if (held == member)
+            const unsigned int same_member = same[member];
+            piece_bodies[member] = most[same_member] - least[same_member] + 1ull;
+            if (same_member == member)
             {
                 const size_t bytes = (size_t)(piece_bodies[member] * machine->limbs[member]) * sizeof(unsigned int);
                 ok = rank_device_room((void **)&device_in[member], &in_room[member], bytes + 4u) &&
                      (cudaMemcpy(device_in[member], members[member] + (least[member] * machine->limbs[member]), bytes,
                                  cudaMemcpyHostToDevice) == cudaSuccess);
             }
-            run_in[member] = device_in[held];
+            run_in[member] = device_in[same_member];
         }
         if (ok && whole)
         {
@@ -244,8 +244,8 @@ int rank_sweep(SimResults *results, const char *name, const RankMachine *machine
             ok = cycle_record_run(&run) != CYCLE_ERROR;
             if (!ok)
             {
-                scriptura_text(&results->line, "  sweep ");
-                scriptura_text(&results->line, name);
+                mmgr_line_put(&results->line, "  sweep ");
+                mmgr_line_put(&results->line, name);
                 rank_error_line(results, "errored", &error);
             }
         }
@@ -308,7 +308,7 @@ int rank_field_sign(const unsigned int *record, RankField field)
     {
         return -1;
     }
-    // the bits below the top, a limb at a time, each limb masked to the part of it the field holds
+    // the bits below the top, a limb at a time, each limb masked to the part of it the field occupies
     for (unsigned int at = field.offset; at < top;)
     {
         const unsigned int low = at % 32u;

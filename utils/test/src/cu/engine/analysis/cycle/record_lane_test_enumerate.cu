@@ -43,19 +43,19 @@ static void lane_enumerate(LaneResults *results)
              (cudaMalloc((void **)&device_shared, LANE_TEST_SHARED_LIMBS * sizeof(unsigned int)) == cudaSuccess) &&
              (cudaMalloc((void **)&device_interpreted, words * sizeof(unsigned int)) == cudaSuccess) &&
              (cudaMalloc((void **)&device_compiled, words * sizeof(unsigned int)) == cudaSuccess);
-    lane_check(results, ok, "the search's records are held on the host and the device");
+    lane_check(results, ok, "the search's records are allocated on the host and the device");
     int ran_all = ok;
     int words_all = ok;
     unsigned long long lanes_right = 0ull;
     unsigned long long lanes_read = 0ull;
     int latched_all = ok;
-    scriptura_text(&results->line, "  enumerate: x = base + l over ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes of one shared record, base 0x");
-    scriptura_hex(&results->line, LANE_TEST_BASE, 1u);
-    scriptura_text(&results->line, "; the compiled program ran ");
-    scriptura_text(&results->line, (kernel != 0) ? "as its own kernel" : "on the interpreter");
-    scriptura_text(&results->line, "\n  latch, first lane with hash < T:\n");
+    mmgr_line_put(&results->line, "  enumerate: x = base + l over ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes of one shared record, base 0x");
+    mmgr_line_hex(&results->line, LANE_TEST_BASE, 1u);
+    mmgr_line_put(&results->line, "; the compiled program ran ");
+    mmgr_line_put(&results->line, (kernel != 0) ? "as its own kernel" : "on the interpreter");
+    mmgr_line_put(&results->line, "\n  latch, first lane with hash < T:\n");
     for (unsigned int pick = 0u; ok && (pick < LANE_TEST_THRESHOLDS); pick += 1u)
     {
         const unsigned long long threshold = s_lane_thresholds[pick];
@@ -107,24 +107,24 @@ static void lane_enumerate(LaneResults *results)
         const unsigned long long native_first = lane_native_first(LANE_TEST_BASE, threshold, lanes);
         latched_all = latched_all && latched && (interpreted_first == native_first) &&
                       (compiled_first == native_first) && (host_first == native_first);
-        scriptura_text(&results->line, "    T = ");
-        scriptura_decimal(&results->line, threshold, 1u);
-        scriptura_text(&results->line, ": device ");
+        mmgr_line_put(&results->line, "    T = ");
+        mmgr_line_decimal(&results->line, threshold, 1u);
+        mmgr_line_put(&results->line, ": device ");
         lane_print(results, compiled_first);
-        scriptura_text(&results->line, ", interpreter ");
+        mmgr_line_put(&results->line, ", interpreter ");
         lane_print(results, interpreted_first);
-        scriptura_text(&results->line, ", host scan ");
+        mmgr_line_put(&results->line, ", host scan ");
         lane_print(results, host_first);
-        scriptura_text(&results->line, ", host arithmetic ");
+        mmgr_line_put(&results->line, ", host arithmetic ");
         lane_print(results, native_first);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_ch(&results->line, '\n');
     }
-    scriptura_text(&results->line, "  ");
-    scriptura_decimal(&results->line, lanes_right, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes_read, 1u);
-    scriptura_text(&results->line, " lane-thresholds read l, base + l, the hash and the hit the host reckons\n");
-    lane_check(results, interpreter, "CYCLE_RECORD_INTERPRET=1 keeps the interpreted load on the interpreter");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_decimal(&results->line, lanes_right, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes_read, 1u);
+    mmgr_line_put(&results->line, " lane-thresholds read l, base + l, the hash and the hit the host reckons\n");
+    lane_check(results, interpreter, "CYCLE_RECORD_INTERPRET=1 retains the interpreted load on the interpreter");
     lane_check(results, kernel, "the search program compiles to its own kernel (NVRTC and nvJitLink found)");
     lane_check(results, ran_all, "every run of the search, host and device, runs every lane of one shared record");
     lane_check(results, words_all, "the host, the interpreter and the compiled program agree word for word");
@@ -169,21 +169,21 @@ static void lane_scale(LaneResults *results)
                     lane_sweep(&loaded, device_shared, lanes, device_out) &&
                     lane_latch_device(&loaded, hit_step, device_out, lanes, &first, &loaded.error);
     const unsigned long long native_first = lane_native_first(LANE_TEST_SCALE_BASE, LANE_TEST_SCALE_THRESHOLD, lanes);
-    scriptura_text(&results->line, "  scale: ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes, base 0x");
-    scriptura_hex(&results->line, LANE_TEST_SCALE_BASE, 1u);
-    scriptura_text(&results->line, ", T = ");
-    scriptura_decimal(&results->line, LANE_TEST_SCALE_THRESHOLD, 1u);
-    scriptura_text(&results->line, ", ");
-    scriptura_decimal(&results->line, loaded.layout.out_limbs, 1u);
-    scriptura_text(&results->line, " limb a record ");
-    scriptura_text(&results->line, (cycle_record_compiled(loaded.record) != 0) ? "compiled" : "interpreted");
-    scriptura_text(&results->line, ": the device latches ");
+    mmgr_line_put(&results->line, "  scale: ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes, base 0x");
+    mmgr_line_hex(&results->line, LANE_TEST_SCALE_BASE, 1u);
+    mmgr_line_put(&results->line, ", T = ");
+    mmgr_line_decimal(&results->line, LANE_TEST_SCALE_THRESHOLD, 1u);
+    mmgr_line_put(&results->line, ", ");
+    mmgr_line_decimal(&results->line, loaded.layout.out_limbs, 1u);
+    mmgr_line_put(&results->line, " limb a record ");
+    mmgr_line_put(&results->line, (cycle_record_compiled(loaded.record) != 0) ? "compiled" : "interpreted");
+    mmgr_line_put(&results->line, ": the device latches ");
     lane_print(results, first);
-    scriptura_text(&results->line, ", the host's arithmetic finds ");
+    mmgr_line_put(&results->line, ", the host's arithmetic finds ");
     lane_print(results, native_first);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     lane_check(results, ran, "the scale search runs and latches on the device");
     lane_check(results, ran && (first == native_first), "over 2^24 lanes the device's latch is the host's first lane");
     cudaFree(device_shared);
@@ -201,7 +201,7 @@ static void lane_edges(LaneResults *results)
     unsigned int *device_records = NULL;
     const int passed =
         (records != NULL) && (cudaMalloc((void **)&device_records, words * sizeof(unsigned int)) == cudaSuccess);
-    lane_check(results, passed, "the edge records are held");
+    lane_check(results, passed, "the edge records are allocated");
     // each case: its field, and the lanes it sets in that field
     const unsigned int offsets[6] = {30u, 30u, 30u, 30u, 30u, 32u};
     const unsigned int widths[6] = {5u, 5u, 5u, 5u, 5u, 32u};
@@ -214,9 +214,9 @@ static void lane_edges(LaneResults *results)
     unsigned int matched = 0u;
     EngineError error;
     memset(&error, 0, sizeof(error));
-    scriptura_text(&results->line, "  latch edges over ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " records of two limbs:\n");
+    mmgr_line_put(&results->line, "  latch edges over ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " records of two limbs:\n");
     for (unsigned int edge = 0u; passed && (edge < 6u); edge += 1u)
     {
         const unsigned int offset = offsets[edge];
@@ -278,19 +278,19 @@ static void lane_edges(LaneResults *results)
                         (cycle_record_latch_host(&host_latch) != CYCLE_ERROR);
         const int right = ran && (device_first == expected) && (host_first == expected);
         matched += (right != 0) ? 1u : 0u;
-        scriptura_text(&results->line, "    ");
-        scriptura_text(&results->line, names[edge]);
-        scriptura_text(&results->line, ", field at bit ");
-        scriptura_decimal(&results->line, offset, 1u);
-        scriptura_text(&results->line, ", ");
-        scriptura_decimal(&results->line, bits, 1u);
-        scriptura_text(&results->line, " bits: device ");
+        mmgr_line_put(&results->line, "    ");
+        mmgr_line_put(&results->line, names[edge]);
+        mmgr_line_put(&results->line, ", field at bit ");
+        mmgr_line_decimal(&results->line, offset, 1u);
+        mmgr_line_put(&results->line, ", ");
+        mmgr_line_decimal(&results->line, bits, 1u);
+        mmgr_line_put(&results->line, " bits: device ");
         lane_print(results, device_first);
-        scriptura_text(&results->line, ", host ");
+        mmgr_line_put(&results->line, ", host ");
         lane_print(results, host_first);
-        scriptura_text(&results->line, ", laid out ");
+        mmgr_line_put(&results->line, ", laid out ");
         lane_print(results, expected);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_ch(&results->line, '\n');
     }
     lane_check(results, passed && (matched == 6u),
                "the latch returns the laid-out lane on the device and the host at every edge, and none where only bits "
@@ -379,11 +379,11 @@ static void lane_indexed(LaneResults *results)
         loaded.record, {device_records, NULL, NULL}, {2ull, 0ull, 0ull}, NULL, 3ull, device_out, &loaded.error};
     const int error =
         ran && (cycle_record_run_host(&short_host) == CYCLE_ERROR) && (cycle_record_run(&short_run) == CYCLE_ERROR);
-    scriptura_text(&results->line, "  indexed: ");
-    scriptura_decimal(&results->line, right, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes reading record 4095 - l write l and its record's base + l\n");
+    mmgr_line_put(&results->line, "  indexed: ");
+    mmgr_line_decimal(&results->line, right, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes reading record 4095 - l write l and its record's base + l\n");
     lane_check(results, words, "the indexed program's device records equal the host's word for word");
     lane_check(results, right == lanes, "under an index the lane register is the lane, not the record it reads");
     lane_check(results, error, "a member of two records with no index errors on three lanes, host and device");
@@ -424,12 +424,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     lane_check(&results, (admitted != 0) && (job.failures == 0ull),
                "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record lane test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record lane test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

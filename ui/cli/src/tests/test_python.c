@@ -16,7 +16,7 @@ int cli_test_python(char *python)
     int found = cli_toolchains_environment(&s_environment) && s_environment.has_python;
     if (found)
     {
-        memor.cpy(&(MemoriaCfg){.dst = python, .src = s_environment.python, .bytes = CLI_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = python, .src = s_environment.python, .bytes = CLI_PATH_MAX_LEN});
     }
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
@@ -30,13 +30,13 @@ int cli_test_python(char *python)
             continue;
         }
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&count);
-        cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_LONGEST])folders, count, &s_found);
-        cli_cell_given(folders);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+        cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &s_found);
+        g_cli_cells->persistent_buf_release(folders, NULL);
         found = s_found.has_program;
         if (found)
         {
-            memor.cpy(&(MemoriaCfg){.dst = python, .src = s_found.program, .bytes = CLI_PATH_LONGEST});
+            memor.cpy(&(MemoriaCfg){.dst = python, .src = s_found.program, .bytes = CLI_PATH_MAX_LEN});
         }
         break;
     }
@@ -54,9 +54,9 @@ int cli_test_has_pytest(const char *python, const char *root)
     const CliSetting settings[1] = {{"PATH", s_path}};
     const char *const words[4] = {python, "-c", "import pytest", NULL};
     CliRan *const ran = cli_ran_taken();
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int has = cli_ran(words, root, settings, 1u, ran, &said) && (ran->code == 0ll);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int has = cli_ran(words, root, settings, 1u, ran, &err_msg) && (ran->code == 0ll);
     cli_ran_given(ran);
     cli_lock_give(&s_path_lock);
     return has;
@@ -163,21 +163,21 @@ void cli_test_shares(CliTestRun *run, unsigned int count, unsigned int most)
     }
 }
 
-// a result heard of a Python process: counted where it is new, and told
-static void python_heard(CliTestWorker *worker, const char *id, unsigned long long size, const char *outcome)
+// a result received of a Python process: counted where it is new, and reported
+static void python_result_seen(CliTestWorker *worker, const char *id, unsigned long long size, const char *outcome)
 {
-    char named[CLI_PATH_LONGEST * 2u];
-    CliLine line = {named, sizeof(named), 0ull};
-    cli_line_counted(&line, id, size);
-    cli_line_closed(&line);
-    if (cli_test_heard(worker->run, worker->index, id, size, outcome))
+    char named[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {named, sizeof(named), 0ull};
+    mmgr_line_put_n(&line, id, size);
+    mmgr_line_finish(&line);
+    if (cli_test_seen(worker->run, worker->index, id, size, outcome))
     {
-        cli_test_tally(worker->run, outcome);
+        cli_test_outcome_counted(worker->run, outcome);
     }
-    cli_test_result_told(worker, named, outcome, "", 0ull, NULL, -1ll, 0.0);
+    cli_test_result_emitted(worker, named, outcome, "", 0ull, NULL, -1ll, 0.0);
 }
 
-// a line of pytest's verbose report heard
+// a line of pytest's verbose report received
 static void python_line(CliTestWorker *worker, const char *text, unsigned long long size)
 {
     unsigned long long id = 0ull;
@@ -185,18 +185,18 @@ static void python_line(CliTestWorker *worker, const char *text, unsigned long l
     const char *outcome = NULL;
     if (worker->pytest && cli_test_pytest_line(text, size, &id, &id_size, &outcome))
     {
-        python_heard(worker, text + id, id_size, outcome);
+        python_result_seen(worker, text + id, id_size, outcome);
     }
 }
 
-// the last three lines a process wrote that are not blank, of its output then its errors, joined by "\n", said as why
+// the last three lines a process wrote that are not blank, of its output then its errors, joined by "\n", given as why
 // it ran no test
-static void python_tail_said(CliTestWorker *worker, const char *seen, unsigned long long seen_size, const char *errors,
-                             unsigned long long errors_size)
+static void python_tail_message(CliTestWorker *worker, const char *seen, unsigned long long seen_size,
+                                const char *errors, unsigned long long errors_size)
 {
     const char *starts[3];
     unsigned long long sizes[3];
-    unsigned int kept = 0u;
+    unsigned int line_count = 0u;
     const char *const texts[2] = {seen, errors};
     const unsigned long long text_sizes[2] = {seen_size, errors_size};
     for (unsigned int which = 0u; which < 2u; which += 1u)
@@ -219,24 +219,24 @@ static void python_tail_said(CliTestWorker *worker, const char *seen, unsigned l
             }
             if (letter < end)
             {
-                starts[kept % 3u] = text + start;
-                sizes[kept % 3u] = end - start;
-                kept += 1u;
+                starts[line_count % 3u] = text + start;
+                sizes[line_count % 3u] = end - start;
+                line_count += 1u;
             }
         }
     }
-    char said[CLI_TEST_SAID];
-    CliLine line = {said, sizeof(said), 0ull};
-    for (unsigned int one = (kept > 3u) ? kept - 3u : 0u; one < kept; one += 1u)
+    char message_buf[CLI_TEST_MESSAGE_MAX_LEN];
+    VerbaLinea line = {message_buf, sizeof(message_buf), 0ull};
+    for (unsigned int one = (line_count > 3u) ? line_count - 3u : 0u; one < line_count; one += 1u)
     {
-        cli_line_text(&line, (line.at > 0ull) ? "\n" : "");
-        cli_line_counted(&line, starts[one % 3u], sizes[one % 3u]);
+        mmgr_line_put(&line, (line.at > 0ull) ? "\n" : "");
+        mmgr_line_put_n(&line, starts[one % 3u], sizes[one % 3u]);
     }
-    cli_test_said(worker->run, said, cli_line_fits(&line) ? line.at : sizeof(said));
+    cli_test_message_set(worker->run, message_buf, mmgr_line_ok(&line) ? line.at : sizeof(message_buf));
 }
 
-// a Python process read until it ends: each result told as it is printed, then unittest's report of its errors, or
-// pytest's report in JUnit's form, each failure's message and line told
+// a Python process read until it ends: each result reported as it is printed, then unittest's report of its errors, or
+// pytest's report in JUnit's form, each failure's message and line reported
 static void python_worker(void *context)
 {
     CliTestWorker *const worker = (CliTestWorker *)context;
@@ -255,14 +255,15 @@ static void python_worker(void *context)
             const unsigned long long start = at;
             at = (newline != NULL) ? end + 1ull : errors_size;
             end -= ((newline != NULL) && (end > start) && (errors[end - 1ull] == '\r')) ? 1ull : 0ull;
-            char id[CLI_PATH_LONGEST * 2u];
+            char id[CLI_PATH_MAX_LEN * 2u];
             const char *outcome = NULL;
             if (cli_test_unittest_line(errors + start, end - start, id, sizeof(id), &outcome))
             {
-                python_heard(worker, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), outcome);
+                python_result_seen(worker, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}),
+                                   outcome);
             }
         }
-        cli_test_unittest_failures_told(worker, errors, errors_size);
+        cli_test_unittest_failures_emitted(worker, errors, errors_size);
     }
     else if (worker->pytest)
     {
@@ -270,15 +271,15 @@ static void python_worker(void *context)
         const char *const report = cli_test_file_read(worker->report, &report_size);
         if (report != NULL)
         {
-            cli_test_report_told(worker, report, report_size);
+            cli_test_report_emitted(worker, report, report_size);
         }
         cli_test_file_let_go(report, report_size);
     }
-    if (!cli_test_heard_any(worker->run, worker->index) && !cli_test_stopped())
+    if (!cli_test_seen_any(worker->run, worker->index) && !cli_test_stopped())
     {
         unsigned long long seen_size = 0ull;
         const char *const seen = cli_test_file_read(worker->seen, &seen_size);
-        python_tail_said(worker, (seen != NULL) ? seen : "", seen_size, (errors != NULL) ? errors : "", errors_size);
+        python_tail_message(worker, (seen != NULL) ? seen : "", seen_size, (errors != NULL) ? errors : "", errors_size);
         cli_test_file_let_go(seen, seen_size);
     }
     cli_test_file_let_go(errors, errors_size);
@@ -289,19 +290,19 @@ static void python_worker(void *context)
     cli_lock_give(&run->lock);
 }
 
-// a file of the run's folder named for a share into `path`, which holds CLI_PATH_LONGEST
+// a file of the run's folder named for a share into `path`, sized for CLI_PATH_MAX_LEN
 static void python_file(const CliTestRun *run, const char *stem, unsigned int share, const char *extension, char *path)
 {
     char name[64];
-    CliLine line = {name, sizeof(name), 0ull};
-    cli_line_text(&line, stem);
-    cli_line_decimal(&line, share, 1u);
-    cli_line_text(&line, extension);
-    cli_line_closed(&line);
+    VerbaLinea line = {name, sizeof(name), 0ull};
+    mmgr_line_put(&line, stem);
+    mmgr_line_decimal(&line, share, 1u);
+    mmgr_line_put(&line, extension);
+    mmgr_line_finish(&line);
     cli_full(run->scratch, name, path);
 }
 
-int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, int cover, CliLine *said)
+int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, int cover, VerbaLinea *err_msg)
 {
     static CliWords s_words;
     static char s_path[CLI_PATH_TEXT];
@@ -311,7 +312,7 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
     {
         if (run->worker_count == CLI_TEST_WORKERS)
         {
-            cli_line_text(said, "no more processes are run at once");
+            mmgr_line_put(err_msg, "no more processes are run at once");
             return 0;
         }
         CliTestWorker *const worker = &run->workers[run->worker_count];
@@ -325,7 +326,7 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
         cli_words_put(&s_words, python);
         if (pytest)
         {
-            char junit[CLI_PATH_LONGEST + 16u];
+            char junit[CLI_PATH_MAX_LEN + 16u];
             memor.cpy(&(MemoriaCfg){
                 .dst = junit,
                 .src = "--junitxml=",
@@ -340,8 +341,8 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
             {
                 cli_words_put(&s_words, cover ? head[at] : module[at]);
             }
-            // the process starts in the run's root, and pytest is held to it as its rootdir, so the ids its lines and
-            // its report give are the ids the run was given though a folder above holds a configuration of its own
+            // the process starts in the run's root, and pytest is bound to it as its rootdir, so the ids its lines and
+            // its report give are the ids the run was given though a folder above contains a configuration of its own
             const char *const words[8] = {
                 "-v", "-p", "no:cacheprovider", "--tb=short", "-o", "junit_family=xunit1", "--rootdir=.", junit};
             for (unsigned int at = 0u; at < 8u; at += 1u)
@@ -373,12 +374,12 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
         worker->index = run->worker_count;
         worker->cargo = 0;
         worker->pytest = pytest;
-        worker->heard = 0u;
+        worker->seen_count = 0u;
         worker->named = run->share_from[share];
         worker->named_count = run->share_size[share];
         cli_lock_take(&g_cli_test_lock);
         const int started =
-            cli_spawn_as(CLI_PRIORITY_GUEST, &worker->spawned, s_words.word, run->root, settings, 2u, 1, said);
+            cli_spawn_as(CLI_PRIORITY_GUEST, &worker->spawned, s_words.word, run->root, settings, 2u, 1, err_msg);
         run->worker_count += started ? 1u : 0u;
         cli_lock_give(&g_cli_test_lock);
         if (!started)

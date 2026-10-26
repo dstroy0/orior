@@ -8,9 +8,9 @@
 #include "review_internal.h"
 #include "symbols.h"
 
-// the least share of a piece's lines a move keeps to count as one, in hundredths, and the most declarations of a
+// the least share of a piece's lines a move retains to count as one, in hundredths, and the most declarations of a
 // file's text
-#define CLI_MOVE_KEEPS 60ull
+#define CLI_MOVE_MIN_SHARE 60ull
 #define CLI_REVIEW_DECLS 16384u
 
 // A declaration of one side of a file: its name and kind and text as places in the pieces' texts, and its line
@@ -77,7 +77,7 @@ static unsigned int cli_lines_counted(const char *text, unsigned long long size)
     return lines;
 }
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
 static void *cli_side_part(unsigned char **at, unsigned long long bytes)
 {
     void *const part = *at;
@@ -105,18 +105,18 @@ static unsigned long long cli_side_bytes(unsigned int lines)
            decls + (4ull * 8ull);
 }
 
-unsigned int cli_review_kept(const char *text, unsigned long long length)
+unsigned int cli_review_piece_text_put(const char *text, unsigned long long length)
 {
-    if (!cli_review_room(&g_cli_review.kept, &g_cli_review.kept_room, g_cli_review.kept_used, length + 1ull,
-                         CLI_REVIEW_KEPT, "a review's piece texts"))
+    if (!cli_review_room(&g_cli_review.texts, &g_cli_review.texts_room, g_cli_review.texts_used, length + 1ull,
+                         CLI_REVIEW_TEXTS_MAX, "a review's piece texts"))
     {
         return 0u;
     }
-    const unsigned int at = g_cli_review.kept_used;
-    memor.cpy(&(MemoriaCfg){.dst = g_cli_review.kept + at, .src = text, .bytes = length});
-    g_cli_review.kept[at + length] = '\0';
-    // the texts are below CLI_REVIEW_KEPT bytes, which an unsigned int holds
-    g_cli_review.kept_used += (unsigned int)length + 1u;
+    const unsigned int at = g_cli_review.texts_used;
+    memor.cpy(&(MemoriaCfg){.dst = g_cli_review.texts + at, .src = text, .bytes = length});
+    g_cli_review.texts[at + length] = '\0';
+    // the texts are below CLI_REVIEW_TEXTS_MAX bytes, which an unsigned int stores
+    g_cli_review.texts_used += (unsigned int)length + 1u;
     return at;
 }
 
@@ -132,7 +132,7 @@ static void cli_lines_of(const char *text, unsigned long long size, CliSide *sid
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
         unsigned long long length = end - at;
         length -= ((newline != NULL) && (length > 0ull) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
-        // a text is below CLI_REVIEW_TEXT bytes, which an unsigned int holds
+        // a text is below CLI_REVIEW_TEXT bytes, which an unsigned int stores
         side->start[side->lines] = (unsigned int)at;
         side->length[side->lines] = (unsigned int)length;
         side->lines += 1u;
@@ -143,19 +143,19 @@ static void cli_lines_of(const char *text, unsigned long long size, CliSide *sid
 // the side's lines from `from` to `to` joined by newlines, put in the pieces' texts: their place
 static unsigned int cli_joined(const CliSide *side, unsigned int from, unsigned int to)
 {
-    const unsigned int at = g_cli_review.kept_used;
+    const unsigned int at = g_cli_review.texts_used;
     unsigned long long size = 0ull;
     for (unsigned int line = from; line < to; line += 1u)
     {
         size += side->length[line] + ((line != from) ? 1ull : 0ull);
     }
-    // the pieces' texts grown to hold the joined lines and their end, as a piece's text put grows them
-    if (!cli_review_room(&g_cli_review.kept, &g_cli_review.kept_room, at, size + 1ull, CLI_REVIEW_KEPT,
+    // the pieces' texts grown to fit the joined lines and their end, as a piece's text put grows them
+    if (!cli_review_room(&g_cli_review.texts, &g_cli_review.texts_room, at, size + 1ull, CLI_REVIEW_TEXTS_MAX,
                          "a review's piece texts"))
     {
         return 0u;
     }
-    char *write = g_cli_review.kept + at;
+    char *write = g_cli_review.texts + at;
     for (unsigned int line = from; line < to; line += 1u)
     {
         if (line != from)
@@ -167,12 +167,12 @@ static unsigned int cli_joined(const CliSide *side, unsigned int from, unsigned 
         write += side->length[line];
     }
     write[0] = '\0';
-    // the texts are below CLI_REVIEW_KEPT bytes, which an unsigned int holds
-    g_cli_review.kept_used += (unsigned int)size + 1u;
+    // the texts are below CLI_REVIEW_TEXTS_MAX bytes, which an unsigned int stores
+    g_cli_review.texts_used += (unsigned int)size + 1u;
     return at;
 }
 
-// whether a line of a side holds nothing but whitespace
+// whether a line of a side contains nothing but whitespace
 static int cli_blank_line(const CliSide *side, unsigned int line)
 {
     const char *text = side->text + side->start[line];
@@ -188,8 +188,9 @@ static void cli_declared(void *context, const char *name, unsigned long long len
     if (side->decls < side->decls_most)
     {
         side->decl[side->decls] = (CliDecl){
-            cli_review_kept(name, length),
-            cli_review_kept(kind, cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL})), line, 0u};
+            cli_review_piece_text_put(name, length),
+            cli_review_piece_text_put(kind, cellul.len(&(CatenaFinitaCfg){.src = kind, .cap = CLI_CELLS_POOL})), line,
+            0u};
         side->decls += 1u;
     }
 }
@@ -227,11 +228,11 @@ static unsigned int cli_occurrence(const CliSide *side, unsigned int at)
     unsigned int count = 0u;
     for (unsigned int before = 0u; before < at; before += 1u)
     {
-        count += ((cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.kept + side->decl[before].name,
-                                                .other = g_cli_review.kept + side->decl[at].name,
+        count += ((cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + side->decl[before].name,
+                                                .other = g_cli_review.texts + side->decl[at].name,
                                                 .cap = CLI_CELLS_POOL})) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.kept + side->decl[before].kind,
-                                                .other = g_cli_review.kept + side->decl[at].kind,
+                  (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + side->decl[before].kind,
+                                                .other = g_cli_review.texts + side->decl[at].kind,
                                                 .cap = CLI_CELLS_POOL})))
                      ? 1u
                      : 0u;
@@ -264,22 +265,22 @@ static void cli_other_put(unsigned int path)
 static CliReviewPiece cli_piece(unsigned int path, const CliDecl *decl, const char *how, unsigned int was,
                                 unsigned int now)
 {
-    return (CliReviewPiece){
-        cli_review_kept(g_cli_review.text + path,
-                        cellul.len(&(CatenaFinitaCfg){.src = g_cli_review.text + path, .cap = CLI_CELLS_POOL})),
-        decl->name,
-        decl->kind,
-        how,
-        0,
-        0u,
-        decl->line,
-        was,
-        now,
-        0u,
-        0u};
+    return (CliReviewPiece){cli_review_piece_text_put(
+                                g_cli_review.text + path,
+                                cellul.len(&(CatenaFinitaCfg){.src = g_cli_review.text + path, .cap = CLI_CELLS_POOL})),
+                            decl->name,
+                            decl->kind,
+                            how,
+                            0,
+                            0u,
+                            decl->line,
+                            was,
+                            now,
+                            0u,
+                            0u};
 }
 
-// a piece put after `list`, which holds CLI_REVIEW_PIECES
+// a piece put after `list`, sized for CLI_REVIEW_PIECES
 static void cli_piece_put(CliReviewPiece *list, unsigned int *count, CliReviewPiece piece)
 {
     if (*count < CLI_REVIEW_PIECES)
@@ -289,7 +290,8 @@ static void cli_piece_put(CliReviewPiece *list, unsigned int *count, CliReviewPi
     }
 }
 
-// one file's declarations compared: those changed put among the pieces, those added and taken out kept for the moves
+// one file's declarations compared: those changed put among the pieces, those added and taken out retained for the
+// moves
 static void cli_file_compared(const CliReviewFile *file)
 {
     const char *const path = g_cli_review.text + file->path;
@@ -308,7 +310,7 @@ static void cli_file_compared(const CliReviewFile *file)
     const unsigned int was_lines = cli_lines_counted(was_text, was_size);
     const unsigned int now_lines = cli_lines_counted(now_text, now_size);
     unsigned char *const cell =
-        cli_cell_taken(cli_side_bytes(was_lines) + cli_side_bytes(now_lines), "a file's two sides compared");
+        g_cli_cells->persistent_buf_alloc(cli_side_bytes(was_lines) + cli_side_bytes(now_lines), NULL);
     if (cell == NULL)
     {
         cli_other_put(file->path);
@@ -317,10 +319,10 @@ static void cli_file_compared(const CliReviewFile *file)
     unsigned char *at_cell = cell;
     cli_side_set(was, &at_cell, was_lines);
     cli_side_set(now, &at_cell, now_lines);
-    const unsigned int empty = cli_review_kept("", 0ull);
+    const unsigned int empty = cli_review_piece_text_put("", 0ull);
     cli_spans(g_cli_review.text + file->was_path, was_text, was_size, was);
     cli_spans(path, now_text, now_size, now);
-    if (!cli_same_trimmed(g_cli_review.kept + was->head, g_cli_review.kept + now->head) && file->has_was &&
+    if (!cli_same_trimmed(g_cli_review.texts + was->head, g_cli_review.texts + now->head) && file->has_was &&
         file->has_now)
     {
         cli_other_put(file->path);
@@ -332,11 +334,11 @@ static void cli_file_compared(const CliReviewFile *file)
         unsigned int match = was->decls;
         for (unsigned int old = 0u; (match == was->decls) && (old < was->decls); old += 1u)
         {
-            const int same = (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.kept + was->decl[old].name,
-                                                           .other = g_cli_review.kept + one->name,
+            const int same = (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + was->decl[old].name,
+                                                           .other = g_cli_review.texts + one->name,
                                                            .cap = CLI_CELLS_POOL})) &&
-                             (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.kept + was->decl[old].kind,
-                                                           .other = g_cli_review.kept + one->kind,
+                             (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + was->decl[old].kind,
+                                                           .other = g_cli_review.texts + one->kind,
                                                            .cap = CLI_CELLS_POOL})) &&
                              (cli_occurrence(was, old) == occurrence);
             match = same ? old : match;
@@ -347,8 +349,8 @@ static void cli_file_compared(const CliReviewFile *file)
             continue;
         }
         was->matched[match] = 1u;
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.kept + was->decl[match].text,
-                                          .other = g_cli_review.kept + one->text,
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + was->decl[match].text,
+                                          .other = g_cli_review.texts + one->text,
                                           .cap = CLI_CELLS_POOL}))
         {
             cli_piece_put(g_cli_review.piece, &g_cli_review.pieces,
@@ -372,17 +374,17 @@ static void cli_file_compared(const CliReviewFile *file)
         cli_piece_put(s_compare->removed, &s_compare->removeds,
                       cli_piece(file->was_path, &was->decl[least], "removed", was->decl[least].text, empty));
     }
-    cli_cell_given(cell);
+    g_cli_cells->persistent_buf_release(cell, NULL);
 }
 
 // whether a piece comes before another: by path, then line
 static int cli_piece_before(const CliReviewPiece *one, const CliReviewPiece *other)
 {
-    const int order = cli_text_order(g_cli_review.kept + one->path, g_cli_review.kept + other->path);
+    const int order = cli_text_order(g_cli_review.texts + one->path, g_cli_review.texts + other->path);
     return (order < 0) || ((order == 0) && (one->line < other->line));
 }
 
-// the pieces sorted by path, then line, those alike kept in their order
+// the pieces sorted by path, then line, those alike retained in their order
 static void cli_pieces_sorted(void)
 {
     CliReviewPiece *from = g_cli_review.piece;
@@ -415,7 +417,7 @@ static void cli_pieces_sorted(void)
     }
 }
 
-// a piece taken out matched to one added of its name and kind that keeps the most of its lines, a move
+// a piece taken out matched to one added of its name and kind that retains the most of its lines, a move
 static void cli_moves(void)
 {
     for (unsigned int index = 0u; index < s_compare->removeds; index += 1u)
@@ -428,24 +430,24 @@ static void cli_moves(void)
         {
             const CliReviewPiece *const one = &s_compare->added[at];
             if (s_compare->taken[at] ||
-                (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.kept + one->name,
-                                               .other = g_cli_review.kept + gone->name,
+                (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + one->name,
+                                               .other = g_cli_review.texts + gone->name,
                                                .cap = CLI_CELLS_POOL})) ||
-                (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.kept + one->kind,
-                                               .other = g_cli_review.kept + gone->kind,
+                (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.texts + one->kind,
+                                               .other = g_cli_review.texts + gone->kind,
                                                .cap = CLI_CELLS_POOL})))
             {
                 continue;
             }
             unsigned long long same = 0ull;
             unsigned long long longest = 1ull;
-            if (!cli_review_share(g_cli_review.kept + gone->was, g_cli_review.kept + one->now, &same, &longest))
+            if (!cli_review_share(g_cli_review.texts + gone->was, g_cli_review.texts + one->now, &same, &longest))
             {
                 continue;
             }
             // a share as large as the best yet takes its place, the later winning a tie
-            const int keeps = (same * 100ull) >= (CLI_MOVE_KEEPS * longest);
-            if (keeps && ((best == s_compare->addeds) || ((same * best_longest) >= (best_same * longest))))
+            const int is_move = (same * 100ull) >= (CLI_MOVE_MIN_SHARE * longest);
+            if (is_move && ((best == s_compare->addeds) || ((same * best_longest) >= (best_same * longest))))
             {
                 best = at;
                 best_same = same;
@@ -462,7 +464,7 @@ static void cli_moves(void)
         moved.how = "moved";
         moved.was = gone->was;
         moved.has_from = !cellul.eq(&(CatenaFinitaCfg){
-            .src = g_cli_review.kept + gone->path, .other = g_cli_review.kept + moved.path, .cap = CLI_CELLS_POOL});
+            .src = g_cli_review.texts + gone->path, .other = g_cli_review.texts + moved.path, .cap = CLI_CELLS_POOL});
         moved.from = gone->path;
         cli_piece_put(g_cli_review.piece, &g_cli_review.pieces, moved);
     }
@@ -475,7 +477,7 @@ static void cli_moves(void)
     }
 }
 
-// room made for one call more: 1, or 0 where the review holds the most or the larger cell is refused
+// room made for one call more: 1, or 0 where the review contains the most or the larger cell is refused
 static int compare_call_room(void)
 {
     if (g_cli_review.calls < g_cli_review.call_room)
@@ -487,7 +489,7 @@ static int compare_call_room(void)
     const unsigned int room = (doubled < CLI_REVIEW_CALLS) ? doubled : CLI_REVIEW_CALLS;
     unsigned int *const larger =
         (g_cli_review.calls < CLI_REVIEW_CALLS)
-            ? cli_cell_taken((unsigned long long)room * sizeof(unsigned int), "a review's calls")
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(unsigned int), NULL)
             : NULL;
     if (larger == NULL)
     {
@@ -495,7 +497,7 @@ static int compare_call_room(void)
     }
     memor.cpy(&(MemoriaCfg){
         .dst = larger, .src = g_cli_review.call, .bytes = (size_t)g_cli_review.calls * sizeof(unsigned int)});
-    cli_cell_given(g_cli_review.call);
+    g_cli_cells->persistent_buf_release(g_cli_review.call, NULL);
     g_cli_review.call = larger;
     g_cli_review.call_room = room;
     return 1;
@@ -505,7 +507,7 @@ void cli_review_compare(void)
 {
     s_compare = (CliCompare *)g_cli_review.compared;
     g_cli_review.pieces = 0u;
-    g_cli_review.kept_used = 0u;
+    g_cli_review.texts_used = 0u;
     g_cli_review.calls = 0u;
     g_cli_review.others = 0u;
     s_compare->addeds = 0u;
@@ -521,16 +523,16 @@ void cli_review_compare(void)
     {
         CliReviewPiece *const piece = &g_cli_review.piece[at];
         const char *const text =
-            g_cli_review.kept + ((g_cli_review.kept[piece->now] != '\0') ? piece->now : piece->was);
+            g_cli_review.texts + ((g_cli_review.texts[piece->now] != '\0') ? piece->now : piece->was);
         const char *const newline = cellul.chr(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .byte = '\n'});
         const char *const body = (newline != NULL) ? (newline + 1) : "";
         piece->first = g_cli_review.calls;
         for (unsigned int other = 0u; other < g_cli_review.pieces; other += 1u)
         {
-            const char *const name = g_cli_review.kept + g_cli_review.piece[other].name;
+            const char *const name = g_cli_review.texts + g_cli_review.piece[other].name;
             if ((other != at) &&
                 (!cellul.eq(&(CatenaFinitaCfg){
-                    .src = name, .other = g_cli_review.kept + piece->name, .cap = CLI_CELLS_POOL})) &&
+                    .src = name, .other = g_cli_review.texts + piece->name, .cap = CLI_CELLS_POOL})) &&
                 cli_review_calls(body, name) && compare_call_room())
             {
                 g_cli_review.call[g_cli_review.calls] = other;
@@ -542,26 +544,27 @@ void cli_review_compare(void)
     // the files named apart sorted, each once
     for (unsigned int at = 1u; at < g_cli_review.others; at += 1u)
     {
-        const unsigned int held = g_cli_review.other[at];
+        const unsigned int pivot = g_cli_review.other[at];
         unsigned int place = at;
         while ((place > 0u) &&
-               (cli_text_order(g_cli_review.text + g_cli_review.other[place - 1u], g_cli_review.text + held) > 0))
+               (cli_text_order(g_cli_review.text + g_cli_review.other[place - 1u], g_cli_review.text + pivot) > 0))
         {
             g_cli_review.other[place] = g_cli_review.other[place - 1u];
             place -= 1u;
         }
-        g_cli_review.other[place] = held;
+        g_cli_review.other[place] = pivot;
     }
-    unsigned int kept = 0u;
+    unsigned int remaining = 0u;
     for (unsigned int at = 0u; at < g_cli_review.others; at += 1u)
     {
-        if ((kept == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.text + g_cli_review.other[kept - 1u],
-                                                           .other = g_cli_review.text + g_cli_review.other[at],
-                                                           .cap = CLI_CELLS_POOL})))
+        if ((remaining == 0u) ||
+            (!cellul.eq(&(CatenaFinitaCfg){.src = g_cli_review.text + g_cli_review.other[remaining - 1u],
+                                           .other = g_cli_review.text + g_cli_review.other[at],
+                                           .cap = CLI_CELLS_POOL})))
         {
-            g_cli_review.other[kept] = g_cli_review.other[at];
-            kept += 1u;
+            g_cli_review.other[remaining] = g_cli_review.other[at];
+            remaining += 1u;
         }
     }
-    g_cli_review.others = kept;
+    g_cli_review.others = remaining;
 }

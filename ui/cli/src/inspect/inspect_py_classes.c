@@ -4,9 +4,9 @@
 // what its body and its methods set, and the attributes its methods read of `self`
 #include "inspect_py.h"
 
-// the most attributes one class sets and reads that are kept, and the bytes of the base being read
+// the most attributes one class sets and reads that are recorded, and the bytes of the base being read
 #define CLI_PY_ATTRIBUTES 16384u
-#define CLI_PY_BASE (4u * CLI_NAME_LONGEST)
+#define CLI_PY_BASE (4u * CLI_NAME_MAX_LEN)
 
 // the operators that set a name to a value made from its own
 static const char *const s_augmented[13] = {
@@ -32,7 +32,7 @@ static int classes_augmented(const char *src, const CliInspectTok *tok)
     return 0;
 }
 
-// an attribute the class sets kept, once
+// an attribute the class sets recorded, once
 static void classes_has(const char *at, unsigned int size)
 {
     for (unsigned int index = 0u; index < s_has_count; index += 1u)
@@ -96,7 +96,7 @@ static void classes_bases(const char *src, const CliPyLine *line, unsigned int n
     }
     int depth = 0;
     char current[CLI_PY_BASE];
-    CliLine base = {current, sizeof(current), 0ull};
+    VerbaLinea base = {current, sizeof(current), 0ull};
     int keyword = 0;
     for (unsigned int offset = name_at + 2u; offset < line->count; offset += 1u)
     {
@@ -118,7 +118,7 @@ static void classes_bases(const char *src, const CliPyLine *line, unsigned int n
                                                &(MemoriaCfg){.src = current, .val = '[', .bytes = (size_t)base.at}) -
                                            current)
                     : base.at;
-            if (!keyword && (cut > 0u) && cli_line_fits(&base))
+            if (!keyword && (cut > 0u) && mmgr_line_ok(&base))
             {
                 (void)cli_inspect_name_put(facts, current, cut, NULL, 0ull, tok->from, tok->from);
             }
@@ -136,11 +136,11 @@ static void classes_bases(const char *src, const CliPyLine *line, unsigned int n
         }
         if ((depth == 0) && !cli_py_is(src, tok, "(") && !cli_py_is(src, tok, ")") && (tok->kind != CLI_PY_STR))
         {
-            cli_line_counted(&base, src + tok->start, tok->end - tok->start);
+            mmgr_line_put_n(&base, src + tok->start, tok->end - tok->start);
         }
         else if ((depth > 0) && cli_py_is(src, tok, "["))
         {
-            cli_line_character(&base, '[');
+            mmgr_line_ch(&base, '[');
         }
     }
 }
@@ -196,7 +196,8 @@ static void classes_method_line(const char *src, const CliPyLine *inner, int *dy
 {
     const CliInspectTok *const toks = &g_cli_inspect_tok[inner->first];
     const unsigned int count = inner->count;
-    *dynamic = *dynamic || cli_py_holds(src, toks, count, "setattr") || cli_py_holds(src, toks, count, "__dict__");
+    *dynamic =
+        *dynamic || cli_py_contains(src, toks, count, "setattr") || cli_py_contains(src, toks, count, "__dict__");
     for (unsigned int offset = 0u; offset + 2u < count; offset += 1u)
     {
         const int attribute = cli_py_is(src, &toks[offset], "self") && cli_py_is(src, &toks[offset + 1u], ".") &&
@@ -220,11 +221,11 @@ static void classes_method_line(const char *src, const CliPyLine *inner, int *dy
                 s_read_count += 1u;
             }
         }
-        // `getattr(self, "name", ...)` and `hasattr(self, "name")` ask whether it is set, and take it as set
-        const int asks = (cli_py_is(src, &toks[offset], "getattr") || cli_py_is(src, &toks[offset], "hasattr")) &&
-                         cli_py_is(src, &toks[offset + 1u], "(") && cli_py_is(src, &toks[offset + 2u], "self") &&
-                         (offset + 3u < count) && cli_py_is(src, &toks[offset + 3u], ",");
-        if (asks && (offset + 4u < count) && (toks[offset + 4u].kind == CLI_PY_STR))
+        // `getattr(self, "name", ...)` and `hasattr(self, "name")` test whether it is set, and take it as set
+        const int reflects = (cli_py_is(src, &toks[offset], "getattr") || cli_py_is(src, &toks[offset], "hasattr")) &&
+                             cli_py_is(src, &toks[offset + 1u], "(") && cli_py_is(src, &toks[offset + 2u], "self") &&
+                             (offset + 3u < count) && cli_py_is(src, &toks[offset + 3u], ",");
+        if (reflects && (offset + 4u < count) && (toks[offset + 4u].kind == CLI_PY_STR))
         {
             const CliInspectTok *const named = &toks[offset + 4u];
             unsigned int start = named->start;
@@ -299,7 +300,7 @@ void cli_py_classes(const char *src, CliFacts *facts)
             return;
         }
         const CliInspectTok *const name = cli_py_tok(line, name_at);
-        const CliInspectClass class_found = {cli_inspect_kept(facts, src + name->start, name->end - name->start),
+        const CliInspectClass class_found = {cli_inspect_text_stored(facts, src + name->start, name->end - name->start),
                                              name->from,
                                              name->to,
                                              base_first,

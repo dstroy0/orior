@@ -152,9 +152,9 @@ static double estimate_unbiased(const uint32_t *counts, size_t length)
 
     for (unsigned symbol = 0u; symbol < ALPHABET; symbol++)
     {
-        const double held = (double)counts[symbol];
+        const double count = (double)counts[symbol];
 
-        pairs += held * (held - 1.0);
+        pairs += count * (count - 1.0);
     }
     return pairs / ((double)length * ((double)length - 1.0));
 }

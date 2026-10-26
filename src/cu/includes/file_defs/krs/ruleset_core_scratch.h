@@ -17,17 +17,17 @@ struct RulesetCoreFrame
     unsigned int taken_first;
 };
 
-// the scratch of every form of a read ruleset: the constructs, lines and arguments read, each form's slots from
-// form_slot_first[form] to form_slot_first[form + 1] of form_slots, the banks at places 0, 1 and 2, and the memory the
-// caller gives: the scratch itself, four words a form, which forms are counted, a frame a form, and the registers
-// taken, as many as there are arguments
+// the scratch of every form of a read ruleset: the constructs, lines and arguments read, each form's placeholders from
+// form_placeholder_first[form] to form_placeholder_first[form + 1] of form_placeholders, the banks at places 0, 1 and
+// 2, and the memory the caller gives: the scratch itself, four words a form, which forms are counted, a frame a form,
+// and the registers taken, as many as there are arguments
 struct RulesetCoreScratch
 {
     const RulesetCoreConstruct *constructs;
     const RulesetCoreLine *lines;
     const RulesetCoreArgument *arguments;
-    const unsigned int *form_slot_first;
-    const unsigned int *form_slots;
+    const unsigned int *form_placeholder_first;
+    const unsigned int *form_placeholders;
     unsigned int form_count;
     unsigned int banks[3];
     unsigned int *scratch;
@@ -37,7 +37,7 @@ struct RulesetCoreScratch
     unsigned int *taken_number;
 };
 
-// form `name`'s frame begun where it is not counted yet, as ruleset_scratch_of begins; the frames held returned
+// form `name`'s frame begun where it is not counted yet, as ruleset_scratch_of begins; the frames allocated returned
 CODEGEN_CORE unsigned int ruleset_core_scratch_enter(RulesetCoreScratch *scratch, unsigned int name, unsigned int depth,
                                                      unsigned int taken_top)
 {
@@ -55,8 +55,8 @@ CODEGEN_CORE unsigned int ruleset_core_scratch_enter(RulesetCoreScratch *scratch
 
 // the scratch form `name` takes in one writing, laid out into its four words of the scratch once and marked counted, as
 // ruleset_scratch_of lays it out: each scratch register its lines name, once, and what each form its lines write takes,
-// which a construct given before it in the file has laid out, and the recursion ends. The host's recursion is held in
-// the frames, a form each at most, each line's form laid out before the line's scratch is added, as the host adds it
+// which a construct given before it in the file has laid out, and the recursion ends. The host's recursion is bounded
+// in the frames, a form each at most, each line's form laid out before the line's scratch is added, as the host adds it
 CODEGEN_CORE void ruleset_core_scratch_of(RulesetCoreScratch *scratch, unsigned int name)
 {
     unsigned int taken_top = 0u;
@@ -81,20 +81,21 @@ CODEGEN_CORE void ruleset_core_scratch_of(RulesetCoreScratch *scratch, unsigned 
                 for (unsigned int at = frame->taken_first; (given->kind == RULESET_CORE_SCRATCH) && (at < taken_top);
                      at += 1u)
                 {
-                    found = found ||
-                            ((scratch->taken_bank[at] == given->slot) && (scratch->taken_number[at] == given->number));
+                    found = found || ((scratch->taken_bank[at] == given->placeholder) &&
+                                      (scratch->taken_number[at] == given->number));
                 }
                 if ((given->kind != RULESET_CORE_SCRATCH) || (found != 0))
                 {
                     continue;
                 }
-                scratch->taken_bank[taken_top] = given->slot;
+                scratch->taken_bank[taken_top] = given->placeholder;
                 scratch->taken_number[taken_top] = given->number;
                 taken_top += 1u;
-                const unsigned int bank_index =
-                    (given->slot == scratch->banks[0])
-                        ? 0u
-                        : ((given->slot == scratch->banks[1]) ? 1u : ((given->slot == scratch->banks[2]) ? 2u : 3u));
+                const unsigned int bank_index = (given->placeholder == scratch->banks[0])
+                                                    ? 0u
+                                                    : ((given->placeholder == scratch->banks[1])
+                                                           ? 1u
+                                                           : ((given->placeholder == scratch->banks[2]) ? 2u : 3u));
                 own[bank_index] = (bank_index == 3u) ? 1u : (own[bank_index] + 1u);
             }
             frame->laid_out = 1u;
@@ -133,19 +134,20 @@ CODEGEN_CORE void ruleset_core_scratch(RulesetCoreScratch *scratch)
             continue;
         }
         unsigned int *const own = &scratch->scratch[4u * name];
-        for (unsigned int at = scratch->form_slot_first[name]; at < scratch->form_slot_first[name + 1u]; at += 1u)
+        for (unsigned int at = scratch->form_placeholder_first[name]; at < scratch->form_placeholder_first[name + 1u];
+             at += 1u)
         {
-            const unsigned int slot = scratch->form_slots[at];
+            const unsigned int placeholder = scratch->form_placeholders[at];
             int seen = 0;
-            for (unsigned int before = scratch->form_slot_first[name]; before < at; before += 1u)
+            for (unsigned int before = scratch->form_placeholder_first[name]; before < at; before += 1u)
             {
-                seen = seen || (scratch->form_slots[before] == slot);
+                seen = seen || (scratch->form_placeholders[before] == placeholder);
             }
-            if (!RULESET_CORE_IS_SCRATCH(slot) || (seen != 0))
+            if (!RULESET_CORE_IS_SCRATCH(placeholder) || (seen != 0))
             {
                 continue;
             }
-            const unsigned int bank = RULESET_CORE_SCRATCH_BANK(slot);
+            const unsigned int bank = RULESET_CORE_SCRATCH_BANK(placeholder);
             const unsigned int bank_index =
                 (bank == scratch->banks[0])
                     ? 0u

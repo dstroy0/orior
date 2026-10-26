@@ -14,7 +14,7 @@ unsigned int cli_text_letter(const char *text, unsigned long long size, unsigned
 unsigned int cli_text_letter_before(const char *text, unsigned long long end, unsigned long long *length);
 
 // whether a letter is whitespace, as Unicode reads it; and whether it is alphabetic, and alphanumeric, as Rust's char
-// says, by the Unicode properties the regular expressions read
+// defines, by the Unicode properties the regular expressions read
 int cli_text_white(unsigned int letter);
 int cli_text_alphabetic(unsigned int letter);
 int cli_text_alphanumeric(unsigned int letter);
@@ -31,11 +31,11 @@ void cli_text_trimmed(const char *text, unsigned long long size, unsigned long l
 int cli_text_word(const char *text, unsigned long long size, unsigned long long *at, unsigned long long *word,
                   unsigned long long *length);
 
-// the letters `size` bytes of `text` hold, and the UTF-16 units
+// the letters `size` bytes of `text` contain, and the UTF-16 units
 unsigned long long cli_text_letters(const char *text, unsigned long long size);
 unsigned long long cli_text_units(const char *text, unsigned long long size);
 // whether `size` bytes are UTF-8 whole, every byte starting or inside a letter: a word of ASCII bytes passes in one
-// test, a word holding a high bit is read letter by letter (text.c)
+// test, a word containing a high bit is read letter by letter (text.c)
 int cli_text_utf8_whole(const unsigned char *text, unsigned long long size);
 
 // whether `size` bytes of `text` start with `prefix`, and end with `suffix`
@@ -62,13 +62,13 @@ const char *cli_text_last(const char *text, unsigned long long length, char byte
 // comes first, 0 where they are the same, above 0 where `other` comes first
 int cli_text_order(const char *one, const char *other);
 // `count` paths put in the order cli_text_order gives their bytes (text.c)
-void cli_paths_sorted(char (*paths)[CLI_PATH_LONGEST], unsigned int count);
+void cli_paths_sorted(char (*paths)[CLI_PATH_MAX_LEN], unsigned int count);
 
 // whether the first `size` bytes of `one` and `other` are the same bytes
 int cli_text_same(const char *one, const char *other, unsigned long long size);
 
-// the bytes of the text `text` before the first that the text `set` holds, or before its terminator; and the bytes
-// at its start that `set` holds
+// the bytes of the text `text` before the first that the text `set` contains, or before its terminator; and the bytes
+// at its start that `set` contains
 unsigned long long cli_text_upto(const char *text, const char *set);
 unsigned long long cli_text_over(const char *text, const char *set);
 

@@ -32,7 +32,7 @@ static void digest_sha1(const char *text, const char *wanted)
 // the MD5 of a text checked against `wanted`
 static void digest_md5(const char *text, const char *wanted)
 {
-    CliLine line = {s_hex, sizeof(s_hex), 0ull};
+    VerbaLinea line = {s_hex, sizeof(s_hex), 0ull};
     cli_md5_text(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &line);
     cli_check_text(s_hex, line.at, wanted, "MD5 gives its standard's example");
 }
@@ -40,7 +40,7 @@ static void digest_md5(const char *text, const char *wanted)
 // the HMAC-SHA-256 of `message` with `key_size` bytes of `key` checked against `wanted`
 static void digest_hmac(const void *key, unsigned long long key_size, const char *message, const char *wanted)
 {
-    CliLine line = {s_hex, sizeof(s_hex), 0ull};
+    VerbaLinea line = {s_hex, sizeof(s_hex), 0ull};
     cli_hmac_sha256_text(key, key_size, message, cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}),
                          &line);
     cli_check_text(s_hex, line.at, wanted, "RFC 4231's example gives its signature");
@@ -49,13 +49,14 @@ static void digest_hmac(const void *key, unsigned long long key_size, const char
 // the SHA-256 of `size` bytes checked against `wanted`
 static void digest_sha256(const void *bytes, unsigned long long size, const char *wanted)
 {
-    CliLine line = {s_hex, sizeof(s_hex), 0ull};
+    VerbaLinea line = {s_hex, sizeof(s_hex), 0ull};
     cli_sha256_text(bytes, size, &line);
     cli_check_text(s_hex, line.at, wanted, "the standard's example gives its digest");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     digest_sha1("", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
     digest_sha1("abc", "a9993e364706816aba3e25717850c26c9cd0d89d");
     digest_sha1("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", "84983e441c3bd26ebaae4aa1f95129e5e54670f1");

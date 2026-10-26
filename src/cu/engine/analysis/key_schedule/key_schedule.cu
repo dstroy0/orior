@@ -210,7 +210,7 @@ extern "C" long key_schedule_record_layout(const KeyScheduleRecordRequest *reque
     }
     layout->steps = key->steps;
     layout->members = key->members;
-    // the file is at most ENGINE_RECORD_LIMBS_MAX limbs and the record's bits a 31-bit count, as the layout holds them
+    // the file is at most ENGINE_RECORD_LIMBS_MAX limbs and the record's bits a 31-bit count, as the layout stores them
     layout->file_limbs = (unsigned int)core_layout.file_limbs;
     for (unsigned int member = 0u; member < key->members; member += 1u)
     {

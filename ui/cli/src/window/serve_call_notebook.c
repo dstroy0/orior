@@ -7,15 +7,15 @@
 #include "../notebooks/notebook.h"
 #include "serve_internal.h"
 
-// the most bytes of a notebook, the most nodes a notebook's tree holds, and the bytes a notebook's text is begun to be
-// written in, doubling as it is
+// the most bytes of a notebook, the most nodes a notebook's tree contains, and the bytes a notebook's text is begun to
+// be written in, doubling as it is
 #define CLI_SERVE_NOTEBOOK (32ull << 20u)
 #define CLI_SERVE_BOOK_NODES (1u << 19u)
 #define CLI_SERVE_BOOK_FIRST 4096u
 
 // A notebook's room: the tree its notebooks are read into and the tokens each is read with; the nodes and bytes of the
-// tree, from what the notebooks hold, the tokens of the largest, and twice the nodes, the bytes and the lines of each
-// for what reading it makes of it, doubled where a read finds the tree full
+// tree, from what the notebooks contain, the tokens of the largest, and twice the nodes, the bytes and the lines of
+// each for what reading it makes of it, doubled where a read finds the tree full
 typedef struct
 {
     CliJson json;
@@ -40,15 +40,16 @@ static void book_room_added(CliBookRoom *room, const char *text, unsigned long l
     room->text += (2ull * size) + 4096ull;
 }
 
-// the room's tree and tokens taken: 1, or 0 with why said where the cells cannot meet them
-static int book_room_taken(CliBookRoom *room, CliLine *said)
+// the room's tree and tokens taken: 1, or 0 with why given where the cells cannot meet them
+static int book_room_taken(CliBookRoom *room, VerbaLinea *err_msg)
 {
-    room->tokens = cli_cell_taken((unsigned long long)room->tokens_most * sizeof(CfgJsonToken), "a notebook's tokens");
-    if ((room->tokens == NULL) || !cli_json_held(&room->json, room->nodes, room->text, "a notebook's tree"))
+    room->tokens =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)room->tokens_most * sizeof(CfgJsonToken), NULL);
+    if ((room->tokens == NULL) || !cli_json_reserved(&room->json, room->nodes, room->text, "a notebook's tree"))
     {
-        cli_cell_given(room->tokens);
+        g_cli_cells->persistent_buf_release(room->tokens, NULL);
         room->tokens = NULL;
-        cli_line_text(said, "the notebook's cells could not be taken");
+        mmgr_line_put(err_msg, "the notebook's cells could not be taken");
         return 0;
     }
     return 1;
@@ -58,14 +59,14 @@ static int book_room_taken(CliBookRoom *room, CliLine *said)
 static void book_room_given(CliBookRoom *room)
 {
     cli_json_given(&room->json);
-    cli_cell_given(room->tokens);
+    g_cli_cells->persistent_buf_release(room->tokens, NULL);
     room->tokens = NULL;
 }
 
 // after a read, the room given back and made twice as large where the read found its tree full and it is below its
-// most, `out` and `said` put back as they were before the read: 1 where the read is to be made again, else 0
-static int book_room_grown(CliBookRoom *room, CliLine *out, unsigned long long out_at, CliLine *said,
-                           unsigned long long said_at)
+// most, `out` and `err_msg` put back as they were before the read: 1 where the read is to be made again, else 0
+static int book_room_grown(CliBookRoom *room, VerbaLinea *out, unsigned long long out_at, VerbaLinea *err_msg,
+                           unsigned long long err_at)
 {
     if (!room->json.full || (room->nodes >= CLI_SERVE_BOOK_NODES))
     {
@@ -75,53 +76,53 @@ static int book_room_grown(CliBookRoom *room, CliLine *out, unsigned long long o
     room->nodes = ((room->nodes * 2ull) < CLI_SERVE_BOOK_NODES) ? (room->nodes * 2u) : CLI_SERVE_BOOK_NODES;
     room->text *= 2ull;
     out->at = out_at;
-    said->at = said_at;
+    err_msg->at = err_at;
     return 1;
 }
 
-// the file of the argument `path` mapped, its path into `full`: its bytes and size, or NULL with why said where it
+// the file of the argument `path` mapped, its path into `full`: its bytes and size, or NULL with why given where it
 // cannot be read, is larger than a notebook is read or is not whole UTF-8
-static const char *notebook_file(const CliServeArgs *args, char *full, unsigned long long *size, CliLine *said)
+static const char *notebook_file(const CliServeArgs *args, char *full, unsigned long long *size, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     *size = 0ull;
-    if (!cli_serve_at(args, root, full, said))
+    if (!cli_serve_at(args, root, full, err_msg))
     {
         return NULL;
     }
-    const unsigned char *const bytes = cli_file_held(full, size);
+    const unsigned char *const bytes = cli_file_read(full, size);
     // the file's bytes read as the text they are
     const char *const text = (const char *)bytes;
     if ((bytes == NULL) || (*size > CLI_SERVE_NOTEBOOK) || !cli_utf8_whole(text, *size))
     {
         cli_file_let_go(bytes, *size);
-        cli_line_text(said, full);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, full);
+        mmgr_line_put(err_msg, ": it could not be read");
         return NULL;
     }
     return text;
 }
 
-static int notebook_read(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int notebook_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    const char *const text = notebook_file(args, full, &size, said);
+    const char *const text = notebook_file(args, full, &size, err_msg);
     if (text == NULL)
     {
         return 0;
     }
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
     book_room_added(&room, text, size);
-    const unsigned long long said_at = said->at;
+    const unsigned long long err_at = err_msg->at;
     unsigned int book = CLI_JSON_NONE;
     int taken = 0;
     do
     {
-        taken = book_room_taken(&room, said);
-        book = taken ? cli_notebook_read(&room.json, full, text, size, room.tokens, room.tokens_most, said)
+        taken = book_room_taken(&room, err_msg);
+        book = taken ? cli_notebook_read(&room.json, full, text, size, room.tokens, room.tokens_most, err_msg)
                      : CLI_JSON_NONE;
-    } while (taken && book_room_grown(&room, out, out->at, said, said_at));
+    } while (taken && book_room_grown(&room, out, out->at, err_msg, err_at));
     if (book != CLI_JSON_NONE)
     {
         cli_json_write(&room.json, book, out, 0u, 0);
@@ -132,29 +133,29 @@ static int notebook_read(const CliServeArgs *args, CliLine *out, CliLine *said)
     return book != CLI_JSON_NONE;
 }
 
-static int notebook_write(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int notebook_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    char full[CLI_PATH_LONGEST];
-    const char *const path = cli_serve_string(args, "path", said);
-    if ((path == NULL) || !cli_serve_at(args, root, full, said))
+    char root[CLI_PATH_MAX_LEN];
+    char full[CLI_PATH_MAX_LEN];
+    const char *const path = cli_serve_string(args, "path", err_msg);
+    if ((path == NULL) || !cli_serve_at(args, root, full, err_msg))
     {
         return 0;
     }
-    CliLine text;
-    (void)cli_line_growing(&text, CLI_SERVE_BOOK_FIRST, "a notebook's text written");
+    VerbaLinea text;
+    (void)cli_growing_line_made(&text, CLI_SERVE_BOOK_FIRST);
     // the arguments' tree is the call's own room, which the writer may add nodes to
     cli_notebook_write((CliJson *)args->json, full, cli_serve_arg(args, "book"), &text);
-    const int done = cli_line_fits(&text) && cli_serve_file_write(path, text.out, text.at, said);
-    cli_cell_given(text.out);
-    cli_line_text(out, done ? "null" : "");
+    const int done = mmgr_line_ok(&text) && cli_serve_file_write(path, text.out, text.at, err_msg);
+    g_cli_cells->persistent_buf_release(text.out, NULL);
+    mmgr_line_put(out, done ? "null" : "");
     return done;
 }
 
-static int notebook_diff_text(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int notebook_diff_text(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    const char *const text = cli_serve_string(args, "text", said);
+    const char *const text = cli_serve_string(args, "text", err_msg);
     if (text == NULL)
     {
         return 0;
@@ -163,23 +164,23 @@ static int notebook_diff_text(const CliServeArgs *args, CliLine *out, CliLine *s
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
     book_room_added(&room, text, size);
     const unsigned long long out_at = out->at;
-    const unsigned long long said_at = said->at;
+    const unsigned long long err_at = err_msg->at;
     int done = 0;
     int taken = 0;
     do
     {
-        taken = book_room_taken(&room, said);
-        done = taken && cli_notebook_for_diff(&room.json, text, size, room.tokens, room.tokens_most, out, said);
-    } while (taken && book_room_grown(&room, out, out_at, said, said_at));
+        taken = book_room_taken(&room, err_msg);
+        done = taken && cli_notebook_for_diff(&room.json, text, size, room.tokens, room.tokens_most, out, err_msg);
+    } while (taken && book_room_grown(&room, out, out_at, err_msg, err_at));
     book_room_given(&room);
     return done;
 }
 
-static int notebook_without_outputs(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int notebook_without_outputs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    const char *const text = notebook_file(args, full, &size, said);
+    const char *const text = notebook_file(args, full, &size, err_msg);
     if (text == NULL)
     {
         return 0;
@@ -187,40 +188,43 @@ static int notebook_without_outputs(const CliServeArgs *args, CliLine *out, CliL
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
     book_room_added(&room, text, size);
     const unsigned long long out_at = out->at;
-    const unsigned long long said_at = said->at;
+    const unsigned long long err_at = err_msg->at;
     int done = 0;
     int taken = 0;
     do
     {
-        taken = book_room_taken(&room, said);
-        done = taken && cli_notebook_without_outputs(&room.json, text, size, room.tokens, room.tokens_most, out, said);
-    } while (taken && book_room_grown(&room, out, out_at, said, said_at));
+        taken = book_room_taken(&room, err_msg);
+        done =
+            taken && cli_notebook_without_outputs(&room.json, text, size, room.tokens, room.tokens_most, out, err_msg);
+    } while (taken && book_room_grown(&room, out, out_at, err_msg, err_at));
     book_room_given(&room);
     // the bytes were mapped from the text
     cli_file_let_go((const unsigned char *)text, size);
     return done;
 }
 
-// stage `stage` of a merge of the notebook `given` read into `text`, a growing line: 1, or 0 with why said
-static int notebook_stage(const char *root, const char *given, unsigned int stage, CliLine *text, CliLine *said)
+// stage `stage` of a merge of the notebook `given` read into `text`, a growing line: 1, or 0 with why given
+static int notebook_stage(const char *root, const char *given, unsigned int stage, VerbaLinea *text,
+                          VerbaLinea *err_msg)
 {
-    (void)cli_line_growing(text, CLI_SERVE_BOOK_FIRST, "a merge's stage");
-    if (!cli_git_stage_text(root, given, stage, text) || !cli_line_fits(text))
+    (void)cli_growing_line_made(text, CLI_SERVE_BOOK_FIRST);
+    if (!cli_git_stage_text(root, given, stage, text) || !mmgr_line_ok(text))
     {
-        cli_line_text(said, given);
-        cli_line_text(said, " holds no stage ");
-        cli_line_decimal(said, stage, 1u);
-        cli_line_text(said, " of a merge");
+        mmgr_line_put(err_msg, given);
+        mmgr_line_put(err_msg, " contains no stage ");
+        mmgr_line_decimal(err_msg, stage, 1u);
+        mmgr_line_put(err_msg, " of a merge");
         return 0;
     }
     return 1;
 }
 
-// the merge of the stages read into the room's tree and written into `out`: 1 where it is, else 0 with why said
-static int notebook_merged(CliBookRoom *room, const CliLine *stages, int has_base, CliLine *out, CliLine *said)
+// the merge of the stages read into the room's tree and written into `out`: 1 where it is, else 0 with why given
+static int notebook_merged(CliBookRoom *room, const VerbaLinea *stages, int has_base, VerbaLinea *out,
+                           VerbaLinea *err_msg)
 {
     char quiet[1024];
-    CliLine ignored = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
     unsigned int base = has_base ? cli_notebook_read(&room->json, "x.ipynb", stages[0].out, stages[0].at, room->tokens,
                                                      room->tokens_most, &ignored)
                                  : CLI_JSON_NONE;
@@ -229,11 +233,11 @@ static int notebook_merged(CliBookRoom *room, const CliLine *stages, int has_bas
         base = cli_json_made(&room->json, CFG_JSON_OBJECT);
         cli_json_set(&room->json, base, "cells", cli_json_made(&room->json, CFG_JSON_ARRAY));
     }
-    const unsigned int ours =
-        cli_notebook_read(&room->json, "x.ipynb", stages[1].out, stages[1].at, room->tokens, room->tokens_most, said);
+    const unsigned int ours = cli_notebook_read(&room->json, "x.ipynb", stages[1].out, stages[1].at, room->tokens,
+                                                room->tokens_most, err_msg);
     const unsigned int theirs = (ours != CLI_JSON_NONE)
                                     ? cli_notebook_read(&room->json, "x.ipynb", stages[2].out, stages[2].at,
-                                                        room->tokens, room->tokens_most, said)
+                                                        room->tokens, room->tokens_most, err_msg)
                                     : CLI_JSON_NONE;
     if (theirs != CLI_JSON_NONE)
     {
@@ -242,38 +246,38 @@ static int notebook_merged(CliBookRoom *room, const CliLine *stages, int has_bas
     return theirs != CLI_JSON_NONE;
 }
 
-static int notebook_merge(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int notebook_merge(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    const char *const given = cli_serve_string(args, "path", said);
-    if ((given == NULL) || !cli_serve_tree(root, said))
+    char root[CLI_PATH_MAX_LEN];
+    const char *const given = cli_serve_string(args, "path", err_msg);
+    if ((given == NULL) || !cli_serve_tree(root, err_msg))
     {
         return 0;
     }
     char quiet[1024];
-    CliLine ignored = {quiet, sizeof(quiet), 0ull};
-    CliLine stages[3] = {{NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                         {NULL, 0ull, 0ull, NULL, NULL, 0ull},
-                         {NULL, 0ull, 0ull, NULL, NULL, 0ull}};
+    VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea stages[3] = {{NULL, 0ull, 0ull, NULL, NULL, 0ull},
+                            {NULL, 0ull, 0ull, NULL, NULL, 0ull},
+                            {NULL, 0ull, 0ull, NULL, NULL, 0ull}};
     const int has_base = notebook_stage(root, given, 1u, &stages[0], &ignored);
-    int read = notebook_stage(root, given, 2u, &stages[1], said);
-    read = read && notebook_stage(root, given, 3u, &stages[2], said);
+    int read = notebook_stage(root, given, 2u, &stages[1], err_msg);
+    read = read && notebook_stage(root, given, 3u, &stages[2], err_msg);
     CliBookRoom room = {{0}, NULL, 0u, 0u, 0ull};
-    // the merge holds the three sides and copies of their cells, a fourth reading
+    // the merge contains the three sides and copies of their cells, a fourth reading
     for (unsigned int at = 0u; read && (at < 4u); at += 1u)
     {
         const unsigned int side = (at < 3u) ? at : 1u;
-        book_room_added(&room, stages[side].out, cli_line_fits(&stages[side]) ? stages[side].at : 0ull);
+        book_room_added(&room, stages[side].out, mmgr_line_ok(&stages[side]) ? stages[side].at : 0ull);
     }
     const unsigned long long out_at = out->at;
-    const unsigned long long said_at = said->at;
+    const unsigned long long err_at = err_msg->at;
     int done = 0;
     int taken = 0;
     while (read)
     {
-        taken = book_room_taken(&room, said);
-        done = taken && notebook_merged(&room, stages, has_base, out, said);
-        if (!taken || !book_room_grown(&room, out, out_at, said, said_at))
+        taken = book_room_taken(&room, err_msg);
+        done = taken && notebook_merged(&room, stages, has_base, out, err_msg);
+        if (!taken || !book_room_grown(&room, out, out_at, err_msg, err_at))
         {
             break;
         }
@@ -281,7 +285,7 @@ static int notebook_merge(const CliServeArgs *args, CliLine *out, CliLine *said)
     book_room_given(&room);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        cli_cell_given(stages[at].out);
+        g_cli_cells->persistent_buf_release(stages[at].out, NULL);
     }
     return done;
 }

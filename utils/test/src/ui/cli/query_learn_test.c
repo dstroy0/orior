@@ -6,16 +6,16 @@
 #include "../../../../../ui/query/src/learn/learn_internal.h"
 #include "cli_check.h"
 
-// the words joined by spaces into `out`, which holds `room`
+// the words joined by spaces into `out`, which is sized for `room`
 static const char *learn_joined(const QueryWords *words, char *out, unsigned long long room)
 {
-    CliLine line = {out, room, 0ull};
+    VerbaLinea line = {out, room, 0ull};
     for (unsigned int at = 0u; at < words->count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? " " : "");
-        cli_line_text(&line, words->word[at]);
+        mmgr_line_put(&line, (at > 0u) ? " " : "");
+        mmgr_line_put(&line, words->word[at]);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -53,15 +53,15 @@ static void learn_carrier(void)
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){
             .src = learn_joined(&s_words, joined, sizeof(joined)),
-            .other = "C --held held.txt --lessons overseer.txt M L --pop C --dry --full --lessons overseer.txt M L "
-                     "--cross X N SM86 airlock.md held.txt",
+            .other = "C --gated gated.txt --lessons overseer.txt M L --pop C --dry --full --lessons overseer.txt M L "
+                     "--cross X N SM86 airlock.md gated.txt",
             .cap = CLI_CELLS_POOL}),
         "the carrier's words, the lessons with them");
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     query_carrier_words(&s_words, "C", "X", "N", "M", "L", 0);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = learn_joined(&s_words, joined, sizeof(joined)),
-                  .other = "C --held held.txt M L --pop C --dry --full M L --cross X N SM86 airlock.md held.txt",
+                  .other = "C --gated gated.txt M L --pop C --dry --full M L --cross X N SM86 airlock.md gated.txt",
                   .cap = CLI_CELLS_POOL}),
               "and without them");
 }
@@ -70,9 +70,9 @@ static void learn_carrier(void)
 static int learn_step(const char *const *words, unsigned int count, QueryLearnStep *step)
 {
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     memor.set(&(MemoriaCfg){.dst = step, .val = 0, .bytes = sizeof(*step)});
-    return query_learn_step_read(words, count, step, &said);
+    return query_learn_step_read(words, count, step, &err_msg);
 }
 
 // whether `a` and `b` are both NULL or the same text
@@ -114,7 +114,7 @@ static void learn_steps(void)
     static const char *const s_enumerate[2] = {"enumerate", "loop_back_if"};
     cli_check(learn_step(s_enumerate, 2u, &step) && (step.kind == QUERY_LEARN_ENUMERATE) &&
                   learn_same(step.word, "loop_back_if"),
-              "one slot's questions");
+              "one place's questions");
     static const char *const s_many[2] = {"rounds", "many"};
     static const char *const s_fly[1] = {"fly"};
     cli_check(!learn_step(s_enumerate, 1u, &step) && !learn_step(s_seed, 1u, &step) && !learn_step(s_many, 2u, &step) &&
@@ -145,10 +145,10 @@ static void learn_stick(const char *root)
 #if defined(_WIN32)
     cli_check(s_paths.cu[1] == ':', "a Windows path with its drive");
 #endif
-    char out[QUERY_PATH_LONGEST];
-    char cu[QUERY_PATH_LONGEST];
-    char fresh[QUERY_PATH_LONGEST];
-    char cubin[QUERY_PATH_LONGEST];
+    char out[QUERY_PATH_MAX_LEN];
+    char cu[QUERY_PATH_MAX_LEN];
+    char fresh[QUERY_PATH_MAX_LEN];
+    char cubin[QUERY_PATH_MAX_LEN];
     cli_full(root, "build/query_test/stick_text", out);
     (void)query_removed(out);
     (void)query_folder_made(out);
@@ -166,32 +166,33 @@ static void learn_stick(const char *root)
     cli_check(query_stick_changed(cu, fresh, cubin), "no container means nvcc runs");
     (void)query_removed(out);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     static const char *const s_vendor[1] = {"vendor"};
     static const char *const s_engine[2] = {"engine", "more"};
     static const char *const s_read[3] = {"read", "a.sass", "b.tsv"};
     static const char *const s_ruler[1] = {"ruler"};
-    cli_check((query_stick_words(NULL, 0u, &said) == QUERY_STICK_VENDOR) &&
-                  (query_stick_words(s_vendor, 1u, &said) == QUERY_STICK_VENDOR),
+    cli_check((query_stick_words(NULL, 0u, &err_msg) == QUERY_STICK_VENDOR) &&
+                  (query_stick_words(s_vendor, 1u, &err_msg) == QUERY_STICK_VENDOR),
               "the vendor's reading");
-    cli_check(query_stick_words(s_engine, 1u, &said) == QUERY_STICK_ENGINE, "the engine's");
-    cli_check(query_stick_words(s_read, 3u, &said) == QUERY_STICK_READ, "the read, with its words");
-    cli_check((query_stick_words(s_engine, 2u, &said) < 0) && (query_stick_words(s_ruler, 1u, &said) < 0),
+    cli_check(query_stick_words(s_engine, 1u, &err_msg) == QUERY_STICK_ENGINE, "the engine's");
+    cli_check(query_stick_words(s_read, 3u, &err_msg) == QUERY_STICK_READ, "the read, with its words");
+    cli_check((query_stick_words(s_engine, 2u, &err_msg) < 0) && (query_stick_words(s_ruler, 1u, &err_msg) < 0),
               "and nothing else");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     learn_files();
     learn_carrier();
     learn_steps();
-    char found[CLI_PATH_LONGEST];
+    char found[CLI_PATH_MAX_LEN];
     if (!cli_tree_found(found))
     {
         cli_check(1, "no tree is found, and the stick's paths are not read");
         return cli_checked();
     }
-    char root[QUERY_PATH_LONGEST];
+    char root[QUERY_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = root, .src = found, .bytes = cellul.len(&(CatenaFinitaCfg){.src = found, .cap = CLI_CELLS_POOL}) + 1u});
     for (char *at = root; at[0] != '\0'; at += 1)

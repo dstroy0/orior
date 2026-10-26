@@ -36,20 +36,21 @@ static int s_vs_found;
 static int cli_vs_read(void)
 {
 #if defined(_WIN32)
-    char base[CLI_PATH_LONGEST];
-    char vswhere[CLI_PATH_LONGEST];
+    char base[CLI_PATH_MAX_LEN];
+    char vswhere[CLI_PATH_MAX_LEN];
     if (!query_environment_read("ProgramFiles(x86)", base, sizeof(base)))
     {
         return 0;
     }
     cli_full(base, "Microsoft Visual Studio/Installer/vswhere.exe", vswhere);
-    const char *const ask[9] = {vswhere,     "-latest",          "-products",
-                                "*",         "-requires",        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-                                "-property", "installationPath", NULL};
+    const char *const vswhere_args[9] = {
+        vswhere,     "-latest",          "-products",
+        "*",         "-requires",        "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+        "-property", "installationPath", NULL};
     CliRan *const ran = cli_ran_taken();
-    char why[CLI_NAME_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
-    if (!cli_ran(ask, NULL, NULL, 0u, ran, &unstarted))
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
+    if (!cli_ran(vswhere_args, NULL, NULL, 0u, ran, &unstarted))
     {
         cli_ran_given(ran);
         return 0;
@@ -64,23 +65,23 @@ static int cli_vs_read(void)
     {
         to -= 1ull;
     }
-    char place[CLI_PATH_LONGEST];
-    const unsigned long long length = ((to - from) < CLI_PATH_LONGEST) ? (to - from) : 0ull;
+    char place[CLI_PATH_MAX_LEN];
+    const unsigned long long length = ((to - from) < CLI_PATH_MAX_LEN) ? (to - from) : 0ull;
     memor.cpy(&(MemoriaCfg){.dst = place, .src = ran->out + from, .bytes = length});
     place[length] = '\0';
-    char vcvars[CLI_PATH_LONGEST];
+    char vcvars[CLI_PATH_MAX_LEN];
     cli_full(place, "VC/Auxiliary/Build/vcvars64.bat", vcvars);
     if ((length == 0ull) || !query_is_file(vcvars))
     {
         cli_ran_given(ran);
         return 0;
     }
-    char line[CLI_PATH_LONGEST * 2u];
-    CliLine called = {line, sizeof(line), 0ull};
-    cli_line_text(&called, "call \"");
-    cli_line_text(&called, vcvars);
-    cli_line_text(&called, "\" >nul && set");
-    cli_line_closed(&called);
+    char line[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea called = {line, sizeof(line), 0ull};
+    mmgr_line_put(&called, "call \"");
+    mmgr_line_put(&called, vcvars);
+    mmgr_line_put(&called, "\" >nul && set");
+    mmgr_line_finish(&called);
     const char *const shell[5] = {"cmd", "/d", "/c", line, NULL};
     unstarted.at = 0ull;
     if (!cli_ran(shell, NULL, NULL, 0u, ran, &unstarted) || (ran->code != 0ll))
@@ -88,7 +89,7 @@ static int cli_vs_read(void)
         cli_ran_given(ran);
         return 0;
     }
-    CliLine kept = {s_vs.text, sizeof(s_vs.text), 0ull};
+    VerbaLinea vs_text = {s_vs.text, sizeof(s_vs.text), 0ull};
     int include = 0;
     s_vs.count = 0u;
     for (unsigned long long at = 0ull; at < ran->out_size;)
@@ -108,13 +109,13 @@ static int cli_vs_read(void)
         }
         // the name before the equals sign and the value after it
         const unsigned long long name_size = (unsigned long long)(equals - row);
-        const char *const name = kept.out + kept.at;
-        cli_lossy(&kept, (const unsigned char *)row, name_size);
-        cli_line_character(&kept, '\0');
-        const char *const value = kept.out + kept.at;
-        cli_lossy(&kept, (const unsigned char *)equals + 1, size - name_size - 1ull);
-        cli_line_character(&kept, '\0');
-        if (!cli_line_fits(&kept))
+        const char *const name = vs_text.out + vs_text.at;
+        cli_lossy(&vs_text, (const unsigned char *)row, name_size);
+        mmgr_line_ch(&vs_text, '\0');
+        const char *const value = vs_text.out + vs_text.at;
+        cli_lossy(&vs_text, (const unsigned char *)equals + 1, size - name_size - 1ull);
+        mmgr_line_ch(&vs_text, '\0');
+        if (!mmgr_line_ok(&vs_text))
         {
             break;
         }

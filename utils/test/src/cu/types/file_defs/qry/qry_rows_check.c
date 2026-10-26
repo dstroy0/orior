@@ -1,10 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// qry_rows_check.c: a text of the run's table of texts held to table_text.h
+// qry_rows_check.c: a text of the run's table of texts checked against table_text.h
 //
 //   texts      a text's number is the 64-bit FNV-1a hash of its bytes, its row handed once however often this process
 //              numbers it: of no who, its number, its length and its bytes filled out to a whole word with zeros; an
 //              empty text has no number
+//   bare       a row of check_rows, a table with no oracle and no head, is handed to the run, which kdecode_check.sh
+//              reads raw and decoded
 //
 //     qry_rows_check
 //
@@ -19,10 +21,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -49,11 +51,11 @@ int main(void)
     }
 
     // texts
-    const char *const said = "a text the check numbers twice";
-    const unsigned long long number = table_text(said, strlen(said));
-    check_that(number == check_hash(said), "texts: a text's number is the FNV-1a hash of its bytes");
-    check_that(table_text(said, strlen(said)) == number, "texts: numbered again, it has the same number");
-    check_that(table_text(said, 0ull) == 0ull, "texts: an empty text has no number");
+    const char *const text = "a text the check numbers twice";
+    const unsigned long long number = table_text(text, strlen(text));
+    check_that(number == check_hash(text), "texts: a text's number is the FNV-1a hash of its bytes");
+    check_that(table_text(text, strlen(text)) == number, "texts: numbered again, it has the same number");
+    check_that(table_text(text, 0ull) == 0ull, "texts: an empty text has no number");
     // the table's rows walked, each its opening and its bytes filled out to a whole word, and this text's counted
     unsigned int rows = 0u;
     int whole = 1;
@@ -77,8 +79,8 @@ int main(void)
         if (whole && (opening[2] == number))
         {
             rows += 1u;
-            whole = (opening[0] == 0ull) && (opening[1] == 0ull) && (opening[3] == strlen(said)) &&
-                    (memcmp(bytes + at + sizeof(opening), said, strlen(said)) == 0);
+            whole = (opening[0] == 0ull) && (opening[1] == 0ull) && (opening[3] == strlen(text)) &&
+                    (memcmp(bytes + at + sizeof(opening), text, strlen(text)) == 0);
             for (unsigned long long place = opening[3]; whole && (place < padded); place += 1ull)
             {
                 filled = filled && (bytes[at + sizeof(opening) + place] == 0u);
@@ -87,8 +89,13 @@ int main(void)
         at += sizeof(opening) + padded;
     }
     check_that(joined && whole && (rows == 1u),
-               "texts: the table holds its row once, of no who, its number, its length and its bytes");
+               "texts: the table contains its row once, of no who, its number, its length and its bytes");
     check_that(filled, "texts: and the bytes filled out to a whole word with zeros");
+
+    // bare
+    const unsigned long long row[3] = {1ull, 2ull, 3ull};
+    check_that(qry_member_append("check_rows", row, sizeof(row), QRY_ORDINARY) != 0ull,
+               "bare: a row of a table with no oracle and no head is handed to the run");
 
     printf("qry_rows_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

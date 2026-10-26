@@ -22,14 +22,14 @@ unsigned int cli_system_error(void)
     return (unsigned int)errno;
 }
 
-void cli_system_reason(unsigned int error, CliLine *said)
+void cli_system_reason(unsigned int error, VerbaLinea *err_msg)
 {
-    cli_line_text(said, ": ");
+    mmgr_line_put(err_msg, ": ");
     // an error number from errno is a small int
-    cli_line_text(said, strerror((int)error));
-    cli_line_text(said, " (os error ");
-    cli_line_decimal(said, error, 1u);
-    cli_line_character(said, ')');
+    mmgr_line_put(err_msg, strerror((int)error));
+    mmgr_line_put(err_msg, " (os error ");
+    mmgr_line_decimal(err_msg, error, 1u);
+    mmgr_line_ch(err_msg, ')');
 }
 
 int cli_file_size(const char *path, unsigned long long *size)
@@ -52,7 +52,7 @@ static void file_read_from(int file, unsigned long long from, unsigned char *byt
     int reading = 1;
     while (reading && (*got < count))
     {
-        // a read's count and its place are what the system's types hold
+        // a read's count and its place are what the system's types represent
         const ssize_t read_now = pread(file, bytes + *got, (size_t)(count - *got), (off_t)(from + *got));
         reading = read_now > 0;
         // a count read is not negative where reading goes on
@@ -161,13 +161,96 @@ int cli_file_appended(const char *path, const void *bytes, unsigned long long si
     return (close(file) == 0) && written;
 }
 
-int cli_resource_added(const char *path, const char *name, const void *data, unsigned long long size, CliLine *said)
+int cli_resource_added(const char *path, const char *name, const void *data, unsigned long long size,
+                       VerbaLinea *err_msg)
 {
     (void)name;
     (void)data;
     (void)size;
-    cli_line_text(said, path);
-    cli_line_text(said, " is a Windows program, which only Windows adds a resource to");
+    mmgr_line_put(err_msg, path);
+    mmgr_line_put(err_msg, " is a Windows program, which only Windows adds a resource to");
     return 0;
+}
+
+// the bytes of randomness a temporary file's name carries
+#define CLI_TEMPORARY_NAME_BYTES 8u
+
+// the file loses its name the moment it is made, so the system deletes it once the last descriptor is closed, however
+// the process ends
+int cli_temporary_file_made(CliTemporaryFile *file)
+{
+    char path[CLI_PATH_MAX_LEN];
+    cli_temp_folder(path);
+    unsigned char random[CLI_TEMPORARY_NAME_BYTES];
+    if (!cli_random_bytes(random, sizeof(random)))
+    {
+        return 0;
+    }
+    VerbaLinea named = {path, sizeof(path), cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL})};
+    mmgr_line_put(&named, "/orior-");
+    mmgr_line_decimal(&named, cli_process_own(), 1u);
+    mmgr_line_ch(&named, '-');
+    for (unsigned int at = 0u; at < CLI_TEMPORARY_NAME_BYTES; at += 1u)
+    {
+        mmgr_line_hex(&named, random[at], 2u);
+    }
+    if (mmgr_line_finish(&named) == 0ull)
+    {
+        return 0;
+    }
+    const int made = open(path, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    if (made < 0)
+    {
+        return 0;
+    }
+    (void)unlink(path);
+    // a descriptor from open is not negative here
+    file->handle = (unsigned long long)made;
+    return 1;
+}
+
+int cli_temporary_file_written(const CliTemporaryFile *file, unsigned long long at, const void *bytes,
+                               unsigned long long size)
+{
+    const unsigned char *const from = (const unsigned char *)bytes;
+    unsigned long long done = 0ull;
+    while (done < size)
+    {
+        // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
+        const ssize_t wrote = pwrite((int)file->handle, from + done, (size_t)(size - done), (off_t)(at + done));
+        if (wrote <= 0)
+        {
+            return 0;
+        }
+        done += (unsigned long long)wrote;
+    }
+    return 1;
+}
+
+int cli_temporary_file_read(const CliTemporaryFile *file, unsigned long long at, void *bytes, unsigned long long size)
+{
+    unsigned char *const into = (unsigned char *)bytes;
+    unsigned long long done = 0ull;
+    while (done < size)
+    {
+        // a descriptor stored is one open gave, and an offset in a file is below what an off_t counts
+        const ssize_t got = pread((int)file->handle, into + done, (size_t)(size - done), (off_t)(at + done));
+        if (got <= 0)
+        {
+            return 0;
+        }
+        done += (unsigned long long)got;
+    }
+    return 1;
+}
+
+void cli_temporary_file_let_go(CliTemporaryFile *file)
+{
+    if (file->handle != 0ull)
+    {
+        // a descriptor stored is one open gave
+        (void)close((int)file->handle);
+    }
+    file->handle = 0ull;
 }
 #endif

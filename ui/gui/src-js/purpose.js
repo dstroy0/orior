@@ -62,7 +62,7 @@ export async function showCard(row) {
   document.body.append(card);
   state.card = card;
   place(card, row);
-  const comment = await invoke("file_said", { path }).catch(() => "");
+  const comment = await invoke("file_purpose", { path }).catch(() => "");
   if (asked !== state.asked) {
     return;
   }

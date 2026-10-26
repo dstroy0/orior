@@ -19,9 +19,9 @@ void lane_check(LaneResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -30,13 +30,13 @@ void lane_print(LaneResults *results, unsigned long long lane)
 {
     if (lane == CYCLE_LATCH_NONE)
     {
-        scriptura_text(&results->line, "none");
+        mmgr_line_put(&results->line, "none");
         return;
     }
-    scriptura_decimal(&results->line, lane, 1u);
+    mmgr_line_decimal(&results->line, lane, 1u);
 }
 
-// CYCLE_RECORD_INTERPRET, read by cycle_record_load: 1 keeps the next program loaded on the interpreter
+// CYCLE_RECORD_INTERPRET, read by cycle_record_load: 1 retains the next program loaded on the interpreter
 static void lane_interpret(int interpret)
 {
 #if defined(_WIN32)
@@ -182,7 +182,7 @@ unsigned long long lane_take(const unsigned int *record, const DeviceRecordStep 
 // of the low words
 unsigned int lane_hash(unsigned long long value)
 {
-    // the cast keeps x's low word, all the first product's low word reads
+    // the cast retains x's low word, all the first product's low word reads
     const unsigned int low = (unsigned int)value * LANE_TEST_FIRST_MULTIPLIER;
     const unsigned int mixed = low ^ (low >> 16u);
     return mixed * LANE_TEST_SECOND_MULTIPLIER;

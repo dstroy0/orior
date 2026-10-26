@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// dicom_read.c: holding, describing and reading a series
+// dicom_read.c: caching, describing and reading a series
 #include "dicom_internal.h"
 
 static int dicom_open(const EngineIngestTools *tools, const char *path, const char *member, EngineError *error)
@@ -58,7 +58,7 @@ static void dicom_extent(EngineArrayExtent *extent)
 
 int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const char *member)
 {
-    // a series the module already holds was gathered and parsed as DICOM whole, and is a member it holds
+    // a series the module already contains was gathered and parsed as DICOM whole, and is a member it contains
     const DicomResident *const resident = &g_dicom_resident;
     if ((resident->valid != 0) && (path != NULL) && (member != NULL) && (strcmp(resident->path, path) == 0) &&
         (strcmp(resident->member, member) == 0))
@@ -74,10 +74,10 @@ int dicom_zip_has_member(const EngineIngestTools *tools, const char *path, const
     {
         return 0;
     }
-    for (unsigned long long slot = first; slot < (first + count); slot += 1ull)
+    for (unsigned long long at = first; at < (first + count); at += 1ull)
     {
         ZipEntry entry;
-        if (!zip_entry_at(archive, slot, &entry, &probe))
+        if (!zip_entry_at(archive, at, &entry, &probe))
         {
             return 0;
         }
@@ -125,7 +125,7 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
     {
         return 0ull;
     }
-    unsigned long long kept = 0ull;
+    unsigned long long extended_any = 0ull;
     if (element_bytes == 2u)
     {
         // the same extension on a little-endian 16-bit element, read and written as one word
@@ -135,12 +135,12 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
             const unsigned long long word = (unsigned long long)at[0] | ((unsigned long long)at[1] << 8u);
             const unsigned long long stored = (word >> low) & field;
             const unsigned long long extended = ((stored & sign) != 0ull) ? ((stored | ~field) & mask) : stored;
-            kept |= (((extended << low) & mask) != word) ? 1ull : 0ull;
+            extended_any |= (((extended << low) & mask) != word) ? 1ull : 0ull;
             // the extended element is 16 bits, taken a byte at a time
             at[0] = (unsigned char)(extended & 0xFFull);
             at[1] = (unsigned char)((extended >> 8u) & 0xFFull);
         }
-        return kept;
+        return extended_any;
     }
     for (unsigned long long element = 0ull; element < elements; element += 1ull)
     {
@@ -153,20 +153,20 @@ static unsigned long long dicom_sign_extend(const DicomSlice *slice, unsigned ch
         const unsigned long long stored = (word >> low) & field;
         const unsigned long long extended = ((stored & sign) != 0ull) ? ((stored | ~field) & mask) : stored;
         const unsigned long long canonical = (extended << low) & mask;
-        kept |= (canonical != word) ? 1ull : 0ull;
+        extended_any |= (canonical != word) ? 1ull : 0ull;
         for (unsigned int place = 0u; place < element_bytes; place += 1u)
         {
             // one byte of the extended word is taken whole
             at[place] = (unsigned char)((extended >> (8u * place)) & 0xFFull);
         }
     }
-    return kept;
+    return extended_any;
 }
 
 static void dicom_side_release(EngineSideBytes *side)
 {
     free(side->pixel_at);
-    free(side->pixel_kept);
+    free(side->pixel_stored);
     free(side->byte_start);
     free(side->bytes);
     free(side->name_start);
@@ -179,24 +179,24 @@ static void dicom_side_release(EngineSideBytes *side)
 static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
 {
     const DicomResident *const resident = &g_dicom_resident;
-    unsigned long long kept = 0ull;
+    unsigned long long byte_total = 0ull;
     unsigned long long named = 0ull;
-    for (unsigned long long slot = 0ull; slot < resident->count; slot += 1ull)
+    for (unsigned long long at = 0ull; at < resident->count; at += 1ull)
     {
-        const DicomSlice *const slice = &resident->slices[slot];
-        kept += slice->member_bytes - ((slice->pixel_kept != 0ull) ? 0ull : slice->pixel_bytes);
+        const DicomSlice *const slice = &resident->slices[at];
+        byte_total += slice->member_bytes - ((slice->pixel_stored != 0ull) ? 0ull : slice->pixel_bytes);
         named += slice->name_length;
     }
     memset(side, 0, sizeof(*side));
     side->pixel_at = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    side->pixel_kept = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
+    side->pixel_stored = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
     side->byte_start = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    side->bytes = (unsigned char *)malloc((size_t)kept + 1u);
+    side->bytes = (unsigned char *)malloc((size_t)byte_total + 1u);
     side->name_start = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
     side->names = (char *)malloc((size_t)named + 1u);
     side->member_crc = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
     side->member_bytes = (unsigned long long *)calloc((size_t)resident->count + 1u, sizeof(unsigned long long));
-    if (!DICOM_CHECK((side->pixel_at != NULL) && (side->pixel_kept != NULL) && (side->byte_start != NULL) &&
+    if (!DICOM_CHECK((side->pixel_at != NULL) && (side->pixel_stored != NULL) && (side->byte_start != NULL) &&
                          (side->bytes != NULL) && (side->name_start != NULL) && (side->names != NULL) &&
                          (side->member_crc != NULL) && (side->member_bytes != NULL),
                      side, error, ENGINE_ERROR_RESOURCE))
@@ -210,9 +210,9 @@ static int dicom_side_fill(EngineSideBytes *side, EngineError *error)
     {
         const DicomSlice *const slice = &resident->slices[resident->order[place]];
         const unsigned long long after =
-            (slice->pixel_kept != 0ull) ? slice->pixel_at : (slice->pixel_at + slice->pixel_bytes);
+            (slice->pixel_stored != 0ull) ? slice->pixel_at : (slice->pixel_at + slice->pixel_bytes);
         side->pixel_at[place] = slice->pixel_at;
-        side->pixel_kept[place] = slice->pixel_kept;
+        side->pixel_stored[place] = slice->pixel_stored;
         side->byte_start[place] = byte_at;
         memcpy(side->bytes + byte_at, slice->member, (size_t)slice->pixel_at);
         byte_at += slice->pixel_at;
@@ -266,7 +266,7 @@ long long dicom_read(const EngineArrayRead *request)
         memcpy(pixels, slice->member + slice->pixel_at, (size_t)slice_bytes);
         if (slice->pixel_representation != 0u)
         {
-            slice->pixel_kept = dicom_sign_extend(slice, pixels);
+            slice->pixel_stored = dicom_sign_extend(slice, pixels);
         }
     }
     const int sided = (request->side == NULL) || dicom_side_fill(request->side, error);

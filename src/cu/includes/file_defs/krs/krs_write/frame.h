@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame.h: the frame forms of a part's ruleset, each written as the schema's form through a table of names (The frame
-// forms asked, Open 6.4)
+// Open 6.4)
 #ifndef KRS_FRAME_H
 #define KRS_FRAME_H
 
@@ -26,21 +26,21 @@ typedef struct
 // is NULL from frame_forms.tsv beside this header in the tree it was built from. The count read, 0 where none
 unsigned int krs_frame_read(const char *path);
 
-// The ruleset line of `form`, `form <name> <parameters> = <text>\n`, into `line`, which holds `room`: the name the
-// table gives its relation, by the row whose places are as many as the text holds; the parameters as the ruleset at
-// `named_ruleset` names that form; and the text with each {<place>} written as {<parameter>} through the row's places.
-// 1, or 0 where the table maps none, the ruleset names another count of parameters than the row gives places, the
-// text holds a place no parameter takes, or the line does not fit
+// The ruleset line of `form`, `form <name> <parameters> = <text>\n`, into `line`, which has room for `room`: the name
+// the table gives its relation, by the row whose places are as many as the text contains; the parameters as the ruleset
+// at `named_ruleset` names that form; and the text with each {<place>} written as {<parameter>} through the row's
+// places. 1, or 0 where the table maps none, the ruleset names another count of parameters than the row gives places,
+// the text contains a place no parameter takes, or the line does not fit
 int krs_frame_named(const KrsFrameForm *form, const char *named_ruleset, char *line, size_t room);
 
-// The frame forms written at `*at` into `out`, which holds `cap`, and `*at` moved past them, or to `cap` where they did
-// not fit (verba_scribo.h), one line a row of the table in the table's order: of the `count` forms in
-// `form`, the first the row names writes the line, the writers of one placed text being one, a row of no places
-// written as well from a form of its relation whose one place is a guard, with the guard struck, since the vendor
-// writes a guard at every predicate as none; and where the run hands none the row names, the line the ruleset at
-// `krs_path` gave the row's form before this run, kept whole. A given line
-// a written one replaces with another text is kept in the .krf beside the .ksc at `ksc_path` (krf.h). `krs_path` may
-// be NULL or name no file, and then nothing is given. The count written
+// The frame forms written at `*at` into `out`, which has room for `cap`, and `*at` moved past them, or to `cap` where
+// they did not fit (verba_scribo.h), one line a row of the table in the table's order: of the `count` forms in `form`,
+// the first the row names writes the line, the writers of one placed text being one, a row of no places written as well
+// from a form of its relation whose one place is a guard, with the guard struck, since the vendor writes a guard at
+// every predicate as none; and where the run hands none the row names, the line the ruleset at `krs_path` gave the
+// row's form before this run, retained whole. A given line a written one replaces with another text is stored in the
+// .krf beside the .ksc at `ksc_path` (krf.h). `krs_path` may be NULL or name no file, and then nothing is given. The
+// count written
 unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrameForm *form, unsigned int count,
                                const char *named_ruleset, const char *krs_path, const char *ksc_path);
 

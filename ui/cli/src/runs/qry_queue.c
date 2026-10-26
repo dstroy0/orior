@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// qry_queue.c: the backend's channels to a run. Each party of the window holds what it gathers in its own buffer and
+// qry_queue.c: the backend's channels to a run. Each party of the window stores what it gathers in its own buffer and
 // queues it here at once; each channel's thread appends each record to the run in the order queued. A record waits for
 // room in its channel's ring, never behind the records of another channel, and one larger than half a ring, a whole
 // file as a rule, is appended to the run as it is queued, the party waiting on it. A channel's ring is a cell of the
-// cellblock, counted to the queue, taken as the channel is first queued to and held while its thread runs, so a channel
-// never queued to holds nothing
+// cellblock, counted to the queue, taken as the channel is first queued to and retained while its thread runs, so a
+// channel never queued to contains nothing
 #include "../text/json_tree.h"
 #include "qry.h"
 
@@ -43,12 +43,13 @@ typedef struct
 static CliChannel s_channels[CLI_CHANNELS];
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
-// what the channels' rings hold in the cellblock
-static CliCellsTally s_tally = CLI_CELLS_TALLY("cli_queue");
-// what the queue has done: the records appended, those that found no run or no room, and what the last of those said
+// what the channels' rings occupy in the cellblock
+static CellOwner s_owner = MMGR_CELL_OWNER("cli_queue");
+// what the queue has done: the records appended, those that found no run or no room, and what the last of those
+// reported
 static unsigned long long s_handed;
 static unsigned long long s_failed;
-static char s_said[CLI_SAID_LONGEST];
+static char s_last_err[CLI_ERR_MSG_MAX_LEN];
 
 static unsigned char *cli_bytes(CliChannel *channel)
 {
@@ -79,16 +80,16 @@ static void cli_channel_run(void *context)
         const char *const path = (const char *)(at + CLI_QUEUE_HEAD);
         const char *const name = path + item->path_length + 1u;
         const unsigned char *const bytes = (const unsigned char *)(name + item->name_length + 1u);
-        char why[CLI_SAID_LONGEST];
-        CliLine said = {why, sizeof(why), 0ull};
-        const int done = cli_qry_append(path, name, bytes, item->size, item->priority, &said);
-        cli_line_closed(&said);
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        const int done = cli_qry_append(path, name, bytes, item->size, item->priority, &err_msg);
+        mmgr_line_finish(&err_msg);
         cli_lock_take(&s_lock);
         s_handed += done ? 1ull : 0ull;
         s_failed += done ? 0ull : 1ull;
         if (!done)
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_said,
+            memor.cpy(&(MemoriaCfg){.dst = s_last_err,
                                     .src = why,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL}) + 1u});
         }
@@ -112,16 +113,16 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
     {
         // a record too large for the ring, a whole file as a rule, is appended as it is queued
         cli_lock_give(&s_lock);
-        char why[CLI_SAID_LONGEST];
-        CliLine said = {why, sizeof(why), 0ull};
-        const int done = cli_qry_append(path, name, bytes, size, priority, &said);
-        cli_line_closed(&said);
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        const int done = cli_qry_append(path, name, bytes, size, priority, &err_msg);
+        mmgr_line_finish(&err_msg);
         cli_lock_take(&s_lock);
         s_handed += done ? 1ull : 0ull;
         s_failed += done ? 0ull : 1ull;
         if (!done)
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_said,
+            memor.cpy(&(MemoriaCfg){.dst = s_last_err,
                                     .src = why,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = why, .cap = CLI_CELLS_POOL}) + 1u});
         }
@@ -129,11 +130,11 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
         return;
     }
     channel->ring =
-        (channel->ring != NULL) ? channel->ring : cli_cell_taken_by(&s_tally, CLI_QUEUE_BYTES, "a channel's ring");
+        (channel->ring != NULL) ? channel->ring : g_cli_cells->persistent_buf_alloc(CLI_QUEUE_BYTES, &s_owner);
     if (channel->ring == NULL)
     {
         s_failed += 1ull;
-        memor.cpy(&(MemoriaCfg){.dst = s_said,
+        memor.cpy(&(MemoriaCfg){.dst = s_last_err,
                                 .src = "no ring could be taken for the channel",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "no ring could be taken for the channel",
                                                                        .cap = CLI_CELLS_POOL}) +
@@ -170,7 +171,7 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
         channel->head = 0ull;
     }
     unsigned char *const at = cli_bytes(channel) + channel->head;
-    // the path and the name are below a ring, and a priority one of three, which an unsigned int holds
+    // the path and the name are below a ring, and a priority one of three, which an unsigned int stores
     const CliQueued item = {(unsigned int)path_length, (unsigned int)name_length, priority, 0u, size, need};
     memor.cpy(&(MemoriaCfg){.dst = at, .src = &item, .bytes = sizeof(item)});
     memor.cpy(&(MemoriaCfg){.dst = at + CLI_QUEUE_HEAD, .src = path, .bytes = path_length + 1ull});
@@ -184,15 +185,15 @@ void cli_qry_queue(unsigned int channel_named, const char *path, const char *nam
     cli_lock_give(&s_lock);
 }
 
-void cli_qry_queued(CliLine *out)
+void cli_qry_queued(VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    cli_line_text(out, "{\"handed\":");
-    cli_line_decimal(out, s_handed, 1u);
-    cli_line_text(out, ",\"dumped\":0,\"failed\":");
-    cli_line_decimal(out, s_failed, 1u);
-    cli_line_text(out, ",\"said\":");
-    cli_json_quoted(out, s_said, cellul.len(&(CatenaFinitaCfg){.src = s_said, .cap = CLI_CELLS_POOL}));
-    cli_line_character(out, '}');
+    mmgr_line_put(out, "{\"handed\":");
+    mmgr_line_decimal(out, s_handed, 1u);
+    mmgr_line_put(out, ",\"dumped\":0,\"failed\":");
+    mmgr_line_decimal(out, s_failed, 1u);
+    mmgr_line_put(out, ",\"message\":");
+    cli_json_quoted(out, s_last_err, cellul.len(&(CatenaFinitaCfg){.src = s_last_err, .cap = CLI_CELLS_POOL}));
+    mmgr_line_ch(out, '}');
     cli_lock_give(&s_lock);
 }

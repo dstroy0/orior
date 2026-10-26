@@ -3,7 +3,9 @@
 // machine.c: the machine file: a form of the machine, the exit encoding, the operations that transfer control or wait, the barrier and the schedule, the machine taken from text, the runs, kinds and answers written and read, and the file written and read
 #include "sass_machine_internal.h"
 #include "../../../../includes/parsers/line_read.h"
-#include "../../../../engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 
 const SassForm *sass_machine_form(const SassMachine *machine, const SassInstructionParts *parts)
 {
@@ -51,7 +53,7 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
     static const char *const s_late[] = {"LDG", "LDS", "S2R", "S2UR", "F2I", "I2F", "MUFU", "ATOMG"};
     static const char *const s_store[] = {"STG", "STS", "STL", "ST", "RED"};
     const size_t base = strcspn(operation, ".");
-    *soonest = SASS_STALL_LONGEST;
+    *soonest = SASS_STALL_MAX_LEN;
     for (unsigned int at = 0u; at < (sizeof(s_late) / sizeof(s_late[0])); at += 1u)
     {
         if ((strlen(s_late[at]) == base) && (strncmp(operation, s_late[at], base) == 0))
@@ -77,20 +79,20 @@ unsigned int sass_operation_schedule(const SassMachine *machine, const char *ope
 }
 
 int sass_machine_take(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
-                      SassForm **kept)
+                      SassForm **taken)
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
     const SassForm *const found = sass_machine_form(machine, &parts);
     if (found != NULL)
     {
-        *kept = &machine->form[found - machine->form];
+        *taken = &machine->form[found - machine->form];
         return 1;
     }
     if (machine->forms == SASS_MACHINE_FORMS)
     {
         machine->refused += 1u;
-        *kept = NULL;
+        *taken = NULL;
         return 0;
     }
     SassForm *const form = &machine->form[machine->forms];
@@ -106,12 +108,12 @@ int sass_machine_take(SassMachine *machine, const char *text, unsigned long long
     form->high = high;
     snprintf(form->text, sizeof(form->text), "%s", text);
     machine->forms += 1u;
-    *kept = form;
+    *taken = form;
     return 1;
 }
 
 int sass_machine_take_related(SassMachine *machine, const char *text, unsigned long long low, unsigned long long high,
-                              const char *relation, SassForm **kept)
+                              const char *relation, SassForm **taken)
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
@@ -120,14 +122,14 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
         SassForm *const form = &machine->form[number];
         if (sass_form_same(form, &parts) && ((form->relation[0] == '\0') || (strcmp(form->relation, relation) == 0)))
         {
-            *kept = form;
+            *taken = form;
             return 1;
         }
     }
     if (machine->forms == SASS_MACHINE_FORMS)
     {
         machine->refused += 1u;
-        *kept = NULL;
+        *taken = NULL;
         return 0;
     }
     SassForm *const form = &machine->form[machine->forms];
@@ -143,7 +145,7 @@ int sass_machine_take_related(SassMachine *machine, const char *text, unsigned l
     form->high = high;
     snprintf(form->text, sizeof(form->text), "%s", text);
     machine->forms += 1u;
-    *kept = form;
+    *taken = form;
     return 1;
 }
 
@@ -183,7 +185,7 @@ int sass_text_placed(const SassForm *form, char *written, size_t room)
         const char *const between = (operand == 0u) ? " " : ", ";
         const char *const mark = s_mark_names[parts.mark[operand]];
         const char *const text = parts.operand[operand];
-        // a placed address keeps its brackets and what follows its register inside them, `[{<place>}.64]`, so that
+        // a placed address retains its brackets and what follows its register inside them, `[{<place>}.64]`, so that
         // the operand reads as an address where the place is filled
         const int address = (parts.kind[operand] == SASS_OPERAND_ADDRESS) && (text[0] == '[');
         const size_t inner = address ? (1u + strcspn(text + 1, ".+]")) : 0u;
@@ -223,7 +225,7 @@ static void sass_runs_write(const SassForm *form, char *written, size_t room)
     }
 }
 
-// one form's runs column read into `form`, each run's place after its last bit where the column holds one and
+// one form's runs column read into `form`, each run's place after its last bit where the column contains one and
 // SASS_RUN_NO_PLACE where it does not: 1, or 0 where a run does not read
 static int sass_runs_read(SassForm *form, const char *column)
 {
@@ -288,17 +290,17 @@ static void sass_kinds_write(const SassForm *form, char *written, size_t room)
 int sass_machine_write(const SassMachine *machine, const char *path)
 {
     static char s_file_bytes[QRY_WRITER_RING_BYTES / 2ull];
-    ScripturaLine file = {s_file_bytes, sizeof(s_file_bytes), 0ull};
-    scriptura_text(&file, "forms 2" SASS_LINE_END);
-    scriptura_text(&file,
+    VerbaLinea file = {s_file_bytes, sizeof(s_file_bytes), 0ull};
+    mmgr_line_put(&file, "forms 2" SASS_LINE_END);
+    mmgr_line_put(&file,
                      "# The part's instructions as the cell's probes read them back: one line a form, an operation "
                      "and" SASS_LINE_END
                      "# the kind and mark of each printed operand, with the encoding the form was first seen with "
                      "and" SASS_LINE_END "# the instruction it was seen as. The format is the comment at the head of "
                      "sass_machine.h." SASS_LINE_END);
-    scriptura_text(&file, "part ");
-    scriptura_text(&file, machine->part);
-    scriptura_text(&file, SASS_LINE_END);
+    mmgr_line_put(&file, "part ");
+    mmgr_line_put(&file, machine->part);
+    mmgr_line_put(&file, SASS_LINE_END);
     for (unsigned int number = 0u; number < machine->forms; number += 1u)
     {
         const SassForm *const form = &machine->form[number];
@@ -306,27 +308,27 @@ int sass_machine_write(const SassMachine *machine, const char *path)
         char runs[SASS_MACHINE_RUNS * 16u];
         sass_kinds_write(form, kinds, sizeof(kinds));
         sass_runs_write(form, runs, sizeof(runs));
-        const int asked = (form->relation[0] != '\0');
-        scriptura_text(&file, "form ");
-        scriptura_text(&file, form->operation);
-        scriptura_text(&file, " ");
-        scriptura_text(&file, kinds);
-        scriptura_text(&file, " 0x");
-        scriptura_hex(&file, form->low, 16u);
-        scriptura_text(&file, " 0x");
-        scriptura_hex(&file, form->high, 16u);
-        scriptura_text(&file, " ");
-        scriptura_text(&file, runs);
-        scriptura_text(&file, " ");
-        scriptura_text(&file, asked ? form->relation : SASS_RUN_NO_PLACE_TEXT);
-        scriptura_text(&file, " ");
-        scriptura_text(&file, asked ? ((form->signed_read != 0) ? "1" : "0") : SASS_RUN_NO_PLACE_TEXT);
-        scriptura_text(&file, " ");
-        scriptura_text(&file, form->text);
-        scriptura_text(&file, SASS_LINE_END);
+        const int related = (form->relation[0] != '\0');
+        mmgr_line_put(&file, "form ");
+        mmgr_line_put(&file, form->operation);
+        mmgr_line_put(&file, " ");
+        mmgr_line_put(&file, kinds);
+        mmgr_line_put(&file, " 0x");
+        mmgr_line_hex(&file, form->low, 16u);
+        mmgr_line_put(&file, " 0x");
+        mmgr_line_hex(&file, form->high, 16u);
+        mmgr_line_put(&file, " ");
+        mmgr_line_put(&file, runs);
+        mmgr_line_put(&file, " ");
+        mmgr_line_put(&file, related ? form->relation : SASS_RUN_NO_PLACE_TEXT);
+        mmgr_line_put(&file, " ");
+        mmgr_line_put(&file, related ? ((form->signed_read != 0) ? "1" : "0") : SASS_RUN_NO_PLACE_TEXT);
+        mmgr_line_put(&file, " ");
+        mmgr_line_put(&file, form->text);
+        mmgr_line_put(&file, SASS_LINE_END);
     }
     // handed to the run's writer whole, which writes it in the file's place (qry_member_filed)
-    if (!scriptura_fits(&file) || !qry_member_filed(path, file.out, file.at))
+    if (!mmgr_line_ok(&file) || !qry_member_filed(path, file.out, file.at))
     {
         printf("  sass_machine: %s could not be written: no run's writer runs, or it stands outside the tree\n", path);
         return 0;
@@ -382,7 +384,7 @@ static int sass_kinds_read(SassForm *form, const char *column)
 
 // what the part answered on the run channel, read from the .ksc of the machine file's stem at `path` into `machine`:
 // the soonest reads, each operation's the largest of its lines, the last register a question's code can name, and how
-// many registers past the highest its code names a container declares. A machine with no .ksc beside it holds no
+// many registers past the highest its code names a container declares. A machine with no .ksc beside it contains no
 // soonest read, every register, and no count past
 static void sass_answers_read(SassMachine *machine, const char *path)
 {
@@ -392,7 +394,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
     const size_t length = strlen(path);
     const int typed = (length > 4u) && (strcmp(path + length - 4u, ".khw") == 0);
     snprintf(ksc, sizeof(ksc), "%.*s.ksc", (int)(typed ? (length - 4u) : length), path);
-    // the .ksc as the run holds it (ksc.h)
+    // the .ksc as the run stores it (ksc.h)
     static KscFile s_file;
     static KscRow s_row;
     ksc_read(&s_file, ksc);
@@ -404,7 +406,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
         {
             continue;
         }
-        // a stall and a register are each at most eight hex digits, which an unsigned int holds
+        // a stall and a register are each at most eight hex digits, which an unsigned int represents
         const unsigned int answered = (unsigned int)s_row.value;
         if (strncmp(s_row.question, "register last", 13u) == 0)
         {
@@ -445,7 +447,7 @@ static void sass_answers_read(SassMachine *machine, const char *path)
 
 int sass_machine_read(SassMachine *machine, const char *path)
 {
-    // the machine file as the run holds it (qry_member_file)
+    // the machine file as the run stores it (qry_member_file)
     const unsigned char *file_bytes = NULL;
     unsigned long long file_size = 0ull;
     unsigned long long file_at = 0ull;
@@ -472,7 +474,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
         }
         if (strncmp(line, "part ", 5u) == 0)
         {
-            // a part's name is short, and a longer one is cut to what the field holds
+            // a part's name is short, and a longer one is cut to what the field fits
             snprintf(machine->part, sizeof(machine->part), "%.*s", (int)(sizeof(machine->part) - 1u), line + 5);
             continue;
         }
@@ -489,7 +491,7 @@ int sass_machine_read(SassMachine *machine, const char *path)
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
         // the text past the runs, and at forms 2 past the relation and the signedness, is the instruction the form was
-        // seen as, and holds spaces
+        // seen as, and contains spaces
         const char *seen = line + 5;
         int read = line_word(&seen, operation, sizeof(operation)) && line_word(&seen, kinds, sizeof(kinds)) &&
                    line_number(&seen, 1, &low) && line_number(&seen, 1, &high) && line_word(&seen, runs, sizeof(runs));

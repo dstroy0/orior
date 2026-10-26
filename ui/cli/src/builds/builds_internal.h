@@ -8,7 +8,7 @@
 #include "builds.h"
 
 // the program that runs the Gradle build in `folder`, its wrapper where one stands there and `gradle` where none does,
-// into `out`, which holds CLI_PATH_LONGEST (gradle.c)
+// into `out`, sized for CLI_PATH_MAX_LEN (gradle.c)
 void cli_gradle_program(const char *folder, char *out);
 
 #endif

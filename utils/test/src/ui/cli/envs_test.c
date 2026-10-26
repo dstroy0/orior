@@ -4,13 +4,13 @@
 #include "../../../../../ui/cli/src/toolchains/envs.h"
 #include "cli_check.h"
 
-static char s_root[CLI_PATH_LONGEST];
+static char s_root[CLI_PATH_MAX_LEN];
 
 // `text` written to the file `name` under the root, its folder made
 static void envs_written(const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_full(s_root, name, path);
     if (cli_path_parent(path, folder))
     {
@@ -21,6 +21,7 @@ static void envs_written(const char *name, const char *text)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check_folder("envs", s_root);
     envs_written(".venv/pyvenv.cfg", "home = x\n");
     envs_written(".venv/Lib/site-packages/pyvenv.cfg", "not searched\n");
@@ -31,28 +32,28 @@ int main(void)
     envs_written("nixed/shell.nix", "{ }\n");
     envs_written("node_modules/x/pyvenv.cfg", "not searched\n");
     static char s_found[1u << 16u];
-    CliLine out = {s_found, sizeof(s_found), 0ull};
+    VerbaLinea out = {s_found, sizeof(s_found), 0ull};
     cli_envs_found(s_root, &out);
-    cli_check((g_cli_envs_cells.holds == 0ull) && (g_cli_envs_cells.hw > 0ull),
-              "the search holds its folders, what it found and the names required in cells, each given back");
+    cli_check((g_cli_envs_cells.in_use == 0ull) && (g_cli_envs_cells.hw > 0ull),
+              "the search stores its folders, what it found and the names required in cells, each given back");
     unsigned int found = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_found, out.at, &found);
     static char s_shown[4096];
-    CliLine shown = {s_shown, sizeof(s_shown), 0ull};
+    VerbaLinea shown = {s_shown, sizeof(s_shown), 0ull};
     for (unsigned int at = 0u; cli_json_item(json, found, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int one = cli_json_item(json, found, at);
-        cli_line_text(&shown, (at > 0u) ? "|" : "");
-        cli_line_text(&shown, cli_check_member_text(one, "kind"));
-        cli_line_character(&shown, ' ');
-        cli_line_text(&shown, cli_check_member_text(one, "place"));
-        cli_line_character(&shown, ' ');
+        mmgr_line_put(&shown, (at > 0u) ? "|" : "");
+        mmgr_line_put(&shown, cli_check_member_text(one, "kind"));
+        mmgr_line_ch(&shown, ' ');
+        mmgr_line_put(&shown, cli_check_member_text(one, "place"));
+        mmgr_line_ch(&shown, ' ');
         const unsigned int needs = cli_json_member(json, one, "requires");
         for (unsigned int item = 0u; cli_json_item(json, needs, item) != CLI_JSON_NONE; item += 1u)
         {
             const char *const name = cli_json_string(json, cli_json_item(json, needs, item), NULL);
-            cli_line_text(&shown, (item > 0u) ? "," : "");
-            cli_line_text(&shown, (name != NULL) ? name : "");
+            mmgr_line_put(&shown, (item > 0u) ? "," : "");
+            mmgr_line_put(&shown, (name != NULL) ? name : "");
         }
     }
     cli_check_text(s_shown, shown.at, "venv .venv numpy,scipy|nix nixed |pipenv tools/sub requests,click",

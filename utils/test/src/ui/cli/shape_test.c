@@ -8,15 +8,18 @@
 #include "../../../../../ui/cli/src/text/edits.h"
 #include "cli_check.h"
 
-// the matches found, their spans and written texts kept
+// the languages the texts are read in, read once
+static CliSymbolsLanguages *s_languages;
+
+// the matches found, their spans and written texts recorded
 static CliTextEdit s_edits[64];
 static char s_with[1u << 14u];
 static unsigned int s_count;
 static unsigned int s_used;
 static char s_after[1u << 14u];
 
-// a match kept
-static void shape_kept(void *context, const CliShapeFound *found)
+// a match recorded
+static void shape_match_capture(void *context, const CliShapeFound *found)
 {
     (void)context;
     if ((s_count >= 64u) || (s_used + found->with_size > sizeof(s_with)))
@@ -28,7 +31,7 @@ static void shape_kept(void *context, const CliShapeFound *found)
                             .bytes = found->has_with ? found->with_size : 0ull});
     s_edits[s_count] =
         (CliTextEdit){found->from, found->to, s_with + s_used, found->has_with ? found->with_size : 0ull};
-    // the texts kept are below the room's size, which an unsigned int holds
+    // the texts recorded are below the room's size, which an unsigned int represents
     s_used += (unsigned int)s_edits[s_count].size;
     s_count += 1u;
 }
@@ -38,8 +41,8 @@ static unsigned int shape_search(const char *language, const char *src, const ch
 {
     s_count = 0u;
     s_used = 0u;
-    cli_shape_search(language, src, cellul.len(&(CatenaFinitaCfg){.src = src, .cap = CLI_CELLS_POOL}), pattern,
-                     template_text, shape_kept, NULL);
+    cli_shape_search(s_languages, language, src, cellul.len(&(CatenaFinitaCfg){.src = src, .cap = CLI_CELLS_POOL}),
+                     pattern, template_text, shape_match_capture, NULL);
     return s_count;
 }
 
@@ -48,7 +51,7 @@ static void shape_replaced(const char *language, const char *src, const char *pa
                            const char *wanted, const char *what)
 {
     (void)shape_search(language, src, pattern, template_text);
-    CliLine after = {s_after, sizeof(s_after), 0ull};
+    VerbaLinea after = {s_after, sizeof(s_after), 0ull};
     (void)cli_text_applied(src, cellul.len(&(CatenaFinitaCfg){.src = src, .cap = CLI_CELLS_POOL}), s_edits, s_count,
                            &after);
     cli_check_text(s_after, after.at, wanted, what);
@@ -56,6 +59,8 @@ static void shape_replaced(const char *language, const char *src, const char *pa
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    s_languages = cli_symbols_languages_read();
     static const char s_calls[] = "x = len( items ) + len(other(1, 2))\nprint(len(z))\n";
     const unsigned int count = shape_search("python", s_calls, "len($a$)", NULL);
     cli_check((count == 3u) && (s_edits[0].from.line == 0u) && (s_edits[0].from.col == 4u) &&
@@ -80,9 +85,10 @@ int main(void)
     shape_replaced("python", s_total, "total = $v$", "total = ($v$)", "total = (a + b * c)\nname = \"a + b\"\n",
                    "an expression last in a pattern takes the rest of its statement");
     cli_check(shape_search("python", s_total, "a + b", NULL) == 1u, "and a string is one token");
-    // a search of texts of a hundred bytes holds a room of their tokens, far below a fixed room of 2^22
-    cli_check((g_cli_shape_cells.holds == 0ull) && (g_cli_shape_cells.hw != 0ull) &&
+    // a search of texts of a hundred bytes takes a room of their tokens, far below a fixed room of 2^22
+    cli_check((g_cli_shape_cells.in_use == 0ull) && (g_cli_shape_cells.hw != 0ull) &&
                   (g_cli_shape_cells.hw < (1ull << 16u)),
               "a search's room is sized to its code and pattern, and given back");
+    cli_symbols_languages_given(s_languages);
     return cli_checked();
 }

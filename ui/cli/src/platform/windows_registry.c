@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// windows_registry.c: the PATH as the registry holds it now, the system's and the reader's, a variable of the reader's
-// own read and set as text whose %NAME% parts expand, and every open program told the environment changed
+// windows_registry.c: the PATH as the registry stores it now, the system's and the reader's, a variable of the reader's
+// own read and set as text whose %NAME% parts expand, and every open program notified the environment changed
 #include "../command_line/cli_internal.h"
 
 #if defined(_WIN32)
@@ -16,8 +16,8 @@ static int cli_read(HKEY root, const wchar_t *key, const char *name, char *out, 
 {
     static wchar_t s_data[CLI_REGISTRY_UNITS];
     static CliLock s_lock = CLI_LOCK_INIT;
-    wchar_t wide_name[CLI_NAME_LONGEST];
-    if (MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name, CLI_NAME_LONGEST) == 0)
+    wchar_t wide_name[CLI_NAME_MAX_LEN];
+    if (MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name, CLI_NAME_MAX_LEN) == 0)
     {
         return 0;
     }
@@ -29,9 +29,9 @@ static int cli_read(HKEY root, const wchar_t *key, const char *name, char *out, 
     cli_lock_take(&s_lock);
     DWORD kind = 0u;
     DWORD size = sizeof(s_data) - sizeof(wchar_t);
-    const LONG said = RegQueryValueExW(opened, wide_name, NULL, &kind, (LPBYTE)s_data, &size);
+    const LONG status = RegQueryValueExW(opened, wide_name, NULL, &kind, (LPBYTE)s_data, &size);
     RegCloseKey(opened);
-    if ((said != ERROR_SUCCESS) || ((kind != REG_SZ) && (kind != REG_EXPAND_SZ)))
+    if ((status != ERROR_SUCCESS) || ((kind != REG_SZ) && (kind != REG_EXPAND_SZ)))
     {
         cli_lock_give(&s_lock);
         return 0;
@@ -54,23 +54,23 @@ int cli_registry_user_value(const char *name, char *out, unsigned long long room
     return cli_read(HKEY_CURRENT_USER, L"Environment", name, out, room);
 }
 
-int cli_registry_set_user_value(const char *name, const char *value, CliLine *said)
+int cli_registry_set_user_value(const char *name, const char *value, VerbaLinea *err_msg)
 {
     static wchar_t s_data[CLI_REGISTRY_UNITS];
-    wchar_t wide_name[CLI_NAME_LONGEST];
+    wchar_t wide_name[CLI_NAME_MAX_LEN];
     const int units = MultiByteToWideChar(CP_UTF8, 0, value, -1, s_data, CLI_REGISTRY_UNITS);
-    if ((units == 0) || (MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name, CLI_NAME_LONGEST) == 0))
+    if ((units == 0) || (MultiByteToWideChar(CP_UTF8, 0, name, -1, wide_name, CLI_NAME_MAX_LEN) == 0))
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " was not written: it is too long");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " was not written: it is too long");
         return 0;
     }
     HKEY opened = NULL;
     LONG result = RegOpenKeyExW(HKEY_CURRENT_USER, L"Environment", 0u, KEY_READ | KEY_WRITE, &opened);
     if (result != ERROR_SUCCESS)
     {
-        cli_line_text(said, "the reader's environment did not open: error ");
-        cli_line_signed(said, result);
+        mmgr_line_put(err_msg, "the reader's environment did not open: error ");
+        mmgr_line_decimal_signed(err_msg, result);
         return 0;
     }
     // the units written count the closing zero, and each is two bytes
@@ -78,9 +78,9 @@ int cli_registry_set_user_value(const char *name, const char *value, CliLine *sa
     RegCloseKey(opened);
     if (result != ERROR_SUCCESS)
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " was not written: error ");
-        cli_line_signed(said, result);
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " was not written: error ");
+        mmgr_line_decimal_signed(err_msg, result);
         return 0;
     }
     return 1;

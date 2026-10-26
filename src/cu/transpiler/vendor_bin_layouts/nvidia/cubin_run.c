@@ -1,25 +1,25 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cubin_run.c: a question carried to the part: its code put in the container the system accepted, held to
+// cubin_run.c: a question carried to the part: its code put in the container the system accepted, checked against
 // cubin_safe on the host, and run over its cases, a thread a case. This is the run channel's carrier for a part behind
 // NVIDIA's driver (run_channel.h). A question is carried in a process of its own, so a part that refuses one takes
 // this process with it and nothing else, or with --list, many untimed questions in one process, the driver opened
 // once, each answered to its own blob as it is carried: a part that refuses one takes the process with it, every
 // answer written before it stands, and the questions after it are left for the channel to carry again.
 //
-//     orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> <blocks>]]
-//     orior_cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers> <cases> <answers>
-//     <slot>
+//     orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <probe> [<launches> [<threads>
+//     <blocks>]] orior_cubin_run <machine file> <layout> --list <list>      a line a question, <code> <registers>
+//     <cases> <answers> <probe>
 //     [<launches>]
 //     orior_cubin_run --dry <machine file> <layout> ...          either of the above, with the part taken out
 //
 // The carrier runs only where a run's writer runs, the .qry QRY names (qry_member.h): every input named, the code, the
-// cases, the list and the held list, is the latest blob of that name in the run, and every answer, dry record
+// cases, the list and the gated list, is the latest blob of that name in the run, and every answer, dry record
 // and container is handed to it, a refusal critical and on disk before the carrier goes on: the carrier writes no
 // file. Where none runs it carries nothing and exits 2, since the record of what the part was handed and of any fault
 // would have nowhere to go.
 //
-// A dry run writes and holds every question as ever and stops before the driver: each question is answered
+// A dry run writes and gates every question as ever and stops before the driver: each question is answered
 // `skipped dry, the part taken out`, and what it would have handed the part is handed as the run's blob dry.txt
 // (cubin_run_dry_written). Handed the list a dry run of the protocol writes (run_channel.h), it checks every
 // question the protocol put.
@@ -27,15 +27,15 @@
 // After --dry come the facets, each popping out one object of the carry so it can be read off the part; --full pops
 // them all:
 //   --query                      the query object: every place of the code read back as our reader names it, not
-//                                only the places that are not as the run's first question holds them
-//   --gate-check                 the safety word laid on and cubin_safe's verdict on what it then holds
+//                                only the places that are not as the run's first question contains them
+//   --gate-check                 the safety word laid on and cubin_safe's verdict on what it then contains
 //   --diff-output-against-vendor the post-safety-word container as it would reach the part, handed named as the answers
 //                                with .cubin, for scaffolding to read against the vendor's own disassembler, the same
 //                                C compiled through the vendor's compiler beside it. Our gate judges by operation key;
 //                                only the vendor's reader knows a whole encoding illegal
 //
-// The code is the question's machine code, sixteen bytes an instruction. The layout's container rows hold the container
-// (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
+// The code is the question's machine code, sixteen bytes an instruction. The layout's container rows define the
+// container (cubin_write.h), and the code, the registers and the exits are put in it. The cases are one a line, up to
 // eight words in hex, the words a line leaves out zero, and the kernel is handed the stick's arity: in, eight words a
 // thread, out, room for eight words a thread, and the count of threads. The answers are read as the kernel wrote them:
 // how far apart its threads write and how many words each writes are read from where the part wrote, and a case's
@@ -47,12 +47,12 @@
 //     answered <answer>...      each case's two words as one value in hex, in the order of the cases
 //     registers <declared> <part> the registers the question's kernel declares, and the count the part reports for it
 //                               through cuFuncGetAttribute: read off a loaded function and not probed, the register
-//                               boundary known without an ask that walks up to it and faults the part
-//     skipped <verdict> <name>  cubin_safe held it off the part, and the driver never saw it
-//     skipped no vendor verdict a live run was given no --held file: the vendor's reader never read this code for a
-//                               fault. It is held off the part, the cross must read it first (the safety airlock)
+//                               boundary known without a query that walks up to it and faults the part
+//     skipped <verdict> <name>  cubin_safe blocked it from the part, and the driver never saw it
+//     skipped no vendor verdict a live run was given no --gated file: the vendor's reader never read this code for a
+//                               fault. It is blocked from the part, the cross must read it first (the safety airlock)
 //     skipped <reason>          the container could not be written, or its launch gives the cases no thread each
-//                               or more threads than a launch holds, and the driver never saw it
+//                               or more threads than a launch allows, and the driver never saw it
 //     refused <error>           the driver or the part would not take it
 //
 // Every launch, the one that answers and each timed one, is carried alone under cubin_safe's rule 6: between two events
@@ -62,7 +62,7 @@
 // `refused CUDA_ERROR_LAUNCH_TIMEOUT`, and nothing is launched after it in the process.
 //
 // After each launch the part's own fault telemetry is read, the Xid critical errors the driver's management layer
-// stamps and, where the system keeps a log of them, every error the display driver writes to the System log, each Xid
+// stamps and, where the system records a log of them, every error the display driver writes to the System log, each Xid
 // with its text (cubin_run_telemetry_open, cubin_run_telemetry_faulted), under cubin_safe's rule 7. A launch that makes
 // the part stamp one, or one the driver names a context-corrupting fault itself, has faulted the part: it is answered
 // `refused`, and nothing is launched after it in the process. This catches an out-of-range register, which faults in
@@ -74,13 +74,13 @@
 //
 //     timed <launches> <nanoseconds> <least> <most>
 //
-// As a list ends the carrier says where its time went, one line of its own output: `carrier: <questions> questions;
+// As a list ends the carrier reports where its time went, one line of its own output: `carrier: <questions> questions;
 // input, gate, load, memory, launch, telemetry, handed`, the seconds each stage took summed over the list
 // (CubinRunClocks). The part's memory a launch takes and the events it is carried between are allotted once for the
-// process and kept to the largest a question asks; a question's module is given back as it is answered.
+// process and retained at the largest a question requires; a question's module is given back as it is answered.
 //
-// Each question the gate reads is a row of the run's table of verdicts, put past every rule or held, and each launch a
-// row of its table of launches, each keyed to its ask, the sequence of the question's code's blob in the run
+// Each question the gate reads is a row of the run's table of verdicts, put past every rule or gated, and each launch a
+// row of its table of launches, each keyed to its query, the sequence of the question's code's blob in the run
 // (verdicts.oracle.tsv, launches.oracle.tsv, qry_member.h).
 //
 // The driver is reached by name and by its own entry points, and nothing of its vendor's toolchain is compiled
@@ -97,7 +97,7 @@ int main(int count, char **words)
     s_run = qry_member_run();
     if (s_run == NULL)
     {
-        fprintf(stderr, "orior_cubin_run: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        fprintf(stderr, "orior_cubin_run: no query writer runs: %s names no .qry a writer has open\n", QRY_ENVIRONMENT);
         return 2;
     }
     // `--dry` before the machine file runs every question as ever up to the driver, and none past it
@@ -109,15 +109,16 @@ int main(int count, char **words)
         count -= 1;
     }
     // the facets come after --dry, each popping out one object of the carry to be read off the part; --full pops
-    // them all. A dry run with no facet pops out the diff from its first question, as ever. --held <file> takes the
-    // vendor's feedback, the encodings its disassembler held, and a matching slot is held before the part on a live run
+    // them all. A dry run with no facet pops out the diff from its first question, as ever. --gated <file> takes the
+    // vendor's feedback, the encodings its disassembler blocked, and a matching probe instruction is blocked before the
+    // part on a live run
     while ((count >= 2) && (strncmp(words[1], "--", 2u) == 0) && (strcmp(words[1], "--list") != 0))
     {
-        if (strcmp(words[1], "--held") == 0)
+        if (strcmp(words[1], "--gated") == 0)
         {
             if ((count < 3) || !cubin_run_verdict_load(words[2]))
             {
-                fprintf(stderr, "the held list %s did not read\n", (count < 3) ? "(none)" : words[2]);
+                fprintf(stderr, "the gated list %s did not read\n", (count < 3) ? "(none)" : words[2]);
                 return 2;
             }
             words[2] = words[0];
@@ -126,7 +127,7 @@ int main(int count, char **words)
             continue;
         }
         // --lessons <file> takes the lessons a conference taught, the blob of them in the run: every encoding a
-        // lesson admits is put past rule 3 (cubin_safe_admitted_read). A run that holds no such blob admits none
+        // lesson admits is put past rule 3 (cubin_safe_admitted_read). A run that contains no such blob admits none
         if (strcmp(words[1], "--lessons") == 0)
         {
             const unsigned char *lessons = NULL;
@@ -174,12 +175,14 @@ int main(int count, char **words)
     const int listed = (count == 5) && (strcmp(words[3], "--list") == 0);
     if (!listed && (count != 8) && (count != 9) && (count != 11))
     {
-        fprintf(stderr,
-                "orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <slot> [<launches> [<threads> "
-                "<blocks>]]\n"
-                "orior_cubin_run <machine file> <layout> --list <list>\n"
-                "orior_cubin_run [--dry [--full|--query|--gate-check|--diff-output-against-vendor]...] [--held <file>] "
-                "<machine file> ...\n");
+        fprintf(
+            stderr,
+            "orior_cubin_run <machine file> <layout> <code> <registers> <cases> <answers> <probe> [<launches> "
+            "[<threads> "
+            "<blocks>]]\n"
+            "orior_cubin_run <machine file> <layout> --list <list>\n"
+            "orior_cubin_run [--dry [--full|--query|--gate-check|--diff-output-against-vendor]...] [--gated <file>] "
+            "<machine file> ...\n");
         return 2;
     }
     char kernel[256];
@@ -191,7 +194,7 @@ int main(int count, char **words)
         return 2;
     }
     // the gate reads every instruction of every question against the forms, and the forms' places are found once
-    sass_encoding_places_hold(&s_machine);
+    sass_encoding_places_built(&s_machine);
     // the vendor's instruction set for the part, where the tables step has pulled it, for the gate's rule 13
     cubin_safe_tables_read(s_machine.part);
     // the clock the part named beside the machine file, where it names one and the listener answers
@@ -199,16 +202,16 @@ int main(int count, char **words)
     const CubinRunShape unshaped = {CUBIN_RUN_THREADS, 1u};
     if (!listed)
     {
-        const unsigned int slot = (unsigned int)strtoul(words[7], NULL, 10);
+        const unsigned int place = (unsigned int)strtoul(words[7], NULL, 10);
         const unsigned int launches = (count >= 9) ? (unsigned int)strtoul(words[8], NULL, 10) : 0u;
         const CubinRunShape shape = {(count == 11) ? (unsigned int)strtoul(words[9], NULL, 10) : CUBIN_RUN_THREADS,
                                      (count == 11) ? (unsigned int)strtoul(words[10], NULL, 10) : 1u};
         const int carried =
             cubin_run_question(kernel, pattern_size, words[3], (unsigned int)strtoul(words[4], NULL, 10), words[5],
-                               words[6], slot, launches, (count == 11) ? shape : unshaped, count == 11);
+                               words[6], place, launches, (count == 11) ? shape : unshaped, count == 11);
         return (carried == 2) ? 2 : 0;
     }
-    // Each line of the list one question of no shape of its own, `<code> <registers> <cases> <answers> <slot>
+    // Each line of the list one question of no shape of its own, `<code> <registers> <cases> <answers> <probe>
     // [<launches>]`, timed over its launches where it gives a count that is not 0, all carried in this one process and
     // each answered to its own blob as it is carried, each timed question's time its own. A launch the driver or the
     // part refuses leaves a context that answers no other question, and the questions after it are left unanswered, for
@@ -230,18 +233,18 @@ int main(int count, char **words)
         char cases_path[CUBIN_RUN_LINE];
         char answers_path[CUBIN_RUN_LINE];
         unsigned int registers = 0u;
-        unsigned int slot = 0u;
+        unsigned int place = 0u;
         unsigned int launches = 0u;
         const char *at = line;
         if (!line_word(&at, code_path, sizeof(code_path)) || !line_unsigned(&at, &registers) ||
             !line_word(&at, cases_path, sizeof(cases_path)) || !line_word(&at, answers_path, sizeof(answers_path)) ||
-            !line_unsigned(&at, &slot))
+            !line_unsigned(&at, &place))
         {
             continue;
         }
         // the launches follow where the list names them
         line_unsigned(&at, &launches);
-        carried = cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, slot,
+        carried = cubin_run_question(kernel, pattern_size, code_path, registers, cases_path, answers_path, place,
                                      launches, unshaped, 0);
         questions += 1u;
     }

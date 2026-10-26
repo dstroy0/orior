@@ -36,7 +36,7 @@ static void complete_catalog(const char *root, const char *path, const char *fir
 {
     static CliGradleCatalogs s_catalogs;
     static char s_value[1u << 12u];
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     cli_gradle_build_root(root, path, folder);
     cli_gradle_catalogs(folder, &s_catalogs);
     unsigned int chosen = s_catalogs.count;
@@ -53,7 +53,7 @@ static void complete_catalog(const char *root, const char *path, const char *fir
     }
     // the catalog read where it lies, mapped while its aliases are read and let go after
     unsigned long long read = 0ull;
-    const unsigned char *const catalog = cli_file_held(s_catalogs.path[chosen], &read);
+    const unsigned char *const catalog = cli_file_read(s_catalogs.path[chosen], &read);
     CliVersionsAliases aliases;
     const int whole = (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
                       cli_utf8_whole((const char *)catalog, read) &&
@@ -76,10 +76,10 @@ static void complete_catalog(const char *root, const char *path, const char *fir
             {
                 continue;
             }
-            CliLine value = {s_value, sizeof(s_value), 0ull};
-            cli_line_text(&value, s_leads[one]);
+            VerbaLinea value = {s_value, sizeof(s_value), 0ull};
+            mmgr_line_put(&value, s_leads[one]);
             cli_versions_accessor(aliases.text + alias->alias_at, alias->alias_size, &value);
-            if (cli_line_fits(&value))
+            if (mmgr_line_ok(&value))
             {
                 cli_build_relative(items, rest, rest_size, s_value, value.at, s_kinds[one],
                                    aliases.text + alias->about_at, alias->about_size);
@@ -129,8 +129,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
     }
     cli_lock_take(&g_cli_gradle_lock);
     // the bytes before the cursor classed in a cell of their own, given back once the last of them is read
-    unsigned char *const before =
-        cli_cell_taken_by(&g_cli_gradle_cells, at + 1ull, "a script's classes before the cursor");
+    unsigned char *const before = g_cli_cells->persistent_buf_alloc(at + 1ull, &g_cli_gradle_cells);
     if (before == NULL)
     {
         cli_lock_give(&g_cli_gradle_lock);
@@ -138,7 +137,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
     }
     cli_gradle_classes(text, at, before);
     const int open = (at > 0u) && (before[at - 1u] != CLI_GRADLE_CODE) && (text[at - 1u] != '\n');
-    cli_cell_given_by(&g_cli_gradle_cells, before);
+    g_cli_cells->persistent_buf_release(before, &g_cli_gradle_cells);
     const unsigned long long token = cli_build_run_before(text, at, complete_chain_letter);
     const char *const dot = memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(at - token)});
     if (open)
@@ -198,16 +197,16 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
         }
         count = (count < CLI_GRADLE_LINES) ? count : CLI_GRADLE_LINES;
         unsigned int *const starts =
-            cli_cell_taken_by(&g_cli_gradle_cells, count * sizeof(unsigned int), "a script's lines");
+            g_cli_cells->persistent_buf_alloc(count * sizeof(unsigned int), &g_cli_gradle_cells);
         if (starts != NULL)
         {
             CliBuildLines lines;
-            // a count no more than CLI_GRADLE_LINES, which an unsigned int holds
+            // a count no more than CLI_GRADLE_LINES, which an unsigned int stores
             cli_build_lines_of(text, size, starts, (unsigned int)count, &lines);
             cli_gradle_declared(&lines);
             complete_declared(items);
         }
-        cli_cell_given_by(&g_cli_gradle_cells, starts);
+        g_cli_cells->persistent_buf_release(starts, &g_cli_gradle_cells);
     }
     else
     {

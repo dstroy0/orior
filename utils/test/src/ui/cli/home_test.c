@@ -5,13 +5,14 @@
 
 int main(void)
 {
-    char home[CLI_PATH_LONGEST];
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    char home[CLI_PATH_MAX_LEN];
     cli_check_folder("home_home", home);
     (void)query_environment_set("ORIOR_HOME", home);
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    char made_path[CLI_PATH_LONGEST];
-    cli_check(cli_home_ensure_menus(made_path, &said), "the reader's menus are made");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char made_path[CLI_PATH_MAX_LEN];
+    cli_check(cli_home_ensure_menus(made_path, &err_msg), "the reader's menus are made");
     static char s_text[1u << 16u];
     const unsigned long long size = qry_member_file_read(made_path, (unsigned char *)s_text, sizeof(s_text));
     unsigned int made = CLI_JSON_NONE;
@@ -20,16 +21,16 @@ int main(void)
                                              .cap = CLI_CELLS_POOL,
                                              .other = "hide",
                                              .other_cap = CLI_CELLS_POOL}) != NULL,
-              "what the file says of itself names hide");
+              "what the file states of itself names hide");
     static const char *const s_keys[3] = {"menus", "hide", "toolbar"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
         const unsigned int list = cli_json_member(json, made, s_keys[at]);
         char what[64];
-        CliLine line = {what, sizeof(what), 0ull};
-        cli_line_text(&line, s_keys[at]);
-        cli_line_text(&line, " is an empty list");
-        (void)cli_line_closed(&line);
+        VerbaLinea line = {what, sizeof(what), 0ull};
+        mmgr_line_put(&line, s_keys[at]);
+        mmgr_line_put(&line, " is an empty list");
+        (void)mmgr_line_finish(&line);
         cli_check(cli_json_is(json, list, CFG_JSON_ARRAY) && (json->node[list].count == 0u), what);
     }
     return cli_checked();

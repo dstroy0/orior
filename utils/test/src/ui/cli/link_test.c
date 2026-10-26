@@ -9,8 +9,8 @@
 static int link_parsed(const char *text, CliLinkAddress *address)
 {
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    return cli_link_address_parse(text, address, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return cli_link_address_parse(text, address, &err_msg);
 }
 
 // addresses read each way in
@@ -22,16 +22,16 @@ static void link_addresses(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = ssh.name, .other = "me@box.lan", .cap = CLI_CELLS_POOL})) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = ssh.folder, .other = "/home/me/tree", .cap = CLI_CELLS_POOL})),
               "an address of `user@host:folder` is ssh's");
-    char machine[CLI_PATH_LONGEST];
-    CliLine line = {machine, sizeof(machine), 0ull};
+    char machine[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {machine, sizeof(machine), 0ull};
     cli_link_machine(&ssh, &line);
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = machine, .other = "box.lan", .cap = CLI_CELLS_POOL}),
               "its machine is its host");
-    char text[CLI_PATH_LONGEST * 2u];
-    CliLine written = {text, sizeof(text), 0ull};
+    char text[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea written = {text, sizeof(text), 0ull};
     cli_link_address_text(&ssh, &written);
-    (void)cli_line_closed(&written);
+    (void)mmgr_line_finish(&written);
     cli_check(link_parsed(text, &again) && (again.way == ssh.way) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = again.name, .other = ssh.name, .cap = CLI_CELLS_POOL})) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = again.folder, .other = ssh.folder, .cap = CLI_CELLS_POOL})),
@@ -53,23 +53,24 @@ static void link_addresses(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     link_addresses();
     char quoted[64];
-    CliLine line = {quoted, sizeof(quoted), 0ull};
+    VerbaLinea line = {quoted, sizeof(quoted), 0ull};
     cli_link_quote("it's", 4ull, &line);
     cli_check_text(quoted, line.at, "'it'\\''s'", "a word with a quote in it stays one word");
-    char target[CLI_NAME_LONGEST];
+    char target[CLI_NAME_MAX_LEN];
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check(
-        cli_link_target("Linux x86_64", target, &said) &&
+        cli_link_target("Linux x86_64", target, &err_msg) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = target, .other = "x86_64-unknown-linux-musl", .cap = CLI_CELLS_POOL})),
         "a Linux machine's target is read from uname");
-    cli_check(cli_link_target("Linux aarch64", target, &said) &&
+    cli_check(cli_link_target("Linux aarch64", target, &err_msg) &&
                   (cellul.eq(
                       &(CatenaFinitaCfg){.src = target, .other = "aarch64-unknown-linux-musl", .cap = CLI_CELLS_POOL})),
               "on either processor");
-    cli_check(!cli_link_target("Darwin arm64", target, &said), "and a Mac has none");
+    cli_check(!cli_link_target("Darwin arm64", target, &err_msg), "and a Mac has none");
     cli_check(cli_link_is_windows("MINGW64_NT-10.0-26200 x86_64"), "a Windows machine is known by its uname");
     return cli_checked();
 }

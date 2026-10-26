@@ -10,21 +10,21 @@
 // the most toolchains that name a way to run a file
 #define CLI_RUN_NAMED 64u
 
-void cli_run_file_quoted(CliLine *out, const char *path)
+void cli_run_file_quoted(VerbaLinea *out, const char *path)
 {
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
     for (const char *at = path; at[0] != '\0'; at += 1)
     {
         if (at[0] == '\'')
         {
-            cli_line_text(out, "'\\''");
+            mmgr_line_put(out, "'\\''");
         }
         else
         {
-            cli_line_character(out, (at[0] == '\\') ? '/' : at[0]);
+            mmgr_line_ch(out, (at[0] == '\\') ? '/' : at[0]);
         }
     }
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
 }
 
 // the file name of `path` as its stem and its extension, split at the last dot, a dot that starts the name splitting
@@ -59,15 +59,15 @@ typedef struct
 static unsigned int cli_ways(const CliJson *json, unsigned int manifest, const char *language, const char *extension,
                              CliNamed *named)
 {
-    char keys[2][CLI_NAME_LONGEST];
-    CliLine with = {keys[0], sizeof(keys[0]), 0ull};
-    cli_line_text(&with, language);
-    cli_line_character(&with, '.');
+    char keys[2][CLI_NAME_MAX_LEN];
+    VerbaLinea with = {keys[0], sizeof(keys[0]), 0ull};
+    mmgr_line_put(&with, language);
+    mmgr_line_ch(&with, '.');
     for (const char *at = (extension != NULL) ? extension : ""; at[0] != '\0'; at += 1)
     {
-        cli_line_character(&with, ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
+        mmgr_line_ch(&with, ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
     }
-    cli_line_closed(&with);
+    mmgr_line_finish(&with);
     memor.cpy(&(MemoriaCfg){.dst = keys[1],
                             .src = language,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_CELLS_POOL}) + 1u});
@@ -107,14 +107,14 @@ typedef struct
     const char *language;
 } CliFilling;
 
-// the name `{name}`, `length` bytes, filled into the line: 1, or 0 with why said
-static int cli_filled(const CliFilling *filling, const char *name, unsigned long long length, CliLine *line,
-                      CliLine *said)
+// the name `{name}`, `length` bytes, filled into the line: 1, or 0 with why given
+static int cli_filled(const CliFilling *filling, const char *name, unsigned long long length, VerbaLinea *line,
+                      VerbaLinea *err_msg)
 {
-    char key[CLI_NAME_LONGEST];
-    const unsigned long long kept = (length < sizeof(key)) ? length : (sizeof(key) - 1ull);
-    memor.cpy(&(MemoriaCfg){.dst = key, .src = name, .bytes = kept});
-    key[kept] = '\0';
+    char key[CLI_NAME_MAX_LEN];
+    const unsigned long long copied_len = (length < sizeof(key)) ? length : (sizeof(key) - 1ull);
+    memor.cpy(&(MemoriaCfg){.dst = key, .src = name, .bytes = copied_len});
+    key[copied_len] = '\0';
     if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "file", .cap = CLI_CELLS_POOL}))
     {
         cli_run_file_quoted(line, filling->path);
@@ -123,38 +123,38 @@ static int cli_filled(const CliFilling *filling, const char *name, unsigned long
     {
         for (const char *at = filling->path; at[0] != '\0'; at += 1)
         {
-            cli_line_character(line, (at[0] == '\\') ? '/' : at[0]);
+            mmgr_line_ch(line, (at[0] == '\\') ? '/' : at[0]);
         }
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "dir", .cap = CLI_CELLS_POOL}))
     {
-        char parent[CLI_PATH_LONGEST];
+        char parent[CLI_PATH_MAX_LEN];
         cli_run_file_quoted(line, cli_path_parent(filling->path, parent) ? parent : filling->root);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "stem", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_counted(line, filling->name, filling->stem);
+        mmgr_line_put_n(line, filling->name, filling->stem);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "out", .cap = CLI_CELLS_POOL}))
     {
-        char made[CLI_PATH_LONGEST];
-        CliLine folder = {made, sizeof(made), 0ull};
-        cli_line_text(&folder, filling->root);
-        cli_line_text(&folder, "/build/run");
-        if ((cli_line_closed(&folder) == 0ull) || !query_folder_made(made))
+        char made[CLI_PATH_MAX_LEN];
+        VerbaLinea folder = {made, sizeof(made), 0ull};
+        mmgr_line_put(&folder, filling->root);
+        mmgr_line_put(&folder, "/build/run");
+        if ((mmgr_line_finish(&folder) == 0ull) || !query_folder_made(made))
         {
-            cli_line_text(said, "build/run: it could not be made");
+            mmgr_line_put(err_msg, "build/run: it could not be made");
             return 0;
         }
-        char out[CLI_PATH_LONGEST];
-        CliLine file = {out, sizeof(out), 0ull};
-        cli_line_text(&file, made);
-        cli_line_character(&file, '/');
-        cli_line_counted(&file, filling->name, filling->stem);
+        char out[CLI_PATH_MAX_LEN];
+        VerbaLinea file = {out, sizeof(out), 0ull};
+        mmgr_line_put(&file, made);
+        mmgr_line_ch(&file, '/');
+        mmgr_line_put_n(&file, filling->name, filling->stem);
 #if defined(_WIN32)
-        cli_line_text(&file, ".exe");
+        mmgr_line_put(&file, ".exe");
 #endif
-        cli_line_closed(&file);
+        mmgr_line_finish(&file);
         cli_run_file_quoted(line, out);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "program", .cap = CLI_CELLS_POOL}))
@@ -164,14 +164,14 @@ static int cli_filled(const CliFilling *filling, const char *name, unsigned long
     else
     {
         const char *const names[1] = {key};
-        char other[CLI_PATH_LONGEST];
+        char other[CLI_PATH_MAX_LEN];
         if (!cli_toolchains_program_in(filling->folder, names, 1u, other))
         {
-            cli_line_text(said, filling->tool_name);
-            cli_line_text(said, " has no ");
-            cli_line_text(said, key);
-            cli_line_text(said, " in ");
-            cli_line_text(said, filling->folder);
+            mmgr_line_put(err_msg, filling->tool_name);
+            mmgr_line_put(err_msg, " has no ");
+            mmgr_line_put(err_msg, key);
+            mmgr_line_put(err_msg, " in ");
+            mmgr_line_put(err_msg, filling->folder);
             return 0;
         }
         cli_run_file_quoted(line, other);
@@ -179,40 +179,40 @@ static int cli_filled(const CliFilling *filling, const char *name, unsigned long
     return 1;
 }
 
-// the toolchain's template with its names filled in, written into `line`: 1, or 0 with why said
-static int cli_template_filled(const CliFilling *filling, const char *template, CliLine *line, CliLine *said)
+// the toolchain's template with its names filled in, written into `line`: 1, or 0 with why given
+static int cli_template_filled(const CliFilling *filling, const char *template, VerbaLinea *line, VerbaLinea *err_msg)
 {
     const char *rest = template;
     for (const char *open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '{'});
          open != NULL; open = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '{'}))
     {
         // the open brace lies in the rest, at or past its start
-        cli_line_counted(line, rest, (unsigned long long)(open - rest));
+        mmgr_line_put_n(line, rest, (unsigned long long)(open - rest));
         const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = open, .cap = CLI_CELLS_POOL, .byte = '}'});
         if (close == NULL)
         {
-            cli_line_text(said, filling->tool_name);
-            cli_line_text(said, "'s line for ");
-            cli_line_text(said, filling->language);
-            cli_line_text(said, " has an open {");
+            mmgr_line_put(err_msg, filling->tool_name);
+            mmgr_line_put(err_msg, "'s line for ");
+            mmgr_line_put(err_msg, filling->language);
+            mmgr_line_put(err_msg, " has an open {");
             return 0;
         }
         // the close brace lies past the open one
-        if (!cli_filled(filling, open + 1, (unsigned long long)(close - open) - 1ull, line, said))
+        if (!cli_filled(filling, open + 1, (unsigned long long)(close - open) - 1ull, line, err_msg))
         {
             return 0;
         }
         rest = close + 1;
     }
-    cli_line_text(line, rest);
+    mmgr_line_put(line, rest);
     return 1;
 }
 
 // the line that runs the file found by the ways `named` names, the toolchains in `json` and the PATH's folders in
-// `folders`, `count` of them, into `out`: 1, or 0 with why said
+// `folders`, `count` of them, into `out`: 1, or 0 with why given
 static int run_file_found(const char *root, const char *path, const char *language, const CliJson *json,
-                          const CliNamed *ways, unsigned int named, const char (*folders)[CLI_PATH_LONGEST],
-                          unsigned int count, CliLine *out, CliLine *said)
+                          const CliNamed *ways, unsigned int named, const char (*folders)[CLI_PATH_MAX_LEN],
+                          unsigned int count, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const char *name = path;
     unsigned long long stem = 0ull;
@@ -230,14 +230,15 @@ static int run_file_found(const char *root, const char *path, const char *langua
         for (unsigned int at = 0u; at < named; at += 1u)
         {
             const char *const shown = cli_json_string(json, cli_json_member(json, ways[at].tool, "name"), NULL);
-            cli_line_text(said, (at != 0u) ? " or " : "");
-            cli_line_text(said, (shown != NULL) ? shown : "");
+            mmgr_line_put(err_msg, (at != 0u) ? " or " : "");
+            mmgr_line_put(err_msg, (shown != NULL) ? shown : "");
         }
-        cli_line_text(said, " runs it, and is not found: File, Toolchains opens its install page or takes its folder");
+        mmgr_line_put(err_msg,
+                      " runs it, and is not found: File, Toolchains opens its install page or takes its folder");
         return 0;
     }
     const char *const tool_name = cli_json_string(json, cli_json_member(json, ways[way].tool, "name"), NULL);
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(found_tool.program, folder))
     {
         folder[0] = '\0';
@@ -245,28 +246,28 @@ static int run_file_found(const char *root, const char *path, const char *langua
     const CliFilling filling = {root, path,    (tool_name != NULL) ? tool_name : "", found_tool.program, folder, name,
                                 stem, language};
     // the line written straight into the answer's string as it is filled
-    cli_line_text(out, "{\"line\":");
+    mmgr_line_put(out, "{\"line\":");
     char piece[1024];
     CliJsonQuoting quoting;
-    CliLine run;
+    VerbaLinea run;
     cli_json_quoting_begun(&quoting, out, &run, piece, sizeof(piece));
-    cli_line_text(&run, "( cd ");
+    mmgr_line_put(&run, "( cd ");
     cli_run_file_quoted(&run, root);
-    cli_line_text(&run, " && ");
-    if (!cli_template_filled(&filling, ways[way].line, &run, said))
+    mmgr_line_put(&run, " && ");
+    if (!cli_template_filled(&filling, ways[way].line, &run, err_msg))
     {
         return 0;
     }
-    cli_line_text(&run, " )");
+    mmgr_line_put(&run, " )");
     cli_json_quoting_ended(&quoting, &run);
-    cli_line_text(out, ",\"tool\":");
+    mmgr_line_put(out, ",\"tool\":");
     cli_json_quoted(out, filling.tool_name,
                     cellul.len(&(CatenaFinitaCfg){.src = filling.tool_name, .cap = CLI_CELLS_POOL}));
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
     return 1;
 }
 
-int cli_run_file_line(const char *root, const char *path, const char *language, CliLine *out, CliLine *said)
+int cli_run_file_line(const char *root, const char *path, const char *language, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliNamed ways[CLI_RUN_NAMED];
     CliJson json;
@@ -278,17 +279,17 @@ int cli_run_file_line(const char *root, const char *path, const char *language, 
     int done = 0;
     if (named == 0u)
     {
-        cli_line_text(said, "orior_cli has no way to run a ");
-        cli_line_text(said, language);
-        cli_line_text(said, " file");
+        mmgr_line_put(err_msg, "orior_cli has no way to run a ");
+        mmgr_line_put(err_msg, language);
+        mmgr_line_put(err_msg, " file");
     }
     else
     {
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&count);
-        done = run_file_found(root, path, language, &json, ways, named, (const char (*)[CLI_PATH_LONGEST])folders,
-                              count, out, said);
-        cli_cell_given(folders);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+        done = run_file_found(root, path, language, &json, ways, named, (const char (*)[CLI_PATH_MAX_LEN])folders,
+                              count, out, err_msg);
+        g_cli_cells->persistent_buf_release(folders, NULL);
     }
     cli_json_given(&json);
     return done;

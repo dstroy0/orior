@@ -64,7 +64,7 @@ int tiff_chain_add(TiffFile *file, TiffChain *chain, unsigned long long offset)
     }
     if (chain->count >= file->file_bytes)
     {
-        return tiff_fail(file, "more pages than the file can hold");
+        return tiff_fail(file, "more pages than the file can contain");
     }
     if (chain->count == chain->capacity)
     {
@@ -72,7 +72,7 @@ int tiff_chain_add(TiffFile *file, TiffChain *chain, unsigned long long offset)
         const unsigned long long bytes = capacity * sizeof(unsigned long long);
         if ((unsigned long long)(size_t)bytes != bytes)
         {
-            return tiff_fail(file, "more pages than the file can hold");
+            return tiff_fail(file, "more pages than the file can contain");
         }
         unsigned long long *const grown = (unsigned long long *)realloc(chain->offsets, (size_t)bytes);
         if (grown == NULL)
@@ -282,7 +282,7 @@ static int tiff_xml_unsigned(TiffFile *file, const char *tag, const char *tag_en
 
 static void tiff_ome_candidates(TiffFile *file, const char *text)
 {
-    fprintf(stderr, "tiff: %s holds more than one OME image; each is shown as ID [SizeT SizeZ SizeC SizeY SizeX]:\n",
+    fprintf(stderr, "tiff: %s contains more than one OME image; each is shown as ID [SizeT SizeZ SizeC SizeY SizeX]:\n",
             file->path);
     for (const char *pixels = tiff_xml_element(text, "Pixels"); pixels != NULL;
          pixels = tiff_xml_element(pixels + 1u, "Pixels"))
@@ -323,7 +323,7 @@ int tiff_ome(TiffFile *file, const TiffPage *page, const char *text, unsigned lo
     if (tiff_xml_element(pixels + 1u, "Pixels") != NULL)
     {
         tiff_ome_candidates(file, text);
-        return tiff_fail(file, "the OME-XML holds more than one image");
+        return tiff_fail(file, "the OME-XML contains more than one image");
     }
     const char *const pixels_end = strchr(pixels, '>');
     if (pixels_end == NULL)

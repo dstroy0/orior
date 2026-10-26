@@ -12,9 +12,9 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
     }
     const unsigned int rank = layout->extent.rank;
     int bytes_seen = 0;
-    for (unsigned int slot = 0u; slot < json->tokens[codecs].count; slot += 1u)
+    for (unsigned int at = 0u; at < json->tokens[codecs].count; at += 1u)
     {
-        const unsigned int codec = entry_json_element(json, codecs, slot);
+        const unsigned int codec = entry_json_element(json, codecs, at);
         const unsigned int configuration = entry_json_at(json, codec, "configuration");
         char name[64];
         if ((entry_json_text(json, entry_json_at(json, codec, "name"), name, sizeof(name)) == 0) ||
@@ -54,7 +54,7 @@ static int entry_zarr_v3_chain(const EntryJson *json, unsigned int codecs, ZarrL
         else if (strcmp(name, "sharding_indexed") == 0)
         {
             unsigned int count = 0u;
-            if ((inner != 0) || (slot != 0u) ||
+            if ((inner != 0) || (at != 0u) ||
                 (entry_json_list(json, entry_json_at(json, configuration, "chunk_shape"), layout->inner, &count,
                                  ENGINE_ARRAY_RANK) == 0) ||
                 (count != rank) ||
@@ -141,7 +141,7 @@ static int entry_zarr_v3(const EntryJson *json, ZarrLayout *layout)
                          ENGINE_ARRAY_RANK) == 0) ||
         (chunk_rank != rank))
     {
-        fprintf(stderr, "  zarr: only a regular chunk grid is held\n");
+        fprintf(stderr, "  zarr: only a regular chunk grid is supported\n");
         return 0;
     }
     const unsigned int encoding = entry_json_at(json, 0u, "chunk_key_encoding");
@@ -277,12 +277,12 @@ static int entry_n5(const EntryJson *json, ZarrLayout *layout)
     layout->prefixed = 0u;
     layout->format = ZARR_FORMAT_N5;
     const unsigned int axes = entry_json_at(json, 0u, "axes");
-    for (unsigned int slot = 0u; (axes != 0u) && (json->tokens[axes].count == rank) && (slot < rank); slot += 1u)
+    for (unsigned int at = 0u; (axes != 0u) && (json->tokens[axes].count == rank) && (at < rank); at += 1u)
     {
         char name[32];
-        layout->extent.axes[rank - 1u - slot] =
-            entry_json_text(json, entry_json_element(json, axes, slot), name, sizeof(name)) ? entry_axis_named(name)
-                                                                                            : '\0';
+        layout->extent.axes[rank - 1u - at] =
+            entry_json_text(json, entry_json_element(json, axes, at), name, sizeof(name)) ? entry_axis_named(name)
+                                                                                          : '\0';
     }
     return 1;
 }

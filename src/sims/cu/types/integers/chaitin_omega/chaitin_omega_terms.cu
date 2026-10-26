@@ -95,25 +95,25 @@ unsigned long long omega_code_bits(const std::vector<int> &term)
 }
 
 // a term's code written out
-void omega_code_text(ScripturaLine *line, const std::vector<int> &term)
+void omega_code_text(VerbaLinea *line, const std::vector<int> &term)
 {
     for (size_t at = 0u; at < term.size(); at += 1u)
     {
         if (term[at] == OMEGA_LAMBDA)
         {
-            scriptura_text(line, "00");
+            mmgr_line_put(line, "00");
         }
         else if (term[at] == OMEGA_APPLY)
         {
-            scriptura_text(line, "01");
+            mmgr_line_put(line, "01");
         }
         else
         {
             for (int one = 0; one < term[at]; one += 1)
             {
-                scriptura_character(line, '1');
+                mmgr_line_ch(line, '1');
             }
-            scriptura_character(line, '0');
+            mmgr_line_ch(line, '0');
         }
     }
 }
@@ -240,7 +240,7 @@ static int omega_grows_forever(const std::vector<int> &stored, const std::vector
 }
 
 // normal order under a step and a size budget, watched by Brent's cycle finder and the growth proof above
-// the steps taken are written to `taken`, and on a halt `term` is left holding the normal form
+// the steps taken are written to `taken`, and on a halt `term` is left containing the normal form
 OmegaFate omega_run(std::vector<int> &term, std::vector<int> &next, std::vector<int> &stored, unsigned int steps,
                     unsigned int tokens, unsigned int *taken)
 {

@@ -89,13 +89,13 @@ static unsigned int report_declared(unsigned int answers)
         {
             const CliCodeWord *const word = &g_cli_validate->words[at];
             const CliCodeWord *const next = &g_cli_validate->words[at + 1u];
-            if (!cli_validate_holds(json, g_cli_validate->tool.declarations, code + word->start, word->size) ||
+            if (!cli_validate_in_array(json, g_cli_validate->tool.declarations, code + word->start, word->size) ||
                 !(report_same(code + next->start, next->size, name + cut, size - cut) ||
                   report_same(code + next->start, next->size, name, size)))
             {
                 continue;
             }
-            // in the order of their lines, as a stable sort keeps them
+            // in the order of their lines, as a stable sort orders them
             unsigned int place = count;
             while ((place > 0u) && (s_declared[place - 1u].line > next->line))
             {
@@ -110,7 +110,7 @@ static unsigned int report_declared(unsigned int answers)
     return count;
 }
 
-void cli_validate_axioms_reported(unsigned int answers, CliLine *untrusted)
+void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted)
 {
     const CliJson *const json = &g_cli_validate->json;
     const CliTool *const tool = &g_cli_validate->tool;
@@ -126,8 +126,8 @@ void cli_validate_axioms_reported(unsigned int answers, CliLine *untrusted)
         {
             at += 1u;
         }
-        char said[16384];
-        CliLine said_line = {said, sizeof(said), 0ull};
+        char msg_buf[16384];
+        VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
         int others = 0;
         int all_gaps = 1;
         int any_gap = 0;
@@ -153,23 +153,23 @@ void cli_validate_axioms_reported(unsigned int answers, CliLine *untrusted)
                 length -= 1ull;
             }
             from = end + 1ull;
-            if ((length == 0ull) || cli_validate_holds(json, tool->trusted, list + start, length))
+            if ((length == 0ull) || cli_validate_in_array(json, tool->trusted, list + start, length))
             {
                 continue;
             }
-            const int gap = cli_validate_holds(json, tool->gaps, list + start, length);
+            const int gap = cli_validate_in_array(json, tool->gaps, list + start, length);
             all_gaps = all_gaps && gap;
             any_gap = any_gap || gap;
-            cli_line_text(&said_line, others ? "; " : "");
-            cli_line_counted(&said_line, list + start, length);
+            mmgr_line_put(&msg, others ? "; " : "");
+            mmgr_line_put_n(&msg, list + start, length);
             for (unsigned int member = (tool->explains != CLI_JSON_NONE) ? json->node[tool->explains].first
                                                                          : CLI_JSON_NONE;
                  member != CLI_JSON_NONE; member = json->node[member].next)
             {
                 if (cli_validate_contains(list + start, length, json->text + json->node[member].key))
                 {
-                    cli_line_text(&said_line, ", ");
-                    cli_line_text(&said_line, cli_json_string(json, member, NULL));
+                    mmgr_line_put(&msg, ", ");
+                    mmgr_line_put(&msg, cli_json_string(json, member, NULL));
                     break;
                 }
             }
@@ -186,7 +186,7 @@ void cli_validate_axioms_reported(unsigned int answers, CliLine *untrusted)
         for (unsigned int finding = 0u; !failed && (finding < g_cli_validate->finding_count); finding += 1u)
         {
             const CliFinding *const found = &g_cli_validate->findings[finding];
-            // a proof that does not check stands on a gap the prover put there: the error says it
+            // a proof that does not check stands on a gap the prover put there: the error reports it
             failed = (found->severity == 1u) &&
                      ((cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "math", .cap = CLI_CELLS_POOL})) ||
                       (cellul.eq(&(CatenaFinitaCfg){.src = found->kind, .other = "barrier", .cap = CLI_CELLS_POOL}))) &&
@@ -196,8 +196,8 @@ void cli_validate_axioms_reported(unsigned int answers, CliLine *untrusted)
         {
             continue;
         }
-        cli_line_text(untrusted, (untrusted->at > 0ull) ? ", " : "");
-        cli_line_counted(untrusted, name, size);
+        mmgr_line_put(untrusted, (untrusted->at > 0ull) ? ", " : "");
+        mmgr_line_put_n(untrusted, name, size);
         const unsigned long long cut = report_short(name, size);
         unsigned int letters = 0u;
         for (unsigned long long byte = cut; byte < size; byte += 1ull)
@@ -205,10 +205,10 @@ void cli_validate_axioms_reported(unsigned int answers, CliLine *untrusted)
             letters += (((unsigned char)name[byte] & 0xc0u) != 0x80u) ? 1u : 0u;
         }
         char message[20480];
-        CliLine message_line = {message, sizeof(message), 0ull};
-        cli_line_counted(&message_line, name, size);
-        cli_line_text(&message_line, " rests on ");
-        cli_line_counted(&message_line, said, said_line.at);
+        VerbaLinea message_line = {message, sizeof(message), 0ull};
+        mmgr_line_put_n(&message_line, name, size);
+        mmgr_line_put(&message_line, " rests on ");
+        mmgr_line_put_n(&message_line, msg_buf, msg.at);
         const CliFinding finding = {line, col, line, col + letters, any_gap ? 1u : 2u, "axiom", -1, 0ull, 0ull};
         cli_validate_finding_put(&finding, message, message_line.at, NULL);
     }

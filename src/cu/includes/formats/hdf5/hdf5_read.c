@@ -83,9 +83,9 @@ static void hdf5_swap(unsigned char *bytes, size_t length, unsigned int width)
     {
         for (unsigned int lane = 0u; lane < (width / 2u); lane += 1u)
         {
-            const unsigned char kept = bytes[element + lane];
+            const unsigned char swapped = bytes[element + lane];
             bytes[element + lane] = bytes[element + width - 1u - lane];
-            bytes[element + width - 1u - lane] = kept;
+            bytes[element + width - 1u - lane] = swapped;
         }
     }
 }
@@ -120,7 +120,7 @@ static int hdf5_request_check(Hdf5File *file, const Hdf5Object *object, const En
     if (((unsigned long long)(size_t)total != total) || (total > request->out_capacity) ||
         ((total > 0ull) && (request->out == NULL)))
     {
-        return hdf5_error(file, "an output buffer too small for the rows asked");
+        return hdf5_error(file, "an output buffer too small for the rows requested");
     }
     *bytes = total;
     return 1;

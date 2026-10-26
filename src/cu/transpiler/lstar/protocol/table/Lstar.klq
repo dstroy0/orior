@@ -100,10 +100,10 @@ key state_open
 key state_next
 key state_exit
 key state_dispatch
-key launch_ask
-key global_ask
-key global_ask_if
-key global_ask_atomic
+key launch_load
+key global_load
+key global_load_if
+key global_atomic
 key label_loop
 key loop_back_if
 key state_loop

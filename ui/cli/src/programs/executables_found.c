@@ -19,8 +19,7 @@ int cli_executables_room(CliExecutables *found)
     }
     const unsigned int doubled = (found->room == 0u) ? CLI_EXECUTABLES_FIRST : (found->room * 2u);
     const unsigned int room = (doubled < CLI_EXECUTABLES_MOST) ? doubled : CLI_EXECUTABLES_MOST;
-    CliExecutable *const grown =
-        cli_cell_taken_by(&g_cli_executables_cells, room * sizeof(*grown), "the programs the build scripts make");
+    CliExecutable *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &g_cli_executables_cells);
     if (grown == NULL)
     {
         return 0;
@@ -29,7 +28,7 @@ int cli_executables_room(CliExecutables *found)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = found->item, .bytes = found->count * sizeof(*grown)});
     }
-    cli_cell_given_by(&g_cli_executables_cells, found->item);
+    g_cli_cells->persistent_buf_release(found->item, &g_cli_executables_cells);
     found->item = grown;
     found->room = room;
     return 1;
@@ -37,11 +36,10 @@ int cli_executables_room(CliExecutables *found)
 
 void cli_executables_ordered(CliExecutables *found)
 {
-    cli_cell_given_by(&g_cli_executables_cells, found->order);
-    found->order = (found->count != 0u)
-                       ? cli_cell_taken_by(&g_cli_executables_cells, found->count * sizeof(*found->order),
-                                           "the order of the programs found")
-                       : NULL;
+    g_cli_cells->persistent_buf_release(found->order, &g_cli_executables_cells);
+    found->order = (found->count != 0u) ? g_cli_cells->persistent_buf_alloc(found->count * sizeof(*found->order),
+                                                                            &g_cli_executables_cells)
+                                        : NULL;
     if (found->order == NULL)
     {
         found->count = 0u;
@@ -69,7 +67,7 @@ void cli_executables_ordered(CliExecutables *found)
 
 void cli_executables_given(CliExecutables *found)
 {
-    cli_cell_given_by(&g_cli_executables_cells, found->item);
-    cli_cell_given_by(&g_cli_executables_cells, found->order);
+    g_cli_cells->persistent_buf_release(found->item, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(found->order, &g_cli_executables_cells);
     *found = (CliExecutables){NULL, 0u, 0u, NULL};
 }

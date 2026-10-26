@@ -8,28 +8,28 @@
 // the file `name` of the folder written with `text`
 static void trust_file(const char *dir, const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(dir, name, path);
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-// the answer `tree` has by the file of answers at `kept`: 1 trusted, 0 not, -1 none
-static int trust_answer(const char *kept, const char *tree)
+// the answer `tree` has by the file of answers at `answers_file`: 1 trusted, 0 not, -1 none
+static int trust_answer(const char *answers_file, const char *tree)
 {
     int trusted = 0;
-    return cli_trust_answer_in(kept, tree, &trusted) ? trusted : -1;
+    return cli_trust_answer_in(answers_file, tree, &trusted) ? trusted : -1;
 }
 
 // the code a tree runs is found and the nearest answer stands
 static void trust_answers(void)
 {
-    char home[CLI_PATH_LONGEST];
-    char trees[CLI_PATH_LONGEST];
-    char tree[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char kept[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char trees[CLI_PATH_MAX_LEN];
+    char tree[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char answers_file[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("trust", home);
     cli_full(home, "trees", trees);
     cli_full(trees, "crate", tree);
@@ -48,21 +48,21 @@ static void trust_answers(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = second, .other = "prettier.config.js", .cap = CLI_CELLS_POOL})),
               "the code a tree runs is found, in a cell of its paths");
     cli_trust_code_given(&code);
-    cli_check(g_cli_trust_cells.holds == 0ull, "and the cell and the files read are given back");
-    cli_full(home, "trust.json", kept);
-    cli_check(trust_answer(kept, tree) == -1, "a tree with no answer has none");
-    (void)cli_trust_set_in(kept, trees, 1, &said);
-    cli_check(trust_answer(kept, tree) == 1, "the folder above's answer holds for the tree");
-    (void)cli_trust_set_in(kept, tree, 0, &said);
-    cli_check(trust_answer(kept, tree) == 0, "the tree's own answer stands over the folder's");
-    (void)cli_trust_set_in(kept, trees, 1, &said);
-    cli_check(trust_answer(kept, tree) == 1, "the folder's answer takes the place of the tree's");
+    cli_check(g_cli_trust_cells.in_use == 0ull, "and the cell and the files read are given back");
+    cli_full(home, "trust.json", answers_file);
+    cli_check(trust_answer(answers_file, tree) == -1, "a tree with no answer has none");
+    (void)cli_trust_set_in(answers_file, trees, 1, &err_msg);
+    cli_check(trust_answer(answers_file, tree) == 1, "the folder above's answer applies to the tree");
+    (void)cli_trust_set_in(answers_file, tree, 0, &err_msg);
+    cli_check(trust_answer(answers_file, tree) == 0, "the tree's own answer stands over the folder's");
+    (void)cli_trust_set_in(answers_file, trees, 1, &err_msg);
+    cli_check(trust_answer(answers_file, tree) == 1, "the folder's answer takes the place of the tree's");
     cli_full(tree, ".git", path);
     (void)query_folder_made(path);
     trust_file(tree, ".git/config", "[core]\n\tfsmonitor = watch\n");
-    // the tree lies inside the folders this machine's own answers may trust; git is therefore asked under a home of the
-    // check's own that holds no answer
-    char bare_home[CLI_PATH_LONGEST];
+    // the tree lies inside the folders this machine's own answers may trust; git is therefore queried under a home of
+    // the check's own that contains no answer
+    char bare_home[CLI_PATH_MAX_LEN];
     cli_full(home, "bare_home", bare_home);
     (void)query_folder_made(bare_home);
     (void)query_environment_set("ORIOR_HOME", bare_home);
@@ -77,11 +77,12 @@ static void trust_answers(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check(cli_trust_names_a_hook("[core]\n\tfsmonitor = .git/hooks/watch\n"), "a hook is a program");
     cli_check(!cli_trust_names_a_hook("[core]\n\tfsmonitor = true\n"), "and not git's own monitor");
     cli_check(!cli_trust_names_a_hook("[remote \"origin\"]\n\tfsmonitor = run\n"), "nor a key of another section");
     cli_check(cli_trust_under("d:/trees/one", "d:/trees") && cli_trust_under("d:/trees", "d:/trees"),
-              "a folder is under itself and holds what is under it");
+              "a folder is under itself and contains what is under it");
     cli_check(!cli_trust_under("d:/treesmore/one", "d:/trees"), "and not a name that starts the same");
     trust_answers();
     return cli_checked();

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// codegen_rules.cu: the assembly printer's ruleset built on the device, and held to the host's
+// codegen_rules.cu: the assembly printer's ruleset built on the device, and checked against the host's
 #include "asm_printer_internal.h"
 #include "codegen_device.h"
 #include "codegen_device_internal.h"
@@ -9,21 +9,21 @@ int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRule
 {
     const AsmPrinterProgram &left_program = left->program;
     const AsmPrinterProgram &right_program = right->program;
-    int same = (left->scratch == right->scratch) && (left->word_lengths == right->word_lengths) &&
-               (left->part_lanes == right->part_lanes) && (left->form_part_first == right->form_part_first) &&
-               (left->form_parts == right->form_parts) && (left->form_slot_first == right->form_slot_first) &&
-               (left->slot_parameters == right->slot_parameters) &&
-               (memcmp(left->bank_before, right->bank_before, sizeof(left->bank_before)) == 0) &&
-               (memcmp(left->bank_after, right->bank_after, sizeof(left->bank_after)) == 0) &&
-               (memcmp(left->fixed_word, right->fixed_word, sizeof(left->fixed_word)) == 0) &&
-               (left->minus_word == right->minus_word) && (left->hash_word == right->hash_word) &&
-               (left->header_part == right->header_part) &&
-               (memcmp(left->target_numbers, right->target_numbers, sizeof(left->target_numbers)) == 0) &&
-               (left_program.steps.size() == right_program.steps.size()) &&
-               (left_program.field_bits == right_program.field_bits) &&
-               (left_program.field_offset == right_program.field_offset) &&
-               (left_program.values == right_program.values) && (left_program.output == right_program.output) &&
-               (left_program.tables.size() == right_program.tables.size());
+    int same =
+        (left->scratch == right->scratch) && (left->word_lengths == right->word_lengths) &&
+        (left->part_lanes == right->part_lanes) && (left->form_part_first == right->form_part_first) &&
+        (left->form_parts == right->form_parts) && (left->form_placeholder_first == right->form_placeholder_first) &&
+        (left->placeholder_parameters == right->placeholder_parameters) &&
+        (memcmp(left->bank_before, right->bank_before, sizeof(left->bank_before)) == 0) &&
+        (memcmp(left->bank_after, right->bank_after, sizeof(left->bank_after)) == 0) &&
+        (memcmp(left->fixed_word, right->fixed_word, sizeof(left->fixed_word)) == 0) &&
+        (left->minus_word == right->minus_word) && (left->hash_word == right->hash_word) &&
+        (left->header_part == right->header_part) &&
+        (memcmp(left->target_numbers, right->target_numbers, sizeof(left->target_numbers)) == 0) &&
+        (left_program.steps.size() == right_program.steps.size()) &&
+        (left_program.field_bits == right_program.field_bits) &&
+        (left_program.field_offset == right_program.field_offset) && (left_program.values == right_program.values) &&
+        (left_program.output == right_program.output) && (left_program.tables.size() == right_program.tables.size());
     for (size_t step = 0u; (same != 0) && (step < left_program.steps.size()); step += 1u)
     {
         const EngineRecordStep &one = left_program.steps[step];
@@ -42,7 +42,7 @@ int asm_printer_ruleset_same(const AsmPrinterRuleset *left, const AsmPrinterRule
 #if (defined(__CUDACC__))
 
 // the build in one thread (asm_printer_core_ruleset_build), since each word's number depends on every word before it;
-// the build held in device memory and left there as it ended, its pointers the device's; its per-form arrays pass a
+// the build stored in device memory and left there as it ended, its pointers the device's; its per-form arrays pass a
 // kernel's parameters by far: it is not passed by value
 __global__ void codegen_rules_build(AsmPrinterCoreBuild *build)
 {
@@ -63,7 +63,8 @@ static void codegen_rules_memory(DeviceArena *memory, AsmPrinterCoreBuild *build
         memory, ((unsigned long long)build->part_capacity * ASM_PRINTER_PIECES) + 1ull);
     build->part_lanes = codegen_device_take<unsigned int>(memory, (unsigned long long)build->part_capacity + 1ull);
     build->form_parts = codegen_device_take<unsigned int>(memory, (unsigned long long)build->form_part_capacity + 1ull);
-    build->slot_parameters = codegen_device_take<unsigned int>(memory, (unsigned long long)build->slot_capacity + 1ull);
+    build->placeholder_parameters =
+        codegen_device_take<unsigned int>(memory, (unsigned long long)build->placeholder_capacity + 1ull);
     build->steps = codegen_device_take<EngineRecordStep>(memory, build->step_capacity);
     for (unsigned int table = 0u; table < ASM_PRINTER_TABLES; table += 1u)
     {
@@ -84,7 +85,8 @@ static void codegen_rules_read(DeviceArena *device_arena, const AsmPrinterCoreBu
                         (unsigned long long)ended->parts * ASM_PRINTER_PIECES);
     codegen_device_read(device_arena, host->part_lanes, ended->part_lanes, ended->parts);
     codegen_device_read(device_arena, host->form_parts, ended->form_parts, ended->form_part_count);
-    codegen_device_read(device_arena, host->slot_parameters, ended->slot_parameters, ended->slot_count);
+    codegen_device_read(device_arena, host->placeholder_parameters, ended->placeholder_parameters,
+                        ended->placeholder_count);
     codegen_device_read(device_arena, host->steps, ended->steps, ended->step_count);
     for (unsigned int table = 0u; table < ASM_PRINTER_TABLES; table += 1u)
     {
@@ -117,7 +119,7 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
     build.rules = flat.rules;
     build.rules.letters = codegen_device_copy(&rules_arena, flat.letters.data(), flat.letters.size());
     build.rules.texts = codegen_device_copy(&rules_arena, flat.texts.data(), flat.texts.size());
-    build.rules.slots = codegen_device_copy(&rules_arena, flat.slots.data(), flat.slots.size());
+    build.rules.placeholders = codegen_device_copy(&rules_arena, flat.placeholders.data(), flat.placeholders.size());
     unsigned int step_capacity = ASM_PRINTER_STEP_CAPACITY;
     int built = 0;
     AsmPrinterMemory memory;
@@ -162,8 +164,9 @@ int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, c
         *error = "the device errored on a call";
         return 0;
     }
-    asm_printer_keep(&host, text_rules);
-    // the program laid out by the device as well; the host's key is not kept, and the output it names is the program's
+    asm_printer_store(&host, text_rules);
+    // the program laid out by the device as well; the host's key is not retained, and the output it names is the
+    // program's
     return asm_printer_program_device(&text_rules->program, &text_rules->program.layout, error);
 }
 

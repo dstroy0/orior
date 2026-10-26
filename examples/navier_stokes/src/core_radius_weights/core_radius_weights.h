@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// core_radius_weights.h: the axis core's orders held as exact Chebyshev weights in xi = eta / a, the rule that
+// core_radius_weights.h: the axis core's orders stored as exact Chebyshev weights in xi = eta / a, the rule that
 // carries them from order to order, and the carry of their magnitudes on the device
 #ifndef CORE_RADIUS_WEIGHTS_H
 #define CORE_RADIUS_WEIGHTS_H
@@ -25,7 +25,7 @@ SimRational core_radius_most(SimRational left, SimRational right);
 // sum |c_m| rho^m
 SimRational core_radius_norm(const std::vector<SimRational> &weights, SimRational rho);
 
-// the constants of one ellipse and one bound of d f'; the cut a, the core held on |eta| <= a in xi = eta / a
+// the constants of one ellipse and one bound of d f'; the cut a, the core bounded on |eta| <= a in xi = eta / a
 typedef struct
 {
     SimRational h;
@@ -39,8 +39,8 @@ typedef struct
     SimRational feet;
 } CoreRadiusScale;
 
-// The weights of one order kept apart, entry m bounding |c_m| of T_m in a numerator over a power of L: no ellipse is
-// carried through the orders, and one is read only where the order is bounded.
+// The weights of one order retained apart, entry m bounding |c_m| of T_m in a numerator over a power of L: no ellipse
+// is carried through the orders, and one is read only where the order is bounded.
 typedef std::vector<SimRational> CoreRadiusWeights;
 
 void core_radius_add(CoreRadiusWeights *into, size_t m, SimRational value);
@@ -62,18 +62,18 @@ CoreRadiusWeights core_radius_second(const CoreRadiusWeights &weights);
 SimRational core_radius_half_square(const CoreRadiusScale *scale);
 
 // L = 1 - 2 h eta^2 = (1 - h a^2) - h a^2 T_2. With s = -1 the weights are a numerator's own and every operation is
-// exact; with s = +1 they are magnitudes, each minus held as a plus, and the result bounds the magnitudes of the exact
-// one.
+// exact; with s = +1 they are magnitudes, each minus represented as a plus, and the result bounds the magnitudes of the
+// exact one.
 CoreRadiusWeights core_radius_l(const CoreRadiusWeights &weights, const CoreRadiusScale *scale, SimRational s);
 
-// d = 1 - eta^2 = (1 - a^2 / 2) - (a^2 / 2) T_2, its minus held as s
+// d = 1 - eta^2 = (1 - a^2 / 2) - (a^2 / 2) T_2, its minus represented as s
 CoreRadiusWeights core_radius_d(const CoreRadiusWeights &weights, const CoreRadiusScale *scale, SimRational s);
 
 // eta^2 = (a^2 / 2) (1 + T_2)
 CoreRadiusWeights core_radius_eta_square(const CoreRadiusWeights &weights, const CoreRadiusScale *scale);
 
 // T_m' = 2 m (T_(m-1) + T_(m-3) + ...), T_0 taken once where it is reached: entry j is the sum of 2 m c_m over the
-// m past j of the other parity, held as a running sum from the top down
+// m past j of the other parity, stored as a running sum from the top down
 CoreRadiusWeights core_radius_slope(const CoreRadiusWeights &weights);
 
 // d T_m' = m (T_(m-1) - T_(m+1)) / 2: at the feet the derivative moves weight one mode each way
@@ -113,7 +113,7 @@ typedef struct
 } CoreRadiusOrders;
 
 // the least multiple of 1 / unit at or above `value`, for value >= 0: every operation on magnitudes is monotone, and a
-// bound rounded up stays a bound, held in a length that does not grow with the order
+// bound rounded up stays a bound, stored in a length that does not grow with the order
 SimRational core_radius_up(SimRational value, const OriorExactInteger *unit);
 
 // the largest multiple of 1 / unit at or below `value`, for value >= 0: a lower bound rounded down stays a lower bound
@@ -122,7 +122,7 @@ SimRational core_radius_down(SimRational value, const OriorExactInteger *unit);
 void core_radius_round_up(CoreRadiusWeights *weights, const OriorExactInteger *unit);
 
 // The carry on the device. Past the exact orders every weight the carry reads is a multiple of 2^-bits, and the
-// Cauchy sums of an order are integer sums: with every weight held as the integer c 2^bits,
+// Cauchy sums of an order are integer sums: with every weight stored as the integer c 2^bits,
 //     spin:   sum (k - i + 1) [w_i f_j] + sum [u_i a_j],   along: sum (k - i) [w_i u_j] + sum [u_i b_j],
 //     square: sum [f_i f_j],
 // j = k - i, a and b the angular and axial Z parts, and [x y]_n = sum over m + p = n and over |m - p| = n of x_m y_p,
@@ -161,10 +161,10 @@ typedef struct
     uint32_t *primes_device;
     uint32_t *sums;
     unsigned int widest;
-    int held;
+    int available;
 } CoreRadiusDevice;
 
-// the device's buffers for `orders` orders of at most `modes` weights, modulo `primes_count` primes: held 0 where no
+// the device's buffers for `orders` orders of at most `modes` weights, modulo `primes_count` primes: stored 0 where no
 // device answers or a buffer does not open
 void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsigned int modes, unsigned int primes_count);
 
@@ -177,7 +177,7 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigne
 void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const OriorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS]);
 
 // The orders of `orders` carried to `order`: for every k <= order the inflow and the Z parts are taken from f_k and
-// u_k, and every order past those `orders` holds is built from the rule. Exact at s = -1, magnitudes at s = +1: with
+// u_k, and every order past those `orders` contains is built from the rule. Exact at s = -1, magnitudes at s = +1: with
 // s = +1 and the orders it is given at their magnitudes, each new order bounds the magnitudes of the exact one mode by
 // mode. With a device and a unit the Cauchy sums are the device's, every weight they read a multiple of 1 / unit.
 void core_radius_extend(const CoreRadiusScale *scale, SimRational s, unsigned int order, const OriorExactInteger *unit,
@@ -189,13 +189,13 @@ int core_radius_same(const CoreRadiusWeights &left, const CoreRadiusWeights &rig
 // sum c_m T_m(xi), the three-term rule taken from the top weight down, exact
 SimRational core_radius_value(const CoreRadiusWeights &weights, SimRational xi);
 
-// the weights of every order to `order` from the data, given in eta and held in xi, exact at s = -1 and magnitudes at
+// the weights of every order to `order` from the data, given in eta and stored in xi, exact at s = -1 and magnitudes at
 // s = +1, read on no ellipse: they depend on h and the cut alone
 void core_radius_weights(const CoreRadiusScale *scale, const CoreRadiusWeights &angular, const CoreRadiusWeights &axial,
                                 const CoreRadiusWeights &pressure, unsigned int order, SimRational s, CoreRadiusOrders *orders);
 
 // the exact orders to `order` at their magnitudes, carried by magnitudes to `last`: every order a bound of the exact
-// one mode by mode, each its weight kept where it holds it
+// one mode by mode, each its weight retained where it contains it
 void core_radius_continued(const CoreRadiusScale *scale, const CoreRadiusOrders *exact, unsigned int order, unsigned int last,
                                   const OriorExactInteger *unit, CoreRadiusDevice *device, CoreRadiusOrders *continued);
 

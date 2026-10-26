@@ -11,13 +11,13 @@ _Alignas(8) static const char s_daemon_pid[] = "\npid ";
 _Alignas(8) static const char s_daemon_declared[] = "\ndeclared ";
 _Alignas(8) static const char s_daemon_peak[] = "\npeak ";
 _Alignas(8) static const char s_daemon_measured[] = "\nmeasured ";
-_Alignas(8) static const char s_daemon_holding[] = "\nholding_microseconds ";
+_Alignas(8) static const char s_daemon_grace[] = "\ngrace_microseconds ";
 _Alignas(8) static const char s_daemon_sweep[] = "\nsweep_microseconds ";
 _Alignas(8) static const char s_daemon_reason[] = "\nreason ";
 _Alignas(8) static const char s_daemon_signum[] = "\nsignum ";
 _Alignas(8) static const char s_daemon_seal[] = "seal ";
 _Alignas(8) static const
-    char s_daemon_history_bad[] = "  tessera daemon: the history did not read, or its seal did not hold: ";
+    char s_daemon_history_bad[] = "  tessera daemon: the history did not read, or its seal did not verify: ";
 _Alignas(8) static const
     char s_daemon_history_unsaved[] = "  tessera daemon: the history could not be sealed and saved in ";
 
@@ -136,14 +136,14 @@ int daemon_directories_make(const char *path)
         {
             continue;
         }
-        const char kept = walk[at];
+        const char saved_char = walk[at];
         walk[at] = '\0';
 #if defined(_WIN32)
         const int made = (_mkdir(walk) == 0) || (errno == EEXIST);
 #else
         const int made = (mkdir(walk, 0700) == 0) || (errno == EEXIST);
 #endif
-        walk[at] = kept;
+        walk[at] = saved_char;
         if (!made)
         {
             return 0;
@@ -214,11 +214,11 @@ int daemon_history_load(void)
     ok = ok && (obsignatio_seal_verify(&seal) == 1L);
     for (unsigned long long at = 0ull; ok && (at < sealed); at += TESSERA_HISTORY_RECORD)
     {
-        TesseraHistory kept;
-        memcpy(kept.signum.bytes, bytes + at, ENGINE_SIGNUM_BYTES);
-        kept.peak = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES);
-        kept.duration = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES + 8u);
-        ok = tessera_ledger_remember(&g_daemon.ledger, &kept);
+        TesseraHistory entry;
+        memcpy(entry.signum.bytes, bytes + at, ENGINE_SIGNUM_BYTES);
+        entry.peak = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES);
+        entry.duration = daemon_get_long(bytes + at + ENGINE_SIGNUM_BYTES + 8u);
+        ok = tessera_ledger_remember(&g_daemon.ledger, &entry);
     }
     free(bytes);
     if (!ok)
@@ -236,7 +236,7 @@ int daemon_history_save(void)
     {
         return 0;
     }
-    // every record, then the seal over them all; a history that is not saved is said so, never dropped silently
+    // every record, then the seal over them all; a history that is not saved is reported, never dropped silently
     const unsigned long long sealed = g_daemon.ledger.history_count * TESSERA_HISTORY_RECORD;
     const unsigned long long total = sealed + OBSIGNATIO_SIGNUM_BYTES;
     unsigned char *const bytes = (unsigned char *)malloc((size_t)total);
@@ -247,11 +247,11 @@ int daemon_history_save(void)
     }
     for (unsigned long long at = 0ull; at < g_daemon.ledger.history_count; at += 1ull)
     {
-        const TesseraHistory *const kept = &g_daemon.ledger.history[at];
+        const TesseraHistory *const entry = &g_daemon.ledger.history[at];
         unsigned char *const record = bytes + (at * TESSERA_HISTORY_RECORD);
-        memcpy(record, kept->signum.bytes, ENGINE_SIGNUM_BYTES);
-        daemon_put_long(record + ENGINE_SIGNUM_BYTES, kept->peak);
-        daemon_put_long(record + ENGINE_SIGNUM_BYTES + 8u, kept->duration);
+        memcpy(record, entry->signum.bytes, ENGINE_SIGNUM_BYTES);
+        daemon_put_long(record + ENGINE_SIGNUM_BYTES, entry->peak);
+        daemon_put_long(record + ENGINE_SIGNUM_BYTES + 8u, entry->duration);
     }
     EngineError error;
     memset(&error, 0, sizeof(error));
@@ -334,7 +334,7 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
     const int written =
         snprintf(text, sizeof(text), "%s%016llx%s%s%s%llu%s%llu%s%llu%s%llu%s%llu%s%llu%s%s\n", s_daemon_identity,
                  identity, s_daemon_signum, signum, s_daemon_pid, peer->pid, s_daemon_declared, peer->declared,
-                 s_daemon_peak, peak, s_daemon_measured, measured, s_daemon_holding, peer->holding_microseconds,
+                 s_daemon_peak, peak, s_daemon_measured, measured, s_daemon_grace, peer->grace_microseconds,
                  s_daemon_sweep, peer->sweep_microseconds, s_daemon_reason, reason);
     // a non-negative length is compared whole against the capacity
     return (written >= 0) && ((unsigned int)written < TESSERA_TICKET_CAPACITY) &&
@@ -343,7 +343,7 @@ int daemon_ticket_write(unsigned long long identity, const TesseraPeer *peer, un
 
 int daemon_ticket_note(unsigned long long identity, const TesseraPeer *peer, const char *note)
 {
-    // the note goes in only on a ticket whose seal holds, and the ticket is sealed again with it
+    // the note goes in only on a ticket whose seal verifies, and the ticket is sealed again with it
     char path[ENGINE_PATH_CAPACITY];
     char text[TESSERA_TICKET_CAPACITY];
     if (!daemon_ticket_path(identity, peer, 0, path))

@@ -74,7 +74,7 @@ typedef struct
     CasmiParquetChunk chunk[CASMI_PARQUET_LEAVES_MOST];
 } CasmiParquetRowGroup;
 
-/** The whole footer as this reader keeps it. Large: hold it static or on the heap. */
+/** The whole footer as this reader stores it. Large: store it static or on the heap. */
 typedef struct
 {
     unsigned long long rows;
@@ -94,8 +94,8 @@ typedef struct
 /**
  * One decoded column chunk.
  *
- * Row r holds the values from row_start[r] up to row_start[r + 1]. A flat column holds zero or one
- * value per row, zero where the row is null. A list column holds the list's present elements.
+ * Row r contains the values from row_start[r] up to row_start[r + 1]. A flat column contains zero or one
+ * value per row, zero where the row is null. A list column contains the list's present elements.
  *
  * A fixed-width value is fixed_bytes wide in value_bytes. A BYTE_ARRAY value is value_length[v]
  * bytes at value_bytes + value_offset[v]; a dictionary-encoded one points at its dictionary entry
@@ -158,12 +158,12 @@ long long casmi_parquet_column_bound(const CasmiParquetColumnRead *args);
  * Decode one column chunk into the caller's buffers.
  *
  * A refusal before any byte is read, for a row group, leaf or room out of bound, changes nothing. A
- * refusal during the decode leaves rows and values zero, since the buffers no longer hold what any
+ * refusal during the decode leaves rows and values zero, since the buffers no longer contain what any
  * earlier count described.
  *
  * @param args  the file, the footer, the row group, the leaf, and the bounded column to fill
  * @return      the number of values decoded, or ENGINE_BYTES_ERROR on any encoding, codec or
- *              level this reader does not carry, or on a page the chunk's stated sizes do not hold
+ *              level this reader does not carry, or on a page the chunk's stated sizes do not contain
  */
 long long casmi_parquet_column_read(const CasmiParquetColumnRead *args);
 

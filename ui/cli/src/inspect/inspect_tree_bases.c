@@ -28,15 +28,15 @@ static int bases_in_module(unsigned int file, const char *spec, unsigned long lo
                            unsigned long long taken_size, const char *name, unsigned long long size, unsigned int depth,
                            unsigned int *found_file, unsigned int *found_class)
 {
-    char joined[CLI_PATH_LONGEST * 2u];
-    CliLine line = {joined, sizeof(joined), 0ull};
-    cli_line_counted(&line, spec, spec_size);
+    char joined[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {joined, sizeof(joined), 0ull};
+    mmgr_line_put_n(&line, spec, spec_size);
     if (taken_size > 0u)
     {
-        cli_line_text(&line, ((spec_size > 0u) && (spec[spec_size - 1u] == '.')) ? "" : ".");
-        cli_line_counted(&line, taken, taken_size);
+        mmgr_line_put(&line, ((spec_size > 0u) && (spec[spec_size - 1u] == '.')) ? "" : ".");
+        mmgr_line_put_n(&line, taken, taken_size);
     }
-    if (!cli_line_fits(&line))
+    if (!mmgr_line_ok(&line))
     {
         return 0;
     }

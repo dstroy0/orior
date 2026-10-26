@@ -29,7 +29,7 @@ typedef struct
 
 int flatten_set(const FlattenSetRequest *request);
 
-// A flattened set. `orders` holds each sample's orders, and `offset_halves` each sample's residual place per axis in
+// A flattened set. `orders` contains each sample's orders, and `offset_halves` each sample's residual place per axis in
 // half voxels, three a sample, as engine_residual gives it: -1 on an axis whose smooth order and comb's n - 1 sum to
 // an odd number and 0 on the others. A body's sums sit on its own sample's residual grid.
 typedef struct

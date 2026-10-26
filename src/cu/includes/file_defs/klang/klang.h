@@ -3,9 +3,9 @@
 // klang.h: a block of another language in a file, `__<lang>__(` its text `)__<lang>__` (klang.oracle.tsv). A file is
 // read in the language its extension names; a block hands the text inside it to the parser of the language it names,
 // and that language's rules govern everything inside it. `)__<lang>__` has no other use than to end the block, so the
-// block's end is found by it alone, whatever the text inside holds; a block of a language inside a block of the same
+// block's end is found by it alone, whatever the text inside contains; a block of a language inside a block of the same
 // language is counted, each `__<lang>__(` against each `)__<lang>__`. Plain C, every function inline, so that every
-// reader, the engine's among them, holds the one rule
+// reader, the engine's among them, implements the one rule
 #ifndef KLANG_H
 #define KLANG_H
 

@@ -18,7 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a container takes, the most places its code holds, the bytes of one instruction, and the most
+// the most bytes a container takes, the most places its code contains, the bytes of one instruction, and the most
 // endings the container records
 #define KHW_PATTERN_BYTES 262144u
 
@@ -28,7 +28,7 @@
 
 #define KHW_EXITS 64u
 
-// the most pieces the vendor's table holds, and the longest piece and the longest column of reads in it
+// the most pieces the vendor's table contains, and the longest piece and the longest column of reads in it
 #define KHW_PIECES 128u
 
 #define KHW_PIECE 32u
@@ -69,7 +69,7 @@ typedef struct
 {
     char relation[KHW_READS];
     int signed_read;
-    int signedness_asked;
+    int signedness_queried;
     unsigned long long low;
     unsigned long long high;
     unsigned int runs;
@@ -93,21 +93,21 @@ const char *khw_piece_reading(const char *kind, const char *word);
 // the field the part's .ksc names the guard, `first` and `bits`: a predicate run inside it prints as the guard, and
 // one outside it as an operand in its order; with none set, every predicate run is the guard
 void khw_guard_field_set(unsigned int first, unsigned int bits);
-void khw_text_composed(const KhwForm *held, char *written, size_t room);
-int khw_form_kept(SassMachine *machine, const KhwForm *held, const char *text);
+void khw_text_composed(const KhwForm *form, char *written, size_t room);
+int khw_form_store(SassMachine *machine, const KhwForm *form, const char *text);
 int khw_kernel_read(const char *path);
-unsigned int khw_kernel_forms_kept(void);
+unsigned int khw_kernel_forms_store(void);
 unsigned int khw_answers_read(const char *answers, KhwForm *form, unsigned int room);
-// the blob the texts the protocol hands are handed back in, assembled, and the most instructions a text holds
+// the blob the texts the protocol hands are handed back in, assembled, and the most instructions a text contains
 #define KHW_ASSEMBLED "assembled.bin"
 
 #define KHW_ASSEMBLED_MOST 4096u
 
-// the most texts one call assembles, the most bytes one text holds, and the blob the reason goes in where a call's
+// the most texts one call assembles, the most bytes one text contains, and the blob the reason goes in where a call's
 // texts were not assembled
 #define KHW_ASSEMBLED_TEXTS 256u
 #define KHW_ASSEMBLED_TEXT_BYTES (1u << 20u)
-#define KHW_ASSEMBLED_SAID "assembled_said.txt"
+#define KHW_ASSEMBLED_REASON "assembled_reason.txt"
 
 // the texts of the blob `answers` assembled against the machine file at `path` and appended as KHW_ASSEMBLED
 int khw_texts_assembled(const char *path, const char *answers);

@@ -14,12 +14,12 @@
 #include "memoria_operor/memoria_operor.h"
 #include "query.h"
 
-// what the query's modules hold in the cellblock, their own count, every cell the query takes and gives back counted
-// to it, its report told as `cli_query` (commands.c)
-extern CliCellsTally g_query_cells;
+// what the query's modules occupy in the cellblock, their own count, every cell the query takes and gives back counted
+// to it, its report reported as `cli_query` (commands.c)
+extern CellOwner g_query_cells;
 
 // the most files a run reads or leaves, the most settings a context appends, the most words a command takes, and the
-// most runs a folder holds that the query walks
+// most runs a folder contains that the query walks
 #define QUERY_LEAVES_MOST 256u
 
 #define QUERY_SETTINGS_MOST 8u
@@ -31,17 +31,17 @@ extern CliCellsTally g_query_cells;
 // the writer's own wait for its shared memory to be made, in steps of ten milliseconds
 #define QUERY_READY_STEPS 3000u
 
-// how many runs of a folder are kept where QRY_KEPT is not set
-#define QUERY_KEPT_MOST 64u
+// how many runs of a folder are retained where QRY_RETAINED is not set
+#define QUERY_RETAIN_MAX 64u
 
 // the paths a list's room is begun with before it doubles
 #define QUERY_PATHS_FIRST 64u
 
-// A list of paths, each in a row of QUERY_PATH_LONGEST, in a cell whose room doubles as they are put, given back with
+// A list of paths, each in a row of QUERY_PATH_MAX_LEN, in a cell whose room doubles as they are put, given back with
 // query_paths_given
 typedef struct
 {
-    char (*path)[QUERY_PATH_LONGEST];
+    char (*path)[QUERY_PATH_MAX_LEN];
     unsigned int count;
     unsigned int room;
 } QueryPaths;
@@ -50,16 +50,16 @@ typedef struct
 // room made for `count` paths in all in one cell: 1, or 0 where its cell is refused; and the paths' cell given back,
 // the list left empty (tools/tools.c)
 int query_paths_room(QueryPaths *paths, unsigned int most);
-int query_paths_held(QueryPaths *paths, unsigned int count);
+int query_paths_reserved(QueryPaths *paths, unsigned int count);
 void query_paths_given(QueryPaths *paths);
 
 // The writer of one run: its program, its .qry, the top of the tree every current file is named under, the PATH every
 // program of the run runs with, and 1 in `member` while this process is a member of the run
 typedef struct
 {
-    char binary[QUERY_PATH_LONGEST];
-    char qry[QUERY_PATH_LONGEST];
-    char top[QUERY_PATH_LONGEST];
+    char binary[QUERY_PATH_MAX_LEN];
+    char qry[QUERY_PATH_MAX_LEN];
+    char top[QUERY_PATH_MAX_LEN];
     const char *path;
     int member;
 } QueryWriter;
@@ -68,7 +68,7 @@ typedef struct
 // it, and the files it read and may leave
 typedef struct
 {
-    char folder[QUERY_PATH_LONGEST];
+    char folder[QUERY_PATH_MAX_LEN];
     QueryWriter writer;
     unsigned long long process;
     int joined;
@@ -93,10 +93,10 @@ typedef struct
     const QueryPrograms *programs;
     QuerySink sink;
     QueryLeave leave;
-    QueryAsker asker;
+    QueryPrompter prompter;
     QuerySetting setting[QUERY_SETTINGS_MOST];
     unsigned int settings;
-    char open[QUERY_PATH_LONGEST];
+    char open[QUERY_PATH_MAX_LEN];
 } QueryContext;
 
 // a process started: its handle, and the pipe its output and its errors come through, 0 where it has none
@@ -117,21 +117,21 @@ typedef struct
 #define QUERY_OUTPUT_PIPED_ALONE 3
 
 // The platform's calls (platform/windows.c, platform/posix.c): a process started with `words`, the program first and
-// NULL after the last, in `folder`, its standard input nothing and its output and errors where `output` says; a piece
-// of its output read, 0 at its end; and the process waited on, its exit code, or -1 where a signal ended it
+// NULL after the last, in `folder`, its standard input nothing and its output and errors where `output` specifies; a
+// piece of its output read, 0 at its end; and the process waited on, its exit code, or -1 where a signal ended it
 int query_process_start(QueryProcess *started, const char *const *words, const char *folder, int output);
 unsigned long long query_process_read(const QueryProcess *process, char *piece, unsigned long long room);
 long long query_process_wait(QueryProcess *process);
-// the most bytes of one environment variable's value as UTF-8 with its zero: Windows holds 32767 letters of UTF-16 in
+// the most bytes of one environment variable's value as UTF-8 with its zero: Windows stores 32767 letters of UTF-16 in
 // one, each at most three bytes of UTF-8, and a POSIX system's is no longer than that in practice
-#define QUERY_ENVIRONMENT_LONGEST ((32767u * 3u) + 1u)
+#define QUERY_ENVIRONMENT_MAX_LEN ((32767u * 3u) + 1u)
 
 // an environment variable of this process set, which every process it starts after inherits, or read into `value`,
-// which holds `room`; and the variable `name` written after what `out` holds, nothing written where it is not set:
+// sized for `room`; and the variable `name` written after what `out` contains, nothing written where it is not set:
 // 1, or 0 where it is not set or does not fit
 int query_environment_set(const char *name, const char *value);
 int query_environment_read(const char *name, char *value, size_t room);
-int query_environment_said(const char *name, CliLine *out);
+int query_environment_written(const char *name, VerbaLinea *out);
 // each entry of `folder` handed to `each` by its name, 1 where it is a folder; 0 where the folder could not be read
 int query_folder_each(const char *folder, void (*each)(void *context, const char *name, int is_folder), void *context);
 // `folder` made with every folder above it; the file or the folder at `path` removed whole
@@ -153,88 +153,91 @@ unsigned long long query_now(void);
 int query_modified_set(const char *path, unsigned long long seconds);
 // this thread paused `milliseconds`
 void query_paused(unsigned int milliseconds);
-// `path` as a full path, without the `\\?\` prefix Windows gives a canonical one, into `full`, which holds `room`
+// `path` as a full path, without the `\\?\` prefix Windows gives a canonical one, into `full`, sized for `room`
 int query_path_full(const char *path, char *full, size_t room);
-// 1 where the standard input is a terminal; a line read from it into `line`, which holds `room`, as much of it as fits
+// 1 where the standard input is a terminal; a line read from it into `line`, sized for `room`, as much of it as fits
 // and a 0 after, as snprintf writes: the line's whole length, `room` or more where it was cut, or QRY_MEMBER_UNREAD at
 // the input's end; `length` bytes of `text` written to the standard output, or its errors
 int query_terminal_is(void);
 unsigned long long query_terminal_line_read(char *line, size_t room);
 void query_terminal_written(int errors, const char *text, unsigned long long length);
 
-// `text` said through the context's sink, and handed to the run this process is a member of as its console
-void query_said(QueryContext *context, const char *text);
-// the path `under` the top of the tree written into `path`, which holds QUERY_PATH_LONGEST
+// `text` printed through the context's sink, and handed to the run this process is a member of as its console
+void query_print(QueryContext *context, const char *text);
+// the path `under` the top of the tree written into `path`, sized for QUERY_PATH_MAX_LEN
 void query_at(const QueryContext *context, const char *under, char *path);
 
 // the writer's words (writer.c, writer_carry.c)
-int query_writer_start(const QueryWriter *writer, unsigned long long *process, CliLine *said);
+int query_writer_start(const QueryWriter *writer, unsigned long long *process, VerbaLinea *err_msg);
 int query_writer_made(const QueryWriter *writer);
 int query_writer_runs(const QueryWriter *writer);
 int query_writer_joined(QueryWriter *writer);
-int query_writer_member_held(const QueryWriter *writer);
+int query_writer_is_member(const QueryWriter *writer);
 void query_writer_parted(QueryWriter *writer);
-int query_writer_stop(QueryWriter *writer, CliLine *said);
+int query_writer_stop(QueryWriter *writer, VerbaLinea *err_msg);
 int query_writer_append(const QueryWriter *writer, const char *name, const void *bytes, unsigned long long size,
-                        unsigned int priority, CliLine *said);
+                        unsigned int priority, VerbaLinea *err_msg);
 int query_writer_latest(const QueryWriter *writer, const char *name, const unsigned char **bytes,
                         unsigned long long *size);
 int query_writer_file(const QueryWriter *writer, const char *path, const void *bytes, unsigned long long size,
-                      CliLine *said);
-int query_writer_left(const QueryWriter *writer, const char *path, CliLine *said);
+                      VerbaLinea *err_msg);
+int query_writer_left(const QueryWriter *writer, const char *path, VerbaLinea *err_msg);
 int query_writer_carry(const QueryWriter *writer, const char *from, const char *const *names, unsigned int count,
-                       CliLine *said);
-int query_writer_carry_listed(const QueryWriter *writer, const char *from, const char *listed, CliLine *said);
-int query_writer_read(const QueryWriter *writer, const char *name, CliLine *joined);
+                       VerbaLinea *err_msg);
+int query_writer_carry_listed(const QueryWriter *writer, const char *from, const char *listed, VerbaLinea *err_msg);
+int query_writer_read(const QueryWriter *writer, const char *name, VerbaLinea *joined);
 // every record of `name` joined, as query_writer_read joins them, in a cell of their size with a 0 after, their size
 // into `size`: the cell, or NULL where none was there or the cell could not be taken
 char *query_writer_read_taken(const QueryWriter *writer, const char *name, unsigned long long *size);
 int query_writer_current(const QueryWriter *writer, const char *path, const unsigned char **bytes,
                          unsigned long long *size);
 int query_writer_tee(const QueryWriter *writer, QueryContext *context, const char *name, const char *const *words,
-                     long long *code, CliLine *said);
+                     long long *code, VerbaLinea *err_msg);
 
 // The runs of a folder, newest first: each run's number and path, `count` of them, each in a cell of their count
 typedef struct
 {
     unsigned long long *number;
-    char (*path)[QUERY_PATH_LONGEST];
+    char (*path)[QUERY_PATH_MAX_LEN];
     unsigned int count;
 } QueryRuns;
 
 // the runs of a folder and a run's lifecycle (run.c, run_folder.c); the runs of `folder` counted; the same counted,
 // then taken into `runs`: 1, or 0 where the cells cannot meet them; and given back
-unsigned int query_runs_each(const char *folder, unsigned long long *number, char (*path)[QUERY_PATH_LONGEST],
+unsigned int query_runs_each(const char *folder, unsigned long long *number, char (*path)[QUERY_PATH_MAX_LEN],
                              unsigned int room);
 unsigned int query_runs_counted(const char *folder);
 int query_runs_taken(const char *folder, QueryRuns *runs);
 void query_runs_given(QueryRuns *runs);
 void query_next_name(const char *folder, char *name, size_t room);
 void query_named(const char *top, const char *path, char *name, size_t room);
-int query_opened(const char *held, const char *crystal, char *named, size_t room);
+int query_opened(const char *qry_path, const char *crystal, char *named, size_t room);
 int query_crystal(const char *root, char *program, size_t room);
-unsigned int query_kept_most(void);
-void query_kept(const char *folder, unsigned int most);
+unsigned int query_retain_max(void);
+void query_runs_pruned(const char *folder, unsigned int most);
 int query_run_started(QueryRun *run, const char *root, const char *folder, const QueryPrograms *programs,
-                      QueryContext *context, CliLine *said);
-int query_run_joining(QueryRun *run, const char *root, const char *qry, const QueryPrograms *programs, CliLine *said);
+                      QueryContext *context, VerbaLinea *err_msg);
+int query_run_joining(QueryRun *run, const char *root, const char *qry, const QueryPrograms *programs,
+                      VerbaLinea *err_msg);
 int query_run_carried(QueryRun *run, const char *folder, const char *const *files, unsigned int count,
-                      const char *crystal, CliLine *said);
-int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, CliLine *said);
+                      const char *crystal, VerbaLinea *err_msg);
+int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, VerbaLinea *err_msg);
 void query_run_left(QueryRun *run, const char *const *paths, unsigned int count);
-int query_run_ended(QueryRun *run, QueryLeave leave, QueryAsker asker, QueryContext *context, CliLine *said);
-int query_run_stopped(QueryRun *run, CliLine *said);
+int query_run_ended(QueryRun *run, QueryLeave leave, QueryPrompter prompter, QueryContext *context,
+                    VerbaLinea *err_msg);
+int query_run_stopped(QueryRun *run, VerbaLinea *err_msg);
 
 // the leaves decided (leaves.c, leaves_diff.c)
-int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryAsker asker, QueryContext *context, CliLine *said);
+int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryPrompter prompter, QueryContext *context,
+                         VerbaLinea *err_msg);
 void query_leaf_shown(const char *path, const unsigned char *tree, unsigned long long tree_size,
-                      const unsigned char *held, unsigned long long held_size, CliLine *shown);
+                      const unsigned char *stored, unsigned long long stored_size, VerbaLinea *shown);
 
 // the tools built (tools.c, tools_table.c)
 int query_tool_built(const char *root, const QueryPrograms *programs, const char *name, char *binary, size_t room,
-                     CliLine *said);
+                     VerbaLinea *err_msg);
 int query_tool_built_into(const char *root, const QueryPrograms *programs, const char *name, const char *out,
-                          char *binary, size_t room, CliLine *said);
+                          char *binary, size_t room, VerbaLinea *err_msg);
 void query_binary_name(const char *name, char *binary, size_t room);
 
 #endif

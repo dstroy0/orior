@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_sign.c: the programs a build makes signed as settings.json says, what a signed program can be told of its
-// signature, the program compared with the last build of the same commit, and the command that runs it
+// executables_sign.c: the programs a build makes signed as settings.json specifies, what a signed program can be
+// reported of its signature, the program compared with the last build of the same commit, and the command that runs it
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "executables_internal.h"
@@ -9,41 +9,41 @@
 // the most bytes of a tree's .env read
 #define CLI_ENV_BYTES (1u << 16u)
 
-// a line said through `say`
-static void cli_say(QuerySink say, const char *text)
+// a line printed through `sink`
+static void cli_print(QuerySink sink, const char *text)
 {
-    say.said(say.context, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    sink.print(sink.context, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
 // a setting of how the programs a build makes are signed, `signing.<key>` in settings.json in orior's own folder,
-// trimmed, into `out`, which holds CLI_PATH_LONGEST: 1, or 0 where it is not set or empty. `windows` is a
+// trimmed, into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it is not set or empty. `windows` is a
 // certificate's thumbprint in the reader's store or the path of a .pfx file, whose password comes from
 // ORIOR_SIGN_PASSWORD and from no file; `timestamp` the address of the time stamp server a Windows signature is stamped
 // by; `macos` the identity codesign signs with; and `notarize` the keychain profile notarytool sends the program with
 static int cli_signing(const char *key, char *out)
 {
-    char home[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_home_folder(home) || !cli_executables_joined(home, "settings.json", path))
     {
         return 0;
     }
     // settings.json read into a tree sized to it, given back as the setting is copied out
     CliJson json = {0};
-    char why[CLI_NAME_LONGEST];
-    CliLine reason = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea reason = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_file_taken(&json, path, 0u, 0ull, &reason);
-    char named[CLI_NAME_LONGEST];
-    CliLine line = {named, sizeof(named), 0ull};
-    cli_line_text(&line, "signing.");
-    cli_line_text(&line, key);
-    cli_line_closed(&line);
+    char named[CLI_NAME_MAX_LEN];
+    VerbaLinea line = {named, sizeof(named), 0ull};
+    mmgr_line_put(&line, "signing.");
+    mmgr_line_put(&line, key);
+    mmgr_line_finish(&line);
     unsigned long long length = 0ull;
     const char *value = cli_json_string(&json, cli_json_member(&json, root, named), &length);
     if (value != NULL)
     {
         cli_scan_trim(&value, &length);
-        cli_scan_copied(value, length, out, CLI_PATH_LONGEST);
+        cli_scan_copied(value, length, out, CLI_PATH_MAX_LEN);
     }
     cli_json_given(&json);
     return (value != NULL) && (length != 0ull);
@@ -51,7 +51,7 @@ static int cli_signing(const char *key, char *out)
 
 int cli_executables_signs(void)
 {
-    char setting[CLI_PATH_LONGEST];
+    char setting[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
     return cli_signing("windows", setting);
 #elif defined(__APPLE__)
@@ -63,7 +63,7 @@ int cli_executables_signs(void)
 }
 
 #if defined(__APPLE__)
-// `path` with its file's extension put as `extension` into `out`, which holds CLI_PATH_LONGEST
+// `path` with its file's extension put as `extension` into `out`, sized for CLI_PATH_MAX_LEN
 static void cli_with_extension(const char *path, const char *extension, char *out)
 {
     const char *name = path;
@@ -75,45 +75,45 @@ static void cli_with_extension(const char *path, const char *extension, char *ou
         (name[0] != '\0')
             ? cli_text_last(name + 1, cellul.len(&(CatenaFinitaCfg){.src = name + 1, .cap = CLI_CELLS_POOL}), '.')
             : NULL;
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
-    cli_line_counted(&line, path,
-                     (dot != NULL) ? (unsigned long long)(dot - path)
-                                   : cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&line, '.');
-    cli_line_text(&line, extension);
-    cli_line_closed(&line);
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put_n(&line, path,
+                    (dot != NULL) ? (unsigned long long)(dot - path)
+                                  : cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+    mmgr_line_ch(&line, '.');
+    mmgr_line_put(&line, extension);
+    mmgr_line_finish(&line);
 }
 #endif
 
 #if defined(_WIN32)
 // a word put after a command and after the line shown for it
-static void cli_both(CliCommand *command, CliLine *shown, const char *word, const char *shown_word)
+static void cli_both(CliCommand *command, VerbaLinea *shown, const char *word, const char *shown_word)
 {
     cli_command_word(command, word);
-    cli_line_character(shown, ' ');
-    cli_line_text(shown, shown_word);
+    mmgr_line_ch(shown, ' ');
+    mmgr_line_put(shown, shown_word);
 }
 #endif
 
-int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*shown)[CLI_PATH_LONGEST * 4u],
-                               unsigned int room, CliLine *said)
+int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*shown)[CLI_PATH_MAX_LEN * 4u],
+                               unsigned int room, VerbaLinea *err_msg)
 {
 #if defined(_WIN32)
-    char certificate[CLI_PATH_LONGEST];
+    char certificate[CLI_PATH_MAX_LEN];
     if (!cli_signing("windows", certificate))
     {
-        cli_line_text(said, "settings.json names no certificate under signing.windows");
+        mmgr_line_put(err_msg, "settings.json names no certificate under signing.windows");
         return -1;
     }
-    char signtool[CLI_PATH_LONGEST];
-    if ((room < 1u) || !cli_executables_program("signtool", "signtool", signtool, said))
+    char signtool[CLI_PATH_MAX_LEN];
+    if ((room < 1u) || !cli_executables_program("signtool", "signtool", signtool, err_msg))
     {
         return -1;
     }
     CliCommand *const command = &commands[0];
-    CliLine line = {shown[0], CLI_PATH_LONGEST * 4u, 0ull};
+    VerbaLinea line = {shown[0], CLI_PATH_MAX_LEN * 4u, 0ull};
     cli_command_begun(command, signtool);
-    cli_line_text(&line, "signtool");
+    mmgr_line_put(&line, "signtool");
     cli_both(command, &line, "sign", "sign");
     cli_both(command, &line, "/fd", "/fd");
     cli_both(command, &line, "sha256", "sha256");
@@ -131,7 +131,7 @@ int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*sh
     {
         cli_both(command, &line, "/f", "/f");
         cli_both(command, &line, certificate, certificate);
-        char password[CLI_PATH_LONGEST];
+        char password[CLI_PATH_MAX_LEN];
         if (query_environment_read("ORIOR_SIGN_PASSWORD", password, sizeof(password)))
         {
             cli_both(command, &line, "/p", "/p");
@@ -140,21 +140,21 @@ int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*sh
     }
     else
     {
-        char thumbprint[CLI_PATH_LONGEST];
-        CliLine printed = {thumbprint, sizeof(thumbprint), 0ull};
+        char thumbprint[CLI_PATH_MAX_LEN];
+        VerbaLinea printed = {thumbprint, sizeof(thumbprint), 0ull};
         for (const char *at = certificate; at[0] != '\0'; at += 1)
         {
             const char one = at[0];
             if (((one >= '0') && (one <= '9')) || ((one >= 'a') && (one <= 'f')) || ((one >= 'A') && (one <= 'F')))
             {
-                cli_line_character(&printed, one);
+                mmgr_line_ch(&printed, one);
             }
         }
-        cli_line_closed(&printed);
+        mmgr_line_finish(&printed);
         cli_both(command, &line, "/sha1", "/sha1");
         cli_both(command, &line, thumbprint, thumbprint);
     }
-    char server[CLI_PATH_LONGEST];
+    char server[CLI_PATH_MAX_LEN];
     if (cli_signing("timestamp", server))
     {
         cli_both(command, &line, "/tr", "/tr");
@@ -163,18 +163,18 @@ int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*sh
         cli_both(command, &line, "sha256", "sha256");
     }
     cli_both(command, &line, file, file);
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     return 1;
 #elif defined(__APPLE__)
-    char identity[CLI_PATH_LONGEST];
+    char identity[CLI_PATH_MAX_LEN];
     if (!cli_signing("macos", identity))
     {
-        cli_line_text(said, "settings.json names no identity under signing.macos");
+        mmgr_line_put(err_msg, "settings.json names no identity under signing.macos");
         return -1;
     }
     if (room < 3u)
     {
-        cli_line_text(said, "no room for the signing steps");
+        mmgr_line_put(err_msg, "no room for the signing steps");
         return -1;
     }
     static const char *const s_codesign[6] = {"--force", "--options", "runtime", "--timestamp", "--sign", NULL};
@@ -185,18 +185,18 @@ int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*sh
     }
     cli_command_word(&commands[0], identity);
     cli_command_word(&commands[0], file);
-    CliLine line = {shown[0], CLI_PATH_LONGEST * 4u, 0ull};
-    cli_line_text(&line, "codesign --force --options runtime --timestamp --sign \"");
-    cli_line_text(&line, identity);
-    cli_line_text(&line, "\" ");
-    cli_line_text(&line, file);
-    cli_line_closed(&line);
-    char profile[CLI_PATH_LONGEST];
+    VerbaLinea line = {shown[0], CLI_PATH_MAX_LEN * 4u, 0ull};
+    mmgr_line_put(&line, "codesign --force --options runtime --timestamp --sign \"");
+    mmgr_line_put(&line, identity);
+    mmgr_line_put(&line, "\" ");
+    mmgr_line_put(&line, file);
+    mmgr_line_finish(&line);
+    char profile[CLI_PATH_MAX_LEN];
     if (!cli_signing("notarize", profile))
     {
         return 1;
     }
-    char zip[CLI_PATH_LONGEST];
+    char zip[CLI_PATH_MAX_LEN];
     cli_with_extension(file, "zip", zip);
     cli_command_begun(&commands[1], "ditto");
     static const char *const s_ditto[3] = {"-c", "-k", "--keepParent"};
@@ -206,12 +206,12 @@ int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*sh
     }
     cli_command_word(&commands[1], file);
     cli_command_word(&commands[1], zip);
-    CliLine pack = {shown[1], CLI_PATH_LONGEST * 4u, 0ull};
-    cli_line_text(&pack, "ditto -c -k --keepParent ");
-    cli_line_text(&pack, file);
-    cli_line_character(&pack, ' ');
-    cli_line_text(&pack, zip);
-    cli_line_closed(&pack);
+    VerbaLinea pack = {shown[1], CLI_PATH_MAX_LEN * 4u, 0ull};
+    mmgr_line_put(&pack, "ditto -c -k --keepParent ");
+    mmgr_line_put(&pack, file);
+    mmgr_line_ch(&pack, ' ');
+    mmgr_line_put(&pack, zip);
+    mmgr_line_finish(&pack);
     cli_command_begun(&commands[2], "xcrun");
     cli_command_word(&commands[2], "notarytool");
     cli_command_word(&commands[2], "submit");
@@ -219,38 +219,38 @@ int cli_executables_sign_steps(const char *file, CliCommand *commands, char (*sh
     cli_command_word(&commands[2], "--keychain-profile");
     cli_command_word(&commands[2], profile);
     cli_command_word(&commands[2], "--wait");
-    CliLine send = {shown[2], CLI_PATH_LONGEST * 4u, 0ull};
-    cli_line_text(&send, "xcrun notarytool submit ");
-    cli_line_text(&send, zip);
-    cli_line_text(&send, " --keychain-profile ");
-    cli_line_text(&send, profile);
-    cli_line_text(&send, " --wait");
-    cli_line_closed(&send);
+    VerbaLinea send = {shown[2], CLI_PATH_MAX_LEN * 4u, 0ull};
+    mmgr_line_put(&send, "xcrun notarytool submit ");
+    mmgr_line_put(&send, zip);
+    mmgr_line_put(&send, " --keychain-profile ");
+    mmgr_line_put(&send, profile);
+    mmgr_line_put(&send, " --wait");
+    mmgr_line_finish(&send);
     return 3;
 #else
     (void)file;
     (void)commands;
     (void)shown;
     (void)room;
-    (void)said;
+    (void)err_msg;
     return 0;
 #endif
 }
 
-void cli_executables_signed_said(const char *file, QuerySink say)
+void cli_executables_signature_print(const char *file, QuerySink sink)
 {
 #if defined(_WIN32)
-    char signtool[CLI_PATH_LONGEST];
-    char why[CLI_NAME_LONGEST];
-    CliLine unfound = {why, sizeof(why), 0ull};
+    char signtool[CLI_PATH_MAX_LEN];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unfound = {why, sizeof(why), 0ull};
     if (!cli_executables_program("signtool", "signtool", signtool, &unfound))
     {
         return;
     }
     const char *const words[5] = {signtool, "verify", "/pa", file, NULL};
     CliRan *const ran = cli_ran_taken();
-    char unsaid[CLI_PATH_LONGEST];
-    CliLine unstarted = {unsaid, sizeof(unsaid), 0ull};
+    char err_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea unstarted = {err_buf, sizeof(err_buf), 0ull};
     if (!cli_ran(words, NULL, NULL, 0u, ran, &unstarted))
     {
         cli_ran_given(ran);
@@ -259,7 +259,7 @@ void cli_executables_signed_said(const char *file, QuerySink say)
     if (ran->code == 0ll)
     {
         cli_ran_given(ran);
-        cli_say(say, "Windows trusts the program's signature");
+        cli_print(sink, "Windows trusts the program's signature");
         return;
     }
     // the first line, errors before output, that is SignTool's error
@@ -287,25 +287,27 @@ void cli_executables_signed_said(const char *file, QuerySink say)
             line = (stop[0] != '\0') ? (stop + 1) : stop;
         }
     }
-    char said[CLI_PATH_LONGEST * 2u];
-    CliLine told = {said, sizeof(said), 0ull};
-    cli_line_text(&told, "the program is signed, and Windows does not trust the signature: ");
-    cli_line_counted(&told, reason, reason_length);
-    cli_line_text(&told, "; a certificate from an authority Windows trusts, and a reputation built as the program is "
-                         "downloaded, keep SmartScreen from warning");
-    cli_line_closed(&told);
+    char print_buf[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ull};
+    mmgr_line_put(&print_line, "the program is signed, and Windows does not trust the signature: ");
+    mmgr_line_put_n(&print_line, reason, reason_length);
+    mmgr_line_put(&print_line,
+                  "; a certificate from an authority Windows trusts, and a reputation built as the program is "
+                  "downloaded, prevent SmartScreen from warning");
+    mmgr_line_finish(&print_line);
     cli_ran_given(ran);
-    cli_say(say, said);
+    cli_print(sink, print_buf);
 #elif defined(__APPLE__)
     (void)file;
-    char profile[CLI_PATH_LONGEST];
+    char profile[CLI_PATH_MAX_LEN];
     if (cli_signing("notarize", profile))
     {
-        cli_say(say, "a program outside an app, a disk image or an installer cannot hold its notarization ticket: "
-                     "Gatekeeper asks Apple for it as the program opens, online");
+        cli_print(sink,
+                  "a program outside an app, a disk image or an installer cannot contain its notarization ticket: "
+                  "Gatekeeper queries Apple for it as the program opens, online");
     }
 #else
     (void)file;
-    (void)say;
+    (void)sink;
 #endif
 }

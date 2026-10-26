@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pair_witness.cu: the lower witness: a pair whose puts asked nothing put at the links of a third form, both
-// forms standing in there and the part's two answers held against each other
+// pair_witness.cu: the lower witness: a pair whose puts queried nothing put at the links of a third form, both
+// forms standing in there and the part's two answers checked against each other
 #include "pair.h"
 
-// The lower witness: a pair whose puts asked nothing, neither form standing at a link that carries the cases, is
+// The lower witness: a pair whose puts queried nothing, neither form standing at a link that carries the cases, is
 // put at the links of a third form, the first of the bridge's keys whose parameters name every parameter of both
 // and that stands at such a link. Both forms stand in at each of its links, the part answers both over the cases,
-// and the two answers are held against each other: the first case apart closes the pair as two operations, and
+// and the two answers are checked against each other: the first case apart closes the pair as two operations, and
 // alike on every case leaves it open with its count of cases. A link of a shape read before is passed over, and so
 // is one whose writing reaches nothing the part answers, where both stand-ins answer as the chain did as it stood;
 // two forms that read nothing but the register they write are answered at the first link left. 1 with the verdict
@@ -137,9 +137,9 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                 lower("shape_read");
                 continue;
             }
-            if (!witnessed && (s_ask_log != NULL))
+            if (!witnessed && (s_query_log != NULL))
             {
-                ask_written(s_ask_log, "witness %s %s %s\n", first.c_str(), second.c_str(), third.c_str());
+                query_log_print(s_query_log, "witness %s %s %s\n", first.c_str(), second.c_str(), third.c_str());
             }
             witnessed = 1;
             // each form written in the link's place with the arguments the third form's link gives by name, and
@@ -162,7 +162,7 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                 lower("unwritable");
                 continue;
             }
-            // two stand-ins of one text, the pair's binding writing each as the other, ask the part nothing
+            // two stand-ins of one text, the pair's binding writing each as the other, query the part for nothing
             if (first_standing == second_standing)
             {
                 lower("unchanged");
@@ -179,10 +179,10 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
                 lower("unassembled");
                 continue;
             }
-            // a stand-in a lesson of the overseer holds is answered as held, and neither is put
+            // a stand-in a lesson of the overseer blocks is answered as blocked, and neither is put
             char overseen[160];
-            if (overseer_holds(first_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)) ||
-                overseer_holds(second_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
+            if (overseer_blocks(first_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)) ||
+                overseer_blocks(second_standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
             {
                 lower("overseen");
                 continue;
@@ -191,37 +191,37 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             // the part refuses one
             std::vector<RunQuestion> sides(2u, RunQuestion());
             const int dangerous[2] = {form_dangerous(first_standing), form_dangerous(second_standing)};
-            RunQuestion *asked[2] = {&sides[0], &sides[1]};
+            RunQuestion *sides_put[2] = {&sides[0], &sides[1]};
             for (unsigned int side = 0u; side < 2u; side += 1u)
             {
                 sides[side].code = codes[side].data();
                 sides[side].code_size = codes[side].size();
-                // each stand-in is its side's slot, at the third form's link
-                sides[side].slot = (unsigned int)link_at;
+                // each stand-in is its side's probe place, at the third form's link
+                sides[side].place = (unsigned int)link_at;
                 sides[side].registers = carriers.magnitudes[chain.first].first;
                 sides[side].cases = t_question->cases;
                 memcpy(sides[side].word, t_question->word, (size_t)t_question->cases * sizeof(t_question->word[0]));
             }
-            asks += 2ull;
-            asks_carried(asked, dangerous, 2u);
+            queries += 2ull;
+            queries_carried(sides_put, dangerous, 2u);
             for (unsigned int side = 0u; side < 2u; side += 1u)
             {
                 if ((sides[side].outcome != RUN_ANSWERED) && (sides[side].registers != 255u))
                 {
                     sides[side].registers = 255u;
-                    asks += 1ull;
-                    asks_carried(&asked[side], &dangerous[side], 1u);
+                    queries += 1ull;
+                    queries_carried(&sides_put[side], &dangerous[side], 1u);
                 }
             }
             if ((sides[0].outcome != RUN_ANSWERED) || (sides[1].outcome != RUN_ANSWERED))
             {
                 // each side the part refused, or a carrier ended on, calls a conference of its own; a lesson it
-                // teaches holds the stand-in at the links after this one
+                // teaches blocks the stand-in at the links after this one
                 const std::string *const standings_of[2] = {&first_standing, &second_standing};
                 const unsigned int scratches[2] = {first_scratch, second_scratch};
                 for (unsigned int side = 0u; side < 2u; side += 1u)
                 {
-                    if ((sides[side].outcome != RUN_ANSWERED) && (sides[side].outcome != RUN_HELD))
+                    if ((sides[side].outcome != RUN_ANSWERED) && (sides[side].outcome != RUN_GATED))
                     {
                         conferred(first, second,
                                   "the pair " + first + " " + second + " witnessed at the link " + link_address +
@@ -255,8 +255,8 @@ int PairWork::witness_lower(const std::string &first, const std::string &second,
             for (unsigned int at = 0u; at < sides[0].cases; at += 1u)
             {
                 const std::string &bracket = expected[(*t_places)[at]];
-                reaches |= ((bracket_holds(bracket, sides[0].answered[at]) == 0) ||
-                            (bracket_holds(bracket, sides[1].answered[at]) == 0))
+                reaches |= ((bracket_contains(bracket, sides[0].answered[at]) == 0) ||
+                            (bracket_contains(bracket, sides[1].answered[at]) == 0))
                                ? 1
                                : 0;
             }

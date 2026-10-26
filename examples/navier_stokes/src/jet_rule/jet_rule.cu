@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// jet_rule.cu: held functions and their relations, in one normal form (jet_rule.h)
+// jet_rule.cu: stored functions and their relations, in one normal form (jet_rule.h)
 #include "jet_rule.h"
 
 #include "term_form.h"
 
-// the places of the factors: the fixed ones, then constants and the derivatives of held functions as they are named
+// the places of the factors: the fixed ones, then constants and the derivatives of stored functions as they are named
 enum
 {
     JET_RULE_ETA = 0u,
@@ -18,7 +18,7 @@ enum
     JET_RULE_NAMED = 16u
 };
 
-// a named place: a constant, or a derivative of a held function
+// a named place: a constant, or a derivative of a stored function
 typedef struct
 {
     std::string name;
@@ -283,11 +283,11 @@ void jet_rule_relate(unsigned int function, unsigned int order, const JetRule &v
 
 JetRule jet_rule_slope(unsigned int function, unsigned int a, unsigned int b)
 {
-    const JetRuleFunction &held = s_jet_rule_functions[function];
-    if (held.related && (a >= held.order))
+    const JetRuleFunction &function_ref = s_jet_rule_functions[function];
+    if (function_ref.related && (a >= function_ref.order))
     {
-        JetRule value = held.value;
-        for (unsigned int step = held.order; step < a; step += 1u)
+        JetRule value = function_ref.value;
+        for (unsigned int step = function_ref.order; step < a; step += 1u)
         {
             value = jet_rule_x(value);
         }
@@ -297,7 +297,7 @@ JetRule jet_rule_slope(unsigned int function, unsigned int a, unsigned int b)
         }
         return value;
     }
-    const std::string name = held.name + "_" + std::to_string(a) + "_" + std::to_string(b);
+    const std::string name = function_ref.name + "_" + std::to_string(a) + "_" + std::to_string(b);
     return jet_rule_single(jet_rule_factor(jet_rule_place(name, 0, function, a, b), 1ll, 1ll, 0ll, 1ll));
 }
 

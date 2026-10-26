@@ -5,14 +5,14 @@
 #include "tree_folder.h"
 
 // The rulesets a lane is written in, one a language, each read once a process from its .krs file in
-// src/cu/transpiler/lstar/protocol/table, or in the folder $CYCLE_RULESETS names. The format is the comment the rulesets'
-// files open with. Each language's code generator names every bank of registers it takes from, every register it
-// passes to a form by name, and every form it writes with the parameters each takes, in the schema its class gives the base; a
-// ruleset that lacks one of them, holds one they do not name, or gives a form other parameters errors on whole, and
-// the record machine sends its programs on to another language or the interpreter. A form is kept cut at its
-// parameters: writing one appends its pieces with each argument between them
+// src/cu/transpiler/lstar/protocol/table, or in the folder $CYCLE_RULESETS names. The format is the comment the
+// rulesets' files open with. Each language's code generator names every bank of registers it takes from, every register
+// it passes to a form by name, and every form it writes with the parameters each takes, in the schema its class gives
+// the base; a ruleset that lacks one of them, contains one they do not name, or gives a form other parameters errors on
+// whole, and the record machine sends its programs on to another language or the interpreter. A form is stored cut at
+// its parameters: writing one appends its pieces with each argument between them
 
-// the folder rulesets are read from: $CYCLE_RULESETS, else transpiler/lstar/protocol/table three folders above this
+// the folder rulesets are read from: $CYCLE_RULESETS, else transpiler/lstar/protocol/table two folders above this
 // file's in the tree it was built from
 std::string ruleset_folder(void)
 {
@@ -21,7 +21,7 @@ std::string ruleset_folder(void)
     {
         return std::string(named);
     }
-    return tree_folder_from(__FILE__, 3u, "transpiler/lstar/protocol/table");
+    return tree_folder_from(__FILE__, 2u, "transpiler/lstar/protocol/table");
 }
 
 // the place of `word` among `count` names, or `count` where it is none of them

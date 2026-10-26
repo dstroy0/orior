@@ -278,7 +278,8 @@ int flatten_set(const FlattenSetRequest *request)
     size_t gathered_capacity = 0u;
     ok = FLATTEN_CHECK(engine_object_reserve(&gathered, &gathered_capacity, 1u, layout.limbs), &gathered, error,
                        ENGINE_ERROR_RESOURCE);
-    printf("  one frame at a time: the residual by the unit sweeps, held in %u limbs a lane\n", ENGINE_RESIDUAL_LIMBS);
+    printf("  one frame at a time: the residual by the unit sweeps, stored in %u limbs a lane\n",
+           ENGINE_RESIDUAL_LIMBS);
     unsigned long long bodies = 0ull;
     unsigned long long lost_bits = 0ull;
     unsigned long long frames_done = 0ull;
@@ -341,7 +342,8 @@ int flatten_set(const FlattenSetRequest *request)
             objects.faces_differ = &differ;
             const long found = ok ? max_tree_objects(&objects) : -1L;
             ok = (found >= 0L);
-            // a frame's capacity holds one body more than it found, and a frame of none still has a place to pack into
+            // a frame's capacity has room for one body more than it found, and a frame of none still has a place to
+            // pack into
             const size_t frame_capacity = ok ? ((size_t)found + 1u) : 0u;
             if (ok && (frame_capacity > device_capacity))
             {
@@ -387,9 +389,10 @@ int flatten_set(const FlattenSetRequest *request)
     const unsigned long long bytes = bodies * (unsigned long long)layout.limbs * 4ull;
     printf("\n  flattened %llu frames into %llu bodies, %llu per frame\n", frames_done, bodies,
            (frames_done != 0ull) ? (bodies / frames_done) : 0ull);
-    printf("  gathered on the host: %llu bytes, %llu MiB, for the whole set; the device held one frame's bodies, %llu "
-           "at most\n",
-           bytes, bytes >> 20u, (device_capacity != 0u) ? (unsigned long long)(device_capacity - 1u) : 0ull);
+    printf(
+        "  gathered on the host: %llu bytes, %llu MiB, for the whole set; the device stored one frame's bodies, %llu "
+        "at most\n",
+        bytes, bytes >> 20u, (device_capacity != 0u) ? (unsigned long long)(device_capacity - 1u) : 0ull);
     printf("  component counts proved on %llu of %llu frames; round trip lost %llu bits\n", proofs, frames_done,
            lost_bits);
     printf("  codebook graded on %llu frames against the full exact key: %llu faces chosen differently\n", graded,

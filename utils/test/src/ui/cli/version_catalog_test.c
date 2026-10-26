@@ -31,7 +31,7 @@ static const CliVersionsAlias *catalog_first(unsigned int section)
 }
 
 // whether `size` bytes at `at` of the aliases' text are `wanted`
-static int catalog_said(unsigned int at, unsigned int size, const char *wanted)
+static int catalog_text_is(unsigned int at, unsigned int size, const char *wanted)
 {
     return (size == cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL})) &&
            (memor.cmp(&(MemoriaCfg){.src = s_aliases.text + at, .other = wanted, .bytes = size}) == 0);
@@ -57,11 +57,11 @@ static void catalog_sections(void)
     cli_check(named, "a catalog reads its sections, in order and with no error");
     cli_check(cli_versions_aliases(s_catalog, sizeof(s_catalog) - 1u, &s_aliases), "a catalog's aliases are read");
     const CliVersionsAlias *const library = catalog_first(CLI_VERSIONS_LIBRARIES);
-    cli_check((library != NULL) && catalog_said(library->alias_at, library->alias_size, "groovy-core") &&
-                  catalog_said(library->about_at, library->about_size, "org.codehaus.groovy:groovy, version groovy"),
+    cli_check((library != NULL) && catalog_text_is(library->alias_at, library->alias_size, "groovy-core") &&
+                  catalog_text_is(library->about_at, library->about_size, "org.codehaus.groovy:groovy, version groovy"),
               "a library's alias stands for its module and version");
     const CliVersionsAlias *const bundle = catalog_first(CLI_VERSIONS_BUNDLES);
-    cli_check((bundle != NULL) && catalog_said(bundle->about_at, bundle->about_size, "groovy-core, groovy-jsn"),
+    cli_check((bundle != NULL) && catalog_text_is(bundle->about_at, bundle->about_size, "groovy-core, groovy-jsn"),
               "a bundle's alias stands for its libraries");
     cli_versions_aliases_given(&s_aliases);
 }
@@ -69,7 +69,7 @@ static void catalog_sections(void)
 // a catalog is checked against itself
 static void catalog_checked(void)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_build_check("/tree", "/tree/gradle/libs.versions.toml", s_catalog, sizeof(s_catalog) - 1u, &out);
     unsigned int found = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &found);
@@ -122,10 +122,11 @@ static void catalog_completes(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     catalog_sections();
     catalog_checked();
     catalog_completes();
-    cli_check((g_cli_versions_cells.holds == 0ull) && (g_cli_versions_cells.hw != 0ull),
-              "every catalog read is given back, the most the catalogs held marked");
+    cli_check((g_cli_versions_cells.in_use == 0ull) && (g_cli_versions_cells.hw != 0ull),
+              "every catalog read is given back, the most the catalogs used marked");
     return cli_checked();
 }

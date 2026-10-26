@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// watch_read.c: the tree read every two seconds where the system does not tell of its changes: each file git tracks or
-// would track, each folder holding one, and git's index and HEAD, with when each was last written and how long it is,
-// set against the last reading
+// watch_read.c: the tree read every two seconds where the system does not report its changes: each file git tracks or
+// would track, each folder containing one, and git's index and HEAD, with when each was last written and how long it
+// is, set against the last reading
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "files_internal.h"
@@ -40,8 +40,8 @@ static void cli_reading_emptied(CliReading *reading)
     *reading = (CliReading){{NULL, 0u, 0u, NULL, 0ull, 0ull}, NULL, NULL, NULL};
 }
 
-// the paths of the view's files and of each folder holding one counted, or put where `paths` is given, after the three
-// read always; their count and bytes into `counted` and `bytes`
+// the paths of the view's files and of each folder containing one counted, or put where `paths` is given, after the
+// three read always; their count and bytes into `counted` and `bytes`
 static void cli_reading_paths(const CliSeen *seen, CliFiles *paths, unsigned long long *counted,
                               unsigned long long *bytes)
 {
@@ -77,13 +77,13 @@ static void cli_reading_paths(const CliSeen *seen, CliFiles *paths, unsigned lon
 }
 
 // the tree at `root` read into `reading`, its cells from before given back first: 1, or 0 where no view of the tree
-// could be held or the cellblock cannot meet the reading, the reading left empty. A reading is of the tree as it is
-// now, so the view kept is let go and read again, and the view read stands for the list and the search as well
+// could be pinned or the cellblock cannot meet the reading, the reading left empty. A reading is of the tree as it is
+// now, so the view cached is let go and read again, and the view read stands for the list and the search as well
 static int cli_reading_of(const char *root, CliReading *reading)
 {
     cli_reading_emptied(reading);
     cli_files_forget_seen();
-    const CliSeen *const seen = cli_seen_held(root);
+    const CliSeen *const seen = cli_seen_acquire(root);
     if (seen == NULL)
     {
         return 0;
@@ -114,7 +114,7 @@ static int cli_reading_of(const char *root, CliReading *reading)
     for (unsigned int index = 0u; index < paths->count; index += 1u)
     {
         const char *const path = cli_files_at(paths, index);
-        char full[CLI_PATH_LONGEST];
+        char full[CLI_PATH_MAX_LEN];
         if (path[0] == '\0')
         {
             memor.cpy(&(MemoriaCfg){.dst = full,
@@ -156,7 +156,7 @@ static unsigned int cli_next_there(const CliReading *reading, unsigned int at)
 }
 
 // what changed from the last reading to this one put for the batches: each path made, written or taken out
-static void cli_readings_compared(const CliReading *last, const CliReading *now, CliWatchTold told, void *context)
+static void cli_readings_compared(const CliReading *last, const CliReading *now, CliWatchChangeFn emit, void *context)
 {
     unsigned int was = cli_next_there(last, 0u);
     unsigned int is = cli_next_there(now, 0u);
@@ -169,36 +169,36 @@ static void cli_readings_compared(const CliReading *last, const CliReading *now,
                                     : cli_text_order(cli_files_at(&last->paths, was), cli_files_at(&now->paths, is));
         if (order < 0)
         {
-            told(context, cli_files_at(&last->paths, was), CLI_CHANGE_REMOVED);
+            emit(context, cli_files_at(&last->paths, was), CLI_CHANGE_REMOVED);
             was = cli_next_there(last, was + 1u);
             continue;
         }
         if (order > 0)
         {
-            told(context, cli_files_at(&now->paths, is), CLI_CHANGE_ADDED);
+            emit(context, cli_files_at(&now->paths, is), CLI_CHANGE_ADDED);
             is = cli_next_there(now, is + 1u);
             continue;
         }
         if ((last->time[was] != now->time[is]) || (last->size[was] != now->size[is]))
         {
-            told(context, cli_files_at(&now->paths, is), CLI_CHANGE_MODIFIED);
+            emit(context, cli_files_at(&now->paths, is), CLI_CHANGE_MODIFIED);
         }
         was = cli_next_there(last, was + 1u);
         is = cli_next_there(now, is + 1u);
     }
 }
 
-void cli_watch_read_again(const char *root, CliWatchTold told, void *context)
+void cli_watch_read_again(const char *root, CliWatchChangeFn emit, void *context)
 {
     const unsigned int now = 1u - s_last;
     if (!cli_reading_of(root, &s_readings[now]))
     {
         return;
     }
-    // a last reading that could not be made tells nothing; this one stands as the last
+    // a last reading that could not be made reports nothing; this one stands as the last
     if (s_readings[s_last].paths.count != 0u)
     {
-        cli_readings_compared(&s_readings[s_last], &s_readings[now], told, context);
+        cli_readings_compared(&s_readings[s_last], &s_readings[now], emit, context);
     }
     s_last = now;
 }
@@ -218,7 +218,7 @@ void cli_watch_polled(void *context)
         {
             break;
         }
-        cli_watch_read_again(root, cli_watch_told, NULL);
+        cli_watch_read_again(root, cli_watch_changed, NULL);
     }
     cli_watch_readings_given();
     cli_watch_poll_ended();

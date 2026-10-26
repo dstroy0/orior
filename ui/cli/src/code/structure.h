@@ -4,8 +4,8 @@
 // the names, numbers, strings and signs of the code, and not by their characters. White space and line breaks between
 // tokens are layout, and a line whose tokens did not change is reshaped and not changed.
 //
-// The lines are compared first, each as the tokens it holds. A line taken out in one place and put in at another with
-// the same tokens, two of them at least, is moved. What is left of each change is compared token by token: a name
+// The lines are compared first, each as the tokens it contains. A line taken out in one place and put in at another
+// with the same tokens, two of them at least, is moved. What is left of each change is compared token by token: a name
 // changed to one other name everywhere it changed is renamed, and every other token is taken out or put in. Past three
 // thousand edits, at either step, the two texts read as too far apart
 #ifndef STRUCTURE_H
@@ -29,6 +29,6 @@ enum
 // "right_marks": [...], "renames": [[was, became, places]...], "moved": lines, "reshaped": lines}`, or `null` where
 // they are too far apart
 void cli_structure_compare(const char *then, unsigned long long then_size, const char *now, unsigned long long now_size,
-                           CliLine *out);
+                           VerbaLinea *out);
 
 #endif

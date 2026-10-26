@@ -25,27 +25,27 @@ typedef struct
 {
     const CliBuildLines *lines;
     CliBuildFindings *found;
-    char folder[CLI_PATH_LONGEST];
-    char program[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char program[CLI_PATH_MAX_LEN];
 } CliGradleCheck;
 
 // a finding that the dependency `given`, over `from` to `to`, is a snapshot, with the line that refreshes it
 static void check_snapshot(CliGradleCheck *check, unsigned long long from, unsigned long long to, const char *given,
                            unsigned long long size)
 {
-    CliLine said = cli_build_said(check->found);
-    cli_line_character(&said, '`');
-    cli_line_counted(&said, given, size);
-    cli_line_text(&said, "` is a snapshot, whose newest build Gradle fetches when it refreshes its dependencies");
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put_n(&msg, given, size);
+    mmgr_line_put(&msg, "` is a snapshot, whose newest build Gradle fetches when it refreshes its dependencies");
     const unsigned int finding =
-        cli_build_finding(check->found, &said, check->lines, from, to, CLI_BUILD_NOTE, "snapshot");
-    CliLine title = cli_build_said(check->found);
-    cli_line_text(&title, "Update the snapshot ");
-    cli_line_counted(&title, given, size);
-    char line[CLI_PATH_LONGEST + 64u];
-    CliLine command = {line, sizeof(line), 0ull};
-    cli_line_text(&command, check->program);
-    cli_line_text(&command, " --refresh-dependencies dependencies");
+        cli_build_finding(check->found, &msg, check->lines, from, to, CLI_BUILD_NOTE, "snapshot");
+    VerbaLinea title = cli_build_msg_line(check->found);
+    mmgr_line_put(&title, "Update the snapshot ");
+    mmgr_line_put_n(&title, given, size);
+    char line[CLI_PATH_MAX_LEN + 64u];
+    VerbaLinea command = {line, sizeof(line), 0ull};
+    mmgr_line_put(&command, check->program);
+    mmgr_line_put(&command, " --refresh-dependencies dependencies");
     cli_build_run_fix(check->found, finding, &title, check->folder,
                       cellul.len(&(CatenaFinitaCfg){.src = check->folder, .cap = CLI_CELLS_POOL}), line, command.at);
 }
@@ -134,11 +134,11 @@ static void check_notation(CliGradleCheck *check, unsigned long long after)
     const unsigned int parts = check_parts(given, bare, &third, &third_size);
     if ((parts < 2u) || (parts > 4u))
     {
-        CliLine said = cli_build_said(check->found);
-        cli_line_character(&said, '`');
-        cli_line_counted(&said, given, given_size);
-        cli_line_text(&said, "` is no dependency: a dependency is written `group:name:version`");
-        (void)cli_build_finding(check->found, &said, check->lines, inner_from, inner_to, CLI_BUILD_WARNING,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_ch(&msg, '`');
+        mmgr_line_put_n(&msg, given, given_size);
+        mmgr_line_put(&msg, "` is no dependency: a dependency is written `group:name:version`");
+        (void)cli_build_finding(check->found, &msg, check->lines, inner_from, inner_to, CLI_BUILD_WARNING,
                                 "gradle-notation");
     }
     else if ((parts >= 3u) && cli_build_snapshot(given + third, third_size))
@@ -170,17 +170,17 @@ static void check_dependency(void *context, unsigned long long word, unsigned lo
     }
     if (removed < 5u)
     {
-        CliLine said = cli_build_said(check->found);
-        cli_line_text(&said, "Gradle 7 and later have no configuration `");
-        cli_line_counted(&said, name, word_size);
-        cli_line_text(&said, "`: `");
-        cli_line_text(&said, s_removed[removed][1]);
-        cli_line_text(&said, "` stands in its place");
-        const unsigned int finding = cli_build_finding(check->found, &said, check->lines, word, word + word_size,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_put(&msg, "Gradle 7 and later have no configuration `");
+        mmgr_line_put_n(&msg, name, word_size);
+        mmgr_line_put(&msg, "`: `");
+        mmgr_line_put(&msg, s_removed[removed][1]);
+        mmgr_line_put(&msg, "` stands in its place");
+        const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, word, word + word_size,
                                                        CLI_BUILD_WARNING, "gradle-configuration");
-        CliLine title = cli_build_said(check->found);
-        cli_line_text(&title, "Change to ");
-        cli_line_text(&title, s_removed[removed][1]);
+        VerbaLinea title = cli_build_msg_line(check->found);
+        mmgr_line_put(&title, "Change to ");
+        mmgr_line_put(&title, s_removed[removed][1]);
         cli_build_edit_fix(check->found, finding, &title, check->lines, word, word + word_size, s_removed[removed][1],
                            cellul.len(&(CatenaFinitaCfg){.src = s_removed[removed][1], .cap = CLI_CELLS_POOL}));
         return;
@@ -191,11 +191,11 @@ static void check_dependency(void *context, unsigned long long word, unsigned lo
     }
     if (!cli_gradle_known_configuration(name, word_size))
     {
-        CliLine said = cli_build_said(check->found);
-        cli_line_text(&said, "No configuration `");
-        cli_line_counted(&said, name, word_size);
-        cli_line_text(&said, "` is declared here, by Gradle or the script");
-        const unsigned int finding = cli_build_finding(check->found, &said, check->lines, word, word + word_size,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_put(&msg, "No configuration `");
+        mmgr_line_put_n(&msg, name, word_size);
+        mmgr_line_put(&msg, "` is declared here, by Gradle or the script");
+        const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, word, word + word_size,
                                                        CLI_BUILD_WARNING, "gradle-configuration");
         CliBuildNear near;
         cli_build_near_begun(&near, name, word_size);
@@ -211,9 +211,9 @@ static void check_dependency(void *context, unsigned long long word, unsigned lo
         }
         for (unsigned int at = 0u; at < near.count; at += 1u)
         {
-            CliLine title = cli_build_said(check->found);
-            cli_line_text(&title, "Change to ");
-            cli_line_counted(&title, near.near[at], near.near_size[at]);
+            VerbaLinea title = cli_build_msg_line(check->found);
+            mmgr_line_put(&title, "Change to ");
+            mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
             cli_build_edit_fix(check->found, finding, &title, check->lines, word, word + word_size, near.near[at],
                                near.near_size[at]);
         }
@@ -237,9 +237,9 @@ void cli_gradle_check(const char *root, const char *path, const char *text, unsi
     s_check.found = found;
     for (unsigned int at = 0u; at < g_cli_gradle.strays; at += 1u)
     {
-        CliLine said = cli_build_said(found);
-        cli_line_text(&said, "This `}` closes no block");
-        (void)cli_build_finding(found, &said, lines, g_cli_gradle.stray[at], g_cli_gradle.stray[at] + 1u,
+        VerbaLinea msg = cli_build_msg_line(found);
+        mmgr_line_put(&msg, "This `}` closes no block");
+        (void)cli_build_finding(found, &msg, lines, g_cli_gradle.stray[at], g_cli_gradle.stray[at] + 1u,
                                 CLI_BUILD_ERROR, "gradle-brace");
     }
     for (unsigned int at = 0u; at < g_cli_gradle.blocks; at += 1u)
@@ -249,18 +249,18 @@ void cli_gradle_check(const char *root, const char *path, const char *text, unsi
         {
             continue;
         }
-        CliLine said = cli_build_said(found);
-        cli_line_text(&said, "The block");
+        VerbaLinea msg = cli_build_msg_line(found);
+        mmgr_line_put(&msg, "The block");
         if (block->name_size > 0u)
         {
-            cli_line_text(&said, " `");
-            cli_line_counted(&said, text + block->name, block->name_size);
-            cli_line_character(&said, '`');
+            mmgr_line_put(&msg, " `");
+            mmgr_line_put_n(&msg, text + block->name, block->name_size);
+            mmgr_line_ch(&msg, '`');
         }
-        cli_line_text(&said, " this `{` opens is not closed");
-        (void)cli_build_finding(found, &said, lines, block->open, block->open + 1u, CLI_BUILD_ERROR, "gradle-brace");
+        mmgr_line_put(&msg, " this `{` opens is not closed");
+        (void)cli_build_finding(found, &msg, lines, block->open, block->open + 1u, CLI_BUILD_ERROR, "gradle-brace");
     }
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     cli_gradle_build_root(root, path, folder);
     cli_build_inside(root, folder, s_check.folder);
     cli_gradle_program(folder, s_check.program);
@@ -280,7 +280,7 @@ void cli_gradle_check(const char *root, const char *path, const char *text, unsi
         // each catalog read where it lies, mapped while its aliases are read and let go after; a catalog whose
         // aliases the cellblock could not meet is not checked against
         unsigned long long read = 0ull;
-        const unsigned char *const catalog = cli_file_held(s_catalogs.path[at], &read);
+        const unsigned char *const catalog = cli_file_read(s_catalogs.path[at], &read);
         CliVersionsAliases aliases;
         const int whole = (catalog != NULL) && (read <= CLI_GRADLE_CATALOG_TEXT) &&
                           cli_utf8_whole((const char *)catalog, read) &&
@@ -290,7 +290,7 @@ void cli_gradle_check(const char *root, const char *path, const char *text, unsi
         {
             continue;
         }
-        char shown[CLI_PATH_LONGEST];
+        char shown[CLI_PATH_MAX_LEN];
         cli_build_inside(root, s_catalogs.path[at], shown);
         cli_gradle_references(lines, found, s_catalogs.name[at], shown, &aliases);
         cli_versions_aliases_given(&aliases);

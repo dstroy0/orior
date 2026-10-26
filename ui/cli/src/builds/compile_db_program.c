@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db_program.c: the program a CMake or Meson build orior_cli configured makes from a source, read from CMake's
-// file API reply and from Meson's intro-targets.json, each file held mapped and walked by key in one pass
+// file API reply and from Meson's intro-targets.json, each file mapped and walked by key in one pass
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
@@ -9,7 +9,7 @@
 typedef struct
 {
     CliFoundFolders folders;
-    char wanted[CLI_PATH_LONGEST];
+    char wanted[CLI_PATH_MAX_LEN];
     int found;
     int debugging;
     unsigned long long time;
@@ -41,7 +41,7 @@ static int cli_absolute(const char *path)
 // whether a text is one of two, ASCII's case aside
 static int cli_one_of(const char *text, const char *one, const char *other)
 {
-    char lower[CLI_NAME_LONGEST];
+    char lower[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = lower, .src = text, .bytes = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1u});
     for (char *at = lower; at[0] != '\0'; at += 1)
@@ -52,7 +52,7 @@ static int cli_one_of(const char *text, const char *one, const char *other)
            (cellul.eq(&(CatenaFinitaCfg){.src = lower, .other = other, .cap = CLI_CELLS_POOL}));
 }
 
-// a program found kept where it ranks as high as the best yet: with debugging information first, then the later
+// a program found retained where it ranks as high as the best yet: with debugging information first, then the later
 static void cli_program_put(int debugging, unsigned long long time, const CliProgram *program)
 {
     const int higher = !s_search.found || (debugging > s_search.debugging) ||
@@ -66,38 +66,38 @@ static void cli_program_put(int debugging, unsigned long long time, const CliPro
     }
 }
 
-// `text` copied whole into `out`, which holds `size`
+// `text` copied whole into `out`, sized for `size`
 static void cli_copied(char *out, unsigned long long size, const char *text)
 {
-    CliLine line = {out, size, 0ull};
-    cli_line_text(&line, text);
-    cli_line_closed(&line);
+    VerbaLinea line = {out, size, 0ull};
+    mmgr_line_put(&line, text);
+    mmgr_line_finish(&line);
 }
 
-// the reply file a member `jsonFile` of the object at `node` of `reply` names, in the reply folder `folder`, held
-// mapped into `file`: 1, or 0 where the member names none or the file cannot be read
-static int cli_reply_file_held(const CliReply *reply, unsigned long long node, const char *folder, CliReply *file)
+// the reply file a member `jsonFile` of the object at `node` of `reply` names, in the reply folder `folder`, opened
+// and mapped into `file`: 1, or 0 where the member names none or the file cannot be read
+static int cli_reply_file_read(const CliReply *reply, unsigned long long node, const char *folder, CliReply *file)
 {
-    char name[CLI_PATH_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
     if (!cli_reply_string(reply, cli_reply_member(reply, node, "jsonFile"), name, sizeof(name)))
     {
         return 0;
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(folder, name, path);
-    return cli_reply_held(path, file);
+    return cli_reply_read(path, file);
 }
 
 // whether the source at `item` of a target's reply is the path wanted, joined to `source` where it is not absolute
 static int cli_source_wanted(const CliReply *target, unsigned long long item, const char *source)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_reply_string(target, cli_reply_member(target, item, "path"), path, sizeof(path)))
     {
         return 0;
     }
-    char full[CLI_PATH_LONGEST];
-    char compared[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
+    char compared[CLI_PATH_MAX_LEN];
     if (cli_absolute(path))
     {
         cli_copied(full, sizeof(full), path);
@@ -117,7 +117,7 @@ static int cli_target_program(const CliReply *target, unsigned long long root, c
     for (unsigned long long at = cli_reply_first(target, artifacts); at != CLI_REPLY_NONE;
          at = cli_reply_next(target, at))
     {
-        if (!cli_reply_string(target, cli_reply_member(target, at, "path"), program, CLI_PATH_LONGEST))
+        if (!cli_reply_string(target, cli_reply_member(target, at, "path"), program, CLI_PATH_MAX_LEN))
         {
             continue;
         }
@@ -142,14 +142,14 @@ static void cli_chain_compiler(const CliReply *chains_file, unsigned long long c
     for (unsigned long long at = cli_reply_first(chains_file, chains); at != CLI_REPLY_NONE;
          at = cli_reply_next(chains_file, at))
     {
-        char chain_language[CLI_NAME_LONGEST];
+        char chain_language[CLI_NAME_MAX_LEN];
         if (cli_reply_string(chains_file, cli_reply_member(chains_file, at, "language"), chain_language,
                              sizeof(chain_language)) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = chain_language, .other = language, .cap = CLI_CELLS_POOL})))
         {
             (void)cli_reply_string(chains_file,
                                    cli_reply_member(chains_file, cli_reply_member(chains_file, at, "compiler"), "id"),
-                                   compiler, CLI_NAME_LONGEST);
+                                   compiler, CLI_NAME_MAX_LEN);
         }
     }
 }
@@ -179,7 +179,7 @@ static void cli_cmake_target(const CliReply *target, const CliReply *chains_file
     const unsigned long long group =
         (place != ~0ull) ? cli_reply_item(target, cli_reply_member(target, root, "compileGroups"), place)
                          : CLI_REPLY_NONE;
-    char language[CLI_NAME_LONGEST];
+    char language[CLI_NAME_MAX_LEN];
     if (!cli_reply_string(target, cli_reply_member(target, group, "language"), language, sizeof(language)))
     {
         cli_copied(language, sizeof(language), "C");
@@ -193,7 +193,7 @@ static void cli_cmake_target(const CliReply *target, const CliReply *chains_file
     cli_copied(found.config, sizeof(found.config), config);
     if (!cli_absolute(found.program))
     {
-        char relative[CLI_PATH_LONGEST];
+        char relative[CLI_PATH_MAX_LEN];
         cli_copied(relative, sizeof(relative), found.program);
         cli_full(build, relative, found.program);
     }
@@ -204,11 +204,11 @@ static void cli_cmake_target(const CliReply *target, const CliReply *chains_file
 // the executable targets of one CMake build that make `wanted` from a source, each put among those found
 static void cli_cmake_programs(const char *reply_folder)
 {
-    char index[CLI_PATH_LONGEST];
+    char index[CLI_PATH_MAX_LEN];
     CliStamped stamped;
     CliReply reply = {NULL, 0ull};
     if (!cli_compile_newest_index(reply_folder, index) || !cli_compile_stamped(index, &stamped) ||
-        !cli_reply_held(index, &reply))
+        !cli_reply_read(index, &reply))
     {
         return;
     }
@@ -216,13 +216,13 @@ static void cli_cmake_programs(const char *reply_folder)
     CliReply model = {NULL, 0ull};
     CliReply chains_file = {NULL, 0ull};
     const int modelled =
-        cli_reply_file_held(&reply, cli_reply_member(&reply, answers, "codemodel-v2"), reply_folder, &model);
-    (void)cli_reply_file_held(&reply, cli_reply_member(&reply, answers, "toolchains-v1"), reply_folder, &chains_file);
+        cli_reply_file_read(&reply, cli_reply_member(&reply, answers, "codemodel-v2"), reply_folder, &model);
+    (void)cli_reply_file_read(&reply, cli_reply_member(&reply, answers, "toolchains-v1"), reply_folder, &chains_file);
     cli_reply_let_go(&reply);
     const unsigned long long chains = cli_reply_member(&chains_file, cli_reply_root(&chains_file), "toolchains");
     const unsigned long long paths = cli_reply_member(&model, cli_reply_root(&model), "paths");
-    char source[CLI_PATH_LONGEST];
-    char build[CLI_PATH_LONGEST];
+    char source[CLI_PATH_MAX_LEN];
+    char build[CLI_PATH_MAX_LEN];
     if (modelled && cli_reply_string(&model, cli_reply_member(&model, paths, "source"), source, sizeof(source)) &&
         cli_reply_string(&model, cli_reply_member(&model, paths, "build"), build, sizeof(build)))
     {
@@ -236,7 +236,7 @@ static void cli_cmake_programs(const char *reply_folder)
         unsigned long long configuration = cli_reply_first(&model, configurations);
         for (unsigned long long at = configuration; at != CLI_REPLY_NONE; at = cli_reply_next(&model, at))
         {
-            char name[CLI_NAME_LONGEST];
+            char name[CLI_NAME_MAX_LEN];
             if (cli_reply_string(&model, cli_reply_member(&model, at, "name"), name, sizeof(name)) &&
                 cli_one_of(name, named, named))
             {
@@ -244,7 +244,7 @@ static void cli_cmake_programs(const char *reply_folder)
                 break;
             }
         }
-        char config[CLI_NAME_LONGEST];
+        char config[CLI_NAME_MAX_LEN];
         if (!cli_reply_string(&model, cli_reply_member(&model, configuration, "name"), config, sizeof(config)))
         {
             config[0] = '\0';
@@ -254,7 +254,7 @@ static void cli_cmake_programs(const char *reply_folder)
              at = cli_reply_next(&model, at))
         {
             CliReply target = {NULL, 0ull};
-            if (cli_reply_file_held(&model, at, reply_folder, &target))
+            if (cli_reply_file_read(&model, at, reply_folder, &target))
             {
                 cli_cmake_target(&target, &chains_file, chains, source, build, config, stamped.time);
                 cli_reply_let_go(&target);
@@ -265,10 +265,10 @@ static void cli_cmake_programs(const char *reply_folder)
     cli_reply_let_go(&model);
 }
 
-// the compiler's kind by its stem in lower case: MSVC for cl, Clang where the stem holds clang, else GNU
+// the compiler's kind by its stem in lower case: MSVC for cl, Clang where the stem contains clang, else GNU
 static const char *cli_meson_compiler_kind(const char *compiler)
 {
-    char stem[CLI_NAME_LONGEST] = "";
+    char stem[CLI_NAME_MAX_LEN] = "";
     const char *name = compiler;
     for (const char *letter = name; letter[0] != '\0'; letter += 1)
     {
@@ -297,13 +297,13 @@ static const char *cli_meson_compiler_kind(const char *compiler)
 // the executables of one Meson build that make `wanted` from a source, each put among those found
 static void cli_meson_programs(const char *info)
 {
-    char targets_path[CLI_PATH_LONGEST];
-    char build[CLI_PATH_LONGEST];
+    char targets_path[CLI_PATH_MAX_LEN];
+    char build[CLI_PATH_MAX_LEN];
     CliStamped stamped;
     CliReply reply = {NULL, 0ull};
     cli_full(info, "intro-targets.json", targets_path);
     if (!cli_compile_stamped(targets_path, &stamped) || !cli_path_parent(info, build) ||
-        !cli_reply_held(targets_path, &reply))
+        !cli_reply_read(targets_path, &reply))
     {
         return;
     }
@@ -328,8 +328,8 @@ static void cli_meson_programs(const char *info)
             for (unsigned long long place = cli_reply_first(&reply, sources); place != CLI_REPLY_NONE;
                  place = cli_reply_next(&reply, place))
             {
-                char path[CLI_PATH_LONGEST];
-                char compared[CLI_PATH_LONGEST];
+                char path[CLI_PATH_MAX_LEN];
+                char compared[CLI_PATH_MAX_LEN];
                 if (!cli_reply_string(&reply, place, path, sizeof(path)))
                 {
                     continue;
@@ -349,7 +349,7 @@ static void cli_meson_programs(const char *info)
         {
             continue;
         }
-        char compiler[CLI_PATH_LONGEST];
+        char compiler[CLI_PATH_MAX_LEN];
         if (!cli_reply_string(&reply, cli_reply_item(&reply, cli_reply_member(&reply, group, "compiler"), 0ull),
                               compiler, sizeof(compiler)))
         {
@@ -377,7 +377,7 @@ int cli_compile_db_program_of(const char *root, const char *file, CliProgram *pr
     cli_same(file, s_search.wanted);
     s_search.found = 0;
     s_search.folders = (CliFoundFolders){NULL, 0u, 0u};
-    char top[CLI_PATH_LONGEST];
+    char top[CLI_PATH_MAX_LEN];
     cli_full(root, "build/cmake", top);
     cli_compile_folders_named(top, s_reply, 4u, &s_search.folders);
     for (unsigned int at = 0u; at < s_search.folders.count; at += 1u)

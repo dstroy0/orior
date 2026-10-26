@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // devcontainer_test.c: the dev containers' check: an image's container mounts the tree and runs its commands there, a
 // Dockerfile is built from its context with its args, a compose description brings up its service, and a description
-// with nothing to build says so
+// with nothing to build reports so
 #include "../../../../../ui/cli/src/deploy/devcontainer_internal.h"
 #include "cli_check.h"
 
@@ -10,13 +10,13 @@
 
 static CliPlan s_plan;
 static CliWords s_words;
-static char s_dir[CLI_PATH_LONGEST];
-static char s_base[CLI_PATH_LONGEST];
+static char s_dir[CLI_PATH_MAX_LEN];
+static char s_base[CLI_PATH_MAX_LEN];
 
 // the folder `folder` with `description` written at `at` in it, its path into s_dir and its last name into s_base
 static void devcontainer_tree(const char *folder, const char *description, const char *at)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder(folder, s_dir);
     cli_full(s_dir, ".devcontainer", path);
     (void)query_folder_made(path);
@@ -74,22 +74,22 @@ static int devcontainer_same_path(const char *one, const char *other)
     return one[0] == other[0];
 }
 
-// `text` with s_base in place of `{name}` into `out`, which holds CLI_PATH_LONGEST
+// `text` with s_base in place of `{name}` into `out`, which is sized for CLI_PATH_MAX_LEN
 static const char *devcontainer_named(const char *text, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     const char *const mark = cellul.find(
         &(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = "{name}", .other_cap = CLI_CELLS_POOL});
     // the mark lies in the text, at or past its start
-    cli_line_counted(&line, text,
-                     (mark != NULL) ? (unsigned long long)(mark - text)
-                                    : cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put_n(&line, text,
+                    (mark != NULL) ? (unsigned long long)(mark - text)
+                                   : cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
     if (mark != NULL)
     {
-        cli_line_text(&line, s_base);
-        cli_line_text(&line, mark + 6);
+        mmgr_line_put(&line, s_base);
+        mmgr_line_put(&line, mark + 6);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -103,10 +103,10 @@ static void devcontainer_image(void)
         "  \"runArgs\": [\"--cap-add=SYS_PTRACE\"],\n  \"postCreateCommand\": \"pip install -e .\",\n"
         "  \"postStartCommand\": [\"git\", \"status\"],\n}\n";
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    char wanted[CLI_PATH_LONGEST];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char wanted[CLI_PATH_MAX_LEN];
     devcontainer_tree("devcontainer_image", s_description, ".devcontainer/devcontainer.json");
-    cli_check(cli_devcontainer_plan(s_dir, &s_plan, &said), "an image's description is read");
+    cli_check(cli_devcontainer_plan(s_dir, &s_plan, &err_msg), "an image's description is read");
     cli_check((s_plan.source == CLI_SOURCE_IMAGE) &&
                   (cellul.eq(&(CatenaFinitaCfg){
                       .src = cli_plan_text(&s_plan, s_plan.image), .other = "python:3.12", .cap = CLI_CELLS_POOL})),
@@ -122,13 +122,13 @@ static void devcontainer_image(void)
                       .src = cli_plan_text(&s_plan, s_plan.env.at[1]), .other = wanted, .cap = CLI_CELLS_POOL})),
               "the container's settings name the folder");
     cli_plan_run_words(&s_plan, "python:3.12", devcontainer_words());
-    char bind[CLI_PATH_LONGEST * 2u];
-    CliLine line = {bind, sizeof(bind), 0ull};
-    cli_line_text(&line, "type=bind,source=");
-    cli_line_text(&line, s_dir);
-    cli_line_text(&line, ",target=");
-    cli_line_text(&line, wanted);
-    (void)cli_line_closed(&line);
+    char bind[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {bind, sizeof(bind), 0ull};
+    mmgr_line_put(&line, "type=bind,source=");
+    mmgr_line_put(&line, s_dir);
+    mmgr_line_put(&line, ",target=");
+    mmgr_line_put(&line, wanted);
+    (void)mmgr_line_finish(&line);
     cli_check(devcontainer_pair("--mount", bind), "the tree is mounted");
     cli_check(devcontainer_pair("--mount", "source=cache,target=/cache,type=volume"), "and the description's mounts");
     int ptrace = 0;
@@ -151,13 +151,13 @@ static void devcontainer_image(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word[4], .other = "git", .cap = CLI_CELLS_POOL})) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_words.word[5], .other = "status", .cap = CLI_CELLS_POOL})),
               "and words as they are");
-    char address[CLI_PATH_LONGEST];
+    char address[CLI_PATH_MAX_LEN];
     cli_plan_address(&s_plan, "c1", address);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = address,
                                            .other = devcontainer_named("docker:c1:/workspaces/{name}", wanted),
                                            .cap = CLI_CELLS_POOL}),
               "the window opens the tree in the container");
-    char named[CLI_PATH_LONGEST];
+    char named[CLI_PATH_MAX_LEN];
     cli_devcontainer_name(s_dir, named);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = named, .other = name, .cap = CLI_CELLS_POOL}),
               "the container is named for the tree");
@@ -170,17 +170,17 @@ static void devcontainer_build(void)
         "{ \"build\": { \"dockerfile\": \"Dockerfile\", \"context\": \"..\", \"args\": { \"V\": "
         "\"${localWorkspaceFolderBasename}\" }, \"target\": \"dev\" }, \"workspaceFolder\": \"/src\" }";
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    char image[CLI_PATH_LONGEST];
-    char wanted[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char image[CLI_PATH_MAX_LEN];
+    char wanted[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     devcontainer_tree("devcontainer_build", s_description, ".devcontainer.json");
-    (void)cli_devcontainer_plan(s_dir, &s_plan, &said);
+    (void)cli_devcontainer_plan(s_dir, &s_plan, &err_msg);
     cli_check(cli_plan_build_words(&s_plan, devcontainer_words(), image), "the description builds an image");
-    CliLine line = {wanted, sizeof(wanted), 0ull};
-    cli_line_text(&line, cli_plan_text(&s_plan, s_plan.name));
-    cli_line_text(&line, "-image");
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    mmgr_line_put(&line, cli_plan_text(&s_plan, s_plan.name));
+    mmgr_line_put(&line, "-image");
+    (void)mmgr_line_finish(&line);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = image, .other = wanted, .cap = CLI_CELLS_POOL}),
               "named for the container");
     cli_full(s_dir, "Dockerfile", path);
@@ -204,10 +204,10 @@ static void devcontainer_compose(void)
     static const char s_description[] = "{ \"dockerComposeFile\": [\"compose.yml\", \"more.yml\"], \"service\": "
                                         "\"app\", \"workspaceFolder\": \"/work\" }";
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    char path[CLI_PATH_LONGEST];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char path[CLI_PATH_MAX_LEN];
     devcontainer_tree("devcontainer_compose", s_description, ".devcontainer/devcontainer.json");
-    (void)cli_devcontainer_plan(s_dir, &s_plan, &said);
+    (void)cli_devcontainer_plan(s_dir, &s_plan, &err_msg);
     cli_check(cli_plan_compose_words(&s_plan, devcontainer_words()), "a compose description names its files");
     cli_full(s_dir, ".devcontainer/compose.yml", path);
     cli_check((s_words.count > 3u) &&
@@ -228,19 +228,20 @@ static void devcontainer_compose(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     devcontainer_image();
     devcontainer_build();
     devcontainer_compose();
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     devcontainer_tree("devcontainer_empty", "{ \"name\": \"empty\" }", ".devcontainer/devcontainer.json");
     cli_check(
-        !cli_devcontainer_plan(s_dir, &s_plan, &said) && (cli_line_closed(&said) > 0ull) &&
+        !cli_devcontainer_plan(s_dir, &s_plan, &err_msg) && (mmgr_line_finish(&err_msg) > 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = why, .cap = CLI_CELLS_POOL, .other = "names no image", .other_cap = CLI_CELLS_POOL}) != NULL),
-        "a description with nothing to build says so");
+        "a description with nothing to build reports so");
     // the descriptions read are each below a few kilobytes, their tokens with them
-    cli_check((g_cli_devcontainer_cells.holds == 0ull) && (g_cli_devcontainer_cells.hw != 0ull) &&
+    cli_check((g_cli_devcontainer_cells.in_use == 0ull) && (g_cli_devcontainer_cells.hw != 0ull) &&
                   (g_cli_devcontainer_cells.hw < 65536ull),
               "a description is read into cells sized to it and given back");
     return cli_checked();

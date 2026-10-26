@@ -59,14 +59,14 @@ static int cli_connect_one(const struct addrinfo *address, unsigned int millisec
     return made;
 }
 
-int cli_socket_connected_timed(CliSocket *socket_held, const char *host, unsigned int port, unsigned int milliseconds,
-                               unsigned long long *resolved, CliLine *said)
+int cli_socket_connected_timed(CliSocket *sock, const char *host, unsigned int port, unsigned int milliseconds,
+                               unsigned long long *resolved, VerbaLinea *err_msg)
 {
-    socket_held->handle = 0ull;
+    sock->handle = 0ull;
     char service[16];
-    CliLine service_line = {service, sizeof(service), 0ull};
-    cli_line_decimal(&service_line, port, 0u);
-    cli_line_closed(&service_line);
+    VerbaLinea service_line = {service, sizeof(service), 0ull};
+    mmgr_line_decimal(&service_line, port, 0u);
+    mmgr_line_finish(&service_line);
     struct addrinfo hints;
     memor.set(&(MemoriaCfg){.dst = &hints, .val = 0, .bytes = sizeof(hints)});
     hints.ai_family = AF_UNSPEC;
@@ -80,10 +80,10 @@ int cli_socket_connected_timed(CliSocket *socket_held, const char *host, unsigne
     }
     if (!named)
     {
-        cli_line_text(said, host);
-        cli_line_character(said, ':');
-        cli_line_text(said, service);
-        cli_line_text(said, " names no address");
+        mmgr_line_put(err_msg, host);
+        mmgr_line_ch(err_msg, ':');
+        mmgr_line_put(err_msg, service);
+        mmgr_line_put(err_msg, " names no address");
         return 0;
     }
     int made = -1;
@@ -94,26 +94,26 @@ int cli_socket_connected_timed(CliSocket *socket_held, const char *host, unsigne
     freeaddrinfo(found);
     if (made < 0)
     {
-        cli_line_text(said, host);
-        cli_line_character(said, ':');
-        cli_line_text(said, service);
-        cli_line_text(said, ": the connection was refused or took too long");
+        mmgr_line_put(err_msg, host);
+        mmgr_line_ch(err_msg, ':');
+        mmgr_line_put(err_msg, service);
+        mmgr_line_put(err_msg, ": the connection was refused or took too long");
         return 0;
     }
     const int no_delay = 1;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay));
     // a descriptor is not negative; one past it so that 0 stands for none
-    socket_held->handle = (unsigned long long)made + 1ull;
+    sock->handle = (unsigned long long)made + 1ull;
     return 1;
 }
 
-int cli_socket_connected_within(CliSocket *socket_held, const char *host, unsigned int port, unsigned int milliseconds,
-                                CliLine *said)
+int cli_socket_connected_within(CliSocket *sock, const char *host, unsigned int port, unsigned int milliseconds,
+                                VerbaLinea *err_msg)
 {
-    return cli_socket_connected_timed(socket_held, host, port, milliseconds, NULL, said);
+    return cli_socket_connected_timed(sock, host, port, milliseconds, NULL, err_msg);
 }
 
-int cli_socket_listening(CliSocket *listener, unsigned int *port, CliLine *said)
+int cli_socket_listening(CliSocket *listener, unsigned int *port, VerbaLinea *err_msg)
 {
     listener->handle = 0ull;
     const int made = socket(AF_INET, SOCK_STREAM, 0);
@@ -130,7 +130,7 @@ int cli_socket_listening(CliSocket *listener, unsigned int *port, CliLine *said)
         {
             close(made);
         }
-        cli_line_text(said, "127.0.0.1: no port could be listened on");
+        mmgr_line_put(err_msg, "127.0.0.1: no port could be listened on");
         return 0;
     }
     *port = ntohs(address.sin_port);
@@ -142,7 +142,7 @@ int cli_socket_listening(CliSocket *listener, unsigned int *port, CliLine *said)
 int cli_socket_accepted(const CliSocket *listener, CliSocket *peer)
 {
     peer->handle = 0ull;
-    // the handle is one past a descriptor, which an int holds
+    // the handle is one past a descriptor, which an int stores
     const int made = (listener->handle != 0ull) ? accept((int)(listener->handle - 1ull), NULL, NULL) : -1;
     if (made < 0)
     {

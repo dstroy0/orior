@@ -58,9 +58,9 @@ static unsigned long long omega_mass_product(unsigned long long left, unsigned l
     unsigned long long high = 0ull;
     unsigned long long low = 0ull;
     omega_wide_product(left, right, &high, &low);
-    const unsigned long long kept = (high << (64u - OMEGA_POINT)) | (low >> OMEGA_POINT);
+    const unsigned long long scaled = (high << (64u - OMEGA_POINT)) | (low >> OMEGA_POINT);
     const unsigned long long dropped = low & (OMEGA_ONE - 1ull);
-    return kept + (((up != 0) && (dropped != 0ull)) ? 1ull : 0ull);
+    return scaled + (((up != 0) && (dropped != 0ull)) ? 1ull : 0ull);
 }
 
 // 2^-length in fixed point, rounded down or up
@@ -298,7 +298,7 @@ void omega_results_open(OmegaResults *results)
     }
 }
 
-// a busy beaver candidate: runs finish out of rank order. A tie keeps the lower rank
+// a busy beaver candidate: runs finish out of rank order. A tie retains the lower rank
 void omega_champion(unsigned long long *maximum, unsigned long long *champion, unsigned long long value,
                     unsigned long long index)
 {

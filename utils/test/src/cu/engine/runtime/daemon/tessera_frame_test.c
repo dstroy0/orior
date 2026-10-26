@@ -41,7 +41,7 @@ static void frame_test_fill(FrameTestStream *stream, TesseraFrame *frame)
         frame->signum.bytes[byte] = (unsigned char)(frame_test_next(stream) & 0xFFull);
     }
     frame->declared = frame_test_next(stream);
-    frame->holding_microseconds = frame_test_next(stream);
+    frame->grace_microseconds = frame_test_next(stream);
     frame->sweep_microseconds = frame_test_next(stream);
     frame->idle_microseconds = frame_test_next(stream);
     frame->bytes = frame_test_next(stream);
@@ -56,7 +56,7 @@ static int frame_test_same(const TesseraFrame *left, const TesseraFrame *right)
            (left->override_budget == right->override_budget) &&
            (memcmp(left->device, right->device, TESSERA_DEVICE_BYTES) == 0) &&
            (memcmp(left->signum.bytes, right->signum.bytes, ENGINE_SIGNUM_BYTES) == 0) &&
-           (left->declared == right->declared) && (left->holding_microseconds == right->holding_microseconds) &&
+           (left->declared == right->declared) && (left->grace_microseconds == right->grace_microseconds) &&
            (left->sweep_microseconds == right->sweep_microseconds) &&
            (left->idle_microseconds == right->idle_microseconds) && (left->bytes == right->bytes) &&
            (left->measured == right->measured) && (left->identity == right->identity) && (left->luid == right->luid);
@@ -88,7 +88,7 @@ static unsigned long long frame_test_layout(unsigned long long *failed)
     memset(&frame, 0, sizeof(frame));
     frame.magic = TESSERA_MAGIC;
     frame.version = TESSERA_VERSION;
-    frame.kind = TESSERA_ASK_SUBMIT;
+    frame.kind = TESSERA_REQUEST_SUBMIT;
     frame.declared = 0x0807060504030201ull;
     frame.luid = 0x1817161514131211ull;
     frame.device[0] = 0xA5u;

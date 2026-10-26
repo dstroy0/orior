@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_run.c: git started at a tree with the words trust gives, its errors read on a thread of their own and its input
-// written on another while its output is read, so none of the three waits on a pipe the others fill; what it gave kept
-// in a room of the run's own, a cell taken for it
+// written on another while its output is read, so none of the three waits on a pipe the others fill; what it gave
+// stored in a room of the run's own, a cell taken for it
 #include "../command_line/cells.h"
 #include "../machine/trust.h"
 #include "git_internal.h"
@@ -37,14 +37,14 @@ typedef struct
 static char s_nothing[1];
 static CliGitGave s_refused = {s_nothing, 0ull, 1, s_nothing, 0ull, 0};
 
-CliCellsTally g_cli_git_cells = CLI_CELLS_TALLY("cli_git");
+CellOwner g_cli_git_cells = MMGR_CELL_OWNER("cli_git");
 
 // the bytes a list's texts are first taken with
 #define CLI_GIT_TEXT_FIRST 256ull
 
 void cli_git_text_begun(CliGitText *text)
 {
-    text->bytes = cli_cell_taken_by(&g_cli_git_cells, CLI_GIT_TEXT_FIRST, "the texts of a list git gives");
+    text->bytes = g_cli_cells->persistent_buf_alloc(CLI_GIT_TEXT_FIRST, &g_cli_git_cells);
     text->room = (text->bytes != NULL) ? CLI_GIT_TEXT_FIRST : 0ull;
     text->used = (text->bytes != NULL) ? 1ull : 0ull;
     text->full = 0;
@@ -64,22 +64,23 @@ unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long 
     }
     if (most > text->room)
     {
-        // twice the room, so texts kept one at a time take the cell again seldom, up to the most a list's texts hold
+        // twice the room, so texts stored one at a time take the cell again seldom, up to the most a list's texts
+        // contain
         const unsigned long long doubled = 2ull * text->room;
         const unsigned long long wanted = (most > doubled) ? most : doubled;
         const unsigned long long room = (wanted < CLI_GIT_TEXT) ? wanted : CLI_GIT_TEXT;
-        char *const grown = cli_cell_taken_by(&g_cli_git_cells, room, "the texts of a list git gives");
+        char *const grown = g_cli_cells->persistent_buf_alloc(room, &g_cli_git_cells);
         if (grown == NULL)
         {
             text->full = 1;
             return 0u;
         }
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = text->bytes, .bytes = (size_t)text->used});
-        cli_cell_given_by(&g_cli_git_cells, text->bytes);
+        g_cli_cells->persistent_buf_release(text->bytes, &g_cli_git_cells);
         text->bytes = grown;
         text->room = room;
     }
-    // a place is below CLI_GIT_TEXT, which an unsigned int holds
+    // a place is below CLI_GIT_TEXT, which an unsigned int stores
     const unsigned int at = (unsigned int)text->used;
     memor.cpy(&(MemoriaCfg){.dst = text->bytes + at, .src = from, .bytes = length});
     text->bytes[at + length] = '\0';
@@ -94,7 +95,7 @@ const char *cli_git_text_of(const CliGitText *text, unsigned int at)
 
 void cli_git_text_given(CliGitText *text)
 {
-    cli_cell_given_by(&g_cli_git_cells, text->bytes);
+    g_cli_cells->persistent_buf_release(text->bytes, &g_cli_git_cells);
     text->bytes = NULL;
     text->used = 0ull;
     text->room = 0ull;
@@ -102,15 +103,15 @@ void cli_git_text_given(CliGitText *text)
 
 CliGitGave *cli_git_taken(void)
 {
-    CliGitRoom *const room = cli_cell_taken(sizeof(*room), "a run of git");
+    CliGitRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), NULL);
     if (room == NULL)
     {
         return &s_refused;
     }
-    room->out = cli_cell_taken(CLI_GIT_OUT_FIRST, "what a run of git wrote");
+    room->out = g_cli_cells->persistent_buf_alloc(CLI_GIT_OUT_FIRST, NULL);
     if (room->out == NULL)
     {
-        cli_cell_given(room);
+        g_cli_cells->persistent_buf_release(room, NULL);
         return &s_refused;
     }
     room->out_room = CLI_GIT_OUT_FIRST;
@@ -124,7 +125,7 @@ CliGitGave *cli_git_taken(void)
     return &room->gave;
 }
 
-// the room that holds `gave`, one cli_git_taken took from the cells
+// the room that contains `gave`, one cli_git_taken took from the cells
 static CliGitRoom *cli_room_of(CliGitGave *gave)
 {
     return (CliGitRoom *)(void *)((char *)gave - offsetof(CliGitRoom, gave));
@@ -134,12 +135,12 @@ void cli_git_given(CliGitGave *gave)
 {
     if (gave != &s_refused)
     {
-        cli_cell_given(cli_room_of(gave)->out);
-        cli_cell_given(cli_room_of(gave));
+        g_cli_cells->persistent_buf_release(cli_room_of(gave)->out, NULL);
+        g_cli_cells->persistent_buf_release(cli_room_of(gave), NULL);
     }
 }
 
-// a thread of a run ended, told to the run
+// a thread of a run ended, reported to the run
 static void cli_ended(CliGitRoom *room)
 {
     cli_lock_take(&room->lock);
@@ -163,20 +164,20 @@ static int cli_output_room(CliGitRoom *room)
     }
     const unsigned long long doubled = room->out_room * 2ull;
     const unsigned long long grown = (doubled < CLI_GIT_OUT) ? doubled : CLI_GIT_OUT;
-    char *const cell = cli_cell_taken(grown, "what a run of git wrote");
+    char *const cell = g_cli_cells->persistent_buf_alloc(grown, NULL);
     if (cell == NULL)
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = room->out, .bytes = gave->out_size});
-    cli_cell_given(room->out);
+    g_cli_cells->persistent_buf_release(room->out, NULL);
     room->out = cell;
     room->out_room = grown;
     gave->out = cell;
     return 1;
 }
 
-// what git says went wrong read until it ends, the bytes past the room read and let go
+// what git reports went wrong read until it ends, the bytes past the room read and let go
 static void cli_errors_read(void *context)
 {
     CliGitRoom *const room = (CliGitRoom *)context;
@@ -208,11 +209,11 @@ static void cli_input_written(void *context)
 }
 
 int cli_git_gave(const char *root, const char *const *args, unsigned int count, unsigned int how, const char *index,
-                 const char *input, unsigned long long length, CliGitGave *gave, CliLine *said)
+                 const char *input, unsigned long long length, CliGitGave *gave, VerbaLinea *err_msg)
 {
     if (gave == &s_refused)
     {
-        cli_line_text(said, "git: the cells cannot meet a run of git");
+        mmgr_line_put(err_msg, "git: the cells cannot meet a run of git");
         return 0;
     }
     CliGitRoom *const room = cli_room_of(gave);
@@ -224,7 +225,7 @@ int cli_git_gave(const char *root, const char *const *args, unsigned int count, 
     gave->ok = 0;
     if ((count + 4u) > CLI_GIT_WORDS)
     {
-        cli_line_text(said, "git: too many words to start it with");
+        mmgr_line_put(err_msg, "git: too many words to start it with");
         return 0;
     }
     unsigned int words = 0u;
@@ -254,8 +255,8 @@ int cli_git_gave(const char *root, const char *const *args, unsigned int count, 
         settings[set] = (CliSetting){"GIT_INDEX_FILE", index};
         set += 1u;
     }
-    const int started = (input != NULL) ? cli_spawn_fed(&room->spawned, room->words, root, settings, set, 1, said)
-                                        : cli_spawn(&room->spawned, room->words, root, settings, set, 1, said);
+    const int started = (input != NULL) ? cli_spawn_fed(&room->spawned, room->words, root, settings, set, 1, err_msg)
+                                        : cli_spawn(&room->spawned, room->words, root, settings, set, 1, err_msg);
     if (!started)
     {
         return 0;
@@ -265,7 +266,7 @@ int cli_git_gave(const char *root, const char *const *args, unsigned int count, 
     room->length = length;
     room->reader = (CliThread){cli_errors_read, room};
     room->writer = (CliThread){cli_input_written, room};
-    // the reader and the writer each tell their end, on a thread of their own or, where none starts, here
+    // the reader and the writer each report their end, on a thread of their own or, where none starts, here
     const unsigned int ending = (input != NULL) ? 2u : 1u;
     const int reading = cli_thread_started(&room->reader);
     if ((input != NULL) && !cli_thread_started(&room->writer))
@@ -302,11 +303,11 @@ int cli_git_gave(const char *root, const char *const *args, unsigned int count, 
     return 1;
 }
 
-int cli_git_asked(const char *root, const char *const *args, unsigned int count, CliGitGave *gave)
+int cli_git_query(const char *root, const char *const *args, unsigned int count, CliGitGave *gave)
 {
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    return cli_git_gave(root, args, count, CLI_GIT_LOCKS_OFF, NULL, NULL, 0ull, gave, &said) && gave->ok &&
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return cli_git_gave(root, args, count, CLI_GIT_LOCKS_OFF, NULL, NULL, 0ull, gave, &err_msg) && gave->ok &&
            gave->out_whole;
 }
 
@@ -323,54 +324,54 @@ void cli_git_trimmed(const char **from, const char **to)
 }
 
 int cli_git_ran(const char *root, const char *const *args, unsigned int count, const char *index, const char *input,
-                unsigned long long length, CliLine *out, CliLine *said)
+                unsigned long long length, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliGitGave *const gave = cli_git_taken();
-    char why[CLI_PATH_LONGEST];
-    CliLine started = {why, sizeof(why), 0ull};
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea started = {why, sizeof(why), 0ull};
     if (!cli_git_gave(root, args, count, CLI_GIT_PROMPT_OFF, index, input, length, gave, &started))
     {
-        cli_line_text(said, "git: ");
-        cli_line_counted(said, why, started.at);
+        mmgr_line_put(err_msg, "git: ");
+        mmgr_line_put_n(err_msg, why, started.at);
         cli_git_given(gave);
         return 0;
     }
-    // what it wrote and said joined, in a cell of their size
-    CliLine joined;
-    if (!cli_line_growing(&joined, gave->out_size + gave->err_size + 1ull, "what a run of git wrote and said"))
+    // what it wrote and reported joined, in a cell of their size
+    VerbaLinea joined;
+    if (!cli_growing_line_made(&joined, gave->out_size + gave->err_size + 1ull))
     {
-        cli_line_text(said, "git: what it wrote and said could not be joined: the cells cannot meet it");
+        mmgr_line_put(err_msg, "git: what it wrote and reported could not be joined: the cells cannot meet it");
         cli_git_given(gave);
         return 0;
     }
-    cli_line_counted(&joined, gave->out, gave->out_size);
-    cli_line_counted(&joined, gave->err, gave->err_size);
+    mmgr_line_put_n(&joined, gave->out, gave->out_size);
+    mmgr_line_put_n(&joined, gave->err, gave->err_size);
     const char *from = joined.out;
     const char *to = joined.out + joined.at;
     cli_git_trimmed(&from, &to);
     const int ok = gave->ok;
     if (ok)
     {
-        cli_line_counted(out, from, (unsigned long long)(to - from));
+        mmgr_line_put_n(out, from, (unsigned long long)(to - from));
     }
     else if (from == to)
     {
-        cli_line_text(said, "git ");
-        cli_line_text(said, (count != 0u) ? args[0] : "");
-        cli_line_text(said, " failed");
+        mmgr_line_put(err_msg, "git ");
+        mmgr_line_put(err_msg, (count != 0u) ? args[0] : "");
+        mmgr_line_put(err_msg, " failed");
     }
     else
     {
-        cli_line_counted(said, from, (unsigned long long)(to - from));
+        mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
     }
-    cli_cell_given(joined.out);
+    g_cli_cells->persistent_buf_release(joined.out, NULL);
     cli_git_given(gave);
     return ok;
 }
 
-int cli_git_run(const char *root, const char *const *args, unsigned int count, CliLine *out, CliLine *said)
+int cli_git_run(const char *root, const char *const *args, unsigned int count, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    return cli_git_ran(root, args, count, NULL, NULL, 0ull, out, said);
+    return cli_git_ran(root, args, count, NULL, NULL, 0ull, out, err_msg);
 }
 
 int cli_git_is_id(const char *id)
@@ -391,10 +392,10 @@ int cli_git_is_id(const char *id)
     return 1;
 }
 
-int cli_git_beside(const char *root, const char *file, char *folder, char *shown, CliLine *said)
+int cli_git_beside(const char *root, const char *file, char *folder, char *shown, VerbaLinea *err_msg)
 {
-    char full[CLI_PATH_LONGEST];
-    if (!cli_inside(root, file, full, said))
+    char full[CLI_PATH_MAX_LEN];
+    if (!cli_inside(root, file, full, err_msg))
     {
         return 0;
     }
@@ -408,7 +409,7 @@ int cli_git_beside(const char *root, const char *file, char *folder, char *shown
     while (!query_is_folder(folder) && cli_text_same(folder, root, root_length) &&
            (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = root, .cap = CLI_CELLS_POOL})))
     {
-        char above[CLI_PATH_LONGEST];
+        char above[CLI_PATH_MAX_LEN];
         if (!cli_path_parent(folder, above))
         {
             memor.cpy(&(MemoriaCfg){.dst = above,
@@ -419,15 +420,15 @@ int cli_git_beside(const char *root, const char *file, char *folder, char *shown
                                 .src = above,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    char relative[CLI_PATH_LONGEST];
+    char relative[CLI_PATH_MAX_LEN];
     cli_relative(folder, full, relative);
-    CliLine line = {shown, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, "./");
-    cli_line_text(&line, relative);
-    if (cli_line_closed(&line) == 0ull)
+    VerbaLinea line = {shown, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, "./");
+    mmgr_line_put(&line, relative);
+    if (mmgr_line_finish(&line) == 0ull)
     {
-        cli_line_text(said, file);
-        cli_line_text(said, ": its path is too long");
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, ": its path is too long");
         return 0;
     }
     return 1;

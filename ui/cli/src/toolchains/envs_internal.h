@@ -33,14 +33,14 @@ typedef struct
     unsigned int text_room;
 } CliRequired;
 
-// the names a folder's files require read into `required`, those it held before let go; the names written as a JSON
-// array; and their cells given back, the names left empty
+// the names a folder's files require read into `required`, those it contained before let go; the names written as a
+// JSON array; and their cells given back, the names left empty
 void cli_required_in(const char *folder, CliRequired *required);
-void cli_required_written(const CliRequired *required, CliLine *out);
+void cli_required_written(const CliRequired *required, VerbaLinea *out);
 void cli_required_given(CliRequired *required);
 
 // the `used` bytes of `cell` moved into a cell of `room` bytes counted to g_cli_envs_cells, `cell` given back: the
-// larger cell, or NULL with `cell` kept where it is refused
+// larger cell, or NULL with `cell` retained where it is refused
 void *cli_envs_moved(void *cell, unsigned long long used, unsigned long long room, const char *what);
 
 #endif

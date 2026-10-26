@@ -49,7 +49,7 @@ unsigned long long zip_crc32(const unsigned char *bytes, unsigned long long leng
     unsigned long long at = 0ull;
     for (; (length - at) >= 8ull; at += 8ull)
     {
-        // the eight bytes as two little-endian words, assembled byte by byte so no alignment is asked of `bytes`
+        // the eight bytes as two little-endian words, assembled byte by byte so no alignment is required of `bytes`
         const unsigned int low = crc ^ ((unsigned int)bytes[at] | ((unsigned int)bytes[at + 1ull] << 8u) |
                                         ((unsigned int)bytes[at + 2ull] << 16u) |
                                         ((unsigned int)bytes[at + 3ull] << 24u));

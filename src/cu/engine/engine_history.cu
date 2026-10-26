@@ -25,7 +25,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
                      ENGINE_ERROR_REQUEST) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     int ok = 1;
@@ -48,12 +48,12 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
         EngineSignum standing_root;
         EngineError probe;
         memset(&probe, 0, sizeof(probe));
-        if ((request->keep != 0u) && krep_crystal_head(iapx_path, &standing, &standing_root, &probe))
+        if ((request->reuse != 0u) && krep_crystal_head(iapx_path, &standing, &standing_root, &probe))
         {
-            EngineHistory kept;
-            const int read_back = krep_history_read(path, &kept, 1u, &probe);
-            const int same = read_back && entry_signum_same(&kept.sample, &standing_root);
-            krep_history_release(&kept);
+            EngineHistory stored_history;
+            const int read_back = krep_history_read(path, &stored_history, 1u, &probe);
+            const int same = read_back && entry_signum_same(&stored_history.sample, &standing_root);
+            krep_history_release(&stored_history);
             if (same)
             {
                 printf("  %-24s laid down already: read back whole, projected from the " ENTRY_CRYSTAL_SUFFIX
@@ -118,7 +118,7 @@ extern "C" long engine_entropy_set(const EngineEntropySetRequest *request)
     if (ok == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     return 0L;
@@ -136,7 +136,7 @@ extern "C" long engine_entropy_cloud(const char *path, unsigned int *windows, un
         (krep_history_read(path, &history, 0u, error) == 0))
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     *windows = (unsigned int)history.windows;
@@ -154,7 +154,7 @@ extern "C" long engine_entropy_history_read(const char *path, EngineHistory *his
     if (krep_history_read(path, history, 1u, error) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     return 0L;
@@ -174,7 +174,7 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
     if (ENGINE_CHECK(table != NULL, &table, error, ENGINE_ERROR_REQUEST) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     char path[ENTRY_PATH_CAPACITY];
@@ -184,7 +184,7 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
         (krep_bodies_write(path, table, error) == 0))
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     EngineBodyTable back;
@@ -202,7 +202,7 @@ extern "C" long engine_bodies_write(const char *set, const char *sample, EngineB
     {
         remove(path);
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     return 0L;
@@ -220,7 +220,7 @@ extern "C" long engine_bodies_read(const char *set, const char *sample, EngineBo
         (krep_bodies_read(path, table, error) == 0))
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     return 0L;

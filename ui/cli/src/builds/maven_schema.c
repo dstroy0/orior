@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// maven_schema.c: what a POM's elements may hold, and the words its values take: the children each element may hold,
-// an element inside a `configuration` or a `properties` being its plugin's or its reader's and not checked; the scopes
-// a dependency takes; the phases of Maven's lifecycles; the packagings and types; the properties a POM's `<properties>`
-// most often sets; the first words of the properties Maven, Java and the system give a POM; and those it can name of
-// its project
+// maven_schema.c: what a POM's elements may contain, and the words its values take: the children each element may
+// contain, an element inside a `configuration` or a `properties` being its plugin's or its reader's and not checked;
+// the scopes a dependency takes; the phases of Maven's lifecycles; the packagings and types; the properties a POM's
+// `<properties>` most often sets; the first words of the properties Maven, Java and the system give a POM; and those it
+// can name of its project
 #include "maven_internal.h"
 
 const char *const g_cli_maven_scopes[6] = {"compile", "provided", "runtime", "test", "system", "import"};
@@ -56,7 +56,7 @@ const char *const g_cli_maven_project_properties[11] = {"project.groupId",      
                                                         "project.build.finalName", "project.build.sourceDirectory",
                                                         "project.parent.version"};
 
-// the children each element may hold, its name first and a NULL after the last child
+// the children each element may contain, its name first and a NULL after the last child
 static const char *const s_schema[][31] = {
     {"project",
      "modelVersion",

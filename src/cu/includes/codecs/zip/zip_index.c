@@ -71,10 +71,10 @@ int zip_archive_index(ZipArchive *archive, EngineError *error)
         return 0;
     }
     unsigned long long at = 0ull;
-    for (unsigned long long slot = 0ull; slot < archive->entries; slot += 1ull)
+    for (unsigned long long index = 0ull; index < archive->entries; index += 1ull)
     {
         ZipEntry entry = zip_empty_entry;
-        entry_at[slot] = at;
+        entry_at[index] = at;
         if (!zip_entry_next(archive, &at, &entry, error))
         {
             free(entry_at);
@@ -89,10 +89,10 @@ int zip_archive_index(ZipArchive *archive, EngineError *error)
     return 1;
 }
 
-static int zip_folder_compare(const ZipArchive *archive, unsigned long long slot, const char *folder,
+static int zip_folder_compare(const ZipArchive *archive, unsigned long long at, const char *folder,
                               unsigned long long folder_length)
 {
-    const unsigned char *const fixed = archive->directory + archive->entry_at[slot];
+    const unsigned char *const fixed = archive->directory + archive->entry_at[at];
     unsigned long long start = 0ull;
     unsigned long long span = 0ull;
     zip_folder_of(fixed + 46u, zip_load(fixed + 28u, 2u), &start, &span);
@@ -132,13 +132,13 @@ int zip_folder_find(const ZipArchive *archive, const char *folder, unsigned long
     return 1;
 }
 
-int zip_entry_at(const ZipArchive *archive, unsigned long long slot, ZipEntry *entry, EngineError *error)
+int zip_entry_at(const ZipArchive *archive, unsigned long long index, ZipEntry *entry, EngineError *error)
 {
-    if (!ZIP_CHECK((archive->entry_at != NULL) && (slot < archive->entries), &slot, error, ENGINE_ERROR_REQUEST))
+    if (!ZIP_CHECK((archive->entry_at != NULL) && (index < archive->entries), &index, error, ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
-    unsigned long long at = archive->entry_at[slot];
+    unsigned long long at = archive->entry_at[index];
     return zip_entry_next(archive, &at, entry, error);
 }
 
@@ -204,7 +204,8 @@ int zip_member_data(const EngineIngestTools *tools, const char *path, const ZipA
     return 1;
 }
 
-// a member's stored bytes into `out`: copied where it is stored, inflated where it is deflated, then held to its CRC
+// a member's stored bytes into `out`: copied where it is stored, inflated where it is deflated, then checked against
+// its CRC
 static int zip_member_unpack(const EngineIngestTools *tools, const unsigned char *packed, const ZipEntry *entry,
                              unsigned char *out, EngineError *error)
 {

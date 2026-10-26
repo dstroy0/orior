@@ -7,13 +7,13 @@
 //
 // Every offset, width, tag and name a format uses is a fact about that format and not about the work of emitting.
 // The emitter reads a pattern's tables, puts code and attributes in, and lays the sections out again. Which byte
-// holds the section count is the layout's to say. A second format is a second file and no second emitter.
+// stores the section count is the layout's to specify. A second format is a second file and no second emitter.
 //
-// A layout may be partly known. A field nobody has found yet is absent, and asking for it says so instead of
+// A layout may be partly known. A field nobody has found yet is absent, and requesting it reports so instead of
 // reading a byte that means something else.
 
-#define LAYOUT_NAME_LONGEST 48u
-#define LAYOUT_TEXT_LONGEST 64u
+#define LAYOUT_NAME_MAX_LEN 48u
+#define LAYOUT_TEXT_MAX_LEN 64u
 #define LAYOUT_ROWS 96u
 
 typedef enum
@@ -27,11 +27,11 @@ typedef enum
 // one row: a field has an offset and a width, a size and a tag have a number, and a name has text
 typedef struct
 {
-    char name[LAYOUT_NAME_LONGEST];
+    char name[LAYOUT_NAME_MAX_LEN];
     unsigned int kind;
     unsigned long long offset;
     unsigned int width;
-    char text[LAYOUT_TEXT_LONGEST];
+    char text[LAYOUT_TEXT_MAX_LEN];
 } LayoutRow;
 
 typedef struct
@@ -44,15 +44,15 @@ typedef struct
 // `path` read into `layout`. 1, or 0 with the reason printed
 int container_layout_read(ContainerLayout *layout, const char *path);
 
-// The place `name` names, through `offset` and `width`. 1, or 0 where the layout holds no such field, which is a
+// The place `name` names, through `offset` and `width`. 1, or 0 where the layout defines no such field, which is a
 // layout that does not yet know this part of the format
 int layout_field(const ContainerLayout *layout, const char *name, unsigned long long *offset, unsigned int *width);
 
-// the number `name` names, or `otherwise` where the layout holds none
+// the number `name` names, or `otherwise` where the layout defines none
 unsigned long long layout_number(const ContainerLayout *layout, const char *name, unsigned long long otherwise);
 
-// The text `name` names with {part} replaced by `part`, into `written` which holds `room`. 1, or 0 where the
-// layout holds no such name
+// The text `name` names with {part} replaced by `part`, into `written` which has room for `room`. 1, or 0 where the
+// layout defines no such name
 int layout_text(const ContainerLayout *layout, const char *name, const char *part, char *written, unsigned int room);
 
 #endif

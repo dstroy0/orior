@@ -9,12 +9,12 @@
 void carriers_read(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
                           Carriers *carriers)
 {
-    for (const auto &held : host)
+    for (const auto &chain_entry : host)
     {
-        std::ifstream chain(std::string(engine) + "/" + held.first + ".sass", std::ios::binary);
+        std::ifstream chain(std::string(engine) + "/" + chain_entry.first + ".sass", std::ios::binary);
         if (chain)
         {
-            carriers->texts[held.first] =
+            carriers->texts[chain_entry.first] =
                 std::string((std::istreambuf_iterator<char>(chain)), std::istreambuf_iterator<char>());
         }
     }
@@ -32,18 +32,18 @@ void carriers_read(const char *engine, const std::map<std::string, std::vector<s
     }
 }
 
-// the scratch a form written into a chain takes, each register as `sass` writes its bank: registers past the `held`
-// the chain names, an even one first so that a wide's pair is aligned, the next each time the writing asks; predicate
-// 5, which no chain of ours names
-std::function<std::string(const std::string &)> scratch_past(const Ruleset *sass, unsigned int held,
+// the scratch a form written into a chain takes, each register as `sass` writes its bank: registers past the `reserved`
+// the chain names, an even one first so that a wide's pair is aligned, the next each time the writing requires;
+// predicate 5, which no chain of ours names
+std::function<std::string(const std::string &)> scratch_past(const Ruleset *sass, unsigned int reserved,
                                                              unsigned int *taken)
 {
-    return [sass, held, taken](const std::string &bank) {
+    return [sass, reserved, taken](const std::string &bank) {
         if (bank == "predicate")
         {
             return ruleset_register(sass, bank, 5u);
         }
-        const unsigned int first = ((held + 1u) & ~1u) + *taken;
+        const unsigned int first = ((reserved + 1u) & ~1u) + *taken;
         *taken += (bank == "wide") ? 2u : 1u;
         return ruleset_register(sass, bank, first);
     };
@@ -136,17 +136,18 @@ std::vector<FoundLink> links_of(Carriers &carriers, unsigned long seed, const st
     return found_links;
 }
 
-// The cuts `codes` put together over the cases `question` holds, each dangerous where `dangerous` says and each its
-// slot from `slots`, RUN_SLOT_NONE where it holds none: each container declaring `mark` registers, and every register
-// its file holds where the part refuses that, those put together in the round after. Each cut's question into `asked`,
-// in the order of `codes`, its outcome, answers and refusal its own, and a cut with no code left unasked. Each ask
-// counted in `asks`. The answers are values the host does not compute, held in the log alone and never in R
-void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
-                       const std::vector<unsigned int> &slots, const RunQuestion *question, unsigned long long *asks,
-                       unsigned int mark, std::vector<RunQuestion> *asked)
+// The cuts `codes` put together over the cases `question` contains, each dangerous where `dangerous` specifies and each
+// its place from `places`, RUN_PLACE_NONE where it contains none: each container declaring `mark` registers, and every
+// register its file uses where the part refuses that, those put together in the round after. Each cut's question into
+// `questions`, in the order of `codes`, its outcome, answers and refusal its own, and a cut with no code left
+// unqueried. Each query counted in `queries`. The answers are values the host does not compute, stored in the log alone
+// and never in R
+void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
+                  const std::vector<unsigned int> &places, const RunQuestion *question, unsigned long long *queries,
+                  unsigned int mark, std::vector<RunQuestion> *questions)
 {
     const unsigned int most = 255u;
-    asked->assign(codes.size(), RunQuestion());
+    questions->assign(codes.size(), RunQuestion());
     std::vector<RunQuestion *> carried;
     std::vector<int> carried_dangerous;
     for (size_t at = 0u; at < codes.size(); at += 1u)
@@ -155,20 +156,20 @@ void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std:
         {
             continue;
         }
-        RunQuestion *const cut = &(*asked)[at];
+        RunQuestion *const cut = &(*questions)[at];
         cut->code = codes[at].data();
         cut->code_size = codes[at].size();
         cut->registers = ((mark != 0u) && (mark < most)) ? mark : most;
-        cut->slot = slots[at];
+        cut->place = places[at];
         cut->cases = question->cases;
         memcpy(cut->word, question->word, (size_t)question->cases * sizeof(question->word[0]));
         carried.push_back(cut);
         carried_dangerous.push_back(dangerous[at]);
     }
-    *asks += carried.size();
+    *queries += carried.size();
     if (!carried.empty())
     {
-        asks_carried(carried.data(), carried_dangerous.data(), (unsigned int)carried.size());
+        queries_carried(carried.data(), carried_dangerous.data(), (unsigned int)carried.size());
     }
     std::vector<RunQuestion *> again;
     std::vector<int> again_dangerous;
@@ -181,19 +182,19 @@ void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std:
             again_dangerous.push_back(carried_dangerous[at]);
         }
     }
-    *asks += again.size();
+    *queries += again.size();
     if (!again.empty())
     {
-        asks_carried(again.data(), again_dangerous.data(), (unsigned int)again.size());
+        queries_carried(again.data(), again_dangerous.data(), (unsigned int)again.size());
     }
 }
 
-// What the texts of a pair's two forms, as `sass` writes them, say of it before any ask, each word after a space: one
-// structure, one form the other with a parameter bound; both reading what the launch gives; or two operations, one
+// What the texts of a pair's two forms, as `sass` writes them, show of it before any query, each word after a space:
+// one structure, one form the other with a parameter bound; both reading what the launch gives; or two operations, one
 // meaning written twice. Then the categories the texts read the pair into: both forms comparisons, every condition
 // tested an equality or some an order; either form an operation at any width, every instruction of one giving one
 // value with its first two sources either way round, or a doing word that computes no value; either form reading where
-// its lane sits, working a wide value in pieces, deciding which form runs next, or holding no instruction
+// its lane sits, working a wide value in pieces, deciding which form runs next, or containing no instruction
 std::string pair_categories(const Ruleset *sass, const std::string &first, const std::string &second)
 {
     std::vector<std::string> first_names;
@@ -237,8 +238,9 @@ std::string pair_categories(const Ruleset *sass, const std::string &first, const
            (controlled ? " control" : "") + (switched ? " switch" : "");
 }
 
-// the lines the bridge `bridge` holds beneath the pair of `first` and `second`, either way round: its verdict, the
-// metas and sets orior_klq_decoder read it into, its concept and its intent; none where the bridge holds no such pair
+// the lines the bridge `bridge` contains beneath the pair of `first` and `second`, either way round: its verdict, the
+// metas and sets orior_klq_decoder read it into, its concept and its intent; none where the bridge contains no such
+// pair
 std::vector<std::string> pair_beneath(const std::vector<std::string> &bridge, const std::string &first,
                                              const std::string &second)
 {

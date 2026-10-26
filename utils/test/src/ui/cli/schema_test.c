@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_test.c: the JSON schemas' check: JSON reads with its places and its faults, a file is checked against the
-// schema it names, a schema is checked against its own schema, a schema not held offers its fetch, and keys and values
-// complete from the schema
+// schema it names, a schema is checked against its own schema, a schema not stored offers its fetch, and keys and
+// values complete from the schema
 #include "../../../../../ui/cli/src/code/schema_internal.h"
 #include "cli_check.h"
 
@@ -23,7 +23,7 @@ static const char s_schema[] =
 static CliSchemaRead s_read;
 static char s_out[1u << 18u];
 static CliCompletions s_items;
-static char s_dir[CLI_PATH_LONGEST];
+static char s_dir[CLI_PATH_MAX_LEN];
 
 // JSON reads with its places and its faults
 static void schema_json(void)
@@ -55,13 +55,13 @@ static void schema_json(void)
                   (s_read.member[root->first].from == 4ull),
               "and with its places");
     static char s_many[1u << 15u];
-    CliLine many = {s_many, sizeof(s_many), 0ull};
-    cli_line_character(&many, '[');
+    VerbaLinea many = {s_many, sizeof(s_many), 0ull};
+    mmgr_line_ch(&many, '[');
     for (unsigned int item = 0u; item < 3000u; item += 1u)
     {
-        cli_line_text(&many, (item == 0u) ? "{\"k\": 1}" : ",{\"k\": 1}");
+        mmgr_line_put(&many, (item == 0u) ? "{\"k\": 1}" : ",{\"k\": 1}");
     }
-    cli_line_character(&many, ']');
+    mmgr_line_ch(&many, ']');
     cli_schema_read(s_many, many.at, &s_read);
     cli_check((s_read.errors == 0u) && (s_read.full == 0) && (s_read.nodes == 6001u) && (s_read.members == 3000u) &&
                   (s_read.nodes_most == 8192u),
@@ -72,9 +72,9 @@ static void schema_json(void)
 // the findings of `text`, the file `name` of the tree at `root`, read into the shared tree: the array's node
 static unsigned int schema_checked(const char *root, const char *name, const char *text, const CliJson **json)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_schema_check(root, path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &out);
     unsigned int found = CLI_JSON_NONE;
     *json = cli_check_parsed(s_out, out.at, &found);
@@ -103,7 +103,7 @@ static void schema_file(void)
                                             {"schema-required", "`port`"},
                                             {"schema-property", "\"nmae\" is no property"},
                                             {"schema-type", NULL}};
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_dir, "schema.json", path);
     (void)query_file_written(path, s_schema, sizeof(s_schema) - 1u);
     const CliJson *json = NULL;
@@ -127,7 +127,7 @@ static void schema_file(void)
     cli_check(json->node[found].count == 9u, "and nothing more is found");
 }
 
-// a schema is checked against its own schema, and a schema not kept offers its fetch
+// a schema is checked against its own schema, and a schema not stored offers its fetch
 static void schema_own(void)
 {
     const CliJson *json = NULL;
@@ -140,7 +140,8 @@ static void schema_own(void)
     cli_check(cli_check_finding(found, "schema-unique", NULL) != CLI_JSON_NONE, "and a name required twice");
     found = schema_checked(
         "/t", "s.json", "{\"$schema\": \"https://json-schema.org/draft/2020-12/schema\", \"prefixItems\": 3}", &json);
-    cli_check(cli_check_finding(found, "schema-type", NULL) != CLI_JSON_NONE, "a 2020-12 schema is held to its draft");
+    cli_check(cli_check_finding(found, "schema-type", NULL) != CLI_JSON_NONE,
+              "a 2020-12 schema is checked against its draft");
     found = schema_checked("/t", "a.json", "{\"$schema\": \"https://example.com/none.json\"}", &json);
     const unsigned int missing = cli_json_item(json, found, 0u);
     const char *const line = cli_check_member_text(cli_json_member(json, schema_fix(json, missing), "run"), "line");
@@ -155,13 +156,13 @@ static void schema_own(void)
             (length >= sizeof(s_end) - 1u) &&
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = line + length - (sizeof(s_end) - 1u), .other = s_end, .cap = CLI_CELLS_POOL})),
-        "a schema not held offers its fetch");
+        "a schema not stored offers its fetch");
 }
 
 // what completes the end of `text`, the file a.json of the tree
 static const CliCompletions *schema_completed(const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_dir, "a.json", path);
     unsigned int line = 0u;
     unsigned int col = 0u;
@@ -202,11 +203,11 @@ static int schema_offers(const CliCompletions *items, const char *label, const c
 static void schema_labels(const CliCompletions *items, const char *wanted, const char *what)
 {
     char text[256];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     for (unsigned int at = 0u; at < items->count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_counted(&line, items->text + items->item[at].label_at, items->item[at].label_size);
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put_n(&line, items->text + items->item[at].label_at, items->item[at].label_size);
     }
     cli_check_text(text, line.at, wanted, what);
 }
@@ -216,7 +217,7 @@ static void schema_completes(void)
 {
     const CliCompletions *items = schema_completed("{\n  \"$schema\": \"./schema.json\",\n  \"name\": \"x\",\n  ");
     cli_check(schema_offers(items, "version", "\"version\": \"$0\""), "a key the schema gives completes");
-    cli_check(!schema_offers(items, "name", NULL), "and a key the object holds is not offered");
+    cli_check(!schema_offers(items, "name", NULL), "and a key the object has is not offered");
     items = schema_completed("{\"$schema\": \"./schema.json\", \"ser");
     cli_check(schema_offers(items, "server", "server"), "a key begun in its quotes completes inside them");
     schema_labels(schema_completed("{\"$schema\": \"./schema.json\", \"server\": {\"po"), "port|host",
@@ -231,14 +232,15 @@ static void schema_completes(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check_folder("schema", s_dir);
     schema_json();
     schema_file();
     schema_own();
     schema_completes();
-    cli_check((g_cli_schema_cells.holds == 0ull) && (g_cli_schema_cells.hw != 0ull),
-              "every schema's text and tokens are given back once it is read, the most they held marked");
-    cli_check((g_cli_build_cells.holds == 0ull) && (g_cli_build_cells.hw != 0ull),
+    cli_check((g_cli_schema_cells.in_use == 0ull) && (g_cli_schema_cells.hw != 0ull),
+              "every schema's text and tokens are given back once it is read, the most they used marked");
+    cli_check((g_cli_build_cells.in_use == 0ull) && (g_cli_build_cells.hw != 0ull),
               "and a file's findings and its lines indexed, once the findings are written");
     return cli_checked();
 }

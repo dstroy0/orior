@@ -7,8 +7,8 @@
 // own folder lays them, which, where it is a repository, is committed and pushed, and pulled before it is read.
 //
 // Taking them in writes nothing until the reader has seen the differences and chosen what to take: each file chosen,
-// and in settings.json each setting chosen, the settings of this machine alone kept as they are. Each file a taking
-// writes over is kept as it was in `carried/`, a folder for each taking, and undoing the taking writes them back and
+// and in settings.json each setting chosen, the settings of this machine alone retained as they are. Each file a taking
+// writes over is saved as it was in `carried/`, a folder for each taking, and undoing the taking writes them back and
 // takes out the files it made (carry.c, carry_send.c, carry_take.c, carry_undo.c)
 #ifndef CARRY_H
 #define CARRY_H
@@ -30,28 +30,29 @@ typedef struct
 } CliCarried;
 
 // what travels from orior's own folder `home` into `packed`: each file's text by its place, settings.json without the
-// settings of this machine alone: 1, or 0 with why said; and what travels from `home` written to `to`, as one file
+// settings of this machine alone: 1, or 0 with why given; and what travels from `home` written to `to`, as one file
 // where `to` is not a folder, or laid out in the folder `to`, the files it no longer carries taken out of it,
-// committed and pushed where it is a repository: 1 with what it did said into `out`, or 0 with why said
-int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said);
-int cli_carry_send(const char *home, const char *to, CliLine *out, CliLine *said);
+// committed and pushed where it is a repository: 1 with what it did reported into `out`, or 0 with why given
+int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg);
+int cli_carry_send(const char *home, const char *to, VerbaLinea *out, VerbaLinea *err_msg);
 
 // what the file or the folder `from` carries into `there`, by place, a repository with a remote pulled first: 1, or 0
-// with why said (carry.c)
-int cli_carry_read(const char *from, CliCarried *there, CliLine *said);
+// with why given (carry.c)
+int cli_carry_read(const char *from, CliCarried *there, VerbaLinea *err_msg);
 
 // how what `there` carries differs from orior's own folder `home`, the files alike left out, written as
 // `[{"place", "how", "settings": [{"key", "here", "there"}]}]`; what `there`, read from `from`, carries taken in:
 // each of `places`, `count` of them, and of settings.json the settings of `keys`, `key_count` of them, alone, as there,
-// a setting there does not set taken out here, and the settings of this machine alone kept, each file it writes over
-// kept first in `carried/`, the taking written as `{"id", "at", "from", "files": [[place, stood]]}`: 1, or 0 with why
-// said; every taking kept, the last first, written as a JSON array of them; and the taking `id` undone, each file it
-// wrote over written back as it was, each it made taken out, and the taking forgotten, the taking written: 1, or 0
-// with why said (carry_take.c)
-void cli_carry_differences(const char *home, const CliCarried *there, CliLine *out);
+// a setting there does not set taken out here, and the settings of this machine alone retained, each file it writes
+// over saved first in `carried/`, the taking written as `{"id", "at", "from", "files": [[place, stood]]}`: 1, or 0 with
+// why given; every taking saved, the last first, written as a JSON array of them; and the taking `id` undone, each file
+// it wrote over written back as it was, each it made taken out, and the taking forgotten, the taking written: 1, or 0
+// with why given (carry_take.c)
+void cli_carry_differences(const char *home, const CliCarried *there, VerbaLinea *out);
 int cli_carry_take(const char *home, const char *from, const CliCarried *there, const char *const *places,
-                   unsigned int count, const char *const *keys, unsigned int key_count, CliLine *out, CliLine *said);
-void cli_carry_takings(const char *home, CliLine *out);
-int cli_carry_undo(const char *home, const char *id, CliLine *out, CliLine *said);
+                   unsigned int count, const char *const *keys, unsigned int key_count, VerbaLinea *out,
+                   VerbaLinea *err_msg);
+void cli_carry_takings(const char *home, VerbaLinea *out);
+int cli_carry_undo(const char *home, const char *id, VerbaLinea *out, VerbaLinea *err_msg);
 
 #endif

@@ -1,11 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// widened.c: the machine widened: a form's fields, an operation named, what a widening holds, the machine widened, its fields, the sweep's carriers, the machine swept, and two machines the same
+// widened.c: the machine widened: a form's fields, an operation named, what a widening contains, the machine widened,
+// its fields, the sweep's carriers, the machine swept, and two machines the same
 #include "probe_machine_internal.h"
 
 // one form's fields found: each of its 128 bits turned over and decoded, and each run of bits that changes one
-// printed operand kept as that operand's, then the run of an operand it holds and does not print. 1, or 0 where the
-// disassembler failed
+// printed operand retained as that operand's, then the run of an operand it carries and does not print. 1, or 0 where
+// the disassembler failed
 static int sass_form_fields(SassForm *form, const char *architecture, const char *folder, unsigned int number)
 {
     sass_form_turned(form);
@@ -51,10 +52,10 @@ static int sass_form_fields(SassForm *form, const char *architecture, const char
     return sass_form_unprinted(form, &base, architecture, folder, number);
 }
 
-// 1 where the disassembler named every modifier of `operation`. It has three ways of saying it could not: it prints
+// 1 where the disassembler named every modifier of `operation`. It has three ways of reporting it could not: it prints
 // INVALID<n>, it prints ???<n>, or it leaves the trailing dot with nothing after it. An encoding whose meaning the
-// disassembler will not state is not a form, because assembling from it would write bits nothing can say the part
-// reads. The three are one refusal wearing three definitions, and a form kept under any of them is a false branch
+// disassembler will not state is not a form, because assembling from it would write bits nothing can confirm the part
+// reads. The three are one refusal wearing three definitions, and a form stored under any of them is a false branch
 static int sass_operation_named(const char *operation)
 {
     const size_t length = strlen(operation);
@@ -62,15 +63,15 @@ static int sass_operation_named(const char *operation)
            (strstr(operation, "???") == NULL);
 }
 
-// 1 where `text` is an instruction a form can be kept from: the disassembler took it, it names an operation it could
+// 1 where `text` is an instruction a form can be stored from: the disassembler took it, it names an operation it could
 // define whole, and every operand it prints is a kind the assembler knows where to put.
 //
-// The operation's name alone does not say which form this is. A form is keyed by its operation and the kind of each
-// operand together, because those are what decide where the assembler puts a number: SHF.L.U32 with a register in
-// the shift slot and SHF.L.U32 with a number there read the same name and are two forms. So nothing here is turned
+// The operation's name alone does not determine which form this is. A form is keyed by its operation and the kind of
+// each operand together, because those are what decide where the assembler puts a number: SHF.L.U32 with a register in
+// the shift field and SHF.L.U32 with a number there read the same name and are two forms. So nothing here is turned
 // away for naming the operation it was turned from, and what is genuinely the form already in hand -- its registers
 // moved, or its control bits -- is turned away by sass_machine_take, which finds the operation and the kinds
-static int sass_widened_holds(const char *text, SassInstructionParts *parts)
+static int sass_widened_matches(const char *text, SassInstructionParts *parts)
 {
     if ((strcmp(text, "illegal") == 0) || (strcmp(text, "unprinted") == 0))
     {
@@ -99,16 +100,16 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
     unsigned int rounds = 0u;
     // A form one bit from a listed one is a form the next round can be a bit from in turn. Widening only the
     // listings reaches whatever is one bit out and stops, which leaves a form two bits out unreached even where the
-    // bit between them is a form the part takes. The kind of a slot is such a field, and the lane is short of it:
+    // bit between them is a form the part takes. The kind of a field is such a field, and the lane is short of it:
     // the low word picks a register, a number or a constant for the second and the third operand, and on sm_86 those
     // read 0x2 for a register in both, 0xa and 0x8 for a constant and a number in the second, 0x6 and 0x4 for a
     // constant and a number in the third. A register to a number is two bits either way, through the constant that
     // lies between. One round reaches the constant and the round after reaches the number.
     //
-    // SASS_WIDEN_ROUNDS is that reach. Letting the walk run to its own end does not close: it keeps finding more,
+    // SASS_WIDEN_ROUNDS is that reach. Letting the walk run to its own end does not close: it continues finding more,
     // because the component reachable a bit at a time is most of what the part decodes. Two things are wrong with
     // taking all of it. It
-    // does not close anywhere near the 16384 a machine holds: the run ends in `refused` and reports nothing. And a
+    // does not close anywhere near the 16384 a machine contains: the run ends in `refused` and reports nothing. And a
     // form reached far out carries the operand bits of a chain of forms it has nothing to do with, the PLOP3.LUT
     // reading written down below -- a form that decodes and that no operation can be written from. The bound is the
     // field the lane is short of, measured, in place of a guess at how far is far enough
@@ -129,17 +130,17 @@ unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, 
             for (unsigned int bit = 0u; bit < SASS_BITS; bit += 1u)
             {
                 SassInstructionParts parts;
-                SassForm *kept = NULL;
-                const char *const said = s_texts[1u + bit];
-                // what the decoder said about this one bit, for the .ksc: it refused the encoding, it took it and
+                SassForm *found_form = NULL;
+                const char *const text = s_texts[1u + bit];
+                // what the decoder reported about this one bit, for the .ksc: it refused the encoding, it took it and
                 // printed no line, or it named it. Every bit of every form goes through here: they are counted and
-                // not kept whole
-                sass_class_count(SASS_CHANNEL_DECODE, (strcmp(said, "illegal") == 0)     ? SASS_CLASS_ILLEGAL
-                                                      : (strcmp(said, "unprinted") == 0) ? SASS_CLASS_NOTHING
+                // not stored whole
+                sass_class_count(SASS_CHANNEL_DECODE, (strcmp(text, "illegal") == 0)     ? SASS_CLASS_ILLEGAL
+                                                      : (strcmp(text, "unprinted") == 0) ? SASS_CLASS_NOTHING
                                                                                          : SASS_CLASS_ANSWERS);
-                if (sass_widened_holds(said, &parts))
+                if (sass_widened_matches(text, &parts))
                 {
-                    sass_machine_take(machine, said, s_low[1u + bit], s_high[1u + bit], &kept);
+                    sass_machine_take(machine, text, s_low[1u + bit], s_high[1u + bit], &found_form);
                 }
             }
         }
@@ -177,7 +178,8 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
                         ? 1u
                         : 0u;
     }
-    printf("interface sass machine: %u forms of the %u it holds, %u without fields, %s, %u differing when read back, %u "
+    printf("interface sass machine: %u forms of the %u it contains, %u without fields, %s, %u differing when read "
+           "back, %u "
            "forms it had no room for\n",
            machine->forms, (unsigned int)SASS_MACHINE_FORMS, failed, written ? "written" : "not written", differed,
            machine->refused);
@@ -185,7 +187,7 @@ int sass_machine_fields(SassMachine *machine, const char *architecture, const ch
     return (written != 0) && (failed == 0u) && (differed == 0u) && (machine->refused == 0u);
 }
 
-// The carriers picked out of the forms already held: the first form, then each later one whose operands are shaped
+// The carriers picked out of the forms already stored: the first form, then each later one whose operands are shaped
 // unlike every carrier taken so far. A shape is the count of operands and the kind of each, and it decides
 // where the bits outside the key sit. How many were taken
 static unsigned int sass_sweep_carriers(const SassMachine *machine, unsigned int *carrier)
@@ -216,8 +218,8 @@ static unsigned int sass_sweep_carriers(const SassMachine *machine, unsigned int
 
 unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, const char *folder)
 {
-    const unsigned int held = machine->forms;
-    if (held == 0u)
+    const unsigned int forms_before = machine->forms;
+    if (forms_before == 0u)
     {
         return 0u;
     }
@@ -250,37 +252,37 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
             }
             for (unsigned int at = 0u; at < count; at += 1u)
             {
-                const char *const said = s_texts[at];
-                sass_class_count(SASS_CHANNEL_DECODE, (strcmp(said, "illegal") == 0)     ? SASS_CLASS_ILLEGAL
-                                                      : (strcmp(said, "unprinted") == 0) ? SASS_CLASS_NOTHING
+                const char *const text = s_texts[at];
+                sass_class_count(SASS_CHANNEL_DECODE, (strcmp(text, "illegal") == 0)     ? SASS_CLASS_ILLEGAL
+                                                      : (strcmp(text, "unprinted") == 0) ? SASS_CLASS_NOTHING
                                                                                          : SASS_CLASS_ANSWERS);
-                named += ((strcmp(said, "illegal") != 0) && (strcmp(said, "unprinted") != 0)) ? 1u : 0u;
+                named += ((strcmp(text, "illegal") != 0) && (strcmp(text, "unprinted") != 0)) ? 1u : 0u;
                 SassInstructionParts parts;
-                SassForm *kept = NULL;
+                SassForm *found_form = NULL;
                 // a swept encoding came from no form, and is read the same way a widened one is: every operation the
-                // decoder names, with every operand a kind the assembler can place, is one to keep
-                if (sass_widened_holds(said, &parts))
+                // decoder names, with every operand a kind the assembler can place, is one to retain
+                if (sass_widened_matches(text, &parts))
                 {
-                    sass_machine_take(machine, said, s_low[at], s_high[at], &kept);
+                    sass_machine_take(machine, text, s_low[at], s_high[at], &found_form);
                 }
             }
         }
     }
     printf("interface sass sweep: %u keys put to the disassembler from each of %u carriers, %u named, %u forms it had "
-           "not already, %u batches the disassembler failed, %u forms past what the machine holds\n",
-           (unsigned int)(SASS_OPERATION_MASK + 1ull), carriers, named, machine->forms - held, failed,
+           "not already, %u batches the disassembler failed, %u forms past what the machine contains\n",
+           (unsigned int)(SASS_OPERATION_MASK + 1ull), carriers, named, machine->forms - forms_before, failed,
            machine->refused);
-    return machine->forms - held;
+    return machine->forms - forms_before;
 }
 
 int sass_machine_same(const SassMachine *machine, const char *machines)
 {
     char path[1024];
-    snprintf(path, sizeof(path), "%s/%s", machines, machine->part);
+    snprintf(path, sizeof(path), "%s/%s.khw", machines, machine->part);
     static SassMachine s_tree;
     if (!sass_machine_read(&s_tree, path))
     {
-        printf("interface sass machine: the tree holds no %s, so this part's is the probe's alone\n", machine->part);
+        printf("interface sass machine: the tree contains no %s, so this part's is the probe's alone\n", machine->part);
         return 1;
     }
     unsigned int differed = (s_tree.forms == machine->forms) ? 0u : 1u;
@@ -293,7 +295,7 @@ int sass_machine_same(const SassMachine *machine, const char *machines)
                         ? 1u
                         : 0u;
     }
-    printf("interface sass machine: the tree's %s holds %u forms, %u of them differing from this run's\n",
+    printf("interface sass machine: the tree's %s contains %u forms, %u of them differing from this run's\n",
            machine->part, s_tree.forms, differed);
     if (differed != 0u)
     {

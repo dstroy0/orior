@@ -11,9 +11,10 @@
 // its view, and its .points must end at its last frame. Reads only; every word is little-endian, as the scan writes it.
 //   points_check <set> <sample> [<sample> ...]
 //
-// The formats, restated here from what the scan writes instead of read from its code: a change to them must be made here too.
+// The formats, restated here from what the scan writes instead of read from its code: a change to them must be made
+// here too.
 //   scan.set   "readings R", "bits B", "samples S", then the S names, a line each
-//   .readings  65536 64-bit counts, one a reading's value, then the footing: held, lo, hi, lo's steps, hi's steps
+//   .readings  65536 64-bit counts, one a reading's value, then the footing: found, lo, hi, lo's steps, hi's steps
 //   .points    six 32-bit words (frames, depth, height, width, limbs, bits), the readings (64 bits), C (65536 64-bit
 //              words), then a frame after another: its count, each point's voxel, each point's levels (limbs words,
 //              the lowest first)
@@ -269,7 +270,7 @@ static int points_check_rebuild(const char *root, PointsCheckSet *set, unsigned 
            set->count, set->rebuilt_readings, set->rebuilt_bits, set->readings, set->bits,
            agrees ? "the same" : "NOT the same");
     printf(
-        "  the footings as stored: held on %llu of %u; lo %llu to %llu, hi %llu to %llu, lo's steps %llu to %llu, hi's"
+        "  the footings as stored: found on %llu of %u; lo %llu to %llu, hi %llu to %llu, lo's steps %llu to %llu, hi's"
         " steps %llu to %llu\n",
         found_count, set->count, least[1], maximum[1], least[2], maximum[2], least[3], maximum[3], least[4],
         maximum[4]);
@@ -293,7 +294,7 @@ static int points_check_reserve(PointsCheckWorkspace *capacity, size_t voxels, s
     return (voxels <= capacity->voxel_capacity) && (levels <= capacity->level_capacity);
 }
 
-// one sample's .points against the set, its faults added to `faults`; 1 when it holds none
+// one sample's .points against the set, its faults added to `faults`; 1 when it contains none
 static int points_check_sample(const char *root, const char *sample, const PointsCheckSet *set, PointsCheckFirst *first,
                                PointsCheckWorkspace *capacity, unsigned long long *faults,
                                unsigned long long *points_seen)
@@ -397,7 +398,8 @@ static int points_check_sample(const char *root, const char *sample, const Point
     const int ended = ok && points_check_ended(file);
     mine[POINTS_CHECK_PAST_LAST_FRAME] += (ok && (ended == 0)) ? 1ull : 0ull;
     fclose(file);
-    // a sample's readings are every voxel of every frame, read once; a sample not in scan.set has no readings to hold
+    // a sample's readings are every voxel of every frame, read once; a sample not in scan.set has no readings to
+    // contain
     const unsigned long long total = (listed != set->count) ? set->totals[listed] : 0ull;
     const int counted =
         (listed != set->count) && (head[0] != 0u) && (view <= (~0ull / head[0])) && (total == (view * head[0]));

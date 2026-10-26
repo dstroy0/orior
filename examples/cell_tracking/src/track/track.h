@@ -48,7 +48,7 @@ typedef struct
     int merge_target;
     int forward_only;
     int resolve;
-    int keep_view;
+    int retain_view;
     int climb;
     int sticky;
     int motion_check;
@@ -75,8 +75,8 @@ typedef struct
     int contact_side;
     const CycleRecord *contact_difference_record;
     const EngineRecordRequest *contact_difference_encode_request;
-    const CycleRecord *contact_kept_record;
-    const EngineRecordRequest *contact_kept_encode_request;
+    const CycleRecord *contact_retained_record;
+    const EngineRecordRequest *contact_retained_encode_request;
     const unsigned int *flattened;
     unsigned int flattened_limbs;
     unsigned int flattened_samples;
@@ -207,9 +207,10 @@ typedef struct
 
 void track_error_report(const char *what, const EngineError *error);
 
-int track_frame_bodies(EngineBuffers *buffers, unsigned int slot, TreeFrame *frame);
+int track_frame_bodies(EngineBuffers *buffers, unsigned int buffer_at, TreeFrame *frame);
 
-void track_group_voxels(EngineBuffers *buffers, unsigned int slot, const unsigned int *labels, const TreeFrame *frame);
+void track_group_voxels(EngineBuffers *buffers, unsigned int buffer_at, const unsigned int *labels,
+                        const TreeFrame *frame);
 
 #define WEB_MEMBERS 24u
 

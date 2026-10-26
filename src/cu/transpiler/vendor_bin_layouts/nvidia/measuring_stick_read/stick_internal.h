@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// stick_internal.h: what the modules of the stick's reader share: its includes, the spaces and the prefix, the numbers, kernel and engine structures, the names held and hashed, the kernels and engines read, and the functions one module reads from another
+// stick_internal.h: what the modules of the stick's reader share: its includes, the spaces and the prefix, the numbers,
+// kernel and engine structures, the names stored and hashed, the kernels and engines read, and the functions one module
+// reads from another
 #ifndef STICK_INTERNAL_H
 #define STICK_INTERNAL_H
 
@@ -56,7 +58,7 @@ extern StickEngine *s_engine;
 extern unsigned int s_engines;
 extern KfileLines s_file;
 
-void *stick_held(void *pointer);
+void *stick_allocated(void *pointer);
 char *stick_copy(const char *text, size_t length);
 void stick_number_add(StickNumbers *numbers, unsigned int number);
 unsigned int stick_named(const char *text, size_t length);
@@ -68,7 +70,7 @@ int stick_operation_of(const char *line, unsigned int *operation);
 void stick_nvcc_read(const char *path);
 unsigned int stick_cells(const char *line, char **cell, unsigned int most);
 void stick_engine_read(const char *table, const char *directory);
-void stick_ruleset_operations(const char *path, unsigned char **held, unsigned int *room);
+void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned int *room);
 const StickEngine *stick_engine_of(const char *name);
 int stick_kernel_order(const void *left, const void *right);
 int stick_name_order(const void *left, const void *right);

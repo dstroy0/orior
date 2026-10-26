@@ -9,25 +9,25 @@
 
 CliGathering g_cli_gather;
 
-// the gathering's cells given back, those it has; and taken: 1, or 0 with none kept where the cells cannot meet them
+// the gathering's cells given back, those it has; and taken: 1, or 0 with none retained where the cells cannot meet
+// them
 static void gather_cells_given(void)
 {
     cli_json_given(&g_cli_gather.json);
-    cli_cell_given(g_cli_gather.flags_text.out);
-    cli_cell_given(g_cli_gather.fragment_text.out);
-    g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    g_cli_gather.fragment_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, NULL);
+    g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, NULL);
+    g_cli_gather.flags_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
 }
 
 static int gather_cells_taken(void)
 {
     const int entries = cli_json_growing(&g_cli_gather.json, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST,
                                          "the compile entries gathered");
-    g_cli_gather.flags_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    g_cli_gather.fragment_text = (CliLine){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    const int flags = cli_line_growing(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST, "a compile group's flags");
-    const int fragment =
-        cli_line_growing(&g_cli_gather.fragment_text, CLI_GATHER_FLAGS_FIRST, "a compile fragment decoded");
+    g_cli_gather.flags_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    const int flags = cli_growing_line_made(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST);
+    const int fragment = cli_growing_line_made(&g_cli_gather.fragment_text, CLI_GATHER_FLAGS_FIRST);
     const int taken = entries && flags && fragment;
     if (!taken)
     {
@@ -50,7 +50,7 @@ static void cli_of_entries(const char *folder, unsigned int entries, CliDatabase
     for (unsigned int at = 0u; cli_json_item(json, entries, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int entry = cli_json_item(json, entries, at);
-        char compiler[CLI_PATH_LONGEST];
+        char compiler[CLI_PATH_MAX_LEN];
         const unsigned int arguments = cli_json_member(json, entry, "arguments");
         const char *const first = cli_json_string(json, cli_json_item(json, arguments, 0u), NULL);
         unsigned long long size = 0ull;
@@ -77,7 +77,7 @@ static void cli_of_entries(const char *folder, unsigned int entries, CliDatabase
         {
             letter[0] = (letter[0] == '\\') ? '/' : letter[0];
         }
-        // the compilers kept in order, each once
+        // the compilers stored in order, each once
         unsigned int place = 0u;
         while ((place < database->compilers) && (cli_text_order(database->compiler[place], compiler) < 0))
         {
@@ -106,7 +106,7 @@ static void cli_of_entries(const char *folder, unsigned int entries, CliDatabase
     }
 }
 
-// a project's entries kept where it has none yet or these were configured later
+// a project's entries stored where it has none yet or these were configured later
 static void cli_project_put(const char *project, unsigned long long time, unsigned int entries)
 {
     unsigned int at = 0u;
@@ -135,34 +135,34 @@ static void cli_project_put(const char *project, unsigned long long time, unsign
 // the entries written, in a growing line given back after, where they differ from the file there
 static void cli_written(const char *path, unsigned int entries)
 {
-    CliLine out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_line_growing(&out, CLI_GATHER_WRITTEN_FIRST, "the compile database written"))
+    VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    if (!cli_growing_line_made(&out, CLI_GATHER_WRITTEN_FIRST))
     {
         return;
     }
     cli_json_write(&g_cli_gather.json, entries, &out, 2u, 0);
-    if (cli_line_fits(&out))
+    if (mmgr_line_ok(&out))
     {
         unsigned long long size = 0ull;
-        const unsigned char *const there = cli_file_held(path, &size);
+        const unsigned char *const there = cli_file_read(path, &size);
         const int same = (there != NULL) && (size == out.at) &&
                          (memor.cmp(&(MemoriaCfg){.src = there, .other = out.out, .bytes = size}) == 0);
         if (there != NULL)
         {
             cli_file_let_go(there, size);
         }
-        char folder[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
         if (!same && cli_path_parent(path, folder))
         {
             query_folder_made(folder);
             query_file_written(path, out.out, out.at);
         }
     }
-    cli_cell_given(out.out);
+    g_cli_cells->persistent_buf_release(out.out, NULL);
 }
 
 // the gathering itself, its cells taken: the database's compilers and folder
-static void gather_held(const char *root, const CliInputs *inputs, CliDatabase *database);
+static void gather_reserved(const char *root, const CliInputs *inputs, CliDatabase *database);
 
 void cli_compile_gather(const char *root, const CliInputs *inputs, CliDatabase *database)
 {
@@ -170,7 +170,7 @@ void cli_compile_gather(const char *root, const CliInputs *inputs, CliDatabase *
     cli_lock_take(&s_lock);
     if (gather_cells_taken())
     {
-        gather_held(root, inputs, database);
+        gather_reserved(root, inputs, database);
         gather_cells_given();
     }
     else
@@ -183,7 +183,7 @@ void cli_compile_gather(const char *root, const CliInputs *inputs, CliDatabase *
     cli_lock_give(&s_lock);
 }
 
-static void gather_held(const char *root, const CliInputs *inputs, CliDatabase *database)
+static void gather_reserved(const char *root, const CliInputs *inputs, CliDatabase *database)
 {
     CliJson *const json = &g_cli_gather.json;
     if (inputs->own)
@@ -202,11 +202,11 @@ static void gather_held(const char *root, const CliInputs *inputs, CliDatabase *
         {
             name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
         }
-        char project[CLI_PATH_LONGEST] = "";
+        char project[CLI_PATH_MAX_LEN] = "";
         unsigned int entries = CLI_JSON_NONE;
         if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "compile_commands.json", .cap = CLI_CELLS_POOL}))
         {
-            char folder[CLI_PATH_LONGEST];
+            char folder[CLI_PATH_MAX_LEN];
             entries = cli_compile_json_read(json, file->path);
             entries = cli_json_is(json, entries, CFG_JSON_ARRAY) ? entries : cli_json_made(json, CFG_JSON_ARRAY);
             if (!cli_path_parent(file->path, folder) || !cli_path_parent(folder, project))
@@ -226,14 +226,14 @@ static void gather_held(const char *root, const CliInputs *inputs, CliDatabase *
     // the projects by their folders, their entries one after another
     for (unsigned int at = 1u; at < g_cli_gather.projects; at += 1u)
     {
-        const CliProject held = g_cli_gather.project[at];
+        const CliProject entry = g_cli_gather.project[at];
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(g_cli_gather.project[place - 1u].project, held.project) > 0))
+        while ((place > 0u) && (cli_text_order(g_cli_gather.project[place - 1u].project, entry.project) > 0))
         {
             g_cli_gather.project[place] = g_cli_gather.project[place - 1u];
             place -= 1u;
         }
-        g_cli_gather.project[place] = held;
+        g_cli_gather.project[place] = entry;
     }
     const unsigned int all = cli_json_made(json, CFG_JSON_ARRAY);
     for (unsigned int at = 0u; at < g_cli_gather.projects; at += 1u)
@@ -252,8 +252,8 @@ static void gather_held(const char *root, const CliInputs *inputs, CliDatabase *
         database->msvc = 0;
         return;
     }
-    char path[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_full(root, CLI_COMPILE_WRITTEN, path);
     cli_written(path, all);
     cli_of_entries(cli_path_parent(path, folder) ? folder : NULL, all, database);

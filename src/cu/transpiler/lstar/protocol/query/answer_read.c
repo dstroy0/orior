@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// answer_read.c: what the part answered of an ask, read as P1 reads it
+// answer_read.c: what the part answered of a query, read as P1 reads it
 #include "answer_read.h"
 
 #include <stddef.h>
@@ -15,7 +15,7 @@ AnswerRead answer_read(const AnswerBracket *host, unsigned int outcome, unsigned
     {
         return (host->bracketed != 0) ? ANSWER_NOTHING : ANSWER_GRAY;
     }
-    // an ask the gate held off the part, or that nothing carried, has no answer of the part to read
+    // a query the gate blocked from the part, or that nothing carried, has no answer of the part to read
     if ((outcome != (unsigned int)RUN_ANSWERED) || (host->bracketed == 0))
     {
         return ANSWER_GRAY;
@@ -28,10 +28,10 @@ int answer_truthy(AnswerRead read)
     return (read == ANSWER_ALIKE) ? 1 : 0;
 }
 
-AnswerAsk answer_ask_read(const AnswerBracket *host, unsigned int cases, unsigned int outcome,
-                          const unsigned long long *answered, AnswerRead *reads)
+AnswerTally answer_tally_read(const AnswerBracket *host, unsigned int cases, unsigned int outcome,
+                              const unsigned long long *answered, AnswerRead *reads)
 {
-    AnswerAsk asked = {ANSWER_GRAY, 0u, cases};
+    AnswerTally tally = {ANSWER_GRAY, 0u, cases};
     unsigned int bracketed = 0u;
     for (unsigned int place = 0u; place < cases; place += 1u)
     {
@@ -42,28 +42,28 @@ AnswerAsk answer_ask_read(const AnswerBracket *host, unsigned int cases, unsigne
             reads[place] = read;
         }
         bracketed += (host[place].bracketed != 0) ? 1u : 0u;
-        asked.alike += (read == ANSWER_ALIKE) ? 1u : 0u;
-        if ((read == ANSWER_APART) && (asked.first_apart == cases))
+        tally.alike += (read == ANSWER_ALIKE) ? 1u : 0u;
+        if ((read == ANSWER_APART) && (tally.first_apart == cases))
         {
-            asked.first_apart = place;
+            tally.first_apart = place;
         }
     }
     if ((bracketed == 0u) || ((outcome != (unsigned int)RUN_ANSWERED) && (outcome != (unsigned int)RUN_ILLEGAL) &&
                               (outcome != (unsigned int)RUN_NOTHING)))
     {
-        asked.read = ANSWER_GRAY;
-        return asked;
+        tally.read = ANSWER_GRAY;
+        return tally;
     }
     if (outcome == (unsigned int)RUN_ILLEGAL)
     {
-        asked.read = ANSWER_REFUSED;
-        return asked;
+        tally.read = ANSWER_REFUSED;
+        return tally;
     }
     if (outcome == (unsigned int)RUN_NOTHING)
     {
-        asked.read = ANSWER_NOTHING;
-        return asked;
+        tally.read = ANSWER_NOTHING;
+        return tally;
     }
-    asked.read = (asked.first_apart != cases) ? ANSWER_APART : ANSWER_ALIKE;
-    return asked;
+    tally.read = (tally.first_apart != cases) ? ANSWER_APART : ANSWER_ALIKE;
+    return tally;
 }

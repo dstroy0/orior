@@ -39,7 +39,7 @@
 // the header each lane is written under, which the assembly printer takes whole
 static const char s_device_header[] = "// codegen_device_test\n";
 
-// the checks made and failed, and the lanes a language does not hold
+// the checks made and failed, and the lanes a language does not support
 struct DeviceResults
 {
     unsigned int checks;
@@ -55,15 +55,15 @@ static void device_check(DeviceResults *results, int passed, const std::string &
 }
 
 // 1 where every line of a lane's ledger reads `<register> <holder> claimed <n> <form> released <n> <form>`, the claim
-// no later than the release, and the ledger holds a line at all
-static int device_held_well(const std::string &held)
+// no later than the release, and the ledger contains a line at all
+static int device_claims_well_formed(const std::string &claims)
 {
-    int well = !held.empty();
-    for (size_t at = 0u; well && (at < held.size());)
+    int well = !claims.empty();
+    for (size_t at = 0u; well && (at < claims.size());)
     {
-        const size_t end = held.find('\n', at);
-        const std::string line = held.substr(at, (end == std::string::npos) ? std::string::npos : end - at);
-        at = (end == std::string::npos) ? held.size() : end + 1u;
+        const size_t end = claims.find('\n', at);
+        const std::string line = claims.substr(at, (end == std::string::npos) ? std::string::npos : end - at);
+        at = (end == std::string::npos) ? claims.size() : end + 1u;
         const size_t claimed = line.find(" claimed ");
         const size_t released = line.find(" released ");
         unsigned long long claimed_at = 0ull;
@@ -301,8 +301,8 @@ static void device_bootstrap(DeviceResults *results, CodeGenerator *generator, c
     unsigned int places = 0u;
     unsigned int live = 0u;
     const std::string text = generator->program(&program.layout, &target, std::string(s_device_header), &places, &live);
-    device_check(results, text.empty() || device_held_well(generator->held()),
-                 lane + ": every register the lane holds is claimed and released by its items");
+    device_check(results, text.empty() || device_claims_well_formed(generator->register_claims()),
+                 lane + ": every register the lane uses is claimed and released by its items");
     std::string written;
     ScheduleCosts program_costs;
     const ScheduleCosts *const written_costs =

@@ -104,13 +104,13 @@ long long knf_pair(const long long *one, const long long *other);
 void knf_entangle(const KnfRecord *record, const unsigned int *map, unsigned long long tile,
                   const unsigned short *boxes, KnfEntangled *result);
 
-void knf_inside_draw(unsigned int *map, unsigned int *slot, unsigned long long side, unsigned long long tile,
+void knf_inside_draw(unsigned int *map, unsigned int *cells, unsigned long long side, unsigned long long tile,
                      unsigned long long key);
 
-void knf_between_draw(unsigned int *map, unsigned int *slot, unsigned long long side, unsigned long long tile,
+void knf_between_draw(unsigned int *map, unsigned int *cells, unsigned long long side, unsigned long long tile,
                       unsigned long long key);
 
-int knf_identified(const KnfRecord *record, unsigned int *map, unsigned int *slot, unsigned long long key_base);
+int knf_identified(const KnfRecord *record, unsigned int *map, unsigned int *cells, unsigned long long key_base);
 
 void knf_one_bit(SimResults *results, const unsigned short *lanes, const KnfRecord *record);
 

@@ -22,9 +22,9 @@ extern "C"
 #define OUTPUT_STATE_SPLIT 0x008u
 #define OUTPUT_STATE_LEFT 0x020u
 
-    // S11 on the sort's links, every point kept: each point of each frame a node, each chosen link from frame t to t +
-    // 1 an edge, and each division of a sample's .divide (src/divide/divide.h), when it has one, a second link out of
-    // its parent, moved from the point daughter two leaves. A sample's .faces (src/faces/faces.h), when it has one,
+    // S11 on the sort's links, every point retained: each point of each frame a node, each chosen link from frame t to
+    // t + 1 an edge, and each division of a sample's .divide (src/divide/divide.h), when it has one, a second link out
+    // of its parent, moved from the point daughter two leaves. A sample's .faces (src/faces/faces.h), when it has one,
     // gives each point's state and splits its ends and starts into those the view's faces explain and the rest. `nodes`
     // takes the nodes, one row a point under the nodes header; `submission` takes the submission, each sample's node
     // rows and then its edge rows. Either may be NULL, and then it is not written. `report` takes the counts, a line a
@@ -48,7 +48,8 @@ extern "C"
     long output_graph_set(const OutputRequest *request);
 
     // closes a file the output wrote, checked: a write that failed on it, or a close that fails, has lost rows. NULL is
-    // no file, which holds. When the file did not close whole its name goes to stderr and 0 is returned; 1 when it did
+    // no file, which is valid. When the file did not close whole its name goes to stderr and 0 is returned; 1 when it
+    // did
     int output_close(FILE *file, const char *name);
 
 #ifdef OUTPUT_TEST_FAULTS

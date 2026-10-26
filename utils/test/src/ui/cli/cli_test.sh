@@ -16,7 +16,7 @@ CC="${CC:-clang}"
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc"; SUFFIX=".exe"
-                          LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32) ;;
+                          LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid) ;;
     Darwin) HOST="$(uname -m)-apple-darwin"; SUFFIX=""; LIBRARIES=(-lpthread -lm) ;;
     *) HOST="$(uname -m)-unknown-linux-gnu"; SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
 esac
@@ -30,7 +30,8 @@ fi
 # gives them; a check reaching a CLI header therefore sees the module layouts the library was compiled to
 MMGR="$TOP/src/cu/includes/mmgr"
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$TOP/src/cu/includes/embedded_types/include" -DMMGR_ENABLE_DMA=0
-    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1)
+    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
+    -DMMGR_ENABLE_LOCK=1 -DMMGR_ENABLE_OWNERS=1)
 
 bash "$TOP/ui/cli/build.sh" library "$HOST" || { echo "test exit 1"; exit 1; }
 # the command line's library, named as bin_names.tsv at the top of the tree names the command line

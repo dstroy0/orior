@@ -1,84 +1,88 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // comms_test.c: the comms container's check: a grant names its channel and every channel under it; a key is a secret
-// of the system's own and no two are alike; a listener hears what is said on its channels and nothing else; a channel
-// the key does not name is refused to speaker and listener alike; a part grants what it starts only channels of its
-// own; the container keeps each channel's traffic and its last messages; a listener by call hears in the speaker's
-// thread in the order said; and a part that leaves hears nothing more and its key opens nothing. The checks share the
-// one container a process keeps, each with parts and channels of its own
+// of the system's own and no two are alike; a listener receives what is sent on its channels and nothing else; a
+// channel the key does not name is refused to speaker and listener alike; a part grants what it starts only channels of
+// its own; the container stores each channel's traffic and its last messages; a listener by call receives in the
+// speaker's thread in the order sent; and a part that leaves receives nothing more and its key opens nothing. The
+// checks share the one container a process maintains, each with parts and channels of its own
 #include "../../../../../ui/cli/src/comms/comms.h"
 #include "../../../../../ui/cli/src/comms/comms_internal.h"
 #include "cli_check.h"
 
-// what a listener heard: its count, and the last channel, speaker and body
+// what a listener received: its count, and the last channel, speaker and body
 typedef struct
 {
     unsigned int count;
-    char channel[CLI_NAME_LONGEST];
-    char from[CLI_NAME_LONGEST];
+    char channel[CLI_NAME_MAX_LEN];
+    char from[CLI_NAME_MAX_LEN];
     char body[256];
     char order[256];
-} CommsHeard;
+} CommsReceived;
 
 static char s_view[1u << 18u];
 
-// a message heard kept, its channel put on the order heard
-static int comms_heard(void *context, const char *channel, const char *from, const char *body, unsigned long long size)
+// a message received recorded, its channel put on the order received
+static int comms_capture(void *context, const char *channel, const char *from, const char *body,
+                         unsigned long long size)
 {
-    CommsHeard *const heard = context;
-    heard->count += 1u;
-    memor.cpy(&(MemoriaCfg){.dst = heard->channel,
+    CommsReceived *const received = context;
+    received->count += 1u;
+    memor.cpy(&(MemoriaCfg){.dst = received->channel,
                             .src = channel,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = channel, .cap = CLI_CELLS_POOL}) + 1u});
-    memor.cpy(&(MemoriaCfg){.dst = heard->from,
+    memor.cpy(&(MemoriaCfg){.dst = received->from,
                             .src = from,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
-    const unsigned long long kept = (size < sizeof(heard->body) - 1u) ? size : sizeof(heard->body) - 1u;
-    memor.cpy(&(MemoriaCfg){.dst = heard->body, .src = body, .bytes = kept});
-    heard->body[kept] = '\0';
-    const unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = heard->order, .cap = CLI_CELLS_POOL});
-    CliLine order = {heard->order + at, sizeof(heard->order) - at, 0ull};
-    cli_line_text(&order, (at > 0ull) ? "|" : "");
-    cli_line_text(&order, channel);
-    (void)cli_line_closed(&order);
+    const unsigned long long copy_len = (size < sizeof(received->body) - 1u) ? size : sizeof(received->body) - 1u;
+    memor.cpy(&(MemoriaCfg){.dst = received->body, .src = body, .bytes = copy_len});
+    received->body[copy_len] = '\0';
+    const unsigned long long at = cellul.len(&(CatenaFinitaCfg){.src = received->order, .cap = CLI_CELLS_POOL});
+    VerbaLinea order = {received->order + at, sizeof(received->order) - at, 0ull};
+    mmgr_line_put(&order, (at > 0ull) ? "|" : "");
+    mmgr_line_put(&order, channel);
+    (void)mmgr_line_finish(&order);
     return 1;
 }
 
-// a part registered: 1 with its key into `key`, which holds CLI_COMMS_KEY, or 0 with why into `why`, which holds 256
+// a part registered: 1 with its key into `key`, which is sized for CLI_COMMS_KEY, or 0 with why into `why`, which is
+// sized for 256
 static int comms_part(const char *name, int has_process, unsigned int process, const char *const *listen,
-                      unsigned int listens, const char *const *speak, unsigned int speaks, char *key, char *why)
+                      unsigned int listens, const char *const *send_grant, unsigned int send_grants, char *key,
+                      char *why)
 {
-    CliLine said = {why, 256u, 0ull};
-    const int made = cli_comms_register(name, has_process, process, listen, listens, speak, speaks, key, &said);
-    (void)cli_line_closed(&said);
+    VerbaLinea err_msg = {why, 256u, 0ull};
+    const int made =
+        cli_comms_register(name, has_process, process, listen, listens, send_grant, send_grants, key, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     return made;
 }
 
-// `body` said on `channel` as the part of `key`: how many heard it, -1 where it was refused with why into `why`
-static long long comms_say(const char *key, const char *channel, const char *body, char *why)
+// `body` sent on `channel` as the part of `key`: how many received it, -1 where it was refused with why into `why`
+static long long comms_send(const char *key, const char *channel, const char *body, char *why)
 {
-    unsigned long long heard = 0ull;
-    CliLine said = {why, 256u, 0ull};
-    const int spoke = cli_comms_say(key, channel, body,
-                                    cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL}), &heard, &said);
-    (void)cli_line_closed(&said);
-    return spoke ? (long long)heard : -1ll;
+    unsigned long long delivered = 0ull;
+    VerbaLinea err_msg = {why, 256u, 0ull};
+    const int sent = cli_comms_send(
+        key, channel, body, cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL}), &delivered, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
+    return sent ? (long long)delivered : -1ll;
 }
 
 // `key`'s part listening on `channel`: 1, or 0 with why into `why`
-static int comms_listen(const char *key, const char *channel, CommsHeard *heard, char *why)
+static int comms_listen(const char *key, const char *channel, CommsReceived *received, char *why)
 {
     unsigned int listener = 0u;
-    CliLine said = {why, 256u, 0ull};
-    const int listening = cli_comms_listen(key, channel, 0, comms_heard, heard, &listener, &said);
-    (void)cli_line_closed(&said);
+    VerbaLinea err_msg = {why, 256u, 0ull};
+    const int listening = cli_comms_listen(key, channel, 0, comms_capture, received, &listener, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     return listening;
 }
 
 // the item named `name` of a view, read into the shared tree: its node
 static unsigned int comms_viewed(int parts, const char *name, const CliJson **json)
 {
-    CliLine out = {s_view, sizeof(s_view), 0ull};
+    VerbaLinea out = {s_view, sizeof(s_view), 0ull};
     if (parts)
     {
         cli_comms_parts(&out);
@@ -101,12 +105,12 @@ static unsigned int comms_viewed(int parts, const char *name, const CliJson **js
     return CLI_JSON_NONE;
 }
 
-// a member of a node of the shared tree written compact into `out`, which holds 512
+// a member of a node of the shared tree written compact into `out`, which is sized for 512
 static const char *comms_written(const CliJson *json, unsigned int node, const char *name, char *out)
 {
-    CliLine line = {out, 512u, 0ull};
+    VerbaLinea line = {out, 512u, 0ull};
     cli_json_write(json, cli_json_member(json, node, name), &line, 0u, 0);
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -131,7 +135,7 @@ static void comms_keys(void)
     char one[CLI_COMMS_KEY];
     char two[CLI_COMMS_KEY];
     char why[256];
-    char name[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
     (void)comms_part("one", 0, 0u, NULL, 0u, NULL, 0u, one, why);
     (void)comms_part("two", 0, 0u, NULL, 0u, NULL, 0u, two, why);
     cli_check((cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL}) == 64u) &&
@@ -142,7 +146,7 @@ static void comms_keys(void)
               "and names its part");
 }
 
-// a listener hears what is said on its channels alone, and a channel the key does not name is refused
+// a listener receives what is sent on its channels alone, and a channel the key does not name is refused
 static void comms_channels(void)
 {
     static const char *const s_window_listens[2] = {"lsp/*", "runs"};
@@ -150,30 +154,32 @@ static void comms_channels(void)
     char window[CLI_COMMS_KEY];
     char server[CLI_COMMS_KEY];
     char why[256];
-    static CommsHeard s_heard;
+    static CommsReceived s_received;
     (void)comms_part("window", 0, 0u, s_window_listens, 2u, NULL, 0u, window, why);
     (void)comms_part("rust server", 1, 42u, NULL, 0u, s_rust, 1u, server, why);
-    (void)comms_listen(window, "lsp/*", &s_heard, why);
-    cli_check(comms_say(server, "lsp/rust", "{\"n\":1}", why) == 1ll, "a listener hears what is said on its channels");
+    (void)comms_listen(window, "lsp/*", &s_received, why);
+    cli_check(comms_send(server, "lsp/rust", "{\"n\":1}", why) == 1ll,
+              "a listener receives what is sent on its channels");
     unsigned int process = 0u;
-    cli_check((cellul.eq(&(CatenaFinitaCfg){.src = s_heard.channel, .other = "lsp/rust", .cap = CLI_CELLS_POOL})) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = s_heard.from, .other = "rust server", .cap = CLI_CELLS_POOL})) &&
-                  (cellul.eq(&(CatenaFinitaCfg){.src = s_heard.body, .other = "{\"n\":1}", .cap = CLI_CELLS_POOL})) &&
-                  cli_comms_process_of(server, &process) && (process == 42u),
-              "with its channel, its speaker and its body");
-    cli_check(!comms_listen(window, "db/rows", &s_heard, why) &&
+    cli_check(
+        (cellul.eq(&(CatenaFinitaCfg){.src = s_received.channel, .other = "lsp/rust", .cap = CLI_CELLS_POOL})) &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = s_received.from, .other = "rust server", .cap = CLI_CELLS_POOL})) &&
+            (cellul.eq(&(CatenaFinitaCfg){.src = s_received.body, .other = "{\"n\":1}", .cap = CLI_CELLS_POOL})) &&
+            cli_comms_process_of(server, &process) && (process == 42u),
+        "with its channel, its speaker and its body");
+    cli_check(!comms_listen(window, "db/rows", &s_received, why) &&
                   (cellul.find(&(CatenaFinitaCfg){.src = why,
                                                   .cap = CLI_CELLS_POOL,
                                                   .other = "may not listen on db/rows",
                                                   .other_cap = CLI_CELLS_POOL}) != NULL),
               "a channel the key does not name is refused to the listener");
-    cli_check((comms_say(server, "db/rows", "null", why) == -1ll) &&
-                  (cellul.find(&(CatenaFinitaCfg){.src = why,
-                                                  .cap = CLI_CELLS_POOL,
-                                                  .other = "may not speak on db/rows",
-                                                  .other_cap = CLI_CELLS_POOL}) != NULL),
-              "and to the speaker");
-    cli_check(comms_say("forged", "lsp/rust", "null", why) == -1ll, "a key of no part opens nothing");
+    cli_check(
+        (comms_send(server, "db/rows", "null", why) == -1ll) &&
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = why, .cap = CLI_CELLS_POOL, .other = "may not send on db/rows", .other_cap = CLI_CELLS_POOL}) !=
+             NULL),
+        "and to the speaker");
+    cli_check(comms_send("forged", "lsp/rust", "null", why) == -1ll, "a key of no part opens nothing");
     const CliJson *json = NULL;
     char text[512];
     const unsigned int rows = comms_viewed(0, "db/rows", &json);
@@ -199,26 +205,26 @@ static void comms_under(void)
     char run[CLI_COMMS_KEY];
     char greedy[CLI_COMMS_KEY];
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     (void)comms_part("runs", 0, 0u, s_runs, 1u, s_runs, 1u, runs, why);
     unsigned int process = 0u;
-    cli_check(cli_comms_register_under(runs, "run 7", 1, 7u, s_run, 1u, s_run, 1u, run, &said) &&
+    cli_check(cli_comms_register_under(runs, "run 7", 1, 7u, s_run, 1u, s_run, 1u, run, &err_msg) &&
                   cli_comms_process_of(run, &process) && (process == 7u),
               "a part starts another with channels of its own");
-    said.at = 0ull;
+    err_msg.at = 0ull;
     cli_check(
-        !cli_comms_register_under(runs, "greedy", 0, 0u, s_rust, 1u, NULL, 0u, greedy, &said) &&
-            (cli_line_closed(&said) > 0ull) &&
+        !cli_comms_register_under(runs, "greedy", 0, 0u, s_rust, 1u, NULL, 0u, greedy, &err_msg) &&
+            (mmgr_line_finish(&err_msg) > 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = why, .cap = CLI_CELLS_POOL, .other = "may not grant lsp/rust", .other_cap = CLI_CELLS_POOL}) !=
              NULL),
-        "and may not grant one it does not hold");
-    cli_check(!cli_comms_register_under(runs, "greedy", 0, 0u, NULL, 0u, s_all, 1u, greedy, &said),
+        "and may not grant one it does not have");
+    cli_check(!cli_comms_register_under(runs, "greedy", 0, 0u, NULL, 0u, s_all, 1u, greedy, &err_msg),
               "nor every channel");
 }
 
-// the container keeps each channel's traffic and its last messages, and a listener by call hears in the speaker's
-// thread in the order said
+// the container stores each channel's traffic and its last messages, and a listener by call receives in the speaker's
+// thread in the order sent
 static void comms_traffic(void)
 {
     static const char *const s_all[1] = {"*"};
@@ -226,17 +232,17 @@ static void comms_traffic(void)
     char window[CLI_COMMS_KEY];
     char server[CLI_COMMS_KEY];
     char why[256];
-    static CommsHeard s_heard;
+    static CommsReceived s_received;
     (void)comms_part("files window", 0, 0u, s_all, 1u, NULL, 0u, window, why);
     (void)comms_part("files server", 0, 0u, NULL, 0u, s_files, 1u, server, why);
-    (void)comms_listen(window, "files", &s_heard, why);
+    (void)comms_listen(window, "files", &s_received, why);
     for (unsigned int at = 0u; at < 25u; at += 1u)
     {
         char body[16];
-        CliLine line = {body, sizeof(body), 0ull};
-        cli_line_decimal(&line, at, 1u);
-        (void)cli_line_closed(&line);
-        (void)comms_say(server, "files", body, why);
+        VerbaLinea line = {body, sizeof(body), 0ull};
+        mmgr_line_decimal(&line, at, 1u);
+        (void)mmgr_line_finish(&line);
+        (void)comms_send(server, "files", body, why);
     }
     const CliJson *json = NULL;
     char text[512];
@@ -245,42 +251,42 @@ static void comms_traffic(void)
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = comms_written(json, files, "messages", text), .other = "25", .cap = CLI_CELLS_POOL}),
               "a channel counts its messages");
-    cli_check((json->node[last].count == CLI_COMMS_KEPT) &&
+    cli_check((json->node[last].count == CLI_COMMS_STORED_MAX) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = comms_written(json, cli_json_item(json, last, 0u), "body", text),
                                                 .other = "5",
                                                 .cap = CLI_CELLS_POOL})),
-              "and keeps the last of them, the oldest first");
+              "and stores the last of them, the oldest first");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = comms_written(json, files, "listeners", text),
                                            .other = "[\"files window\"]",
                                            .cap = CLI_CELLS_POOL}),
               "and its listeners");
-    for (unsigned int at = 0u; at < CLI_COMMS_KEPT; at += 1u)
+    for (unsigned int at = 0u; at < CLI_COMMS_STORED_MAX; at += 1u)
     {
-        (void)comms_say(server, "files", "x", why);
+        (void)comms_send(server, "files", "x", why);
     }
-    const unsigned long long kept = g_cli_comms_cells.holds;
-    for (unsigned int at = 0u; at < CLI_COMMS_KEPT; at += 1u)
+    const unsigned long long in_use_stored = g_cli_comms_cells.in_use;
+    for (unsigned int at = 0u; at < CLI_COMMS_STORED_MAX; at += 1u)
     {
-        (void)comms_say(server, "files", "x", why);
+        (void)comms_send(server, "files", "x", why);
     }
-    cli_check((kept != 0ull) && (g_cli_comms_cells.holds == kept),
-              "each message kept is a cell of its own, the oldest given back as another is kept");
-    char server_said[CLI_COMMS_KEY];
-    char window_heard[CLI_COMMS_KEY];
-    static CommsHeard s_order;
-    (void)comms_part("order window", 0, 0u, s_all, 1u, NULL, 0u, window_heard, why);
-    (void)comms_part("order server", 0, 0u, NULL, 0u, s_all, 1u, server_said, why);
-    (void)comms_listen(window_heard, "run/*", &s_order, why);
-    (void)comms_say(server_said, "run/started", "1", why);
+    cli_check((in_use_stored != 0ull) && (g_cli_comms_cells.in_use == in_use_stored),
+              "each message stored is a cell of its own, the oldest given back as another is stored");
+    char server_key[CLI_COMMS_KEY];
+    char window_key[CLI_COMMS_KEY];
+    static CommsReceived s_order;
+    (void)comms_part("order window", 0, 0u, s_all, 1u, NULL, 0u, window_key, why);
+    (void)comms_part("order server", 0, 0u, NULL, 0u, s_all, 1u, server_key, why);
+    (void)comms_listen(window_key, "run/*", &s_order, why);
+    (void)comms_send(server_key, "run/started", "1", why);
     const unsigned int after_first = s_order.count;
-    (void)comms_say(server_said, "run/line", "2", why);
+    (void)comms_send(server_key, "run/line", "2", why);
     cli_check((after_first == 1u) &&
                   (cellul.eq(&(CatenaFinitaCfg){
                       .src = s_order.order, .other = "run/started|run/line", .cap = CLI_CELLS_POOL})),
-              "a listener by call hears in the speaker's call, in the order said");
+              "a listener by call receives in the speaker's call, in the order sent");
 }
 
-// a part that leaves hears no more and its key opens nothing
+// a part that leaves receives no more and its key opens nothing
 static void comms_leave(void)
 {
     static const char *const s_all[1] = {"*"};
@@ -288,18 +294,19 @@ static void comms_leave(void)
     char window[CLI_COMMS_KEY];
     char server[CLI_COMMS_KEY];
     char why[256];
-    static CommsHeard s_heard;
+    static CommsReceived s_received;
     (void)comms_part("leaving window", 0, 0u, s_all, 1u, NULL, 0u, window, why);
     (void)comms_part("leaving server", 0, 0u, NULL, 0u, s_files, 1u, server, why);
-    (void)comms_listen(window, "left", &s_heard, why);
+    (void)comms_listen(window, "left", &s_received, why);
     cli_comms_leave(window);
-    cli_check((comms_say(server, "left", "1", why) == 0ll) && (s_heard.count == 0u),
-              "a part that leaves hears no more");
-    cli_check(!comms_listen(window, "left", &s_heard, why), "and its key opens nothing");
+    cli_check((comms_send(server, "left", "1", why) == 0ll) && (s_received.count == 0u),
+              "a part that leaves receives no more");
+    cli_check(!comms_listen(window, "left", &s_received, why), "and its key opens nothing");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     comms_grants();
     comms_keys();
     comms_channels();

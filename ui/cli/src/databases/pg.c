@@ -43,7 +43,7 @@ int cli_pg_message(CliPg *pg, unsigned char *kind, CliDbFailure *failure)
     unsigned char head[5];
     if (!pg_read(pg, head, sizeof(head)))
     {
-        cli_db_failure_said(failure, "the connection broke: the server closed it or did not answer");
+        cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
         return 0;
     }
     const unsigned long long length = ((unsigned long long)head[1] << 24u) | ((unsigned long long)head[2] << 16u) |
@@ -53,18 +53,18 @@ int cli_pg_message(CliPg *pg, unsigned char *kind, CliDbFailure *failure)
     {
         // a message past the room is read past, so that the connection reads on from the next
         (void)pg_read(pg, NULL, size);
-        char said[160];
-        CliLine line = {said, sizeof(said), 0ull};
-        cli_line_text(&line, "a message of ");
-        cli_line_decimal(&line, size, 1u);
-        cli_line_text(&line, " bytes is past the room orior_cli reads one in");
-        cli_line_closed(&line);
-        cli_db_failure_said(failure, said);
+        char msg_buf[160];
+        VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
+        mmgr_line_put(&line, "a message of ");
+        mmgr_line_decimal(&line, size, 1u);
+        mmgr_line_put(&line, " bytes is past the room orior_cli reads one in");
+        mmgr_line_finish(&line);
+        cli_db_failure_set(failure, msg_buf);
         return 0;
     }
     if (!pg_read(pg, pg->message, size))
     {
-        cli_db_failure_said(failure, "the connection broke: the server closed it or did not answer");
+        cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
         return 0;
     }
     *kind = head[0];
@@ -90,7 +90,7 @@ int cli_pg_sent(CliPg *pg, unsigned char kind, const void *const *parts, const u
     }
     if (!sent)
     {
-        cli_db_failure_said(failure, "the connection broke: the server closed it");
+        cli_db_failure_set(failure, "the connection broke: the server closed it");
     }
     return sent;
 }
@@ -113,9 +113,9 @@ void cli_pg_failure_of(const unsigned char *body, unsigned long long size, CliDb
             const unsigned long long room = (body[at] == 'C') ? sizeof(failure->code) : sizeof(failure->message);
             if (field != NULL)
             {
-                CliLine line = {field, room, 0ull};
+                VerbaLinea line = {field, room, 0ull};
                 cli_lossy(&line, body + at + 1u, end - at - 1u);
-                cli_line_closed(&line);
+                mmgr_line_finish(&line);
             }
             if (body[at] == 'P')
             {
@@ -134,7 +134,7 @@ void cli_pg_failure_of(const unsigned char *body, unsigned long long size, CliDb
     }
 }
 
-void cli_pg_parameter_kept(CliPg *pg, const unsigned char *body, unsigned long long size)
+void cli_pg_parameter_stored(CliPg *pg, const unsigned char *body, unsigned long long size)
 {
     const unsigned char *const nul = memor.chr(&(MemoriaCfg){.src = body, .val = 0, .bytes = (size_t)size});
     if ((nul == NULL) || (pg->parameters == CLI_PG_PARAMETERS))
@@ -155,24 +155,24 @@ void cli_pg_parameter_kept(CliPg *pg, const unsigned char *body, unsigned long l
                     ? at
                     : place;
     }
-    CliLine name = {pg->names[place], CLI_PG_PARAMETER, 0ull};
+    VerbaLinea name = {pg->names[place], CLI_PG_PARAMETER, 0ull};
     cli_lossy(&name, body, key);
-    cli_line_closed(&name);
-    CliLine kept = {pg->values[place], CLI_PG_PARAMETER, 0ull};
-    cli_lossy(&kept, value, value_size);
-    cli_line_closed(&kept);
+    mmgr_line_finish(&name);
+    VerbaLinea value_line = {pg->values[place], CLI_PG_PARAMETER, 0ull};
+    cli_lossy(&value_line, value, value_size);
+    mmgr_line_finish(&value_line);
     pg->parameters += (place == pg->parameters) ? 1u : 0u;
 }
 
-void cli_pg_notice_kept(CliPg *pg)
+void cli_pg_notice_stored(CliPg *pg)
 {
-    CliDbFailure said;
-    cli_pg_failure_of(pg->message, pg->size, &said);
+    CliDbFailure notice;
+    cli_pg_failure_of(pg->message, pg->size, &notice);
     if (pg->notice_count < CLI_PG_NOTICES)
     {
-        CliLine line = {pg->notices[pg->notice_count], CLI_PG_NOTICE, 0ull};
-        cli_db_failure_written(&said, &line);
-        cli_line_closed(&line);
+        VerbaLinea line = {pg->notices[pg->notice_count], CLI_PG_NOTICE, 0ull};
+        cli_db_failure_written(&notice, &line);
+        mmgr_line_finish(&line);
         pg->notice_count += 1u;
     }
 }
@@ -180,18 +180,18 @@ void cli_pg_notice_kept(CliPg *pg)
 CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, const char *password,
                         const char *database, unsigned long long wait, CliDbFailure *failure)
 {
-    char address[CLI_NAME_LONGEST + 16u];
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine named = {address, sizeof(address), 0ull};
-    cli_line_text(&named, host);
-    cli_line_character(&named, ':');
-    cli_line_decimal(&named, port, 1u);
-    cli_line_closed(&named);
-    if (!cli_net_reach(address, "a PostgreSQL connection", &said))
+    char address[CLI_NAME_MAX_LEN + 16u];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea named = {address, sizeof(address), 0ull};
+    mmgr_line_put(&named, host);
+    mmgr_line_ch(&named, ':');
+    mmgr_line_decimal(&named, port, 1u);
+    mmgr_line_finish(&named);
+    if (!cli_net_reach(address, "a PostgreSQL connection", &err_msg))
     {
-        cli_line_closed(&said);
-        cli_db_failure_said(failure, why);
+        mmgr_line_finish(&err_msg);
+        cli_db_failure_set(failure, why);
         return NULL;
     }
     CliPg *pg = NULL;
@@ -201,7 +201,7 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
     {
         at += 1u;
     }
-    pg = (at < CLI_PG_LINKS) ? cli_cell_taken(sizeof(CliPg), "a PostgreSQL connection") : NULL;
+    pg = (at < CLI_PG_LINKS) ? g_cli_cells->persistent_buf_alloc(sizeof(CliPg), NULL) : NULL;
     if (pg != NULL)
     {
         pg->place = at;
@@ -210,7 +210,7 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
     cli_lock_give(&s_links_lock);
     if (pg == NULL)
     {
-        cli_db_failure_said(failure, "orior_cli holds as many PostgreSQL connections as it can");
+        cli_db_failure_set(failure, "orior_cli has as many PostgreSQL connections as it can");
         return NULL;
     }
     pg->start = 0ull;
@@ -223,14 +223,14 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
     pg->has_failed = 0;
     // the wait is at most what a socket's wait counts, in milliseconds
     const unsigned int within = (wait > 0xffffffffull) ? 0xffffffffu : (unsigned int)wait;
-    if (!cli_socket_connected_within(&pg->socket, host, port, within, &said))
+    if (!cli_socket_connected_within(&pg->socket, host, port, within, &err_msg))
     {
-        cli_line_closed(&said);
-        cli_db_failure_said(failure, why);
+        mmgr_line_finish(&err_msg);
+        cli_db_failure_set(failure, why);
         cli_lock_take(&s_links_lock);
         s_links[pg->place] = NULL;
         cli_lock_give(&s_links_lock);
-        cli_cell_given(pg);
+        g_cli_cells->persistent_buf_release(pg, NULL);
         return NULL;
     }
     cli_socket_waited(&pg->socket, within);
@@ -240,7 +240,7 @@ CliPg *cli_pg_connected(const char *host, unsigned int port, const char *user, c
         cli_lock_take(&s_links_lock);
         s_links[pg->place] = NULL;
         cli_lock_give(&s_links_lock);
-        cli_cell_given(pg);
+        g_cli_cells->persistent_buf_release(pg, NULL);
         return NULL;
     }
     cli_socket_waited(&pg->socket, 0u);
@@ -255,5 +255,5 @@ void cli_pg_closed(CliPg *pg)
     cli_lock_take(&s_links_lock);
     s_links[pg->place] = NULL;
     cli_lock_give(&s_links_lock);
-    cli_cell_given(pg);
+    g_cli_cells->persistent_buf_release(pg, NULL);
 }

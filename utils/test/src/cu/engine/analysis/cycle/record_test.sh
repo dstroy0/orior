@@ -2,7 +2,7 @@
 # orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The record machine's host oracle, built with no CUDA toolchain where there is none: keymath and key_schedule are
-# host code in .cu files, compiled as C++; cycle.c, the exact integer's pieces and scriptura as C. On Windows nvcc
+# host code in .cu files, compiled as C++; cycle.c, the exact integer's pieces and MMgr's line as C. On Windows nvcc
 # drives MSVC, as the record tests' host objects are built there. Its lines are what two parts compare.
 set -u
 
@@ -15,11 +15,11 @@ KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_test
 
-INCLUDES=(-I "$TOP/src/cu/engine" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA")
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         BINARY="$OUT/record_test.exe"
@@ -51,18 +51,18 @@ case "$(uname -s)" in
         }
         build_cpp()
         {
-            c++ -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$1" -o "$2"
+            "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$1" -o "$2"
         }
         link_all()
         {
-            c++ -o "$BINARY" "$@"
+            "$FILE_DEFS_CXX" -o "$BINARY" "$@"
         }
         ;;
 esac
 
 rm -f "$BINARY"
 OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$CYCLE/cycle.c" "$TEST/record_test.c"; do
     object="$OUT/$(basename "$source" .c)_host.$EXTENSION"
     rm -f "$object"

@@ -8,16 +8,16 @@
 #include "../text/text.h"
 
 // `count` names written as a JSON array
-static void view_names(const char (*names)[CLI_NAME_LONGEST], unsigned int count, CliLine *out)
+static void view_names(const char (*names)[CLI_NAME_MAX_LEN], unsigned int count, VerbaLinea *out)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "," : "");
+        mmgr_line_put(out, (at > 0u) ? "," : "");
         cli_json_quoted_lossy(out, (const unsigned char *)names[at],
                               cellul.len(&(CatenaFinitaCfg){.src = names[at], .cap = CLI_CELLS_POOL}));
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
 // the places `order`, `count` of them, put in the order of the names `name_of` gives each, under the lock
@@ -46,7 +46,7 @@ static const char *view_channel_name(unsigned int place)
     return g_cli_comms.traffic[place].name;
 }
 
-void cli_comms_parts(CliLine *out)
+void cli_comms_parts(VerbaLinea *out)
 {
     unsigned int order[CLI_COMMS_PARTS];
     unsigned int count = 0u;
@@ -60,41 +60,41 @@ void cli_comms_parts(CliLine *out)
         }
     }
     view_sorted(order, count, view_part_name);
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliCommsPart *const part = &g_cli_comms.parts[order[at]];
-        cli_line_text(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
+        mmgr_line_put(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
         cli_json_quoted_lossy(out, (const unsigned char *)part->name,
                               cellul.len(&(CatenaFinitaCfg){.src = part->name, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"process\":");
+        mmgr_line_put(out, ",\"process\":");
         if (part->has_process)
         {
-            cli_line_decimal(out, part->process, 1u);
+            mmgr_line_decimal(out, part->process, 1u);
         }
         else
         {
-            cli_line_text(out, "null");
+            mmgr_line_put(out, "null");
         }
-        cli_line_text(out, ",\"listen\":");
-        view_names((const char (*)[CLI_NAME_LONGEST])part->listen, part->listens, out);
-        cli_line_text(out, ",\"speak\":");
-        view_names((const char (*)[CLI_NAME_LONGEST])part->speak, part->speaks, out);
-        cli_line_text(out, ",\"said\":");
-        cli_line_decimal(out, part->said, 1u);
-        cli_line_text(out, ",\"refused\":");
-        cli_line_decimal(out, part->refused, 1u);
-        cli_line_character(out, '}');
+        mmgr_line_put(out, ",\"listen\":");
+        view_names((const char (*)[CLI_NAME_MAX_LEN])part->listen, part->listens, out);
+        mmgr_line_put(out, ",\"send\":");
+        view_names((const char (*)[CLI_NAME_MAX_LEN])part->send_grant, part->send_grants, out);
+        mmgr_line_put(out, ",\"sent\":");
+        mmgr_line_decimal(out, part->sent_count, 1u);
+        mmgr_line_put(out, ",\"refused\":");
+        mmgr_line_decimal(out, part->refused, 1u);
+        mmgr_line_ch(out, '}');
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_lock_give(&g_cli_comms.lock);
 }
 
 // the names of the parts listening on the channel `name`, in the order they began to listen
-static void view_listeners(const char *name, CliLine *out)
+static void view_listeners(const char *name, VerbaLinea *out)
 {
     unsigned int written = 0u;
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < g_cli_comms.listeners_room; at += 1u)
     {
         const CliCommsListener *const listener = &g_cli_comms.listeners[at];
@@ -103,15 +103,15 @@ static void view_listeners(const char *name, CliLine *out)
         {
             continue;
         }
-        cli_line_text(out, (written > 0u) ? "," : "");
+        mmgr_line_put(out, (written > 0u) ? "," : "");
         cli_json_quoted_lossy(out, (const unsigned char *)part->name,
                               cellul.len(&(CatenaFinitaCfg){.src = part->name, .cap = CLI_CELLS_POOL}));
         written += 1u;
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
-void cli_comms_channels(CliLine *out)
+void cli_comms_channels(VerbaLinea *out)
 {
     unsigned int order[CLI_COMMS_CHANNELS];
     cli_lock_take(&g_cli_comms.lock);
@@ -121,39 +121,39 @@ void cli_comms_channels(CliLine *out)
         order[at] = at;
     }
     view_sorted(order, count, view_channel_name);
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliCommsTraffic *const traffic = &g_cli_comms.traffic[order[at]];
-        cli_line_text(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
+        mmgr_line_put(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
         cli_json_quoted_lossy(out, (const unsigned char *)traffic->name,
                               cellul.len(&(CatenaFinitaCfg){.src = traffic->name, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"messages\":");
-        cli_line_decimal(out, traffic->messages, 1u);
-        cli_line_text(out, ",\"bytes\":");
-        cli_line_decimal(out, traffic->bytes, 1u);
-        cli_line_text(out, ",\"transferred\":");
-        cli_line_decimal(out, traffic->transferred, 1u);
-        cli_line_text(out, ",\"refused\":");
-        cli_line_decimal(out, traffic->refused, 1u);
-        cli_line_text(out, ",\"listeners\":");
+        mmgr_line_put(out, ",\"messages\":");
+        mmgr_line_decimal(out, traffic->messages, 1u);
+        mmgr_line_put(out, ",\"bytes\":");
+        mmgr_line_decimal(out, traffic->bytes, 1u);
+        mmgr_line_put(out, ",\"transferred\":");
+        mmgr_line_decimal(out, traffic->transferred, 1u);
+        mmgr_line_put(out, ",\"refused\":");
+        mmgr_line_decimal(out, traffic->refused, 1u);
+        mmgr_line_put(out, ",\"listeners\":");
         view_listeners(traffic->name, out);
-        cli_line_text(out, ",\"last\":[");
+        mmgr_line_put(out, ",\"last\":[");
         for (unsigned int one = 0u; one < traffic->count; one += 1u)
         {
-            const CliCommsKept *const kept = &traffic->last[(traffic->first + one) % CLI_COMMS_KEPT];
-            cli_line_text(out, (one > 0u) ? ",{\"channel\":" : "{\"channel\":");
+            const CliCommsStoredMsg *const stored = &traffic->last[(traffic->first + one) % CLI_COMMS_STORED_MAX];
+            mmgr_line_put(out, (one > 0u) ? ",{\"channel\":" : "{\"channel\":");
             cli_json_quoted_lossy(out, (const unsigned char *)traffic->name,
                                   cellul.len(&(CatenaFinitaCfg){.src = traffic->name, .cap = CLI_CELLS_POOL}));
-            cli_line_text(out, ",\"from\":");
-            cli_json_quoted_lossy(out, (const unsigned char *)kept->from,
-                                  cellul.len(&(CatenaFinitaCfg){.src = kept->from, .cap = CLI_CELLS_POOL}));
-            cli_line_text(out, ",\"body\":");
-            cli_line_counted(out, kept->body, kept->size);
-            cli_line_character(out, '}');
+            mmgr_line_put(out, ",\"from\":");
+            cli_json_quoted_lossy(out, (const unsigned char *)stored->from,
+                                  cellul.len(&(CatenaFinitaCfg){.src = stored->from, .cap = CLI_CELLS_POOL}));
+            mmgr_line_put(out, ",\"body\":");
+            mmgr_line_put_n(out, stored->body, stored->size);
+            mmgr_line_ch(out, '}');
         }
-        cli_line_text(out, "]}");
+        mmgr_line_put(out, "]}");
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_lock_give(&g_cli_comms.lock);
 }

@@ -1,45 +1,46 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// forms.cu: what a form's text says: its tokens, its launches, conditions and instructions, and what its opcode controls, compares, operates on or commutes
+// forms.cu: what a form's text states: its tokens, its launches, conditions and instructions, and what its opcode
+// controls, compares, operates on or commutes
 #include "identity_internal.h"
 
-// The way an ask enters the part, its vector: the registers it declares, the lanes it is put over, a case a lane, and
-// the operands of a case its code loads. An ask is put at the least magnitude, the registers its chain names as
+// The way a query enters the part, its vector: the registers it declares, the lanes it is put over, a case a lane, and
+// the operands of a case its code loads. A query is put at the least magnitude, the registers its chain names as
 // `mark`, the engine's high water mark. Where the part refuses it there and answers it declaring every register its
-// file holds, the fewest it answers at is walked between the two, and the ask stands at the fewest; where the part
+// file uses, the fewest it answers at is walked between the two, and the query stands at the fewest; where the part
 // refuses it at both, the refusal is not the registers', and it stands refused. 1 where the part answers it alike with
 // the host on every case it computes, 0 otherwise, its registers in `question`
 int vector_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
-                        const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks,
-                        unsigned int mark)
+                 const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *queries,
+                 unsigned int mark)
 {
     const unsigned int most = 255u;
     question->registers = ((mark != 0u) && (mark < most)) ? mark : most;
-    const int least_alike = question_alike(code, host, places, question, asks);
+    const int least_alike = question_alike(code, host, places, question, queries);
     if ((question->outcome == RUN_ANSWERED) || (question->registers == most))
     {
         return least_alike;
     }
     const unsigned int least = question->registers;
     question->registers = most;
-    const int most_alike = question_alike(code, host, places, question, asks);
+    const int most_alike = question_alike(code, host, places, question, queries);
     if (question->outcome != RUN_ANSWERED)
     {
         return most_alike;
     }
     const auto answers_declaring = [&](long long count) -> int {
         question->registers = (unsigned int)count;
-        question_alike(code, host, places, question, asks);
+        question_alike(code, host, places, question, queries);
         return (question->outcome == RUN_ANSWERED) ? 1 : 0;
     };
-    // the ask at the fewest is in R once the walk has put it, and is read from there
+    // the query at the fewest is in R once the walk has put it, and is read from there
     question->registers = (unsigned int)walk_halved(answers_declaring, (long long)most, (long long)least);
-    return question_alike(code, host, places, question, asks);
+    return question_alike(code, host, places, question, queries);
 }
 
 // The carrier `text`, its links `links`, cut at the form standing at link `link_at` over `form_lines` links, the value
 // of `read` stored in place of the carrier's answer: the carrier's links before the form, `standing` in the form's
-// place where it is given, the register the store reads written with the value, a flag's as 1 where it holds, the
+// place where it is given, the register the store reads written with the value, a flag's as 1 where it is true, the
 // carrier's own links after the form, those no operand of a case reaches, and then its store and what follows. With no
 // form standing, `read` is a value the form reads; with one, a value it writes. Empty where a link of the carrier's own
 // after the form names the stored register, or `read` is a uniform register
@@ -101,7 +102,7 @@ std::string carrier_cut_at_read(const std::vector<CarrierLink> &links, long case
 
 // The shape of what the form `form_text` at link `at` of a carrier, its links `links` and its lines `lines`, reads: the
 // form and the link that writes each register it reads, their registers struck out. Two links of one shape read the
-// cases alike, and hold the same rows of a product
+// cases alike, and contain the same rows of a product
 std::string read_shape(const std::vector<CarrierLink> &links, const std::vector<std::string> &lines,
                               long cases_defined, const std::string &form_text, long at)
 {
@@ -404,7 +405,7 @@ int form_verbs(const std::string &text)
 
 // 1 where one of the forms `first` and `second` is the other loaded const: the same operands, its opcode the other's
 // with `.CONSTANT` after it. Whether a load may be const is read off its chain, a store to the memory it reads, and
-// the part answers the two alike at every link of a chain that holds it
+// the part answers the two alike at every link of a chain that contains it
 int form_const_loaded(const std::string &first, const std::string &second)
 {
     const std::vector<std::string> first_tokens = form_tokens(first);
@@ -418,7 +419,7 @@ int form_const_loaded(const std::string &first, const std::string &second)
            ((second_tokens[0] + ".CONSTANT") == first_tokens[0]);
 }
 
-// 1 where the form `text` holds no instruction, each of which ends at a `;`: a directive or a label alone, placing
+// 1 where the form `text` contains no instruction, each of which ends at a `;`: a directive or a label alone, placing
 // the forms a case reads
 int form_switches(const std::string &text)
 {

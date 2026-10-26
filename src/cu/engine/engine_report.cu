@@ -3,9 +3,9 @@
 // engine_report.cu: the run's report
 #include "engine_internal.h"
 
-static int entry_report_write(ScripturaLine *line, FILE *file)
+static int entry_report_write(VerbaLinea *line, FILE *file)
 {
-    const int written = scriptura_write(line, file);
+    const int written = (mmgr_line_ok(line) && (fwrite(line->out, 1u, mmgr_line_finish(line), file) == line->at));
     free(line->out);
     return written;
 }
@@ -17,7 +17,7 @@ extern "C" int engine_ingest_print(const EngineIngestRequest *request, FILE *fil
     {
         return 0;
     }
-    ScripturaLine line;
+    VerbaLinea line;
     line.capacity = entry_report_capacity(request->samples, report->reached, request->source, request->set);
     line.out = (char *)malloc((size_t)line.capacity);
     line.at = 0ull;
@@ -28,54 +28,54 @@ extern "C" int engine_ingest_print(const EngineIngestRequest *request, FILE *fil
     for (unsigned long long sample = 0ull; sample < report->reached; sample += 1ull)
     {
         const EngineSampleRecord *const record = &report->samples[sample];
-        scriptura_text(&line, "  ");
+        mmgr_line_put(&line, "  ");
         if (record->sealed != 0ull)
         {
-            scriptura_text_columns(&line, request->samples[sample], 24u);
-            scriptura_character(&line, ' ');
-            scriptura_decimal(&line, record->floors, 1u);
-            scriptura_text(&line, " floors, rebuilt from the file, voxel for voxel and pixel for pixel: ");
-            scriptura_decimal_columns(&line, record->crystal_bytes, 11u);
-            scriptura_text(&line, " bytes of ");
-            scriptura_decimal_columns(&line, record->raw_bytes, 11u);
-            scriptura_text(&line, ", ");
+            mmgr_line_put_columns(&line, request->samples[sample], 24u);
+            mmgr_line_ch(&line, ' ');
+            mmgr_line_decimal(&line, record->floors, 1u);
+            mmgr_line_put(&line, " floors, rebuilt from the file, voxel for voxel and pixel for pixel: ");
+            mmgr_line_decimal_columns(&line, record->crystal_bytes, 11u);
+            mmgr_line_put(&line, " bytes of ");
+            mmgr_line_decimal_columns(&line, record->raw_bytes, 11u);
+            mmgr_line_put(&line, ", ");
             entry_percent(&line, record->crystal_bytes, record->raw_bytes);
-            scriptura_text(&line, ", sealed ");
+            mmgr_line_put(&line, ", sealed ");
             entry_signum_text(&line, &record->root);
         }
         else if (record->placed == 0ull)
         {
-            scriptura_text(&line, request->samples[sample]);
-            scriptura_text(&line, ": no source for it under ");
-            scriptura_text(&line, request->source);
-            scriptura_text(&line, ", or its place in ");
-            scriptura_text(&line, request->set);
-            scriptura_text(&line, " could not be made");
+            mmgr_line_put(&line, request->samples[sample]);
+            mmgr_line_put(&line, ": no source for it under ");
+            mmgr_line_put(&line, request->source);
+            mmgr_line_put(&line, ", or its place in ");
+            mmgr_line_put(&line, request->set);
+            mmgr_line_put(&line, " could not be made");
         }
         else if (record->source_read == 0ull)
         {
-            scriptura_text(&line, request->samples[sample]);
-            scriptura_text(&line, ": its source under ");
-            scriptura_text(&line, request->source);
-            scriptura_text(&line, " could not be read; nothing kept");
+            mmgr_line_put(&line, request->samples[sample]);
+            mmgr_line_put(&line, ": its source under ");
+            mmgr_line_put(&line, request->source);
+            mmgr_line_put(&line, " could not be read; nothing retained");
         }
         else if (record->crystal_written == 0ull)
         {
-            scriptura_text(&line, request->samples[sample]);
-            scriptura_text(&line, ": its " ENTRY_CRYSTAL_SUFFIX " could not be written; nothing kept");
+            mmgr_line_put(&line, request->samples[sample]);
+            mmgr_line_put(&line, ": its " ENTRY_CRYSTAL_SUFFIX " could not be written; nothing retained");
         }
         else
         {
-            scriptura_text(&line, request->samples[sample]);
-            scriptura_text(&line, ": the " ENTRY_CRYSTAL_SUFFIX " did not rebuild its source: ");
-            scriptura_decimal(&line, record->voxels_differ, 1u);
-            scriptura_text(&line, " voxels differ on the device, ");
-            scriptura_decimal(&line, record->pixels_differ, 1u);
-            scriptura_text(&line, " pixels off it, ");
+            mmgr_line_put(&line, request->samples[sample]);
+            mmgr_line_put(&line, ": the " ENTRY_CRYSTAL_SUFFIX " did not rebuild its source: ");
+            mmgr_line_decimal(&line, record->voxels_differ, 1u);
+            mmgr_line_put(&line, " voxels differ on the device, ");
+            mmgr_line_decimal(&line, record->pixels_differ, 1u);
+            mmgr_line_put(&line, " pixels off it, ");
             entry_seal_failure(&line, record);
-            scriptura_text(&line, "; nothing kept");
+            mmgr_line_put(&line, "; nothing retained");
         }
-        scriptura_character(&line, '\n');
+        mmgr_line_ch(&line, '\n');
     }
     entry_report_total(&line, report, request->count);
     return entry_report_write(&line, file);
@@ -88,7 +88,7 @@ extern "C" int engine_prove_print(const EngineSetRequest *request, FILE *file)
     {
         return 0;
     }
-    ScripturaLine line;
+    VerbaLinea line;
     line.capacity = entry_report_capacity(request->samples, report->reached, "", request->set);
     line.out = (char *)malloc((size_t)line.capacity);
     line.at = 0ull;
@@ -99,26 +99,26 @@ extern "C" int engine_prove_print(const EngineSetRequest *request, FILE *file)
     for (unsigned long long sample = 0ull; sample < report->reached; sample += 1ull)
     {
         const EngineSampleRecord *const record = &report->samples[sample];
-        scriptura_text(&line, "  ");
+        mmgr_line_put(&line, "  ");
         if (record->sealed != 0ull)
         {
-            scriptura_text_columns(&line, request->samples[sample], 24u);
-            scriptura_text(&line, " decoded from the file alone, every node of its seal holds, root ");
+            mmgr_line_put_columns(&line, request->samples[sample], 24u);
+            mmgr_line_put(&line, " decoded from the file alone, every node of its seal verifies, root ");
             entry_signum_text(&line, &record->root);
-            scriptura_text(&line, ": ");
-            scriptura_decimal_columns(&line, record->crystal_bytes, 11u);
-            scriptura_text(&line, " bytes of ");
-            scriptura_decimal_columns(&line, record->raw_bytes, 11u);
-            scriptura_text(&line, ", ");
+            mmgr_line_put(&line, ": ");
+            mmgr_line_decimal_columns(&line, record->crystal_bytes, 11u);
+            mmgr_line_put(&line, " bytes of ");
+            mmgr_line_decimal_columns(&line, record->raw_bytes, 11u);
+            mmgr_line_put(&line, ", ");
             entry_percent(&line, record->crystal_bytes, record->raw_bytes);
         }
         else
         {
-            scriptura_text(&line, request->samples[sample]);
-            scriptura_text(&line, ": the " ENTRY_CRYSTAL_SUFFIX " did not hold: ");
+            mmgr_line_put(&line, request->samples[sample]);
+            mmgr_line_put(&line, ": the " ENTRY_CRYSTAL_SUFFIX " did not verify: ");
             entry_seal_failure(&line, record);
         }
-        scriptura_character(&line, '\n');
+        mmgr_line_ch(&line, '\n');
     }
     entry_report_total(&line, report, request->count);
     return entry_report_write(&line, file);
@@ -136,7 +136,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
                      request, error, ENGINE_ERROR_REQUEST) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     EngineSetReport silent;
@@ -150,8 +150,8 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
     int ok = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; ok && (sample < request->count); sample += 1u)
     {
-        EngineSampleRecord unkept;
-        EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &unkept;
+        EngineSampleRecord discarded;
+        EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &discarded;
         memset(record, 0, sizeof(*record));
         report->reached = sample + 1ull;
         char source_path[ENTRY_PATH_CAPACITY];
@@ -269,7 +269,7 @@ extern "C" long engine_ingest_set(const EngineIngestRequest *request)
     if ((ok == 0) || (report->sealed != request->count))
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     return 0L;
@@ -286,7 +286,7 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
                      ENGINE_ERROR_REQUEST) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     EngineSetReport silent;
@@ -300,8 +300,8 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
     const int rooted = ENGINE_CHECK(sample_roots != NULL, &sample_roots, error, ENGINE_ERROR_RESOURCE);
     for (unsigned int sample = 0u; rooted && (sample < request->count); sample += 1u)
     {
-        EngineSampleRecord unkept;
-        EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &unkept;
+        EngineSampleRecord discarded;
+        EngineSampleRecord *const record = (records != NULL) ? &records[sample] : &discarded;
         memset(record, 0, sizeof(*record));
         report->reached = sample + 1ull;
         char iapx_path[ENTRY_PATH_CAPACITY];
@@ -341,7 +341,7 @@ extern "C" long engine_iapx_prove_set(const EngineSetRequest *request)
     if ((sealed == 0) || (report->sealed != request->count))
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     return 0L;
@@ -366,7 +366,7 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
     if (ENGINE_CHECK((extent != NULL) && (volume != NULL) && (root != NULL), &volume, error, ENGINE_ERROR_REQUEST) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     *volume = NULL;
@@ -394,21 +394,21 @@ extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned l
     {
         free(rebuilt);
         krep_side_release(&section);
-        ScripturaLine line;
-        line.capacity = ENTRY_ROW_TEXT + scriptura_length(sample, ENTRY_PATH_CAPACITY);
+        VerbaLinea line;
+        line.capacity = ENTRY_ROW_TEXT + strnlen(sample, ENTRY_PATH_CAPACITY);
         line.out = (char *)malloc((size_t)line.capacity);
         line.at = 0ull;
         if (line.out != NULL)
         {
-            scriptura_text(&line, "  ");
-            scriptura_text(&line, sample);
-            scriptura_text(&line, ": the " ENTRY_CRYSTAL_SUFFIX " did not load: ");
+            mmgr_line_put(&line, "  ");
+            mmgr_line_put(&line, sample);
+            mmgr_line_put(&line, ": the " ENTRY_CRYSTAL_SUFFIX " did not load: ");
             entry_seal_failure(&line, &record);
-            scriptura_character(&line, '\n');
+            mmgr_line_ch(&line, '\n');
             entry_report_write(&line, stderr);
         }
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     memcpy(extent, file.extent, sizeof(file.extent));

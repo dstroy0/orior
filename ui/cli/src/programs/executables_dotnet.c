@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_dotnet.c: what a build that made its program can be told of it past what it loads: a .NET program that
-// needs a .NET runtime a program opened on its own does not find, and the modules a PyInstaller build warns it did
+// executables_dotnet.c: what a build that made its program can be reported of it past what it loads: a .NET program
+// that needs a .NET runtime a program opened on its own does not find, and the modules a PyInstaller build warns it did
 // not find that the tree's own code imports, each with the hidden import that takes it in
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -12,36 +12,36 @@
 
 #define CLI_DOTNET_NUMBERS 8u
 
-// a line said through `say`
-static void cli_say(QuerySink say, const char *text)
+// a line printed through `sink`
+static void cli_print(QuerySink sink, const char *text)
 {
-    say.said(say.context, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    sink.print(sink.context, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
 // the folders a program opened on its own looks in for the .NET runtime, DOTNET_ROOT where the system sets it, then
 // where .NET installs for every user, into `places`: their count
-static unsigned int cli_dotnet_places(char (*places)[CLI_PATH_LONGEST])
+static unsigned int cli_dotnet_places(char (*places)[CLI_PATH_MAX_LEN])
 {
     unsigned int count = 0u;
-    if (query_environment_read("DOTNET_ROOT", places[count], CLI_PATH_LONGEST))
+    if (query_environment_read("DOTNET_ROOT", places[count], CLI_PATH_MAX_LEN))
     {
         count += 1u;
     }
 #if defined(_WIN32)
-    char files[CLI_PATH_LONGEST];
+    char files[CLI_PATH_MAX_LEN];
     if (query_environment_read("ProgramFiles", files, sizeof(files)) &&
         cli_executables_joined(files, "dotnet", places[count]))
     {
         count += 1u;
     }
 #else
-    char text[CLI_PATH_LONGEST];
+    char text[CLI_PATH_MAX_LEN];
     if (cli_text_read("/etc/dotnet/install_location", text, sizeof(text)))
     {
         const char *from = text;
         unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
         cli_scan_trim(&from, &length);
-        cli_scan_copied(from, length, places[count], CLI_PATH_LONGEST);
+        cli_scan_copied(from, length, places[count], CLI_PATH_MAX_LEN);
         count += 1u;
     }
     static const char *const s_usual[3] = {"/usr/share/dotnet", "/usr/lib/dotnet", "/usr/local/share/dotnet"};
@@ -86,15 +86,15 @@ static unsigned int cli_numbers(const char *version, unsigned long long *numbers
     return count;
 }
 
-// A framework looked for among a place's versions of it: the numbers wanted, and whether one held is new enough
+// A framework looked for among a place's versions of it: the numbers wanted, and whether one installed is new enough
 typedef struct
 {
     unsigned long long wanted[CLI_DOTNET_NUMBERS];
     unsigned int wanted_count;
-    int held;
+    int satisfied;
 } CliFramework;
 
-// a version a place holds: one with the same first number as the one wanted and at least as new holds it
+// a version a place has: one with the same first number as the one wanted and at least as new satisfies it
 static void cli_version_each(void *context, const char *name, int is_folder)
 {
     (void)is_folder;
@@ -112,12 +112,12 @@ static void cli_version_each(void *context, const char *name, int is_folder)
         order = (have[at] < framework->wanted[at]) ? -1 : (have[at] > framework->wanted[at]) ? 1 : 0;
     }
     order = (order != 0) ? order : ((count < framework->wanted_count) ? -1 : 0);
-    framework->held = framework->held || (order >= 0);
+    framework->satisfied = framework->satisfied || (order >= 0);
 }
 
-// a framework a runtimeconfig.json names said where no place holds a version of it
-static void cli_framework_told(const CliJson *json, unsigned int framework, char (*places)[CLI_PATH_LONGEST],
-                               unsigned int place_count, const char *file, QuerySink say)
+// a framework a runtimeconfig.json names reported where no place has a version of it
+static void cli_framework_check_print(const CliJson *json, unsigned int framework, char (*places)[CLI_PATH_MAX_LEN],
+                                      unsigned int place_count, const char *file, QuerySink sink)
 {
     const char *const name = cli_json_string(json, cli_json_member(json, framework, "name"), NULL);
     const char *const version = cli_json_string(json, cli_json_member(json, framework, "version"), NULL);
@@ -127,17 +127,17 @@ static void cli_framework_told(const CliJson *json, unsigned int framework, char
     }
     CliFramework wanted;
     wanted.wanted_count = cli_numbers(version, wanted.wanted);
-    wanted.held = 0;
-    for (unsigned int at = 0u; !wanted.held && (at < place_count); at += 1u)
+    wanted.satisfied = 0;
+    for (unsigned int at = 0u; !wanted.satisfied && (at < place_count); at += 1u)
     {
-        char shared[CLI_PATH_LONGEST];
-        char folder[CLI_PATH_LONGEST];
+        char shared[CLI_PATH_MAX_LEN];
+        char folder[CLI_PATH_MAX_LEN];
         if (cli_executables_joined(places[at], "shared", shared) && cli_executables_joined(shared, name, folder))
         {
             query_folder_each(folder, cli_version_each, &wanted);
         }
     }
-    if (wanted.held)
+    if (wanted.satisfied)
     {
         return;
     }
@@ -147,32 +147,32 @@ static void cli_framework_told(const CliJson *json, unsigned int framework, char
         : (cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '\\') != NULL)
             ? (cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '\\') + 1)
             : file;
-    char said[CLI_PATH_LONGEST * (CLI_DOTNET_PLACES + 2u)];
-    CliLine line = {said, sizeof(said), 0ull};
-    cli_line_text(&line, base);
-    cli_line_text(&line, " needs the .NET runtime ");
-    cli_line_text(&line, name);
-    cli_line_character(&line, ' ');
-    cli_line_text(&line, version);
-    cli_line_text(&line, ", which a program opened on its own looks for in ");
+    char print_buf[CLI_PATH_MAX_LEN * (CLI_DOTNET_PLACES + 2u)];
+    VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+    mmgr_line_put(&line, base);
+    mmgr_line_put(&line, " needs the .NET runtime ");
+    mmgr_line_put(&line, name);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_put(&line, version);
+    mmgr_line_put(&line, ", which a program opened on its own looks for in ");
     for (unsigned int at = 0u; at < place_count; at += 1u)
     {
-        cli_line_text(&line, (at != 0u) ? " and " : "");
-        cli_line_text(&line, places[at]);
+        mmgr_line_put(&line, (at != 0u) ? " and " : "");
+        mmgr_line_put(&line, places[at]);
     }
-    cli_line_text(&line, " and does not find: Publish as One File, the job's output one file, carries it inside the "
+    mmgr_line_put(&line, " and does not find: Publish as One File, the job's output one file, carries it inside the "
                          "program");
-    cli_line_closed(&line);
-    cli_say(say, said);
+    mmgr_line_finish(&line);
+    cli_print(sink, print_buf);
 }
 
-// what a .NET program that is no single file needs of the .NET runtime, said where a program opened on its own finds
-// none: each framework its runtimeconfig.json names, by name and version, that no place holds a version of with the
+// what a .NET program that is no single file needs of the .NET runtime, reported where a program opened on its own
+// finds none: each framework its runtimeconfig.json names, by name and version, that no place has a version of with the
 // same first number and at least as new
-static void cli_dotnet_missing(const char *file, QuerySink say)
+static void cli_dotnet_missing(const char *file, QuerySink sink)
 {
     // the program's path with its extension put as runtimeconfig.json
-    char config[CLI_PATH_LONGEST];
+    char config[CLI_PATH_MAX_LEN];
     const char *const base =
         (cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '/') != NULL)
             ? (cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '/') + 1)
@@ -183,24 +183,24 @@ static void cli_dotnet_missing(const char *file, QuerySink say)
         (base[0] != '\0')
             ? cli_text_last(base + 1, cellul.len(&(CatenaFinitaCfg){.src = base + 1, .cap = CLI_CELLS_POOL}), '.')
             : NULL;
-    CliLine named = {config, sizeof(config), 0ull};
-    cli_line_counted(&named, file,
-                     (dot != NULL) ? (unsigned long long)(dot - file)
-                                   : cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&named, ".runtimeconfig.json");
-    if (cli_line_closed(&named) == 0ull)
+    VerbaLinea named = {config, sizeof(config), 0ull};
+    mmgr_line_put_n(&named, file,
+                    (dot != NULL) ? (unsigned long long)(dot - file)
+                                  : cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(&named, ".runtimeconfig.json");
+    if (mmgr_line_finish(&named) == 0ull)
     {
         return;
     }
     CliJson json;
-    char why[CLI_NAME_LONGEST];
-    CliLine reason = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea reason = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_file_taken(&json, config, 0u, 0ull, &reason);
     const unsigned int options = cli_json_member(&json, root, "runtimeOptions");
-    char (*const places)[CLI_PATH_LONGEST] =
+    char (*const places)[CLI_PATH_MAX_LEN] =
         ((options != CLI_JSON_NONE) && (cli_json_member(&json, options, "includedFrameworks") == CLI_JSON_NONE))
-            ? cli_cell_taken_by(&g_cli_executables_cells, (unsigned long long)CLI_DOTNET_PLACES * CLI_PATH_LONGEST,
-                                "the places .NET is put")
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_DOTNET_PLACES * CLI_PATH_MAX_LEN,
+                                                &g_cli_executables_cells)
             : NULL;
     if (places == NULL)
     {
@@ -211,23 +211,23 @@ static void cli_dotnet_missing(const char *file, QuerySink say)
     const unsigned int single = cli_json_member(&json, options, "framework");
     if (single != CLI_JSON_NONE)
     {
-        cli_framework_told(&json, single, places, place_count, file, say);
+        cli_framework_check_print(&json, single, places, place_count, file, sink);
     }
     const unsigned int many = cli_json_member(&json, options, "frameworks");
     for (unsigned int item = cli_json_is(&json, many, CFG_JSON_ARRAY) ? json.node[many].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json.node[item].next)
     {
-        cli_framework_told(&json, item, places, place_count, file, say);
+        cli_framework_check_print(&json, item, places, place_count, file, sink);
     }
-    cli_cell_given_by(&g_cli_executables_cells, places);
+    g_cli_cells->persistent_buf_release(places, &g_cli_executables_cells);
     cli_json_given(&json);
 }
 
-// The tree's own code beside a spec, and what is said of the modules it imports that PyInstaller did not find
+// The tree's own code beside a spec, and what is reported of the modules it imports that PyInstaller did not find
 typedef struct
 {
     const char *folder;
-    QuerySink say;
+    QuerySink sink;
 } CliOwn;
 
 // whether an importer is the tree's own: a script by its path under the spec's folder, or a module whose first part is
@@ -253,13 +253,13 @@ static int cli_is_own(const char *folder, const char *importer, unsigned long lo
     {
         return 1;
     }
-    char name[CLI_NAME_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char marked[CLI_PATH_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char marked[CLI_PATH_MAX_LEN];
     cli_scan_copied(importer, top, name, sizeof(name));
-    CliLine line = {name + top, sizeof(name) - top, 0ull};
-    cli_line_text(&line, ".py");
-    cli_line_closed(&line);
+    VerbaLinea line = {name + top, sizeof(name) - top, 0ull};
+    mmgr_line_put(&line, ".py");
+    mmgr_line_finish(&line);
     if (cli_executables_joined(folder, name, path) && (query_is_file(path) || query_is_folder(path)))
     {
         return 1;
@@ -269,8 +269,8 @@ static int cli_is_own(const char *folder, const char *importer, unsigned long lo
            cli_executables_joined(path, "__init__.py", marked) && query_is_file(marked);
 }
 
-// a module PyInstaller did not find said where the first of its importers that is the tree's own, and imports it other
-// than optionally, names it
+// a module PyInstaller did not find reported where the first of its importers that is the tree's own, and imports it
+// other than optionally, names it
 static void cli_own_each(void *context, const char *module, unsigned long long module_length, const char *importers,
                          unsigned long long importers_length)
 {
@@ -324,20 +324,20 @@ static void cli_own_each(void *context, const char *module, unsigned long long m
         {
             shown = ((name[at] == '/') || (name[at] == '\\')) ? (name + at + 1) : shown;
         }
-        char said[CLI_PATH_LONGEST * 2u];
-        CliLine line = {said, sizeof(said), 0ull};
-        cli_line_counted(&line, module, module_length);
-        cli_line_text(&line, ", which ");
-        cli_line_counted(&line, shown, (unsigned long long)((name + length) - shown));
-        cli_line_text(&line, " imports, is not in the frozen program: PyInstaller found it nowhere in the Python that "
+        char print_buf[CLI_PATH_MAX_LEN * 2u];
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        mmgr_line_put_n(&line, module, module_length);
+        mmgr_line_put(&line, ", which ");
+        mmgr_line_put_n(&line, shown, (unsigned long long)((name + length) - shown));
+        mmgr_line_put(&line, " imports, is not in the frozen program: PyInstaller found it nowhere in the Python that "
                              "ran it; install it there and build again");
-        cli_line_closed(&line);
-        cli_say(own->say, said);
+        mmgr_line_finish(&line);
+        cli_print(own->sink, print_buf);
         return;
     }
 }
 
-void cli_executables_built_advice(const char *root, const char *id, const CliLines *lines, QuerySink say)
+void cli_executables_built_advice(const char *root, const char *id, const CliLines *lines, QuerySink sink)
 {
     const char *const colon = cli_text_last(id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), ':');
     if ((!cellul.starts(&(CatenaFinitaCfg){.src = id, .other = "executable/", .cap = CLI_CELLS_POOL})) ||
@@ -345,11 +345,11 @@ void cli_executables_built_advice(const char *root, const char *id, const CliLin
     {
         return;
     }
-    char script[CLI_PATH_LONGEST];
-    CliLine scripted = {script, sizeof(script), 0ull};
-    cli_line_counted(&scripted, id + 11, (unsigned long long)(colon - (id + 11)));
-    cli_line_closed(&scripted);
-    char path[CLI_PATH_LONGEST];
+    char script[CLI_PATH_MAX_LEN];
+    VerbaLinea scripted = {script, sizeof(script), 0ull};
+    mmgr_line_put_n(&scripted, id + 11, (unsigned long long)(colon - (id + 11)));
+    mmgr_line_finish(&scripted);
+    char path[CLI_PATH_MAX_LEN];
     cli_executables_joined(root, script, path);
     const char *const base =
         (cli_text_last(script, cellul.len(&(CatenaFinitaCfg){.src = script, .cap = CLI_CELLS_POOL}), '/') != NULL)
@@ -358,21 +358,21 @@ void cli_executables_built_advice(const char *root, const char *id, const CliLin
     const unsigned int kind = cli_executables_kind_of(base);
     if (kind == CLI_KIND_DOTNET)
     {
-        char file[CLI_PATH_LONGEST];
-        char why[CLI_NAME_LONGEST];
-        CliLine unnamed = {why, sizeof(why), 0ull};
+        char file[CLI_PATH_MAX_LEN];
+        char why[CLI_NAME_MAX_LEN];
+        VerbaLinea unnamed = {why, sizeof(why), 0ull};
         if (cli_dotnet_artifact(colon + 1, lines, file, &unnamed))
         {
-            cli_dotnet_missing(file, say);
+            cli_dotnet_missing(file, sink);
         }
     }
     else if (kind == CLI_KIND_PYINSTALLER)
     {
-        CliOwn own = {"", say};
-        char folder[CLI_PATH_LONGEST];
+        CliOwn own = {"", sink};
+        char folder[CLI_PATH_MAX_LEN];
         char *const warned = cli_pyinstaller_warn(path, folder);
         own.folder = folder;
         cli_pyinstaller_missing((warned != NULL) ? warned : "", cli_own_each, &own);
-        cli_cell_given_by(&g_cli_executables_cells, warned);
+        g_cli_cells->persistent_buf_release(warned, &g_cli_executables_cells);
     }
 }

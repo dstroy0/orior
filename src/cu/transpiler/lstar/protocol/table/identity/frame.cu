@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// frame.cu: the frame asked of the part: the container the vendor's writer makes loaded and returned from, and the
-// least opening a kernel runs with (The frame asked, Open 6.3)
+// frame.cu: the frame queried of the part: the container the vendor's writer makes loaded and returned from, and the
+// least opening a kernel runs with (Open 6.3)
 #include "frame_walk.h"
 #include "identity_internal.h"
 
 // the kernel the system accepted, as the vendor's writer appends it to the run in its kernel mode (kernel_blob.h): the
-// latest blob of KERNEL_BLOB_NAME read where the run holds it, every place of it whatever place the writer names,
-// into `code`, `places` of them, and the registers a thread of it holds into `registers`. The frame's asks and the
-// fixed registers' start from the whole kernel. 1, or 0 where the run holds no kernel this reads
+// latest blob of KERNEL_BLOB_NAME read where the run stores it, every place of it whatever place the writer names,
+// into `code`, `places` of them, and the registers a thread of it uses into `registers`. The frame's queries and the
+// fixed registers' start from the whole kernel. 1, or 0 where the run contains no kernel this reads
 int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned int *registers)
 {
     const unsigned char *kernel = NULL;
@@ -29,38 +29,38 @@ int frame_kernel_read(const unsigned char **code, unsigned int *places, unsigned
     return 1;
 }
 
-// what one variant of the kernel is put as and what came of it, for the walk's `holds`: the whole kernel's own
-// answers are the reference every variant is held to
-struct FrameAsk
+// what one variant of the kernel is put as and what came of it, for the walk's `predicate`: the whole kernel's own
+// answers are the reference every variant is checked against
+struct FrameQuery
 {
     const std::vector<unsigned char> *kernel;
     const std::vector<std::string> *reference;
     const std::vector<unsigned int> *places;
     RunQuestion *question;
-    unsigned long long *asks;
+    unsigned long long *queries;
     RunWritten *table;
 };
 
 // 1 where the kernel with its first `dropped` places let go answers every case as the whole kernel does
-static int frame_holds(unsigned long long dropped, void *context)
+static int frame_matches(unsigned long long dropped, void *context)
 {
-    FrameAsk *const ask = (FrameAsk *)context;
-    const std::vector<unsigned char> variant(ask->kernel->begin() + (std::ptrdiff_t)(dropped * 16ull),
-                                             ask->kernel->end());
-    const int alike = question_alike(variant, *ask->reference, *ask->places, ask->question, ask->asks);
-    run_print(ask->table, "opening %llu %s%s%s\n", dropped, alike ? "truthy" : "falsy", alike ? "" : ": ",
-              alike ? "" : ask->question->refused);
+    FrameQuery *const query = (FrameQuery *)context;
+    const std::vector<unsigned char> variant(query->kernel->begin() + (std::ptrdiff_t)(dropped * 16ull),
+                                             query->kernel->end());
+    const int alike = question_alike(variant, *query->reference, *query->places, query->question, query->queries);
+    run_print(query->table, "opening %llu %s%s%s\n", dropped, alike ? "truthy" : "falsy", alike ? "" : ": ",
+              alike ? "" : query->question->refused);
     printf("  opening from %llu: %s\n", dropped, alike ? "truthy" : "falsy");
     return alike;
 }
 
-// The frame asked (Open 6.3): the kernel the system accepted, its body the ladder's relation at its slot, is put whole
-// over every case with no host value to hold it to, and an answer on every case means the container the vendor's
-// writer makes is loaded and returned from: `run answers 00000001 container returned`. Its answers are then the
-// reference: the kernel with its first k places dropped is put, k walked by halving to the greatest that still answers
-// every case as the whole kernel does, the least opening a kernel runs with: `run answers <k> opening least`. Each
-// variant and its verdict is a line of the run's blob frame.txt. 0 where both rows are written or the run is dry, 1
-// otherwise with the reason printed
+// The frame queried (Open 6.3): the kernel the system accepted, its body the ladder's relation at its probe place, is
+// put whole over every case with no host value to check it against, and an answer on every case means the container the
+// vendor's writer makes is loaded and returned from: `run answers 00000001 container returned`. Its answers are then
+// the reference: the kernel with its first k places dropped is put, k walked by halving to the greatest that still
+// answers every case as the whole kernel does, the least opening a kernel runs with: `run answers <k> opening least`.
+// Each variant and its verdict is a line of the run's blob frame.txt. 0 where both rows are written or the run is dry,
+// 1 otherwise with the reason printed
 int identity_frame(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                    const char *const *carrier)
 {
@@ -80,15 +80,15 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
     }
     record_open(ksc, "frame");
     static RunQuestion s_question;
-    s_question.slot = RUN_SLOT_NONE;
+    s_question.place = RUN_PLACE_NONE;
     s_question.registers = registers;
     std::vector<unsigned int> case_places;
     stall_cases(&s_question, &case_places);
-    // no host value holds the whole kernel: the ask is whether the part answers it at all
+    // no host value checks the whole kernel: the query is whether the part answers it at all
     const std::vector<std::string> nothing(IDENTITY_CASES, "-");
-    unsigned long long asks = 0ull;
+    unsigned long long queries = 0ull;
     RunWritten table = {(folder + "/frame.txt"), 0, std::string()};
-    const int returned = question_alike(kernel, nothing, case_places, &s_question, &asks);
+    const int returned = question_alike(kernel, nothing, case_places, &s_question, &queries);
     run_print(&table, "container %s%s%s\n", returned ? "returned" : "not returned", returned ? "" : ": ",
               returned ? "" : s_question.refused);
     const int dry = strncmp(s_question.refused, "skipped dry", 11u) == 0;
@@ -107,7 +107,7 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
         return 1;
     }
     printf("  the container returned, over %u cases\n", s_question.cases);
-    // the whole kernel's own answers, case by case, are what every variant is held to
+    // the whole kernel's own answers, case by case, are what every variant is checked against
     std::vector<std::string> reference(IDENTITY_CASES, "-");
     for (unsigned int place = 0u; place < s_question.cases; place += 1u)
     {
@@ -115,8 +115,8 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
         snprintf(answered, sizeof(answered), "%llx", s_question.answered[place]);
         reference[case_places[place]] = answered;
     }
-    FrameAsk ask = {&kernel, &reference, &case_places, &s_question, &asks, &table};
-    const unsigned long long from = frame_greatest(frame_holds, &ask, 0ull, (unsigned long long)places);
+    FrameQuery query = {&kernel, &reference, &case_places, &s_question, &queries, &table};
+    const unsigned long long from = frame_greatest(frame_matches, &query, 0ull, (unsigned long long)places);
     if (!run_closed(&table))
     {
         printf("orior_klq_identity frame: %s/frame.txt could not be written\n", folder.c_str());
@@ -131,7 +131,7 @@ int identity_frame(const char *engine, const char *answers, const char *ksc, con
         printf("orior_klq_identity frame: %s could not be written\n", ksc);
         return 1;
     }
-    printf("orior_klq_identity frame: the least opening begins at place %llu of %u, over %llu asks, written to %s\n", from,
-           places, asks, ksc);
+    printf("orior_klq_identity frame: the least opening begins at place %llu of %u, over %llu queries, written to %s\n",
+           from, places, queries, ksc);
     return 0;
 }

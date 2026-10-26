@@ -40,7 +40,7 @@ int cli_wake_wait_for(CliWake *wake, CliLock *lock, unsigned long long milliseco
 {
     struct timespec until;
     clock_gettime(CLOCK_REALTIME, &until);
-    // the seconds and nanoseconds to wait, each within what a time_t and a long hold
+    // the seconds and nanoseconds to wait, each within what a time_t and a long represent
     until.tv_sec += (time_t)(milliseconds / 1000ull);
     until.tv_nsec += (long)((milliseconds % 1000ull) * 1000000ull);
     if (until.tv_nsec >= 1000000000l)
@@ -58,7 +58,7 @@ void cli_wake_all(CliWake *wake)
 
 static void *cli_thread_entry(void *given)
 {
-    // the thread is handed what it runs, which its starter keeps for as long as the thread lives
+    // the thread is handed what it runs, which its starter retains for as long as the thread lives
     const CliThread *const thread = (const CliThread *)given;
     cli_priority_own(thread->priority);
     thread->run(thread->context);
@@ -66,8 +66,8 @@ static void *cli_thread_entry(void *given)
 }
 
 // On Linux a thread has a nice value of its own, and an idle one the idle policy; on macOS a thread has a quality of
-// service. A thread of the run class keeps the level it was started at: raising one takes a privilege orior does not
-// ask for
+// service. A thread of the run class retains the level it was started at: raising one takes a privilege orior does not
+// request
 void cli_priority_own(unsigned int priority)
 {
     if ((priority != CLI_PRIORITY_GUEST) && (priority != CLI_PRIORITY_IDLE))
@@ -104,7 +104,7 @@ int cli_thread_started(CliThread *thread)
 unsigned int cli_processors(void)
 {
     const long count = sysconf(_SC_NPROCESSORS_ONLN);
-    // a count of processors is positive and small, which an unsigned int holds
+    // a count of processors is positive and small, which an unsigned int stores
     return (count > 0l) ? (unsigned int)count : 1u;
 }
 #endif

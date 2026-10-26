@@ -222,24 +222,24 @@ SimRational psi_value_expand(const PsiValue *value, unsigned long long base)
     return total;
 }
 
-void psi_value_print(ScripturaLine *line, const PsiValue *value)
+void psi_value_print(VerbaLinea *line, const PsiValue *value)
 {
-    scriptura_decimal(line, value->count, 1u);
-    scriptura_text(line, " terms, from ");
+    mmgr_line_decimal(line, value->count, 1u);
+    mmgr_line_put(line, " terms, from ");
     for (unsigned int at = 0u; (at < value->count) && (at < 2u); at += 1u)
     {
         if (at != 0u)
         {
-            scriptura_text(line, " + ");
+            mmgr_line_put(line, " + ");
         }
         sim_rational_print(line, value->coefficient[at]);
-        scriptura_text(line, " g^-");
-        scriptura_decimal(line, value->exponent[at], 1u);
+        mmgr_line_put(line, " g^-");
+        mmgr_line_decimal(line, value->exponent[at], 1u);
     }
     if (value->count != 0u)
     {
-        scriptura_text(line, " to exponent ");
-        scriptura_decimal(line, value->exponent[value->count - 1u], 1u);
+        mmgr_line_put(line, " to exponent ");
+        mmgr_line_decimal(line, value->exponent[value->count - 1u], 1u);
     }
 }
 

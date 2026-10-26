@@ -21,9 +21,9 @@ def read_edges(path):
         for line in handle:
             fields = line.rstrip("\n").split("\t")
             row = dict(zip(header, fields))
-            row["held"] = int(row["held"])
+            row["retained"] = int(row["retained"])
             row["body_voxels"] = int(row["body_voxels"])
-            text = row.get("null_held", "")
+            text = row.get("null_retained", "")
             row["draws"] = [int(value) for value in text.split(",")] if text else []
             row["failed"] = row["status"] != "correct"
             rows.append(row)
@@ -52,7 +52,7 @@ def curve(rows):
             share = Fraction(0)
             for row in chosen:
                 best = max(row["draws"][:draws])
-                delta = row["held"] - best
+                delta = row["retained"] - best
                 beats += 1 if delta > 0 else 0
                 share += Fraction(delta, max(row["body_voxels"], 1))
             point[group + "_edges"] = len(chosen)

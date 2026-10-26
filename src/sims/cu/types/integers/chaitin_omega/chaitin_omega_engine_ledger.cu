@@ -104,7 +104,7 @@ void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const O
     }
 }
 
-int omega_buffer_reserve(OmegaBuffer *buffer, size_t bytes, int keep)
+int omega_buffer_reserve(OmegaBuffer *buffer, size_t bytes, int preserve)
 {
     if (bytes <= buffer->bytes)
     {
@@ -116,7 +116,7 @@ int omega_buffer_reserve(OmegaBuffer *buffer, size_t bytes, int keep)
         (void)cudaGetLastError();
         return 0;
     }
-    if ((keep != 0) && (buffer->bytes != 0u) &&
+    if ((preserve != 0) && (buffer->bytes != 0u) &&
         (cudaMemcpy(grown, buffer->data, buffer->bytes, cudaMemcpyDeviceToDevice) != cudaSuccess))
     {
         (void)cudaFree(grown);
@@ -168,12 +168,12 @@ unsigned int omega_pool_grid(unsigned long long count)
 {
     const unsigned long long blocks = (count + OMEGA_POOL_BLOCK - 1ull) / OMEGA_POOL_BLOCK;
     const unsigned long long grid = (blocks == 0ull) ? 1ull : blocks;
-    // at most OMEGA_POOL_GRID_MAX, which an unsigned int holds
+    // at most OMEGA_POOL_GRID_MAX, which an unsigned int stores
     return (unsigned int)((grid < OMEGA_POOL_GRID_MAX) ? grid : OMEGA_POOL_GRID_MAX);
 }
 
 // A job's terms unranked on the device after the pool's live terms. 1 where admitted, 2 where the device cannot
-// hold them beside the live terms. The job waits for the pool to drain, and 0 where the device errored.
+// fit them beside the live terms. The job waits for the pool to drain, and 0 where the device errored.
 int omega_pool_insert_job(SimResults *results, OmegaBuffer *buffers, const OmegaEngineJob *job, unsigned int job_at,
                           OmegaPoolExtent *extent)
 {
@@ -237,7 +237,7 @@ int omega_pool_insert_job(SimResults *results, OmegaBuffer *buffers, const Omega
 #define OMEGA_ENGINE_TOKEN_BYTES 96ull
 
 // The bytes a run on the engine declares to tessera: its first round's admitted terms, each at the most tokens its
-// length holds (a token takes 2 bits at least), and the counts it copies to the device.
+// length allows (a token takes 2 bits at least), and the counts it copies to the device.
 unsigned long long omega_engine_declared(const OmegaCounts *counts)
 {
     unsigned long long terms = 0ull;

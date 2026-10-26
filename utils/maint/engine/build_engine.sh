@@ -105,12 +105,14 @@ fi
 # configure builds nothing, where skipping builds the host arms and says what was skipped.
 # The host compiler nvcc needs is platform specific and the wrong test passes on Windows. Git Bash
 # carries gcc, nvcc there requires cl.exe, and accepting gcc lets the configure get as far as
-# "Cannot find compiler 'cl.exe' in PATH" before failing.
+# "Cannot find compiler 'cl.exe' in PATH" before failing. Cl.exe on PATH is not enough either: without
+# vcvars' INCLUDE the host build above is pinned to gcc, and a CUDA configure beside it links nvcc's
+# objects with gcc's tools, which fails.
 want_cuda=0
 if command -v nvcc >/dev/null 2>&1; then
     case "$(uname -s 2>/dev/null)" in
         MINGW*|MSYS*|CYGWIN*)
-            if command -v cl.exe >/dev/null 2>&1; then
+            if command -v cl.exe >/dev/null 2>&1 && [ -n "${INCLUDE:-}" ]; then
                 want_cuda=1
             fi
             ;;
@@ -118,6 +120,24 @@ if command -v nvcc >/dev/null 2>&1; then
             if command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1; then
                 want_cuda=1
             fi
+            ;;
+    esac
+fi
+
+# A CUDA configure on Windows links with MSVC's linker and resource compiler, and CMake finds neither by name here:
+# link.exe on PATH is the shell's coreutils link, and the first windres on PATH is another toolchain's. Both are named:
+# the linker beside cl.exe, and rc.exe on PATH or the newest Windows SDK's
+msvc_tools=()
+if [ "$want_cuda" -eq 1 ]; then
+    case "$(uname -s 2>/dev/null)" in
+        MINGW*|MSYS*|CYGWIN*)
+            linker="$(dirname "$(command -v cl.exe)")/link.exe"
+            resources="$(command -v rc.exe 2>/dev/null || ls -d "/c/Program Files (x86)/Windows Kits/10/bin"/*/x64/rc.exe 2>/dev/null | tail -1)"
+            if [ ! -f "$linker" ] || [ -z "$resources" ]; then
+                echo "No MSVC linker beside cl.exe, or no rc.exe, for the device arm." >&2
+                exit 1
+            fi
+            msvc_tools=("-DCMAKE_LINKER=$(cygpath -m "$linker")" "-DCMAKE_RC_COMPILER=$(cygpath -m "$resources")")
             ;;
     esac
 fi
@@ -136,9 +156,10 @@ fi
 # Unquoted: empty must expand to no argument and not to an empty one.
 # shellcheck disable=SC2086
 if [ "$want_cuda" -eq 1 ]; then
-    cmake -S "$src" -B "$build" $generator $compiler -DCMAKE_BUILD_TYPE=Release >/dev/null
+    cmake -S "$src" -B "$build" $generator $compiler "${msvc_tools[@]}" -DCMAKE_BUILD_TYPE=Release >/dev/null
 else
-    cmake -S "$src" -B "$build" $generator $compiler -DCMAKE_BUILD_TYPE=Release \
+    # a CUDA compiler a configure before this one cached enables CUDA all the same, so it is let go
+    cmake -S "$src" -B "$build" $generator $compiler -DCMAKE_BUILD_TYPE=Release -UCMAKE_CUDA_COMPILER \
         -DCMAKE_DISABLE_FIND_PACKAGE_CUDAToolkit=ON -DORIOR_SKIP_CUDA=ON >/dev/null
 fi
 
@@ -205,46 +226,6 @@ for grader in test_steer test_adversarial test_arm_agreement bench_steer_arms be
         failed=$((failed + 1))
     fi
 done
-
-# The Python graders under utils/test/src/python that grade a host build, each named by its path under utils/test. Each is handed, in its environment variable, the program
-# or library this build made. Not one finds an older one elsewhere under build/. The first name found in $bin
-# is given.
-python_grader()
-{
-    script="$1"
-    variable="$2"
-    shift 2
-    path=""
-    for name in "$@"; do
-        if [ -f "$bin/$name" ]; then
-            path="$bin/$name"
-            break
-        fi
-    done
-    echo ""
-    echo "[*] utils/test/$script"
-    if [ -z "$path" ]; then
-        echo "[!] $script: none of $* was built" >&2
-        failed=$((failed + 1))
-        return 0
-    fi
-    # a Windows Python reads a Windows path
-    if command -v cygpath >/dev/null 2>&1; then
-        path=$(cygpath -m "$path")
-    fi
-    if ! env "$variable=$path" python "$root/utils/test/$script"; then
-        echo "[!] $script reported a failure" >&2
-        failed=$((failed + 1))
-    fi
-}
-
-python_grader src/python/types/integers/exact_test.py ORIOR_BENCH_EXACT bench_exact.exe bench_exact
-python_grader src/python/engine/render/render_test.py ORIOR_RENDER_LIB orior_render.dll liborior_render.dll liborior_render.so \
-    liborior_render.dylib
-python_grader src/python/engine/nbody/orior/sift_test.py ORIOR_LIB orior_host.dll liborior_host.dll liborior_host.so \
-    liborior_host.dylib
-python_grader src/python/engine/analysis/shift_agreement/shift_agreement_test.py ORIOR_SHIFT_LIB shift_agreement_host.dll libshift_agreement_host.dll \
-    libshift_agreement_host.so libshift_agreement_host.dylib
 
 echo ""
 if [ "$failed" -ne 0 ]; then

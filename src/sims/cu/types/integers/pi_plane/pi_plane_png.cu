@@ -27,7 +27,7 @@ static void plane_put_word(std::vector<unsigned char> *out, unsigned int word)
 
 static void plane_chunk(std::vector<unsigned char> *out, const char *type, const std::vector<unsigned char> &data)
 {
-    // a chunk holds at most one picture, far below 2^31 bytes
+    // a chunk contains at most one picture, far below 2^31 bytes
     plane_put_word(out, (unsigned int)data.size());
     const size_t start = out->size();
     for (unsigned int letter = 0u; letter < 4u; letter += 1u)

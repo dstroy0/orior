@@ -12,8 +12,8 @@
 
 #define CLI_REGEXP_FAILED 0xffffffffu
 
-// What reading keeps: the pattern's letters, where reading stands, the groups counted, whether `u` is set, the regexp
-// it reads into, the source and where a failure is said
+// What reading tracks: the pattern's letters, where reading stands, the groups counted, whether `u` is set, the regexp
+// it reads into, the source and where a failure is reported
 typedef struct
 {
     unsigned int letters[CLI_REGEXP_LETTERS];
@@ -23,11 +23,11 @@ typedef struct
     int unicode;
     CliRegexp *regexp;
     const char *source;
-    CliLine *said;
+    VerbaLinea *err_msg;
     int failed;
 } CliRegexpReader;
 
-// a failure said, `/<source>/: <why> at <place>`: CLI_REGEXP_FAILED
+// a failure reported, `/<source>/: <why> at <place>`: CLI_REGEXP_FAILED
 unsigned int cli_failed(CliRegexpReader *reader, const char *why);
 // the letter where reading stands, the letter taken, and the letter taken where it is the one wanted
 int cli_peek(const CliRegexpReader *reader, unsigned int *letter);

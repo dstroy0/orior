@@ -71,7 +71,7 @@ void cli_py_unreachable(const char *src, unsigned long long size, CliFacts *fact
         const CliInspectTok *const word = cli_py_tok(line, 0u);
         const int leaves = cli_py_is(src, word, "return") || cli_py_is(src, word, "raise") ||
                            cli_py_is(src, word, "break") || cli_py_is(src, word, "continue");
-        if (!leaves || cli_py_holds(src, &g_cli_inspect_tok[line->first], line->count, ";"))
+        if (!leaves || cli_py_contains(src, &g_cli_inspect_tok[line->first], line->count, ";"))
         {
             at += 1u;
             continue;
@@ -90,11 +90,11 @@ void cli_py_unreachable(const char *src, unsigned long long size, CliFacts *fact
             CliInspectPlace to = {0u, 0u};
             cli_py_whole_lines(src, size, cli_py_tok(first, 0u)->from.line, last.line, &from, &to);
             char message[CLI_INSPECT_UNREACHED_ROOM];
-            CliLine said = {message, sizeof(message), 0ull};
-            cli_line_text(&said, CLI_INSPECT_UNREACHED_BEFORE);
-            cli_line_counted(&said, src + word->start, word->end - word->start);
-            cli_line_text(&said, CLI_INSPECT_UNREACHED_AFTER);
-            cli_inspect_finding_put(facts, cli_py_tok(first, 0u)->from, last, CLI_INSPECT_WARNING, &said, "unreachable",
+            VerbaLinea msg = {message, sizeof(message), 0ull};
+            mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_BEFORE);
+            mmgr_line_put_n(&msg, src + word->start, word->end - word->start);
+            mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_AFTER);
+            cli_inspect_finding_put(facts, cli_py_tok(first, 0u)->from, last, CLI_INSPECT_WARNING, &msg, "unreachable",
                                     NULL);
             cli_inspect_fix_titled(facts, "Take out the code no path reaches");
             cli_inspect_edit_put(facts, from, to, "", 0ull);
@@ -107,17 +107,17 @@ void cli_py_unreachable(const char *src, unsigned long long size, CliFacts *fact
 static void doc_note(CliFacts *facts, const CliInspectTok *tok, const char *message, const char *code)
 {
     char text[256];
-    CliLine said = {text, sizeof(text), 0ull};
-    cli_line_text(&said, "PEP 257: ");
-    cli_line_text(&said, message);
-    cli_inspect_finding_put(facts, tok->from, tok->to, CLI_INSPECT_NOTE, &said, code, s_pep_257);
+    VerbaLinea msg = {text, sizeof(text), 0ull};
+    mmgr_line_put(&msg, "PEP 257: ");
+    mmgr_line_put(&msg, message);
+    cli_inspect_finding_put(facts, tok->from, tok->to, CLI_INSPECT_NOTE, &msg, code, s_pep_257);
 }
 
-// a fix put on the last note that writes the docstring whole again as `text` says
-static void doc_whole_fix(CliFacts *facts, const CliInspectTok *tok, const char *title, const CliLine *text)
+// a fix put on the last note that writes the docstring whole again as `text` specifies
+static void doc_whole_fix(CliFacts *facts, const CliInspectTok *tok, const char *title, const VerbaLinea *text)
 {
     cli_inspect_fix_titled(facts, title);
-    cli_inspect_edit_put(facts, tok->from, tok->to, text->out, cli_line_fits(text) ? text->at : 0ull);
+    cli_inspect_edit_put(facts, tok->from, tok->to, text->out, mmgr_line_ok(text) ? text->at : 0ull);
 }
 
 // the UTF-16 units of `size` bytes of `text`
@@ -214,7 +214,7 @@ static void doc_checked(const char *src, unsigned long long size, const CliInspe
     }
     const DocPart inner = {tok->start + prefix + quote, tok->start + length - quote};
     static char s_fixed[1u << 20u];
-    CliLine fixed = {s_fixed, sizeof(s_fixed), 0ull};
+    VerbaLinea fixed = {s_fixed, sizeof(s_fixed), 0ull};
     if (!triple || (memor.cmp(&(MemoriaCfg){.src = body, .other = "\"\"\"", .bytes = 3u}) != 0))
     {
         doc_note(facts, tok, "a docstring is written in three double quotes.", "docstring-quotes");
@@ -225,10 +225,10 @@ static void doc_checked(const char *src, unsigned long long size, const CliInspe
         }
         if (!inside)
         {
-            cli_line_counted(&fixed, whole, prefix);
-            cli_line_text(&fixed, "\"\"\"");
-            cli_line_counted(&fixed, src + inner.start, inner.end - inner.start);
-            cli_line_text(&fixed, "\"\"\"");
+            mmgr_line_put_n(&fixed, whole, prefix);
+            mmgr_line_put(&fixed, "\"\"\"");
+            mmgr_line_put_n(&fixed, src + inner.start, inner.end - inner.start);
+            mmgr_line_put(&fixed, "\"\"\"");
             doc_whole_fix(facts, tok, "Use three double quotes", &fixed);
         }
     }
@@ -248,10 +248,10 @@ static void doc_checked(const char *src, unsigned long long size, const CliInspe
                  .src = src + inner.start, .val = '\n', .bytes = (size_t)(inner.end - inner.start)}) != NULL);
         const int spaced = (inner.start != trimmed.start) || (inner.end != trimmed.end);
         fixed.at = 0ull;
-        cli_line_counted(&fixed, whole, prefix);
-        cli_line_counted(&fixed, broken ? "\"\"\"" : body, broken ? 3u : quote);
-        cli_line_counted(&fixed, src + trimmed.start, trimmed.end - trimmed.start);
-        cli_line_counted(&fixed, broken ? "\"\"\"" : body, broken ? 3u : quote);
+        mmgr_line_put_n(&fixed, whole, prefix);
+        mmgr_line_put_n(&fixed, broken ? "\"\"\"" : body, broken ? 3u : quote);
+        mmgr_line_put_n(&fixed, src + trimmed.start, trimmed.end - trimmed.start);
+        mmgr_line_put_n(&fixed, broken ? "\"\"\"" : body, broken ? 3u : quote);
         if (broken)
         {
             doc_note(facts, tok, "a one-line docstring fits on one line with its quotes.", "docstring-one-line");
@@ -303,8 +303,8 @@ static void doc_checked(const char *src, unsigned long long size, const CliInspe
                  "docstring-close");
         const CliInspectPlace close = {tok->to.line, tok->to.col - (unsigned int)quote};
         fixed.at = 0ull;
-        cli_line_character(&fixed, '\n');
-        cli_line_counted(&fixed, src + line.start, indent - line.start);
+        mmgr_line_ch(&fixed, '\n');
+        mmgr_line_put_n(&fixed, src + line.start, indent - line.start);
         cli_inspect_fix_titled(facts, "Put the closing quotes on a line of their own");
         cli_inspect_edit_put(facts, close, close, fixed.out, fixed.at);
     }

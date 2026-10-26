@@ -135,7 +135,7 @@ __device__ static inline int cycle_record_bitwise(unsigned int operation, const 
 
 // a register wrapped to `bits` of two's complement, read back signed as a magnitude over `limbs`; returns its sign.
 // keymath gave the step the fewer of the source's bits and the wrap's. A wrap wider than the step's 32 limbs is a
-// source already inside the signed range, passed through, and any other step holds exactly the wrap's limbs.
+// source already inside the signed range, passed through, and any other step contains exactly the wrap's limbs.
 __device__ static inline int cycle_record_wrap(const unsigned int *source, unsigned int source_limbs, int source_sign,
                                                unsigned int bits, unsigned int *value, unsigned int limbs)
 {
@@ -152,8 +152,8 @@ __device__ static inline int cycle_record_wrap(const unsigned int *source, unsig
     {
         value[at] = cycle_record_complement(source, source_limbs, at, source_sign, &carry);
     }
-    const unsigned int kept = bits - (32u * (limbs - 1u));
-    value[limbs - 1u] = (kept < 32u) ? (value[limbs - 1u] & ((1u << kept) - 1u)) : value[limbs - 1u];
+    const unsigned int top_bits = bits - (32u * (limbs - 1u));
+    value[limbs - 1u] = (top_bits < 32u) ? (value[limbs - 1u] & ((1u << top_bits) - 1u)) : value[limbs - 1u];
     const unsigned int top = bits - 1u;
     const int negative = (((value[top / 32u] >> (top % 32u)) & 1u) != 0u) ? 1 : 0;
     if (negative != 0)
@@ -274,8 +274,8 @@ __device__ static inline void cycle_record_shift_down(const unsigned int *value,
     }
 }
 
-// Knuth's Algorithm D on the magnitudes: top = quotient . bottom + rest, each output kept to its own limbs and
-// either one left out when NULL; 0 for a zero divisor. scratch holds 2 * WIDE + 2 limbs.
+// Knuth's Algorithm D on the magnitudes: top = quotient . bottom + rest, each output limited to its own limbs and
+// either one left out when NULL; 0 for a zero divisor. scratch contains 2 * WIDE + 2 limbs.
 template <unsigned int WIDE>
 __device__ static int cycle_record_divide(const unsigned int *top, unsigned int top_limbs, const unsigned int *bottom,
                                           unsigned int bottom_limbs, unsigned int *quotient,

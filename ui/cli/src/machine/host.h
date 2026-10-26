@@ -10,13 +10,13 @@
 // whether orior_cli runs inside a Flatpak's sandbox
 int cli_sandboxed(void);
 // the stand-in for the machine's program `name`, written into `line`
-void cli_stand_in(const char *name, CliLine *line);
-// a stand-in written in `into` for each program of `names`, one a line, but those that keep running inside: how many,
-// or -1 with why said
-long long cli_stand_ins_written(const char *into, const char *names, CliLine *said);
+void cli_stand_in(const char *name, VerbaLinea *line);
+// a stand-in written in `into` for each program of `names`, one a line, but those that stay running inside: how many,
+// or -1 with why given
+long long cli_stand_ins_written(const char *into, const char *names, VerbaLinea *err_msg);
 // inside a sandbox, a stand-in made for each program on the machine's PATH and their folder put first on orior's own
-// PATH, which all it starts take: how many it made, -1 with why said, or -2 outside a sandbox. Run as orior_cli starts,
-// before it starts anything else
-long long cli_host_prepared(CliLine *said);
+// PATH, which all it starts take: how many it made, -1 with why given, or -2 outside a sandbox. Run as orior_cli
+// starts, before it starts anything else
+long long cli_host_prepared(VerbaLinea *err_msg);
 
 #endif

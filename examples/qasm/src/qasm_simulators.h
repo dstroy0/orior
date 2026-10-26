@@ -64,8 +64,8 @@ extern "C"
 
 // The self run: a circuit of exact gates as one program on the record machine. Each gate is a floor of integer steps
 // over the floor below, and with register reuse every lane runs the whole stack in one launch from its own state. A
-// lane holds every amplitude's four parts as integers over one denominator the host keeps. The device's words equal the
-// host's exact integers word for word, and each output is that integer over the denominator, reduced.
+// lane stores every amplitude's four parts as integers over one denominator the host stores. The device's words equal
+// the host's exact integers word for word, and each output is that integer over the denominator, reduced.
 #define QASM_SELF_QUBITS_MAX 5u
 
     typedef struct
@@ -93,7 +93,7 @@ extern "C"
         unsigned int in_limbs;
         unsigned int out_limbs;
         unsigned long long lanes;
-        // the records and the step table the device holds
+        // the records and the step table the device stores
         unsigned long long device_bytes;
         unsigned long long microseconds;
     } QasmSelfMeasurement;
@@ -118,7 +118,7 @@ extern "C"
         QasmMatrix *tensors;
     } QasmChain;
 
-    // |0...0>: every site 1 x 1, sigma 0 holding one and sigma 1 zero
+    // |0...0>: every site 1 x 1, sigma 0 containing one and sigma 1 zero
     long qasm_chain_alloc(QasmChain *chain, const QasmField *field, unsigned int sites, EngineError *error);
 
     void qasm_chain_release(QasmChain *chain);
@@ -130,7 +130,7 @@ extern "C"
     // again by an exact rank factorization M = C F over the field, C the pivot columns and F the reduced rows.
     long qasm_chain_apply_two(QasmChain *chain, const void *gate, unsigned int site, EngineError *error);
 
-    // <bits|psi>, bits[site] 0 or 1, into an element slot
+    // <bits|psi>, bits[site] 0 or 1, into an element's storage
     long qasm_chain_amplitude(const QasmChain *chain, const unsigned char *bits, void *amplitude, EngineError *error);
 
     // The boundary lens: <psi|O|psi> with each site's operator (2 x 2 elements, [sigma'][sigma], operators[4 site +
@@ -143,7 +143,7 @@ extern "C"
     // the bond across the cut after `site`, or 0 past the last cut
     unsigned int qasm_chain_bond(const QasmChain *chain, unsigned int site);
 
-    // the field elements the tensors hold: 2 x left bond x right bond, summed over the sites
+    // the field elements the tensors contain: 2 x left bond x right bond, summed over the sites
     unsigned long long qasm_chain_elements(const QasmChain *chain);
 
     // the engine's seal over every tensor entry's bytes in site, sigma, row, column order; the number field only
@@ -158,9 +158,9 @@ extern "C"
         QasmNumber *coefficients;
     } QasmPolynomial;
 
-    // An element of Q(sqrt2)[i](w), w = e^{i k/Delta^3} carried as a formal unit on the circle. Kept as
-    // symbolic_qubits.py's rat_make keeps it: both shifted to no negative power with one of them free of w, reduced by
-    // their monic gcd, and the denominator monic. That form is unique. Two equal functions hold equal coefficients.
+    // An element of Q(sqrt2)[i](w), w = e^{i k/Delta^3} carried as a formal unit on the circle. Stored as
+    // symbolic_qubits.py's rat_make stores it: both shifted to no negative power with one of them free of w, reduced by
+    // their monic gcd, and the denominator monic. That form is unique. Two equal functions have equal coefficients.
     typedef struct
     {
         QasmPolynomial numerator;
@@ -170,7 +170,7 @@ extern "C"
     // Q(sqrt2)[i](w); its elements are QasmRationalFunction
     extern const QasmField qasm_rational_function_field;
 
-    // coefficient w^exponent, into a slot
+    // coefficient w^exponent, into storage
     long qasm_rational_function_set(QasmRationalFunction *value, const QasmNumber *coefficient, int exponent,
                                     EngineError *error);
 

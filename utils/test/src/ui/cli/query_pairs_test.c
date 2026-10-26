@@ -10,16 +10,16 @@
 
 static QueryWords s_words;
 
-// the words joined by spaces from `from` into `out`, which holds `room`
+// the words joined by spaces from `from` into `out`, which is sized for `room`
 static const char *pairs_joined(unsigned int from, char *out, unsigned long long room)
 {
-    CliLine line = {out, room, 0ull};
+    VerbaLinea line = {out, room, 0ull};
     for (unsigned int at = from; at < s_words.count; at += 1u)
     {
-        cli_line_text(&line, (at > from) ? " " : "");
-        cli_line_text(&line, s_words.word[at]);
+        mmgr_line_put(&line, (at > from) ? " " : "");
+        mmgr_line_put(&line, s_words.word[at]);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -94,15 +94,16 @@ static void pairs_carrier(void)
     query_pairs_carry_words(&s_words, "C", "X", "N", "M", "L", "sm_86", 1);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = pairs_joined(0u, dry, sizeof(dry)),
-                  .other = "C --dry --full --held held.txt --lessons overseer.txt M L --pop C --dry --full --lessons "
-                           "overseer.txt M L --cross X N SM86 airlock.md held.txt",
+                  .other = "C --dry --full --gated gated.txt --lessons overseer.txt M L --pop C --dry --full --lessons "
+                           "overseer.txt M L --cross X N SM86 airlock.md gated.txt",
                   .cap = CLI_CELLS_POOL}),
               "the dry carrier's flags come first as the carrier reads them");
     (void)pairs_joined(9u, rest, sizeof(rest));
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     query_pairs_carry_words(&s_words, "C", "X", "N", "M", "L", "sm_86", 0);
-    cli_check(cli_text_same(pairs_joined(0u, live, sizeof(live)), "C --held held.txt --lessons overseer.txt M L ", 44u),
-              "a live carrier without them");
+    cli_check(
+        cli_text_same(pairs_joined(0u, live, sizeof(live)), "C --gated gated.txt --lessons overseer.txt M L ", 46u),
+        "a live carrier without them");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = pairs_joined(7u, live, sizeof(live)), .other = rest, .cap = CLI_CELLS_POOL}),
               "the rest alike");
@@ -137,8 +138,8 @@ static void pairs_carrier(void)
 static int pairs_read(const char *const *words, unsigned int count, QueryPairsMode *mode)
 {
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    return query_pairs_read(words, count, mode, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return query_pairs_read(words, count, mode, &err_msg);
 }
 
 // the words are read
@@ -185,6 +186,7 @@ static void pairs_words(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     pairs_targets_of();
     pairs_carrier();
     pairs_words();

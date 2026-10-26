@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
  * @file exact_integer.h
- * @brief An exact integer held as a fixed width array of limbs, and the operations a measure needs.
+ * @brief An exact integer stored as a fixed width array of limbs, and the operations a measure needs.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * @note A limb array is a transform of an integer, the same way decimal text is one. The value is
@@ -34,10 +34,10 @@
  *       that ladder from ORIOR_EXACT_NEWTON_LIMBS. Every rung is measured by
  *       utils/test/src/cu/includes/types/integers/exact_transform_test.sh and gives the product or
  *       quotient the rung below it gives.
- * @note A width-sized working copy sits on the stack up to ORIOR_EXACT_STACK_LIMBS and is held
- *       from the heap past it. No width is bounded by a stack. Where the heap cannot hold a
- *       copy, the call errors with ORIOR_EXACT_WILL_NOT_FIT. A caller holding many integers at a
- *       wide width keeps them in static or allocated storage. A main thread stack defaults to 1 MiB
+ * @note A width-sized working copy sits on the stack up to ORIOR_EXACT_STACK_LIMBS and is allocated
+ *       from the heap past it. No width is bounded by a stack. Where the heap cannot allocate a
+ *       copy, the call errors with ORIOR_EXACT_WILL_NOT_FIT. A caller storing many integers at a
+ *       wide width stores them in static or allocated storage. A main thread stack defaults to 1 MiB
  *       under the MSVC linker and 8 MiB under a stock Linux.
  */
 #ifndef ORIOR_EXACT_LIMBS_H

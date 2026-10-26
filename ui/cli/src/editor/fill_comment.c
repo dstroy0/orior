@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fill_comment.c: a `/** */` comment written again whole. Its lines are read without their stars, the opening and the
-// closing lines' text kept where they hold any; split into paragraphs at blank lines and at each tag; each paragraph's
-// words filled under ` * `, and each run of tags of one kind lined up: the tags, their types in braces, the names of
-// those that name one, and their descriptions each in one column, a description that runs past the margin going on
-// under its own first word. A run's tags are joined from their lines into a room sized to the comment's bytes
+// closing lines' text retained where they contain any; split into paragraphs at blank lines and at each tag; each
+// paragraph's words filled under ` * `, and each run of tags of one kind lined up: the tags, their types in braces, the
+// names of those that name one, and their descriptions each in one column, a description that runs past the margin
+// going on under its own first word. A run's tags are joined from their lines into a room sized to the comment's bytes
 // it left out of the run
 #include "../command_line/cells.h"
 #include "fill_internal.h"
 
-// the bytes a tag line's head, its hanging lead and the comment's lead each hold
+// the bytes a tag line's head, its hanging lead and the comment's lead each occupy
 #define CLI_FILL_LINE_ROOM (1u << 16u)
 
 // the tags whose first word after a type is a name
@@ -47,9 +47,9 @@ typedef struct
 static CliFillRoom s_room;
 static CliFillRoom *s_fill;
 
-int cli_fill_comment_held(CliLine *said)
+int cli_fill_comment_locked(VerbaLinea *err_msg)
 {
-    (void)said;
+    (void)err_msg;
     s_fill = &s_room;
     return 1;
 }
@@ -59,7 +59,7 @@ void cli_fill_comment_released(void)
     s_fill = NULL;
 }
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
 static void *comment_part(unsigned char **at, unsigned long long bytes)
 {
     void *const part = *at;
@@ -68,16 +68,16 @@ static void *comment_part(unsigned char **at, unsigned long long bytes)
 }
 
 // the fill's cell taken for a comment of `lines` lines and `bytes` bytes and the room's parts set into it: the cell,
-// or NULL with why said where it is refused
-static void *comment_room_taken(unsigned int lines, unsigned long long bytes, CliLine *said)
+// or NULL with why given where it is refused
+static void *comment_room_taken(unsigned int lines, unsigned long long bytes, VerbaLinea *err_msg)
 {
     const unsigned long long joined = bytes + lines + 1ull;
     const unsigned long long size = ((unsigned long long)lines * ((2ull * sizeof(unsigned int)) + sizeof(CliFillTag))) +
                                     joined + (3ull * CLI_FILL_LINE_ROOM) + (8ull * 8ull);
-    unsigned char *const cell = cli_cell_taken(size, "a comment's fill");
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(size, NULL);
     if (cell == NULL)
     {
-        cli_line_text(said, "a comment's fill could not be taken");
+        mmgr_line_put(err_msg, "a comment's fill could not be taken");
         return NULL;
     }
     unsigned char *at = cell;
@@ -143,11 +143,11 @@ static int comment_bounds(const char *text, unsigned long long size, const CliFi
     return first->index != last->index;
 }
 
-// a comment's line put among its lines where it is kept, one place left after them for a description: their count
+// a comment's line put among its lines where it is retained, one place left after them for a description: their count
 // after
-static unsigned int comment_body_put(unsigned int count, const char *line, unsigned long long size, int kept)
+static unsigned int comment_body_put(unsigned int count, const char *line, unsigned long long size, int stored)
 {
-    if (kept && (count + 1u < g_cli_fill_slices))
+    if (stored && (count + 1u < g_cli_fill_slices))
     {
         g_cli_fill_slice[count] = line;
         g_cli_fill_slice_size[count] = size;
@@ -157,7 +157,7 @@ static unsigned int comment_body_put(unsigned int count, const char *line, unsig
 }
 
 // the comment's lines between `first` and `last`, each without its star, the opening and closing lines' text where
-// they hold any: their count
+// they contain any: their count
 static unsigned int comment_body(const char *text, unsigned long long size, const CliFillLine *first,
                                  const CliFillLine *last)
 {
@@ -212,7 +212,7 @@ static unsigned int comment_body(const char *text, unsigned long long size, cons
 }
 
 // the comment's lines split into parts: each blank line a part of no lines, each tag the start of a part, and each
-// other line put on the part before it where that holds lines: their count
+// other line put on the part before it where that contains lines: their count
 static unsigned int comment_parts(unsigned int lines)
 {
     unsigned int count = 0u;
@@ -320,12 +320,12 @@ static void comment_split_tag(const char *line, unsigned long long size, CliFill
 }
 
 // `size` bytes of `text` written padded with spaces to `width` letters
-static void comment_padded(CliLine *out, const char *text, unsigned long long size, unsigned long long width)
+static void comment_padded(VerbaLinea *out, const char *text, unsigned long long size, unsigned long long width)
 {
-    cli_line_counted(out, text, size);
+    mmgr_line_put_n(out, text, size);
     for (unsigned long long letters = cli_text_letters(text, size); letters < width; letters += 1u)
     {
-        cli_line_character(out, ' ');
+        mmgr_line_ch(out, ' ');
     }
 }
 
@@ -333,14 +333,14 @@ static void comment_padded(CliLine *out, const char *text, unsigned long long si
 static const char *comment_joined(unsigned int part, unsigned long long *used, unsigned long long *size)
 {
     char *const start = s_fill->joined + *used;
-    CliLine line = {start, s_fill->joined_most - *used, 0ull};
+    VerbaLinea line = {start, s_fill->joined_most - *used, 0ull};
     for (unsigned int at = 0u; at < s_fill->part_lines[part]; at += 1u)
     {
         const unsigned int index = s_fill->part_first[part] + at;
-        cli_line_text(&line, (at > 0u) ? " " : "");
-        cli_line_counted(&line, g_cli_fill_slice[index], g_cli_fill_slice_size[index]);
+        mmgr_line_put(&line, (at > 0u) ? " " : "");
+        mmgr_line_put_n(&line, g_cli_fill_slice[index], g_cli_fill_slice_size[index]);
     }
-    if (!cli_line_fits(&line))
+    if (!mmgr_line_ok(&line))
     {
         return NULL;
     }
@@ -394,17 +394,17 @@ static void comment_run(CliFilled *filled, unsigned int *part, unsigned int part
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliFillTag *const tag = &s_fill->tag[at];
-        CliLine head = {s_fill->head, CLI_FILL_LINE_ROOM, 0ull};
-        cli_line_counted(&head, lead, lead_size);
+        VerbaLinea head = {s_fill->head, CLI_FILL_LINE_ROOM, 0ull};
+        mmgr_line_put_n(&head, lead, lead_size);
         comment_padded(&head, tag->tag, tag->tag_size, widths[0]);
         if (widths[1] > 0u)
         {
-            cli_line_character(&head, ' ');
+            mmgr_line_ch(&head, ' ');
             comment_padded(&head, tag->kind, tag->kind_size, widths[1]);
         }
         if (widths[2] > 0u)
         {
-            cli_line_character(&head, ' ');
+            mmgr_line_ch(&head, ' ');
             comment_padded(&head, tag->name, tag->name_size, widths[2]);
         }
         if (tag->description_size == 0u)
@@ -412,13 +412,13 @@ static void comment_run(CliFilled *filled, unsigned int *part, unsigned int part
             cli_filled_line(filled, s_fill->head, cli_text_trimmed_end(s_fill->head, head.at));
             continue;
         }
-        cli_line_character(&head, ' ');
-        CliLine hang = {s_fill->hang, CLI_FILL_LINE_ROOM, 0ull};
-        cli_line_counted(&hang, lead, lead_size);
+        mmgr_line_ch(&head, ' ');
+        VerbaLinea hang = {s_fill->hang, CLI_FILL_LINE_ROOM, 0ull};
+        mmgr_line_put_n(&hang, lead, lead_size);
         for (unsigned long long letters = cli_text_letters(lead, lead_size);
              letters < cli_text_letters(s_fill->head, head.at); letters += 1u)
         {
-            cli_line_character(&hang, ' ');
+            mmgr_line_ch(&hang, ' ');
         }
         g_cli_fill_slice[lines] = tag->description;
         g_cli_fill_slice_size[lines] = tag->description_size;
@@ -438,19 +438,19 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
     const char *const indent = text + first.start;
     const unsigned long long indent_size = cli_text_lead(indent, first.end - first.start);
     const unsigned int lines = comment_body(text, size, &first, &last);
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    void *const cell = comment_room_taken(lines, last.end - first.start, &said);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    void *const cell = comment_room_taken(lines, last.end - first.start, &err_msg);
     if (cell == NULL)
     {
         return 0;
     }
-    CliLine lead = {s_fill->lead, CLI_FILL_LINE_ROOM, 0ull};
-    cli_line_counted(&lead, indent, indent_size);
-    cli_line_text(&lead, " * ");
+    VerbaLinea lead = {s_fill->lead, CLI_FILL_LINE_ROOM, 0ull};
+    mmgr_line_put_n(&lead, indent, indent_size);
+    mmgr_line_put(&lead, " * ");
     const unsigned int parts = comment_parts(lines);
     cli_filled_line(filled, indent, indent_size);
-    cli_line_text(filled->out, "/**");
+    mmgr_line_put(filled->out, "/**");
     for (unsigned int part = 0u; part < parts;)
     {
         if (s_fill->part_lines[part] == 0u)
@@ -466,7 +466,7 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
             if (!star && !open)
             {
                 cli_filled_line(filled, indent, indent_size);
-                cli_line_text(filled->out, " *");
+                mmgr_line_put(filled->out, " *");
             }
             part += 1u;
             continue;
@@ -494,8 +494,8 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
         cli_filled_dropped(filled);
     }
     cli_filled_line(filled, indent, indent_size);
-    cli_line_text(filled->out, " */");
+    mmgr_line_put(filled->out, " */");
     cli_fill_edit_of(text, &first, &last, filled, edit);
-    cli_cell_given(cell);
+    g_cli_cells->persistent_buf_release(cell, NULL);
     return 1;
 }

@@ -36,7 +36,7 @@ static const char *const s_mark_names[] = {"", "-", "~", "!"};
 #define SASS_MARK_COUNT (sizeof(s_mark_names) / sizeof(s_mark_names[0]))
 
 // 1 where `letter` stands between one token of an instruction and the next. A listing lays its instructions out with
-// spaces and a ruleset with tabs, and the two say the same thing: sass.krs writes "\tIADD3 \t{to}, {left}, ..." and
+// spaces and a ruleset with tabs, and the two express the same thing: sass.krs writes "\tIADD3 \t{to}, {left}, ..." and
 // nvdisasm prints "        IADD3 R8, R0, R1, RZ ;", and this reader takes both
 #define SASS_SPACES " \t"
 

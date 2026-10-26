@@ -4,7 +4,7 @@
 #include "../text/text.h"
 #include "notebook_internal.h"
 
-// the extension of `path`, after the last `.` of its last part, in lower case, into `out`, which holds 16: empty
+// the extension of `path`, after the last `.` of its last part, in lower case, into `out`, sized for 16: empty
 // where it has none or one longer
 static void cli_extension(const char *path, char *out)
 {
@@ -95,10 +95,10 @@ int cli_notebook_is(const char *path, const char *text, unsigned long long size)
         return 1;
     }
     char mark[8];
-    CliLine line = {mark, sizeof(mark), 0ull};
-    cli_line_text(&line, cli_notebook_comment(path));
-    cli_line_text(&line, " %%");
-    cli_line_closed(&line);
+    VerbaLinea line = {mark, sizeof(mark), 0ull};
+    mmgr_line_put(&line, cli_notebook_comment(path));
+    mmgr_line_put(&line, " %%");
+    mmgr_line_finish(&line);
     const char *const end = text + size;
     const char *at = text;
     while (at < end)
@@ -177,7 +177,7 @@ const char *cli_notebook_source(const CliJson *json, unsigned int cell, unsigned
     return source;
 }
 
-// A text as Jupyter keeps it: its lines, each with its line end but the last
+// A text as Jupyter stores it: its lines, each with its line end but the last
 unsigned int cli_notebook_lines_of(CliJson *json, const char *text, unsigned long long length)
 {
     const unsigned int lines = cli_json_made(json, CFG_JSON_ARRAY);
@@ -329,10 +329,10 @@ static unsigned int cli_script_read(CliJson *json, const char *path, const char 
 {
     const char *const comment = cli_notebook_comment(path);
     char mark[8];
-    CliLine line = {mark, sizeof(mark), 0ull};
-    cli_line_text(&line, comment);
-    cli_line_text(&line, " %%");
-    cli_line_closed(&line);
+    VerbaLinea line = {mark, sizeof(mark), 0ull};
+    mmgr_line_put(&line, comment);
+    mmgr_line_put(&line, " %%");
+    mmgr_line_finish(&line);
     const char *const end = text + size;
     const unsigned int cells = cli_json_made(json, CFG_JSON_ARRAY);
     const unsigned int book = cli_json_made(json, CFG_JSON_OBJECT);
@@ -402,7 +402,7 @@ static unsigned int cli_script_read(CliJson *json, const char *path, const char 
 }
 
 unsigned int cli_notebook_read(CliJson *json, const char *path, const char *text, unsigned long long size,
-                               CfgJsonToken *tokens, unsigned int tokens_most, CliLine *said)
+                               CfgJsonToken *tokens, unsigned int tokens_most, VerbaLinea *err_msg)
 {
     char extension[16];
     cli_extension(path, extension);
@@ -411,27 +411,27 @@ unsigned int cli_notebook_read(CliJson *json, const char *path, const char *text
         const unsigned int book = cli_script_read(json, path, text, size);
         if (book == CLI_JSON_NONE)
         {
-            cli_line_text(said, path);
-            cli_line_text(said, ": it holds more than a notebook is read into");
+            mmgr_line_put(err_msg, path);
+            mmgr_line_put(err_msg, ": it contains more than a notebook is read into");
         }
         return book;
     }
-    char why[CLI_SAID_LONGEST];
-    CliLine reason = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea reason = {why, sizeof(why), 0ull};
     const unsigned int book = cli_json_read(json, text, size, tokens, tokens_most, &reason);
-    cli_line_closed(&reason);
+    mmgr_line_finish(&reason);
     if (book == CLI_JSON_NONE)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": ");
-        cli_line_text(said, why);
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put(err_msg, why);
         return book;
     }
     const unsigned int cells = cli_json_member(json, book, "cells");
     if (!cli_json_is(json, cells, CFG_JSON_ARRAY))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, " holds no cells");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, " contains no cells");
         return CLI_JSON_NONE;
     }
     for (unsigned int cell = json->node[cells].first; cell != CLI_JSON_NONE; cell = json->node[cell].next)

@@ -152,7 +152,7 @@ void cli_font_outline(const CliFont *font, unsigned int glyph, const float *matr
         }
     }
     // the x's, then the y's: a short one a byte, its sign by the flag, else a word, or the one before where the flag
-    // says the same
+    // gives the same
     for (unsigned int axis = 0u; axis < 2u; axis += 1u)
     {
         const unsigned char short_flag = (axis == 0u) ? 0x02u : 0x04u;
@@ -341,7 +341,7 @@ void cli_font_rasterize(const CliContours *contours, CliMask *mask, float *cover
     {
         return;
     }
-    // a glyph's place in pixels is far inside what an int holds
+    // a glyph's place in pixels is far inside what an int represents
     const int left = (int)floorf(min_x);
     const int top = (int)ceilf(max_y);
     const int span = (int)ceilf(max_x) - left;

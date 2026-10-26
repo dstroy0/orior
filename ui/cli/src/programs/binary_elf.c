@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // binary_elf.c: a Linux program's dynamic section read: its needed libraries, its run paths and the glibc versions it
-// asks for; each library looked for as the Linux loader looks for it, its own run paths first, then the folders the
+// requires; each library looked for as the Linux loader looks for it, its own run paths first, then the folders the
 // loader's settings name, then the system's own library folders; the libraries those load in turn
 #include "../text/text.h"
 #include "binary.h"
@@ -10,10 +10,10 @@
 // joined by `:`, and whether they are its RUNPATH, which stands before its RPATH where it has one
 typedef struct
 {
-    char name[CLI_NAME_LONGEST];
-    char by[CLI_NAME_LONGEST];
-    char origin[CLI_PATH_LONGEST];
-    char paths[CLI_PATH_LONGEST * 2u];
+    char name[CLI_NAME_MAX_LEN];
+    char by[CLI_NAME_MAX_LEN];
+    char origin[CLI_PATH_MAX_LEN];
+    char paths[CLI_PATH_MAX_LEN * 2u];
 } CliElfQueued;
 
 // the libraries a reading's queue is begun with, doubling as they are found
@@ -25,7 +25,7 @@ typedef struct
 {
     CliDynamic *dynamic;
     CliDynamic *more;
-    char (*folders)[CLI_PATH_LONGEST];
+    char (*folders)[CLI_PATH_MAX_LEN];
     CliElfQueued *queue;
     unsigned int room;
 } CliElfReading;
@@ -71,17 +71,17 @@ static int cli_string(const unsigned char *bytes, unsigned long long size, unsig
     return cli_binary_text(bytes, size, strings + offset, out, room);
 }
 
-int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDynamic *found, CliLine *said)
+int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDynamic *found, VerbaLinea *err_msg)
 {
     memor.set(&(MemoriaCfg){.dst = found, .val = 0, .bytes = sizeof(*found)});
     if ((size < 6u) || (bytes[4] != 2u) || (bytes[5] != 1u))
     {
-        cli_line_text(said, "orior_cli reads 64-bit little-endian Linux programs");
+        mmgr_line_put(err_msg, "orior_cli reads 64-bit little-endian Linux programs");
         return 0;
     }
     if (size < 0x28u)
     {
-        cli_line_text(said, "the file ends inside its headers");
+        mmgr_line_put(err_msg, "the file ends inside its headers");
         return 0;
     }
     const unsigned long long phoff = cli_binary_number(bytes, size, 0x20u, 8u);
@@ -140,7 +140,7 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
     }
     if (!has_strings)
     {
-        cli_line_text(said, "the program names no string table");
+        mmgr_line_put(err_msg, "the program names no string table");
         return 0;
     }
     for (unsigned long long index = 0ull; index < entries; index += 1ull)
@@ -148,21 +148,21 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
         const unsigned long long tag = cli_binary_number(bytes, size, dynamic_start + (index * 16u), 8u);
         const unsigned long long value = cli_binary_number(bytes, size, dynamic_start + (index * 16u) + 8u, 8u);
         if ((tag == 1ull) && (found->count < 64u) &&
-            cli_string(bytes, size, strings, value, found->needed[found->count], CLI_NAME_LONGEST))
+            cli_string(bytes, size, strings, value, found->needed[found->count], CLI_NAME_MAX_LEN))
         {
             found->count += 1u;
         }
         else if ((tag == 15ull) || (tag == 29ull))
         {
             char *const into = (tag == 15ull) ? found->rpath : found->runpath;
-            char text[CLI_PATH_LONGEST * 2u];
+            char text[CLI_PATH_MAX_LEN * 2u];
             if (cli_string(bytes, size, strings, value, text, sizeof(text)))
             {
-                CliLine line = {into, CLI_PATH_LONGEST * 2u,
-                                cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL})};
-                cli_line_text(&line, (into[0] != '\0') ? ":" : "");
-                cli_line_text(&line, text);
-                cli_line_closed(&line);
+                VerbaLinea line = {into, CLI_PATH_MAX_LEN * 2u,
+                                   cellul.len(&(CatenaFinitaCfg){.src = into, .cap = CLI_CELLS_POOL})};
+                mmgr_line_put(&line, (into[0] != '\0') ? ":" : "");
+                mmgr_line_put(&line, text);
+                mmgr_line_finish(&line);
             }
         }
     }
@@ -173,7 +173,7 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
         const unsigned long long aux_count = cli_binary_number(bytes, size, at + 2u, 2u);
         for (unsigned long long each = 0ull; each < aux_count; each += 1ull)
         {
-            char version[CLI_NAME_LONGEST];
+            char version[CLI_NAME_MAX_LEN];
             if (cli_string(bytes, size, strings, cli_binary_number(bytes, size, aux + 8u, 4u), version,
                            sizeof(version)) &&
                 (cellul.starts(&(CatenaFinitaCfg){.src = version, .other = "GLIBC_2", .cap = CLI_CELLS_POOL})) &&
@@ -202,7 +202,7 @@ int cli_elf_dynamic(const unsigned char *bytes, unsigned long long size, CliDyna
     return 1;
 }
 
-// the folder of a path into `out`, which holds CLI_PATH_LONGEST, "." where it has none
+// the folder of a path into `out`, sized for CLI_PATH_MAX_LEN, "." where it has none
 static void cli_folder_of(const char *path, char *out)
 {
     memor.cpy(&(MemoriaCfg){
@@ -227,14 +227,14 @@ static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, cons
     {
         const unsigned int doubled = (reading->room == 0u) ? CLI_ELF_QUEUE_FIRST : (reading->room * 2u);
         const unsigned int room = (doubled < CLI_BINARY_LIBRARIES) ? doubled : CLI_BINARY_LIBRARIES;
-        CliElfQueued *const grown = cli_cell_taken(room * sizeof(*grown), "the libraries a program loads");
+        CliElfQueued *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), NULL);
         if (grown != NULL)
         {
             if (queued != 0u)
             {
                 memor.cpy(&(MemoriaCfg){.dst = grown, .src = reading->queue, .bytes = queued * sizeof(*grown)});
             }
-            cli_cell_given(reading->queue);
+            g_cli_cells->persistent_buf_release(reading->queue, NULL);
             reading->queue = grown;
             reading->room = room;
         }
@@ -264,28 +264,28 @@ static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, cons
 // a run path with $ORIGIN and ${ORIGIN} read as the folder of the file that names it into `out`
 static void cli_expanded(const char *entry, unsigned long long length, const char *origin, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     for (unsigned long long at = 0ull; at < length;)
     {
         if (((length - at) >= 9u) &&
             (memor.cmp(&(MemoriaCfg){.src = entry + at, .other = "${ORIGIN}", .bytes = 9u}) == 0))
         {
-            cli_line_text(&line, origin);
+            mmgr_line_put(&line, origin);
             at += 9ull;
         }
         else if (((length - at) >= 7u) &&
                  (memor.cmp(&(MemoriaCfg){.src = entry + at, .other = "$ORIGIN", .bytes = 7u}) == 0))
         {
-            cli_line_text(&line, origin);
+            mmgr_line_put(&line, origin);
             at += 7ull;
         }
         else
         {
-            cli_line_character(&line, entry[at]);
+            mmgr_line_ch(&line, entry[at]);
             at += 1ull;
         }
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // the library found among a queued one's run paths, its path into `at`, and whether that path is beside it by $ORIGIN
@@ -299,18 +299,18 @@ static int cli_in_paths(const CliElfQueued *one, char *at, int *beside)
             const unsigned long long length = (unsigned long long)(place - from);
             if (length != 0ull)
             {
-                char folder[CLI_PATH_LONGEST];
+                char folder[CLI_PATH_MAX_LEN];
                 cli_expanded(from, length, one->origin, folder);
-                CliLine line = {at, CLI_PATH_LONGEST, 0ull};
-                cli_line_text(&line, folder);
-                cli_line_character(&line, '/');
-                cli_line_text(&line, one->name);
-                if ((cli_line_closed(&line) != 0ull) && query_is_file(at))
+                VerbaLinea line = {at, CLI_PATH_MAX_LEN, 0ull};
+                mmgr_line_put(&line, folder);
+                mmgr_line_ch(&line, '/');
+                mmgr_line_put(&line, one->name);
+                if ((mmgr_line_finish(&line) != 0ull) && query_is_file(at))
                 {
-                    char entry[CLI_PATH_LONGEST];
-                    CliLine kept = {entry, sizeof(entry), 0ull};
-                    cli_line_counted(&kept, from, length);
-                    cli_line_closed(&kept);
+                    char entry[CLI_PATH_MAX_LEN];
+                    VerbaLinea entry_line = {entry, sizeof(entry), 0ull};
+                    mmgr_line_put_n(&entry_line, from, length);
+                    mmgr_line_finish(&entry_line);
                     *beside =
                         cellul.find(&(CatenaFinitaCfg){
                             .src = entry, .cap = CLI_CELLS_POOL, .other = "ORIGIN", .other_cap = CLI_CELLS_POOL}) !=
@@ -345,9 +345,9 @@ static void cli_build_paths(const CliDynamic *dynamic, CliBinaryReport *report)
                     (!cellul.starts(&(CatenaFinitaCfg){.src = from, .other = "${ORIGIN}", .cap = CLI_CELLS_POOL})) &&
                     (report->build_paths < CLI_BINARY_BUILD_PATHS))
                 {
-                    CliLine line = {report->build_path[report->build_paths], CLI_PATH_LONGEST, 0ull};
-                    cli_line_counted(&line, from, length);
-                    report->build_paths += (cli_line_closed(&line) != 0ull) ? 1u : 0u;
+                    VerbaLinea line = {report->build_path[report->build_paths], CLI_PATH_MAX_LEN, 0ull};
+                    mmgr_line_put_n(&line, from, length);
+                    report->build_paths += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
                 }
                 if (place[0] == '\0')
                 {
@@ -373,13 +373,13 @@ static int cli_queued_before(const CliElfReading *reading, unsigned int next)
     return 0;
 }
 
-// the libraries the program loads read into the report, the reading's cells held: as cli_binary_elf_read says
+// the libraries the program loads read into the report, the reading's cells allocated: as cli_binary_elf_read specifies
 static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsigned long long size, const char *path,
-                        CliBinaryReport *report, CliLine *said)
+                        CliBinaryReport *report, VerbaLinea *err_msg)
 {
     const unsigned int folders = cli_binary_linux_folders(reading->folders);
     CliDynamic *const dynamic = reading->dynamic;
-    if (!cli_elf_dynamic(bytes, size, dynamic, said))
+    if (!cli_elf_dynamic(bytes, size, dynamic, err_msg))
     {
         return 0;
     }
@@ -388,7 +388,7 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
         &(MemoriaCfg){.dst = report->glibc,
                       .src = dynamic->glibc,
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = dynamic->glibc, .cap = CLI_CELLS_POOL}) + 1u});
-    char origin[CLI_PATH_LONGEST];
+    char origin[CLI_PATH_MAX_LEN];
     cli_folder_of(path, origin);
     const char *const program =
         (cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/') != NULL)
@@ -428,11 +428,11 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
             library->found = CLI_FOUND_MISSING;
             for (unsigned int at = 0u; !library->has_at && (at < folders); at += 1u)
             {
-                CliLine line = {library->at, CLI_PATH_LONGEST, 0ull};
-                cli_line_text(&line, reading->folders[at]);
-                cli_line_character(&line, '/');
-                cli_line_text(&line, one->name);
-                library->has_at = (cli_line_closed(&line) != 0ull) && query_is_file(library->at);
+                VerbaLinea line = {library->at, CLI_PATH_MAX_LEN, 0ull};
+                mmgr_line_put(&line, reading->folders[at]);
+                mmgr_line_ch(&line, '/');
+                mmgr_line_put(&line, one->name);
+                library->has_at = (mmgr_line_finish(&line) != 0ull) && query_is_file(library->at);
             }
             library->found = library->has_at ? CLI_FOUND_SYSTEM : CLI_FOUND_MISSING;
         }
@@ -441,9 +441,9 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
             continue;
         }
         unsigned long long more_size = 0ull;
-        const unsigned char *const more = cli_file_held(library->at, &more_size);
-        char unsaid[CLI_PATH_LONGEST];
-        CliLine ignored = {unsaid, sizeof(unsaid), 0ull};
+        const unsigned char *const more = cli_file_read(library->at, &more_size);
+        char err_buf[CLI_PATH_MAX_LEN];
+        VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
         CliDynamic *const loaded = reading->more;
         if ((more != NULL) && cli_elf_dynamic(more, more_size, loaded, &ignored))
         {
@@ -455,7 +455,7 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = loaded->glibc, .cap = CLI_CELLS_POOL}) + 1u});
                 report->has_glibc = 1;
             }
-            char more_origin[CLI_PATH_LONGEST];
+            char more_origin[CLI_PATH_MAX_LEN];
             cli_folder_of(library->at, more_origin);
             for (unsigned int at = 0u; at < loaded->count; at += 1u)
             {
@@ -468,21 +468,21 @@ static int cli_elf_read(CliElfReading *reading, const unsigned char *bytes, unsi
 }
 
 int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, const char *path, CliBinaryReport *report,
-                        CliLine *said)
+                        VerbaLinea *err_msg)
 {
     // the two dynamic sections on the cell's boundary, then the folders
     const unsigned long long dynamics = 2ull * sizeof(CliDynamic);
-    char *const cell = cli_cell_taken(dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_LONGEST),
-                                      "a reading of a program's libraries");
+    char *const cell = g_cli_cells->persistent_buf_alloc(
+        dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN), NULL);
     if (cell == NULL)
     {
-        cli_line_text(said, "a reading of a program's libraries could not be given a cell");
+        mmgr_line_put(err_msg, "a reading of a program's libraries could not be given a cell");
         return 0;
     }
     CliElfReading reading = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
-                             (char (*)[CLI_PATH_LONGEST])(void *)(cell + dynamics), NULL, 0u};
-    const int read = cli_elf_read(&reading, bytes, size, path, report, said);
-    cli_cell_given(reading.queue);
-    cli_cell_given(cell);
+                             (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + dynamics), NULL, 0u};
+    const int read = cli_elf_read(&reading, bytes, size, path, report, err_msg);
+    g_cli_cells->persistent_buf_release(reading.queue, NULL);
+    g_cli_cells->persistent_buf_release(cell, NULL);
     return read;
 }

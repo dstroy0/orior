@@ -341,9 +341,9 @@ A byte or a halfword is held in the low bits of a word, and a word made from one
 
 | space | load a word | load a wide | load a word the part reads as never written | store a word | store a wide | ask | add a word, atomic |
 |---|---|---|---|---|---|---|---|
-| global | `global_load_word` | `global_load_wide` | `global_load_constant_word` | - | `global_store_wide` | `global_ask`, `global_ask_atomic` | `global_add_atomic_word` |
+| global | `global_load_word` | `global_load_wide` | `global_load_constant_word` | - | `global_store_wide` | `global_load`, `global_atomic` | `global_add_atomic_word` |
 | parameter | `parameter_load_word` | `parameter_load_wide` | - | - | - | - | - |
-| launch | - | `launch_load_wide` | - | - | - | `launch_ask` | - |
+| launch | - | `launch_load_wide` | - | - | - | `launch_load` | - |
 | record | - | - | - | `record_store_word` | - | - | - |
 
 A name read in the order the space, the doing word, its qualifier and the width: `global_load_constant_word`. A load that extends a byte or a halfword to a word takes the narrow thing: `global_load_byte`, `global_load_signed_byte`, `global_load_halfword`, `global_load_signed_halfword`.
@@ -358,7 +358,7 @@ A name read in the order the space, the doing word, its qualifier and the width:
 | error | - | `error_if` | `error_open_unless` |
 | load a global word | `global_load_word` | `global_load_word_if` | - |
 | make a wide from a word | `wide_from_word` | `wide_from_word_if` | - |
-| ask | `global_ask` | `global_ask_if` | - |
+| ask | `global_load` | `global_load_if` | - |
 
 A label takes the thing it marks: `label_loop`, `label_error`, `label_error_open`.
 
@@ -409,7 +409,7 @@ A declaration takes the bank it declares: `declare_file`, `declare_signs`, `decl
 
    The answer is the pair. A transition is the state it left and the state it reached, and a name is a label read off that pair. Carried as its pair, a transition under sync is still every one of the 22, and a label lost or shared costs nothing a branch can read. Check 13 in `order_check.py` proves what a label can still get wrong, from the two tables alone. Where both tables name a transition, 3 agree, 7 the second names where the first says sync, and 2 are named apart: dual to lead is drop in the first and tilt in the second, and dual to void is drop in the first and fuse in the second. Read from the other side of the branch, lead and rite trading places, three transitions read otherwise in the first table: dual to lead is drop where dual to rite is sync, lead to lead is core where rite to rite is surv, and lead to rite is pass where rite to lead is back. The last is the directional handoff the first table describes.
 
-   A label is decided in the situation it is read in, and never once for every situation. Two names for one pair are two candidates, and the asks that read the transition choose between them the way the gate chooses an arrangement: a bit excludes what does not hold, and a magnitude ranks the survivors. A choice that survives one situation is no answer for another. The protocol already carries what separates them. A side reading 0 carries why: past its bound, not held, or ended (QueryKind in `compiler/bootstrap/query_ask.h`). dual to lead is tilt where the right side came in past its bound by a fraction of a cycle, the decay this document describes, and drop where it did not answer at all or came in past the bound by a timeout's measure. dual to void reads the same way between fuse and drop: both sides gone at once with no decay, against a collapse through a timeout. Where between a fraction and a timeout the line falls is measured against the baseline in `.knf` and never written in.
+   A label is decided in the situation it is read in, and never once for every situation. Two names for one pair are two candidates, and the asks that read the transition choose between them the way the gate chooses an arrangement: a bit excludes what does not hold, and a magnitude ranks the survivors. A choice that survives one situation is no answer for another. The protocol already carries what separates them. A side reading 0 carries why: past its bound, not held, or ended (QueryKind in `src/cu/transpiler/lstar/protocol/query/query_put.h`). dual to lead is tilt where the right side came in past its bound by a fraction of a cycle, the decay this document describes, and drop where it did not answer at all or came in past the bound by a timeout's measure. dual to void reads the same way between fuse and drop: both sides gone at once with no decay, against a collapse through a timeout. Where between a fraction and a timeout the line falls is measured against the baseline in `.knf` and never written in.
 
    core and surv stay apart only where the side a branch is read from leaves a mark, and the part is asked. `utils/test/src/cu/transpiler/lstar/protocol/branch_side_check.c` puts two branches doing the same work through the known order, the one asked first changing every trial. Every pass of each branch is solved on its own in exact integers, the two compared at each link by cross-multiplying their exact costs, and a trial counts once, by which branch is dearer in more of its comparisons. On the host the branch asked first reads dearer in 12 of 29 trials that are not even, no lean past twice the spread, and with one branch 512 reads dearer at every link the cheaper reads cheaper in 46 to 58 of 64 comparisons at every link, from both sides alike. On the host a steady lead and a steady rite are one state seen from two sides. That holds for the host, and a part whose side leaves a mark reads core and surv apart.
 
@@ -430,7 +430,7 @@ A declaration takes the bank it declares: `declare_file`, `declare_signs`, `decl
 
    sync passes the same way: fuzz+in into the sync superstate and fizz+out of it, the pair locked into the two labels. The reader prints every sync transition as that passage, and `--check` reads back the exact pair of all 3,035 sync passages in its 500 drawn traces from the labels alone.
 
-   The loop runs on real asks. `utils/maint/engine/gnascor_trace.c` puts a scenario's sides to the host through `query_ask`, each side a run of asks between two reads of the clock the protocol finds by asking: held, not held, late, or not asked. The bound is derived from sixteen unbound held runs, the largest plus their spread plus one step of the clock, and a late side is put until its run passes it. `gnascor_read.py --scenario` then holds every state read off the trace to the one its sides imply. `utils/maint/engine/gnascor_scenario.txt` runs drop, pass, join, a sync passage into wait, loss, fuzz and fizz through gray, fuse and sprk on the host, every state as implied (`utils/maint/engine/chain_check.sh`).
+   The loop runs on real asks. `utils/maint/engine/gnascor_trace.c` puts a scenario's sides to the host through `query_put`, each side a run of asks between two reads of the clock the protocol finds by asking: satisfied, unsatisfied, late, or not asked. The bound is derived from sixteen unbound satisfied runs, the largest plus their spread plus one step of the clock, and a late side is put until its run passes it. `gnascor_read.py --scenario` then holds every state read off the trace to the one its sides imply. `utils/maint/engine/gnascor_scenario.txt` runs drop, pass, join, a sync passage into wait, loss, fuzz and fizz through gray, fuse and sprk on the host, every state as implied (`utils/maint/engine/chain_check.sh`).
 
    The syntax for writing a query loop is not started.
 

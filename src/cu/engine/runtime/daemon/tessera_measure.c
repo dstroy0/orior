@@ -146,7 +146,7 @@ TesseraMeasure *tessera_measure_open(const unsigned char device[TESSERA_DEVICE_B
     // under WSL NVML still reads the device whole, but each job's process reports its own bytes
     measure->reported = tessera_self_paravirtual();
 #if defined(_WIN32)
-    // the module handle is kept as an opaque pointer and converted back where it is used
+    // the module handle is stored as an opaque pointer and converted back where it is used
     measure->library = (void *)LoadLibraryA("nvml.dll");
 #else
     measure->library = dlopen("libnvidia-ml.so.1", RTLD_NOW);
@@ -199,7 +199,7 @@ void tessera_measure_close(TesseraMeasure *measure)
     if (measure->library != NULL)
     {
 #if defined(_WIN32)
-        // the kept module handle is converted back to the type it was loaded as
+        // the stored module handle is converted back to the type it was loaded as
         FreeLibrary((HMODULE)measure->library);
 #else
         dlclose(measure->library);

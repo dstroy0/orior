@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Calls the functions of src/sims/cu/engine/analysis/art/periodic_energy.h on the sequences a file holds and prints each result
-// in full, every exact integer in hexadecimal with its sign. It is the engine's side of
-// archive/utils/test/src/python/engine/analysis/periodic_energy_test.py, which writes the file and reads these lines against measure/periodic_energy.py.
+// Calls the functions of src/sims/cu/engine/analysis/art/periodic_energy.h on the sequences a file contains and prints
+// each result in full, every exact integer in hexadecimal with its sign. It is the engine's side of
+// archive/utils/test/src/python/engine/analysis/periodic_energy_test.py, which writes the file and reads these lines
+// against measure/periodic_energy.py.
 //
 //   periodic_energy_probe <requests file>
 //
-// The file holds records one after another, every field little endian:
+// The file contains records one after another, every field little endian:
 //   u32 magic 0x314E4550, u32 has_target, u64 length, u64 reach, u64 draws, u64 key, u64 period, u64 places,
 //   i64 values[length], and i64 target[length] when has_target is 1.
 //
@@ -48,7 +49,7 @@ typedef struct
     unsigned long long places;
 } ProbeRecord;
 
-// one byte past the results' capacity holds the end of its text
+// one byte past the results' capacity stores the end of its text
 static char s_results_text[SIM_LINE_CAPACITY + 1ull];
 
 // the record's fixed fields in the file's order; 0 at the end of the file, -1 when they are malformed
@@ -70,8 +71,8 @@ static unsigned long long probe_pages(unsigned long long bytes)
     return (bytes + DEVICE_POOL_PAGE_BYTES - 1ull) / DEVICE_POOL_PAGE_BYTES;
 }
 
-// The bytes the job declares: the max any one call holds on the device, each of its allocations rounded up to pages.
-// energy_phase_sums holds the values and the phase sums, energy_welford the values and two arrays of one entry per
+// The bytes the job declares: the max any one call places on the device, each of its allocations rounded up to pages.
+// energy_phase_sums stores the values and the phase sums, energy_welford the values and two arrays of one entry per
 // phase, and each frees them before it returns. 0 when a record is malformed.
 static unsigned long long probe_declared(FILE *file)
 {
@@ -103,8 +104,8 @@ static unsigned long long probe_declared(FILE *file)
         {
             const unsigned long long top =
                 (record.reach < (record.length - 1ull)) ? record.reach : (record.length - 1ull);
-            const unsigned long long slots = energy_phase_base(top + 1ull);
-            const unsigned long long pages = value_pages + probe_pages(slots * sizeof(long long));
+            const unsigned long long phase_count = energy_phase_base(top + 1ull);
+            const unsigned long long pages = value_pages + probe_pages(phase_count * sizeof(long long));
             pages_max = (pages > pages_max) ? pages : pages_max;
         }
         if ((record.period != 0ull) && (record.length != 0ull))
@@ -150,7 +151,7 @@ static void probe_measurement(const char *name, int status, const EnergyMeasurem
         printf(" period %llu ratio ", measurement->period);
         probe_ratio(&measurement->numerator, &measurement->denominator);
         char text[256];
-        ScripturaLine line;
+        VerbaLinea line;
         line.out = text;
         line.capacity = sizeof(text) - 1u;
         line.at = 0ull;
@@ -195,8 +196,8 @@ static void probe_run(SimResults *results, const ProbeRecord *record, const long
            record->period);
     const unsigned long long top =
         (length >= 1ull) ? ((record->reach < (length - 1ull)) ? record->reach : (length - 1ull)) : 0ull;
-    const unsigned long long slots = (top >= 2ull) ? energy_phase_base(top + 1ull) : 1ull;
-    long long *const sums = (long long *)calloc((size_t)slots, sizeof(long long));
+    const unsigned long long phase_count = (top >= 2ull) ? energy_phase_base(top + 1ull) : 1ull;
+    long long *const sums = (long long *)calloc((size_t)phase_count, sizeof(long long));
     long long *const shuffled = (long long *)calloc((size_t)(length + 1ull), sizeof(long long));
     const unsigned long long phases = (record->period != 0ull) ? record->period : 1ull;
     long long *const welford_numerator = (long long *)calloc((size_t)phases, sizeof(long long));

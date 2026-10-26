@@ -14,7 +14,8 @@ static_assert((DEVICE_POOL_SLICE_ALIGN & (DEVICE_POOL_SLICE_ALIGN - 1ull)) == 0u
 static_assert((DEVICE_POOL_PAGE_BYTES & (DEVICE_POOL_PAGE_BYTES - 1ull)) == 0ull,
               "the page is a power of two, so rounding to it is a mask");
 
-static_assert(sizeof(size_t) >= sizeof(unsigned long long), "cudaMalloc's size_t holds a pool's 64-bit byte count");
+static_assert(sizeof(size_t) >= sizeof(unsigned long long),
+              "cudaMalloc's size_t represents a pool's 64-bit byte count");
 
 // cudaError_t enumerates non-negative codes below INT_MAX: the status converts to int exactly
 #define DEVICE_POOL_STATUS_CHECK(call_, evacaddr_, error_)                                                             \
@@ -31,7 +32,7 @@ static_assert(sizeof(size_t) >= sizeof(unsigned long long), "cudaMalloc's size_t
 
 static_assert(((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_SLICE_ALIGN) == 0ull) &&
                   ((DEVICE_POOL_BYTES_MAX % DEVICE_POOL_PAGE_BYTES) == 0ull),
-              "the most a plan holds rounds to itself on the slice and on the page");
+              "the most a plan contains rounds to itself on the slice and on the page");
 
 static unsigned long long device_pool_round(unsigned long long bytes, unsigned long long step)
 {

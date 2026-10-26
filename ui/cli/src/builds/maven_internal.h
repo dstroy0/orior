@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // maven_internal.h: Maven's POM as its reader reads it: an XML file's elements, each its name, its tags and what it
-// holds, its comments, and what kept it from reading; what a POM and its parents give its children, their properties
-// and the dependencies their management gives a version; the local repository; and the program that runs a build
-// (maven_xml.c, maven_schema.c, maven_model.c, maven_check.c, maven_dependencies.c, maven_complete.c,
+// contains, its comments, and what prevented it from reading; what a POM and its parents give its children, their
+// properties and the dependencies their management gives a version; the local repository; and the program that runs a
+// build (maven_xml.c, maven_schema.c, maven_model.c, maven_check.c, maven_dependencies.c, maven_complete.c,
 // maven_settings.c, maven_set.c)
 #ifndef MAVEN_INTERNAL_H
 #define MAVEN_INTERNAL_H
@@ -11,14 +11,14 @@
 #include "../text/text.h"
 #include "builds_internal.h"
 
-// the most elements of an XML file, comments, and things that kept it from reading, and no element
+// the most elements of an XML file, comments, and things that prevented it from reading, and no element
 #define CLI_XML_ELEMENTS 16384u
 #define CLI_XML_COMMENTS 4096u
 #define CLI_XML_ERRORS 1024u
 #define CLI_XML_NONE 0xffffffffu
 
-// An element: its name's span in its opening tag, what it holds, the span of the name in its closing tag where it has
-// one, CLI_XML_NONE where it is not closed, and its parent and children, the first, the last and each one's next
+// An element: its name's span in its opening tag, what it contains, the span of the name in its closing tag where it
+// has one, CLI_XML_NONE where it is not closed, and its parent and children, the first, the last and each one's next
 typedef struct
 {
     unsigned long long from;
@@ -35,7 +35,7 @@ typedef struct
     unsigned int children;
 } CliXmlElement;
 
-// what kept an XML file from reading
+// what prevented an XML file from reading
 #define CLI_XML_SKIP_COMMENT 0u
 #define CLI_XML_SKIP_CDATA 1u
 #define CLI_XML_SKIP_QUESTION 2u
@@ -45,7 +45,7 @@ typedef struct
 #define CLI_XML_NOT_CLOSED 6u
 #define CLI_XML_CLOSES_NONE 7u
 
-// What kept an XML file from reading: its span, what it was, and the element or the name it was of
+// What prevented an XML file from reading: its span, what it was, and the element or the name it was of
 typedef struct
 {
     unsigned long long from;
@@ -56,9 +56,9 @@ typedef struct
     unsigned long long name_to;
 } CliXmlError;
 
-// An XML file as read: its text, its elements, its comments' spans, what kept it from reading, and the elements its
-// text leaves open, the outermost first; each list's room in one cell sized to the tags the text can hold, no more than
-// its most, given back with cli_xml_given
+// An XML file as read: its text, its elements, its comments' spans, what prevented it from reading, and the elements
+// its text leaves open, the outermost first; each list's room in one cell sized to the tags the text can contain, no
+// more than its most, given back with cli_xml_given
 typedef struct
 {
     const char *text;
@@ -77,28 +77,28 @@ typedef struct
     unsigned int opens;
 } CliXml;
 
-// the cells the XML files read are held in, counted, each given back with cli_xml_given (maven_xml.c)
-extern CliCellsTally g_cli_xml_cells;
+// the cells the XML files read are allocated in, counted, each given back with cli_xml_given (maven_xml.c)
+extern CellOwner g_cli_xml_cells;
 
 // the cell of an XML file read given back, the file left read as empty; each read is given back before `xml` is read
 // again or let go
 void cli_xml_given(CliXml *xml);
-// `size` bytes of an XML file's text read into `xml`, as far as it goes, in a cell of its own, whatever `xml` held
-// before not looked at; the message of what kept it from reading
+// `size` bytes of an XML file's text read into `xml`, as far as it goes, in a cell of its own, whatever `xml` contained
+// before not looked at; the message of what prevented it from reading
 // written; the root element, CLI_XML_NONE where there is none; the first child of `of` named `name`, CLI_XML_NONE
-// where it has none; whether an element is named `name`; the text an element holds where it holds no elements, its
-// entities read, into `out`: 1, or 0 where it holds elements or is not closed; the text of the child `name` of `of`;
-// the element at the end of `path`, `count` names, under `of`, each step the first child of its name; whether an
+// where it has none; whether an element is named `name`; the text an element contains where it contains no elements,
+// its entities read, into `out`: 1, or 0 where it contains elements or is not closed; the text of the child `name` of
+// `of`; the element at the end of `path`, `count` names, under `of`, each step the first child of its name; whether an
 // element stands inside a `configuration` or `properties`, whose children its plugin or its reader makes of it
-// (maven_xml.c); and the children the schema lets an element of `size` bytes of `name` hold, into `count`: NULL where
-// it gives none (maven_schema.c)
+// (maven_xml.c); and the children the schema lets an element of `size` bytes of `name` contain, into `count`: NULL
+// where it gives none (maven_schema.c)
 void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml);
-void cli_xml_error_said(const CliXml *xml, const CliXmlError *error, CliLine *out);
+void cli_xml_error_written(const CliXml *xml, const CliXmlError *error, VerbaLinea *out);
 unsigned int cli_xml_root(const CliXml *xml);
 unsigned int cli_xml_child(const CliXml *xml, unsigned int of, const char *name);
 int cli_xml_named(const CliXml *xml, unsigned int element, const char *name);
-int cli_xml_text(const CliXml *xml, unsigned int of, CliLine *out);
-int cli_xml_text_of(const CliXml *xml, unsigned int of, const char *name, CliLine *out);
+int cli_xml_text(const CliXml *xml, unsigned int of, VerbaLinea *out);
+int cli_xml_text_of(const CliXml *xml, unsigned int of, const char *name, VerbaLinea *out);
 unsigned int cli_xml_at_path(const CliXml *xml, unsigned int of, const char *const *path, unsigned int count);
 int cli_xml_inside_free(const CliXml *xml, unsigned int at);
 const char *const *cli_maven_schema(const char *name, unsigned long long size, unsigned int *count);
@@ -148,27 +148,27 @@ typedef struct
     unsigned int text_room;
 } CliMavenModel;
 
-// the cells the models read are held in, counted; a model's cells given back, the model left empty, a model given
+// the cells the models read are allocated in, counted; a model's cells given back, the model left empty, a model given
 // back before it is read again or let go; room made for one property more, and for one managed dependency more: 1, or
-// 0 where the model holds the most or the cell is refused; and `size` bytes of `bytes` kept in the model's text, its
-// room doubled to hold them: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit (maven_model_kept.c)
-extern CliCellsTally g_cli_maven_model_cells;
+// 0 where the model contains the most or the cell is refused; and `size` bytes of `bytes` stored in the model's text,
+// its room doubled to fit them: where they start, CLI_MAVEN_MODEL_TEXT where they do not fit (maven_model_text.c)
+extern CellOwner g_cli_maven_model_cells;
 void cli_maven_model_given(CliMavenModel *model);
 int cli_maven_property_room(CliMavenModel *model);
 int cli_maven_managed_room(CliMavenModel *model);
-unsigned int cli_maven_model_kept(CliMavenModel *model, const char *bytes, unsigned long long size);
+unsigned int cli_maven_model_text_stored(CliMavenModel *model, const char *bytes, unsigned long long size);
 
 // what the POM at `path`, `size` bytes of its text, gives its children, its parents read up to eight above it, into
 // `model`; the value of the property `name` the model sets, NULL where it sets none; `value` with each property it
 // names given, as far as the model gives them, eight at most, into `out`; whether Maven, Java or the system give a
 // property of `size` bytes of `name`; the local repository, the one the user's settings name or `~/.m2/repository`,
-// into `out`, which holds CLI_PATH_LONGEST: 1, or 0 where no home folder is known; the user's `settings.xml`, the same;
+// into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where no home folder is known; the user's `settings.xml`, the same;
 // and the program that runs the Maven build at `folder` of the tree at `root`, its wrapper, the nearest above it in the
-// tree, where one is, into `out`, which holds CLI_PATH_LONGEST (maven_model.c)
+// tree, where one is, into `out`, sized for CLI_PATH_MAX_LEN (maven_model.c)
 void cli_maven_model_of(const char *path, const char *text, unsigned long long size, CliMavenModel *model);
 const char *cli_maven_property(const CliMavenModel *model, const char *name, unsigned long long size,
                                unsigned long long *value_size);
-void cli_maven_resolve(const char *value, unsigned long long size, const CliMavenModel *model, CliLine *out);
+void cli_maven_resolve(const char *value, unsigned long long size, const CliMavenModel *model, VerbaLinea *out);
 int cli_maven_given(const char *name, unsigned long long size);
 int cli_maven_local_repository(char *out);
 int cli_maven_user_settings(char *out);
@@ -182,8 +182,8 @@ typedef struct
     const CliMavenModel *model;
     const CliBuildLines *lines;
     CliBuildFindings *found;
-    char shown[CLI_PATH_LONGEST];
-    char program[CLI_PATH_LONGEST];
+    char shown[CLI_PATH_MAX_LEN];
+    char program[CLI_PATH_MAX_LEN];
 } CliMavenCheck;
 
 // the findings of the POM at `path` of the tree at `root`, `size` bytes of its text; the fix that fetches the newest
@@ -198,7 +198,7 @@ void cli_maven_dependencies(const CliMavenCheck *check, unsigned int list);
 // the properties that set each of the compiler's settings, each its key, its label, its property and the element of the
 // compiler plugin's configuration that sets it there; the `maven-compiler-plugin` of a POM's build or its plugin
 // management, CLI_XML_NONE where it has none; and Maven's home folder, the one `MAVEN_HOME` or `M2_HOME` names or the
-// one above the `bin` that holds `mvn`, into `out`, which holds CLI_PATH_LONGEST: 1, or 0 where none is known
+// one above the `bin` that contains `mvn`, into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where none is known
 // (maven_settings.c)
 extern const char *const g_cli_maven_compiler[4][4];
 unsigned int cli_maven_compiler_plugin(const CliXml *xml, unsigned int project);

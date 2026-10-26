@@ -12,7 +12,7 @@ void coherence_broken(CoherenceResults *results)
     unsigned int *const atoms = (unsigned int *)calloc(lanes, sizeof(unsigned int));
     if ((program == NULL) || (atoms == NULL))
     {
-        coherence_check(results, 0, "the broken lanes are held");
+        coherence_check(results, 0, "the broken lanes are allocated");
         free(program);
         free(atoms);
         return;
@@ -65,13 +65,13 @@ void coherence_broken(CoherenceResults *results)
                 ? 1u
                 : 0u;
     }
-    scriptura_text(&results->line, "  broken: the quotient by 3 disagrees on ");
-    scriptura_decimal(&results->line, quotient_breaks, 1u);
-    scriptura_text(&results->line, " and the comparison with 0 on ");
-    scriptura_decimal(&results->line, compare_breaks, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes, wrapped to 8 bits before against after\n");
+    mmgr_line_put(&results->line, "  broken: the quotient by 3 disagrees on ");
+    mmgr_line_decimal(&results->line, quotient_breaks, 1u);
+    mmgr_line_put(&results->line, " and the comparison with 0 on ");
+    mmgr_line_decimal(&results->line, compare_breaks, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes, wrapped to 8 bits before against after\n");
     coherence_check(results,
                     host_ran && device_ran &&
                         (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
@@ -108,7 +108,7 @@ void coherence_odd_divisors(CoherenceResults *results)
     CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
     if ((atoms == NULL) || (program == NULL))
     {
-        coherence_check(results, 0, "the odd divisor lanes are held");
+        coherence_check(results, 0, "the odd divisor lanes are allocated");
         free(atoms);
         free(program);
         return;
@@ -130,10 +130,10 @@ void coherence_odd_divisors(CoherenceResults *results)
         {
             const unsigned int bits = s_coherence_widths[width];
             // c^-1 modulo 2^w, never negative, as a constant
-            const unsigned int kept = (bits == 32u) ? inverse : (inverse & ((1u << bits) - 1u));
+            const unsigned int masked = (bits == 32u) ? inverse : (inverse & ((1u << bits) - 1u));
             coherence_output(program, coherence_append(program, ENGINE_RECORD_WRAP, quotient, bits));
             const unsigned int projected = coherence_append(program, ENGINE_RECORD_WRAP, product, bits);
-            const unsigned int unit = coherence_append(program, ENGINE_RECORD_CONSTANT, kept, 0u);
+            const unsigned int unit = coherence_append(program, ENGINE_RECORD_CONSTANT, masked, 0u);
             const unsigned int times = coherence_append(program, ENGINE_RECORD_PRODUCT, projected, unit);
             coherence_output(program, coherence_append(program, ENGINE_RECORD_WRAP, times, bits));
         }
@@ -178,11 +178,11 @@ void coherence_odd_divisors(CoherenceResults *results)
         free(device_out);
         coherence_free(&loaded);
     }
-    scriptura_text(&results->line, "  odd divisors: 3, 7 and 12345; ");
-    scriptura_decimal(&results->line, agreements, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, comparisons, 1u);
-    scriptura_text(&results->line,
+    mmgr_line_put(&results->line, "  odd divisors: 3, 7 and 12345; ");
+    mmgr_line_decimal(&results->line, agreements, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, comparisons, 1u);
+    mmgr_line_put(&results->line,
                    " lane-widths: the exact quotient wrapped equals the wrapped product by c^-1 mod 2^w\n");
     coherence_check(results, loaded_all, "every odd divisor program loads");
     coherence_check(results, words_all, "the odd divisor programs' device records equal the host's word for word");
@@ -220,7 +220,7 @@ void coherence_orthogonal(CoherenceResults *results)
     CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
     if ((atoms == NULL) || (program == NULL))
     {
-        coherence_check(results, 0, "the orthogonal lanes are held");
+        coherence_check(results, 0, "the orthogonal lanes are allocated");
         free(atoms);
         free(program);
         return;
@@ -391,19 +391,19 @@ void coherence_orthogonal(CoherenceResults *results)
         free(device_out);
         coherence_free(&loaded);
     }
-    scriptura_text(&results->line, "  orthogonal crystals: 3^5, 3^10, 5^4 and 7^3 over ");
-    scriptura_decimal(&results->line, COHERENCE_TEST_PROGRAMS, 1u);
-    scriptura_text(&results->line, " ring programs; ");
-    scriptura_decimal(&results->line, agreements, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, comparisons, 1u);
-    scriptura_text(&results->line, " lane-moduli agree three ways, ");
-    scriptura_decimal(&results->line, joined, 1u);
-    scriptura_text(&results->line, " join with the 8-bit window exactly; the xor breaks modulo 3 on ");
-    scriptura_decimal(&results->line, xor_breaks, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes\n");
+    mmgr_line_put(&results->line, "  orthogonal crystals: 3^5, 3^10, 5^4 and 7^3 over ");
+    mmgr_line_decimal(&results->line, COHERENCE_TEST_PROGRAMS, 1u);
+    mmgr_line_put(&results->line, " ring programs; ");
+    mmgr_line_decimal(&results->line, agreements, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, comparisons, 1u);
+    mmgr_line_put(&results->line, " lane-moduli agree three ways, ");
+    mmgr_line_decimal(&results->line, joined, 1u);
+    mmgr_line_put(&results->line, " join with the 8-bit window exactly; the xor breaks modulo 3 on ");
+    mmgr_line_decimal(&results->line, xor_breaks, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes\n");
     coherence_check(results, loaded_all && (xor_loads != 0), "every orthogonal program loads");
     coherence_check(results, words_all, "the orthogonal programs' device records equal the host's word for word");
     coherence_check(results, (comparisons != 0ull) && (agreements == comparisons),

@@ -16,14 +16,14 @@
 #define CLI_COMPILE_FOUND 1024u
 #define CLI_COMPILE_FIRST 16u
 
-// the cells the files a look reads, the folders a search finds and the folders a walk has still to look in are held
-// in, counted (compile_db.c)
-extern CliCellsTally g_cli_compile_cells;
+// the cells the files a look reads, the folders a search finds and the folders a walk has still to look in are
+// allocated in, counted (compile_db.c)
+extern CellOwner g_cli_compile_cells;
 
 // A file a look reads, and when it last changed, in milliseconds since 1970
 typedef struct
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned long long time;
 } CliStamped;
 
@@ -41,14 +41,14 @@ typedef struct
 // cli_compile_found_given
 typedef struct
 {
-    char (*path)[CLI_PATH_LONGEST];
+    char (*path)[CLI_PATH_MAX_LEN];
     unsigned int count;
     unsigned int room;
 } CliFoundFolders;
 
 // the cells of what a look read, and of the folders a search found, given back, each left empty; and `list`, `count`
-// items of `each` bytes held in a room of `*room`, made to hold one more, `most` at the most: the list, moved into a
-// cell of doubled room where it is full, or NULL where it holds the most or the cell is refused (compile_db.c)
+// items of `each` bytes stored in a room of `*room`, made to fit one more, `most` at the most: the list, moved into a
+// cell of doubled room where it is full, or NULL where it contains the most or the cell is refused (compile_db.c)
 void cli_compile_inputs_given(CliInputs *inputs);
 void cli_compile_found_given(CliFoundFolders *found);
 void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsigned long long each, unsigned int most,
@@ -57,15 +57,15 @@ void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsig
 // the file at `path` with when it last changed into `stamped`: 1, or 0 where it is not there; each folder below `top`,
 // at most CLI_COMPILE_DEPTH down, that ends in the folders `tail`, `count` of them, into `found`; each file named
 // `name` below `top`, the same; and the newest file of a CMake reply folder whose name starts `index-` into `index`:
-// 1, or 0 where it holds none (compile_db.c)
+// 1, or 0 where it contains none (compile_db.c)
 int cli_compile_stamped(const char *path, CliStamped *stamped);
 void cli_compile_folders_named(const char *top, const char *const *tail, unsigned int count, CliFoundFolders *found);
 void cli_compile_files_named(const char *top, const char *name, CliFoundFolders *found);
 int cli_compile_newest_index(const char *reply, char *index);
 
-// whether a letter is whitespace as a command line is read; the words of a command line, a word in double quotes kept
-// whole, the first into `first`, which holds CLI_PATH_LONGEST: 1, or 0 where it has none; and each of them handed to
-// `each` (compile_db.c)
+// whether a letter is whitespace as a command line is read; the words of a command line, a word in double quotes
+// retained whole, the first into `first`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it has none; and each of them
+// handed to `each` (compile_db.c)
 int cli_compile_white(char letter);
 int cli_compile_first_word(const char *text, unsigned long long length, char *first);
 void cli_compile_words_each(const char *text, unsigned long long length,
@@ -91,7 +91,7 @@ void cli_compile_inputs(const char *root, CliInputs *inputs);
 // A project's entries: its folder, when its configuration was written, and its entries in the gathered tree
 typedef struct
 {
-    char project[CLI_PATH_LONGEST];
+    char project[CLI_PATH_MAX_LEN];
     unsigned long long time;
     unsigned int entries;
 } CliProject;
@@ -99,9 +99,9 @@ typedef struct
 // A language's compiler as a CMake build gives it: its language, its path and its id
 typedef struct
 {
-    char language[CLI_NAME_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char id[CLI_NAME_LONGEST];
+    char language[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char id[CLI_NAME_MAX_LEN];
 } CliCompilerOf;
 
 // The gathering: the entries tree, growing in a cell of its own, the projects, a compile group's flags, their text a
@@ -114,10 +114,10 @@ typedef struct
     unsigned int projects;
     CliCompilerOf compiler[CLI_GATHER_LANGUAGES];
     unsigned int compilers;
-    CliLine flags_text;
+    VerbaLinea flags_text;
     unsigned int flag[CLI_GATHER_FLAGS];
     unsigned int flags;
-    CliLine fragment_text;
+    VerbaLinea fragment_text;
 } CliGathering;
 
 extern CliGathering g_cli_gather;

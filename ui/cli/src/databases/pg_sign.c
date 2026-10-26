@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pg_sign.c: a PostgreSQL connection's startup and sign-in: the startup message, then a password as the server asks,
-// by SCRAM-SHA-256 as RFC 5802 and 7677 set it out, by md5, or in the clear, until the server says it is ready
+// pg_sign.c: a PostgreSQL connection's startup and sign-in: the startup message, then a password as the server
+// requires, by SCRAM-SHA-256 as RFC 5802 and 7677 set it out, by md5, or in the clear, until the server reports it is
+// ready
 #include "../text/base64.h"
 #include "../text/digest.h"
 #include "../text/json_tree.h"
@@ -20,10 +21,10 @@ static int sign_field(const char *server_first, const char *name, char *out, uns
                                             : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
         if ((size >= length) && cli_text_same(part, name, length))
         {
-            CliLine line = {out, room, 0ull};
-            cli_line_counted(&line, part + length, size - length);
-            cli_line_closed(&line);
-            return cli_line_fits(&line);
+            VerbaLinea line = {out, room, 0ull};
+            mmgr_line_put_n(&line, part + length, size - length);
+            mmgr_line_finish(&line);
+            return mmgr_line_ok(&line);
         }
         part = (comma != NULL) ? comma + 1 : NULL;
     }
@@ -40,19 +41,19 @@ int cli_pg_scram_final(const char *password, const char *first_bare, const char 
     unsigned long long salt_size = 0ull;
     if (!sign_field(server_first, "r=", server_nonce, sizeof(server_nonce)))
     {
-        cli_db_failure_said(failure, "the server gave no nonce");
+        cli_db_failure_set(failure, "the server gave no nonce");
         return 0;
     }
     if (!cli_text_same(server_nonce, nonce, cellul.len(&(CatenaFinitaCfg){.src = nonce, .cap = CLI_CELLS_POOL})))
     {
-        cli_db_failure_said(failure, "the server's nonce is not the one asked for");
+        cli_db_failure_set(failure, "the server's nonce is not the one requested");
         return 0;
     }
     if (!sign_field(server_first, "s=", salt_text, sizeof(salt_text)) ||
         !cli_unbase64(salt_text, cellul.len(&(CatenaFinitaCfg){.src = salt_text, .cap = CLI_CELLS_POOL}), salt,
                       sizeof(salt), &salt_size))
     {
-        cli_db_failure_said(failure, "the server gave no salt");
+        cli_db_failure_set(failure, "the server gave no salt");
         return 0;
     }
     unsigned long long rounds = 0ull;
@@ -65,7 +66,7 @@ int cli_pg_scram_final(const char *password, const char *first_bare, const char 
     }
     if (!counted || (rounds > 0xffffffffull))
     {
-        cli_db_failure_said(failure, "the server gave no count of rounds");
+        cli_db_failure_set(failure, "the server gave no count of rounds");
         return 0;
     }
     unsigned char salted[32];
@@ -81,16 +82,16 @@ int cli_pg_scram_final(const char *password, const char *first_bare, const char 
                       (unsigned int)rounds, salted);
     cli_hmac_sha256_bytes(salted, sizeof(salted), "Client Key", 10ull, client_key);
     cli_sha256_bytes(client_key, sizeof(client_key), stored_key);
-    CliLine without = {without_proof, sizeof(without_proof), 0ull};
-    cli_line_text(&without, "c=biws,r=");
-    cli_line_text(&without, server_nonce);
-    cli_line_closed(&without);
-    CliLine auth_line = {auth, sizeof(auth), 0ull};
-    cli_line_text(&auth_line, first_bare);
-    cli_line_character(&auth_line, ',');
-    cli_line_text(&auth_line, server_first);
-    cli_line_character(&auth_line, ',');
-    cli_line_text(&auth_line, without_proof);
+    VerbaLinea without = {without_proof, sizeof(without_proof), 0ull};
+    mmgr_line_put(&without, "c=biws,r=");
+    mmgr_line_put(&without, server_nonce);
+    mmgr_line_finish(&without);
+    VerbaLinea auth_line = {auth, sizeof(auth), 0ull};
+    mmgr_line_put(&auth_line, first_bare);
+    mmgr_line_ch(&auth_line, ',');
+    mmgr_line_put(&auth_line, server_first);
+    mmgr_line_ch(&auth_line, ',');
+    mmgr_line_put(&auth_line, without_proof);
     cli_hmac_sha256_bytes(stored_key, sizeof(stored_key), auth_line.out, auth_line.at, client_signature);
     for (unsigned int at = 0u; at < sizeof(proof); at += 1u)
     {
@@ -98,14 +99,14 @@ int cli_pg_scram_final(const char *password, const char *first_bare, const char 
     }
     cli_hmac_sha256_bytes(salted, sizeof(salted), "Server Key", 10ull, server_key);
     cli_hmac_sha256_bytes(server_key, sizeof(server_key), auth_line.out, auth_line.at, server_signature);
-    CliLine final_line = {client_final, CLI_PG_SIGN_TEXT, 0ull};
-    cli_line_text(&final_line, without_proof);
-    cli_line_text(&final_line, ",p=");
+    VerbaLinea final_line = {client_final, CLI_PG_SIGN_TEXT, 0ull};
+    mmgr_line_put(&final_line, without_proof);
+    mmgr_line_put(&final_line, ",p=");
     cli_base64(&final_line, proof, sizeof(proof));
-    cli_line_closed(&final_line);
-    CliLine signature_line = {signature, CLI_PG_SIGN_TEXT, 0ull};
+    mmgr_line_finish(&final_line);
+    VerbaLinea signature_line = {signature, CLI_PG_SIGN_TEXT, 0ull};
     cli_base64(&signature_line, server_signature, sizeof(server_signature));
-    cli_line_closed(&signature_line);
+    mmgr_line_finish(&signature_line);
     return 1;
 }
 
@@ -121,20 +122,20 @@ static int sign_password(CliPg *pg, const char *text, unsigned long long size, i
 static int sign_startup(CliPg *pg, const char *user, const char *database, CliDbFailure *failure)
 {
     unsigned char startup[CLI_PG_SIGN_TEXT * 2u];
-    CliLine body = {(char *)startup, sizeof(startup), 4ull};
+    VerbaLinea body = {(char *)startup, sizeof(startup), 4ull};
     const char *const pairs[10] = {
         "user", user, "database", database, "application_name", "orior", "client_encoding", "UTF8", "DateStyle", "ISO"};
     // the version, 3.0, as 196608 big-endian
-    cli_line_counted(&body, "\x00\x03\x00\x00", 4ull);
+    mmgr_line_put_n(&body, "\x00\x03\x00\x00", 4ull);
     for (unsigned int at = 0u; at < 10u; at += 1u)
     {
-        cli_line_text(&body, pairs[at]);
-        cli_line_character(&body, '\0');
+        mmgr_line_put(&body, pairs[at]);
+        mmgr_line_ch(&body, '\0');
     }
-    cli_line_character(&body, '\0');
-    if (!cli_line_fits(&body))
+    mmgr_line_ch(&body, '\0');
+    if (!mmgr_line_ok(&body))
     {
-        cli_db_failure_said(failure, "the user's and the database's names are longer than orior_cli sends");
+        cli_db_failure_set(failure, "the user's and the database's names are longer than orior_cli sends");
         return 0;
     }
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
@@ -143,13 +144,13 @@ static int sign_startup(CliPg *pg, const char *user, const char *database, CliDb
     }
     if (!cli_socket_written(&pg->socket, startup, body.at))
     {
-        cli_db_failure_said(failure, "the connection broke: the server closed it");
+        cli_db_failure_set(failure, "the connection broke: the server closed it");
         return 0;
     }
     return 1;
 }
 
-// what the server answers a sign-in with, one Authentication message by its code: 1, or 0 with the failure said
+// what the server answers a sign-in with, one Authentication message by its code: 1, or 0 with the failure given
 static int sign_answered(CliPg *pg, const char *user, const char *password, char *first_bare, char *nonce,
                          char *signature, int *begun, CliDbFailure *failure)
 {
@@ -160,7 +161,7 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
                                            ((unsigned long long)body[2] << 8u) | (unsigned long long)body[3])
                                         : 0ull;
     char text[CLI_PG_SIGN_TEXT * 2u];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     if (code == 0ull)
     {
         return 1;
@@ -174,20 +175,20 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
     {
         // md5 of the md5 of the password and the user, with the salt the server gave after it
         char inner[64];
-        CliLine inner_line = {inner, sizeof(inner), 0ull};
-        cli_line_text(&line, password);
-        cli_line_text(&line, user);
+        VerbaLinea inner_line = {inner, sizeof(inner), 0ull};
+        mmgr_line_put(&line, password);
+        mmgr_line_put(&line, user);
         cli_md5_text(line.out, line.at, &inner_line);
-        cli_line_counted(&inner_line, (const char *)body + 4u, (size >= 8u) ? 4ull : 0ull);
+        mmgr_line_put_n(&inner_line, (const char *)body + 4u, (size >= 8u) ? 4ull : 0ull);
         line.at = 0ull;
-        cli_line_text(&line, "md5");
+        mmgr_line_put(&line, "md5");
         cli_md5_text(inner_line.out, inner_line.at, &line);
         return sign_password(pg, line.out, line.at, 1, failure);
     }
     if (code == 10ull)
     {
         int scram = 0;
-        CliLine offered = {text, sizeof(text), 0ull};
+        VerbaLinea offered = {text, sizeof(text), 0ull};
         for (unsigned long long at = 4ull; at < size;)
         {
             const unsigned char *const nul =
@@ -198,7 +199,7 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
                 scram = scram ||
                         ((end - at == 13u) &&
                          (memor.cmp(&(MemoriaCfg){.src = body + at, .other = "SCRAM-SHA-256", .bytes = 13u}) == 0));
-                cli_line_text(&offered, (offered.at > 0u) ? ", " : "");
+                mmgr_line_put(&offered, (offered.at > 0u) ? ", " : "");
                 cli_lossy(&offered, body + at, end - at);
             }
             at = end + 1ull;
@@ -206,38 +207,38 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
         if (!scram)
         {
             char why[CLI_PG_SIGN_TEXT * 3u];
-            CliLine said = {why, sizeof(why), 0ull};
-            cli_line_text(&said, "the server signs in only by ");
-            cli_line_counted(&said, offered.out, offered.at);
-            cli_line_text(&said, ", which orior_cli does not speak");
-            cli_line_closed(&said);
-            cli_db_failure_said(failure, why);
+            VerbaLinea err_msg = {why, sizeof(why), 0ull};
+            mmgr_line_put(&err_msg, "the server signs in only by ");
+            mmgr_line_put_n(&err_msg, offered.out, offered.at);
+            mmgr_line_put(&err_msg, ", which orior_cli does not support");
+            mmgr_line_finish(&err_msg);
+            cli_db_failure_set(failure, why);
             return 0;
         }
         unsigned char random[18];
         if (!cli_random_bytes(random, sizeof(random)))
         {
-            cli_db_failure_said(failure, "the system gave no secret");
+            cli_db_failure_set(failure, "the system gave no secret");
             return 0;
         }
-        CliLine nonce_line = {nonce, CLI_PG_SIGN_TEXT, 0ull};
+        VerbaLinea nonce_line = {nonce, CLI_PG_SIGN_TEXT, 0ull};
         cli_base64(&nonce_line, random, sizeof(random));
-        cli_line_closed(&nonce_line);
-        CliLine bare = {first_bare, CLI_PG_SIGN_TEXT, 0ull};
-        cli_line_text(&bare, "n=,r=");
-        cli_line_text(&bare, nonce);
-        cli_line_closed(&bare);
+        mmgr_line_finish(&nonce_line);
+        VerbaLinea bare = {first_bare, CLI_PG_SIGN_TEXT, 0ull};
+        mmgr_line_put(&bare, "n=,r=");
+        mmgr_line_put(&bare, nonce);
+        mmgr_line_finish(&bare);
         // the mechanism's name and a nul, then the first message's length, big-endian, then the message
         const unsigned long long first =
             3ull + cellul.len(&(CatenaFinitaCfg){.src = first_bare, .cap = CLI_CELLS_POOL});
-        cli_line_text(&line, "SCRAM-SHA-256");
-        cli_line_character(&line, '\0');
+        mmgr_line_put(&line, "SCRAM-SHA-256");
+        mmgr_line_ch(&line, '\0');
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)
         {
-            cli_line_character(&line, (char)((first >> (24u - (8u * byte))) & 0xffu));
+            mmgr_line_ch(&line, (char)((first >> (24u - (8u * byte))) & 0xffu));
         }
-        cli_line_text(&line, "n,,");
-        cli_line_text(&line, first_bare);
+        mmgr_line_put(&line, "n,,");
+        mmgr_line_put(&line, first_bare);
         *begun = 1;
         return sign_password(pg, line.out, line.at, 0, failure);
     }
@@ -245,14 +246,14 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
     {
         if (!*begun)
         {
-            cli_db_failure_said(failure, "the server went on with a sign-in that was not begun");
+            cli_db_failure_set(failure, "the server went on with a sign-in that was not begun");
             return 0;
         }
         char server_first[CLI_PG_SIGN_TEXT];
         char client_final[CLI_PG_SIGN_TEXT];
-        CliLine server_line = {server_first, sizeof(server_first), 0ull};
+        VerbaLinea server_line = {server_first, sizeof(server_first), 0ull};
         cli_lossy(&server_line, body + 4u, (size > 4u) ? size - 4u : 0ull);
-        cli_line_closed(&server_line);
+        mmgr_line_finish(&server_line);
         if (!cli_pg_scram_final(password, first_bare, nonce, server_first, client_final, signature, failure))
         {
             return 0;
@@ -283,15 +284,15 @@ static int sign_answered(CliPg *pg, const char *user, const char *password, char
                  .src = line.out + start + 2u, .other = *begun ? signature : "", .bytes = expected}) == 0);
         if (!proved)
         {
-            cli_db_failure_said(failure, "the server did not prove it holds the password: the sign-in is not trusted");
+            cli_db_failure_set(failure, "the server did not prove it has the password: the sign-in is not trusted");
         }
         return proved;
     }
-    cli_line_text(&line, "the server asks for a sign-in orior_cli does not speak (");
-    cli_line_decimal(&line, code, 1u);
-    cli_line_text(&line, "): SCRAM-SHA-256, md5 and a password in the clear are spoken");
-    cli_line_closed(&line);
-    cli_db_failure_said(failure, text);
+    mmgr_line_put(&line, "the server requests a sign-in orior_cli does not support (");
+    mmgr_line_decimal(&line, code, 1u);
+    mmgr_line_put(&line, "): SCRAM-SHA-256, md5 and a password in the clear are supported");
+    mmgr_line_finish(&line);
+    cli_db_failure_set(failure, text);
     return 0;
 }
 
@@ -335,11 +336,11 @@ int cli_pg_signed_in(CliPg *pg, const char *host, unsigned int port, const char 
         }
         if (kind == 'S')
         {
-            cli_pg_parameter_kept(pg, pg->message, pg->size);
+            cli_pg_parameter_stored(pg, pg->message, pg->size);
         }
         if (kind == 'N')
         {
-            cli_pg_notice_kept(pg);
+            cli_pg_notice_stored(pg);
         }
         if (kind == 'E')
         {

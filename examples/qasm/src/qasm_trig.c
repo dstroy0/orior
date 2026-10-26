@@ -20,7 +20,7 @@ int qasm_cos_sin(QasmParser *parser, const QasmAngle *angle, OriorExactInteger *
         {
             return 0;
         }
-        // the remainder keeps b's sign; a negative one is lifted by one whole turn
+        // the remainder retains b's sign; a negative one is lifted by one whole turn
         if (remainder.sign < 0)
         {
             if (!qasm_exact_ok(parser, orior_exact_add(&remainder, &twice_den, &remainder)))

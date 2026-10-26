@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -10,7 +10,7 @@
  * @brief The steering scan under AVX-512, sixty-four alignments per compare.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION AVX2 ANSWERS, TWICE THE WIDTH. Held at one needle offset, does
+ * THE SAME QUESTION AVX2 ANSWERS, TWICE THE WIDTH. Fixed at one needle offset, does
  * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
  * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
  * alignments still standing. AVX-512 answers sixty-four of those in one compare.
@@ -22,14 +22,14 @@
  * @note No machine in this project has AVX-512. This arm has never been run. It is compiled for
  *       the target and its emitted instructions are read by utils/maint/engine/verify_arm_asm.sh, which
  *       confirms zmm registers and vpcmpeqb against a mask. That rules out a silent fallback to
- *       scalar code. It says nothing about behavior, and the name reads avx512-unrun for that reason.
+ *       scalar code. It states nothing about behavior, and the name reads avx512-unrun for that reason.
  * @note AVX-512 comparison writes a mask register, one bit per lane. The count is a population
  *       count over the AND of two masks: where the corpus agrees, and where the alignment stands.
  *       That is a different instruction shape from the AVX2 movemask and not a widening of it.
- * @note Detection asks for AVX-512F and AVX-512BW together. The byte compare and the byte test are
+ * @note Detection requests for AVX-512F and AVX-512BW together. The byte compare and the byte test are
  *       BW instructions, and a part with F alone would fault on them.
  * @note The tail below sixty-four is finished scalar, the same code the portable arm runs. A masked
- *       tail is cheap on this instruction set, and the scalar one is chosen to keep every scan arm
+ *       tail is cheap on this instruction set, and the scalar one is chosen to retain every scan arm
  *       the same shape, since an unrun arm is for correctness and not for the tail's cost.
  */
 
@@ -39,7 +39,7 @@
 
 #if defined(_MSC_VER)
 #include <intrin.h>
-/** @brief Set where this translation unit can ask the processor about AVX-512. */
+/** @brief Set where this translation unit can query the processor about AVX-512. */
 #define ORIOR_STEER_AVX512_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
 #define ORIOR_STEER_AVX512_CAN_DETECT 1
@@ -100,7 +100,7 @@ size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments,
                                         size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
+     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -124,7 +124,7 @@ size_t orior_steer_truthy_after_avx512(const uint8_t *corpus, size_t alignments,
 
         /* An alive flag is zero or non-zero. The mask of alignments still standing is the lanes
          * whose byte ANDs with itself to a non-zero, which is every lane that is not zero. Testing
-         * this way and not against one keeps it correct if a caller stores a flag other than
+         * this way and not against one retains it correct if a caller stores a flag other than
          * one. */
         const __mmask64 alive_mask = _mm512_test_epi8_mask(standing_bytes, standing_bytes);
 

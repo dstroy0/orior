@@ -5,8 +5,8 @@
 //     utils/test/src/lng/lng_check_test.sh
 //
 // Every expectation below was written by reading the input instead of by running the tool. Each check has a clean
-// input it must pass and a broken one it must catch: a check that has never caught anything cannot be told apart from
-// one that catches nothing.
+// input it must pass and a broken one it must catch: a check that has never caught anything cannot be distinguished
+// from one that catches nothing.
 #include "../../../../src/lng/lng.h"
 
 #include <stdio.h>
@@ -18,7 +18,7 @@ static unsigned int s_failures;
 // the operator columns of the test's tables, in their order
 static const char *const s_operators[6] = {"<", ">=", "+", "&", "&&", "-"};
 
-// `got` held against the `count` texts at `wanted`, a failure printed under `label` where they differ
+// `got` checked against the `count` texts at `wanted`, a failure printed under `label` where they differ
 static void expect(const char *label, const LngList *got, const char *const *wanted, unsigned int count)
 {
     int same = (got->count == count);
@@ -44,7 +44,7 @@ static void expect(const char *label, const LngList *got, const char *const *wan
     printf("\n");
 }
 
-// `got` held against `wanted`, a failure printed under `label` where they differ
+// `got` checked against `wanted`, a failure printed under `label` where they differ
 static void expect_count(const char *label, unsigned int got, unsigned int wanted)
 {
     if (got != wanted)
@@ -55,7 +55,7 @@ static void expect_count(const char *label, unsigned int got, unsigned int wante
 }
 
 // a row of the transpiler's test table, its operator cells 1 for each of `operators`, `count` of them, apart by tabs,
-// kept after `lines`
+// appended to `lines`
 static void blank(LngList *lines, const char *word, const char *kind, const char *bits, const char *sign,
                   const char *c_type, const char *complement, const char *const *operators, unsigned int count)
 {
@@ -71,14 +71,14 @@ static void blank(LngList *lines, const char *word, const char *kind, const char
                      complement, cells[0], cells[1], cells[2], cells[3], cells[4], cells[5]);
 }
 
-// the head of the transpiler's test table kept as the first of `lines`
+// the head of the transpiler's test table placed as the first of `lines`
 static void head(LngList *lines)
 {
     lng_list_add(lines, "word\tkind\tnames\tselected_by_process\tselected_by_step\tselected_by_branch\t"
                         "selected_by_fulltrace\tbits\tsigned\tc_type\tcomplement\t<\t>=\t+\t&\t&&\t-");
 }
 
-// `lines` read as a table into `table`, the defects of its form kept after `defects`, and `lines` let go
+// `lines` read as a table into `table`, the defects of its form appended to `defects`, and `lines` let go
 static void table_of(LngList *lines, LngTable *table, LngList *defects)
 {
     lng_table_free(table);
@@ -86,7 +86,7 @@ static void table_of(LngList *lines, LngTable *table, LngList *defects)
     lng_list_free(lines);
 }
 
-// the clean table: kept after a head in `lines`
+// the clean table: appended after a head in `lines`
 static void clean(LngList *lines)
 {
     static const char *const s_below[1] = {"<"};
@@ -101,21 +101,21 @@ static void clean(LngList *lines)
     blank(lines, "word", "thing", "32", "0", "unsigned int", "", NULL, 0u);
 }
 
-// a row of a high order test table, its cells apart by tabs, kept after `lines`
+// a row of a high order test table, its cells apart by tabs, appended to `lines`
 static void hol_row(LngList *lines, const char *word, const char *kind, const char *bits, const char *sign,
                     const char *crossed, const char *below, const char *plus)
 {
     lng_list_printed(lines, "%s\t%s\t\t\t\t\t\t%s\t%s\t%s\t%s\t%s", word, kind, bits, sign, crossed, below, plus);
 }
 
-// the head of a high order test table kept as the first of `lines`
+// the head of a high order test table placed as the first of `lines`
 static void hol_head(LngList *lines)
 {
     lng_list_add(lines, "word\tkind\tnames\tselected_by_process\tselected_by_step\tselected_by_branch\t"
                         "selected_by_fulltrace\tbits\tsigned\ttranspiler\t<\t+");
 }
 
-// the head of a matrix test table kept as the first of `lines`, with the arrow column where `arrowed`
+// the head of a matrix test table placed as the first of `lines`, with the arrow column where `arrowed`
 static void asm_head(LngList *lines, int arrowed)
 {
     lng_list_printed(lines,
@@ -124,7 +124,7 @@ static void asm_head(LngList *lines, int arrowed)
                      arrowed ? "\tarrow" : "");
 }
 
-// a row of a matrix test table, its `count` cells apart by tabs, kept after `lines`
+// a row of a matrix test table, its `count` cells apart by tabs, appended to `lines`
 static void asm_row(LngList *lines, const char *const *cells, unsigned int count)
 {
     LngList row = {NULL, 0u, 0u};
@@ -150,14 +150,14 @@ int main(void)
     expect_count("a clean table reads whole", table.rows, 5u);
     expect("a clean table reads whole", &defects, NULL, 0u);
     lng_table_check(&table, g_lng_kinds, LNG_KINDS, &defects);
-    expect("a clean table holds no defect", &defects, NULL, 0u);
+    expect("a clean table has no defect", &defects, NULL, 0u);
     lng_table_findings(&table, &findings);
-    expect("a clean table holds no finding", &findings, NULL, 0u);
+    expect("a clean table has no finding", &findings, NULL, 0u);
 
     clean(&lines);
     lng_list_add(&lines, "short\tthing");
     table_of(&lines, &table, &defects);
-    static const char *const s_short[1] = {"line 7 holds 2 cells where the head holds 17"};
+    static const char *const s_short[1] = {"line 7 has 2 cells where the head has 17"};
     expect("a short row is a defect", &defects, s_short, 1u);
     lng_list_free(&defects);
 
@@ -174,7 +174,7 @@ int main(void)
         table_of(&lines, &table, &defects);
         lng_table_check(&table, g_lng_kinds, LNG_KINDS, &defects);
         static const char *const s_wanted[4] = {
-            "add doing is held twice",
+            "add doing is listed twice",
             "word has the kind noun, which no table names",
             "below complements geq, which does not complement it back",
             "geq complements add, which does not complement it back",
@@ -289,7 +289,7 @@ int main(void)
         lng_hol_check(&table, &hol, &defects, &findings);
         static const char *const s_crossed[2] = {
             "i32_t is 32 bits signed 1 and crosses to word, which is 32 bits signed 0",
-            "u16_t crosses to halfword, which the transpiler holds no word for",
+            "u16_t crosses to halfword, which the transpiler has no word for",
         };
         static const char *const s_gaps[2] = {
             "the transpiler's word is 32 bits signed 0, and no high order type is",
@@ -407,7 +407,7 @@ int main(void)
 
     {
         // a .ksc of the ksc's own lines, a who line and a block of the ruleset's language: the ksc reads its own
-        // lines and the ruleset reads the block's, each line keeping its number
+        // lines and the ruleset reads the block's, each line retaining its number
         static KfileLines s_file;
         static const char *const s_lines[7] = {
             "channel probe_sm",
@@ -429,19 +429,19 @@ int main(void)
         expect("the ksc reads its own lines", &used.key, s_ksc_words, 5u);
         expect("the ksc reads its own lines", &used.value, s_ksc_where, 5u);
         lng_map_free(&used);
-        LngList kept = {NULL, 0u, 0u};
-        lng_ruleset_lines(&s_file, &kept);
-        static const char *const s_kept[7] = {"", "", "", "form word_add w = {to} = {left} + {right};", "bank wide 8",
-                                              "", ""};
-        expect("the ruleset reads the block's lines", &kept, s_kept, 7u);
-        lng_ruleset_words("x.ksc", (const char *const *)kept.text, kept.count, &used);
+        LngList found_lines = {NULL, 0u, 0u};
+        lng_ruleset_lines(&s_file, &found_lines);
+        static const char *const s_lines_expected[7] = {
+            "", "", "", "form word_add w = {to} = {left} + {right};", "bank wide 8", "", ""};
+        expect("the ruleset reads the block's lines", &found_lines, s_lines_expected, 7u);
+        lng_ruleset_words("x.ksc", (const char *const *)found_lines.text, found_lines.count, &used);
         static const char *const s_ruleset_words[6] = {"add", "bank", "form", "w", "wide", "word"};
         static const char *const s_ruleset_where[6] = {"x.ksc:4", "x.ksc:5", "x.ksc:4",
                                                        "x.ksc:4", "x.ksc:5", "x.ksc:4"};
         expect("the ruleset reads the block's lines", &used.key, s_ruleset_words, 6u);
         expect("the ruleset reads the block's lines", &used.value, s_ruleset_where, 6u);
         lng_map_free(&used);
-        lng_list_free(&kept);
+        lng_list_free(&found_lines);
         kfile_lines_free(&s_file);
     }
 

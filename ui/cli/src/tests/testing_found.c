@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // testing_found.c: a tree's tests found. A file's tests are read from its facts: a class's body is the lines after its
 // own indented deeper than it, blank lines among them, and a function in a class's body is a method of it where no
-// function of the class holds it; a function outside every class is a test where no function holds it. The tree's
+// function of the class contains it; a function outside every class is a test where no function contains it. The tree's
 // Python files are its files named as the rules name a test file, outside the folders not searched and inside the
 // rules' folders where they name any, in the order of their paths; its Rust tests follow them
 #include "../command_line/cells.h"
@@ -35,11 +35,11 @@ typedef struct
     CliCargoTests cargo;
 } CliTestsRoom;
 
-static CliTestsRoom s_kept;
+static CliTestsRoom s_room_storage;
 static CliTestsRoom *s_room;
 static CliLock s_tests_lock = CLI_LOCK_INIT;
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
 static void *found_part(unsigned char **at, unsigned long long bytes)
 {
     void *const part = *at;
@@ -83,7 +83,7 @@ static void *found_part_taken(const char *text, unsigned long long size)
         (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
         ((unsigned long long)counted.classes * sizeof(unsigned int)) +
         (2ull * counted.functions * sizeof(unsigned int)) + (12ull * 8ull);
-    unsigned char *const cell = cli_cell_taken(bytes, "a file's tests found");
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
     if (cell == NULL)
     {
         return NULL;
@@ -154,8 +154,8 @@ static void found_bodies(const char *text, unsigned long long size)
     }
 }
 
-// the class whose body holds `line`, CLI_TESTS_NONE where none does
-static unsigned int found_held_by(unsigned int line)
+// the class whose body contains `line`, CLI_TESTS_NONE where none does
+static unsigned int found_class_of(unsigned int line)
 {
     for (unsigned int at = 0u; at < s_room->facts.classes; at += 1u)
     {
@@ -196,7 +196,7 @@ static int found_collected(unsigned int class_at, const CliTestRules *rules, int
         const unsigned int other =
             (one->name.size == 8u) &&
                     (memor.cmp(&(MemoriaCfg){.src = found_text(one->name), .other = "__init__", .bytes = 8u}) == 0)
-                ? found_held_by(one->from.line)
+                ? found_class_of(one->from.line)
                 : CLI_TESTS_NONE;
         if ((other != CLI_TESTS_NONE) && (s_room->facts.class_of[other].name.size == class_of->name.size) &&
             (memor.cmp(&(MemoriaCfg){.src = found_text(s_room->facts.class_of[other].name),
@@ -209,7 +209,7 @@ static int found_collected(unsigned int class_at, const CliTestRules *rules, int
     return cli_test_named(rules, &rules->classes, found_text(class_of->name), class_of->name.size);
 }
 
-// whether a function other than the one at `function` holds it, one starting after the line `after` where `bounded`
+// whether a function other than the one at `function` contains it, one starting after the line `after` where `bounded`
 static int found_nested(unsigned int function, int bounded, unsigned int after)
 {
     const CliInspectFunction *const inner = &s_room->facts.function[function];
@@ -225,7 +225,7 @@ static int found_nested(unsigned int function, int bounded, unsigned int after)
     return 0;
 }
 
-// the tests of the facts read, kept in the order of their lines, those of one line in the order of their functions:
+// the tests of the facts read, listed in the order of their lines, those of one line in the order of their functions:
 // their count
 static unsigned int found_tests(const CliTestRules *rules)
 {
@@ -233,10 +233,10 @@ static unsigned int found_tests(const CliTestRules *rules)
     for (unsigned int at = 0u; at < s_room->facts.functions; at += 1u)
     {
         const CliInspectFunction *const function = &s_room->facts.function[at];
-        const unsigned int class_at = found_held_by(function->from.line);
+        const unsigned int class_at = found_class_of(function->from.line);
         const char *const name = found_text(function->name);
         const unsigned int size = function->name.size;
-        int keep = 0;
+        int is_test = 0;
         if (class_at != CLI_TESTS_NONE)
         {
             int test_case = 0;
@@ -245,13 +245,13 @@ static unsigned int found_tests(const CliTestRules *rules)
             const int test_name =
                 test_case ? ((size >= 4u) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "test", .bytes = 4u}) == 0))
                           : cli_test_named(rules, &rules->functions, name, size);
-            keep = collected && method && test_name;
+            is_test = collected && method && test_name;
         }
         else
         {
-            keep = !found_nested(at, 0, 0u) && cli_test_named(rules, &rules->functions, name, size);
+            is_test = !found_nested(at, 0, 0u) && cli_test_named(rules, &rules->functions, name, size);
         }
-        if (keep)
+        if (is_test)
         {
             s_room->test_function[count] = at;
             s_room->test_class[count] = class_at;
@@ -288,7 +288,7 @@ static void found_in(const char *file, const char *text, unsigned long long size
     }
     if (!cli_inspect_facts("python", text, size, &s_room->facts))
     {
-        cli_cell_given(part);
+        g_cli_cells->persistent_buf_release(part, NULL);
         return;
     }
     found_bodies(text, size);
@@ -297,18 +297,18 @@ static void found_in(const char *file, const char *text, unsigned long long size
     {
         const CliInspectFunction *const function = &s_room->facts.function[s_room->test_function[at]];
         const unsigned int class_at = s_room->test_class[at];
-        char id[CLI_PATH_LONGEST * 2u];
-        CliLine line = {id, sizeof(id), 0ull};
-        cli_line_text(&line, file);
-        cli_line_text(&line, "::");
+        char id[CLI_PATH_MAX_LEN * 2u];
+        VerbaLinea line = {id, sizeof(id), 0ull};
+        mmgr_line_put(&line, file);
+        mmgr_line_put(&line, "::");
         if (class_at != CLI_TESTS_NONE)
         {
-            cli_line_counted(&line, found_text(s_room->facts.class_of[class_at].name),
-                             s_room->facts.class_of[class_at].name.size);
-            cli_line_text(&line, "::");
+            mmgr_line_put_n(&line, found_text(s_room->facts.class_of[class_at].name),
+                            s_room->facts.class_of[class_at].name.size);
+            mmgr_line_put(&line, "::");
         }
-        cli_line_counted(&line, found_text(function->name), function->name.size);
-        if (!cli_line_closed(&line))
+        mmgr_line_put_n(&line, found_text(function->name), function->name.size);
+        if (!mmgr_line_finish(&line))
         {
             continue;
         }
@@ -317,7 +317,7 @@ static void found_in(const char *file, const char *text, unsigned long long size
                         found_text(function->name), function->from.line};
         each(context, &test);
     }
-    cli_cell_given(part);
+    g_cli_cells->persistent_buf_release(part, NULL);
 }
 
 // whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as
@@ -373,7 +373,7 @@ static int found_searched(const char *file, const CliTestRules *rules)
 static void found_python(const char *root, CliTestEach each, void *context)
 {
     cli_test_rules_of(root, &s_room->rules);
-    const CliFiles *const files = cli_files_held(root);
+    const CliFiles *const files = cli_files_view(root);
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
         const char *const file = cli_files_at(files, index);
@@ -381,14 +381,14 @@ static void found_python(const char *root, CliTestEach each, void *context)
         {
             continue;
         }
-        char path[CLI_PATH_LONGEST];
+        char path[CLI_PATH_MAX_LEN];
         cli_full(root, file, path);
         unsigned long long size = 0ull;
         if (!cli_file_size(path, &size))
         {
             continue;
         }
-        unsigned char *const bytes = cli_cell_taken(size + 1ull, "a test file read");
+        unsigned char *const bytes = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
         if (bytes == NULL)
         {
             continue;
@@ -399,16 +399,16 @@ static void found_python(const char *root, CliTestEach each, void *context)
         {
             found_in(file, text, read, &s_room->rules, each, context);
         }
-        cli_cell_given(bytes);
+        g_cli_cells->persistent_buf_release(bytes, NULL);
     }
     cli_files_let(files);
 }
 
-// the tests' lock taken and the kept room set under it: 1
-static int found_held(void)
+// the tests' lock taken and the retained room set under it: 1
+static int found_room_locked(void)
 {
     cli_lock_take(&s_tests_lock);
-    s_room = &s_kept;
+    s_room = &s_room_storage;
     return 1;
 }
 
@@ -422,7 +422,7 @@ static void found_released(void)
 void cli_tests_in(const char *file, const char *text, unsigned long long size, const CliTestRules *rules,
                   CliTestEach each, void *context)
 {
-    if (found_held())
+    if (found_room_locked())
     {
         found_in(file, text, size, rules, each, context);
         found_released();
@@ -431,7 +431,7 @@ void cli_tests_in(const char *file, const char *text, unsigned long long size, c
 
 void cli_tests_python_found(const char *root, CliTestEach each, void *context)
 {
-    if (found_held())
+    if (found_room_locked())
     {
         found_python(root, each, context);
         found_released();
@@ -440,7 +440,7 @@ void cli_tests_python_found(const char *root, CliTestEach each, void *context)
 
 void cli_tests_found(const char *root, CliTestEach each, void *context)
 {
-    if (!found_held())
+    if (!found_room_locked())
     {
         return;
     }

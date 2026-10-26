@@ -5,9 +5,10 @@
 
 #include <map>
 
-// the ruleset at `path` read whole into `rules` against its schema: 1 where its first line is krs 1, every entry holds,
-// and every bank, fixed register and form the code generator names is given with the ruleset's name, toolchain and
-// header, else 0 with the reason in rules->error. A line that begins with # is a comment, and a blank line is nothing
+// the ruleset at `path` read whole into `rules` against its schema: 1 where its first line is krs 1, every entry is
+// valid, and every bank, fixed register and form the code generator names is given with the ruleset's name, toolchain
+// and header, else 0 with the reason in rules->error. A line that begins with # is a comment, and a blank line is
+// nothing
 static int ruleset_read(Ruleset *rules, const std::string &path)
 {
     std::string ruleset_text;
@@ -21,13 +22,13 @@ static int ruleset_read(Ruleset *rules, const std::string &path)
     RulesetCoreRead read{};
     read.schema = flat.schema;
     read.text = (const unsigned char *)ruleset_text.data();
-    // ruleset_file holds a ruleset below RULESET_FILE_MAX letters
+    // ruleset_file contains a ruleset below RULESET_FILE_MAX letters
     read.text_length = (unsigned int)ruleset_text.size();
     ruleset_capacities(read.text_length, &read);
     RulesetMemory memory;
     ruleset_memory_size(&memory, &read);
     ruleset_core_read(&read);
-    ruleset_keep(&read, ruleset_text, rules);
+    ruleset_store(&read, ruleset_text, rules);
     return rules->error.empty() ? 1 : 0;
 }
 
@@ -83,7 +84,7 @@ void ruleset_folds_read(Ruleset *rules)
 {
     rules->folds.clear();
     const size_t dot = rules->path.find_last_of('.');
-    // the .ksc beside the ruleset as the run holds it (ruleset_bytes_read)
+    // the .ksc beside the ruleset as the run stores it (ruleset_bytes_read)
     std::string ksc;
     if (!ruleset_bytes_read(rules->path.substr(0u, dot) + ".ksc", &ksc))
     {
@@ -160,7 +161,7 @@ static const Ruleset *ruleset_load(Ruleset *rules, const RulesetSchema *schema, 
     return (rules->ready != 0) ? rules : NULL;
 }
 
-// the base holds its language's ruleset from construction, unread, and reads it at the first call to ruleset()
+// the base retains its language's ruleset from construction, unread, and reads it at the first call to ruleset()
 Target::Target(const RulesetSchema *schema) : rules(new Ruleset())
 {
     rules->schema = schema;
@@ -194,7 +195,7 @@ void Target::folds_read(void)
     }
 }
 
-// form `name` of `rules` appended to `text`, `argument` holding as many arguments as it takes, in the order of its
+// form `name` of `rules` appended to `text`, `argument` containing as many arguments as it takes, in the order of its
 // parameters: its text cut at them, or where the ruleset gives it as a construct, each of the construct's lines
 // written the same way, a scratch register taken of `scratch` the first time a writing names it. `broken` set where a
 // scratch register cannot be taken
@@ -215,30 +216,30 @@ static void ruleset_opcode_text(const Ruleset *rules, std::string &text, unsigne
         }
         // a scratch register the text names is taken of `scratch` the first time the writing names it, in the order
         // the text names them, as the core counts them (ruleset_core_scratch)
-        std::vector<unsigned int> taken_slot;
+        std::vector<unsigned int> taken_placeholder;
         std::vector<std::string> taken;
         text += form->pieces[0];
-        for (size_t at = 0u; at < form->slots.size(); at += 1u)
+        for (size_t at = 0u; at < form->placeholders.size(); at += 1u)
         {
-            const unsigned int slot = form->slots[at];
-            if (RULESET_CORE_IS_SCRATCH(slot))
+            const unsigned int placeholder = form->placeholders[at];
+            if (RULESET_CORE_IS_SCRATCH(placeholder))
             {
                 size_t found = 0u;
-                while ((found < taken_slot.size()) && (taken_slot[found] != slot))
+                while ((found < taken_placeholder.size()) && (taken_placeholder[found] != placeholder))
                 {
                     found += 1u;
                 }
-                if (found == taken_slot.size())
+                if (found == taken_placeholder.size())
                 {
-                    taken_slot.push_back(slot);
-                    taken.push_back(scratch(RULESET_CORE_SCRATCH_BANK(slot)));
+                    taken_placeholder.push_back(placeholder);
+                    taken.push_back(scratch(RULESET_CORE_SCRATCH_BANK(placeholder)));
                     *broken = *broken || taken.back().empty();
                 }
                 text += taken[found];
             }
             else
             {
-                text += argument[slot];
+                text += argument[placeholder];
             }
             text += form->pieces[at + 1u];
         }
@@ -256,18 +257,18 @@ static void ruleset_opcode_text(const Ruleset *rules, std::string &text, unsigne
             size_t found = scratch_taken.size();
             for (size_t at = 0u; (given.kind == PSEUDO_SCRATCH) && (at < scratch_taken.size()); at += 1u)
             {
-                found = ((scratch_bank[at] == given.slot) && (scratch_number[at] == given.number)) ? at : found;
+                found = ((scratch_bank[at] == given.placeholder) && (scratch_number[at] == given.number)) ? at : found;
             }
             if ((given.kind == PSEUDO_SCRATCH) && (found == scratch_taken.size()))
             {
-                const std::string taken = scratch(given.slot);
+                const std::string taken = scratch(given.placeholder);
                 *broken = *broken || taken.empty();
-                scratch_bank.push_back(given.slot);
+                scratch_bank.push_back(given.placeholder);
                 scratch_number.push_back(given.number);
                 scratch_taken.push_back(taken);
             }
             arguments.push_back((given.kind == PSEUDO_TEXT)        ? given.text
-                                : (given.kind == PSEUDO_PARAMETER) ? argument[given.slot]
+                                : (given.kind == PSEUDO_PARAMETER) ? argument[given.placeholder]
                                                                    : scratch_taken[found]);
         }
         ruleset_opcode_text(rules, text, line.form, arguments.data(), scratch, broken);
@@ -327,8 +328,8 @@ void ruleset_scratch(const Ruleset *rules, const unsigned int *banks, std::vecto
     laid_out.constructs = flat.constructs.data();
     laid_out.lines = flat.lines.data();
     laid_out.arguments = flat.arguments.data();
-    laid_out.form_slot_first = flat.form_slot_first.data();
-    laid_out.form_slots = flat.form_slots.data();
+    laid_out.form_placeholder_first = flat.form_placeholder_first.data();
+    laid_out.form_placeholders = flat.form_placeholders.data();
     laid_out.form_count = forms;
     laid_out.banks[0] = banks[0];
     laid_out.banks[1] = banks[1];
@@ -367,10 +368,10 @@ std::string ruleset_register(const Ruleset *rules, const std::string &bank, unsi
     {
         return std::string();
     }
-    // a bank's written form takes one parameter, the register's number, in every slot it is cut at
+    // a bank's written form takes one parameter, the register's number, in every placeholder it is cut at
     const InstrTemplate *const form = &rules->banks[named];
     std::string written = form->pieces[0];
-    for (size_t at = 0u; at < form->slots.size(); at += 1u)
+    for (size_t at = 0u; at < form->placeholders.size(); at += 1u)
     {
         written += std::to_string(number);
         written += form->pieces[at + 1u];

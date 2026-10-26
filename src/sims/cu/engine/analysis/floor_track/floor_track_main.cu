@@ -8,7 +8,7 @@ static const unsigned int s_track_deltas[TRACK_DELTAS] = {0u, 4u, 8u, 16u, 32u, 
 
 static const unsigned int s_track_patch_cells[TRACK_PATCHES] = {1u, TRACK_PATCH_MAX};
 
-// one scene: render its frames, take every frame's floor 2 from the engine and hold it to the host, lay out the planes,
+// one scene: render its frames, take every frame's floor 2 from the engine and copy it to the host, lay out the planes,
 // build a query for every body, step of `stride` frames, patch and tolerance, run them, and grade them by the
 // bodies' paths
 static int track_scene(SimResults *results, const char *name, const SimScene *scene, const SimCamera *camera,
@@ -75,7 +75,7 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
         }
     }
     sim_check(results, ok && (bits_matched == (frames * TRACK_FLOOR_VALUES * TRACK_BITS)),
-              "every frame's 16 planes hold every bit of its floor 2");
+              "every frame's 16 planes contain every bit of its floor 2");
 
     // the queries: a body's patch at frame t, its values' ranges, searched in frame t + stride
     unsigned int count = 0u;
@@ -197,54 +197,54 @@ static int track_scene(SimResults *results, const char *name, const SimScene *sc
     sim_check(results, ok && (scanned == count),
               "every candidate set equals the host's scan of the later frame's floor 2");
 
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  ");
-    scriptura_text(line, name);
-    scriptura_text(line, ": ");
-    scriptura_decimal(line, scene->bodies, 1u);
-    scriptura_text(line, " bodies over ");
-    scriptura_decimal(line, frames, 1u);
-    scriptura_text(line, " frames, frame t to t + ");
-    scriptura_decimal(line, stride, 1u);
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, count, 1u);
-    scriptura_text(line, " queries; half of a frame is ");
-    scriptura_decimal(line, TRACK_SAMPLES / 2ull, 1u);
-    scriptura_text(line, " samples, ");
-    scriptura_decimal(line, TRACK_SAMPLES, 1u);
-    scriptura_text(line, " bytes\n");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, ": ");
+    mmgr_line_decimal(line, scene->bodies, 1u);
+    mmgr_line_put(line, " bodies over ");
+    mmgr_line_decimal(line, frames, 1u);
+    mmgr_line_put(line, " frames, frame t to t + ");
+    mmgr_line_decimal(line, stride, 1u);
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, count, 1u);
+    mmgr_line_put(line, " queries; half of a frame is ");
+    mmgr_line_decimal(line, TRACK_SAMPLES / 2ull, 1u);
+    mmgr_line_put(line, " samples, ");
+    mmgr_line_decimal(line, TRACK_SAMPLES, 1u);
+    mmgr_line_put(line, " bytes\n");
     for (unsigned int patch = 0u; patch < TRACK_PATCHES; patch += 1u)
     {
         for (unsigned int delta = 0u; delta < deltas; delta += 1u)
         {
             const TrackSetting *const setting = &settings[patch][delta];
-            scriptura_text(line, "    patch ");
-            scriptura_decimal_columns(line, s_track_patch_cells[patch], 2u);
-            scriptura_text(line, ", d ");
-            scriptura_decimal_columns(line, s_track_deltas[delta], 2u);
-            scriptura_text(line, ": found ");
-            scriptura_decimal(line, setting->hits, 1u);
-            scriptura_text(line, " of ");
-            scriptura_decimal(line, setting->queries, 1u);
-            scriptura_text(line, " (clear steps ");
-            scriptura_decimal(line, setting->clear_hits, 1u);
-            scriptura_text(line, " of ");
-            scriptura_decimal(line, setting->clear, 1u);
-            scriptura_text(line, "), alone in the gate on ");
-            scriptura_decimal(line, setting->alone, 1u);
-            scriptura_text(line, "; candidates a query ");
+            mmgr_line_put(line, "    patch ");
+            mmgr_line_decimal_columns(line, s_track_patch_cells[patch], 2u);
+            mmgr_line_put(line, ", d ");
+            mmgr_line_decimal_columns(line, s_track_deltas[delta], 2u);
+            mmgr_line_put(line, ": found ");
+            mmgr_line_decimal(line, setting->hits, 1u);
+            mmgr_line_put(line, " of ");
+            mmgr_line_decimal(line, setting->queries, 1u);
+            mmgr_line_put(line, " (clear steps ");
+            mmgr_line_decimal(line, setting->clear_hits, 1u);
+            mmgr_line_put(line, " of ");
+            mmgr_line_decimal(line, setting->clear, 1u);
+            mmgr_line_put(line, "), alone in the gate on ");
+            mmgr_line_decimal(line, setting->alone, 1u);
+            mmgr_line_put(line, "; candidates a query ");
             sim_fraction_print(line, setting->candidates, setting->queries, 2u);
-            scriptura_text(line, " (most ");
-            scriptura_decimal(line, setting->candidates_max, 1u);
-            scriptura_text(line, "), in the gate ");
+            mmgr_line_put(line, " (most ");
+            mmgr_line_decimal(line, setting->candidates_max, 1u);
+            mmgr_line_put(line, "), in the gate ");
             sim_fraction_print(line, setting->gated, setting->queries, 2u);
-            scriptura_text(line, "; plane words read ");
+            mmgr_line_put(line, "; plane words read ");
             sim_fraction_print(line, setting->reads, setting->queries, 1u);
-            scriptura_text(line, " (most ");
-            scriptura_decimal(line, setting->reads_max, 1u);
-            scriptura_text(line, ", ");
-            scriptura_decimal(line, 4ull * setting->reads_max, 1u);
-            scriptura_text(line, " bytes)\n");
+            mmgr_line_put(line, " (most ");
+            mmgr_line_decimal(line, setting->reads_max, 1u);
+            mmgr_line_put(line, ", ");
+            mmgr_line_decimal(line, 4ull * setting->reads_max, 1u);
+            mmgr_line_put(line, " bytes)\n");
         }
     }
     sim_flush(results);
@@ -274,7 +274,7 @@ int main(int count, char **arguments)
              (host.work != NULL) && (host.before != NULL) && (host.floor_host != NULL) && (host.planes != NULL) &&
              (host.queries != NULL) && (host.truths != NULL) && (host.candidates != NULL) && (host.reads != NULL) &&
              (host.expected != NULL);
-    sim_check(&results, ok, "the host buffers are held");
+    sim_check(&results, ok, "the host buffers are allocated");
     ok = ok && sim_job_submit(&results, "floor_track", count, arguments, TRACK_DECLARED);
     TrackDevice device;
     memset(&device, 0, sizeof(device));
@@ -391,11 +391,11 @@ int main(int count, char **arguments)
     memset(sparse_quiet_settings, 0, sizeof(sparse_quiet_settings));
     ok = ok && track_scene(&results, "three bodies apart, no noise", &sparse_quiet, &still,
                            (unsigned long long)TRACK_CELL, &host, &device, sparse_quiet_settings, TRACK_DELTAS);
-    scriptura_text(&results.line, "  clear steps among the three, no noise: ");
-    scriptura_decimal(&results.line, sparse_quiet_settings[1][0].clear, 1u);
-    scriptura_text(&results.line, " of ");
-    scriptura_decimal(&results.line, sparse_quiet_settings[1][0].queries, 1u);
-    scriptura_text(&results.line, "\n");
+    mmgr_line_put(&results.line, "  clear steps among the three, no noise: ");
+    mmgr_line_decimal(&results.line, sparse_quiet_settings[1][0].clear, 1u);
+    mmgr_line_put(&results.line, " of ");
+    mmgr_line_decimal(&results.line, sparse_quiet_settings[1][0].queries, 1u);
+    mmgr_line_put(&results.line, "\n");
     sim_check(&results,
               ok && (sparse_quiet_settings[1][0].clear != 0ull) &&
                   (sparse_quiet_settings[0][0].clear_hits == sparse_quiet_settings[0][0].clear) &&
@@ -420,16 +420,16 @@ int main(int count, char **arguments)
         }
     }
     maximum = (control_settings[1][0].reads_max > maximum) ? control_settings[1][0].reads_max : maximum;
-    scriptura_text(&results.line, "  the most plane words any query read: ");
-    scriptura_decimal(&results.line, maximum, 1u);
-    scriptura_text(&results.line, ", ");
-    scriptura_decimal(&results.line, 4ull * maximum, 1u);
-    scriptura_text(&results.line, " bytes, against half of a frame, ");
-    scriptura_decimal(&results.line, TRACK_SAMPLES, 1u);
-    scriptura_text(&results.line, " bytes\n");
+    mmgr_line_put(&results.line, "  the most plane words any query read: ");
+    mmgr_line_decimal(&results.line, maximum, 1u);
+    mmgr_line_put(&results.line, ", ");
+    mmgr_line_decimal(&results.line, 4ull * maximum, 1u);
+    mmgr_line_put(&results.line, " bytes, against half of a frame, ");
+    mmgr_line_decimal(&results.line, TRACK_SAMPLES, 1u);
+    mmgr_line_put(&results.line, " bytes\n");
     // a plane word is 4 bytes and a sample 2. Half of a frame's samples is TRACK_SAMPLES bytes
     sim_check(&results, ok && ((4ull * maximum) < TRACK_SAMPLES),
-              "no query reads as many bytes of planes as half of a frame holds");
+              "no query reads as many bytes of planes as half of a frame contains");
 
     cudaFree(device.reads);
     cudaFree(device.candidates);

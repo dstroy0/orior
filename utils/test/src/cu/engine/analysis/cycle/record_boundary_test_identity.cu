@@ -12,7 +12,7 @@ void boundary_written(BoundaryResults *results)
     BoundaryTower *const again = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
     if ((program == NULL) || (back == NULL) || (again == NULL))
     {
-        boundary_check(results, 0, "the written boundary is held");
+        boundary_check(results, 0, "the written boundary is allocated");
         free(program);
         free(back);
         free(again);
@@ -61,7 +61,7 @@ void boundary_read_off(BoundaryResults *results)
     BoundaryTower *const tower = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
     if ((program == NULL) || (tower == NULL))
     {
-        boundary_check(results, 0, "the forward tower is held");
+        boundary_check(results, 0, "the forward tower is allocated");
         free(program);
         free(tower);
         return;
@@ -178,17 +178,17 @@ static void boundary_through(BoundaryResults *results, BoundaryLoaded *loaded, c
         passed[kind] += (passes != 0) ? 1u : 0u;
     }
     const unsigned int each = BOUNDARY_TEST_PAIRS / 4u;
-    scriptura_text(&results->line, "  through T, of ");
-    scriptura_decimal(&results->line, each, 1u);
-    scriptura_text(&results->line, " pairs each: a constant lands on the lows alone on ");
-    scriptura_decimal(&results->line, passed[0], 1u);
-    scriptura_text(&results->line, ", 2^12 z lands as M z on ");
-    scriptura_decimal(&results->line, passed[1], 1u);
-    scriptura_text(&results->line, "; negation passes on ");
-    scriptura_decimal(&results->line, passed[2], 1u);
-    scriptura_text(&results->line, ", doubling on ");
-    scriptura_decimal(&results->line, passed[3], 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, "  through T, of ");
+    mmgr_line_decimal(&results->line, each, 1u);
+    mmgr_line_put(&results->line, " pairs each: a constant lands on the lows alone on ");
+    mmgr_line_decimal(&results->line, passed[0], 1u);
+    mmgr_line_put(&results->line, ", 2^12 z lands as M z on ");
+    mmgr_line_decimal(&results->line, passed[1], 1u);
+    mmgr_line_put(&results->line, "; negation passes on ");
+    mmgr_line_decimal(&results->line, passed[2], 1u);
+    mmgr_line_put(&results->line, ", doubling on ");
+    mmgr_line_decimal(&results->line, passed[3], 1u);
+    mmgr_line_ch(&results->line, '\n');
     boundary_check(results, ran != 0, "the pairs run on the host and the device, word for word");
     boundary_check(results, passed[0] == each, "a constant on every sample moves only the crystal's lows, each by it");
     boundary_check(results, passed[1] == each, "a vector in 2^(3L) Z^n moves the crystal by M times it exactly");
@@ -235,8 +235,8 @@ unsigned int boundary_heap(long long value)
 
 // The identity of a lane's structure, taken with T and null permutations of T's input. Each lane is drawn with
 // BOUNDARY_TEST_IDENTITY_DRAWS keyed shuffles
-// of its own samples. A shuffle keeps every value. The samples' heap is the same on every draw, and T keeps the
-// count exactly (det M = 1, Haar measure). Whatever the crystal's heap tells apart is the arrangement alone. A
+// of its own samples. A shuffle preserves every value. The samples' heap is the same on every draw, and T preserves the
+// count exactly (det M = 1, Haar measure). Whatever the crystal's heap distinguishes is the arrangement alone. A
 // lane is identified when its crystal's heap stands below every draw's. With no arrangement to find, the lane and its
 // draws are exchangeable and a lane is identified with probability at most 1/(draws + 1), as the period reading's
 // null (A12).
@@ -272,7 +272,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
     unsigned int identified[BOUNDARY_TEST_CLASSES] = {0u, 0u, 0u, 0u};
     unsigned long long own_heap[BOUNDARY_TEST_CLASSES] = {0ull, 0ull, 0ull, 0ull};
     unsigned long long null_heap[BOUNDARY_TEST_CLASSES] = {0ull, 0ull, 0ull, 0ull};
-    int kept = 1;
+    int unchanged = 1;
     // the crystal is a one-to-one identity of its samples: a draw's crystal equals the lane's exactly when the
     // shuffle moved no value, and every draw that moved one must change the crystal
     unsigned int draws_fixed = 0u;
@@ -293,7 +293,7 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
                                                                &loaded->layout.step_table[program->outputs[at]]));
                 samples[member] += boundary_heap(boundary_field(atoms[((size_t)lane * n) + at]));
             }
-            kept = kept && (samples[member] == samples[0]);
+            unchanged = unchanged && (samples[member] == samples[0]);
         }
         int below = 1;
         for (unsigned int draw = 1u; draw < group; draw += 1u)
@@ -316,36 +316,37 @@ static void boundary_identity(BoundaryResults *results, BoundaryLoaded *loaded, 
         identified[kind] += (below != 0) ? 1u : 0u;
     }
     const char *const names[BOUNDARY_TEST_CLASSES] = {"ramp", "ramp +-8", "ramp +-1024", "noise"};
-    scriptura_text(&results->line, "  identity by null permutation, ");
-    scriptura_decimal(&results->line, BOUNDARY_TEST_IDENTITY_DRAWS, 1u);
-    scriptura_text(&results->line, " draws a lane, lanes identified of ");
-    scriptura_decimal(&results->line, BOUNDARY_TEST_IDENTITY_BASES, 1u);
-    scriptura_text(&results->line, " (crystal heap against the draws' mean):");
+    mmgr_line_put(&results->line, "  identity by null permutation, ");
+    mmgr_line_decimal(&results->line, BOUNDARY_TEST_IDENTITY_DRAWS, 1u);
+    mmgr_line_put(&results->line, " draws a lane, lanes identified of ");
+    mmgr_line_decimal(&results->line, BOUNDARY_TEST_IDENTITY_BASES, 1u);
+    mmgr_line_put(&results->line, " (crystal heap against the draws' mean):");
     for (unsigned int kind = 0u; kind < BOUNDARY_TEST_CLASSES; kind += 1u)
     {
-        scriptura_text(&results->line, (kind == 0u) ? " " : "; ");
-        scriptura_text(&results->line, names[kind]);
-        scriptura_character(&results->line, ' ');
-        scriptura_decimal(&results->line, identified[kind], 1u);
-        scriptura_text(&results->line, " (");
+        mmgr_line_put(&results->line, (kind == 0u) ? " " : "; ");
+        mmgr_line_put(&results->line, names[kind]);
+        mmgr_line_ch(&results->line, ' ');
+        mmgr_line_decimal(&results->line, identified[kind], 1u);
+        mmgr_line_put(&results->line, " (");
         boundary_hundredths(&results->line, own_heap[kind] * BOUNDARY_TEST_IDENTITY_DRAWS, null_heap[kind]);
-        scriptura_character(&results->line, ')');
+        mmgr_line_ch(&results->line, ')');
     }
     const unsigned int draws_total =
         BOUNDARY_TEST_CLASSES * BOUNDARY_TEST_IDENTITY_BASES * BOUNDARY_TEST_IDENTITY_DRAWS;
-    scriptura_text(&results->line, "\n    one to one: ");
-    scriptura_decimal(&results->line, draws_one_to_one, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, draws_total, 1u);
-    scriptura_text(&results->line, " draws change the crystal exactly when they move a value (");
-    scriptura_decimal(&results->line, draws_fixed, 1u);
-    scriptura_text(&results->line, " moved none)\n");
+    mmgr_line_put(&results->line, "\n    one to one: ");
+    mmgr_line_decimal(&results->line, draws_one_to_one, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, draws_total, 1u);
+    mmgr_line_put(&results->line, " draws change the crystal exactly when they move a value (");
+    mmgr_line_decimal(&results->line, draws_fixed, 1u);
+    mmgr_line_put(&results->line, " moved none)\n");
     // the null's bound on identified noise lanes: bases / (draws + 1) and five of its standard deviations
     const double rate = 1.0 / (double)(BOUNDARY_TEST_IDENTITY_DRAWS + 1u);
     const double bases = (double)BOUNDARY_TEST_IDENTITY_BASES;
     const double ceiling = (bases * rate) + (5.0 * sqrt(bases * rate * (1.0 - rate)));
     boundary_check(results, ran != 0, "the identity lanes run on the host and the device, word for word");
-    boundary_check(results, kept, "a null permutation keeps every value: the samples' heap is the same on every draw");
+    boundary_check(results, unchanged,
+                   "a null permutation preserves every value: the samples' heap is the same on every draw");
     boundary_check(results, draws_one_to_one == draws_total,
                    "the crystal is a one-to-one identity: T(pi x) = T(x) exactly when pi x = x");
     // a structured lane is not promised to be identified: a shallow ramp under +-1024 is mostly noise, and its

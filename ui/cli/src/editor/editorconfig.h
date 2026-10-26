@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // editorconfig.h: a file's indentation as `.editorconfig` files set it (editorconfig.c): each from the file's folder
-// up, until one says `root = true` or the disk's root, the nearer over the farther, and in each the last section whose
-// pattern names the file over those before it. Only indentation is read: `indent_style`, `indent_size`, which `tab`
-// makes the tab's width, and `tab_width`.
+// up, until one declares `root = true` or the disk's root, the nearer over the farther, and in each the last section
+// whose pattern names the file over those before it. Only indentation is read: `indent_style`, `indent_size`, which
+// `tab` makes the tab's width, and `tab_width`.
 //
 // A section's pattern names a file by its name wherever it stands, or by its path from the folder of its
 // `.editorconfig` where it has a `/`. `*` is any letters of a name, `**` any letters and folders, `?` one letter,

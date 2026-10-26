@@ -79,7 +79,7 @@ int query_process_start(QueryProcess *started, const char *const *words, const c
     {
         close(pipe_ends[1]);
     }
-    // a process number and a descriptor are not negative here, and an unsigned long long holds each
+    // a process number and a descriptor are not negative here, and an unsigned long long represents each
     started->process = (unsigned long long)child;
     started->output = (pipe_ends[0] >= 0) ? ((unsigned long long)pipe_ends[0] + 1ull) : 0ull;
     return 1;
@@ -91,7 +91,7 @@ unsigned long long query_process_read(const QueryProcess *process, char *piece, 
     {
         return 0ull;
     }
-    // the descriptor is held one past itself, so that 0 stands for none
+    // the descriptor is stored one past itself, so that 0 stands for none
     const ssize_t got = read((int)(process->output - 1ull), piece, (size_t)room);
     return (got > 0) ? (unsigned long long)got : 0ull;
 }
@@ -103,7 +103,7 @@ long long query_process_wait(QueryProcess *process)
         return -1ll;
     }
     int status = 0;
-    // the process number came from fork, which a pid_t holds
+    // the process number came from fork, which a pid_t represents
     const pid_t waited = waitpid((pid_t)process->process, &status, 0);
     if (process->output != 0ull)
     {
@@ -126,31 +126,31 @@ int query_environment_read(const char *name, char *value, size_t room)
     {
         if (cli_text_same(*entry, name, length) && ((*entry)[length] == '='))
         {
-            const char *const held = *entry + length + 1;
-            const size_t held_length = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL});
-            if ((held_length == 0u) || (held_length >= room))
+            const char *const value_src = *entry + length + 1;
+            const size_t value_length = cellul.len(&(CatenaFinitaCfg){.src = value_src, .cap = CLI_CELLS_POOL});
+            if ((value_length == 0u) || (value_length >= room))
             {
                 return 0;
             }
-            memor.cpy(&(MemoriaCfg){.dst = value, .src = held, .bytes = held_length + 1u});
+            memor.cpy(&(MemoriaCfg){.dst = value, .src = value_src, .bytes = value_length + 1u});
             return 1;
         }
     }
     return 0;
 }
 
-int query_environment_said(const char *name, CliLine *out)
+int query_environment_written(const char *name, VerbaLinea *out)
 {
-    static char s_value[QUERY_ENVIRONMENT_LONGEST];
+    static char s_value[QUERY_ENVIRONMENT_MAX_LEN];
     static pthread_mutex_t s_lock = PTHREAD_MUTEX_INITIALIZER;
     (void)pthread_mutex_lock(&s_lock);
     const int read = query_environment_read(name, s_value, sizeof(s_value));
     if (read)
     {
-        cli_line_text(out, s_value);
+        mmgr_line_put(out, s_value);
     }
     (void)pthread_mutex_unlock(&s_lock);
-    return read && cli_line_fits(out);
+    return read && mmgr_line_ok(out);
 }
 
 int query_folder_each(const char *folder, void (*each)(void *context, const char *name, int is_folder), void *context)
@@ -167,12 +167,12 @@ int query_folder_each(const char *folder, void (*each)(void *context, const char
         {
             continue;
         }
-        char path[QUERY_PATH_LONGEST];
-        CliLine line = {path, sizeof(path), 0ull};
-        cli_line_text(&line, folder);
-        cli_line_character(&line, '/');
-        cli_line_text(&line, entry->d_name);
-        each(context, entry->d_name, (cli_line_closed(&line) != 0ull) && query_is_folder(path));
+        char path[QUERY_PATH_MAX_LEN];
+        VerbaLinea line = {path, sizeof(path), 0ull};
+        mmgr_line_put(&line, folder);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, entry->d_name);
+        each(context, entry->d_name, (mmgr_line_finish(&line) != 0ull) && query_is_folder(path));
     }
     closedir(walk);
     return 1;
@@ -180,7 +180,7 @@ int query_folder_each(const char *folder, void (*each)(void *context, const char
 
 int query_folder_made(const char *folder)
 {
-    char path[QUERY_PATH_LONGEST];
+    char path[QUERY_PATH_MAX_LEN];
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
     if (length >= sizeof(path))
     {
@@ -191,10 +191,10 @@ int query_folder_made(const char *folder)
     {
         if ((path[at] == '/') || (path[at] == '\0'))
         {
-            const char held = path[at];
+            const char saved_char = path[at];
             path[at] = '\0';
             mkdir(path, 0755);
-            path[at] = held;
+            path[at] = saved_char;
         }
     }
     return query_is_folder(folder);
@@ -210,23 +210,23 @@ typedef struct
 static void query_entry_removed(void *context, const char *name, int is_folder)
 {
     QueryRemoval *const removal = (QueryRemoval *)context;
-    char path[QUERY_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, removal->folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
+    char path[QUERY_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, removal->folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
     (void)is_folder;
-    removal->whole = (cli_line_closed(&line) != 0ull) && query_removed(path) && removal->whole;
+    removal->whole = (mmgr_line_finish(&line) != 0ull) && query_removed(path) && removal->whole;
 }
 
 int query_removed(const char *path)
 {
-    struct stat held;
-    if (lstat(path, &held) != 0)
+    struct stat st;
+    if (lstat(path, &st) != 0)
     {
         return 1;
     }
-    if (!S_ISDIR(held.st_mode))
+    if (!S_ISDIR(st.st_mode))
     {
         return unlink(path) == 0;
     }
@@ -288,25 +288,25 @@ int query_file_written(const char *path, const void *bytes, unsigned long long s
 
 int query_is_file(const char *path)
 {
-    struct stat held;
-    return (stat(path, &held) == 0) && S_ISREG(held.st_mode);
+    struct stat st;
+    return (stat(path, &st) == 0) && S_ISREG(st.st_mode);
 }
 
 int query_is_folder(const char *path)
 {
-    struct stat held;
-    return (stat(path, &held) == 0) && S_ISDIR(held.st_mode);
+    struct stat st;
+    return (stat(path, &st) == 0) && S_ISDIR(st.st_mode);
 }
 
 int query_modified(const char *path, unsigned long long *seconds)
 {
-    struct stat held;
-    if (stat(path, &held) != 0)
+    struct stat st;
+    if (stat(path, &st) != 0)
     {
         return 0;
     }
     // a time a file changed is after 1970 here
-    *seconds = (held.st_mtime > 0) ? (unsigned long long)held.st_mtime : 0ull;
+    *seconds = (st.st_mtime > 0) ? (unsigned long long)st.st_mtime : 0ull;
     return 1;
 }
 
@@ -315,7 +315,7 @@ int query_modified_set(const char *path, unsigned long long seconds)
     struct timespec times[2];
     times[0].tv_sec = 0;
     times[0].tv_nsec = UTIME_OMIT;
-    // a time after 1970 that a time_t holds
+    // a time after 1970 that a time_t represents
     times[1].tv_sec = (time_t)seconds;
     times[1].tv_nsec = 0;
     return utimensat(AT_FDCWD, path, times, 0) == 0;
@@ -358,11 +358,11 @@ int query_path_full(const char *path, char *full, size_t room)
     {
         return 0;
     }
-    CliLine line = {full, room, 0ull};
-    cli_line_text(&line, here);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, path);
-    return cli_line_closed(&line) != 0ull;
+    VerbaLinea line = {full, room, 0ull};
+    mmgr_line_put(&line, here);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, path);
+    return mmgr_line_finish(&line) != 0ull;
 }
 
 int query_terminal_is(void)

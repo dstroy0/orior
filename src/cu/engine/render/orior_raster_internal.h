@@ -6,7 +6,7 @@
 
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -18,7 +18,7 @@
  * it costs, and a steered probe set rejects most alignments on the first read. The renderer gets the
  * same saving: driving reads per alignment toward one drives the cost of a frame toward one read
  * per alignment. Nothing here is optimized separately from the search, and there is no second code
- * path to keep in agreement with it.
+ * path to maintain in agreement with it.
  */
 
 #include "orior_raster.h"
@@ -33,7 +33,7 @@
 #define ORIOR_RASTER_CEILING 250u
 
 /**
- * @brief Symbol counts over the object, held apart from orior_steer so the device links neither.
+ * @brief Symbol counts over the object, separated apart from orior_steer so the device links neither.
  *
  * @note The rarity channel needs the same counts orior_steer builds, and the device rasterizer
  *       cannot link the limb library those live behind. Counting bytes is eight lines. The

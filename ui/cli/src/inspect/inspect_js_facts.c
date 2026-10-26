@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// inspect_js_facts.c: what one JavaScript file says alone: a `const`, `let` or `var` a function declares and never
+// inspect_js_facts.c: what one JavaScript file shows alone: a `const`, `let` or `var` a function declares and never
 // reads, and code after a return, a throw, a break or a continue in the same block; and, for the tree's checks, the
 // functions it declares with the calls in each, and the files it imports by a relative path
 #include "inspect_js.h"
 
-// the most names one function declares that are kept
+// the most names one function declares that are recorded
 #define CLI_JS_DECLARED 16384u
 
 static unsigned int s_declared[CLI_JS_DECLARED];
@@ -89,18 +89,18 @@ static void facts_declaration_fix(const char *src, unsigned long long size, unsi
         calls = cli_js_is(src, at, "(");
     }
     const CliInspectTok *const name = &g_cli_inspect_tok[name_at];
-    const CliInspectTok *const kept = &g_cli_inspect_tok[keyword];
-    char title[CLI_NAME_LONGEST * 2u];
-    CliLine titled = {title, sizeof(title), 0ull};
+    const CliInspectTok *const keyword_tok = &g_cli_inspect_tok[keyword];
+    char title[CLI_NAME_MAX_LEN * 2u];
+    VerbaLinea titled = {title, sizeof(title), 0ull};
     if (calls)
     {
-        cli_line_text(&titled, "Take out `");
-        cli_line_counted(&titled, src + kept->start, kept->end - kept->start);
-        cli_line_character(&titled, ' ');
-        cli_line_counted(&titled, src + name->start, name->end - name->start);
-        cli_line_text(&titled, " =` and keep its value");
+        mmgr_line_put(&titled, "Take out `");
+        mmgr_line_put_n(&titled, src + keyword_tok->start, keyword_tok->end - keyword_tok->start);
+        mmgr_line_ch(&titled, ' ');
+        mmgr_line_put_n(&titled, src + name->start, name->end - name->start);
+        mmgr_line_put(&titled, " =` and retain its value");
         cli_inspect_fix_put(facts, &titled);
-        cli_inspect_edit_put(facts, kept->from, g_cli_inspect_tok[name_at + 2u].from, "", 0ull);
+        cli_inspect_edit_put(facts, keyword_tok->from, g_cli_inspect_tok[name_at + 2u].from, "", 0ull);
         return;
     }
     CliInspectPlace from = {0u, 0u};
@@ -109,8 +109,8 @@ static void facts_declaration_fix(const char *src, unsigned long long size, unsi
     {
         return;
     }
-    cli_line_text(&titled, "Take out the declaration of ");
-    cli_line_counted(&titled, src + name->start, name->end - name->start);
+    mmgr_line_put(&titled, "Take out the declaration of ");
+    mmgr_line_put_n(&titled, src + name->start, name->end - name->start);
     cli_inspect_fix_put(facts, &titled);
     cli_inspect_edit_put(facts, from, to, "", 0ull);
 }
@@ -168,12 +168,12 @@ static void facts_unread(const char *src, unsigned long long size, unsigned int 
         {
             continue;
         }
-        char message[CLI_NAME_LONGEST * 2u];
-        CliLine said = {message, sizeof(message), 0ull};
-        cli_line_character(&said, '`');
-        cli_line_counted(&said, src + name->start, name->end - name->start);
-        cli_line_text(&said, "` is declared and never read.");
-        cli_inspect_finding_put(facts, name->from, name->to, CLI_INSPECT_WARNING, &said, "unread", NULL);
+        char message[CLI_NAME_MAX_LEN * 2u];
+        VerbaLinea msg = {message, sizeof(message), 0ull};
+        mmgr_line_ch(&msg, '`');
+        mmgr_line_put_n(&msg, src + name->start, name->end - name->start);
+        mmgr_line_put(&msg, "` is declared and never read.");
+        cli_inspect_finding_put(facts, name->from, name->to, CLI_INSPECT_WARNING, &msg, "unread", NULL);
         facts_declaration_fix(src, size, s_declared[index], facts);
     }
 }
@@ -223,12 +223,12 @@ static void facts_unreachable(const char *src, unsigned long long size, unsigned
         }
         const CliInspectTok *const word = &g_cli_inspect_tok[at];
         char message[CLI_INSPECT_UNREACHED_ROOM];
-        CliLine said = {message, sizeof(message), 0ull};
-        cli_line_text(&said, CLI_INSPECT_UNREACHED_BEFORE);
-        cli_line_counted(&said, src + word->start, word->end - word->start);
-        cli_line_text(&said, CLI_INSPECT_UNREACHED_AFTER);
+        VerbaLinea msg = {message, sizeof(message), 0ull};
+        mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_BEFORE);
+        mmgr_line_put_n(&msg, src + word->start, word->end - word->start);
+        mmgr_line_put(&msg, CLI_INSPECT_UNREACHED_AFTER);
         cli_inspect_finding_put(facts, g_cli_inspect_tok[first].from, g_cli_inspect_tok[last].to, CLI_INSPECT_WARNING,
-                                &said, "unreachable", NULL);
+                                &msg, "unreachable", NULL);
         CliInspectPlace from = {0u, 0u};
         CliInspectPlace to = {0u, 0u};
         if (facts_whole_lines(src, size, first, last, &from, &to))
@@ -287,7 +287,7 @@ unsigned int cli_js_function_name(const char *src, unsigned int open)
     return (g_cli_inspect_tok[name].kind == CLI_JS_NAME) ? name : CLI_JS_NO;
 }
 
-// the calls in the function whose body runs from `open` to `close`, outside the functions it holds: a name before a
+// the calls in the function whose body runs from `open` to `close`, outside the functions it contains: a name before a
 // bracket, after no dot or after `this.`, put on the facts' names
 static void facts_calls(const char *src, unsigned int open, unsigned int close, CliFacts *facts)
 {
@@ -339,7 +339,7 @@ static void facts_functions(const char *src, CliFacts *facts)
             return;
         }
         const CliInspectTok *const name = &g_cli_inspect_tok[name_at];
-        const CliInspectFunction function = {cli_inspect_kept(facts, src + name->start, name->end - name->start),
+        const CliInspectFunction function = {cli_inspect_text_stored(facts, src + name->start, name->end - name->start),
                                              name->from,
                                              name->to,
                                              g_cli_inspect_tok[(name_at < open) ? name_at : open].from.line,
@@ -402,7 +402,7 @@ static void facts_imports(const char *src, CliFacts *facts)
             return;
         }
         const unsigned int last = ((end - 1u) > at) ? (end - 1u) : at;
-        const CliInspectImport import = {cli_inspect_kept(facts, path, length),
+        const CliInspectImport import = {cli_inspect_text_stored(facts, path, length),
                                          facts->names,
                                          0u,
                                          {0u, 0u},

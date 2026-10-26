@@ -301,7 +301,7 @@ long qasm_read(const QasmReadRequest *request, QasmCircuit *circuit)
         // no measure: every qubit is read, qubit i into clbit i
         if (circuit->qubits > QASM_CLBITS_MAX)
         {
-            qasm_error(parser, qasm_peek(parser), "no measure, and more qubits than an outcome holds");
+            qasm_error(parser, qasm_peek(parser), "no measure, and more qubits than an outcome can represent");
             ok = 0;
         }
         for (unsigned int qubit = 0u; ok && (qubit < circuit->qubits); qubit += 1u)

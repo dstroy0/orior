@@ -83,8 +83,8 @@ int dicom_side_decimal_list(const EngineSideBytes *side, unsigned long long leaf
     // a leaf's bytes run up to the start of its pixel value; the elements wanted here all come before it
     const unsigned long long start = side->byte_start[leaf];
     const unsigned long long end = side->byte_start[leaf + 1ull];
-    const unsigned long long kept = (side->pixel_at[leaf] <= (end - start)) ? side->pixel_at[leaf] : (end - start);
-    DicomWalk walk = {side->bytes + start, kept, 0ull};
+    const unsigned long long span_len = (side->pixel_at[leaf] <= (end - start)) ? side->pixel_at[leaf] : (end - start);
+    DicomWalk walk = {side->bytes + start, span_len, 0ull};
     int explicit_vr = -1;
     if (!dicom_meta(&walk, &explicit_vr, error))
     {
@@ -258,10 +258,10 @@ static int dicom_parse(DicomSlice *slice, EngineError *error)
 void dicom_resident_release(void)
 {
     DicomResident *const resident = &g_dicom_resident;
-    for (unsigned long long slot = 0ull; (resident->slices != NULL) && (slot < resident->count); slot += 1ull)
+    for (unsigned long long at = 0ull; (resident->slices != NULL) && (at < resident->count); at += 1ull)
     {
-        free(resident->slices[slot].member);
-        free(resident->slices[slot].name);
+        free(resident->slices[at].member);
+        free(resident->slices[at].name);
     }
     free(resident->slices);
     free(resident->order);
@@ -302,8 +302,8 @@ static int dicom_gather_slice(void *context, unsigned long long item)
 }
 
 // The series' slices: their entries named in order, their bytes read in one fetch as the span they lie in, then each
-// unpacked, held to its CRC and parsed on the workers the tools hand over (`each`), or one at a time where they hand
-// none. The first slice in order that failed gives the error
+// unpacked, checked against its CRC and parsed on the workers the tools hand over (`each`), or one at a time where they
+// hand none. The first slice in order that failed gives the error
 int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArchive *archive, unsigned long long first,
                  unsigned long long count, EngineError *error)
 {
@@ -322,10 +322,10 @@ int dicom_gather(const EngineIngestTools *tools, const char *path, const ZipArch
     const unsigned char *series = NULL;
     unsigned long long series_length = 0ull;
     int ok = 1;
-    for (unsigned long long slot = first; ok && (slot < (first + count)); slot += 1ull)
+    for (unsigned long long at = first; ok && (at < (first + count)); at += 1ull)
     {
         ZipEntry entry;
-        ok = zip_entry_at(archive, slot, &entry, error);
+        ok = zip_entry_at(archive, at, &entry, error);
         if (!ok || (entry.name_length == 0ull) || (entry.name[entry.name_length - 1ull] == '/'))
         {
             continue;
@@ -387,9 +387,9 @@ int dicom_agree(EngineError *error)
     DicomResident *const resident = &g_dicom_resident;
     const DicomSlice *const lead = &resident->slices[0];
     unsigned int keyed = 1u;
-    for (unsigned long long slot = 0ull; slot < resident->count; slot += 1ull)
+    for (unsigned long long at = 0ull; at < resident->count; at += 1ull)
     {
-        const DicomSlice *const slice = &resident->slices[slot];
+        const DicomSlice *const slice = &resident->slices[at];
         if (!DICOM_CHECK((slice->rows == lead->rows) && (slice->columns == lead->columns) &&
                              (slice->bits_allocated == lead->bits_allocated) && (slice->samples == lead->samples) &&
                              (slice->pixel_representation == lead->pixel_representation),
@@ -408,21 +408,21 @@ int dicom_sort(EngineError *error)
     DicomResident *const resident = &g_dicom_resident;
     long long key_floor = 0ll;
     long long instance_floor = 0ll;
-    for (unsigned long long slot = 0ull; slot < resident->count; slot += 1ull)
+    for (unsigned long long at = 0ull; at < resident->count; at += 1ull)
     {
-        DicomSlice *const slice = &resident->slices[slot];
-        resident->order[slot] = slot;
+        DicomSlice *const slice = &resident->slices[at];
+        resident->order[at] = at;
         if ((resident->keyed != 0u) && !dicom_slice_key(resident->slices[0].orientation, slice, error))
         {
             return 0;
         }
-        key_floor = ((slot == 0ull) || (slice->key.exponent < key_floor)) ? slice->key.exponent : key_floor;
+        key_floor = ((at == 0ull) || (slice->key.exponent < key_floor)) ? slice->key.exponent : key_floor;
         instance_floor =
-            ((slot == 0ull) || (slice->instance.exponent < instance_floor)) ? slice->instance.exponent : instance_floor;
+            ((at == 0ull) || (slice->instance.exponent < instance_floor)) ? slice->instance.exponent : instance_floor;
     }
-    for (unsigned long long slot = 0ull; slot < resident->count; slot += 1ull)
+    for (unsigned long long at = 0ull; at < resident->count; at += 1ull)
     {
-        DicomSlice *const slice = &resident->slices[slot];
+        DicomSlice *const slice = &resident->slices[at];
         if (((resident->keyed != 0u) && !dicom_decimal_align(&slice->key, key_floor, error)) ||
             ((slice->has_instance != 0u) && !dicom_decimal_align(&slice->instance, instance_floor, error)))
         {

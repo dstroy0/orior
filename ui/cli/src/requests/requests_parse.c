@@ -7,15 +7,15 @@
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-// the most lines of a file read, and the bytes its pool holds past twice the file's, every text kept being of the
-// file and its address the only one kept twice
+// the most lines of a file read, and the bytes its pool reserves past twice the file's, every text stored being of the
+// file and its address the only one stored twice
 #define CLI_REQUESTS_LINES (1u << 18u)
 #define CLI_REQUESTS_POOL_MORE 64ull
 
 CliLock g_cli_requests_lock = CLI_LOCK_INIT;
 CliRequestsParsed g_cli_requests_parsed;
 
-// where each line of the file being read starts and ends, cells of its count of lines held while it is read
+// where each line of the file being read starts and ends, cells of its count of lines allocated while it is read
 static unsigned long long *s_line_start;
 static unsigned long long *s_line_end;
 
@@ -49,24 +49,24 @@ static int parse_is_method(const char *word, unsigned long long size)
     return size > 0u;
 }
 
-// `size` bytes of `text` kept in the parse's pool: where they stand, and the parse full where they do not fit
-static CliRequestsText parse_kept(CliRequestsParsed *parsed, const char *text, unsigned long long size)
+// `size` bytes of `text` stored in the parse's pool: where they stand, and the parse full where they do not fit
+static CliRequestsText parse_stored(CliRequestsParsed *parsed, const char *text, unsigned long long size)
 {
-    CliRequestsText kept = {0ull, 0ull};
+    CliRequestsText text_span = {0ull, 0ull};
     if (parsed->used + size + 1u > parsed->text_room)
     {
         parsed->full = 1;
-        return kept;
+        return text_span;
     }
-    kept.at = parsed->used;
-    kept.size = size;
+    text_span.at = parsed->used;
+    text_span.size = size;
     memor.cpy(&(MemoriaCfg){.dst = parsed->text + parsed->used, .src = text, .bytes = (size_t)size});
     parsed->text[parsed->used + size] = '\0';
     parsed->used += size + 1u;
-    return kept;
+    return text_span;
 }
 
-// a part of a line split at the first `split`, each side trimmed and kept: 1, or 0 where the part holds no `split`
+// a part of a line split at the first `split`, each side trimmed and stored: 1, or 0 where the part contains no `split`
 static int parse_pair(CliRequestsParsed *parsed, const char *text, unsigned long long start, unsigned long long end,
                       char split, CliRequestsText *name, CliRequestsText *value)
 {
@@ -81,8 +81,8 @@ static int parse_pair(CliRequestsParsed *parsed, const char *text, unsigned long
     unsigned long long value_end = end;
     cli_requests_trimmed(text, &name_start, &name_end);
     cli_requests_trimmed(text, &value_start, &value_end);
-    *name = parse_kept(parsed, text + name_start, name_end - name_start);
-    *value = parse_kept(parsed, text + value_start, value_end - value_start);
+    *name = parse_stored(parsed, text + name_start, name_end - name_start);
+    *value = parse_stored(parsed, text + value_start, value_end - value_start);
     return 1;
 }
 
@@ -104,7 +104,7 @@ static int parse_head_line(CliRequestsParsed *parsed, CliRequest *request, const
                 start += 1u;
             }
             cli_requests_trimmed(text, &start, &end);
-            request->name = parse_kept(parsed, text + start, end - start);
+            request->name = parse_stored(parsed, text + start, end - start);
         }
         else if ((end - start == 12u) && parse_begins(text, start, end, "@no-redirect"))
         {
@@ -162,12 +162,12 @@ static void parse_request_line(CliRequestsParsed *parsed, CliRequest *request, c
     const unsigned long long second_end = parse_word_end(text, second, end);
     if ((second < end) && parse_is_method(text + start, first_end - start))
     {
-        request->method = parse_kept(parsed, text + start, first_end - start);
-        request->url = parse_kept(parsed, text + second, second_end - second);
+        request->method = parse_stored(parsed, text + start, first_end - start);
+        request->url = parse_stored(parsed, text + second, second_end - second);
         return;
     }
-    request->method = parse_kept(parsed, "GET", 3u);
-    request->url = parse_kept(parsed, text + start, first_end - start);
+    request->method = parse_stored(parsed, "GET", 3u);
+    request->url = parse_stored(parsed, text + start, first_end - start);
 }
 
 // the address running on in indented lines from line `at`, each trimmed and joined to it: the line after them
@@ -269,7 +269,7 @@ static void parse_body(CliRequestsParsed *parsed, CliRequest *request, const cha
         unsigned long long start = s_line_start[at] + 2u;
         unsigned long long stop = s_line_end[at];
         cli_requests_trimmed(text, &start, &stop);
-        request->body_file = parse_kept(parsed, text + start, stop - start);
+        request->body_file = parse_stored(parsed, text + start, stop - start);
         request->has_body_file = 1;
         return;
     }
@@ -317,7 +317,7 @@ static int parse_request(CliRequestsParsed *parsed, CliRequest *request, const c
         unsigned long long end = s_line_end[at];
         start += 3u;
         cli_requests_trimmed(text, &start, &end);
-        request->name = parse_kept(parsed, text + start, end - start);
+        request->name = parse_stored(parsed, text + start, end - start);
         at += 1ull;
     }
     int found = 0;
@@ -346,8 +346,8 @@ static int parse_request(CliRequestsParsed *parsed, CliRequest *request, const c
 
 void cli_requests_parsed_given(CliRequestsParsed *parsed)
 {
-    cli_cell_given_by(&g_cli_requests_cells, parsed->requests);
-    cli_cell_given_by(&g_cli_requests_cells, parsed->text);
+    g_cli_cells->persistent_buf_release(parsed->requests, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(parsed->text, &g_cli_requests_cells);
     parsed->requests = NULL;
     parsed->requests_room = 0u;
     parsed->text = NULL;
@@ -371,7 +371,7 @@ static unsigned long long parse_lines_counted(const char *text, unsigned long lo
     return lines;
 }
 
-// the file's lines read into the lines' cells, and its requests read: 1, or 0 where it is larger than `parsed` holds
+// the file's lines read into the lines' cells, and its requests read: 1, or 0 where it is larger than `parsed` fits
 static int parse_read(const char *text, unsigned long long size, CliRequestsParsed *parsed)
 {
     unsigned long long lines = 0ull;
@@ -402,14 +402,14 @@ static int parse_read(const char *text, unsigned long long size, CliRequestsPars
                 : 0ull;
     }
     parts = (parts < CLI_REQUESTS_MOST) ? parts : CLI_REQUESTS_MOST;
-    parsed->requests = cli_cell_taken_by(&g_cli_requests_cells, (parts + 1ull) * sizeof(*parsed->requests),
-                                         "the requests of a file read");
+    parsed->requests =
+        g_cli_cells->persistent_buf_alloc((parts + 1ull) * sizeof(*parsed->requests), &g_cli_requests_cells);
     if (parsed->requests == NULL)
     {
         parsed->full = 1;
         return 0;
     }
-    // a part counted is below CLI_REQUESTS_MOST, which an unsigned int holds
+    // a part counted is below CLI_REQUESTS_MOST, which an unsigned int stores
     parsed->requests_room = (unsigned int)parts;
     static CliRequest s_request;
     unsigned long long first = 0ull;
@@ -441,18 +441,17 @@ int cli_requests_parse(const char *text, unsigned long long size, CliRequestsPar
     const unsigned long long lines = parse_lines_counted(text, size);
     const unsigned long long pool = (2ull * size) + CLI_REQUESTS_POOL_MORE;
     parsed->text_room = (pool < CLI_REQUESTS_TEXT) ? pool : CLI_REQUESTS_TEXT;
-    parsed->text = cli_cell_taken_by(&g_cli_requests_cells, parsed->text_room, "the texts of a file of requests read");
-    s_line_start = (parsed->text != NULL)
-                       ? cli_cell_taken_by(&g_cli_requests_cells, (lines + 1ull) * sizeof(*s_line_start),
-                                           "where the lines of a file of requests start")
-                       : NULL;
-    s_line_end = (s_line_start != NULL) ? cli_cell_taken_by(&g_cli_requests_cells, (lines + 1ull) * sizeof(*s_line_end),
-                                                            "where the lines of a file of requests end")
-                                        : NULL;
+    parsed->text = g_cli_cells->persistent_buf_alloc(parsed->text_room, &g_cli_requests_cells);
+    s_line_start = (parsed->text != NULL) ? g_cli_cells->persistent_buf_alloc((lines + 1ull) * sizeof(*s_line_start),
+                                                                              &g_cli_requests_cells)
+                                          : NULL;
+    s_line_end = (s_line_start != NULL)
+                     ? g_cli_cells->persistent_buf_alloc((lines + 1ull) * sizeof(*s_line_end), &g_cli_requests_cells)
+                     : NULL;
     const int read = (s_line_end != NULL) && parse_read(text, size, parsed);
     parsed->full = parsed->full || (s_line_end == NULL);
-    cli_cell_given_by(&g_cli_requests_cells, s_line_end);
-    cli_cell_given_by(&g_cli_requests_cells, s_line_start);
+    g_cli_cells->persistent_buf_release(s_line_end, &g_cli_requests_cells);
+    g_cli_cells->persistent_buf_release(s_line_start, &g_cli_requests_cells);
     s_line_end = NULL;
     s_line_start = NULL;
     return read;

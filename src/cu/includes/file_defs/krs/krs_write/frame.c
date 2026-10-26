@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame.c: the frame forms of a part's ruleset: the table of names read, a form's line as the schema's form, and the
-// lines written, the ruleset's own line kept where the run hands none
+// lines written, the ruleset's own line retained where the run hands none
 #include "frame.h"
 
 #include "../../../parsers/line_read.h"
@@ -9,7 +9,7 @@
 #include "krs_write_internal.h"
 #include "verba_scribo/verba_scribo.h"
 
-// the most rows the table holds, and the most places a row gives a form's parameters
+// the most rows the table contains, and the most places a row gives a form's parameters
 #define KRS_FRAME_ROWS 32u
 
 #define KRS_FRAME_PLACES 8u
@@ -100,7 +100,7 @@ unsigned int krs_frame_read(const char *path)
         unsigned long long place = 0ull;
         while ((row->places < KRS_FRAME_PLACES) && line_number(&rest, 0, &place) && (place <= 0xffffffffull))
         {
-            // a place an unsigned int holds
+            // a place an unsigned int represents
             row->place[row->places] = (unsigned int)place;
             row->places += 1u;
         }
@@ -109,8 +109,8 @@ unsigned int krs_frame_read(const char *path)
     return s_rows;
 }
 
-// how many places `text` holds, each {<place>} counted once
-static unsigned int frame_places_held(const char *text)
+// how many places `text` contains, each {<place>} counted once
+static unsigned int frame_places_count(const char *text)
 {
     unsigned int seen = 0u;
     for (const char *walk = text; *walk != '\0'; walk += 1)
@@ -130,10 +130,10 @@ static unsigned int frame_places_held(const char *text)
     return count;
 }
 
-// 1 where `row` names `form`: the row is of the form's relation and its places are as many as the form's text holds
+// 1 where `row` names `form`: the row is of the form's relation and its places are as many as the form's text contains
 static int frame_row_fits(const KrsFrameRow *row, const KrsFrameForm *form)
 {
-    return (strcmp(row->relation, form->relation) == 0) && (row->places == frame_places_held(form->text));
+    return (strcmp(row->relation, form->relation) == 0) && (row->places == frame_places_count(form->text));
 }
 
 // the first row that names `form`, or NULL where none does
@@ -157,7 +157,7 @@ static int frame_unguarded(const KrsFrameForm *form, KrsFrameForm *bare)
     unsigned int place = 0u;
     int length = 0;
     if ((form->text[0] != '@') || !krs_place_read(form->text + 1, &place, &length) || (form->text[length + 1] != ' ') ||
-        (frame_places_held(form->text) != 1u))
+        (frame_places_count(form->text) != 1u))
     {
         return 0;
     }
@@ -316,7 +316,7 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
 {
     static KrsFrameGiven s_given[KRS_FRAME_GIVEN_MOST];
     const unsigned int givens = frame_given_read(krs_path, s_given);
-    // the given lines a written one replaces with another text, kept in the .krf beside the .ksc
+    // the given lines a written one replaces with another text, stored in the .krf beside the .ksc
     const char *removed[KRS_FRAME_ROWS];
     unsigned int removals = 0u;
     unsigned int written = 0u;
@@ -353,7 +353,8 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
             *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = before});
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});
             written += 1u;
-            printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset keeps its form\n", row->form);
+            printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset retains its form\n",
+                   row->form);
         }
     }
     if (removals != 0u)
@@ -362,7 +363,8 @@ unsigned int krs_frame_written(char *out, size_t cap, size_t *at, const KrsFrame
         krf_path_beside(ksc_path, krf, sizeof(krf));
         if (!krf_removed(krf, "krs", "replaced", removed, removals))
         {
-            printf("  orior_krs_write: %u frame lines a written one replaced could not be kept in %s\n", removals, krf);
+            printf("  orior_krs_write: %u frame lines a written one replaced could not be stored in %s\n", removals,
+                   krf);
         }
     }
     return written;

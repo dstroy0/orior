@@ -24,8 +24,8 @@ static void prints_git(const char *root, const char *const *words, unsigned int 
     line[count + 1u] = NULL;
     CliRan *const ran = cli_ran_taken();
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_ran(line, root, NULL, 0u, ran, &said) && (ran->code == 0), words[0]);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_ran(line, root, NULL, 0u, ran, &err_msg) && (ran->code == 0), words[0]);
     cli_ran_given(ran);
 }
 
@@ -37,26 +37,26 @@ static void prints_added(void)
     static const char *const s_email[3] = {"config", "user.email", "tester@example.com"};
     static const char *const s_add[2] = {"add", "."};
     static const char *const s_first[4] = {"commit", "-q", "-m", "first"};
-    static const char s_kept[] = "def f(x):\n    print(\"kept\")\n    return x\n";
-    static const char s_changed[] = "def f(x):\n    print(\"kept\")\n    print(x)\n    return x\n";
+    static const char s_source[] = "def f(x):\n    print(\"stays\")\n    return x\n";
+    static const char s_changed[] = "def f(x):\n    print(\"stays\")\n    print(x)\n    return x\n";
     static const char s_new[] = "const a = 1;\nconsole.log(a);\n";
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("prints_added", root);
     prints_git(root, s_init, 2u);
     prints_git(root, s_name, 3u);
     prints_git(root, s_email, 3u);
     cli_full(root, "a.py", path);
-    (void)query_file_written(path, s_kept, sizeof(s_kept) - 1u);
+    (void)query_file_written(path, s_source, sizeof(s_source) - 1u);
     prints_git(root, s_add, 2u);
     prints_git(root, s_first, 4u);
     (void)query_file_written(path, s_changed, sizeof(s_changed) - 1u);
     cli_full(root, "b.js", path);
     (void)query_file_written(path, s_new, sizeof(s_new) - 1u);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_prints_added(root, &out, &said), "the prints of a tree are read");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_prints_added(root, &out, &err_msg), "the prints of a tree are read");
     cli_check_text(s_out, out.at,
                    "[{\"path\":\"a.py\",\"line\":2,\"text\":\"    print(x)\"},"
                    "{\"path\":\"b.js\",\"line\":1,\"text\":\"console.log(a);\"}]",
@@ -65,6 +65,7 @@ static void prints_added(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check(prints_line("a.py", "    print(total)"), "Python's print prints");
     cli_check(!prints_line("a.py", "    printer(total)"), "a longer name is no print");
     cli_check(!prints_line("a.py", "    # print(total)"), "a comment is no print");
@@ -78,10 +79,10 @@ int main(void)
     cli_check(!prints_line("a.md", "print(x)"), "a file of no language read here has none");
     static const char s_diff[] = "diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -3,0 +4,2 @@ def f():\n"
                                  "+    print(x)\n+    y = 1\n@@ -10 +12 @@\n-    old\n+    print(\"new\")\n";
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_prints_put_in(s_diff, sizeof(s_diff) - 1u, &out, &said), "the prints of a diff are read");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_prints_put_in(s_diff, sizeof(s_diff) - 1u, &out, &err_msg), "the prints of a diff are read");
     cli_check_text(s_out, out.at,
                    "[{\"path\":\"a.py\",\"line\":3,\"text\":\"    print(x)\"},"
                    "{\"path\":\"a.py\",\"line\":11,\"text\":\"    print(\\\"new\\\")\"}]",

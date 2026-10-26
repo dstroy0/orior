@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// font.h: a TrueType font read and drawn by orior_cli itself (font.c reads it, font_outline.c outlines and draws a glyph):
-// its tables read from a .ttf or the first font of a .ttc, a character found by its cmap, a glyph's outline read from
-// glyf, simple or made of other glyphs, its quadratic curves cut into short lines, and the lines drawn as coverage, a
-// pixel's share of the glyph, by the signed area each line leaves in the cells it crosses
+// font.h: a TrueType font read and drawn by orior_cli itself (font.c reads it, font_outline.c outlines and draws a
+// glyph): its tables read from a .ttf or the first font of a .ttc, a character found by its cmap, a glyph's outline
+// read from glyf, simple or made of other glyphs, its quadratic curves cut into short lines, and the lines drawn as
+// coverage, a pixel's share of the glyph, by the signed area each line leaves in the cells it crosses
 #ifndef PRINT_FONT_H
 #define PRINT_FONT_H
 
@@ -62,8 +62,8 @@ typedef struct
     float *cover;
 } CliMask;
 
-// the font in `size` bytes of `data`, a TrueType font or the first of a collection, its ranges kept in `ranges`, which
-// holds CLI_FONT_RANGES: 1, or 0 where it reads as none
+// the font in `size` bytes of `data`, a TrueType font or the first of a collection, its ranges stored in `ranges`,
+// which sized for CLI_FONT_RANGES: 1, or 0 where it reads as none
 int cli_font_read(CliFont *font, const unsigned char *data, unsigned long long size, unsigned int (*ranges)[3]);
 // the glyph that draws `letter`, 0 where the font has none; how far a glyph moves the pen, in font units
 unsigned int cli_font_glyph(const CliFont *font, unsigned int letter);
@@ -77,10 +77,10 @@ int cli_font_i16(const CliFont *font, unsigned long long at);
 void cli_font_outline(const CliFont *font, unsigned int glyph, const float *matrix, unsigned int depth,
                       CliContours *out);
 // `contours`, in pixels with y going up from the baseline, drawn as coverage into `mask`, its cover in `cover`, which
-// holds `room`; a mask too large for the room drawn as none
+// sized for `room`; a mask too large for the room drawn as none
 void cli_font_rasterize(const CliContours *contours, CliMask *mask, float *cover, unsigned long long room);
 // the monospace fonts orior_cli draws with, regular, bold, italic and bold italic, the first found of those the editor
-// uses and those each system has, each path into `paths`, each holding CLI_PATH_LONGEST, empty where it has none
-void cli_font_monospace(char (*paths)[CLI_PATH_LONGEST]);
+// uses and those each system has, each path into `paths`, each sized for CLI_PATH_MAX_LEN, empty where it has none
+void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN]);
 
 #endif

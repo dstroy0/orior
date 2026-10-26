@@ -9,23 +9,23 @@
 static const CliPrintListing *page_listing(unsigned int count, const char *(*lines)(unsigned int at))
 {
     static char s_text[1u << 16u];
-    CliLine text = {s_text, sizeof(s_text), 0ull};
-    cli_line_text(&text, "{\"title\":\"t\",\"lines\":[");
+    VerbaLinea text = {s_text, sizeof(s_text), 0ull};
+    mmgr_line_put(&text, "{\"title\":\"t\",\"lines\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&text, (at > 0u) ? ",{\"number\":" : "{\"number\":");
-        cli_line_decimal(&text, at + 1u, 1u);
-        cli_line_text(&text, ",\"runs\":[{\"text\":");
+        mmgr_line_put(&text, (at > 0u) ? ",{\"number\":" : "{\"number\":");
+        mmgr_line_decimal(&text, at + 1u, 1u);
+        mmgr_line_put(&text, ",\"runs\":[{\"text\":");
         cli_json_quoted(&text, lines(at), cellul.len(&(CatenaFinitaCfg){.src = lines(at), .cap = CLI_CELLS_POOL}));
-        cli_line_text(&text, ",\"color\":\"#112233\"}]}");
+        mmgr_line_put(&text, ",\"color\":\"#112233\"}]}");
     }
-    cli_line_text(&text, "],\"tab\":4}");
+    mmgr_line_put(&text, "],\"tab\":4}");
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_text, text.at, &read);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliPrintListing *listing = NULL;
-    return cli_print_listing_read(json, read, &listing, &said) ? listing : NULL;
+    return cli_print_listing_read(json, read, &listing, &err_msg) ? listing : NULL;
 }
 
 // the three lines of the first listing
@@ -41,9 +41,9 @@ static const char *page_three(unsigned int at)
 static const char *page_numbers(unsigned int at)
 {
     static char s_number[16];
-    CliLine line = {s_number, sizeof(s_number), 0ull};
-    cli_line_decimal(&line, at, 1u);
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {s_number, sizeof(s_number), 0ull};
+    mmgr_line_decimal(&line, at, 1u);
+    (void)mmgr_line_finish(&line);
     return s_number;
 }
 
@@ -62,6 +62,7 @@ static CliPrintLayout page_layout(int landscape)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_print_take();
     const CliPrintLayout upright = page_layout(0);
     const CliPrintLaid *laid = cli_print_lay_out(page_listing(3u, page_three), &upright);
@@ -84,7 +85,7 @@ int main(void)
     cli_check(pages >= 3u, "two hundred lines take three pages or more");
     const CliPrintLayout side = page_layout(1);
     laid = cli_print_lay_out(page_listing(200u, page_numbers), &side);
-    cli_check(laid->pages > pages, "on its side a page holds fewer rows");
+    cli_check(laid->pages > pages, "on its side a page fits fewer rows");
     CliPrintLayout ranged = page_layout(0);
     memor.cpy(&(MemoriaCfg){.dst = ranged.pages,
                             .src = "1-3, 5",

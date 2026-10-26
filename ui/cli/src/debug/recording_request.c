@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // recording_request.c: the adapter that records a Python program's run and steps through it, served a request at a
 // time: the capabilities, the launch, the breakpoints, the run started as configuration is done, the recording taken as
-// the run ends, and the run ended where the client lets the adapter go. One replay is held at a time: an adapter begun
+// the run ends, and the run ended where the client lets the adapter go. One replay is open at a time: an adapter begun
 // lets go of the replay before it and ends the run that replay was recording
 #include "../command_line/cells.h"
 #include "../text/pieces.h"
@@ -11,7 +11,7 @@
 // the bytes of a command's name and of why a request failed, and of each piece an answer's body and its reply are
 // written in
 #define CLI_RECORDING_COMMAND 256u
-#define CLI_RECORDING_SAID 4096u
+#define CLI_RECORDING_ERR_MSG_MAX_LEN 4096u
 #define CLI_RECORDING_PIECE 4096u
 
 // the request served, read into a tree taken to its size and given back as it is answered; and the replies sent
@@ -19,11 +19,11 @@ static CliJson s_json;
 static unsigned long long s_seq;
 
 // a node of the request written as it came, null where it is none
-static void request_raw(CliLine *out, unsigned int node)
+static void request_raw(VerbaLinea *out, unsigned int node)
 {
     if (node == CLI_JSON_NONE)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
     else
     {
@@ -34,27 +34,27 @@ static void request_raw(CliLine *out, unsigned int node)
 // a piece of what is written put on the line that is `context`
 static void request_put(void *context, const char *bytes, unsigned long long size)
 {
-    cli_line_counted((CliLine *)context, bytes, size);
+    mmgr_line_put_n((VerbaLinea *)context, bytes, size);
 }
 
-// the reply to request `message` sent, written through pieces into a cell of its size: the body its pieces hold where
-// it succeeded, why it failed where it did not; the body's pieces given back
+// the reply to request `message` sent, written through pieces into a cell of its size: the body its pieces contain
+// where it succeeded, why it failed where it did not; the body's pieces given back
 static void request_answered(CliDap *dap, unsigned int message, const char *command, int success, CliPieces *body,
-                             CliLine *body_line, const CliLine *said)
+                             VerbaLinea *body_line, const VerbaLinea *err_msg)
 {
     s_seq += 1ull;
     char piece[CLI_RECORDING_PIECE];
     CliPieces pieces;
-    CliLine reply;
+    VerbaLinea reply;
     cli_pieces_begun(&pieces, &reply, piece, sizeof(piece));
-    cli_line_text(&reply, "{\"seq\":");
-    cli_line_decimal(&reply, s_seq, 1u);
-    cli_line_text(&reply, ",\"type\":\"response\",\"request_seq\":");
+    mmgr_line_put(&reply, "{\"seq\":");
+    mmgr_line_decimal(&reply, s_seq, 1u);
+    mmgr_line_put(&reply, ",\"type\":\"response\",\"request_seq\":");
     request_raw(&reply, cli_json_member(&s_json, message, "seq"));
-    cli_line_text(&reply, ",\"command\":");
+    mmgr_line_put(&reply, ",\"command\":");
     cli_json_quoted_lossy(&reply, (const unsigned char *)command,
                           cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&reply, success ? ",\"success\":true,\"body\":" : ",\"success\":false,\"message\":");
+    mmgr_line_put(&reply, success ? ",\"success\":true,\"body\":" : ",\"success\":false,\"message\":");
     const int body_whole = cli_pieces_ended(body, body_line);
     if (success && body_whole)
     {
@@ -62,30 +62,30 @@ static void request_answered(CliDap *dap, unsigned int message, const char *comm
     }
     else if (success)
     {
-        cli_line_text(&reply, "null");
+        mmgr_line_put(&reply, "null");
     }
     else
     {
-        cli_json_quoted_lossy(&reply, (const unsigned char *)said->out, said->at);
+        cli_json_quoted_lossy(&reply, (const unsigned char *)err_msg->out, err_msg->at);
     }
     cli_pieces_given(body);
-    cli_line_character(&reply, '}');
+    mmgr_line_ch(&reply, '}');
     unsigned long long size = 0ull;
     char *const sent = cli_pieces_joined(&pieces, &reply, "a recording's reply", &size);
     if (sent != NULL)
     {
-        (void)cli_dap_told(dap, sent, size);
+        (void)cli_dap_send(dap, sent, size);
     }
-    cli_cell_given(sent);
+    g_cli_cells->persistent_buf_release(sent, NULL);
 }
 
 // the breakpoints of one file set, each line once, its place among the files the one its path's key had, or a new
-// one; and each told as placed and verified at the line the client asked for
-static void request_breakpoints(unsigned int arguments, CliLine *body)
+// one; and each reported as placed and verified at the line the client requested
+static void request_breakpoints(unsigned int arguments, VerbaLinea *body)
 {
     const unsigned int source = cli_json_member(&s_json, arguments, "source");
     const char *const path = cli_json_string(&s_json, cli_json_member(&s_json, source, "path"), NULL);
-    char key[CLI_PATH_LONGEST];
+    char key[CLI_PATH_MAX_LEN];
     cli_replay_key((path != NULL) ? path : "", key);
     unsigned int file = 0u;
     while (
@@ -94,49 +94,49 @@ static void request_breakpoints(unsigned int arguments, CliLine *body)
     {
         file += 1u;
     }
-    const int kept = (file < CLI_RECORDING_BREAK_FILES);
-    if (kept && (file == g_cli_replay->break_file_count))
+    const int fits = (file < CLI_RECORDING_BREAK_FILES);
+    if (fits && (file == g_cli_replay->break_file_count))
     {
         memor.cpy(&(MemoriaCfg){.dst = g_cli_replay->break_files[file],
                                 .src = key,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
         g_cli_replay->break_file_count += 1u;
     }
-    if (kept)
+    if (fits)
     {
         g_cli_replay->break_count[file] = 0u;
     }
     const unsigned int breakpoints = cli_json_member(&s_json, arguments, "breakpoints");
-    cli_line_text(body, "{\"breakpoints\":[");
+    mmgr_line_put(body, "{\"breakpoints\":[");
     for (unsigned int at = 0u; cli_json_item(&s_json, breakpoints, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int one = cli_json_item(&s_json, breakpoints, at);
         const unsigned int line_node = cli_json_member(&s_json, one, "line");
         unsigned long long line = 0ull;
         const int whole = cli_replay_whole(&s_json, line_node, &line);
-        // a line past 32 bits keeps its low 32, the width of the line numbers the recording keeps
+        // a line past 32 bits retains its low 32, the width of the line numbers the recording stores
         const unsigned int narrow = (unsigned int)(line & 0xffffffffull);
-        unsigned int held = 0u;
-        while (kept && whole && (held < g_cli_replay->break_count[file]) &&
-               (g_cli_replay->break_lines[file][held] != narrow))
+        unsigned int count = 0u;
+        while (fits && whole && (count < g_cli_replay->break_count[file]) &&
+               (g_cli_replay->break_lines[file][count] != narrow))
         {
-            held += 1u;
+            count += 1u;
         }
-        if (kept && whole && (held == g_cli_replay->break_count[file]) && (held < CLI_RECORDING_BREAK_LINES))
+        if (fits && whole && (count == g_cli_replay->break_count[file]) && (count < CLI_RECORDING_BREAK_LINES))
         {
-            g_cli_replay->break_lines[file][held] = narrow;
+            g_cli_replay->break_lines[file][count] = narrow;
             g_cli_replay->break_count[file] += 1u;
         }
-        cli_line_text(body, (at > 0u) ? ",{\"id\":" : "{\"id\":");
-        cli_line_decimal(body, (unsigned long long)at + 1ull, 1u);
-        cli_line_text(body, ",\"verified\":true,\"line\":");
+        mmgr_line_put(body, (at > 0u) ? ",{\"id\":" : "{\"id\":");
+        mmgr_line_decimal(body, (unsigned long long)at + 1ull, 1u);
+        mmgr_line_put(body, ",\"verified\":true,\"line\":");
         request_raw(body, line_node);
-        cli_line_character(body, '}');
+        mmgr_line_ch(body, '}');
     }
-    cli_line_text(body, "]}");
+    mmgr_line_put(body, "]}");
 }
 
-// whether the exception filters asked for take in the raised one
+// whether the exception filters requested take in the raised one
 static int request_on_raised(unsigned int arguments)
 {
     const unsigned int filters = cli_json_member(&s_json, arguments, "filters");
@@ -152,11 +152,11 @@ static int request_on_raised(unsigned int arguments)
     return 0;
 }
 
-int cli_replay_held(void)
+int cli_replay_locked(void)
 {
     if (g_cli_replay == NULL)
     {
-        g_cli_replay = cli_cell_taken(sizeof(CliReplay), "a recording's replay");
+        g_cli_replay = g_cli_cells->persistent_buf_alloc(sizeof(CliReplay), NULL);
         if (g_cli_replay != NULL)
         {
             memor.set(&(MemoriaCfg){.dst = g_cli_replay, .val = 0, .bytes = sizeof(CliReplay)});
@@ -170,7 +170,7 @@ void *cli_recording_begun(const char *root)
 {
     cli_recording_run_ended();
     cli_recording_let_go();
-    if (!cli_replay_held())
+    if (!cli_replay_locked())
     {
         return NULL;
     }
@@ -189,11 +189,11 @@ void *cli_recording_begun(const char *root)
 int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigned long long size)
 {
     (void)context;
-    char why[CLI_RECORDING_SAID];
-    CliLine said = {why, sizeof(why), 0ull};
+    char why[CLI_RECORDING_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the request before this one given back with its tree, and this one read into a tree of its size
     cli_json_given(&s_json);
-    const unsigned int message = cli_json_taken(&s_json, request, size, 0u, 0ull, &said);
+    const unsigned int message = cli_json_taken(&s_json, request, size, 0u, 0ull, &err_msg);
     if (message == CLI_JSON_NONE)
     {
         return 1;
@@ -211,15 +211,15 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
         .src = (named != NULL) ? named : "",
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (named != NULL) ? named : "", .cap = CLI_CELLS_POOL}) + 1u});
     const unsigned int arguments = cli_json_member(&s_json, message, "arguments");
-    // the answer's body held in pieces as it is written, given back as the reply is sent
+    // the answer's body buffered in pieces as it is written, given back as the reply is sent
     char body_piece[CLI_RECORDING_PIECE];
     CliPieces body_pieces;
-    CliLine body;
+    VerbaLinea body;
     cli_pieces_begun(&body_pieces, &body, body_piece, sizeof(body_piece));
     int success = 1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "initialize", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_text(&body, "{\"supportsConfigurationDoneRequest\":true,\"supportsStepBack\":true,"
+        mmgr_line_put(&body, "{\"supportsConfigurationDoneRequest\":true,\"supportsStepBack\":true,"
                              "\"supportsExceptionInfoRequest\":true,\"supportsEvaluateForHovers\":true,"
                              "\"exceptionBreakpointFilters\":[{\"filter\":\"raised\",\"label\":\"Raised "
                              "Exceptions\",\"default\":false}]}");
@@ -238,10 +238,10 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
             .src = (python != NULL) ? python : "",
             .bytes =
                 cellul.len(&(CatenaFinitaCfg){.src = (python != NULL) ? python : "", .cap = CLI_CELLS_POOL}) + 1u});
-        cli_line_text(&body, "null");
-        request_answered(dap, message, command, 1, &body_pieces, &body, &said);
+        mmgr_line_put(&body, "null");
+        request_answered(dap, message, command, 1, &body_pieces, &body, &err_msg);
         const char initialized[] = "{\"type\":\"event\",\"event\":\"initialized\"}";
-        (void)cli_dap_told(dap, initialized, sizeof(initialized) - 1u);
+        (void)cli_dap_send(dap, initialized, sizeof(initialized) - 1u);
         return 1;
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setBreakpoints", .cap = CLI_CELLS_POOL}))
@@ -251,17 +251,17 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "setExceptionBreakpoints", .cap = CLI_CELLS_POOL}))
     {
         g_cli_replay->on_raised = request_on_raised(arguments);
-        cli_line_text(&body, "null");
+        mmgr_line_put(&body, "null");
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "configurationDone", .cap = CLI_CELLS_POOL}))
     {
-        success = cli_recording_run(dap, &said);
-        cli_line_text(&body, "null");
-        request_answered(dap, message, command, success, &body_pieces, &body, &said);
+        success = cli_recording_run(dap, &err_msg);
+        mmgr_line_put(&body, "null");
+        request_answered(dap, message, command, success, &body_pieces, &body, &err_msg);
         if (!success)
         {
             const char terminated[] = "{\"type\":\"event\",\"event\":\"terminated\",\"body\":{}}";
-            (void)cli_dap_told(dap, terminated, sizeof(terminated) - 1u);
+            (void)cli_dap_send(dap, terminated, sizeof(terminated) - 1u);
         }
         return 1;
     }
@@ -269,14 +269,14 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
              (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "terminate", .cap = CLI_CELLS_POOL})))
     {
         cli_recording_run_killed();
-        cli_line_text(&body, "null");
-        request_answered(dap, message, command, 1, &body_pieces, &body, &said);
+        mmgr_line_put(&body, "null");
+        request_answered(dap, message, command, 1, &body_pieces, &body, &err_msg);
         return !cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "disconnect", .cap = CLI_CELLS_POOL});
     }
     else
     {
-        success = cli_replay_answer(dap, command, &s_json, arguments, &body, &said);
+        success = cli_replay_answer(dap, command, &s_json, arguments, &body, &err_msg);
     }
-    request_answered(dap, message, command, success, &body_pieces, &body, &said);
+    request_answered(dap, message, command, success, &body_pieces, &body, &err_msg);
     return 1;
 }

@@ -1,44 +1,44 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// carry_undo.c: the takings kept, read back and written, and a taking undone
+// carry_undo.c: the takings saved, read back and written, and a taking undone
 #include "carry_internal.h"
 
-void cli_carry_taking_written(const CliTaking *taking, int pretty, CliLine *out)
+void cli_carry_taking_written(const CliTaking *taking, int pretty, VerbaLinea *out)
 {
-    cli_line_text(out, pretty ? "{\n  \"id\": " : "{\"id\":");
+    mmgr_line_put(out, pretty ? "{\n  \"id\": " : "{\"id\":");
     cli_json_quoted(out, taking->id, cellul.len(&(CatenaFinitaCfg){.src = taking->id, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, pretty ? ",\n  \"at\": " : ",\"at\":");
-    cli_line_decimal(out, taking->at, 0u);
-    cli_line_text(out, pretty ? ",\n  \"from\": " : ",\"from\":");
+    mmgr_line_put(out, pretty ? ",\n  \"at\": " : ",\"at\":");
+    mmgr_line_decimal(out, taking->at, 0u);
+    mmgr_line_put(out, pretty ? ",\n  \"from\": " : ",\"from\":");
     cli_json_quoted(out, taking->from, cellul.len(&(CatenaFinitaCfg){.src = taking->from, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, pretty ? ",\n  \"files\": [" : ",\"files\":[");
+    mmgr_line_put(out, pretty ? ",\n  \"files\": [" : ",\"files\":[");
     for (unsigned int at = 0u; at < taking->files; at += 1u)
     {
         if (pretty)
         {
-            cli_line_text(out, (at != 0u) ? ",\n    [\n      " : "\n    [\n      ");
+            mmgr_line_put(out, (at != 0u) ? ",\n    [\n      " : "\n    [\n      ");
         }
         else
         {
-            cli_line_text(out, (at != 0u) ? ",[" : "[");
+            mmgr_line_put(out, (at != 0u) ? ",[" : "[");
         }
         cli_json_quoted(out, taking->place[at],
                         cellul.len(&(CatenaFinitaCfg){.src = taking->place[at], .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, pretty ? ",\n      " : ",");
-        cli_line_text(out, taking->stood[at] ? "true" : "false");
-        cli_line_text(out, pretty ? "\n    ]" : "]");
+        mmgr_line_put(out, pretty ? ",\n      " : ",");
+        mmgr_line_put(out, taking->stood[at] ? "true" : "false");
+        mmgr_line_put(out, pretty ? "\n    ]" : "]");
     }
     if (pretty)
     {
-        cli_line_text(out, (taking->files != 0u) ? "\n  ]\n}" : "]\n}");
+        mmgr_line_put(out, (taking->files != 0u) ? "\n  ]\n}" : "]\n}");
     }
     else
     {
-        cli_line_text(out, "]}");
+        mmgr_line_put(out, "]}");
     }
 }
 
-// The takings kept: each one's folder name and when it was taken, and the room one is read into
+// The takings saved: each one's folder name and when it was taken, and the room one is read into
 typedef struct
 {
     char name[CLI_TAKINGS][64];
@@ -53,7 +53,7 @@ static CliTakings s_takings;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // the lock taken and the room begun empty under it
-static void undo_held(void)
+static void undo_locked(void)
 {
     cli_lock_take(&s_lock);
     cli_carry_room_begun(&s_takings.room);
@@ -66,19 +66,19 @@ static void undo_released(void)
     cli_lock_give(&s_lock);
 }
 
-// the taking kept at `file` read into `taking`: 1, or 0 where it is not there or not one
+// the taking saved at `file` read into `taking`: 1, or 0 where it is not there or not one
 static int cli_taking_read(const char *file, CliTaking *taking)
 {
     CliJson *const json = &s_takings.room.json;
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(file, &size);
+    const unsigned char *const bytes = cli_file_read(file, &size);
     if (bytes == NULL)
     {
         return 0;
     }
     cli_json_given(json);
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_taken(json, (const char *)bytes, size, 0u, 0ull, &unread);
     cli_file_let_go(bytes, size);
     const char *const id = cli_json_string(json, cli_json_member(json, root, "id"), NULL);
@@ -132,8 +132,8 @@ static int cli_taking_read(const char *file, CliTaking *taking)
 static void cli_taking_each(void *context, const char *name, int is_folder)
 {
     (void)context;
-    char folder[CLI_PATH_LONGEST];
-    char file[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
     cli_full(s_takings.carried, name, folder);
     cli_full(folder, "taking.json", file);
     if (!is_folder || (s_takings.count >= CLI_TAKINGS) ||
@@ -142,7 +142,7 @@ static void cli_taking_each(void *context, const char *name, int is_folder)
     {
         return;
     }
-    // the takings kept by when they were taken, the last first, those taken at once in the order they were read
+    // the takings saved by when they were taken, the last first, those taken at once in the order they were read
     unsigned int place = s_takings.count;
     while ((place > 0u) && (s_takings.at[place - 1u] < s_takings.taking.at))
     {
@@ -160,7 +160,7 @@ static void cli_taking_each(void *context, const char *name, int is_folder)
     s_takings.count += 1u;
 }
 
-// every taking kept under `home`, by its folder, the last first
+// every taking saved under `home`, by its folder, the last first
 static void cli_takings_read(const char *home, char *carried)
 {
     cli_full(home, "carried", carried);
@@ -169,40 +169,40 @@ static void cli_takings_read(const char *home, char *carried)
     query_folder_each(carried, cli_taking_each, NULL);
 }
 
-// the taking kept in the folder `name` read into the room's taking: 1, or 0
+// the taking saved in the folder `name` read into the room's taking: 1, or 0
 static int cli_taking_of(const char *carried, const char *name)
 {
-    char folder[CLI_PATH_LONGEST];
-    char file[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
     cli_full(carried, name, folder);
     cli_full(folder, "taking.json", file);
     return cli_taking_read(file, &s_takings.taking);
 }
 
-void cli_carry_takings(const char *home, CliLine *out)
+void cli_carry_takings(const char *home, VerbaLinea *out)
 {
-    undo_held();
-    char carried[CLI_PATH_LONGEST];
+    undo_locked();
+    char carried[CLI_PATH_MAX_LEN];
     cli_takings_read(home, carried);
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     unsigned int written = 0u;
     for (unsigned int at = 0u; at < s_takings.count; at += 1u)
     {
         if (cli_taking_of(carried, s_takings.name[at]))
         {
-            cli_line_text(out, (written != 0u) ? "," : "");
+            mmgr_line_put(out, (written != 0u) ? "," : "");
             cli_carry_taking_written(&s_takings.taking, 0, out);
             written += 1u;
         }
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     undo_released();
 }
 
-int cli_carry_undo(const char *home, const char *id, CliLine *out, CliLine *said)
+int cli_carry_undo(const char *home, const char *id, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    undo_held();
-    char carried[CLI_PATH_LONGEST];
+    undo_locked();
+    char carried[CLI_PATH_MAX_LEN];
     cli_takings_read(home, carried);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < s_takings.count); at += 1u)
@@ -212,25 +212,25 @@ int cli_carry_undo(const char *home, const char *id, CliLine *out, CliLine *said
     }
     if (!found)
     {
-        cli_line_text(said, "no taking ");
-        cli_line_text(said, id);
-        cli_line_text(said, " is kept");
+        mmgr_line_put(err_msg, "no taking ");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is saved");
         undo_released();
         return 0;
     }
     const CliTaking *const taking = &s_takings.taking;
-    char kept[CLI_PATH_LONGEST];
-    cli_full(carried, taking->id, kept);
+    char backup_dir[CLI_PATH_MAX_LEN];
+    cli_full(carried, taking->id, backup_dir);
     for (unsigned int at = 0u; at < taking->files; at += 1u)
     {
-        char path[CLI_PATH_LONGEST];
-        char saved[CLI_PATH_LONGEST];
+        char path[CLI_PATH_MAX_LEN];
+        char saved[CLI_PATH_MAX_LEN];
         cli_full(home, taking->place[at], path);
-        cli_full(kept, taking->place[at], saved);
+        cli_full(backup_dir, taking->place[at], saved);
         if (taking->stood[at])
         {
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_file_held(saved, &size);
+            const unsigned char *const bytes = cli_file_read(saved, &size);
             const int back = (bytes != NULL) && query_file_written(path, bytes, size);
             if (bytes != NULL)
             {
@@ -238,24 +238,24 @@ int cli_carry_undo(const char *home, const char *id, CliLine *out, CliLine *said
             }
             if (!back)
             {
-                cli_line_text(said, (bytes == NULL) ? saved : path);
-                cli_line_text(said, (bytes == NULL) ? ": it could not be read" : ": it could not be written");
+                mmgr_line_put(err_msg, (bytes == NULL) ? saved : path);
+                mmgr_line_put(err_msg, (bytes == NULL) ? ": it could not be read" : ": it could not be written");
                 undo_released();
                 return 0;
             }
         }
         else if (query_is_file(path) && !query_removed(path))
         {
-            cli_line_text(said, path);
-            cli_line_text(said, ": it could not be taken out");
+            mmgr_line_put(err_msg, path);
+            mmgr_line_put(err_msg, ": it could not be taken out");
             undo_released();
             return 0;
         }
     }
-    if (!query_removed(kept))
+    if (!query_removed(backup_dir))
     {
-        cli_line_text(said, kept);
-        cli_line_text(said, ": it could not be taken out");
+        mmgr_line_put(err_msg, backup_dir);
+        mmgr_line_put(err_msg, ": it could not be taken out");
         undo_released();
         return 0;
     }

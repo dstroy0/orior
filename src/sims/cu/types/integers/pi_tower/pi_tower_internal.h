@@ -12,9 +12,9 @@
 // the three gap theorem; T. van Ravenstein, "The three gap theorem (Steinhaus conjecture)", J. Austral. Math. Soc. A
 // 45, 1988). Cut the boundary into N = 2^k cells: the turn fills every cell at an exact step, and that step and the
 // cell it fills are read here from the floors, without walking the turn.
-// Everything is exact. pi is bracketed by Machin's formula in integers, and the turn is represented as the integer rotation
-// y_n = n A mod 2^P, A = floor(alpha 2^P). A first hit, the least n with y_n in a window, is Euclid's descent through
-// the floors. Whether the integer turn is the real one, cell for cell, is itself a first hit, and is checked.
+// Everything is exact. pi is bracketed by Machin's formula in integers, and the turn is represented as the integer
+// rotation y_n = n A mod 2^P, A = floor(alpha 2^P). A first hit, the least n with y_n in a window, is Euclid's descent
+// through the floors. Whether the integer turn is the real one, cell for cell, is itself a first hit, and is checked.
 // 1. pi is bracketed: floor(pi 2^P) is one integer at both ends of Machin's bracket, and its first 64 bits after the
 //    point are the published 0x243F6A8885A308D3.
 // 2. The floors: pi's partial quotients, certified by the bracket, begin 7, 15, 1, 292, ... as published.
@@ -24,14 +24,14 @@
 //    than the real one.
 // 5. The step that fills the boundary, read from the floors, equals a walk of every step, at 2^1 to 2^PI_TOWER_WALK_MAX
 //    cells, and so does the last cell filled.
-// 6. At every resolution asked for, the last cell filled is first touched at that step.
+// 6. At every resolution requested, the last cell filled is first touched at that step.
 // The resolutions come with the request: pi_tower [n] reads 2^n alone, pi_tower [from] [to] reads 2^from to 2^to, and
 // no argument reads 2^1 to 2^100.
 // The precision follows the largest, P = 3 n + 64 bits rounded up to a word and at least PI_TOWER_BITS, and a build
-// whose exact width cannot hold 3 (P + PI_TOWER_GUARD) + 64 bits errors on it by name (SIM_EXACT_LIMBS sets the width).
-// The arc. Roll the boundary into a cylinder whose cross-section is our disk: the turn is the helix of radius 1 / (2
-// pi) rising 1 / pi a turn, and it pierces our disk at the marks {n pi}. Its bending plane stands at the angle
-// phi = arctan(1 / pi) to our disk, and the ratio of its torsion to its curvature is tan phi (Lancret, 1806).
+// whose exact width cannot represent 3 (P + PI_TOWER_GUARD) + 64 bits errors on it by name (SIM_EXACT_LIMBS sets the
+// width). The arc. Roll the boundary into a cylinder whose cross-section is our disk: the turn is the helix of radius 1
+// / (2 pi) rising 1 / pi a turn, and it pierces our disk at the marks {n pi}. Its bending plane stands at the angle phi
+// = arctan(1 / pi) to our disk, and the ratio of its torsion to its curvature is tan phi (Lancret, 1806).
 // 7. In Q(pi), where pi is a free variable because it is transcendental (Lindemann, 1882), the helix's Frenet frame
 //    taken from its derivatives at the four quarter turns gives curvature 2 pi^3 / (pi^2 + 1), torsion
 //    2 pi^2 / (pi^2 + 1), tau / kappa = 1 / pi = tan phi, and a Darboux vector tau T + kappa B along our disk's axis.
@@ -57,10 +57,10 @@
 // scheduler lays them out, and tessera admits the job.
 // 13. On the engine, pi's first 64 bits after the point are 0x243F6A8885A308D3, and its hex digits at Bailey's
 //     published positions are his.
-// 14. The engine's cell at the deepest resolution asked for, its low 64 bits, is the exact turn's.
-// A resolution past 2^20, n given whole or as base^exponent (10^100 for a googol), is represented as (2, n): its precision
-// and widths are printed exact, and the engine sums the depth-n terms sweep by sweep, printing the terms done and its
-// rate. Its digits are printed only once every term is summed.
+// 14. The engine's cell at the deepest resolution requested, its low 64 bits, is the exact turn's.
+// A resolution past 2^20, n given whole or as base^exponent (10^100 for a googol), is represented as (2, n): its
+// precision and widths are printed exact, and the engine sums the depth-n terms sweep by sweep, printing the terms done
+// and its rate. Its digits are printed only once every term is summed.
 // 15. A segment: pi_tower segment d [digits], d whole or base^exponent, reads that many hex digits from position d + 1
 //     as windows at d, d + 20, d + 40, ..., each its own run on the engine. Every window certifies at least 24 digits,
 //     the 4 or more it certifies past the 20 it gives are the next window's first (D. H. Bailey, "The BBP Algorithm
@@ -110,7 +110,7 @@
 // the billiard is walked over 2^PI_TOWER_BILLIARD_BITS columns of its unfolded lattice
 #define PI_TOWER_BILLIARD_BITS 24u
 
-// the bits after the point the engine's sum holds past its error, and the guard past them that keeps a carry from
+// the bits after the point the engine's sum resolves past its error, and the guard past them that prevents a carry from
 // leaving them undecided
 #define PI_TOWER_BBP_CERTIFIED 96u
 
@@ -192,9 +192,9 @@ std::vector<PiTowerRecord> pi_tower_records(const PiTowerTurn &turn, int lowest)
 
 int pi_tower_covered(const PiTowerTurn &turn, const PiWide &cell, const PiWide &count);
 
-void pi_tower_print_decimal(ScripturaLine *line, PiWide value);
+void pi_tower_print_decimal(VerbaLinea *line, PiWide value);
 
-void pi_tower_print_exponent(ScripturaLine *line, PiWide numerator, PiWide denominator);
+void pi_tower_print_exponent(VerbaLinea *line, PiWide numerator, PiWide denominator);
 
 int pi_tower_bracket(SimResults *results, unsigned int precision, PiWide *alpha, PiWide *low, PiWide *high);
 

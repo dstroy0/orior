@@ -3,7 +3,7 @@
 // rows.c: the rows: a number's halves, a number read, put and added, the hash, a row handed to the run with its who, a
 // record's row and a text's, the text slots grown, and a text taken
 #include "../../../parsers/who.h"
-#include "krep_internal.h"
+#include "krep_records_internal.h"
 
 // the 32-bit word of the four little-endian bytes at `bytes`, the head's version
 unsigned int krep_half_of(const unsigned char *bytes)
@@ -40,7 +40,7 @@ int krep_number_read(const unsigned char *bytes, unsigned long long size, unsign
     return 0;
 }
 
-// `value` written into `bytes`, which holds KREP_NUMBER_MOST, seven bits a byte: the bytes it took
+// `value` written into `bytes`, which has room for KREP_NUMBER_MOST, seven bits a byte: the bytes it took
 static unsigned int krep_number_put(unsigned char *bytes, unsigned long long value)
 {
     unsigned int taken = 0u;
@@ -54,8 +54,8 @@ static unsigned int krep_number_put(unsigned char *bytes, unsigned long long val
     return taken;
 }
 
-// `value` written at `at` into `out`, which holds `cap`, seven bits a byte: the offset after it, or `cap` where it did
-// not fit
+// `value` written at `at` into `out`, which has room for `cap`, seven bits a byte: the offset after it, or `cap` where
+// it did not fit
 size_t krep_number_added(char *out, size_t cap, size_t at, unsigned long long value)
 {
     unsigned char bytes[KREP_NUMBER_MOST];
@@ -75,7 +75,7 @@ static unsigned long long krep_hash(const char *bytes, unsigned long long length
     return hash;
 }
 
-// A row of `file`'s table of the key `key`, of the who two words `who` hold and of the change `change`: its `count`
+// A row of `file`'s table of the key `key`, of the who two words `who` carry and of the change `change`: its `count`
 // numbers from `numbers`, then `size` bytes at `bytes` filled out to a whole word with zeros, handed at `priority`.
 // Its sequence where it is critical, 1 where it is ordinary, or 0 where it could not be handed, and the file then no
 // table's
@@ -132,13 +132,13 @@ void krep_who_words_at(const KrepFile *file, unsigned int at, unsigned long long
     }
 }
 
-// the row of the record at `at` of `file`, put there, of the who two words `who` hold, handed to its table
+// the row of the record at `at` of `file`, put there, of the who two words `who` carry, handed to its table
 void krep_record_row(KrepFile *file, unsigned int at, const unsigned long long *who)
 {
-    const KrepRecord *const held = &file->record[at];
-    const unsigned long long numbers[3] = {at, held->code, held->count};
-    krep_row_handed(file, file->key, who, KREP_ROW_PUT, numbers, 3u, held->word,
-                    (unsigned long long)held->count * sizeof(unsigned long long), QRY_ORDINARY);
+    const KrepRecord *const entry = &file->record[at];
+    const unsigned long long numbers[3] = {at, entry->code, entry->count};
+    krep_row_handed(file, file->key, who, KREP_ROW_PUT, numbers, 3u, entry->word,
+                    (unsigned long long)entry->count * sizeof(unsigned long long), QRY_ORDINARY);
 }
 
 // the row of the text of the number `number` of `file`, of no who, handed to its table
@@ -150,15 +150,15 @@ void krep_text_row(KrepFile *file, unsigned int number)
                     file->text_length[number - 1u], QRY_ORDINARY);
 }
 
-// the slot of the text of `length` bytes at `bytes` in `file`'s table: the one holding it, or the empty one it would
+// the slot of the text of `length` bytes at `bytes` in `file`'s table: the one containing it, or the empty one it would
 // be put in
 unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned long long length)
 {
     unsigned int at = (unsigned int)(krep_hash(bytes, length) & (file->text_slots - 1u));
     while (file->text_slot[at] != 0u)
     {
-        const unsigned int held = file->text_slot[at] - 1u;
-        if ((file->text_length[held] == length) && (memcmp(file->text[held], bytes, (size_t)length) == 0))
+        const unsigned int slot = file->text_slot[at] - 1u;
+        if ((file->text_length[slot] == length) && (memcmp(file->text[slot], bytes, (size_t)length) == 0))
         {
             return at;
         }
@@ -167,7 +167,7 @@ unsigned int krep_text_slot(const KrepFile *file, const char *bytes, unsigned lo
     return at;
 }
 
-// `file`'s table of texts grown to hold twice the texts it holds and more: 1, or 0 where there was no memory
+// `file`'s table of texts grown to contain twice the texts it contains and more: 1, or 0 where there was no memory
 static int krep_text_slots_grown(KrepFile *file)
 {
     unsigned int slots = (file->text_slots == 0u) ? 1024u : file->text_slots;

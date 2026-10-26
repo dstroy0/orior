@@ -186,18 +186,18 @@ static void classify_detect(SimResults *results, ClassifyWork *work, const char 
     *ok = *ok && energy_band_top(results, work->stack, CLASSIFY_LENGTH, CLASSIFY_FRAME, CLASSIFY_DRAWS,
                                  CLASSIFY_KEY ^ 0x42414E44ull, work->shuffled, work->sums, &top, &reached);
     *present = *ok && (live.period == CLASSIFY_FRAME) && energy_above(&live, &top);
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  ");
-    scriptura_text(line, name);
-    scriptura_text(line, " mode fixed-pattern: coherent component present: ");
-    scriptura_text(line, *present ? "yes" : "no");
-    scriptura_text(line, " (live ");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, " mode fixed-pattern: coherent component present: ");
+    mmgr_line_put(line, *present ? "yes" : "no");
+    mmgr_line_put(line, " (live ");
     energy_print(line, &live);
-    scriptura_text(line, " at period ");
-    scriptura_decimal(line, live.period, 1u);
-    scriptura_text(line, " / band top ");
+    mmgr_line_put(line, " at period ");
+    mmgr_line_decimal(line, live.period, 1u);
+    mmgr_line_put(line, " / band top ");
     energy_print(line, &top);
-    scriptura_text(line, ")\n");
+    mmgr_line_put(line, ")\n");
 }
 
 static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, const char *name, int expect_present)
@@ -205,12 +205,12 @@ static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, cons
     int present = 0;
     int ok = 1;
     classify_detect(results, work, name, &present, &ok);
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     sim_check(results, ok && (present == expect_present),
               expect_present ? "the fixed pattern is classified present" : "incoherent noise is declined");
     if ((ok == 0) || (present == 0))
     {
-        scriptura_text(line,
+        mmgr_line_put(line,
                        "                              declined: no fixed pattern above the null; nothing removed\n\n");
         return;
     }
@@ -240,19 +240,19 @@ static void classify_fixed_pattern(SimResults *results, ClassifyWork *work, cons
     ok = ok && energy_reduction(work->stack, work->truth, CLASSIFY_LENGTH, CLASSIFY_FRAME, batch, &share_numerator,
                                 &share_denominator);
     OriorExactInteger percent;
-    scriptura_text(line, "                              reject per-pixel mean: subject equals truth on ");
-    scriptura_decimal(line, exact, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, CLASSIFY_LENGTH, 1u);
-    scriptura_text(line, ", reduction ");
+    mmgr_line_put(line, "                              reject per-pixel mean: subject equals truth on ");
+    mmgr_line_decimal(line, exact, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, CLASSIFY_LENGTH, 1u);
+    mmgr_line_put(line, ", reduction ");
     if (ok && sim_exact_scaled(&share_numerator, 100ull, &percent))
     {
         sim_ratio_print(line, &percent, &share_denominator, 4u);
     }
     // both routes are exact means of the same values. They agree on any input: the count checks the arithmetic
-    scriptura_text(line, "%\n                              the batch and incremental routes disagree on ");
-    scriptura_decimal(line, flagged, 1u);
-    scriptura_text(line, " of 64 pixels\n\n");
+    mmgr_line_put(line, "%\n                              the batch and incremental routes disagree on ");
+    mmgr_line_decimal(line, flagged, 1u);
+    mmgr_line_put(line, " of 64 pixels\n\n");
     sim_check(results, ok && (exact == CLASSIFY_LENGTH) && (flagged == 0ull),
               "the subject is recovered bit-exact, and the batch and incremental routes agree");
 }
@@ -271,17 +271,17 @@ static void classify_repeat(SimResults *results, ClassifyWork *work, const char 
         }
         resolved_exact += (work->by_count[phase] == work->subject[phase]) ? 1ull : 0ull;
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  ");
-    scriptura_text(line, name);
-    scriptura_text(line, " mode repeat: subject by per-pixel consensus (greatest count, and the lower median of 48)\n");
-    scriptura_text(line, "                              exact on ");
-    scriptura_decimal(line, resolved_exact, 1u);
-    scriptura_text(line, " of the ");
-    scriptura_decimal(line, CLASSIFY_FRAME - flagged, 1u);
-    scriptura_text(line, " pixels the two routes agree on; ");
-    scriptura_decimal(line, flagged, 1u);
-    scriptura_text(line, " of 64 flagged (the floor)\n\n");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, " mode repeat: subject by per-pixel consensus (greatest count, and the lower median of 48)\n");
+    mmgr_line_put(line, "                              exact on ");
+    mmgr_line_decimal(line, resolved_exact, 1u);
+    mmgr_line_put(line, " of the ");
+    mmgr_line_decimal(line, CLASSIFY_FRAME - flagged, 1u);
+    mmgr_line_put(line, " pixels the two routes agree on; ");
+    mmgr_line_decimal(line, flagged, 1u);
+    mmgr_line_put(line, " of 64 flagged (the floor)\n\n");
     sim_check(results, ok, "the consensus ran");
     if (expect_resolved_everywhere)
     {
@@ -306,10 +306,10 @@ int main(void)
         free(work);
         return sim_close(&results, "classify reject recover");
     }
-    scriptura_text(&results.line, "  classify, reject, return the clean subject with the uncertainty stated exactly "
+    mmgr_line_put(&results.line, "  classify, reject, return the clean subject with the uncertainty stated exactly "
                                   "(ART-4-007, ported)\n  declared inputs: frame=8x8 frames=48 key=0x");
-    scriptura_hex(&results.line, CLASSIFY_KEY, 1u);
-    scriptura_text(&results.line, " draws=8\n\n");
+    mmgr_line_hex(&results.line, CLASSIFY_KEY, 1u);
+    mmgr_line_put(&results.line, " draws=8\n\n");
     classify_scene(work->scene, CLASSIFY_KEY);
     classify_pattern(work->pattern, CLASSIFY_KEY);
     for (unsigned long long pixel = 0ull; pixel < CLASSIFY_FRAME; pixel += 1ull)
@@ -356,11 +356,11 @@ int main(void)
     }
     classify_repeat(&results, work, "incoherent on a repeat   ", 0);
 
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "  fixed-pattern removes a shared pattern from a varying subject to the bit and declines\n");
-    scriptura_text(&results.line,
-                   "  incoherent noise; repeat keeps a shared subject and recovers it exactly where a majority\n");
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
+                   "  incoherent noise; repeat retains a shared subject and recovers it exactly where a majority\n");
+    mmgr_line_put(&results.line,
                    "  survives, flagging the rest. neither mode guesses which the shared component is.\n");
     free(work);
     return sim_close(&results, "classify reject recover");

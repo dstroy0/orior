@@ -94,7 +94,7 @@ static int noise_exact_ratio(const OriorExactInteger *numerator, const OriorExac
     }
     const unsigned long long magnitude = ok ? (((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) : 0ull;
     ok = ok && (magnitude <= 0x7FFFFFFFFFFFFFFFull);
-    // the magnitude is below 2^63. It converts to long long exactly; the sign is held apart
+    // the magnitude is below 2^63. It converts to long long exactly; the sign is stored apart
     *ratio = ok ? ((long long)magnitude * (long long)quotient.sign) : 0ll;
     return ok;
 }
@@ -122,7 +122,7 @@ void noise_planes_readings(const NoisePlanePool *pool, long long readings[NOISE_
          (orior_exact_subtract(&plane_part, &column_part, &plane_part) == ORIOR_EXACT_OK) &&
          (orior_exact_add(&plane_part, &residual, &plane_part) == ORIOR_EXACT_OK) &&
          (orior_exact_add(&plane_part, &residual, &plane_part) == ORIOR_EXACT_OK);
-    // the planes' voxels are the sample's frame pairs times its voxels, which the sample's bound holds in a word
+    // the planes' voxels are the sample's frame pairs times its voxels, which the sample's bound bounds in a word
     noise_exact_word(&counted, height * width * pool->planes);
     ok = ok && (orior_exact_multiply(&counted, &factor, &counted) == ORIOR_EXACT_OK);
     const OriorExactInteger *const numerators[NOISE_TWO_WAY_READINGS] = {&row_part, &column_part, &plane_part,
@@ -141,17 +141,17 @@ static void noise_planes_summary(const NoisePlanePool *pool)
     long long readings[NOISE_TWO_WAY_READINGS];
     int valid[NOISE_TWO_WAY_READINGS];
     noise_planes_readings(pool, readings, valid);
-    const char *const said[NOISE_TWO_WAY_READINGS] = {"within each plane: rows", "columns", "plane", "independent"};
+    const char *const labels[NOISE_TWO_WAY_READINGS] = {"within each plane: rows", "columns", "plane", "independent"};
     printf("  %-24s", "");
     for (unsigned int ratio = 0u; ratio < NOISE_TWO_WAY_READINGS; ratio += 1u)
     {
         if (valid[ratio] != 0)
         {
-            printf(" %s %lld", said[ratio], readings[ratio]);
+            printf(" %s %lld", labels[ratio], readings[ratio]);
         }
         else
         {
-            printf(" %s -", said[ratio]);
+            printf(" %s -", labels[ratio]);
         }
     }
     printf("\n");
@@ -231,17 +231,17 @@ static void noise_static_summary(const NoiseStaticPool *still)
     long long readings[NOISE_STATIC_READINGS];
     int valid[NOISE_STATIC_READINGS];
     noise_static_readings(still, readings, valid);
-    const char *const said[NOISE_STATIC_READINGS] = {"rows", "columns", "plane", "independent"};
+    const char *const labels[NOISE_STATIC_READINGS] = {"rows", "columns", "plane", "independent"};
     printf("  %-24s static, means up to %llu, %llu voxel-frame pairs:", "", still->ceiling, still->members);
     for (unsigned int measurement = 0u; measurement < NOISE_STATIC_READINGS; measurement += 1u)
     {
         if (valid[measurement] != 0)
         {
-            printf(" %s %lld", said[measurement], readings[measurement]);
+            printf(" %s %lld", labels[measurement], readings[measurement]);
         }
         else
         {
-            printf(" %s -", said[measurement]);
+            printf(" %s -", labels[measurement]);
         }
     }
     printf("\n");
@@ -298,18 +298,18 @@ extern "C" long noise_lines_set(const NoiseSetRequest *request)
     printf("  lines: each frame difference summed along a row (x), a column (y) and a whole z plane, the sum squared,"
            " in bins of 8 by the line's mean\n");
     printf("  the lines' squared sums against their members' squares summed, per mille, means 40 to 199 (independent"
-           " noise holds 1000; an offset shared along the line raises it):\n");
+           " noise gives 1000; an offset shared along the line raises it):\n");
     printf("  then every plane as a two-way layout, rows by columns: rows 1 + W var_row / s, columns 1 + H var_col / s"
            " and the plane 1 + N var_plane / s, per mille (1000 where nothing is shared), and s, the independent"
            " variance of a voxel's frame difference, in lane units squared\n");
     printf("  then the static voxels alone (the dimmest quarter by mean of those that change, never touch either end"
-           " of the lane, and hold a mean square frame difference within 4 times their mean plus 32) as an unbalanced"
+           " of the lane, and have a mean square frame difference within 4 times their mean plus 32) as an unbalanced"
            " layout: var_row, var_col and var_plane against s, per mille (0 where nothing is shared), and s in"
            " thousandths of a lane unit squared\n");
     printf("  %-24s %9s %9s %9s\n", "", "rows", "columns", "planes");
     NoiseLineCell *const cells = (NoiseLineCell *)malloc((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
     ok = ok && NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE);
-    // four exact integers, held apart from the stack
+    // four exact integers, stored apart from the stack
     NoisePlanePool *const pool = (NoisePlanePool *)malloc(sizeof(NoisePlanePool));
     ok = ok && NOISE_DETECTOR_CHECK(pool != NULL, &pool, error, ENGINE_ERROR_RESOURCE);
     NoiseStaticPool still;

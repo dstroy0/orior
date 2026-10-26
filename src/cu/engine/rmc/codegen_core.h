@@ -6,17 +6,17 @@
 // The register lane's decisions, as one source the host and the device both compile (engine_table.md item 11(a),
 // the code generator on the device). For each step it decides which forms of the language's ruleset the step is written
 // in and with which arguments, and it decides the lane's declarations, opening, close and resident, and the schedule of
-// its body into states; it writes nothing. An argument is a register of a bank by its number, a register the lane holds
+// its body into states; it writes nothing. An argument is a register of a bank by its number, a register the lane uses
 // throughout, or a number. The forms it decides are the same on any language, and the ruleset writes them
 // (code_generator.cu on the host, the assembly printer on the device, asm_printer.h). What a step decides from outside
 // itself is laid out before any step is decided, and steps are decided apart and in any order: each record word's first
 // and last put, each atom word's first reader, and the loop number each step begins at. A step writes its forms into a
-// sink, or counts them where the sink holds none. A device decides a lane in two passes, a count and a write, a
+// sink, or counts them where the sink has room for none. A device decides a lane in two passes, a count and a write, a
 // thread a step. The lane's own forms come after every step, from what the steps left: the scratch a construct takes
 // goes on from where the last step left each bank.
 //
 // The host and the device write one lane's text from this header, form for form and argument for argument
-// (engine_table.md item 11(a) holds the two to each other).
+// (engine_table.md item 11(a) checks the two against each other).
 
 #include "instruction_selection.h"
 #include "lowering.h"

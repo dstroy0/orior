@@ -5,18 +5,18 @@
 #include "../../cli/src/text/text.h"
 #include "query_loops.h"
 
-// the most names the bridge's folder holds whole of one set of kinds, and the longest one
+// the most names the bridge's folder contains whole of one set of kinds, and the longest one
 #define QUERY_WHOLE_MOST 64u
 
-#define QUERY_WHOLE_LONGEST 64u
+#define QUERY_WHOLE_MAX_LEN 64u
 
-// What the walk for the names the folder holds whole keeps: the folder, the kinds, the names found and their count
+// What the walk for the names the folder contains whole records: the folder, the kinds, the names found and their count
 typedef struct
 {
     const char *folder;
     const char *const *kinds;
     unsigned int kind_count;
-    char (*names)[QUERY_WHOLE_LONGEST];
+    char (*names)[QUERY_WHOLE_MAX_LEN];
     unsigned int count;
 } QueryWholeWalk;
 
@@ -28,24 +28,24 @@ static void query_whole_walked(void *context, const char *name, int is_folder)
     if (is_folder || (walk->count >= QUERY_WHOLE_MOST) || (length <= (kind + 1u)) ||
         (name[length - kind - 1u] != '.') ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + length - kind, .other = walk->kinds[0], .cap = CLI_CELLS_POOL})) ||
-        ((length - kind - 1u) >= QUERY_WHOLE_LONGEST))
+        ((length - kind - 1u) >= QUERY_WHOLE_MAX_LEN))
     {
         return;
     }
-    char stem[QUERY_WHOLE_LONGEST];
+    char stem[QUERY_WHOLE_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = stem, .src = name, .bytes = length - kind - 1u});
     stem[length - kind - 1u] = '\0';
     // every kind of the stem a file of the folder
     for (unsigned int at = 0u; at < walk->kind_count; at += 1u)
     {
-        char path[QUERY_PATH_LONGEST];
-        CliLine line = {path, sizeof(path), 0ull};
-        cli_line_text(&line, walk->folder);
-        cli_line_character(&line, '/');
-        cli_line_text(&line, stem);
-        cli_line_character(&line, '.');
-        cli_line_text(&line, walk->kinds[at]);
-        if ((cli_line_closed(&line) == 0ull) || !query_is_file(path))
+        char path[QUERY_PATH_MAX_LEN];
+        VerbaLinea line = {path, sizeof(path), 0ull};
+        mmgr_line_put(&line, walk->folder);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, stem);
+        mmgr_line_ch(&line, '.');
+        mmgr_line_put(&line, walk->kinds[at]);
+        if ((mmgr_line_finish(&line) == 0ull) || !query_is_file(path))
         {
             return;
         }
@@ -53,24 +53,24 @@ static void query_whole_walked(void *context, const char *name, int is_folder)
     unsigned int at = walk->count;
     while ((at > 0u) && (cli_text_order(walk->names[at - 1u], stem) > 0))
     {
-        memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = walk->names[at - 1u], .bytes = QUERY_WHOLE_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = walk->names[at - 1u], .bytes = QUERY_WHOLE_MAX_LEN});
         at -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = stem, .bytes = QUERY_WHOLE_LONGEST});
+    memor.cpy(&(MemoriaCfg){.dst = walk->names[at], .src = stem, .bytes = QUERY_WHOLE_MAX_LEN});
     walk->count += 1u;
 }
 
-// Every name the table holds a file of each of `kinds` of, sorted, into `names`, its list into `named`: their count
+// Every name the table contains a file of each of `kinds` of, sorted, into `names`, its list into `named`: their count
 unsigned int query_whole(const char *root, const char *const *kinds, unsigned int kind_count,
-                         char (*names)[QUERY_WHOLE_LONGEST], const char **named)
+                         char (*names)[QUERY_WHOLE_MAX_LEN], const char **named)
 {
-    char folder[QUERY_PATH_LONGEST];
-    CliLine line = {folder, sizeof(folder), 0ull};
-    cli_line_text(&line, root);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, QUERY_TABLE);
+    char folder[QUERY_PATH_MAX_LEN];
+    VerbaLinea line = {folder, sizeof(folder), 0ull};
+    mmgr_line_put(&line, root);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, QUERY_TABLE);
     QueryWholeWalk walk = {folder, kinds, kind_count, names, 0u};
-    if (cli_line_closed(&line) != 0ull)
+    if (mmgr_line_finish(&line) != 0ull)
     {
         query_folder_each(folder, query_whole_walked, &walk);
     }
@@ -81,9 +81,9 @@ unsigned int query_whole(const char *root, const char *const *kinds, unsigned in
     return walk.count;
 }
 
-static char s_languages[QUERY_WHOLE_MOST][QUERY_WHOLE_LONGEST];
+static char s_languages[QUERY_WHOLE_MOST][QUERY_WHOLE_MAX_LEN];
 static const char *s_language[QUERY_WHOLE_MOST];
-static char s_parts[QUERY_WHOLE_MOST][QUERY_WHOLE_LONGEST];
+static char s_parts[QUERY_WHOLE_MOST][QUERY_WHOLE_MAX_LEN];
 static const char *s_part[QUERY_WHOLE_MOST];
 
 static const char *const s_leave_choices[] = {"all", "none"};
@@ -149,7 +149,7 @@ static const QueryWord s_stick_words[] = {{QUERY_WORD_LITERAL, "stick", NULL, NU
                                           {QUERY_WORD_VALUE, "what", NULL, NULL},
                                           {QUERY_WORD_WORDS, "words", NULL, NULL},
                                           {QUERY_WORD_FLAG, "--leave", "leave", NULL}};
-static const QueryWord s_kept_words[] = {{QUERY_WORD_LITERAL, "kept", NULL, NULL}};
+static const QueryWord s_retention_words[] = {{QUERY_WORD_LITERAL, "retention", NULL, NULL}};
 static const QueryWord s_sweep_words[] = {{QUERY_WORD_LITERAL, "sweep", NULL, NULL}};
 
 static QueryCommand s_commands[11];
@@ -239,21 +239,22 @@ unsigned int query_commands(const char *root, const QueryCommand **commands)
                                    8u,
                                    s_pairs_words,
                                    QUERY_COUNT(s_pairs_words)};
-    s_commands[8] = (QueryCommand){"stick",
-                                   "stick",
-                                   "the vendor's reading of the stick, the engine's stick held against it, or the read "
-                                   "with its words",
-                                   s_stick_params,
-                                   QUERY_COUNT(s_stick_params),
-                                   s_stick_words,
-                                   QUERY_COUNT(s_stick_words)};
-    s_commands[9] = (QueryCommand){"kept",
-                                   "kept",
-                                   "the runs of the tree kept while the host is idle",
+    s_commands[8] =
+        (QueryCommand){"stick",
+                       "stick",
+                       "the vendor's reading of the stick, the engine's stick checked against it, or the read "
+                       "with its words",
+                       s_stick_params,
+                       QUERY_COUNT(s_stick_params),
+                       s_stick_words,
+                       QUERY_COUNT(s_stick_words)};
+    s_commands[9] = (QueryCommand){"retention",
+                                   "retention",
+                                   "the runs of the tree retained while the host is idle",
                                    NULL,
                                    0u,
-                                   s_kept_words,
-                                   QUERY_COUNT(s_kept_words)};
+                                   s_retention_words,
+                                   QUERY_COUNT(s_retention_words)};
     s_commands[10] =
         (QueryCommand){"sweep",
                        "sweep",
@@ -267,23 +268,24 @@ unsigned int query_commands(const char *root, const QueryCommand **commands)
     return 11u;
 }
 
-int query_loop_run(QueryContext *context, const char *name, const char *const *words, unsigned int count, CliLine *said)
+int query_loop_run(QueryContext *context, const char *name, const char *const *words, unsigned int count,
+                   VerbaLinea *err_msg)
 {
     static const struct
     {
         const char *name;
-        int (*loop)(QueryContext *context, const char *const *words, unsigned int count, CliLine *said);
-    } s_loops[11] = {{"course", query_course_run}, {"tables", query_tables_run}, {"decode", query_decode_run},
-                     {"learn", query_learn_run},   {"cross", query_cross_run},   {"write", query_write_run},
-                     {"query", query_query_run},   {"pairs", query_pairs_run},   {"stick", query_stick_run},
-                     {"kept", query_kept_run},     {"sweep", query_sweep_run}};
+        int (*loop)(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg);
+    } s_loops[11] = {{"course", query_course_run},       {"tables", query_tables_run}, {"decode", query_decode_run},
+                     {"learn", query_learn_run},         {"cross", query_cross_run},   {"write", query_write_run},
+                     {"query", query_query_run},         {"pairs", query_pairs_run},   {"stick", query_stick_run},
+                     {"retention", query_retention_run}, {"sweep", query_sweep_run}};
     for (unsigned int at = 0u; at < 11u; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = s_loops[at].name, .other = name, .cap = CLI_CELLS_POOL}))
         {
-            return s_loops[at].loop(context, words, count, said);
+            return s_loops[at].loop(context, words, count, err_msg);
         }
     }
-    cli_line_text(said, QUERY_USAGE);
+    mmgr_line_put(err_msg, QUERY_USAGE);
     return -1;
 }

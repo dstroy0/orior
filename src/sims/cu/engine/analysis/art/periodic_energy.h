@@ -32,8 +32,8 @@ static __global__ void energy_phase_kernel(const long long *values, unsigned lon
                                            long long *sums)
 {
     const unsigned long long index = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x;
-    const unsigned long long slots = energy_phase_base(range + 1ull);
-    if (index >= slots)
+    const unsigned long long phase_count = energy_phase_base(range + 1ull);
+    if (index >= phase_count)
     {
         return;
     }
@@ -54,26 +54,27 @@ static __global__ void energy_phase_kernel(const long long *values, unsigned lon
 static inline int energy_phase_sums(SimResults *results, const long long *values, unsigned long long length,
                                     unsigned long long range, long long *sums)
 {
-    const unsigned long long slots = energy_phase_base(range + 1ull);
+    const unsigned long long phase_count = energy_phase_base(range + 1ull);
     long long *device_values = NULL;
     long long *device_sums = NULL;
     int ok =
         sim_status_check(results, cudaMalloc((void **)&device_values, length * sizeof(long long)), "energy: values");
-    ok = ok && sim_status_check(results, cudaMalloc((void **)&device_sums, slots * sizeof(long long)), "energy: sums");
+    ok = ok &&
+         sim_status_check(results, cudaMalloc((void **)&device_sums, phase_count * sizeof(long long)), "energy: sums");
     ok = ok && sim_status_check(results,
                                 cudaMemcpy(device_values, values, length * sizeof(long long), cudaMemcpyHostToDevice),
                                 "energy: upload");
     if (ok)
     {
-        // the slot count is below 2^31 for every range here
-        const unsigned int blocks = (unsigned int)sim_launch_blocks(slots, ENERGY_THREADS);
+        // the phase count is below 2^31 for every range here
+        const unsigned int blocks = (unsigned int)sim_launch_blocks(phase_count, ENERGY_THREADS);
         energy_phase_kernel<<<blocks, (unsigned int)ENERGY_THREADS>>>(device_values, length, range, device_sums);
         ok = sim_status_check(results, cudaGetLastError(), "energy: launch");
         ok = ok && sim_status_check(results, cudaDeviceSynchronize(), "energy: run");
     }
-    ok = ok &&
-         sim_status_check(results, cudaMemcpy(sums, device_sums, slots * sizeof(long long), cudaMemcpyDeviceToHost),
-                          "energy: sums read");
+    ok = ok && sim_status_check(results,
+                                cudaMemcpy(sums, device_sums, phase_count * sizeof(long long), cudaMemcpyDeviceToHost),
+                                "energy: sums read");
     cudaFree(device_sums);
     cudaFree(device_values);
     return ok;
@@ -158,7 +159,7 @@ static inline int energy_recover(SimResults *results, const long long *values, u
 {
     measurement->found = 0;
     measurement->period = 0ull;
-    // a range below 2 holds no period to test, and errors before the device is asked (the slot count at range 0
+    // a range below 2 has no period to test, and errors before the device is invoked (the phase count at range 0
     // would wrap)
     if ((length < 4ull) || (range < 2ull))
     {
@@ -260,11 +261,11 @@ static inline int energy_above(const EnergyMeasurement *live, const EnergyMeasur
            (order > 0);
 }
 
-static inline void energy_print(ScripturaLine *line, const EnergyMeasurement *measurement)
+static inline void energy_print(VerbaLinea *line, const EnergyMeasurement *measurement)
 {
     if (measurement->found == 0)
     {
-        scriptura_text(line, "none");
+        mmgr_line_put(line, "none");
         return;
     }
     sim_ratio_print(line, &measurement->numerator, &measurement->denominator, 3u);

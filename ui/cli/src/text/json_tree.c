@@ -20,8 +20,9 @@ void cli_json_begun(CliJson *json, CliJsonNode *node, unsigned int nodes_most, c
     json->what = NULL;
 }
 
-// `length` bytes of `text` kept among the tree's texts, a NUL after them: where they start, or 0 where they do not fit
-static unsigned long long cli_kept(CliJson *json, const char *text, unsigned long long length)
+// `length` bytes of `text` stored among the tree's texts, a NUL after them: where they start, or 0 where they do not
+// fit
+static unsigned long long cli_text_stored(CliJson *json, const char *text, unsigned long long length)
 {
     if (!cli_json_room(json, 0u, length + 1ull))
     {
@@ -52,7 +53,7 @@ unsigned int cli_json_string_made(CliJson *json, const char *text, unsigned long
     const unsigned int made = cli_json_made(json, CFG_JSON_STRING);
     if (made != CLI_JSON_NONE)
     {
-        json->node[made].text = cli_kept(json, text, length);
+        json->node[made].text = cli_text_stored(json, text, length);
         json->node[made].length = json->full ? 0ull : length;
     }
     return made;
@@ -64,7 +65,7 @@ unsigned int cli_json_number_made(CliJson *json, const char *text)
     if (made != CLI_JSON_NONE)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
-        json->node[made].text = cli_kept(json, text, length);
+        json->node[made].text = cli_text_stored(json, text, length);
         json->node[made].length = json->full ? 0ull : length;
     }
     return made;
@@ -182,7 +183,7 @@ void cli_json_set(CliJson *json, unsigned int object, const char *name, unsigned
     const unsigned long long key =
         (had != CLI_JSON_NONE)
             ? json->node[had].key
-            : cli_kept(json, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+            : cli_text_stored(json, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     if (!json->full)
     {
         cli_put_keyed(json, object, key, value);
@@ -227,7 +228,7 @@ void cli_json_sorted(CliJson *json, unsigned int object)
     {
         return;
     }
-    // each member taken off the list in turn and put back in its place by key, a list kept in order
+    // each member taken off the list in turn and put back in its place by key, a list sorted in order
     unsigned int sorted = CLI_JSON_NONE;
     unsigned int child = json->node[object].first;
     while (child != CLI_JSON_NONE)
@@ -272,7 +273,7 @@ unsigned int cli_json_copy(CliJson *json, unsigned int node)
     {
         return made;
     }
-    // a text is never changed once kept, so a copy shares it
+    // a text is never changed once stored, so a copy shares it
     json->node[made].text = json->node[node].text;
     json->node[made].length = json->node[node].length;
     for (unsigned int child = json->node[node].first; child != CLI_JSON_NONE; child = json->node[child].next)
@@ -294,29 +295,29 @@ unsigned int cli_json_copy_from(CliJson *to, const CliJson *from, unsigned int n
     {
         return CLI_JSON_NONE;
     }
-    const CliJsonNode *const held = &from->node[node];
-    const unsigned int made = cli_json_made(to, held->kind);
+    const CliJsonNode *const src_node = &from->node[node];
+    const unsigned int made = cli_json_made(to, src_node->kind);
     if (made == CLI_JSON_NONE)
     {
         return made;
     }
-    if ((held->kind == CFG_JSON_STRING) || (held->kind == CFG_JSON_NUMBER))
+    if ((src_node->kind == CFG_JSON_STRING) || (src_node->kind == CFG_JSON_NUMBER))
     {
-        to->node[made].text = cli_kept(to, from->text + held->text, held->length);
-        to->node[made].length = to->full ? 0ull : held->length;
+        to->node[made].text = cli_text_stored(to, from->text + src_node->text, src_node->length);
+        to->node[made].length = to->full ? 0ull : src_node->length;
     }
-    for (unsigned int child = held->first; child != CLI_JSON_NONE; child = from->node[child].next)
+    for (unsigned int child = src_node->first; child != CLI_JSON_NONE; child = from->node[child].next)
     {
         const unsigned int copied = cli_json_copy_from(to, from, child);
         if (copied == CLI_JSON_NONE)
         {
             return CLI_JSON_NONE;
         }
-        if (held->kind == CFG_JSON_OBJECT)
+        if (src_node->kind == CFG_JSON_OBJECT)
         {
             const char *const key = from->text + from->node[child].key;
             const unsigned long long at =
-                cli_kept(to, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
+                cli_text_stored(to, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
             if (to->full)
             {
                 return CLI_JSON_NONE;
@@ -375,7 +376,7 @@ static unsigned int cli_converted(CliJson *json, const char *text, const CfgJson
     }
     if (at->kind == CFG_JSON_STRING)
     {
-        // a string's letters as kept are at most its letters as written
+        // a string's letters as stored are at most its letters as written
         if (!cli_json_room(json, 0u, (unsigned long long)(at->end - at->start) + 1ull))
         {
             return CLI_JSON_NONE;
@@ -394,7 +395,7 @@ static unsigned int cli_converted(CliJson *json, const char *text, const CfgJson
     }
     else if (at->kind == CFG_JSON_NUMBER)
     {
-        json->node[made].text = cli_kept(json, text + at->start, at->end - at->start);
+        json->node[made].text = cli_text_stored(json, text + at->start, at->end - at->start);
         json->node[made].length = at->end - at->start;
     }
     else if (at->kind == CFG_JSON_OBJECT)
@@ -432,22 +433,22 @@ static unsigned int cli_converted(CliJson *json, const char *text, const CfgJson
 }
 
 unsigned int cli_json_read(CliJson *json, const char *text, unsigned long long size, CfgJsonToken *tokens,
-                           unsigned int tokens_most, CliLine *said)
+                           unsigned int tokens_most, VerbaLinea *err_msg)
 {
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
     if (!cfg_json_parse_metadata(text, (size_t)size, tokens, tokens_most, &parse))
     {
-        cli_line_text(said, (parse.reason != NULL) ? parse.reason : "it is not JSON");
-        cli_line_text(said, " at line ");
-        cli_line_decimal(said, parse.line, 1u);
-        cli_line_text(said, " column ");
-        cli_line_decimal(said, parse.column, 1u);
+        mmgr_line_put(err_msg, (parse.reason != NULL) ? parse.reason : "it is not JSON");
+        mmgr_line_put(err_msg, " at line ");
+        mmgr_line_decimal(err_msg, parse.line, 1u);
+        mmgr_line_put(err_msg, " column ");
+        mmgr_line_decimal(err_msg, parse.column, 1u);
         return CLI_JSON_NONE;
     }
     const unsigned int root = cli_converted(json, text, tokens, 0u);
     if ((root == CLI_JSON_NONE) || json->full)
     {
-        cli_line_text(said, "it holds more than the tree it is read into keeps");
+        mmgr_line_put(err_msg, "it contains more than the tree it is read into fits");
         return CLI_JSON_NONE;
     }
     return root;

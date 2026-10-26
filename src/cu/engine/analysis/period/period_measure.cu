@@ -76,7 +76,7 @@ __device__ static unsigned int period_line_random(const PeriodShuffle &shuffle, 
 }
 
 // The null for one axis: each line along that axis is permuted alone. The axis loses its own
-// coherence while every other axis keeps its structure and each line keeps its values. A global
+// coherence while every other axis retains its structure and each line retains its values. A global
 // shuffle instead destroys every axis at once, which drops the agreement level and reads a period
 // on an axis that carries none whenever another axis is structured (A12).
 __global__ void period_line_shuffle_kernel(unsigned short *shuffled, PeriodShuffle shuffle, PeriodLattice lattice,
@@ -279,8 +279,8 @@ static DevicePoolPlan period_plan(unsigned long long voxels, unsigned long long 
     return plan;
 }
 
-// the pool grown to hold `voxels` and `entries`. A pool that already holds both is kept as it is, and a grown pool
-// holds the most of each asked so far: extents that take turns grow it once.
+// the pool grown to contain `voxels` and `entries`. A pool that already contains both is retained as it is, and a grown
+// pool contains the most of each requested so far: extents that take turns grow it once.
 int period_reserve(unsigned long long voxels, unsigned long long entries, EngineError *error)
 {
     PeriodResident *const resident = &g_period_resident;
@@ -317,7 +317,7 @@ extern "C" unsigned long long period_reserve_bytes(unsigned long long voxels, un
         return 0ull;
     }
     DevicePoolTakeRequest takes[PERIOD_SLICES];
-    // the agreement's slice holds one entry at the least, as the calls hold it
+    // the agreement's slice contains one entry at the least, as the calls size it
     const DevicePoolPlan plan = period_plan(voxels, (entries != 0ull) ? entries : 1ull, NULL, takes);
     return device_pool_plan_bytes(&plan);
 }

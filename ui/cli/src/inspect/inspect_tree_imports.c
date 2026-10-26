@@ -7,25 +7,25 @@
 // with `.js`, `.mjs` or `/index.js` after it where the path names no file
 #include "inspect_tree_internal.h"
 
-// the most files one import runs that are kept
+// the most files one import runs that are recorded
 #define CLI_TREE_TARGETS 256u
 
 // the file a module of `size` bytes of dotted names names from the folder `root`, `root_size` bytes of it: its own file
-// or its package's `__init__.py`, CLI_TREE_NONE where neither is in the index
+// or its package's `__init__.py`, CLI_TREE_NONE where neither is in the tree
 static unsigned int imports_module_in(const char *root, unsigned long long root_size, const char *dotted,
                                       unsigned long long size)
 {
-    char base[CLI_PATH_LONGEST * 2u];
-    CliLine line = {base, sizeof(base), 0ull};
-    cli_line_counted(&line, root, root_size);
-    cli_line_text(&line, ((root_size > 0u) && (size > 0u)) ? "/" : "");
+    char base[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {base, sizeof(base), 0ull};
+    mmgr_line_put_n(&line, root, root_size);
+    mmgr_line_put(&line, ((root_size > 0u) && (size > 0u)) ? "/" : "");
     for (unsigned long long at = 0ull; at < size; at += 1u)
     {
-        cli_line_character(&line, (dotted[at] == '.') ? '/' : dotted[at]);
+        mmgr_line_ch(&line, (dotted[at] == '.') ? '/' : dotted[at]);
     }
     const unsigned long long base_size = line.at;
-    cli_line_text(&line, ".py");
-    if (!cli_line_fits(&line))
+    mmgr_line_put(&line, ".py");
+    if (!mmgr_line_ok(&line))
     {
         return CLI_TREE_NONE;
     }
@@ -102,9 +102,9 @@ static unsigned int imports_python(unsigned int file, const CliInspectImport *im
     {
         dots += 1u;
     }
-    char joined[CLI_PATH_LONGEST * 2u];
-    CliLine line = {joined, sizeof(joined), 0ull};
-    cli_line_counted(&line, spec, dots);
+    char joined[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {joined, sizeof(joined), 0ull};
+    mmgr_line_put_n(&line, spec, dots);
     int parts = 0;
     for (unsigned long long at = dots; at <= size; at += 1u)
     {
@@ -121,10 +121,10 @@ static unsigned int imports_python(unsigned int file, const CliInspectImport *im
         {
             continue;
         }
-        cli_line_text(&line, parts ? "." : "");
-        cli_line_counted(&line, spec + start, at - start);
+        mmgr_line_put(&line, parts ? "." : "");
+        mmgr_line_put_n(&line, spec + start, at - start);
         parts = 1;
-        if (cli_line_fits(&line))
+        if (mmgr_line_ok(&line))
         {
             imports_target(cli_tree_python_module(file, joined, line.at), targets, &count);
         }
@@ -137,35 +137,35 @@ static unsigned int imports_python(unsigned int file, const CliInspectImport *im
     {
         const CliInspectName *const name = &facts->name[import->name_first + at];
         line.at = 0ull;
-        cli_line_counted(&line, spec, size);
-        cli_line_text(&line, ((size > 0u) && (spec[size - 1u] == '.')) ? "" : ".");
-        cli_line_counted(&line, facts->text + name->name.at, name->name.size);
-        if (cli_line_fits(&line))
+        mmgr_line_put_n(&line, spec, size);
+        mmgr_line_put(&line, ((size > 0u) && (spec[size - 1u] == '.')) ? "" : ".");
+        mmgr_line_put_n(&line, facts->text + name->name.at, name->name.size);
+        if (mmgr_line_ok(&line))
         {
             imports_target(cli_tree_python_module(file, joined, line.at), targets, &count);
         }
     }
-    unsigned int kept = 0u;
+    unsigned int unique_count = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if ((targets[at] != file) && ((kept == 0u) || (targets[kept - 1u] != targets[at])))
+        if ((targets[at] != file) && ((unique_count == 0u) || (targets[unique_count - 1u] != targets[at])))
         {
-            targets[kept] = targets[at];
-            kept += 1u;
+            targets[unique_count] = targets[at];
+            unique_count += 1u;
         }
     }
-    return kept;
+    return unique_count;
 }
 
 // the file a JavaScript import names by a relative path: its place, CLI_TREE_NONE where none is
 static unsigned int imports_javascript(unsigned int file, const CliInspectImport *import)
 {
-    const CliTreeFile *const held = &CLI_TREE_FILE(file);
-    const char *const spec = held->facts.text + import->spec.at;
+    const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
+    const char *const spec = tree_file->facts.text + import->spec.at;
     const unsigned long long size = import->spec.size;
-    char base[CLI_PATH_LONGEST * 2u];
-    CliLine line = {base, sizeof(base), 0ull};
-    cli_line_counted(&line, held->path, cli_tree_parent(held->path, held->path_size));
+    char base[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {base, sizeof(base), 0ull};
+    mmgr_line_put_n(&line, tree_file->path, cli_tree_parent(tree_file->path, tree_file->path_size));
     for (unsigned long long at = 0ull; at <= size;)
     {
         const char *const slash =
@@ -182,12 +182,12 @@ static unsigned int imports_javascript(unsigned int file, const CliInspectImport
         }
         else if ((part > 0u) && !((part == 1u) && (spec[at] == '.')))
         {
-            cli_line_text(&line, (line.at > 0u) ? "/" : "");
-            cli_line_counted(&line, spec + at, part);
+            mmgr_line_put(&line, (line.at > 0u) ? "/" : "");
+            mmgr_line_put_n(&line, spec + at, part);
         }
         at = end + 1u;
     }
-    if (!cli_line_fits(&line))
+    if (!mmgr_line_ok(&line))
     {
         return CLI_TREE_NONE;
     }
@@ -196,8 +196,8 @@ static unsigned int imports_javascript(unsigned int file, const CliInspectImport
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         line.at = base_size;
-        cli_line_text(&line, s_ends[at]);
-        const unsigned int found = cli_line_fits(&line) ? cli_tree_find(base, line.at) : CLI_TREE_NONE;
+        mmgr_line_put(&line, s_ends[at]);
+        const unsigned int found = mmgr_line_ok(&line) ? cli_tree_find(base, line.at) : CLI_TREE_NONE;
         if (found != CLI_TREE_NONE)
         {
             return found;
@@ -209,9 +209,9 @@ static unsigned int imports_javascript(unsigned int file, const CliInspectImport
 void cli_tree_targets(unsigned int file, unsigned int import, void (*each)(void *context, unsigned int target),
                       void *context)
 {
-    const CliTreeFile *const held = &CLI_TREE_FILE(file);
-    const CliInspectImport *const one = &held->facts.import[import];
-    if (held->python)
+    const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
+    const CliInspectImport *const one = &tree_file->facts.import[import];
+    if (tree_file->python)
     {
         unsigned int targets[CLI_TREE_TARGETS];
         const unsigned int count = imports_python(file, one, targets);

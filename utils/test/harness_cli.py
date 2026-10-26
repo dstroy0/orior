@@ -9,6 +9,7 @@
 A child's output streams through the harness's own; the invocation's log under build/harness/log therefore holds it."""
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -21,6 +22,19 @@ ROOT = findroot.root()
 CLI_BUILD = "ui/cli/build.sh"
 CLI_TESTS = "utils/test/src/ui/cli/cli_test.sh"
 CLI_BENCH = "utils/test/src/ui/cli/cli_bench.sh"
+# the lines a suite's checks print as the harness reads them: "N checks, M failed" and "test exit N"
+CHECKS_LINE = re.compile(r"(\d+) checks, (\d+) failed")
+EXIT_LINE = re.compile(r"test exit (\d+)")
+
+
+def output_read(text):
+    """(checks, failed, exits) of a suite's output: the checks and failures its check lines count, and every test exit
+    it printed."""
+    checks = failed = 0
+    for m in CHECKS_LINE.finditer(text):
+        checks += int(m.group(1))
+        failed += int(m.group(2))
+    return checks, failed, [int(m.group(1)) for m in EXIT_LINE.finditer(text)]
 
 
 def bash():
@@ -38,21 +52,13 @@ def bash():
     raise SystemExit("Git's bash was not found")
 
 
-def processor_seconds(process):
-    """The processor time a child and its descendants have used, in seconds; None where it cannot be read."""
+def processor_seconds(process, job=None):
+    """The processor time a child and its descendants have used, in seconds; None where it cannot be read. On Windows
+    the descendants are read through `job`, the job the child was put in as it started (harness_win32.job_joined)."""
     if os.name == "nt":
-        import ctypes
-        from ctypes import wintypes
+        import harness_win32 as win
 
-        kernel = ctypes.windll.kernel32
-        times = [wintypes.FILETIME() for _ in range(4)]
-        handle = wintypes.HANDLE(process._handle)
-        if not kernel.GetProcessTimes(handle, *[ctypes.byref(one) for one in times]):
-            return None
-        total = 0
-        for one in times[2:]:
-            total += (one.dwHighDateTime << 32) + one.dwLowDateTime
-        return total / 10_000_000
+        return win.job_processor_seconds(job) if job else None
     try:
         with open("/proc/%d/stat" % process.pid, encoding="ascii") as stat:
             fields = stat.read().rsplit(")", 1)[1].split()
@@ -67,8 +73,9 @@ STALL_SECONDS = 90
 HEARTBEAT_SECONDS = 30
 
 
-def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS):
-    """A command run with its output streamed line by line through the harness's standard output; its exit code.
+def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS, seen=None):
+    """A command run with its output streamed line by line through the harness's standard output, each line added to
+    `seen` where it is a list; its exit code.
     A child that writes nothing is watched: while its processor time moves a heartbeat says so every
     HEARTBEAT_SECONDS; one whose time stands still for `stall` seconds is ended and 124 is the exit code. A child whose work
     runs inside a container shows no processor time here; such a child is therefore run with no stall, the heartbeat alone."""
@@ -76,7 +83,21 @@ def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS):
     import threading
     import time
 
-    process = subprocess.Popen(command, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1)
+    # on Windows the child starts suspended and joins a job before it runs, so that every process under it is counted
+    job = None
+    flags = 0
+    if os.name == "nt":
+        import harness_win32 as win
+
+        flags = win.CREATE_SUSPENDED
+    process = subprocess.Popen(command, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1, creationflags=flags)
+    if os.name == "nt":
+        job = win.job_joined(process._handle)
+        if win.threads_resumed(process.pid) == 0:
+            process.kill()
+            process.wait()
+            print("not started: the child's thread could not be let run: %s" % " ".join(command), flush=True)
+            return 1
     lines = queue.Queue()
 
     def reading():
@@ -87,14 +108,14 @@ def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS):
     threading.Thread(target=reading, daemon=True).start()
     quiet_since = time.monotonic()
     said_at = quiet_since
-    cpu_was = processor_seconds(process)
+    cpu_was = processor_seconds(process, job)
     cpu_moved_at = quiet_since
     while True:
         try:
             line = lines.get(timeout=5)
         except queue.Empty:
             now = time.monotonic()
-            cpu = processor_seconds(process)
+            cpu = processor_seconds(process, job)
             if cpu is not None and cpu_was is not None and cpu > cpu_was + 0.05:
                 cpu_moved_at = now
             cpu_was = cpu if cpu is not None else cpu_was
@@ -110,6 +131,8 @@ def streamed(command, cwd=ROOT, env=None, stall=STALL_SECONDS):
         if line is None:
             break
         print(line, end="", flush=True)
+        if seen is not None:
+            seen.append(line)
         quiet_since = said_at = time.monotonic()
     return process.wait()
 
@@ -119,7 +142,13 @@ def cmd_cli_build(a):
 
 
 def cmd_cli_test(a):
-    return streamed([bash(), CLI_TESTS, *a.names])
+    # cli_test.sh runs every file and ends 0; a file's failure is its "test exit" or its check line, read as `run` reads them
+    seen = []
+    code = streamed([bash(), CLI_TESTS, *a.names], seen=seen)
+    checks, failed, exits = output_read("".join(seen))
+    failing = sum(1 for one in exits if one != 0)
+    print("cli test: %d checks, %d failed, %d of %d files failing" % (checks, failed, failing, len(exits)), flush=True)
+    return code or (1 if (failed or failing) else 0)
 
 
 def cmd_cli_bench(a):

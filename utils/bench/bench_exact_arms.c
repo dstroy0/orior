@@ -16,16 +16,16 @@
 
 #define RUN_CYCLE 4u
 
-#define PLACES_HELD ((((unsigned long long)ORIOR_EXACT_BITS - 15ull) * 30102ull) / 100000ull)
+#define PLACES_EXACT ((((unsigned long long)ORIOR_EXACT_BITS - 15ull) * 30102ull) / 100000ull)
 
-#define PLACES ((PLACES_HELD < 24ull) ? (uint32_t)PLACES_HELD : 24u)
+#define PLACES ((PLACES_EXACT < 24ull) ? (uint32_t)PLACES_EXACT : 24u)
 
 #if defined(__cplusplus)
-static_assert(PLACES_HELD >= 2ull, "the narrowest width must hold the two places a quarter step takes");
+static_assert(PLACES_EXACT >= 2ull, "the narrowest width must fit the two places a quarter step takes");
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-_Static_assert(PLACES_HELD >= 2ull, "the narrowest width must hold the two places a quarter step takes");
+_Static_assert(PLACES_EXACT >= 2ull, "the narrowest width must fit the two places a quarter step takes");
 #else
-typedef char bench_exact_arms_places_hold_a_quarter[(PLACES_HELD >= 2ull) ? 1 : -1];
+typedef char bench_exact_arms_places_fit_a_quarter[(PLACES_EXACT >= 2ull) ? 1 : -1];
 #endif
 
 #define LAGS 24u
@@ -62,21 +62,20 @@ static double sweep(const OriorExactArm *arm, const OriorExactInteger *positions
     return (double)(clock() - started) / (double)CLOCKS_PER_SEC;
 }
 
-static int grade_arms(const OriorExactArm *const *arms, unsigned int count,
-                      const OriorExactInteger *positions, const uint64_t *values,
-                      const OriorExactInteger *lags, const size_t *reference, size_t *held,
+static int grade_arms(const OriorExactArm *const *arms, unsigned int count, const OriorExactInteger *positions,
+                      const uint64_t *values, const OriorExactInteger *lags, const size_t *reference, size_t *matched,
                       unsigned int places, double portable_seconds, const char *portable_name)
 {
     int wrong = 0;
     for (unsigned int which = 0u; which < count; which++)
     {
         const OriorExactArm *arm = arms[which];
-        const double seconds = sweep(arm, positions, values, lags, held, places);
+        const double seconds = sweep(arm, positions, values, lags, matched, places);
 
         unsigned int differs = 0u;
         for (unsigned int at = 0u; at < LAGS; at++)
         {
-            if (held[at] != reference[at])
+            if (matched[at] != reference[at])
             {
                 differs++;
             }
@@ -109,18 +108,18 @@ int main(int argc, char **argv)
     static uint64_t values[RUN_PLACES];
     static OriorExactInteger lags[LAGS];
     static size_t reference[LAGS];
-    static size_t held[LAGS];
+    static size_t matched[LAGS];
 
     unsigned int places = RUN_DEFAULT;
     if (argc > 1)
     {
-        const long asked = strtol(argv[1], NULL, 10);
-        if ((asked < 16) || (asked > (long)RUN_PLACES))
+        const long requested = strtol(argv[1], NULL, 10);
+        if ((requested < 16) || (requested > (long)RUN_PLACES))
         {
             printf("  positions must be between 16 and %u\n", RUN_PLACES);
             return 1;
         }
-        places = (unsigned int)asked;
+        places = (unsigned int)requested;
     }
 
     OriorExactInteger *const positions =
@@ -197,8 +196,8 @@ int main(int argc, char **argv)
     }
 #endif
 
-    int wrong = grade_arms(arms, count, positions, values, lags, reference, held, places,
-                           portable_seconds, portable->name);
+    int wrong =
+        grade_arms(arms, count, positions, values, lags, reference, matched, places, portable_seconds, portable->name);
 
     if (count == 0u)
     {
@@ -206,7 +205,7 @@ int main(int argc, char **argv)
     }
 
     const size_t expected_at_period = (size_t)(places - 4u);
-    printf("\n  planted period is lag 4. portable read %llu, arithmetic says %llu: %s\n",
+    printf("\n  planted period is lag 4. portable read %llu, arithmetic reads %llu: %s\n",
            (unsigned long long)reference[3], (unsigned long long)expected_at_period,
            (reference[3] == expected_at_period) ? "agree" : "DISAGREE");
     if (reference[3] != expected_at_period)
@@ -222,7 +221,7 @@ int main(int argc, char **argv)
     const double repeated_seconds = sweep(portable, positions, values, lags, reference, places);
     printf("  %-14s %-10.3f %-12s %s\n", portable->name, repeated_seconds, "itself",
            "the reference");
-    if (grade_arms(arms, count, positions, values, lags, reference, held, places, repeated_seconds,
+    if (grade_arms(arms, count, positions, values, lags, reference, matched, places, repeated_seconds,
                    portable->name) != 0)
     {
         wrong = 1;
@@ -241,7 +240,7 @@ int main(int argc, char **argv)
         }
         else
         {
-            printf("\n  the device itself answered lag 4: %llu, portable says %llu: %s\n",
+            printf("\n  the device itself answered lag 4: %llu, portable reads %llu: %s\n",
                    (unsigned long long)device_answer, (unsigned long long)reference[3],
                    (device_answer == reference[3]) ? "agree" : "DISAGREE");
             if (device_answer != reference[3])

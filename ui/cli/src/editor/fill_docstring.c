@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // fill_docstring.c: the paragraph of a Python docstring: the triple-quoted strings found from the text's first line,
-// the first that holds the cursor's line taken, and its paragraph the lines around the cursor's that are neither blank
-// nor its quotes alone. The closing quotes stay inside the margin: the last word goes down a line where they would not
+// the first that contains the cursor's line taken, and its paragraph the lines around the cursor's that are neither
+// blank nor its quotes alone. The closing quotes stay inside the margin: the last word goes down a line where they
+// would not
 #include "fill_internal.h"
 
 // A triple-quoted string: its quote and its first and last lines
@@ -13,7 +14,7 @@ typedef struct
     unsigned int end;
 } CliFillString;
 
-// the first string from the text's first line that holds the line `at`: 1, or 0 where none does
+// the first string from the text's first line that contains the line `at`: 1, or 0 where none does
 static int docstring_around(const char *text, unsigned long long size, unsigned int at, CliFillString *found)
 {
     CliFillLine line = {0ull, 0ull, 0u};
@@ -92,7 +93,7 @@ static void docstring_closed(CliFilled *filled, const char *lead, unsigned long 
     {
         return;
     }
-    CliLine *const out = filled->out;
+    VerbaLinea *const out = filled->out;
     const unsigned long long cut = filled->line_start + space;
     const unsigned long long word = size - space - 1u;
     const unsigned long long end = cut + 1u + lead_size + word;
@@ -182,7 +183,7 @@ int cli_fill_docstring(const char *text, unsigned long long size, const CliFillL
     {
         const unsigned long long start_of_words = (filled->lines == 1u) ? lead_size + opening : lead_size;
         docstring_closed(filled, lead, lead_size, start_of_words, width);
-        cli_line_counted(filled->out, string.quote, 3u);
+        mmgr_line_put_n(filled->out, string.quote, 3u);
     }
     cli_fill_edit_of(text, &first, &last, filled, edit);
     return 1;

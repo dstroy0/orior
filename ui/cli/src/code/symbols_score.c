@@ -15,7 +15,7 @@ static unsigned long long cli_bytes_of(unsigned int letter)
 
 int cli_symbols_score(const char *query, const char *name, unsigned long long name_length, long long *points)
 {
-    unsigned int asked[CLI_SCORED_LETTERS];
+    unsigned int query_letters[CLI_SCORED_LETTERS];
     unsigned int letters[CLI_SCORED_LETTERS];
     unsigned int lower[CLI_SCORED_LETTERS];
     const unsigned long long query_length = cellul.len(&(CatenaFinitaCfg){.src = query, .cap = CLI_CELLS_POOL});
@@ -24,38 +24,39 @@ int cli_symbols_score(const char *query, const char *name, unsigned long long na
         *points = 0ll;
         return 1;
     }
-    const unsigned long long asked_count = cli_regexp_letters(query, query_length, asked, CLI_SCORED_LETTERS);
+    const unsigned long long query_count = cli_regexp_letters(query, query_length, query_letters, CLI_SCORED_LETTERS);
     const unsigned long long count = cli_regexp_letters(name, name_length, letters, CLI_SCORED_LETTERS);
-    for (unsigned long long at = 0ull; at < asked_count; at += 1ull)
+    for (unsigned long long at = 0ull; at < query_count; at += 1ull)
     {
-        asked[at] = cli_regexp_lower(asked[at]);
+        query_letters[at] = cli_regexp_lower(query_letters[at]);
     }
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
         lower[at] = cli_regexp_lower(letters[at]);
     }
-    // a name's length is below what a long long holds
+    // a name's length is below what a long long stores
     const long long shortness = -(long long)name_length;
-    if ((count == asked_count) &&
-        (memor.cmp(&(MemoriaCfg){.src = lower, .other = asked, .bytes = count * sizeof(lower[0])}) == 0))
+    if ((count == query_count) &&
+        (memor.cmp(&(MemoriaCfg){.src = lower, .other = query_letters, .bytes = count * sizeof(lower[0])}) == 0))
     {
         const int exact = (name_length == query_length) &&
                           (memor.cmp(&(MemoriaCfg){.src = name, .other = query, .bytes = name_length}) == 0);
         *points = 10000ll + (exact ? 50ll : 0ll);
         return 1;
     }
-    if ((count >= asked_count) &&
-        (memor.cmp(&(MemoriaCfg){.src = lower, .other = asked, .bytes = asked_count * sizeof(lower[0])}) == 0))
+    if ((count >= query_count) &&
+        (memor.cmp(&(MemoriaCfg){.src = lower, .other = query_letters, .bytes = query_count * sizeof(lower[0])}) == 0))
     {
         *points = 8000ll + shortness;
         return 1;
     }
     unsigned long long byte = 0ull;
-    for (unsigned long long at = 0ull; (at + asked_count) <= count; at += 1ull)
+    for (unsigned long long at = 0ull; (at + query_count) <= count; at += 1ull)
     {
-        if (memor.cmp(&(MemoriaCfg){.src = lower + at, .other = asked, .bytes = asked_count * sizeof(lower[0])}) == 0)
+        if (memor.cmp(
+                &(MemoriaCfg){.src = lower + at, .other = query_letters, .bytes = query_count * sizeof(lower[0])}) == 0)
         {
-            // the place in the lower name's bytes, below what a long long holds
+            // the place in the lower name's bytes, below what a long long stores
             *points = 6000ll - ((long long)byte * 10ll) + shortness;
             return 1;
         }
@@ -79,16 +80,17 @@ int cli_symbols_score(const char *query, const char *name, unsigned long long na
             initial_count += 1ull;
         }
     }
-    if ((initial_count >= asked_count) &&
-        (memor.cmp(&(MemoriaCfg){.src = initials, .other = asked, .bytes = asked_count * sizeof(asked[0])}) == 0))
+    if ((initial_count >= query_count) &&
+        (memor.cmp(&(MemoriaCfg){
+             .src = initials, .other = query_letters, .bytes = query_count * sizeof(query_letters[0])}) == 0))
     {
         *points = 4000ll + shortness;
         return 1;
     }
     unsigned long long at = 0ull;
-    for (unsigned long long wanted = 0ull; wanted < asked_count; wanted += 1ull)
+    for (unsigned long long wanted = 0ull; wanted < query_count; wanted += 1ull)
     {
-        while ((at < count) && (lower[at] != asked[wanted]))
+        while ((at < count) && (lower[at] != query_letters[wanted]))
         {
             at += 1ull;
         }

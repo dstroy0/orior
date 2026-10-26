@@ -48,15 +48,15 @@ static int binary_line(const CliCargoFound *one, const char *line, unsigned long
 {
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    char why[CLI_SAID_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int said =
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
+    const unsigned int message =
         (size <= CLI_CARGO_LINE_TEXT) ? cli_json_taken(&json, line, size, 0u, 0ull, &unread) : CLI_JSON_NONE;
-    const char *const reason = cli_json_string(&json, cli_json_member(&json, said, "reason"), NULL);
-    const unsigned int test = cli_json_member(&json, cli_json_member(&json, said, "profile"), "test");
-    const unsigned int target = cli_json_member(&json, said, "target");
+    const char *const reason = cli_json_string(&json, cli_json_member(&json, message, "reason"), NULL);
+    const unsigned int test = cli_json_member(&json, cli_json_member(&json, message, "profile"), "test");
+    const unsigned int target = cli_json_member(&json, message, "target");
     const char *const name = cli_json_string(&json, cli_json_member(&json, target, "name"), NULL);
-    const char *const executable = cli_json_string(&json, cli_json_member(&json, said, "executable"), NULL);
+    const char *const executable = cli_json_string(&json, cli_json_member(&json, message, "executable"), NULL);
     const int named =
         (reason != NULL) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = reason, .other = "compiler-artifact", .cap = CLI_CELLS_POOL})) &&
@@ -91,12 +91,13 @@ static int binary_read(const CliCargoFound *one, const char *out, unsigned long 
     return 0;
 }
 
-// the program for the test found `one` built, read and said into `program`: 1, or 0 with why said
-static int binary_built(const char *root, const CliCargoFound *one, const char *package, char *program, CliLine *said)
+// the program for the test found `one` built, read and written into `program`: 1, or 0 with why given
+static int binary_built(const char *root, const CliCargoFound *one, const char *package, char *program,
+                        VerbaLinea *err_msg)
 {
-    char cargo[CLI_PATH_LONGEST];
-    char manifest[CLI_PATH_LONGEST];
-    if (!cli_executables_program("rust", "cargo", cargo, said))
+    char cargo[CLI_PATH_MAX_LEN];
+    char manifest[CLI_PATH_MAX_LEN];
+    if (!cli_executables_program("rust", "cargo", cargo, err_msg))
     {
         return 0;
     }
@@ -118,7 +119,7 @@ static int binary_built(const char *root, const CliCargoFound *one, const char *
     cli_toolchains_run_path(s_path, sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
     CliRan *const ran = cli_ran_taken();
-    if (!cli_ran(words, package, settings, 1u, ran, said))
+    if (!cli_ran(words, package, settings, 1u, ran, err_msg))
     {
         cli_ran_given(ran);
         return 0;
@@ -127,25 +128,25 @@ static int binary_built(const char *root, const CliCargoFound *one, const char *
     if (!built)
     {
         char error[4096];
-        char path[CLI_PATH_LONGEST];
+        char path[CLI_PATH_MAX_LEN];
         long long line = 0ll;
         unsigned long long length = 0ull;
         if (cli_cargo_build_error(ran->err, ran->err_size, error, sizeof(error), &length, path, &line))
         {
-            cli_line_text(said, "The test's build failed: ");
-            cli_line_counted(said, error, length);
+            mmgr_line_put(err_msg, "The test's build failed: ");
+            mmgr_line_put_n(err_msg, error, length);
         }
         else
         {
-            cli_line_text(said, "cargo test built no program for ");
-            cli_line_text(said, one->test.id);
+            mmgr_line_put(err_msg, "cargo test built no program for ");
+            mmgr_line_put(err_msg, one->test.id);
         }
     }
     cli_ran_given(ran);
     return built;
 }
 
-int cli_cargo_binary(const char *root, const char *id, char *program, char *full, char *package, CliLine *said)
+int cli_cargo_binary(const char *root, const char *id, char *program, char *full, char *package, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_binary_lock);
     cli_cargo_found(root, &s_binary_tests);
@@ -160,18 +161,18 @@ int cli_cargo_binary(const char *root, const char *id, char *program, char *full
     int built = 0;
     if (one == NULL)
     {
-        cli_line_text(said, id);
-        cli_line_text(said, " is no Rust test of this tree");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is no Rust test of this tree");
     }
     else
     {
-        char folder[CLI_PATH_LONGEST];
-        CliLine folder_line = {folder, sizeof(folder), 0ull};
-        cli_line_counted(&folder_line, one->manifest,
-                         cellul.len(&(CatenaFinitaCfg){.src = one->manifest, .cap = CLI_CELLS_POOL}) - 10u);
-        cli_line_closed(&folder_line);
+        char folder[CLI_PATH_MAX_LEN];
+        VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+        mmgr_line_put_n(&folder_line, one->manifest,
+                        cellul.len(&(CatenaFinitaCfg){.src = one->manifest, .cap = CLI_CELLS_POOL}) - 10u);
+        mmgr_line_finish(&folder_line);
         cli_full(root, folder, package);
-        built = binary_built(root, one, package, program, said);
+        built = binary_built(root, one, package, program, err_msg);
         if (built)
         {
             memor.cpy(

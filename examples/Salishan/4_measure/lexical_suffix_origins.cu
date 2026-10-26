@@ -7,11 +7,11 @@
 //   Usage:  lexical_suffix_origins <input> <output>
 //
 // The measure is lexical_suffix_origins.py's. Per language, a same-meaning pair is a suffix and a noun whose
-// meaning the suffix offers. Among those pairs, the Kinkade relation holds where the noun's segments end with the
-// suffix's and the noun is one or two segments longer, the tail relation where the noun is longer and ends with
-// it, and a pair is identical where the noun equals the suffix. The null keeps every language's suffixes and nouns
-// and shuffles which meaning each noun carries, P times. For each relation, with m the observed count, S the sum of
-// the shuffles' counts and a the number of shuffles whose count is m or more,
+// meaning the suffix offers. Among those pairs, the Kinkade relation is satisfied where the noun's segments end with
+// the suffix's and the noun is one or two segments longer, the tail relation where the noun is longer and ends with it,
+// and a pair is identical where the noun equals the suffix. The null preserves every language's suffixes and nouns and
+// shuffles which meaning each noun carries, P times. For each relation, with m the observed count, S the sum of the
+// shuffles' counts and a the number of shuffles whose count is m or more,
 //
 //   null mean = S / P,   and   p = (a + 1) / (P + 1),
 //
@@ -21,8 +21,8 @@
 //
 // Programs of the record machine, each built by a request that carries only its field widths:
 //   count     one lane a 32-pair word of one relation, shuffle and language, the bits of same-meaning pairs and the
-//             bits where the relation holds in, how many are set in both out; the sum over each run of a language's
-//             words is that relation's count, and the run of the identity is the observed count;
+//             bits where the relation is satisfied in, how many are set in both out; the sum over each run of a
+//             language's words is that relation's count, and the run of the identity is the observed count;
 //   above     one lane a shuffle, its count and the observed count in, [m_k >= m] and m_k out; the sums over each
 //             run of shuffles are a and S;
 //   pass      one lane a language's count in one shuffle, the count out; the sum over each run of languages is the
@@ -34,7 +34,7 @@
 // the machine's. The shuffles are drawn with sim_draw, keyed by the input's seed, the language and the shuffle. They
 // are not Python's draws, and a p here is a p over different shuffles of the same null.
 //
-// The input is what lexical_suffix_origins.py writes. The output holds every language's counts, sums and p whole,
+// The input is what lexical_suffix_origins.py writes. The output contains every language's counts, sums and p whole,
 // the pooled ones, and the tail pairs observed.
 //
 // Checks:
@@ -47,7 +47,9 @@
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include "record_stages.h"
@@ -259,7 +261,7 @@ int main(int count, char **arguments)
         return 2;
     }
 
-    // the languages held, and each one's relation bits over its pairs, suffix by suffix and noun by noun
+    // the languages retained, and each one's relation bits over its pairs, suffix by suffix and noun by noun
     std::vector<SuffixLanguage> languages;
     unsigned int words = 1u;
     unsigned long long all_pairs = 0ull;
@@ -280,12 +282,12 @@ int main(int count, char **arguments)
                 const size_t bit = suffix * language.nouns.size() + noun;
                 const std::vector<std::string> &own = language.nouns[noun].segments;
                 const std::vector<std::string> &end = language.suffixes[suffix].segments;
-                const unsigned int holds[SUFFIX_RELATIONS] = {1u, (unsigned int)suffix_ends(own, end, 1u, 2u),
-                                                              (unsigned int)suffix_ends(own, end, 1u, own.size()),
-                                                              (unsigned int)(own == end)};
+                const unsigned int relation_flags[SUFFIX_RELATIONS] = {
+                    1u, (unsigned int)suffix_ends(own, end, 1u, 2u),
+                    (unsigned int)suffix_ends(own, end, 1u, own.size()), (unsigned int)(own == end)};
                 for (unsigned int relation = 0u; relation < SUFFIX_RELATIONS; relation += 1u)
                 {
-                    language.flags[relation][bit / 32u] |= holds[relation] << (bit % 32u);
+                    language.flags[relation][bit / 32u] |= relation_flags[relation] << (bit % 32u);
                 }
             }
         }
@@ -295,7 +297,7 @@ int main(int count, char **arguments)
     }
     if (languages.empty())
     {
-        fprintf(stderr, "  lexical_suffix_origins: no language holds %llu suffixes and %llu nouns\n",
+        fprintf(stderr, "  lexical_suffix_origins: no language contains %llu suffixes and %llu nouns\n",
                 settings.least_suffixes, settings.least_nouns);
         return 2;
     }
@@ -303,14 +305,14 @@ int main(int count, char **arguments)
     // the count program: lanes ordered by relation, then run (the identity first), then language, then word
     const unsigned long long shuffles = settings.permutations;
     const unsigned long long runs = shuffles + 1ull;
-    const unsigned long long held = languages.size();
+    const unsigned long long language_count = languages.size();
     EngineError error;
     memset(&error, 0, sizeof(error));
     Stage count_stage;
     memset(&count_stage, 0, sizeof(count_stage));
     count_stage.name = "count";
     stage_count_program(1, &count_stage.program);
-    const unsigned long long count_lanes = SUFFIX_RELATIONS * runs * held * words;
+    const unsigned long long count_lanes = SUFFIX_RELATIONS * runs * language_count * words;
     std::vector<unsigned int> records((size_t)(count_lanes * 2ull), 0u);
     std::vector<size_t> order;
     std::vector<unsigned int> same(words, 0u);
@@ -344,7 +346,7 @@ int main(int count, char **arguments)
             }
             for (unsigned int relation = 0u; relation < SUFFIX_RELATIONS; relation += 1u)
             {
-                const unsigned long long first = ((relation * runs + run) * held + at) * words;
+                const unsigned long long first = ((relation * runs + run) * language_count + at) * words;
                 for (size_t word = 0u; word < language.flags[relation].size(); word += 1u)
                 {
                     records[(size_t)((first + word) * 2ull)] = same[word];
@@ -363,7 +365,7 @@ int main(int count, char **arguments)
     records.clear();
     records.shrink_to_fit();
     auto counts = [&](unsigned int relation, unsigned long long run, size_t language) -> const StageWhole & {
-        return counted[0][(size_t)((relation * runs + run) * held + language)];
+        return counted[0][(size_t)((relation * runs + run) * language_count + language)];
     };
     for (size_t at = 0u; ok && (at < languages.size()); at += 1u)
     {
@@ -381,7 +383,7 @@ int main(int count, char **arguments)
     pass_stage.name = "pass";
     suffix_pass_program(count_bits, &pass_stage.program);
     ok = ok && stage_lay(&job, &pass_stage, &error);
-    const unsigned long long pass_lanes = 3ull * runs * held;
+    const unsigned long long pass_lanes = 3ull * runs * language_count;
     const unsigned int pass_limbs = (pass_stage.program.record_bits + 31u) / 32u;
     std::vector<unsigned int> pass_records((size_t)(pass_lanes * pass_limbs), 0u);
     for (unsigned int which = 0u; ok && (which < 3u); which += 1u)
@@ -390,15 +392,15 @@ int main(int count, char **arguments)
         {
             for (size_t at = 0u; at < languages.size(); at += 1u)
             {
-                const unsigned long long lane = (which * runs + run) * held + at;
+                const unsigned long long lane = (which * runs + run) * language_count + at;
                 stage_put(&pass_records[(size_t)(lane * pass_limbs)], pass_stage.program.field_offset[0],
                           pass_stage.program.field_bits[0], counts(tested[which], run, at));
             }
         }
     }
     std::vector<std::vector<StageWhole>> pooled;
-    ok = ok && stage_summed(&job, &pass_stage, pass_records, pass_lanes, held, std::vector<unsigned int>(1, 0u),
-                            &pooled, &error);
+    ok = ok && stage_summed(&job, &pass_stage, pass_records, pass_lanes, language_count,
+                            std::vector<unsigned int>(1, 0u), &pooled, &error);
 
     // the above program: each language's shuffles and the pooled shuffles, against their observed counts
     Stage above_stage;
@@ -406,21 +408,22 @@ int main(int count, char **arguments)
     above_stage.name = "above";
     stage_above_program(count_bits + 1u, &above_stage.program);
     ok = ok && stage_lay(&job, &above_stage, &error);
-    const unsigned long long sets = 2ull * (held + 1ull);
+    const unsigned long long sets = 2ull * (language_count + 1ull);
     const unsigned long long above_lanes = sets * shuffles;
     const unsigned int above_limbs = (above_stage.program.record_bits + 31u) / 32u;
     std::vector<unsigned int> above_records((size_t)(above_lanes * above_limbs), 0u);
     for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
     {
-        for (unsigned long long set = 0ull; set <= held; set += 1ull)
+        for (unsigned long long set = 0ull; set <= language_count; set += 1ull)
         {
-            const StageWhole &observed = (set < held) ? counts(tested[which], 0ull, (size_t)set) : pooled[0][which * runs];
+            const StageWhole &observed =
+                (set < language_count) ? counts(tested[which], 0ull, (size_t)set) : pooled[0][which * runs];
             for (unsigned long long shuffle = 0ull; shuffle < shuffles; shuffle += 1ull)
             {
-                const StageWhole &drawn = (set < held) ? counts(tested[which], 1ull + shuffle, (size_t)set)
-                                                       : pooled[0][which * runs + 1ull + shuffle];
-                unsigned int *record =
-                    &above_records[(size_t)((((which * (held + 1ull)) + set) * shuffles + shuffle) * above_limbs)];
+                const StageWhole &drawn = (set < language_count) ? counts(tested[which], 1ull + shuffle, (size_t)set)
+                                                                 : pooled[0][which * runs + 1ull + shuffle];
+                unsigned int *record = &above_records[(
+                    size_t)((((which * (language_count + 1ull)) + set) * shuffles + shuffle) * above_limbs)];
                 stage_put(record, above_stage.program.field_offset[0], above_stage.program.field_bits[0], drawn);
                 stage_put(record, above_stage.program.field_offset[1], above_stage.program.field_bits[1], observed);
             }
@@ -434,11 +437,11 @@ int main(int count, char **arguments)
     {
         for (size_t at = 0u; at < languages.size(); at += 1u)
         {
-            languages[at].above[tested[which]] = aboves[0][which * (held + 1ull) + at];
-            languages[at].sum[tested[which]] = aboves[1][which * (held + 1ull) + at];
+            languages[at].above[tested[which]] = aboves[0][which * (language_count + 1ull) + at];
+            languages[at].sum[tested[which]] = aboves[1][which * (language_count + 1ull) + at];
         }
-        pooled_above[which] = aboves[0][which * (held + 1ull) + held];
-        pooled_sum[which] = aboves[1][which * (held + 1ull) + held];
+        pooled_above[which] = aboves[0][which * (language_count + 1ull) + language_count];
+        pooled_sum[which] = aboves[1][which * (language_count + 1ull) + language_count];
     }
 
     // the larger program, in rounds: the largest pooled count among the shuffles of each relation
@@ -514,7 +517,7 @@ int main(int count, char **arguments)
     for (unsigned int which = 0u; ok && (which < 2u); which += 1u)
     {
         printed.push_back({pooled_sum[which], stage_whole(shuffles)});
-        printed.push_back(stage_pair_of(values[held + which]));
+        printed.push_back(stage_pair_of(values[language_count + which]));
     }
     Stage digits_stage;
     memset(&digits_stage, 0, sizeof(digits_stage));
@@ -581,7 +584,8 @@ int main(int count, char **arguments)
                     (which == 0u) ? "kinkade" : "tail", stage_text_of(pooled[0][2u * runs]).c_str(),
                     stage_text_of(pooled[0][which * runs]).c_str(), stage_text_of(pooled_sum[which]).c_str(),
                     stage_text_of(left[which][0]).c_str(), stage_text_of(pooled_above[which]).c_str(),
-                    stage_text_of(values[held + which][0]).c_str(), stage_text_of(values[held + which][1]).c_str());
+                    stage_text_of(values[language_count + which][0]).c_str(),
+                    stage_text_of(values[language_count + which][1]).c_str());
         }
         for (size_t at = 0u; at < found.size(); at += 1u)
         {
@@ -607,12 +611,15 @@ int main(int count, char **arguments)
         }
         for (unsigned int which = 0u; which < 2u; which += 1u)
         {
-            printf("pooled %s: observed %s, null mean %s, null max %s, p %s/%s = %s over %llu shuffles, %s same-meaning "
-                   "pairs\n",
-                   names[which], stage_text_of(pooled[0][which * runs]).c_str(), shown[held * 3u + which * 2u].c_str(),
-                   stage_text_of(left[which][0]).c_str(), stage_text_of(values[held + which][0]).c_str(),
-                   stage_text_of(values[held + which][1]).c_str(), shown[held * 3u + which * 2u + 1u].c_str(),
-                   shuffles, stage_text_of(pooled[0][2u * runs]).c_str());
+            printf(
+                "pooled %s: observed %s, null mean %s, null max %s, p %s/%s = %s over %llu shuffles, %s same-meaning "
+                "pairs\n",
+                names[which], stage_text_of(pooled[0][which * runs]).c_str(),
+                shown[language_count * 3u + which * 2u].c_str(), stage_text_of(left[which][0]).c_str(),
+                stage_text_of(values[language_count + which][0]).c_str(),
+                stage_text_of(values[language_count + which][1]).c_str(),
+                shown[language_count * 3u + which * 2u + 1u].c_str(), shuffles,
+                stage_text_of(pooled[0][2u * runs]).c_str());
         }
         for (size_t at = 0u; at < found.size(); at += 1u)
         {

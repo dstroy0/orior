@@ -13,7 +13,7 @@
 // is a whole coordinate chart of Z^n. The precision the boundary reads: a flip of input bit b moves a crystal
 // coefficient only at bit b - 3L and above, and for b >= 3L the move is exactly 2^b times a column of T's rational
 // matrix M, whose 2-adic valuations give the range per band (3l for the lows at level l, 3l - 2 for its highs). T^-1
-// is held to the range L + 2 the same way. What passes through T: a constant added to every sample lands on the
+// is bounded to the range L + 2 the same way. What passes through T: a constant added to every sample lands on the
 // crystal's lows alone, and a vector in 2^(3L) Z^n lands as M times it; negation and doubling do not pass. The
 // identity of a lane's structure, taken with T and null permutations of its own samples: every structured lane's
 // crystal heap stands below all its shuffles', and noise no more often than 1 / (draws + 1) allows. The heap
@@ -22,17 +22,19 @@
 // one bit wider per wrapped low, and the heap's pinch at the crystal orders a ramp, a ramp +-8, a
 // ramp +-1024 and noise. Last, the top projection x -> x / 2^k toward zero, the other end of the window from the
 // 2-adic projection: nested quotients commute with it, it never reverses a comparison (the 8-bit wrap reverses
-// many), and a sum through it is off by at most one. The count each crystal keeps: on a 4-sample tower every input
+// many), and a sum through it is off by at most one. The count each crystal preserves: on a 4-sample tower every input
 // quantum at level w + 3 is run, and T and T^-1 send exactly as many onto every output quantum at level w (Haar
 // measure on Z_2^n); det M and det M^-1 are +-1 exactly, proved modulo primes past Hadamard's bound (volume on R^n).
-// T holds no error correction. A redundant residue code carries the crystal: each coefficient modulo four odd
+// T includes no error correction. A redundant residue code carries the crystal: each coefficient modulo four odd
 // primes where two cover its range, decoded in the machine, catches two corrupted residues and corrects one, and T^-1
 // of the corrected crystal returns the samples. Every program runs on the device and the host, word for word. The test
 // is one job on the device's tessera daemon, submitted before its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -93,7 +95,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } BoundaryResults;
 
 typedef struct
@@ -134,7 +136,7 @@ unsigned int boundary_random(void);
 
 void boundary_check(BoundaryResults *results, int passed, const char *what);
 
-void boundary_hundredths(ScripturaLine *line, unsigned long long top, unsigned long long bottom);
+void boundary_hundredths(VerbaLinea *line, unsigned long long top, unsigned long long bottom);
 
 unsigned int boundary_append(BoundaryProgram *program, EngineRecordOperation operation, unsigned int left,
                              unsigned int right);
@@ -204,7 +206,7 @@ void boundary_volume(BoundaryResults *results);
 
 #define BOUNDARY_TEST_CODE_NEEDED 2u
 
-// the legal range the code holds a crystal coefficient to, [-2^21, 2^21), carried shifted by 2^21 onto [0, 2^22)
+// the legal range the code bounds a crystal coefficient to, [-2^21, 2^21), carried shifted by 2^21 onto [0, 2^22)
 #define BOUNDARY_TEST_CODE_BITS 22u
 
 #define BOUNDARY_TEST_CODE_CRYSTALS 256u

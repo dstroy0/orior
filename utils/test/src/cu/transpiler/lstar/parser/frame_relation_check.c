@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// frame_relation_check.c: the frame relations held to what the teacher reads of them (frame_relation.h)
+// frame_relation_check.c: the frame relations checked against what the teacher reads of them (frame_relation.h)
 //
 //   names      each relation's name, in its order
 //   answers    the host's answer of each relation for a thread, from the launch and the case alone
@@ -18,10 +18,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -48,9 +48,10 @@ int main(void)
     check_that(frame_answer(FRAME_LOAD, 7u, word, 0ull, &answered) && (answered == 3ull) &&
                    frame_answer(FRAME_LOAD, 7u, word, 1ull, &answered) && (answered == 5ull),
                "a load reads the case's first word or its second by its reading");
-    check_that(frame_answer(FRAME_STORE, 7u, word, 1ull, &answered) && (answered == (5ull | (5ull << 32u))),
-               "a store leaves the second word's register in the record's second word, the first as the slot found "
-               "it");
+    check_that(
+        frame_answer(FRAME_STORE, 7u, word, 1ull, &answered) && (answered == (5ull | (5ull << 32u))),
+        "a store leaves the second word's register in the record's second word, the first as the probe place found "
+        "it");
     check_that(frame_answer(FRAME_EXIT, 7u, word, 0ull, &answered) &&
                    (answered == (unsigned long long)RUN_UNWRITTEN_WORD),
                "an exit leaves the fill word");

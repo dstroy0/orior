@@ -21,7 +21,7 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
                                                         (size_t)left->table_word_count * sizeof(unsigned int)) == 0));
 }
 
-int layout_device_held(const LayoutRequest *request, EngineRecordLayout *layout, int report)
+int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layout, int report)
 {
     EngineRecordLayout device_layout{};
     std::string error;
@@ -97,7 +97,7 @@ __global__ void codegen_device_unlaid(unsigned int *put_first, const unsigned in
 }
 
 // each step's forms counted, a thread a step, from the loop number it begins at, and what it leaves for the lane's own
-// forms gathered: the most of each bank, the tables, a broken form or a step the lane does not hold, and the last
+// forms gathered: the most of each bank, the tables, a broken form or a step the lane does not support, and the last
 // step's banks
 __global__ void codegen_device_count(IrProgram program, const unsigned int *loop_first, unsigned long long *counts,
                                      unsigned int *errors, unsigned int *summary)
@@ -119,7 +119,7 @@ __global__ void codegen_device_count(IrProgram program, const unsigned int *loop
     atomicMax(&summary[CODEGEN_PREDICATES_MAX], lane.predicates_max);
     atomicOr(&summary[CODEGEN_TABLES], lane.tables);
     atomicOr(&summary[CODEGEN_BROKEN], lane.broken);
-    atomicOr(&summary[CODEGEN_UNHELD], (ok != 0) ? 0u : 1u);
+    atomicOr(&summary[CODEGEN_STEP_FAILED], (ok != 0) ? 0u : 1u);
     if ((at + 1u) == program.step_count)
     {
         summary[CODEGEN_TEMPS] = lane.temps;
@@ -170,10 +170,10 @@ __global__ void codegen_device_left(const unsigned int *summary, unsigned int lo
 // the lane's own forms in the order they are decided, the note, the lane's first form, the declarations, the opening,
 // the close, then, after the schedule where the body is split, the body's opening and the end, since a construct's
 // scratch goes on from where each bank stands: those from `first` to `last` of that order, in one thread, going on from
-// the lane as `lane_out` holds it. Counted where `items` is NULL, each part's count laid out in `parts`; else written
-// from `items` where `parts` puts each, with the header's item, which the assembly printer takes whole, where the note
-// is written, and the lane left in `lane_out` for the forms decided after. `states` is the states the body was split
-// into, 0 where it is not split
+// the lane as `lane_out` contains it. Counted where `items` is NULL, each part's count laid out in `parts`; else
+// written from `items` where `parts` puts each, with the header's item, which the assembly printer takes whole, where
+// the note is written, and the lane left in `lane_out` for the forms decided after. `states` is the states the body was
+// split into, 0 where it is not split
 __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int *errors, unsigned int *summary,
                                           MachineFunction *lane_out, unsigned int atoms, unsigned int places,
                                           unsigned int first, unsigned int last, int scheduled, unsigned int states,
@@ -251,7 +251,7 @@ __global__ void codegen_prologue_epilogue(IrProgram program, const unsigned int 
     }
 }
 
-// The body split into states, in one thread, going on from the lane as `lane_out` holds it: the body's forms,
+// The body split into states, in one thread, going on from the lane as `lane_out` contains it: the body's forms,
 // `body_count` of them from `body` in the order they run (the opening, the steps and the close), laid out into the
 // schedule (codegen_schedule_instr), as the host's lane splits them. Counted where `items` is NULL; else written there
 // and the lane left in `lane_out` for the forms decided after. How it was split in `ended`
@@ -334,7 +334,7 @@ __global__ void codegen_device_index(unsigned int *records, unsigned long long r
     asm_printer_first(records, record, lane_first[record]);
     for (unsigned long long lane = 0ull; lane < record_lanes[record]; lane += 1ull)
     {
-        // a record's number is below 2^31, as the host holds the records
+        // a record's number is below 2^31, as the host bounds the records
         index[lane_first[record] + lane] = (unsigned int)record;
     }
 }

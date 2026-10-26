@@ -4,18 +4,18 @@
 // fields.
 //
 // The forms are taken into a machine of their own, and their fields found by the probe's own reading: each form's 128
-// bits turned over one at a time and decoded, the runs of bits that change one printed operand kept as that operand's
-// (sass_machine_fields). Each is then put into the machine file with those runs and the file written again. A form
-// the machine file already holds is left as it stands, its fields and its encoding untouched.
+// bits turned over one at a time and decoded, the runs of bits that change one printed operand recorded as that
+// operand's (sass_machine_fields). Each is then put into the machine file with those runs and the file written again. A
+// form the machine file already contains is left as it stands, its fields and its encoding untouched.
 //
 //     interface_sass_probe_take <listing> <machine file> <architecture> <folder>
 //     interface_sass_probe_take --fields <machine file> <architecture> <folder>
 //
-// The second form gives every form the machine file holds its fields again by the probe's reading, prints each form
+// The second form gives every form the machine file contains its fields again by the probe's reading, prints each form
 // whose fields that changes, and writes the file.
 //
 // The listing is what cuobjdump -sass or nvdisasm prints; the architecture is named as the disassembler names it,
-// SM86; the folder holds the encodings the disassembler is given.
+// SM86; the folder contains the encodings the disassembler is given.
 #include "interface_sass_probe.h"
 
 #include "../sass_machine.h"
@@ -135,7 +135,7 @@ int main(int count, char **words)
         fprintf(stderr, "the machine file %s did not read\n", words[2]);
         return 1;
     }
-    const unsigned int held = s_machine.forms;
+    const unsigned int forms_before = s_machine.forms;
     for (unsigned int number = 0u; number < s_listing.count; number += 1u)
     {
         const SassInstruction *const instruction = &s_listing.instructions[number];
@@ -149,11 +149,11 @@ int main(int count, char **words)
         {
             continue;
         }
-        SassForm *kept = NULL;
-        sass_machine_take(&s_taken, instruction->text, instruction->low, instruction->high, &kept);
+        SassForm *found_form = NULL;
+        sass_machine_take(&s_taken, instruction->text, instruction->low, instruction->high, &found_form);
     }
     printf("interface sass take: %u instructions read, %u forms the machine file of %u forms lacks\n", s_listing.count,
-           s_taken.forms, held);
+           s_taken.forms, forms_before);
     if (s_taken.forms == 0u)
     {
         return 0;
@@ -166,16 +166,16 @@ int main(int count, char **words)
     for (unsigned int number = 0u; number < s_taken.forms; number += 1u)
     {
         const SassForm *const form = &s_taken.form[number];
-        SassForm *kept = NULL;
+        SassForm *found_form = NULL;
         const unsigned int before = s_machine.forms;
-        if (!sass_machine_take(&s_machine, form->text, form->low, form->high, &kept) || (kept == NULL) ||
+        if (!sass_machine_take(&s_machine, form->text, form->low, form->high, &found_form) || (found_form == NULL) ||
             (s_machine.forms == before))
         {
             printf("  not taken: %s\n", form->text);
             continue;
         }
-        kept->runs = form->runs;
-        memcpy(kept->run, form->run, sizeof(form->run));
+        found_form->runs = form->runs;
+        memcpy(found_form->run, form->run, sizeof(form->run));
         printf("  taken: %s, %u runs of bits\n", form->text, form->runs);
     }
     if (!sass_machine_write(&s_machine, words[2]))
@@ -183,6 +183,6 @@ int main(int count, char **words)
         fprintf(stderr, "the machine file %s was not written\n", words[2]);
         return 1;
     }
-    printf("interface sass take: the machine file %s holds %u forms\n", words[2], s_machine.forms);
+    printf("interface sass take: the machine file %s contains %u forms\n", words[2], s_machine.forms);
     return 0;
 }

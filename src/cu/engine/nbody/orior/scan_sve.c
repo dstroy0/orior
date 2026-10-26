@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -10,7 +10,7 @@
  * @brief The steering scan under SVE, at whatever vector length the part turns out to have.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION AVX2 ANSWERS, WITHOUT A FIXED WIDTH. Held at one needle offset, does
+ * THE SAME QUESTION AVX2 ANSWERS, WITHOUT A FIXED WIDTH. Fixed at one needle offset, does
  * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
  * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
  * alignments still standing. SVE answers a vector's worth of those per compare, and the vector is
@@ -23,7 +23,7 @@
  * @note No part in this project has SVE. The Raspberry Pi 5 is a Cortex-A76, NEON only. This arm
  *       has never been run. It is compiled for armv8.2-a+sve and its emitted instructions are read by
  *       utils/maint/engine/verify_arm_asm.sh, which confirms the predicated forms. That rules out a scalar
- *       fallback. It says nothing about behavior, and the name reads sve-unrun for that reason.
+ *       fallback. It states nothing about behavior, and the name reads sve-unrun for that reason.
  * @note SVE has no fixed vector length. svcntb() answers how many byte lanes this part carries and
  *       the loop is written around a predicate. No lane count appears here and the tail needs no
  *       separate scalar loop: svwhilelt_b8 covers only the lanes that exist and the count comes from
@@ -40,7 +40,7 @@
 
 #if defined(__linux__)
 #include <sys/auxv.h>
-/** @brief Set where this translation unit can ask the kernel about SVE. */
+/** @brief Set where this translation unit can query the kernel about SVE. */
 #define ORIOR_STEER_SVE_CAN_DETECT 1
 #ifndef HWCAP_SVE
 /** @brief The SVE bit in AT_HWCAP, defined here where the running headers predate it. */
@@ -53,7 +53,7 @@
 /**
  * @brief Whether this part carries SVE.
  *
- * @return 1 where the kernel reports SVE, 0 where it does not or cannot be asked.
+ * @return 1 where the kernel reports SVE, 0 where it does not or cannot be queried.
  */
 static int steer_sve_present(void)
 {
@@ -68,7 +68,7 @@ size_t orior_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, co
                                      size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
+     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -91,7 +91,7 @@ size_t orior_steer_truthy_after_sve(const uint8_t *corpus, size_t alignments, co
         const svbool_t agrees = svcmpeq_n_u8(live, window, wanted);
 
         /* An alive flag is zero or non-zero. The standing lanes are the ones not equal to zero.
-         * Testing this way and not against one keeps it correct if a caller ever stores a flag
+         * Testing this way and not against one retains it correct if a caller ever stores a flag
          * other than one. */
         const svbool_t alive_mask = svcmpne_n_u8(live, standing_bytes, 0u);
 

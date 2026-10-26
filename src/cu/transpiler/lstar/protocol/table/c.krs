@@ -158,10 +158,10 @@ nop state_exit
 nop state_dispatch error state
 
 # a memory read's address named a state ahead of the read (vhdl.krs); a C load names its address itself
-nop launch_ask offset
-nop global_ask address offset
-nop global_ask_if where address
-nop global_ask_atomic address
+nop launch_load offset
+nop global_load address offset
+nop global_load_if where address
+nop global_atomic address
 
 # a loop: its label, and the goto back to it where the predicate holds
 form label_loop loop = loop{loop}:\n

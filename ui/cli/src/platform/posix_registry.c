@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// posix_registry.c: off Windows there is no registry: the PATH is the one orior_cli started with, and a folder added to the
-// reader's PATH goes into their shell's profile instead
+// posix_registry.c: off Windows there is no registry: the PATH is the one orior_cli started with, and a folder added to
+// the reader's PATH goes into their shell's profile instead
 #include "../command_line/cli_internal.h"
 
 #if !defined(_WIN32)
@@ -20,11 +20,11 @@ int cli_registry_user_value(const char *name, char *out, unsigned long long room
     return 0;
 }
 
-int cli_registry_set_user_value(const char *name, const char *value, CliLine *said)
+int cli_registry_set_user_value(const char *name, const char *value, VerbaLinea *err_msg)
 {
     (void)value;
-    cli_line_text(said, name);
-    cli_line_text(said, " is kept in the registry, which only Windows has");
+    mmgr_line_put(err_msg, name);
+    mmgr_line_put(err_msg, " is stored in the registry, which only Windows has");
     return 0;
 }
 

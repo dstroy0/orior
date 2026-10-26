@@ -4,14 +4,14 @@
 // brought up
 #include "devcontainer.h"
 
-// the lock held while docker's words and output are kept
+// the lock acquired while docker's words and output are stored
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// how a container is kept running, in place of the image's own command: a POSIX shell's line, ended at once by docker
+// how a container is stays running, in place of the image's own command: a POSIX shell's line, ended at once by docker
 // stop
-#define CLI_KEEP_RUNNING "trap 'exit 0' TERM; while sleep 1 & wait $!; do :; done"
+#define CLI_CONTAINER_IDLE_SCRIPT "trap 'exit 0' TERM; while sleep 1 & wait $!; do :; done"
 
-// the most bytes of what docker writes that are kept, and the longest word joined from two
+// the most bytes of what docker writes that are stored, and the longest word joined from two
 #define CLI_DOCKER_OUTPUT (1u << 16u)
 
 #define CLI_STRING_JOINED 16384u
@@ -20,22 +20,22 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static void cli_words_joined(CliWords *words, const char *first, const char *second)
 {
     char word[CLI_STRING_JOINED];
-    CliLine line = {word, sizeof(word), 0ull};
-    cli_line_text(&line, first);
-    cli_line_text(&line, second);
-    words->full = words->full || !cli_line_fits(&line);
-    cli_line_closed(&line);
+    VerbaLinea line = {word, sizeof(word), 0ull};
+    mmgr_line_put(&line, first);
+    mmgr_line_put(&line, second);
+    words->full = words->full || !mmgr_line_ok(&line);
+    mmgr_line_finish(&line);
     cli_words_put(words, word);
 }
 
 void cli_plan_address(const CliPlan *plan, const char *container, char *address)
 {
-    CliLine line = {address, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, "docker:");
-    cli_line_text(&line, container);
-    cli_line_character(&line, ':');
-    cli_line_text(&line, cli_plan_text(plan, plan->folder));
-    cli_line_closed(&line);
+    VerbaLinea line = {address, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, "docker:");
+    mmgr_line_put(&line, container);
+    mmgr_line_ch(&line, ':');
+    mmgr_line_put(&line, cli_plan_text(plan, plan->folder));
+    mmgr_line_finish(&line);
 }
 
 int cli_plan_build_words(const CliPlan *plan, CliWords *words, char *image)
@@ -44,10 +44,10 @@ int cli_plan_build_words(const CliPlan *plan, CliWords *words, char *image)
     {
         return 0;
     }
-    CliLine line = {image, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, cli_plan_text(plan, plan->name));
-    cli_line_text(&line, "-image");
-    cli_line_closed(&line);
+    VerbaLinea line = {image, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, cli_plan_text(plan, plan->name));
+    mmgr_line_put(&line, "-image");
+    mmgr_line_finish(&line);
     cli_words_put(words, "build");
     cli_words_put(words, "-f");
     cli_words_put(words, cli_plan_text(plan, plan->dockerfile));
@@ -57,12 +57,12 @@ int cli_plan_build_words(const CliPlan *plan, CliWords *words, char *image)
     {
         cli_words_put(words, "--build-arg");
         char pair[CLI_STRING_JOINED];
-        CliLine joined = {pair, sizeof(pair), 0ull};
-        cli_line_text(&joined, cli_plan_text(plan, plan->args.at[at]));
-        cli_line_character(&joined, '=');
-        cli_line_text(&joined, cli_plan_text(plan, plan->args.at[at + 1u]));
-        words->full = words->full || !cli_line_fits(&joined);
-        cli_line_closed(&joined);
+        VerbaLinea joined = {pair, sizeof(pair), 0ull};
+        mmgr_line_put(&joined, cli_plan_text(plan, plan->args.at[at]));
+        mmgr_line_ch(&joined, '=');
+        mmgr_line_put(&joined, cli_plan_text(plan, plan->args.at[at + 1u]));
+        words->full = words->full || !mmgr_line_ok(&joined);
+        mmgr_line_finish(&joined);
         cli_words_put(words, pair);
     }
     if (plan->targeted)
@@ -85,24 +85,24 @@ void cli_plan_run_words(const CliPlan *plan, const char *image, CliWords *words)
     cli_words_joined(words, "orior.tree=", root);
     cli_words_put(words, "--mount");
     char mount[CLI_STRING_JOINED];
-    CliLine line = {mount, sizeof(mount), 0ull};
-    cli_line_text(&line, "type=bind,source=");
-    cli_line_text(&line, root);
-    cli_line_text(&line, ",target=");
-    cli_line_text(&line, cli_plan_text(plan, plan->folder));
-    words->full = words->full || !cli_line_fits(&line);
-    cli_line_closed(&line);
+    VerbaLinea line = {mount, sizeof(mount), 0ull};
+    mmgr_line_put(&line, "type=bind,source=");
+    mmgr_line_put(&line, root);
+    mmgr_line_put(&line, ",target=");
+    mmgr_line_put(&line, cli_plan_text(plan, plan->folder));
+    words->full = words->full || !mmgr_line_ok(&line);
+    mmgr_line_finish(&line);
     cli_words_put(words, mount);
     for (unsigned int at = 0u; (at + 1u) < plan->env.count; at += 2u)
     {
         cli_words_put(words, "-e");
         char pair[CLI_STRING_JOINED];
-        CliLine joined = {pair, sizeof(pair), 0ull};
-        cli_line_text(&joined, cli_plan_text(plan, plan->env.at[at]));
-        cli_line_character(&joined, '=');
-        cli_line_text(&joined, cli_plan_text(plan, plan->env.at[at + 1u]));
-        words->full = words->full || !cli_line_fits(&joined);
-        cli_line_closed(&joined);
+        VerbaLinea joined = {pair, sizeof(pair), 0ull};
+        mmgr_line_put(&joined, cli_plan_text(plan, plan->env.at[at]));
+        mmgr_line_ch(&joined, '=');
+        mmgr_line_put(&joined, cli_plan_text(plan, plan->env.at[at + 1u]));
+        words->full = words->full || !mmgr_line_ok(&joined);
+        mmgr_line_finish(&joined);
         cli_words_put(words, pair);
     }
     for (unsigned int at = 0u; at < plan->mounts.count; at += 1u)
@@ -123,7 +123,7 @@ void cli_plan_run_words(const CliPlan *plan, const char *image, CliWords *words)
     cli_words_put(words, "/bin/sh");
     cli_words_put(words, image);
     cli_words_put(words, "-c");
-    cli_words_put(words, CLI_KEEP_RUNNING);
+    cli_words_put(words, CLI_CONTAINER_IDLE_SCRIPT);
 }
 
 int cli_plan_compose_words(const CliPlan *plan, CliWords *words)
@@ -166,11 +166,11 @@ void cli_plan_exec_words(const CliPlan *plan, const char *container, const CliPl
 }
 
 // the words docker is run with, `docker` before them, into `line` with a NULL after the last
-static int cli_docker_line(const CliWords *words, const char **line, CliLine *said)
+static int cli_docker_line(const CliWords *words, const char **line, VerbaLinea *err_msg)
 {
     if (words->full)
     {
-        cli_line_text(said, "a docker command holds more words than a plan keeps");
+        mmgr_line_put(err_msg, "a docker command contains more words than a plan stores");
         return 0;
     }
     line[0] = "docker";
@@ -181,31 +181,31 @@ static int cli_docker_line(const CliWords *words, const char **line, CliLine *sa
     return 1;
 }
 
-// docker run with `words`, its output going where this program's goes, after the line it runs is said to `say`: 1, or
-// 0 with why said
-static int cli_docker(const CliWords *words, QuerySink say, CliLine *said)
+// docker run with `words`, its output going where this program's goes, after the line it runs is printed to `sink`: 1,
+// or 0 with why given
+static int cli_docker(const CliWords *words, QuerySink sink, VerbaLinea *err_msg)
 {
     const char *line[CLI_WORDS_MOST + 2u];
-    if (!cli_docker_line(words, line, said))
+    if (!cli_docker_line(words, line, err_msg))
     {
         return 0;
     }
     char shown[CLI_WORDS_TEXT + CLI_WORDS_MOST];
-    CliLine shown_line = {shown, sizeof(shown), 0ull};
+    VerbaLinea shown_line = {shown, sizeof(shown), 0ull};
     for (unsigned int at = 0u; line[at] != NULL; at += 1u)
     {
         if (at != 0u)
         {
-            cli_line_character(&shown_line, ' ');
+            mmgr_line_ch(&shown_line, ' ');
         }
-        cli_line_text(&shown_line, line[at]);
+        mmgr_line_put(&shown_line, line[at]);
     }
-    const unsigned long long length = cli_line_closed(&shown_line);
-    say.said(say.context, shown, length);
+    const unsigned long long length = mmgr_line_finish(&shown_line);
+    sink.print(sink.context, shown, length);
     QueryProcess process;
     if (!query_process_start(&process, line, NULL, QUERY_OUTPUT_OWN))
     {
-        cli_line_text(said, "docker: it could not be started");
+        mmgr_line_put(err_msg, "docker: it could not be started");
         return 0;
     }
     const long long code = query_process_wait(&process);
@@ -213,75 +213,76 @@ static int cli_docker(const CliWords *words, QuerySink say, CliLine *said)
     {
         return 1;
     }
-    cli_line_text(said, "docker ");
-    cli_line_text(said, (words->count != 0u) ? words->word[0] : "");
-    cli_line_text(said, " ended with ");
+    mmgr_line_put(err_msg, "docker ");
+    mmgr_line_put(err_msg, (words->count != 0u) ? words->word[0] : "");
+    mmgr_line_put(err_msg, " ended with ");
     if (code < 0ll)
     {
-        cli_line_text(said, "a signal");
+        mmgr_line_put(err_msg, "a signal");
         return 0;
     }
-    cli_line_text(said, "exit code ");
-    cli_line_signed(said, code);
+    mmgr_line_put(err_msg, "exit code ");
+    mmgr_line_decimal_signed(err_msg, code);
     return 0;
 }
 
-// docker run with `words`, what it wrote to its output kept, trimmed, in `out`, which holds CLI_DOCKER_OUTPUT: 1, or
+// docker run with `words`, what it wrote to its output stored, trimmed, in `out`, sized for CLI_DOCKER_OUTPUT: 1, or
 // 0 where it failed
 static int cli_docker_read(const CliWords *words, char *out)
 {
     const char *line[CLI_WORDS_MOST + 2u];
-    char unsaid[CLI_PATH_LONGEST];
-    CliLine said = {unsaid, sizeof(unsaid), 0ull};
+    char err_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
     QueryProcess process;
-    if (!cli_docker_line(words, line, &said) || !query_process_start(&process, line, NULL, QUERY_OUTPUT_PIPED_ALONE))
+    if (!cli_docker_line(words, line, &err_msg) || !query_process_start(&process, line, NULL, QUERY_OUTPUT_PIPED_ALONE))
     {
         return 0;
     }
-    unsigned long long kept = 0ull;
+    unsigned long long out_len = 0ull;
     char piece[4096];
     unsigned long long got = query_process_read(&process, piece, sizeof(piece));
     while (got != 0ull)
     {
-        const unsigned long long room = (CLI_DOCKER_OUTPUT - 1u) - kept;
+        const unsigned long long room = (CLI_DOCKER_OUTPUT - 1u) - out_len;
         const unsigned long long taken = (got < room) ? got : room;
-        memor.cpy(&(MemoriaCfg){.dst = out + kept, .src = piece, .bytes = taken});
-        kept += taken;
+        memor.cpy(&(MemoriaCfg){.dst = out + out_len, .src = piece, .bytes = taken});
+        out_len += taken;
         got = query_process_read(&process, piece, sizeof(piece));
     }
-    out[kept] = '\0';
+    out[out_len] = '\0';
     if (query_process_wait(&process) != 0ll)
     {
         return 0;
     }
     unsigned long long from = 0ull;
-    while ((from < kept) && ((out[from] == ' ') || ((out[from] >= '\t') && (out[from] <= '\r'))))
+    while ((from < out_len) && ((out[from] == ' ') || ((out[from] >= '\t') && (out[from] <= '\r'))))
     {
         from += 1ull;
     }
-    while ((kept > from) && ((out[kept - 1u] == ' ') || ((out[kept - 1u] >= '\t') && (out[kept - 1u] <= '\r'))))
+    while ((out_len > from) &&
+           ((out[out_len - 1u] == ' ') || ((out[out_len - 1u] >= '\t') && (out[out_len - 1u] <= '\r'))))
     {
-        kept -= 1ull;
+        out_len -= 1ull;
     }
     // moved down to the start, each byte from above where it goes
-    for (unsigned long long at = from; at < kept; at += 1ull)
+    for (unsigned long long at = from; at < out_len; at += 1ull)
     {
         out[at - from] = out[at];
     }
-    out[kept - from] = '\0';
+    out[out_len - from] = '\0';
     return 1;
 }
 
-// each command of `commands` run in `container`: 1, or 0 with why said
+// each command of `commands` run in `container`: 1, or 0 with why given
 static int cli_commands_run(const CliPlan *plan, const char *container, const CliPlanCommand *commands,
-                            unsigned int count, QuerySink say, CliLine *said)
+                            unsigned int count, QuerySink sink, VerbaLinea *err_msg)
 {
     static CliWords s_words;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
         cli_plan_exec_words(plan, container, &commands[at], &s_words);
-        if (!cli_docker(&s_words, say, said))
+        if (!cli_docker(&s_words, sink, err_msg))
         {
             return 0;
         }
@@ -290,8 +291,8 @@ static int cli_commands_run(const CliPlan *plan, const char *container, const Cl
 }
 
 // the compose project's service brought up: its containers made or started, the description's commands run in it as
-// they were made or started; the address a window opens the tree at into `address`: 1, or 0 with why said
-static int cli_compose_up(const CliPlan *plan, QuerySink say, char *address, CliLine *said)
+// they were made or started; the address a window opens the tree at into `address`: 1, or 0 with why given
+static int cli_compose_up(const CliPlan *plan, QuerySink sink, char *address, VerbaLinea *err_msg)
 {
     static CliWords s_words;
     static char s_output[CLI_DOCKER_OUTPUT];
@@ -318,7 +319,7 @@ static int cli_compose_up(const CliPlan *plan, QuerySink say, char *address, Cli
     {
         cli_words_put(&s_words, service);
     }
-    if (!cli_docker(&s_words, say, said))
+    if (!cli_docker(&s_words, sink, err_msg))
     {
         return 0;
     }
@@ -329,12 +330,12 @@ static int cli_compose_up(const CliPlan *plan, QuerySink say, char *address, Cli
     cli_words_put(&s_words, service);
     if (!cli_docker_read(&s_words, s_output) || (s_output[0] == '\0'))
     {
-        cli_line_text(said, "docker compose started no ");
-        cli_line_text(said, service);
+        mmgr_line_put(err_msg, "docker compose started no ");
+        mmgr_line_put(err_msg, service);
         return 0;
     }
     // the first line of what docker wrote, its end left off
-    char container[CLI_PATH_LONGEST];
+    char container[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
     while ((s_output[length] != '\0') && (s_output[length] != '\n') && (length + 1ull < sizeof(container)))
     {
@@ -343,8 +344,8 @@ static int cli_compose_up(const CliPlan *plan, QuerySink say, char *address, Cli
     }
     length -= ((length != 0ull) && (container[length - 1u] == '\r')) ? 1ull : 0ull;
     container[length] = '\0';
-    const int run = made ? cli_commands_run(plan, container, plan->on_start, plan->on_starts, say, said)
-                         : cli_commands_run(plan, container, plan->on_create, plan->on_creates, say, said);
+    const int run = made ? cli_commands_run(plan, container, plan->on_start, plan->on_starts, sink, err_msg)
+                         : cli_commands_run(plan, container, plan->on_create, plan->on_creates, sink, err_msg);
     if (!run)
     {
         return 0;
@@ -353,13 +354,13 @@ static int cli_compose_up(const CliPlan *plan, QuerySink say, char *address, Cli
     return 1;
 }
 
-static int cli_up_held(const CliPlan *plan, QuerySink say, char *address, CliLine *said)
+static int cli_up_locked(const CliPlan *plan, QuerySink sink, char *address, VerbaLinea *err_msg)
 {
     static CliWords s_words;
     static char s_output[CLI_DOCKER_OUTPUT];
     if (plan->source == CLI_SOURCE_COMPOSE)
     {
-        return cli_compose_up(plan, say, address, said);
+        return cli_compose_up(plan, sink, address, err_msg);
     }
     const char *const name = cli_plan_text(plan, plan->name);
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
@@ -374,8 +375,8 @@ static int cli_up_held(const CliPlan *plan, QuerySink say, char *address, CliLin
             memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
             cli_words_put(&s_words, "start");
             cli_words_put(&s_words, name);
-            if (!cli_docker(&s_words, say, said) ||
-                !cli_commands_run(plan, name, plan->on_start, plan->on_starts, say, said))
+            if (!cli_docker(&s_words, sink, err_msg) ||
+                !cli_commands_run(plan, name, plan->on_start, plan->on_starts, sink, err_msg))
             {
                 return 0;
             }
@@ -383,7 +384,7 @@ static int cli_up_held(const CliPlan *plan, QuerySink say, char *address, CliLin
         cli_plan_address(plan, name, address);
         return 1;
     }
-    char image[CLI_PATH_LONGEST];
+    char image[CLI_PATH_MAX_LEN];
     if (plan->source == CLI_SOURCE_IMAGE)
     {
         memor.cpy(&(MemoriaCfg){
@@ -397,19 +398,19 @@ static int cli_up_held(const CliPlan *plan, QuerySink say, char *address, CliLin
         memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
         if (!cli_plan_build_words(plan, &s_words, image))
         {
-            cli_line_text(said, "the description names no image");
+            mmgr_line_put(err_msg, "the description names no image");
             return 0;
         }
-        if (!cli_docker(&s_words, say, said))
+        if (!cli_docker(&s_words, sink, err_msg))
         {
             return 0;
         }
     }
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
     cli_plan_run_words(plan, image, &s_words);
-    if (!cli_docker(&s_words, say, said) ||
-        !cli_commands_run(plan, name, plan->on_create, plan->on_creates, say, said) ||
-        !cli_commands_run(plan, name, plan->on_start, plan->on_starts, say, said))
+    if (!cli_docker(&s_words, sink, err_msg) ||
+        !cli_commands_run(plan, name, plan->on_create, plan->on_creates, sink, err_msg) ||
+        !cli_commands_run(plan, name, plan->on_start, plan->on_starts, sink, err_msg))
     {
         return 0;
     }
@@ -417,10 +418,10 @@ static int cli_up_held(const CliPlan *plan, QuerySink say, char *address, CliLin
     return 1;
 }
 
-int cli_devcontainer_up(const CliPlan *plan, QuerySink say, char *address, CliLine *said)
+int cli_devcontainer_up(const CliPlan *plan, QuerySink sink, char *address, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
-    const int done = cli_up_held(plan, say, address, said);
+    const int done = cli_up_locked(plan, sink, address, err_msg);
     cli_lock_give(&s_lock);
     return done;
 }

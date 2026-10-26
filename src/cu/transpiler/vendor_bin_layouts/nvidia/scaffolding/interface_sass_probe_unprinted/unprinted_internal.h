@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// unprinted_internal.h: what the modules of the unprinted probe share: its includes, the bounds of a container, its code, text and output, the fixed operands and the questions, the machine, runner, folder, kernel, pattern and container held, and the functions one module reads from another
+// unprinted_internal.h: what the modules of the unprinted probe share: its includes, the bounds of a container, its
+// code, text and output, the fixed operands and the questions, the machine, runner, folder, kernel, pattern and
+// container stored, and the functions one module reads from another
 #ifndef UNPRINTED_INTERNAL_H
 #define UNPRINTED_INTERNAL_H
 
@@ -29,7 +31,7 @@
 // is ended here and read as not run
 #define UNPRINTED_LIMIT 10000000ull
 
-// the widest field turned through every value, and the most bits a question holds fixed beside it
+// the widest field turned through every value, and the most bits a question fixes beside it
 #define UNPRINTED_FIELD_MOST 6u
 
 #define UNPRINTED_FIXED 2u
@@ -39,14 +41,14 @@
 #define UNPRINTED_COPIES 4u
 
 // the registers a thread of every cubin written declares, the most a cubin declares. A kernel refuses a register
-// number past the count it declares as an illegal instruction, and the pattern declares 10: a register field is asked
-// under a count that holds every number
+// number past the count it declares as an illegal instruction, and the pattern declares 10: a register field is probed
+// under a count that covers every number
 #define UNPRINTED_REGISTERS 255u
 
 // the bits of the high word that are the operation's, 64 to 104, and not the scheduler's
 #define UNPRINTED_OPERATION_HIGH 0x1ffffffffffull
 
-// bits a question holds at one value while the field is turned
+// bits a question fixes at one value while the field is turned
 typedef struct
 {
     unsigned int first;
@@ -55,7 +57,7 @@ typedef struct
 } UnprintedFixed;
 
 // one question: the lines put in place of the kernel's IADD3, the one among them whose bits are turned, the field
-// turned, the bits held beside it, and the word the printed text says the part answers
+// turned, the bits fixed beside it, and the word the printed text specifies the part answers
 typedef struct
 {
     const char *lines;
@@ -91,21 +93,38 @@ typedef struct
     "ISETP.NE.U32.AND P3, PT, R0, RZ, PT\nISETP.NE.U32.AND P4, PT, R0, RZ, PT\nISETP.NE.U32.AND P5, PT, R0, RZ, PT\n"  \
     "ISETP.NE.U32.AND P6, PT, R0, RZ, PT\n"
 
-// The questions of the machine file's open item. The case is 0xb and 0x7, and R2 holds the case's address, R4 the
+// The questions of the machine file's open item. The case is 0xb and 0x7, and R2 contains the case's address, R4 the
 // answer's, UR4 the memory descriptor the kernel loaded from c[0x0][0x118].
 static const UnprintedQuestion s_questions[] = {
     // IMAD's carry-in predicate, which IMAD reads as IMAD.X and prints nowhere else
-    {UNPRINTED_PREDICATES "IMAD.IADD R7, R0, 0x1, R7", "IMAD.IADD R7, R0, 0x1, R7", 87u, 4u, {{0u, 0u, 0ull}},
+    {UNPRINTED_PREDICATES "IMAD.IADD R7, R0, 0x1, R7",
+     "IMAD.IADD R7, R0, 0x1, R7",
+     87u,
+     4u,
+     {{0u, 0u, 0ull}},
      0x00000012u},
-    {UNPRINTED_PREDICATES "IMAD.IADD R7, R0, 0x1, -R7", "IMAD.IADD R7, R0, 0x1, -R7", 87u, 4u, {{0u, 0u, 0ull}},
+    {UNPRINTED_PREDICATES "IMAD.IADD R7, R0, 0x1, -R7",
+     "IMAD.IADD R7, R0, 0x1, -R7",
+     87u,
+     4u,
+     {{0u, 0u, 0ull}},
      0x00000004u},
-    // ISETP's predicate beside its printed ones, which ISETP reads as .EX, asked where the comparison holds and where
+    // ISETP's predicate beside its printed ones, which ISETP reads as .EX, probed where the comparison is true and
+    // where
     // it does not
     {UNPRINTED_PREDICATES "ISETP.GE.U32.AND P0, PT, R0, R7, PT\nSEL R7, R0, RZ, P0",
-     "ISETP.GE.U32.AND P0, PT, R0, R7, PT", 68u, 4u, {{0u, 0u, 0ull}}, 0x0000000bu},
+     "ISETP.GE.U32.AND P0, PT, R0, R7, PT",
+     68u,
+     4u,
+     {{0u, 0u, 0ull}},
+     0x0000000bu},
     {UNPRINTED_PREDICATES "ISETP.GE.U32.AND P0, PT, R7, R0, PT\nSEL R7, R0, RZ, P0",
-     "ISETP.GE.U32.AND P0, PT, R7, R0, PT", 68u, 4u, {{0u, 0u, 0ull}}, 0x00000000u},
-    // the load's predicate at 64 to 67, its number inverted at 64 to 66 and bit 67 negating it, asked with every
+     "ISETP.GE.U32.AND P0, PT, R7, R0, PT",
+     68u,
+     4u,
+     {{0u, 0u, 0ull}},
+     0x00000000u},
+    // the load's predicate at 64 to 67, its number inverted at 64 to 66 and bit 67 negating it, probed with every
     // predicate false and then with every predicate true
     {UNPRINTED_FALSE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ull}}, 0x0000000bu},
     {UNPRINTED_TRUE UNPRINTED_LOAD, UNPRINTED_LOAD, 64u, 4u, {{0u, 0u, 0ull}}, 0x0000000bu},
@@ -121,22 +140,42 @@ static const UnprintedQuestion s_questions[] = {
     // the two bits past the load's descriptor register
     {UNPRINTED_LOAD, UNPRINTED_LOAD, 38u, 2u, {{0u, 0u, 0ull}}, 0x0000000bu},
     // NVIDIA's 64-bit atomic add, which the resident runs, at every value of bits 64 to 71, where its compare and swap
-    // holds the second register it reads and its descriptor register sits: R0 and R1 added to the answer's third and
+    // encodes the second register it reads and its descriptor register sits: R0 and R1 added to the answer's third and
     // fourth words, the word it found stored as the second, and the third read back
     {UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ, UNPRINTED_ATOMIC, 64u, 8u, {{0u, 0u, 0ull}}, 0x0000000bu},
-    // the same with 64 to 71 held at 100, R100 and R101 given known words first: 0 and 0, 4 and 0, 0 and 1. Where the
+    // the same with 64 to 71 fixed at 100, R100 and R101 given known words first: 0 and 0, 4 and 0, 0 and 1. Where the
     // pair were read into the address, 4 would move the add to the fourth word and 1 in the high word past every
-    // word the question holds
+    // word the question allocates
     {"IMAD.MOV.U32 R100, RZ, RZ, 0x0\nIMAD.MOV.U32 R101, RZ, RZ, 0x0\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
-     UNPRINTED_ATOMIC, 64u, 0u, {{64u, 8u, 100ull}}, 0x0000000bu},
-    {"IMAD.MOV.U32 R100, RZ, RZ, 0x4\nIMAD.MOV.U32 R101, RZ, RZ, 0x0\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
-     UNPRINTED_ATOMIC, 64u, 0u, {{64u, 8u, 100ull}}, 0x0000000bu},
-    {"IMAD.MOV.U32 R100, RZ, RZ, 0x0\nIMAD.MOV.U32 R101, RZ, RZ, 0x1\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
-     UNPRINTED_ATOMIC, 64u, 0u, {{64u, 8u, 100ull}}, 0x0000000bu},
-    // the store's descriptor register with bit 101 clear, and the two bits past it, read back through a load
-    {UNPRINTED_STORE "\nLDG.E.CONSTANT R7, term[UR4][R4.64+0x8]", UNPRINTED_STORE, 64u, 6u, {{101u, 1u, 0ull}},
+     UNPRINTED_ATOMIC,
+     64u,
+     0u,
+     {{64u, 8u, 100ull}},
      0x0000000bu},
-    {UNPRINTED_STORE "\nLDG.E.CONSTANT R7, term[UR4][R4.64+0x8]", UNPRINTED_STORE, 70u, 2u, {{0u, 0u, 0ull}},
+    {"IMAD.MOV.U32 R100, RZ, RZ, 0x4\nIMAD.MOV.U32 R101, RZ, RZ, 0x0\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
+     UNPRINTED_ATOMIC,
+     64u,
+     0u,
+     {{64u, 8u, 100ull}},
+     0x0000000bu},
+    {"IMAD.MOV.U32 R100, RZ, RZ, 0x0\nIMAD.MOV.U32 R101, RZ, RZ, 0x1\n" UNPRINTED_ATOMIC UNPRINTED_ATOMIC_READ,
+     UNPRINTED_ATOMIC,
+     64u,
+     0u,
+     {{64u, 8u, 100ull}},
+     0x0000000bu},
+    // the store's descriptor register with bit 101 clear, and the two bits past it, read back through a load
+    {UNPRINTED_STORE "\nLDG.E.CONSTANT R7, term[UR4][R4.64+0x8]",
+     UNPRINTED_STORE,
+     64u,
+     6u,
+     {{101u, 1u, 0ull}},
+     0x0000000bu},
+    {UNPRINTED_STORE "\nLDG.E.CONSTANT R7, term[UR4][R4.64+0x8]",
+     UNPRINTED_STORE,
+     70u,
+     2u,
+     {{0u, 0u, 0ull}},
      0x0000000bu},
 };
 
@@ -149,7 +188,7 @@ extern unsigned char s_pattern[UNPRINTED_CUBIN_BYTES];
 extern unsigned char s_code[UNPRINTED_CODE_BYTES];
 extern unsigned char s_turned[UNPRINTED_CODE_BYTES];
 extern char s_kernel_text[UNPRINTED_TEXT_BYTES];
-extern char s_asking[UNPRINTED_TEXT_BYTES];
+extern char s_query_text[UNPRINTED_TEXT_BYTES];
 
 unsigned long long unprinted_file_read(const char *path, unsigned char *bytes, unsigned long long room);
 unsigned long long unprinted_bits_read(unsigned long long low, unsigned long long high, unsigned int first, unsigned int bits);
@@ -159,7 +198,7 @@ int unprinted_kernel(const char *kernel_text, char *kernel, size_t room);
 unsigned int unprinted_find(const unsigned char *code, unsigned int count, unsigned long long low, unsigned long long high, unsigned int *found, unsigned int room);
 void unprinted_place_write(unsigned char *code, unsigned int place, const UnprintedFixed *fixed, unsigned int fixed_count, unsigned int first, unsigned int bits, unsigned long long value);
 int unprinted_run(const unsigned char *code, unsigned long long code_size, unsigned int *answered, char *ended, size_t room);
-int unprinted_ask(const UnprintedQuestion *question, unsigned int number, FILE *record);
+int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE *record);
 void unprinted_forms(FILE *record);
 
 #endif

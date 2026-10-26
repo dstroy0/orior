@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// Which forms a real lane asks sass.krs for, and which of those the ruleset leaves empty.
+// Which forms a real lane requests from sass.krs, and which of those the ruleset leaves empty.
 //
 //     sass_lane_needs
 //
 // sass.krs leaves 33 of its forms empty, and filling all 33 is not the work: the work is the lane emitted to SASS.
 // So the record programs the host oracle runs are laid out and decided for the SASS generator, and every form the
-// core decides is counted. A form the lane never decides is not a blocker whatever the ruleset says about it, and a
-// form it decides that the ruleset leaves empty stands between here and a lane. No device, no
-// toolchain, and nothing is written: decide() only says which forms a lane is made of.
+// core decides is counted. A form the lane never decides is not a blocker whatever the ruleset specifies about it, and
+// a form it decides that the ruleset leaves empty stands between here and a lane. No device, no toolchain, and nothing
+// is written: decide() only reports which forms a lane is made of.
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
 
 // the cubin writer is C and its headers carry no guard of their own: the linkage is named here
@@ -30,7 +30,8 @@ extern "C"
 #include <vector>
 
 // ENGINE_IMAGE_BASE reads the ELF header the linker marks with __ehdr_start (engine_config_platform.h), and this
-// tool is linked as a PE, where there is none. Nothing here asks for the image base: it is named so the link holds
+// tool is linked as a PE, where there is none. Nothing here requests for the image base: it is named so the link
+// resolves
 #if defined(__GNUC__) && !defined(__ELF__)
 extern "C" const char __ehdr_start = 0;
 #endif
@@ -46,7 +47,7 @@ static const struct
 
 // 1 where the ruleset gives the form at `place` as an error or leaves it open, and that blocks a lane: a nop writes
 // nothing and the lane goes on without it, and an err or an open form refuses (P10). A nop and an err read the same
-// from the outside, both writing an empty text, and the ruleset says which it means
+// from the outside, both writing an empty text, and the ruleset specifies which it means
 static int lane_form_errors(const Ruleset *rules, unsigned int place)
 {
     return (rules->form_given[place] == (unsigned char)RULESET_CORE_GIVEN_ERR) || (rules->form_given[place] == 0u);
@@ -58,7 +59,7 @@ static int s_machine_read;
 
 // Each line of `lane` assembled, and the first that the assembler refuses printed. A lane the generator writes is
 // not a lane the part runs: a form the ruleset leaves empty writes nothing and breaks nothing. The text comes
-// back whole with its holes in it, and only the assembler says whether the remainder is machine code
+// back whole with its holes in it, and only the assembler determines whether the remainder is machine code
 static unsigned int lane_assembles(const std::string &lane, unsigned int *refused, std::string *first)
 {
     static unsigned char code[64];
@@ -91,8 +92,8 @@ static unsigned int lane_assembles(const std::string &lane, unsigned int *refuse
     return lines;
 }
 
-// every form `program` decides, counted into `asked`
-static void lane_decide(const HostProgram *program, int reuse, unsigned int *asked, unsigned int *laid)
+// every form `program` decides, counted into `queried`
+static void lane_decide(const HostProgram *program, int reuse, unsigned int *queried, unsigned int *laid)
 {
     HostLoaded loaded;
     if (host_load(program, reuse, &loaded) == 0)
@@ -114,10 +115,10 @@ static void lane_decide(const HostProgram *program, int reuse, unsigned int *ask
         // the header stands in the items as a form of all ones, and is the listing's opening, not a form
         if (item.form < OPCODE_COUNT)
         {
-            asked[item.form] += 1u;
+            queried[item.form] += 1u;
         }
     }
-    // and the lane as the generator writes it, to say whether an empty form stops it or is passed over in silence
+    // and the lane as the generator writes it, to determine whether an empty form stops it or is passed over in silence
     const TargetInfo target = {0ull, 8, 6, 12, 0, ""};
     unsigned int lane_places = 0u;
     unsigned int live = 0u;
@@ -157,7 +158,7 @@ int main(void)
     }
     s_machine_read = sass_machine_read(&s_machine, "src/cu/transpiler/lstar/protocol/table/sm_86.khw");
     printf("machine %s: %u forms\n", s_machine.part, s_machine.forms);
-    static unsigned int asked[OPCODE_COUNT];
+    static unsigned int queried[OPCODE_COUNT];
     unsigned int laid = 0u;
     HostProgram program;
     HostProgram bare;
@@ -165,61 +166,61 @@ int main(void)
     for (int reuse = 0; reuse <= 1; reuse += 1)
     {
         host_arithmetic(&program);
-        lane_decide(&program, reuse, asked, &laid);
+        lane_decide(&program, reuse, queried, &laid);
         host_division(&program);
-        lane_decide(&program, reuse, asked, &laid);
+        lane_decide(&program, reuse, queried, &laid);
         host_bitwise(&program);
-        lane_decide(&program, reuse, asked, &laid);
+        lane_decide(&program, reuse, queried, &laid);
         host_members(&program);
-        lane_decide(&program, reuse, asked, &laid);
+        lane_decide(&program, reuse, queried, &laid);
         host_affine_limit(&program);
-        lane_decide(&program, reuse, asked, &laid);
+        lane_decide(&program, reuse, queried, &laid);
         host_bare_divisor(&bare);
-        lane_decide(&bare, reuse, asked, &laid);
+        lane_decide(&bare, reuse, queried, &laid);
         host_inexact(&program, &bare);
-        lane_decide(&program, reuse, asked, &laid);
+        lane_decide(&program, reuse, queried, &laid);
         // the two tables the program reads through, sized as the host oracle sizes them
         unsigned int *const wide = (unsigned int *)malloc(512u * sizeof(unsigned int));
         unsigned int *const narrow = (unsigned int *)malloc(4096u * sizeof(unsigned int));
         host_tables(&program, wide, narrow);
-        lane_decide(&program, reuse, asked, &laid);
+        lane_decide(&program, reuse, queried, &laid);
         free(wide);
         free(narrow);
     }
     unsigned int decided = 0u;
     unsigned int blocking = 0u;
     printf("%u layouts decided for SASS\n", laid);
-    // A form the code generator leaves out is never asked of the ruleset, whatever the lane's items hold. SASS
+    // A form the code generator leaves out is never requested from the ruleset, whatever the lane's items contain. SASS
     // answers 0 to program_unit_written: its resident reaches it already built in the part's own compiler's cubin,
     // and the lane is written into that. Counting such a form as blocking reads the lane's item list where the
     // question is what program() puts to the ruleset
     const int writes_unit = sass_target().program_unit_written();
-    printf("forms the lane asks for that sass.krs gives as an error, which is what refuses it:\n");
+    printf("forms the lane requests for that sass.krs gives as an error, which is what refuses it:\n");
     for (unsigned int place = 0u; place < OPCODE_COUNT; place += 1u)
     {
-        const int asked_of_ruleset = (place != (unsigned int)OPCODE_PROGRAM_UNIT) || (writes_unit != 0);
-        decided += (asked[place] != 0u) ? 1u : 0u;
-        if ((asked[place] != 0u) && asked_of_ruleset && (lane_form_errors(rules, place) != 0))
+        const int queried_of_ruleset = (place != (unsigned int)OPCODE_PROGRAM_UNIT) || (writes_unit != 0);
+        decided += (queried[place] != 0u) ? 1u : 0u;
+        if ((queried[place] != 0u) && queried_of_ruleset && (lane_form_errors(rules, place) != 0))
         {
             blocking += 1u;
-            printf("  %-24s asked %u times\n", s_forms[place].text, asked[place]);
+            printf("  %-24s requested %u times\n", s_forms[place].text, queried[place]);
         }
     }
     if (writes_unit == 0)
     {
-        printf("  (program_unit is asked %u times by the lane's items and never of the ruleset: SASS takes its\n"
+        printf("  (program_unit is requested %u times by the lane's items and never of the ruleset: SASS takes its\n"
                "   resident from the part's own compiler and writes the lane into that cubin)\n",
-               asked[OPCODE_PROGRAM_UNIT]);
+               queried[OPCODE_PROGRAM_UNIT]);
     }
-    printf("forms sass.krs gives as an error that no lane here asks for:\n");
+    printf("forms sass.krs gives as an error that no lane here requests for:\n");
     for (unsigned int place = 0u; place < OPCODE_COUNT; place += 1u)
     {
-        if ((asked[place] == 0u) && (lane_form_errors(rules, place) != 0))
+        if ((queried[place] == 0u) && (lane_form_errors(rules, place) != 0))
         {
-            printf("  %-24s never asked\n", s_forms[place].text);
+            printf("  %-24s never requested\n", s_forms[place].text);
         }
     }
-    printf("%u of the schema's %u forms are asked for; %u of those sass.krs gives as an error\n", decided, OPCODE_COUNT,
-           blocking);
+    printf("%u of the schema's %u forms are requested for; %u of those sass.krs gives as an error\n", decided,
+           OPCODE_COUNT, blocking);
     return 0;
 }

@@ -18,7 +18,7 @@ int schedule_program(const char *set, char *const *names, unsigned int count)
     size_t total_bytes = 0u;
     if (cudaMemGetInfo(&free_bytes, &total_bytes) != cudaSuccess)
     {
-        fprintf(stderr, "  the tower did not answer how much it holds\n");
+        fprintf(stderr, "  the tower did not answer how much it allocates\n");
         return 0;
     }
     const unsigned long long cap = (unsigned long long)free_bytes / 3ull * 2ull;

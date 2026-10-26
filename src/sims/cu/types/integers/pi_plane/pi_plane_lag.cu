@@ -58,7 +58,7 @@ int plane_lag_device(SimResults *results, const unsigned char *bits, unsigned in
          sim_status_check(results, cudaMemset(device_longest, 0, (size_t)count * sizeof(unsigned int)), "lag clear");
     if (ok)
     {
-        // the block count is below 2^8 for the bits this sim holds
+        // the block count is below 2^8 for the bits this sim stores
         const unsigned int blocks = (unsigned int)sim_launch_blocks(count - 1u, PLANE_THREADS);
         plane_lag_kernel<<<blocks, PLANE_THREADS, count>>>(device_bits, count, device_longest);
         ok = sim_status_check(results, cudaGetLastError(), "lag kernel launch");

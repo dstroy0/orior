@@ -7,18 +7,16 @@
 #
 #   Usage:  python utils/maint/prose/test_docs_check_tiers.py
 #
-# THE FIRST TEST IN THIS FILE IS THE GOVERNING ONE. The two SKILL.md files ARE the standard. A gate
-# that reports either of them on vocabulary is wrong by construction, whatever it found. That
-# one assertion catches the whole over-reach class without anybody enumerating it, and it is why
-# thirteen bare word bans came out of the table instead of thirteen exemptions going in.
+# THE FIRST TEST IN THIS FILE IS THE GOVERNING ONE. The two writing standards ARE the standard. A
+# gate that reports either of them on vocabulary is wrong by construction, whatever it found. That
+# one assertion catches the whole over-reach class without anybody enumerating it.
 #
 # Read the note above docs_check.AUTHORITY before changing anything here. The tier a pattern is in
 # is decided by the sentence in the standard and never by the shape of the regex.
 #
 # Every count asserted here is derived when the test runs. A constant is correct on the day it is
-# written and wrong on the day the tree moves, and hand-carried numbers in this tree have been wrong
-# repeatedly. Where a fixture is pinned to a revision, the revision is printed with whether it is
-# reachable from anywhere but this machine.
+# written and wrong on the day the tree moves. Where a fixture is pinned to a revision, the revision
+# is printed with whether it is reachable from anywhere but this machine.
 
 import os
 import re
@@ -31,13 +29,12 @@ sys.path.insert(0, HERE)
 
 import docs_check
 
-# Where the two writing standards are installed, named by the environment and not by a path built
-# here. They live outside this repository and every test that reads them skips when they are
-# absent, so a clone with no copy of them still runs the suite.
-STANDARDS_DIR = os.environ.get("PROSE_STANDARDS_DIR", "")
+# The two writing standards' files, each named by the environment and not by a path built here.
+# They live outside this repository and every test that reads them skips when they are absent, so a
+# clone with no copy of them still runs the suite.
 STANDARDS = {
-    "code-documentation": os.path.join(STANDARDS_DIR, "code-documentation", "SKILL.md"),
-    "code-comments": os.path.join(STANDARDS_DIR, "code-comments", "SKILL.md"),
+    "code-documentation": os.environ.get("PROSE_STANDARD_DOCUMENTATION", ""),
+    "code-comments": os.environ.get("PROSE_STANDARD_COMMENTS", ""),
 }
 
 
@@ -62,7 +59,7 @@ def findings(path):
 
 
 def describe_ref(tree):
-    """The revision a measurement was taken at, and whether it is reachable anywhere but here."""
+    """The revision a measurement is taken at, and whether it is reachable anywhere but here."""
     try:
         head = (
             subprocess.check_output(
@@ -101,24 +98,21 @@ class StandardsPassTheCheckerTheyAuthorize(unittest.TestCase):
 
     TIER A is a construction each document bans in a sentence. A TIER A hit on one of these files is
     the document using a construction it bans, which is a real finding about real prose and is the
-    author's to decide. Eleven stand on code-documentation/SKILL.md and eight on
-    code-comments/SKILL.md as this is written, mostly `rather`. They are reported, not exempted, and
+    author's to decide. They are reported, not exempted, and
     test_tier_a_findings_are_reported_and_named holds the line against anyone quieting them to make
     this class green.
 
-    THE EM DASHES ARE NOT THIS TEST'S TO SETTLE. Both files carry em dashes, 24 and 19, and those
-    are STRUCTURAL findings from em_dashes() that do fail a build. code-documentation:109 bans the
-    em dash by name and hard. The checker is right and the documents violate their own rule 43
-    times. Fixing them is a change to Douglas's standards and is his call. The count is asserted
-    below only so that a silent change to it is visible.
+    THE EM DASHES ARE NOT THIS TEST'S TO SETTLE. Both files carry em dashes, and those are
+    STRUCTURAL findings from em_dashes() that do fail a build. code-documentation:109 bans the em
+    dash by name and hard. The checker is right and the documents violate their own rule. Fixing
+    them is a change to Douglas's standards and is his call. The count is asserted below only so
+    that a silent change to it is visible.
     """
 
     def setUp(self):
-        if not STANDARDS_DIR:
-            self.skipTest("set PROSE_STANDARDS_DIR to the directory holding the standards")
         for path in STANDARDS.values():
-            if not os.path.isfile(path):
-                self.skipTest("the standards are not installed at %s" % STANDARDS_DIR)
+            if not path or not os.path.isfile(path):
+                self.skipTest("set PROSE_STANDARD_DOCUMENTATION and PROSE_STANDARD_COMMENTS to the two standards' files")
 
     def test_no_tier_b_vocabulary_finding_on_either_standard(self):
         for name, path in STANDARDS.items():
@@ -165,7 +159,7 @@ class StandardsPassTheCheckerTheyAuthorize(unittest.TestCase):
                     "%s:%d is TIER A and names no sentence: %s" % (name, at, what),
                 )
         print(
-            "\n  standards after the tier split: %s"
+            "\n  standards: %s"
             % ", ".join(
                 "%s %d TIER A" % (name, len(findings(path)))
                 for name, path in STANDARDS.items()
@@ -174,7 +168,7 @@ class StandardsPassTheCheckerTheyAuthorize(unittest.TestCase):
 
     def test_em_dashes_are_the_standards_own_rule_and_are_not_quieted(self):
         # Recorded, not argued here. em_dashes() is a different rule in a different stage and
-        # nothing in the tier work touches it. If this number moves, either somebody edited the
+        # no tier touches it. If this number moves, either somebody edited the
         # standards or somebody quieted the rule, and the two are not the same thing.
         counted = {
             name: len(docs_check.em_dashes(docs_check.prose_only(path, read(path))))
@@ -225,8 +219,7 @@ class TierIsDecidedByTheSentence(unittest.TestCase):
             self.assertNotIn(pattern, docs_check.AUTHORITY)
 
     def test_the_table_holds_no_pattern_twice(self):
-        # One rule in two places is two rules that can be edited apart. \band nothing else\b was
-        # written twice and only the dedupe in banned_hits kept it from doubling every finding.
+        # One rule in two places is two rules that can be edited apart.
         seen = [
             one for one in set(docs_check.BANNED) if docs_check.BANNED.count(one) > 1
         ]
@@ -235,11 +228,6 @@ class TierIsDecidedByTheSentence(unittest.TestCase):
 
 class EveryRuleAgainstTheSentenceThatStatesIt(unittest.TestCase):
     """Each phrase the standards ban BY NAME, in a carrier sentence, run through the checker.
-
-    This is the test that found the transcription failures, and it found four that nobody had
-    pointed at: `make clear` missing from a verb list both files define, both of section 146's
-    own X-not-Y examples falling outside all three X-not-Y patterns because each wanted a copula and
-    an article, and the third token code-comments:200 bans outright demoted to a construction ban.
 
     A transcription failure is never isolated to the instances somebody noticed. This is a table
     and not three assertions.
@@ -332,9 +320,8 @@ class EveryRuleAgainstTheSentenceThatStatesIt(unittest.TestCase):
         ("That is what survives a reset.", "what survives", "code-documentation:120"),
         ("The counts add up to the header length.", "add up", "code-documentation:110"),
         ("The pool is drained, so a caller sees nothing.", "so a", "code-comments:200"),
-        # The inflection. Unmatched until 2026-09-16 because the pattern implemented the token and
-        # code-documentation:112 describes the clause. It fails against `\bso a\b` and passes
-        # against `\bso an?\b`, the only reason this row is worth a line.
+        # The inflection. It fails against `\bso a\b` and passes against `\bso an?\b`, the only
+        # reason this row is worth a line.
         ("The pool is drained, so an entry is dropped.", "so an", "code-comments:200"),
         ("The bound is read here rather than at the call.", "rather", "code-comments:200"),
         ("The spelling is wrong in three places.", "spelling", "code-comments:200"),
@@ -429,9 +416,8 @@ class EveryRuleAgainstTheSentenceThatStatesIt(unittest.TestCase):
 class TierBIsBoundedToConstructions(unittest.TestCase):
     """Section 143: a word that reads as a tic in one construction is bounded to that construction.
 
-    Thirteen bare word bans are the reason this class exists. Every one of them fires on the
-    standards' own prose, and eleven of the thirteen are words one or both standards use as
-    ordinary technical English in the documents that authorize this tool.
+    A bare ban of one of these words fires on the standards' own prose, and one or both standards
+    use each of them as ordinary technical English in the documents that authorize this tool.
     """
 
     # The sentence in the standard that each withdrawn word appears in. Quoted and not cited,
@@ -446,7 +432,6 @@ class TierBIsBoundedToConstructions(unittest.TestCase):
             "breaks the line the prose is walking and buys nothing the reader asked for",
         ),
         ("construction", "are essay construction, not comment construction"),
-        ("slots", "the slots are already the explanation"),
         ("earned", "each one earned its place by measurement"),
     )
 
@@ -463,8 +448,8 @@ class TierBIsBoundedToConstructions(unittest.TestCase):
             )
 
     def test_the_construction_is_still_caught(self):
-        # What the bare bans were reaching for, bounded. The is-what-VERB family is the construction
-        # both standards name, and the withdrawn verbs went into it.
+        # The is-what-VERB family is the construction both standards name, and it holds the
+        # withdrawn verbs.
         for sentence in (
             "The manifest is what carries the digest.",
             "The column is what holds the year.",
@@ -491,13 +476,12 @@ class TierBIsBoundedToConstructions(unittest.TestCase):
                 "a correct technical verb was reported in %r: %s" % (sentence, hits),
             )
 
-    def test_withdrawn_records_every_word_that_came_out(self):
+    def test_withdrawn_holds_every_word_and_its_reason(self):
         # The table is the record. A later reader who meets only the absence puts the ban back.
         for word in (
             "carry",
             "hold",
             "read",
-            "slot",
             "cost",
             "buy",
             "pay",
@@ -515,14 +499,14 @@ class TierBIsBoundedToConstructions(unittest.TestCase):
                 "WITHDRAWN[%r] gives a rule and no reason" % word,
             )
 
-    def test_no_withdrawn_word_is_banned_bare_again(self):
-        # The shape that must not come back: a pattern that matches the word in any context at all.
+    def test_no_withdrawn_word_is_banned_bare(self):
+        # The shape that must not be added: a pattern that matches the word in any context at all.
         for word in docs_check.WITHDRAWN:
             for pattern in docs_check.BANNED:
                 if re.fullmatch(
                     r"\\b%s(?:\(\?:[^)]*\)|\[[^\]]*\])?\??\\b" % word, pattern
                 ):
-                    self.fail("%r is banned bare again by %r" % (word, pattern))
+                    self.fail("%r is banned bare by %r" % (word, pattern))
 
 
 class NamedSpansAreNamesAndNotUses(unittest.TestCase):
@@ -541,7 +525,7 @@ class NamedSpansAreNamesAndNotUses(unittest.TestCase):
         self.assertEqual(list(docs_check.banned_hits(said, quotations=True)), [])
 
     def test_a_short_quoted_form_is_not_a_use(self):
-        # Ten characters. PASSAGE needs sixteen, and these walked past it.
+        # Ten characters. PASSAGE needs sixteen.
         said = ['Avoid *"Certainly!"* and *"load-bearing"* in a file a person wrote.']
         self.assertEqual(list(docs_check.banned_hits(said, quotations=True)), [])
 
@@ -570,16 +554,9 @@ class NamedSpansAreNamesAndNotUses(unittest.TestCase):
 
 
 class TheReportSaysWhatItMeasured(unittest.TestCase):
-    """Reporting text. Each of these lines prevented a real confusion.
+    """Reporting text."""
 
-    The largest of them: the unmeasured branch printed "unused in 1.1M human words" on 3,981
-    of 4,296 prose lines in this tree's own default run. 1,108,054 is the UNGATED token count that
-    the table's own header says is the wrong denominator, the measured branch eleven lines away was
-    already dividing by 759,815, and the corpus behind both is 154 Salishan linguistics papers and
-    not a general sample of English. Wrong number, wrong corpus, on 92.7 percent of the output.
-    """
-
-    def test_the_1_1m_claim_is_gone_from_the_source(self):
+    def test_no_report_string_claims_1_1m_human_words(self):
         source = docs_check.source()
         emitted = re.findall(r'"[^"\n]*1\.1M[^"\n]*"', source)
         self.assertEqual(
@@ -597,8 +574,7 @@ class TheReportSaysWhatItMeasured(unittest.TestCase):
 
     def test_the_corpus_is_named_by_its_gated_english_size(self):
         # 759,815 is the papers after english_gate takes them down to English. 1,108,054 is the raw
-        # token count including Salishan orthography, glosses and IPA, and every rate divided by it
-        # was low by about 40 percent.
+        # token count including Salishan orthography, glosses and IPA.
         self.assertIn("759,815", docs_check.CORPUS)
         self.assertNotIn("1,108,054", docs_check.CORPUS)
         self.assertNotIn("1.1M", docs_check.CORPUS)
@@ -634,10 +610,21 @@ class ProseNeverFailsABuild(unittest.TestCase):
         )
         return done.returncode, done.stdout.decode("utf-8", "replace")
 
+    def test_a_prose_finding_exits_zero_and_fails_only_under_strict(self):
+        # A page with a TIER A finding and no structural one, written under the repository's build/.
+        where = os.path.join(HERE, "..", "..", "..", "build", "prose")
+        os.makedirs(where, exist_ok=True)
+        page = os.path.join(where, "prose_never_fails.md")
+        with open(page, "w", encoding="utf-8") as handle:
+            handle.write("The bound is read here rather than at the call.\n")
+        status, said = self.run_tool(page)
+        self.assertRegex(said, r"1 file\(s\) checked, 0 breaking, [1-9]\d* prose")
+        self.assertEqual(status, 0, said)
+        status, said = self.run_tool("--strict", page)
+        self.assertEqual(status, 1, said)
 
     def test_orior_itself_is_held_to_the_same_contract(self):
-        # Named because the brief for this tool has been read the other way before. orior owns
-        # the checker and gets no stricter a setting than any repository it is pointed at.
+        # orior owns the checker and gets no stricter a setting than any repository it is pointed at.
         tier_a = [one for one in docs_check.BANNED if docs_check.tier_of(one) == "A"]
         self.assertTrue(tier_a)
         source = docs_check.source()
@@ -649,12 +636,8 @@ class ProseNeverFailsABuild(unittest.TestCase):
 
 
 class TheStructuralStageIsUntouched(unittest.TestCase):
-    """A guard for the work beside this one. It cannot be quietly undone here.
-
-    The structural repair to dead_links() and everything commit 915b3a9 landed in the private-root
-    block are outside this pass's scope, and a rebuild of the token table drops them
-    without anyone deciding to.
-    """
+    """dead_links() and the private-root block are outside the token table, and a rebuild of the
+    token table leaves them as they are."""
 
     def test_dead_links_still_has_its_path_candidate_gate(self):
         self.assertTrue(hasattr(docs_check, "path_candidate"))
@@ -676,7 +659,7 @@ class TheStructuralStageIsUntouched(unittest.TestCase):
 
 
 class OneAuthor(unittest.TestCase):
-    """Prose credits no session, role or tool with the author's work. Douglas, 2026-09-26."""
+    """Prose credits no session, role or tool with the author's work."""
 
     def patterns_hit(self, sentence):
         return [pattern for _, pattern, _ in docs_check.banned_hits([sentence], quotations=True)]

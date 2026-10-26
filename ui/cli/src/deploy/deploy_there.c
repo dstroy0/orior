@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// deploy_there.c: the hashes of the files a place holds, and of those last sent there as the record kept in orior's
+// deploy_there.c: the hashes of the files a place has, and of those last sent there as the record stored in orior's
 // own folder has them
 #include "../command_line/cells.h"
 #include "../text/digest.h"
@@ -11,8 +11,8 @@
 
 #include <stdlib.h>
 
-// the files a place holds and their hashes, by path, sorted, and those last sent there and theirs, each list in the
-// place's pool at its count; the pool, which holds the texts the walk of a folder here finds and each pair as it is
+// the files a place has and their hashes, by path, sorted, and those last sent there and theirs, each list in the
+// place's pool at its count; the pool, which contains the texts the walk of a folder here finds and each pair as it is
 // found, the newest first; the listing a machine gave of them, in a cell of its size; and the record of the hashes last
 // sent there, read into a tree of its size. Each is given back as the next place is read and as the run ends
 CliDeployPair *g_cli_deploy_there;
@@ -20,7 +20,7 @@ unsigned int g_cli_deploy_there_count;
 CliDeployPair *g_cli_deploy_last;
 unsigned int g_cli_deploy_last_count;
 static CliDeployPool s_pool;
-static CliDeployHeld *s_held;
+static CliDeployPairNode *s_pairs;
 static char *s_listing;
 static CliJson s_record;
 static const char *s_walk_top;
@@ -32,22 +32,22 @@ void cli_deploy_there_given(void)
     g_cli_deploy_there_count = 0u;
     g_cli_deploy_last = NULL;
     g_cli_deploy_last_count = 0u;
-    s_held = NULL;
+    s_pairs = NULL;
     cli_deploy_pool_given(&s_pool);
-    cli_cell_given(s_listing);
+    g_cli_cells->persistent_buf_release(s_listing, NULL);
     s_listing = NULL;
     cli_json_given(&s_record);
 }
 
-// a file's path and hash held before the pairs held already
-static void there_held(const char *path, const char *hash)
+// a file's path and hash stored before the pairs stored already
+static void there_pair_put(const char *path, const char *hash)
 {
-    CliDeployHeld *const held = cli_deploy_placed(&s_pool, sizeof(*held));
-    if (held != NULL)
+    CliDeployPairNode *const node = cli_deploy_placed(&s_pool, sizeof(*node));
+    if (node != NULL)
     {
-        held->pair = (CliDeployPair){path, hash};
-        held->before = s_held;
-        s_held = held;
+        node->pair = (CliDeployPair){path, hash};
+        node->before = s_pairs;
+        s_pairs = node;
         g_cli_deploy_there_count += 1u;
     }
 }
@@ -98,37 +98,37 @@ const char *cli_deploy_ours(const char *path)
 }
 
 // the file of the record of the hashes last sent by the run's deployment to the place at `index` into `path`, which
-// holds CLI_PATH_LONGEST: 1, or 0 where orior's own folder is not known
+// is sized for CLI_PATH_MAX_LEN: 1, or 0 where orior's own folder is not known
 int cli_deploy_record_path(unsigned int index, char *path)
 {
     const CliDeployRun *const run = &g_cli_deploy;
-    char home[CLI_PATH_LONGEST];
-    char key[(3u * CLI_PATH_LONGEST) + 8u];
-    CliLine key_line = {key, sizeof(key), 0ull};
-    cli_line_text(&key_line, run->root);
+    char home[CLI_PATH_MAX_LEN];
+    char key[(3u * CLI_PATH_MAX_LEN) + 8u];
+    VerbaLinea key_line = {key, sizeof(key), 0ull};
+    mmgr_line_put(&key_line, run->root);
 #if defined(_WIN32)
     for (unsigned long long at = 0ull; at < key_line.at; at += 1u)
     {
         key[at] = (key[at] == '/') ? '\\' : key[at];
     }
 #endif
-    cli_line_character(&key_line, '\n');
-    cli_line_text(&key_line, run->deployment.name);
-    cli_line_character(&key_line, '\n');
+    mmgr_line_ch(&key_line, '\n');
+    mmgr_line_put(&key_line, run->deployment.name);
+    mmgr_line_ch(&key_line, '\n');
     cli_deploy_place_name(&run->place[index], &key_line);
-    if (!cli_home_folder(home) || !cli_line_fits(&key_line))
+    if (!cli_home_folder(home) || !mmgr_line_ok(&key_line))
     {
         return 0;
     }
     char digest[65];
-    CliLine digest_line = {digest, sizeof(digest), 0ull};
+    VerbaLinea digest_line = {digest, sizeof(digest), 0ull};
     cli_sha256_text(key, key_line.at, &digest_line);
-    CliLine line = {path, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, home);
-    cli_line_text(&line, "/deployed/");
-    cli_line_counted(&line, digest, 16u);
-    cli_line_text(&line, ".json");
-    return cli_line_closed(&line) != 0ull;
+    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, home);
+    mmgr_line_put(&line, "/deployed/");
+    mmgr_line_put_n(&line, digest, 16u);
+    mmgr_line_put(&line, ".json");
+    return mmgr_line_finish(&line) != 0ull;
 }
 
 // the record of the hashes last sent to the place at `index` read into g_cli_deploy_last, placed in the place's pool at
@@ -138,9 +138,9 @@ void cli_deploy_last_read(unsigned int index)
     g_cli_deploy_last = NULL;
     g_cli_deploy_last_count = 0u;
     cli_json_given(&s_record);
-    char path[CLI_PATH_LONGEST];
-    char why[CLI_SAID_LONGEST];
-    CliLine none = {why, sizeof(why), 0ull};
+    char path[CLI_PATH_MAX_LEN];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea none = {why, sizeof(why), 0ull};
     const unsigned int top =
         cli_deploy_record_path(index, path) ? cli_json_file_taken(&s_record, path, 0u, 0ull, &none) : CLI_JSON_NONE;
     if (!cli_json_is(&s_record, top, CFG_JSON_OBJECT))
@@ -177,44 +177,44 @@ void cli_deploy_last_read(unsigned int index)
 static void there_walk(void *context, const char *name, int is_folder)
 {
     const char *const folder = (const char *)context;
-    char path[CLI_PATH_LONGEST];
-    CliLine path_line = {path, sizeof(path), 0ull};
-    cli_line_text(&path_line, folder);
-    cli_line_text(&path_line, (folder[0] != '\0') ? "/" : "");
-    cli_line_text(&path_line, name);
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea path_line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&path_line, folder);
+    mmgr_line_put(&path_line, (folder[0] != '\0') ? "/" : "");
+    mmgr_line_put(&path_line, name);
     // the path ended before the whole path is written from it
-    const unsigned long long ended = cli_line_closed(&path_line);
-    char full[(2u * CLI_PATH_LONGEST) + 2u];
-    CliLine full_line = {full, sizeof(full), 0ull};
-    cli_line_text(&full_line, s_walk_top);
-    cli_line_character(&full_line, '/');
-    cli_line_text(&full_line, (ended != 0ull) ? path : "");
-    if ((ended == 0ull) || (cli_line_closed(&full_line) == 0ull))
+    const unsigned long long ended = mmgr_line_finish(&path_line);
+    char full[(2u * CLI_PATH_MAX_LEN) + 2u];
+    VerbaLinea full_line = {full, sizeof(full), 0ull};
+    mmgr_line_put(&full_line, s_walk_top);
+    mmgr_line_ch(&full_line, '/');
+    mmgr_line_put(&full_line, (ended != 0ull) ? path : "");
+    if ((ended == 0ull) || (mmgr_line_finish(&full_line) == 0ull))
     {
         s_walk_full = 1;
         return;
     }
     if (is_folder)
     {
-        (void)query_folder_each(full, there_walk, (void *)cli_deploy_kept(&s_pool, path, path_line.at));
+        (void)query_folder_each(full, there_walk, (void *)cli_deploy_text_stored(&s_pool, path, path_line.at));
         return;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(full, &size);
+    const unsigned char *const bytes = cli_file_read(full, &size);
     if (bytes == NULL)
     {
         return;
     }
     char digest[65];
-    CliLine digest_line = {digest, sizeof(digest), 0ull};
+    VerbaLinea digest_line = {digest, sizeof(digest), 0ull};
     cli_sha256_text(bytes, size, &digest_line);
     cli_file_let_go(bytes, size);
-    there_held(cli_deploy_kept(&s_pool, path, path_line.at), cli_deploy_kept(&s_pool, digest, 64u));
+    there_pair_put(cli_deploy_text_stored(&s_pool, path, path_line.at), cli_deploy_text_stored(&s_pool, digest, 64u));
 }
 
 // the hashes of the files under `folder` of the place at `index`, by their paths under it, into g_cli_deploy_there,
-// placed in the place's pool at their count and sorted: 1, or 0 with why said
-int cli_deploy_hashes(unsigned int index, const char *folder, CliLine *said)
+// placed in the place's pool at their count and sorted: 1, or 0 with why given
+int cli_deploy_hashes(unsigned int index, const char *folder, VerbaLinea *err_msg)
 {
     const CliDeployPlace *const place = &g_cli_deploy.place[index];
     cli_deploy_there_given();
@@ -226,20 +226,20 @@ int cli_deploy_hashes(unsigned int index, const char *folder, CliLine *said)
     }
     else
     {
-        char line[(2u * CLI_PATH_LONGEST) + 128u];
-        CliLine command = {line, sizeof(line), 0ull};
-        cli_line_text(&command, "cd ");
+        char line[(2u * CLI_PATH_MAX_LEN) + 128u];
+        VerbaLinea command = {line, sizeof(line), 0ull};
+        mmgr_line_put(&command, "cd ");
         cli_link_quote(folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), &command);
-        cli_line_text(&command, " 2>/dev/null || exit 0; find . -type f -exec sha256sum {} + 2>/dev/null; true");
-        cli_line_closed(&command);
+        mmgr_line_put(&command, " 2>/dev/null || exit 0; find . -type f -exec sha256sum {} + 2>/dev/null; true");
+        mmgr_line_finish(&command);
         char piece[CLI_DEPLOY_PIECE];
         CliPieces pieces;
-        CliLine listing;
+        VerbaLinea listing;
         cli_pieces_begun(&pieces, &listing, piece, sizeof(piece));
-        const int asked = cli_deploy_ask(place, line, NULL, 0ull, &listing, said);
+        const int ran = cli_deploy_remote_run(place, line, NULL, 0ull, &listing, err_msg);
         unsigned long long size = 0ull;
         s_listing = cli_pieces_joined(&pieces, &listing, "a place's hashes", &size);
-        if (!asked)
+        if (!ran)
         {
             return 0;
         }
@@ -267,7 +267,7 @@ int cli_deploy_hashes(unsigned int index, const char *folder, CliLine *said)
                 {
                     hash += 1;
                 }
-                there_held(path, hash);
+                there_pair_put(path, hash);
             }
             at = more ? (end + 1) : end;
         }
@@ -279,13 +279,13 @@ int cli_deploy_hashes(unsigned int index, const char *folder, CliLine *said)
     if (s_walk_full || s_pool.refused)
     {
         cli_deploy_there_given();
-        cli_line_text(said, "it holds more files than orior_cli holds");
+        mmgr_line_put(err_msg, "it has more files than orior_cli supports");
         return 0;
     }
-    for (unsigned int at = g_cli_deploy_there_count; s_held != NULL; s_held = s_held->before)
+    for (unsigned int at = g_cli_deploy_there_count; s_pairs != NULL; s_pairs = s_pairs->before)
     {
         at -= 1u;
-        there[at] = s_held->pair;
+        there[at] = s_pairs->pair;
     }
     // no pairs is no array to order, and qsort takes no null
     if (there != NULL)

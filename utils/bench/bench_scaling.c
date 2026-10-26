@@ -140,7 +140,7 @@ int main(void)
                         reference += orior_naive(corpus, corpus_len, needle, needle_len);
                     }
 
-                    for (size_t slot = 0u; slot < arm_count; slot += 1u)
+                    for (size_t at = 0u; at < arm_count; at += 1u)
                     {
                         size_t found = 0u;
 
@@ -152,17 +152,15 @@ int main(void)
                                                               ? (corpus + ((draw * 977u) % (corpus_len - needle_len)))
                                                               : (absent + (draw * needle_len));
 
-                            found += ARMS[slot].run(corpus, corpus_len, needle, needle_len);
+                            found += ARMS[at].run(corpus, corpus_len, needle, needle_len);
                         }
                         const double spread = (double)alignments * (double)needles;
 
                         printf("sift_scaling,%s,%llu,%llu,%u,%s,%.4f,%llu,%.6f,%.6f,%.9f,%llu\n",
                                bench_corpus_name(KINDS[which]), (unsigned long long)corpus_len,
-                               (unsigned long long)needle_len, present, ARMS[slot].name, entropy,
-                               (unsigned long long)distinct,
-                               (double)orior_probes / spread,
-                               (double)orior_verifications / spread, rate,
-                               (unsigned long long)found);
+                               (unsigned long long)needle_len, present, ARMS[at].name, entropy,
+                               (unsigned long long)distinct, (double)orior_probes / spread,
+                               (double)orior_verifications / spread, rate, (unsigned long long)found);
 #else
                         uint64_t best = UINT64_MAX;
 
@@ -177,7 +175,7 @@ int main(void)
                                                                   ? (corpus + ((draw * 977u) % (corpus_len - needle_len)))
                                                                   : (absent + (draw * needle_len));
 
-                                seen += ARMS[slot].run(corpus, corpus_len, needle, needle_len);
+                                seen += ARMS[at].run(corpus, corpus_len, needle, needle_len);
                             }
 
                             const uint64_t closed = cycles_now();
@@ -192,9 +190,8 @@ int main(void)
 
                         printf("sift_scaling,%s,%llu,%llu,%u,%s,%.4f,%llu,%.6f,%.9f,%llu\n",
                                bench_corpus_name(KINDS[which]), (unsigned long long)corpus_len,
-                               (unsigned long long)needle_len, present, ARMS[slot].name, entropy,
-                               (unsigned long long)distinct, (double)best / spread, rate,
-                               (unsigned long long)found);
+                               (unsigned long long)needle_len, present, ARMS[at].name, entropy,
+                               (unsigned long long)distinct, (double)best / spread, rate, (unsigned long long)found);
 #endif
 
                         if (found != reference)
@@ -202,11 +199,9 @@ int main(void)
                             (void)fprintf(stderr,
                                           "  %s on %s at N=%llu m=%llu present=%u: "
                                           "%llu against %llu\n",
-                                          ARMS[slot].name, bench_corpus_name(KINDS[which]),
-                                          (unsigned long long)corpus_len,
-                                          (unsigned long long)needle_len, present,
-                                          (unsigned long long)found,
-                                          (unsigned long long)reference);
+                                          ARMS[at].name, bench_corpus_name(KINDS[which]),
+                                          (unsigned long long)corpus_len, (unsigned long long)needle_len, present,
+                                          (unsigned long long)found, (unsigned long long)reference);
                             disagreed = 1;
                         }
                     }

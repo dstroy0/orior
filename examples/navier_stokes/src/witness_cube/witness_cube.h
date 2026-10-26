@@ -9,8 +9,9 @@
 // written as the same three bits, is
 //     c_S = (1/8) sum over the corners of f(corner) times the product over a in S of s_a,
 // and f(corner) = sum over S of c_S times that product, exactly: c_0 is the value, c_1, c_2 and c_4 the edge
-// differences, c_3, c_5 and c_6 the face differences, and c_7 the body difference. Each term the subject holds at any
-// corner is marked with the components holding it: the count of those is the term's character, recorded as it is.
+// differences, c_3, c_5 and c_6 the face differences, and c_7 the body difference. Each term the subject contains at
+// any corner is marked with the components containing it: the count of those is the term's character, recorded as it
+// is.
 
 #include "term_form.h"
 
@@ -25,9 +26,9 @@ typedef struct
     SimRational half[3];
     TermForm corner[8];
     TermForm component[8];
-    // the slots held at any corner, in key order, and the components holding each, one bit per component
-    std::vector<unsigned int> slot;
-    std::vector<unsigned int> holding;
+    // the term indices present at any corner, in key order, and the components containing each, one bit per component
+    std::vector<unsigned int> terms;
+    std::vector<unsigned int> occupied;
 } WitnessCube;
 
 // the cube measured around `center` with the half-edges `half`, each above 0

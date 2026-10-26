@@ -1,9 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// record.c: the record: a question's identity, the record's answer to it, a question kept in the record, the registers past, the record written, a line of the list, and the round handed
+// record.c: the record: a question's identity, the record's answer to it, a question stored in the record, the
+// registers past, the record written, a line of the list, and the round handed
 #include "run_channel_internal.h"
 
-// a question's identity as R keeps it: the hash of its code, its registers, its shape and launches, its count of
+// a question's identity as R stores it: the hash of its code, its registers, its shape and launches, its count of
 // cases and the hash of its cases, into `identity`
 void run_channel_identity(const RunQuestion *question, KqrIdentity *identity)
 {
@@ -34,46 +35,48 @@ KqrRecord s_record;
 
 char s_record_path[1024];
 
-// 1 where R holds an answer to the untimed question `asked`, which is then answered from it: answers with the
-// word of every case, illegal as held off the part, and censored as held where the vendor's reader held it, as R
-// keeps them. An ask that timed out is no answer
-int run_channel_recorded(RunQuestion *asked)
+// 1 where R contains an answer to the untimed question `question`, which is then answered from it: answers with the
+// word of every case, illegal as blocked from the part, and censored as blocked where the vendor's reader blocked it,
+// as R stores them. A query that timed out is no answer
+int run_channel_recorded(RunQuestion *question)
 {
-    static KqrAsk s_held;
+    static KqrQuery s_found;
     KqrIdentity identity;
-    if ((asked->launches != 0u) || !s_record.open)
+    if ((question->launches != 0u) || !s_record.open)
     {
         return 0;
     }
-    run_channel_identity(asked, &identity);
-    // an ask the gate held under a rule of its own is open as a timed-out one is: the part never saw it, the gate
-    // reads it again as its rules stand, and one held for an unknown key a conference may admit. The vendor's verdict
-    // on an encoding stands, and an ask it held stays held
-    if (!kqr_find(&s_record, &identity, &s_held) || (s_held.answer == KQR_TIMED_OUT) ||
-        ((s_held.answer == KQR_CENSORED) && !run_channel_vendor_held(s_held.refusal)))
+    run_channel_identity(question, &identity);
+    // a query the gate blocked under a rule of its own is open as a timed-out one is: the part never saw it, the gate
+    // reads it again as its rules stand, and one blocked for an unknown key a conference may admit. The vendor's
+    // verdict on an encoding stands, and a query it blocked stays blocked
+    if (!kqr_find(&s_record, &identity, &s_found) || (s_found.answer == KQR_TIMED_OUT) ||
+        ((s_found.answer == KQR_CENSORED) && !run_channel_vendor_gated(s_found.refusal)))
     {
         return 0;
     }
-    const int answers = (s_held.answer == KQR_ANSWERS);
-    const int held_off = (s_held.answer == KQR_ILLEGAL) || (s_held.answer == KQR_CENSORED);
-    asked->outcome = answers ? (unsigned int)RUN_ANSWERED : held_off ? (unsigned int)RUN_HELD : (unsigned int)RUN_NOTHING;
-    run_channel_refused(asked, s_held.refusal);
-    for (unsigned int place = 0u; answers && (place < asked->cases) && (place < s_held.words); place += 1u)
+    const int answers = (s_found.answer == KQR_ANSWERS);
+    const int blocked = (s_found.answer == KQR_ILLEGAL) || (s_found.answer == KQR_CENSORED);
+    question->outcome = answers   ? (unsigned int)RUN_ANSWERED
+                        : blocked ? (unsigned int)RUN_GATED
+                                  : (unsigned int)RUN_NOTHING;
+    run_channel_refused(question, s_found.refusal);
+    for (unsigned int place = 0u; answers && (place < question->cases) && (place < s_found.words); place += 1u)
     {
-        asked->answered[place] = s_held.word[place];
+        question->answered[place] = s_found.word[place];
     }
     return 1;
 }
 
-// What came back of the carried question `asked` kept in R: an untimed one as an ask and a timed one as a sample,
-// answers, illegal, nothing, timed_out where its time ran out, or censored where the gate held it. A question nothing
-// carried is kept nowhere
-void run_channel_kept(const RunQuestion *asked)
+// What came back of the carried question `question` stored in R: an untimed one as a query and a timed one as a sample,
+// answers, illegal, nothing, timed_out where its time ran out, or censored where the gate blocked it. A question
+// nothing carried is stored nowhere
+void run_channel_stored(const RunQuestion *question)
 {
-    static KqrAsk s_kept;
+    static KqrQuery s_stored;
     static KqrSample s_sample;
     unsigned int answer = KQR_ANSWER_COUNT;
-    switch (asked->outcome)
+    switch (question->outcome)
     {
     case RUN_ANSWERED:
         answer = KQR_ANSWERS;
@@ -81,12 +84,13 @@ void run_channel_kept(const RunQuestion *asked)
     case RUN_ILLEGAL:
         answer = KQR_ILLEGAL;
         break;
-    case RUN_HELD:
+    case RUN_GATED:
         answer = KQR_CENSORED;
         break;
     case RUN_NOTHING:
-        answer = (strstr(asked->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL) ? KQR_TIMED_OUT
-                                                                                                       : KQR_NOTHING;
+        answer = (strstr(question->refused, interface_ending_name(INTERFACE_ENDING_OUT_OF_TIME)) != NULL)
+                     ? KQR_TIMED_OUT
+                     : KQR_NOTHING;
         break;
     default:
         return;
@@ -96,35 +100,35 @@ void run_channel_kept(const RunQuestion *asked)
         return;
     }
     KqrIdentity identity;
-    run_channel_identity(asked, &identity);
-    if (asked->launches != 0u)
+    run_channel_identity(question, &identity);
+    if (question->launches != 0u)
     {
         memset(&s_sample, 0, sizeof(s_sample));
         s_sample.identity = identity;
         s_sample.answer = answer;
-        s_sample.nanoseconds = asked->nanoseconds;
-        s_sample.launched = (asked->most != 0ull) ? 1 : 0;
-        s_sample.least = asked->least;
-        s_sample.most = asked->most;
-        ScripturaLine refusal = {s_sample.refusal, sizeof(s_sample.refusal), 0ull};
-        scriptura_text_most(&refusal, asked->refused, sizeof(s_sample.refusal) - 1u);
-        scriptura_closed(&refusal);
+        s_sample.nanoseconds = question->nanoseconds;
+        s_sample.launched = (question->most != 0ull) ? 1 : 0;
+        s_sample.least = question->least;
+        s_sample.most = question->most;
+        VerbaLinea refusal = {s_sample.refusal, sizeof(s_sample.refusal), 0ull};
+        mmgr_line_put_most(&refusal, question->refused, sizeof(s_sample.refusal) - 1u);
+        mmgr_line_finish(&refusal);
         kqr_sample(&s_record, &s_sample);
         return;
     }
-    memset(&s_kept, 0, sizeof(s_kept));
-    s_kept.identity = identity;
-    s_kept.answer = answer;
-    ScripturaLine refusal = {s_kept.refusal, sizeof(s_kept.refusal), 0ull};
-    scriptura_text_most(&refusal, asked->refused, sizeof(s_kept.refusal) - 1u);
-    scriptura_closed(&refusal);
-    for (unsigned int place = 0u; (asked->outcome == RUN_ANSWERED) && (place < asked->cases) && (place < KQR_WORDS);
-         place += 1u)
+    memset(&s_stored, 0, sizeof(s_stored));
+    s_stored.identity = identity;
+    s_stored.answer = answer;
+    VerbaLinea refusal = {s_stored.refusal, sizeof(s_stored.refusal), 0ull};
+    mmgr_line_put_most(&refusal, question->refused, sizeof(s_stored.refusal) - 1u);
+    mmgr_line_finish(&refusal);
+    for (unsigned int place = 0u;
+         (question->outcome == RUN_ANSWERED) && (place < question->cases) && (place < KQR_WORDS); place += 1u)
     {
-        s_kept.word[place] = asked->answered[place];
-        s_kept.words += 1u;
+        s_stored.word[place] = question->answered[place];
+        s_stored.words += 1u;
     }
-    kqr_keep(&s_record, &s_kept);
+    kqr_store(&s_record, &s_stored);
 }
 
 int run_channel_registers_past(const char *ksc)
@@ -139,7 +143,7 @@ int run_channel_registers_past(const char *ksc)
             (strncmp(s_row.question, "register past", 13u) == 0) && (s_row.value != 0ull) &&
             (s_row.value < RUN_REGISTERS_UNANSWERED))
         {
-            // a count below the mark of no answer is one an unsigned int holds
+            // a count below the mark of no answer is one an unsigned int represents
             s_registers_past = (unsigned int)s_row.value;
         }
     }
@@ -153,26 +157,26 @@ int run_channel_record(const char *path, const char *member, const char *mode)
     s_record_path[0] = '\0';
     if (!kqr_read(&s_record, path, member, error, sizeof(error)))
     {
-        char said[sizeof(error) + 16u];
-        ScripturaLine line = {said, sizeof(said), 0ull};
-        scriptura_text(&line, "record: ");
-        scriptura_text(&line, error);
-        scriptura_character(&line, '\n');
-        scriptura_closed(&line);
-        run_channel_said(said);
+        char message[sizeof(error) + 16u];
+        VerbaLinea line = {message, sizeof(message), 0ull};
+        mmgr_line_put(&line, "record: ");
+        mmgr_line_put(&line, error);
+        mmgr_line_ch(&line, '\n');
+        mmgr_line_finish(&line);
+        run_channel_trace_line(message);
         return 0;
     }
-    ScripturaLine record_path = {s_record_path, sizeof(s_record_path), 0ull};
-    scriptura_text(&record_path, path);
-    scriptura_closed(&record_path);
-    // R a view of the run's table of asks, written as its rows put it together; with no run it is written as held
+    VerbaLinea record_path = {s_record_path, sizeof(s_record_path), 0ull};
+    mmgr_line_put(&record_path, path);
+    mmgr_line_finish(&record_path);
+    // R a view of the run's table of queries, written as its rows put it together; with no run it is written as stored
     kqr_tabled(&s_record, qry_member_run(), path);
     kqr_mark(&s_record, KQR_CYCLE_RECORD, mode);
     return 1;
 }
 
-// the line of the channel's list for its `place`th question, into `line`, which holds RUN_LINE_LONGEST, its end kept:
-// empty where the list holds no such line
+// the line of the channel's list for its `place`th question, into `line`, which has room for RUN_LINE_MAX_LEN, its end
+// retained: empty where the list contains no such line
 void run_channel_list_line(unsigned int place, char *line)
 {
     size_t at = 0u;
@@ -186,7 +190,7 @@ void run_channel_list_line(unsigned int place, char *line)
     size_t length = (at >= s_channel.list_size) ? 0u
                     : (end != NULL)             ? ((size_t)(end - (s_channel_list + at)) + 1u)
                                                 : (s_channel.list_size - at);
-    length = (length < (RUN_LINE_LONGEST - 1u)) ? length : (RUN_LINE_LONGEST - 1u);
+    length = (length < (RUN_LINE_MAX_LEN - 1u)) ? length : (RUN_LINE_MAX_LEN - 1u);
     if (length != 0u)
     {
         memcpy(line, s_channel_list + at, length);
@@ -196,7 +200,7 @@ void run_channel_list_line(unsigned int place, char *line)
 
 // The round about to be carried, the channel's list, appended critical as questions.txt: on disk before the carrier
 // starts; a launch that faults the part leaves the record of what the carrier was handed. The place the run's
-// schedule then holds, every answer of the round standing at it or past it, or 0 where the list could not be put
+// schedule then contains, every answer of the round standing at it or past it, or 0 where the list could not be put
 // on disk, and then the round is not carried
 unsigned long long run_channel_round_handed(void)
 {

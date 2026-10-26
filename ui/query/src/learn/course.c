@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // course.c: the course: the whole protocol as one job and one run, its steps run in order. The course opens the run
 // and names it to every step, each step joining it as a member as every module does, its own buffer handed to the
-// run's one writer. The course says its steps before the first, each step as it begins, where it stops and that it
+// run's one writer. The course reports its steps before the first, each step as it begins, where it stops and that it
 // ended, through its own buffer into the run, which the window's panel reads to draw the line and walk the fire along
 // it
 #include "../query_loops.h"
 
-// the folder the course's runs are kept in, a path from the top of the tree
+// the folder the course's runs are stored in, a path from the top of the tree
 #define QUERY_COURSE_FOLDER "build/engine/course/qry"
 
 // One step of the course: its name on the line, the loop it runs and the word it gives it
 typedef struct
 {
     const char *name;
-    int (*loop)(QueryContext *context, const char *const *words, unsigned int count, CliLine *said);
+    int (*loop)(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg);
     const char *word;
 } QueryStep;
 
 // The steps in order: the part's tables are pulled off the vendor's disassembler, the widening discovers forms at the
-// slot, their turns and register runs classify them, the ruleset is written from them, the engine's stick is built
-// from the ruleset, the pairs hold the stick's chains against the part and ask how far a container's code reaches,
+// place, their turns and register runs classify them, the ruleset is written from them, the engine's stick is built
+// from the ruleset, the pairs check the stick's chains against the part and query how far a container's code reaches,
 // the forms are timed, and the ruleset is written again with the costs
 static const QueryStep s_steps[10] = {
     {"vendor tables", query_tables_run, "sm_86"}, {"discover", query_learn_run, "discover"},
@@ -35,18 +35,18 @@ const char *const g_query_course_names[10] = {"vendor tables", "discover",    "t
 const unsigned int g_query_course_steps = 10u;
 
 // the names of the steps joined by `, ` into `line`
-void query_names_joined(CliLine *line)
+void query_names_joined(VerbaLinea *line)
 {
     for (unsigned int at = 0u; at < g_query_course_steps; at += 1u)
     {
-        cli_line_text(line, (at == 0u) ? "" : ", ");
-        cli_line_text(line, s_steps[at].name);
+        mmgr_line_put(line, (at == 0u) ? "" : ", ");
+        mmgr_line_put(line, s_steps[at].name);
     }
 }
 
 // The index of the step `--from` names in `words`, the first where none is named; a name no step has, or a flag with
-// no name after it, refused. A name shared by two steps names the first. 1, or 0 with why said
-int query_course_from(const char *const *words, unsigned int count, unsigned int *first, CliLine *said)
+// no name after it, refused. A name shared by two steps names the first. 1, or 0 with why given
+int query_course_from(const char *const *words, unsigned int count, unsigned int *first, VerbaLinea *err_msg)
 {
     *first = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -57,7 +57,7 @@ int query_course_from(const char *const *words, unsigned int count, unsigned int
         }
         if ((at + 1u) >= count)
         {
-            cli_line_text(said, "--from takes the name of a step");
+            mmgr_line_put(err_msg, "--from takes the name of a step");
             return 0;
         }
         for (unsigned int step = 0u; step < g_query_course_steps; step += 1u)
@@ -69,99 +69,99 @@ int query_course_from(const char *const *words, unsigned int count, unsigned int
                 return 1;
             }
         }
-        cli_line_text(said, "no step of the course is ");
-        cli_line_text(said, words[at + 1u]);
-        cli_line_text(said, "; the steps are ");
-        query_names_joined(said);
+        mmgr_line_put(err_msg, "no step of the course is ");
+        mmgr_line_put(err_msg, words[at + 1u]);
+        mmgr_line_put(err_msg, "; the steps are ");
+        query_names_joined(err_msg);
         return 0;
     }
     return 1;
 }
 
-int query_course_run(QueryContext *context, const char *const *words, unsigned int count, CliLine *said)
+int query_course_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
     unsigned int first = 0u;
-    if (!query_course_from(words, count, &first, said))
+    if (!query_course_from(words, count, &first, err_msg))
     {
         return -1;
     }
-    // the course's run, held open on the context so that every step joins it; a course run inside a run already
+    // the course's run, open on the context so that every step joins it; a course run inside a run already
     // open joins that one
     static QueryRun s_run;
-    if (!query_context_started(context, &s_run, QUERY_COURSE_FOLDER, said))
+    if (!query_context_started(context, &s_run, QUERY_COURSE_FOLDER, err_msg))
     {
         return -1;
     }
-    char held[QUERY_PATH_LONGEST];
-    memor.cpy(&(MemoriaCfg){.dst = held, .src = context->open, .bytes = sizeof(held)});
+    char saved_open[QUERY_PATH_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){.dst = saved_open, .src = context->open, .bytes = sizeof(saved_open)});
     memor.cpy(
         &(MemoriaCfg){.dst = context->open,
                       .src = s_run.writer.qry,
                       .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_run.writer.qry, .cap = CLI_CELLS_POOL}) + 1u});
-    char line[QUERY_SAID_LONGEST];
-    CliLine said_line = {line, sizeof(line), 0ull};
-    cli_line_text(&said_line, "course: ");
-    cli_line_decimal(&said_line, g_query_course_steps, 0u);
-    cli_line_text(&said_line, " steps: ");
-    query_names_joined(&said_line);
-    cli_line_closed(&said_line);
-    query_said(context, line);
+    char line[QUERY_LINE_MAX_LEN];
+    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    mmgr_line_put(&print_line, "course: ");
+    mmgr_line_decimal(&print_line, g_query_course_steps, 0u);
+    mmgr_line_put(&print_line, " steps: ");
+    query_names_joined(&print_line);
+    mmgr_line_finish(&print_line);
+    query_print(context, line);
     int ended = 0;
     for (unsigned int index = first; index < g_query_course_steps; index += 1u)
     {
         const unsigned int number = index + 1u;
-        said_line.at = 0ull;
-        cli_line_text(&said_line, "course: step ");
-        cli_line_decimal(&said_line, number, 0u);
-        cli_line_text(&said_line, " of ");
-        cli_line_decimal(&said_line, g_query_course_steps, 0u);
-        cli_line_text(&said_line, ": ");
-        cli_line_text(&said_line, s_steps[index].name);
-        cli_line_closed(&said_line);
-        query_said(context, line);
-        char step_said_text[QUERY_SAID_LONGEST];
-        CliLine step_said = {step_said_text, sizeof(step_said_text), 0ull};
+        print_line.at = 0ull;
+        mmgr_line_put(&print_line, "course: step ");
+        mmgr_line_decimal(&print_line, number, 0u);
+        mmgr_line_put(&print_line, " of ");
+        mmgr_line_decimal(&print_line, g_query_course_steps, 0u);
+        mmgr_line_put(&print_line, ": ");
+        mmgr_line_put(&print_line, s_steps[index].name);
+        mmgr_line_finish(&print_line);
+        query_print(context, line);
+        char step_err_buf[QUERY_LINE_MAX_LEN];
+        VerbaLinea step_err_msg = {step_err_buf, sizeof(step_err_buf), 0ull};
         const char *const given[1] = {s_steps[index].word};
-        const int code = s_steps[index].loop(context, given, 1u, &step_said);
+        const int code = s_steps[index].loop(context, given, 1u, &step_err_msg);
         // a step that joined the run parts from it as it ends: the course is the run's member again
         query_writer_joined(&s_run.writer);
         if (code == 0)
         {
             continue;
         }
-        said_line.at = 0ull;
-        cli_line_text(&said_line, "course: stopped at step ");
-        cli_line_decimal(&said_line, number, 0u);
-        cli_line_text(&said_line, ", ");
-        cli_line_text(&said_line, s_steps[index].name);
+        print_line.at = 0ull;
+        mmgr_line_put(&print_line, "course: stopped at step ");
+        mmgr_line_decimal(&print_line, number, 0u);
+        mmgr_line_put(&print_line, ", ");
+        mmgr_line_put(&print_line, s_steps[index].name);
         if (code > 0)
         {
-            cli_line_text(&said_line, ", exit ");
-            cli_line_decimal(&said_line, (unsigned long long)code, 0u);
+            mmgr_line_put(&print_line, ", exit ");
+            mmgr_line_decimal(&print_line, (unsigned long long)code, 0u);
             ended = code;
         }
         else
         {
-            cli_line_text(&said_line, ": ");
-            cli_line_text_most(&said_line, step_said_text, step_said.at);
-            cli_line_text_most(said, step_said_text, step_said.at);
+            mmgr_line_put(&print_line, ": ");
+            mmgr_line_put_most(&print_line, step_err_buf, step_err_msg.at);
+            mmgr_line_put_most(err_msg, step_err_buf, step_err_msg.at);
             ended = -1;
         }
-        cli_line_closed(&said_line);
-        query_said(context, line);
+        mmgr_line_finish(&print_line);
+        query_print(context, line);
         break;
     }
     if (ended == 0)
     {
-        said_line.at = 0ull;
-        cli_line_text(&said_line, "course: ended, ");
-        cli_line_decimal(&said_line, g_query_course_steps, 0u);
-        cli_line_text(&said_line, " steps");
-        cli_line_closed(&said_line);
-        query_said(context, line);
+        print_line.at = 0ull;
+        mmgr_line_put(&print_line, "course: ended, ");
+        mmgr_line_decimal(&print_line, g_query_course_steps, 0u);
+        mmgr_line_put(&print_line, " steps");
+        mmgr_line_finish(&print_line);
+        query_print(context, line);
     }
-    memor.cpy(&(MemoriaCfg){.dst = context->open, .src = held, .bytes = sizeof(held)});
-    if (!query_context_ended(context, &s_run, said))
+    memor.cpy(&(MemoriaCfg){.dst = context->open, .src = saved_open, .bytes = sizeof(saved_open)});
+    if (!query_context_ended(context, &s_run, err_msg))
     {
         return -1;
     }

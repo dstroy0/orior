@@ -9,33 +9,33 @@
 // file and hands back each form that answered a relation: the relation, whether the answers read a word signed, and
 // the form's text with each operand that stands in the relation's tuple written as its place. Which word a form writes
 // is read off the word web (word_web.h): a word whose tree, each leaf reading one of the relation's words, answers the
-// relation on every case of it the ladder holds (ladder.h, precept_value.h) is a word the form writes. A word's form
-// takes the answer first and then the leaves by place: the answer's place is the form's first parameter, and the
+// relation on every case of it the ladder satisfies (ladder.h, precept_value.h) is a word the form writes. A word's
+// form takes the answer first and then the leaves by place: the answer's place is the form's first parameter, and the
 // word a leaf reads is the parameter of that leaf.
 //
 // The parameters are named as the ruleset at `named ruleset` names the same form; a word that ruleset names no form
 // of, or names with another count of parameters, is written by none here. A word one form writes is written with that
 // form. A word more than one form writes is ranked by P6 off each form's cost, its least launch m and its spread s as
-// the part's .ksc beside the machine file keeps them (`run answers <m> cost <low> <high> <s>`): the least form is the
-// word's where the next least is past it by more than the greatest spread, and otherwise the part's ruleset keeps the
+// the part's .ksc beside the machine file stores them (`run answers <m> cost <low> <high> <s>`): the least form is the
+// word's where the next least is past it by more than the greatest spread, and otherwise the part's ruleset retains the
 // form it gave the word before this run (Step 11), as it does where a form writing it has no cost read yet. A word no
-// form of the run writes keeps the form the ruleset gave it before as well: no form is dropped here, a form the part
-// refuses is moved where it belongs, and a run that hands none for a word says nothing of the kind.
+// form of the run writes retains the form the ruleset gave it before as well: no form is dropped here, a form the part
+// refuses is moved where it belongs, and a run that hands none for a word reports nothing of the kind.
 //
 // A form answering a frame relation (frame_relation.h) writes no word of the web: it is written as the schema's form
 // the table beside this writer, krs_write/frame_forms.tsv, maps its relation to, with that form's parameters as the
 // ruleset at `named ruleset` names them, one line a row of the table, the writers of one placed text being one. A row
-// the run hands no form for keeps the line the ruleset gave its form before, as a word does.
+// the run hands no form for retains the line the ruleset gave its form before, as a word does.
 //
 // The lane's structure, each form the schema gives as SCHEMA_FORM_STRUCTURE (schema_forms.h), is written `nop`: the
 // declarations, the notes, the lane's and the kernel's opening and close, the launch's and the shared memory's, the
-// states and the asks, and the unit name no operation and have no tree, and the kernel the system accepted is the
-// lane's frame on the part (The frame asked, Open 6.3). A position whose relation holds of nothing has every form and
-// the empty text as survivors, and P6 keeps the cheapest, the empty text. Every other form the part has not answered
+// states and the loads, and the unit name no operation and have no tree, and the kernel the system accepted is the
+// lane's frame on the part (Open 6.3). A position whose relation is true of nothing has every form and
+// the empty text as survivors, and P6 retains the cheapest, the empty text. Every other form the part has not answered
 // for is left open, and the reader reads it so (P10).
 //
 // Two files are written beside the machine file: <language>.krs, which opens a ruleset of the language and names the
-// part, and <part>.krs, which the reader reads after it (ruleset_flat.cu) and which holds the forms. A bank, a fixed
+// part, and <part>.krs, which the reader reads after it (ruleset_flat.cu) and which contains the forms. A bank, a fixed
 // register, the toolchain and the header are answered by no form, and neither file gives one.
 //
 // It runs in a query run, the .qry QRY names (qry_member.h): the forms the vendor's writer hands back are the blob
@@ -47,20 +47,20 @@
 #include "verba_scribo/verba_scribo.h"
 
 // the part's ruleset and the language's head, each put together here and then handed to the run's writer as its file,
-// and the bytes each holds so far, the room once a write did not fit
+// and the bytes each contains so far, the room once a write did not fit
 static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static size_t s_forms_at;
 static char s_head_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static size_t s_head_at;
 
-// `text` written after what the part's ruleset holds
+// `text` written after what the part's ruleset contains
 static void forms_text(const char *text)
 {
     s_forms_at = verba_textus.put(
         &(VerbaTextusCfg){.out = s_forms_bytes, .cap = sizeof(s_forms_bytes), .at = s_forms_at, .text = text});
 }
 
-// `text` written after what the language's head holds
+// `text` written after what the language's head contains
 static void head_text(const char *text)
 {
     s_head_at = verba_textus.put(
@@ -76,9 +76,9 @@ static const struct
     unsigned int kind;
 } s_schema[] = {OPCODES(KRS_SCHEMA_ROW)};
 
-// the lane's structure written after what the part's ruleset holds, one `nop` line a form the schema gives as
+// the lane's structure written after what the part's ruleset contains, one `nop` line a form the schema gives as
 // structure, its parameters as the ruleset at `named_ruleset` names them. The count written; a form that ruleset names
-// with another count of parameters than the schema's is said and left out
+// with another count of parameters than the schema's is reported and left out
 static unsigned int krs_structure_written(const char *named_ruleset)
 {
     unsigned int written = 0u;
@@ -123,11 +123,11 @@ int main(int count, char **word)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("  orior_krs_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        printf("  orior_krs_write: no query writer runs: %s names no .qry a writer has open\n", QRY_ENVIRONMENT);
         return 1;
     }
     // the forms the vendor's writer appends, read where it appends them: the latest record of their name, one the
-    // writer took past every place the schedule kept before the writer ran
+    // writer took past every place the schedule reserved before the writer ran
     const unsigned long long before = qry_member_rings_settled();
     if (!krs_vendor_run(word))
     {
@@ -146,7 +146,7 @@ int main(int count, char **word)
     krs_folder_of(machine, rulesets, sizeof(rulesets));
     char path[1200];
     char ksc[1200];
-    // the costs the part's .ksc keeps, and the lines its ruleset gave before this run, read before the ruleset is
+    // the costs the part's .ksc stores, and the lines its ruleset gave before this run, read before the ruleset is
     // written again
     snprintf(ksc, sizeof(ksc), "%s/%s.ksc", rulesets, part);
     krs_costs_read(ksc);
@@ -170,33 +170,34 @@ int main(int count, char **word)
         }
         if (writers == 0u)
         {
-            // no form the part answered for in this run writes the word: the ruleset keeps the form it gave the word
+            // no form the part answered for in this run writes the word: the ruleset retains the form it gave the word
             // before. No form is dropped: one the part refuses is moved where it belongs, and a run that hands none
-            // for a word says nothing of the kind; dropping it would lose what was learned, to be learned again
-            const char *const kept = krs_given_of(each->name);
-            if (kept != NULL)
+            // for a word reports nothing of the kind; dropping it would lose what was learned, to be learned again
+            const char *const given_text = krs_given_of(each->name);
+            if (given_text != NULL)
             {
-                forms_text(kept);
+                forms_text(given_text);
                 forms_text("\n");
                 given += 1u;
-                printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset keeps its form\n",
+                printf("  orior_krs_write: no form answered for in this run writes %s; the ruleset retains its form\n",
                        each->name);
             }
             continue;
         }
         // one form writes the word, or P6 separates the least of several; otherwise the survivors are one cost and the
-        // ruleset keeps the form it gave the word (Step 11), or, where it gave none yet, the survivors being one answer
-        // of the part's, takes the one of the fewest operands, the first seen among those
+        // ruleset retains the form it gave the word (Step 11), or, where it gave none yet, the survivors being one
+        // answer of the part's, takes the one of the fewest operands, the first seen among those
         unsigned int ranked = (writers == 1u) ? 0u : krs_ranked(s_writer, writers);
         if (ranked == writers)
         {
-            const char *const kept = krs_given_of(each->name);
-            if (kept != NULL)
+            const char *const given_text = krs_given_of(each->name);
+            if (given_text != NULL)
             {
-                forms_text(kept);
+                forms_text(given_text);
                 forms_text("\n");
                 given += 1u;
-                printf("  orior_krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset keeps its form\n",
+                printf("  orior_krs_write: %u forms write %s, one cost or a cost not read (P6); the ruleset retains "
+                       "its form\n",
                        writers, each->name);
                 continue;
             }
@@ -236,7 +237,7 @@ int main(int count, char **word)
         given += 1u;
     }
     // the frame forms, each as the schema's form the table maps its relation to, one line a row of the table; a row
-    // the run hands no form for keeps the line the ruleset gave its form before
+    // the run hands no form for retains the line the ruleset gave its form before
     if (krs_frame_read(NULL) == 0u)
     {
         printf("  orior_krs_write: the table of frame forms could not be read, and no frame form is written\n");
@@ -256,7 +257,7 @@ int main(int count, char **word)
     head_text(language);
     head_text("\n");
     // What turns the language's text into a program the part loads, and where the text's opening lines come from
-    // (krs.oracle.tsv): each the part's answer in its .ksc (The frame asked, Open 6.3), the container the vendor's
+    // (krs.oracle.tsv): each the part's answer in its .ksc (Open 6.3), the container the vendor's
     // writer makes loaded and returned from, and the least opening a kernel runs with. A line the part has not
     // answered for is left out, and the reader refuses the ruleset without it
     if (strcmp(language, "sass") == 0)
@@ -274,7 +275,7 @@ int main(int count, char **word)
     head_text(part);
     head_text("\n");
     // the part's register banks, each a naming template the code generator fills with the register's number: a general
-    // register R{n} for every role the part holds in its file, an even one for a wide's pair, a predicate P{n}, and an
+    // register R{n} for every role the part uses in its file, an even one for a wide's pair, a predicate P{n}, and an
     // immediate the number itself. register last and predicate last in the part's .ksc bound the numbers; the bank
     // line names, it does not bound
     if (strcmp(language, "sass") == 0)
@@ -289,10 +290,10 @@ int main(int count, char **word)
         head_text("bank member = R{n}\n");
         head_text("bank immediate = {n}\n");
         // The fixed registers the kernel the system accepted leaves at its position, each the part's answer in its .ksc
-        // (The fixed registers asked, Open 6.2): zero, the register that reads 0 whatever is written to it, and the
-        // lane's number, the record and the index where a register holds each at the position. A fixed register no row
-        // names keeps the line the ruleset gave it before this run, a hand line among them, since a line gives way
-        // only to the part's row for its register; the ten the banks' asks place (Open 6.1) stand so until then. A
+        // (Open 6.2): zero, the register that reads 0 whatever is written to it, and the
+        // lane's number, the record and the index where a register stores each at the position. A fixed register no row
+        // names retains the line the ruleset gave it before this run, a hand line among them, since a line gives way
+        // only to the part's row for its register; the ten the banks' queries place (Open 6.1) stand so until then. A
         // register with neither is left out, and the reader refuses the ruleset without it
         char unanswered[128];
         krs_fixed_written(s_head_bytes, sizeof(s_head_bytes), &s_head_at, ksc, path, unanswered, sizeof(unanswered));

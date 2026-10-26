@@ -68,17 +68,18 @@ extern "C"
 
     long engine_residual(const EngineResidualRequest *request, const unsigned int **device_residual);
 
-    // the fewest limbs that hold the request's residual and its sign; a request past ENGINE_RESIDUAL_LIMBS is refused
+    // the fewest limbs that represent the request's residual and its sign; a request past ENGINE_RESIDUAL_LIMBS is
+    // refused
     unsigned long long engine_residual_limbs(const EngineResidualRequest *request);
 
-    // the device bytes engine_residual holds for the request: its lanes, its residual in the request's limbs, the check
-    // where it is proved, and the unit sweep's planes where the sweep runs
+    // the device bytes engine_residual allocates for the request: its lanes, its residual in the request's limbs, the
+    // check where it is proved, and the unit sweep's planes where the sweep runs
     unsigned long long engine_residual_bytes(const EngineResidualRequest *request);
 
-    // frees what the engine holds on the device between calls: the residual's lanes, residual and key, the planes'
+    // frees what the engine allocates on the device between calls: the residual's lanes, residual and key, the planes'
     // residual, the unit sweep's planes, the max tree's buffers, the tower's and compression's pools, and the cycle's
     // run and sum scratch. A job calls it before it releases, with body_overlap_release where it ran an overlap, and
-    // holds no device bytes of its own after
+    // allocates no device bytes of its own after
     void engine_resident_release(void);
 
     typedef struct
@@ -208,8 +209,8 @@ extern "C"
     long engine_source_lanes(const char *source, const char *sample, unsigned long long *lanes, EngineError *error);
 
     // starts reading the sample's span of an archive source on a thread of its own, the span the next read of that
-    // sample asks for. One span is held at a time, and asking for another lets the last one go. A source that is not
-    // an archive, or a sample it does not hold, is an error and holds nothing
+    // sample requests. One span is buffered at a time, and requesting another lets the last one go. A source that is
+    // not an archive, or a sample it does not contain, is an error and allocates nothing
     long engine_source_prefetch(const char *source, const char *sample, EngineError *error);
 
     unsigned int engine_source_samples(const char *source, char ***names);
@@ -265,7 +266,7 @@ extern "C"
     typedef struct
     {
         EngineSetRequest set;
-        unsigned int keep;
+        unsigned int reuse;
     } EngineEntropySetRequest;
 
     long engine_entropy_set(const EngineEntropySetRequest *request);

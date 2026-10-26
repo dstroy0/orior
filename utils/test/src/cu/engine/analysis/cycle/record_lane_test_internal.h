@@ -10,7 +10,7 @@
 // every lane. One shared record and the lanes enumerate a range, x = base + l, with nothing stored a lane. A hash of
 // x against a threshold T, base and T both in the one record, runs over every lane on the host, on the device's
 // interpreter and as the compiled program: the three must agree word for word, and each lane's l, x, hash and hit must
-// equal the host's own 64-bit arithmetic. The latch is the first lane whose output holds, min{l : cond(l)}, infinity
+// equal the host's own 64-bit arithmetic. The latch is the first lane whose output is true, min{l : cond(l)}, infinity
 // where none does. Read on the device by a tree over each warp and one atomic minimum, it must return the lane the
 // host's serial scan over the same records returns and the first lane the host's own arithmetic finds, at every
 // threshold from every lane hitting to none, and over 2^24 lanes on the device with only the lane brought back. Its
@@ -21,7 +21,9 @@
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -91,7 +93,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } LaneResults;
 
 typedef struct

@@ -16,19 +16,19 @@ static CliLock s_run_path_lock = CLI_LOCK_INIT;
 // none is
 static int jobs_chosen(const char *tool, const char *program, char *path)
 {
-    char chosen[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char chosen[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     const char *const names[1] = {program};
     return cli_toolchains_chosen_program(tool, chosen) && cli_path_parent(chosen, folder) &&
            cli_toolchains_program_in(folder, names, 1u, path);
 }
 
-// the program of `role` as the toolchains give it, else as the PATH does, into `path`, which holds `room`: 1, or 0
-// with why it is not found said
-static int jobs_program(void *context, QueryRole role, char *path, size_t room, CliLine *said)
+// the program of `role` as the toolchains give it, else as the PATH does, into `path`, sized for `room`: 1, or 0
+// with why it is not found given
+static int jobs_program(void *context, QueryRole role, char *path, size_t room, VerbaLinea *err_msg)
 {
     (void)context;
-    char found[CLI_PATH_LONGEST];
+    char found[CLI_PATH_MAX_LEN];
     int chosen = 0;
     switch (role)
     {
@@ -64,21 +64,21 @@ static int jobs_program(void *context, QueryRole role, char *path, size_t room, 
         return 1;
     }
     const QueryPrograms on_path = query_on_path();
-    char why[CLI_SAID_LONGEST];
-    CliLine none = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea none = {why, sizeof(why), 0ull};
     if (on_path.program(on_path.context, role, path, room, &none))
     {
         return 1;
     }
     static const char *const tools[QUERY_ROLE_COUNT] = {"gcc",    "gcc",  "cuda",   "cuda",  "cuda", "msvc",
                                                         "python", "cuda", "docker", "shell", "shell"};
-    char program[CLI_PATH_LONGEST];
-    const unsigned long long from = said->at;
-    if (cli_executables_program(tools[role], query_role_name(role), program, said))
+    char program[CLI_PATH_MAX_LEN];
+    const unsigned long long from = err_msg->at;
+    if (cli_executables_program(tools[role], query_role_name(role), program, err_msg))
     {
-        said->at = from;
-        cli_line_text(said, query_role_name(role));
-        cli_line_text(said, " is not found: File, Toolchains opens its install page or takes its folder");
+        err_msg->at = from;
+        mmgr_line_put(err_msg, query_role_name(role));
+        mmgr_line_put(err_msg, " is not found: File, Toolchains opens its install page or takes its folder");
     }
     return 0;
 }
@@ -132,11 +132,11 @@ void cli_query_jobs(const char *root, CliCatalog *catalog)
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const QueryCommand *const command = &commands[index];
-        char id[CLI_NAME_LONGEST];
-        CliLine id_line = {id, sizeof(id), 0ull};
-        cli_line_text(&id_line, "protocol/");
-        cli_line_text(&id_line, command->id);
-        if ((cli_line_closed(&id_line) == 0ull) ||
+        char id[CLI_NAME_MAX_LEN];
+        VerbaLinea id_line = {id, sizeof(id), 0ull};
+        mmgr_line_put(&id_line, "protocol/");
+        mmgr_line_put(&id_line, command->id);
+        if ((mmgr_line_finish(&id_line) == 0ull) ||
             (cli_catalog_job(catalog, id, "protocol", command->title, QUERY_TABLE, command->about, "") ==
              CLI_CATALOG_NONE))
         {
@@ -150,7 +150,7 @@ void cli_query_jobs(const char *root, CliCatalog *catalog)
             {
                 cli_catalog_choice(catalog, param->choices[choice]);
             }
-            // a command's param has no default: the window asks for one where it is required
+            // a command's param has no default: the window prompts for one where it is required
             if (catalog->params > 0u)
             {
                 catalog->param[catalog->params - 1u].fallback = CLI_CATALOG_NONE;

@@ -10,9 +10,9 @@ static TablesSet s_tables;
 
 static int s_tables_state;
 
-// The vendor's instruction set for the part the cross reads for, read from the run where the run holds it and from
+// The vendor's instruction set for the part the cross reads for, read from the run where the run contains it and from
 // the tables the tables pass pulled otherwise: the part named by the architecture, `SM86` the part `sm_86`. 1 where it
-// holds a class, 0 where the tables are not pulled or do not read
+// contains a class, 0 where the tables are not pulled or do not read
 int msq_tables_read(void)
 {
     if (s_tables_state != 0)
@@ -48,8 +48,8 @@ int msq_tables_read(void)
     return read;
 }
 
-// 1 where every instruction of `piece` is one a class of the vendor's instruction set reads, its opcode field holding
-// the class's opcode: the disassembler reads each, and stops at none
+// 1 where every instruction of `piece` is one a class of the vendor's instruction set reads, its opcode field
+// containing the class's opcode: the disassembler reads each, and stops at none
 int msq_vendor_reads(const MsqBytes *piece)
 {
     for (unsigned long long at = 0ull; (at + 16ull) <= piece->size; at += 16ull)

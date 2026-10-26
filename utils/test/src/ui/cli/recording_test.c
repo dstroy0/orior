@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// recording_test.c: the recorded run's check: a recording keeps each line with its frame's depth and values, a stack
+// recording_test.c: the recorded run's check: a recording records each line with its frame's depth and values, a stack
 // stands each caller at its line then, a name's history gives each line that changed it, steps go over, into, out and
 // back, and continue and run backward stop at breakpoints and raises
 #include "../../../../../ui/cli/src/debug/recording_internal.h"
 #include "cli_check.h"
 
 static char s_seen[512];
-static CliLine s_seen_line = {s_seen, sizeof(s_seen), 0ull};
+static VerbaLinea s_seen_line = {s_seen, sizeof(s_seen), 0ull};
 
 // the recording of the recorder's lines for a function `grow` called twice from the module, read into the replay
 static void recording_sample(void)
@@ -19,8 +19,8 @@ static void recording_sample(void)
         "[\"call\",3,1,0,\"grow\",1]\n[\"line\",3,2,{\"n\":\"2\"},[]]\n[\"line\",3,3,{\"n\":\"3\"},[]]\n"
         "[\"raise\",3,3,\"ValueError\",\"too big\"]\n[\"return\",3,\"None\"]\n[\"line\",1,7,{\"b\":\"3\"},[]]\n"
         "[\"end\",0]\n";
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("recording", dir);
     cli_full(dir, "r.jsonl", path);
     (void)query_file_written(path, s_lines, sizeof(s_lines) - 1u);
@@ -33,19 +33,19 @@ static void recording_values(unsigned int serial, unsigned int at, const char *w
     CliRecordedValue *values = NULL;
     const unsigned int count = cli_recording_values(serial, at, &values, 8u);
     char text[256];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
     {
-        cli_line_text(&line, (each > 0u) ? "|" : "");
-        cli_line_text(&line, values[each].name);
-        cli_line_character(&line, '=');
-        cli_line_text(&line, values[each].value);
+        mmgr_line_put(&line, (each > 0u) ? "|" : "");
+        mmgr_line_put(&line, values[each].name);
+        mmgr_line_ch(&line, '=');
+        mmgr_line_put(&line, values[each].value);
     }
-    cli_cell_given(values);
+    g_cli_cells->persistent_buf_release(values, NULL);
     cli_check_text(text, line.at, wanted, what);
 }
 
-// a recording keeps each line with its frame's depth and values
+// a recording records each line with its frame's depth and values
 static void recording_steps(void)
 {
     static const unsigned int s_depths[8] = {1u, 1u, 2u, 2u, 1u, 2u, 2u, 1u};
@@ -55,8 +55,8 @@ static void recording_steps(void)
     {
         deep = found->steps[at].depth == s_depths[at];
     }
-    cli_check(deep, "a recording keeps each line with its frame's depth");
-    recording_values(1u, 7u, "a=2|b=3", "and the values its frame's names hold");
+    cli_check(deep, "a recording records each line with its frame's depth");
+    recording_values(1u, 7u, "a=2|b=3", "and the values its frame's names contain");
     recording_values(2u, 3u, "n=2", "in each frame");
     cli_check(found->has_code && (found->code == 0ll), "and the run's exit code");
     cli_check((found->raised_count == 1u) && (found->raised[0].step == 6u), "and each raise at its step");
@@ -68,27 +68,27 @@ static void recording_stack(unsigned int at, const char *wanted, const char *wha
     unsigned int frames[8][2];
     const unsigned int count = cli_recording_stack(at, frames, 8u);
     char text[128];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
     {
-        cli_line_text(&line, (each > 0u) ? "|" : "");
-        cli_line_decimal(&line, frames[each][0], 1u);
-        cli_line_character(&line, ':');
-        cli_line_decimal(&line, frames[each][1], 1u);
+        mmgr_line_put(&line, (each > 0u) ? "|" : "");
+        mmgr_line_decimal(&line, frames[each][0], 1u);
+        mmgr_line_ch(&line, ':');
+        mmgr_line_decimal(&line, frames[each][1], 1u);
     }
     cli_check_text(text, line.at, wanted, what);
 }
 
-// a change of a name kept, `step:line:value` after the others
+// a change of a name recorded, `step:line:value` after the others
 static void recording_changed(void *context, unsigned int step, unsigned int line, const char *value)
 {
     (void)context;
-    cli_line_text(&s_seen_line, (s_seen_line.at > 0ull) ? "|" : "");
-    cli_line_decimal(&s_seen_line, step, 1u);
-    cli_line_character(&s_seen_line, ':');
-    cli_line_decimal(&s_seen_line, line, 1u);
-    cli_line_character(&s_seen_line, ':');
-    cli_line_text(&s_seen_line, (value != NULL) ? value : "");
+    mmgr_line_put(&s_seen_line, (s_seen_line.at > 0ull) ? "|" : "");
+    mmgr_line_decimal(&s_seen_line, step, 1u);
+    mmgr_line_ch(&s_seen_line, ':');
+    mmgr_line_decimal(&s_seen_line, line, 1u);
+    mmgr_line_ch(&s_seen_line, ':');
+    mmgr_line_put(&s_seen_line, (value != NULL) ? value : "");
 }
 
 // the history of `name` in frame `serial`, checked against `wanted`
@@ -112,6 +112,7 @@ static void recording_go(unsigned int at, const char *how, unsigned int step, co
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     recording_sample();
     recording_steps();
     recording_stack(3u, "2:3|1:1", "a stack stands each caller at its line then");
@@ -129,7 +130,7 @@ int main(void)
     recording_go(3u, "stepOut", 4u, "step", "step out comes back out");
     recording_go(4u, "stepBack", 1u, "step", "step back goes over it backward");
     recording_go(7u, "next", 7u, "end", "and the last step ends");
-    char key[CLI_PATH_LONGEST];
+    char key[CLI_PATH_MAX_LEN];
     cli_replay_key("/tree/a.py", key);
     memor.cpy(&(MemoriaCfg){.dst = g_cli_replay->break_files[0],
                             .src = key,
@@ -141,7 +142,7 @@ int main(void)
     recording_go(2u, "continue", 5u, "breakpoint", "and at the next");
     recording_go(7u, "reverseContinue", 5u, "breakpoint", "running backward stops at one too");
     g_cli_replay->on_raised = 1;
-    recording_go(5u, "continue", 6u, "exception", "and a raise stops it where asked");
+    recording_go(5u, "continue", 6u, "exception", "and a raise stops it where requested");
     cli_recording_let_go();
     return cli_checked();
 }

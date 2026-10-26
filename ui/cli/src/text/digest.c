@@ -82,7 +82,7 @@ static void cli_sha256_block(unsigned int *state, const unsigned char *block)
 void cli_sha256_begun(CliSha256 *sha)
 {
     memor.cpy(&(MemoriaCfg){.dst = sha->state, .src = s_start, .bytes = sizeof(s_start)});
-    sha->held = 0u;
+    sha->buffered = 0u;
     sha->total = 0ull;
 }
 
@@ -92,12 +92,12 @@ void cli_sha256_taken(CliSha256 *sha, const void *bytes, unsigned long long size
     sha->total += size;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
-        sha->block[sha->held] = from[at];
-        sha->held += 1u;
-        if (sha->held == 64u)
+        sha->block[sha->buffered] = from[at];
+        sha->buffered += 1u;
+        if (sha->buffered == 64u)
         {
             cli_sha256_block(sha->state, sha->block);
-            sha->held = 0u;
+            sha->buffered = 0u;
         }
     }
 }
@@ -108,7 +108,7 @@ void cli_sha256_ended(CliSha256 *sha, unsigned char *digest)
     const unsigned char one = 0x80u;
     const unsigned char zero = 0u;
     cli_sha256_taken(sha, &one, 1ull);
-    while (sha->held != 56u)
+    while (sha->buffered != 56u)
     {
         cli_sha256_taken(sha, &zero, 1ull);
     }
@@ -136,15 +136,15 @@ void cli_sha256_bytes(const void *bytes, unsigned long long size, unsigned char 
 }
 
 // `size` bytes as lowercase hex
-static void cli_hex(const unsigned char *bytes, unsigned int size, CliLine *text)
+static void cli_hex(const unsigned char *bytes, unsigned int size, VerbaLinea *text)
 {
     for (unsigned int at = 0u; at < size; at += 1u)
     {
-        cli_line_hex(text, bytes[at], 2u);
+        mmgr_line_hex(text, bytes[at], 2u);
     }
 }
 
-void cli_sha256_text(const void *bytes, unsigned long long size, CliLine *text)
+void cli_sha256_text(const void *bytes, unsigned long long size, VerbaLinea *text)
 {
     unsigned char digest[32];
     cli_sha256_bytes(bytes, size, digest);
@@ -186,7 +186,7 @@ void cli_hmac_sha256_bytes(const void *key, unsigned long long key_size, const v
 }
 
 void cli_hmac_sha256_text(const void *key, unsigned long long key_size, const void *message,
-                          unsigned long long message_size, CliLine *text)
+                          unsigned long long message_size, VerbaLinea *text)
 {
     unsigned char signed_digest[32];
     cli_hmac_sha256_bytes(key, key_size, message, message_size, signed_digest);
@@ -198,14 +198,14 @@ void cli_pbkdf2_sha256(const void *password, unsigned long long password_size, c
 {
     // the salt and the block's number, 1, big-endian, as the first round's message
     static unsigned char s_first[4096u + 4u];
-    const unsigned long long kept = (salt_size < 4096ull) ? salt_size : 4096ull;
-    memor.cpy(&(MemoriaCfg){.dst = s_first, .src = salt, .bytes = (size_t)kept});
-    s_first[kept] = 0u;
-    s_first[kept + 1u] = 0u;
-    s_first[kept + 2u] = 0u;
-    s_first[kept + 3u] = 1u;
+    const unsigned long long salt_len = (salt_size < 4096ull) ? salt_size : 4096ull;
+    memor.cpy(&(MemoriaCfg){.dst = s_first, .src = salt, .bytes = (size_t)salt_len});
+    s_first[salt_len] = 0u;
+    s_first[salt_len + 1u] = 0u;
+    s_first[salt_len + 2u] = 0u;
+    s_first[salt_len + 3u] = 1u;
     unsigned char last[32];
-    cli_hmac_sha256_bytes(password, password_size, s_first, kept + 4ull, last);
+    cli_hmac_sha256_bytes(password, password_size, s_first, salt_len + 4ull, last);
     memor.cpy(&(MemoriaCfg){.dst = derived, .src = last, .bytes = 32u});
     for (unsigned int round = 1u; round < rounds; round += 1u)
     {
@@ -306,7 +306,7 @@ static const unsigned int s_md5_round[64] = {
 
 static const unsigned int s_md5_shift[16] = {7u, 12u, 17u, 22u, 5u, 9u, 14u, 20u, 4u, 11u, 16u, 23u, 6u, 10u, 15u, 21u};
 
-void cli_md5_text(const void *bytes, unsigned long long size, CliLine *text)
+void cli_md5_text(const void *bytes, unsigned long long size, VerbaLinea *text)
 {
     unsigned int state[4] = {0x67452301u, 0xefcdab89u, 0x98badcfeu, 0x10325476u};
     const unsigned long long blocks = ((size + 8ull) / 64ull) + 1ull;
@@ -351,7 +351,7 @@ void cli_md5_text(const void *bytes, unsigned long long size, CliLine *text)
     {
         for (unsigned int byte = 0u; byte < 4u; byte += 1u)
         {
-            cli_line_hex(text, (state[at] >> (8u * byte)) & 0xffu, 2u);
+            mmgr_line_hex(text, (state[at] >> (8u * byte)) & 0xffu, 2u);
         }
     }
 }

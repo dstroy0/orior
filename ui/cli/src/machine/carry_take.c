@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // carry_take.c: what is carried here compared with orior's own folder, taken in as the reader chooses with each file it
-// writes over kept, and a taking undone
+// writes over saved, and a taking undone
 #include "../text/text.h"
 #include "carry_internal.h"
 
@@ -60,21 +60,21 @@ static void cli_keys_of(unsigned int mine, unsigned int theirs)
 }
 
 // a setting's value written as JSON in a string, or null where it is not set
-static void cli_value_written(CliLine *out, unsigned int value)
+static void cli_value_written(VerbaLinea *out, unsigned int value)
 {
-    CliLine line;
-    if ((value == CLI_JSON_NONE) || !cli_line_growing(&line, CLI_CARRY_WRITTEN_FIRST, "a setting's value written"))
+    VerbaLinea line;
+    if ((value == CLI_JSON_NONE) || !cli_growing_line_made(&line, CLI_CARRY_WRITTEN_FIRST))
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return;
     }
     cli_json_write(&s_take.room.json, value, &line, 0u, 0);
-    cli_json_quoted(out, line.out, cli_line_fits(&line) ? line.at : 0ull);
-    cli_cell_given(line.out);
+    cli_json_quoted(out, line.out, mmgr_line_ok(&line) ? line.at : 0ull);
+    g_cli_cells->persistent_buf_release(line.out, NULL);
 }
 
 // the settings that differ between two settings texts written, each with its value here and there: 1 where any do
-static int cli_settings_differ(const CliCarried *there, unsigned int mine_at, unsigned int theirs_at, CliLine *out)
+static int cli_settings_differ(const CliCarried *there, unsigned int mine_at, unsigned int theirs_at, VerbaLinea *out)
 {
     CliJson *const json = &s_take.room.json;
     const unsigned long long theirs_size = (theirs_at < there->count) ? there->size[theirs_at] : 0ull;
@@ -101,37 +101,37 @@ static int cli_settings_differ(const CliCarried *there, unsigned int mine_at, un
         {
             continue;
         }
-        cli_line_text(out, (written != 0u) ? ",{\"key\":" : "{\"key\":");
+        mmgr_line_put(out, (written != 0u) ? ",{\"key\":" : "{\"key\":");
         cli_json_quoted(out, s_take.key[at],
                         cellul.len(&(CatenaFinitaCfg){.src = s_take.key[at], .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"here\":");
+        mmgr_line_put(out, ",\"here\":");
         cli_value_written(out, here);
-        cli_line_text(out, ",\"there\":");
+        mmgr_line_put(out, ",\"there\":");
         cli_value_written(out, away);
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
         written += 1u;
     }
     return written != 0u;
 }
 
-void cli_carry_differences(const char *home, const CliCarried *there, CliLine *out)
+void cli_carry_differences(const char *home, const CliCarried *there, VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    CliLine settings;
-    if (!cli_line_growing(&settings, CLI_CARRY_WRITTEN_FIRST, "the settings that differ"))
+    VerbaLinea settings;
+    if (!cli_growing_line_made(&settings, CLI_CARRY_WRITTEN_FIRST))
     {
-        cli_line_text(out, "[]");
+        mmgr_line_put(out, "[]");
         cli_lock_give(&s_lock);
         return;
     }
     cli_carry_room_begun(&s_take.room);
-    char why[CLI_NAME_LONGEST];
-    CliLine unpacked = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unpacked = {why, sizeof(why), 0ull};
     if (!cli_carry_pack(home, &s_take.here, &unpacked))
     {
         cli_carried_clear(&s_take.here);
     }
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     unsigned int written = 0u;
     unsigned int mine_at = 0u;
     unsigned int theirs_at = 0u;
@@ -172,39 +172,39 @@ void cli_carry_differences(const char *home, const CliCarried *there, CliLine *o
         {
             continue;
         }
-        cli_line_text(out, (written != 0u) ? ",{\"place\":" : "{\"place\":");
+        mmgr_line_put(out, (written != 0u) ? ",{\"place\":" : "{\"place\":");
         cli_json_quoted(out, place, cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"how\":\"");
-        cli_line_text(out, how);
-        cli_line_text(out, "\",\"settings\":[");
-        cli_line_counted(out, settings.out, cli_line_fits(&settings) ? settings.at : 0ull);
-        cli_line_text(out, "]}");
+        mmgr_line_put(out, ",\"how\":\"");
+        mmgr_line_put(out, how);
+        mmgr_line_put(out, "\",\"settings\":[");
+        mmgr_line_put_n(out, settings.out, mmgr_line_ok(&settings) ? settings.at : 0ull);
+        mmgr_line_put(out, "]}");
         written += 1u;
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_carried_clear(&s_take.here);
     cli_carry_room_given(&s_take.room);
-    cli_cell_given(settings.out);
+    g_cli_cells->persistent_buf_release(settings.out, NULL);
     cli_lock_give(&s_lock);
 }
 
-// the text of the file at `path` written whole at `to`, the folder above it made: 1, or 0 with why said
-static int cli_written_to(const char *to, const char *text, unsigned long long size, CliLine *said)
+// the text of the file at `path` written whole at `to`, the folder above it made: 1, or 0 with why given
+static int cli_written_to(const char *to, const char *text, unsigned long long size, VerbaLinea *err_msg)
 {
-    char parent[CLI_PATH_LONGEST];
+    char parent[CLI_PATH_MAX_LEN];
     if ((cli_path_parent(to, parent) && !query_folder_made(parent)) || !query_file_written(to, text, size))
     {
-        cli_line_text(said, to);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, to);
+        mmgr_line_put(err_msg, ": it could not be written");
         return 0;
     }
     return 1;
 }
 
-// the settings of this machine kept and of `keys` taken from there, written into `out`: 1, or 0 where the settings'
+// the settings of this machine retained and of `keys` taken from there, written into `out`: 1, or 0 where the settings'
 // tree is refused its cell or they do not fit
 static int cli_settings_taken(const char *before, unsigned long long before_size, const CliCarried *there,
-                              const char *const *keys, unsigned int key_count, CliLine *out)
+                              const char *const *keys, unsigned int key_count, VerbaLinea *out)
 {
     CliJson *const json = &s_take.room.json;
     const unsigned int theirs_at = cli_carried_find(there, "settings.json");
@@ -236,23 +236,23 @@ static int cli_settings_taken(const char *before, unsigned long long before_size
         }
     }
     cli_carry_settings_written(&s_take.room, mine, out);
-    return cli_line_fits(out);
+    return mmgr_line_ok(out);
 }
 
-// one place taken in: its file kept in `kept` where one stood, and written as there: 1, or 0 with why said
-static int cli_place_taken(const char *home, const char *kept, const char *place, const CliCarried *there,
-                           const char *const *keys, unsigned int key_count, CliLine *said)
+// one place taken in: its file saved in `backup_dir` where one stood, and written as there: 1, or 0 with why given
+static int cli_place_taken(const char *home, const char *backup_dir, const char *place, const CliCarried *there,
+                           const char *const *keys, unsigned int key_count, VerbaLinea *err_msg)
 {
-    CliLine settings;
-    if (!cli_line_growing(&settings, CLI_CARRY_WRITTEN_FIRST, "the settings written"))
+    VerbaLinea settings;
+    if (!cli_growing_line_made(&settings, CLI_CARRY_WRITTEN_FIRST))
     {
-        cli_line_text(said, "the settings written could not be given a cell");
+        mmgr_line_put(err_msg, "the settings written could not be given a cell");
         return 0;
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(home, place, path);
     unsigned long long before_size = 0ull;
-    const unsigned char *const before = cli_file_held_utf8(path, &before_size);
+    const unsigned char *const before = cli_file_read_utf8(path, &before_size);
     const char *text = NULL;
     unsigned long long size = 0ull;
     int taken = 1;
@@ -262,7 +262,7 @@ static int cli_place_taken(const char *home, const char *kept, const char *place
                                    &settings);
         if (!taken)
         {
-            cli_line_text(said, "the settings taken could not be given cells");
+            mmgr_line_put(err_msg, "the settings taken could not be given cells");
         }
         text = settings.out;
         size = settings.at;
@@ -275,9 +275,9 @@ static int cli_place_taken(const char *home, const char *kept, const char *place
     }
     if (taken && (text != NULL) && (before != NULL))
     {
-        char saved[CLI_PATH_LONGEST];
-        cli_full(kept, place, saved);
-        taken = cli_written_to(saved, (const char *)before, before_size, said);
+        char saved[CLI_PATH_MAX_LEN];
+        cli_full(backup_dir, place, saved);
+        taken = cli_written_to(saved, (const char *)before, before_size, err_msg);
     }
     // the file is let go of before it is written over: a file still mapped is not truncated on Windows, and reading a
     // view of one that was is a fault elsewhere; what the writing needs of it is in the settings written and the saved
@@ -287,61 +287,62 @@ static int cli_place_taken(const char *home, const char *kept, const char *place
     {
         cli_file_let_go(before, before_size);
     }
-    taken = taken && ((text == NULL) || cli_written_to(path, text, size, said));
+    taken = taken && ((text == NULL) || cli_written_to(path, text, size, err_msg));
     if (taken && (text != NULL) && (s_take.taking.files < CLI_TAKING_FILES))
     {
         memor.cpy(
-            &(MemoriaCfg){.dst = s_take.taking.place[s_take.taking.files], .bytes = CLI_NAME_LONGEST, .src = place});
+            &(MemoriaCfg){.dst = s_take.taking.place[s_take.taking.files], .bytes = CLI_NAME_MAX_LEN, .src = place});
         s_take.taking.stood[s_take.taking.files] = stood;
         s_take.taking.files += 1u;
     }
-    cli_cell_given(settings.out);
+    g_cli_cells->persistent_buf_release(settings.out, NULL);
     return taken;
 }
 
 int cli_carry_take(const char *home, const char *from, const CliCarried *there, const char *const *places,
-                   unsigned int count, const char *const *keys, unsigned int key_count, CliLine *out, CliLine *said)
+                   unsigned int count, const char *const *keys, unsigned int key_count, VerbaLinea *out,
+                   VerbaLinea *err_msg)
 {
-    CliLine written;
-    if (!cli_line_growing(&written, CLI_CARRY_WRITTEN_FIRST, "a taking written"))
+    VerbaLinea written;
+    if (!cli_growing_line_made(&written, CLI_CARRY_WRITTEN_FIRST))
     {
-        cli_line_text(said, "a taking written could not be given a cell");
+        mmgr_line_put(err_msg, "a taking written could not be given a cell");
         return 0;
     }
     cli_lock_take(&s_lock);
     cli_carry_room_begun(&s_take.room);
     CliTaking *const taking = &s_take.taking;
     taking->at = cli_wall_milliseconds();
-    CliLine id = {taking->id, sizeof(taking->id), 0ull};
-    cli_line_decimal(&id, taking->at, 0u);
-    cli_line_closed(&id);
+    VerbaLinea id = {taking->id, sizeof(taking->id), 0ull};
+    mmgr_line_decimal(&id, taking->at, 0u);
+    mmgr_line_finish(&id);
     memor.cpy(&(MemoriaCfg){.dst = taking->from,
                             .src = from,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
     taking->files = 0u;
-    char carried[CLI_PATH_LONGEST];
-    char kept[CLI_PATH_LONGEST];
+    char carried[CLI_PATH_MAX_LEN];
+    char backup_dir[CLI_PATH_MAX_LEN];
     cli_full(home, "carried", carried);
-    cli_full(carried, taking->id, kept);
+    cli_full(carried, taking->id, backup_dir);
     int taken = 1;
     for (unsigned int at = 0u; taken && (at < count); at += 1u)
     {
         if (cli_carry_allowed(places[at]))
         {
-            taken = cli_place_taken(home, kept, places[at], there, keys, key_count, said);
+            taken = cli_place_taken(home, backup_dir, places[at], there, keys, key_count, err_msg);
         }
     }
-    char file[CLI_PATH_LONGEST];
-    cli_full(kept, "taking.json", file);
+    char file[CLI_PATH_MAX_LEN];
+    cli_full(backup_dir, "taking.json", file);
     cli_carry_taking_written(taking, 1, &written);
-    taken = taken && cli_line_fits(&written) && query_folder_made(kept) &&
-            cli_written_to(file, written.out, written.at, said);
+    taken = taken && mmgr_line_ok(&written) && query_folder_made(backup_dir) &&
+            cli_written_to(file, written.out, written.at, err_msg);
     if (taken)
     {
         cli_carry_taking_written(taking, 0, out);
     }
     cli_carry_room_given(&s_take.room);
     cli_lock_give(&s_lock);
-    cli_cell_given(written.out);
+    g_cli_cells->persistent_buf_release(written.out, NULL);
     return taken;
 }

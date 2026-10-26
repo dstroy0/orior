@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// monolith_forms.cpp: the forms a lane is written in, each asked of NVIDIA's compiler in one program, and each form of
-// sass.krs and ptx.krs read back off what the compiler wrote for it.
+// monolith_forms.cpp: the forms a lane is written in, each submitted to NVIDIA's compiler in one program, and each form
+// of sass.krs and ptx.krs read back off what the compiler wrote for it.
 //
 //     monolith_forms write <c.krs> <ptx.krs> <monolith.cu> <questions>
 //     monolith_forms read <questions> <listing> <ptx> <sass.krs> <ptx.krs> <machine> <record> [apply]
@@ -11,17 +11,17 @@
 // question is a block of the monolith between two tags, its text the form's own text in c.krs, the meaning every
 // target's form shares: every argument the form reads is loaded from `in` and every one it writes stored to `out`,
 // each through a volatile access, and nothing a block does crosses a tag. The forms that carry a chain's carry are
-// asked in the runs a lane decides them in, a tag between each, the carry held between them. The fixed registers a
-// form's text names are loaded the same way.
+// submitted in the runs a lane decides them in, a tag between each, the carry retained between them. The fixed
+// registers a form's text names are loaded the same way.
 //
 // The second reads the compiler's listing and its PTX a block at a time. A register loaded from `in` is the argument
 // it was loaded for and a register stored to `out` is the argument stored; a predicate set from a loaded word, or a
 // word selected from a predicate to be stored, is the predicate. What is left in the block is the form, written with
 // each register named by its argument. A register or predicate that is no argument is scratch: the first word is
 // R237 and the first predicate P6, sm_86.kdm's own, and a block needing more is reported and not written. A number
-// argument is named where the number stands once. Each form read is held beside the ruleset's own and written to the
+// argument is named where the number stands once. Each form read is compared with the ruleset's own and written to the
 // record whole, and with apply each form every question of which reads whole and alike is written into the ruleset in
-// place (read_adopted says what whole is).
+// place (read_adopted defines what whole is).
 #include "../../../../../../utils/test/src/cu/engine/analysis/cycle/record_programs.h"
 
 // the cubin writer is C and its headers carry no guard of their own: the linkage is named here
@@ -47,7 +47,8 @@ extern "C"
 #include <vector>
 
 // ENGINE_IMAGE_BASE reads the ELF header the linker marks with __ehdr_start (engine_config_platform.h), and this
-// tool is linked as a PE, where there is none. Nothing here asks for the image base: it is named so the link holds
+// tool is linked as a PE, where there is none. Nothing here requests for the image base: it is named so the link
+// resolves
 #if defined(__GNUC__) && !defined(__ELF__)
 extern "C" const char __ehdr_start = 0;
 #endif
@@ -123,7 +124,7 @@ static std::vector<std::string> words_split(const std::string &text)
 // the ruleset at `path` read: 1, or 0 where it did not read
 static int krs_read(const char *path, Krs *krs)
 {
-    // the ruleset as the run holds it, or the disk where the run holds none (qry_member_file)
+    // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if (!qry_member_file_blob(path, &bytes, &size))
@@ -222,7 +223,7 @@ static std::string text_fill(const std::string &text, const std::string &name, c
 }
 
 // ---------------------------------------------------------------------------------------------------------------
-// the C types the lane's registers hold, read off c.krs
+// the C types the lane's registers contain, read off c.krs
 
 // The C type each variable c.krs declares in a list of its own, `type a, b, c;`, by the variable's name
 static std::map<std::string, std::string> c_declared(const Krs &c)
@@ -271,7 +272,7 @@ static std::map<std::string, std::string> c_declared(const Krs &c)
     return types;
 }
 
-// the C type a bank's registers hold: the type its text casts to, or the type its name is declared with as an array
+// the C type a bank's registers contain: the type its text casts to, or the type its name is declared with as an array
 static std::string c_bank_type(const Krs &c, const std::string &bank)
 {
     const auto found = c.banks.find(bank);
@@ -318,17 +319,17 @@ struct Argument
 };
 
 // one form a lane decides: its place in the schema and its arguments
-struct Asked
+struct LaneForm
 {
     unsigned int form;
     std::vector<Argument> arguments;
 };
 
-// what the arguments of an asked form come from, and two of them alike are one question
-static std::string asked_key(const Asked &asked)
+// what the arguments of a submitted form come from, and two of them alike are one question
+static std::string lane_form_key(const LaneForm &lane_form)
 {
-    std::string key = s_form_names[asked.form];
-    for (const Argument &argument : asked.arguments)
+    std::string key = s_form_names[lane_form.form];
+    for (const Argument &argument : lane_form.arguments)
     {
         char part[32];
         if (argument.kind == OPERAND_REGISTER)
@@ -361,7 +362,7 @@ static int form_carries(const Krs &c, const std::string &name, int *reads)
 
 // 1 where the form is a question: c.krs gives it a text that does something with its arguments, and not a declaration,
 // a label, a note, a jump or the resident
-static int form_asked(const Krs &c, const std::string &name)
+static int form_is_question(const Krs &c, const std::string &name)
 {
     const auto found = c.forms.find(name);
     if ((found == c.forms.end()) || found->second.parameters.empty())
@@ -387,68 +388,68 @@ static int form_asked(const Krs &c, const std::string &name)
     return 1;
 }
 
-// the questions gathered from every lane: each asked form alone, and each run of carrying forms, with the numbers
-// they were asked with
+// the questions gathered from every lane: each submitted form alone, and each run of carrying forms, with the numbers
+// they were submitted with
 struct Gathered
 {
-    std::vector<std::vector<Asked>> questions;
+    std::vector<std::vector<LaneForm>> questions;
     std::set<std::string> keys;
 };
 
-static void gather_number(std::vector<Asked> &kept, const std::vector<Asked> &seen)
+static void gather_number(std::vector<LaneForm> &merged, const std::vector<LaneForm> &seen)
 {
-    for (size_t one = 0u; one < kept.size(); one += 1u)
+    for (size_t one = 0u; one < merged.size(); one += 1u)
     {
-        for (size_t at = 0u; at < kept[one].arguments.size(); at += 1u)
+        for (size_t at = 0u; at < merged[one].arguments.size(); at += 1u)
         {
-            Argument &held = kept[one].arguments[at];
+            Argument &argument_ref = merged[one].arguments[at];
             const unsigned int now = seen[one].arguments[at].number;
-            const int number = (held.kind == OPERAND_NUMBER) || (held.kind == OPERAND_SIGNED) ||
-                               ((held.kind == OPERAND_REGISTER) && (held.which == REGCLASS_IMMEDIATE));
+            const int number = (argument_ref.kind == OPERAND_NUMBER) || (argument_ref.kind == OPERAND_SIGNED) ||
+                               ((argument_ref.kind == OPERAND_REGISTER) && (argument_ref.which == REGCLASS_IMMEDIATE));
             // a number of 0 or 1 is the likeliest to be met by a constant the compiler writes of its own
-            if (number && (held.number < 2u) && (now >= 2u))
+            if (number && (argument_ref.number < 2u) && (now >= 2u))
             {
-                held.number = now;
+                argument_ref.number = now;
             }
         }
     }
 }
 
-static void gather_add(Gathered *gathered, const std::vector<Asked> &run)
+static void gather_add(Gathered *gathered, const std::vector<LaneForm> &run)
 {
     if (run.empty())
     {
         return;
     }
-    // a run that repeats a form asks it once
-    std::vector<Asked> kept;
-    for (const Asked &asked : run)
+    // a run that repeats a form submits it once
+    std::vector<LaneForm> merged;
+    for (const LaneForm &lane_form : run)
     {
-        if (kept.empty() || (asked_key(kept.back()) != asked_key(asked)))
+        if (merged.empty() || (lane_form_key(merged.back()) != lane_form_key(lane_form)))
         {
-            kept.push_back(asked);
+            merged.push_back(lane_form);
         }
     }
     std::string key;
-    for (const Asked &asked : kept)
+    for (const LaneForm &lane_form : merged)
     {
-        key += asked_key(asked) + ";";
+        key += lane_form_key(lane_form) + ";";
     }
     if (gathered->keys.insert(key).second)
     {
-        gathered->questions.push_back(kept);
+        gathered->questions.push_back(merged);
         return;
     }
-    for (std::vector<Asked> &question : gathered->questions)
+    for (std::vector<LaneForm> &question : gathered->questions)
     {
-        std::string held;
-        for (const Asked &asked : question)
+        std::string previous_key;
+        for (const LaneForm &lane_form : question)
         {
-            held += asked_key(asked) + ";";
+            previous_key += lane_form_key(lane_form) + ";";
         }
-        if (held == key)
+        if (previous_key == key)
         {
-            gather_number(question, kept);
+            gather_number(question, merged);
         }
     }
 }
@@ -469,24 +470,25 @@ static void gather_lane(const Krs &c, const HostProgram *program, int reuse, Gat
         host_free(&loaded);
         return;
     }
-    std::vector<Asked> run;
+    std::vector<LaneForm> run;
     for (const MachineInstr &item : items)
     {
-        if ((item.form >= OPCODE_COUNT) || !form_asked(c, s_form_names[item.form]))
+        if ((item.form >= OPCODE_COUNT) || !form_is_question(c, s_form_names[item.form]))
         {
             continue;
         }
-        Asked asked;
-        asked.form = item.form;
+        LaneForm lane_form;
+        lane_form.form = item.form;
         for (unsigned int at = 0u; at < codegen_operand_count(item.form); at += 1u)
         {
-            asked.arguments.push_back({item.arguments[at].kind, item.arguments[at].which, item.arguments[at].number});
+            lane_form.arguments.push_back(
+                {item.arguments[at].kind, item.arguments[at].which, item.arguments[at].number});
         }
         int reads = 0;
         const int writes = form_carries(c, s_form_names[item.form], &reads);
         if (!writes && !reads)
         {
-            gather_add(gathered, std::vector<Asked>{asked});
+            gather_add(gathered, std::vector<LaneForm>{lane_form});
             continue;
         }
         // a form that writes the carry and does not read it opens a run, and the run before it is done
@@ -495,7 +497,7 @@ static void gather_lane(const Krs &c, const HostProgram *program, int reuse, Gat
             gather_add(gathered, run);
             run.clear();
         }
-        run.push_back(asked);
+        run.push_back(lane_form);
     }
     gather_add(gathered, run);
     host_free(&loaded);
@@ -674,10 +676,10 @@ static std::string writer_type(Writer *writer, const Argument &argument, std::st
     return std::string();
 }
 
-// A question holding a number is asked again with another: a form the compiler wrote around the number itself, a power
-// of two as a shift or a count folded into a constant, reads apart the second time. The other number keeps a multiple
-// of four a multiple of four, as an offset is, and stays below the first where it can, as a count must stay below the
-// width; neither is 0 or 1, which the compiler meets in constants of its own
+// A question containing a number is submitted again with another: a form the compiler wrote around the number itself, a
+// power of two as a shift or a count folded into a constant, reads apart the second time. The other number leaves a
+// multiple of four a multiple of four, as an offset is, and stays below the first where it can, as a count must stay
+// below the width; neither is 0 or 1, which the compiler meets in constants of its own
 static unsigned int number_alternate(unsigned int number)
 {
     if ((number % 4u) == 0u)
@@ -688,11 +690,11 @@ static unsigned int number_alternate(unsigned int number)
 }
 
 // 1 where a question puts a number to any of its forms
-static int question_numbered(const std::vector<Asked> &question)
+static int question_numbered(const std::vector<LaneForm> &question)
 {
-    for (const Asked &asked : question)
+    for (const LaneForm &lane_form : question)
     {
-        for (const Argument &argument : asked.arguments)
+        for (const Argument &argument : lane_form.arguments)
         {
             if ((argument.kind == OPERAND_NUMBER) || (argument.kind == OPERAND_SIGNED) ||
                 ((argument.kind == OPERAND_REGISTER) && (argument.which == REGCLASS_IMMEDIATE)))
@@ -705,27 +707,27 @@ static int question_numbered(const std::vector<Asked> &question)
 }
 
 // one question written: its run of forms, each in three regions between tags, its loads, the form and its stores. A
-// volatile access does not cross a tag, and the form's region holds none: the compiler cannot fold a load or a store
+// volatile access does not cross a tag, and the form's region contains none: the compiler cannot fold a load or a store
 // into the form
-static void writer_question(Writer *writer, const std::vector<Asked> &question, int alternate)
+static void writer_question(Writer *writer, const std::vector<LaneForm> &question, int alternate)
 {
     for (size_t one = 0u; one < question.size(); one += 1u)
     {
-        const Asked &asked = question[one];
-        const std::string name = s_form_names[asked.form];
+        const LaneForm &lane_form = question[one];
+        const std::string name = s_form_names[lane_form.form];
         const KrsForm &form = writer->c->forms.at(name);
         writer->tag += 1u;
         char line[256];
         snprintf(line, sizeof(line), "\n    MONOLITH_TAG(%u);\n    {\n", MONOLITH_FORMS_LOADS + writer->tag);
         writer->body += line;
-        std::string row = std::to_string(writer->tag) + "\t" + name + "\t" + asked_key(asked);
+        std::string row = std::to_string(writer->tag) + "\t" + name + "\t" + lane_form_key(lane_form);
         std::string text = form.text;
         std::string stores;
         const int conditional = (text.find("if (") != std::string::npos);
         for (size_t at = 0u; at < form.parameters.size(); at += 1u)
         {
             const std::string &parameter = form.parameters[at];
-            const Argument &argument = asked.arguments[at];
+            const Argument &argument = lane_form.arguments[at];
             std::string variable;
             const std::string type = writer_type(writer, argument, &variable);
             if (type.empty())
@@ -809,7 +811,7 @@ static void writer_question(Writer *writer, const std::vector<Asked> &question, 
     }
 }
 
-// The PTX type each register ptx.krs declares holds, b32, b64 or pred, by its name, and each bank's by the prefix its
+// The PTX type each register ptx.krs declares stores, b32, b64 or pred, by its name, and each bank's by the prefix its
 // registers are named with: read off every `.reg .<type> <names>;` the ruleset's forms write
 static std::map<std::string, std::string> ptx_declared(const Krs &ptx)
 {
@@ -841,7 +843,7 @@ static std::map<std::string, std::string> ptx_declared(const Krs &ptx)
     return types;
 }
 
-// the PTX type a register of `bank` holds, through the prefix ptx.krs names the bank's registers with
+// the PTX type a register of `bank` stores, through the prefix ptx.krs names the bank's registers with
 static std::string ptx_bank_type(const Writer *writer, const std::string &bank)
 {
     const auto text = writer->ptx->banks.find(bank);
@@ -890,7 +892,7 @@ static int ptx_written(const std::string &text, const std::string &name)
     return written;
 }
 
-// One form asked in ptx.krs's own text, for the SASS NVIDIA's assembler writes from it: the text an inline assembly
+// One form submitted in ptx.krs's own text, for the SASS NVIDIA's assembler writes from it: the text an inline assembly
 // statement between the form's tags, every register it names an operand of the statement loaded from `in` or stored to
 // `out`. A predicate crosses as a word: set from it before the form where read, and the word selected from it after
 // where written. The carry a form reads is the carry flag set from a word before it, and the carry it writes is read
@@ -899,9 +901,9 @@ static int ptx_written(const std::string &text, const std::string &name)
 // count excepted: the compiler cannot fold a value it cannot see, and writes the instruction that takes any word, which
 // the number then fills. No question reads a copy: in a straight run the allocator names the copy's two words one
 // register, and only a register fixed from outside, a call's, makes it write one
-static void writer_ptx_question(Writer *writer, const Asked &asked, int alternate)
+static void writer_ptx_question(Writer *writer, const LaneForm &lane_form, int alternate)
 {
-    const std::string name = s_form_names[asked.form];
+    const std::string name = s_form_names[lane_form.form];
     const auto found = writer->ptx->forms.find(name);
     if (found == writer->ptx->forms.end())
     {
@@ -910,8 +912,8 @@ static void writer_ptx_question(Writer *writer, const Asked &asked, int alternat
     const KrsForm &form = found->second;
     writer->ptx_tag += 1u;
     const unsigned int tag = MONOLITH_FORMS_PTX + writer->ptx_tag;
-    std::string row = std::to_string(tag) + "\t" + name + "\t" + asked_key(asked);
-    // every % of the text kept as one, and each register named in it then given its operand
+    std::string row = std::to_string(tag) + "\t" + name + "\t" + lane_form_key(lane_form);
+    // every % of the text retained as one, and each register named in it then given its operand
     std::string text;
     for (const char character : form.text)
     {
@@ -965,23 +967,23 @@ static void writer_ptx_question(Writer *writer, const Asked &asked, int alternat
         {
             return placed;
         }
-        const std::string held = "mq" + std::to_string(predicate_count);
+        const std::string predicate_name = "mq" + std::to_string(predicate_count);
         predicate_count += 1u;
-        predicates += predicates.empty() ? held : (", " + held);
+        predicates += predicates.empty() ? predicate_name : (", " + predicate_name);
         if (read)
         {
-            before += "\tsetp.ne.u32 " + held + ", " + placed + ", 0;\n";
+            before += "\tsetp.ne.u32 " + predicate_name + ", " + placed + ", 0;\n";
         }
         if (write)
         {
-            after += "\tselp.u32 " + placed + ", 1, 0, " + held + ";\n";
+            after += "\tselp.u32 " + placed + ", 1, 0, " + predicate_name + ";\n";
         }
-        return held;
+        return predicate_name;
     };
     for (size_t at = 0u; at < form.parameters.size(); at += 1u)
     {
         const std::string &parameter = form.parameters[at];
-        const Argument &argument = asked.arguments[at];
+        const Argument &argument = lane_form.arguments[at];
         std::string type;
         if ((argument.kind == OPERAND_REGISTER) && (argument.which != REGCLASS_IMMEDIATE))
         {
@@ -1013,9 +1015,9 @@ static void writer_ptx_question(Writer *writer, const Asked &asked, int alternat
             const std::string operation = line_of.empty() ? std::string() : instruction_read(line_of).operation;
             const int wide = !addressed && (operation.find("64") != std::string::npos) &&
                              (operation.compare(0u, 2u, "sh") != 0);
-            // a 64-bit number is asked whole, its high word the alternate of its low, which is never 0 and never the
-            // low word itself: a high word of 0 the compiler folds to RZ, and the form it writes for any other is not
-            // read
+            // a 64-bit number is submitted whole, its high word the alternate of its low, which is never 0 and never
+            // the low word itself: a high word of 0 the compiler folds to RZ, and the form it writes for any other is
+            // not read
             const unsigned long long whole =
                 wide ? (((unsigned long long)number_alternate(value) << 32u) | value) : value;
             const std::string number = ((argument.kind == OPERAND_SIGNED) && !wide) ? std::to_string((int)value)
@@ -1035,7 +1037,7 @@ static void writer_ptx_question(Writer *writer, const Asked &asked, int alternat
         const int read = (written != 1);
         text = text_fill(text, parameter, operand(parameter, type, 0, read, written != 0));
     }
-    // a form whose every number sits in an address asks nothing the literal questions did not
+    // a form whose every number sits in an address tests nothing the literal questions did not
     if ((alternate == 2) && (opaque == 0u))
     {
         writer->ptx_tag -= 1u;
@@ -1182,10 +1184,10 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
     writer.ptx_tag = 0u;
     writer.in_words = 0u;
     writer.out_words = 0u;
-    // the helpers the lane's opening defines for the carry chains, everything it holds before the lane itself
+    // the helpers the lane's opening defines for the carry chains, everything it contains before the lane itself
     const std::string &open = c.forms.at("lane_open").text;
     writer.helpers = open.substr(0u, open.find("extern \"C\" __device__"));
-    for (const std::vector<Asked> &question : gathered.questions)
+    for (const std::vector<LaneForm> &question : gathered.questions)
     {
         writer_question(&writer, question, 0);
         if (question_numbered(question))
@@ -1194,20 +1196,20 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
         }
     }
     // each form again in ptx.krs's own text, for the SASS read off it: alone, since the carry crosses as a word
-    std::set<std::string> asked_ptx;
-    for (const std::vector<Asked> &question : gathered.questions)
+    std::set<std::string> ptx_keys;
+    for (const std::vector<LaneForm> &question : gathered.questions)
     {
-        for (const Asked &asked : question)
+        for (const LaneForm &lane_form : question)
         {
-            if (!asked_ptx.insert(asked_key(asked)).second)
+            if (!ptx_keys.insert(lane_form_key(lane_form)).second)
             {
                 continue;
             }
-            writer_ptx_question(&writer, asked, 0);
-            if (question_numbered(std::vector<Asked>{asked}))
+            writer_ptx_question(&writer, lane_form, 0);
+            if (question_numbered(std::vector<LaneForm>{lane_form}))
             {
-                writer_ptx_question(&writer, asked, 1);
-                writer_ptx_question(&writer, asked, 2);
+                writer_ptx_question(&writer, lane_form, 1);
+                writer_ptx_question(&writer, lane_form, 2);
             }
         }
     }
@@ -1238,8 +1240,8 @@ static int forms_write(const char *c_path, const char *ptx_path, const char *mon
 // ---------------------------------------------------------------------------------------------------------------
 // the forms read back
 
-// what a block's register or predicate holds: an argument, its half, or scratch
-struct Held
+// what a block's register or predicate contains: an argument, its half, or scratch
+struct RegisterContent
 {
     std::string argument;
     unsigned int half;
@@ -1602,9 +1604,9 @@ static std::string as_unsigned(const std::string &token)
 // whether `read` is `now` with nothing changed but the signedness of one or more operations. Both are walked a
 // whitespace-separated word at a time: a word that matches stands, a word that matches only once its signedness is
 // written unsigned is an operation the system writes either way and is added to `alike`, and a word differing any other
-// way, or a word with no partner, says the two are not one form written two ways. The soundness is not here: that the
-// system compiles both to the same machine code is what the caller holds before it reads this, and this only names the
-// writings it may record alike
+// way, or a word with no partner, indicates the two are not one form written two ways. The soundness is not here: that
+// the system compiles both to the same machine code is what the caller verifies before it reads this, and this only
+// names the writings it may record alike
 static bool signedness_only(const std::string &now, const std::string &read,
                             std::vector<std::pair<std::string, std::string>> *alike)
 {
@@ -1647,17 +1649,17 @@ static bool signedness_only(const std::string &now, const std::string &read,
 static Read sass_read(const Question &question, const std::vector<std::string> &lines, Bases *bases)
 {
     Read read;
-    // the value each register holds now, by a name of its own: L<n> loaded, W<n>:<register> written by kept
+    // the value each register contains now, by a name of its own: L<n> loaded, W<n>:<register> written by retained
     // instruction n. A value an argument is bound to is named by the argument
     std::map<std::string, std::string> current;
-    std::map<std::string, Held> bound;
-    struct Kept
+    std::map<std::string, RegisterContent> bound;
+    struct Retained
     {
         Instruction instruction;
         std::vector<std::string> names;
         std::string guard;
     };
-    std::vector<Kept> kept;
+    std::vector<Retained> retained;
     unsigned int loads = 0u;
     auto role_at = [&](const std::string &kind, unsigned int word, unsigned int *half) -> const Role * {
         for (const Role &role : question.roles)
@@ -1723,7 +1725,7 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
         {
             continue;
         }
-        // a load from `in`: the register it writes holds the argument loaded
+        // a load from `in`: the register it writes contains the argument loaded
         if ((operation.compare(0u, 3u, "LDG") == 0) && (operands.size() == 2u) && (operands[1][0] == '[') &&
             ((int)token_number(operands[1].substr(1u)) == bases->in_low))
         {
@@ -1771,7 +1773,7 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
                 continue;
             }
         }
-        Kept one;
+        Retained one;
         one.instruction = instruction;
         one.names.resize(operands.size());
         const unsigned int written = sass_written(instruction);
@@ -1780,7 +1782,7 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
             one.names[at] = read_names(operands[at]);
         }
         one.guard = instruction.guard.empty() ? std::string() : read_names(instruction.guard);
-        const std::string id = "W" + std::to_string(kept.size()) + ":";
+        const std::string id = "W" + std::to_string(retained.size()) + ":";
         for (size_t at = 0u; at < written; at += 1u)
         {
             size_t length = 0u;
@@ -1800,13 +1802,13 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
                 current[next] = id + next;
             }
         }
-        kept.push_back(one);
+        retained.push_back(one);
     }
     // A predicate argument, and the carry, cross the block's edge as a word. Read in: an instruction whose one value
     // read is the word loaded for it, the rest RZ, PT and numbers, and which writes only predicates and RZ, sets the
     // predicate from the word. Stored: an instruction writing the word stored for it whose one value read is a
     // predicate, the rest RZ, PT and numbers, writes the word from the predicate; a SEL of RZ and 1 is 1 where the
-    // predicate holds, and any other where the predicate is read as written. Each such instruction is dropped from
+    // predicate is true, and any other where the predicate is read as written. Each such instruction is dropped from
     // the form, and its predicate is the argument
     auto values_of = [](const std::string &name, std::vector<std::string> *values) -> std::string {
         std::string rest;
@@ -1833,10 +1835,10 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     };
     std::set<size_t> dropped;
     int set_negated = 0;
-    for (size_t at = 0u; at < kept.size(); at += 1u)
+    for (size_t at = 0u; at < retained.size(); at += 1u)
     {
-        const Instruction &instruction = kept[at].instruction;
-        const std::vector<std::string> &names = kept[at].names;
+        const Instruction &instruction = retained[at].instruction;
+        const std::vector<std::string> &names = retained[at].names;
         const unsigned int written = sass_written(instruction);
         std::vector<std::string> reads;
         int others = 0;
@@ -1906,15 +1908,15 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
         static const char *const turned[6][2] = {{".EQ.", ".NE."}, {".NE.", ".EQ."}, {".LT.", ".GE."},
                                                  {".GE.", ".LT."}, {".GT.", ".LE."}, {".LE.", ".GT."}};
         int turnable = 1;
-        for (size_t at = 0u; at < kept.size(); at += 1u)
+        for (size_t at = 0u; at < retained.size(); at += 1u)
         {
             turnable = turnable && ((dropped.count(at) != 0u) ||
-                                    ((kept[at].instruction.operation.compare(0u, 6u, "ISETP.") == 0) &&
-                                     (kept[at].names.size() >= 5u) && (kept[at].names[4] == "PT")));
+                                    ((retained[at].instruction.operation.compare(0u, 6u, "ISETP.") == 0) &&
+                                     (retained[at].names.size() >= 5u) && (retained[at].names[4] == "PT")));
         }
-        for (size_t at = 0u; turnable && (at < kept.size()); at += 1u)
+        for (size_t at = 0u; turnable && (at < retained.size()); at += 1u)
         {
-            std::string &operation = kept[at].instruction.operation;
+            std::string &operation = retained[at].instruction.operation;
             for (unsigned int one = 0u; (dropped.count(at) == 0u) && (one < 6u); one += 1u)
             {
                 const size_t found = operation.find(turned[one][0]);
@@ -1936,9 +1938,9 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
         }
     }
     // the pair a 64-bit write gives: where one half is an argument's, the other is the argument's other half
-    for (size_t at = 0u; at < kept.size(); at += 1u)
+    for (size_t at = 0u; at < retained.size(); at += 1u)
     {
-        const Instruction &instruction = kept[at].instruction;
+        const Instruction &instruction = retained[at].instruction;
         size_t length = 0u;
         const size_t found = instruction.operands.empty() ? std::string::npos
                                                           : sass_register(instruction.operands[0], 0u, &length);
@@ -1964,7 +1966,7 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
     // every value left: an argument's, or scratch, named by the compiler's own register for it
     std::map<std::string, std::string> scratch;
     unsigned int scratch_words = 0u;
-    // a form that carries holds P6 already, and any predicate scratch beside it is one more than sass.krs keeps
+    // a form that carries occupies P6 already, and any predicate scratch beside it is one more than sass.krs reserves
     unsigned int scratch_predicates = 0u;
     for (const Role &role : question.roles)
     {
@@ -1982,16 +1984,16 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
             const auto argument = bound.find(value);
             if (argument != bound.end())
             {
-                const Held &held = argument->second;
+                const RegisterContent &content = argument->second;
                 int fixed = 0;
                 for (const Role &role : question.roles)
                 {
-                    fixed = (role.name == held.argument) ? role.fixed : fixed;
+                    fixed = (role.name == content.argument) ? role.fixed : fixed;
                 }
-                // the carry is P6, which sass.krs keeps for a chain's carry
-                out += (held.argument == "carry") ? std::string("P6")
-                       : fixed                    ? ("<" + held.argument + ">" + ((held.half != 0u) ? ".hi" : ""))
-                                                  : ("{" + held.argument + "}" + ((held.half != 0u) ? ".hi" : ""));
+                // the carry is P6, which sass.krs reserves for a chain's carry
+                out += (content.argument == "carry") ? std::string("P6")
+                       : fixed ? ("<" + content.argument + ">" + ((content.half != 0u) ? ".hi" : ""))
+                               : ("{" + content.argument + "}" + ((content.half != 0u) ? ".hi" : ""));
             }
             else
             {
@@ -2014,21 +2016,21 @@ static Read sass_read(const Question &question, const std::vector<std::string> &
         return out + with.substr(from);
     };
     std::string text;
-    for (size_t at = 0u; at < kept.size(); at += 1u)
+    for (size_t at = 0u; at < retained.size(); at += 1u)
     {
         if (dropped.count(at) != 0u)
         {
             continue;
         }
         text += "\t";
-        if (!kept[at].guard.empty())
+        if (!retained[at].guard.empty())
         {
-            text += "@" + resolve(kept[at].guard) + " ";
+            text += "@" + resolve(retained[at].guard) + " ";
         }
-        text += kept[at].instruction.operation;
-        for (size_t one = 0u; one < kept[at].names.size(); one += 1u)
+        text += retained[at].instruction.operation;
+        for (size_t one = 0u; one < retained[at].names.size(); one += 1u)
         {
-            text += ((one == 0u) ? " \t" : ", ") + resolve(kept[at].names[one]);
+            text += ((one == 0u) ? " \t" : ", ") + resolve(retained[at].names[one]);
         }
         text += ";\n";
     }
@@ -2054,8 +2056,8 @@ static int ptx_register_start(const std::string &text, size_t at)
 static Read ptx_read(const Question &question, const std::vector<std::string> &lines, PtxBases *bases)
 {
     Read read;
-    std::map<std::string, Held> held;
-    std::vector<Instruction> kept;
+    std::map<std::string, RegisterContent> contents;
+    std::vector<Instruction> retained;
     for (const std::string &line : lines)
     {
         const Instruction instruction = instruction_read(line);
@@ -2095,7 +2097,7 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             }
             if (role != NULL)
             {
-                held[operands[0]] = {role->name, 0u, 0};
+                contents[operands[0]] = {role->name, 0u, 0};
                 continue;
             }
         }
@@ -2110,30 +2112,32 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             }
             if (role != NULL)
             {
-                held[operands[1]] = {role->name, 0u, 0};
+                contents[operands[1]] = {role->name, 0u, 0};
                 continue;
             }
         }
-        kept.push_back(instruction);
+        retained.push_back(instruction);
     }
     // a predicate argument read in, and one stored
     std::set<size_t> dropped;
-    for (size_t at = 0u; at < kept.size(); at += 1u)
+    for (size_t at = 0u; at < retained.size(); at += 1u)
     {
-        const Instruction &instruction = kept[at];
+        const Instruction &instruction = retained[at];
         auto int_role = [&](const std::string &token) -> const Role * {
-            const auto value = held.find(token);
+            const auto value = contents.find(token);
             const Role *role = NULL;
             for (const Role &one : question.roles)
             {
-                role = ((value != held.end()) && (one.name == value->second.argument) && (one.type == "int")) ? &one : role;
+                role = ((value != contents.end()) && (one.name == value->second.argument) && (one.type == "int"))
+                           ? &one
+                           : role;
             }
             return role;
         };
         if ((instruction.operation.compare(0u, 7u, "setp.ne") == 0) && (instruction.operands.size() == 3u) &&
             (instruction.operands[2] == "0") && (int_role(instruction.operands[1]) != NULL))
         {
-            held[instruction.operands[0]] = {int_role(instruction.operands[1])->name, 0u, 0};
+            contents[instruction.operands[0]] = {int_role(instruction.operands[1])->name, 0u, 0};
             dropped.insert(at);
         }
         if ((instruction.operation.compare(0u, 5u, "selp.") == 0) && (instruction.operands.size() == 4u) &&
@@ -2141,7 +2145,7 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
         {
             const Role *const role = int_role(instruction.operands[0]);
             const int negated = (instruction.operands[1] == "0") ? 1 : 0;
-            held[instruction.operands[3]] = {role->name, 0u, negated};
+            contents[instruction.operands[3]] = {role->name, 0u, negated};
             dropped.insert(at);
             if (negated)
             {
@@ -2149,10 +2153,10 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             }
         }
     }
-    // the PTX's own registers renamed; one no argument holds is a temporary of the compiler's
+    // the PTX's own registers renamed; one no argument occupies is a temporary of the compiler's
     std::set<std::string> temporaries;
     std::string text;
-    for (size_t at = 0u; at < kept.size(); at += 1u)
+    for (size_t at = 0u; at < retained.size(); at += 1u)
     {
         if (dropped.count(at) != 0u)
         {
@@ -2175,8 +2179,8 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
                     end += 1u;
                 }
                 const std::string token = operand.substr(at_char, end - at_char);
-                const auto value = held.find(token);
-                if (value != held.end())
+                const auto value = contents.find(token);
+                if (value != contents.end())
                 {
                     const int fixed = [&]() {
                         for (const Role &role : question.roles)
@@ -2202,7 +2206,7 @@ static Read ptx_read(const Question &question, const std::vector<std::string> &l
             }
             return out;
         };
-        const Instruction &instruction = kept[at];
+        const Instruction &instruction = retained[at];
         text += "\t";
         if (!instruction.guard.empty())
         {
@@ -2279,7 +2283,7 @@ static std::vector<std::string> regions_joined(const std::map<unsigned int, std:
     return joined;
 }
 
-// the instructions a form's text holds, a line each
+// the instructions a form's text contains, a line each
 static size_t text_instructions(const std::string &text)
 {
     return text_count(text, "\n");
@@ -2363,11 +2367,11 @@ static int text_spaced(const std::string &text, int sass)
 }
 
 // A form read is written into a ruleset where it is the form whole: it names every parameter the ruleset's form takes,
-// each fixed register it names is one the ruleset names, it holds no register of the compiler's own past the scratch
-// the ruleset keeps, and the reading left nothing unsettled. It holds no branch, whose target is the monolith's own
-// address. Where the ruleset's form reaches memory through a named space and the reading does not, the question named
-// none: c.krs writes an address as a plain pointer. Of two correct writings the one of fewer instructions stands: a
-// reading longer than the ruleset's form is not written. The text it is written as, or empty with the reason through
+// each fixed register it names is one the ruleset names, it contains no register of the compiler's own past the scratch
+// the ruleset reserves, and the reading left nothing unsettled. It contains no branch, whose target is the monolith's
+// own address. Where the ruleset's form reaches memory through a named space and the reading does not, the question
+// named none: c.krs writes an address as a plain pointer. Of two correct writings the one of fewer instructions stands:
+// a reading longer than the ruleset's form is not written. The text it is written as, or empty with the reason through
 // `why`
 static std::string read_adopted(const Read &read, const Krs &rules, const Question &question, int sass,
                                 std::string *why)
@@ -2377,7 +2381,7 @@ static std::string read_adopted(const Read &read, const Krs &rules, const Questi
     const std::string now = (found == rules.forms.end()) ? std::string() : found->second.text;
     if ((read.text.find("BRA") != std::string::npos) || (read.text.find("bra ") != std::string::npos))
     {
-        *why = "the reading holds a branch";
+        *why = "the reading contains a branch";
         return std::string();
     }
     if (text_spaced(now, sass) && !read.text.empty() && !text_spaced(read.text, sass))
@@ -2403,7 +2407,7 @@ static std::string read_adopted(const Read &read, const Krs &rules, const Questi
     }
     if (found == rules.forms.end())
     {
-        *why = "the ruleset holds no form of the name";
+        *why = "the ruleset contains no form of the name";
         return std::string();
     }
     for (const std::string &parameter : found->second.parameters)
@@ -2469,13 +2473,13 @@ static std::string read_adopted(const Read &read, const Krs &rules, const Questi
     }
     if (sass && !sass_assembles(text, question))
     {
-        *why = "the machine file holds no form for it";
+        *why = "the machine file contains no form for it";
         return std::string();
     }
     return text;
 }
 
-// a form's text written back as a ruleset line holds it: \t, \n and \\ escaped
+// a form's text written back as a ruleset line contains it: \t, \n and \\ escaped
 static std::string krs_escape(const std::string &text)
 {
     std::string escaped;
@@ -2493,7 +2497,7 @@ static std::string krs_escape(const std::string &text)
 // the file was not read or written
 static int krs_apply(const char *path, const std::map<std::string, std::string> &adopted)
 {
-    // the ruleset as the run holds it, or the disk where the run holds none (qry_member_file)
+    // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if (!qry_member_file_blob(path, &bytes, &size))
@@ -2566,15 +2570,17 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     const auto ptx_opening = ptx_lines.find(0u);
     ptx_read(nothing, (ptx_opening != ptx_lines.end()) ? ptx_opening->second : none, &ptx_bases);
     fprintf(out, "# The forms read off NVIDIA's compiler\n\n");
-    fprintf(out, "Written by `monolith_forms.sh` whole on every run. Every form the lanes of the record programs decide "
-                 "is asked of NVIDIA's compiler once for each set of banks its arguments come from, in one program "
-                 "between tags (`monolith_forms.cpp`). A question in the form's text in `c.krs` is read off the PTX "
-                 "and held beside the form `ptx.krs` gives; one in its text in `ptx.krs`, put to `ptxas` as inline "
-                 "PTX, is read off the listing and held beside the form `sass.krs` gives. Each block is read back "
-                 "into the form it is, its registers named by the arguments they hold. A fixed register is named in angle "
-                 "brackets, and the ruleset names it. A form every question of which reads whole and alike is the "
-                 "ruleset's form, written into it by `monolith_forms.sh apply`; any other keeps the ruleset's text, "
-                 "and the reason stands beside it.\n\n");
+    fprintf(
+        out,
+        "Written by `monolith_forms.sh` whole on every run. Every form the lanes of the record programs decide "
+        "is submitted to NVIDIA's compiler once for each set of banks its arguments come from, in one program "
+        "between tags (`monolith_forms.cpp`). A question in the form's text in `c.krs` is read off the PTX "
+        "and compared with the form `ptx.krs` gives; one in its text in `ptx.krs`, put to `ptxas` as inline "
+        "PTX, is read off the listing and compared with the form `sass.krs` gives. Each block is read back "
+        "into the form it is, its registers named by the arguments they contain. A fixed register is named in angle "
+        "brackets, and the ruleset names it. A form every question of which reads whole and alike is the "
+        "ruleset's form, written into it by `monolith_forms.sh apply`; any other retains the ruleset's text, "
+        "and the reason stands beside it.\n\n");
     fprintf(out, "| tag | form | banks | read off | read | note |\n|---|---|---|---|---|---|\n");
     // each form's readings: the text every question gave where all gave one whole, else empty with the reason
     struct Verdict
@@ -2599,35 +2605,36 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             verdict.text.clear();
         }
     };
-    // A question asked in ptx.krs's text is read for sass.krs off the listing; one asked in c.krs's for ptx.krs off the
-    // PTX. The questions that load their numbers settle a form of their own with the questions that hold none, and it
-    // stands where the questions that write their numbers in do not settle one
+    // A question submitted in ptx.krs's text is read for sass.krs off the listing; one submitted in c.krs's for ptx.krs
+    // off the PTX. The questions that load their numbers settle a form of their own with the questions that contain
+    // none, and it stands where the questions that write their numbers in do not settle one
     std::map<std::string, Verdict> loaded_verdicts;
     // the readings each form's written-in questions gave, and the questions, for a form they read apart
     std::map<std::string, std::vector<std::string>> readings;
-    std::map<std::string, std::vector<const Question *>> asked_of;
+    std::map<std::string, std::vector<const Question *>> questions_of;
     // every written-in question of a form, folded or not: a fold decides no form, but the form must still assemble for
-    // the operands it was asked with, or a reading that skips that operand's slot is no form of it
+    // the operands it was submitted with, or a reading that skips that operand's position is no form of it
     std::map<std::string, std::vector<const Question *>> constrained;
-    // the forms a question asked a folded number of, and why, for a form no other question settles
+    // the forms a question tested with a folded number, and why, for a form no other question settles
     std::map<std::string, std::string> folds;
     // the fold the system does of a form, named once for its classification: a front-end fold shows in both the PTX and
     // the SASS reading, but it is one compile-channel fact about the form, not one a reading
     std::map<std::string, std::string> fold_fact;
     for (const Question &question : questions)
     {
-        const int asked_in_ptx = (question.tag >= MONOLITH_FORMS_PTX);
-        const Read read = asked_in_ptx ? sass_read(question, regions_joined(sass_lines, question.tag), &bases)
-                                       : ptx_read(question, regions_joined(ptx_lines, question.tag), &ptx_bases);
+        const int from_ptx = (question.tag >= MONOLITH_FORMS_PTX);
+        const Read read = from_ptx ? sass_read(question, regions_joined(sass_lines, question.tag), &bases)
+                                   : ptx_read(question, regions_joined(ptx_lines, question.tag), &ptx_bases);
         std::string why;
-        const std::string text = read_adopted(read, asked_in_ptx ? sass : ptx_rules, question, asked_in_ptx, &why);
+        const std::string text = read_adopted(read, from_ptx ? sass : ptx_rules, question, from_ptx, &why);
         int loaded = 0;
         int numbered = 0;
         // A probe classifies an operator only where what it varies shows in the answer. A numbered probe whose number
-        // the answer does not carry is one the system folded: it answered as it would for a value of its own and told
-        // the classifier nothing of the form. A register the probe puts that the answer names nowhere is folded the same
-        // way, the system holding the value without an instruction of its own. Either is gated, and a probe the system
-        // cannot fold decides instead. What a system folds is its own, written to its .ksc; nothing here names one.
+        // the answer does not carry is one the system folded: it answered as it would for a value of its own and gave
+        // the classifier nothing of the form. A register the probe puts that the answer names nowhere is folded the
+        // same way, the system retaining the value without an instruction of its own. Either is gated, and a probe the
+        // system cannot fold decides instead. What a system folds is its own, written to its .ksc; nothing here names
+        // one.
         std::string folded;
         for (const Role &role : question.roles)
         {
@@ -2650,29 +2657,29 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         {
             fold_fact[question.form] = folded;
             why = folded + (why.empty() ? "" : "; " + why);
-            folds[std::string(asked_in_ptx ? "sass " : "ptx ") + question.form] = why;
+            folds[std::string(from_ptx ? "sass " : "ptx ") + question.form] = why;
         }
         if (!loaded && folded.empty())
         {
-            settle(asked_in_ptx ? sass_verdicts : ptx_verdicts, question.form, text, why);
-            if (asked_in_ptx)
+            settle(from_ptx ? sass_verdicts : ptx_verdicts, question.form, text, why);
+            if (from_ptx)
             {
                 readings[question.form].push_back(text);
-                asked_of[question.form].push_back(&question);
+                questions_of[question.form].push_back(&question);
             }
         }
-        if (asked_in_ptx && !loaded)
+        if (from_ptx && !loaded)
         {
             constrained[question.form].push_back(&question);
         }
-        if (asked_in_ptx && (loaded || !numbered))
+        if (from_ptx && (loaded || !numbered))
         {
             settle(loaded_verdicts, question.form, text, why);
         }
         const size_t space = question.key.find(' ');
         const std::string banks = (space == std::string::npos) ? std::string() : question.key.substr(space + 1u);
         fprintf(out, "| %u | %s | %s | %s | `%s` | %s |\n", question.tag, question.form.c_str(), banks.c_str(),
-                !asked_in_ptx ? "PTX" : (loaded ? "SASS, numbers loaded" : "SASS"), cell(text_flat(read.text)).c_str(),
+                !from_ptx ? "PTX" : (loaded ? "SASS, numbers loaded" : "SASS"), cell(text_flat(read.text)).c_str(),
                 cell(why).c_str());
     }
     for (const auto &fold : folds)
@@ -2687,12 +2694,12 @@ static int forms_read(const char *questions_path, const char *listing, const cha
     }
     // Where the written-in questions read apart, each whole and the two numbers of one set of banks alike, the compiler
     // chose an instruction by the banks: a register added as IMAD.IADD and a number as IADD3. A reading that assembles
-    // for every question's banks does what each asked, and stands: the ruleset's own where it is one, else the shortest.
-    // Two numbers of one set of banks read apart are a number folded, and no reading of theirs stands
+    // for every question's banks does what each requested, and stands: the ruleset's own where it is one, else the
+    // shortest. Two numbers of one set of banks read apart are a number folded, and no reading of theirs stands
     for (auto &entry : sass_verdicts)
     {
         const std::vector<std::string> &read_texts = readings[entry.first];
-        const std::vector<const Question *> &read_questions = asked_of[entry.first];
+        const std::vector<const Question *> &read_questions = questions_of[entry.first];
         int whole = !read_texts.empty();
         std::map<std::string, std::string> by_banks;
         for (size_t at = 0u; at < read_texts.size(); at += 1u)
@@ -2735,8 +2742,9 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         {
             continue;
         }
-        // the loaded reading holds the form's numbers in registers; it stands only where it also assembles for every
-        // written-in number the form was asked, or it is a form only for operands the written-in questions never used
+        // the loaded reading places the form's numbers in registers; it stands only where it also assembles for every
+        // written-in number the form was tested with, or it is a form only for operands the written-in questions never
+        // used
         int everywhere = 1;
         for (const Question *question : constrained[entry.first])
         {
@@ -2747,9 +2755,9 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             entry.second = loaded->second;
         }
     }
-    // A verdict stands only where it assembles for every operand the form was asked with, folded probes included: a
-    // reading settled from register operands alone is no form of the operator where a literal was asked in a slot it
-    // cannot encode, however every register question agreed on it
+    // A verdict stands only where it assembles for every operand the form was tested with, folded probes included: a
+    // reading settled from register operands alone is no form of the operator where a literal was tested in a position
+    // it cannot encode, however every register question agreed on it
     for (auto &entry : sass_verdicts)
     {
         if (entry.second.text.empty())
@@ -2765,7 +2773,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
             const auto fold = folds.find("sass " + entry.first);
             entry.second.why = (fold != folds.end())
                                    ? fold->second
-                                   : "the reading does not assemble for every operand the form was asked";
+                                   : "the reading does not assemble for every operand the form was tested with";
             entry.second.text.clear();
             break;
         }
@@ -2794,7 +2802,7 @@ static int forms_read(const char *questions_path, const char *listing, const cha
         auto state = [](const Verdict &verdict, const std::string &now, unsigned int *same) -> std::string {
             if (verdict.text.empty())
             {
-                return "kept: " + verdict.why;
+                return "retained: " + verdict.why;
             }
             if (verdict.text == now)
             {
@@ -2842,9 +2850,9 @@ static int forms_read(const char *questions_path, const char *listing, const cha
            questions.size(), sass_verdicts.size(), sass_same, sass_adopted.size(), ptx_same, ptx_adopted.size(),
            record);
     // The folds the system does are its own and belong in the classification of what is emitted, the .ksc beside
-    // sass.krs that the code generator reads with it. Read it, drop what it holds of each number and register this
-    // pass put for a role of a form it asked of, add this pass's compile-channel folds in place, and write it back:
-    // every other fold is kept
+    // sass.krs that the code generator reads with it. Read it, drop what it contains of each number and register this
+    // pass put for a role of a form it tested, add this pass's compile-channel folds in place, and write it back:
+    // every other fold is retained
     const std::string ruleset_path = sass_krs;
     const size_t slash = ruleset_path.find_last_of('/');
     const std::string rulesets = (slash == std::string::npos) ? std::string(".") : ruleset_path.substr(0u, slash);

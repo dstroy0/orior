@@ -16,12 +16,12 @@
 // One file of the bridge's folder: its name, and its bytes mapped
 typedef struct
 {
-    char name[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
     const unsigned char *bytes;
     unsigned long long size;
 } CliBridgeFile;
 
-// The bridge folder's files listed: those kept, counted where `file` is NULL, and the most kept
+// The bridge folder's files listed: those retained, counted where `file` is NULL, and the most retained
 typedef struct
 {
     CliBridgeFile *file;
@@ -34,7 +34,7 @@ static int cli_is_space(char letter)
     return (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
 }
 
-// One line that says something: its number from 0, its first word and the rest, trimmed
+// One line that contains something: its number from 0, its first word and the rest, trimmed
 typedef struct
 {
     unsigned int line;
@@ -42,10 +42,11 @@ typedef struct
     unsigned long long word_length;
     const char *rest;
     unsigned long long rest_length;
-} CliSaid;
+} CliBridgeLine;
 
-// the next line from `*at` before `end` that says something, `*number` counting lines as they pass: 1, or 0 at the end
-static int cli_said(const char **at, const char *end, unsigned int *number, CliSaid *said)
+// the next line from `*at` before `end` that contains something, `*number` counting lines as they pass: 1, or 0 at the
+// end
+static int cli_next_line(const char **at, const char *end, unsigned int *number, CliBridgeLine *parsed)
 {
     while (*at < end)
     {
@@ -80,18 +81,18 @@ static int cli_said(const char **at, const char *end, unsigned int *number, CliS
         {
             rest += 1;
         }
-        const CliSaid found = {line, from, (unsigned long long)(word_end - from), rest,
-                               (unsigned long long)(stop - rest)};
-        *said = found;
+        const CliBridgeLine found = {line, from, (unsigned long long)(word_end - from), rest,
+                                     (unsigned long long)(stop - rest)};
+        *parsed = found;
         return 1;
     }
     return 0;
 }
 
-static int cli_word_is(const CliSaid *said, const char *word)
+static int cli_word_is(const CliBridgeLine *parsed, const char *word)
 {
-    return (said->word_length == cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL})) &&
-           (memor.cmp(&(MemoriaCfg){.src = said->word, .other = word, .bytes = said->word_length}) == 0);
+    return (parsed->word_length == cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL})) &&
+           (memor.cmp(&(MemoriaCfg){.src = parsed->word, .other = word, .bytes = parsed->word_length}) == 0);
 }
 
 // the `index`th word of a text, its start into `word`: its length, 0 where it has none
@@ -124,9 +125,9 @@ static unsigned long long cli_nth(const char *text, unsigned long long length, u
 static unsigned int cli_number(CliJson *json, unsigned long long value)
 {
     char digits[24];
-    CliLine line = {digits, sizeof(digits), 0ull};
-    cli_line_decimal(&line, value, 1u);
-    cli_line_closed(&line);
+    VerbaLinea line = {digits, sizeof(digits), 0ull};
+    mmgr_line_decimal(&line, value, 1u);
+    mmgr_line_finish(&line);
     return cli_json_number_made(json, digits);
 }
 
@@ -145,10 +146,10 @@ static unsigned int cli_note(CliJson *json, const char *word, unsigned long long
 static unsigned int cli_entry(CliJson *json, unsigned int object, const char *name, unsigned long long length,
                               unsigned int (*made)(CliJson *json, unsigned int line), unsigned int line)
 {
-    char key[CLI_PATH_LONGEST];
-    CliLine named = {key, sizeof(key), 0ull};
-    cli_line_counted(&named, name, length);
-    cli_line_closed(&named);
+    char key[CLI_PATH_MAX_LEN];
+    VerbaLinea named = {key, sizeof(key), 0ull};
+    mmgr_line_put_n(&named, name, length);
+    mmgr_line_finish(&named);
     const unsigned int had = cli_json_member(json, object, key);
     if (had != CLI_JSON_NONE)
     {
@@ -186,37 +187,37 @@ unsigned int cli_bridge_klq(CliJson *json, const char *path, const char *text, u
     int under_identity = 0;
     const char *at = text;
     unsigned int number = 0u;
-    CliSaid said;
-    while (cli_said(&at, text + size, &number, &said))
+    CliBridgeLine parsed;
+    while (cli_next_line(&at, text + size, &number, &parsed))
     {
-        if (cli_word_is(&said, "klq"))
+        if (cli_word_is(&parsed, "klq"))
         {
             continue;
         }
-        if (cli_word_is(&said, "key"))
+        if (cli_word_is(&parsed, "key"))
         {
             const char *name = NULL;
-            const unsigned long long length = cli_nth(said.rest, said.rest_length, 0u, &name);
-            const unsigned int entry = cli_entry(json, keys, name, length, cli_key_made, said.line);
-            cli_json_set(json, entry, "line", cli_number(json, said.line));
+            const unsigned long long length = cli_nth(parsed.rest, parsed.rest_length, 0u, &name);
+            const unsigned int entry = cli_entry(json, keys, name, length, cli_key_made, parsed.line);
+            cli_json_set(json, entry, "line", cli_number(json, parsed.line));
             key = name;
             key_length = length;
             under_pair = 0;
             under_identity = 0;
             continue;
         }
-        if (cli_word_is(&said, "pair"))
+        if (cli_word_is(&parsed, "pair"))
         {
             const char *first = NULL;
             const char *second = NULL;
-            const unsigned long long first_length = cli_nth(said.rest, said.rest_length, 0u, &first);
-            const unsigned long long second_length = cli_nth(said.rest, said.rest_length, 1u, &second);
+            const unsigned long long first_length = cli_nth(parsed.rest, parsed.rest_length, 0u, &first);
+            const unsigned long long second_length = cli_nth(parsed.rest, parsed.rest_length, 1u, &second);
             const unsigned int owner = (key != NULL) ? cli_entry(json, keys, key, key_length, cli_key_default, 0u)
                                                      : cli_entry(json, keys, first, first_length, cli_key_default, 0u);
             const unsigned int pair = cli_json_made(json, CFG_JSON_OBJECT);
             cli_json_set(json, pair, "first", cli_json_string_made(json, first, first_length));
             cli_json_set(json, pair, "second", cli_json_string_made(json, second, second_length));
-            cli_json_set(json, pair, "line", cli_number(json, said.line));
+            cli_json_set(json, pair, "line", cli_number(json, parsed.line));
             cli_json_set(json, pair, "verdict", cli_json_made(json, CFG_JSON_NULL));
             cli_json_set(json, pair, "notes", cli_json_made(json, CFG_JSON_ARRAY));
             cli_json_append(json, cli_json_member(json, owner, "pairs"), pair);
@@ -224,15 +225,16 @@ unsigned int cli_bridge_klq(CliJson *json, const char *path, const char *text, u
             under_identity = 0;
             continue;
         }
-        if (cli_word_is(&said, "text_identity"))
+        if (cli_word_is(&parsed, "text_identity"))
         {
-            cli_json_append(json, identities,
-                            cli_note(json, said.word, said.word_length, said.rest, said.rest_length, said.line));
+            cli_json_append(
+                json, identities,
+                cli_note(json, parsed.word, parsed.word_length, parsed.rest, parsed.rest_length, parsed.line));
             under_pair = 0;
             under_identity = 1;
             continue;
         }
-        const int verdict = cli_word_is(&said, "open") || cli_word_is(&said, "closed");
+        const int verdict = cli_word_is(&parsed, "open") || cli_word_is(&parsed, "closed");
         if (under_identity && verdict)
         {
             // the verdict after an identity put after its text, two spaces between
@@ -243,20 +245,20 @@ unsigned int cli_bridge_klq(CliJson *json, const char *path, const char *text, u
                 const unsigned int rest = cli_json_member(json, last, "rest");
                 const char *const had = cli_json_string(json, rest, &length);
                 const unsigned long long start = json->used;
-                if ((json->used + length + said.word_length + said.rest_length + 4u) <= json->text_most)
+                if ((json->used + length + parsed.word_length + parsed.rest_length + 4u) <= json->text_most)
                 {
                     memor.cpy(&(MemoriaCfg){.dst = json->text + json->used, .src = had, .bytes = length});
                     json->used += length;
                     memor.cpy(&(MemoriaCfg){.dst = json->text + json->used, .src = "  ", .bytes = 2u});
                     json->used += 2u;
                     memor.cpy(
-                        &(MemoriaCfg){.dst = json->text + json->used, .src = said.word, .bytes = said.word_length});
-                    json->used += said.word_length;
+                        &(MemoriaCfg){.dst = json->text + json->used, .src = parsed.word, .bytes = parsed.word_length});
+                    json->used += parsed.word_length;
                     json->text[json->used] = ' ';
                     json->used += 1u;
                     memor.cpy(
-                        &(MemoriaCfg){.dst = json->text + json->used, .src = said.rest, .bytes = said.rest_length});
-                    json->used += said.rest_length;
+                        &(MemoriaCfg){.dst = json->text + json->used, .src = parsed.rest, .bytes = parsed.rest_length});
+                    json->used += parsed.rest_length;
                     const unsigned int joined = cli_json_string_made(json, json->text + start, json->used - start);
                     cli_json_set(json, last, "rest", joined);
                 }
@@ -272,17 +274,18 @@ unsigned int cli_bridge_klq(CliJson *json, const char *path, const char *text, u
         {
             continue;
         }
-        char name[CLI_PATH_LONGEST];
-        CliLine named = {name, sizeof(name), 0ull};
-        cli_line_counted(&named, key, key_length);
-        cli_line_closed(&named);
+        char name[CLI_PATH_MAX_LEN];
+        VerbaLinea named = {name, sizeof(name), 0ull};
+        mmgr_line_put_n(&named, key, key_length);
+        mmgr_line_finish(&named);
         const unsigned int pairs = cli_json_member(json, cli_json_member(json, keys, name), "pairs");
         const unsigned int pair = cli_json_is(json, pairs, CFG_JSON_ARRAY) ? json->node[pairs].last : CLI_JSON_NONE;
         if (pair == CLI_JSON_NONE)
         {
             continue;
         }
-        const unsigned int note = cli_note(json, said.word, said.word_length, said.rest, said.rest_length, said.line);
+        const unsigned int note =
+            cli_note(json, parsed.word, parsed.word_length, parsed.rest, parsed.rest_length, parsed.line);
         if (verdict && cli_json_is(json, cli_json_member(json, pair, "verdict"), CFG_JSON_NULL))
         {
             cli_json_set(json, pair, "verdict", note);
@@ -317,17 +320,17 @@ unsigned int cli_bridge_klm(CliJson *json, const char *path, const char *text, u
     unsigned int language = cli_json_string_made(json, "", 0u);
     const char *at = text;
     unsigned int number = 0u;
-    CliSaid said;
-    while (cli_said(&at, text + size, &number, &said))
+    CliBridgeLine parsed;
+    while (cli_next_line(&at, text + size, &number, &parsed))
     {
         const char *name = NULL;
-        const unsigned long long name_length = cli_nth(said.rest, said.rest_length, 0u, &name);
+        const unsigned long long name_length = cli_nth(parsed.rest, parsed.rest_length, 0u, &name);
         // the words after the name, one space between each
         const unsigned long long start = json->used;
         const char *word = NULL;
-        for (unsigned int index = 1u; cli_nth(said.rest, said.rest_length, index, &word) != 0ull; index += 1u)
+        for (unsigned int index = 1u; cli_nth(parsed.rest, parsed.rest_length, index, &word) != 0ull; index += 1u)
         {
-            const unsigned long long length = cli_nth(said.rest, said.rest_length, index, &word);
+            const unsigned long long length = cli_nth(parsed.rest, parsed.rest_length, index, &word);
             if ((json->used + length + 2u) > json->text_most)
             {
                 json->full = 1;
@@ -342,23 +345,23 @@ unsigned int cli_bridge_klm(CliJson *json, const char *path, const char *text, u
             json->used += length;
         }
         const unsigned int value = cli_json_string_made(json, json->text + start, json->used - start);
-        if (cli_word_is(&said, "klm"))
+        if (cli_word_is(&parsed, "klm"))
         {
             language = cli_json_string_made(json, name, name_length);
         }
-        else if (cli_word_is(&said, "key"))
+        else if (cli_word_is(&parsed, "key"))
         {
-            const unsigned int entry = cli_entry(json, names, name, name_length, cli_name_made, said.line);
+            const unsigned int entry = cli_entry(json, names, name, name_length, cli_name_made, parsed.line);
             cli_json_set(json, entry, "key", value);
-            cli_json_set(json, entry, "line", cli_number(json, said.line));
+            cli_json_set(json, entry, "line", cli_number(json, parsed.line));
         }
-        else if (cli_word_is(&said, "kind") || cli_word_is(&said, "breaks"))
+        else if (cli_word_is(&parsed, "kind") || cli_word_is(&parsed, "breaks"))
         {
-            const unsigned int entry = cli_entry(json, names, name, name_length, cli_name_made, said.line);
+            const unsigned int entry = cli_entry(json, names, name, name_length, cli_name_made, parsed.line);
             unsigned long long length = 0ull;
             const char *const joined = cli_json_string(json, value, &length);
-            const unsigned int note = cli_note(json, said.word, said.word_length, joined, length, said.line);
-            if (cli_word_is(&said, "kind"))
+            const unsigned int note = cli_note(json, parsed.word, parsed.word_length, joined, length, parsed.line);
+            if (cli_word_is(&parsed, "kind"))
             {
                 cli_json_set(json, entry, "kind", note);
             }
@@ -420,17 +423,17 @@ unsigned int cli_bridge_ruleset(CliJson *json, const char *path, const char *tex
     const unsigned int entries = cli_json_made(json, CFG_JSON_OBJECT);
     const char *at = text;
     unsigned int number = 0u;
-    CliSaid said;
-    while (cli_said(&at, text + size, &number, &said))
+    CliBridgeLine parsed;
+    while (cli_next_line(&at, text + size, &number, &parsed))
     {
         const char *name = NULL;
-        const unsigned long long name_length = cli_nth(said.rest, said.rest_length, 0u, &name);
-        if (cli_is_kind(said.word, said.word_length) && cli_is_name(name, name_length))
+        const unsigned long long name_length = cli_nth(parsed.rest, parsed.rest_length, 0u, &name);
+        if (cli_is_kind(parsed.word, parsed.word_length) && cli_is_name(name, name_length))
         {
-            const unsigned int list = cli_entry(json, entries, name, name_length, cli_list_made, said.line);
+            const unsigned int list = cli_entry(json, entries, name, name_length, cli_list_made, parsed.line);
             const unsigned int entry = cli_json_made(json, CFG_JSON_OBJECT);
-            cli_json_set(json, entry, "kind", cli_json_string_made(json, said.word, said.word_length));
-            cli_json_set(json, entry, "line", cli_number(json, said.line));
+            cli_json_set(json, entry, "kind", cli_json_string_made(json, parsed.word, parsed.word_length));
+            cli_json_set(json, entry, "line", cli_number(json, parsed.line));
             cli_json_append(json, list, entry);
         }
     }
@@ -442,11 +445,11 @@ unsigned int cli_bridge_ruleset(CliJson *json, const char *path, const char *tex
     return ruleset;
 }
 
-// a file of the bridge's folder counted, or kept where the list holds room for it
+// a file of the bridge's folder counted, or retained where the list has room for it
 static void cli_file_each(void *context, const char *name, int is_folder)
 {
     CliBridgeFiles *const files = (CliBridgeFiles *)context;
-    if (is_folder || (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) >= CLI_NAME_LONGEST))
+    if (is_folder || (cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) >= CLI_NAME_MAX_LEN))
     {
         return;
     }
@@ -473,18 +476,18 @@ static int cli_bridge_named(const char *name)
 
 unsigned int cli_bridge_read(CliJson *json, const char *root)
 {
-    char folder[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char relative[CLI_PATH_LONGEST];
-    CliLine line = {folder, sizeof(folder), 0ull};
-    cli_line_text(&line, root);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, CLI_BRIDGE_DIR);
-    cli_line_closed(&line);
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char relative[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {folder, sizeof(folder), 0ull};
+    mmgr_line_put(&line, root);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, CLI_BRIDGE_DIR);
+    mmgr_line_finish(&line);
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
     CliBridgeFiles files = {NULL, 0u, 0u};
     query_folder_each(folder, cli_file_each, &files);
-    files = (CliBridgeFiles){cli_cell_taken((files.count + 1ull) * sizeof(CliBridgeFile), "the bridge's files"), 0u,
+    files = (CliBridgeFiles){g_cli_cells->persistent_buf_alloc((files.count + 1ull) * sizeof(CliBridgeFile), NULL), 0u,
                              files.count};
     if (files.file == NULL)
     {
@@ -493,14 +496,14 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
     query_folder_each(folder, cli_file_each, &files);
     for (unsigned int at = 1u; at < files.count; at += 1u)
     {
-        const CliBridgeFile held = files.file[at];
+        const CliBridgeFile swap = files.file[at];
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(files.file[place - 1u].name, held.name) > 0))
+        while ((place > 0u) && (cli_text_order(files.file[place - 1u].name, swap.name) > 0))
         {
             files.file[place] = files.file[place - 1u];
             place -= 1u;
         }
-        files.file[place] = held;
+        files.file[place] = swap;
     }
     // each file read mapped, and the tree's cell taken once for the most its files' lines make
     unsigned long long nodes = CLI_BRIDGE_FILE_NODES;
@@ -508,24 +511,23 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
     for (unsigned int at = 0u; at < files.count; at += 1u)
     {
         CliBridgeFile *const one = &files.file[at];
-        CliLine file = {path, sizeof(path), 0ull};
-        cli_line_text(&file, folder);
-        cli_line_character(&file, '/');
-        cli_line_text(&file, one->name);
-        one->bytes = (cli_bridge_named(one->name) && (cli_line_closed(&file) != 0ull))
-                         ? cli_file_held(path, &one->size)
-                         : NULL;
+        VerbaLinea file = {path, sizeof(path), 0ull};
+        mmgr_line_put(&file, folder);
+        mmgr_line_ch(&file, '/');
+        mmgr_line_put(&file, one->name);
+        one->bytes =
+            (cli_bridge_named(one->name) && (mmgr_line_finish(&file) != 0ull)) ? cli_file_read(path, &one->size) : NULL;
         unsigned long long lines = 1ull;
         for (unsigned long long letter = 0ull; (one->bytes != NULL) && (letter < one->size); letter += 1ull)
         {
             lines += (one->bytes[letter] == '\n') ? 1ull : 0ull;
         }
         nodes += (one->bytes != NULL) ? ((CLI_BRIDGE_LINE_NODES * lines) + CLI_BRIDGE_FILE_NODES) : 0ull;
-        text += (one->bytes != NULL) ? ((2ull * one->size) + (CLI_BRIDGE_LINE_TEXT * lines) + CLI_PATH_LONGEST) : 0ull;
+        text += (one->bytes != NULL) ? ((2ull * one->size) + (CLI_BRIDGE_LINE_TEXT * lines) + CLI_PATH_MAX_LEN) : 0ull;
     }
     // a tree's node count is an unsigned int's, so a bridge past it reads as full
-    const int held = (nodes < CLI_JSON_NONE) && cli_json_held(json, (unsigned int)nodes, text, "the bridge read");
-    const unsigned int bridge = held ? cli_json_made(json, CFG_JSON_OBJECT) : CLI_JSON_NONE;
+    const int swap = (nodes < CLI_JSON_NONE) && cli_json_reserved(json, (unsigned int)nodes, text, "the bridge read");
+    const unsigned int bridge = swap ? cli_json_made(json, CFG_JSON_OBJECT) : CLI_JSON_NONE;
     cli_json_set(json, bridge, "dir",
                  cli_json_string_made(json, CLI_BRIDGE_DIR,
                                       cellul.len(&(CatenaFinitaCfg){.src = CLI_BRIDGE_DIR, .cap = CLI_CELLS_POOL})));
@@ -542,11 +544,11 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         const char *const ext =
             cli_text_last(one->name, cellul.len(&(CatenaFinitaCfg){.src = one->name, .cap = CLI_CELLS_POOL}), '.') + 1;
         const char *const text_of = (const char *)one->bytes;
-        CliLine file = {path, sizeof(path), 0ull};
-        cli_line_text(&file, folder);
-        cli_line_character(&file, '/');
-        cli_line_text(&file, one->name);
-        cli_line_closed(&file);
+        VerbaLinea file = {path, sizeof(path), 0ull};
+        mmgr_line_put(&file, folder);
+        mmgr_line_ch(&file, '/');
+        mmgr_line_put(&file, one->name);
+        mmgr_line_finish(&file);
         cli_relative(root, path, relative);
         if (cellul.eq(&(CatenaFinitaCfg){.src = ext, .other = "klq", .cap = CLI_CELLS_POOL}))
         {
@@ -562,7 +564,7 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         }
         cli_file_let_go(one->bytes, one->size);
     }
-    cli_cell_given(files.file);
+    g_cli_cells->persistent_buf_release(files.file, NULL);
     cli_json_set(json, bridge, "maps", maps);
     cli_json_set(json, bridge, "rulesets", rulesets);
     return json->full ? CLI_JSON_NONE : bridge;

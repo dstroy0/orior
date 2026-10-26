@@ -3,13 +3,13 @@
 // toolchains_own.c: orior's own folder and whether it is on the PATH, and a folder added to the reader's own PATH
 #include "toolchains_internal.h"
 
-int cli_toolchains_own(char *folder, int *on_path, CliLine *said)
+int cli_toolchains_own(char *folder, int *on_path, VerbaLinea *err_msg)
 {
-    char program[CLI_PATH_LONGEST];
-    char full[CLI_PATH_LONGEST];
+    char program[CLI_PATH_MAX_LEN];
+    char full[CLI_PATH_MAX_LEN];
     if (!cli_program_own(program, sizeof(program)))
     {
-        cli_line_text(said, "orior's program could not be found");
+        mmgr_line_put(err_msg, "orior's program could not be found");
         return 0;
     }
     if (!query_path_full(program, full, sizeof(full)))
@@ -25,31 +25,31 @@ int cli_toolchains_own(char *folder, int *on_path, CliLine *said)
     }
     if (cut == full)
     {
-        cli_line_text(said, "orior's program has no folder");
+        mmgr_line_put(err_msg, "orior's program has no folder");
         return 0;
     }
     cut[-1] = '\0';
     memor.cpy(&(MemoriaCfg){
         .dst = folder, .src = full, .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
-    char key[CLI_PATH_LONGEST];
+    char key[CLI_PATH_MAX_LEN];
     cli_toolchains_key_of(folder, key);
     cli_lock_take(&g_cli_toolchains_find_lock);
     const unsigned int count = cli_toolchains_find_path();
     *on_path = 0;
     for (unsigned int at = 0u; !*on_path && (at < count); at += 1u)
     {
-        char held[CLI_PATH_LONGEST];
-        cli_toolchains_key_of(g_cli_toolchains_path[at], held);
-        *on_path = cellul.eq(&(CatenaFinitaCfg){.src = held, .other = key, .cap = CLI_CELLS_POOL});
+        char saved_path[CLI_PATH_MAX_LEN];
+        cli_toolchains_key_of(g_cli_toolchains_path[at], saved_path);
+        *on_path = cellul.eq(&(CatenaFinitaCfg){.src = saved_path, .other = key, .cap = CLI_CELLS_POOL});
     }
     cli_toolchains_find_released(NULL);
     return 1;
 }
 
-// A folder added to the reader's own PATH: on Windows the reader's Path in the registry, kept as text whose variables
-// expand, and every open program told it changed; elsewhere a line at the end of ~/.profile, and of ~/.zprofile on
+// A folder added to the reader's own PATH: on Windows the reader's Path in the registry, stored as text whose variables
+// expand, and every open program notified it changed; elsewhere a line at the end of ~/.profile, and of ~/.zprofile on
 // macOS, and of ~/.bash_profile and ~/.bash_login where they are there
-static int cli_add_folder(const char *folder, CliLine *said)
+static int cli_add_folder(const char *folder, VerbaLinea *err_msg)
 {
 #if defined(_WIN32)
     static char s_now[CLI_PATH_TEXT];
@@ -60,7 +60,7 @@ static int cli_add_folder(const char *folder, CliLine *said)
     }
     if (cli_toolchains_joined(s_now, folder, s_next, sizeof(s_next)))
     {
-        if (!cli_registry_set_user_value("Path", s_next, said))
+        if (!cli_registry_set_user_value("Path", s_next, err_msg))
         {
             return 0;
         }
@@ -69,33 +69,33 @@ static int cli_add_folder(const char *folder, CliLine *said)
     return 1;
 #else
     static char s_file[1u << 20u];
-    char home[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
     if (!query_environment_read("HOME", home, sizeof(home)))
     {
-        cli_line_text(said, "HOME is not set");
+        mmgr_line_put(err_msg, "HOME is not set");
         return 0;
     }
-    char line[CLI_PATH_LONGEST * 2u];
-    CliLine made = {line, sizeof(line), 0ull};
-    cli_line_text(&made, "export PATH=\"$PATH:");
+    char line[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea made = {line, sizeof(line), 0ull};
+    mmgr_line_put(&made, "export PATH=\"$PATH:");
     for (const char *at = folder; at[0] != '\0'; at += 1)
     {
-        cli_line_text(&made, (at[0] == '"') ? "\\\"" : "");
+        mmgr_line_put(&made, (at[0] == '"') ? "\\\"" : "");
         if (at[0] != '"')
         {
-            cli_line_character(&made, at[0]);
+            mmgr_line_ch(&made, at[0]);
         }
     }
-    cli_line_character(&made, '"');
-    const unsigned long long line_length = cli_line_closed(&made);
+    mmgr_line_ch(&made, '"');
+    const unsigned long long line_length = mmgr_line_finish(&made);
     static const char *const s_names[4] = {"/.profile", "/.zprofile", "/.bash_profile", "/.bash_login"};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        char path[CLI_PATH_LONGEST];
-        CliLine named = {path, sizeof(path), 0ull};
-        cli_line_text(&named, home);
-        cli_line_text(&named, s_names[at]);
-        cli_line_closed(&named);
+        char path[CLI_PATH_MAX_LEN];
+        VerbaLinea named = {path, sizeof(path), 0ull};
+        mmgr_line_put(&named, home);
+        mmgr_line_put(&named, s_names[at]);
+        mmgr_line_finish(&named);
 #if !defined(__APPLE__)
         if (at == 1u)
         {
@@ -109,7 +109,7 @@ static int cli_add_folder(const char *folder, CliLine *said)
         unsigned long long size =
             qry_member_file_read(path, (unsigned char *)s_file, sizeof(s_file) - line_length - 4u);
         size = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
-        // a line already there, trimmed, is kept as it is
+        // a line already there, trimmed, is retained as it is
         int there = 0;
         const char *from = s_file;
         for (const char *place = s_file; !there && (place <= (s_file + size)); place += 1)
@@ -135,17 +135,17 @@ static int cli_add_folder(const char *folder, CliLine *said)
         {
             continue;
         }
-        CliLine text = {s_file, sizeof(s_file), size};
+        VerbaLinea text = {s_file, sizeof(s_file), size};
         if ((size != 0ull) && (s_file[size - 1u] != '\n'))
         {
-            cli_line_character(&text, '\n');
+            mmgr_line_ch(&text, '\n');
         }
-        cli_line_counted(&text, line, line_length);
-        cli_line_character(&text, '\n');
-        if (!cli_line_fits(&text) || !query_file_written(path, s_file, text.at))
+        mmgr_line_put_n(&text, line, line_length);
+        mmgr_line_ch(&text, '\n');
+        if (!mmgr_line_ok(&text) || !query_file_written(path, s_file, text.at))
         {
-            cli_line_text(said, path);
-            cli_line_text(said, ": it could not be written");
+            mmgr_line_put(err_msg, path);
+            mmgr_line_put(err_msg, ": it could not be written");
             return 0;
         }
     }
@@ -153,12 +153,12 @@ static int cli_add_folder(const char *folder, CliLine *said)
 #endif
 }
 
-int cli_toolchains_add_to_path(const char *what, char *folder, CliLine *said)
+int cli_toolchains_add_to_path(const char *what, char *folder, VerbaLinea *err_msg)
 {
     if (cellul.eq(&(CatenaFinitaCfg){.src = what, .other = "orior", .cap = CLI_CELLS_POOL}))
     {
         int on_path = 0;
-        if (!cli_toolchains_own(folder, &on_path, said))
+        if (!cli_toolchains_own(folder, &on_path, err_msg))
         {
             return 0;
         }
@@ -168,19 +168,19 @@ int cli_toolchains_add_to_path(const char *what, char *folder, CliLine *said)
         CliJson json;
         CliFound found;
         cli_lock_take(&g_cli_toolchains_find_lock);
-        const unsigned int tool = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), what, said);
+        const unsigned int tool = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), what, err_msg);
         if (tool == CLI_JSON_NONE)
         {
             cli_toolchains_find_released(&json);
             return 0;
         }
         const unsigned int count = cli_toolchains_find_path();
-        cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_LONGEST])g_cli_toolchains_path, count, &found);
+        cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])g_cli_toolchains_path, count, &found);
         const char *const name = cli_json_string(&json, cli_json_member(&json, tool, "name"), NULL);
         if (!found.has_program)
         {
-            cli_line_text(said, (name != NULL) ? name : what);
-            cli_line_text(said, " is not found: install it or give orior_cli its folder first");
+            mmgr_line_put(err_msg, (name != NULL) ? name : what);
+            mmgr_line_put(err_msg, " is not found: install it or give orior_cli its folder first");
             cli_toolchains_find_released(&json);
             return 0;
         }
@@ -190,5 +190,5 @@ int cli_toolchains_add_to_path(const char *what, char *folder, CliLine *said)
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = found.folder, .cap = CLI_CELLS_POOL}) + 1u});
         cli_toolchains_find_released(&json);
     }
-    return cli_add_folder(folder, said);
+    return cli_add_folder(folder, err_msg);
 }

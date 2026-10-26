@@ -13,10 +13,19 @@
       "root": [
         ["%.*$","comment"],
         ["(\\\\(?:begin|end))(\\{)([^}]*)(\\})",["keyword","delimiter.bracket","type","delimiter.bracket"]],
+        [
+          "(\\\\(?:part|chapter|section|subsection|subsubsection|paragraph)\\*?)(\\s*)(\\[)([^\\]]*)(\\])(\\s*)(\\{)(\\s*)([^}]*?)(\\s*)(\\})",
+          ["keyword","","delimiter.bracket","","delimiter.bracket","","delimiter.bracket","","declaration.heading","","delimiter.bracket"]
+        ],
+        [
+          "(\\\\(?:part|chapter|section|subsection|subsubsection|paragraph)\\*?)(\\s*)(\\{)(\\s*)([^}]*?)(\\s*)(\\})",
+          ["keyword","","delimiter.bracket","","declaration.heading","","delimiter.bracket"]
+        ],
         ["\\\\(?:[A-Za-z@]+|.)","keyword"],
         ["\\$\\$?","number","@math"],
         ["\\\\\\[|\\\\\\(","number","@math"],
-        ["[{}[\\]]","@brackets"],
+        ["[{\\[]","delimiter.bracket.open"],
+        ["[}\\]]","delimiter.bracket.close"],
         ["[&~^_]","operator"],
         ["[^\\\\$%{}[\\]&~^_]+",""]
       ],

@@ -198,7 +198,7 @@ one's own settings, `menus.json` and `user.css` to a file or to a folder of the 
 repository's commits made and pushed, and takes them in from one on another machine. What a taking
 would change shows first, a file at a time and `settings.json` a setting at a time, and nothing is
 written until the reader takes what is chosen; each taking is kept in `carried/` and undone from
-the list there. `machine`, `signing.`, `environment.`, `memory-budget`, `cores-kept` and
+the list there. `machine`, `signing.`, `environment.`, `memory-budget`, `cores-reserved` and
 `carry.place` stay on the machine that set them.
 
 orior reaches an address off this machine only for what the reader asked of it: a request sent, a
@@ -234,7 +234,7 @@ the folder whose files go, the patterns of the files that stay, the places, and 
 each place keeps.
 
 ```json
-{"deployments": [{"name": "site", "from": "dist", "exclude": ["*.map", "drafts/"], "to": ["me@web1:/srv/site", "docker:web:/srv/site"], "keep": 5}]}
+{"deployments": [{"name": "site", "from": "dist", "exclude": ["*.map", "drafts/"], "to": ["me@web1:/srv/site", "docker:web:/srv/site"], "retain": 5}]}
 ```
 
 A place is an address as File, Open, Folder on Another Machine… takes one, or a folder on this

@@ -18,7 +18,7 @@
  * THE TRICHOTOMY IS A CLAIM, AND THIS TEST ATTACKS IT. The guide states that a descent takes
  * one of exactly three branches: it stops when the destroy test fires, it recurses when a level
  * prunes, and it errors, not running at all, when the question is malformed. The fourth branch it denies
- * is cycling, returning to a state already held.
+ * is cycling, returning to a state already occupied.
  *
  * Each branch is checked separately and the error is checked hardest, because an error that
  * returns zero while having already written to the caller's buffer is indistinguishable from a
@@ -26,7 +26,7 @@
  * made against a buffer filled with a sentinel, and the sentinel has to survive.
  *
  * No-revisiting is checked by requiring the placed offsets to be pairwise distinct. A descent that
- * placed the same offset twice would have returned to a state it already held, since placing a probe
+ * placed the same offset twice would have returned to a state it already occupied, since placing a probe
  * that is already placed leaves the survivor set exactly as it was.
  */
 int adversarial_case_trichotomy(void)
@@ -124,9 +124,9 @@ int adversarial_case_trichotomy(void)
 
     for (size_t which = 0u; which < 6u; which += 1u)
     {
-        for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
+        for (size_t at = 0u; at < ORIOR_STEER_ANCHORS; at += 1u)
         {
-            offsets[slot] = sentinel;
+            offsets[at] = sentinel;
         }
 
         const size_t placed = orior_steer_spawn_coarms(&errors[which].args);
@@ -135,9 +135,9 @@ int adversarial_case_trichotomy(void)
             printf("    %s ran and placed %zu: FAILS\n", errors[which].what, placed);
             failed += 1;
         }
-        for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
+        for (size_t at = 0u; at < ORIOR_STEER_ANCHORS; at += 1u)
         {
-            if (offsets[slot] != sentinel)
+            if (offsets[at] != sentinel)
             {
                 printf("    %s wrote to the caller's buffer: FAILS\n", errors[which].what);
                 failed += 1;
@@ -160,19 +160,19 @@ int adversarial_case_trichotomy(void)
         .corpus = corpus, .corpus_len = ADVERSARIAL_CORPUS, .needle = needle, .needle_len = sizeof(needle),
         .survivors = survivors, .survivors_length = alignments, .sample_stride = 1u, .force_full_depth = 1);
 
-    for (size_t slot = 0u; slot < forced; slot += 1u)
+    for (size_t at = 0u; at < forced; at += 1u)
     {
-        for (size_t seen = 0u; seen < slot; seen += 1u)
+        for (size_t seen = 0u; seen < at; seen += 1u)
         {
-            if (offsets[slot] == offsets[seen])
+            if (offsets[at] == offsets[seen])
             {
-                printf("    offset %zu placed twice, a state was revisited: FAILS\n", offsets[slot]);
+                printf("    offset %zu placed twice, a state was revisited: FAILS\n", offsets[at]);
                 failed += 1;
             }
         }
-        if (offsets[slot] >= sizeof(needle))
+        if (offsets[at] >= sizeof(needle))
         {
-            printf("    offset %zu lies outside the needle: FAILS\n", offsets[slot]);
+            printf("    offset %zu lies outside the needle: FAILS\n", offsets[at]);
             failed += 1;
         }
     }
@@ -208,7 +208,7 @@ int adversarial_case_trichotomy(void)
  *
  * @param[in] joint    Both sides [BORROWS].
  * @param[in] position Joint position.
- * @return             The symbol held there.
+ * @return             The symbol stored there.
  */
 static uint32_t adversarial_joint_symbol(const AdversarialJointSymbols *joint, size_t position)
 {
@@ -219,7 +219,7 @@ static uint32_t adversarial_joint_symbol(const AdversarialJointSymbols *joint, s
     return joint->needle[position - joint->corpus_length];
 }
 
-/** @brief Equality between two joint positions, the oracle orior_field_pair_project asks. */
+/** @brief Equality between two joint positions, the oracle orior_field_pair_project queries. */
 static int adversarial_same_joint(const void *field, size_t left, size_t right)
 {
     const AdversarialJointSymbols *const joint = (const AdversarialJointSymbols *)field;
@@ -271,7 +271,7 @@ size_t adversarial_count_symbols(const uint32_t *corpus, size_t corpus_length, c
  * @brief Counts through two separate projections, one per side. THE BROKEN CONSTRUCTION.
  *
  * @return 1 where both projections ran and `count` was written, 0 where either errored.
- * @note Kept in the suite as the negative control. A case that cannot show this route
+ * @note Retained in the suite as the negative control. A case that cannot show this route
  *       losing an occurrence cannot show the joint route recovering one.
  */
 int adversarial_count_apart(const uint32_t *corpus, size_t corpus_length, const uint32_t *needle, size_t needle_length,

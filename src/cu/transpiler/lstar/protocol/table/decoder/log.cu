@@ -125,17 +125,17 @@ int Decoding::log_read(const char *qry)
             }
             case_sets.push_back(cases);
         }
-        else if (line.rfind("ask ", 0u) == 0u)
+        else if (line.rfind("query ", 0u) == 0u)
         {
-            // a put walks its registers over several asks, and what the part answered of every case is the same at
-            // every count it answered at: the put keeps an answered ask's cases over one read from R or refused
+            // a put walks its registers over several queries, and what the part answered of every case is the same at
+            // every count it answered at: the put retains an answered query's cases over one read from R or refused
             std::stringstream words(line);
             std::string kind;
             std::string number;
-            std::string ask_came_back;
-            words >> kind >> number >> ask_came_back;
-            const int answered = (ask_came_back != "recorded") && (ask_came_back != "refused");
-            came_back = (answered || !block_answered) ? ask_came_back : came_back;
+            std::string answer_text;
+            words >> kind >> number >> answer_text;
+            const int answered = (answer_text != "recorded") && (answer_text != "refused");
+            came_back = (answered || !block_answered) ? answer_text : came_back;
             block_answered |= answered ? 1 : 0;
         }
         else if (std::regex_match(line, found, s_put))
@@ -220,18 +220,18 @@ void Decoding::products_decoded(const char *engine)
         pair_qualifiers[pair_key(put.from, put.to)].insert(put.qualifiers.begin(), put.qualifiers.end());
     }
     std::map<std::string, std::vector<std::set<unsigned long long>>> pair_cased;
-    for (const auto &held : pair_qualifiers)
+    for (const auto &entry : pair_qualifiers)
     {
-        pair_cased[held.first] = concept_values_qualified(cased, held.second);
+        pair_cased[entry.first] = concept_values_qualified(cased, entry.second);
     }
     std::map<std::string, std::set<std::string>> apart_sets;
-    std::map<std::string, int> apart_held;
-    std::map<std::string, int> alike_held;
+    std::map<std::string, int> apart_counts;
+    std::map<std::string, int> alike_counts;
     for (const LoggedPut &put : puts)
     {
         const std::string key = pair_key(put.from, put.to);
-        // a put past the pair's first case apart asks nothing of its verdict, and holds its product alone
-        concept_product_held(put.reads, put.writes_from, put.writes_to, pair_cased[key], &products[key]);
+        // a put past the pair's first case apart requires nothing of its verdict, and records its product alone
+        concept_product_made(put.reads, put.writes_from, put.writes_to, pair_cased[key], &products[key]);
         if ((put.came_back == "recorded") || (put.came_back == "refused") || put.came_back.empty() ||
             case_sets.empty())
         {
@@ -240,10 +240,10 @@ void Decoding::products_decoded(const char *engine)
         const int one_text = (operation_stem(put.from_text) == operation_stem(put.to_text));
         if (put.came_back.find('x') == std::string::npos)
         {
-            alike_held[key] |= one_text ? 1 : 2;
+            alike_counts[key] |= one_text ? 1 : 2;
             continue;
         }
-        apart_held[key] = 1;
+        apart_counts[key] = 1;
         const std::string set = put_decoded(put, case_sets[put.cases_at], engine);
         if (!set.empty())
         {
@@ -252,20 +252,20 @@ void Decoding::products_decoded(const char *engine)
     }
     // a pair is a member of every set its puts apart read it into, each a light of its own, and of `unknown_coherence`
     // where they read it into none
-    for (const auto &held : apart_held)
+    for (const auto &entry : apart_counts)
     {
-        std::set<std::string> sets = apart_sets[held.first];
+        std::set<std::string> sets = apart_sets[entry.first];
         if (sets.size() > 1u)
         {
             sets.erase("unknown_coherence");
         }
-        decoded[held.first] = sets.empty() ? std::set<std::string>{"unknown_coherence"} : sets;
+        decoded[entry.first] = sets.empty() ? std::set<std::string>{"unknown_coherence"} : sets;
     }
-    for (const auto &held : alike_held)
+    for (const auto &entry : alike_counts)
     {
-        if (apart_held.count(held.first) == 0u)
+        if (apart_counts.count(entry.first) == 0u)
         {
-            decoded[held.first] = {(held.second == 1) ? "qualifier_coherence" : "unknown_coherence"};
+            decoded[entry.first] = {(entry.second == 1) ? "qualifier_coherence" : "unknown_coherence"};
         }
     }
     // a pair no put of its own answered, witnessed at a third form's link: the part answered its two forms there,
@@ -277,34 +277,34 @@ void Decoding::products_decoded(const char *engine)
             decoded[key] = {"witness_coherence"};
         }
     }
-    for (const auto &held : products)
+    for (const auto &entry : products)
     {
-        const std::string identity = concept_identity(held.second, pair_cased[held.first]);
+        const std::string identity = concept_identity(entry.second, pair_cased[entry.first]);
         if (!identity.empty())
         {
-            identities[held.first] = identity;
+            identities[entry.first] = identity;
         }
-        const auto read_into = decoded.find(held.first);
+        const auto read_into = decoded.find(entry.first);
         if (!identity.empty() && (read_into != decoded.end()) &&
             (read_into->second == std::set<std::string>{"unknown_coherence"}) &&
-            concept_qualified(held.second, pair_qualifiers[held.first]))
+            concept_qualified(entry.second, pair_qualifiers[entry.first]))
         {
             read_into->second = {"qualifier_coherence"};
         }
         // a row both alike and apart is decided by something outside the values the form reads: noise. An answered
         // product the cycle left short of whole is one the cases could not make whole: the data's quality
         int both = 0;
-        for (const auto &row : held.second.rows)
+        for (const auto &row : entry.second.rows)
         {
             both |= (row.second.size() > 1u) ? 1 : 0;
         }
         if (both)
         {
-            metas[held.first].insert("noise_coherence");
+            metas[entry.first].insert("noise_coherence");
         }
-        if (!held.second.rows.empty() && identity.empty() && (decoded.count(held.first) != 0u))
+        if (!entry.second.rows.empty() && identity.empty() && (decoded.count(entry.first) != 0u))
         {
-            metas[held.first].insert("data_quality_coherence");
+            metas[entry.first].insert("data_quality_coherence");
         }
     }
 }

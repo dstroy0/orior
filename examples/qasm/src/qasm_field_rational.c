@@ -46,7 +46,7 @@ static int qasm_text_chunk(QasmText *builder, unsigned int chunk, unsigned int w
     digits[QASM_TEXT_CHUNK_DIGITS] = '\0';
     do
     {
-        // a digit is 0 to 9. '0' plus it is an ASCII digit, which a char holds
+        // a digit is 0 to 9. '0' plus it is an ASCII digit, which a char represents
         digits[QASM_TEXT_CHUNK_DIGITS - 1u - length] = (char)('0' + (int)(left % 10u));
         left /= 10u;
         length += 1u;

@@ -39,7 +39,7 @@ test("a tree's settings file stands over the reader's own as it is saved, and Pr
   const editor = await opened("settings_a.txt", "one two\n");
   assert.equal(editor.marksOn, false);
   await treeSettings('{\n  // the tree\'s own\n  "whitespace": "true",\n  "checkers": "ruff",\n}\n');
-  await ui.waitFor(() => editor.marksOn === true, 5000);
+  await ui.waitFor(() => editor.marksOn === true, 5000, "the tree's settings file in force: its whitespace on");
   assert.equal(localStorage.getItem("orior.whitespace"), "true");
   const from = settingsInForce().from.whitespace;
   assert.equal(from[0].file, TREE_FILE);
@@ -51,17 +51,18 @@ test("a tree's settings file stands over the reader's own as it is saved, and Pr
   await ui.waitFor(() => editor.marksOn === true, 2000);
   runCommand("preferences");
   const row = () => document.querySelector('.prefs-force-row[data-key="whitespace"]');
-  await ui.waitFor(() => row(), 5000);
+  await ui.waitFor(() => row(), 5000, "Preferences' row of the setting in force");
   assert.equal(row().querySelector(".prefs-force-value").textContent, "true");
   assert.equal(row().querySelector(".prefs-file").textContent, TREE_FILE);
   assert.match(row().querySelector(".prefs-force-under").textContent, /settings\.json/);
   assert.ok([...document.querySelectorAll(".prefs-force-problems li")].some((one) => /checkers is the reader's own to set/.test(one.textContent)), "a tree's file does not name the checkers");
-  row().scrollIntoView({ block: "center" });
+  // the press scrolls the row into the sheet's sight itself, and moves onto it again where WebKitGTK undoes a
+  // scroll a script made in a sheet just opened
   await ui.click(row().querySelector(".prefs-file"));
-  await ui.waitFor(() => editing().active === TREE_FILE, 5000);
+  await ui.waitFor(() => editing().active === TREE_FILE, 5000, "the tree's settings file open from its row");
   assert.ok(!document.querySelector("dialog.sheet"), "Preferences closed for the file it opened");
   await treeSettings("{}\n");
-  await ui.waitFor(() => editor.marksOn === false, 5000);
+  await ui.waitFor(() => editor.marksOn === false, 5000, "the tree's settings file emptied: its whitespace off again");
 });
 
 test("a file takes another's and changes some of it, a part sets one system's alone, and a value names others and the system", async () => {

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window.c: what the window calls of orior: the command line run first, and the window it leaves to open kept; the
+// window.c: what the window calls of orior: the command line run first, and the window it leaves to open recorded; the
 // window opened, its tree's side made and the link opened where the tree is on another machine; each call answered in
 // a room of its own, one of those the calls answered at once share, a call waiting where every room is taken, the
 // tree's over the link where one is open; a terminal's key to the comms layer; and every part ended as the window ends
@@ -21,8 +21,8 @@ typedef struct
     int ok;
     char *answer;
     unsigned long long answer_size;
-    char *said;
-    unsigned long long said_size;
+    char *err_msg;
+    unsigned long long err_msg_size;
 } CliWindowRoom;
 
 // why a call failed where its cells could not be taken, which is no cell
@@ -40,19 +40,24 @@ typedef struct
     const unsigned int *count;
 } CliWindowTable;
 
-// a line of the errors, `orior: ` before what was said
-static void window_err(const CliLine *said)
+// a line of the errors, `orior: ` before what was written
+static void window_err(const VerbaLinea *err_msg)
 {
-    static char s_line[CLI_WINDOW_SAID + 8u];
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, "orior: ");
-    cli_line_counted(&line, said->out, cli_line_fits(said) ? said->at : 0ull);
-    cli_line_character(&line, '\n');
-    query_terminal_written(1, s_line, cli_line_fits(&line) ? line.at : 0ull);
+    static char s_line[CLI_WINDOW_ERR_MSG_MAX_LEN + 8u];
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, "orior: ");
+    mmgr_line_put_n(&line, err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ull);
+    mmgr_line_ch(&line, '\n');
+    query_terminal_written(1, s_line, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
-int cli_window_command_line(const char *const *words, unsigned int count, int *window)
+int cli_window_command_line(int *window)
 {
+    // the window runs no main of orior's and enters here first, so the pool every later call takes from is made here
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    static const char *s_words[CLI_LAUNCH_ARGS];
+    const unsigned int count = cli_arguments(0, NULL, s_words, CLI_LAUNCH_ARGS);
+    const char *const *const words = s_words;
     if (count == 0u)
     {
         cli_console_let_go();
@@ -68,27 +73,27 @@ int cli_window_command_line(const char *const *words, unsigned int count, int *w
 
 void cli_window_begun(CliServeEmit emit, void *context)
 {
-    static char s_why[CLI_WINDOW_SAID];
-    CliLine said = {s_why, sizeof(s_why), 0ull};
+    static char s_why[CLI_WINDOW_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {s_why, sizeof(s_why), 0ull};
     // inside a Flatpak's sandbox the machine's own programs run on the machine
-    if (cli_host_prepared(&said) == -1ll)
+    if (cli_host_prepared(&err_msg) == -1ll)
     {
-        window_err(&said);
+        window_err(&err_msg);
     }
     // every process the window starts stands under it, and ends with it
-    (void)cli_container_held();
+    (void)cli_container_made();
     static CliLinkAddress s_address;
     int remote = 0;
-    said.at = 0ull;
+    err_msg.at = 0ull;
     if (s_outcome.has_remote)
     {
-        remote = cli_link_address_parse(s_outcome.remote, &s_address, &said);
+        remote = cli_link_address_parse(s_outcome.remote, &s_address, &err_msg);
         if (!remote)
         {
-            window_err(&said);
+            window_err(&err_msg);
         }
     }
-    static char s_root[CLI_PATH_LONGEST];
+    static char s_root[CLI_PATH_MAX_LEN];
     const char *root = NULL;
     if (!remote && s_outcome.has_root)
     {
@@ -98,69 +103,69 @@ void cli_window_begun(CliServeEmit emit, void *context)
     {
         root = s_root;
     }
-    char home[CLI_PATH_LONGEST];
-    char keeping[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char detached_dir[CLI_PATH_MAX_LEN];
     const int has_home = cli_home_folder(home);
     if (has_home)
     {
-        cli_full(home, "runs", keeping);
+        cli_full(home, "runs", detached_dir);
     }
-    cli_serve_begun(root, has_home ? keeping : NULL);
-    cli_serve_tell_to(emit, context);
+    cli_serve_begun(root, has_home ? detached_dir : NULL);
+    cli_serve_emit_set(emit, context);
     // the door of the comms layer is open from the start, for every process the container starts to join
-    char address[CLI_PATH_LONGEST];
-    said.at = 0ull;
-    (void)cli_serve_open_door(address, &said);
-    said.at = 0ull;
-    (void)cli_serve_open_to_command_line(&said);
+    char address[CLI_PATH_MAX_LEN];
+    err_msg.at = 0ull;
+    (void)cli_serve_open_door(address, &err_msg);
+    err_msg.at = 0ull;
+    (void)cli_serve_open_to_command_line(&err_msg);
     cli_serve_watch();
-    said.at = 0ull;
-    if (remote && !cli_link_open(&s_address, emit, context, &said))
+    err_msg.at = 0ull;
+    if (remote && !cli_link_open(&s_address, emit, context, &err_msg))
     {
-        window_err(&said);
+        window_err(&err_msg);
     }
 }
 
-void cli_window_launch_taken(CliLine *out)
+void cli_window_launch_taken(VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
     const int has = s_outcome.window && (s_outcome.command[0] != '\0');
     if (has)
     {
-        cli_line_text(out, "{\"root\":");
+        mmgr_line_put(out, "{\"root\":");
         if (s_outcome.has_root)
         {
             cli_window_quoted(out, s_outcome.root);
         }
         else
         {
-            cli_line_text(out, "null");
+            mmgr_line_put(out, "null");
         }
-        cli_line_text(out, ",\"remote\":");
+        mmgr_line_put(out, ",\"remote\":");
         if (s_outcome.has_remote)
         {
             cli_window_quoted(out, s_outcome.remote);
         }
         else
         {
-            cli_line_text(out, "null");
+            mmgr_line_put(out, "null");
         }
-        cli_line_text(out, ",\"menu\":");
+        mmgr_line_put(out, ",\"menu\":");
         cli_window_quoted(out, s_outcome.menu);
-        cli_line_text(out, ",\"command\":");
+        mmgr_line_put(out, ",\"command\":");
         cli_window_quoted(out, s_outcome.command);
-        cli_line_text(out, ",\"args\":[");
+        mmgr_line_put(out, ",\"args\":[");
         for (unsigned int at = 0u; at < s_outcome.args; at += 1u)
         {
-            cli_line_text(out, (at > 0u) ? "," : "");
+            mmgr_line_put(out, (at > 0u) ? "," : "");
             cli_window_quoted(out, cli_launch_arg(&s_outcome, at));
         }
-        cli_line_text(out, "]}");
+        mmgr_line_put(out, "]}");
         s_outcome.command[0] = '\0';
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
     cli_lock_give(&s_lock);
 }
@@ -185,7 +190,12 @@ static CliServeAnswer window_answer_of(const char *name)
         {g_cli_window_home_calls, &g_cli_window_home_count}, {g_cli_window_places_calls, &g_cli_window_places_count},
         {g_cli_window_net_calls, &g_cli_window_net_count},   {g_cli_window_report_calls, &g_cli_window_report_count},
         {g_cli_window_text_calls, &g_cli_window_text_count}, {g_cli_window_code_calls, &g_cli_window_code_count},
-        {g_cli_window_tree_calls, &g_cli_window_tree_count},
+        {g_cli_window_tree_calls, &g_cli_window_tree_count}, {g_cli_window_memory_calls, &g_cli_window_memory_count},
+        {g_cli_window_machine_calls, &g_cli_window_machine_count},
+        {g_cli_window_scrollback_calls, &g_cli_window_scrollback_count},
+        {g_cli_window_terminal_calls, &g_cli_window_terminal_count},
+        {g_cli_window_clipboard_calls, &g_cli_window_clipboard_count},
+        {g_cli_window_view_calls, &g_cli_window_view_count},
     };
     for (unsigned int table = 0u; table < sizeof(s_tables) / sizeof(s_tables[0]); table += 1u)
     {
@@ -202,12 +212,21 @@ static CliServeAnswer window_answer_of(const char *name)
 }
 
 // `answer` given `size` bytes of its arguments, read into a tree in a cell sized to them and given back once it has
-// answered: its answer into `out`, 1, or 0 with why said
-int cli_window_tree_call(const char *name, const char *args, unsigned long long size, CliLine *out, CliLine *said)
+// answered: its answer into `out`, 1, or 0 with why given. Files brought into a tree on another machine are this
+// machine's, read here and written over the link
+int cli_window_tree_call(const char *name, const char *args, unsigned long long size, VerbaLinea *out,
+                         VerbaLinea *err_msg)
 {
     CliLinkAddress address;
-    return cli_link_address(&address) ? cli_link_call(name, args, size, out, said)
-                                      : cli_serve_call(name, args, size, out, said);
+    if (!cli_link_address(&address))
+    {
+        return cli_serve_call(name, args, size, out, err_msg);
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "files_bring", .cap = CLI_CELLS_POOL}))
+    {
+        return cli_serve_answered(cli_serve_files_bring_over, args, size, out, err_msg);
+    }
+    return cli_link_call(name, args, size, out, err_msg);
 }
 
 // a room taken, waited for where every one is: its place
@@ -236,67 +255,67 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
 {
     const unsigned int at = window_room_taken();
     CliWindowRoom *const room = &s_room[at];
-    CliLine out;
-    (void)cli_line_growing(&out, CLI_WINDOW_ANSWER_FIRST, "a window call's answer");
+    VerbaLinea out;
+    (void)cli_growing_line_made(&out, CLI_WINDOW_ANSWER_FIRST);
     room->answer = out.out;
-    room->said = cli_cell_taken(CLI_WINDOW_SAID, "why a window call failed");
-    if ((room->answer == NULL) || (room->said == NULL))
+    room->err_msg = g_cli_cells->persistent_buf_alloc(CLI_WINDOW_ERR_MSG_MAX_LEN, NULL);
+    if ((room->answer == NULL) || (room->err_msg == NULL))
     {
-        cli_cell_given(room->said);
+        g_cli_cells->persistent_buf_release(room->err_msg, NULL);
         room->ok = 0;
-        room->said = s_refused;
-        room->said_size = sizeof(s_refused) - 1u;
+        room->err_msg = s_refused;
+        room->err_msg_size = sizeof(s_refused) - 1u;
         return at;
     }
-    CliLine said = {room->said, CLI_WINDOW_SAID, 0ull};
+    VerbaLinea err_line = {room->err_msg, CLI_WINDOW_ERR_MSG_MAX_LEN, 0ull};
     if (own)
     {
         const CliServeAnswer answer = window_answer_of(name);
         if (answer == NULL)
         {
-            cli_line_text(&said, name);
-            cli_line_text(&said, " is not a command of the window's");
+            mmgr_line_put(&err_line, name);
+            mmgr_line_put(&err_line, " is not a command of the window's");
         }
-        room->ok = (answer != NULL) && cli_serve_answered(answer, args, size, &out, &said);
+        room->ok = (answer != NULL) && cli_serve_answered(answer, args, size, &out, &err_line);
     }
     else
     {
-        room->ok = cli_window_tree_call(name, args, size, &out, &said);
+        room->ok = cli_window_tree_call(name, args, size, &out, &err_line);
     }
-    if (room->ok && !cli_line_fits(&out))
+    if (room->ok && !mmgr_line_ok(&out))
     {
-        said.at = 0ull;
-        cli_line_text(&said, "the answer does not fit the room it is made in");
+        err_line.at = 0ull;
+        mmgr_line_put(&err_line, "the answer does not fit the room it is made in");
         room->ok = 0;
     }
     if (room->ok && (out.at == 0ull))
     {
-        cli_line_text(&out, "null");
+        mmgr_line_put(&out, "null");
     }
     room->answer = out.out;
     room->answer_size = out.at;
-    room->said_size = cli_line_fits(&said) ? said.at : 0ull;
+    room->err_msg_size = mmgr_line_ok(&err_line) ? err_line.at : 0ull;
     return at;
 }
 
 int cli_window_answer(unsigned int room, const char **text, unsigned long long *size)
 {
-    const CliWindowRoom *const held = &s_room[room];
-    *text = held->ok ? held->answer : held->said;
-    *size = held->ok ? held->answer_size : held->said_size;
-    return held->ok;
+    const CliWindowRoom *const entry = &s_room[room];
+    *text = entry->ok ? entry->answer : entry->err_msg;
+    *size = entry->ok ? entry->answer_size : entry->err_msg_size;
+    return entry->ok;
 }
 
 void cli_window_given(unsigned int room)
 {
-    CliWindowRoom *const held = &s_room[room];
-    if (held->said != s_refused)
+    CliWindowRoom *const entry = &s_room[room];
+    if (entry->err_msg != s_refused)
     {
-        cli_cell_given(held->said);
+        g_cli_cells->persistent_buf_release(entry->err_msg, NULL);
     }
-    cli_cell_given(held->answer);
-    held->answer = NULL;
-    held->said = NULL;
+    g_cli_cells->persistent_buf_release(entry->answer, NULL);
+    entry->answer = NULL;
+    entry->err_msg = NULL;
     cli_lock_take(&s_lock);
     s_room[room].taken = 0;
     cli_wake_all(&s_wake);
@@ -306,10 +325,10 @@ void cli_window_given(unsigned int room)
 int cli_window_terminal_key(char *key, char *address)
 {
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     static const char *const s_runs[1] = {"runs/*"};
-    return cli_serve_open_door(address, &said) &&
-           cli_comms_register("terminal", 0, 0u, s_runs, 1u, s_runs, 1u, key, &said);
+    return cli_serve_open_door(address, &err_msg) &&
+           cli_comms_register("terminal", 0, 0u, s_runs, 1u, s_runs, 1u, key, &err_msg);
 }
 
 void cli_window_terminal_bound(const char *key, unsigned int process)
@@ -322,44 +341,44 @@ void cli_window_terminal_left(const char *key)
     cli_comms_leave(key);
 }
 
-void cli_window_quoted(CliLine *out, const char *text)
+void cli_window_quoted(VerbaLinea *out, const char *text)
 {
     cli_json_quoted_lossy(out, (const unsigned char *)text,
                           cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-void cli_window_counted(CliLine *out, const char *text, unsigned long long size)
+void cli_window_counted(VerbaLinea *out, const char *text, unsigned long long size)
 {
     cli_json_quoted_lossy(out, (const unsigned char *)text, size);
 }
 
-void cli_window_strings(CliLine *out, const char *const *items, unsigned int count)
+void cli_window_strings(VerbaLinea *out, const char *const *items, unsigned int count)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "," : "");
+        mmgr_line_put(out, (at > 0u) ? "," : "");
         cli_window_quoted(out, items[at]);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
-int cli_window_home(char *folder, CliLine *said)
+int cli_window_home(char *folder, VerbaLinea *err_msg)
 {
     if (!cli_home_folder(folder))
     {
-        cli_line_text(said, "orior_cli has no folder of its own");
+        mmgr_line_put(err_msg, "orior_cli has no folder of its own");
         return 0;
     }
     return 1;
 }
 
-void cli_window_arg_written(const CliServeArgs *args, const char *key, CliLine *out)
+void cli_window_arg_written(const CliServeArgs *args, const char *key, VerbaLinea *out)
 {
     const unsigned int value = cli_serve_arg(args, key);
     if (value == CLI_JSON_NONE)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return;
     }
     cli_json_write(args->json, value, out, 0u, 0);

@@ -9,8 +9,8 @@
 
 static CliProverMessages s_messages;
 
-// the id of the tool for Lean, looked for with no validation's room kept, as the command line looks for it
-static char s_lean[CLI_NAME_LONGEST];
+// the id of the tool for Lean, looked for with no validation's room allocated, as the command line looks for it
+static char s_lean[CLI_NAME_MAX_LEN];
 
 // the Lean tool read into the room: 1, or 0 where orior_cli has none
 static int validate_lean(void)
@@ -65,16 +65,16 @@ static void validate_flags(void)
     g_cli_validate->finding_used = 0ull;
     cli_validate_flags_in();
     char words[256];
-    CliLine line = {words, sizeof(words), 0ull};
+    VerbaLinea line = {words, sizeof(words), 0ull};
     for (unsigned int at = 0u; at < g_cli_validate->finding_count; at += 1u)
     {
         const char *const message = g_cli_validate->finding_text + g_cli_validate->findings[at].message;
         const char *const colon = cellul.chr(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL, .byte = ':'});
-        cli_line_text(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
         // the colon lies in the message, at or past its start
-        cli_line_counted(&line, message,
-                         (colon != NULL) ? (unsigned long long)(colon - message)
-                                         : cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
+        mmgr_line_put_n(&line, message,
+                        (colon != NULL) ? (unsigned long long)(colon - message)
+                                        : cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
     }
     cli_check_text(words, line.at, "Float|UInt64|native_decide|#eval", "flags find their words");
     cli_check((g_cli_validate->finding_count == 4u) && (g_cli_validate->findings[0].line == 0u) &&
@@ -87,8 +87,8 @@ static void validate_flags(void)
     line.at = 0ull;
     for (unsigned int at = 0u; at < g_cli_validate->theorem_count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, g_cli_validate->names + g_cli_validate->theorems[at]);
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, g_cli_validate->names + g_cli_validate->theorems[at]);
     }
     cli_check_text(words, line.at, "A.one|A.B.two|A.three|four", "theorems take their namespaces");
 }
@@ -159,7 +159,7 @@ static void validate_copy(void)
     validate_code(s_text);
     cli_validate_theorems_in();
     char changed[256];
-    CliLine line = {changed, sizeof(changed), 0ull};
+    VerbaLinea line = {changed, sizeof(changed), 0ull};
     const unsigned long long size = cli_validate_copy_of(s_text, sizeof(s_text) - 1u, s_names, s_values, 1u, &line);
     const char *const copy = g_cli_validate->copy;
     static const char s_tail[] = "#print axioms t\n";
@@ -169,27 +169,29 @@ static void validate_copy(void)
                 .src = copy, .other = "set_option maxHeartbeats 800000 in\n", .cap = CLI_CELLS_POOL})) &&
             (memor.cmp(&(MemoriaCfg){
                  .src = copy + size - (sizeof(s_tail) - 1u), .other = s_tail, .bytes = sizeof(s_tail) - 1u}) == 0),
-        "the copy grows the file's own limits and asks each theorem's axioms");
+        "the copy grows the file's own limits and queries each theorem's axioms");
     cli_check_text(changed, line.at, "line 1: set_option maxHeartbeats 400000, checked at 800000",
-                   "and says what it changed");
+                   "and reports what it changed");
     static const char s_zero[] = "set_option maxHeartbeats 0 in\n";
     validate_code(s_zero);
     g_cli_validate->theorem_count = 0u;
     line.at = 0ull;
-    const unsigned long long kept = cli_validate_copy_of(s_zero, sizeof(s_zero) - 1u, s_names, s_values, 1u, &line);
-    cli_check((kept >= 25ull) &&
+    const unsigned long long copy_len = cli_validate_copy_of(s_zero, sizeof(s_zero) - 1u, s_names, s_values, 1u, &line);
+    cli_check((copy_len >= 25ull) &&
                   (cellul.find(&(CatenaFinitaCfg){.src = g_cli_validate->copy,
                                                   .cap = CLI_CELLS_POOL,
                                                   .other = "maxHeartbeats 0 in",
                                                   .other_cap = CLI_CELLS_POOL}) != NULL) &&
                   (line.at == 0ull),
-              "a limit of none is kept");
+              "a limit of none is retained");
 }
 
 int main(void)
 {
-    cli_check(cli_validate_tool_for("lean", s_lean), "the tool for a language is found with no validation's room held");
-    if (!cli_validate_held())
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check(cli_validate_tool_for("lean", s_lean),
+              "the tool for a language is found with no validation's room allocated");
+    if (!cli_validate_locked())
     {
         cli_check(0, "a validation's room is taken");
         return cli_checked();

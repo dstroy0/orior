@@ -7,7 +7,7 @@ TEST="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 MODULE_CU="$(cd "$TEST/../../../../../../../src/cu/engine/runtime/obsignatio" && pwd)"
 TOP="$(cd "$MODULE/../../../.." && pwd)"
-SCRIPTURA="$TOP/cu/engine/runtime/scriptura"
+source "$TOP/cu/includes/file_defs/file_defs.sh"
 # utils/maint/ is at the repository's root, one above src/
 source "$(cd "$TOP/.." && pwd)/utils/maint/engine/build_stamp.sh"
 build_stamp obsignatio_test
@@ -34,20 +34,20 @@ case "$(uname -s)" in
         ;;
 esac
 
-INCLUDES=(-I "$TOP/c/engine" -I "$TOP/cu/engine" -I "$MODULE" -I "$MODULE_CU" -I "$SCRIPTURA")
+INCLUDES=(-I "$TOP/c/engine" -I "$TOP/cu/engine" -I "$MODULE" -I "$MODULE_CU" "${FILE_DEFS_MMGR_FLAGS[@]}")
 
 # a part with no CUDA toolchain (the Pi) builds the seal and the test as C++, and the test asks the host's questions
 if ! command -v nvcc > /dev/null 2>&1; then
     rm -f "$BINARY"
     OBJECTS=()
-    for source in "$SCRIPTURA"/*.c; do
+    for source in "${FILE_DEFS_LINEA[@]}"; do
         object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
         rm -f "$object"
         cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object"
         [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
         OBJECTS+=("$object")
     done
-    c++ -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -o "$BINARY" \
+    "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -o "$BINARY" \
         -x c++ "$TEST"/obsignatio_test_{vectors,properties,streams,main}.cu "$MODULE_CU"/obsignatio_{hash,seal}.cu \
         -x none "${OBJECTS[@]}"
     [ -f "$BINARY" ] || { echo "  build failed: c++ could not build the test"; exit 1; }
@@ -69,7 +69,7 @@ done
 
 rm -f "$BINARY"
 OBJECTS=()
-for source in "$SCRIPTURA"/*.c; do
+for source in "${FILE_DEFS_LINEA[@]}"; do
     object="$OUT/$(basename "$source" .c)_test.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in

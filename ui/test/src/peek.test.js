@@ -34,6 +34,8 @@ test("a peek shows a place over the editor under the cursor's line, and no tab o
   const line = editing().editor.rectOf({ line: 1, col: 0 });
   assert.ok(Math.abs(shown.panel.getBoundingClientRect().top - line.bottom) < 2, "under the cursor's line");
   assert.match(shown.panel.querySelector(".code-peek-where").textContent, /^peek_lib\.py:41$/);
+  const corners = getComputedStyle(shown.panel.querySelector(".code-peek-editor"), "::after").backgroundPosition;
+  assert.match(corners, /calc\(100% \+ 8px\) 0%/,`the peek's editor, which holds no minimap, draws no corners of one: ${corners}`);
   await ui.key("Escape");
   assert.equal(peekShown(), null, "Escape closes it");
 });

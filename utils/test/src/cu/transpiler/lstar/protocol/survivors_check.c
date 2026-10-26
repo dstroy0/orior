@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// survivors_check.c: the gate held to P2 on the ladder's own relations, each a candidate against each as the relation
+// survivors_check.c: the gate checked against P2 on the ladder's own relations, each a candidate against each as the
+// relation
 //
 //   conjunction  a candidate survives only where it fails no case, and the relation itself always does
 //   order        every order of the cases leaves the same survivors
 //   descent      the descent puts first a case the most candidates fail, and its price is what the price of that
 //                order counts
-//   no worse     the descent's price is no more than the price of the cases in the order the ladder holds them
+//   no worse     the descent's price is no more than the price of the cases in the order the ladder lists them
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/counterexample/ladder.h"
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/gate/survivors.h"
 
@@ -16,10 +17,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -34,7 +35,7 @@ static const char *const s_anchor_text[] = {LADDER_ANCHORS(LADDER_TEXT)};
 
 int main(void)
 {
-    unsigned int asked = 0u;
+    unsigned int queried = 0u;
     unsigned int prices_no_worse = 0u;
     for (unsigned int relation = 0u; relation < (unsigned int)LADDER_ANCHOR_COUNT; relation += 1u)
     {
@@ -76,7 +77,7 @@ int main(void)
         unsigned char survives[GATE_CANDIDATES];
         const unsigned int count = gate_survivors(s_fails, candidates, cases, survives);
         check_that(survives[own] == 1u, "the relation itself survives its own cases");
-        check_that(count >= 1u, "and the survivors hold at least it");
+        check_that(count >= 1u, "and the survivors contain at least it");
 
         // the cases reversed leave the same survivors
         unsigned char reversed_fails[GATE_CANDIDATES][GATE_CASES];
@@ -107,19 +108,20 @@ int main(void)
             first = (at == order[0]) ? failing : first;
         }
         check_that(first == most, "the descent puts first a case the most candidates fail");
-        unsigned int held_order[GATE_CASES];
+        unsigned int stored_order[GATE_CASES];
         for (unsigned int at = 0u; at < cases; at += 1u)
         {
-            held_order[at] = at;
+            stored_order[at] = at;
         }
-        prices_no_worse += (price <= gate_price(s_fails, candidates, cases, held_order)) ? 1u : 0u;
-        asked += 1u;
+        prices_no_worse += (price <= gate_price(s_fails, candidates, cases, stored_order)) ? 1u : 0u;
+        queried += 1u;
         printf("  %-8s %u cases, %u candidates, %u surviving, the descent's price %llu against %llu in the ladder's "
                "order\n",
                s_anchor_text[relation], cases, candidates, count, price,
-               gate_price(s_fails, candidates, cases, held_order));
+               gate_price(s_fails, candidates, cases, stored_order));
     }
-    check_that(prices_no_worse == asked, "the descent's price is no more than the ladder's order's on every relation");
+    check_that(prices_no_worse == queried,
+               "the descent's price is no more than the ladder's order's on every relation");
     printf("survivors_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

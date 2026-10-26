@@ -7,7 +7,7 @@
  * Source: NIST, Atomic Weights and Isotopic Compositions for All Elements (ascii2, isotype=all),
  * the text isotope_table.c reads. Masses in femtodaltons, 10^-15 Da; compositions and their uncertainties
  * in 10^-10 parts, -1 where NIST gives none; the standard atomic weight interval's ends in
- * femtodaltons, -1 where NIST writes no interval. Every value is the decimal NIST wrote, held exactly.
+ * femtodaltons, -1 where NIST writes no interval. Every value is the decimal NIST wrote, stored exactly.
  */
 #ifndef ISOTOPE_TABLE_H
 #define ISOTOPE_TABLE_H

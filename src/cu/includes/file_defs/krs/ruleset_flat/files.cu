@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files.cu: the files read: a file's bytes from the run or the disk, a file appended, the paths of a part, a ruleset's text, and what the relations and the maps said
+// files.cu: the files read: a file's bytes from the run or the disk, a file appended, the paths of a part, a ruleset's
+// text, and what the relations and the maps reported
 #include "ruleset_flat_internal.h"
 #include "../../../parsers/tree_folder.h"
 
@@ -20,13 +21,13 @@ int ruleset_bytes_read(const std::string &path, std::string *text)
         return 0;
     }
     const unsigned long long room = (text->size() < RULESET_FILE_MAX) ? (RULESET_FILE_MAX - text->size()) : 0ull;
-    // a ruleset the reader holds is below RULESET_FILE_MAX letters, which a size_t counts; one past it is cut there
+    // a ruleset the reader accepts is below RULESET_FILE_MAX letters, which a size_t counts; one past it is cut there
     // and refused by the caller
     text->append((const char *)bytes, (size_t)((size < room) ? size : room));
     return 1;
 }
 
-// the file at `path` read whole onto the end of `text`, as the run holds it (ruleset_bytes_read)
+// the file at `path` read whole onto the end of `text`, as the run stores it (ruleset_bytes_read)
 int ruleset_append(const std::string &path, std::string *text)
 {
     return ruleset_bytes_read(path, text);
@@ -89,10 +90,10 @@ unsigned int ruleset_paths(const RulesetSchema *schema, const std::string &path,
         paths[count + 1u] = part + ".kdm";
         count += 2u;
     }
-    // the folds the .ksc beside the file holds as forms, where it has one, as the run holds it
+    // the folds the .ksc beside the file contains as forms, where it has one, as the run stores it
     const std::string ksc = path.substr(0u, path.find_last_of('.')) + ".ksc";
-    std::string held;
-    if (ruleset_bytes_read(ksc, &held))
+    std::string ksc_text;
+    if (ruleset_bytes_read(ksc, &ksc_text))
     {
         paths[count] = ksc;
         count += 1u;
@@ -131,15 +132,15 @@ int ruleset_text(const RulesetSchema *schema, const std::string &path, std::stri
     }
     if (text->size() >= RULESET_FILE_MAX)
     {
-        *error = "it is more than the reader holds";
+        *error = "it is more than the reader supports";
         return 0;
     }
     return 1;
 }
 
-const char *ruleset_relation_said(unsigned int kind)
+const char *ruleset_relation_text(unsigned int kind)
 {
-    static const char *const s_said[RULESET_CORE_RELATION_KINDS] = {
+    static const char *const s_text[RULESET_CORE_RELATION_KINDS] = {
         "is given again after",
         "has the text of",
         "is under another name",
@@ -159,16 +160,16 @@ const char *ruleset_relation_said(unsigned int kind)
         "counts other than the questions written, which are",
         "answers with a class its file does not name",
     };
-    return (kind < RULESET_CORE_RELATION_KINDS) ? s_said[kind] : "";
+    return (kind < RULESET_CORE_RELATION_KINDS) ? s_text[kind] : "";
 }
 
-const char *ruleset_map_said(unsigned int kind)
+const char *ruleset_map_text(unsigned int kind)
 {
-    static const char *const s_said[RULESET_CORE_MAP_KINDS] = {
+    static const char *const s_text[RULESET_CORE_MAP_KINDS] = {
         "is one text in the first set and two in the second with",
         "is two texts in the first set and one in the second with",
         "is given as another kind in the second set:",
         "is given by no file of the second set",
     };
-    return (kind < RULESET_CORE_MAP_KINDS) ? s_said[kind] : "";
+    return (kind < RULESET_CORE_MAP_KINDS) ? s_text[kind] : "";
 }

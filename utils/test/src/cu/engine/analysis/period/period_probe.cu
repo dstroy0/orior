@@ -1,13 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// Calls period_read and period_draw (src/cu/engine/analysis/period/) on the requests a file holds and prints
+// Calls period_read and period_draw (src/cu/engine/analysis/period/) on the requests a file contains and prints
 // each measurement in full, every count and every ratio as its exact numerator and denominator. It is the engine's side
-// of archive/utils/test/src/python/engine/analysis/period/period_test.py, which writes the file and reads these lines against measure/period.py.
+// of archive/utils/test/src/python/engine/analysis/period/period_test.py, which writes the file and reads these lines
+// against measure/period.py.
 //
 //   period_probe <requests file>
 //
-// The file holds records one after another, every field little endian:
+// The file contains records one after another, every field little endian:
 //   u32 magic 0x31445250, u32 mode (0 period_read, 1 period_draw), u32 rank, u32 has_null_top,
 //   u64 extent[8], u64 draws (period_draw's draw number in mode 1), u8 content[32],
 //   u64 null_top[8][2] (numerator, denominator), u64 lane count, u16 lanes[lane count].
@@ -91,8 +92,8 @@ static int probe_skip(FILE *file, unsigned long long bytes)
 }
 
 // The bytes the job declares: the device lanes the largest record copies, rounded up to pages, beside
-// period_reserve_bytes for the max voxels and the max agreement entries of the records it can hold (a job over several
-// extents declares the pool for the max of each). 0 when a record is malformed.
+// period_reserve_bytes for the max voxels and the max agreement entries of the records it can contain (a job over
+// several extents declares the pool for the max of each). 0 when a record is malformed.
 static unsigned long long probe_declared(FILE *file)
 {
     unsigned long long lane_bytes_max = sizeof(unsigned short);
@@ -117,7 +118,7 @@ static unsigned long long probe_declared(FILE *file)
         for (unsigned int axis = 0u; axis < bounded_rank; axis += 1u)
         {
             const unsigned long long extent = record.extent[axis];
-            // saturates at 2^64 - 1, which period_reserve_bytes takes as more voxels than the calls hold
+            // saturates at 2^64 - 1, which period_reserve_bytes takes as more voxels than the calls cover
             voxels = ((extent != 0ull) && (voxels > (~0ull / extent))) ? ~0ull : (voxels * extent);
         }
         const unsigned long long entries = period_agreement_entries(bounded_rank, record.extent);
@@ -188,7 +189,7 @@ static int probe_run(const ProbeRecord *record, const unsigned short *lanes, uns
     const unsigned long long band_entries = record->draws * bounded_rank;
     unsigned long long *const agreement =
         (unsigned long long *)calloc((size_t)(entries + 1ull), sizeof(unsigned long long));
-    // a band past the max this probe holds is passed as none, which only a request in error asks for
+    // a band past the max this probe supports is passed as none, which only a request in error requests
     PeriodMargin *const band = (band_entries <= PROBE_BAND_MAX)
                                    ? (PeriodMargin *)calloc((size_t)(band_entries + 1ull), sizeof(PeriodMargin))
                                    : NULL;

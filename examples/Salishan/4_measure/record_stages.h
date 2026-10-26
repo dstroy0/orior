@@ -3,7 +3,7 @@
 //
 // The record programs and stages the Salishan measurements share: whole numbers as limbs, exact rationals as
 // their numerator and denominator, a program built step by step over one member's fields, and a stage that
-// imprints it, lays it out, sweeps every lane on the device and on the host, and holds the two word for word.
+// imprints it, lays it out, sweeps every lane on the device and on the host, and compares the two word for word.
 //
 //   Usage:  #include "record_stages.h", after sim.h
 //
@@ -13,10 +13,10 @@
 //   gap       (n2 d1 - n1 d2) / (d1 d2), the second value less the first;
 //   mean      (a d + c b) / (2 b d), the mean of two values;
 //   digits    the whole part of a value and its first six digits after the point, by quotient and remainder;
-//   count     how many bits of a 32-bit word are set, the word ANDed with a mask first where asked;
+//   count     how many bits of a 32-bit word are set, the word ANDed with a mask first where requested;
 //   above     [m_k >= m] and m_k, a shuffle's count against the observed count.
 // An order of values is read from the compare program's signs, every pair compared once. The sums of an output over
-// runs of lanes are taken on the device and on the host and held equal.
+// runs of lanes are taken on the device and on the host and checked equal.
 
 #ifndef RECORD_STAGES_H
 #define RECORD_STAGES_H
@@ -299,7 +299,7 @@ static int stage_lay(SimResults *job, Stage *stage, EngineError *error)
     return ok;
 }
 
-// runs every lane on the device and on the host and holds the two word for word. The device's records come back in
+// runs every lane on the device and on the host and compares the two word for word. The device's records come back in
 // `out`, and stay on the device at `device_out` for the caller to sum and free
 static int stage_sweep(SimResults *job, Stage *stage, const std::vector<unsigned int> &records,
                       unsigned long long lanes, std::vector<unsigned int> *out, unsigned int **device_out,
@@ -592,7 +592,7 @@ static void stage_above_program(unsigned int bits, StageProgram *program)
     stage_output(program, stage_step(program, ENGINE_RECORD_SUM, shuffled, stage_constant(program, 0ull)));
 }
 
-// the exact sum of each run of `group` lanes of a stage's output, on the device and on the host, held equal
+// the exact sum of each run of `group` lanes of a stage's output, on the device and on the host, checked equal
 static int stage_sums(SimResults *job, const char *what, const unsigned int *device_out,
                       const std::vector<unsigned int> &host_out, unsigned long long lanes, unsigned long long group,
                       unsigned int out_limbs, const DeviceRecordStep *step, std::vector<StageWhole> *sums,

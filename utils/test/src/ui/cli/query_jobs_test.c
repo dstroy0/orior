@@ -19,13 +19,13 @@ static CliValues s_values;
 static char s_shown[4][1024];
 static unsigned int s_shown_count;
 
-// a tree holding the files the bridge's folder names, each empty, into `root`, which holds CLI_PATH_LONGEST
+// a tree containing the files the bridge's folder names, each empty, into `root`, which is sized for CLI_PATH_MAX_LEN
 static void protocol_tree(const char *name, char *root)
 {
     static const char *const s_whole[9] = {"Lstar.klq", "cu.klm",    "cu.krs",    "sass.klm", "sass.krs",
                                            "sm_86.khw", "sm_86.kqr", "sm_86.ksc", "c.krs"};
-    char table[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char table[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder(name, root);
     cli_full(root, QUERY_TABLE, table);
     (void)query_folder_made(table);
@@ -44,8 +44,8 @@ static void protocol_jobs_read(const char *root)
     cli_query_jobs(root, &s_catalog);
 }
 
-// a line a step shows kept
-static void protocol_kept(void *context, const char *shown)
+// a line a step shows recorded
+static void protocol_line_capture(void *context, const char *shown)
 {
     (void)context;
     if (s_shown_count < 4u)
@@ -63,7 +63,7 @@ static unsigned int protocol_shown(const char *root, unsigned int job, const cha
     cli_values_begun(&s_values);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        char key[CLI_NAME_LONGEST];
+        char key[CLI_NAME_MAX_LEN];
         const char *const equals = cellul.chr(&(CatenaFinitaCfg){.src = pairs[at], .cap = CLI_CELLS_POOL, .byte = '='});
         // the `=` lies in the pair, past its start
         const unsigned long long length = (equals != NULL) ? (unsigned long long)(equals - pairs[at]) : 0ull;
@@ -73,8 +73,8 @@ static unsigned int protocol_shown(const char *root, unsigned int job, const cha
     }
     s_shown_count = 0u;
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    (void)cli_runner_shown(root, &s_catalog, job, &s_values, protocol_kept, NULL, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    (void)cli_runner_shown(root, &s_catalog, job, &s_values, protocol_line_capture, NULL, &err_msg);
     return s_shown_count;
 }
 
@@ -98,10 +98,10 @@ static const char *protocol_choice(const CliParam *param, unsigned int at)
 // every command of the query is a job of the protocol group
 static void protocol_protocol(void)
 {
-    static const char *const s_ids[11] = {"protocol/course", "protocol/tables", "protocol/decode", "protocol/query",
-                                          "protocol/learn",  "protocol/cross",  "protocol/write",  "protocol/pairs",
-                                          "protocol/stick",  "protocol/kept",   "protocol/sweep"};
-    char root[CLI_PATH_LONGEST];
+    static const char *const s_ids[11] = {"protocol/course", "protocol/tables",    "protocol/decode", "protocol/query",
+                                          "protocol/learn",  "protocol/cross",     "protocol/write",  "protocol/pairs",
+                                          "protocol/stick",  "protocol/retention", "protocol/sweep"};
+    char root[CLI_PATH_MAX_LEN];
     protocol_tree("query_jobs", root);
     protocol_jobs_read(root);
     int listed = s_catalog.jobs == 11u;
@@ -128,7 +128,7 @@ static void protocol_protocol(void)
     static const char *const s_from[2] = {"from=costs", "leave=none"};
     cli_check((protocol_shown(root, 0u, s_from, 2u) > 0u) &&
                   protocol_ends(s_shown[0], "protocol course --from costs --leave none"),
-              "and start where they are asked to");
+              "and start where they are requested to");
     const CliJob *const query = &s_catalog.job[3];
     const CliParam *const from = &s_catalog.param[query->param_first];
     const CliParam *const part = &s_catalog.param[query->param_first + 2u];
@@ -158,18 +158,19 @@ static void protocol_protocol(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     protocol_protocol();
     const QueryPrograms programs = cli_protocol_programs();
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int found = programs.program(programs.context, QUERY_ROLE_C, path, sizeof(path), &said);
-    (void)cli_line_closed(&said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int found = programs.program(programs.context, QUERY_ROLE_C, path, sizeof(path), &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     cli_check(
         found ? query_is_file(path)
               : (cellul.find(&(CatenaFinitaCfg){
                      .src = why, .cap = CLI_CELLS_POOL, .other = "Toolchains", .other_cap = CLI_CELLS_POOL}) != NULL),
-        "the toolchains give the C compiler where one is found, and say where it is not");
+        "the toolchains give the C compiler where one is found, and report where it is not");
     const char *const run_path = programs.run_path(programs.context);
     cli_check((run_path != NULL) && (run_path[0] != '\0'), "and the PATH every program runs with");
     return cli_checked();

@@ -1,8 +1,8 @@
-# The monolith held against our compiler
+# The monolith checked against our compiler
 
-Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this file>` and written again on every run. Each block of the monolith's tagged build is NVIDIA's writing of one precept. A row with an address is one of NVIDIA's instructions held against our reader and our assembler; a row with a compiler column is our compiler's writing of the block's precept. Scheduler bits are 105 to 127, apart from the operation's. NVIDIA's text is written in ours: a memory operand whose descriptor the listing does not print is written term[UR4], the uniform register the kernel loads c[0x0][0x118] into. Operation bits apart only in a field the part does not read, every value of it answering as printed in `src/cu/scaffolding/interface_sass_unprinted.md` or alike in `src/cu/scaffolding/interface_sass_unprinted_forms.md`, are read as the same.
+Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this file>` and written again on every run. Each block of the monolith's tagged build is NVIDIA's writing of one precept. A row with an address is one of NVIDIA's instructions checked against our reader and our assembler; a row with a compiler column is our compiler's writing of the block's precept. Scheduler bits are 105 to 127, apart from the operation's. NVIDIA's text is written in ours: a memory operand whose descriptor the listing does not print is written term[UR4], the uniform register the kernel loads c[0x0][0x118] into. Operation bits apart only in a field the part does not read, every value of it answering as printed in `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_unprinted.md` or alike in `src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_unprinted_forms.md`, are read as the same.
 
-98 of NVIDIA's instructions read: 0 with no form in the machine file, 0 whose text a form holds and whose bits it does not, 0 whose text a form holds with an operand it places none of, 0 with operation bits apart, 1 apart only at bits the part does not read, 85 with scheduler bits apart.
+98 of NVIDIA's instructions read: 0 with no form in the machine file, 0 whose text a form matches and whose bits it does not, 0 whose text a form matches with an operand it places none of, 0 with operation bits apart, 1 apart only at bits the part does not read, 85 with scheduler bits apart.
 
 | block | precept | address | NVIDIA | our reader | our assembler | scheduler | our compiler | difference |
 |---|---|---|---|---|---|---|---|---|
@@ -54,7 +54,7 @@ Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this 
 | 9 | mov | 00300 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f54, ours 000751 |  | scheduler bits |
 | 9 | mov | 00310 | `STG.E.STRONG.SYS term[UR4][R4.64+0x20], R9` | same | same | NVIDIA 0020f1, ours 0000f4 |  | scheduler bits |
 | 9 | mov |  |  |  |  |  | `candidate 1, the passage, no instruction` | none: NVIDIA's block is the passage |
-| 9 | mov |  |  |  |  |  | `candidate 2, word_copy: MOV R9, R9` | one instruction where NVIDIA's block holds none |
+| 9 | mov |  |  |  |  |  | `candidate 2, word_copy: MOV R9, R9` | one instruction where NVIDIA's block contains none |
 | 10 | shl | 00330 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 10 | shl | 00340 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 10 | shl | 00350 | `SHF.L.W.U32 R9, R9, R0, RZ` | same | same | NVIDIA 0027e5, ours 0427f2 |  | scheduler bits |
@@ -69,19 +69,19 @@ Written by `monolith_emit build/monolith/emit/monolith_tagged.listing all <this 
 | 12 | asr | 003e0 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 12 | asr | 003f0 | `SHF.R.W.S32.HI R9, RZ, R0, R9` | same | same | NVIDIA 0027e5, ours 0007e3 |  | scheduler bits |
 | 12 | asr | 00400 | `STG.E.STRONG.SYS term[UR4][R4.64+0x2c], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 12 | asr |  |  |  |  |  | `no word; the alphabet web holds no tree for it` | no word |
+| 12 | asr |  |  |  |  |  | `no word; the alphabet web contains no tree for it` | no word |
 | 13 | rol | 00420 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 13 | rol | 00430 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f71, ours 000751 |  | scheduler bits |
 | 13 | rol | 00440 | `LOP3.LUT P0, R0, R0, 0x1f, RZ, 0xc0, !PT` | same | same | NVIDIA 0027ed, ours 0007f1 |  | scheduler bits |
 | 13 | rol | 00450 | `@P0 SHF.L.W.U32.HI R9, R9, R0, R9` | same | same | NVIDIA 0047e5, ours 0427f2 |  | scheduler bits |
 | 13 | rol | 00460 | `STG.E.STRONG.SYS term[UR4][R4.64+0x30], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 13 | rol |  |  |  |  |  | `no word; the alphabet web holds no tree for it` | no word |
+| 13 | rol |  |  |  |  |  | `no word; the alphabet web contains no tree for it` | no word |
 | 14 | ror | 00480 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 14 | ror | 00490 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f71, ours 000751 |  | scheduler bits |
 | 14 | ror | 004a0 | `LOP3.LUT P0, R0, R0, 0x1f, RZ, 0xc0, !PT` | same | same | NVIDIA 0027ed, ours 0007f1 |  | scheduler bits |
 | 14 | ror | 004b0 | `@P0 SHF.R.W.U32 R9, R9, R0, R9` | same | same | NVIDIA 0047e5, ours 0027e5 |  | scheduler bits |
 | 14 | ror | 004c0 | `STG.E.STRONG.SYS term[UR4][R4.64+0x34], R9` | same | same | NVIDIA 0000f1, ours 0000f4 |  | scheduler bits |
-| 14 | ror |  |  |  |  |  | `no word; the alphabet web holds no tree for it` | no word |
+| 14 | ror |  |  |  |  |  | `no word; the alphabet web contains no tree for it` | no word |
 | 15 | add | 004e0 | `LDG.E.STRONG.SYS R0, term[UR4][R6.64+0x4]` | same | same | NVIDIA 000754, ours 000751 |  | scheduler bits |
 | 15 | add | 004f0 | `LDG.E.STRONG.SYS R9, term[UR4][R6.64]` | same | same | NVIDIA 000f52, ours 000751 |  | scheduler bits |
 | 15 | add | 00500 | `IMAD.IADD R9, R0, 0x1, R9` | same | same | NVIDIA 0027e5, ours 000fe5 |  | scheduler bits |

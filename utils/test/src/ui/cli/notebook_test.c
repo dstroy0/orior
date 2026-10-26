@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // notebook_test.c: the notebooks' check: a notebook reads as cells and writes back as it was, a percent script does the
-// same, a merge takes each side's changes and holds the cells both changed apart, and a diff reads sources and outputs
+// same, a merge takes each side's changes and separates the cells both changed, and a diff reads sources and outputs
 // and no run counts
 #include "../../../../../ui/cli/src/notebooks/notebook.h"
 #include "cli_check.h"
@@ -47,17 +47,17 @@ static void notebook_book(void)
     static const char *const s_source[3] = {"cells", "#0", "source"};
     static const char *const s_output[5] = {"cells", "#0", "outputs", "#0", "text"};
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliJson *const json = notebook_tree();
     const unsigned int book = cli_notebook_read(json, "a.ipynb", s_book, sizeof(s_book) - 1u, s_token,
-                                                sizeof(s_token) / sizeof(s_token[0]), &said);
+                                                sizeof(s_token) / sizeof(s_token[0]), &err_msg);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = notebook_at(book, s_source, 3u), .other = "print('hi')\nx = 1", .cap = CLI_CELLS_POOL}),
               "a cell's source reads as one text");
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = notebook_at(book, s_output, 5u), .other = "hi\n", .cap = CLI_CELLS_POOL}),
         "and its output's text");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_notebook_write(json, "a.ipynb", book, &out);
     cli_check_text(s_out, out.at, s_book, "a notebook writes back as it was");
 }
@@ -72,13 +72,13 @@ static void notebook_script(void)
     static const char *const s_kind[3] = {"cells", "#1", "cell_type"};
     static const char *const s_source[3] = {"cells", "#1", "source"};
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliJson *const json = notebook_tree();
     const unsigned int book = cli_notebook_read(json, "s.py", s_script, sizeof(s_script) - 1u, s_token,
-                                                sizeof(s_token) / sizeof(s_token[0]), &said);
+                                                sizeof(s_token) / sizeof(s_token[0]), &err_msg);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = notebook_at(book, s_header, 1u), .other = "import os\n\n", .cap = CLI_CELLS_POOL}),
-              "a script keeps its lines before a cell");
+              "a script retains its lines before a cell");
     cli_check(json->node[cli_json_member(json, book, "cells")].count == 3u, "each `# %%` begins a cell");
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = notebook_at(book, s_title, 4u), .other = "Load", .cap = CLI_CELLS_POOL}),
@@ -89,7 +89,7 @@ static void notebook_script(void)
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = notebook_at(book, s_source, 3u), .other = "A note\n\non two lines", .cap = CLI_CELLS_POOL})),
         "a markdown cell reads from behind its comments");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_notebook_write(json, "s.py", book, &out);
     cli_check_text(s_out, out.at, s_script, "a script writes back as it was");
     cli_check(cli_notebook_is("s.py", s_script, sizeof(s_script) - 1u), "a script of cells is a notebook");
@@ -100,41 +100,41 @@ static void notebook_script(void)
 static unsigned int notebook_of(const char *const (*cells)[2], unsigned int count)
 {
     char text[2048];
-    CliLine line = {text, sizeof(text), 0ull};
-    cli_line_text(&line, "{\"cells\":[");
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_put(&line, "{\"cells\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? ",{\"cell_type\":" : "{\"cell_type\":");
+        mmgr_line_put(&line, (at > 0u) ? ",{\"cell_type\":" : "{\"cell_type\":");
         cli_json_quoted(&line, cells[at][0],
                         cellul.len(&(CatenaFinitaCfg){.src = cells[at][0], .cap = CLI_CELLS_POOL}));
-        cli_line_text(&line, ",\"source\":");
+        mmgr_line_put(&line, ",\"source\":");
         cli_json_quoted(&line, cells[at][1],
                         cellul.len(&(CatenaFinitaCfg){.src = cells[at][1], .cap = CLI_CELLS_POOL}));
-        cli_line_text(&line, ",\"metadata\":{}}");
+        mmgr_line_put(&line, ",\"metadata\":{}}");
     }
-    cli_line_text(&line, "]}");
+    mmgr_line_put(&line, "]}");
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    return cli_json_read(&s_json, text, line.at, s_token, sizeof(s_token) / sizeof(s_token[0]), &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return cli_json_read(&s_json, text, line.at, s_token, sizeof(s_token) / sizeof(s_token[0]), &err_msg);
 }
 
 // a cell's source as one text into `line`, a list of lines joined
-static void notebook_source(unsigned int cell, CliLine *line)
+static void notebook_source(unsigned int cell, VerbaLinea *line)
 {
     const unsigned int source = cli_json_member(&s_json, cell, "source");
     if (source == CLI_JSON_NONE)
     {
-        cli_line_text(line, "gone");
+        mmgr_line_put(line, "gone");
         return;
     }
     if (cli_json_is(&s_json, source, CFG_JSON_STRING))
     {
-        cli_line_text(line, cli_json_string(&s_json, source, NULL));
+        mmgr_line_put(line, cli_json_string(&s_json, source, NULL));
         return;
     }
     for (unsigned int at = 0u; cli_json_item(&s_json, source, at) != CLI_JSON_NONE; at += 1u)
     {
-        cli_line_text(line, cli_json_string(&s_json, cli_json_item(&s_json, source, at), NULL));
+        mmgr_line_put(line, cli_json_string(&s_json, cli_json_item(&s_json, source, at), NULL));
     }
 }
 
@@ -142,29 +142,29 @@ static void notebook_source(unsigned int cell, CliLine *line)
 static void notebook_shown(unsigned int merged, const char *wanted, const char *what)
 {
     char text[1024];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     const unsigned int entries = cli_json_member(&s_json, merged, "entries");
     for (unsigned int at = 0u; cli_json_item(&s_json, entries, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int entry = cli_json_item(&s_json, entries, at);
         const unsigned int take = cli_json_member(&s_json, entry, "take");
-        cli_line_text(&line, (at > 0u) ? ";" : "");
+        mmgr_line_put(&line, (at > 0u) ? ";" : "");
         if (take != CLI_JSON_NONE)
         {
             notebook_source(take, &line);
             continue;
         }
         const unsigned int conflict = cli_json_member(&s_json, entry, "conflict");
-        cli_line_character(&line, '<');
+        mmgr_line_ch(&line, '<');
         notebook_source(cli_json_member(&s_json, conflict, "ours"), &line);
-        cli_line_character(&line, '|');
+        mmgr_line_ch(&line, '|');
         notebook_source(cli_json_member(&s_json, conflict, "theirs"), &line);
-        cli_line_character(&line, '>');
+        mmgr_line_ch(&line, '>');
     }
     cli_check_text(text, line.at, wanted, what);
 }
 
-// a merge takes each side's changes and holds the cells both changed apart
+// a merge takes each side's changes and separates the cells both changed
 static void notebook_merge(void)
 {
     static const char *const s_base[4][2] = {
@@ -193,33 +193,34 @@ static void notebook_merge(void)
     const unsigned int both = notebook_of(s_both, 3u);
     notebook_shown(cli_notebook_merge(&s_json, base, ours, both),
                    "a = 1;<b = 20\nprint(b)|b = 22\nprint(b)>;c = 3\nprint(c);d = 4",
-                   "and holds a cell both changed apart");
+                   "and separates a cell both changed");
     const unsigned int deleted = notebook_of(s_deleted, 2u);
     const unsigned int changed_c = notebook_of(s_changed_c, 4u);
     notebook_shown(cli_notebook_merge(&s_json, base, changed_c, deleted),
                    "a = 1;b = 2\nprint(b);<c = 33\nprint(c)|gone>", "and a cell one changed and the other deleted");
     // the room of three sides of five cells and less, and two cells' lines, is far below a kilobyte
-    cli_check((g_cli_notebook_cells.holds == 0ull) && (g_cli_notebook_cells.hw != 0ull) &&
+    cli_check((g_cli_notebook_cells.in_use == 0ull) && (g_cli_notebook_cells.hw != 0ull) &&
                   (g_cli_notebook_cells.hw < 1024ull),
               "a merge's room is sized to its books and given back");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     notebook_book();
     notebook_script();
     notebook_merge();
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     (void)cli_notebook_for_diff(notebook_tree(), s_book, sizeof(s_book) - 1u, s_token,
-                                sizeof(s_token) / sizeof(s_token[0]), &out, &said);
+                                sizeof(s_token) / sizeof(s_token[0]), &out, &err_msg);
     cli_check_text(s_out, out.at, "# cell 1 (code)\nprint('hi')\nx = 1\n## stream\nhi\n# cell 2 (markdown)\n# Title\n",
                    "a diff reads sources and outputs");
     out.at = 0ull;
     (void)cli_notebook_without_outputs(notebook_tree(), s_book, sizeof(s_book) - 1u, s_token,
-                                       sizeof(s_token) / sizeof(s_token[0]), &out, &said);
-    (void)cli_line_closed(&out);
+                                       sizeof(s_token) / sizeof(s_token[0]), &out, &err_msg);
+    (void)mmgr_line_finish(&out);
     cli_check(
         (cellul.find(&(CatenaFinitaCfg){
              .src = s_out, .cap = CLI_CELLS_POOL, .other = "\"execution_count\": null", .other_cap = CLI_CELLS_POOL}) !=

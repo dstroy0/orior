@@ -15,7 +15,7 @@ CODEGEN_CORE int codegen_never_negative(unsigned int operation)
            (operation == ENGINE_RECORD_TABLE) || (operation == ENGINE_RECORD_GCD);
 }
 
-// each record word stored as the last put that lays it out ends; the lane does not hold it to its end
+// each record word stored as the last put that lays it out ends; the lane does not carry it to its end
 CODEGEN_CORE void codegen_store_placed(MachineFunction *lane, const DeviceRecordStep *step)
 {
     unsigned int low = 0u;
@@ -94,9 +94,9 @@ CODEGEN_CORE void codegen_put(MachineFunction *lane, const IrStep *at)
     }
 }
 
-// one step of the lane and its put, from the loop number the step begins at, which lane->loops holds; 0 for a step the
-// lane does not hold, which leaves the program to another language. The step's temporaries, 64-bit temporaries and
-// predicates are its own from 0: what it took is lane->temps and lane->wides after it; lane->errors is 1 where it
+// one step of the lane and its put, from the loop number the step begins at, which lane->loops contains; 0 for a step
+// the lane does not support, which leaves the program to another language. The step's temporaries, 64-bit temporaries
+// and predicates are its own from 0: what it took is lane->temps and lane->wides after it; lane->errors is 1 where it
 // can leave the lane errored
 CODEGEN_CORE int codegen_step(MachineFunction *lane, unsigned int at)
 {

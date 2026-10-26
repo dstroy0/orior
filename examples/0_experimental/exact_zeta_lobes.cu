@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Catalog: EXP-x-027
 //
-// The curves R holds at every point of a cell, and the logarithm the phase turns by, one lane a point, swept on the
+// The curves R contains at every point of a cell, and the logarithm the phase turns by, one lane a point, swept on the
 // device as two programs of the record machine, one job on the device's tessera daemon. Every value is a mantissa in a
-// register and a binary exponent the program holds: a product multiplies the mantissas and adds the exponents, a power
+// register and a binary exponent the program stores: a product multiplies the mantissas and adds the exponents, a power
 // of two is where a mantissa is laid in the record, and nothing is divided.
 //
 //   Usage:  exact_zeta_lobes <input> <output>
 //
 // Lane l stands at x = nu + l / 2^b, X = nu 2^b + l, and z = 1 - 2p = Zt / 2^b with Zt = 2^b - 2l. C_n(z) is
 // sum over j of g_(n,j) z^j, each g a mantissa at the exponent -E, read by Horner's rule as the integer
-// H_n = sum over j of g_(n,j) Zt^j 2^(b (J_n - 1 - j)) at the exponent -(E + b (J_n - 1)). The record holds each
+// H_n = sum over j of g_(n,j) Zt^j 2^(b (J_n - 1 - j)) at the exponent -(E + b (J_n - 1)). The record contains each
 // g_(n,j) 2^(b (J_n - 1 - j)), the mantissa laid b (J_n - 1 - j) bits up with zeros below, and each step of Horner's
 // rule is then one product by Zt and one sum. With the sign s = (-1)^(nu - 1),
 // the curve n's part of R x^(1/2) is s C_n(z) x^(-n) = s H_n 2^(b n) / X^n, and over the common denominator X^K every
-// curve is the integer T_n = s H_n 2^(b n) X^(K - n), each at its own exponent, each held as an output.
+// curve is the integer T_n = s H_n 2^(b n) X^(K - n), each at its own exponent, each stored as an output.
 //
 // The logarithm: ln(x / m) = ln(nu / m) + A for every m, with A = ln(X / (nu 2^b)) = 2 artanh(l / D) and
 // D = X + nu 2^b: one series a lane serves every term of the main sum, and ln(nu / m) is the cell's constant. With
@@ -23,7 +23,7 @@
 // series are 2 l S / (Lambda D^(2L - 1)) with S = sum over k < L of c_k l^(2k) D^(2(L - 1 - k)), an integer read by
 // Horner's rule in l^2 against the powers of D^2. Every term is positive and each is below (l / D)^2 times the one
 // before it: the tail past the last term is positive and below 2 l^(2L + 1) / ((2L + 1) D^(2L - 1) (D^2 - l^2)):
-// A lies at or above the first quotient and below the first plus the second, and the stage holds the four integers
+// A lies at or above the first quotient and below the first plus the second, and the stage stores the four integers
 // l S, D^(2L - 1), l^(2L + 1) and D^2 - l^2 as its outputs.
 //
 // The input, little-endian: 64-bit words lanes, checked, nu, b, K, E, L, then K + 1 words J_n, then the mantissas
@@ -38,7 +38,9 @@
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -58,7 +60,7 @@ typedef struct
     unsigned int shared_bits;
 } LobesProgram;
 
-// a value: the register holding its mantissa and the binary exponent the program holds for it
+// a value: the register storing its mantissa and the binary exponent the program stores for it
 typedef struct
 {
     unsigned int reg;
@@ -118,7 +120,7 @@ static void lobes_output(LobesStage *stage, const std::string &name, unsigned in
     stage->exponents.push_back(exponent);
 }
 
-// the lane, at most 2^b, and the and with 2^(b + 1) - 1 gives its register that width and keeps its value
+// the lane, at most 2^b, and the and with 2^(b + 1) - 1 gives its register that width and preserves its value
 static unsigned int lobes_lane(LobesProgram *program, unsigned int b)
 {
     const unsigned int counted = lobes_step(program, ENGINE_RECORD_LANE, 0u, 0u, 0u);
@@ -165,13 +167,13 @@ static void lobes_build(LobesStage *stage, unsigned int b, long long big_e,
             const unsigned int turned = lobes_step(program, ENGINE_RECORD_PRODUCT, acc, z.reg, 0u);
             acc = lobes_step(program, ENGINE_RECORD_SUM, turned, lobes_read(program, gamma[n][j - 1u]), 0u);
         }
-        const LobesReal held = {acc, -big_e - (long long)b * (long long)(count - 1u)};
+        const LobesReal lobe = {acc, -big_e - (long long)b * (long long)(count - 1u)};
         // s H_n 2^(b n) X^(K - n): the 2^(b n) is the exponent's, the rest the mantissa's
         const unsigned int sign = lobes_read(program, sign_field);
-        const unsigned int signed_h = lobes_step(program, ENGINE_RECORD_PRODUCT, held.reg, sign, 0u);
+        const unsigned int signed_h = lobes_step(program, ENGINE_RECORD_PRODUCT, lobe.reg, sign, 0u);
         lobes_output(stage, "curve" + std::to_string(n),
                      lobes_step(program, ENGINE_RECORD_PRODUCT, signed_h, x_power[top - n], 0u),
-                     held.exponent + (long long)b * n);
+                     lobe.exponent + (long long)b * n);
     }
     lobes_output(stage, "denominator", x_power[top], 0);
 }
@@ -224,7 +226,7 @@ static int lobes_word(FILE *in, long long *value)
     return fread(value, sizeof(long long), 1u, in) == 1u;
 }
 
-// a mantissa of the input: its magnitude's limbs, its sign, and the signed width that holds it
+// a mantissa of the input: its magnitude's limbs, its sign, and the signed width that represents it
 static int lobes_mantissa(FILE *in, std::vector<unsigned int> *magnitude, long long *sign, unsigned int *bits)
 {
     long long limbs = 0;
@@ -305,7 +307,7 @@ static void lobes_open_stage(LobesStage *stage, const char *name)
     stage->same = 0;
 }
 
-// imprints and lays out a stage's program, and says where the imprint stops when it does
+// imprints and lays out a stage's program, and reports where the imprint stops when it does
 static int lobes_lay(SimResults *job, LobesStage *stage, EngineError *error)
 {
     LobesProgram *const program = &stage->program;
@@ -353,14 +355,14 @@ static int lobes_lay(SimResults *job, LobesStage *stage, EngineError *error)
     return ok;
 }
 
-// the bytes a stage holds on the device over `lanes` lanes
+// the bytes a stage occupies on the device over `lanes` lanes
 static unsigned long long lobes_declared(const LobesStage *stage, unsigned long long lanes)
 {
     return lanes * stage->layout.out_limbs * sizeof(unsigned int) + stage->shared.size() * sizeof(unsigned int) +
            (unsigned long long)stage->layout.steps * sizeof(DeviceRecordStep);
 }
 
-// loads a stage onto the device, runs every lane, and holds the host's first `checked` records against the device's
+// loads a stage onto the device, runs every lane, and checks the host's first `checked` records against the device's
 static int lobes_sweep(SimResults *job, LobesStage *stage, unsigned long long lanes, unsigned long long checked,
                        EngineError *error)
 {
@@ -502,10 +504,10 @@ int main(int count, char **arguments)
     unsigned int field = 2u;
     for (unsigned int n = 0u; n < curves; n += 1u)
     {
-        const unsigned int held = (unsigned int)magnitudes[n].size();
-        for (unsigned int j = 0u; j < held; j += 1u, field += 1u)
+        const unsigned int magnitude_count = (unsigned int)magnitudes[n].size();
+        for (unsigned int j = 0u; j < magnitude_count; j += 1u, field += 1u)
         {
-            const std::vector<unsigned int> laid = lobes_shifted(magnitudes[n][j], b * (held - 1u - j));
+            const std::vector<unsigned int> laid = lobes_shifted(magnitudes[n][j], b * (magnitude_count - 1u - j));
             lobes_put(curve_stage.shared.data(), curve_stage.program.field_offset[field],
                       curve_stage.program.field_bits[field], laid, signs[n][j]);
         }

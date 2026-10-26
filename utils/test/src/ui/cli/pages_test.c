@@ -8,7 +8,7 @@
 #include "../../../../../ui/cli/src/text/text.h"
 
 static char s_out[1u << 20u];
-static char s_folder[CLI_PATH_LONGEST];
+static char s_folder[CLI_PATH_MAX_LEN];
 static char s_text[1u << 17u];
 
 // A shape: its lines, and whether its index is whole
@@ -48,9 +48,9 @@ static PagesShape pages_indexed(const char *key)
     for (;;)
     {
         char why[256];
-        CliLine said = {why, sizeof(why), 0ull};
-        CliLine out = {s_out, sizeof(s_out), 0ull};
-        (void)cli_pages_shape(key, &out, &said);
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+        (void)cli_pages_shape(key, &out, &err_msg);
         const PagesShape shape = pages_shape_of(out.at);
         if (shape.indexed || (cli_clock_milliseconds() > until))
         {
@@ -64,18 +64,18 @@ static void pages_read_checked(const char *key, unsigned long long from, unsigne
                                const char *what)
 {
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    (void)cli_pages_read(key, from, to, &out, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    (void)cli_pages_read(key, from, to, &out, &err_msg);
     unsigned int lines = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &lines);
     char joined[1024];
-    CliLine line = {joined, sizeof(joined), 0ull};
+    VerbaLinea line = {joined, sizeof(joined), 0ull};
     for (unsigned int at = 0u; cli_json_item(json, lines, at) != CLI_JSON_NONE; at += 1u)
     {
         const char *const text = cli_json_string(json, cli_json_item(json, lines, at), NULL);
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, (text != NULL) ? text : "");
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, (text != NULL) ? text : "");
     }
     cli_check_text(joined, line.at, wanted, what);
 }
@@ -90,19 +90,19 @@ static void pages_file(const char *name, const char *text, unsigned long long si
 // lines are read as the page splits them from anywhere in the file
 static void pages_read(void)
 {
-    CliLine text = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea text = {s_text, sizeof(s_text), 0ull};
     for (unsigned int n = 0u; n < 5000u; n += 1u)
     {
-        cli_line_text(&text, "line ");
-        cli_line_decimal(&text, n, 1u);
-        cli_line_text(&text, "\r\n");
+        mmgr_line_put(&text, "line ");
+        mmgr_line_decimal(&text, n, 1u);
+        mmgr_line_put(&text, "\r\n");
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     pages_file("read.txt", s_text, text.at, path);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_pages_open("read", path, &out, &said), "the file opens as a paged text");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_pages_open("read", path, &out, &err_msg), "the file opens as a paged text");
     cli_check(pages_indexed("read").lines == 5001ull, "a file ending in a newline has an empty line last");
     pages_read_checked("read", 0ull, 2ull, "line 0|line 1", "the first lines read");
     pages_read_checked("read", 2047ull, 2050ull, "line 2047|line 2048|line 2049", "lines in the middle read");
@@ -113,20 +113,20 @@ static void pages_read(void)
 // edits are written over the file's lines and saved through a file beside it
 static void pages_edit(void)
 {
-    CliLine text = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea text = {s_text, sizeof(s_text), 0ull};
     for (unsigned int n = 0u; n < 3000u; n += 1u)
     {
-        cli_line_text(&text, "row ");
-        cli_line_decimal(&text, n, 1u);
-        cli_line_character(&text, '\n');
+        mmgr_line_put(&text, "row ");
+        mmgr_line_decimal(&text, n, 1u);
+        mmgr_line_ch(&text, '\n');
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     pages_file("edit.txt", s_text, text.at, path);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    const int opened = cli_pages_open("edit", path, &out, &said);
-    (void)cli_line_closed(&said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    const int opened = cli_pages_open("edit", path, &out, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     cli_check(opened, opened ? "the file opens for its edits" : why);
     (void)pages_indexed("edit");
     static const CliEdit s_edits[2] = {{{10ull, 0ull}, {10ull, 3ull}, "ROW", 3ull},
@@ -134,12 +134,12 @@ static void pages_edit(void)
     const CliEdit *const changes[1] = {s_edits};
     const unsigned int counts[1] = {2u};
     out.at = 0ull;
-    const int edited = cli_pages_edit("edit", changes, counts, 1u, &out, &said);
-    (void)cli_line_closed(&said);
+    const int edited = cli_pages_edit("edit", changes, counts, 1u, &out, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     cli_check(edited && (pages_shape_of(out.at).lines == 3001ull),
               edited ? "the edits are written, the text one line longer"
-                     : ((why[0] != '\0') ? why : "the edit was refused with no reason said"));
-    char shadow[CLI_PATH_LONGEST];
+                     : ((why[0] != '\0') ? why : "the edit was refused with no reason given"));
+    char shadow[CLI_PATH_MAX_LEN];
     cli_full(s_folder, ".edit.txt.~", shadow);
     const unsigned long long shadowed = qry_member_file_read(shadow, (unsigned char *)s_text, sizeof(s_text) - 1u);
     s_text[(shadowed == QRY_MEMBER_UNREAD) ? 0u : shadowed] = '\0';
@@ -151,30 +151,30 @@ static void pages_edit(void)
                                                   .other_cap = CLI_CELLS_POOL}) != NULL) &&
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = s_text, .cap = CLI_CELLS_POOL, .other = "row 9", .other_cap = CLI_CELLS_POOL}) == NULL),
-              "the lines written, and only those, are kept in the shadow beside the file");
+              "the lines written, and only those, are stored in the shadow beside the file");
     pages_read_checked("edit", 9ull, 12ull, "row 9|ROW 10|row 11", "an edit within a line is read");
     pages_read_checked("edit", 2000ull, 2002ull, "row joined|and 2001", "an edit that joins lines is read");
     out.at = 0ull;
-    (void)cli_pages_changed("edit", &out, &said);
+    (void)cli_pages_changed("edit", &out, &err_msg);
     cli_check_text(s_out, out.at, "[[10,11],[2000,2002]]", "the lines written since the file was read are marked");
     static const CliEdit s_taken[1] = {{{5ull, 0ull}, {7ull, 0ull}, "", 0ull}};
     const CliEdit *const taken[1] = {s_taken};
     const unsigned int taken_counts[1] = {1u};
     out.at = 0ull;
-    (void)cli_pages_edit("edit", taken, taken_counts, 1u, &out, &said);
+    (void)cli_pages_edit("edit", taken, taken_counts, 1u, &out, &err_msg);
     pages_read_checked("edit", 4ull, 7ull, "row 4|row 7|row 8", "lines taken out move the rest up");
     const CliDocSought sought = {"ROW", 0, 1, 0, 0};
     out.at = 0ull;
-    (void)cli_pages_find("edit", &sought, 10ull, &out, &said);
+    (void)cli_pages_find("edit", &sought, 10ull, &out, &err_msg);
     cli_check_text(s_out, out.at, "[[8,0,3]]", "find reads the text as it stands");
     out.at = 0ull;
-    cli_check(cli_pages_save("edit", &out, &said), "the text is saved");
+    cli_check(cli_pages_save("edit", &out, &err_msg), "the text is saved");
     const PagesShape saved = pages_shape_of(out.at);
     cli_check((saved.lines == 2999ull) && saved.indexed, "the saved file is read afresh");
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text) - 1u);
     s_text[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
     static const char s_head[] = "row 0\nrow 1\nrow 2\nrow 3\nrow 4\nrow 7\nrow 8\nrow 9\nROW 10\n";
-    cli_check(cli_text_same(s_text, s_head, sizeof(s_head) - 1u), "the file holds the edits");
+    cli_check(cli_text_same(s_text, s_head, sizeof(s_head) - 1u), "the file contains the edits");
     cli_check(
         cellul.find(&(CatenaFinitaCfg){
             .src = s_text, .cap = CLI_CELLS_POOL, .other = "row joined\nand 2001\n", .other_cap = CLI_CELLS_POOL}) !=
@@ -185,7 +185,7 @@ static void pages_edit(void)
             (cellul.eq(&(CatenaFinitaCfg){.src = s_text + size - 9u, .other = "row 2999\n", .cap = CLI_CELLS_POOL})),
         "the file ends as it did");
     out.at = 0ull;
-    (void)cli_pages_changed("edit", &out, &said);
+    (void)cli_pages_changed("edit", &out, &err_msg);
     cli_check_text(s_out, out.at, "[]", "a saved text is the file's again");
     cli_pages_release("edit");
     cli_check(!query_is_file(shadow), "the shadow is removed once the text is let go");
@@ -197,18 +197,18 @@ static void pages_many(void)
     static const char *const s_keys[] = {"one", "two", "three", "four", "five", "six", "seven", "eight"};
     const unsigned int count = sizeof(s_keys) / sizeof(s_keys[0]);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     int opened = 1;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        char name[CLI_NAME_LONGEST];
-        CliLine named = {name, sizeof(name), 0ull};
-        cli_line_text(&named, s_keys[at]);
-        cli_line_text(&named, ".txt");
-        char path[CLI_PATH_LONGEST];
+        char name[CLI_NAME_MAX_LEN];
+        VerbaLinea named = {name, sizeof(name), 0ull};
+        mmgr_line_put(&named, s_keys[at]);
+        mmgr_line_put(&named, ".txt");
+        char path[CLI_PATH_MAX_LEN];
         pages_file(name, s_keys[at], cellul.len(&(CatenaFinitaCfg){.src = s_keys[at], .cap = CLI_CELLS_POOL}), path);
-        CliLine out = {s_out, sizeof(s_out), 0ull};
-        opened = cli_pages_open(s_keys[at], path, &out, &said) && opened;
+        VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+        opened = cli_pages_open(s_keys[at], path, &out, &err_msg) && opened;
     }
     cli_check(opened, "eight texts are open at once");
     pages_read_checked("eight", 0ull, 1ull, "eight", "the last text opened is read");
@@ -220,7 +220,7 @@ static void pages_many(void)
     }
 }
 
-// a block of lines wider than a reading holds is read a part at a time: find reaches the last line and the save
+// a block of lines wider than a reading covers is read a part at a time: find reaches the last line and the save
 // writes every byte
 static void pages_wide(void)
 {
@@ -231,7 +231,7 @@ static void pages_wide(void)
         s_wide[(line * 8192u) - 1u] = '\n';
     }
     static const char s_last[] = "the last line\n";
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_folder, "wide.txt", path);
     int written = cli_file_appended(path, "", 0ull, 1);
     for (unsigned int part = 0u; written && (part < 282u); part += 1u)
@@ -241,18 +241,18 @@ static void pages_wide(void)
     written = written && cli_file_appended(path, s_last, sizeof(s_last) - 1u, 0);
     const unsigned long long whole = (282ull * sizeof(s_wide)) + sizeof(s_last) - 1u;
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(written && cli_pages_open("wide", path, &out, &said), "a file of wide lines opens as a paged text");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(written && cli_pages_open("wide", path, &out, &err_msg), "a file of wide lines opens as a paged text");
     cli_check(pages_indexed("wide").lines == 9026ull, "and is indexed whole");
     const CliDocSought sought = {"the last", 0, 1, 0, 0};
     out.at = 0ull;
-    said.at = 0ull;
-    (void)cli_pages_find("wide", &sought, 10ull, &out, &said);
+    err_msg.at = 0ull;
+    (void)cli_pages_find("wide", &sought, 10ull, &out, &err_msg);
     cli_check_text(s_out, out.at, "[[9024,0,8]]", "find reaches the line past a block wider than a reading");
     out.at = 0ull;
-    said.at = 0ull;
-    cli_check(cli_pages_save("wide", &out, &said), "the wide text is saved");
+    err_msg.at = 0ull;
+    cli_check(cli_pages_save("wide", &out, &err_msg), "the wide text is saved");
     unsigned long long size = 0ull;
     cli_check(cli_file_size(path, &size) && (size == whole), "the save writes every byte of every line");
     cli_pages_release("wide");
@@ -260,6 +260,7 @@ static void pages_wide(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check_folder("pages", s_folder);
     pages_read();
     pages_edit();

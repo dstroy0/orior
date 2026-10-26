@@ -16,7 +16,7 @@ unsigned int cli_py_text_put(const char *text, unsigned long long length)
     const unsigned int at = g_cli_py.used;
     memor.cpy(&(MemoriaCfg){.dst = g_cli_py.text + at, .src = text, .bytes = length});
     g_cli_py.text[at + length] = '\0';
-    // the texts are below their most, CLI_PY_TEXT bytes at the most, which an unsigned int holds
+    // the texts are below their most, CLI_PY_TEXT bytes at the most, which an unsigned int stores
     g_cli_py.used += (unsigned int)length + 1u;
     return at;
 }
@@ -27,21 +27,21 @@ const char *cli_py_text(unsigned int at)
 }
 
 // the room the texts have left, as a line a text is written in where it is put
-static CliLine cli_text_line(void)
+static VerbaLinea cli_text_line(void)
 {
-    return (CliLine){g_cli_py.text + g_cli_py.used, g_cli_py.text_most - g_cli_py.used, 0ull};
+    return (VerbaLinea){g_cli_py.text + g_cli_py.used, g_cli_py.text_most - g_cli_py.used, 0ull};
 }
 
 // the text written in `line`, which cli_text_line gave, put: its place, or CLI_PY_NONE where it did not fit
-static unsigned int cli_text_line_put(const CliLine *line)
+static unsigned int cli_text_line_put(const VerbaLinea *line)
 {
-    if (!cli_line_fits(line))
+    if (!mmgr_line_ok(line))
     {
         return CLI_PY_NONE;
     }
     const unsigned int at = g_cli_py.used;
     g_cli_py.text[at + line->at] = '\0';
-    // the line fit in the room the texts have left, below text_most, which an unsigned int holds
+    // the line fit in the room the texts have left, below text_most, which an unsigned int stores
     g_cli_py.used += (unsigned int)line->at + 1u;
     return at;
 }
@@ -49,7 +49,7 @@ static unsigned int cli_text_line_put(const CliLine *line)
 // the letters from `from` to `to` put as a text: its place, or CLI_PY_NONE
 static unsigned int cli_letters_put(unsigned int from, unsigned int to)
 {
-    CliLine line = cli_text_line();
+    VerbaLinea line = cli_text_line();
     for (unsigned int at = from; at < to; at += 1u)
     {
         cli_utf8_put(&line, g_cli_py.letter[at]);
@@ -57,7 +57,7 @@ static unsigned int cli_letters_put(unsigned int from, unsigned int to)
     return cli_text_line_put(&line);
 }
 
-// an expression made: its place, or CLI_PY_NONE where the reading holds no more
+// an expression made: its place, or CLI_PY_NONE where the reading has no room for more
 static unsigned int cli_expr_made(unsigned int kind, unsigned int text, long long number, unsigned int left,
                                   unsigned int right, unsigned int first, unsigned int count)
 {
@@ -171,7 +171,7 @@ static int cli_list(unsigned int close, unsigned int *first, unsigned int *count
 // where it does not end
 static unsigned int cli_string(unsigned int quote, int raw)
 {
-    CliLine line = cli_text_line();
+    VerbaLinea line = cli_text_line();
     const unsigned int mark = g_cli_py.letter[quote];
     g_cli_py.at = quote + 1u;
     while (g_cli_py.at < g_cli_py.letters)
@@ -337,7 +337,7 @@ static unsigned int cli_expr(void)
 
 unsigned int cli_py_parse(const char *text, unsigned long long length)
 {
-    // a letter count is below the reading's most, which an unsigned int holds
+    // a letter count is below the reading's most, which an unsigned int stores
     g_cli_py.letters = (unsigned int)cli_regexp_letters(text, length, g_cli_py.letter, g_cli_py.letters_most);
     g_cli_py.at = 0u;
     g_cli_py.stacked = 0u;

@@ -17,10 +17,11 @@
 //    for pi.
 // 3. The shapes: rows of width 7, 16, 32, 64, 106, 113, 128 and 256 (7, 106 and 113 are the denominators of pi's
 //    convergents 22/7, 333/106 and 355/113; its floors, the partial quotients, are 3, 7, 15, 1, 292); the tower whose
-//    row k holds k bits; a disc filled by horizontal lines and the same disc filled ring by ring; the square spiral;
+//    row k contains k bits; a disc filled by horizontal lines and the same disc filled ring by ring; the square spiral;
 //    and the twindragon, bit n at the Gaussian integer that n's binary digits name in base -1 + i. Each lays out every
 //    bit on its own pixel. A shape's line is read along every step (dy, dx) with coprime parts of at most 6.
-// 4. Against chance: every reading is taken again on keyed Fisher-Yates shuffles of the bits, which keep the count of
+// 4. Against chance: every reading is taken again on keyed Fisher-Yates shuffles of the bits, which preserve the count
+// of
 //    ones, and pi's is ranked among them.
 #include "sim.h"
 
@@ -30,7 +31,7 @@
 
 #define PLANE_BITS 16384u
 
-// the lag scan holds the bits in one block's shared memory, one byte a bit
+// the lag scan stores the bits in one block's shared memory, one byte a bit
 #define PLANE_BITS_MAX 32768u
 
 // the guard bits Machin's bracket is taken at past the bits read
@@ -53,7 +54,7 @@
 // the shade of a pixel no bit lands on, midway. A one and a zero are equally far from it
 #define PLANE_EMPTY_SHADE 128u
 
-// the twindragon's pixels are read by their depth from its edge, 1 to this, the deepest class holding the rest
+// the twindragon's pixels are read by their depth from its edge, 1 to this, the deepest class containing the rest
 #define PLANE_DEPTHS 8u
 
 // the golden sphere's spirals join point i to i + F_k: the Fibonacci differences below the bits
@@ -213,7 +214,7 @@ void plane_shuffle(const std::vector<unsigned char> &bits, unsigned int draw, st
 void plane_ring_spiral_read(SimResults *results, const std::vector<unsigned long long> &sizes,
                             const std::vector<unsigned char> &block, unsigned int draws, const char *label);
 
-// the blind pairs hold rings 0 to this less one, and lie in the first this many blocks past the seen bits
+// the blind pairs contain rings 0 to this less one, and lie in the first this many blocks past the seen bits
 #define PLANE_BLIND_RINGS 12u
 
 #define PLANE_BLIND_MAX 16u
@@ -255,8 +256,8 @@ std::string plane_directory(int count, char **arguments);
 
 unsigned int plane_number(int count, char **arguments, const char *name, unsigned int fallback);
 
-void plane_line_print(ScripturaLine *line, const PlaneLine &found);
+void plane_line_print(VerbaLinea *line, const PlaneLine &found);
 
-void plane_band_print(ScripturaLine *line, std::vector<unsigned long long> band, unsigned long long measurement);
+void plane_band_print(VerbaLinea *line, std::vector<unsigned long long> band, unsigned long long measurement);
 
 #endif

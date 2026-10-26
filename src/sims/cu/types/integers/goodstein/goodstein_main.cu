@@ -28,27 +28,27 @@ static int goodstein_bump(unsigned long long value, unsigned long long base, uns
     return 1;
 }
 
-static void goodstein_print_term(ScripturaLine *line, const GoodsteinNotation &exponent, unsigned long long coefficient,
+static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &exponent, unsigned long long coefficient,
                                  unsigned int *capacity);
 
 // the form as an ordinal in Cantor normal form, w for omega, cut at the capacity left
-static void goodstein_print(ScripturaLine *line, const GoodsteinNotation &form, unsigned int *capacity)
+static void goodstein_print(VerbaLinea *line, const GoodsteinNotation &form, unsigned int *capacity)
 {
     if (form.blocks.empty())
     {
-        scriptura_character(line, '0');
+        mmgr_line_ch(line, '0');
         return;
     }
     for (size_t at = 0u; at < form.blocks.size(); at += 1u)
     {
         if (*capacity == 0u)
         {
-            scriptura_text(line, " ...");
+            mmgr_line_put(line, " ...");
             return;
         }
         if (at != 0u)
         {
-            scriptura_text(line, " + ");
+            mmgr_line_put(line, " + ");
         }
         const GoodsteinBlock &block = form.blocks[at];
         if (block.origin == 0ull)
@@ -56,55 +56,55 @@ static void goodstein_print(ScripturaLine *line, const GoodsteinNotation &form, 
             goodstein_print_term(line, block.exponent, block.coefficient, capacity);
             continue;
         }
-        scriptura_character(line, '[');
+        mmgr_line_ch(line, '[');
         goodstein_print_term(line, goodstein_of(block.high, block.origin), block.coefficient, capacity);
         if (block.high != block.low)
         {
-            scriptura_text(line, " + ... + ");
+            mmgr_line_put(line, " + ... + ");
             goodstein_print_term(line, goodstein_of(block.low, block.origin), block.coefficient, capacity);
         }
-        scriptura_text(line, "; ");
-        scriptura_decimal(line, block.high - block.low + 1ull, 1u);
-        scriptura_text(line, " terms]");
+        mmgr_line_put(line, "; ");
+        mmgr_line_decimal(line, block.high - block.low + 1ull, 1u);
+        mmgr_line_put(line, " terms]");
     }
 }
 
-static void goodstein_print_term(ScripturaLine *line, const GoodsteinNotation &exponent, unsigned long long coefficient,
+static void goodstein_print_term(VerbaLinea *line, const GoodsteinNotation &exponent, unsigned long long coefficient,
                                  unsigned int *capacity)
 {
     *capacity = (*capacity > 8u) ? (*capacity - 8u) : 0u;
     if (exponent.blocks.empty())
     {
-        scriptura_decimal(line, coefficient, 1u);
+        mmgr_line_decimal(line, coefficient, 1u);
         return;
     }
     const int power_one = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ull) &&
                           exponent.blocks[0].exponent.blocks.empty() && (exponent.blocks[0].coefficient == 1ull);
     const int power_finite = (exponent.blocks.size() == 1u) && (exponent.blocks[0].origin == 0ull) &&
                              exponent.blocks[0].exponent.blocks.empty();
-    scriptura_character(line, 'w');
+    mmgr_line_ch(line, 'w');
     if (power_finite != 0)
     {
         if (power_one == 0)
         {
-            scriptura_character(line, '^');
-            scriptura_decimal(line, exponent.blocks[0].coefficient, 1u);
+            mmgr_line_ch(line, '^');
+            mmgr_line_decimal(line, exponent.blocks[0].coefficient, 1u);
         }
     }
     else
     {
-        scriptura_text(line, "^(");
+        mmgr_line_put(line, "^(");
         goodstein_print(line, exponent, capacity);
-        scriptura_character(line, ')');
+        mmgr_line_ch(line, ')');
     }
     if (coefficient != 1ull)
     {
-        scriptura_character(line, '.');
-        scriptura_decimal(line, coefficient, 1u);
+        mmgr_line_ch(line, '.');
+        mmgr_line_decimal(line, coefficient, 1u);
     }
 }
 
-// 1. the bump keeps the tree
+// 1. the bump preserves the tree
 static void goodstein_lemma(SimResults *results)
 {
     unsigned long long tested = 0ull;
@@ -124,13 +124,13 @@ static void goodstein_lemma(SimResults *results)
             terminated += ((order == 0) && (budget.exhausted == 0)) ? 1ull : 0ull;
         }
     }
-    scriptura_text(&results->line, "  the bump keeps the tree: ");
-    scriptura_decimal(&results->line, terminated, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, tested, 1u);
-    scriptura_text(&results->line, " values below ");
-    scriptura_decimal(&results->line, GOODSTEIN_LEMMA_BELOW, 1u);
-    scriptura_text(&results->line, " at bases 2 to 6 whose bump fits 64 bits\n");
+    mmgr_line_put(&results->line, "  the bump preserves the tree: ");
+    mmgr_line_decimal(&results->line, terminated, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, tested, 1u);
+    mmgr_line_put(&results->line, " values below ");
+    mmgr_line_decimal(&results->line, GOODSTEIN_LEMMA_BELOW, 1u);
+    mmgr_line_put(&results->line, " at bases 2 to 6 whose bump fits 64 bits\n");
     sim_check(results, (tested != 0ull) && (terminated == tested),
               "every n bumped to base b + 1 has the hereditary tree n had in base b");
 }
@@ -158,13 +158,13 @@ static void goodstein_towers(SimResults *results)
         }
         below = tower;
         unsigned int capacity = GOODSTEIN_PRINT_CAPACITY;
-        scriptura_text(&results->line, "  2^^");
-        scriptura_decimal(&results->line, height, 1u);
-        scriptura_text(&results->line, " = ");
-        scriptura_decimal(&results->line, value, 1u);
-        scriptura_text(&results->line, " in hereditary base 2 is ");
+        mmgr_line_put(&results->line, "  2^^");
+        mmgr_line_decimal(&results->line, height, 1u);
+        mmgr_line_put(&results->line, " = ");
+        mmgr_line_decimal(&results->line, value, 1u);
+        mmgr_line_put(&results->line, " in hereditary base 2 is ");
         goodstein_print(&results->line, goodstein_of(value, 2ull), &capacity);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_ch(&results->line, '\n');
     }
     sim_check(results, same, "2^^k in hereditary base 2 is omega^^k, for k = 1 to 4");
     sim_check(results, climbs, "omega < omega^omega < omega^omega^omega < omega^omega^omega^omega");
@@ -194,11 +194,11 @@ static void goodstein_small(SimResults *results)
             steps += 1ull;
         }
         finish = finish && form.blocks.empty() && (numeric == 0ull) && (steps == expected[start - 1ull]);
-        scriptura_text(&results->line, "  start ");
-        scriptura_decimal(&results->line, start, 1u);
-        scriptura_text(&results->line, ": 0 after ");
-        scriptura_decimal(&results->line, steps, 1u);
-        scriptura_text(&results->line, " steps\n");
+        mmgr_line_put(&results->line, "  start ");
+        mmgr_line_decimal(&results->line, start, 1u);
+        mmgr_line_put(&results->line, ": 0 after ");
+        mmgr_line_decimal(&results->line, steps, 1u);
+        mmgr_line_put(&results->line, " steps\n");
     }
     sim_check(results, finish, "the starts 1, 2 and 3 reach 0 in 1, 3 and 5 steps");
     sim_check(results, values, "every step of the starts 1, 2 and 3 equals the numeric sequence");
@@ -210,11 +210,11 @@ static void goodstein_run(SimResults *results, unsigned long long start, int *fa
 {
     GoodsteinNotation form = goodstein_of(start, 2ull);
     unsigned int capacity = GOODSTEIN_PRINT_CAPACITY;
-    scriptura_text(&results->line, "  start ");
-    scriptura_decimal(&results->line, start, 1u);
-    scriptura_text(&results->line, ", the ordinal ");
+    mmgr_line_put(&results->line, "  start ");
+    mmgr_line_decimal(&results->line, start, 1u);
+    mmgr_line_put(&results->line, ", the ordinal ");
     goodstein_print(&results->line, form, &capacity);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     unsigned long long numeric = start;
     int numeric_fits = 1;
     unsigned long long base = 2ull;
@@ -251,19 +251,19 @@ static void goodstein_run(SimResults *results, unsigned long long start, int *fa
     *falls = *falls && (ok != 0) && (fell == steps) && (steps == GOODSTEIN_STEPS);
     *compared += matched;
     capacity = GOODSTEIN_PRINT_CAPACITY;
-    scriptura_text(&results->line, "    after ");
-    scriptura_decimal(&results->line, steps, 1u);
-    scriptura_text(&results->line, " steps, base ");
-    scriptura_decimal(&results->line, base, 1u);
-    scriptura_text(&results->line, ", ");
-    scriptura_decimal(&results->line, form.blocks.size(), 1u);
-    scriptura_text(&results->line, " blocks; the ordinal fell on ");
-    scriptura_decimal(&results->line, fell, 1u);
-    scriptura_text(&results->line, "; the value equals the numeric sequence's on ");
-    scriptura_decimal(&results->line, matched, 1u);
-    scriptura_text(&results->line, " steps, where it fits 64 bits\n    now ");
+    mmgr_line_put(&results->line, "    after ");
+    mmgr_line_decimal(&results->line, steps, 1u);
+    mmgr_line_put(&results->line, " steps, base ");
+    mmgr_line_decimal(&results->line, base, 1u);
+    mmgr_line_put(&results->line, ", ");
+    mmgr_line_decimal(&results->line, form.blocks.size(), 1u);
+    mmgr_line_put(&results->line, " blocks; the ordinal fell on ");
+    mmgr_line_decimal(&results->line, fell, 1u);
+    mmgr_line_put(&results->line, "; the value equals the numeric sequence's on ");
+    mmgr_line_decimal(&results->line, matched, 1u);
+    mmgr_line_put(&results->line, " steps, where it fits 64 bits\n    now ");
     goodstein_print(&results->line, form, &capacity);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }
 

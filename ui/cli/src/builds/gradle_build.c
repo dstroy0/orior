@@ -69,25 +69,25 @@ static int gradle_inside(const char *root, const char *folder)
 }
 
 // whether `name` is a file in `folder`
-static int gradle_holds(const char *folder, const char *name)
+static int gradle_has_file(const char *folder, const char *name)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(folder, name, path);
     return query_is_file(path);
 }
 
-// `from` copied into `out`, which holds CLI_PATH_LONGEST
+// `from` copied into `out`, sized for CLI_PATH_MAX_LEN
 static void gradle_copied(const char *from, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, from);
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, from);
+    (void)mmgr_line_finish(&line);
 }
 
 void cli_gradle_build_root(const char *root, const char *path, char *out)
 {
-    char start[CLI_PATH_LONGEST];
-    char above[CLI_PATH_LONGEST];
+    char start[CLI_PATH_MAX_LEN];
+    char above[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(path, start))
     {
         gradle_copied(root, start);
@@ -96,12 +96,12 @@ void cli_gradle_build_root(const char *root, const char *path, char *out)
     {
         gradle_copied(cli_path_parent(start, above) ? above : root, start);
     }
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     gradle_copied(start, folder);
     for (;;)
     {
-        if (gradle_holds(folder, "settings.gradle") || gradle_holds(folder, "settings.gradle.kts") ||
-            gradle_holds(folder, "gradlew"))
+        if (gradle_has_file(folder, "settings.gradle") || gradle_has_file(folder, "settings.gradle.kts") ||
+            gradle_has_file(folder, "gradlew"))
         {
             gradle_copied(folder, out);
             return;
@@ -118,7 +118,7 @@ void cli_gradle_build_root(const char *root, const char *path, char *out)
 
 void cli_gradle_program(const char *folder, char *out)
 {
-    gradle_copied(gradle_holds(folder, "gradlew") ? "./gradlew" : "gradle", out);
+    gradle_copied(gradle_has_file(folder, "gradlew") ? "./gradlew" : "gradle", out);
 }
 
 // The catalogs of a `gradle` folder being gathered: the catalogs, and the folder
@@ -128,7 +128,7 @@ typedef struct
     const char *folder;
 } CliGradleGathered;
 
-// a catalog of the `gradle` folder kept, where its name ends `.versions.toml`
+// a catalog of the `gradle` folder stored, where its name ends `.versions.toml`
 static void gradle_catalog_seen(void *context, const char *name, int is_folder)
 {
     const CliGradleGathered *const gathered = context;
@@ -137,7 +137,7 @@ static void gradle_catalog_seen(void *context, const char *name, int is_folder)
     if (is_folder || (length < 14u) ||
         (!cellul.eq(
             &(CatenaFinitaCfg){.src = name + length - 14u, .other = ".versions.toml", .cap = CLI_CELLS_POOL})) ||
-        (catalogs->count == CLI_GRADLE_CATALOGS) || (length - 14u >= CLI_NAME_LONGEST))
+        (catalogs->count == CLI_GRADLE_CATALOGS) || (length - 14u >= CLI_NAME_MAX_LEN))
     {
         return;
     }
@@ -161,7 +161,7 @@ void cli_gradle_catalogs(const char *folder, CliGradleCatalogs *catalogs)
     static const char *s_pairs[CLI_GRADLE_CATALOGS][2];
     static CliGradleCatalogs s_sorted;
     catalogs->count = 0u;
-    char gradle[CLI_PATH_LONGEST];
+    char gradle[CLI_PATH_MAX_LEN];
     cli_full(folder, "gradle", gradle);
     CliGradleGathered gathered = {catalogs, gradle};
     (void)query_folder_each(gradle, gradle_catalog_seen, &gathered);

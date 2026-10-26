@@ -45,12 +45,12 @@ extern "C"
     int tables_archive(const unsigned char *bytes, size_t size);
 
     // The archive `bytes`, `size` long, unpacked into `text`: each block an LZ4 block whose matches reach back into
-    // every block before it. 1, or 0 where a block does not unpack to the count its header gives, the text holding
+    // every block before it. 1, or 0 where a block does not unpack to the count its header gives, the text containing
     // what unpacked before it
     int tables_unpacked(const unsigned char *bytes, size_t size, TablesText *text);
 
     // The capture `bytes`, `size` long, read for the vendor's two tables: `instructions` the first archive among
-    // its records unpacked, `latencies` the copies out of the buffer that holds `OPERATION SETS` at its start, in
+    // its records unpacked, `latencies` the copies out of the buffer that contains `OPERATION SETS` at its start, in
     // their order. The count of tables found, 0 to 2, the instruction set counted where its archive unpacked whole
     unsigned int tables_funnelled(const unsigned char *bytes, size_t size, TablesText *instructions,
                                   TablesText *latencies);

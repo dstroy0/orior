@@ -7,8 +7,8 @@
 // and each ruleset's entry of the key's name is the form it writes. The forms of each line are in
 // src/cu/includes/file_defs/klq and klm.
 //
-// Only the line shapes are held to: `key`, `pair`, the verdict under a pair (`open` or `closed`), and a .klm's `key`,
-// `kind` and `breaks`. Every other line under a pair is kept as a note, its first word and the rest, and a line the
+// Only the line shapes are checked: `key`, `pair`, the verdict under a pair (`open` or `closed`), and a .klm's `key`,
+// `kind` and `breaks`. Every other line under a pair is retained as a note, its first word and the rest, and a line the
 // query adds later shows without a change here. A .klm's name and its key are read as two words even where they are
 // equal
 #ifndef BRIDGE_H

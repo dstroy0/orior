@@ -18,9 +18,11 @@ pub struct Printer {
     pub default: bool,
 }
 
-/// How a page prints, as the print sheet sets it.
+/// How a page prints, as the print sheet sets it. Read where a page prints with no dialog (SILENT);
+/// elsewhere the system's own dialog takes the settings, and the fields are the command's shape alone.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(not(windows), allow(dead_code))]
 pub struct Settings {
     pub printer: Option<String>,
     pub copies: Option<i32>,

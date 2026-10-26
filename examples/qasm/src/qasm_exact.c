@@ -5,7 +5,7 @@
 #include "qasm_pi.h"
 
 _Static_assert(QASM_PI_BITS >= QASM_GUARD_BITS,
-               "qasm_pi.h holds pi for fewer guard bits than QASM_GUARD_BITS: run utils/maint/engine/emit_qasm_pi.py");
+               "qasm_pi.h stores pi for fewer guard bits than QASM_GUARD_BITS: run utils/maint/engine/emit_qasm_pi.py");
 
 void qasm_error(QasmParser *parser, const QasmToken *token, const char *format, ...)
 {
@@ -210,7 +210,7 @@ int qasm_fixed_rational(QasmParser *parser, const QasmFraction *value, const Ori
 
 int qasm_fixed_constants(QasmParser *parser)
 {
-    // pi * 10^places exactly as qasm_pi.h says, then times 2^G over 10^places: floor within one unit of pi 2^G
+    // pi * 10^places exactly as qasm_pi.h specifies, then times 2^G over 10^places: floor within one unit of pi 2^G
     const unsigned int places = QASM_PI_PLACES;
     OriorExactInteger pi_text;
     OriorExactInteger scale;

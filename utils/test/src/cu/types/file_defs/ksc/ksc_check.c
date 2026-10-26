@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksc_check.c: the .ksc's reader and writer (ksc.h, kfile_lines.h) held to what its users read of it, on a
+// ksc_check.c: the .ksc's reader and writer (ksc.h, kfile_lines.h) checked against what its users read of it, on a
 // classification this check writes and on a part's own
 //
 //   rows       a row of a channel is read with its answer, its word as a number and its question; a who line is no row
 //   replaced   the rows of a question are let go, the rows put go after the channel's last row, and the channel's
-//              counts are taken again over the rows it then holds; traced, the rows let go that no row put gives
+//              counts are taken again over the rows it then contains; traced, the rows let go that no row put gives
 //              again are handed back
 //   who        what is put goes after a who line of the code that put it, the who before it written again after it
 //              where lines follow, and a who line left over no line is let go
 //   a part's   every cost row of the part's .ksc named on the command line put again in its place, in the order the
 //   file
-//              holds them, leaves the file as it was under one who line of the code that put them
+//              lists them, leaves the file as it was under one who line of the code that put them
 //
 //     ksc_check <folder> [<a part's .ksc>]
 //
@@ -27,10 +27,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -111,7 +111,7 @@ static int cost_rows_under(const KscFile *file, const char *code)
 static const char *const s_written = "ksc part\n"
                                      "count run      answers  3\n"
                                      "count run      nothing  0\n"
-                                     "run answers 00000001 ask 1 2 3 4 5 6\n"
+                                     "run answers 00000001 query 1 2 3 4 5 6\n"
                                      "run answers 00000005 stall IADD3 IMAD\n"
                                      "run answers 00000007 stall LDG STG\n"
                                      "field stall 105 4\n";
@@ -150,7 +150,7 @@ int main(int count, char **words)
              "ksc part\n"
              "count run      answers  2\n"
              "count run      nothing  1\n"
-             "run answers 00000001 ask 1 2 3 4 5 6\n"
+             "run answers 00000001 query 1 2 3 4 5 6\n"
              "who %s\n"
              "run answers 00000004 stall IADD3 IMAD\n"
              "run nothing 00000000 stall FFMA FADD\n"
@@ -158,9 +158,10 @@ int main(int count, char **words)
              "field stall 105 4\n",
              code);
     const char *text = joined(&s_file, s_text_bytes, sizeof(s_text_bytes));
-    check_that((text != NULL) && (strcmp(text, expected) == 0),
-               "the rows put after the channel's last row kept, under a who line of the code that put them, the who "
-               "before them, none, written again after them, and the channel's counts taken again");
+    check_that(
+        (text != NULL) && (strcmp(text, expected) == 0),
+        "the rows put after the channel's last row retained, under a who line of the code that put them, the who "
+        "before them, none, written again after them, and the channel's counts taken again");
     check_that(ksc_row_read(s_file.line[4], "run", &s_row) == 0, "a who line is no row");
     Who there;
     check_that(kfile_lines_who_at(&s_file, 5u, &there) && (there.source == put.source) && (there.line == put.line),
@@ -177,7 +178,7 @@ int main(int count, char **words)
              "ksc part\n"
              "count run      answers  2\n"
              "count run      nothing  0\n"
-             "run answers 00000001 ask 1 2 3 4 5 6\n"
+             "run answers 00000001 query 1 2 3 4 5 6\n"
              "who %s\n"
              "run answers 00000009 stall LDG STG\n"
              "who -\n"
@@ -189,7 +190,7 @@ int main(int count, char **words)
     check_that(ksc_read(&s_file, path) && (s_file.lines == 8u), "and read back, line for line");
     ksc_free(&s_file);
 
-    // the rows let go that no row put gives again, handed back for a .krf to keep
+    // the rows let go that no row put gives again, handed back for a .krf to store
     static KscFile s_traced;
     ksc_line_add(&s_traced, "ksc part");
     ksc_line_add(&s_traced, "run answers 00000005 stall IADD3 IMAD");
@@ -199,7 +200,7 @@ int main(int count, char **words)
     check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, WHO_HERE, &removed),
                "a question's rows are replaced with the rows let go traced");
     check_that((removed.lines == 1u) && (strcmp(removed.line[0], "run answers 00000007 stall LDG STG") == 0),
-               "the row let go that no row put gives again is handed back, as the file held it");
+               "the row let go that no row put gives again is handed back, as the file stored it");
     kfile_lines_free(&removed);
     check_that(ksc_rows_replaced_traced_by(&s_traced, "run", "stall", traced_rows, 2u, WHO_HERE, &removed) &&
                    (removed.lines == 0u),
@@ -226,13 +227,13 @@ int main(int count, char **words)
         }
         for (unsigned int at = 0u; at < rows; at += 1u)
         {
-            char asked[64];
+            char query_text[64];
             ksc_row_read(s_rows[at], "run", &s_row);
             // the words a cost row's question begins with, the form's: `cost`, its low word and its high word, sixteen
             // hex digits each, a space between
-            snprintf(asked, sizeof(asked), "%.*s", 38, s_row.question);
+            snprintf(query_text, sizeof(query_text), "%.*s", 38, s_row.question);
             const char *const one[1] = {s_rows[at]};
-            replaced += ksc_rows_replaced_by(&s_file, "run", asked, one, 1u, costs) ? 1u : 0u;
+            replaced += ksc_rows_replaced_by(&s_file, "run", query_text, one, 1u, costs) ? 1u : 0u;
         }
         who_code(costs, code, sizeof(code));
         const char *const after = joined(&s_file, s_text_bytes, sizeof(s_text_bytes));
@@ -244,7 +245,7 @@ int main(int count, char **words)
         printf("  %s: %u lines, %u cost rows put again in their places, %s\n", words[2], lines, replaced,
                (same && under) ? "as it was under one who line" : "DIFFERING");
         check_that((rows != 0u) && (replaced == rows) && same && under,
-                   "a part's cost rows put again in the order it holds them leave it as it was under one who line");
+                   "a part's cost rows put again in the order it lists them leave it as it was under one who line");
         ksc_free(&s_file);
     }
 

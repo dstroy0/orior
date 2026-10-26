@@ -7,7 +7,7 @@
 // The pieces, `count` of them, every one not set aside read as one raw run, each placed after the one before it: the
 // vendor reads them all at one start. Where it stops, the piece the stop lies in is set aside, STOPPED, and the run
 // read again without it, until it reads clean; the clean run's listing is `listing`, every line at its offset in that
-// run, and each piece's `start` its place in it. A stop at no address the run holds sets every piece left aside,
+// run, and each piece's `start` its place in it. A stop at no address the run contains sets every piece left aside,
 // UNREAD, to be read alone. 1, or 0 where the vendor could not be run or the system gave no memory
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing)
 {

@@ -10,24 +10,25 @@
 //     orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> <run.qry>...
 //     orior_kdecode [--latest] --blob <name> <run.qry>...
 //
-// What orior_kdecode writes for a person to read it hands the run it is a member of as the record `orior_kdecode` (KDECODE_SHOWN),
-// its failures among it.
+// What orior_kdecode writes for a person to read it hands the run it is a member of as the record `orior_kdecode`
+// (KDECODE_SHOWN), its failures among it; a member of no run writes it to its standard output, and its failures to its
+// standard error.
 //
 // A blob of the run by its name is printed whole, every blob of that name in sequence or the latest alone with
 // --latest, each after a line of its sequence, its name and its size, a NUL byte shown as a space: a console's blob,
-// a trace, a kernel listing or a file the run holds, as the run holds it.
+// a trace, a kernel listing or a file the run stores, as the run stores it.
 //
 // A reader that shows a file grows it a slice at a time, from the record it stands at, a slice after it or before it
-// as it scrolls and on both sides as it stands still. Where it moves fast it asks --raw, each record a line of its code
-// and its numbers in hex as the file holds them, a text by its number and a who by its code: the fewest letters to
-// draw, so that the most records fit what it shows. Where it stands still it asks without, each record decoded. The
-// records are counted from 0, as the file holds them, the texts apart, and a raw line and a decoded line stand for
-// the same record. Each file is read as the run holds it where a run's writer runs, and from the disk where none
+// as it scrolls and on both sides as it stands still. Where it moves fast it requests --raw, each record a line of its
+// code and its numbers in hex as the file stores them, a text by its number and a who by its code: the fewest letters
+// to draw, so that the most records fit what it shows. Where it stands still it requests without, each record decoded.
+// The records are counted from 0, as the file stores them, the texts apart, and a raw line and a decoded line stand for
+// the same record. Each file is read as the run stores it where a run's writer runs, and from the disk where none
 // does.
 //
 // A table's rows are its blobs in the run (qry_member.h), a row's key its blob's sequence. --from and --to give the
 // least key and the most, and --count the most rows, each counted from the first row at or past --from. Raw, each row
-// is a line of its key and every word of it in hex, as the run holds them. Decoded, a table whose oracle stands beside
+// is a line of its key and every word of it in hex, as the run stores them. Decoded, a table whose oracle stands beside
 // qry_member.h (<table>.oracle.tsv) is a line of its key, the row's kind and each column as the oracle gives it, the
 // who named last: a key with the name of its blob, a text by its number and its bytes, a code by its name in the
 // oracle or the oracle its gloss names, one of two words by the word, a hash in hex and any other number in decimal.
@@ -35,9 +36,11 @@
 // its change as krep_records.oracle.tsv names it, the file's key and the numbers the change gives, a put record's
 // code named through its format's oracle and the texts of the file a record names given after it. Exit 0 where every
 // file was read, 1 where one was not
-#include "kdecode/kdecode_internal.h"
-#include "../../../../engine/runtime/scriptura/scriptura.h"
 #include "../../../../includes/parsers/who.h"
+#include "kdecode/kdecode_internal.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 
 int main(int count, char **words)
 {
@@ -92,11 +95,11 @@ int main(int count, char **words)
     }
     if (given >= count)
     {
-        scriptura_text(&s_shown, "orior_kdecode [--raw] [--from <record>] [--count <records>] <file>...\n"
-                                 "orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> "
-                                 "<run.qry>...\n"
-                                 "orior_kdecode [--latest] --blob <name> <run.qry>...\n");
-        kdecode_shown_handed(1);
+        mmgr_line_put(&s_shown, "orior_kdecode [--raw] [--from <record>] [--count <records>] <file>...\n"
+                                "orior_kdecode [--raw] [--from <key>] [--to <key>] [--count <rows>] --table <table> "
+                                "<run.qry>...\n"
+                                "orior_kdecode [--latest] --blob <name> <run.qry>...\n");
+        kdecode_failure_handed();
         qry_member_settled();
         return 2;
     }
@@ -121,11 +124,12 @@ int main(int count, char **words)
         if (!qry_member_file_blob(words[given], &bytes, &size) || (size < KREP_HEAD_BYTES) ||
             (memcmp(bytes, KREP_MAGIC, 8u) != 0))
         {
-            const int ran = (size >= 8u) &&
-                            ((memcmp(bytes, QRY_TABLE_MAGIC, 8u) == 0) || (memcmp(bytes, QRY_FRAME_MAGIC, 8u) == 0));
-            scriptura_text(&s_shown, "orior_kdecode: ");
-            scriptura_text(&s_shown, words[given]);
-            scriptura_text(&s_shown, ran ? " is a run: name its table with --table\n" : " is no k-file\n");
+            const int ran = kdecode_run_whole(bytes, size);
+            kdecode_shown_handed(1);
+            mmgr_line_put(&s_shown, "orior_kdecode: ");
+            mmgr_line_put(&s_shown, words[given]);
+            mmgr_line_put(&s_shown, ran ? " is a run: name its table with --table\n" : " is no k-file\n");
+            kdecode_failure_handed();
             read = 0;
             continue;
         }
@@ -136,24 +140,29 @@ int main(int count, char **words)
         {
             if (!kqr_read(&s_record, words[given], "-", error, sizeof(error)))
             {
-                scriptura_text(&s_shown, "orior_kdecode: ");
-                scriptura_text(&s_shown, error);
-                scriptura_character(&s_shown, '\n');
+                kdecode_shown_handed(1);
+                mmgr_line_put(&s_shown, "orior_kdecode: ");
+                mmgr_line_put(&s_shown, error);
+                mmgr_line_ch(&s_shown, '\n');
+                kdecode_failure_handed();
                 read = 0;
                 continue;
             }
             // the record's text taken into the text handed whole, the text before it handed first
             kdecode_shown_handed(1);
-            kqr_text_sliced(&s_record, &s_shown, 1, record_from, record_slice);
+            s_shown.at =
+                kqr_text_sliced(&s_record, s_shown.out, s_shown.capacity, s_shown.at, 1, record_from, record_slice);
             kdecode_shown_handed(1);
             kqr_free(&s_record);
             continue;
         }
         if (krep_read(&s_file, words[given], kind, error, sizeof(error)) != 1)
         {
-            scriptura_text(&s_shown, "orior_kdecode: ");
-            scriptura_text(&s_shown, error);
-            scriptura_character(&s_shown, '\n');
+            kdecode_shown_handed(1);
+            mmgr_line_put(&s_shown, "orior_kdecode: ");
+            mmgr_line_put(&s_shown, error);
+            mmgr_line_ch(&s_shown, '\n');
+            kdecode_failure_handed();
             read = 0;
             continue;
         }

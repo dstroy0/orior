@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bus_enum.c: the enumeration region found in a run of kinds, a FIXED identifier beside a LIVE sizing register
-// recurring at one stride. The stride is the smallest gap between record starts, and every gap is held to a whole
-// multiple of it, which lets an empty slot sit in the lattice without hiding the stride.
+// recurring at one stride. The stride is the smallest gap between record starts, and every gap is constrained to a
+// whole multiple of it, which lets an empty record sit in the lattice without hiding the stride.
 #include "bus_enum.h"
 
 // 1 where the sample at `at` begins a record: a FIXED identifier with a LIVE sizing register in the next sample

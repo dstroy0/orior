@@ -6,7 +6,7 @@
 __global__ void machine_score_kernel(const unsigned int *run_start, const unsigned int *run_length,
                                      const unsigned int *entry_first, const unsigned int *entry_end,
                                      const unsigned int *entry_climber, unsigned int entries,
-                                     const unsigned int *climber_side, const unsigned int *side_slots,
+                                     const unsigned int *climber_side, const unsigned int *side_residents,
                                      const int *centers, const unsigned int *active, const unsigned long long *positive,
                                      MachineGeometry geometry, unsigned int *scores)
 {
@@ -21,8 +21,8 @@ __global__ void machine_score_kernel(const unsigned int *run_start, const unsign
         return;
     }
     const unsigned int side = climber_side[climber];
-    const unsigned long long own_word = (unsigned long long)side_slots[2u * side] * geometry.words;
-    const unsigned long long other_word = (unsigned long long)side_slots[(2u * side) + 1u] * geometry.words;
+    const unsigned long long own_word = (unsigned long long)side_residents[2u * side] * geometry.words;
+    const unsigned long long other_word = (unsigned long long)side_residents[(2u * side) + 1u] * geometry.words;
     const int *const center = &centers[3u * climber];
     const unsigned int plane = geometry.height * geometry.width;
     unsigned int counts[CLIMB_MACHINE_CANDIDATES];

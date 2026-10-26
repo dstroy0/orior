@@ -8,43 +8,44 @@
 #define NOMINMAX
 #include <windows.h>
 
-// a slim reader-writer lock and a condition variable are each one pointer, zero where free, the size of their slot
+// a slim reader-writer lock and a condition variable are each one pointer, zero where free, the size of their storage
 _Static_assert(sizeof(SRWLOCK) == sizeof(void *), "CliLock: SRWLOCK is not one pointer wide");
 _Static_assert(sizeof(CONDITION_VARIABLE) == sizeof(void *), "CliWake: CONDITION_VARIABLE is not one pointer wide");
 
 void cli_lock_take(CliLock *lock)
 {
-    // the slot is the lock's one word, laid out as SRWLOCK is
-    AcquireSRWLockExclusive((PSRWLOCK)(void *)&lock->slot);
+    // the storage is the lock's one word, laid out as SRWLOCK is
+    AcquireSRWLockExclusive((PSRWLOCK)(void *)&lock->system_word);
 }
 
 void cli_lock_give(CliLock *lock)
 {
-    ReleaseSRWLockExclusive((PSRWLOCK)(void *)&lock->slot);
+    ReleaseSRWLockExclusive((PSRWLOCK)(void *)&lock->system_word);
 }
 
 void cli_wake_wait(CliWake *wake, CliLock *lock)
 {
-    // each slot is its one word, laid out as the system's type is
-    SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&wake->slot, (PSRWLOCK)(void *)&lock->slot, INFINITE, 0ul);
+    // each is its one word, laid out as the system's type is
+    SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&wake->system_word, (PSRWLOCK)(void *)&lock->system_word,
+                              INFINITE, 0ul);
 }
 
 int cli_wake_wait_for(CliWake *wake, CliLock *lock, unsigned long long milliseconds)
 {
     // a wait past the longest a DWORD counts waits that long
     const DWORD waited = (DWORD)((milliseconds < 0xfffffffeull) ? milliseconds : 0xfffffffeull);
-    return SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&wake->slot, (PSRWLOCK)(void *)&lock->slot, waited,
-                                     0ul) != 0;
+    return SleepConditionVariableSRW((PCONDITION_VARIABLE)(void *)&wake->system_word,
+                                     (PSRWLOCK)(void *)&lock->system_word, waited, 0ul) != 0;
 }
 
 void cli_wake_all(CliWake *wake)
 {
-    WakeAllConditionVariable((PCONDITION_VARIABLE)(void *)&wake->slot);
+    WakeAllConditionVariable((PCONDITION_VARIABLE)(void *)&wake->system_word);
 }
 
 static DWORD WINAPI cli_thread_entry(LPVOID given)
 {
-    // the thread is handed what it runs, which its starter keeps for as long as the thread lives
+    // the thread is handed what it runs, which its starter retains for as long as the thread lives
     const CliThread *const thread = (const CliThread *)given;
     cli_priority_own(thread->priority);
     thread->run(thread->context);

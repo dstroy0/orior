@@ -48,10 +48,10 @@ static void fill_uniform(uint8_t *corpus, size_t length, uint32_t seed)
 
     while (written < length)
     {
-        for (size_t slot = 0u; slot < 4u; slot += 1u)
+        for (size_t at = 0u; at < 4u; at += 1u)
         {
-            counter[slot] = (uint8_t)((seed >> (8u * slot)) & 0xFFu);
-            counter[slot + 4u] = (uint8_t)((step >> (8u * slot)) & 0xFFu);
+            counter[at] = (uint8_t)((seed >> (8u * at)) & 0xFFu);
+            counter[at + 4u] = (uint8_t)((step >> (8u * at)) & 0xFFu);
         }
         sha256(counter, sizeof counter, digest);
 
@@ -116,11 +116,11 @@ static double collision_entropy(const uint8_t *corpus, size_t length, size_t *di
     {
         counts[corpus[at]] += 1u;
     }
-    for (size_t slot = 0u; slot < 256u; slot += 1u)
+    for (size_t index = 0u; index < 256u; index += 1u)
     {
-        if (counts[slot] != 0u)
+        if (counts[index] != 0u)
         {
-            const double share = (double)counts[slot] / (double)length;
+            const double share = (double)counts[index] / (double)length;
             squared += share * share;
             used += 1u;
         }
@@ -198,7 +198,7 @@ int main(void)
                 reference += orior_naive(corpus, CORPUS_BYTES, corpus + starts[pick], needle_len);
             }
 
-            for (size_t slot = 0u; slot < arm_count; slot += 1u)
+            for (size_t at = 0u; at < arm_count; at += 1u)
             {
                 uint64_t best = UINT64_MAX;
                 size_t total_found = 0u;
@@ -210,7 +210,7 @@ int main(void)
 
                     for (size_t pick = 0u; pick < NEEDLES_PER_ROW; pick += 1u)
                     {
-                        seen += ARMS[slot].run(corpus, CORPUS_BYTES, corpus + starts[pick], needle_len);
+                        seen += ARMS[at].run(corpus, CORPUS_BYTES, corpus + starts[pick], needle_len);
                     }
 
                     const uint64_t closed = cycles_now();
@@ -227,10 +227,9 @@ int main(void)
                     disagreed = 1;
                 }
 
-                timed[slot] = (double)best / (double)NEEDLES_PER_ROW;
-                printf("ancorae_cycles,%s,%zu,%u,%s,%.1f,%.4f,%zu,%s\n", CORPORA[which].name,
-                       needle_len, (unsigned)CORPUS_BYTES, ARMS[slot].name, timed[slot],
-                       timed[slot] / (double)CORPUS_BYTES, total_found,
+                timed[at] = (double)best / (double)NEEDLES_PER_ROW;
+                printf("ancorae_cycles,%s,%zu,%u,%s,%.1f,%.4f,%zu,%s\n", CORPORA[which].name, needle_len,
+                       (unsigned)CORPUS_BYTES, ARMS[at].name, timed[at], timed[at] / (double)CORPUS_BYTES, total_found,
                        matched ? "agree" : "DIFFER");
             }
 
@@ -244,18 +243,18 @@ int main(void)
 
             size_t fastest = 0u;
             size_t picked = 0u;
-            for (size_t slot = 1u; slot < arm_count; slot += 1u)
+            for (size_t at = 1u; at < arm_count; at += 1u)
             {
-                if (timed[slot] < timed[fastest])
+                if (timed[at] < timed[fastest])
                 {
-                    fastest = slot;
+                    fastest = at;
                 }
             }
-            for (size_t slot = 0u; slot < arm_count; slot += 1u)
+            for (size_t at = 0u; at < arm_count; at += 1u)
             {
-                if (ARMS[slot].run == chosen)
+                if (ARMS[at].run == chosen)
                 {
-                    picked = slot;
+                    picked = at;
                 }
             }
 

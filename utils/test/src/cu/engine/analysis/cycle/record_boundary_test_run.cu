@@ -75,7 +75,7 @@ int boundary_run(BoundaryLoaded *loaded, const unsigned int *atoms, unsigned int
 // a field's word: the value's low 24 bits of two's complement
 unsigned int boundary_word(long long value)
 {
-    // the mask keeps the low 24 bits, the field's whole content
+    // the mask retains the low 24 bits, the field's whole content
     return (unsigned int)((unsigned long long)value & ((1ull << BOUNDARY_TEST_FIELD_BITS) - 1ull));
 }
 
@@ -87,7 +87,7 @@ long long boundary_field(unsigned int word)
 }
 
 // one output's value from a lane's record: its out_bits of two's complement, the top written bit the sign. Every
-// output here is 64 bits or narrower, which the caller holds before reading.
+// output here is 64 bits or narrower, which the caller verifies before reading.
 long long boundary_read(const unsigned int *record, const DeviceRecordStep *step)
 {
     unsigned long long raw = 0ull;
@@ -214,40 +214,40 @@ void boundary_precision(BoundaryResults *results, BoundaryLoaded *loaded, const 
         changed += (moved_any != 0) ? 1u : 0u;
     }
     *range_seen = seen;
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, name);
-    scriptura_text(&results->line, ": ");
-    scriptura_decimal(&results->line, program->count, 1u);
-    scriptura_text(&results->line, " steps, file ");
-    scriptura_decimal(&results->line, loaded->layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs; ");
-    scriptura_decimal(&results->line, mapped, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes equal the host's map");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, name);
+    mmgr_line_put(&results->line, ": ");
+    mmgr_line_decimal(&results->line, program->count, 1u);
+    mmgr_line_put(&results->line, " steps, file ");
+    mmgr_line_decimal(&results->line, loaded->layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs; ");
+    mmgr_line_decimal(&results->line, mapped, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes equal the host's map");
     if (readback != 0)
     {
-        scriptura_text(&results->line, ", ");
-        scriptura_decimal(&results->line, returned, 1u);
-        scriptura_text(&results->line, " return their crystal exactly");
+        mmgr_line_put(&results->line, ", ");
+        mmgr_line_decimal(&results->line, returned, 1u);
+        mmgr_line_put(&results->line, " return their crystal exactly");
     }
-    scriptura_text(&results->line, "\n    flips: ");
-    scriptura_decimal(&results->line, lawful, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lawful_pairs, 1u);
-    scriptura_text(&results->line, " at bit 12 or above move by exactly 2^b M e_i; ");
-    scriptura_decimal(&results->line, bounded, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, BOUNDARY_TEST_PAIRS, 1u);
-    scriptura_text(&results->line, " reach no further than ");
-    scriptura_decimal(&results->line, bound, 1u);
-    scriptura_text(&results->line, " bits below the flip; the furthest reach met is ");
-    scriptura_signed(&results->line, seen);
-    scriptura_text(&results->line, "; ");
-    scriptura_decimal(&results->line, changed, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, BOUNDARY_TEST_PAIRS, 1u);
-    scriptura_text(&results->line, " flips change the image\n");
+    mmgr_line_put(&results->line, "\n    flips: ");
+    mmgr_line_decimal(&results->line, lawful, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lawful_pairs, 1u);
+    mmgr_line_put(&results->line, " at bit 12 or above move by exactly 2^b M e_i; ");
+    mmgr_line_decimal(&results->line, bounded, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, BOUNDARY_TEST_PAIRS, 1u);
+    mmgr_line_put(&results->line, " reach no further than ");
+    mmgr_line_decimal(&results->line, bound, 1u);
+    mmgr_line_put(&results->line, " bits below the flip; the furthest reach met is ");
+    mmgr_line_decimal_signed(&results->line, seen);
+    mmgr_line_put(&results->line, "; ");
+    mmgr_line_decimal(&results->line, changed, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, BOUNDARY_TEST_PAIRS, 1u);
+    mmgr_line_put(&results->line, " flips change the image\n");
     boundary_check(results, ran != 0,
                    "the program runs on the host and the device, and the records agree word for word");
     boundary_check(results, narrow != 0, "every output fits a 64-bit word");
@@ -302,18 +302,18 @@ void boundary_bands(BoundaryResults *results)
         inverse_range = (back > inverse_range) ? back : inverse_range;
     }
     int counted = range[0] == (int)(3u * BOUNDARY_TEST_LEVELS);
-    scriptura_text(&results->line, "  bands: T's matrix reaches ");
-    scriptura_signed(&results->line, range[0]);
-    scriptura_text(&results->line, " bits from the level-4 lows, and from the highs of levels 4 to 1");
+    mmgr_line_put(&results->line, "  bands: T's matrix reaches ");
+    mmgr_line_decimal_signed(&results->line, range[0]);
+    mmgr_line_put(&results->line, " bits from the level-4 lows, and from the highs of levels 4 to 1");
     for (unsigned int level = BOUNDARY_TEST_LEVELS; level >= 1u; level -= 1u)
     {
-        scriptura_character(&results->line, ' ');
-        scriptura_signed(&results->line, range[level]);
+        mmgr_line_ch(&results->line, ' ');
+        mmgr_line_decimal_signed(&results->line, range[level]);
         counted = counted && (range[level] == ((3 * (int)level) - 2));
     }
-    scriptura_text(&results->line, "; T^-1's matrix reaches ");
-    scriptura_signed(&results->line, inverse_range);
-    scriptura_text(&results->line, " bits\n");
+    mmgr_line_put(&results->line, "; T^-1's matrix reaches ");
+    mmgr_line_decimal_signed(&results->line, inverse_range);
+    mmgr_line_put(&results->line, " bits\n");
     boundary_check(results, counted, "T's range is 3l at the level-l lows and 3l - 2 at its highs, on the matrix");
     boundary_check(results, inverse_range == (int)BOUNDARY_TEST_INVERSE_RANGE, "T^-1's range is L + 2, on the matrix");
 }

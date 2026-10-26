@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_jobs.c: the tree's jobs at the command line: listed, each about written to the terminal's width and
 // whole anywhere else; shown, its values and the line each step runs; run here, its steps sharing the terminal, its
-// output streaming as it comes, and told to the window where a terminal of the window's started this, on a channel of
-// its own under runs; and the tree's tests listed, a Python test as pytest names it, each with its line, or as JSON
+// output streaming as it comes, and reported to the window where a terminal of the window's started this, on a channel
+// of its own under runs; and the tree's tests listed, a Python test as pytest names it, each with its line, or as JSON
 #include "../comms/door.h"
 #include "../runs/runner.h"
 #include "../tests/testing.h"
@@ -15,21 +15,21 @@
 // a test written after those written
 static void jobs_test_written(void *context, const CliTest *test)
 {
-    CliLine *const out = context;
-    cli_line_text(out, (out->at > 1ull) ? "," : "");
+    VerbaLinea *const out = context;
+    mmgr_line_put(out, (out->at > 1ull) ? "," : "");
     cli_test_written(test, out);
 }
 
-// a test said as its id and its line
-static void jobs_test_said(void *context, const CliTest *test)
+// a test reported as its id and its line
+static void jobs_test_printed(void *context, const CliTest *test)
 {
     unsigned int *const count = context;
-    char line[CLI_PATH_LONGEST * 2u];
-    CliLine said = {line, sizeof(line), 0ull};
-    cli_line_text(&said, test->id);
-    cli_line_text(&said, "  line ");
-    cli_line_decimal(&said, test->line + 1u, 1u);
-    cli_out_line(line, cli_line_fits(&said) ? said.at : 0ull);
+    char line[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea out = {line, sizeof(line), 0ull};
+    mmgr_line_put(&out, test->id);
+    mmgr_line_put(&out, "  line ");
+    mmgr_line_decimal(&out, test->line + 1u, 1u);
+    cli_out_line(line, mmgr_line_ok(&out) ? out.at : 0ull);
     *count += 1u;
 }
 
@@ -52,36 +52,36 @@ int cli_tests_list(const char *root, const char *const *words, unsigned int coun
             CfgJsonToken token[1u << 17u];
             CliJson json;
         } CliTestsListRoom;
-        CliTestsListRoom *const room = cli_cell_taken(sizeof(*room), "a listing of tests");
+        CliTestsListRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), NULL);
         if (room == NULL)
         {
             cli_err("a listing of tests could not be taken");
             return CLI_NO_CODE;
         }
-        CliLine found = {room->found, sizeof(room->found), 0ull};
-        cli_line_character(&found, '[');
+        VerbaLinea found = {room->found, sizeof(room->found), 0ull};
+        mmgr_line_ch(&found, '[');
         cli_tests_found(root, jobs_test_written, &found);
-        cli_line_character(&found, ']');
+        mmgr_line_ch(&found, ']');
         cli_json_begun(&room->json, room->node, sizeof(room->node) / sizeof(room->node[0]), room->text,
                        sizeof(room->text));
         char quiet[256];
-        CliLine ignored = {quiet, sizeof(quiet), 0ull};
+        VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
         const unsigned int tree = cli_json_read(&room->json, room->found, found.at, room->token,
                                                 sizeof(room->token) / sizeof(room->token[0]), &ignored);
-        CliLine pretty = {room->pretty, sizeof(room->pretty), 0ull};
+        VerbaLinea pretty = {room->pretty, sizeof(room->pretty), 0ull};
         if (tree != CLI_JSON_NONE)
         {
             cli_json_write(&room->json, tree, &pretty, 2u, 0);
         }
-        cli_out_line(room->pretty, cli_line_fits(&pretty) ? pretty.at : 0ull);
-        cli_cell_given(room);
+        cli_out_line(room->pretty, mmgr_line_ok(&pretty) ? pretty.at : 0ull);
+        g_cli_cells->persistent_buf_release(room, NULL);
         return 0;
     }
-    unsigned int said = 0u;
-    cli_tests_found(root, jobs_test_said, &said);
-    if (said == 0u)
+    unsigned int listed = 0u;
+    cli_tests_found(root, jobs_test_printed, &listed);
+    if (listed == 0u)
     {
-        cli_err("the tree holds no test that pytest or unittest finds");
+        cli_err("the tree contains no test that pytest or unittest finds");
         return CLI_NO_CODE;
     }
     return 0;
@@ -97,8 +97,9 @@ int cli_jobs_list(const char *root, const char *word)
     {
         const CliJob *const job = &catalog->job[at];
         const char *const id = cli_catalog_at(catalog, job->id);
-        if ((word != NULL) && !cli_holds_word(id, word) && !cli_holds_word(cli_catalog_at(catalog, job->title), word) &&
-            !cli_holds_word(cli_catalog_at(catalog, job->about), word))
+        if ((word != NULL) && !cli_contains_word(id, word) &&
+            !cli_contains_word(cli_catalog_at(catalog, job->title), word) &&
+            !cli_contains_word(cli_catalog_at(catalog, job->about), word))
         {
             continue;
         }
@@ -110,7 +111,7 @@ int cli_jobs_list(const char *root, const char *word)
     }
     if (count == 0u)
     {
-        cli_err("no job holds that word");
+        cli_err("no job contains that word");
         return CLI_NO_CODE;
     }
     pad = (pad < 48ull) ? pad : 48ull;
@@ -124,24 +125,24 @@ int cli_jobs_list(const char *root, const char *word)
         const char *const id = cli_catalog_at(catalog, job->id);
         const char *const about = cli_catalog_at(catalog, job->about);
         static char s_line[1u << 16u];
-        CliLine line = {s_line, sizeof(s_line), 0ull};
-        cli_line_text(&line, id);
+        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        mmgr_line_put(&line, id);
         for (unsigned long long letters =
                  cli_text_letters(id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
              letters < pad; letters += 1ull)
         {
-            cli_line_character(&line, ' ');
+            mmgr_line_ch(&line, ' ');
         }
-        cli_line_text(&line, "  ");
+        mmgr_line_put(&line, "  ");
         if (!terminal)
         {
-            cli_line_text(&line, about);
+            mmgr_line_put(&line, about);
         }
         else if (room >= 20ull)
         {
             cli_cut(about, cellul.len(&(CatenaFinitaCfg){.src = about, .cap = CLI_CELLS_POOL}), room, &line);
         }
-        const unsigned long long size = cli_line_fits(&line) ? line.at : 0ull;
+        const unsigned long long size = mmgr_line_ok(&line) ? line.at : 0ull;
         cli_out_line(s_line, cli_text_trimmed_end(s_line, size));
     }
     return 0;
@@ -159,10 +160,10 @@ static void jobs_shown(void *context, const char *shown)
 {
     (void)context;
     char line[1u << 16u];
-    CliLine out = {line, sizeof(line), 0ull};
-    cli_line_text(&out, "  $ ");
-    cli_line_text(&out, shown);
-    cli_out_line(line, cli_line_fits(&out) ? out.at : 0ull);
+    VerbaLinea out = {line, sizeof(line), 0ull};
+    mmgr_line_put(&out, "  $ ");
+    mmgr_line_put(&out, shown);
+    cli_out_line(line, mmgr_line_ok(&out) ? out.at : 0ull);
 }
 
 void cli_job_show(const char *root, const CliCatalog *catalog, unsigned int job)
@@ -171,13 +172,13 @@ void cli_job_show(const char *root, const CliCatalog *catalog, unsigned int job)
     const unsigned int most = cli_width();
     static char s_line[1u << 16u];
     cli_out(cli_catalog_at(catalog, one->id));
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, "  title  ");
-    cli_line_text(&line, cli_catalog_at(catalog, one->title));
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, "  title  ");
+    mmgr_line_put(&line, cli_catalog_at(catalog, one->title));
     cli_out_line(s_line, line.at);
     line.at = 0ull;
-    cli_line_text(&line, "  file   ");
-    cli_line_text(&line, cli_catalog_at(catalog, one->file));
+    mmgr_line_put(&line, "  file   ");
+    mmgr_line_put(&line, cli_catalog_at(catalog, one->file));
     cli_out_line(s_line, line.at);
     const char *const about = cli_catalog_at(catalog, one->about);
     if (about[0] != '\0')
@@ -195,53 +196,53 @@ void cli_job_show(const char *root, const CliCatalog *catalog, unsigned int job)
             const CliParam *const param = &catalog->param[one->param_first + at];
             const char *const fallback = cli_catalog_at(catalog, param->fallback);
             line.at = 0ull;
-            cli_line_text(&line, "  ");
-            cli_line_text(&line, cli_catalog_at(catalog, param->key));
-            cli_line_text(&line, "  ");
-            cli_line_text(&line, param->kind);
-            cli_line_text(&line, param->required ? "  required" : "");
+            mmgr_line_put(&line, "  ");
+            mmgr_line_put(&line, cli_catalog_at(catalog, param->key));
+            mmgr_line_put(&line, "  ");
+            mmgr_line_put(&line, param->kind);
+            mmgr_line_put(&line, param->required ? "  required" : "");
             if (fallback[0] != '\0')
             {
-                cli_line_text(&line, "  default ");
-                cli_line_text(&line, fallback);
+                mmgr_line_put(&line, "  default ");
+                mmgr_line_put(&line, fallback);
             }
-            cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+            cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
             if (param->choices > 0u)
             {
                 static char s_choices[1u << 16u];
-                CliLine choices = {s_choices, sizeof(s_choices), 0ull};
+                VerbaLinea choices = {s_choices, sizeof(s_choices), 0ull};
                 for (unsigned int choice = 0u; choice < param->choices; choice += 1u)
                 {
-                    cli_line_text(&choices, (choice > 0u) ? ", " : "");
-                    cli_line_text(&choices, cli_catalog_at(catalog, catalog->list[param->first + choice]));
+                    mmgr_line_put(&choices, (choice > 0u) ? ", " : "");
+                    mmgr_line_put(&choices, cli_catalog_at(catalog, catalog->list[param->first + choice]));
                 }
-                cli_wrap(s_choices, cli_line_fits(&choices) ? choices.at : 0ull, "      ", most, jobs_line_out, NULL);
+                cli_wrap(s_choices, mmgr_line_ok(&choices) ? choices.at : 0ull, "      ", most, jobs_line_out, NULL);
             }
         }
     }
     cli_out("");
     cli_out("runs");
     char why[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliValues *const values = cli_cell_taken(sizeof(*values), "the values a job is shown with");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    CliValues *const values = g_cli_cells->persistent_buf_alloc(sizeof(*values), NULL);
     if (values == NULL)
     {
-        cli_line_text(&said, "the cells cannot meet the values a job is shown with");
+        mmgr_line_put(&err_msg, "the cells cannot meet the values a job is shown with");
     }
-    const int shown = (values != NULL) && cli_job_values(catalog, job, NULL, 0u, values, &said) &&
-                      cli_runner_shown(root, catalog, job, values, jobs_shown, NULL, &said);
-    cli_cell_given(values);
+    const int shown = (values != NULL) && cli_job_values(catalog, job, NULL, 0u, values, &err_msg) &&
+                      cli_runner_shown(root, catalog, job, values, jobs_shown, NULL, &err_msg);
+    g_cli_cells->persistent_buf_release(values, NULL);
     if (!shown)
     {
         line.at = 0ull;
-        cli_line_text(&line, "  ");
-        cli_line_counted(&line, why, cli_line_fits(&said) ? said.at : 0ull);
-        cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+        mmgr_line_put(&line, "  ");
+        mmgr_line_put_n(&line, why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
 }
 
-// A run told to the window as it goes, on a channel of its own under runs, where a terminal of the window's started
-// this process; elsewhere told to no one; and the code its end gave
+// A run reported to the window as it goes, on a channel of its own under runs, where a terminal of the window's started
+// this process; elsewhere reported to no one; and the code its end gave
 typedef struct
 {
     CliDoorClient *window;
@@ -253,109 +254,109 @@ typedef struct
 
 static CliLineRun s_run;
 
-// the bytes what a run tells the window is begun to be written in, doubling as it fills
-#define CLI_JOBS_TOLD_FIRST 1024u
+// the bytes what a run sends the window is begun to be written in, doubling as it fills
+#define CLI_JOBS_STATE_INIT_CAP 1024u
 
-void cli_line_told_begun(void)
+void cli_window_channel_begun(void)
 {
     s_run.window = cli_door_from_environment();
-    CliLine channel = {s_run.channel, sizeof(s_run.channel), 0ull};
-    cli_line_text(&channel, "runs/");
-    cli_line_decimal(&channel, cli_process_own(), 1u);
-    (void)cli_line_closed(&channel);
+    VerbaLinea channel = {s_run.channel, sizeof(s_run.channel), 0ull};
+    mmgr_line_put(&channel, "runs/");
+    mmgr_line_decimal(&channel, cli_process_own(), 1u);
+    (void)mmgr_line_finish(&channel);
 }
 
-void cli_line_told(const char *body, unsigned long long size)
+void cli_window_channel_sent(const char *body, unsigned long long size)
 {
     if (s_run.window != NULL)
     {
         char quiet[256];
-        CliLine ignored = {quiet, sizeof(quiet), 0ull};
-        unsigned long long heard = 0ull;
-        (void)cli_door_said(s_run.window, s_run.channel, body, size, &heard, &ignored);
+        VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
+        unsigned long long reply_size = 0ull;
+        (void)cli_door_send(s_run.window, s_run.channel, body, size, &reply_size, &ignored);
     }
 }
 
-// `told`, a growing line, told to the window where it fits, and given back
-static void jobs_told_given(CliLine *told)
+// `state`, a growing line, sent to the window where it fits, and given back
+static void jobs_state_sent(VerbaLinea *state)
 {
-    if (cli_line_fits(told))
+    if (mmgr_line_ok(state))
     {
-        cli_line_told(told->out, told->at);
+        cli_window_channel_sent(state->out, state->at);
     }
-    cli_cell_given(told->out);
+    g_cli_cells->persistent_buf_release(state->out, NULL);
 }
 
 // a line of the errors led by `lead`
 static void jobs_err_led(const char *lead, const char *text)
 {
     static char s_line[1u << 16u];
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, lead);
-    cli_line_text(&line, text);
-    cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, lead);
+    mmgr_line_put(&line, text);
+    cli_err_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
-// what a run says: each line to the terminal and the window, and its end, the pages it wrote and the program it made
-static void jobs_said(void *context, const CliSaid *said)
+// what a run prints: each line to the terminal and the window, and its end, the pages it wrote and the program it made
+static void jobs_run_event(void *context, const CliRunEvent *event)
 {
     (void)context;
     // a blob the run's writer placed is the panel's, and the command line shows the console alone
-    if (said->kind == CLI_SAID_START)
+    if (event->kind == CLI_RUN_EVENT_START)
     {
         return;
     }
-    CliLine told = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_line_growing(&told, CLI_JOBS_TOLD_FIRST, "what a run tells the window");
-    if (said->kind == CLI_SAID_LINE)
+    VerbaLinea state = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP);
+    if (event->kind == CLI_RUN_EVENT_LINE)
     {
-        cli_line_text(&told, "{\"line\":");
-        cli_json_quoted_lossy(&told, (const unsigned char *)said->text,
-                              cellul.len(&(CatenaFinitaCfg){.src = said->text, .cap = CLI_CELLS_POOL}));
-        cli_line_text(&told, ",\"stream\":");
-        cli_json_quoted(&told, said->stream,
-                        cellul.len(&(CatenaFinitaCfg){.src = said->stream, .cap = CLI_CELLS_POOL}));
-        cli_line_text(&told, ",\"ms\":");
-        cli_json_double(&told, said->ms);
-        cli_line_character(&told, '}');
-        jobs_told_given(&told);
-        if (cellul.eq(&(CatenaFinitaCfg){.src = said->stream, .other = "stdout", .cap = CLI_CELLS_POOL}))
+        mmgr_line_put(&state, "{\"line\":");
+        cli_json_quoted_lossy(&state, (const unsigned char *)event->text,
+                              cellul.len(&(CatenaFinitaCfg){.src = event->text, .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(&state, ",\"stream\":");
+        cli_json_quoted(&state, event->stream,
+                        cellul.len(&(CatenaFinitaCfg){.src = event->stream, .cap = CLI_CELLS_POOL}));
+        mmgr_line_put(&state, ",\"ms\":");
+        cli_json_double(&state, event->ms);
+        mmgr_line_ch(&state, '}');
+        jobs_state_sent(&state);
+        if (cellul.eq(&(CatenaFinitaCfg){.src = event->stream, .other = "stdout", .cap = CLI_CELLS_POOL}))
         {
-            cli_out(said->text);
+            cli_out(event->text);
         }
-        else if (cellul.eq(&(CatenaFinitaCfg){.src = said->stream, .other = "command", .cap = CLI_CELLS_POOL}))
+        else if (cellul.eq(&(CatenaFinitaCfg){.src = event->stream, .other = "command", .cap = CLI_CELLS_POOL}))
         {
-            jobs_err_led("$ ", said->text);
+            jobs_err_led("$ ", event->text);
         }
         else
         {
-            cli_err(said->text);
+            cli_err(event->text);
         }
         return;
     }
-    cli_line_text(&told, "{\"state\":\"ended\",\"code\":");
-    if (said->has_code)
+    mmgr_line_put(&state, "{\"state\":\"ended\",\"code\":");
+    if (event->has_code)
     {
-        cli_line_signed(&told, said->code);
+        mmgr_line_decimal_signed(&state, event->code);
     }
     else
     {
-        cli_line_text(&told, "null");
+        mmgr_line_put(&state, "null");
     }
-    cli_line_text(&told, said->stopped ? ",\"stopped\":true,\"ms\":" : ",\"stopped\":false,\"ms\":");
-    cli_json_double(&told, said->ms);
-    cli_line_character(&told, '}');
-    jobs_told_given(&told);
-    for (unsigned int at = 0u; at < said->view_count; at += 1u)
+    mmgr_line_put(&state, event->stopped ? ",\"stopped\":true,\"ms\":" : ",\"stopped\":false,\"ms\":");
+    cli_json_double(&state, event->ms);
+    mmgr_line_ch(&state, '}');
+    jobs_state_sent(&state);
+    for (unsigned int at = 0u; at < event->view_count; at += 1u)
     {
-        jobs_err_led("page ", said->views[at]);
+        jobs_err_led("page ", event->views[at]);
     }
-    if (said->made != NULL)
+    if (event->made != NULL)
     {
-        jobs_err_led("made ", said->made);
+        jobs_err_led("made ", event->made);
     }
-    s_run.has_code = said->has_code;
-    s_run.code = said->code;
+    s_run.has_code = event->has_code;
+    s_run.code = event->code;
     s_run.ended = 1;
 }
 
@@ -363,47 +364,47 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
                 unsigned int count)
 {
     char why[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliValues *const values = cli_cell_taken(sizeof(*values), "the values a job is run with");
-    if ((values == NULL) || !cli_job_values(catalog, job, words, count, values, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    CliValues *const values = g_cli_cells->persistent_buf_alloc(sizeof(*values), NULL);
+    if ((values == NULL) || !cli_job_values(catalog, job, words, count, values, &err_msg))
     {
-        cli_line_text(&said, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");
-        cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
-        cli_cell_given(values);
+        mmgr_line_put(&err_msg, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");
+        cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        g_cli_cells->persistent_buf_release(values, NULL);
         return CLI_WRONG;
     }
-    cli_line_told_begun();
+    cli_window_channel_begun();
     s_run.ended = 0;
     s_run.has_code = 0;
-    CliLine told = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_line_growing(&told, CLI_JOBS_TOLD_FIRST, "what a run tells the window");
-    cli_line_text(&told, "{\"state\":\"started\",\"job\":");
+    VerbaLinea state = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP);
+    mmgr_line_put(&state, "{\"state\":\"started\",\"job\":");
     const char *const id = cli_catalog_at(catalog, catalog->job[job].id);
     const char *const title = cli_catalog_at(catalog, catalog->job[job].title);
-    cli_json_quoted(&told, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&told, ",\"title\":");
-    cli_json_quoted(&told, title, cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&told, ",\"root\":");
-    cli_json_quoted_lossy(&told, (const unsigned char *)root,
+    cli_json_quoted(&state, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(&state, ",\"title\":");
+    cli_json_quoted(&state, title, cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(&state, ",\"root\":");
+    cli_json_quoted_lossy(&state, (const unsigned char *)root,
                           cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&told, ",\"words\":[");
+    mmgr_line_put(&state, ",\"words\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&told, (at > 0u) ? "," : "");
-        cli_json_quoted_lossy(&told, (const unsigned char *)words[at],
+        mmgr_line_put(&state, (at > 0u) ? "," : "");
+        cli_json_quoted_lossy(&state, (const unsigned char *)words[at],
                               cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}));
     }
-    cli_line_text(&told, "]}");
-    jobs_told_given(&told);
+    mmgr_line_put(&state, "]}");
+    jobs_state_sent(&state);
     cli_runs_attached();
-    const CliRunSink sink = {jobs_said, NULL};
+    const CliRunSink sink = {jobs_run_event, NULL};
     unsigned long long run = 0ull;
-    said.at = 0ull;
-    const int started = cli_runs_start(sink, root, catalog, job, values, &run, &said);
-    cli_cell_given(values);
+    err_msg.at = 0ull;
+    const int started = cli_runs_start(sink, root, catalog, job, values, &run, &err_msg);
+    g_cli_cells->persistent_buf_release(values, NULL);
     if (!started)
     {
-        cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_WRONG;
     }
     cli_runs_wait(run);

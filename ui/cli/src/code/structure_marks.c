@@ -135,80 +135,80 @@ int cli_structure_mark_order(const void *one, const void *other)
 }
 
 // a list of numbers, or of a side's line kinds, written as JSON
-static void cli_numbers_written(CliLine *out, const unsigned int *numbers, const unsigned char *kinds,
+static void cli_numbers_written(VerbaLinea *out, const unsigned int *numbers, const unsigned char *kinds,
                                 unsigned int count)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(out, (at != 0u) ? "," : "");
-        cli_line_decimal(out, (numbers != NULL) ? numbers[at] : kinds[at], 1u);
+        mmgr_line_put(out, (at != 0u) ? "," : "");
+        mmgr_line_decimal(out, (numbers != NULL) ? numbers[at] : kinds[at], 1u);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
-static void cli_marks_written(CliLine *out, const unsigned int (*marks)[4], unsigned int count)
+static void cli_marks_written(VerbaLinea *out, const unsigned int (*marks)[4], unsigned int count)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(out, (at != 0u) ? "," : "");
+        mmgr_line_put(out, (at != 0u) ? "," : "");
         cli_numbers_written(out, marks[at], NULL, 4u);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
 // the compare written as the window reads it
-void cli_structure_written(const CliCompare *compare, unsigned int renames, CliLine *out)
+void cli_structure_written(const CliCompare *compare, unsigned int renames, VerbaLinea *out)
 {
-    cli_line_text(out, "{\"rows\":[");
+    mmgr_line_put(out, "{\"rows\":[");
     for (unsigned int row = 0u; row < compare->rows; row += 1u)
     {
-        cli_line_text(out, (row != 0u) ? ",[" : "[");
+        mmgr_line_put(out, (row != 0u) ? ",[" : "[");
         const unsigned int sides[2] = {g_cli_structure->row_left[row], g_cli_structure->row_right[row]};
         for (unsigned int side = 0u; side < 2u; side += 1u)
         {
-            cli_line_text(out, (side != 0u) ? "," : "");
+            mmgr_line_put(out, (side != 0u) ? "," : "");
             if (sides[side] == CLI_STRUCTURE_NONE)
             {
-                cli_line_text(out, "null");
+                mmgr_line_put(out, "null");
             }
             else
             {
-                cli_line_decimal(out, sides[side], 1u);
+                mmgr_line_decimal(out, sides[side], 1u);
             }
         }
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
-    cli_line_text(out, "],\"starts\":");
+    mmgr_line_put(out, "],\"starts\":");
     cli_numbers_written(out, g_cli_structure->starts, NULL, compare->starts);
-    cli_line_text(out, ",\"left\":");
+    mmgr_line_put(out, ",\"left\":");
     cli_numbers_written(out, NULL, g_cli_structure->left, g_cli_structure->old.lines);
-    cli_line_text(out, ",\"right\":");
+    mmgr_line_put(out, ",\"right\":");
     cli_numbers_written(out, NULL, g_cli_structure->right, g_cli_structure->new.lines);
-    cli_line_text(out, ",\"left_marks\":");
+    mmgr_line_put(out, ",\"left_marks\":");
     cli_marks_written(out, (const unsigned int (*)[4])g_cli_structure->left_marks, compare->left_marks);
-    cli_line_text(out, ",\"right_marks\":");
+    mmgr_line_put(out, ",\"right_marks\":");
     cli_marks_written(out, (const unsigned int (*)[4])g_cli_structure->right_marks, compare->right_marks);
-    cli_line_text(out, ",\"renames\":[");
+    mmgr_line_put(out, ",\"renames\":[");
     for (unsigned int at = 0u; at < renames; at += 1u)
     {
         const unsigned int from = g_cli_structure->renames[at];
         const CliToken *const was = &g_cli_structure->old.token[g_cli_structure->became_from[from]];
         const CliToken *const became = &g_cli_structure->new.token[g_cli_structure->became_to[from]];
-        cli_line_text(out, (at != 0u) ? ",[" : "[");
+        mmgr_line_put(out, (at != 0u) ? ",[" : "[");
         cli_json_quoted(out, g_cli_structure->old.text + was->start, was->end - was->start);
-        cli_line_character(out, ',');
+        mmgr_line_ch(out, ',');
         cli_json_quoted(out, g_cli_structure->new.text + became->start, became->end - became->start);
-        cli_line_character(out, ',');
-        cli_line_decimal(out, g_cli_structure->became_count[from] & 0x7fffffffu, 1u);
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ',');
+        mmgr_line_decimal(out, g_cli_structure->became_count[from] & 0x7fffffffu, 1u);
+        mmgr_line_ch(out, ']');
     }
-    cli_line_text(out, "],\"moved\":");
-    cli_line_decimal(out, compare->moved, 1u);
-    cli_line_text(out, ",\"reshaped\":");
-    cli_line_decimal(out, compare->reshaped, 1u);
-    cli_line_character(out, '}');
+    mmgr_line_put(out, "],\"moved\":");
+    mmgr_line_decimal(out, compare->moved, 1u);
+    mmgr_line_put(out, ",\"reshaped\":");
+    mmgr_line_decimal(out, compare->reshaped, 1u);
+    mmgr_line_ch(out, '}');
 }
 
 // the tokens of each moved line marked moved

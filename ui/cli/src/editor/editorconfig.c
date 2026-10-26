@@ -3,15 +3,15 @@
 // editorconfig.c: a file's indentation from the `.editorconfig` files above it
 #include "editorconfig.h"
 
-// the lock held while the files' bytes and a pattern's letters are kept
+// the lock acquired while the files' bytes and a pattern's letters are stored
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the most bytes one `.editorconfig` holds, the most folders above a file, and the longest value of a key kept
+// the most bytes one `.editorconfig` contains, the most folders above a file, and the longest value of a key stored
 #define CLI_EDITORCONFIG_BYTES (1u << 20u)
 
 #define CLI_EDITORCONFIG_FOLDERS 256u
 
-#define CLI_VALUE_LONGEST 64u
+#define CLI_VALUE_MAX_LEN 64u
 
 static unsigned char s_text[CLI_EDITORCONFIG_BYTES];
 
@@ -47,7 +47,7 @@ static int cli_folded_is(const char *from, const char *to, const char *word)
     return 1;
 }
 
-// whether the file's lines before its first section hold `root = true`
+// whether the file's lines before its first section contain `root = true`
 static int cli_is_root(const char *text, unsigned long long size)
 {
     const char *line = text;
@@ -89,23 +89,23 @@ static int cli_is_root(const char *text, unsigned long long size)
 // A key's value as the last section that names the file sets it, lower case: 1 in `set` where one did
 typedef struct
 {
-    char text[CLI_VALUE_LONGEST];
+    char text[CLI_VALUE_MAX_LEN];
     int set;
 } CliValue;
 
-static void cli_value_kept(CliValue *value, const char *from, const char *to)
+static void cli_value_stored(CliValue *value, const char *from, const char *to)
 {
-    CliLine line = {value->text, sizeof(value->text), 0ull};
+    VerbaLinea line = {value->text, sizeof(value->text), 0ull};
     for (const char *at = from; at < to; at += 1)
     {
-        cli_line_character(&line, ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
+        mmgr_line_ch(&line, ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0]);
     }
-    // a value too long to keep is kept as none of the words or numbers it is read for
-    value->set = cli_line_fits(&line) ? 1 : 2;
-    cli_line_closed(&line);
+    // a value too long to store is stored as none of the words or numbers it is read for
+    value->set = mmgr_line_ok(&line) ? 1 : 2;
+    mmgr_line_finish(&line);
 }
 
-// the lines of one `.editorconfig`, each key of a section that names the file over what was kept before
+// the lines of one `.editorconfig`, each key of a section that names the file over what was stored before
 static void cli_sections_read(const char *text, unsigned long long size, const char *relative, const char *name,
                               CliValue *style, CliValue *size_value, CliValue *width)
 {
@@ -147,18 +147,18 @@ static void cli_sections_read(const char *text, unsigned long long size, const c
         const char *value_end = to;
         cli_trimmed(&key, &key_end);
         cli_trimmed(&value, &value_end);
-        CliValue *const kept = cli_folded_is(key, key_end, "indent_style")  ? style
-                               : cli_folded_is(key, key_end, "indent_size") ? size_value
-                               : cli_folded_is(key, key_end, "tab_width")   ? width
-                                                                            : NULL;
-        if (kept != NULL)
+        CliValue *const target = cli_folded_is(key, key_end, "indent_style")  ? style
+                                 : cli_folded_is(key, key_end, "indent_size") ? size_value
+                                 : cli_folded_is(key, key_end, "tab_width")   ? width
+                                                                              : NULL;
+        if (target != NULL)
         {
-            cli_value_kept(kept, value, value_end);
+            cli_value_stored(target, value, value_end);
         }
     }
 }
 
-// the whole number a kept value writes, as an unsigned 32-bit number reads: 1, or 0 where it writes none
+// the whole number a stored value writes, as an unsigned 32-bit number reads: 1, or 0 where it writes none
 static int cli_value_number(const CliValue *value, unsigned int *number)
 {
     if (value->set != 1)
@@ -184,7 +184,7 @@ static int cli_value_number(const CliValue *value, unsigned int *number)
             return 0;
         }
     }
-    // checked against the most 32 bits hold above
+    // checked against the most 32 bits represent above
     *number = (unsigned int)size;
     return 1;
 }
@@ -194,12 +194,12 @@ static int cli_is_separator(char letter)
     return (letter == '/') || (letter == '\\');
 }
 
-static void cli_indent_held(const char *path, CliIndent *indent)
+static void cli_indent_resolved(const char *path, CliIndent *indent)
 {
     unsigned long long ends[CLI_EDITORCONFIG_FOLDERS];
     unsigned int folders = 0u;
     unsigned long long end = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
-    // each folder from the file's up, the length of `path` it is, until one says it is the root
+    // each folder from the file's up, the length of `path` it is, until one declares it is the root
     while (folders < CLI_EDITORCONFIG_FOLDERS)
     {
         unsigned long long cut = end;
@@ -217,12 +217,12 @@ static void cli_indent_held(const char *path, CliIndent *indent)
         {
             break;
         }
-        char file[CLI_PATH_LONGEST];
-        CliLine line = {file, sizeof(file), 0ull};
-        cli_line_counted(&line, path, folder);
-        cli_line_text(&line, top ? ".editorconfig" : "/.editorconfig");
+        char file[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {file, sizeof(file), 0ull};
+        mmgr_line_put_n(&line, path, folder);
+        mmgr_line_put(&line, top ? ".editorconfig" : "/.editorconfig");
         const unsigned long long size =
-            (cli_line_closed(&line) != 0ull) ? qry_member_file_read(file, s_text, sizeof(s_text)) : QRY_MEMBER_UNREAD;
+            (mmgr_line_finish(&line) != 0ull) ? qry_member_file_read(file, s_text, sizeof(s_text)) : QRY_MEMBER_UNREAD;
         if (size != QRY_MEMBER_UNREAD)
         {
             ends[folders] = folder;
@@ -250,7 +250,7 @@ static void cli_indent_held(const char *path, CliIndent *indent)
     for (unsigned int at = folders; at > 0u; at -= 1u)
     {
         const unsigned long long folder = ends[at - 1u];
-        char relative[CLI_PATH_LONGEST];
+        char relative[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){
             .dst = relative,
             .src = path + folder + (cli_is_separator(path[folder]) ? 1u : 0u),
@@ -261,13 +261,13 @@ static void cli_indent_held(const char *path, CliIndent *indent)
         {
             letter[0] = (letter[0] == '\\') ? '/' : letter[0];
         }
-        char file[CLI_PATH_LONGEST];
-        CliLine line = {file, sizeof(file), 0ull};
-        cli_line_counted(&line, path, folder);
-        cli_line_text(&line,
+        char file[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {file, sizeof(file), 0ull};
+        mmgr_line_put_n(&line, path, folder);
+        mmgr_line_put(&line,
                       ((folder != 0ull) && cli_is_separator(path[folder - 1u])) ? ".editorconfig" : "/.editorconfig");
         const unsigned long long size =
-            (cli_line_closed(&line) != 0ull) ? qry_member_file_read(file, s_text, sizeof(s_text)) : QRY_MEMBER_UNREAD;
+            (mmgr_line_finish(&line) != 0ull) ? qry_member_file_read(file, s_text, sizeof(s_text)) : QRY_MEMBER_UNREAD;
         if (size != QRY_MEMBER_UNREAD)
         {
             cli_sections_read((const char *)s_text, size, relative, name, &style, &size_value, &width);
@@ -306,6 +306,6 @@ static void cli_indent_held(const char *path, CliIndent *indent)
 void cli_indent(const char *path, CliIndent *indent)
 {
     cli_lock_take(&s_lock);
-    cli_indent_held(path, indent);
+    cli_indent_resolved(path, indent);
     cli_lock_give(&s_lock);
 }

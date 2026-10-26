@@ -1,15 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query_interface_check.c: walks of asks put from inside the interface, held to addresses whose answers are known
+// query_interface_check.c: walks of queries put from inside the interface, checked against addresses whose answers are
+// known
 //
 //     query_interface_check <query_walk>, run inside a run whose records the walk hands its lines to
 //
 // Address 0 is mapped in no process: a read there ends the asker on every host, and the walk reads that ending as
-// the address's answer and goes on. On Windows the kernel keeps a page at 0x7FFE0000 that every process reads and
+// the address's answer and goes on. On Windows the kernel maps a page at 0x7FFE0000 that every process reads and
 // none may write. A put there ends the asker, a read answers, and two of its words are counters: the interrupt time
 // at 0x8 and the system time at 0x14, each the low word of a count in hundred nanoseconds. That layout is the answer
-// key here and is never read by the walk: the walk asks every word of the page's head whether it advances, and the
-// check holds what came back to the key.
+// key here and is never read by the walk: the walk queries every word of the page's head whether it advances, and the
+// check compares what came back against the key.
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/query/query_interface.h"
 
 #include <stdio.h>
@@ -17,10 +18,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -35,7 +36,7 @@ int main(int count_of_words, char **words)
         return 2;
     }
     EngineError error = {0};
-    static QueryAsk s_answers[256];
+    static Query s_answers[256];
 
     // three reads at address 0 and the two words after it: each ends its own probe
     QueryWalk nothing = {0};
@@ -50,7 +51,7 @@ int main(int count_of_words, char **words)
     unsigned int nothing_ended = 0u;
     for (unsigned int number = 0u; number < 3u; number += 1u)
     {
-        const QueryAsk *const answer = &s_answers[number];
+        const Query *const answer = &s_answers[number];
         nothing_ended += ((answer->kind == QUERY_ENDED) && (answer->fault == INTERFACE_FAULT_ADDRESS)) ? 1u : 0u;
     }
     check_that(nothing_ended == 3u, "a read at address 0 and the words after it ends the asker on an address fault");
@@ -73,19 +74,19 @@ int main(int count_of_words, char **words)
 
     // a put there ends the asker, each address in its own probe
     QueryWalk puts = nothing;
-    puts.qualifier = QUERY_HOLDS;
+    puts.qualifier = QUERY_RETAINS;
     puts.from = page;
     puts.count = 4ull;
     const unsigned long long puts_children = query_interface_walk(&puts, s_answers, &error);
     unsigned int puts_ended = 0u;
     for (unsigned int number = 0u; number < 4u; number += 1u)
     {
-        const QueryAsk *const answer = &s_answers[number];
+        const Query *const answer = &s_answers[number];
         puts_ended += ((answer->kind == QUERY_ENDED) && (answer->fault == INTERFACE_FAULT_ADDRESS)) ? 1u : 0u;
     }
     check_that((puts_children == 4ull) && (puts_ended == 4u), "a put on the shared page ends the asker at each word");
 
-    // which words of the page's head advance, asked of every one; a word is put until it advances or its turns run
+    // which words of the page's head advance, queried for every one; a word is put until it advances or its turns run
     // out, and the turns outlast a clock interrupt
     QueryWalk counts = nothing;
     counts.qualifier = QUERY_ADVANCES;
@@ -94,7 +95,7 @@ int main(int count_of_words, char **words)
     counts.turns = 0x2000000ull;
     counts.limit_microseconds = 60000000ull;
     const unsigned long long counts_children = query_interface_walk(&counts, s_answers, &error);
-    check_that(counts_children == 1ull, "asking whether the page's words advance ends no asker");
+    check_that(counts_children == 1ull, "querying whether the page's words advance ends no asker");
     printf("  the shared page's head, words that advance:");
     for (unsigned int number = 0u; number < 16u; number += 1u)
     {

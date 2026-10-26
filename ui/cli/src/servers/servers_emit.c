@@ -10,15 +10,15 @@
 
 #include "../text/text.h"
 
-// the most files whose diagnostics are kept
-#define CLI_SERVERS_KEPT (1u << 16u)
+// the most files whose diagnostics are stored
+#define CLI_SERVERS_PUBLISHED_MAX (1u << 16u)
 
-CliKeyed g_cli_servers_published = {"published diagnostics", {NULL}, 0u, CLI_SERVERS_KEPT};
+CliKeyed g_cli_servers_published = {"published diagnostics", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliLock g_cli_servers_published_lock = CLI_LOCK_INIT;
-CliKeyed g_cli_servers_inspected = {"inspections' findings", {NULL}, 0u, CLI_SERVERS_KEPT};
-CliKeyed g_cli_servers_checked = {"checkers' findings", {NULL}, 0u, CLI_SERVERS_KEPT};
+CliKeyed g_cli_servers_inspected = {"inspections' findings", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
+CliKeyed g_cli_servers_checked = {"checkers' findings", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliKeyed g_cli_servers_given = {"names build tools give", {NULL}, 0u, 4096u};
-CliKeyed g_cli_servers_supplied = {"names supplied", {NULL}, 0u, CLI_SERVERS_KEPT};
+CliKeyed g_cli_servers_supplied = {"names supplied", {NULL}, 0u, CLI_SERVERS_PUBLISHED_MAX};
 CliLock g_cli_servers_checks_lock = CLI_LOCK_INIT;
 
 // what is read to pass a file's diagnostics on
@@ -26,23 +26,23 @@ static CliServersReading s_reading = {CLI_LOCK_INIT};
 
 void cli_servers_uri_of(const char *path, char *uri)
 {
-    cli_lsp_uri_of(path, uri, CLI_PATH_LONGEST);
+    cli_lsp_uri_of(path, uri, CLI_PATH_MAX_LEN);
 }
 
 void cli_servers_key_of(const char *path, char *key)
 {
-    char uri[CLI_PATH_LONGEST];
+    char uri[CLI_PATH_MAX_LEN];
     cli_servers_uri_of(path, uri);
     cli_lsp_key_of(uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), key);
 }
 
-void cli_servers_tree_path(const char *tree, const char *path, CliLine *out)
+void cli_servers_tree_path(const char *tree, const char *path, VerbaLinea *out)
 {
-    char full_path[CLI_PATH_LONGEST];
-    char full_tree[CLI_PATH_LONGEST];
+    char full_path[CLI_PATH_MAX_LEN];
+    char full_tree[CLI_PATH_MAX_LEN];
     if ((tree == NULL) || (tree[0] == '\0'))
     {
-        cli_line_text(out, path);
+        mmgr_line_put(out, path);
         return;
     }
     const char *const whole = query_path_full(path, full_path, sizeof(full_path)) ? full_path : path;
@@ -63,12 +63,12 @@ void cli_servers_tree_path(const char *tree, const char *path, CliLine *out)
     }
     if (!under && !mounted)
     {
-        cli_line_text(out, whole);
+        mmgr_line_put(out, whole);
         return;
     }
-    char relative[CLI_PATH_LONGEST];
+    char relative[CLI_PATH_MAX_LEN];
     cli_relative(top, whole, relative);
-    cli_line_text(out, relative);
+    mmgr_line_put(out, relative);
 }
 
 // the message of a server's report, NULL where it has none
@@ -79,8 +79,8 @@ static const char *emit_message_of(const CliJson *json, unsigned int item, unsig
     return (text != NULL) ? text : cli_json_string(json, cli_json_member(json, message, "value"), size);
 }
 
-// whether `size` bytes of `names`, one to a line, hold the line `size` bytes of `wanted` and then `also`, where it is
-// given
+// whether `size` bytes of `names`, one to a line, contain the line `size` bytes of `wanted` and then `also`, where it
+// is given
 static int emit_has_line(const char *names, unsigned long long size, const char *wanted, unsigned long long length,
                          const char *also, unsigned long long also_length)
 {
@@ -148,7 +148,7 @@ int cli_servers_attribute_of(const char *message, unsigned long long length, con
 }
 
 // whether a server's report that a class has no such attribute names an attribute the class's family sets; what the
-// file's family sets kept one to a line as `class attribute`
+// file's family sets stored one to a line as `class attribute`
 static int emit_supplied(const CliJson *json, unsigned int item, const char *supplied, unsigned long long size)
 {
     unsigned long long length = 0ull;
@@ -189,14 +189,14 @@ static int emit_given(const CliJson *json, unsigned int item, const char *names,
 // a name a build tool gives a file put on its own line
 static void emit_name_put(void *context, const char *name, unsigned long long size)
 {
-    CliLine *const names = context;
-    cli_line_counted(names, name, size);
-    cli_line_character(names, '\n');
+    VerbaLinea *const names = context;
+    mmgr_line_put_n(names, name, size);
+    mmgr_line_ch(names, '\n');
 }
 
-// the names a build tool gives the file of `key` and `uri`, kept as its text was checked or read from the disk for a
-// file the editor does not hold, one to a line: 1 with them into `names`, or 0 for a file of no build tool that gives
-// names; under the checks' lock
+// the names a build tool gives the file of `key` and `uri`, recorded as its text was checked or read from the disk for
+// a file the editor does not have open, one to a line: 1 with them into `names`, or 0 for a file of no build tool that
+// gives names; under the checks' lock
 static int emit_given_names(const char *key, const char *uri, const char **names, unsigned long long *size)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL});
@@ -226,20 +226,20 @@ static int emit_given_names(const char *key, const char *uri, const char **names
     {
         return 1;
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_lsp_path_of(uri, length, path))
     {
         return 0;
     }
     unsigned long long build_size = 0ull;
-    const unsigned char *const build = cli_file_held(path, &build_size);
+    const unsigned char *const build = cli_file_read(path, &build_size);
     if (build == NULL)
     {
         return 0;
     }
     char piece[1024];
     CliPieces pieces;
-    CliLine given;
+    VerbaLinea given;
     cli_pieces_begun(&pieces, &given, piece, sizeof(piece));
     cli_build_given_names(path, (const char *)build, build_size, emit_name_put, &given);
     cli_file_let_go(build, build_size);
@@ -247,13 +247,14 @@ static int emit_given_names(const char *key, const char *uri, const char **names
     char *const joined = cli_pieces_joined(&pieces, &given, "the names a build tool gives", &given_size);
     (void)cli_keyed_put(&g_cli_servers_given, key, "", (joined != NULL) ? joined : "",
                         (joined != NULL) ? given_size : 0ull);
-    cli_cell_given(joined);
+    g_cli_cells->persistent_buf_release(joined, NULL);
     *names = cli_keyed_get(&g_cli_servers_given, key, &beside, size);
     return *names != NULL;
 }
 
-// the kept text of `key` in `keyed` read into the reading's tree under its lock: its root, CLI_JSON_NONE where none is
-static unsigned int emit_kept_read(CliKeyed *keyed, CliLock *lock, const char *key)
+// the stored text of `key` in `keyed` read into the reading's tree under its lock: its root, CLI_JSON_NONE where none
+// is
+static unsigned int emit_stored_read(CliKeyed *keyed, CliLock *lock, const char *key)
 {
     cli_lock_take(lock);
     const char *beside = NULL;
@@ -265,9 +266,10 @@ static unsigned int emit_kept_read(CliKeyed *keyed, CliLock *lock, const char *k
     return root;
 }
 
-// each report of an array written as orior's diagnostic, after those written, those `kept` refuses left out
+// each report of an array written as orior's diagnostic, after those written, those the filter refuses left out where
+// `filtered`
 static void emit_items_written(unsigned int array, int filtered, const char *key, const char *uri, int *written,
-                               CliLine *out)
+                               VerbaLinea *out)
 {
     const CliJson *const json = &s_reading.json;
     for (unsigned int item = cli_json_is(json, array, CFG_JSON_ARRAY) ? json->node[array].first : CLI_JSON_NONE;
@@ -288,37 +290,37 @@ static void emit_items_written(unsigned int array, int filtered, const char *key
                 continue;
             }
         }
-        cli_line_text(out, *written ? "," : "");
+        mmgr_line_put(out, *written ? "," : "");
         cli_servers_diagnostic_of(json, item, out);
         *written = 1;
     }
 }
 
-void cli_servers_emit_whole(const char *key, const char *uri, const CliServersEmit *emit)
+void cli_servers_emit_whole(const char *key, const char *uri, const CliServersSink *sink)
 {
-    char path[CLI_PATH_LONGEST];
-    if ((emit->told == NULL) ||
+    char path[CLI_PATH_MAX_LEN];
+    if ((sink->emit == NULL) ||
         !cli_lsp_path_of(uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), path))
     {
         return;
     }
-    cli_servers_reading_held(&s_reading);
+    cli_servers_reading_locked(&s_reading);
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
-    CliLine out;
+    VerbaLinea out;
     cli_pieces_begun(&pieces, &out, piece, sizeof(piece));
-    cli_line_text(&out, "{\"path\":");
-    char shown[CLI_PATH_LONGEST];
-    CliLine where = {shown, sizeof(shown), 0ull};
-    cli_servers_tree_path(emit->tree, path, &where);
-    cli_json_quoted_lossy(&out, (const unsigned char *)shown, cli_line_fits(&where) ? where.at : 0ull);
-    cli_line_text(&out, ",\"items\":[");
+    mmgr_line_put(&out, "{\"path\":");
+    char shown[CLI_PATH_MAX_LEN];
+    VerbaLinea where = {shown, sizeof(shown), 0ull};
+    cli_servers_tree_path(sink->tree, path, &where);
+    cli_json_quoted_lossy(&out, (const unsigned char *)shown, mmgr_line_ok(&where) ? where.at : 0ull);
+    mmgr_line_put(&out, ",\"items\":[");
     int written = 0;
-    emit_items_written(emit_kept_read(&g_cli_servers_published, &g_cli_servers_published_lock, key), 1, key, uri,
+    emit_items_written(emit_stored_read(&g_cli_servers_published, &g_cli_servers_published_lock, key), 1, key, uri,
                        &written, &out);
-    emit_items_written(emit_kept_read(&g_cli_servers_inspected, &g_cli_servers_checks_lock, key), 0, key, uri, &written,
-                       &out);
-    const unsigned int by_checker = emit_kept_read(&g_cli_servers_checked, &g_cli_servers_checks_lock, key);
+    emit_items_written(emit_stored_read(&g_cli_servers_inspected, &g_cli_servers_checks_lock, key), 0, key, uri,
+                       &written, &out);
+    const unsigned int by_checker = emit_stored_read(&g_cli_servers_checked, &g_cli_servers_checks_lock, key);
     const CliJson *const json = &s_reading.json;
     for (unsigned int id = cli_json_is(json, by_checker, CFG_JSON_OBJECT) ? json->node[by_checker].first
                                                                           : CLI_JSON_NONE;
@@ -326,37 +328,37 @@ void cli_servers_emit_whole(const char *key, const char *uri, const CliServersEm
     {
         emit_items_written(id, 0, key, uri, &written, &out);
     }
-    cli_line_text(&out, "]}");
-    unsigned long long told_size = 0ull;
-    char *const told = cli_pieces_joined(&pieces, &out, "a file's diagnostics", &told_size);
-    if (told != NULL)
+    mmgr_line_put(&out, "]}");
+    unsigned long long diag_json_size = 0ull;
+    char *const diag_json = cli_pieces_joined(&pieces, &out, "a file's diagnostics", &diag_json_size);
+    if (diag_json != NULL)
     {
-        emit->told(emit->context, "lsp-diagnostics", told, told_size);
+        sink->emit(sink->context, "lsp-diagnostics", diag_json, diag_json_size);
     }
-    cli_cell_given(told);
+    g_cli_cells->persistent_buf_release(diag_json, NULL);
     cli_servers_reading_released(&s_reading);
 }
 
-// a file kept among those whose server reports an attribute, where it does, put on the line that is `context`: its key
-// then its URI, each ended by a 0
+// a file recorded among those whose server reports an attribute, where it does, put on the line that is `context`: its
+// key then its URI, each ended by a 0
 static void emit_reporting(void *context, const char *key, const char *beside, const char *text,
                            unsigned long long size)
 {
-    CliLine *const reporting = context;
+    VerbaLinea *const reporting = context;
     static const char s_report[] = "Cannot access attribute \\\"";
     unsigned long long at = 0ull;
     if (cli_text_find(text, size, s_report, sizeof(s_report) - 1u, &at))
     {
-        cli_line_counted(reporting, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u);
-        cli_line_counted(reporting, beside, cellul.len(&(CatenaFinitaCfg){.src = beside, .cap = CLI_CELLS_POOL}) + 1u);
+        mmgr_line_put_n(reporting, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u);
+        mmgr_line_put_n(reporting, beside, cellul.len(&(CatenaFinitaCfg){.src = beside, .cap = CLI_CELLS_POOL}) + 1u);
     }
 }
 
-void cli_servers_emit_reporting_attributes(const CliServersEmit *emit)
+void cli_servers_emit_reporting_attributes(const CliServersSink *sink)
 {
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
-    CliLine line;
+    VerbaLinea line;
     cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
     cli_lock_take(&g_cli_servers_published_lock);
     cli_keyed_each(&g_cli_servers_published, emit_reporting, &line);
@@ -367,9 +369,9 @@ void cli_servers_emit_reporting_attributes(const CliServersEmit *emit)
     {
         const char *const key = reporting + at;
         const char *const uri = key + cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u;
-        cli_servers_emit_whole(key, uri, emit);
+        cli_servers_emit_whole(key, uri, sink);
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_given(reporting);
+    g_cli_cells->persistent_buf_release(reporting, NULL);
 }

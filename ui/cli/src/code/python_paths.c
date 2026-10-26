@@ -146,8 +146,8 @@ static void cli_logical_lines(const char *text, unsigned long long size)
         }
         at = end + 1ull;
         const CliSpan code = {raw.at, cli_found(raw, " #")};
-        const CliSpan kept = cli_trimmed_of(code, '\\');
-        if ((s_lines.used + kept.length + 1ull) > s_lines.text_most)
+        const CliSpan trimmed_line = cli_trimmed_of(code, '\\');
+        if ((s_lines.used + trimmed_line.length + 1ull) > s_lines.text_most)
         {
             return;
         }
@@ -156,9 +156,10 @@ static void cli_logical_lines(const char *text, unsigned long long size)
             s_lines.text[s_lines.used] = ' ';
             s_lines.used += 1u;
         }
-        memor.cpy(&(MemoriaCfg){.dst = s_lines.text + s_lines.used, .src = kept.at, .bytes = kept.length});
-        // a line is below the lines' room, which an unsigned int holds
-        s_lines.used += (unsigned int)kept.length;
+        memor.cpy(
+            &(MemoriaCfg){.dst = s_lines.text + s_lines.used, .src = trimmed_line.at, .bytes = trimmed_line.length});
+        // a line is below the lines' room, which an unsigned int stores
+        s_lines.used += (unsigned int)trimmed_line.length;
         for (unsigned long long place = 0ull; place < code.length; place += 1ull)
         {
             const char letter = code.at[place];
@@ -179,7 +180,7 @@ static void cli_logical_lines(const char *text, unsigned long long size)
     }
 }
 
-// the expression the span says: its place, or CLI_PY_NONE
+// the expression the span denotes: its place, or CLI_PY_NONE
 static unsigned int cli_span_parsed(CliSpan span)
 {
     return cli_py_parse(span.at, span.length);
@@ -190,9 +191,9 @@ static void cli_name_set(const char *name, unsigned long long length, CliValues 
 {
     for (unsigned int at = 0u; at < g_cli_py.names; at += 1u)
     {
-        const char *const held = cli_py_text(g_cli_py.name[at].name);
-        if ((cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) == length) &&
-            (memor.cmp(&(MemoriaCfg){.src = held, .other = name, .bytes = length}) == 0))
+        const char *const name_at = cli_py_text(g_cli_py.name[at].name);
+        if ((cellul.len(&(CatenaFinitaCfg){.src = name_at, .cap = CLI_CELLS_POOL}) == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = name_at, .other = name, .bytes = length}) == 0))
         {
             g_cli_py.name[at].values = values;
             return;
@@ -215,10 +216,10 @@ static CliValues cli_looped(unsigned int expr)
     {
         return cli_py_eval(expr);
     }
-    char dotted[CLI_NAME_LONGEST];
-    CliLine line = {dotted, sizeof(dotted), 0ull};
+    char dotted[CLI_NAME_MAX_LEN];
+    VerbaLinea line = {dotted, sizeof(dotted), 0ull};
     const int named = cli_py_dotted(one->left, &line);
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     const CliExpr *const callee = &g_cli_py.expr[one->left];
     const int scans =
         named && ((cellul.eq(&(CatenaFinitaCfg){.src = dotted, .other = "os.scandir", .cap = CLI_CELLS_POOL})) ||
@@ -365,9 +366,9 @@ static void cli_set_read(CliSpan code)
     {
         for (unsigned int at = 0u; at < g_cli_py.names; at += 1u)
         {
-            const char *const held = cli_py_text(g_cli_py.name[at].name);
-            if ((cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) == target.length) &&
-                (memor.cmp(&(MemoriaCfg){.src = held, .other = target.at, .bytes = target.length}) == 0))
+            const char *const name_at = cli_py_text(g_cli_py.name[at].name);
+            if ((cellul.len(&(CatenaFinitaCfg){.src = name_at, .cap = CLI_CELLS_POOL}) == target.length) &&
+                (memor.cmp(&(MemoriaCfg){.src = name_at, .other = target.at, .bytes = target.length}) == 0))
             {
                 const CliValues was = g_cli_py.name[at].values;
                 const unsigned int mark = g_cli_py.values;

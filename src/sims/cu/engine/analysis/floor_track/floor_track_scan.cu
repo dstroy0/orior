@@ -165,7 +165,7 @@ void track_scan(const TrackQuery *query, const unsigned short *floor_values, uns
     }
 }
 
-// the positions within one cell of `from` along every axis, the gate a body moving under a cell a frame keeps to
+// the positions within one cell of `from` along every axis, the gate a body moving under a cell a frame stays within
 int track_gated(unsigned long long from, unsigned long long position)
 {
     const long long side = (long long)TRACK_FLOOR_SIDE;

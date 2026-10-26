@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// latex_sync.c: the boxes of text a SyncTeX file says each page holds, each with the lines of a file of the tree that
-// set it, in the page's own points from its top left
+// latex_sync.c: the boxes of text a SyncTeX file reports each page contains, each with the lines of a file of the tree
+// that set it, in the page's own points from its top left
 #include "latex_internal.h"
 
 #include <math.h>
@@ -101,12 +101,12 @@ static int latex_record(const char *text, unsigned long long length, CliTexRecor
     {
         const unsigned long long dims_end = latex_at(text, length, place_end + 1ull, ':');
         unsigned long long value = place_end + 1ull;
-        for (unsigned int slot = 0u; (slot < 3u) && (value <= dims_end); slot += 1u)
+        for (unsigned int at = 0u; (at < 3u) && (value <= dims_end); at += 1u)
         {
             const unsigned long long value_end = latex_at(text, dims_end, value, ',');
-            if (!latex_signed_trimmed(text, value, value_end - value, &record->size[slot]))
+            if (!latex_signed_trimmed(text, value, value_end - value, &record->size[at]))
             {
-                record->size[slot] = 0ll;
+                record->size[at] = 0ll;
             }
             value = value_end + 1ull;
         }
@@ -136,9 +136,9 @@ static const char *latex_file_of(unsigned int files, unsigned int tag)
     return NULL;
 }
 
-// an `Input:tag:name` line's file kept by its tag, a tag kept before replaced
-static void latex_input_kept(const char *rest, unsigned long long length, const CliTexNames *names, unsigned int *files,
-                             unsigned int *used)
+// an `Input:tag:name` line's file recorded by its tag, a tag recorded before replaced
+static void latex_input_stored(const char *rest, unsigned long long length, const CliTexNames *names,
+                               unsigned int *files, unsigned int *used)
 {
     const unsigned long long colon = latex_at(rest, length, 0ull, ':');
     unsigned long long tag = 0ull;
@@ -146,23 +146,23 @@ static void latex_input_kept(const char *rest, unsigned long long length, const 
     {
         return;
     }
-    char file[CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
     const int named = cli_tex_names_of(names, rest + colon + 1ull, length - colon - 1ull, file);
     const size_t size = named ? cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1u : 0u;
-    unsigned int slot = 0u;
-    while ((slot < *files) && (g_cli_latex->files[slot].tag != (unsigned int)tag))
+    unsigned int at = 0u;
+    while ((at < *files) && (g_cli_latex->files[at].tag != (unsigned int)tag))
     {
-        slot += 1u;
+        at += 1u;
     }
-    if (((slot == *files) && (*files == CLI_LATEX_INPUTS)) || (*used + size > CLI_LATEX_INPUT_TEXT))
+    if (((at == *files) && (*files == CLI_LATEX_INPUTS)) || (*used + size > CLI_LATEX_INPUT_TEXT))
     {
         return;
     }
-    if (slot == *files)
+    if (at == *files)
     {
         *files += 1u;
     }
-    g_cli_latex->files[slot] = (CliTexInput){(unsigned int)tag, named, *used};
+    g_cli_latex->files[at] = (CliTexInput){(unsigned int)tag, named, *used};
     memor.cpy(&(MemoriaCfg){.dst = g_cli_latex->names + *used, .src = file, .bytes = size});
     *used += (unsigned int)size;
 }
@@ -170,7 +170,7 @@ static void latex_input_kept(const char *rest, unsigned long long length, const 
 // a box closed: one written for each file of the tree whose lines it marks, in the order it first marks them, with
 // each line where it changes and the point across where its part starts
 static void latex_box_written(const CliTexOpen *done, unsigned int marks, unsigned long long page, unsigned int files,
-                              const CliTexScale *scale, int *written, CliLine *out)
+                              const CliTexScale *scale, int *written, VerbaLinea *out)
 {
     for (unsigned int mark = done->marks; mark < marks; mark += 1u)
     {
@@ -192,21 +192,21 @@ static void latex_box_written(const CliTexOpen *done, unsigned int marks, unsign
         // as two's complement does where it would wrap
         const long long top = (long long)((unsigned long long)done->y - (unsigned long long)height);
         const long long tall = (long long)((unsigned long long)height + (unsigned long long)depth);
-        cli_line_text(out, *written ? ",{\"page\":" : "{\"page\":");
+        mmgr_line_put(out, *written ? ",{\"page\":" : "{\"page\":");
         *written = 1;
-        cli_line_decimal(out, page, 1u);
-        cli_line_text(out, ",\"file\":");
+        mmgr_line_decimal(out, page, 1u);
+        mmgr_line_put(out, ",\"file\":");
         cli_json_quoted_lossy(out, (const unsigned char *)file,
                               cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"x\":");
+        mmgr_line_put(out, ",\"x\":");
         cli_json_double(out, latex_points(done->x, scale->x_offset, scale));
-        cli_line_text(out, ",\"y\":");
+        mmgr_line_put(out, ",\"y\":");
         cli_json_double(out, latex_points(top, scale->y_offset, scale));
-        cli_line_text(out, ",\"w\":");
+        mmgr_line_put(out, ",\"w\":");
         cli_json_double(out, latex_points(width, 0.0, scale));
-        cli_line_text(out, ",\"h\":");
+        mmgr_line_put(out, ",\"h\":");
         cli_json_double(out, latex_points(tall, 0.0, scale));
-        cli_line_text(out, ",\"lines\":[");
+        mmgr_line_put(out, ",\"lines\":[");
         int first = 1;
         unsigned long long last = 0ull;
         for (unsigned int at = mark; at < marks; at += 1u)
@@ -216,15 +216,15 @@ static void latex_box_written(const CliTexOpen *done, unsigned int marks, unsign
             {
                 continue;
             }
-            cli_line_text(out, first ? "[" : ",[");
+            mmgr_line_put(out, first ? "[" : ",[");
             cli_json_double(out, latex_points(read->x, scale->x_offset, scale));
-            cli_line_character(out, ',');
-            cli_line_decimal(out, read->line, 1u);
-            cli_line_character(out, ']');
+            mmgr_line_ch(out, ',');
+            mmgr_line_decimal(out, read->line, 1u);
+            mmgr_line_ch(out, ']');
             first = 0;
             last = read->line;
         }
-        cli_line_text(out, "]}");
+        mmgr_line_put(out, "]}");
     }
 }
 
@@ -253,7 +253,7 @@ static void latex_preamble_read(const char *line, unsigned long long size, CliTe
     *content = (size >= 8ull) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "Content:", .bytes = 8u}) == 0);
 }
 
-void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliTexNames *names, CliLine *out)
+void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliTexNames *names, VerbaLinea *out)
 {
     CliTexScale scale = {1.0, 1000.0, 0.0, 0.0};
     unsigned long long page = 0ull;
@@ -266,13 +266,13 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long length = 0ull;
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     while (cli_tex_line(sync, size, &at, &start, &length))
     {
         const char *const line = sync + start;
         if ((length >= 6ull) && (memor.cmp(&(MemoriaCfg){.src = line, .other = "Input:", .bytes = 6u}) == 0))
         {
-            latex_input_kept(line + 6ull, length - 6ull, names, &files, &used);
+            latex_input_stored(line + 6ull, length - 6ull, names, &files, &used);
             continue;
         }
         if (!content)
@@ -335,5 +335,5 @@ void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliT
             break;
         }
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }

@@ -14,9 +14,9 @@
 //   daughter one, the parent's chosen link into t + 1 as the sort chose it;
 //   daughter two, another point of t + 1;
 //   the point of frame t whose chosen link went to daughter two, or DIVIDE_NONE when daughter two was a start.
-// A division is a link moved: the parent keeps daughter one and takes daughter two as its second link, and the point
+// A division is a link moved: the parent retains daughter one and takes daughter two as its second link, and the point
 // daughter two leaves loses its link and ends at t. The divisions of a pair come in their parents' order, each parent
-// once. No division takes daughter two from a point that divides. Each point keeps at most one link in (O20), and
+// once. No division takes daughter two from a point that divides. Each point retains at most one link in (O20), and
 // only a parent has two out
 #define DIVIDE_HEADER_WORDS 6u
 

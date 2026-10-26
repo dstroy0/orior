@@ -14,10 +14,10 @@
 
 #if defined(_WIN32)
 #define OUTPUT_SEEK _fseeki64
-#define OUTPUT_TELL _ftelli64
+#define OUTPUT_FTELL _ftelli64
 #else
 #define OUTPUT_SEEK fseeko
-#define OUTPUT_TELL ftello
+#define OUTPUT_FTELL ftello
 #endif
 
 // .points opens with frames, depth, height, width, the residual's limbs and the contrast's bits, then the set's
@@ -115,9 +115,9 @@ static unsigned long long output_frame_bytes(unsigned long long count, unsigned 
 // the file's place is its end: every frame read whole, and nothing past the last
 static int output_at_end(FILE *file)
 {
-    const long long place = OUTPUT_TELL(file);
+    const long long place = OUTPUT_FTELL(file);
     const int ended = (place >= 0ll) && (OUTPUT_SEEK(file, 0ll, SEEK_END) == 0);
-    return ended && (OUTPUT_TELL(file) == place);
+    return ended && (OUTPUT_FTELL(file) == place);
 }
 
 // the voxels of the view, or 2^32 when there are more: every 32-bit voxel lies below that
@@ -361,8 +361,8 @@ static int output_graph_read(const char *sample, FILE *points, FILE *links, Outp
     return ended;
 }
 
-// the CRC-64 of the whole file (cu/includes/codecs/crc/crc.h's key), read through `words`, which holds OUTPUT_CHUNK gate
-// records
+// the CRC-64 of the whole file (cu/includes/codecs/crc/crc.h's key), read through `words`, which contains OUTPUT_CHUNK
+// gate records
 static int output_file_crc(const char *path, unsigned int *words, unsigned long long *crc)
 {
     FILE *const file = fopen(path, "rb");
@@ -387,7 +387,7 @@ static int output_file_crc(const char *path, unsigned int *words, unsigned long 
     return complete;
 }
 
-// the .links' CRC-64 at `links_path`, taken the first time a file beside it asks for it and kept for the next
+// the .links' CRC-64 at `links_path`, taken the first time a file beside it requests it and cached for the next
 static int output_links_crc(const char *links_path, unsigned int *words, OutputLinksCrc *crc)
 {
     if (crc->summed == 0)
@@ -697,7 +697,7 @@ static int output_divide_read(const char *sample, const char *set, const char *l
     return ended;
 }
 
-// the counts O20 and H4 ask for, frame pair by frame pair, and H4 on each: N(t + 1) - N(t) = D(t) - E(t) + S(t + 1),
+// the counts O20 and H4 require, frame pair by frame pair, and H4 on each: N(t + 1) - N(t) = D(t) - E(t) + S(t + 1),
 // with D(t) the points of t with two links out, the parents of the pair's divisions. With a .faces, the ends whose
 // prediction crosses a face leave the view, and the starts whose back-prediction crosses one enter it; the links are
 // the output's, the .divide's made. The results come in as output_sample_read zeroed them, with the .faces' and the
@@ -745,7 +745,7 @@ static int output_graph_results(const char *sample, const OutputGraph *graph, Ou
         if (balanced == 0)
         {
             fprintf(stderr,
-                    "  output: %s: frames %u and %u: H4 does not hold: N(t + 1) - N(t) = %lld, D - E + S ="
+                    "  output: %s: frames %u and %u: H4 is not satisfied: N(t + 1) - N(t) = %lld, D - E + S ="
                     " %lld - %llu + %llu\n",
                     sample, frame, frame + 1u, change, divided, ends, starts);
         }
@@ -774,7 +774,7 @@ static unsigned long long output_crc_word(unsigned long long crc, unsigned long 
 
 // a CRC-64 of everything a sample's rows are written from: the view, each frame's count, and each point's voxel, its
 // links out, the first link's cost and its .faces flags, from which its state is made; the links in are the links out
-// read backward. The second pass holds each sample to its first pass's. A sample that changed between the passes
+// read backward. The second pass checks each sample against its first pass's. A sample that changed between the passes
 // is found even where every count is the same
 static unsigned long long output_graph_fingerprint(const OutputGraph *graph)
 {
@@ -805,7 +805,7 @@ static int output_sample_read(const OutputRequest *request, const char *sample, 
     // a sample's name is a field of both files, which neither separator nor line break may cut
     if (strpbrk(sample, ",\"\t\r\n") != NULL)
     {
-        fprintf(stderr, "  output: %s: its name holds a comma, a quote, a tab or a line break\n", sample);
+        fprintf(stderr, "  output: %s: its name contains a comma, a quote, a tab or a line break\n", sample);
         return 0;
     }
     char points_path[ENGINE_PATH_CAPACITY];
@@ -956,7 +956,7 @@ extern "C" long output_graph_set(const OutputRequest *request)
             continue;
         }
         fprintf(report,
-                "  %-24s %6llu %10llu %10llu %llu (%llu; %llu), %llu (%llu); held on %llu of %llu frame"
+                "  %-24s %6llu %10llu %10llu %llu (%llu; %llu), %llu (%llu); satisfied on %llu of %llu frame"
                 " pairs",
                 sample, results->frames, results->nodes, results->edges, results->ends, results->outside,
                 results->ends_max, results->starts, results->starts_max, results->balanced, results->pairs);
@@ -1021,7 +1021,7 @@ extern "C" long output_graph_set(const OutputRequest *request)
                 " and %llu in their last; ",
                 totals.faces, totals.leaving, faced_ends, totals.entering, faced_starts, totals.first, totals.last);
     }
-    fprintf(report, "H4 held on %llu of %llu frame pairs\n", totals.balanced, totals.pairs);
+    fprintf(report, "H4 satisfied on %llu of %llu frame pairs\n", totals.balanced, totals.pairs);
     if (failed != 0u)
     {
         fprintf(stderr, "  output: %u of %u samples broke: nothing is written past the headers\n", failed,

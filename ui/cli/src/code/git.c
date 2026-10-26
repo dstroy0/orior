@@ -27,7 +27,7 @@ int cli_git_head(const char *root, char *commit, long long *when, int *clean)
     static const char *const s_log[3] = {"log", "-1", "--format=%H %ct"};
     static const char *const s_status[3] = {"status", "--porcelain", "--untracked-files=no"};
     CliGitGave *const gave = cli_git_taken();
-    int found = cli_git_asked(root, s_log, 3u, gave);
+    int found = cli_git_query(root, s_log, 3u, gave);
     const char *from = gave->out;
     const char *to = gave->out + gave->out_size;
     cli_git_trimmed(&from, &to);
@@ -45,12 +45,12 @@ int cli_git_head(const char *root, char *commit, long long *when, int *clean)
     }
     if (found)
     {
-        CliLine line = {commit, CLI_NAME_LONGEST, 0ull};
-        cli_line_counted(&line, from, (unsigned long long)(space - from));
-        cli_line_closed(&line);
+        VerbaLinea line = {commit, CLI_NAME_MAX_LEN, 0ull};
+        mmgr_line_put_n(&line, from, (unsigned long long)(space - from));
+        mmgr_line_finish(&line);
         *when = seconds;
         int all_white = 1;
-        if (cli_git_asked(root, s_status, 3u, gave))
+        if (cli_git_query(root, s_status, 3u, gave))
         {
             for (unsigned long long at = 0ull; all_white && (at < gave->out_size); at += 1ull)
             {
@@ -68,18 +68,18 @@ int cli_git_head(const char *root, char *commit, long long *when, int *clean)
     return found;
 }
 
-// what git wrote, trimmed, into `out`, which holds `room`: 1, or 0 where git failed
-static int cli_asked_line(const char *root, const char *const *args, unsigned int count, char *out,
+// what git wrote, trimmed, into `out`, sized for `room`: 1, or 0 where git failed
+static int cli_query_line(const char *root, const char *const *args, unsigned int count, char *out,
                           unsigned long long room)
 {
     CliGitGave *const gave = cli_git_taken();
-    const int found = cli_git_asked(root, args, count, gave);
+    const int found = cli_git_query(root, args, count, gave);
     const char *from = gave->out;
     const char *to = gave->out + gave->out_size;
     cli_git_trimmed(&from, &to);
-    CliLine line = {out, room, 0ull};
-    cli_line_counted(&line, from, found ? (unsigned long long)(to - from) : 0ull);
-    cli_line_closed(&line);
+    VerbaLinea line = {out, room, 0ull};
+    mmgr_line_put_n(&line, from, found ? (unsigned long long)(to - from) : 0ull);
+    mmgr_line_finish(&line);
     cli_git_given(gave);
     return found;
 }
@@ -88,19 +88,19 @@ int cli_git_branch(const char *root, char *name)
 {
     static const char *const s_named[3] = {"rev-parse", "--abbrev-ref", "HEAD"};
     static const char *const s_short[3] = {"rev-parse", "--short", "HEAD"};
-    if (!cli_asked_line(root, s_named, 3u, name, CLI_NAME_LONGEST))
+    if (!cli_query_line(root, s_named, 3u, name, CLI_NAME_MAX_LEN))
     {
         return 0;
     }
     return (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "HEAD", .cap = CLI_CELLS_POOL})) ||
-           cli_asked_line(root, s_short, 3u, name, CLI_NAME_LONGEST);
+           cli_query_line(root, s_short, 3u, name, CLI_NAME_MAX_LEN);
 }
 
 void cli_git_name(const char *root, char *name)
 {
     static const char *const s_remote[3] = {"config", "--get", "remote.origin.url"};
-    char remote[CLI_PATH_LONGEST];
-    if (!cli_asked_line(root, s_remote, 3u, remote, sizeof(remote)))
+    char remote[CLI_PATH_MAX_LEN];
+    if (!cli_query_line(root, s_remote, 3u, remote, sizeof(remote)))
     {
         remote[0] = '\0';
     }
@@ -122,9 +122,9 @@ void cli_git_name(const char *root, char *name)
     }
     if (length > start)
     {
-        CliLine line = {name, CLI_NAME_LONGEST, 0ull};
-        cli_line_counted(&line, remote + start, length - start);
-        cli_line_closed(&line);
+        VerbaLinea line = {name, CLI_NAME_MAX_LEN, 0ull};
+        mmgr_line_put_n(&line, remote + start, length - start);
+        mmgr_line_finish(&line);
         return;
     }
     // the folder's own name, the last part of its path
@@ -139,40 +139,40 @@ void cli_git_name(const char *root, char *name)
         first -= 1ull;
     }
     const int is_drive = ((end - first) == 2ull) && (root[first + 1ull] == ':');
-    CliLine line = {name, CLI_NAME_LONGEST, 0ull};
-    cli_line_counted(&line, root + first, is_drive ? 0ull : (end - first));
-    cli_line_closed(&line);
+    VerbaLinea line = {name, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put_n(&line, root + first, is_drive ? 0ull : (end - first));
+    mmgr_line_finish(&line);
 }
 
-int cli_git_stage_text(const char *root, const char *file, unsigned int stage, CliLine *out)
+int cli_git_stage_text(const char *root, const char *file, unsigned int stage, VerbaLinea *out)
 {
-    char folder[CLI_PATH_LONGEST];
-    char shown[CLI_PATH_LONGEST];
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_git_beside(root, file, folder, shown, &said))
+    char folder[CLI_PATH_MAX_LEN];
+    char shown[CLI_PATH_MAX_LEN];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (!cli_git_beside(root, file, folder, shown, &err_msg))
     {
         return 0;
     }
-    char named[CLI_PATH_LONGEST + 8u];
-    CliLine line = {named, sizeof(named), 0ull};
-    cli_line_character(&line, ':');
-    cli_line_decimal(&line, stage, 1u);
-    cli_line_character(&line, ':');
-    cli_line_text(&line, shown);
-    cli_line_closed(&line);
+    char named[CLI_PATH_MAX_LEN + 8u];
+    VerbaLinea line = {named, sizeof(named), 0ull};
+    mmgr_line_ch(&line, ':');
+    mmgr_line_decimal(&line, stage, 1u);
+    mmgr_line_ch(&line, ':');
+    mmgr_line_put(&line, shown);
+    mmgr_line_finish(&line);
     const char *const args[2] = {"show", named};
     CliGitGave *const gave = cli_git_taken();
-    const int found = cli_git_asked(folder, args, 2u, gave);
+    const int found = cli_git_query(folder, args, 2u, gave);
     if (found)
     {
-        cli_line_counted(out, gave->out, gave->out_size);
+        mmgr_line_put_n(out, gave->out, gave->out_size);
     }
     cli_git_given(gave);
     return found;
 }
 
-// the repository of `repos` that holds `path`, both paths in the tree: the deepest whose folder holds it, or NULL
+// the repository of `repos` that contains `path`, both paths in the tree: the deepest whose folder contains it, or NULL
 const char *cli_git_owner(const char *const *repos, unsigned int count, const char *path, unsigned long long length)
 {
     const char *owner = NULL;
@@ -181,12 +181,12 @@ const char *cli_git_owner(const char *const *repos, unsigned int count, const ch
     {
         const char *const repo = repos[at];
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = repo, .cap = CLI_CELLS_POOL});
-        const int holds =
+        const int owned =
             (size == 0ull) ||
             ((size == length) && (memor.cmp(&(MemoriaCfg){.src = path, .other = repo, .bytes = size}) == 0)) ||
             ((size < length) && (memor.cmp(&(MemoriaCfg){.src = path, .other = repo, .bytes = size}) == 0) &&
              (path[size] == '/'));
-        if (holds && ((owner == NULL) || (size >= longest)))
+        if (owned && ((owner == NULL) || (size >= longest)))
         {
             owner = repo;
             longest = size;
@@ -196,20 +196,20 @@ const char *cli_git_owner(const char *const *repos, unsigned int count, const ch
 }
 
 // the files under the repository at `folder`, whose path in the tree is `repo`, that differ from its last commit, put
-// after the changes found where the repository of `repos` that holds each is `repo`
+// after the changes found where the repository of `repos` that contains each is `repo`
 static void cli_changed_at(const char *folder, const char *repo, const char *const *repos, unsigned int count,
                            CliChangedList *found)
 {
     static const char *const s_prefix[2] = {"rev-parse", "--show-prefix"};
     static const char *const s_status[5] = {"status", "--porcelain=v1", "-z", "--untracked-files=all", "--"};
-    char prefix[CLI_PATH_LONGEST];
-    if (!cli_asked_line(folder, s_prefix, 2u, prefix, sizeof(prefix)))
+    char prefix[CLI_PATH_MAX_LEN];
+    if (!cli_query_line(folder, s_prefix, 2u, prefix, sizeof(prefix)))
     {
         prefix[0] = '\0';
     }
     const char *const args[6] = {s_status[0], s_status[1], s_status[2], s_status[3], s_status[4], "."};
     CliGitGave *const gave = cli_git_taken();
-    if (!cli_git_asked(folder, args, 6u, gave))
+    if (!cli_git_query(folder, args, 6u, gave))
     {
         cli_git_given(gave);
         return;
@@ -245,12 +245,12 @@ static void cli_changed_at(const char *folder, const char *repo, const char *con
         skip = (index == 'R') || (index == 'C');
         if (cli_text_same(record + 3, prefix, prefix_length) && (found->count < CLI_GIT_CHANGED))
         {
-            char path[CLI_PATH_LONGEST];
-            CliLine line = {path, sizeof(path), 0ull};
-            cli_line_text(&line, repo);
-            cli_line_text(&line, (repo_length != 0ull) ? "/" : "");
-            cli_line_text(&line, record + 3 + prefix_length);
-            unsigned long long size = cli_line_closed(&line);
+            char path[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {path, sizeof(path), 0ull};
+            mmgr_line_put(&line, repo);
+            mmgr_line_put(&line, (repo_length != 0ull) ? "/" : "");
+            mmgr_line_put(&line, record + 3 + prefix_length);
+            unsigned long long size = mmgr_line_finish(&line);
             // a repository under this one shows in its changes as a folder of new files
             unsigned long long trimmed = size;
             while ((trimmed > 0ull) && (path[trimmed - 1ull] == '/'))
@@ -291,15 +291,15 @@ void cli_git_changed(const char *root, const char *const *repos, unsigned int co
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        char folder[CLI_PATH_LONGEST];
-        CliLine line = {folder, sizeof(folder), 0ull};
-        cli_line_text(&line, root);
+        char folder[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {folder, sizeof(folder), 0ull};
+        mmgr_line_put(&line, root);
         if (repos[at][0] != '\0')
         {
-            cli_line_character(&line, '/');
-            cli_line_text(&line, repos[at]);
+            mmgr_line_ch(&line, '/');
+            mmgr_line_put(&line, repos[at]);
         }
-        if (cli_line_closed(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ull)
         {
             cli_changed_at(folder, repos[at], repos, count, found);
         }

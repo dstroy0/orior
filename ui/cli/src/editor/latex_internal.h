@@ -63,16 +63,16 @@ typedef struct
 // 1, or 0 with the lock given back where the cells cannot meet it; and the room given back with the lock (latex.c)
 extern CliLatexRoom *g_cli_latex;
 extern CliLock g_cli_latex_lock;
-int cli_latex_held(void);
+int cli_latex_locked(void);
 void cli_latex_released(void);
 
 // The file of the tree a name the engine writes stands for: the text made for `path`, by its name or its full path in
 // the make's folder, a file under the tree by its path there, and none for any other
 typedef struct
 {
-    char job[CLI_PATH_LONGEST];
-    char made[CLI_PATH_LONGEST];
-    char root[CLI_PATH_LONGEST];
+    char job[CLI_PATH_MAX_LEN];
+    char made[CLI_PATH_MAX_LEN];
+    char root[CLI_PATH_MAX_LEN];
     const char *path;
 } CliTexNames;
 
@@ -90,23 +90,24 @@ int cli_tex_count(const char *text, unsigned long long length, unsigned long lon
 int cli_tex_signed(const char *text, unsigned long long length, long long *value);
 
 // the names a make in `dir` of the job `job` for the file `path` of the tree `root` reads; and the file of the tree
-// `length` bytes of a name stand for into `file`, which holds CLI_PATH_LONGEST: 1, or 0 where they stand for none
+// `length` bytes of a name stand for into `file`, sized for CLI_PATH_MAX_LEN: 1, or 0 where they stand for none
 void cli_tex_names_made(CliTexNames *names, const char *root, const char *dir, const char *job, const char *path);
 int cli_tex_names_of(const CliTexNames *names, const char *name, unsigned long long length, char *file);
 
 // the errors a log names, as `file:line: text` with -file-line-error, the first CLI_LATEX_ERRORS of them, written as
 // JSON objects one after another, a comma before each but the first: their count; and the SVG pdftocairo draws, which
 // is UTF-8, written as `"defs": ..., "pages": [...]`, every id in it written with `tex-` before it so that none meets
-// an id of the window's: 1, or 0 where it is larger than the room holds (latex_read.c)
-unsigned int cli_tex_errors_written(const char *log, unsigned long long size, const CliTexNames *names, CliLine *out);
-int cli_tex_pages_written(const char *svg, unsigned long long size, CliLine *out);
+// an id of the window's: 1, or 0 where it is larger than the room fits (latex_read.c)
+unsigned int cli_tex_errors_written(const char *log, unsigned long long size, const CliTexNames *names,
+                                    VerbaLinea *out);
+int cli_tex_pages_written(const char *svg, unsigned long long size, VerbaLinea *out);
 
-// the boxes of text a SyncTeX file says each page holds, each with the lines of a file of the tree that set it, written
-// as a JSON array (latex_sync.c)
-void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliTexNames *names, CliLine *out);
+// the boxes of text a SyncTeX file reports each page contains, each with the lines of a file of the tree that set it,
+// written as a JSON array (latex_sync.c)
+void cli_tex_boxes_written(const char *sync, unsigned long long size, const CliTexNames *names, VerbaLinea *out);
 
-// the name a file is made under into `job`, which holds CLI_PATH_LONGEST: its own where that is a plain one, of ASCII
-// letters, digits, - and _, which keeps \jobname and the bibliography made beside it, and `preview` for any other
+// the name a file is made under into `job`, sized for CLI_PATH_MAX_LEN: its own where that is a plain one, of ASCII
+// letters, digits, - and _, which preserves \jobname and the bibliography made beside it, and `preview` for any other
 // (latex.c)
 void cli_latex_job_of(const char *file, char *job);
 

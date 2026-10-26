@@ -9,44 +9,44 @@
 
 #include <stdlib.h>
 
-// A folder still to read, held above the ones before it
+// A folder still to read, stored above the ones before it
 typedef struct CliDeployFolderStruct
 {
     struct CliDeployFolderStruct *below;
     const char *path;
 } CliDeployFolder;
 
-// A file sent, held before the ones found already
-typedef struct CliDeploySentHeldStruct
+// A file sent, stored before the ones found already
+typedef struct CliDeploySentNodeStruct
 {
-    struct CliDeploySentHeldStruct *before;
+    struct CliDeploySentNodeStruct *before;
     CliDeploySent sent;
-} CliDeploySentHeld;
+} CliDeploySentNode;
 
 // the folder sent and its path in the tree, its `.` parts taken out; the walk's pool; the folders under it still to
-// read, by their paths under it, and the files sent and left out found, each held in that pool; and the patterns that
+// read, by their paths under it, and the files sent and left out found, each stored in that pool; and the patterns that
 // end in `/`, which leave out folders
-static char s_top[CLI_PATH_LONGEST];
-static char s_from[CLI_PATH_LONGEST];
+static char s_top[CLI_PATH_MAX_LEN];
+static char s_from[CLI_PATH_MAX_LEN];
 static CliDeployPool s_pool;
 static CliDeployFolder *s_folders;
-static CliDeploySentHeld *s_sents;
-static CliDeployHeld *s_outs;
+static CliDeploySentNode *s_sents;
+static CliDeployPairNode *s_outs;
 static const char **s_folder_patterns;
 static unsigned int s_folder_pattern_count;
 static int s_overflowed;
 
-// a path under the folder sent, `name` in the folder `folder`, kept in `pool`
+// a path under the folder sent, `name` in the folder `folder`, stored in `pool`
 static const char *walk_path(CliDeployPool *pool, const char *folder, const char *name, const char *after)
 {
-    char path[CLI_PATH_LONGEST + 2u];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_text(&line, (folder[0] != '\0') ? "/" : "");
-    cli_line_text(&line, name);
-    cli_line_text(&line, after);
-    s_overflowed = s_overflowed || !cli_line_fits(&line);
-    return cli_deploy_kept(pool, path, line.at);
+    char path[CLI_PATH_MAX_LEN + 2u];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_put(&line, (folder[0] != '\0') ? "/" : "");
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, after);
+    s_overflowed = s_overflowed || !mmgr_line_ok(&line);
+    return cli_deploy_text_stored(pool, path, line.at);
 }
 
 // one entry of a folder read: a folder to read in turn or left out, a file sent or left out
@@ -55,16 +55,16 @@ static void walk_entry(void *context, const char *name, int is_folder)
     CliDeployRun *const run = &g_cli_deploy;
     const char *const folder = (const char *)context;
     const char *const path = walk_path(&s_pool, folder, name, "");
-    char probe[CLI_PATH_LONGEST + 4u];
-    CliLine probe_line = {probe, sizeof(probe), 0ull};
-    cli_line_text(&probe_line, path);
-    cli_line_text(&probe_line, "/x");
-    cli_line_closed(&probe_line);
+    char probe[CLI_PATH_MAX_LEN + 4u];
+    VerbaLinea probe_line = {probe, sizeof(probe), 0ull};
+    mmgr_line_put(&probe_line, path);
+    mmgr_line_put(&probe_line, "/x");
+    mmgr_line_finish(&probe_line);
     const char *const rule = is_folder ? cli_deploy_left_out_by(s_folder_patterns, s_folder_pattern_count, probe)
                                        : cli_deploy_left_out_by(run->pattern, run->patterns, path);
     if (rule != NULL)
     {
-        CliDeployHeld *const out = cli_deploy_placed(&s_pool, sizeof(*out));
+        CliDeployPairNode *const out = cli_deploy_placed(&s_pool, sizeof(*out));
         if (out != NULL)
         {
             out->pair = (CliDeployPair){walk_path(&run->pool, folder, name, is_folder ? "/" : ""), rule};
@@ -85,23 +85,23 @@ static void walk_entry(void *context, const char *name, int is_folder)
         }
         return;
     }
-    CliDeploySentHeld *const sent = cli_deploy_placed(&s_pool, sizeof(*sent));
+    CliDeploySentNode *const sent = cli_deploy_placed(&s_pool, sizeof(*sent));
     if (sent != NULL)
     {
-        char in_tree[(2u * CLI_PATH_LONGEST) + 2u];
-        char full[(2u * CLI_PATH_LONGEST) + 2u];
-        CliLine tree_line = {in_tree, sizeof(in_tree), 0ull};
-        CliLine full_line = {full, sizeof(full), 0ull};
-        cli_line_text(&tree_line, s_from);
-        cli_line_text(&tree_line, (s_from[0] != '\0') ? "/" : "");
-        cli_line_text(&tree_line, path);
-        cli_line_closed(&tree_line);
-        cli_line_text(&full_line, s_top);
-        cli_line_character(&full_line, '/');
-        cli_line_text(&full_line, path);
-        cli_line_closed(&full_line);
-        sent->sent.path =
-            cli_deploy_kept(&run->pool, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
+        char in_tree[(2u * CLI_PATH_MAX_LEN) + 2u];
+        char full[(2u * CLI_PATH_MAX_LEN) + 2u];
+        VerbaLinea tree_line = {in_tree, sizeof(in_tree), 0ull};
+        VerbaLinea full_line = {full, sizeof(full), 0ull};
+        mmgr_line_put(&tree_line, s_from);
+        mmgr_line_put(&tree_line, (s_from[0] != '\0') ? "/" : "");
+        mmgr_line_put(&tree_line, path);
+        mmgr_line_finish(&tree_line);
+        mmgr_line_put(&full_line, s_top);
+        mmgr_line_ch(&full_line, '/');
+        mmgr_line_put(&full_line, path);
+        mmgr_line_finish(&full_line);
+        sent->sent.path = cli_deploy_text_stored(&run->pool, path,
+                                                 cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
         sent->sent.mode = cli_deploy_mode(in_tree, full);
         sent->sent.hash[0] = '\0';
         sent->before = s_sents;
@@ -110,19 +110,19 @@ static void walk_entry(void *context, const char *name, int is_folder)
     }
 }
 
-void cli_deploy_full(unsigned int index, CliLine *out)
+void cli_deploy_full(unsigned int index, VerbaLinea *out)
 {
-    char top[CLI_PATH_LONGEST];
+    char top[CLI_PATH_MAX_LEN];
     cli_full(g_cli_deploy.root, g_cli_deploy.deployment.from, top);
-    cli_line_text(out, top);
-    cli_line_character(out, '/');
-    cli_line_text(out, g_cli_deploy.sent[index].path);
+    mmgr_line_put(out, top);
+    mmgr_line_ch(out, '/');
+    mmgr_line_put(out, g_cli_deploy.sent[index].path);
 }
 
 // the path of the folder sent in the tree, its `.` and empty parts taken out, into s_from
 static void walk_from(const char *from)
 {
-    CliLine line = {s_from, sizeof(s_from), 0ull};
+    VerbaLinea line = {s_from, sizeof(s_from), 0ull};
     for (const char *part = from; *part != '\0';)
     {
         size_t length = 0u;
@@ -132,13 +132,13 @@ static void walk_from(const char *from)
         }
         if ((length > 0u) && !((length == 1u) && (part[0] == '.')))
         {
-            cli_line_text(&line, (line.at > 0u) ? "/" : "");
-            cli_line_counted(&line, part, length);
+            mmgr_line_put(&line, (line.at > 0u) ? "/" : "");
+            mmgr_line_put_n(&line, part, length);
         }
         part += length;
         part += (*part != '\0') ? 1 : 0;
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // two files sent in the order of their paths
@@ -156,16 +156,16 @@ static int walk_out_order(const void *one, const void *other)
     return (paths != 0) ? paths : cli_deploy_order(left->text, right->text);
 }
 
-int cli_deploy_gather(CliLine *said)
+int cli_deploy_gather(VerbaLinea *err_msg)
 {
     CliDeployRun *const run = &g_cli_deploy;
     cli_full(run->root, run->deployment.from, s_top);
     if (!query_is_folder(s_top))
     {
-        cli_line_text(said, run->deployment.name);
-        cli_line_text(said, " names ");
-        cli_line_text(said, run->deployment.from);
-        cli_line_text(said, ", which is no folder of the tree");
+        mmgr_line_put(err_msg, run->deployment.name);
+        mmgr_line_put(err_msg, " names ");
+        mmgr_line_put(err_msg, run->deployment.from);
+        mmgr_line_put(err_msg, ", which is no folder of the tree");
         return 0;
     }
     walk_from(run->deployment.from);
@@ -200,12 +200,12 @@ int cli_deploy_gather(CliLine *said)
     {
         const char *const folder = s_folders->path;
         s_folders = s_folders->below;
-        char full[(2u * CLI_PATH_LONGEST) + 2u];
-        CliLine line = {full, sizeof(full), 0ull};
-        cli_line_text(&line, s_top);
-        cli_line_text(&line, (folder[0] != '\0') ? "/" : "");
-        cli_line_text(&line, folder);
-        if (cli_line_closed(&line) != 0ull)
+        char full[(2u * CLI_PATH_MAX_LEN) + 2u];
+        VerbaLinea line = {full, sizeof(full), 0ull};
+        mmgr_line_put(&line, s_top);
+        mmgr_line_put(&line, (folder[0] != '\0') ? "/" : "");
+        mmgr_line_put(&line, folder);
+        if (mmgr_line_finish(&line) != 0ull)
         {
             (void)query_folder_each(full, walk_entry, (void *)folder);
         }
@@ -231,25 +231,24 @@ int cli_deploy_gather(CliLine *said)
     {
         run->sents = 0u;
         run->outs = 0u;
-        cli_line_text(said, run->deployment.name);
-        cli_line_text(said, " sends more files than orior_cli holds");
+        mmgr_line_put(err_msg, run->deployment.name);
+        mmgr_line_put(err_msg, " sends more files than orior_cli supports");
         return 0;
     }
     qsort(run->sent, run->sents, sizeof(run->sent[0]), walk_sent_order);
     qsort(run->out, run->outs, sizeof(run->out[0]), walk_out_order);
     for (unsigned int at = 0u; at < run->sents; at += 1u)
     {
-        char full[(2u * CLI_PATH_LONGEST) + 2u];
-        CliLine line = {full, sizeof(full), 0ull};
+        char full[(2u * CLI_PATH_MAX_LEN) + 2u];
+        VerbaLinea line = {full, sizeof(full), 0ull};
         cli_deploy_full(at, &line);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes =
-            (cli_line_closed(&line) != 0ull) ? cli_file_held(full, &size) : NULL;
+        const unsigned char *const bytes = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(full, &size) : NULL;
         if (bytes != NULL)
         {
-            CliLine hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ull};
+            VerbaLinea hash = {run->sent[at].hash, sizeof(run->sent[at].hash), 0ull};
             cli_sha256_text(bytes, size, &hash);
-            cli_line_closed(&hash);
+            mmgr_line_finish(&hash);
             cli_file_let_go(bytes, size);
         }
     }

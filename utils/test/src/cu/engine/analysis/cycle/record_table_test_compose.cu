@@ -137,10 +137,10 @@ static void table_compose(TableResults *results)
     {
         order_matters = order_matters || (reversed[lane] != two[lane]);
     }
-    table_check(results, ok && (order_matters != 0), "the reversed composition differs: the chain keeps its order");
+    table_check(results, ok && (order_matters != 0), "the reversed composition differs: the chain preserves its order");
     if (ok != 0)
     {
-        scriptura_text(&results->line,
+        mmgr_line_put(&results->line,
                        "  composition: g(f(x)) as two tables, one composed table and the ops all agree\n");
     }
     free(values_f);
@@ -170,40 +170,40 @@ static void table_reuse(TableResults *results)
     chain.output_count = 1u;
 
     unsigned int *const atoms = (unsigned int *)malloc((size_t)TABLE_TEST_LANES * sizeof(unsigned int));
-    unsigned int *const kept =
+    unsigned int *const limbs =
         (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
     unsigned int *const reused =
         (unsigned int *)malloc((size_t)TABLE_TEST_LANES * ORIOR_RECORD_OUT_WORDS * sizeof(unsigned int));
-    int ok = (atoms != NULL) && (kept != NULL) && (reused != NULL);
+    int ok = (atoms != NULL) && (limbs != NULL) && (reused != NULL);
     for (unsigned int lane = 0u; lane < TABLE_TEST_LANES; lane += 1u)
     {
         atoms[lane] = table_random();
     }
     chain.reuse = 0;
-    const long file_kept = table_file_limbs(&chain);
+    const long file_limbs = table_file_limbs(&chain);
     unsigned int a = 0u;
-    ok = ok && table_run_device(&chain, atoms, TABLE_TEST_LANES, kept, &a);
+    ok = ok && table_run_device(&chain, atoms, TABLE_TEST_LANES, limbs, &a);
     chain.reuse = 1;
     const long file_reused = table_file_limbs(&chain);
     unsigned int b = 0u;
     ok = ok && table_run_device(&chain, atoms, TABLE_TEST_LANES, reused, &b);
     table_check(results,
-                ok && (a == b) && (memcmp(kept, reused, (size_t)TABLE_TEST_LANES * a * sizeof(unsigned int)) == 0),
+                ok && (a == b) && (memcmp(limbs, reused, (size_t)TABLE_TEST_LANES * a * sizeof(unsigned int)) == 0),
                 "register reuse leaves the output unchanged");
-    table_check(results, (file_kept > 0L) && (file_reused > 0L) && (file_reused < file_kept),
+    table_check(results, (file_limbs > 0L) && (file_reused > 0L) && (file_reused < file_limbs),
                 "register reuse shrinks the file");
     if (ok != 0)
     {
-        scriptura_text(&results->line, "  reuse: a ");
-        scriptura_decimal(&results->line, chain.count, 1u);
-        scriptura_text(&results->line, "-step chain fits ");
-        scriptura_decimal(&results->line, (unsigned long long)file_reused, 1u);
-        scriptura_text(&results->line, " limbs reused against ");
-        scriptura_decimal(&results->line, (unsigned long long)file_kept, 1u);
-        scriptura_text(&results->line, " kept\n");
+        mmgr_line_put(&results->line, "  reuse: a ");
+        mmgr_line_decimal(&results->line, chain.count, 1u);
+        mmgr_line_put(&results->line, "-step chain fits ");
+        mmgr_line_decimal(&results->line, (unsigned long long)file_reused, 1u);
+        mmgr_line_put(&results->line, " limbs reused against ");
+        mmgr_line_decimal(&results->line, (unsigned long long)file_limbs, 1u);
+        mmgr_line_put(&results->line, " retained\n");
     }
     free(atoms);
-    free(kept);
+    free(limbs);
     free(reused);
 }
 
@@ -287,12 +287,12 @@ int main(int count, char **arguments)
     table_check(&results, (admitted != 0) && (job.failures == 0ull),
                 "tessera: the device's daemon admits the test's job and it releases");
 
-    scriptura_text(&results.line, "  record table test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record table test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

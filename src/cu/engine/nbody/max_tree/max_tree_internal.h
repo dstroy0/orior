@@ -13,21 +13,21 @@
 
 #if defined(__cplusplus)
 static_assert(ORIOR_EXACT_LIMBS >= ENGINE_RESIDUAL_LIMBS,
-              "the exact type must be at least as wide as the residual it is asked about");
+              "the exact type must be at least as wide as the residual it is queried about");
 static_assert(ORIOR_EXACT_LIMBS >= MAX_TREE_KEY_LIMBS,
               "the exact type must be at least as wide as a face's key, the residual and its name");
 #else
 _Static_assert(ORIOR_EXACT_LIMBS >= ENGINE_RESIDUAL_LIMBS,
-               "the exact type must be at least as wide as the residual it is asked about");
+               "the exact type must be at least as wide as the residual it is queried about");
 _Static_assert(ORIOR_EXACT_LIMBS >= MAX_TREE_KEY_LIMBS,
                "the exact type must be at least as wide as a face's key, the residual and its name");
 #endif
 
-extern OriorExactInteger g_asked_left;
+extern OriorExactInteger g_compare_left;
 
-extern OriorExactInteger g_asked_right;
+extern OriorExactInteger g_compare_right;
 
-void max_tree_ask_ready(void);
+void max_tree_compare_ready(void);
 
 int max_tree_selects(const unsigned int *residual, unsigned int voxel);
 

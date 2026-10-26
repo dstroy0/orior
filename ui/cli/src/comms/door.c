@@ -1,16 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // door.c: the frames that go through the door, each the length of its JSON in four bytes, least first, then the JSON;
-// and the regions a frame hands over: what its transfer says of one, and one taken from what a transfer says
+// and the regions a frame hands over: what its transfer describes of one, and one taken from what a transfer describes
 #include "../servers/lsp.h"
 #include "door_internal.h"
 
-int cli_door_frame_read(CliDoorEnd *end, char *frame, unsigned long long room, unsigned long long *size, CliLine *said)
+int cli_door_frame_read(CliDoorEnd *end, char *frame, unsigned long long room, unsigned long long *size,
+                        VerbaLinea *err_msg)
 {
     unsigned char head[4];
     if (!cli_door_read(end, head, sizeof(head)))
     {
-        cli_line_text(said, "the door's end closed");
+        mmgr_line_put(err_msg, "the door's end closed");
         return CLI_DOOR_FRAME_BROKEN;
     }
     const unsigned long long length = (unsigned long long)head[0] | ((unsigned long long)head[1] << 8u) |
@@ -18,9 +19,9 @@ int cli_door_frame_read(CliDoorEnd *end, char *frame, unsigned long long room, u
     *size = length;
     if (length > CLI_DOOR_MOST)
     {
-        cli_line_text(said, "a frame of ");
-        cli_line_decimal(said, length, 1u);
-        cli_line_text(said, " bytes is past the most a frame takes");
+        mmgr_line_put(err_msg, "a frame of ");
+        mmgr_line_decimal(err_msg, length, 1u);
+        mmgr_line_put(err_msg, " bytes is past the most a frame takes");
         return CLI_DOOR_FRAME_BROKEN;
     }
     if (length <= room)
@@ -37,9 +38,9 @@ int cli_door_frame_read(CliDoorEnd *end, char *frame, unsigned long long room, u
         }
         passed += piece;
     }
-    cli_line_text(said, "a frame of ");
-    cli_line_decimal(said, length, 1u);
-    cli_line_text(said, " bytes is past the room the door reads it in");
+    mmgr_line_put(err_msg, "a frame of ");
+    mmgr_line_decimal(err_msg, length, 1u);
+    mmgr_line_put(err_msg, " bytes is past the room the door reads it in");
     return CLI_DOOR_FRAME_PASSED;
 }
 
@@ -51,34 +52,34 @@ int cli_door_frame_written(CliDoorEnd *end, const char *json, unsigned long long
     return cli_door_written(end, head, sizeof(head), region) && cli_door_written(end, json, size, NULL);
 }
 
-int cli_door_handed(const CliRegion *region, int has_to, unsigned int to, CliLine *out, CliLine *said)
+int cli_door_handed(const CliRegion *region, int has_to, unsigned int to, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    cli_line_text(out, "{\"length\":");
-    cli_line_decimal(out, region->length, 1u);
+    mmgr_line_put(out, "{\"length\":");
+    mmgr_line_decimal(out, region->length, 1u);
 #if defined(_WIN32)
     unsigned long long handle = region->section;
-    if (has_to && !cli_region_given(region, to, &handle, said))
+    if (has_to && !cli_region_given(region, to, &handle, err_msg))
     {
         return 0;
     }
-    cli_line_text(out, ",\"handle\":");
-    cli_line_decimal(out, handle, 1u);
+    mmgr_line_put(out, ",\"handle\":");
+    mmgr_line_decimal(out, handle, 1u);
 #else
     (void)has_to;
     (void)to;
-    (void)said;
+    (void)err_msg;
 #endif
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
     return 1;
 }
 
 int cli_door_handed_over(CliDoorEnd *end, unsigned long long length, unsigned long long handle, int has_from,
-                         unsigned int from, CliRegion *region, CliLine *said)
+                         unsigned int from, CliRegion *region, VerbaLinea *err_msg)
 {
 #if defined(_WIN32)
     (void)end;
-    return has_from ? cli_region_taken(region, from, handle, length, said)
-                    : cli_region_received(region, handle, length, said);
+    return has_from ? cli_region_taken(region, from, handle, length, err_msg)
+                    : cli_region_received(region, handle, length, err_msg);
 #else
     (void)handle;
     (void)has_from;
@@ -86,10 +87,10 @@ int cli_door_handed_over(CliDoorEnd *end, unsigned long long length, unsigned lo
     const int fd = cli_door_descriptor(end);
     if (fd < 0)
     {
-        cli_line_text(said, "a transfer came with no region");
+        mmgr_line_put(err_msg, "a transfer came with no region");
         return 0;
     }
-    return cli_region_received(region, (unsigned long long)fd, length, said);
+    return cli_region_received(region, (unsigned long long)fd, length, err_msg);
 #endif
 }
 
@@ -117,18 +118,18 @@ static int door_number(const char *transfer, unsigned long long size, const char
 }
 
 int cli_door_transfer(const char *transfer, unsigned long long size, unsigned long long *length,
-                      unsigned long long *handle, CliLine *said)
+                      unsigned long long *handle, VerbaLinea *err_msg)
 {
     *handle = 0ull;
     if (!door_number(transfer, size, "length", length))
     {
-        cli_line_text(said, "a transfer names its length");
+        mmgr_line_put(err_msg, "a transfer names its length");
         return 0;
     }
 #if defined(_WIN32)
     if (!door_number(transfer, size, "handle", handle))
     {
-        cli_line_text(said, "a transfer names its handle");
+        mmgr_line_put(err_msg, "a transfer names its handle");
         return 0;
     }
 #endif

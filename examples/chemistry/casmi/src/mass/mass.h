@@ -4,7 +4,7 @@
  * @file mass.h
  * @brief Exact masses: an element's isotopes, a formula's monoisotopic mass and an adduct's ion.
  *
- * A mass is an integer count of femtodaltons, 10^-15 Da. Every isotope NIST lists is held at that
+ * A mass is an integer count of femtodaltons, 10^-15 Da. Every isotope NIST lists is stored at that
  * unit exactly, from the decimal NIST wrote (isotope_table.h, written by isotope_table.c from NIST's text),
  * and the electron is CODATA's, exact at the same unit or one place finer. No element is left out and
  * no set of elements is assumed. A measured m/z is never set against these here: that is the device's,
@@ -41,7 +41,7 @@ typedef struct
 
 /**
  * CODATA 2022 electron mass, 5.485799090441(97) x 10^-4 Da, in 10^-16 Da. It is written past the
- * femtodalton; it is held one place finer, exactly.
+ * femtodalton; it is stored one place finer, exactly.
  */
 #define CASMI_ELECTRON_MASS_2022 5485799090441ll
 

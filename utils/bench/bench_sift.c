@@ -204,12 +204,12 @@ static void fill_random_costs(void)
     unsigned drawn = SHA256_BYTES;
     uint64_t block = 0u;
 
-    for (unsigned slot = 0u; slot < 256u; slot++)
+    for (unsigned at = 0u; at < 256u; at++)
     {
-        s_random_cost[slot] = slot;
+        s_random_cost[at] = at;
     }
 
-    for (unsigned slot = 255u; slot > 0u; slot--)
+    for (unsigned at = 255u; at > 0u; at--)
     {
         if (drawn == SHA256_BYTES)
         {
@@ -222,12 +222,12 @@ static void fill_random_costs(void)
             block++;
         }
 
-        const unsigned pick = (unsigned)digest[drawn] % (slot + 1u);
-        const unsigned held = s_random_cost[slot];
+        const unsigned pick = (unsigned)digest[drawn] % (at + 1u);
+        const unsigned swapped = s_random_cost[at];
 
         drawn++;
-        s_random_cost[slot] = s_random_cost[pick];
-        s_random_cost[pick] = held;
+        s_random_cost[at] = s_random_cost[pick];
+        s_random_cost[pick] = swapped;
     }
 }
 
@@ -512,9 +512,9 @@ static void report_invariant(const char *name, const uint8_t *corpus, size_t cor
             samples++;
         }
 
-        printf("ancorae_invariant,%s,%s,%u,%u,%u,%u,%u,%u,%s\n", name, policy_name(policy),
-               (unsigned)needle_len, count, (unsigned)corpus_len, samples, checked, error,
-               (checked == 0u) ? "none" : ((error == 0u) ? "hold" : "BROKEN"));
+        printf("ancorae_invariant,%s,%s,%u,%u,%u,%u,%u,%u,%s\n", name, policy_name(policy), (unsigned)needle_len, count,
+               (unsigned)corpus_len, samples, checked, error,
+               (checked == 0u) ? "none" : ((error == 0u) ? "pass" : "BROKEN"));
     }
 }
 
@@ -642,15 +642,15 @@ static void report_domain(const char *name, const uint8_t *corpus, size_t corpus
     }
     for (unsigned outer = 1u; outer < carried; outer++)
     {
-        const double held = shares[outer];
+        const double outer_share = shares[outer];
         unsigned inner = outer;
 
-        while ((inner > 0u) && (shares[inner - 1u] > held))
+        while ((inner > 0u) && (shares[inner - 1u] > outer_share))
         {
             shares[inner] = shares[inner - 1u];
             inner--;
         }
-        shares[inner] = held;
+        shares[inner] = outer_share;
     }
 
     double expected_min = 0.0;
@@ -772,9 +772,9 @@ static void report_widths(const char *name, const uint8_t *corpus, size_t corpus
             for (unsigned step = 0u; step < width; step++)
             {
                 const size_t at = bit + step;
-                const unsigned held = (corpus[at / 8u] >> (7u - (at % 8u))) & 1u;
+                const unsigned corpus_bit = (corpus[at / 8u] >> (7u - (at % 8u))) & 1u;
 
-                symbol = (symbol << 1) | held;
+                symbol = (symbol << 1) | corpus_bit;
             }
             s_width_counts[symbol]++;
             drawn++;

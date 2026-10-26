@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // latex_test.c: the LaTeX preview's check: the engine is the one the file names, else the one its packages need; a
-// plain name is kept and any other made as preview; the pages share one set of glyphs and each id is the window's own;
-// SyncTeX's boxes are read in points with the lines that set them; the log's errors are read with their files and
+// plain name is retained and any other made as preview; the pages share one set of glyphs and each id is the window's
+// own; SyncTeX's boxes are read in points with the lines that set them; the log's errors are read with their files and
 // lines; and a file is made into pages with its lines placed, a failed one giving its errors
 #include "../../../../../ui/cli/src/editor/latex.h"
 #include "../../../../../ui/cli/src/editor/latex_internal.h"
@@ -23,7 +23,7 @@ static void latex_engine(const char *text, const char *wanted, const char *what)
 // the job `file` is made under, checked against `wanted`
 static void latex_job(const char *file, const char *wanted, const char *what)
 {
-    char job[CLI_PATH_LONGEST];
+    char job[CLI_PATH_MAX_LEN];
     cli_latex_job_of(file, job);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = job, .other = wanted, .cap = CLI_CELLS_POOL}), what);
 }
@@ -36,21 +36,21 @@ static void latex_pages(void)
         "viewBox=\"0 0 595.276 841.89\">\n<defs>\n<g id=\"glyph-0-0\"><path d=\"M 0 0\"/></g>\n</defs>\n<pageSet>\n"
         "<page>\n<use xlink:href=\"#glyph-0-0\" x=\"1\" y=\"2\"/>\n</page>\n<page>\n<g clip-path=\"url(#clip-1)\"/>\n"
         "</page>\n</pageSet>\n</svg>\n";
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_line_character(&out, '{');
-    cli_check(cli_latex_held(), "a make's room is taken");
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    mmgr_line_ch(&out, '{');
+    cli_check(cli_latex_locked(), "a make's room is taken");
     cli_check(cli_tex_pages_written(s_svg, sizeof(s_svg) - 1u, &out), "the pages are written");
-    cli_line_character(&out, '}');
+    mmgr_line_ch(&out, '}');
     unsigned int root = CLI_JSON_NONE;
     const CliJson *json = cli_check_parsed(s_out, out.at, &root);
     const unsigned int pages = cli_json_member(json, root, "pages");
     const unsigned int first = cli_json_item(json, pages, 0u);
     char size[64];
-    CliLine line = {size, sizeof(size), 0ull};
+    VerbaLinea line = {size, sizeof(size), 0ull};
     cli_json_write(json, cli_json_member(json, first, "width"), &line, 0u, 0);
-    cli_line_character(&line, ' ');
+    mmgr_line_ch(&line, ' ');
     cli_json_write(json, cli_json_member(json, first, "height"), &line, 0u, 0);
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     cli_check(cellul.find(&(CatenaFinitaCfg){.src = cli_check_member_text(root, "defs"),
                                              .cap = CLI_CELLS_POOL,
                                              .other = "id=\"tex-glyph-0-0\"",
@@ -70,10 +70,10 @@ static void latex_pages(void)
                                              .other_cap = CLI_CELLS_POOL}) != NULL,
               "in every reference");
     out.at = 0ull;
-    cli_line_character(&out, '{');
+    mmgr_line_ch(&out, '{');
     (void)cli_tex_pages_written("<svg width=\"10\" height=\"20\"><defs></defs><g/></svg>", 52ull, &out);
     cli_latex_released();
-    cli_line_character(&out, '}');
+    mmgr_line_ch(&out, '}');
     json = cli_check_parsed(s_out, out.at, &root);
     const unsigned int one = cli_json_member(json, root, "pages");
     cli_check((json->node[one].count == 1u) &&
@@ -99,7 +99,7 @@ static long long latex_whole(const CliJson *json, unsigned int node)
 static double latex_number(const CliJson *json, unsigned int node, const char *name)
 {
     char text[64];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     cli_json_write(json, cli_json_member(json, node, name), &line, 0u, 0);
     double value = 0.0;
     (void)cli_tex_double(text, line.at, &value);
@@ -119,8 +119,8 @@ static void latex_boxes(void)
         "22609920,647495,0\nx3,1:9330359,8865054\n)\n}2\n";
     CliTexNames names;
     cli_tex_names_made(&names, "C:/tree", "C:/made", "paper", "doc/paper.tex");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_latex_held(), "a make's room is taken for its boxes");
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_latex_locked(), "a make's room is taken for its boxes");
     cli_tex_boxes_written(s_sync, sizeof(s_sync) - 1u, &names, &out);
     cli_latex_released();
     unsigned int boxes = CLI_JSON_NONE;
@@ -162,11 +162,11 @@ static void latex_errors(void)
         "C:/tree/doc/parts/one.tex:3: Missing $ inserted.\nC:/tex/x.sty:40: LaTeX Error: Option "
         "clash.\npaper.tex:12:  ==> Fatal error occurred, no output PDF file produced!\n";
     CliTexNames names;
-    cli_tex_names_made(&names, "C:/tree", "C:/kept/abc", "paper", "doc/paper.tex");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_line_character(&out, '[');
+    cli_tex_names_made(&names, "C:/tree", "C:/store/abc", "paper", "doc/paper.tex");
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    mmgr_line_ch(&out, '[');
     const unsigned int count = cli_tex_errors_written(s_log, sizeof(s_log) - 1u, &names, &out);
-    cli_line_character(&out, ']');
+    mmgr_line_ch(&out, ']');
     cli_check_text(s_out, out.at,
                    "[{\"file\":\"doc/paper.tex\",\"line\":12,\"text\":\"Undefined control sequence.\"},"
                    "{\"file\":\"doc/parts/one.tex\",\"line\":3,\"text\":\"Missing $ inserted.\"},"
@@ -180,26 +180,26 @@ static void latex_make(void)
 {
     static const char s_text[] = "\\documentclass{article}\n\\begin{document}\nThe first page.\n\\newpage\nThe second "
                                  "page.\n\\input{parts/one}\n\\end{document}\n";
-    char root[CLI_PATH_LONGEST];
-    char kept[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char store_dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("latex_make", root);
     cli_full(root, "doc/parts", path);
     (void)query_folder_made(path);
-    cli_full(root, "kept", kept);
+    cli_full(root, "store", store_dir);
     cli_full(root, "doc/parts/one.tex", path);
     (void)query_file_written(path, "Text of the part.\n", 18ull);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    if (!cli_latex_make_in(root, "doc/paper.tex", s_text, sizeof(s_text) - 1u, kept, &out, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    if (!cli_latex_make_in(root, "doc/paper.tex", s_text, sizeof(s_text) - 1u, store_dir, &out, &err_msg))
     {
-        (void)cli_line_closed(&said);
+        (void)mmgr_line_finish(&err_msg);
         cli_check(cellul.find(&(CatenaFinitaCfg){.src = why,
                                                  .cap = CLI_CELLS_POOL,
                                                  .other = "is not found: File, Toolchains",
                                                  .other_cap = CLI_CELLS_POOL}) != NULL,
-                  "a make with no engine says so");
+                  "a make with no engine reports so");
         return;
     }
     unsigned int made = CLI_JSON_NONE;
@@ -235,14 +235,14 @@ static void latex_make(void)
     cli_check(line_three && line_five, "each line is placed on its page");
     cli_check(part, "the part input from beside the file");
     cli_full(root, "doc/paper.pdf", path);
-    char aux[CLI_PATH_LONGEST];
+    char aux[CLI_PATH_MAX_LEN];
     cli_full(root, "doc/paper.aux", aux);
     cli_check(!query_is_file(path) && !query_is_file(aux), "nothing written into the tree");
     static const char s_failing[] = "\\documentclass{article}\n\\begin{document}\n\\nosuchcommand\n\\end{document}\n";
     cli_full(root, "doc/paper.tex", path);
     (void)query_file_written(path, s_text, sizeof(s_text) - 1u);
     out.at = 0ull;
-    (void)cli_latex_make_in(root, "doc/paper.tex", s_failing, sizeof(s_failing) - 1u, kept, &out, &said);
+    (void)cli_latex_make_in(root, "doc/paper.tex", s_failing, sizeof(s_failing) - 1u, store_dir, &out, &err_msg);
     json = cli_check_parsed(s_out, out.at, &made);
     const unsigned int error = cli_json_item(json, cli_json_member(json, made, "errors"), 0u);
     cli_check((json->node[cli_json_member(json, made, "pages")].count == 0u) &&
@@ -254,6 +254,7 @@ static void latex_make(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     latex_engine("% !TEX program = xelatex\n\\documentclass{article}", "xelatex", "the engine the file names");
     latex_engine("%!TeX TS-program = LuaLaTeX\n", "lualatex", "in either way it is written");
     latex_engine("\\documentclass{article}\n\\usepackage[no-math]{fontspec}", "lualatex", "fontspec needs LuaLaTeX");
@@ -262,7 +263,7 @@ int main(void)
                  "a package in a comment is none");
     latex_engine("\\documentclass{article}\n% !TEX program = xelatex", "pdflatex",
                  "a line after the first command names nothing");
-    latex_job("a/paper_2-b.tex", "paper_2-b", "a plain name is kept");
+    latex_job("a/paper_2-b.tex", "paper_2-b", "a plain name is retained");
     latex_job("a/my paper.tex", "preview", "and any other made as preview");
     latex_job("a/\xC3\xA9.tex", "preview", "a name past ASCII too");
     latex_pages();

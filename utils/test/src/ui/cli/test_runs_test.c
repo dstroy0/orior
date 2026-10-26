@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_runs_test.c: the test runs' check: a run is spread by whole files, the largest first; verbose reports are read;
-// a report gives each failure its message and line; a run tells each result, its failures and its coverage; and
+// a report gives each failure its message and line; a run reports each result, its failures and its coverage; and
 // unittest's failures are read
 #include "../../../../../ui/cli/src/tests/test_runs.h"
 #include "../../../../../ui/cli/src/tests/test_runs_internal.h"
@@ -10,33 +10,33 @@
 static CliTestRun s_run = {.lock = CLI_LOCK_INIT, .wake = CLI_WAKE_INIT};
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
-static char s_told[1u << 20u];
-static unsigned long long s_told_at;
+static char s_events[1u << 20u];
+static unsigned long long s_events_at;
 static char s_seen[1u << 20u];
 
-// what a run tells kept, a line each
-static void runs_told(void *context, const char *heard, unsigned long long size)
+// what a run reports recorded, a line each
+static void runs_event_capture(void *context, const char *event, unsigned long long size)
 {
     (void)context;
     cli_lock_take(&s_lock);
-    if (s_told_at + size + 1ull < sizeof(s_told))
+    if (s_events_at + size + 1ull < sizeof(s_events))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_told + s_told_at, .src = heard, .bytes = size});
-        s_told[s_told_at + size] = '\n';
-        s_told_at += size + 1ull;
+        memor.cpy(&(MemoriaCfg){.dst = s_events + s_events_at, .src = event, .bytes = size});
+        s_events[s_events_at + size] = '\n';
+        s_events_at += size + 1ull;
     }
     cli_wake_all(&s_wake);
     cli_lock_give(&s_lock);
 }
 
-// the first line told of `kind`, and of the result `id` where it is not NULL, after the `from`th line: its node in the
-// shared tree, CLI_JSON_NONE where none is; how many lines there are into `lines`
+// the first line reported of `kind`, and of the result `id` where it is not NULL, after the `from`th line: its node in
+// the shared tree, CLI_JSON_NONE where none is; how many lines there are into `lines`
 static unsigned int runs_line(const char *kind, const char *id, unsigned int from, const CliJson **json,
                               unsigned int *lines)
 {
     cli_lock_take(&s_lock);
-    const unsigned long long size = s_told_at;
-    memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_told, .bytes = size});
+    const unsigned long long size = s_events_at;
+    memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_events, .bytes = size});
     cli_lock_give(&s_lock);
     unsigned int index = 0u;
     unsigned int found = CLI_JSON_NONE;
@@ -108,7 +108,7 @@ static void runs_shares(void)
     cli_test_shares(&s_run, 5u, 8u);
     cli_check(s_run.shares == 3u, "no more shares than files");
     cli_test_shares(&s_run, 5u, 1u);
-    cli_check(s_run.shares == 1u, "and one where one is asked");
+    cli_check(s_run.shares == 1u, "and one where one is requested");
 }
 
 // whether pytest's verbose line names `id` with `outcome`
@@ -130,7 +130,7 @@ static int runs_pytest(const char *line, const char *id, const char *outcome)
 // whether unittest's verbose line names `id` with `outcome`
 static int runs_unittest(const char *line, const char *id, const char *outcome)
 {
-    char read_id[CLI_PATH_LONGEST];
+    char read_id[CLI_PATH_MAX_LEN];
     const char *read = NULL;
     return cli_test_unittest_line(line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}), read_id,
                                   sizeof(read_id), &read) &&
@@ -172,13 +172,13 @@ static void runs_reports(void)
         "<testcase classname=\"tests.test_a.TestX\" name=\"test_skip\" file=\"tests/test_a.py\" line=\"14\" "
         "time=\"0\"><skipped type=\"pytest.skip\" message=\"not here\">skip</skipped></testcase></testsuite>"
         "</testsuites>";
-    s_run.tell = (CliTell){runs_told, NULL};
+    s_run.sink = (CliJsonSink){runs_event_capture, NULL};
     memor.cpy(&(MemoriaCfg){.dst = s_run.root,
                             .src = "D:/t",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "D:/t", .cap = CLI_CELLS_POOL}) + 1u});
     s_run.workers[0].run = &s_run;
-    s_told_at = 0ull;
-    cli_test_report_told(&s_run.workers[0], s_xml, sizeof(s_xml) - 1u);
+    s_events_at = 0ull;
+    cli_test_report_emitted(&s_run.workers[0], s_xml, sizeof(s_xml) - 1u);
     const CliJson *json = NULL;
     unsigned int lines = 0u;
     unsigned int one = runs_line("result", "tests/test_a.py::test_one", 0u, &json, &lines);
@@ -192,7 +192,7 @@ static void runs_reports(void)
     one = runs_line("result", "tests/test_a.py::TestX::test_two", 0u, &json, &lines);
     outcome = cli_json_member(json, one, "outcome");
     char seconds[32];
-    CliLine line = {seconds, sizeof(seconds), 0ull};
+    VerbaLinea line = {seconds, sizeof(seconds), 0ull};
     cli_json_write(json, cli_json_member(json, outcome, "seconds"), &line, 0u, 0);
     cli_check((cellul.eq(&(CatenaFinitaCfg){
                   .src = cli_check_member_text(outcome, "outcome"), .other = "passed", .cap = CLI_CELLS_POOL})) &&
@@ -204,9 +204,9 @@ static void runs_reports(void)
                   .src = cli_check_member_text(outcome, "outcome"), .other = "skipped", .cap = CLI_CELLS_POOL})) &&
                   (runs_whole(json, outcome, "line") == 14ll),
               "and one skipped its line");
-    cli_check((g_cli_test_report_cells.holds == 0ull) && (g_cli_test_report_cells.hw != 0ull) &&
+    cli_check((g_cli_test_report_cells.in_use == 0ull) && (g_cli_test_report_cells.hw != 0ull) &&
                   (g_cli_test_report_cells.hw < (sizeof(s_xml) * 4u)),
-              "a report's tags and texts are held in cells sized to the report, and given back");
+              "a report's tags and texts are stored in cells sized to the report, and given back");
     static const char s_failures[] =
         "test_two (tests.test_a.Checks.test_two) ... FAIL\n\n"
         "======================================================================\n"
@@ -215,19 +215,19 @@ static void runs_reports(void)
         "Traceback (most recent call last):\n  File \"D:\\t\\tests\\test_a.py\", line 7, in test_two\n"
         "    self.assertEqual(1, 2)\nAssertionError: 1 != 2\n\n"
         "----------------------------------------------------------------------\nRan 1 test in 0.001s\n";
-    s_told_at = 0ull;
-    cli_test_unittest_failures_told(&s_run.workers[0], s_failures, sizeof(s_failures) - 1u);
+    s_events_at = 0ull;
+    cli_test_unittest_failures_emitted(&s_run.workers[0], s_failures, sizeof(s_failures) - 1u);
     one = runs_line("result", "tests/test_a.py::Checks::test_two", 0u, &json, &lines);
     cli_check((lines == 1u) && (runs_whole(json, cli_json_member(json, one, "outcome"), "line") == 6ll),
               "unittest's failures are read");
 }
 
-// a run tells each result, its failures and its coverage
+// a run reports each result, its failures and its coverage
 static void runs_python(void)
 {
-    char python[CLI_PATH_LONGEST];
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char python[CLI_PATH_MAX_LEN];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("test_runs", dir);
     cli_full(dir, "tests", path);
     (void)query_folder_made(path);
@@ -252,10 +252,11 @@ static void runs_python(void)
     }
     static const char *const s_given[2] = {"tests/test_a.py", "tests/test_b.py"};
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long run = 0ull;
-    s_told_at = 0ull;
-    cli_check(cli_test_runs_start(dir, s_given, 2u, 1, 1, (CliTell){runs_told, NULL}, &run, &said), "the run starts");
+    s_events_at = 0ull;
+    cli_check(cli_test_runs_start(dir, s_given, 2u, 1, 1, (CliJsonSink){runs_event_capture, NULL}, &run, &err_msg),
+              "the run starts");
     const CliJson *json = NULL;
     unsigned int lines = 0u;
     const unsigned long long until = cli_clock_milliseconds() + 120000ull;
@@ -296,7 +297,7 @@ static void runs_python(void)
         cellul.eq(&(CatenaFinitaCfg){.src = cli_check_member_text(cli_json_member(json, found, "outcome"), "outcome"),
                                      .other = "skipped",
                                      .cap = CLI_CELLS_POOL}),
-        "a test skipped is told so");
+        "a test skipped is reported so");
     found = runs_line("coverage", NULL, 0u, &json, &lines);
     unsigned int shapes = CLI_JSON_NONE;
     const unsigned int files = cli_json_member(json, found, "files");
@@ -327,6 +328,7 @@ static void runs_python(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     runs_shares();
     runs_verbose();
     runs_reports();

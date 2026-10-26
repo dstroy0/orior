@@ -16,7 +16,7 @@
 #define TESSERA_SELF_ADAPTERS 16u
 #define TESSERA_SELF_LOCAL_SEGMENTS 0
 #define TESSERA_SELF_CORES 64u
-#define TESSERA_SELF_KEPT_CORES 2ull
+#define TESSERA_SELF_RESERVED_CORES 2ull
 
 // dxcore's kernel-mode thunks, laid out as d3dkmthk.h lays them out
 typedef struct
@@ -156,7 +156,7 @@ static unsigned int tessera_self_cores(unsigned long long cores[TESSERA_SELF_COR
         }
         if ((core->Relationship == RelationProcessorCore) && (core->Processor.GroupMask[0].Group == 0u))
         {
-            // a group's affinity is the machine word, which an unsigned long long holds whole
+            // a group's affinity is the machine word, which an unsigned long long represents whole
             cores[count] = (unsigned long long)core->Processor.GroupMask[0].Mask;
             count += 1u;
         }
@@ -212,23 +212,23 @@ unsigned long long tessera_self_host_mask(void)
     {
         return 0ull;
     }
-    unsigned long long kept = TESSERA_SELF_KEPT_CORES;
-    const char *const named = getenv("TESSERA_HOST_KEPT_CORES");
+    unsigned long long reserved = TESSERA_SELF_RESERVED_CORES;
+    const char *const named = getenv("TESSERA_HOST_RESERVED_CORES");
     if ((named != NULL) && (named[0] != '\0'))
     {
         char *end = NULL;
         const unsigned long long value = strtoull(named, &end, 10);
-        kept = (*end == '\0') ? value : kept;
+        reserved = (*end == '\0') ? value : reserved;
     }
     // one core at least is always left to the jobs
-    kept = (kept < count) ? kept : (count - 1u);
+    reserved = (reserved < count) ? reserved : (count - 1u);
     unsigned long long mask = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         mask |= cores[at];
     }
-    // the kept cores are the last ones, by their lowest logical processor
-    for (unsigned long long taken = 0ull; taken < kept; taken += 1ull)
+    // the reserved cores are the last ones, by their lowest logical processor
+    for (unsigned long long taken = 0ull; taken < reserved; taken += 1ull)
     {
         unsigned int last = 0u;
         unsigned long long last_lowest = 0ull;

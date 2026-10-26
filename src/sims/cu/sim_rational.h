@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// Exact rationals on the exact integer, for the sims that carry values no word holds. Every value is kept in lowest
+// Exact rationals on the exact integer, for the sims that carry values no word fits. Every value is stored in lowest
 // terms: by a word gcd while both parts fit below 2^62, and wider by the exact integer's gcd and exact division. An
 // operation that outgrows the exact integer's width marks the run, and the sim reports it as a failed check.
 #ifndef SIM_RATIONAL_H
@@ -191,7 +191,7 @@ static inline int sim_rational_equal(SimRational left, SimRational right)
 }
 
 // a reduced fraction when it fits a word; wider, the exact value truncated to 12 places
-static inline void sim_rational_print(ScripturaLine *line, SimRational value)
+static inline void sim_rational_print(VerbaLinea *line, SimRational value)
 {
     long long numerator = 0ll;
     long long denominator = 1ll;
@@ -207,12 +207,12 @@ static inline void sim_rational_print(ScripturaLine *line, SimRational value)
         numerator /= common;
         denominator /= common;
     }
-    scriptura_signed(line, numerator);
+    mmgr_line_decimal_signed(line, numerator);
     if (denominator != 1ll)
     {
-        scriptura_character(line, '/');
-        // the denominator is kept positive
-        scriptura_decimal(line, (unsigned long long)denominator, 1u);
+        mmgr_line_ch(line, '/');
+        // the denominator stays positive
+        mmgr_line_decimal(line, (unsigned long long)denominator, 1u);
     }
 }
 

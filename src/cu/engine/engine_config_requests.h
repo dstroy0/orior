@@ -14,7 +14,7 @@ extern "C"
 
 #define ENGINE_RESIDUAL_LIMBS 9u
 
-// the spacings a spaced pair takes, 2^j for every j below this: each one an unsigned int holds
+// the spacings a spaced pair takes, 2^j for every j below this: each one an unsigned int represents
 #define ENGINE_SPACINGS 32u
 
     typedef struct
@@ -86,8 +86,8 @@ extern "C"
         // the variance of an order 2 · 4^j: a smooth of wide variance costs bits in the count of its pairs.
         unsigned int smooth_spaced[ENGINE_AXES][ENGINE_SPACINGS];
         unsigned int background_spaced[ENGINE_AXES][ENGINE_SPACINGS];
-        // the limbs a residual lane is held in, from 1 to ENGINE_RESIDUAL_LIMBS; 0 holds it in ENGINE_RESIDUAL_LIMBS.
-        // engine_residual_limbs gives the fewest that hold the request's residual
+        // the limbs a residual lane is stored in, from 1 to ENGINE_RESIDUAL_LIMBS; 0 stores it in
+        // ENGINE_RESIDUAL_LIMBS. engine_residual_limbs gives the fewest that represent the request's residual
         unsigned int limbs;
     } EngineResidualRequest;
 
@@ -116,11 +116,11 @@ extern "C"
         unsigned char bytes[ENGINE_SIGNUM_BYTES];
     } EngineSignum;
 
-    // A program resident on the device keeps a block: what it is, what the scheduler tells it, where it stands and how
-    // it left. The program runs on its own, checks in to its block as it goes, and yields before its time to live runs
-    // out, leaving in the block all a launch needs to resume it. The scheduler writes only the command; the program
-    // writes the rest while a launch holds the block, and the checksum seals the block whenever none does. Every word
-    // is 64 bits, a device address among them. The host and the device read one layout.
+    // A program resident on the device maintains a block: what it is, what the scheduler sends it, where it stands and
+    // how it left. The program runs on its own, checks in to its block as it goes, and yields before its time to live
+    // runs out, leaving in the block all a launch needs to resume it. The scheduler writes only the command; the
+    // program writes the rest while a launch references the block, and the checksum seals the block whenever none does.
+    // Every word is 64 bits, a device address among them. The host and the device read one layout.
     typedef enum
     {
         ENGINE_PROGRAM_RUN = 0,
@@ -129,8 +129,8 @@ extern "C"
     } EngineProgramCommand;
 
     // where a program stands: running, yielded to be resumed, waiting for its grant, or one of its exits. A question's
-    // exits are true, false, malformed (it built no lattice) and answered (the answer table held it); a sweep's is
-    // done, its records written. A waiting program's grant is more than the scheduler holds free, and it runs once the
+    // exits are true, false, malformed (it built no lattice) and answered (the answer table contained it); a sweep's is
+    // done, its records written. A waiting program's grant is more than the scheduler has free, and it runs once the
     // space frees
     typedef enum
     {
@@ -152,13 +152,13 @@ extern "C"
 
     typedef struct
     {
-        // what it is: its signum, the run it was laid out for, and the launch that holds it
+        // what it is: its signum, the run it was laid out for, and the launch that runs it
         EngineSignum signature;
         unsigned long long generation;
         unsigned long long owner;
-        // what the scheduler tells it (EngineProgramCommand), and the grant it is held to: registers a thread, threads
-        // a launch, the local frame's device bytes across them, and the shared memory each thread block holds its
-        // registers in (the scheduler's measure: exact, from the program's widths)
+        // what the scheduler sends it (EngineProgramCommand), and the grant it is limited to: registers a thread,
+        // threads a launch, the local frame's device bytes across them, and the shared memory each thread block uses
+        // its registers in (the scheduler's measure: exact, from the program's widths)
         unsigned long long command;
         unsigned long long grant_registers;
         unsigned long long grant_threads;
@@ -172,7 +172,7 @@ extern "C"
         unsigned long long span;
         unsigned long long saved;
         // its clock, in the device timer's nanoseconds: the time a launch runs before it yields, the check-in the
-        // scheduler holds it to, this launch's start, the time across every launch of the run and this launch's own
+        // scheduler limits it to, this launch's start, the time across every launch of the run and this launch's own
         unsigned long long ttl;
         unsigned long long wdt;
         unsigned long long launch_time;
@@ -184,7 +184,7 @@ extern "C"
         unsigned long long launches;
         unsigned long long lanes;
         unsigned long long error;
-        // how it failed: the engine module and the site, as EngineError holds them
+        // how it failed: the engine module and the site, as EngineError records them
         unsigned long long error_module;
         unsigned long long error_site;
         // its wiring: the blocks it reads, the blocks that read it, each link's words produced and consumed, its result
@@ -300,7 +300,7 @@ extern "C"
     // one item of `items` independent ones: 1 where it is done, 0 where it failed
     typedef int (*EngineEachWork)(void *context, unsigned long long item);
 
-    // runs `work` on every item, on as many workers as the process holds processors ($TESSERA_RUN_PROCESSORS, 1 where
+    // runs `work` on every item, on as many workers as the process has processors ($TESSERA_RUN_PROCESSORS, 1 where
     // it is not set), and returns 1 where every item is done. Once an item fails no item is started after it
     typedef int (*EngineEach)(unsigned long long items, EngineEachWork work, void *context);
 
@@ -350,7 +350,7 @@ extern "C"
         char *names;
         unsigned long long *member_crc;
         unsigned long long *member_bytes;
-        unsigned long long *pixel_kept;
+        unsigned long long *pixel_stored;
         unsigned long long lane_offset;
     } EngineSideBytes;
 

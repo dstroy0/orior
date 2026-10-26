@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// rank_match.cu: the match kept on the device. A chunk's lanes, each a query peak against a reference peak, have their
-// index built on the device, the match program run over them, the lanes whose kept output is 1 counted and ordered
-// after the others by the record machine's sum and sort, and only those lanes' numbers and records brought back
+// rank_match.cu: the match retained on the device. A chunk's lanes, each a query peak against a reference peak, have
+// their index built on the device, the match program run over them, the lanes whose matched output is 1 counted and
+// ordered after the others by the record machine's sum and sort, and only those lanes' numbers and records brought back
 #include "rank_internal.h"
 
 #include <cuda_runtime.h>
@@ -11,7 +11,7 @@
 
 #define RANK_MATCH_THREADS 256u
 
-// Lane l of a chunk: the chunk's spectrum s whose lanes hold it, lane_first[s] <= l < lane_first[s + 1], and its
+// Lane l of a chunk: the chunk's spectrum s whose lanes contain it, lane_first[s] <= l < lane_first[s + 1], and its
 // query peak q and reference peak p, l - lane_first[s] = q peaks[s] + p. Its index is the query's peak q, the chunk's
 // peak atom_first[s] + p, and the mode's envelope
 __global__ static void rank_match_index_kernel(const unsigned long long *lane_first, const unsigned int *atom_first,
@@ -80,7 +80,7 @@ void rank_match_close(RankMatchDevice *device)
     cudaFree(device->index);
     cudaFree(device->out);
     cudaFree(device->order);
-    cudaFree(device->kept);
+    cudaFree(device->matched);
     memset(device, 0, sizeof(*device));
 }
 
@@ -92,7 +92,7 @@ int rank_match_query(RankMatchDevice *device, const unsigned int *atoms, size_t 
 }
 
 int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMatchChunk *chunk,
-                     std::vector<unsigned int> *kept_lanes, std::vector<unsigned int> *kept_records,
+                     std::vector<unsigned int> *matched_lanes, std::vector<unsigned int> *matched_records,
                      unsigned long long *microseconds)
 {
     const RankMachine *const machine = chunk->machine;
@@ -137,33 +137,35 @@ int rank_match_chunk(SimResults *results, RankMatchDevice *device, const RankMat
                                            &error};
         ok = cycle_record_run(&run) != CYCLE_ERROR;
     }
-    // the kept lanes' count, then the lanes in order of their kept output, each run of equal outputs in lane order:
-    // the last `kept` of the order are the kept lanes, least first
+    // the retained lanes' count, then the lanes in order of their retained output, each run of equal outputs in lane
+    // order: the last `matched` of the order are the retained lanes, least first
     unsigned int sums[2] = {0u, 0u};
     if (ok)
     {
-        const CycleRecordSumRequest count = {device->out, lanes, lanes, out_limbs, chunk->kept.offset, chunk->kept.bits,
-                                             2u,          sums,  &error};
+        const CycleRecordSumRequest count = {device->out,         lanes, lanes, out_limbs, chunk->matched.offset,
+                                             chunk->matched.bits, 2u,    sums,  &error};
         ok = cycle_record_sum(&count) != CYCLE_ERROR;
     }
-    const unsigned long long kept = ((unsigned long long)sums[1] << 32u) | sums[0];
-    kept_lanes->resize((size_t)kept);
-    kept_records->resize((size_t)(kept * out_limbs));
-    if (ok && (kept != 0ull))
+    const unsigned long long matched_count = ((unsigned long long)sums[1] << 32u) | sums[0];
+    matched_lanes->resize((size_t)matched_count);
+    matched_records->resize((size_t)(matched_count * out_limbs));
+    if (ok && (matched_count != 0ull))
     {
-        const CycleRecordSortRequest sort = {device->out, lanes, lanes, out_limbs, chunk->kept.offset, chunk->kept.bits,
-                                             device->order, &error};
+        const CycleRecordSortRequest sort = {
+            device->out, lanes, lanes, out_limbs, chunk->matched.offset, chunk->matched.bits, device->order, &error};
         ok = (cycle_record_sort(&sort) != CYCLE_ERROR) &&
-             rank_device_room((void **)&device->kept, &device->kept_room, (size_t)(kept * out_limbs) * sizeof(unsigned int));
-        const unsigned int *const tail = device->order + (lanes - kept);
+             rank_device_room((void **)&device->matched, &device->matched_room,
+                              (size_t)(matched_count * out_limbs) * sizeof(unsigned int));
+        const unsigned int *const tail = device->order + (lanes - matched_count);
         if (ok)
         {
-            rank_match_gather_kernel<<<rank_match_blocks(kept * out_limbs), RANK_MATCH_THREADS>>>(
-                device->out, out_limbs, tail, kept, device->kept);
+            rank_match_gather_kernel<<<rank_match_blocks(matched_count * out_limbs), RANK_MATCH_THREADS>>>(
+                device->out, out_limbs, tail, matched_count, device->matched);
             ok = (cudaGetLastError() == cudaSuccess) &&
-                 (cudaMemcpy(kept_lanes->data(), tail, (size_t)kept * sizeof(unsigned int), cudaMemcpyDeviceToHost) ==
-                  cudaSuccess) &&
-                 (cudaMemcpy(kept_records->data(), device->kept, (size_t)(kept * out_limbs) * sizeof(unsigned int),
+                 (cudaMemcpy(matched_lanes->data(), tail, (size_t)matched_count * sizeof(unsigned int),
+                             cudaMemcpyDeviceToHost) == cudaSuccess) &&
+                 (cudaMemcpy(matched_records->data(), device->matched,
+                             (size_t)(matched_count * out_limbs) * sizeof(unsigned int),
                              cudaMemcpyDeviceToHost) == cudaSuccess);
         }
     }

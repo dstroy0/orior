@@ -32,12 +32,12 @@ static OmegaComputerFate omega_computer_direct(const std::vector<int> &program, 
     return omega_computer_rewrite(normal, steps, tokens, taken);
 }
 
-static void omega_computer_binary(ScripturaLine *line, unsigned long long numerator, unsigned int bits)
+static void omega_computer_binary(VerbaLinea *line, unsigned long long numerator, unsigned int bits)
 {
-    scriptura_text(line, "0.");
+    mmgr_line_put(line, "0.");
     for (unsigned int bit = bits; bit > 0u; bit -= 1u)
     {
-        scriptura_character(line, (((numerator >> (bit - 1u)) & 1ull) != 0ull) ? '1' : '0');
+        mmgr_line_ch(line, (((numerator >> (bit - 1u)) & 1ull) != 0ull) ? '1' : '0');
     }
 }
 
@@ -99,7 +99,7 @@ int main(int count, char **arguments)
         ((count < 4) || omega_computer_request(arguments[3], 1ull, 1ull << 40u, &budget)) && (count <= 4);
     if (understood == 0)
     {
-        scriptura_text(&results.line, "  usage: omega_computer [L, 2 to 40] [depth, 1 to 8] [steps a run]\n");
+        mmgr_line_put(&results.line, "  usage: omega_computer [L, 2 to 40] [depth, 1 to 8] [steps a run]\n");
         sim_check(&results, 0, "the request names its length, its depth and its steps");
         return sim_close(&results, "omega computer");
     }
@@ -118,13 +118,13 @@ int main(int count, char **arguments)
     const std::string delimit_code = s_omega_computer_delimit;
     const int delimit_closed =
         omega_computer_parse(delimit_code, &delimit_at, 0, delimit) && (delimit_at == delimit_code.size());
-    scriptura_text(&results.line, "  U, Tromp's universal machine: ");
-    scriptura_decimal(&results.line, universal_code.size(), 1u);
-    scriptura_text(&results.line, " bits, ");
-    scriptura_decimal(&results.line, universal.size(), 1u);
-    scriptura_text(&results.line, " tokens; delimit: ");
-    scriptura_decimal(&results.line, delimit_code.size(), 1u);
-    scriptura_text(&results.line, " bits\n");
+    mmgr_line_put(&results.line, "  U, Tromp's universal machine: ");
+    mmgr_line_decimal(&results.line, universal_code.size(), 1u);
+    mmgr_line_put(&results.line, " bits, ");
+    mmgr_line_decimal(&results.line, universal.size(), 1u);
+    mmgr_line_put(&results.line, " tokens; delimit: ");
+    mmgr_line_decimal(&results.line, delimit_code.size(), 1u);
+    mmgr_line_put(&results.line, " bits\n");
     sim_check(&results,
               universal_closed && (universal_code.size() == 190u) && (omega_computer_code(universal) == universal_code),
               "U is one closed term of 190 bits, and its code reads back to itself");
@@ -136,7 +136,7 @@ int main(int count, char **arguments)
     omega_computer_list_tokens(s_omega_computer_delimit_output, expected);
     std::vector<int> normal;
     int tromp_ok = delimit_closed;
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "  Tromp's test, delimit then 1111000111001: depth, fate, beta steps, and the list\n");
     for (unsigned int depth = 0u; depth <= depths; depth += 1u)
     {
@@ -144,14 +144,14 @@ int main(int count, char **arguments)
             omega_computer_run(&machine, delimit, s_omega_computer_delimit_input, depth, universal_code, normal);
         const int ok = (fate == OMEGA_COMPUTER_HALTS) && (normal == expected);
         tromp_ok = tromp_ok && ok;
-        scriptura_text(&results.line, "    ");
-        scriptura_decimal(&results.line, depth, 1u);
-        scriptura_text(&results.line, (fate == OMEGA_COMPUTER_HALTS) ? "  halts  " : "  does not halt  ");
-        scriptura_decimal(&results.line, machine.steps, 1u);
-        scriptura_text(&results.line, "  cells ");
-        scriptura_decimal(&results.line, machine.thunks.size() + machine.environments.size() + machine.spines.size(),
+        mmgr_line_put(&results.line, "    ");
+        mmgr_line_decimal(&results.line, depth, 1u);
+        mmgr_line_put(&results.line, (fate == OMEGA_COMPUTER_HALTS) ? "  halts  " : "  does not halt  ");
+        mmgr_line_decimal(&results.line, machine.steps, 1u);
+        mmgr_line_put(&results.line, "  cells ");
+        mmgr_line_decimal(&results.line, machine.thunks.size() + machine.environments.size() + machine.spines.size(),
                           1u);
-        scriptura_text(&results.line, (ok != 0) ? "  11010\n" : "  NOT 11010\n");
+        mmgr_line_put(&results.line, (ok != 0) ? "  11010\n" : "  NOT 11010\n");
         sim_flush(&results);
     }
     std::vector<int> rewritten;
@@ -159,13 +159,13 @@ int main(int count, char **arguments)
     const OmegaComputerFate delimit_direct =
         omega_computer_direct(delimit, s_omega_computer_delimit_input, 1u << 20u, 1u << 19u, rewritten, &rewrite_taken);
     tromp_ok = tromp_ok && (delimit_direct == OMEGA_COMPUTER_HALTS) && (rewritten == expected);
-    scriptura_text(&results.line, "    the rewriting, directly: fate ");
-    scriptura_decimal(&results.line, (unsigned long long)delimit_direct, 1u);
-    scriptura_text(&results.line, ", ");
-    scriptura_decimal(&results.line, rewrite_taken, 1u);
-    scriptura_text(&results.line, " steps, ");
-    scriptura_decimal(&results.line, rewritten.size(), 1u);
-    scriptura_text(&results.line, " tokens\n");
+    mmgr_line_put(&results.line, "    the rewriting, directly: fate ");
+    mmgr_line_decimal(&results.line, (unsigned long long)delimit_direct, 1u);
+    mmgr_line_put(&results.line, ", ");
+    mmgr_line_decimal(&results.line, rewrite_taken, 1u);
+    mmgr_line_put(&results.line, " steps, ");
+    mmgr_line_decimal(&results.line, rewritten.size(), 1u);
+    mmgr_line_put(&results.line, " tokens\n");
     sim_check(
         &results, tromp_ok,
         "U reading delimit and 1111000111001 gives the list 11010 at every depth, and the rewriting gives it directly");
@@ -195,19 +195,19 @@ int main(int count, char **arguments)
                 unsigned long long nested_taken = 0ull;
                 const OmegaComputerFate nested_fate =
                     omega_computer_rewrite(nested, 1u << 18u, 1u << 17u, &nested_taken);
-                scriptura_text(&results.line, "    rewriting ");
-                scriptura_text(&results.line, (which == 0u) ? "identity" : "delimit");
-                scriptura_text(&results.line, " depth ");
-                scriptura_decimal(&results.line, depth, 1u);
-                scriptura_text(&results.line, ": fate ");
-                scriptura_decimal(&results.line, (unsigned long long)nested_fate, 1u);
-                scriptura_text(&results.line, ", steps ");
-                scriptura_decimal(&results.line, nested_taken, 1u);
-                scriptura_text(&results.line, ", start ");
-                scriptura_decimal(&results.line, start, 1u);
-                scriptura_text(&results.line, " tokens, peak ");
-                scriptura_decimal(&results.line, g_omega_computer_peak, 1u);
-                scriptura_text(&results.line, " tokens\n");
+                mmgr_line_put(&results.line, "    rewriting ");
+                mmgr_line_put(&results.line, (which == 0u) ? "identity" : "delimit");
+                mmgr_line_put(&results.line, " depth ");
+                mmgr_line_decimal(&results.line, depth, 1u);
+                mmgr_line_put(&results.line, ": fate ");
+                mmgr_line_decimal(&results.line, (unsigned long long)nested_fate, 1u);
+                mmgr_line_put(&results.line, ", steps ");
+                mmgr_line_decimal(&results.line, nested_taken, 1u);
+                mmgr_line_put(&results.line, ", start ");
+                mmgr_line_decimal(&results.line, start, 1u);
+                mmgr_line_put(&results.line, " tokens, peak ");
+                mmgr_line_decimal(&results.line, g_omega_computer_peak, 1u);
+                mmgr_line_put(&results.line, " tokens\n");
                 sim_flush(&results);
             }
         }
@@ -336,17 +336,17 @@ int main(int count, char **arguments)
     // the upper bound: everything but the proven non-halts and the codes through L that are not closed
     const unsigned long long upper = total - proven_mass - (counted - closed_mass);
 
-    scriptura_text(&results.line, "  ");
-    scriptura_decimal(&results.line, programs, 1u);
-    scriptura_text(&results.line, " closed programs through ");
-    scriptura_decimal(&results.line, maximum, 1u);
-    scriptura_text(&results.line, " bits, run on nil; the direct run halts ");
-    scriptura_decimal(&results.line, direct_halted, 1u);
-    scriptura_text(&results.line, " and proves ");
-    scriptura_decimal(&results.line, direct_proven, 1u);
-    scriptura_text(&results.line, " never halt; the rewriting and the lazy machine agree on ");
-    scriptura_decimal(&results.line, agree_direct, 1u);
-    scriptura_text(&results.line, " normal forms\n  depth  halted  proven never  out of steps  outgrew  Omega_nil at "
+    mmgr_line_put(&results.line, "  ");
+    mmgr_line_decimal(&results.line, programs, 1u);
+    mmgr_line_put(&results.line, " closed programs through ");
+    mmgr_line_decimal(&results.line, maximum, 1u);
+    mmgr_line_put(&results.line, " bits, run on nil; the direct run halts ");
+    mmgr_line_decimal(&results.line, direct_halted, 1u);
+    mmgr_line_put(&results.line, " and proves ");
+    mmgr_line_decimal(&results.line, direct_proven, 1u);
+    mmgr_line_put(&results.line, " never halt; the rewriting and the lazy machine agree on ");
+    mmgr_line_decimal(&results.line, agree_direct, 1u);
+    mmgr_line_put(&results.line, " normal forms\n  depth  halted  proven never  out of steps  outgrew  Omega_nil at "
                                   "least  proven bits  steps (settled everywhere)\n");
     unsigned long long previous_mass = 0ull;
     int nested = 1;
@@ -354,43 +354,43 @@ int main(int count, char **arguments)
     {
         nested = nested && ((depth == 0u) || (halted_mass[depth] <= previous_mass));
         previous_mass = halted_mass[depth];
-        scriptura_text(&results.line, "    ");
-        scriptura_decimal(&results.line, depth, 1u);
-        scriptura_text(&results.line, "  ");
-        scriptura_decimal(&results.line, halted[depth], 1u);
-        scriptura_text(&results.line, "  ");
-        scriptura_decimal(&results.line, looped[depth], 1u);
-        scriptura_text(&results.line, "  ");
-        scriptura_decimal(&results.line, open[depth], 1u);
-        scriptura_text(&results.line, "  ");
-        scriptura_decimal(&results.line, grew[depth], 1u);
-        scriptura_text(&results.line, "  ");
+        mmgr_line_put(&results.line, "    ");
+        mmgr_line_decimal(&results.line, depth, 1u);
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_decimal(&results.line, halted[depth], 1u);
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_decimal(&results.line, looped[depth], 1u);
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_decimal(&results.line, open[depth], 1u);
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_decimal(&results.line, grew[depth], 1u);
+        mmgr_line_put(&results.line, "  ");
         omega_computer_binary(&results.line, halted_mass[depth], maximum);
-        scriptura_text(&results.line, "  ");
-        scriptura_decimal(&results.line, omega_computer_proven(halted_mass[depth], upper, maximum), 1u);
-        scriptura_text(&results.line, "  ");
-        scriptura_decimal(&results.line, steps_total[depth], 1u);
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_decimal(&results.line, omega_computer_proven(halted_mass[depth], upper, maximum), 1u);
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_decimal(&results.line, steps_total[depth], 1u);
         if (depth > 0u)
         {
-            scriptura_text(&results.line, " (x");
+            mmgr_line_put(&results.line, " (x");
             sim_fraction_print(&results.line, steps_total[depth],
                                (steps_total[depth - 1u] == 0ull) ? 1ull : steps_total[depth - 1u], 2u);
-            scriptura_character(&results.line, ')');
+            mmgr_line_ch(&results.line, ')');
         }
-        scriptura_character(&results.line, '\n');
+        mmgr_line_ch(&results.line, '\n');
         sim_flush(&results);
     }
-    scriptura_text(&results.line, "  Omega_nil at most ");
+    mmgr_line_put(&results.line, "  Omega_nil at most ");
     omega_computer_binary(&results.line, upper, maximum);
-    scriptura_text(&results.line, " at every depth; ");
-    scriptura_decimal(&results.line, settled_everywhere, 1u);
-    scriptura_text(&results.line, " programs halt at every depth\n");
+    mmgr_line_put(&results.line, " at every depth; ");
+    mmgr_line_decimal(&results.line, settled_everywhere, 1u);
+    mmgr_line_put(&results.line, " programs halt at every depth\n");
     sim_check(&results, contradictions == 0ull,
               "every normal form at every depth is the direct run's, token for token, and no run halts that any run "
               "proves never halts");
-    sim_check(
-        &results, (unnested == 0ull) && nested,
-        "each depth's bracket holds the one outside it: every program the inner machine finishes, the outer finished");
+    sim_check(&results, (unnested == 0ull) && nested,
+              "each depth's bracket contains the one outside it: every program the inner machine finishes, the outer "
+              "finished");
     sim_check(&results, (lazy_missed == 0ull) && (agree_direct > 0ull),
               "the lazy machine reaches every normal form the rewriting reaches, run directly");
     return sim_close(&results, "omega computer");

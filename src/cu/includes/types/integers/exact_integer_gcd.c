@@ -35,7 +35,7 @@ static void magnitude_shift_down(uint32_t *value, size_t bits)
 }
 
 // result[0, left_count + right_count) = left . right on the ladder: the transform once both reach its rung, Karatsuba
-// or long multiplication below it, each stepping down when its workspace cannot be held
+// or long multiplication below it, each stepping down when its workspace cannot be allocated
 void limbs_ladder_product(uint32_t *result, const uint32_t *left, size_t left_count, const uint32_t *right,
                           size_t right_count)
 {
@@ -52,7 +52,7 @@ void limbs_ladder_product(uint32_t *result, const uint32_t *left, size_t left_co
 }
 
 // left . right modulo 2^(32 limbs) into result's low limbs, the rest of result zeroed: the multiply on the ladder and
-// the mask; work holds 2 limbs words
+// the mask; work contains 2 limbs words
 static void magnitude_low_product(const uint32_t *left, const uint32_t *right, size_t limbs, uint32_t *result,
                                   uint32_t *work)
 {
@@ -63,7 +63,7 @@ static void magnitude_low_product(const uint32_t *left, const uint32_t *right, s
 
 // the inverse of an odd magnitude modulo 2^(32 limbs) by Newton's step x (2 - d x), which doubles the bits that are
 // right. Each step works only to the doubled precision; 2 - t is the two's complement negation of t plus two;
-// work holds four widths
+// work contains four widths
 static void magnitude_odd_inverse(const uint32_t *odd, size_t limbs, uint32_t *inverse, uint32_t *work)
 {
     uint32_t *const guess = work;
@@ -159,7 +159,7 @@ static uint64_t limbs_window(const uint32_t *value, size_t used, size_t from)
 }
 
 // result = first . |first_factor| + or - second . |second_factor| over count limbs and one above, the factors below
-// 2^32 in magnitude and of opposite signs or zero, the combination known to be non-negative; other holds count + 1
+// 2^32 in magnitude and of opposite signs or zero, the combination known to be non-negative; other contains count + 1
 static void limbs_combine(uint32_t *result, const uint32_t *first, int64_t first_factor, const uint32_t *second,
                           int64_t second_factor, size_t count, uint32_t *other)
 {
@@ -226,7 +226,7 @@ OriorExactStatus orior_exact_gcd(const OriorExactInteger *left, const OriorExact
     const int left_larger = (magnitude_compare(left->limb, right->limb) >= 0);
     memcpy(buffer[0], left_larger ? left->limb : right->limb, EXACT_LIMBS * sizeof(uint32_t));
     memcpy(buffer[1], left_larger ? right->limb : left->limb, EXACT_LIMBS * sizeof(uint32_t));
-    // u in buffer[held], v in buffer[held + 1], the next pair in the other two
+    // u in buffer[current], v in buffer[current + 1], the next pair in the other two
     unsigned int current = 0u;
     size_t larger_used = limbs_used(buffer[0], width);
     size_t smaller_used = limbs_used(buffer[1], width);

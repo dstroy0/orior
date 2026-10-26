@@ -31,8 +31,8 @@ extern "C"
         int spoiled;
     } DevicePoolPlan;
 
-    // The held pool: `bytes` from `base`, of which `used` are taken. Slices are taken in the plan's order, each at the
-    // offset the plan gave it, and a take past the pool errors.
+    // The allocated pool: `bytes` from `base`, of which `used` are taken. Slices are taken in the plan's order, each at
+    // the offset the plan gave it, and a take past the pool errors.
     typedef struct
     {
         unsigned char *base;
@@ -53,9 +53,9 @@ extern "C"
         EngineError *error;
     } DevicePoolReserveRequest;
 
-    // holds the plan's pool as one allocation of device_pool_plan_bytes, with nothing taken yet; a plan of no bytes
-    // holds an empty pool and allocates nothing. The pool is written and never read. A pool already held is released
-    // first.
+    // allocates the plan's pool as one allocation of device_pool_plan_bytes, with nothing taken yet; a plan of no bytes
+    // allocates an empty pool and allocates nothing. The pool is written and never read. A pool already allocated is
+    // released first.
     long device_pool_reserve(const DevicePoolReserveRequest *request);
 
     typedef struct
@@ -70,7 +70,7 @@ extern "C"
     // taken
     long device_pool_take(const DevicePoolTakeRequest *request);
 
-    // every slice given back at once, the pool still held
+    // every slice given back at once, the pool still allocated
     void device_pool_return(DevicePool *pool);
 
     void device_pool_release(DevicePool *pool);

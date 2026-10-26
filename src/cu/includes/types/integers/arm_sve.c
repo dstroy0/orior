@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -13,8 +13,8 @@
  * @note Written for server class ARM: Graviton, Ampere Altra, Grace, the Neoverse cores. No part in
  *       this project has SVE. The Raspberry Pi 5 is a Cortex-A76, which is NEON only. This arm has
  *       never been run. It is compiled for armv8.2-a+sve and its emitted instructions are read by
- *       utils/maint/engine/verify_arm_asm.sh, which confirms the predicated forms. That says the intrinsics
- *       became SVE instructions and not a scalar fallback. It says nothing about behavior, and the
+ *       utils/maint/engine/verify_arm_asm.sh, which confirms the predicated forms. That shows the intrinsics
+ *       became SVE instructions and not a scalar fallback. It states nothing about behavior, and the
  *       arm's name carries that.
  * @note SVE has no fixed vector length. A part may be 128, 256, 512 bits or more, and the same
  *       binary runs on all of them: svcntw() answers how many 32 bit lanes this part carries and the
@@ -34,7 +34,7 @@
 
 #if defined(__linux__)
 #include <sys/auxv.h>
-/** @brief Set where this translation unit can ask the kernel about SVE. */
+/** @brief Set where this translation unit can query the kernel about SVE. */
 #define ORIOR_SVE_CAN_DETECT 1
 #ifndef HWCAP_SVE
 /** @brief The SVE bit in AT_HWCAP, defined here where the running headers predate it. */
@@ -47,7 +47,7 @@
 /**
  * @brief Whether this part carries SVE.
  *
- * @return 1 where the kernel reports SVE, 0 where it does not or cannot be asked.
+ * @return 1 where the kernel reports SVE, 0 where it does not or cannot be queried.
  */
 static int sve_present(void)
 {
@@ -124,7 +124,7 @@ static int sve_magnitude_compare(const uint32_t *left, const uint32_t *right)
 }
 
 /**
- * @brief Whether two integers hold the same value, sign included.
+ * @brief Whether two integers have the same value, sign included.
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].

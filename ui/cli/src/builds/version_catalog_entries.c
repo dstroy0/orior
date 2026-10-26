@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// version_catalog_entries.c: a version catalog's sections and entries checked: what kept it from reading, a section it
-// has no place for with the sections near its name, each alias's form and accessor, and each library, plugin and
-// bundle in its form, against the versions and libraries the catalog holds. The build a catalog belongs to is the one
-// above its `gradle` folder
+// version_catalog_entries.c: a version catalog's sections and entries checked: what prevented it from reading, a
+// section it has no place for with the sections near its name, each alias's form and accessor, and each library, plugin
+// and bundle in its form, against the versions and libraries the catalog contains. The build a catalog belongs to is
+// the one above its `gradle` folder
 #include "builds_internal.h"
 #include "version_catalog_internal.h"
 
-// the sections a catalog holds, the keys of a library's and a plugin's tables, and the first words of a library's
+// the sections a catalog contains, the keys of a library's and a plugin's tables, and the first words of a library's
 // alias that name the catalog's other sections
 static const char *const s_sections[5] = {"versions", "libraries", "bundles", "plugins", "metadata"};
 static const char *const s_library_keys[5] = {"module", "group", "name", "version", "version.ref"};
@@ -42,15 +42,15 @@ static int entries_parts(const char *text, unsigned long long size, unsigned int
 static void entries_text_error(CliVersionsCheck *check, const CliVersionsField *field, const char *code,
                                const char *rest)
 {
-    CliLine said = cli_build_said(check->found);
-    cli_line_character(&said, '`');
-    cli_line_counted(&said, cli_versions_text(field->text_at), field->text_size);
-    cli_line_text(&said, rest);
-    (void)cli_build_finding(check->found, &said, check->lines, field->value_from, field->value_to, CLI_BUILD_ERROR,
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put_n(&msg, cli_versions_text(field->text_at), field->text_size);
+    mmgr_line_put(&msg, rest);
+    (void)cli_build_finding(check->found, &msg, check->lines, field->value_from, field->value_to, CLI_BUILD_ERROR,
                             code);
 }
 
-// the string a table's field keyed `key` holds, NULL where it holds none or the field is none
+// the string a table's field keyed `key` contains, NULL where it contains none or the field is none
 static const CliVersionsField *entries_text_of(const CliVersionsField *table, const char *key, int *present)
 {
     const unsigned int at = cli_versions_get(table->first, key);
@@ -93,20 +93,20 @@ static void entries_library(CliVersionsCheck *check, const CliVersionsField *ent
     const CliVersionsField *const module = entries_text_of(entry, "module", &module_present);
     const CliVersionsField *const group = entries_text_of(entry, "group", &group_present);
     const CliVersionsField *const name = entries_text_of(entry, "name", &name_present);
-    CliLine coordinates = {check->coordinates, check->room, 0ull};
+    VerbaLinea coordinates = {check->coordinates, check->room, 0ull};
     if (module != NULL)
     {
         if (!entries_parts(cli_versions_text(module->text_at), module->text_size, 2u))
         {
             entries_text_error(check, module, "catalog-library", "` is no module: a module is `group:name`");
         }
-        cli_line_counted(&coordinates, cli_versions_text(module->text_at), module->text_size);
+        mmgr_line_put_n(&coordinates, cli_versions_text(module->text_at), module->text_size);
     }
     else if (!module_present && (group != NULL) && (name != NULL))
     {
-        cli_line_counted(&coordinates, cli_versions_text(group->text_at), group->text_size);
-        cli_line_character(&coordinates, ':');
-        cli_line_counted(&coordinates, cli_versions_text(name->text_at), name->text_size);
+        mmgr_line_put_n(&coordinates, cli_versions_text(group->text_at), group->text_size);
+        mmgr_line_ch(&coordinates, ':');
+        mmgr_line_put_n(&coordinates, cli_versions_text(name->text_at), name->text_size);
     }
     else
     {
@@ -158,16 +158,16 @@ static void entries_bundle(CliVersionsCheck *check, const CliVersionsField *entr
         const CliVersionsItem *const member = &g_cli_versions.item[entry->first + at];
         const char *const text = cli_versions_text(member->text_at);
         char accessor[1u << 12u];
-        CliLine line = {accessor, sizeof(accessor), 0ull};
-        if (cli_versions_holds(&g_cli_versions_libraries, text, member->text_size, &line))
+        VerbaLinea line = {accessor, sizeof(accessor), 0ull};
+        if (cli_versions_contains(&g_cli_versions_libraries, text, member->text_size, &line))
         {
             continue;
         }
-        CliLine said = cli_build_said(check->found);
-        cli_line_text(&said, "The catalog's `[libraries]` has no `");
-        cli_line_counted(&said, text, member->text_size);
-        cli_line_character(&said, '`');
-        const unsigned int finding = cli_build_finding(check->found, &said, check->lines, member->from, member->to,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_put(&msg, "The catalog's `[libraries]` has no `");
+        mmgr_line_put_n(&msg, text, member->text_size);
+        mmgr_line_ch(&msg, '`');
+        const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, member->from, member->to,
                                                        CLI_BUILD_ERROR, "catalog-reference");
         cli_versions_near(check, finding, accessor, line.at, NULL, 0u, &g_cli_versions_libraries, member->from,
                           member->to, "", "");
@@ -180,7 +180,7 @@ static void entries_alias(CliVersionsCheck *check, const CliVersionsField *entry
 {
     const char *const alias = cli_versions_text(entry->key_at);
     char named[1u << 12u];
-    CliLine line = {named, sizeof(named), 0ull};
+    VerbaLinea line = {named, sizeof(named), 0ull};
     cli_versions_accessor(alias, entry->key_size, &line);
     for (unsigned int above = first; above != CLI_VERSIONS_NONE; above = g_cli_versions.field[above].next)
     {
@@ -190,18 +190,18 @@ static void entries_alias(CliVersionsCheck *check, const CliVersionsField *entry
             break;
         }
         char other_named[1u << 12u];
-        CliLine other_line = {other_named, sizeof(other_named), 0ull};
+        VerbaLinea other_line = {other_named, sizeof(other_named), 0ull};
         cli_versions_accessor(cli_versions_text(other->key_at), other->key_size, &other_line);
         if ((other_line.at == line.at) &&
             (memor.cmp(&(MemoriaCfg){.src = other_named, .other = named, .bytes = (size_t)line.at}) == 0))
         {
-            CliLine said = cli_build_said(check->found);
-            cli_line_character(&said, '`');
-            cli_line_counted(&said, alias, entry->key_size);
-            cli_line_text(&said, "` has the accessor of an alias above it, `");
-            cli_line_counted(&said, named, line.at);
-            cli_line_character(&said, '`');
-            (void)cli_build_finding(check->found, &said, check->lines, entry->from, entry->to, CLI_BUILD_ERROR,
+            VerbaLinea msg = cli_build_msg_line(check->found);
+            mmgr_line_ch(&msg, '`');
+            mmgr_line_put_n(&msg, alias, entry->key_size);
+            mmgr_line_put(&msg, "` has the accessor of an alias above it, `");
+            mmgr_line_put_n(&msg, named, line.at);
+            mmgr_line_ch(&msg, '`');
+            (void)cli_build_finding(check->found, &msg, check->lines, entry->from, entry->to, CLI_BUILD_ERROR,
                                     "catalog-alias");
             break;
         }
@@ -228,25 +228,25 @@ static void entries_alias(CliVersionsCheck *check, const CliVersionsField *entry
         if ((cellul.len(&(CatenaFinitaCfg){.src = s_reserved[at], .cap = CLI_CELLS_POOL}) == head) &&
             (memor.cmp(&(MemoriaCfg){.src = s_reserved[at], .other = named, .bytes = (size_t)head}) == 0))
         {
-            CliLine said = cli_build_said(check->found);
-            cli_line_text(&said, "A library's alias cannot start with `");
-            cli_line_counted(&said, named, head);
-            cli_line_text(&said, "`, the name of a section of the catalog's accessor");
-            (void)cli_build_finding(check->found, &said, check->lines, entry->from, entry->to, CLI_BUILD_ERROR,
+            VerbaLinea msg = cli_build_msg_line(check->found);
+            mmgr_line_put(&msg, "A library's alias cannot start with `");
+            mmgr_line_put_n(&msg, named, head);
+            mmgr_line_put(&msg, "`, the name of a section of the catalog's accessor");
+            (void)cli_build_finding(check->found, &msg, check->lines, entry->from, entry->to, CLI_BUILD_ERROR,
                                     "catalog-alias");
         }
     }
 }
 
-// a section no catalog holds, with the sections near its name
+// a section no catalog contains, with the sections near its name
 static void entries_unknown_section(CliVersionsCheck *check, const CliVersionsSection *section)
 {
     const char *const name = cli_versions_text(section->name_at);
-    CliLine said = cli_build_said(check->found);
-    cli_line_text(&said, "A catalog has no section `[");
-    cli_line_counted(&said, name, section->name_size);
-    cli_line_text(&said, "]`: its sections are `[versions]`, `[libraries]`, `[bundles]` and `[plugins]`");
-    const unsigned int finding = cli_build_finding(check->found, &said, check->lines, section->from, section->to,
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_put(&msg, "A catalog has no section `[");
+    mmgr_line_put_n(&msg, name, section->name_size);
+    mmgr_line_put(&msg, "]`: its sections are `[versions]`, `[libraries]`, `[bundles]` and `[plugins]`");
+    const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, section->from, section->to,
                                                    CLI_BUILD_WARNING, "catalog-section");
     cli_versions_near(check, finding, name, section->name_size, s_sections, 5u, NULL, section->from, section->to, "[",
                       "]");
@@ -265,29 +265,29 @@ void cli_versions_check(const char *root, const char *path, const char *text, un
     }
     s_check.lines = lines;
     s_check.found = found;
-    char folder[CLI_PATH_LONGEST];
-    char above[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char above[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(path, above) || !cli_path_parent(above, folder))
     {
-        CliLine copy = {folder, sizeof(folder), 0ull};
-        cli_line_text(&copy, root);
-        (void)cli_line_closed(&copy);
+        VerbaLinea copy = {folder, sizeof(folder), 0ull};
+        mmgr_line_put(&copy, root);
+        (void)mmgr_line_finish(&copy);
     }
     cli_build_inside(root, folder, s_check.folder);
-    char build[CLI_PATH_LONGEST];
+    char build[CLI_PATH_MAX_LEN];
     cli_full(root, s_check.folder, build);
     cli_gradle_program(build, s_check.program);
     for (unsigned int at = 0u; at < g_cli_versions.errors; at += 1u)
     {
         const CliVersionsError *const error = &g_cli_versions.error[at];
-        const CliLine said = {(char *)cli_versions_text(error->message_at), error->message_size + 1u,
-                              error->message_size};
-        (void)cli_build_finding(found, &said, lines, error->from, error->to, CLI_BUILD_ERROR, "catalog-syntax");
+        const VerbaLinea msg = {(char *)cli_versions_text(error->message_at), error->message_size + 1u,
+                                error->message_size};
+        (void)cli_build_finding(found, &msg, lines, error->from, error->to, CLI_BUILD_ERROR, "catalog-syntax");
     }
     // a dependency's coordinates are a module, or a group and a name, of the catalog's texts, and with its version
     // twice that; the entries are checked only where these and the accessors are met
     s_check.room = g_cli_versions.used + 2ull;
-    s_check.coordinates = cli_cell_taken_by(&g_cli_versions_cells, 3ull * s_check.room, "a catalog's coordinates");
+    s_check.coordinates = g_cli_cells->persistent_buf_alloc(3ull * s_check.room, &g_cli_versions_cells);
     s_check.full = (s_check.coordinates != NULL) ? s_check.coordinates + s_check.room : NULL;
     const int met = (s_check.coordinates != NULL) && cli_versions_names_of("versions", &g_cli_versions_known) &&
                     cli_versions_names_of("libraries", &g_cli_versions_libraries);
@@ -329,7 +329,7 @@ void cli_versions_check(const char *root, const char *path, const char *text, un
             }
         }
     }
-    cli_cell_given_by(&g_cli_versions_cells, s_check.coordinates);
+    g_cli_cells->persistent_buf_release(s_check.coordinates, &g_cli_versions_cells);
     s_check.coordinates = NULL;
     s_check.full = NULL;
     cli_versions_released();

@@ -5,7 +5,7 @@
 // itself in a job object as it starts: every process it starts joins the job on its own, and so does every process
 // those start; the job lists them, and ends them all with the container, however the container ends. On Linux and
 // macOS the container reads its descendants from the system's list of processes, and ends them as it ends. What orior
-// opens for the reader to keep, a page in the browser, a folder in the file manager or another window of orior's, is
+// opens for the reader to retain, a page in the browser, a folder in the file manager or another window of orior's, is
 // started outside the container and outlives it: on Windows it breaks away from the job; on Linux and macOS it is its
 // own process group, and the container leaves it and every process under it out of its members. The calls the system
 // gives stand in platform/windows.c and platform/posix.c
@@ -14,12 +14,12 @@
 // the room the processes are first listed in
 #define CLI_PROCESSES_FIRST 1024u
 
-CliProcess *cli_processes_taken(CliCellsTally *tally, unsigned int *count)
+CliProcess *cli_processes_taken(CellOwner *owner, unsigned int *count)
 {
     for (unsigned int room = CLI_PROCESSES_FIRST;; room *= 2u)
     {
         CliProcess *const processes =
-            cli_cell_taken_by(tally, (unsigned long long)room * sizeof(CliProcess), "the processes the system lists");
+            g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliProcess), owner);
         if (processes == NULL)
         {
             *count = 0u;
@@ -31,7 +31,7 @@ CliProcess *cli_processes_taken(CliCellsTally *tally, unsigned int *count)
         {
             return processes;
         }
-        cli_cell_given_by(tally, processes);
+        g_cli_cells->persistent_buf_release(processes, owner);
     }
 }
 
@@ -64,7 +64,7 @@ unsigned int cli_descendants(unsigned int root, const CliProcess *parents, unsig
                              unsigned int room)
 {
     unsigned int founds = 0u;
-    // the frontier kept at the end of `found` past what it holds: a process found is walked from in turn
+    // the frontier stored at the end of `found` past what it contains: a process found is walked from in turn
     unsigned int walked = 0u;
     unsigned int frontier = root;
     for (;;)

@@ -13,24 +13,24 @@
 #define CLI_PAGE_FOUND (1u << 24u)
 #define CLI_PAGE_LINES_FIRST (64ull * 1024ull)
 
-// The pieces a replace keeps as it builds them: a cell of `most`, the text's pieces and the two a cut piece's parts
+// The pieces a replace retains as it builds them: a cell of `most`, the text's pieces and the two a cut piece's parts
 // about the lines written add
 typedef struct
 {
     CliPagePiece *piece;
     unsigned int most;
     unsigned int count;
-} CliPageKept;
+} CliPagePieces;
 
-// a piece put after the pieces kept, one of written lines left out where it holds none
-static void cli_kept_put(CliPageKept *kept, CliPagePiece piece)
+// a piece put after the pieces retained, one of written lines left out where it contains none
+static void cli_piece_put(CliPagePieces *pieces, CliPagePiece piece)
 {
-    if ((piece.written && (piece.lines == 0ull)) || (kept->count >= kept->most))
+    if ((piece.written && (piece.lines == 0ull)) || (pieces->count >= pieces->most))
     {
         return;
     }
-    kept->piece[kept->count] = piece;
-    kept->count += 1u;
+    pieces->piece[pieces->count] = piece;
+    pieces->count += 1u;
 }
 
 // the part of a piece of `one` from `a` to before `b` of its `count` lines
@@ -46,16 +46,16 @@ static CliPagePiece cli_cut(const CliPaged *one, const CliPagePiece *piece, unsi
 }
 
 // the written lines `lines` put in place of the text's lines from `from` to before `to`, the pieces built in a cell
-// sized to the text's pieces and the two more a cut adds: 1, or 0 with why said where the cell is refused
+// sized to the text's pieces and the two more a cut adds: 1, or 0 with why given where the cell is refused
 static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long long to, CliPagePiece lines,
-                        CliLine *said)
+                        VerbaLinea *err_msg)
 {
     const unsigned int most = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
-    CliPageKept kept = {cli_cell_taken((unsigned long long)most * sizeof(CliPagePiece), "the pieces a replace keeps"),
-                        most, 0u};
-    if (kept.piece == NULL)
+    CliPagePieces pieces = {g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CliPagePiece), NULL),
+                            most, 0u};
+    if (pieces.piece == NULL)
     {
-        cli_line_text(said, "the pieces a replace keeps could not be taken");
+        mmgr_line_put(err_msg, "the pieces a replace retains could not be taken");
         return 0;
     }
     const unsigned long long indexed = cli_page_indexed(one);
@@ -70,37 +70,37 @@ static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long lo
         {
             if ((at >= to) && !placed)
             {
-                cli_kept_put(&kept, lines);
+                cli_piece_put(&pieces, lines);
                 placed = 1;
             }
-            cli_kept_put(&kept, *piece);
+            cli_piece_put(&pieces, *piece);
         }
         else
         {
             // the piece's part before `from` stays, then the lines written, then its part from `to`
             if (from > at)
             {
-                cli_kept_put(&kept, cli_cut(one, piece, 0ull, from - at, count));
+                cli_piece_put(&pieces, cli_cut(one, piece, 0ull, from - at, count));
             }
             if (!placed)
             {
-                cli_kept_put(&kept, lines);
+                cli_piece_put(&pieces, lines);
                 placed = 1;
             }
             if (to < end)
             {
-                cli_kept_put(&kept, cli_cut(one, piece, to - at, count, count));
+                cli_piece_put(&pieces, cli_cut(one, piece, to - at, count, count));
             }
         }
         at = end;
     }
     if (!placed)
     {
-        cli_kept_put(&kept, lines);
+        cli_piece_put(&pieces, lines);
     }
-    memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = kept.piece, .bytes = kept.count * sizeof(CliPagePiece)});
-    one->pieces = kept.count;
-    cli_cell_given(kept.piece);
+    memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = pieces.piece, .bytes = pieces.count * sizeof(CliPagePiece)});
+    one->pieces = pieces.count;
+    g_cli_cells->persistent_buf_release(pieces.piece, NULL);
     return 1;
 }
 
@@ -121,17 +121,17 @@ static unsigned long long cli_byte_at(const char *line, unsigned long long lengt
     return length;
 }
 
-// `size` bytes of an edit's lines, each ended by "\n", put after the shadow's, the shadow started where it holds none:
-// the piece of them, or one of no lines with why said where the shadow could not be written
-static CliPagePiece cli_written_put(CliPaged *one, const char *text, unsigned long long size, CliLine *said)
+// `size` bytes of an edit's lines, each ended by "\n", put after the shadow's, the shadow started where it contains
+// none: the piece of them, or one of no lines with why given where the shadow could not be written
+static CliPagePiece cli_written_put(CliPaged *one, const char *text, unsigned long long size, VerbaLinea *err_msg)
 {
     const unsigned long long from = one->shadow_used;
     if (!cli_file_appended(one->shadow, text, size, from == 0ull))
     {
         // a write cut short leaves the shadow its bytes, so the next lines go after them
         (void)cli_file_size(one->shadow, &one->shadow_used);
-        cli_line_text(said, one->shadow);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, one->shadow);
+        mmgr_line_put(err_msg, ": it could not be written");
         return (CliPagePiece){1, from, from, 0, 0ull};
     }
     unsigned long long lines = 0ull;
@@ -145,23 +145,23 @@ static CliPagePiece cli_written_put(CliPaged *one, const char *text, unsigned lo
 }
 
 // one edit written over the text: the lines it reaches read into `lines`, the head of the first and the tail of the
-// last kept about its text in a cell of their size, and those lines put in their place: 1, or 0 with why said
-static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *lines, CliLine *said)
+// last retained about its text in a cell of their size, and those lines put in their place: 1, or 0 with why given
+static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *lines, VerbaLinea *err_msg)
 {
     const unsigned long long reach = edit->to.line + 1ull;
-    if (!cli_page_lines_of(one, edit->from.line, reach, lines, said))
+    if (!cli_page_lines_of(one, edit->from.line, reach, lines, err_msg))
     {
         return 0;
     }
     if (lines->full)
     {
-        cli_line_text(said, "the lines an edit reaches are more than a reading of the text holds");
+        mmgr_line_put(err_msg, "the lines an edit reaches are more than a reading of the text contains");
         return 0;
     }
     if ((lines->count == 0ull) || (lines->count != (reach - edit->from.line)))
     {
-        cli_line_text(said, "an edit reaches past the text, to line ");
-        cli_line_decimal(said, edit->to.line, 0u);
+        mmgr_line_put(err_msg, "an edit reaches past the text, to line ");
+        mmgr_line_decimal(err_msg, edit->to.line, 0u);
         return 0;
     }
     const char *const first = lines->text + lines->start[0];
@@ -170,58 +170,58 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
     const unsigned long long last_length = lines->length[lines->count - 1ull];
     const unsigned long long head = cli_byte_at(first, first_length, edit->from.col);
     const unsigned long long tail = cli_byte_at(last, last_length, edit->to.col);
-    // the head, the edit's text, the tail, the newline that ends the last line, and the byte a line holds back for
+    // the head, the edit's text, the tail, the newline that ends the last line, and the byte a line reserves back for
     // its terminator
     const unsigned long long size = head + edit->length + (last_length - tail) + 2ull;
     if (size > CLI_PAGE_EDIT)
     {
-        cli_line_text(said, "the lines written over ");
-        cli_line_text(said, one->key);
-        cli_line_text(said, " are more than are kept");
+        mmgr_line_put(err_msg, "the lines written over ");
+        mmgr_line_put(err_msg, one->key);
+        mmgr_line_put(err_msg, " are more than are retained");
         return 0;
     }
-    char *const text = cli_cell_taken(size, "an edit's lines as written");
+    char *const text = g_cli_cells->persistent_buf_alloc(size, NULL);
     if (text == NULL)
     {
-        cli_line_text(said, "an edit's lines as written could not be taken");
+        mmgr_line_put(err_msg, "an edit's lines as written could not be taken");
         return 0;
     }
-    CliLine written = {text, size, 0ull};
-    cli_line_counted(&written, first, head);
-    cli_line_counted(&written, edit->text, edit->length);
-    cli_line_counted(&written, last + tail, last_length - tail);
-    cli_line_character(&written, '\n');
-    if (!cli_line_fits(&written))
+    VerbaLinea written = {text, size, 0ull};
+    mmgr_line_put_n(&written, first, head);
+    mmgr_line_put_n(&written, edit->text, edit->length);
+    mmgr_line_put_n(&written, last + tail, last_length - tail);
+    mmgr_line_ch(&written, '\n');
+    if (!mmgr_line_ok(&written))
     {
-        cli_cell_given(text);
-        cli_line_text(said, "an edit's lines as written do not fit the cell sized to them");
+        g_cli_cells->persistent_buf_release(text, NULL);
+        mmgr_line_put(err_msg, "an edit's lines as written do not fit the cell sized to them");
         return 0;
     }
-    const CliPagePiece put = cli_written_put(one, text, written.at, said);
-    cli_cell_given(text);
-    return (put.lines != 0ull) && cli_replaced(one, edit->from.line, reach, put, said);
+    const CliPagePiece put = cli_written_put(one, text, written.at, err_msg);
+    g_cli_cells->persistent_buf_release(text, NULL);
+    return (put.lines != 0ull) && cli_replaced(one, edit->from.line, reach, put, err_msg);
 }
 
 int cli_pages_edit(const char *key, const CliEdit *const *changes, const unsigned int *edits, unsigned int count,
-                   CliLine *out, CliLine *said)
+                   VerbaLinea *out, VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, said);
+    CliPaged *const one = cli_paged_of(key, err_msg);
     CliPageLines lines;
-    int written = (one != NULL) && cli_page_lines_held(&lines, 2ull, CLI_PAGE_LINES_FIRST, said);
-    const int held = written;
+    int written = (one != NULL) && cli_page_lines_reserved(&lines, 2ull, CLI_PAGE_LINES_FIRST, err_msg);
+    const int done = written;
     for (unsigned int change = 0u; written && (change < count); change += 1u)
     {
         for (unsigned int at = edits[change]; written && (at > 0u); at -= 1u)
         {
-            written = cli_edit_written(one, &changes[change][at - 1u], &lines, said);
+            written = cli_edit_written(one, &changes[change][at - 1u], &lines, err_msg);
         }
     }
     if (written)
     {
         cli_page_shape_written(one, out);
     }
-    if (held)
+    if (done)
     {
         cli_page_lines_given(&lines);
     }
@@ -229,31 +229,31 @@ int cli_pages_edit(const char *key, const CliEdit *const *changes, const unsigne
     return written;
 }
 
-int cli_pages_changed(const char *key, CliLine *out, CliLine *said)
+int cli_pages_changed(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, said);
+    CliPaged *const one = cli_paged_of(key, err_msg);
     if (one != NULL)
     {
         const unsigned long long indexed = cli_page_indexed(one);
         unsigned long long at = 0ull;
         unsigned int runs = 0u;
-        cli_line_character(out, '[');
+        mmgr_line_ch(out, '[');
         for (unsigned int index = 0u; index < one->pieces; index += 1u)
         {
             const unsigned long long count = cli_page_length(&one->piece[index], indexed);
             if (one->piece[index].written)
             {
-                cli_line_text(out, (runs != 0u) ? ",[" : "[");
-                cli_line_decimal(out, at, 0u);
-                cli_line_character(out, ',');
-                cli_line_decimal(out, at + count, 0u);
-                cli_line_character(out, ']');
+                mmgr_line_put(out, (runs != 0u) ? ",[" : "[");
+                mmgr_line_decimal(out, at, 0u);
+                mmgr_line_ch(out, ',');
+                mmgr_line_decimal(out, at + count, 0u);
+                mmgr_line_ch(out, ']');
                 runs += 1u;
             }
             at += count;
         }
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
     cli_lock_give(&g_cli_pages_lock);
     return one != NULL;
@@ -308,7 +308,7 @@ static CliLines cli_block_of(const CliPageLines *lines, unsigned char *storage)
 // The matches found so far: where they are written, the first line of the block, and how many
 typedef struct
 {
-    CliLine *out;
+    VerbaLinea *out;
     unsigned long long from;
     unsigned long long found;
 } CliPageFound;
@@ -316,13 +316,13 @@ typedef struct
 static void cli_page_match(void *context, unsigned long long line, unsigned long long from, unsigned long long to)
 {
     CliPageFound *const found = (CliPageFound *)context;
-    cli_line_text(found->out, (found->found != 0ull) ? ",[" : "[");
-    cli_line_decimal(found->out, found->from + line, 0u);
-    cli_line_character(found->out, ',');
-    cli_line_decimal(found->out, from, 0u);
-    cli_line_character(found->out, ',');
-    cli_line_decimal(found->out, to, 0u);
-    cli_line_character(found->out, ']');
+    mmgr_line_put(found->out, (found->found != 0ull) ? ",[" : "[");
+    mmgr_line_decimal(found->out, found->from + line, 0u);
+    mmgr_line_ch(found->out, ',');
+    mmgr_line_decimal(found->out, from, 0u);
+    mmgr_line_ch(found->out, ',');
+    mmgr_line_decimal(found->out, to, 0u);
+    mmgr_line_ch(found->out, ']');
     found->found += 1ull;
 }
 
@@ -338,26 +338,27 @@ static unsigned long long cli_total(CliPaged *one)
     return total;
 }
 
-int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long long most, CliLine *out, CliLine *said)
+int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long long most, VerbaLinea *out,
+                   VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, said);
-    char *const found_text = (one != NULL) ? cli_cell_taken(CLI_PAGE_FOUND, "the matches find writes") : NULL;
+    CliPaged *const one = cli_paged_of(key, err_msg);
+    char *const found_text = (one != NULL) ? g_cli_cells->persistent_buf_alloc(CLI_PAGE_FOUND, NULL) : NULL;
     if ((one != NULL) && (found_text == NULL))
     {
-        cli_line_text(said, "the matches find writes could not be taken");
+        mmgr_line_put(err_msg, "the matches find writes could not be taken");
     }
     CliPageLines lines;
-    int read = (found_text != NULL) && cli_page_lines_held(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, said);
-    const int held = read;
+    int read = (found_text != NULL) && cli_page_lines_reserved(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, err_msg);
+    const int done = read;
     const unsigned long long total = read ? cli_total(one) : 0ull;
-    CliLine written = {found_text, CLI_PAGE_FOUND, 0ull};
+    VerbaLinea written = {found_text, CLI_PAGE_FOUND, 0ull};
     CliPageFound found = {&written, 0ull, 0ull};
     unsigned long long block_most = CLI_PAGE_BLOCK;
     for (unsigned long long from = 0ull; read && (from < total) && (found.found < most);)
     {
         unsigned long long to = from;
-        read = cli_page_block_read(one, from, total, &block_most, &to, &lines, said);
+        read = cli_page_block_read(one, from, total, &block_most, &to, &lines, err_msg);
         // a block of more than CLI_PAGE_FIND_TEXT bytes is read again as half as many lines
         if (read && (lines.used > CLI_PAGE_FIND_TEXT) && (block_most > 1ull))
         {
@@ -366,8 +367,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         }
         // the block's units and lines a cell sized to the lines read, given back as the block is searched; a block
         // whose units the cells cannot meet is read again as half as many lines
-        unsigned char *const storage =
-            read ? cli_cell_taken(cli_block_bytes(&lines), "a block's units for find") : NULL;
+        unsigned char *const storage = read ? g_cli_cells->persistent_buf_alloc(cli_block_bytes(&lines), NULL) : NULL;
         if (read && (storage == NULL) && (block_most > 1ull))
         {
             block_most /= 2ull;
@@ -375,37 +375,37 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         }
         if (read && (storage == NULL))
         {
-            cli_line_text(said, "a block's units for find could not be taken");
+            mmgr_line_put(err_msg, "a block's units for find could not be taken");
             read = 0;
         }
         if (read)
         {
             const CliLines block = cli_block_of(&lines, storage);
             found.from = from;
-            read = cli_document_find_each(&block, sought, most - found.found, cli_page_match, &found, said);
+            read = cli_document_find_each(&block, sought, most - found.found, cli_page_match, &found, err_msg);
         }
-        cli_cell_given(storage);
+        g_cli_cells->persistent_buf_release(storage, NULL);
         from = to;
     }
     if (read)
     {
-        cli_line_character(out, '[');
-        cli_line_counted(out, found_text, written.at);
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, '[');
+        mmgr_line_put_n(out, found_text, written.at);
+        mmgr_line_ch(out, ']');
     }
-    if (held)
+    if (done)
     {
         cli_page_lines_given(&lines);
     }
-    cli_cell_given(found_text);
+    g_cli_cells->persistent_buf_release(found_text, NULL);
     cli_lock_give(&g_cli_pages_lock);
     return read;
 }
 
-int cli_pages_save(const char *key, CliLine *out, CliLine *said)
+int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_pages_lock);
-    CliPaged *const one = cli_paged_of(key, said);
+    CliPaged *const one = cli_paged_of(key, err_msg);
     if (one == NULL)
     {
         cli_lock_give(&g_cli_pages_lock);
@@ -416,20 +416,20 @@ int cli_pages_save(const char *key, CliLine *out, CliLine *said)
     cli_lock_give(&g_cli_index_lock);
     if (!done)
     {
-        cli_line_text(said, "the file is still being read: it saves once it is read whole");
+        mmgr_line_put(err_msg, "the file is still being read: it saves once it is read whole");
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
     CliPageLines lines;
-    if (!cli_page_lines_held(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, said))
+    if (!cli_page_lines_reserved(&lines, CLI_PAGE_BLOCK, CLI_PAGE_LINES_FIRST, err_msg))
     {
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
     // the text goes to the file as the tree writes every file: beside it, then moved over it once whole
     const unsigned long long total = cli_total(one);
-    char beside[CLI_PATH_LONGEST];
-    if (!cli_files_saving_beside(one->path, one->path, beside, said))
+    char beside[CLI_PATH_MAX_LEN];
+    if (!cli_files_saving_beside(one->path, one->path, beside, err_msg))
     {
         cli_page_lines_given(&lines);
         cli_lock_give(&g_cli_pages_lock);
@@ -440,50 +440,50 @@ int cli_pages_save(const char *key, CliLine *out, CliLine *said)
     for (unsigned long long from = 0ull; written && (from < total);)
     {
         unsigned long long to = from;
-        written = cli_page_block_read(one, from, total, &block_most, &to, &lines, said);
+        written = cli_page_block_read(one, from, total, &block_most, &to, &lines, err_msg);
         // the block's text a cell sized to the lines read and an end of line, two bytes at the most, for each
         const unsigned long long size = lines.used + (2ull * lines.count) + 1ull;
-        char *const text = written ? cli_cell_taken(size, "a block of lines saved") : NULL;
+        char *const text = written ? g_cli_cells->persistent_buf_alloc(size, NULL) : NULL;
         if (written && (text == NULL))
         {
-            cli_line_text(said, "a block of lines saved could not be taken");
+            mmgr_line_put(err_msg, "a block of lines saved could not be taken");
             written = 0;
         }
-        CliLine block = {text, size, 0ull};
+        VerbaLinea block = {text, size, 0ull};
         for (unsigned long long at = 0ull; written && (at < lines.count); at += 1ull)
         {
             if ((from + at) > 0ull)
             {
-                cli_line_text(&block, one->eol);
+                mmgr_line_put(&block, one->eol);
             }
-            cli_line_counted(&block, lines.text + lines.start[at], lines.length[at]);
+            mmgr_line_put_n(&block, lines.text + lines.start[at], lines.length[at]);
         }
-        written = written && cli_line_fits(&block) && cli_file_appended(beside, text, block.at, 0);
-        cli_cell_given(text);
+        written = written && mmgr_line_ok(&block) && cli_file_appended(beside, text, block.at, 0);
+        g_cli_cells->persistent_buf_release(text, NULL);
         from = to;
     }
     cli_page_lines_given(&lines);
     if (!written)
     {
         query_removed(beside);
-        if (said->at == 0ull)
+        if (err_msg->at == 0ull)
         {
-            cli_line_text(said, beside);
-            cli_line_text(said, ": it could not be written");
+            mmgr_line_put(err_msg, beside);
+            mmgr_line_put(err_msg, ": it could not be written");
         }
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
-    if (!cli_files_saved(beside, one->path, one->path, said))
+    if (!cli_files_saved(beside, one->path, one->path, err_msg))
     {
         cli_lock_give(&g_cli_pages_lock);
         return 0;
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = path,
                             .src = one->path,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = one->path, .cap = CLI_CELLS_POOL}) + 1u});
-    const int opened = cli_page_open_reading(key, path, 0, out, said);
+    const int opened = cli_page_open_reading(key, path, 0, out, err_msg);
     cli_lock_give(&g_cli_pages_lock);
     return opened;
 }

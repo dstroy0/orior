@@ -9,12 +9,12 @@ static CliChain s_chain;
 static CliChain s_other;
 static CliLayers s_layers;
 static char s_written[1u << 20u];
-static char s_root[CLI_PATH_LONGEST];
+static char s_root[CLI_PATH_MAX_LEN];
 
 // `text` written to the file `name` under the root
 static void settings_written(const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_root, name, path);
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
@@ -22,13 +22,13 @@ static void settings_written(const char *name, const char *text)
 // the chain written and read into the shared tree: the tree, its node into `read`
 static const CliJson *settings_chain_read(const CliChain *chain, unsigned int *read)
 {
-    CliLine out = {s_written, sizeof(s_written), 0ull};
+    VerbaLinea out = {s_written, sizeof(s_written), 0ull};
     cli_settings_chain_written(chain, &out);
     return cli_check_parsed(s_written, out.at, read);
 }
 
-// whether the strings of an array hold one that holds `part`
-static int settings_any_holds(const CliJson *json, unsigned int array, const char *part)
+// whether the strings of an array include one that contains `part`
+static int settings_any_has(const CliJson *json, unsigned int array, const char *part)
 {
     for (unsigned int at = 0u; cli_json_item(json, array, at) != CLI_JSON_NONE; at += 1u)
     {
@@ -46,8 +46,8 @@ static int settings_any_holds(const CliJson *json, unsigned int array, const cha
 // a file takes another, and a chain that takes a file twice stops
 static void settings_chain_checked(void)
 {
-    char path[CLI_PATH_LONGEST];
-    char tree[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
+    char tree[CLI_PATH_MAX_LEN];
     cli_check_folder("settings_chain", s_root);
     cli_full(s_root, "tree/.orior", path);
     (void)query_folder_made(path);
@@ -82,14 +82,14 @@ static void settings_chain_checked(void)
     cli_settings_tree(tree, &s_chain);
     json = settings_chain_read(&s_chain, &read);
     cli_check((json->node[cli_json_member(json, read, "files")].count == 3u) &&
-                  settings_any_holds(json, cli_json_member(json, read, "problems"), "taken twice"),
-              "a chain that takes a file twice stops, and says so");
+                  settings_any_has(json, cli_json_member(json, read, "problems"), "taken twice"),
+              "a chain that takes a file twice stops, and reports so");
     settings_written("base.json", "{ \"takes\": \"gone.json\" }");
     cli_settings_chain_given(&s_chain);
     cli_settings_tree(tree, &s_chain);
     json = settings_chain_read(&s_chain, &read);
-    cli_check(settings_any_holds(json, cli_json_member(json, read, "problems"), "gone.json"),
-              "a file not there is said");
+    cli_check(settings_any_has(json, cli_json_member(json, read, "problems"), "gone.json"),
+              "a file not there is reported");
     cli_full(s_root, "none.json", path);
     cli_settings_chain_given(&s_chain);
     cli_settings_chain(path, s_root, &s_chain);
@@ -113,26 +113,26 @@ static void settings_layers_checked(void)
     const char *const other =
         (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "windows", .cap = CLI_CELLS_POOL})) ? "linux" : "windows";
     static char s_reader[4096];
-    CliLine reader = {s_reader, sizeof(s_reader), 0ull};
-    cli_line_text(&reader, "{\"files\":[{\"file\":\"base.json\",\"values\":{\"vim\":\"true\",\"margin\":\"true\"}},"
+    VerbaLinea reader = {s_reader, sizeof(s_reader), 0ull};
+    mmgr_line_put(&reader, "{\"files\":[{\"file\":\"base.json\",\"values\":{\"vim\":\"true\",\"margin\":\"true\"}},"
                            "{\"file\":\"settings.json\",\"values\":{\"takes\":\"base.json\",\"zoom\":1.1,"
                            "\"margin\":\"false\",\"");
-    cli_line_text(&reader, system);
-    cli_line_text(&reader, "\":{\"sticky\":\"false\"},\"");
-    cli_line_text(&reader, other);
-    cli_line_text(&reader, "\":{\"zoom\":3},\"fonts\":{\"--code\":\"${setting:code}\"},\"code\":\"Fira Code\","
+    mmgr_line_put(&reader, system);
+    mmgr_line_put(&reader, "\":{\"sticky\":\"false\"},\"");
+    mmgr_line_put(&reader, other);
+    mmgr_line_put(&reader, "\":{\"zoom\":3},\"fonts\":{\"--code\":\"${setting:code}\"},\"code\":\"Fira Code\","
                            "\"machine\":{\"brackets\":\"false\"}}}],\"problems\":[]}");
     static const char s_tree[] = "{\"files\":[{\"file\":\"" CLI_SETTINGS_TREE "\",\"values\":{\"zoom\":1.25,"
                                  "\"signing.windows\":\"mine\",\"crumbs\":\"${system}\",\"path\":\"${env:PATH}\","
                                  "\"lost\":\"${nothing}\",\"[markdown]\":{\"theme.dark\":\"Paper\",\"vim\":true}}}],"
                                  "\"problems\":[]}";
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_settings_chain_read(s_reader, reader.at, &s_chain, &said) &&
-                  cli_settings_chain_read(s_tree, sizeof(s_tree) - 1u, &s_other, &said),
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_settings_chain_read(s_reader, reader.at, &s_chain, &err_msg) &&
+                  cli_settings_chain_read(s_tree, sizeof(s_tree) - 1u, &s_other, &err_msg),
               "the two chains read");
     cli_settings_layers(&s_chain, &s_other, "D:/tree", &s_layers);
-    CliLine out = {s_written, sizeof(s_written), 0ull};
+    VerbaLinea out = {s_written, sizeof(s_written), 0ull};
     cli_settings_layers_written(&s_layers, &out);
     unsigned int layers = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_written, out.at, &layers);
@@ -189,15 +189,15 @@ static void settings_layers_checked(void)
               "${env:PATH} names the PATH");
     const unsigned int problems = cli_json_member(json, layers, "problems");
     cli_check((cli_json_member(json, cli_json_member(json, layers, "over"), "signing.windows") == CLI_JSON_NONE) &&
-                  settings_any_holds(json, problems, "signing.windows"),
+                  settings_any_has(json, problems, "signing.windows"),
               "a setting with a system in its name the file does not take is a problem");
-    cli_check(settings_any_holds(json, problems, "${nothing}"), "a value that names nothing is a problem");
+    cli_check(settings_any_has(json, problems, "${nothing}"), "a value that names nothing is a problem");
     const unsigned int markdown = cli_json_member(json, cli_json_member(json, layers, "kinds"), "markdown");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = cli_check_member_text(markdown, "theme.dark"), .other = "Paper", .cap = CLI_CELLS_POOL}),
-              "a kind's setting is kept for it");
+              "a kind's setting is stored for it");
     cli_check((cli_json_member(json, markdown, "vim") == CLI_JSON_NONE) &&
-                  settings_any_holds(json, problems, "[markdown] sets vim"),
+                  settings_any_has(json, problems, "[markdown] sets vim"),
               "a kind may not set what no kind sets");
     const unsigned int theme = cli_json_member(json, cli_json_member(json, layers, "from"), "[markdown] theme.dark");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = cli_check_member_text(cli_json_item(json, theme, 0u), "file"),
@@ -230,9 +230,10 @@ static void settings_layers_checked(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     settings_chain_checked();
     settings_layers_checked();
-    cli_check((g_cli_settings_cells.holds == 0ull) && (g_cli_settings_cells.hw != 0ull),
+    cli_check((g_cli_settings_cells.in_use == 0ull) && (g_cli_settings_cells.hw != 0ull),
               "the settings are read and laid in cells each given back");
     return cli_checked();
 }

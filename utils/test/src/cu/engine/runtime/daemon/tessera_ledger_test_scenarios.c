@@ -3,9 +3,9 @@
 // tessera_ledger_test_scenarios.c: standing, idle, head, shadow, scenarios, backfill and main
 #include "tessera_ledger_test_internal.h"
 
-// a process holding bytes as it asks is reserved them beside its declaration, and admitted on what it has yet to find,
-// since the device's measured use already counts what it holds; the held rule weighs the declaration alone against
-// the kept peak
+// a process occupying bytes as it requests is reserved them beside its declaration, and admitted on what it has yet to
+// find, since the device's measured use already counts what it occupies; the over-budget rule weighs the declaration
+// alone against the recorded peak
 static void test_standing(TestResults *results)
 {
     TesseraLedger ledger;
@@ -31,17 +31,17 @@ static void test_standing(TestResults *results)
                             (tessera_ledger_job(&ledger, first)->reservation == 900ull));
     test_check(results, tessera_ledger_release(&ledger, first, 50ull, 1) &&
                             (tessera_ledger_history(&ledger, &request.signum)->peak == 900ull));
-    // standing on 300 and declaring 650 under the kept 900 is not held, and is reserved its whole 950
+    // standing on 300 and declaring 650 under the recorded 900 is not over budget, and is reserved its whole 950
     request.standing = 300ull;
     unsigned long long third = 0ull;
     test_check(results, tessera_ledger_submit(&ledger, &request, 60ull, &third, &event) &&
                             (event.kind == TESSERA_EVENT_NONE) &&
                             (tessera_ledger_wants(&ledger, tessera_ledger_job(&ledger, third)) == 950ull));
-    // declaring 950 over the kept 900 is held, whatever its process stands on
+    // declaring 950 over the recorded 900 is over budget, whatever its process stands on
     const TesseraJobRequest greedy = test_request(11ull, 950ull);
     unsigned long long fourth = 0ull;
-    test_check(results,
-               tessera_ledger_submit(&ledger, &greedy, 70ull, &fourth, &event) && (event.kind == TESSERA_EVENT_ASKED));
+    test_check(results, tessera_ledger_submit(&ledger, &greedy, 70ull, &fourth, &event) &&
+                            (event.kind == TESSERA_EVENT_OVER_BUDGET));
     tessera_ledger_close(&ledger);
 }
 
@@ -133,8 +133,8 @@ static unsigned long long test_shadow(const TesseraLedger *ledger, unsigned long
     return TEST_NEVER;
 }
 
-static void test_scenario(TestResults *kept, TestResults *finished, const TestScenarioJob *jobs, unsigned int count,
-                          unsigned long long capacity)
+static void test_scenario(TestResults *head_results, TestResults *finished, const TestScenarioJob *jobs,
+                          unsigned int count, unsigned long long capacity)
 {
     TesseraLedger ledger;
     tessera_ledger_open(&ledger);
@@ -206,7 +206,7 @@ static void test_scenario(TestResults *kept, TestResults *finished, const TestSc
         const TesseraJob *const after = tessera_ledger_job(&ledger, head);
         if (blocked && (after != NULL) && (after->state == TESSERA_JOB_WAITING))
         {
-            test_check(kept, test_shadow(&ledger, after->request.declared) <= shadow_before);
+            test_check(head_results, test_shadow(&ledger, after->request.declared) <= shadow_before);
         }
         unsigned long long next = TEST_NEVER;
         for (unsigned int job = 0u; job < count; job += 1u)
@@ -220,7 +220,7 @@ static void test_scenario(TestResults *kept, TestResults *finished, const TestSc
     tessera_ledger_close(&ledger);
 }
 
-static void test_backfill(TestResults *kept, TestResults *finished)
+static void test_backfill(TestResults *head_results, TestResults *finished)
 {
     for (unsigned int round = 0u; round < 20000u; round += 1u)
     {
@@ -235,7 +235,7 @@ static void test_backfill(TestResults *kept, TestResults *finished)
             jobs[job].arrival = arrival;
             arrival += test_below(10ull);
         }
-        test_scenario(kept, finished, jobs, count, capacity);
+        test_scenario(head_results, finished, jobs, count, capacity);
     }
 }
 
@@ -243,26 +243,26 @@ int main(void)
 {
     TestResults headroom = {"headroom identity", 0ull, 0ull};
     TestResults heap = {"deadlines in order", 0ull, 0ull};
-    TestResults budget = {"budget, hold, override, lost", 0ull, 0ull};
+    TestResults budget = {"budget, over-budget, override, lost", 0ull, 0ull};
     TestResults standing = {"standing beside the declaration", 0ull, 0ull};
     TestResults idle = {"idle teardown", 0ull, 0ull};
-    TestResults kept = {"backfill keeps the head", 0ull, 0ull};
+    TestResults head_results = {"backfill preserves the head", 0ull, 0ull};
     TestResults finished = {"every scenario finishes", 0ull, 0ull};
     test_headroom(&headroom);
     test_heap_order(&heap);
     test_budget(&budget);
     test_standing(&standing);
     test_idle(&idle);
-    test_backfill(&kept, &finished);
+    test_backfill(&head_results, &finished);
     test_report(&headroom);
     test_report(&heap);
     test_report(&budget);
     test_report(&standing);
     test_report(&idle);
-    test_report(&kept);
+    test_report(&head_results);
     test_report(&finished);
-    const unsigned long long failed =
-        headroom.failed + heap.failed + budget.failed + standing.failed + idle.failed + kept.failed + finished.failed;
+    const unsigned long long failed = headroom.failed + heap.failed + budget.failed + standing.failed + idle.failed +
+                                      head_results.failed + finished.failed;
     printf("  tessera ledger: %llu failed\n", failed);
     return (failed == 0ull) ? 0 : 1;
 }

@@ -51,14 +51,14 @@ struct ClimbMachine
     unsigned int scratch_frame[2];
     unsigned int scratch_next;
     unsigned long long *positive;
-    unsigned int *slot_frame;
-    unsigned int *slot_leaves;
-    unsigned int *slot_runs;
-    unsigned int **slot_leaf_bundles;
-    unsigned int **slot_bundle_first;
-    unsigned int **slot_bundle_end;
-    unsigned int **slot_contact_start;
-    unsigned int **slot_contacts;
+    unsigned int *resident_frame;
+    unsigned int *resident_leaves;
+    unsigned int *resident_runs;
+    unsigned int **resident_leaf_bundles;
+    unsigned int **resident_bundle_first;
+    unsigned int **resident_bundle_end;
+    unsigned int **resident_contact_start;
+    unsigned int **resident_contacts;
     size_t run_capacity;
     unsigned int *run_start;
     unsigned int *run_length;
@@ -82,8 +82,8 @@ struct ClimbMachine
     unsigned int pending_count;
     unsigned int pending_capacity;
     size_t side_capacity;
-    unsigned int *side_slots;
-    unsigned int *device_side_slots;
+    unsigned int *side_residents;
+    unsigned int *device_side_residents;
     size_t climber_capacity;
     unsigned int *climber_side;
     unsigned int *climber_peak;
@@ -187,7 +187,7 @@ __device__ static inline unsigned int machine_agreeing(const unsigned long long 
 __global__ void machine_score_kernel(const unsigned int *run_start, const unsigned int *run_length,
                                      const unsigned int *entry_first, const unsigned int *entry_end,
                                      const unsigned int *entry_climber, unsigned int entries,
-                                     const unsigned int *climber_side, const unsigned int *side_slots,
+                                     const unsigned int *climber_side, const unsigned int *side_residents,
                                      const int *centers, const unsigned int *active, const unsigned long long *positive,
                                      MachineGeometry geometry, unsigned int *scores);
 
@@ -195,7 +195,7 @@ __global__ void machine_decide_kernel(const unsigned int *climber_entry_start, c
                                       unsigned int climbers, MachineGeometry geometry, int *centers,
                                       unsigned int *active, unsigned int *moved, unsigned int *final_score);
 
-__device__ static inline unsigned int machine_leaf_at(unsigned long long voxel, unsigned long long slot,
+__device__ static inline unsigned int machine_leaf_at(unsigned long long voxel, unsigned long long resident,
                                                       const unsigned int *row_first, const unsigned int *run_at_row,
                                                       const unsigned int *run_start, const unsigned int *run_length,
                                                       const unsigned int *run_leaf, unsigned int run_capacity,
@@ -203,8 +203,8 @@ __device__ static inline unsigned int machine_leaf_at(unsigned long long voxel, 
 {
     const unsigned long long rows = (unsigned long long)geometry.depth * geometry.height;
     const unsigned long long row = voxel / geometry.width;
-    const unsigned long long base = slot * (unsigned long long)run_capacity;
-    const unsigned long long offsets = slot * (rows + 1ull);
+    const unsigned long long base = resident * (unsigned long long)run_capacity;
+    const unsigned long long offsets = resident * (rows + 1ull);
     const unsigned int first = row_first[offsets + row];
     const unsigned int end = row_first[offsets + row + 1ull];
     const unsigned int empty = (unsigned int)(end <= first);
@@ -224,7 +224,7 @@ __device__ static inline unsigned int machine_leaf_at(unsigned long long voxel, 
     return (covers != 0u) ? run_leaf[base + at] : CLIMB_MACHINE_OUTSIDE;
 }
 
-__global__ void machine_land_mass_kernel(const unsigned int *climber_side, const unsigned int *side_slots,
+__global__ void machine_land_mass_kernel(const unsigned int *climber_side, const unsigned int *side_residents,
                                          const unsigned int *climber_entry_start, const unsigned int *entry_first,
                                          const unsigned int *entry_end, const int *centers,
                                          const unsigned int *row_first, const unsigned int *run_at_row,
@@ -233,7 +233,7 @@ __global__ void machine_land_mass_kernel(const unsigned int *climber_side, const
                                          const int *spiral, unsigned int tries, MachineGeometry geometry,
                                          unsigned int *landed);
 
-__global__ void machine_land_kernel(const unsigned int *climber_side, const unsigned int *side_slots,
+__global__ void machine_land_kernel(const unsigned int *climber_side, const unsigned int *side_residents,
                                     const unsigned int *climber_peak, const int *centers, const unsigned int *row_first,
                                     const unsigned int *run_at_row, const unsigned int *run_start,
                                     const unsigned int *run_length, const unsigned int *run_leaf,
@@ -241,7 +241,7 @@ __global__ void machine_land_kernel(const unsigned int *climber_side, const unsi
                                     unsigned int *landed);
 
 __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, MachineBoxCells box,
-                                   const unsigned int *climber_side, const unsigned int *side_slots,
+                                   const unsigned int *climber_side, const unsigned int *side_residents,
                                    const unsigned int *climber_entry_start, const unsigned int *entry_first,
                                    const unsigned int *entry_end, const unsigned int *row_first,
                                    const unsigned int *run_at_row, const unsigned int *run_start,
@@ -262,7 +262,7 @@ __global__ void machine_gather_kernel(const unsigned int *order, unsigned int ru
 
 int machine_launched(void);
 
-unsigned int machine_slot_of(const ClimbMachine *machine, unsigned int frame);
+unsigned int machine_resident_of(const ClimbMachine *machine, unsigned int frame);
 
 int machine_grow(void **host, void **device, size_t bytes);
 

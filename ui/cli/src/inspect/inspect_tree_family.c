@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_tree_family.c: each Python class's family: its ancestors in the tree, itself first, whether all of them are
 // in it, and its descendants, itself among them; what each family sets; and each attribute a method reads of `self`
-// that no class of its family sets. A class is numbered by the files in the index's order and its place among its
-// file's classes. The families are held in two cells: one sized to the classes counted and the bases they name, one to
-// the ancestors a walk of them counts, both given back as the index changes. A base that adds no attribute a class
+// that no class of its family sets. A class is numbered by the files in the tree's order and its place among its
+// file's classes. The families are stored in two cells: one sized to the classes counted and the bases they name, one
+// to the ancestors a walk of them counts, both given back as the tree changes. A base that adds no attribute a class
 // reads of `self` is not followed
 #include "../command_line/cells.h"
 #include "inspect_tree_internal.h"
@@ -49,8 +49,8 @@ static CliTreeFamilies s_family;
 
 void cli_tree_families_given(void)
 {
-    cli_cell_given(s_family.class_cell);
-    cli_cell_given(s_family.ancestor_cell);
+    g_cli_cells->persistent_buf_release(s_family.class_cell, NULL);
+    g_cli_cells->persistent_buf_release(s_family.ancestor_cell, NULL);
     memor.set(&(MemoriaCfg){.dst = &s_family, .val = 0, .bytes = sizeof(s_family)});
 }
 
@@ -80,7 +80,7 @@ static int family_bare(const char *base, unsigned long long size)
     return 0;
 }
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
 static void *family_part(unsigned char **at, unsigned long long bytes)
 {
     void *const part = *at;
@@ -95,16 +95,16 @@ static int family_class_cell(void)
     unsigned long long links = 0ull;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        const CliTreeFile *const held = &CLI_TREE_FILE(file);
-        for (unsigned int at = 0u; held->used && (at < held->facts.classes); at += 1u)
+        const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
+        for (unsigned int at = 0u; tree_file->used && (at < tree_file->facts.classes); at += 1u)
         {
             classes += 1u;
-            links += held->python ? held->facts.class_of[at].bases : 0u;
+            links += tree_file->python ? tree_file->facts.class_of[at].bases : 0u;
         }
     }
     const unsigned long long words = (11ull * classes) + g_cli_tree_files + links + 16ull;
     const unsigned long long bytes = (words * sizeof(unsigned int)) + (4ull * (classes + 8ull));
-    unsigned char *at = cli_cell_taken(bytes, "the tree's classes' families");
+    unsigned char *at = g_cli_cells->persistent_buf_alloc(bytes, NULL);
     s_family.class_cell = at;
     if (at == NULL)
     {
@@ -130,19 +130,19 @@ static int family_class_cell(void)
     return 1;
 }
 
-// each class numbered, by the files in the index's order
+// each class numbered, by the files in the tree's order
 static void family_numbered(void)
 {
     unsigned int classes = 0u;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
         s_family.class_first[file] = classes;
-        const CliTreeFile *const held = &CLI_TREE_FILE(file);
-        for (unsigned int at = 0u; held->used && (at < held->facts.classes); at += 1u)
+        const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
+        for (unsigned int at = 0u; tree_file->used && (at < tree_file->facts.classes); at += 1u)
         {
             s_family.class_file[classes] = file;
             s_family.class_at[classes] = at;
-            s_family.python[classes] = (unsigned char)held->python;
+            s_family.python[classes] = (unsigned char)tree_file->python;
             classes += 1u;
         }
     }
@@ -198,15 +198,15 @@ static void family_bases(void)
     }
 }
 
-// the ancestors of the class numbered `key` walked, from `used` in the ancestors kept, each kept where `kept` is 1 and
-// only counted where it is 0: their count after
-static unsigned int family_ancestors_of(unsigned int key, unsigned int used, int kept)
+// the ancestors of the class numbered `key` walked, from `used` in the ancestors stored, each stored where `store` is 1
+// and only counted where it is 0: their count after
+static unsigned int family_ancestors_of(unsigned int key, unsigned int used, int store)
 {
     s_family.round += 1u;
     s_family.seen[key] = s_family.round;
     s_family.known[key] = 1u;
     s_family.dynamic[key] = 0u;
-    if (kept)
+    if (store)
     {
         s_family.ancestor_first[key] = used;
         s_family.ancestor[used] = key;
@@ -232,7 +232,7 @@ static unsigned int family_ancestors_of(unsigned int key, unsigned int used, int
                 continue;
             }
             s_family.seen[base] = s_family.round;
-            if (kept)
+            if (store)
             {
                 s_family.ancestor[used + count] = base;
             }
@@ -242,7 +242,7 @@ static unsigned int family_ancestors_of(unsigned int key, unsigned int used, int
         }
     }
     s_family.ancestors[key] = count;
-    for (unsigned int at = 0u; kept && (at < count); at += 1u)
+    for (unsigned int at = 0u; store && (at < count); at += 1u)
     {
         s_family.dynamic[key] |= (unsigned char)(family_class(s_family.ancestor[used + at])->dynamic != 0);
     }
@@ -292,7 +292,7 @@ void cli_tree_families(void)
     }
     family_numbered();
     family_bases();
-    // the ancestors counted by one walk, their cell taken at that count, and kept by a second
+    // the ancestors counted by one walk, their cell taken at that count, and stored by a second
     memor.set(&(MemoriaCfg){.dst = s_family.seen, .val = 0, .bytes = s_family.classes * sizeof(s_family.seen[0])});
     unsigned long long total = 0ull;
     for (unsigned int key = 0u; key < s_family.classes; key += 1u)
@@ -300,7 +300,7 @@ void cli_tree_families(void)
         total = family_ancestors_of(key, 0u, 0) + total;
     }
     unsigned int *const ancestors =
-        cli_cell_taken((2ull * total + 2ull) * sizeof(unsigned int), "the tree's classes' ancestors");
+        g_cli_cells->persistent_buf_alloc((2ull * total + 2ull) * sizeof(unsigned int), NULL);
     s_family.ancestor_cell = ancestors;
     if (ancestors == NULL)
     {
@@ -381,7 +381,7 @@ static int family_passed(unsigned int key, unsigned int read)
 }
 
 // the attributes the class numbered `key` reads of `self` that no class of its family sets, each handed to `each`
-static void family_attributes_of(unsigned int key, CliTreeSaid each, void *context)
+static void family_attributes_of(unsigned int key, CliTreeFindingFn each, void *context)
 {
     const CliFacts *const facts = family_facts(key);
     const CliInspectClass *const one = family_class(key);
@@ -404,23 +404,23 @@ static void family_attributes_of(unsigned int key, CliTreeSaid each, void *conte
         {
             continue;
         }
-        char said[4096];
-        CliLine message = {said, sizeof(said), 0ull};
-        cli_line_character(&message, '`');
-        cli_line_counted(&message, facts->text + one->name.at, one->name.size);
-        cli_line_text(&message, "` has no `");
-        cli_line_counted(&message, text, name->name.size);
-        cli_line_text(&message, "`: neither it, a class it comes from, nor a class that comes from it sets `");
-        cli_line_counted(&message, text, name->name.size);
-        cli_line_text(&message, "`.");
-        if (cli_line_fits(&message))
+        char msg_buf[4096];
+        VerbaLinea message = {msg_buf, sizeof(msg_buf), 0ull};
+        mmgr_line_ch(&message, '`');
+        mmgr_line_put_n(&message, facts->text + one->name.at, one->name.size);
+        mmgr_line_put(&message, "` has no `");
+        mmgr_line_put_n(&message, text, name->name.size);
+        mmgr_line_put(&message, "`: neither it, a class it comes from, nor a class that comes from it sets `");
+        mmgr_line_put_n(&message, text, name->name.size);
+        mmgr_line_put(&message, "`.");
+        if (mmgr_line_ok(&message))
         {
             each(context, s_family.class_file[key], name->from, name->to, "unknown-attribute", &message);
         }
     }
 }
 
-void cli_tree_attributes(CliTreeSaid each, void *context)
+void cli_tree_attributes(CliTreeFindingFn each, void *context)
 {
     cli_tree_families();
     for (unsigned int key = 0u; s_family.current && (key < s_family.classes); key += 1u)
@@ -433,7 +433,7 @@ void cli_tree_attributes(CliTreeSaid each, void *context)
 }
 
 // The names a family sets, each once, in a table sized to the most names one family sets: a bucket's round, and the
-// name it holds
+// name it contains
 typedef struct
 {
     unsigned int round;
@@ -497,7 +497,7 @@ void cli_inspect_tree_supplied(CliInspectSupplied each, void *context)
         buckets <<= 1u;
     }
     CliTreeSupplied *const table =
-        s_family.current ? cli_cell_taken(buckets * sizeof(CliTreeSupplied), "the names a family sets") : NULL;
+        s_family.current ? g_cli_cells->persistent_buf_alloc(buckets * sizeof(CliTreeSupplied), NULL) : NULL;
     if (table != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = table, .val = 0, .bytes = buckets * sizeof(CliTreeSupplied)});
@@ -531,6 +531,6 @@ void cli_inspect_tree_supplied(CliInspectSupplied each, void *context)
             }
         }
     }
-    cli_cell_given(table);
+    g_cli_cells->persistent_buf_release(table, NULL);
     cli_lock_give(&g_cli_tree_lock);
 }

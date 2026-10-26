@@ -185,7 +185,9 @@ def start(wanted):
         name = row["name"]
         password = password_of(row)
         if name.endswith("-postgres"):
-            ready = wait_for(90, lambda: exec_ok(name, "pg_isready", "-U", "postgres"))
+            # the image's first start runs a server on the socket alone for its setup and stops it before the one
+            # that stays; only that one listens on TCP, so readiness is asked over TCP
+            ready = wait_for(90, lambda: exec_ok(name, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"))
             # the roles the tests sign in as by md5 and in the clear, ahead of the image's lines
             lines = "host all orior_md5 all md5\\nhost all orior_plain all password"
             hba = "f=\"$(psql -U postgres -Atc 'show hba_file')\"; grep -q orior_md5 \"$f\" || sed -i '1i %s' \"$f\"; psql -U postgres -c 'select pg_reload_conf()' >/dev/null" % lines

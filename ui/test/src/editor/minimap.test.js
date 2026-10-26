@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The minimap beside the text: a press on it brings the line pressed to the middle of the view, a
-// press on its strip goes to that part of the file, and the wheel over it scrolls the text.
+// The minimap beside the text, brought back where the editing has taken it away: a press on it brings
+// the line pressed to the middle of the view, a press on its strip goes to that part of the file, and
+// the wheel over it scrolls the text.
 
 import { invoke } from "../../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../../gui/src-js/edit.js";
@@ -26,6 +27,7 @@ async function opened() {
   await ui.waitFor(() => editing().active === "mapped.py" && editing().editor?.s, 5000);
   const view = editing().editor;
   view.place(0);
+  await ui.brought(view.minimap.canvas);
   await settled();
   return view;
 }

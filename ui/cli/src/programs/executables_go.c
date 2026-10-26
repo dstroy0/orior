@@ -6,11 +6,11 @@
 #include "sea.h"
 
 // an entry of a folder of a Go module: a folder to look in after, where it is no module of its own, or a Go file other
-// than a test that says `package main`
+// than a test that declares `package main`
 static void cli_go_each(void *context, const char *name, int is_folder)
 {
     CliWalk *const walk = (CliWalk *)context;
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_executables_joined(walk->folder, name, path))
     {
         return;
@@ -18,7 +18,7 @@ static void cli_go_each(void *context, const char *name, int is_folder)
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     if (is_folder)
     {
-        char module[CLI_PATH_LONGEST];
+        char module[CLI_PATH_MAX_LEN];
         const int own_module = cli_executables_joined(path, "go.mod", module) && query_is_file(module);
         if (((walk->at_depth + 1u) < CLI_EXECUTABLES_DEEP) && !own_module && (name[0] != '.') && (name[0] != '_') &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "testdata", .cap = CLI_CELLS_POOL})) &&
@@ -32,11 +32,11 @@ static void cli_go_each(void *context, const char *name, int is_folder)
              !((length > 8ull) && (cellul.eq(&(CatenaFinitaCfg){
                                       .src = name + length - 8ull, .other = "_test.go", .cap = CLI_CELLS_POOL}))))
     {
-        char package[CLI_NAME_LONGEST];
+        char package[CLI_NAME_MAX_LEN];
         char *const text = cli_text_taken(path);
         walk->main = (text != NULL) && cli_go_package(text, package) &&
                      (cellul.eq(&(CatenaFinitaCfg){.src = package, .other = "main", .cap = CLI_CELLS_POOL}));
-        cli_cell_given_by(&g_cli_executables_cells, text);
+        g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
     }
 }
 
@@ -45,7 +45,7 @@ static void cli_go_each(void *context, const char *name, int is_folder)
 void cli_go_mains(const char *module, const char *text, CliNames *mains)
 {
     mains->count = 0u;
-    char path[CLI_PATH_LONGEST] = "";
+    char path[CLI_PATH_MAX_LEN] = "";
     for (const char *line = text; line[0] != '\0';)
     {
         const char *stop = line;
@@ -63,7 +63,7 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
         }
         line = (stop[0] != '\0') ? (stop + 1) : stop;
     }
-    char top[CLI_PATH_LONGEST];
+    char top[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(module, top))
     {
         memor.cpy(&(MemoriaCfg){
@@ -75,7 +75,7 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
     const unsigned long long top_length = cellul.len(&(CatenaFinitaCfg){.src = top, .cap = CLI_CELLS_POOL});
     for (unsigned int at = 0u; at < walk->found_count; at += 1u)
     {
-        char package[CLI_PATH_LONGEST];
+        char package[CLI_PATH_MAX_LEN];
         const char *inner = walk->found[at] + top_length;
         inner += ((inner[0] == '/') || (inner[0] == '\\')) ? 1 : 0;
         memor.cpy(&(MemoriaCfg){.dst = package,
@@ -90,11 +90,11 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
             (cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), '/') != NULL)
                 ? (cli_text_last(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), '/') + 1)
                 : named;
-        char shown[CLI_PATH_LONGEST];
-        CliLine line = {shown, sizeof(shown), 0ull};
-        cli_line_text(&line, (package[0] == '\0') ? "." : "./");
-        cli_line_text(&line, package);
-        cli_line_closed(&line);
+        char shown[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {shown, sizeof(shown), 0ull};
+        mmgr_line_put(&line, (package[0] == '\0') ? "." : "./");
+        mmgr_line_put(&line, package);
+        mmgr_line_finish(&line);
         if ((name[0] != '\0') && (mains->count < CLI_EXECUTABLES_NAMES))
         {
             memor.cpy(&(MemoriaCfg){.dst = mains->name[mains->count],
@@ -117,8 +117,8 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
             {
                 break;
             }
-            char name[CLI_NAME_LONGEST];
-            char value[CLI_PATH_LONGEST];
+            char name[CLI_NAME_MAX_LEN];
+            char value[CLI_PATH_MAX_LEN];
             memor.cpy(&(MemoriaCfg){
                 .dst = name,
                 .src = mains->name[place],
@@ -128,9 +128,9 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
                 .src = mains->value[place],
                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = mains->value[place], .cap = CLI_CELLS_POOL}) + 1u});
             memor.cpy(
-                &(MemoriaCfg){.dst = mains->name[place], .bytes = CLI_NAME_LONGEST, .src = mains->name[place - 1u]});
+                &(MemoriaCfg){.dst = mains->name[place], .bytes = CLI_NAME_MAX_LEN, .src = mains->name[place - 1u]});
             memor.cpy(
-                &(MemoriaCfg){.dst = mains->value[place], .bytes = CLI_PATH_LONGEST, .src = mains->value[place - 1u]});
+                &(MemoriaCfg){.dst = mains->value[place], .bytes = CLI_PATH_MAX_LEN, .src = mains->value[place - 1u]});
             memor.cpy(&(MemoriaCfg){.dst = mains->name[place - 1u],
                                     .src = name,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
@@ -141,18 +141,18 @@ void cli_go_mains(const char *module, const char *text, CliNames *mains)
     }
 }
 
-// the programs that can build a bin, the one a job takes unless told otherwise first: Bun where the package holds
-// Bun's lock and Deno where it holds Deno's settings; else Node itself where the script asks for no module outside
-// Node, which a single executable of Node's cannot hold, and else the bundlers, those the machine has before those it
-// lacks
+// the programs that can build a bin, the one a job takes unless instructed otherwise first: Bun where the package
+// contains Bun's lock and Deno where it contains Deno's settings; else Node itself where the script requires no module
+// outside Node, which a single executable of Node's cannot contain, and else the bundlers, those the machine has before
+// those it lacks
 void cli_npm_builders(const char *folder, const char *script, CliExecutable *one)
 {
-    static char s_outside[4][CLI_NAME_LONGEST];
+    static char s_outside[4][CLI_NAME_MAX_LEN];
     static const char *const s_bun[3] = {"bun", "deno", "node"};
     static const char *const s_deno[3] = {"deno", "bun", "node"};
     static const char *const s_node[3] = {"node", "bun", "deno"};
     const char *const *order = NULL;
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if ((cli_executables_joined(folder, "bun.lock", path) && query_is_file(path)) ||
         (cli_executables_joined(folder, "bun.lockb", path) && query_is_file(path)))
     {
@@ -175,12 +175,12 @@ void cli_npm_builders(const char *folder, const char *script, CliExecutable *one
         one->withs = 3u;
         return;
     }
-    char found[CLI_PATH_LONGEST];
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int has_bun = cli_executables_program("bun", "bun", found, &said);
-    said.at = 0ull;
-    const int has_deno = cli_executables_program("deno", "deno", found, &said);
+    char found[CLI_PATH_MAX_LEN];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int has_bun = cli_executables_program("bun", "bun", found, &err_msg);
+    err_msg.at = 0ull;
+    const int has_deno = cli_executables_program("deno", "deno", found, &err_msg);
     // the bundlers the machine has first, Bun before Deno where it has both or neither
     one->with[0] = (!has_bun && has_deno) ? "deno" : "bun";
     one->with[1] = (!has_bun && has_deno) ? "bun" : "deno";

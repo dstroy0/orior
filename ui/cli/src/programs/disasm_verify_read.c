@@ -6,7 +6,7 @@
 // instruction taken as one
 #include "disasm_verify.h"
 
-// the end of the line of `text` that holds `at`: its newline, or the text's end
+// the end of the line of `text` that contains `at`: its newline, or the text's end
 static unsigned long long read_line_end(const char *text, unsigned long long size, unsigned long long at)
 {
     unsigned long long end = at;
@@ -26,7 +26,7 @@ static int read_named(char letter)
     return lower || upper || digit || (letter == '_') || (letter == '.') || (letter == '$');
 }
 
-// `length` bytes of `text` copied into `into`, which holds `room`: 1, or 0 where they do not fit
+// `length` bytes of `text` copied into `into`, sized for `room`: 1, or 0 where they do not fit
 static int read_copied(char *into, unsigned long long room, const char *text, unsigned long long length)
 {
     if (length >= room)
@@ -38,7 +38,7 @@ static int read_copied(char *into, unsigned long long room, const char *text, un
     return 1;
 }
 
-unsigned int cli_disasm_functions_defined(const char *ir, unsigned long long size, char (*names)[CLI_NAME_LONGEST],
+unsigned int cli_disasm_functions_defined(const char *ir, unsigned long long size, char (*names)[CLI_NAME_MAX_LEN],
                                           unsigned int room)
 {
     unsigned int count = 0u;
@@ -61,7 +61,7 @@ unsigned int cli_disasm_functions_defined(const char *ir, unsigned long long siz
                 name_end += 1ull;
             }
             if ((name_end > name) && (count < room) &&
-                read_copied(names[count], CLI_NAME_LONGEST, ir + name, name_end - name))
+                read_copied(names[count], CLI_NAME_MAX_LEN, ir + name, name_end - name))
             {
                 count += 1u;
             }
@@ -73,7 +73,7 @@ unsigned int cli_disasm_functions_defined(const char *ir, unsigned long long siz
 
 int cli_disasm_symbol_of(const char *text, unsigned long long size, const char *name, char *symbol)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_NAME_LONGEST});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_NAME_MAX_LEN});
     int promoted = 0;
     for (unsigned long long at = 0ull; at < size;)
     {
@@ -89,7 +89,7 @@ int cli_disasm_symbol_of(const char *text, unsigned long long size, const char *
             (found == length) && cellul.starts(&(CatenaFinitaCfg){.src = text + word, .other = name, .cap = found});
         if (same)
         {
-            return read_copied(symbol, CLI_NAME_LONGEST, text + word, found);
+            return read_copied(symbol, CLI_NAME_MAX_LEN, text + word, found);
         }
         const int suffixed =
             !promoted && (found > length + 6ull) &&
@@ -97,7 +97,7 @@ int cli_disasm_symbol_of(const char *text, unsigned long long size, const char *
             cellul.starts(&(CatenaFinitaCfg){.src = text + word + length, .other = ".llvm.", .cap = found - length});
         if (suffixed)
         {
-            promoted = read_copied(symbol, CLI_NAME_LONGEST, text + word, found);
+            promoted = read_copied(symbol, CLI_NAME_MAX_LEN, text + word, found);
         }
         at = end + 1ull;
     }
@@ -175,7 +175,7 @@ static int read_prefix(const char *word, unsigned long long length)
                                            "data16", "cs",  "ds",   "notrack", "bnd"};
     for (unsigned int each = 0u; each < (sizeof(prefixes) / sizeof(prefixes[0])); each += 1u)
     {
-        const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = prefixes[each], .cap = CLI_NAME_LONGEST});
+        const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = prefixes[each], .cap = CLI_NAME_MAX_LEN});
         if ((known == length) && cellul.starts(&(CatenaFinitaCfg){.src = word, .other = prefixes[each], .cap = length}))
         {
             return 1;
@@ -198,15 +198,15 @@ static CliDisasmInstruction *read_put(CliDisasmReading *reading, unsigned long l
     one->address = address;
     one->length = 0u;
     memor.set(&(MemoriaCfg){.dst = one->byte, .val = 0, .bytes = CLI_DISASM_BYTES});
-    const unsigned long long kept = (length < (CLI_DISASM_MNEMONIC - 1u)) ? length : (CLI_DISASM_MNEMONIC - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = one->mnemonic, .src = mnemonic, .bytes = kept});
-    one->mnemonic[kept] = '\0';
+    const unsigned long long copied_len = (length < (CLI_DISASM_MNEMONIC - 1u)) ? length : (CLI_DISASM_MNEMONIC - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = one->mnemonic, .src = mnemonic, .bytes = copied_len});
+    one->mnemonic[copied_len] = '\0';
     reading->count += 1u;
     return one;
 }
 
 // two hex digits at `text` from `at` read as one byte put at the unit's end: 1 with `at` moved past them, or 0 where
-// two digits do not stand there or the unit holds CLI_DISASM_BYTES already
+// two digits do not stand there or the unit contains CLI_DISASM_BYTES already
 static int read_pair(const char *text, unsigned long long end, unsigned long long *at, CliDisasmInstruction *unit)
 {
     unsigned long long cursor = *at;
@@ -225,7 +225,7 @@ static int read_pair(const char *text, unsigned long long end, unsigned long lon
 
 int cli_disasm_objdump_read(const char *text, unsigned long long size, const char *symbol, CliDisasmReading *reading)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = symbol, .cap = CLI_NAME_LONGEST});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = symbol, .cap = CLI_NAME_MAX_LEN});
     reading->count = 0u;
     reading->cut = 0;
     int inside = 0;
@@ -296,7 +296,7 @@ int cli_disasm_objdump_read(const char *text, unsigned long long size, const cha
 
 int cli_disasm_ghidra_read(const char *text, unsigned long long size, const char *symbol, CliDisasmReading *reading)
 {
-    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = symbol, .cap = CLI_NAME_LONGEST});
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = symbol, .cap = CLI_NAME_MAX_LEN});
     reading->count = 0u;
     reading->cut = 0;
     int inside = 0;
@@ -365,7 +365,7 @@ static const CliDisasmSpelling s_spellings[] = {
 };
 
 // `mnemonic` as one spelling: in lower case, a suffix Ghidra adds for a prefix taken off, and LLVM's spelling of an
-// instruction Ghidra spells otherwise turned into Ghidra's; into `out`, which holds CLI_DISASM_MNEMONIC
+// instruction Ghidra spells otherwise turned into Ghidra's; into `out`, sized for CLI_DISASM_MNEMONIC
 static void read_one_spelling(const char *mnemonic, char *out)
 {
     unsigned long long length = 0ull;
@@ -395,7 +395,7 @@ static int read_raw(const CliDisasmInstruction *right)
 }
 
 // the bytes of a raw run `right` from `raw_offset` read against the bytes of the instruction `left` from `left_offset`,
-// as many as both hold from there: how many are the same from the same address, or 0 where the addresses differ or a
+// as many as both contain from there: how many are the same from the same address, or 0 where the addresses differ or a
 // byte does, or where either has none left
 static unsigned int read_raw_against(const CliDisasmInstruction *left, unsigned int left_offset,
                                      const CliDisasmInstruction *right, unsigned int raw_offset)

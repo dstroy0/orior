@@ -8,9 +8,9 @@
 // `.devcontainer/<name>/devcontainer.json`, as JSON with comments and trailing commas. Its image is `image`, or the one
 // `build.dockerfile` builds from `build.context` with `build.args` and `build.target`; the tree is mounted at
 // `workspaceFolder`, `/workspaces/<the tree's folder>` where it names none, the container runs with `containerEnv`,
-// `mounts`, `runArgs` and `containerUser`, and it is kept running by a command of orior's in place of the image's own.
+// `mounts`, `runArgs` and `containerUser`, and it is stays running by a command of orior's in place of the image's own.
 // A description with `dockerComposeFile` brings up its `service` with docker compose, which mounts the tree as its
-// files say. `onCreateCommand` and `postCreateCommand` run in the container once it is made, and `postStartCommand`
+// files specify. `onCreateCommand` and `postCreateCommand` run in the container once it is made, and `postStartCommand`
 // each time it starts. `${localWorkspaceFolder}`, `${localWorkspaceFolderBasename}`, `${containerWorkspaceFolder}`,
 // `${containerWorkspaceFolderBasename}` and `${localEnv:NAME}` read as they do elsewhere.
 //
@@ -51,11 +51,12 @@ typedef struct
     unsigned int count;
 } CliPlanCommand;
 
-// A tree's dev container, as its description says. Each text is the place in `text` it starts at: the description's
-// file, the tree, the container's and the compose project's name, and the tree's folder in the container. `source`
-// says what the container is built from: the `image`; the `dockerfile` built from `context` with `args`, key and value
-// in turn, and the `target` where `targeted` is 1; or the compose `files` and their `service`, with `services` the
-// ones brought up beside it. `env` holds name and value in turn; `user` is the container's user where `has_user` is 1
+// A tree's dev container, as its description specifies. Each text is the place in `text` it starts at: the
+// description's file, the tree, the container's and the compose project's name, and the tree's folder in the container.
+// `source` specifies what the container is built from: the `image`; the `dockerfile` built from `context` with `args`,
+// key and value in turn, and the `target` where `targeted` is 1; or the compose `files` and their `service`, with
+// `services` the ones brought up beside it. `env` contains name and value in turn; `user` is the container's user where
+// `has_user` is 1
 typedef struct
 {
     char text[CLI_PLAN_TEXT];
@@ -86,24 +87,24 @@ typedef struct
     unsigned int on_starts;
 } CliPlan;
 
-// JSON with comments and trailing commas, as VS Code's files hold it, made plain JSON into `plain`: each comment
+// JSON with comments and trailing commas, as VS Code's files write it, made plain JSON into `plain`: each comment
 // outside a string taken out, and each comma before a closing bracket
-void cli_plain_json(const char *text, unsigned long long size, CliLine *plain);
-// the tree's description of its dev container into `file`, which holds CLI_PATH_LONGEST: 1, or 0 where it has none
+void cli_plain_json(const char *text, unsigned long long size, VerbaLinea *plain);
+// the tree's description of its dev container into `file`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it has none
 int cli_devcontainer_find(const char *root, char *file);
-// the container's name for the tree at `root` into `name`, which holds CLI_PATH_LONGEST: the tree's folder as docker
+// the container's name for the tree at `root` into `name`, sized for CLI_PATH_MAX_LEN: the tree's folder as docker
 // takes names, and a mark of its whole path
 void cli_devcontainer_name(const char *root, char *name);
-// the tree's dev container as its description says into `plan`: 1, or 0 with why said
-int cli_devcontainer_plan(const char *root, CliPlan *plan, CliLine *said);
+// the tree's dev container as its description specifies into `plan`: 1, or 0 with why given
+int cli_devcontainer_plan(const char *root, CliPlan *plan, VerbaLinea *err_msg);
 // the plan's text that starts at `at`
 const char *cli_plan_text(const CliPlan *plan, unsigned int at);
 
-// the address a window opens the tree at in the container named `container`, into `address`, which holds
-// CLI_PATH_LONGEST
+// the address a window opens the tree at in the container named `container`, into `address`, sized for
+// CLI_PATH_MAX_LEN
 void cli_plan_address(const CliPlan *plan, const char *container, char *address);
-// the words of `docker build` for an image the description builds, and the image's name into `image`, which holds
-// CLI_PATH_LONGEST: 1, or 0 where it builds none
+// the words of `docker build` for an image the description builds, and the image's name into `image`, sized for
+// CLI_PATH_MAX_LEN: 1, or 0 where it builds none
 int cli_plan_build_words(const CliPlan *plan, CliWords *words, char *image);
 // the words of `docker run` that make the container from `image`
 void cli_plan_run_words(const CliPlan *plan, const char *image, CliWords *words);
@@ -112,8 +113,8 @@ int cli_plan_compose_words(const CliPlan *plan, CliWords *words);
 // the words of `docker exec` that run one of the description's commands in `container`
 void cli_plan_exec_words(const CliPlan *plan, const char *container, const CliPlanCommand *command, CliWords *words);
 // the tree's dev container brought up: started where it is made and stopped, made where it is not, its commands run as
-// the description says, each docker line said to `say`; the address a window opens the tree at into `address`, which
-// holds CLI_PATH_LONGEST: 1, or 0 with why said
-int cli_devcontainer_up(const CliPlan *plan, QuerySink say, char *address, CliLine *said);
+// the description specifies, each docker line printed to `sink`; the address a window opens the tree at into `address`,
+// which is sized for CLI_PATH_MAX_LEN: 1, or 0 with why given
+int cli_devcontainer_up(const CliPlan *plan, QuerySink sink, char *address, VerbaLinea *err_msg);
 
 #endif

@@ -19,7 +19,7 @@ void mmio_close(HANDLE device);
 // The extent of the aperture the driver mapped into `base` and `size`: 1, or 0 where the driver did not answer
 int mmio_extent(HANDLE device, unsigned long long *base, unsigned long long *size);
 
-// `words` 32-bit registers at byte `offset` into BAR0 read into `out`, which holds `words`: 1, or 0 where the driver
+// `words` 32-bit registers at byte `offset` into BAR0 read into `out`, sized for `words`: 1, or 0 where the driver
 // refused the read or gave back fewer words. The offset is a whole count of 32-bit words and the read stays inside the
 // aperture, or the driver refuses it
 int mmio_read(HANDLE device, unsigned int offset, unsigned int words, unsigned int *out);

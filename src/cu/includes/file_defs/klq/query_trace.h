@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query_trace.h: the flags of the query's trace, each choice a put makes at a link written as the flags that hold
+// query_trace.h: the flags of the query's trace, each choice a put makes at a link written as the flags that represent
 // there, ORed into one word, and read back by name (src/cu/includes/file_defs/klq/query_trace.tsv)
 #ifndef QUERY_TRACE_H
 #define QUERY_TRACE_H
@@ -28,7 +28,7 @@ int query_trace_read(const std::string &path, QueryTrace *trace, std::string *er
 // the word of the flag `name`, 0 where the table gives no such flag
 unsigned long long query_trace_flag(const QueryTrace &trace, const std::string &name);
 
-// the names of the flags `word` holds, in the table's order, a space between each
+// the names of the flags `word` contains, in the table's order, a space between each
 std::string query_trace_names(const QueryTrace &trace, unsigned long long word);
 
 #endif

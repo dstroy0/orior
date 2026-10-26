@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// khw.h: a part's machine file, <part>.khw beside its rulesets (khw.oracle.tsv), a k-file people read (kfile_lines.h). Its
-// first line is `forms 2`, then `part <name>`, then a line a form:
+// khw.h: a part's machine file, <part>.khw beside its rulesets (khw.oracle.tsv), a k-file people read (kfile_lines.h).
+// Its first line is `forms 2`, then `part <name>`, then a line a form:
 //
 //     form <operation> <kind><mark>,... <low> <high> <operand>:<first>-<last>:<place>;... <relation> <signed>
 //          <the instruction it was seen as>
@@ -9,13 +9,13 @@
 // on one line, where <low> and <high> are the instruction's two 64-bit words in hex, low first, as a listing prints
 // them, and the runs are the bits that change each operand, by the operand's place in the printed text. A run's
 // <place> is where its operand stands in the relation's tuple, the words in their order and then the answer, as
-// 1,1 -> 2 holds them (ladder.h), and - where the part answered it none. <relation> is the relation every case of the
-// form answered and <signed> 1 where the answers read a word signed, both - where the form was asked no relation. A
-// file at `forms 1` holds no place, relation or signedness, and reads as - in each.
+// 1,1 -> 2 satisfies them (ladder.h), and - where the part answered it none. <relation> is the relation every case of
+// the form answered and <signed> 1 where the answers read a word signed, both - where the form was queried no relation.
+// A file at `forms 1` contains no place, relation or signedness, and reads as - in each.
 //
 // Its reader turns each kind and mark into its number as it reads it. A program that writes the file writes all of
-// it: each line the file held keeps the who that was in force over it, and every other line goes after a who line of
-// the program's (kfile_lines_written_by).
+// it: each line the file contained retains the who that was in force over it, and every other line goes after a who
+// line of the program's (kfile_lines_written_by).
 #ifndef KHW_H
 #define KHW_H
 
@@ -32,7 +32,7 @@ extern "C"
 // the format the lines after the first are written in
 #define KHW_VERSION 2u
 
-// the longest instruction text kept, the longest operation or operand, the most operands an instruction holds and
+// the longest instruction text stored, the longest operation or operand, the most operands an instruction contains and
 // the most runs of bits one form's operands take between them
 #define KHW_TEXT 192u
 #define KHW_TOKEN 64u
@@ -80,7 +80,7 @@ extern "C"
     } KhwRun;
 
     // one form, the encoding it was first seen with, the bits its operands sit in, and the relation every case of it
-    // answered with whether the answers read a word signed, `relation` empty where it was asked none
+    // answered with whether the answers read a word signed, `relation` empty where it was queried none
     typedef struct
     {
         char operation[KHW_TOKEN];
@@ -99,15 +99,15 @@ extern "C"
     // A .khw's lines (kfile_lines.h). A file starts as zeros
     typedef KfileLines KhwFile;
 
-    // the .khw at `path` read into `file` as the run holds it (kfile_lines_read): 1, and none of its lines where there is no
-    // such file; 0 where there was no memory for a line
+    // the .khw at `path` read into `file` as the run stores it (kfile_lines_read): 1, and none of its lines where there
+    // is no such file; 0 where there was no memory for a line
     int khw_read(KhwFile *file, const char *path);
 
     // `file` handed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
     // could not be written
     int khw_write_by(const KhwFile *file, const char *path, Who who);
 
-    // every line `file` holds let go, and the file zeros again
+    // every line `file` contains let go, and the file zeros again
     void khw_free(KhwFile *file);
 
     // the name of the kind `kind`, and the letter of the mark `mark`, as the file writes them: "unknown" for a kind
@@ -118,10 +118,11 @@ extern "C"
     // 1 with the format `line` names in `version` where it is `forms <n>`; 0 otherwise
     int khw_version_read(const char *line, unsigned int *version);
 
-    // 1 with the part `line` names in `part`, which holds `room`, cut to it, where it is `part <name>`; 0 otherwise
+    // 1 with the part `line` names in `part`, which has room for `room`, cut to it, where it is `part <name>`; 0
+    // otherwise
     int khw_part_read(const char *line, char *part, size_t room);
 
-    // 1 with the form `line` writes in `form`, read at the format `version`: a form at 2 holds its relation and its
+    // 1 with the form `line` writes in `form`, read at the format `version`: a form at 2 contains its relation and its
     // signedness, and at any other neither; 0 where it is no form, or a column of it does not read
     int khw_form_read(const char *line, unsigned int version, KhwForm *form);
 

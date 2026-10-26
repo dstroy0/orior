@@ -19,35 +19,35 @@ static void text_begun(char *out, size_t room)
     s_text_at = 0u;
 }
 
-// `text` written after what the text holds
+// `text` written after what the text contains
 static void text_put(const char *text)
 {
     s_text_at =
         verba_textus.put(&(VerbaTextusCfg){.out = s_text_out, .cap = s_text_cap, .at = s_text_at, .text = text});
 }
 
-// `character` written after what the text holds
+// `character` written after what the text contains
 static void text_character(char character)
 {
     s_text_at =
         verba_littera.ch(&(VerbaLitteraCfg){.out = s_text_out, .cap = s_text_cap, .at = s_text_at, .ch = character});
 }
 
-// `value` written in base ten after what the text holds
+// `value` written in base ten after what the text contains
 static void text_decimal(unsigned long long value)
 {
     s_text_at =
         verba_numerus.u64(&(VerbaNumerusCfg){.out = s_text_out, .cap = s_text_cap, .at = s_text_at, .val = value});
 }
 
-// `value` written in base ten with its sign after what the text holds
+// `value` written in base ten with its sign after what the text contains
 static void text_signed(long long value)
 {
     s_text_at =
         verba_numerus.i64(&(VerbaNumerusCfg){.out = s_text_out, .cap = s_text_cap, .at = s_text_at, .sval = value});
 }
 
-// `value` written in sixteen hex digits after what the text holds
+// `value` written in sixteen hex digits after what the text contains
 static void text_hex(unsigned long long value)
 {
     s_text_at = verba_numerus.hex(
@@ -66,17 +66,17 @@ static int khw_text_handed(const char *name)
     return handed;
 }
 
-// run `run` of `held` written after what the text holds as its first bit, its last and its place with its kind's
+// run `run` of `form` written after what the text contains as its first bit, its last and its place with its kind's
 // letter after it, KHW_PLACE_NONE_TEXT where it has none
-static void khw_run_printed(const KhwAnswered *held, unsigned int run)
+static void khw_run_printed(const KhwAnswered *answered, unsigned int run)
 {
-    const unsigned int kind = (held->kind[run] <= KHW_KIND_CONSTANT) ? held->kind[run] : KHW_KIND_REGISTER;
+    const unsigned int kind = (answered->kind[run] <= KHW_KIND_CONSTANT) ? answered->kind[run] : KHW_KIND_REGISTER;
     text_character(' ');
-    text_decimal(held->first[run]);
+    text_decimal(answered->first[run]);
     text_character(' ');
-    text_decimal(held->last[run]);
+    text_decimal(answered->last[run]);
     text_character(' ');
-    if (held->place[run] == KHW_PLACE_NONE)
+    if (answered->place[run] == KHW_PLACE_NONE)
     {
         // a run with no place carries its kind's letter after the none mark where it is not a register's
         text_put(KHW_PLACE_NONE_TEXT);
@@ -86,11 +86,12 @@ static void khw_run_printed(const KhwAnswered *held, unsigned int run)
         }
         return;
     }
-    text_decimal(held->place[run]);
+    text_decimal(answered->place[run]);
     text_character(KHW_KIND_LETTERS[kind]);
 }
 
-// the encoding `low`, `high` written after what the text holds as two words of sixteen hex digits, each after a space
+// the encoding `low`, `high` written after what the text contains as two words of sixteen hex digits, each after a
+// space
 static void khw_encoding_printed(unsigned long long low, unsigned long long high)
 {
     text_character(' ');
@@ -99,10 +100,10 @@ static void khw_encoding_printed(unsigned long long low, unsigned long long high
     text_hex(high);
 }
 
-// the runs of `held` read from `text`, `held->runs` of them: three words a run, its first bit, its last and its place
-// with its kind's letter after it, a register where none; or two, its first bit and its last, where the line holds no
-// place, every run then holding none. 1, or 0 where the words are neither
-int khw_runs_read(KhwAnswered *held, const char *text)
+// the runs of `form` read from `text`, `form->runs` of them: three words a run, its first bit, its last and its place
+// with its kind's letter after it, a register where none; or two, its first bit and its last, where the line contains
+// no place, every run then containing none. 1, or 0 where the words are neither
+int khw_runs_read(KhwAnswered *answered, const char *text)
 {
     unsigned int words = 0u;
     for (const char *at = text; *at != '\0';)
@@ -112,26 +113,26 @@ int khw_runs_read(KhwAnswered *held, const char *text)
         words += (length != 0u) ? 1u : 0u;
         at += length;
     }
-    const unsigned int each = (words == (3u * held->runs)) ? 3u : ((words == (2u * held->runs)) ? 2u : 0u);
+    const unsigned int each = (words == (3u * answered->runs)) ? 3u : ((words == (2u * answered->runs)) ? 2u : 0u);
     if (each == 0u)
     {
         return 0;
     }
     const char *rest = text;
-    for (unsigned int run = 0u; run < held->runs; run += 1u)
+    for (unsigned int run = 0u; run < answered->runs; run += 1u)
     {
         char place[16];
-        held->place[run] = KHW_PLACE_NONE;
+        answered->place[run] = KHW_PLACE_NONE;
         if (each == 2u)
         {
-            if (!line_unsigned(&rest, &held->first[run]) || !line_unsigned(&rest, &held->last[run]))
+            if (!line_unsigned(&rest, &answered->first[run]) || !line_unsigned(&rest, &answered->last[run]))
             {
                 return 0;
             }
         }
         else
         {
-            if (!line_unsigned(&rest, &held->first[run]) || !line_unsigned(&rest, &held->last[run]) ||
+            if (!line_unsigned(&rest, &answered->first[run]) || !line_unsigned(&rest, &answered->last[run]) ||
                 !line_word(&rest, place, sizeof(place)))
             {
                 return 0;
@@ -140,61 +141,62 @@ int khw_runs_read(KhwAnswered *held, const char *text)
             // letter after it; the letter's place among the four is its kind, and no letter is a register's
             char *end = NULL;
             const int none = (strncmp(place, KHW_PLACE_NONE_TEXT, strlen(KHW_PLACE_NONE_TEXT)) == 0);
-            held->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
+            answered->place[run] = none ? KHW_PLACE_NONE : (unsigned int)strtoul(place, &end, 10);
             end = none ? (place + strlen(KHW_PLACE_NONE_TEXT)) : end;
             const char *const letter = ((end != NULL) && (*end != '\0')) ? strchr(KHW_KIND_LETTERS, *end) : NULL;
-            held->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
+            answered->kind[run] = (letter != NULL) ? (unsigned int)(letter - KHW_KIND_LETTERS) : KHW_KIND_REGISTER;
         }
     }
     return 1;
 }
 
-// the relation `held` answered as the answers and the working set write it, `ladder.<anchor>` or `frame.<relation>`,
+// the relation `form` answered as the answers and the working set write it, `ladder.<anchor>` or `frame.<relation>`,
 // the frame's with its reading after a dot where `with_reading` is not 0, into `written` of `room` bytes. The text
-const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *written, size_t room)
+const char *khw_relation_named(const KhwAnswered *answered, int with_reading, char *written, size_t room)
 {
-    if (held->frame == (unsigned int)FRAME_RELATION_COUNT)
+    if (answered->frame == (unsigned int)FRAME_RELATION_COUNT)
     {
-        snprintf(written, room, "%s%s", KHW_READS_LADDER, s_anchor_text[held->anchor]);
+        snprintf(written, room, "%s%s", KHW_READS_LADDER, s_anchor_text[answered->anchor]);
     }
     else if (with_reading != 0)
     {
-        snprintf(written, room, "%s%s.%llx", FRAME_READS, s_frame_text[held->frame], held->reading);
+        snprintf(written, room, "%s%s.%llx", FRAME_READS, s_frame_text[answered->frame], answered->reading);
     }
     else
     {
-        snprintf(written, room, "%s%s", FRAME_READS, s_frame_text[held->frame]);
+        snprintf(written, room, "%s%s", FRAME_READS, s_frame_text[answered->frame]);
     }
     return written;
 }
 
 // the forms the part answered for handed to the run as KHW_FORMS_NAME, one a line, for the vendor's writer to
-// name and lay out: the relation the gate read, whether the answers read a word signed and whether the part was asked,
-// the encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet classified, or
-// one with no operand run, names nothing; the vendor lays out none of them. 1, or 0 with the reason printed
+// name and lay out: the relation the gate read, whether the answers read a word signed and whether the part was
+// queried, the encoding, and each run's first and last bit and its place in the relation's tuple. A form not yet
+// classified, or one with no operand run, names nothing; the vendor lays out none of them. 1, or 0 with the reason
+// printed
 int khw_answers_written(void)
 {
     static char s_forms_bytes[QRY_WRITER_RING_BYTES / 2ull];
     text_begun(s_forms_bytes, sizeof(s_forms_bytes));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
-        const KhwAnswered *const held = &s_named[at];
-        if ((held->phase != KHW_PHASE_CLASSIFIED) || (held->runs == 0u))
+        const KhwAnswered *const answered = &s_named[at];
+        if ((answered->phase != KHW_PHASE_CLASSIFIED) || (answered->runs == 0u))
         {
             continue;
         }
         char relation[64];
-        text_put(khw_relation_named(held, 0, relation, sizeof(relation)));
+        text_put(khw_relation_named(answered, 0, relation, sizeof(relation)));
         text_character(' ');
-        text_signed(held->signed_read);
+        text_signed(answered->signed_read);
         text_character(' ');
-        text_signed(held->signedness_asked);
-        khw_encoding_printed(held->low, held->high);
+        text_signed(answered->signedness_queried);
+        khw_encoding_printed(answered->low, answered->high);
         text_character(' ');
-        text_decimal(held->runs);
-        for (unsigned int run = 0u; run < held->runs; run += 1u)
+        text_decimal(answered->runs);
+        for (unsigned int run = 0u; run < answered->runs; run += 1u)
         {
-            khw_run_printed(held, run);
+            khw_run_printed(answered, run);
         }
         text_character('\n');
     }
@@ -204,31 +206,31 @@ int khw_answers_written(void)
 // The working set handed to the run as KHW_WORK_NAME, every form of it a line read back by khw_forms_read the
 // next pass: its phase and the order its words were read, the relation, the signedness, the encoding, and its runs
 // with their places. A discovered form carries no run, a turned form the candidates its register-runs will sort, each
-// with no place, a classified form the operands kept. It is the state the passes of the split hand each other, kept
-// apart from what the vendor lays out. 1, or 0 with the reason printed
+// with no place, a classified form the operands retained. It is the state the passes of the split hand each other,
+// retained apart from what the vendor lays out. 1, or 0 with the reason printed
 int khw_forms_work_written(void)
 {
     static char s_work_bytes[QRY_WRITER_RING_BYTES / 2ull];
     text_begun(s_work_bytes, sizeof(s_work_bytes));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
-        const KhwAnswered *const held = &s_named[at];
+        const KhwAnswered *const answered = &s_named[at];
         char relation[64];
-        text_decimal(held->phase);
+        text_decimal(answered->phase);
         text_character(' ');
-        text_signed(held->swapped);
+        text_signed(answered->swapped);
         text_character(' ');
-        text_put(khw_relation_named(held, 1, relation, sizeof(relation)));
+        text_put(khw_relation_named(answered, 1, relation, sizeof(relation)));
         text_character(' ');
-        text_signed(held->signed_read);
+        text_signed(answered->signed_read);
         text_character(' ');
-        text_signed(held->signedness_asked);
-        khw_encoding_printed(held->low, held->high);
+        text_signed(answered->signedness_queried);
+        khw_encoding_printed(answered->low, answered->high);
         text_character(' ');
-        text_decimal(held->runs);
-        for (unsigned int run = 0u; run < held->runs; run += 1u)
+        text_decimal(answered->runs);
+        for (unsigned int run = 0u; run < answered->runs; run += 1u)
         {
-            khw_run_printed(held, run);
+            khw_run_printed(answered, run);
         }
         text_character('\n');
     }

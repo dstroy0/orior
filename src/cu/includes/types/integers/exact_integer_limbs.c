@@ -133,7 +133,7 @@ static int limbs_karatsuba(uint32_t *result, const uint32_t *left, const uint32_
 }
 
 // result[0, left_count + right_count) = left . right by the rung that fits: long multiplication below the Karatsuba
-// width, Karatsuba on equal lengths, and slices of the longer operand otherwise; 0 when workspace cannot be held
+// width, Karatsuba on equal lengths, and slices of the longer operand otherwise; 0 when workspace cannot be allocated
 int limbs_product(uint32_t *result, const uint32_t *left, size_t left_count, const uint32_t *right, size_t right_count)
 {
     if (left_count < right_count)
@@ -241,7 +241,7 @@ void fermat_negate(uint32_t *value, size_t limbs)
     }
 }
 
-// result = value . 2^shift modulo 2^n + 1, by a shift and a fold; scratch holds 2 limbs + 2 words
+// result = value . 2^shift modulo 2^n + 1, by a shift and a fold; scratch contains 2 limbs + 2 words
 void fermat_shift(uint32_t *result, const uint32_t *value, size_t shift, size_t limbs, uint32_t *scratch)
 {
     const size_t bits = limbs * LIMB_BITS;

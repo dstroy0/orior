@@ -4,18 +4,19 @@
 //
 //     ksg seal <file>...                     each file's seal written beside it as <file>.ksg, through
 //                                            <file>.ksg.part made durable and put in its place whole
-//     ksg keys <scheme> <secret> <public>    an approver's key pair of the scheme made, the secret kept from every
+//     ksg keys <scheme> <secret> <public>    an approver's key pair of the scheme made, the secret protected from every
 //                                            reader but its owner
-//     ksg approve <secret> <file>...         each file held to its seal first, and the seal then approved with the
+//     ksg approve <secret> <file>...         each file verified against its seal first, and the seal then approved with
+//     the
 //                                            secret, the approval put in the list beside it as <file>.ksa
 //     ksg check [--approver <public>]... <file>...
-//                                            each file sealed again and held to its seal: every line whose leaf differs
-//                                            named, whether the root, the size and the count of leaves hold, every
-//                                            approval in its list held to the seal, and each approver named found
-//                                            among the approvals that hold
+//                                            each file sealed again and verified against its seal: every line whose
+//                                            leaf differs named, whether the root, the size and the count of leaves
+//                                            match, every approval in its list verified against the seal, and each
+//                                            approver named found among the approvals that are valid
 //
-// None changes a file it seals, approves or checks. Exit 0 where every seal, key and approval was written or held, 1
-// where one was not, 2 where the words are none of the above
+// None changes a file it seals, approves or checks. Exit 0 where every seal, key and approval was written or verified,
+// 1 where one was not, 2 where the words are none of the above
 #include "ksg_tool.h"
 
 #include "../qry/writer/qry_writer_internal.h"
@@ -28,7 +29,7 @@
 #define KSG_READ_BYTES (256u << 10u)
 #define KSG_NAMED_MOST 64u
 
-// A check under way: the seal's file, the leaves it held so far, and the lines that differ so far
+// A check under way: the seal's file, the leaves it read so far, and the lines that differ so far
 typedef struct
 {
     FILE *seal;
@@ -40,40 +41,41 @@ static unsigned char s_read[KSG_READ_BYTES];
 static KsgSeal s_seal;
 static KsaApproval s_required[KSG_APPROVERS_MOST];
 
-// the program's saying and the bytes it holds so far
-static char s_said[1u << 16u];
-static size_t s_said_at;
+// the program's report and the bytes it contains so far
+static char s_output[1u << 16u];
+static size_t s_output_at;
 
-void ksg_said_out(void)
+void ksg_print_flush(void)
 {
-    (void)fwrite(s_said, 1u, s_said_at, stdout);
-    s_said_at = 0u;
+    (void)fwrite(s_output, 1u, s_output_at, stdout);
+    s_output_at = 0u;
 }
 
-void ksg_said(const char *text)
+void ksg_print(const char *text)
 {
     size_t next =
-        verba_textus.put(&(VerbaTextusCfg){.out = s_said, .cap = sizeof(s_said), .at = s_said_at, .text = text});
-    if (next == sizeof(s_said))
+        verba_textus.put(&(VerbaTextusCfg){.out = s_output, .cap = sizeof(s_output), .at = s_output_at, .text = text});
+    if (next == sizeof(s_output))
     {
-        // a text longer than the whole saying is said as far as it fits
-        ksg_said_out();
-        next = verba_textus.put_clip(&(VerbaTextusCfg){.out = s_said, .cap = sizeof(s_said), .at = 0u, .text = text});
+        // a text longer than the whole report is written as far as it fits
+        ksg_print_flush();
+        next =
+            verba_textus.put_clip(&(VerbaTextusCfg){.out = s_output, .cap = sizeof(s_output), .at = 0u, .text = text});
     }
-    s_said_at = next;
+    s_output_at = next;
 }
 
-void ksg_said_number(unsigned long long value)
+void ksg_print_number(unsigned long long value)
 {
     char digits[24];
     verba_finis.finish(&(VerbaFinisCfg){
         .out = digits,
         .cap = sizeof(digits),
         .at = verba_numerus.u64(&(VerbaNumerusCfg){.out = digits, .cap = sizeof(digits), .at = 0u, .val = value})});
-    ksg_said(digits);
+    ksg_print(digits);
 }
 
-void ksg_said_hex(const unsigned char *bytes, unsigned int count)
+void ksg_print_hex(const unsigned char *bytes, unsigned int count)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -83,15 +85,15 @@ void ksg_said_hex(const unsigned char *bytes, unsigned int count)
                              .cap = sizeof(digits),
                              .at = verba_numerus.hex(&(VerbaNumerusCfg){
                                  .out = digits, .cap = sizeof(digits), .at = 0u, .val = bytes[at], .min = 2u})});
-        ksg_said(digits);
+        ksg_print(digits);
     }
 }
 
 int ksg_path_with(const char *path, const char *suffix, char *out)
 {
-    size_t at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = KSG_PATH_LONGEST, .at = 0u, .text = path});
-    at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = KSG_PATH_LONGEST, .at = at, .text = suffix});
-    return verba_finis.finish(&(VerbaFinisCfg){.out = out, .cap = KSG_PATH_LONGEST, .at = at}) != 0u;
+    size_t at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = KSG_PATH_MAX_LEN, .at = 0u, .text = path});
+    at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = KSG_PATH_MAX_LEN, .at = at, .text = suffix});
+    return verba_finis.finish(&(VerbaFinisCfg){.out = out, .cap = KSG_PATH_MAX_LEN, .at = at}) != 0u;
 }
 
 // eight bytes low byte first as a word
@@ -105,19 +107,20 @@ static unsigned long long ksg_word_read(const unsigned char *bytes)
     return word;
 }
 
-// the seal beside `path` opened, its head held to ksg's and its trailer read into `kept`: the file, or NULL
-static FILE *ksg_seal_opened(const char *path, unsigned char *kept)
+// the seal beside `path` opened, its head checked against ksg's and its trailer read into `stored_trailer`: the file,
+// or NULL
+static FILE *ksg_seal_opened(const char *path, unsigned char *stored_trailer)
 {
-    static char s_sealed[KSG_PATH_LONGEST];
+    static char s_sealed[KSG_PATH_MAX_LEN];
     FILE *const seal = ksg_path_with(path, KSG_SUFFIX, s_sealed) ? fopen(s_sealed, "rb") : NULL;
     unsigned char head[KREP_HEAD_BYTES];
-    unsigned char kept_head[KREP_HEAD_BYTES];
+    unsigned char stored_head[KREP_HEAD_BYTES];
     ksg_head(head);
     const int opened = (seal != NULL) && (fseek(seal, -(long)KSG_TRAILER_BYTES, SEEK_END) == 0) &&
-                       (fread(kept, 1u, KSG_TRAILER_BYTES, seal) == KSG_TRAILER_BYTES) &&
+                       (fread(stored_trailer, 1u, KSG_TRAILER_BYTES, seal) == KSG_TRAILER_BYTES) &&
                        (fseek(seal, 0L, SEEK_SET) == 0) &&
-                       (fread(kept_head, 1u, sizeof(kept_head), seal) == sizeof(kept_head)) &&
-                       (memcmp(kept_head, head, sizeof(head)) == 0);
+                       (fread(stored_head, 1u, sizeof(stored_head), seal) == sizeof(stored_head)) &&
+                       (memcmp(stored_head, head, sizeof(head)) == 0);
     if (!opened && (seal != NULL))
     {
         (void)fclose(seal);
@@ -125,7 +128,7 @@ static FILE *ksg_seal_opened(const char *path, unsigned char *kept)
     return opened ? seal : NULL;
 }
 
-int ksg_trailer_kept(const char *path, unsigned char *trailer)
+int ksg_trailer_read(const char *path, unsigned char *trailer)
 {
     FILE *const seal = ksg_seal_opened(path, trailer);
     if (seal == NULL)
@@ -167,18 +170,18 @@ static int ksg_leaf_put(void *context, const unsigned char *leaf, unsigned long 
     return qry_writer_file_put(*file, leaf, KSG_SIGNUM_BYTES);
 }
 
-// `path`'s seal written beside it: 1, or 0 where it was not, why said
+// `path`'s seal written beside it: 1, or 0 where it was not, why reported
 static int ksg_sealed(const char *path)
 {
-    static char s_part[KSG_PATH_LONGEST];
-    static char s_placed[KSG_PATH_LONGEST];
+    static char s_part[KSG_PATH_MAX_LEN];
+    static char s_placed[KSG_PATH_MAX_LEN];
     long long file = (ksg_path_with(path, KSG_SUFFIX ".part", s_part) && ksg_path_with(path, KSG_SUFFIX, s_placed))
                          ? qry_writer_file_made(s_part)
                          : -1;
     if (file < 0)
     {
-        ksg_said(path);
-        ksg_said(": its seal could not be made\n");
+        ksg_print(path);
+        ksg_print(": its seal could not be made\n");
         return 0;
     }
     unsigned char head[KREP_HEAD_BYTES];
@@ -189,107 +192,109 @@ static int ksg_sealed(const char *path)
                 ksg_file_sealed(path) && ksg_seal_ended(&s_seal, root, trailer) &&
                 qry_writer_file_put(file, trailer, sizeof(trailer));
     whole = qry_writer_file_closed(file) && whole && qry_writer_file_placed(s_part, s_placed);
-    ksg_said(path);
+    ksg_print(path);
     if (!whole)
     {
         (void)remove(s_part);
-        ksg_said(": it could not be read or its seal written\n");
+        ksg_print(": it could not be read or its seal written\n");
         return 0;
     }
-    ksg_said(": sealed, ");
-    ksg_said_number(s_seal.leaves);
-    ksg_said(" leaves, root ");
-    ksg_said_hex(root, KSG_SIGNUM_BYTES);
-    ksg_said("\n");
+    ksg_print(": sealed, ");
+    ksg_print_number(s_seal.leaves);
+    ksg_print(" leaves, root ");
+    ksg_print_hex(root, KSG_SIGNUM_BYTES);
+    ksg_print("\n");
     return 1;
 }
 
-// each leaf held to the next of the seal's file, a line whose leaf differs named
-static int ksg_leaf_held(void *context, const unsigned char *leaf, unsigned long long line)
+// each leaf checked against the next of the seal's file, a line whose leaf differs named
+static int ksg_leaf_check(void *context, const unsigned char *leaf, unsigned long long line)
 {
     KsgChecking *const checking = context;
-    unsigned char kept[KSG_SIGNUM_BYTES];
-    const int read = fread(kept, 1u, sizeof(kept), checking->seal) == sizeof(kept);
+    unsigned char stored_trailer[KSG_SIGNUM_BYTES];
+    const int read = fread(stored_trailer, 1u, sizeof(stored_trailer), checking->seal) == sizeof(stored_trailer);
     checking->leaves += 1ull;
-    if (read && (memcmp(kept, leaf, KSG_SIGNUM_BYTES) == 0))
+    if (read && (memcmp(stored_trailer, leaf, KSG_SIGNUM_BYTES) == 0))
     {
         return 1;
     }
     checking->differ += 1ull;
     if (checking->differ <= KSG_NAMED_MOST)
     {
-        ksg_said("  line ");
-        ksg_said_number(line + 1ull);
-        ksg_said(read ? " differs\n" : " has no leaf in the seal\n");
-        ksg_said_out();
+        ksg_print("  line ");
+        ksg_print_number(line + 1ull);
+        ksg_print(read ? " differs\n" : " has no leaf in the seal\n");
+        ksg_print_flush();
     }
     return 1;
 }
 
-// `path` sealed again and held to its seal, and its approvals held to it with the `count` approvers of `required`
-// found among them: 1 where every leaf, the root, the size, the count and the approvals held, why said
+// `path` sealed again and verified against its seal, and its approvals verified against it with the `count` approvers
+// of `required` found among them: 1 where every leaf, the root, the size, the count and the approvals matched, why
+// reported
 static int ksg_checked(const char *path, const KsaApproval *required, unsigned int count)
 {
     unsigned char trailer[KSG_TRAILER_BYTES];
-    unsigned char kept[KSG_TRAILER_BYTES];
-    FILE *const seal = ksg_seal_opened(path, kept);
-    ksg_said(path);
+    unsigned char stored_trailer[KSG_TRAILER_BYTES];
+    FILE *const seal = ksg_seal_opened(path, stored_trailer);
+    ksg_print(path);
     if (seal == NULL)
     {
-        ksg_said(": no seal of ksg's kind beside it\n");
+        ksg_print(": no seal of ksg's kind beside it\n");
         return 0;
     }
-    ksg_said(":\n");
-    ksg_said_out();
+    ksg_print(":\n");
+    ksg_print_flush();
     KsgChecking checking = {seal, 0ull, 0ull};
     unsigned char root[KSG_SIGNUM_BYTES];
-    const int sealed = ksg_seal_begun(&s_seal, ksg_leaf_held, &checking) && ksg_file_sealed(path) &&
+    const int sealed = ksg_seal_begun(&s_seal, ksg_leaf_check, &checking) && ksg_file_sealed(path) &&
                        ksg_seal_ended(&s_seal, root, trailer);
     (void)fclose(seal);
-    const int size_held = ksg_word_read(trailer) == ksg_word_read(kept);
-    const int count_held =
-        (ksg_word_read(trailer + 16u) == ksg_word_read(kept + 16u)) && (ksg_word_read(kept + 8u) == KSG_LINE_MOST);
-    const int root_held = memcmp(trailer + 24u, kept + 24u, KSG_SIGNUM_BYTES) == 0;
-    const int held = sealed && (checking.differ == 0ull) && size_held && count_held && root_held;
+    const int size_matches = ksg_word_read(trailer) == ksg_word_read(stored_trailer);
+    const int count_matches = (ksg_word_read(trailer + 16u) == ksg_word_read(stored_trailer + 16u)) &&
+                              (ksg_word_read(stored_trailer + 8u) == KSG_LINE_MOST);
+    const int root_matches = memcmp(trailer + 24u, stored_trailer + 24u, KSG_SIGNUM_BYTES) == 0;
+    const int seal_matches = sealed && (checking.differ == 0ull) && size_matches && count_matches && root_matches;
     if (checking.differ > KSG_NAMED_MOST)
     {
-        ksg_said("  and ");
-        ksg_said_number(checking.differ - KSG_NAMED_MOST);
-        ksg_said(" lines more differ\n");
+        ksg_print("  and ");
+        ksg_print_number(checking.differ - KSG_NAMED_MOST);
+        ksg_print(" lines more differ\n");
     }
-    ksg_said(sealed ? "" : "  it could not be read\n");
-    ksg_said(size_held ? "" : "  its size differs from the seal's\n");
-    ksg_said(count_held ? "" : "  its count of leaves differs from the seal's\n");
-    ksg_said(root_held ? "  the root holds: " : "  the root does not hold: sealed ");
-    ksg_said_hex(kept + 24u, KSG_SIGNUM_BYTES);
-    if (!root_held)
+    ksg_print(sealed ? "" : "  it could not be read\n");
+    ksg_print(size_matches ? "" : "  its size differs from the seal's\n");
+    ksg_print(count_matches ? "" : "  its count of leaves differs from the seal's\n");
+    ksg_print(root_matches ? "  the root matches: " : "  the root does not match: sealed ");
+    ksg_print_hex(stored_trailer + 24u, KSG_SIGNUM_BYTES);
+    if (!root_matches)
     {
-        ksg_said(", now ");
-        ksg_said_hex(trailer + 24u, KSG_SIGNUM_BYTES);
+        ksg_print(", now ");
+        ksg_print_hex(trailer + 24u, KSG_SIGNUM_BYTES);
     }
-    ksg_said("\n");
-    ksg_said_out();
-    // the approvals are held to the seal as it is kept, so a seal written again over a changed file holds none
-    const int approved = ksg_approvals_checked(path, kept, required, count);
-    return held && approved;
+    ksg_print("\n");
+    ksg_print_flush();
+    // the approvals are verified against the seal as it is stored, so a seal written again over a changed file
+    // validates none
+    const int approved = ksg_approvals_checked(path, stored_trailer, required, count);
+    return seal_matches && approved;
 }
 
-// `path` held to its seal and the seal approved with the secret at `secret`: 1, or 0 where the file did not hold or
-// the approval was not added, why said
+// `path` verified against its seal and the seal approved with the secret at `secret`: 1, or 0 where the file did not
+// match or the approval was not added, why reported
 static int ksg_approved(const char *secret, const char *path)
 {
     unsigned char trailer[KSG_TRAILER_BYTES];
     if (!ksg_checked(path, NULL, 0u))
     {
-        ksg_said_out();
-        ksg_said("  not approved: the file does not hold to its seal\n");
+        ksg_print_flush();
+        ksg_print("  not approved: the file does not match its seal\n");
         return 0;
     }
-    ksg_said_out();
-    return ksg_trailer_kept(path, trailer) && ksg_approval_added(secret, path, trailer);
+    ksg_print_flush();
+    return ksg_trailer_read(path, trailer) && ksg_approval_added(secret, path, trailer);
 }
 
-// the usage said
+// the usage printed
 static int ksg_usage(void)
 {
     (void)fputs("usage: ksg seal <file>...\n"
@@ -305,7 +310,7 @@ int main(int count, char **words)
     if ((count == 5) && (strcmp(words[1], "keys") == 0))
     {
         const int made = ksg_keys_made(words[2], words[3], words[4]);
-        ksg_said_out();
+        ksg_print_flush();
         return made ? 0 : 1;
     }
     const int sealing = (count >= 3) && (strcmp(words[1], "seal") == 0);
@@ -322,7 +327,7 @@ int main(int count, char **words)
     {
         if ((required == KSG_APPROVERS_MOST) || !ksg_public_read(words[first + 1], &s_required[required]))
         {
-            ksg_said_out();
+            ksg_print_flush();
             return 1;
         }
         required += 1u;
@@ -338,7 +343,7 @@ int main(int count, char **words)
                          : checking ? ksg_checked(words[at], s_required, required)
                                     : ksg_approved(words[2], words[at]);
         whole = done && whole;
-        ksg_said_out();
+        ksg_print_flush();
     }
     return whole ? 0 : 1;
 }

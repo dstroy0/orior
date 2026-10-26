@@ -73,7 +73,7 @@ size	attributes.room	4096
 
 # the container the system accepted, which every question is put in: the kernel it enters at, then its bytes
 # in hex, sixty-four a row. A question's code, registers and exits replace the code's (cubin_pattern_read)
-container kernel interface_ask
+container kernel interface_probe
 container pattern 7f454c460201014108000000000000000200be00010000000000000000000000800d000000000000000a0000000000000456000640003800030040000e000100
 container pattern 002e7368737472746162002e737472746162002e73796d746162002e73796d7461625f73686e6478002e6e6f74652e6e762e746b696e666f002e6e6f74652e6e
 container pattern 762e6375696e666f002e6e762e696e666f002e746578742e696e746572666163655f61736b002e6e762e696e666f2e696e746572666163655f61736b002e6e76

@@ -8,8 +8,9 @@
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     char quoted[256];
-    CliLine line = {quoted, sizeof(quoted), 0ull};
+    VerbaLinea line = {quoted, sizeof(quoted), 0ull};
     cli_run_file_quoted(&line, "a b/it's.py");
     cli_check_text(quoted, line.at, "'a b/it'\\''s.py'", "a path is quoted for the shell");
     static CliJson s_json;
@@ -36,10 +37,10 @@ int main(void)
     cli_check(closed, "every run line of the manifest closes each name it opens");
     char why[1024];
     char ran[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {ran, sizeof(ran), 0ull};
-    const int refused = !cli_run_file_line(".", "a.json", "json", &out, &said);
-    (void)cli_line_closed(&said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {ran, sizeof(ran), 0ull};
+    const int refused = !cli_run_file_line(".", "a.json", "json", &out, &err_msg);
+    (void)mmgr_line_finish(&err_msg);
     cli_check(
         refused &&
             (cellul.find(&(CatenaFinitaCfg){

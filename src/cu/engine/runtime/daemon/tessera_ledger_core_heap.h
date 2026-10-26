@@ -24,7 +24,7 @@
 
 #define TESSERA_FOREVER 0xFFFFFFFFFFFFFFFFull
 
-// the most a call can add to each of a ledger's arrays: its jobs, its kept peaks and its deadlines
+// the most a call can add to each of a ledger's arrays: its jobs, its tracked peaks and its deadlines
 typedef struct
 {
     unsigned long long jobs;
@@ -55,8 +55,8 @@ TESSERA_CORE int tessera_core_signum_same(const EngineSignum *left, const Engine
     return same;
 }
 
-// the arrays a ledger's call of `kind` can take: a job and a deadline for a submit, a kept peak and a deadline for a
-// release, a deadline for an idle, a kept peak for a remember, and a deadline for each job an admit could start
+// the arrays a ledger's call of `kind` can take: a job and a deadline for a submit, a tracked peak and a deadline for a
+// release, a deadline for an idle, a tracked peak for a remember, and a deadline for each job an admit could start
 TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, TesseraCallKind kind)
 {
     TesseraCapacity needed = {ledger->job_count, ledger->history_count, ledger->heap_count};
@@ -68,7 +68,7 @@ TESSERA_CORE TesseraCapacity tessera_core_capacity(const TesseraLedger *ledger, 
     return needed;
 }
 
-// 1 where the ledger's arrays hold `needed`
+// 1 where the ledger's arrays have room for `needed`
 TESSERA_CORE int tessera_core_fits(const TesseraLedger *ledger, const TesseraCapacity *needed)
 {
     return (needed->jobs <= ledger->job_capacity) && (needed->history <= ledger->history_capacity) &&
@@ -194,9 +194,9 @@ TESSERA_CORE const TesseraHistory *tessera_core_history(const TesseraLedger *led
     return NULL;
 }
 
-// a job is reserved its whole declaration, the bytes its process held as it asked and the bytes it declares on top,
-// or its signum's kept peak when that is more: the capacity it will take is reserved from its start and not only once a
-// sweep has seen it grow
+// a job is reserved its whole declaration, the bytes its process allocated as it requested and the bytes it declares on
+// top, or its signum's tracked peak when that is more: the capacity it will take is reserved from its start and not
+// only once a sweep has seen it grow
 TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, const TesseraJob *job)
 {
     const TesseraHistory *const previous = tessera_core_history(ledger, &job->request.signum);
@@ -204,8 +204,8 @@ TESSERA_CORE unsigned long long tessera_core_wants(const TesseraLedger *ledger, 
     return ((previous != NULL) && (previous->peak > total)) ? previous->peak : total;
 }
 
-// the bytes a waiting job has yet to find on the device: what it wants less what its process already holds there,
-// which the device's measured use counts
+// the bytes a waiting job has yet to find on the device: what it wants less what its process already has allocated
+// there, which the device's measured use counts
 TESSERA_CORE unsigned long long tessera_core_needs(const TesseraLedger *ledger, const TesseraJob *job)
 {
     const unsigned long long wants = tessera_core_wants(ledger, job);
@@ -225,7 +225,7 @@ TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequ
     TesseraJob *const job = &ledger->jobs[ledger->job_count];
     job->identity = ledger->next_identity;
     job->request = *request;
-    job->state = over ? TESSERA_JOB_HELD : TESSERA_JOB_WAITING;
+    job->state = over ? TESSERA_JOB_OVER_BUDGET : TESSERA_JOB_WAITING;
     job->reservation = 0ull;
     job->used = 0ull;
     job->peak = 0ull;
@@ -233,16 +233,16 @@ TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequ
     job->submitted = now;
     job->started = 0ull;
     job->expected_end = 0ull;
-    job->hold_until = over ? tessera_core_sum(now, request->holding_microseconds) : 0ull;
+    job->grace_until = over ? tessera_core_sum(now, request->grace_microseconds) : 0ull;
     job->next_sweep = 0ull;
-    if (over && !tessera_core_heap_push(ledger, job->hold_until, job->identity, TESSERA_EVENT_LOST))
+    if (over && !tessera_core_heap_push(ledger, job->grace_until, job->identity, TESSERA_EVENT_LOST))
     {
         return 0;
     }
     ledger->job_count += 1ull;
     ledger->next_identity += 1ull;
     *identity = job->identity;
-    *event = tessera_core_event(over ? TESSERA_EVENT_ASKED : TESSERA_EVENT_NONE, job->identity, request->declared,
+    *event = tessera_core_event(over ? TESSERA_EVENT_OVER_BUDGET : TESSERA_EVENT_NONE, job->identity, request->declared,
                                 (previous != NULL) ? previous->peak : 0ull);
     return 1;
 }
@@ -250,7 +250,7 @@ TESSERA_CORE int tessera_core_submit(TesseraLedger *ledger, const TesseraJobRequ
 TESSERA_CORE int tessera_core_override(TesseraLedger *ledger, unsigned long long identity, unsigned long long now)
 {
     TesseraJob *const job = tessera_core_find(ledger, identity);
-    if ((job == NULL) || (job->state != TESSERA_JOB_HELD) || (now > job->hold_until))
+    if ((job == NULL) || (job->state != TESSERA_JOB_OVER_BUDGET) || (now > job->grace_until))
     {
         return 0;
     }
@@ -279,13 +279,13 @@ TESSERA_CORE int tessera_core_measure(TesseraLedger *ledger, unsigned long long 
     return 1;
 }
 
-TESSERA_CORE int tessera_core_remember(TesseraLedger *ledger, const TesseraHistory *kept)
+TESSERA_CORE int tessera_core_remember(TesseraLedger *ledger, const TesseraHistory *entry)
 {
     for (unsigned long long at = 0ull; at < ledger->history_count; at += 1ull)
     {
-        if (tessera_core_signum_same(&ledger->history[at].signum, &kept->signum))
+        if (tessera_core_signum_same(&ledger->history[at].signum, &entry->signum))
         {
-            ledger->history[at] = *kept;
+            ledger->history[at] = *entry;
             return 1;
         }
     }
@@ -293,7 +293,7 @@ TESSERA_CORE int tessera_core_remember(TesseraLedger *ledger, const TesseraHisto
     {
         return 0;
     }
-    ledger->history[ledger->history_count] = *kept;
+    ledger->history[ledger->history_count] = *entry;
     ledger->history_count += 1ull;
     return 1;
 }

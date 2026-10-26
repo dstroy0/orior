@@ -8,9 +8,9 @@
 
 A trace holds one line a cycle: the kind and cost of the left side's ask, the kind and cost of the
 right side's, and the bound both were put under, the kinds as QueryKind in
-src/cu/transpiler/lstar/protocol/query/query_ask.h names them.
+src/cu/transpiler/lstar/protocol/query/query_put.h names them.
 
-    HELD 412 NOT_HELD 380 900
+    SATISFIED 412 UNSATISFIED 380 900
 
 A side that was not asked is written as - for its kind and - for its cost.
 
@@ -51,7 +51,7 @@ sys.path.insert(0, HERE)
 
 from order_check import MATRIX_DOC, read_matrices, table_cells  # noqa: E402
 
-KINDS = ("HELD", "NOT_HELD", "PAST_BOUND", "ENDED")
+KINDS = ("SATISFIED", "UNSATISFIED", "PAST_BOUND", "ENDED")
 # the kind a side carries where it was not asked
 UNASKED = "-"
 
@@ -86,7 +86,7 @@ def read_cycle(line):
 def baseline_of(cycles):
     """The largest cost of any held ask in the baseline cycles, and 0 where none held."""
     costs = [cost for left, right, _bound in cycles[:BASELINE_CYCLES]
-             for kind, cost in (left, right) if kind == "HELD"]
+             for kind, cost in (left, right) if kind == "SATISFIED"]
     return max(costs) if costs else 0
 
 
@@ -97,15 +97,15 @@ def state_of(left, right, edge):
         return "blok"
     if UNASKED in kinds:
         return "gray"
-    if "HELD" in kinds and "PAST_BOUND" in kinds:
+    if "SATISFIED" in kinds and "PAST_BOUND" in kinds:
         return "wait"
-    if kinds == ("HELD", "HELD"):
+    if kinds == ("SATISFIED", "SATISFIED"):
         if left[1] > edge and right[1] > edge:
             return "busy"
         return "dual"
-    if kinds[0] == "HELD":
+    if kinds[0] == "SATISFIED":
         return "lead"
-    if kinds[1] == "HELD":
+    if kinds[1] == "SATISFIED":
         return "rite"
     return "void"
 
@@ -119,7 +119,7 @@ def decide(pair, names, left, right, bound, fraction):
     """The one label a transition takes in this cycle, from the names the tables give its pair."""
     if len(names) == 1:
         return names[0]
-    gone = [side for side, held in ((left, left[0] == "HELD"), (right, right[0] == "HELD")) if not held]
+    gone = [side for side, held in ((left, left[0] == "SATISFIED"), (right, right[0] == "SATISFIED")) if not held]
     if "tilt" in names:
         if gone and all(lagged(side, bound, fraction) for side in gone):
             return "tilt"
@@ -200,7 +200,7 @@ def check():
     """Every rule the reader states, held on traces whose answers are known. The count failed."""
     failed = 0
     held = candidates_of()
-    base = [("HELD", 100), ("HELD", 120)]
+    base = [("SATISFIED", 100), ("SATISFIED", 120)]
 
     def run(rows):
         cycles = [(base[0], base[1], 1000)] * BASELINE_CYCLES + rows
@@ -214,36 +214,36 @@ def check():
             failed += 1
             print("  FAILED: %s: %s, wanted %s, read %s" % (what, stream(states, labels), want, got))
 
-    lead = (("HELD", 100), ("NOT_HELD", 0), 1000)
-    rite = (("NOT_HELD", 0), ("HELD", 100), 1000)
-    dual = (("HELD", 100), ("HELD", 100), 1000)
+    lead = (("SATISFIED", 100), ("UNSATISFIED", 0), 1000)
+    rite = (("UNSATISFIED", 0), ("SATISFIED", 100), 1000)
+    dual = (("SATISFIED", 100), ("SATISFIED", 100), 1000)
     expect("lead then rite is the shift right", [lead, rite], "pass")
     expect("rite then lead is the shift left", [rite, lead], "back")
     # A held side beside one a fraction past its bound is wait by the base states: a dual whose right side
     # lags reads dual to wait and never dual to lead: read off a trace, the lag tilt names arrives as wait
     expect("dual with the right side a fraction late reads as dual to wait",
-           [dual, (("HELD", 100), ("PAST_BOUND", 1050), 1000)], held_name(held, "dual", "wait"))
-    expect("void to dual", [(("NOT_HELD", 0), ("NOT_HELD", 0), 1000), dual], "sprk")
-    busy = (("HELD", 900), ("HELD", 950), 1000)
-    expect("busy to blok is gridlock", [busy, (("ENDED", 0), ("HELD", 900), 1000)], "jamm")
-    wait = (("HELD", 100), ("PAST_BOUND", 1050), 1000)
-    expect("wait to void is the timeout", [wait, (("NOT_HELD", 0), ("NOT_HELD", 0), 1000)], "loss")
+           [dual, (("SATISFIED", 100), ("PAST_BOUND", 1050), 1000)], held_name(held, "dual", "wait"))
+    expect("void to dual", [(("UNSATISFIED", 0), ("UNSATISFIED", 0), 1000), dual], "sprk")
+    busy = (("SATISFIED", 900), ("SATISFIED", 950), 1000)
+    expect("busy to blok is gridlock", [busy, (("ENDED", 0), ("SATISFIED", 900), 1000)], "jamm")
+    wait = (("SATISFIED", 100), ("PAST_BOUND", 1050), 1000)
+    expect("wait to void is the timeout", [wait, (("UNSATISFIED", 0), ("UNSATISFIED", 0), 1000)], "loss")
 
     # the situation decides between two names for one pair
-    tilt_right = (("HELD", 100), ("PAST_BOUND", 1050), 1000)
+    tilt_right = (("SATISFIED", 100), ("PAST_BOUND", 1050), 1000)
     states, labels = run([dual, tilt_right])
     if states[-1] != "wait":
         failed += 1
         print("  FAILED: a held side beside one past its bound reads wait, read %s" % states[-1])
     pairs = [
-        ("dual to lead, the right side not held", "dual", "lead", (("HELD", 100), ("NOT_HELD", 0)), "drop"),
+        ("dual to lead, the right side not held", "dual", "lead", (("SATISFIED", 100), ("UNSATISFIED", 0)), "drop"),
         ("dual to lead, the right side a fraction past the bound", "dual", "lead",
-         (("HELD", 100), ("PAST_BOUND", 1050)), "tilt"),
+         (("SATISFIED", 100), ("PAST_BOUND", 1050)), "tilt"),
         ("dual to lead, the right side a timeout past the bound", "dual", "lead",
-         (("HELD", 100), ("PAST_BOUND", 5000)), "drop"),
-        ("dual to void, both gone at once", "dual", "void", (("NOT_HELD", 0), ("NOT_HELD", 0)), "fuse"),
-        ("dual to void, through a timeout", "dual", "void", (("PAST_BOUND", 5000), ("NOT_HELD", 0)), "drop"),
-        ("busy to dual", "busy", "dual", (("HELD", 100), ("HELD", 100)), "surg"),
+         (("SATISFIED", 100), ("PAST_BOUND", 5000)), "drop"),
+        ("dual to void, both gone at once", "dual", "void", (("UNSATISFIED", 0), ("UNSATISFIED", 0)), "fuse"),
+        ("dual to void, through a timeout", "dual", "void", (("PAST_BOUND", 5000), ("UNSATISFIED", 0)), "drop"),
+        ("busy to dual", "busy", "dual", (("SATISFIED", 100), ("SATISFIED", 100)), "surg"),
     ]
     for what, past, now, sides, want in pairs:
         got = decide((past, now), held[(past, now)], sides[0], sides[1], 1000, 120)
@@ -255,8 +255,8 @@ def check():
     # an answer and still reads blok. Into gray is fuzz, out of it fizz, and gray to gray is neither
     unasked = (UNASKED, 0)
     gray_held = all(state_of(unasked, other, 120) == "gray" for other in
-                    (("HELD", 100), ("NOT_HELD", 0), ("PAST_BOUND", 1050), unasked))
-    gray_held = gray_held and state_of(("HELD", 100), unasked, 120) == "gray"
+                    (("SATISFIED", 100), ("UNSATISFIED", 0), ("PAST_BOUND", 1050), unasked))
+    gray_held = gray_held and state_of(("SATISFIED", 100), unasked, 120) == "gray"
     gray_held = gray_held and state_of(unasked, ("ENDED", 0), 120) == "blok"
     states, labels = run([(unasked, unasked, 1000), (unasked, unasked, 1000), dual])
     gray_held = gray_held and states[-3:] == ["gray", "gray", "dual"] and labels[-3:] == ["fuzz", None, "fizz"]
@@ -269,7 +269,7 @@ def check():
     broken = 0
     sync_total = 0
     sync_lost = 0
-    sides = [("HELD", 100), ("HELD", 900), ("NOT_HELD", 0), ("PAST_BOUND", 1050), ("ENDED", 0), unasked]
+    sides = [("SATISFIED", 100), ("SATISFIED", 900), ("UNSATISFIED", 0), ("PAST_BOUND", 1050), ("ENDED", 0), unasked]
     for _trace in range(500):
         rows = []
         for _cycle in range(40):
@@ -317,12 +317,12 @@ def held_name(held, past, now):
 # The states a scenario's pair of side specs can read as. Both held reads dual, or busy where both runs came in heavy,
 # which a scenario does not choose
 IMPLIED = {
-    ("held", "held"): ("dual", "busy"),
-    ("held", "not"): ("lead",),
-    ("not", "held"): ("rite",),
+    ("satisfied", "satisfied"): ("dual", "busy"),
+    ("satisfied", "not"): ("lead",),
+    ("not", "satisfied"): ("rite",),
     ("not", "not"): ("void",),
-    ("held", "late"): ("wait",),
-    ("late", "held"): ("wait",),
+    ("satisfied", "late"): ("wait",),
+    ("late", "satisfied"): ("wait",),
 }
 
 

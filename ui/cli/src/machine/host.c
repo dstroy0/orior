@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// host.c: orior_cli in a Flatpak's sandbox runs the machine's own programs on the machine. Inside the sandbox none of the
-// machine's compilers, SDKs and tools are there: each program on the machine's PATH is given a stand-in of the same
-// name in a folder of orior's own, put first on the PATH of orior_cli and of all it starts: a script that runs the program
-// on the machine through `flatpak-spawn --host`, in the folder it was started in, with the terminal's kind, the
+// host.c: orior_cli in a Flatpak's sandbox runs the machine's own programs on the machine. Inside the sandbox none of
+// the machine's compilers, SDKs and tools are there: each program on the machine's PATH is given a stand-in of the same
+// name in a folder of orior's own, put first on the PATH of orior_cli and of all it starts: a script that runs the
+// program on the machine through `flatpak-spawn --host`, in the folder it was started in, with the terminal's kind, the
 // language, and each variable ORIOR_HOST_ENV names. A job, a tool, a language server, git and the terminal's shell all
 // reach the machine's own that way. Outside a sandbox nothing changes
 #include "host.h"
 #include "../text/text.h"
 
-// the programs that keep running inside the sandbox: the one that reaches the machine, and orior
+// the programs that stay running inside the sandbox: the one that reaches the machine, and orior
 static const char *const s_inside[3] = {"flatpak-spawn", "orior", "orior_cli"};
 
 // the variables every stand-in passes to the machine's program, where they are set
@@ -26,53 +26,53 @@ int cli_sandboxed(void)
 }
 
 // `text` in single quotes as the shell reads one word, each quote of it closed, escaped and opened again
-static void cli_shell_word(CliLine *line, const char *text)
+static void cli_shell_word(VerbaLinea *line, const char *text)
 {
-    cli_line_character(line, '\'');
+    mmgr_line_ch(line, '\'');
     for (const char *at = text; *at != '\0'; at += 1)
     {
         if (*at == '\'')
         {
-            cli_line_text(line, "'\\''");
+            mmgr_line_put(line, "'\\''");
         }
         else
         {
-            cli_line_character(line, *at);
+            mmgr_line_ch(line, *at);
         }
     }
-    cli_line_character(line, '\'');
+    mmgr_line_ch(line, '\'');
 }
 
 // The stand-in for the machine's program `name`: the program and its words, after each variable passed to it, run on
 // the machine in the folder the stand-in was started in, into `line`
-void cli_stand_in(const char *name, CliLine *line)
+void cli_stand_in(const char *name, VerbaLinea *line)
 {
-    cli_line_text(line, "#!/bin/sh\n");
-    cli_line_text(line, "set -- ");
+    mmgr_line_put(line, "#!/bin/sh\n");
+    mmgr_line_put(line, "set -- ");
     cli_shell_word(line, name);
-    cli_line_text(line, " \"$@\"\n");
-    cli_line_text(line, "for name in $ORIOR_HOST_ENV; do\n");
-    cli_line_text(line, "  eval \"value=\\${$name-}\"\n");
-    cli_line_text(line, "  set -- \"--env=$name=$value\" \"$@\"\n");
-    cli_line_text(line, "done\n");
-    cli_line_text(line, "exec flatpak-spawn --host --watch-bus --directory=\"$PWD\"");
+    mmgr_line_put(line, " \"$@\"\n");
+    mmgr_line_put(line, "for name in $ORIOR_HOST_ENV; do\n");
+    mmgr_line_put(line, "  eval \"value=\\${$name-}\"\n");
+    mmgr_line_put(line, "  set -- \"--env=$name=$value\" \"$@\"\n");
+    mmgr_line_put(line, "done\n");
+    mmgr_line_put(line, "exec flatpak-spawn --host --watch-bus --directory=\"$PWD\"");
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        cli_line_text(line, " ${");
-        cli_line_text(line, s_passed[at]);
-        cli_line_text(line, "+\"--env=");
-        cli_line_text(line, s_passed[at]);
-        cli_line_text(line, "=$");
-        cli_line_text(line, s_passed[at]);
-        cli_line_text(line, "\"}");
+        mmgr_line_put(line, " ${");
+        mmgr_line_put(line, s_passed[at]);
+        mmgr_line_put(line, "+\"--env=");
+        mmgr_line_put(line, s_passed[at]);
+        mmgr_line_put(line, "=$");
+        mmgr_line_put(line, s_passed[at]);
+        mmgr_line_put(line, "\"}");
     }
-    cli_line_text(line, " \"$@\"\n");
+    mmgr_line_put(line, " \"$@\"\n");
 }
 
 // the folder the stand-ins are in, into `folder`
 static int cli_host_folder(char *folder)
 {
-    char base[CLI_PATH_LONGEST];
+    char base[CLI_PATH_MAX_LEN];
     if (!query_environment_read("XDG_RUNTIME_DIR", base, sizeof(base)) &&
         !query_environment_read("TMPDIR", base, sizeof(base)))
     {
@@ -80,20 +80,20 @@ static int cli_host_folder(char *folder)
                                 .src = "/tmp",
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = "/tmp", .cap = CLI_CELLS_POOL}) + 1u});
     }
-    CliLine line = {folder, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, base);
-    cli_line_text(&line, "/orior-host");
-    return cli_line_closed(&line) != 0ull;
+    VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, base);
+    mmgr_line_put(&line, "/orior-host");
+    return mmgr_line_finish(&line) != 0ull;
 }
 
-// A stand-in written in `into` for each program of `names`, one a line, but those that keep running inside: how many,
-// or -1 with why said
-long long cli_stand_ins_written(const char *into, const char *names, CliLine *said)
+// A stand-in written in `into` for each program of `names`, one a line, but those that stay running inside: how many,
+// or -1 with why given
+long long cli_stand_ins_written(const char *into, const char *names, VerbaLinea *err_msg)
 {
     if (!query_folder_made(into))
     {
-        cli_line_text(said, into);
-        cli_line_text(said, ": it could not be made");
+        mmgr_line_put(err_msg, into);
+        mmgr_line_put(err_msg, ": it could not be made");
         return -1ll;
     }
     long long count = 0ll;
@@ -101,34 +101,34 @@ long long cli_stand_ins_written(const char *into, const char *names, CliLine *sa
     while (*line != '\0')
     {
         const size_t length = cli_text_upto(line, "\r\n");
-        char name[CLI_NAME_LONGEST];
-        int kept = (length != 0u) && (length < sizeof(name));
-        if (kept)
+        char name[CLI_NAME_MAX_LEN];
+        int valid_name = (length != 0u) && (length < sizeof(name));
+        if (valid_name)
         {
             memor.cpy(&(MemoriaCfg){.dst = name, .src = line, .bytes = length});
             name[length] = '\0';
-            kept = (name[cli_text_upto(name, "/\\")] == '\0') &&
-                   (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "..", .cap = CLI_CELLS_POOL}));
+            valid_name = (name[cli_text_upto(name, "/\\")] == '\0') &&
+                         (!cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "..", .cap = CLI_CELLS_POOL}));
         }
-        for (unsigned int at = 0u; kept && (at < 3u); at += 1u)
+        for (unsigned int at = 0u; valid_name && (at < 3u); at += 1u)
         {
-            kept = !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_inside[at], .cap = CLI_CELLS_POOL});
+            valid_name = !cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_inside[at], .cap = CLI_CELLS_POOL});
         }
-        if (kept)
+        if (valid_name)
         {
-            char path[CLI_PATH_LONGEST];
+            char path[CLI_PATH_MAX_LEN];
             static char s_text[4096];
-            CliLine path_line = {path, sizeof(path), 0ull};
-            cli_line_text(&path_line, into);
-            cli_line_character(&path_line, '/');
-            cli_line_text(&path_line, name);
-            CliLine text = {s_text, sizeof(s_text), 0ull};
+            VerbaLinea path_line = {path, sizeof(path), 0ull};
+            mmgr_line_put(&path_line, into);
+            mmgr_line_ch(&path_line, '/');
+            mmgr_line_put(&path_line, name);
+            VerbaLinea text = {s_text, sizeof(s_text), 0ull};
             cli_stand_in(name, &text);
-            if ((cli_line_closed(&path_line) == 0ull) || !cli_line_fits(&text) ||
+            if ((mmgr_line_finish(&path_line) == 0ull) || !mmgr_line_ok(&text) ||
                 !query_file_written(path, s_text, text.at) || !cli_file_runnable(path))
             {
-                cli_line_text(said, path);
-                cli_line_text(said, ": it could not be written");
+                mmgr_line_put(err_msg, path);
+                mmgr_line_put(err_msg, ": it could not be written");
                 return -1ll;
             }
             count += 1ll;
@@ -140,9 +140,9 @@ long long cli_stand_ins_written(const char *into, const char *names, CliLine *sa
 }
 
 // Inside a sandbox, a stand-in made for each program on the machine's PATH and their folder put first on orior's own
-// PATH, which all it starts take: how many it made, -1 with why said, or -2 outside a sandbox. Run as orior_cli starts,
-// before it starts anything else
-long long cli_host_prepared(CliLine *said)
+// PATH, which all it starts take: how many it made, -1 with why given, or -2 outside a sandbox. Run as orior_cli
+// starts, before it starts anything else
+long long cli_host_prepared(VerbaLinea *err_msg)
 {
     if (!cli_sandboxed())
     {
@@ -154,7 +154,7 @@ long long cli_host_prepared(CliLine *said)
     QueryProcess listed;
     if (!query_process_start(&listed, words, NULL, QUERY_OUTPUT_PIPED))
     {
-        cli_line_text(said, "flatpak-spawn: it could not be started");
+        mmgr_line_put(err_msg, "flatpak-spawn: it could not be started");
         return -1ll;
     }
     static char s_names[1u << 22u];
@@ -171,29 +171,29 @@ long long cli_host_prepared(CliLine *said)
     s_names[length] = '\0';
     if (query_process_wait(&listed) != 0ll)
     {
-        cli_line_text(said, "flatpak-spawn --host: it did not list the machine's programs");
+        mmgr_line_put(err_msg, "flatpak-spawn --host: it did not list the machine's programs");
         return -1ll;
     }
-    char into[CLI_PATH_LONGEST];
+    char into[CLI_PATH_MAX_LEN];
     if (!cli_host_folder(into))
     {
-        cli_line_text(said, "the stand-ins have no folder");
+        mmgr_line_put(err_msg, "the stand-ins have no folder");
         return -1ll;
     }
-    const long long made = cli_stand_ins_written(into, s_names, said);
+    const long long made = cli_stand_ins_written(into, s_names, err_msg);
     if (made >= 0ll)
     {
         static char s_path[32768];
-        static char s_old[QUERY_ENVIRONMENT_LONGEST];
-        CliLine path = {s_path, sizeof(s_path), 0ull};
-        cli_line_text(&path, into);
+        static char s_old[QUERY_ENVIRONMENT_MAX_LEN];
+        VerbaLinea path = {s_path, sizeof(s_path), 0ull};
+        mmgr_line_put(&path, into);
         if (query_environment_read("PATH", s_old, sizeof(s_old)))
         {
-            cli_line_character(&path, ':');
-            cli_line_text(&path, s_old);
+            mmgr_line_ch(&path, ':');
+            mmgr_line_put(&path, s_old);
         }
         // orior_cli starts nothing before this, and no thread of its own runs yet
-        if (cli_line_closed(&path) != 0ull)
+        if (mmgr_line_finish(&path) != 0ull)
         {
             query_environment_set("PATH", s_path);
         }

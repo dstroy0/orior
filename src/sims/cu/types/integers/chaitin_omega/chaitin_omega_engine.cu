@@ -8,10 +8,10 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
 {
     omega_results_open(fates);
     memset(report, 0, sizeof(*report));
-    std::vector<OmegaEngineJob> kept;
+    std::vector<OmegaEngineJob> retained;
     if (ledger != NULL)
     {
-        omega_engine_ledger_read(ledger, kept);
+        omega_engine_ledger_read(ledger, retained);
     }
     // the plan: each length in rank order, cut every OMEGA_ENGINE_JOB terms
     std::vector<OmegaEngineJob> jobs;
@@ -27,7 +27,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             job.settled = 0ull;
             omega_results_open(&job.results);
             const OmegaEngineJob *found = NULL;
-            for (const OmegaEngineJob &one : kept)
+            for (const OmegaEngineJob &one : retained)
             {
                 if ((one.length == length) && (one.from == from) && (one.count == job.count))
                 {
@@ -38,7 +38,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             if (found != NULL)
             {
                 omega_merge(fates, &found->results);
-                report->jobs_kept += 1ull;
+                report->jobs_retained += 1ull;
                 continue;
             }
             jobs.push_back(job);
@@ -58,7 +58,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
              (omega_buffer_reserve(&buffers[OMEGA_BUFFER_TOTALS], sizeof(OmegaRoundTotals), 0) == 1);
     if (ok == 0)
     {
-        sim_check(results, 0, "engine: the device holds the counts and the round's totals");
+        sim_check(results, 0, "engine: the device stores the counts and the round's totals");
     }
     ok = ok && sim_status_check(results,
                                 cudaMemcpy(buffers[OMEGA_BUFFER_COUNTS].data, counts->count, sizeof(counts->count),
@@ -70,7 +70,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
     unsigned long long report_at = 1ull;
     while ((ok != 0) && ((next_job < jobs.size()) || (extent.live > 0ull)))
     {
-        // jobs join while fewer than OMEGA_ENGINE_REFILL terms are live and the device holds them beside the rest
+        // jobs join while fewer than OMEGA_ENGINE_REFILL terms are live and the device fits them beside the rest
         while ((ok != 0) && (next_job < jobs.size()) && (extent.live < OMEGA_ENGINE_REFILL))
         {
             const int admitted =
@@ -84,7 +84,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         }
         if ((ok != 0) && (extent.live == 0ull))
         {
-            sim_check(results, 0, "engine: the device holds a job's terms");
+            sim_check(results, 0, "engine: the device stores a job's terms");
             ok = 0;
         }
         const size_t live_bytes = (size_t)extent.live * word;
@@ -96,7 +96,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                  (omega_buffer_reserve(&buffers[OMEGA_BUFFER_OUT_BASES], live_bytes, 0) == 1);
             if (ok == 0)
             {
-                sim_check(results, 0, "engine: the device holds the round's survey");
+                sim_check(results, 0, "engine: the device stores the round's survey");
             }
         }
         if (ok == 0)
@@ -149,14 +149,18 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         }
         const OmegaProgram *const program = &programs[key];
         const unsigned int out_limbs = program->layout.out_limbs;
-        // the round's buffers; while the device cannot hold them, the stepping term with the largest reduct is parked
+        // the round's buffers; while the device cannot fit them, the stepping term with the largest reduct is parked
         // as outgrown and the reducts laid out again without it
-        const OmegaBufferName round_buffers[19] = {
-            OMEGA_BUFFER_PACKED,       OMEGA_BUFFER_PLANS,       OMEGA_BUFFER_INDEX,       OMEGA_BUFFER_OUT,
-            OMEGA_BUFFER_REDUCTS,      OMEGA_BUFFER_REDUCT_ENDS, OMEGA_BUFFER_KEPT_TERMS,  OMEGA_BUFFER_KEPT_TOKENS,
-            OMEGA_BUFFER_KEPT_STORED,  OMEGA_BUFFER_KEPT_ENDS,   OMEGA_BUFFER_SETTLED,     OMEGA_BUFFER_PLACES,
-            OMEGA_BUFFER_PLACE_BASES,  OMEGA_BUFFER_TOKEN_SIZES, OMEGA_BUFFER_TOKEN_BASES, OMEGA_BUFFER_STORED_SIZES,
-            OMEGA_BUFFER_STORED_BASES, OMEGA_BUFFER_END_SIZES,   OMEGA_BUFFER_END_BASES};
+        const OmegaBufferName round_buffers[19] = {OMEGA_BUFFER_PACKED,          OMEGA_BUFFER_PLANS,
+                                                   OMEGA_BUFFER_INDEX,           OMEGA_BUFFER_OUT,
+                                                   OMEGA_BUFFER_REDUCTS,         OMEGA_BUFFER_REDUCT_ENDS,
+                                                   OMEGA_BUFFER_RETAINED_TERMS,  OMEGA_BUFFER_RETAINED_TOKENS,
+                                                   OMEGA_BUFFER_RETAINED_STORED, OMEGA_BUFFER_RETAINED_ENDS,
+                                                   OMEGA_BUFFER_SETTLED,         OMEGA_BUFFER_PLACES,
+                                                   OMEGA_BUFFER_PLACE_BASES,     OMEGA_BUFFER_TOKEN_SIZES,
+                                                   OMEGA_BUFFER_TOKEN_BASES,     OMEGA_BUFFER_STORED_SIZES,
+                                                   OMEGA_BUFFER_STORED_BASES,    OMEGA_BUFFER_END_SIZES,
+                                                   OMEGA_BUFFER_END_BASES};
         int reserved = 0;
         while ((ok != 0) && (reserved == 0))
         {
@@ -187,7 +191,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                 const int one = omega_buffer_reserve(&buffers[round_buffers[buffer]], bytes[buffer], 0);
                 if (one < 0)
                 {
-                    sim_check(results, 0, "engine: a round's buffer is held");
+                    sim_check(results, 0, "engine: a round's buffer is allocated");
                     ok = 0;
                 }
                 if (one != 1)
@@ -211,7 +215,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
             }
             if ((ok != 0) && (out_sizes[largest] == 0ull))
             {
-                sim_check(results, 0, "engine: the device holds a round once every reduct is parked");
+                sim_check(results, 0, "engine: the device fits a round once every reduct is parked");
                 ok = 0;
             }
             const int grew = OMEGA_GREW;
@@ -324,7 +328,7 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
                 report->jobs_run += 1ull;
             }
         }
-        // the kept terms move into the other buffer of each pair, in pool order
+        // the retained terms move into the other buffer of each pair, in pool order
         unsigned long long *const places = OMEGA_BUFFER(buffers, OMEGA_BUFFER_PLACES, unsigned long long);
         unsigned long long *const token_sizes = OMEGA_BUFFER(buffers, OMEGA_BUFFER_TOKEN_SIZES, unsigned long long);
         unsigned long long *const stored_sizes = OMEGA_BUFFER(buffers, OMEGA_BUFFER_STORED_SIZES, unsigned long long);
@@ -333,56 +337,57 @@ int omega_engine(SimResults *results, const OmegaCounts *counts, const char *led
         unsigned long long *const token_bases = OMEGA_BUFFER(buffers, OMEGA_BUFFER_TOKEN_BASES, unsigned long long);
         unsigned long long *const stored_bases = OMEGA_BUFFER(buffers, OMEGA_BUFFER_STORED_BASES, unsigned long long);
         unsigned long long *const end_bases = OMEGA_BUFFER(buffers, OMEGA_BUFFER_END_BASES, unsigned long long);
-        omega_pool_kept_sizes<<<omega_pool_grid(extent.live), OMEGA_POOL_BLOCK>>>(terms, extent.live, places,
-                                                                                  token_sizes, stored_sizes, end_sizes);
-        OmegaPoolExtent kept_extent = {0ull, 0ull, 0ull, 0ull};
-        ok = ok && sim_status_check(results, cudaGetLastError(), "engine: kept sizes") &&
+        omega_pool_retained_sizes<<<omega_pool_grid(extent.live), OMEGA_POOL_BLOCK>>>(
+            terms, extent.live, places, token_sizes, stored_sizes, end_sizes);
+        OmegaPoolExtent retained_extent = {0ull, 0ull, 0ull, 0ull};
+        ok = ok && sim_status_check(results, cudaGetLastError(), "engine: retained sizes") &&
              omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], places, place_bases, extent.live,
-                               &kept_extent.live) &&
+                               &retained_extent.live) &&
              omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], token_sizes, token_bases, extent.live,
-                               &kept_extent.tokens) &&
+                               &retained_extent.tokens) &&
              omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], stored_sizes, stored_bases, extent.live,
-                               &kept_extent.stored) &&
+                               &retained_extent.stored) &&
              omega_buffer_scan(results, &buffers[OMEGA_BUFFER_SCAN], end_sizes, end_bases, extent.live,
-                               &kept_extent.ends);
+                               &retained_extent.ends);
         if (ok == 0)
         {
             break;
         }
-        const unsigned long long keep_blocks = (extent.live < OMEGA_POOL_GRID_MAX) ? extent.live : OMEGA_POOL_GRID_MAX;
-        // at most OMEGA_POOL_GRID_MAX blocks, which an unsigned int holds
-        omega_pool_keep<<<(unsigned int)keep_blocks, 128u>>>(
+        const unsigned long long retain_blocks =
+            (extent.live < OMEGA_POOL_GRID_MAX) ? extent.live : OMEGA_POOL_GRID_MAX;
+        // at most OMEGA_POOL_GRID_MAX blocks, which an unsigned int stores
+        omega_pool_retain<<<(unsigned int)retain_blocks, 128u>>>(
             terms, extent.live, reducts, OMEGA_BUFFER(buffers, OMEGA_BUFFER_STORED, OmegaToken),
             OMEGA_BUFFER(buffers, OMEGA_BUFFER_ENDS, unsigned long long), place_bases, token_bases, stored_bases,
-            end_bases, OMEGA_BUFFER(buffers, OMEGA_BUFFER_KEPT_TERMS, OmegaTerm),
-            OMEGA_BUFFER(buffers, OMEGA_BUFFER_KEPT_TOKENS, OmegaToken),
-            OMEGA_BUFFER(buffers, OMEGA_BUFFER_KEPT_STORED, OmegaToken),
-            OMEGA_BUFFER(buffers, OMEGA_BUFFER_KEPT_ENDS, unsigned long long));
-        ok = sim_status_check(results, cudaGetLastError(), "engine: keep") &&
-             sim_status_check(results, cudaDeviceSynchronize(), "engine: keep");
-        omega_buffer_swap(&buffers[OMEGA_BUFFER_TERMS], &buffers[OMEGA_BUFFER_KEPT_TERMS]);
-        omega_buffer_swap(&buffers[OMEGA_BUFFER_TOKENS], &buffers[OMEGA_BUFFER_KEPT_TOKENS]);
-        omega_buffer_swap(&buffers[OMEGA_BUFFER_STORED], &buffers[OMEGA_BUFFER_KEPT_STORED]);
-        omega_buffer_swap(&buffers[OMEGA_BUFFER_ENDS], &buffers[OMEGA_BUFFER_KEPT_ENDS]);
-        extent = kept_extent;
+            end_bases, OMEGA_BUFFER(buffers, OMEGA_BUFFER_RETAINED_TERMS, OmegaTerm),
+            OMEGA_BUFFER(buffers, OMEGA_BUFFER_RETAINED_TOKENS, OmegaToken),
+            OMEGA_BUFFER(buffers, OMEGA_BUFFER_RETAINED_STORED, OmegaToken),
+            OMEGA_BUFFER(buffers, OMEGA_BUFFER_RETAINED_ENDS, unsigned long long));
+        ok = sim_status_check(results, cudaGetLastError(), "engine: retain") &&
+             sim_status_check(results, cudaDeviceSynchronize(), "engine: retain");
+        omega_buffer_swap(&buffers[OMEGA_BUFFER_TERMS], &buffers[OMEGA_BUFFER_RETAINED_TERMS]);
+        omega_buffer_swap(&buffers[OMEGA_BUFFER_TOKENS], &buffers[OMEGA_BUFFER_RETAINED_TOKENS]);
+        omega_buffer_swap(&buffers[OMEGA_BUFFER_STORED], &buffers[OMEGA_BUFFER_RETAINED_STORED]);
+        omega_buffer_swap(&buffers[OMEGA_BUFFER_ENDS], &buffers[OMEGA_BUFFER_RETAINED_ENDS]);
+        extent = retained_extent;
         if (report->rounds == report_at)
         {
             const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-            scriptura_text(&results->line, "  round ");
-            scriptura_decimal(&results->line, report->rounds, 1u);
-            scriptura_text(&results->line, ": ");
-            scriptura_decimal(&results->line, extent.live, 1u);
-            scriptura_text(&results->line, " live, ");
-            scriptura_decimal(&results->line, report->jobs_run, 1u);
-            scriptura_text(&results->line, " of ");
-            scriptura_decimal(&results->line, jobs.size(), 1u);
-            scriptura_text(&results->line, " jobs done, ");
-            scriptura_decimal(&results->line, report->records, 1u);
-            scriptura_text(&results->line, " records swept, the largest term ");
-            scriptura_decimal(&results->line, report->max_tokens, 1u);
-            scriptura_text(&results->line, " tokens, ");
-            scriptura_decimal(&results->line, (unsigned long long)(seconds * 1000.0), 1u);
-            scriptura_text(&results->line, " ms\n");
+            mmgr_line_put(&results->line, "  round ");
+            mmgr_line_decimal(&results->line, report->rounds, 1u);
+            mmgr_line_put(&results->line, ": ");
+            mmgr_line_decimal(&results->line, extent.live, 1u);
+            mmgr_line_put(&results->line, " live, ");
+            mmgr_line_decimal(&results->line, report->jobs_run, 1u);
+            mmgr_line_put(&results->line, " of ");
+            mmgr_line_decimal(&results->line, jobs.size(), 1u);
+            mmgr_line_put(&results->line, " jobs done, ");
+            mmgr_line_decimal(&results->line, report->records, 1u);
+            mmgr_line_put(&results->line, " records swept, the largest term ");
+            mmgr_line_decimal(&results->line, report->max_tokens, 1u);
+            mmgr_line_put(&results->line, " tokens, ");
+            mmgr_line_decimal(&results->line, (unsigned long long)(seconds * 1000.0), 1u);
+            mmgr_line_put(&results->line, " ms\n");
             sim_flush(results);
             report_at *= 2ull;
         }

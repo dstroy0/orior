@@ -14,7 +14,7 @@ static CliDbFailure s_failure;
 // `statement` run on `open`, its answer read into the shared tree: its node, CLI_JSON_NONE where it failed
 static unsigned int servers_run(CliDbOpen *open, const char *statement, int answered, const CliJson **json)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     if (!cli_db_run(open, statement, cellul.len(&(CatenaFinitaCfg){.src = statement, .cap = CLI_CELLS_POOL}), answered,
                     10ull, &out, &s_failure))
     {
@@ -25,25 +25,25 @@ static unsigned int servers_run(CliDbOpen *open, const char *statement, int answ
     return found;
 }
 
-// the schema's level under `count` names, `kind label` of each joined by `|` into `out`, which holds 512
+// the schema's level under `count` names, `kind label` of each joined by `|` into `out`, which is sized for 512
 static const char *servers_children(CliDbOpen *open, const char *const *path, unsigned int count, char *out)
 {
-    CliLine read = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea read = {s_out, sizeof(s_out), 0ull};
     (void)cli_db_children(open, path, count, &read, &s_failure);
     unsigned int found = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, read.at, &found);
-    CliLine line = {out, 512u, 0ull};
+    VerbaLinea line = {out, 512u, 0ull};
     for (unsigned int at = 0u; cli_json_item(json, found, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int part = cli_json_item(json, found, at);
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, cli_check_member_text(part, "kind"));
-        cli_line_character(&line, ' ');
-        cli_line_text(&line, cli_check_member_text(part, "label"));
-        cli_line_character(&line, ' ');
-        cli_line_text(&line, cli_check_member_text(part, "detail"));
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, cli_check_member_text(part, "kind"));
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, cli_check_member_text(part, "label"));
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, cli_check_member_text(part, "detail"));
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -72,7 +72,7 @@ static void servers_pg(const char *password)
 {
     static const char *const s_public[1] = {"public"};
     static const char *const s_table[3] = {"public", "table", "orior_guard"};
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     char text[512];
     cli_check_folder("db_pg", root);
     CliDbConnection base;
@@ -87,7 +87,7 @@ static void servers_pg(const char *password)
     (void)servers_run(open, "DROP TABLE IF EXISTS orior_guard", 1, &json);
     (void)servers_run(open, "CREATE TABLE orior_guard (n int)", 1, &json);
     (void)servers_run(open, "INSERT INTO orior_guard SELECT generate_series(1, 42)", 1, &json);
-    CliLine zone = {text, sizeof(text), 0ull};
+    VerbaLinea zone = {text, sizeof(text), 0ull};
     cli_db_zone(open, &zone);
     cli_check(zone.at > 0ull, "the session's zone is read");
     cli_check(cellul.find(&(CatenaFinitaCfg){.src = servers_children(open, NULL, 0u, text),
@@ -105,29 +105,31 @@ static void servers_pg(const char *password)
                                                .cap = CLI_CELLS_POOL}),
               "and their columns");
     unsigned int found = servers_run(open, "UPDATE orior_guard SET n = 0", 0, &json);
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = cli_check_member_text(cli_json_member(json, found, "ask"), "count"),
-                                           .other = "42",
-                                           .cap = CLI_CELLS_POOL}),
-              "an update of every row asks with its count");
+    cli_check(
+        cellul.eq(&(CatenaFinitaCfg){.src = cli_check_member_text(cli_json_member(json, found, "confirm"), "count"),
+                                     .other = "42",
+                                     .cap = CLI_CELLS_POOL}),
+        "an update of every row prompts with its count");
     cli_db_close(open);
-    CliDbConnection asks = base;
-    asks.matters = 1;
-    memor.cpy(&(MemoriaCfg){.dst = asks.guard,
-                            .src = "ask",
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "ask", .cap = CLI_CELLS_POOL}) + 1u});
-    CliDbOpen *const asked = cli_db_connect(root, &asks, password, &s_failure);
-    if (asked != NULL)
+    CliDbConnection guarded_connection = base;
+    guarded_connection.matters = 1;
+    memor.cpy(&(MemoriaCfg){.dst = guarded_connection.guard,
+                            .src = "confirm",
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = "confirm", .cap = CLI_CELLS_POOL}) + 1u});
+    CliDbOpen *const guarded = cli_db_connect(root, &guarded_connection, password, &s_failure);
+    if (guarded != NULL)
     {
-        found = servers_run(asked, "INSERT INTO orior_guard VALUES (1)", 0, &json);
-        cli_check(cellul.eq(&(CatenaFinitaCfg){.src = cli_check_member_text(cli_json_member(json, found, "ask"), "why"),
-                                               .other = "matters",
-                                               .cap = CLI_CELLS_POOL}),
-                  "a connection that matters asks before a write");
-        found = servers_run(asked, "SELECT 1", 0, &json);
-        cli_check(cli_json_member(json, found, "ask") == CLI_JSON_NONE ||
-                      cli_json_is(json, cli_json_member(json, found, "ask"), CFG_JSON_NULL),
+        found = servers_run(guarded, "INSERT INTO orior_guard VALUES (1)", 0, &json);
+        cli_check(
+            cellul.eq(&(CatenaFinitaCfg){.src = cli_check_member_text(cli_json_member(json, found, "confirm"), "why"),
+                                         .other = "matters",
+                                         .cap = CLI_CELLS_POOL}),
+            "a connection that matters prompts before a write");
+        found = servers_run(guarded, "SELECT 1", 0, &json);
+        cli_check(cli_json_member(json, found, "confirm") == CLI_JSON_NONE ||
+                      cli_json_is(json, cli_json_member(json, found, "confirm"), CFG_JSON_NULL),
                   "and not before a read");
-        cli_db_close(asked);
+        cli_db_close(guarded);
     }
     CliDbConnection read_only = base;
     read_only.matters = 1;
@@ -150,13 +152,13 @@ static void servers_pg(const char *password)
     }
 }
 
-// a row's first value kept
-static int servers_kept(void *context, const CliDbValue *values, unsigned int count)
+// a row's first value recorded
+static int servers_row_capture(void *context, const CliDbValue *values, unsigned int count)
 {
-    CliLine *const line = context;
+    VerbaLinea *const line = context;
     if ((count > 0u) && !values[0].null)
     {
-        cli_line_counted(line, values[0].text, values[0].size);
+        mmgr_line_put_n(line, values[0].text, values[0].size);
     }
     return 1;
 }
@@ -164,9 +166,9 @@ static int servers_kept(void *context, const CliDbValue *values, unsigned int co
 // a tunnel through ssh reaches the server and is down once its ssh ends
 static void servers_tunnel(const char *password)
 {
-    char ssh[CLI_PATH_LONGEST];
-    char through[CLI_NAME_LONGEST];
-    char to[CLI_NAME_LONGEST];
+    char ssh[CLI_PATH_MAX_LEN];
+    char through[CLI_NAME_MAX_LEN];
+    char to[CLI_NAME_MAX_LEN];
     if (!query_environment_read("ORIOR_TEST_SSH", ssh, sizeof(ssh)) ||
         !query_environment_read("ORIOR_TEST_SSH_HOST", through, sizeof(through)) ||
         !query_environment_read("ORIOR_TEST_SSH_TO", to, sizeof(to)))
@@ -175,7 +177,7 @@ static void servers_tunnel(const char *password)
         return;
     }
     (void)query_environment_set("ORIOR_SSH", ssh);
-    char host[CLI_NAME_LONGEST];
+    char host[CLI_NAME_MAX_LEN];
     unsigned int port = 0u;
     cli_check_server("PG", 5432u, host, &port);
     static CliDbTunnel s_tunnel;
@@ -183,8 +185,8 @@ static void servers_tunnel(const char *password)
     CliPg *const pg =
         cli_pg_connected("127.0.0.1", s_tunnel.port, "postgres", password, "postgres", 5000ull, &s_failure);
     char value[64];
-    CliLine line = {value, sizeof(value), 0ull};
-    cli_check((pg != NULL) && cli_pg_all(pg, "select 'through ssh'", 19ull, servers_kept, &line, &s_failure) &&
+    VerbaLinea line = {value, sizeof(value), 0ull};
+    cli_check((pg != NULL) && cli_pg_all(pg, "select 'through ssh'", 19ull, servers_row_capture, &line, &s_failure) &&
                   (line.at == 11ull) &&
                   (memor.cmp(&(MemoriaCfg){.src = value, .other = "through ssh", .bytes = 11u}) == 0),
               "the server answers through it");
@@ -197,24 +199,24 @@ static void servers_tunnel(const char *password)
     (void)cli_spawn_wait(&s_tunnel.child);
     cli_check(!cli_db_tunnel_alive(&s_tunnel), "a tunnel whose ssh ended is down");
     cli_db_tunnel_closed(&s_tunnel);
-    char nobody[CLI_NAME_LONGEST + 8u];
-    CliLine named = {nobody, sizeof(nobody), 0ull};
-    cli_line_text(&named, "nobody@");
-    cli_line_text(&named, through);
-    (void)cli_line_closed(&named);
+    char nobody[CLI_NAME_MAX_LEN + 8u];
+    VerbaLinea named = {nobody, sizeof(nobody), 0ull};
+    mmgr_line_put(&named, "nobody@");
+    mmgr_line_put(&named, through);
+    (void)mmgr_line_finish(&named);
     cli_check(
         !cli_db_tunnel_open(&s_tunnel, nobody, to, port, &s_failure) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = s_failure.message, .cap = CLI_CELLS_POOL, .other = "ended", .other_cap = CLI_CELLS_POOL}) !=
              NULL),
-        "a tunnel ssh refuses says its ssh ended");
+        "a tunnel ssh refuses reports its ssh ended");
 }
 
 // a MySQL connection reads its schema and its zone
 static void servers_mysql(const char *password)
 {
     static const char *const s_table[3] = {"orior_schema", "table", "t"};
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     char text[512];
     cli_check_folder("db_mysql", root);
     CliDbConnection connection;
@@ -231,7 +233,7 @@ static void servers_mysql(const char *password)
                       "CREATE TABLE IF NOT EXISTS orior_schema.t (id INT PRIMARY KEY, name VARCHAR(20) NOT NULL, KEY "
                       "by_name (name))",
                       1, &json);
-    CliLine zone = {text, sizeof(text), 0ull};
+    VerbaLinea zone = {text, sizeof(text), 0ull};
     cli_db_zone(open, &zone);
     cli_check(zone.at > 0ull, "the session's zone is read");
     cli_check(cellul.find(&(CatenaFinitaCfg){.src = servers_children(open, NULL, 0u, text),
@@ -256,6 +258,7 @@ static void servers_mysql(const char *password)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     char password[256];
     if (query_environment_read("ORIOR_PG_PASSWORD", password, sizeof(password)))
     {

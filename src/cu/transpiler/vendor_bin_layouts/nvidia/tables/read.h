@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // read.h: the vendor's instruction set read: each CLASS with its opcode, its fields by name, each a run of bits or
-// several, and its constant-bank operand where it holds one
+// several, and its constant-bank operand where it contains one
 #ifndef TABLES_READ_H
 #define TABLES_READ_H
 
@@ -41,7 +41,7 @@ extern "C"
     } TablesField;
 
     // one CLASS: its name, its opcode as OPCODES gives it, its fields, and its constant-bank operand's bank and
-    // offset fields by name where the FORMAT holds a `C:` operand, empty where it holds none, with the offset
+    // offset fields by name where the FORMAT contains a `C:` operand, empty where it contains none, with the offset
     // operand's width in bits as the FORMAT gives it, `SImm(17)`, its sign bit counted, 0 where it gives none
     typedef struct
     {
@@ -52,17 +52,17 @@ extern "C"
         char bank[TABLES_NAME];
         char offset[TABLES_NAME];
         unsigned int offset_bits;
-        // the size operand where the FORMAT holds one, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: its name, and the bytes
-        // each value of its field reads, in the order the FORMAT lists the choices; empty where it holds none
+        // the size operand where the FORMAT contains one, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: its name, and the bytes
+        // each value of its field reads, in the order the FORMAT lists the choices; empty where it contains none
         char size[TABLES_NAME];
         unsigned int sizes;
         unsigned int size_bytes[TABLES_SIZES];
         // the size operand's list as the FORMAT names it, `SZ_U8_S8_U16_S16_32_64`, which a condition's constant
-        // names a choice under, `SZ_U8_S8_U16_S16_32_64@"64"`; empty where the class holds no size operand
+        // names a choice under, `SZ_U8_S8_U16_S16_32_64@"64"`; empty where the class contains no size operand
         char size_list[TABLES_NAME];
         // the class's CONDITIONS on its registers, under OOR_REG_ERROR and MISALIGNED_REG_ERROR: each an
-        // expression over the class's operands that holds for a legal encoding, kept as the text gives it without
-        // its closing colon; one longer than its room is not kept
+        // expression over the class's operands that is true for a legal encoding, stored as the text gives it without
+        // its closing colon; one longer than its room is not stored
         char condition[TABLES_CONDITIONS][TABLES_CONDITION_TEXT];
         unsigned int conditions;
     } TablesClass;
@@ -75,7 +75,7 @@ extern "C"
     } TablesSet;
 
     // Every CLASS of the instruction set `text`, `size` long, read into `set`: 1, or 0 where there was no memory,
-    // the set holding what was read before
+    // the set containing what was read before
     int tables_set_read(TablesSet *set, const unsigned char *text, size_t size);
 
     void tables_set_freed(TablesSet *set);
@@ -97,8 +97,8 @@ extern "C"
     // where none is
     const TablesClass *tables_class_of(const TablesSet *set, unsigned long long low, unsigned long long high);
 
-    // The bytes a read of `class_` takes in the encoding `low` and `high`: the choice its size operand's field holds,
-    // as the FORMAT lists the choices; four where the class names no size operand or the field holds a choice past
+    // The bytes a read of `class_` takes in the encoding `low` and `high`: the choice its size operand's field stores,
+    // as the FORMAT lists the choices; four where the class names no size operand or the field stores a choice past
     // the list
     unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long low, unsigned long long high);
 
@@ -106,14 +106,14 @@ extern "C"
     // value scaled by the bits the field leaves below the operand's magnitude (the operand `SImm(n)` with its sign)
     unsigned long long tables_class_offset(const TablesClass *class_, unsigned long long low, unsigned long long high);
 
-    // Whether the encoding `low` and `high` holds to every register condition of `class_`: 1 where each holds or is
+    // Whether the encoding `low` and `high` satisfies every register condition of `class_`: 1 where each is true or is
     // one this reader cannot judge, 0 where one fails, that one's text given through `failed` where it is not NULL.
     // A condition is judged over the class's fields by operand, the registers' own constants, RZ, R<n>, URZ, UR<n>,
     // PT and UPT, the register counts %MAX_REG_COUNT and %MAX_UNIFORM_REG_COUNT, and the size operand's choices
     // under its list; one naming anything else is not judged
     int tables_class_legal(const TablesClass *class_, unsigned long long low, unsigned long long high,
                            const char **failed);
-    // The encoding `low` and `high` described in one line into `text`, which holds `room`: its class's name, or `-`
+    // The encoding `low` and `high` described in one line into `text`, sized for `room`: its class's name, or `-`
     // where no class's opcode reads it, and, where the class reads the constant bank, the bank, the byte offset and
     // the bytes read. 1 where a class reads it, 0 where none does
     int tables_class_described(const TablesSet *set, unsigned long long low, unsigned long long high, char *text,

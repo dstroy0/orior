@@ -82,25 +82,25 @@ void cli_catalog_short(const char *file, char *out)
 void cli_catalog_script_job(CliCatalog *catalog, const char *root, const char *group, const char *path,
                             const char *title, const char *opens)
 {
-    char file[CLI_PATH_LONGEST];
-    char id[CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
+    char id[CLI_PATH_MAX_LEN];
     cli_relative(root, path, file);
-    CliLine line = {id, sizeof(id), 0ull};
-    cli_line_text(&line, group);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, file);
-    cli_line_closed(&line);
+    VerbaLinea line = {id, sizeof(id), 0ull};
+    mmgr_line_put(&line, group);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, file);
+    mmgr_line_finish(&line);
     char *const about = cli_catalog_about_taken(path);
     cli_catalog_job(catalog, id, group, (title != NULL) ? title : file, file, (about != NULL) ? about : "", opens);
     cli_catalog_text_given(about);
 }
 
 // A bash script that takes free words as its job; a build traced: bash takes SHELLOPTS from its environment as its own
-// options, and gives it on, so every script the build runs says each command as it runs it
+// options, and gives it on, so every script the build runs prints each command as it runs it
 void cli_catalog_bash_alone(CliCatalog *catalog, const char *root, const char *group, const char *path)
 {
-    char file[CLI_PATH_LONGEST];
-    char title[CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
+    char title[CLI_PATH_MAX_LEN];
     cli_relative(root, path, file);
     cli_catalog_short(file, title);
     cli_catalog_script_job(catalog, root, group, path, title, "");
@@ -123,8 +123,8 @@ void cli_catalog_bash_alone(CliCatalog *catalog, const char *root, const char *g
 void cli_catalog_builds(const char *root, CliCatalog *catalog)
 {
     static const char *const s_places[3] = {"/src", "/utils/maint/engine", "/utils/maint/texbuild"};
-    char place[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char place[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     CliEntries examples = {NULL, 0u, 0u};
     CliEntries builds = {NULL, 0u, 0u};
     CliPaths listed = {NULL, 0u};
@@ -134,10 +134,10 @@ void cli_catalog_builds(const char *root, CliCatalog *catalog)
     unsigned int places = 0u;
     for (unsigned int at = 0u; (at < 3u) && (places < listed.room); at += 1u)
     {
-        CliLine line = {listed.path[places], CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&line, root);
-        cli_line_text(&line, s_places[at]);
-        places += (cli_line_closed(&line) != 0ull) ? 1u : 0u;
+        VerbaLinea line = {listed.path[places], CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, root);
+        mmgr_line_put(&line, s_places[at]);
+        places += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
     }
     for (unsigned int at = 0u; (at < examples.count) && (places < listed.room); at += 1u)
     {
@@ -170,7 +170,7 @@ static int cli_find_dir(const char *under, const char *name, unsigned int depth,
     int found_one = 0;
     for (unsigned int at = 0u; !found_one && (at < dirs.count); at += 1u)
     {
-        char dir[CLI_PATH_LONGEST];
+        char dir[CLI_PATH_MAX_LEN];
         cli_catalog_join(under, dirs.name[at], dir);
         if (cellul.eq(&(CatenaFinitaCfg){.src = dirs.name[at], .other = name, .cap = CLI_CELLS_POOL}))
         {
@@ -205,7 +205,7 @@ static int cli_find_file(const char *under, const char *name, unsigned int depth
     int found_one = 0;
     for (unsigned int at = 0u; !found_one && (at < dirs.count); at += 1u)
     {
-        char dir[CLI_PATH_LONGEST];
+        char dir[CLI_PATH_MAX_LEN];
         cli_catalog_join(under, dirs.name[at], dir);
         found_one = cli_find_file(dir, name, depth + 1u, found);
     }
@@ -216,12 +216,12 @@ static int cli_find_file(const char *under, const char *name, unsigned int depth
 char *cli_catalog_script_taken(const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     if (bytes == NULL)
     {
         return NULL;
     }
-    char *const text = cli_cell_taken_by(&g_cli_catalog_cells, size + 1ull, "a script's text");
+    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_catalog_cells);
     if (text != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = text, .src = bytes, .bytes = (size_t)size});
@@ -234,8 +234,8 @@ char *cli_catalog_script_taken(const char *path)
 // One job per sim in the case src/sims/run.sh accepts, each with the first comment its source opens with
 void cli_catalog_sims(const char *root, CliCatalog *catalog)
 {
-    char script[CLI_PATH_LONGEST];
-    char sims_cu[CLI_PATH_LONGEST];
+    char script[CLI_PATH_MAX_LEN];
+    char sims_cu[CLI_PATH_MAX_LEN];
     cli_catalog_join(root, "src/sims/run.sh", script);
     cli_catalog_join(root, "src/sims/cu", sims_cu);
     char *const text = cli_catalog_script_taken(script);
@@ -251,8 +251,8 @@ void cli_catalog_sims(const char *root, CliCatalog *catalog)
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const sim = names.name[at];
-        char dir[CLI_PATH_LONGEST];
-        char source[CLI_PATH_LONGEST];
+        char dir[CLI_PATH_MAX_LEN];
+        char source[CLI_PATH_MAX_LEN];
         int found = 0;
         if (cli_find_dir(sims_cu, sim, 0u, dir))
         {
@@ -265,19 +265,19 @@ void cli_catalog_sims(const char *root, CliCatalog *catalog)
         }
         if (!found)
         {
-            char named[CLI_NAME_LONGEST];
-            CliLine line = {named, sizeof(named), 0ull};
-            cli_line_text(&line, sim);
-            cli_line_text(&line, ".cu");
-            cli_line_closed(&line);
+            char named[CLI_NAME_MAX_LEN];
+            VerbaLinea line = {named, sizeof(named), 0ull};
+            mmgr_line_put(&line, sim);
+            mmgr_line_put(&line, ".cu");
+            mmgr_line_finish(&line);
             found = cli_find_file(sims_cu, named, 0u, source);
         }
-        char id[CLI_PATH_LONGEST];
-        char file[CLI_PATH_LONGEST];
-        CliLine line = {id, sizeof(id), 0ull};
-        cli_line_text(&line, "sim/");
-        cli_line_text(&line, sim);
-        cli_line_closed(&line);
+        char id[CLI_PATH_MAX_LEN];
+        char file[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {id, sizeof(id), 0ull};
+        mmgr_line_put(&line, "sim/");
+        mmgr_line_put(&line, sim);
+        mmgr_line_finish(&line);
         char *about = NULL;
         if (found)
         {
@@ -302,15 +302,15 @@ void cli_catalog_sims(const char *root, CliCatalog *catalog)
     cli_catalog_entries_given(&names);
 }
 
-unsigned int cli_catalog_paths(const char *root, const char *dir, int (*keep)(const char *name), CliPaths *list,
+unsigned int cli_catalog_paths(const char *root, const char *dir, int (*filter)(const char *name), CliPaths *list,
                                unsigned int at)
 {
     CliEntries files = {NULL, 0u, 0u};
-    cli_catalog_entries(dir, 0, keep, &files);
+    cli_catalog_entries(dir, 0, filter, &files);
     (void)cli_catalog_paths_room(list, at + files.count);
     for (unsigned int each = 0u; (each < files.count) && (at < list->room); each += 1u)
     {
-        char path[CLI_PATH_LONGEST];
+        char path[CLI_PATH_MAX_LEN];
         cli_catalog_join(dir, files.name[each], path);
         cli_relative(root, path, list->path[at]);
         at += 1u;

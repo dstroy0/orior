@@ -12,7 +12,9 @@
 #include "../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "../../../../../../src/cu/includes/types/integers/exact_record/exact_record.h"
 #include "sim.h"
 
@@ -38,7 +40,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } RecordResults;
 
 // a value read back or worked out: its magnitude's limbs and its sign
@@ -64,14 +66,14 @@ static void record_check(RecordResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, "  FAILED: ");
     }
     else
     {
-        scriptura_text(&results->line, "  ok     ");
+        mmgr_line_put(&results->line, "  ok     ");
     }
-    scriptura_text(&results->line, what);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, what);
+    mmgr_line_ch(&results->line, '\n');
 }
 
 static void record_small(RecordValue *value, long long small)
@@ -102,7 +104,7 @@ static int record_same(const RecordValue *left, const RecordValue *right)
 }
 
 // `bits` of two's complement at bit `offset` of `words`, as a magnitude and a sign; an output wider than the value
-// holds reads as sign 2, which equals no worked-out value
+// represents reads as sign 2, which equals no worked-out value
 static void record_at(const unsigned int *words, unsigned int offset, unsigned int bits, RecordValue *value)
 {
     if (bits > 32u * RECORD_TEST_VALUE_LIMBS)
@@ -199,11 +201,11 @@ static int record_run(RecordResults *results, ExactRecordProgram *program, const
     EngineError error;
     if (record_load(program, outputs, output_count, &loaded, &error) == 0)
     {
-        scriptura_text(&results->line, "  the program did not load: module ");
-        scriptura_decimal(&results->line, (unsigned long long)error.module, 1u);
-        scriptura_text(&results->line, ", site ");
-        scriptura_decimal(&results->line, (unsigned long long)error.site, 1u);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  the program did not load: module ");
+        mmgr_line_decimal(&results->line, (unsigned long long)error.module, 1u);
+        mmgr_line_put(&results->line, ", site ");
+        mmgr_line_decimal(&results->line, (unsigned long long)error.site, 1u);
+        mmgr_line_ch(&results->line, '\n');
         record_check(results, 0, name);
         return 0;
     }
@@ -240,21 +242,21 @@ static int record_run(RecordResults *results, ExactRecordProgram *program, const
             differ += (host[at] != device[at]) ? 1u : 0u;
             first = ((first == words) && (host[at] != device[at])) ? at : first;
         }
-        scriptura_text(&results->line, "  run ");
-        scriptura_decimal(&results->line, (unsigned long long)ok, 1u);
-        scriptura_text(&results->line, ", error module ");
-        scriptura_decimal(&results->line, (unsigned long long)error.module, 1u);
-        scriptura_text(&results->line, " site ");
-        scriptura_decimal(&results->line, (unsigned long long)error.site, 1u);
-        scriptura_text(&results->line, " status ");
-        scriptura_decimal(&results->line, (unsigned long long)(long long)error.status, 1u);
-        scriptura_text(&results->line, ", words differing ");
-        scriptura_decimal(&results->line, (unsigned long long)differ, 1u);
-        scriptura_text(&results->line, " of ");
-        scriptura_decimal(&results->line, (unsigned long long)words, 1u);
-        scriptura_text(&results->line, ", first at ");
-        scriptura_decimal(&results->line, (unsigned long long)first, 1u);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  run ");
+        mmgr_line_decimal(&results->line, (unsigned long long)ok, 1u);
+        mmgr_line_put(&results->line, ", error module ");
+        mmgr_line_decimal(&results->line, (unsigned long long)error.module, 1u);
+        mmgr_line_put(&results->line, " site ");
+        mmgr_line_decimal(&results->line, (unsigned long long)error.site, 1u);
+        mmgr_line_put(&results->line, " status ");
+        mmgr_line_decimal(&results->line, (unsigned long long)(long long)error.status, 1u);
+        mmgr_line_put(&results->line, ", words differing ");
+        mmgr_line_decimal(&results->line, (unsigned long long)differ, 1u);
+        mmgr_line_put(&results->line, " of ");
+        mmgr_line_decimal(&results->line, (unsigned long long)words, 1u);
+        mmgr_line_put(&results->line, ", first at ");
+        mmgr_line_decimal(&results->line, (unsigned long long)first, 1u);
+        mmgr_line_ch(&results->line, '\n');
     }
     for (unsigned int lane = 0u; (same != 0) && (lane < RECORD_TEST_LANES); lane += 1u)
     {
@@ -452,12 +454,12 @@ int main(int count, char **arguments)
     record_check(&results, (admitted != 0) && (job.failures == 0ull),
                  "tessera: the device's daemon admits the test's job and it releases");
 
-    scriptura_text(&results.line, "  exact record test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  exact record test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

@@ -45,7 +45,7 @@ static void builds_places(void)
     cli_check(cli_build_byte_at(s_text, sizeof(s_text) - 1u, 1u, 4u) == at, "and a column gives its byte back");
 }
 
-// the names near `name` offered among `count` of `known`, `|` between them, into `out`, which holds 256
+// the names near `name` offered among `count` of `known`, `|` between them, into `out`, which is sized for 256
 static const char *builds_near(const char *name, const char *const *known, unsigned int count, char *out)
 {
     CliBuildNear near;
@@ -55,18 +55,19 @@ static const char *builds_near(const char *name, const char *const *known, unsig
         cli_build_near_offered(&near, known[at],
                                cellul.len(&(CatenaFinitaCfg){.src = known[at], .cap = CLI_CELLS_POOL}));
     }
-    CliLine line = {out, 256u, 0ull};
+    VerbaLinea line = {out, 256u, 0ull};
     for (unsigned int at = 0u; at < near.count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_counted(&line, near.near[at], near.near_size[at]);
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put_n(&line, near.near[at], near.near_size[at]);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check(cli_build_kind_of("a/build.gradle.kts") == CLI_BUILD_GRADLE, "a Gradle script is Gradle's");
     cli_check(cli_build_kind_of("settings.gradle") == CLI_BUILD_GRADLE, "and its settings script");
     cli_check(cli_build_kind_of("gradle/libs.versions.toml") == CLI_BUILD_CATALOG, "a version catalog is a catalog");

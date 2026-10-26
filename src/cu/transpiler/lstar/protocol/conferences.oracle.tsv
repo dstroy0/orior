@@ -5,7 +5,7 @@ column 1	overseer	agreed	-	agreed|none	<0 or 1>	1 where every expert that reads 
 column 2	overseer	cause	-	<cause>	<code>	the cause agreed, by the codes of accounts.oracle.tsv, 0 where none was
 column 3	overseer	side	-	<side>	<code>	the side of the statement that brought it on, by the codes below
 column 4	overseer	guidance	-	<guidance>	<code>	what the learner does next, by the codes below
-column 5	overseer	accounts	-	<count>	<count>	the accounts heard
+column 5	overseer	accounts	-	<count>	<count>	the accounts received
 column 6	overseer	taught	-	taught|none	<0 or 1>	1 where the ruling taught a lesson the run did not hold
 column 7	overseer	said	-	<text>	<text>	the ruling as the overseer's own account says it, by its number in the table of texts
 side	overseer	unknown	0x0	unknown	-	no cause agreed, or no account states the stand-in and its carrier

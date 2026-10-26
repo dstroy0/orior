@@ -162,10 +162,10 @@ nop state_dispatch error state
 
 # a memory read's address named a state ahead of the read, for a target that reads memory a clock after it is asked
 # (vhdl.krs); a PTX load names its address itself
-nop launch_ask offset
-nop global_ask address offset
-nop global_ask_if where address
-nop global_ask_atomic address
+nop launch_load offset
+nop global_load address offset
+nop global_load_if where address
+nop global_atomic address
 
 # a loop: its label, and the branch back to it where the predicate holds; a PTX lane branches, and a target that cuts
 # the lane into states goes back a state (state_loop, which PTX has none of)

@@ -14,7 +14,7 @@
 #define CLI_MYSQL_PACKET (1u << 22u)
 #define CLI_MYSQL_HEX (1u << 20u)
 
-// the capabilities the client asks for, and the server's status flags it reads
+// the capabilities the client requests, and the server's status flags it reads
 #define CLI_MYSQL_LONG_PASSWORD 0x1u
 #define CLI_MYSQL_LONG_FLAG 0x4u
 #define CLI_MYSQL_CONNECT_WITH_DB 0x8u
@@ -38,7 +38,7 @@ struct CliMysql
     unsigned long long size;
     unsigned char sequence;
     CliMysqlCancel cancel;
-    char version[CLI_NAME_LONGEST];
+    char version[CLI_NAME_MAX_LEN];
     unsigned int status;
     unsigned int warnings;
     unsigned char codes[CLI_DB_COLUMNS];
@@ -51,9 +51,9 @@ struct CliMysql
 };
 
 // a packet read, its payloads joined where it spans more than one, into the connection's room: 1, or 0 with the
-// failure said; `size` bytes of `payload` sent as packets of the connection's sequence: 1, or 0 with the failure said;
-// what a server said went wrong read from an error packet; a length-encoded number at `at`, moving past it: 1, or 0
-// where it is NULL or runs past the end; and a length-encoded string's start and length (mysql.c)
+// failure given; `size` bytes of `payload` sent as packets of the connection's sequence: 1, or 0 with the failure
+// given; what a server reported went wrong read from an error packet; a length-encoded number at `at`, moving past it:
+// 1, or 0 where it is NULL or runs past the end; and a length-encoded string's start and length (mysql.c)
 int cli_mysql_packet(CliMysql *mysql, CliDbFailure *failure);
 int cli_mysql_sent(CliMysql *mysql, const unsigned char *payload, unsigned long long size, CliDbFailure *failure);
 void cli_mysql_failure_of(const unsigned char *payload, unsigned long long size, CliDbFailure *failure);
@@ -62,11 +62,11 @@ int cli_mysql_lenenc(const unsigned char *bytes, unsigned long long size, unsign
 int cli_mysql_lenenc_bytes(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
                            unsigned long long *start, unsigned long long *length);
 // the answer to the scramble `size` bytes long the password gives, caching_sha2_password's where `caching`, else
-// mysql_native_password's, into `answer`, which holds 32 bytes: its length, 0 for an empty password (mysql.c)
+// mysql_native_password's, into `answer`, sized for 32 bytes: its length, 0 for an empty password (mysql.c)
 unsigned int cli_mysql_answer(const char *password, const unsigned char *scramble, unsigned long long size, int caching,
                               unsigned char *answer);
 
-// the handshake read and the sign-in made, as the account asks: 1, or 0 with the failure said (mysql_sign.c)
+// the handshake read and the sign-in made, as the account requires: 1, or 0 with the failure given (mysql_sign.c)
 int cli_mysql_signed_in(CliMysql *mysql, const char *host, unsigned int port, const char *user, const char *password,
                         const char *database, CliDbFailure *failure);
 
@@ -94,9 +94,10 @@ void cli_mysql_mgf1(const unsigned char *seed, unsigned long long size, unsigned
 void cli_mysql_oaep(const unsigned char *message, unsigned long long size, const unsigned char *seed,
                     unsigned long long length, unsigned char *padded);
 
-// `size` bytes of `message` encrypted by the RSA key `pem` holds, `pem_size` bytes, with OAEP padding by SHA-1, into
-// `out`, which holds 1024 bytes, their count into `out_size`: 1, or 0 with why said (mysql_rsa.c)
+// `size` bytes of `message` encrypted by the RSA key `pem` contains, `pem_size` bytes, with OAEP padding by SHA-1, into
+// `out`, sized for 1024 bytes, their count into `out_size`: 1, or 0 with why given (mysql_rsa.c)
 int cli_mysql_rsa_sealed(const char *pem, unsigned long long pem_size, const unsigned char *message,
-                         unsigned long long size, unsigned char *out, unsigned long long *out_size, CliLine *said);
+                         unsigned long long size, unsigned char *out, unsigned long long *out_size,
+                         VerbaLinea *err_msg);
 
 #endif

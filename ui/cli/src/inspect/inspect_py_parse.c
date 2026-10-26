@@ -5,7 +5,7 @@
 // blocks, a decorated function or class with its decorators
 #include "inspect_py.h"
 
-// the most open brackets a line holds, and the most functions open around a line
+// the most open brackets a line contains, and the most functions open around a line
 #define CLI_PY_STACK 4096u
 
 // the brackets, the stops and the separators, which a parse colors as delimiters, every other operator as an operator
@@ -111,7 +111,7 @@ static unsigned char parse_name_class(const char *src, const CliPyLine *line, un
     const CliInspectTok *const after = (offset + 1u < line->count) ? cli_py_tok(line, offset + 1u) : NULL;
     static const char *const s_predefined[5] = {"True", "False", "None", "self", "cls"};
     const int called = (after != NULL) && cli_py_is(src, after, "(");
-    const int kept_class = cli_inspect_set_has(&s_classes, src + tok->start, tok->end - tok->start);
+    const int is_class = cli_inspect_set_has(&s_classes, src + tok->start, tok->end - tok->start);
     if (parse_one_of(src, tok, s_predefined, 5u))
     {
         return CLI_INSPECT_PREDEFINED;
@@ -142,7 +142,7 @@ static unsigned char parse_name_class(const char *src, const CliPyLine *line, un
     }
     if (called)
     {
-        return kept_class ? CLI_INSPECT_TYPE : CLI_INSPECT_FUNCTION;
+        return is_class ? CLI_INSPECT_TYPE : CLI_INSPECT_FUNCTION;
     }
     const int keyword_argument = (after != NULL) && cli_py_is(src, after, "=") && (depth > 0) && (before != NULL) &&
                                  (cli_py_is(src, before, "(") || cli_py_is(src, before, ","));
@@ -150,7 +150,7 @@ static unsigned char parse_name_class(const char *src, const CliPyLine *line, un
     {
         return CLI_INSPECT_PARAMETER;
     }
-    return kept_class ? CLI_INSPECT_TYPE : CLI_INSPECT_NONE;
+    return is_class ? CLI_INSPECT_TYPE : CLI_INSPECT_NONE;
 }
 
 // a string's span and the span inside its quotes put on the parse, with its fold

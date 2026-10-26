@@ -14,7 +14,7 @@
 
 #define CLI_PLUGINS_ROWS_FIRST 32u
 
-// the nodes and the bytes of texts a tree made of a command's words holds past those its words make
+// the nodes and the bytes of texts a tree made of a command's words contains past those its words make
 #define CLI_TOOLS_NODES_MORE 64u
 #define CLI_TOOLS_TEXT_MORE 1024ull
 
@@ -25,9 +25,9 @@ static char s_line[1u << 16u];
 // A plugin's row: its id, where it comes from, its name and the extensions it opens
 typedef struct
 {
-    char id[CLI_NAME_LONGEST];
-    char source[CLI_NAME_LONGEST];
-    char name[CLI_NAME_LONGEST];
+    char id[CLI_NAME_MAX_LEN];
+    char source[CLI_NAME_MAX_LEN];
+    char name[CLI_NAME_MAX_LEN];
     char opens[1024];
 } CliPluginRow;
 
@@ -36,12 +36,12 @@ static CliPluginRow *s_rows;
 static unsigned int s_row_count;
 static unsigned int s_row_room;
 
-// `text` copied into `into`, which holds `room`, cut where it does not fit
+// `text` copied into `into`, sized for `room`, cut where it does not fit
 static void tools_copied(char *into, unsigned long long room, const char *text, unsigned long long size)
 {
-    const unsigned long long kept = (size < room) ? size : room - 1ull;
-    memor.cpy(&(MemoriaCfg){.dst = into, .src = text, .bytes = kept});
-    into[kept] = '\0';
+    const unsigned long long copied_len = (size < room) ? size : room - 1ull;
+    memor.cpy(&(MemoriaCfg){.dst = into, .src = text, .bytes = copied_len});
+    into[copied_len] = '\0';
 }
 
 // a plugin's row made from its plugin.json
@@ -55,14 +55,13 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
     if (s_row_count == s_row_room)
     {
         const unsigned int room = (s_row_room == 0u) ? CLI_PLUGINS_ROWS_FIRST : (s_row_room * 2u);
-        CliPluginRow *const rows =
-            cli_cell_taken((unsigned long long)room * sizeof(*rows), "the rows of the plugins listed");
+        CliPluginRow *const rows = g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*rows), NULL);
         if (rows == NULL)
         {
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = rows, .src = s_rows, .bytes = (size_t)s_row_count * sizeof(*rows)});
-        cli_cell_given(s_rows);
+        g_cli_cells->persistent_buf_release(s_rows, NULL);
         s_rows = rows;
         s_row_room = room;
     }
@@ -73,15 +72,15 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
     tools_copied(row->source, sizeof(row->source), plugin->source,
                  cellul.len(&(CatenaFinitaCfg){.src = plugin->source, .cap = CLI_CELLS_POOL}));
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_json_given(&s_json);
-    const unsigned int read = cli_json_taken(&s_json, plugin->text, plugin->size, 0u, 0ull, &said);
+    const unsigned int read = cli_json_taken(&s_json, plugin->text, plugin->size, 0u, 0ull, &err_msg);
     if (read == CLI_JSON_NONE)
     {
-        CliLine name = {row->name, sizeof(row->name), 0ull};
-        cli_line_text(&name, "does not read: ");
-        cli_line_counted(&name, why, cli_line_fits(&said) ? said.at : 0ull);
-        (void)cli_line_closed(&name);
+        VerbaLinea name = {row->name, sizeof(row->name), 0ull};
+        mmgr_line_put(&name, "does not read: ");
+        mmgr_line_put_n(&name, why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+        (void)mmgr_line_finish(&name);
         row->opens[0] = '\0';
         cli_json_given(&s_json);
         return;
@@ -89,7 +88,7 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
     const char *const name = cli_json_string(&s_json, cli_json_member(&s_json, read, "name"), NULL);
     tools_copied(row->name, sizeof(row->name), (name != NULL) ? name : plugin->id,
                  cellul.len(&(CatenaFinitaCfg){.src = (name != NULL) ? name : plugin->id, .cap = CLI_CELLS_POOL}));
-    CliLine opens = {row->opens, sizeof(row->opens), 0ull};
+    VerbaLinea opens = {row->opens, sizeof(row->opens), 0ull};
     const unsigned int extensions = cli_json_member(&s_json, read, "extensions");
     const unsigned int first =
         cli_json_is(&s_json, extensions, CFG_JSON_ARRAY) ? s_json.node[extensions].first : CLI_JSON_NONE;
@@ -98,11 +97,11 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
         const char *const text = cli_json_string(&s_json, extension, NULL);
         if (text != NULL)
         {
-            cli_line_text(&opens, (opens.at > 0ull) ? " ." : ".");
-            cli_line_text(&opens, text);
+            mmgr_line_put(&opens, (opens.at > 0ull) ? " ." : ".");
+            mmgr_line_put(&opens, text);
         }
     }
-    if (cli_line_closed(&opens) == 0ull)
+    if (mmgr_line_finish(&opens) == 0ull)
     {
         row->opens[0] = '\0';
     }
@@ -110,14 +109,14 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
 }
 
 // `text` written and padded with spaces to `width` letters
-static void tools_padded(CliLine *line, const char *text, unsigned long long width)
+static void tools_padded(VerbaLinea *line, const char *text, unsigned long long width)
 {
-    cli_line_text(line, text);
+    mmgr_line_put(line, text);
     for (unsigned long long letters =
              cli_text_letters(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
          letters < width; letters += 1ull)
     {
-        cli_line_character(line, ' ');
+        mmgr_line_ch(line, ' ');
     }
 }
 
@@ -148,34 +147,34 @@ int cli_plugins_list(void)
                 (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[user].source, .other = "user", .cap = CLI_CELLS_POOL})) &&
                 (cellul.eq(&(CatenaFinitaCfg){.src = s_rows[user].id, .other = s_rows[at].id, .cap = CLI_CELLS_POOL}));
         }
-        CliLine line = {s_line, sizeof(s_line), 0ull};
+        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
         tools_padded(&line, s_rows[at].id, wide[0]);
-        cli_line_text(&line, "  ");
+        mmgr_line_put(&line, "  ");
         tools_padded(&line, replaced ? "bundled, replaced" : s_rows[at].source, wide[1]);
-        cli_line_text(&line, "  ");
+        mmgr_line_put(&line, "  ");
         tools_padded(&line, s_rows[at].name, wide[2]);
-        cli_line_text(&line, "  ");
-        cli_line_text(&line, s_rows[at].opens);
-        cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+        mmgr_line_put(&line, "  ");
+        mmgr_line_put(&line, s_rows[at].opens);
+        cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (cli_home_plugins(folder))
     {
-        CliLine line = {s_line, sizeof(s_line), 0ull};
-        cli_line_text(&line, "\nthe reader's plugins: ");
-        cli_line_text(&line, folder);
-        cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        mmgr_line_put(&line, "\nthe reader's plugins: ");
+        mmgr_line_put(&line, folder);
+        cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
-    cli_cell_given(s_rows);
+    g_cli_cells->persistent_buf_release(s_rows, NULL);
     s_rows = NULL;
     s_row_count = 0u;
     s_row_room = 0u;
     return 0;
 }
 
-// a tree held empty in a cell sized to what `count` words make, every comma of them a node and the texts twice their
-// bytes at the most: 1, or 0 where the cell is refused
-static int tools_tree_held(const char *const *words, unsigned int count)
+// a tree allocated empty in a cell sized to what `count` words make, every comma of them a node and the texts twice
+// their bytes at the most: 1, or 0 where the cell is refused
+static int tools_tree_reserved(const char *const *words, unsigned int count)
 {
     unsigned long long bytes = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -183,8 +182,8 @@ static int tools_tree_held(const char *const *words, unsigned int count)
         bytes += cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}) + 1ull;
     }
     cli_json_given(&s_json);
-    return cli_json_held(&s_json, (unsigned int)bytes + (4u * count) + CLI_TOOLS_NODES_MORE,
-                         (2ull * bytes) + CLI_TOOLS_TEXT_MORE, "a tree made of a command's words");
+    return cli_json_reserved(&s_json, (unsigned int)bytes + (4u * count) + CLI_TOOLS_NODES_MORE,
+                             (2ull * bytes) + CLI_TOOLS_TEXT_MORE, "a tree made of a command's words");
 }
 
 // `text` split at commas into an array of the parts, each trimmed, the empty ones left out
@@ -224,13 +223,13 @@ static void tools_set_text(unsigned int object, const char *name, const char *te
 // a line of the errors made of two texts
 static void tools_err_two(const char *one, const char *other)
 {
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, one);
-    cli_line_text(&line, other);
-    cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, one);
+    mmgr_line_put(&line, other);
+    cli_err_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
-// the language plugin `new-plugin` describes written, the tree held for its words: 0, or CLI_WRONG with why said
+// the language plugin `new-plugin` describes written, the tree allocated for its words: 0, or CLI_WRONG with why given
 static int tools_new_plugin(const char *const *words, unsigned int count)
 {
     static const char *const s_lists[6][2] = {{"--ext", "extensions"}, {"--keywords", "keywords"},
@@ -239,7 +238,7 @@ static int tools_new_plugin(const char *const *words, unsigned int count)
     static const char *const s_texts[3][2] = {{"--id", "id"}, {"--from", "from"}, {"--line-comment", "lineComment"}};
     const unsigned int spec = cli_json_made(&s_json, CFG_JSON_OBJECT);
     static char s_name[1u << 12u];
-    CliLine name = {s_name, sizeof(s_name), 0ull};
+    VerbaLinea name = {s_name, sizeof(s_name), 0ull};
     int replace = 0;
     unsigned int at = 0u;
     while (at < count)
@@ -299,29 +298,29 @@ static int tools_new_plugin(const char *const *words, unsigned int count)
             }
             else
             {
-                CliLine line = {s_line, sizeof(s_line), 0ull};
-                cli_line_text(&line, "new-plugin takes no ");
-                cli_line_text(&line, word);
-                cli_line_text(&line, ": orior_cli help names what it takes");
-                cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+                VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+                mmgr_line_put(&line, "new-plugin takes no ");
+                mmgr_line_put(&line, word);
+                mmgr_line_put(&line, ": orior_cli help names what it takes");
+                cli_err_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
             }
             return CLI_WRONG;
         }
         if (!known)
         {
-            cli_line_text(&name, (name.at > 0ull) ? " " : "");
-            cli_line_text(&name, word);
+            mmgr_line_put(&name, (name.at > 0ull) ? " " : "");
+            mmgr_line_put(&name, word);
         }
         at += 1u + taken;
     }
-    (void)cli_line_closed(&name);
+    (void)mmgr_line_finish(&name);
     tools_set_text(spec, "name", s_name);
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     char why[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_plugins_create(&s_json, spec, replace, folder, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (!cli_plugins_create(&s_json, spec, replace, folder, &err_msg))
     {
-        cli_err_line(why, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_WRONG;
     }
     cli_out(folder);
@@ -330,7 +329,7 @@ static int tools_new_plugin(const char *const *words, unsigned int count)
 
 int cli_new_plugin(const char *const *words, unsigned int count)
 {
-    if (!tools_tree_held(words, count))
+    if (!tools_tree_reserved(words, count))
     {
         cli_err("the tree of the plugin's words could not be given a cell");
         return CLI_WRONG;
@@ -341,17 +340,17 @@ int cli_new_plugin(const char *const *words, unsigned int count)
 }
 
 // The toolchain `add` describes: its name, then each flag and its value, made in the tree: its node, or CLI_JSON_NONE
-// with why said
-static unsigned int tools_described(const char *const *words, unsigned int count, CliLine *said)
+// with why given
+static unsigned int tools_described(const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
     if ((count == 0u) || (cellul.starts(&(CatenaFinitaCfg){.src = words[0], .other = "--", .cap = CLI_CELLS_POOL})))
     {
-        cli_line_text(said, "add takes the toolchain's name first");
+        mmgr_line_put(err_msg, "add takes the toolchain's name first");
         return CLI_JSON_NONE;
     }
-    if (!tools_tree_held(words, count))
+    if (!tools_tree_reserved(words, count))
     {
-        cli_line_text(said, "the tree of the toolchain's words could not be given a cell");
+        mmgr_line_put(err_msg, "the tree of the toolchain's words could not be given a cell");
         return CLI_JSON_NONE;
     }
     const unsigned int tool = cli_json_made(&s_json, CFG_JSON_OBJECT);
@@ -364,8 +363,8 @@ static unsigned int tools_described(const char *const *words, unsigned int count
     {
         if (at + 1u >= count)
         {
-            cli_line_text(said, words[at]);
-            cli_line_text(said, " takes a value");
+            mmgr_line_put(err_msg, words[at]);
+            mmgr_line_put(err_msg, " takes a value");
             return CLI_JSON_NONE;
         }
         const char *const flag = words[at];
@@ -396,27 +395,27 @@ static unsigned int tools_described(const char *const *words, unsigned int count
         }
         else
         {
-            cli_line_text(said, "add knows no ");
-            cli_line_text(said, flag);
+            mmgr_line_put(err_msg, "add knows no ");
+            mmgr_line_put(err_msg, flag);
             return CLI_JSON_NONE;
         }
     }
     return tool;
 }
 
-// the toolchain `add` describes added: 1 with what was added said into `out`, or 0 with why said
-int cli_toolchain_added(const char *const *words, unsigned int count, CliLine *out, CliLine *said)
+// the toolchain `add` describes added: 1 with what was added reported into `out`, or 0 with why given
+int cli_toolchain_added(const char *const *words, unsigned int count, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const unsigned int tool = tools_described(words, count, said);
-    char id[CLI_NAME_LONGEST];
-    const int added = (tool != CLI_JSON_NONE) && cli_toolchains_add(&s_json, tool, id, said);
+    const unsigned int tool = tools_described(words, count, err_msg);
+    char id[CLI_NAME_MAX_LEN];
+    const int added = (tool != CLI_JSON_NONE) && cli_toolchains_add(&s_json, tool, id, err_msg);
     cli_json_given(&s_json);
     if (!added)
     {
         return 0;
     }
-    cli_line_text(out, "added ");
-    cli_line_text(out, id);
-    cli_line_text(out, ": orior_cli file toolchains lists it");
+    mmgr_line_put(out, "added ");
+    mmgr_line_put(out, id);
+    mmgr_line_put(out, ": orior_cli file toolchains lists it");
     return 1;
 }

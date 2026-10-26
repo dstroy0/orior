@@ -6,8 +6,9 @@
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     static char s_text[8192];
-    CliLine line = {s_text, sizeof(s_text) - 1u, 0ull};
+    VerbaLinea line = {s_text, sizeof(s_text) - 1u, 0ull};
     cli_stand_in("cargo", &line);
     s_text[line.at] = '\0';
     cli_check(cellul.starts(&(CatenaFinitaCfg){.src = s_text, .other = "#!/bin/sh\n", .cap = CLI_CELLS_POOL}),
@@ -32,14 +33,14 @@ int main(void)
     cli_check(cellul.find(&(CatenaFinitaCfg){
                   .src = s_text, .cap = CLI_CELLS_POOL, .other = "'it'\\''s'", .other_cap = CLI_CELLS_POOL}) != NULL,
               "a quote in a name is closed, escaped and opened again");
-    char folder[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("host_stand_ins", folder);
     (void)query_removed(folder);
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    const long long made = cli_stand_ins_written(folder, "git\nflatpak-spawn\norior\n../x\n\n", &said);
-    cli_check(made == 1ll, "orior_cli and the program that reaches the machine keep running inside");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const long long made = cli_stand_ins_written(folder, "git\nflatpak-spawn\norior\n../x\n\n", &err_msg);
+    cli_check(made == 1ll, "orior_cli and the program that reaches the machine continue running inside");
     cli_full(folder, "git", path);
     const int git = query_is_file(path);
     cli_full(folder, "flatpak-spawn", path);

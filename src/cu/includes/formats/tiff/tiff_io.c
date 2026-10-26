@@ -45,14 +45,14 @@ int tiff_reserve(TiffFile *file, unsigned char **buffer, unsigned long long *cap
     {
         return file->reason == NULL;
     }
-    const unsigned long long asked = (needed == 0ull) ? 1ull : needed;
-    if ((unsigned long long)(size_t)asked != asked)
+    const unsigned long long requested = (needed == 0ull) ? 1ull : needed;
+    if ((unsigned long long)(size_t)requested != requested)
     {
         return tiff_fail(file, "a buffer larger than this machine can address");
     }
     free(*buffer);
-    *buffer = (unsigned char *)malloc((size_t)asked);
-    *capacity = (*buffer != NULL) ? asked : 0ull;
+    *buffer = (unsigned char *)malloc((size_t)requested);
+    *capacity = (*buffer != NULL) ? requested : 0ull;
     return (*buffer != NULL) ? (file->reason == NULL) : tiff_fail(file, "out of memory");
 }
 
@@ -93,7 +93,7 @@ int tiff_open(TiffFile *file, const char *path, const char *member, const Engine
     file->tools = tools;
     if (member != NULL)
     {
-        return tiff_fail(file, "a TIFF holds one array, so member must be NULL");
+        return tiff_fail(file, "a TIFF contains one array, so member must be NULL");
     }
     const long long size = tools->size(path);
     if (size < 8LL)
@@ -176,11 +176,11 @@ int tiff_entry_integers(TiffFile *file, const TiffEntry *entry, unsigned long lo
     }
     if (entry->count != count)
     {
-        return tiff_fail(file, "a tag holds a different number of values than the image needs");
+        return tiff_fail(file, "a tag contains a different number of values than the image needs");
     }
     if (count > file->file_bytes)
     {
-        return tiff_fail(file, "a tag holds more values than the file has bytes");
+        return tiff_fail(file, "a tag contains more values than the file has bytes");
     }
     unsigned char *const raw = (unsigned char *)values;
     if (!tiff_entry_bytes(file, entry, count * width, raw))

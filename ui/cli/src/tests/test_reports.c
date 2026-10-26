@@ -8,7 +8,7 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// the most attributes a tag of the report holds, and the most bytes their values and a failure's text take
+// the most attributes a tag of the report contains, and the most bytes their values and a failure's text take
 #define CLI_REPORT_ATTRIBUTES 32u
 #define CLI_REPORT_VALUES (1u << 18u)
 #define CLI_REPORT_TEXT (1u << 22u)
@@ -26,14 +26,14 @@ typedef struct
     unsigned long long used;
 } CliReportTag;
 
-CliCellsTally g_cli_test_report_cells = CLI_CELLS_TALLY("cli_test_report");
+CellOwner g_cli_test_report_cells = MMGR_CELL_OWNER("cli_test_report");
 
 static CliReportTag s_case;
-static CliReportTag s_said;
+static CliReportTag s_tag;
 static CliLock s_report_lock = CLI_LOCK_INIT;
 
 // `length` bytes of an XML text with their entities read written into `out`
-static void report_unescaped(const char *text, unsigned long long length, CliLine *out)
+static void report_unescaped(const char *text, unsigned long long length, VerbaLinea *out)
 {
     static const char *const s_entities[7] = {"&#10;", "&#13;", "&quot;", "&apos;", "&lt;", "&gt;", "&amp;"};
     static const char s_letters[7] = {'\n', '\r', '"', '\'', '<', '>', '&'};
@@ -48,14 +48,14 @@ static void report_unescaped(const char *text, unsigned long long length, CliLin
             if ((at + size <= length) &&
                 (memor.cmp(&(MemoriaCfg){.src = text + at, .other = s_entities[entity], .bytes = size}) == 0))
             {
-                cli_line_character(out, s_letters[entity]);
+                mmgr_line_ch(out, s_letters[entity]);
                 at += size;
                 read = 1;
             }
         }
         if (!read)
         {
-            cli_line_character(out, text[at]);
+            mmgr_line_ch(out, text[at]);
             at += 1ull;
         }
     }
@@ -84,8 +84,8 @@ static void report_attributes(const char *text, unsigned long long length, CliRe
     const unsigned long long room = (length < CLI_REPORT_VALUES) ? (length + 1ull) : CLI_REPORT_VALUES;
     if (tag->room < room)
     {
-        cli_cell_given_by(&g_cli_test_report_cells, tag->values);
-        tag->values = cli_cell_taken_by(&g_cli_test_report_cells, room, "the values of a report's tag");
+        g_cli_cells->persistent_buf_release(tag->values, &g_cli_test_report_cells);
+        tag->values = g_cli_cells->persistent_buf_alloc(room, &g_cli_test_report_cells);
         tag->room = (tag->values != NULL) ? room : 0ull;
     }
     if (tag->values == NULL)
@@ -112,23 +112,23 @@ static void report_attributes(const char *text, unsigned long long length, CliRe
         {
             name -= 1ull;
         }
-        CliLine value = {tag->values + tag->used, tag->room - tag->used, 0ull};
+        VerbaLinea value = {tag->values + tag->used, tag->room - tag->used, 0ull};
         report_unescaped(text + from, size, &value);
         // a name given again takes the later value, as a map's insert does
-        unsigned int slot = 0u;
-        while ((slot < tag->count) &&
-               !((tag->name_size[slot] == equal - name) &&
-                 (memor.cmp(&(MemoriaCfg){.src = tag->name[slot], .other = text + name, .bytes = equal - name}) == 0)))
+        unsigned int index = 0u;
+        while ((index < tag->count) &&
+               !((tag->name_size[index] == equal - name) &&
+                 (memor.cmp(&(MemoriaCfg){.src = tag->name[index], .other = text + name, .bytes = equal - name}) == 0)))
         {
-            slot += 1u;
+            index += 1u;
         }
-        if ((cli_line_closed(&value) != 0ull) && (slot < CLI_REPORT_ATTRIBUTES))
+        if ((mmgr_line_finish(&value) != 0ull) && (index < CLI_REPORT_ATTRIBUTES))
         {
-            tag->name[slot] = text + name;
-            tag->name_size[slot] = equal - name;
-            tag->value[slot] = tag->used;
+            tag->name[index] = text + name;
+            tag->name_size[index] = equal - name;
+            tag->value[index] = tag->used;
             tag->used += value.at + 1ull;
-            tag->count += (slot == tag->count) ? 1u : 0u;
+            tag->count += (index == tag->count) ? 1u : 0u;
         }
         at = from + size + 1ull;
     }
@@ -270,10 +270,10 @@ int cli_report_last_line(const char *text, unsigned long long size, int skip_rul
     return found;
 }
 
-// one test case of the report told: its outcome, the message and line of a failure, an error or a skip, and how long it
-// took; a test that passed is told for how long it took
-static void report_case_told(CliTestWorker *worker, const char *open, unsigned long long open_size, const char *body,
-                             unsigned long long body_size)
+// one test case of the report reported: its outcome, the message and line of a failure, an error or a skip, and how
+// long it took; a test that passed is reported for how long it took
+static void report_case_emitted(CliTestWorker *worker, const char *open, unsigned long long open_size, const char *body,
+                                unsigned long long body_size)
 {
     report_attributes(open, open_size, &s_case);
     const char *const file = report_attribute(&s_case, "file");
@@ -283,17 +283,17 @@ static void report_case_told(CliTestWorker *worker, const char *open, unsigned l
     }
     const char *const name = report_attribute(&s_case, "name");
     const char *const classname = report_attribute(&s_case, "classname");
-    char wanted[CLI_PATH_LONGEST];
-    char module[CLI_PATH_LONGEST];
-    char id[CLI_PATH_LONGEST * 2u];
-    CliLine wanted_line = {wanted, sizeof(wanted), 0ull};
-    CliLine module_line = {module, sizeof(module), 0ull};
+    char wanted[CLI_PATH_MAX_LEN];
+    char module[CLI_PATH_MAX_LEN];
+    char id[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea wanted_line = {wanted, sizeof(wanted), 0ull};
+    VerbaLinea module_line = {module, sizeof(module), 0ull};
     size_t file_size = cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL});
     for (size_t at = 0u; at < file_size; at += 1u)
     {
-        cli_line_character(&wanted_line, (file[at] == '\\') ? '/' : file[at]);
+        mmgr_line_ch(&wanted_line, (file[at] == '\\') ? '/' : file[at]);
     }
-    cli_line_closed(&wanted_line);
+    mmgr_line_finish(&wanted_line);
     while ((file_size >= 3u) &&
            (memor.cmp(&(MemoriaCfg){.src = file + file_size - 3u, .other = ".py", .bytes = 3u}) == 0))
     {
@@ -301,9 +301,9 @@ static void report_case_told(CliTestWorker *worker, const char *open, unsigned l
     }
     for (size_t at = 0u; at < file_size; at += 1u)
     {
-        cli_line_character(&module_line, ((file[at] == '/') || (file[at] == '\\')) ? '.' : file[at]);
+        mmgr_line_ch(&module_line, ((file[at] == '/') || (file[at] == '\\')) ? '.' : file[at]);
     }
-    cli_line_closed(&module_line);
+    mmgr_line_finish(&module_line);
     const char *class_name =
         ((classname != NULL) &&
          cli_text_same(classname, module, cellul.len(&(CatenaFinitaCfg){.src = module, .cap = CLI_CELLS_POOL})))
@@ -313,18 +313,18 @@ static void report_case_told(CliTestWorker *worker, const char *open, unsigned l
     {
         class_name += 1;
     }
-    CliLine id_line = {id, sizeof(id), 0ull};
-    cli_line_text(&id_line, wanted);
-    cli_line_text(&id_line, "::");
+    VerbaLinea id_line = {id, sizeof(id), 0ull};
+    mmgr_line_put(&id_line, wanted);
+    mmgr_line_put(&id_line, "::");
     for (const char *letter = ((class_name != NULL) && (*class_name != '\0')) ? class_name : ""; *letter != '\0';
          letter += 1)
     {
-        cli_line_text(&id_line, (*letter == '.') ? "::" : "");
-        cli_line_counted(&id_line, letter, (*letter == '.') ? 0ull : 1ull);
+        mmgr_line_put(&id_line, (*letter == '.') ? "::" : "");
+        mmgr_line_put_n(&id_line, letter, (*letter == '.') ? 0ull : 1ull);
     }
-    cli_line_text(&id_line, ((class_name != NULL) && (*class_name != '\0')) ? "::" : "");
-    cli_line_text(&id_line, (name != NULL) ? name : "");
-    cli_line_closed(&id_line);
+    mmgr_line_put(&id_line, ((class_name != NULL) && (*class_name != '\0')) ? "::" : "");
+    mmgr_line_put(&id_line, (name != NULL) ? name : "");
+    mmgr_line_finish(&id_line);
     const char *const time = report_attribute(&s_case, "time");
     char *ended = NULL;
     const double seconds = (time != NULL) ? strtod(time, &ended) : 0.0;
@@ -347,38 +347,39 @@ static void report_case_told(CliTestWorker *worker, const char *open, unsigned l
             continue;
         }
         const unsigned long long tag_end = at + cli_report_find(body + at, body_size - at, ">");
-        report_attributes(body + at, tag_end - at, &s_said);
+        report_attributes(body + at, tag_end - at, &s_tag);
         const unsigned long long text_end =
             (tag_end < body_size) ? tag_end + cli_report_find(body + tag_end, body_size - tag_end, "</") : body_size;
         const unsigned long long text_start = (tag_end + 1ull < text_end) ? tag_end + 1ull : text_end;
         // the text read takes no more bytes than it is written in, an entity read to one letter
         const unsigned long long text_room =
             ((text_end - text_start) < CLI_REPORT_TEXT) ? ((text_end - text_start) + 1ull) : CLI_REPORT_TEXT;
-        char *const held = cli_cell_taken_by(&g_cli_test_report_cells, text_room, "a failure's text in a report");
+        char *const text_cell = g_cli_cells->persistent_buf_alloc(text_room, &g_cli_test_report_cells);
         char refused[1] = {'\0'};
-        CliLine text = (held != NULL) ? (CliLine){held, text_room, 0ull} : (CliLine){refused, sizeof(refused), 0ull};
+        VerbaLinea text = (text_cell != NULL) ? (VerbaLinea){text_cell, text_room, 0ull}
+                                              : (VerbaLinea){refused, sizeof(refused), 0ull};
         report_unescaped(body + text_start, text_end - text_start, &text);
         long long line = own_line;
         if (!report_traceback_line(text.out, text.at, wanted, &line))
         {
             line = own_line;
         }
-        const char *const message = report_attribute(&s_said, "message");
+        const char *const message = report_attribute(&s_tag, "message");
         unsigned long long last = 0ull;
         unsigned long long last_size = 0ull;
         const int given = (message != NULL) && (message[0] != '\0');
         const int found = !given && cli_report_last_line(text.out, text.at, 0, &last, &last_size);
-        cli_test_result_told(worker, id, s_outcomes[tag], given ? message : (found ? text.out + last : ""),
-                             given ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL})
-                                   : (found ? last_size : 0ull),
-                             wanted, line, taken);
-        cli_cell_given_by(&g_cli_test_report_cells, held);
+        cli_test_result_emitted(worker, id, s_outcomes[tag], given ? message : (found ? text.out + last : ""),
+                                given ? cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL})
+                                      : (found ? last_size : 0ull),
+                                wanted, line, taken);
+        g_cli_cells->persistent_buf_release(text_cell, &g_cli_test_report_cells);
         return;
     }
-    cli_test_result_told(worker, id, "passed", "", 0ull, wanted, own_line, taken);
+    cli_test_result_emitted(worker, id, "passed", "", 0ull, wanted, own_line, taken);
 }
 
-void cli_test_report_told(CliTestWorker *worker, const char *xml, unsigned long long size)
+void cli_test_report_emitted(CliTestWorker *worker, const char *xml, unsigned long long size)
 {
     cli_lock_take(&s_report_lock);
     unsigned long long rest = 0ull;
@@ -397,12 +398,12 @@ void cli_test_report_told(CliTestWorker *worker, const char *xml, unsigned long 
         const unsigned long long closing = lone ? 0ull : cli_report_find(at, length, "</testcase>");
         const unsigned long long close = lone ? (open_end + 1ull) : ((closing < length) ? closing + 11ull : length);
         const unsigned long long body = (open_end < close) ? open_end : close;
-        report_case_told(worker, at, open_end, at + body, close - body);
+        report_case_emitted(worker, at, open_end, at + body, close - body);
         rest = start + ((close < length) ? close : length);
     }
-    cli_cell_given_by(&g_cli_test_report_cells, s_case.values);
-    cli_cell_given_by(&g_cli_test_report_cells, s_said.values);
+    g_cli_cells->persistent_buf_release(s_case.values, &g_cli_test_report_cells);
+    g_cli_cells->persistent_buf_release(s_tag.values, &g_cli_test_report_cells);
     s_case = (CliReportTag){0};
-    s_said = (CliReportTag){0};
+    s_tag = (CliReportTag){0};
     cli_lock_give(&s_report_lock);
 }

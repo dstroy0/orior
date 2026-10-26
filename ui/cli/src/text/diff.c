@@ -39,7 +39,7 @@ typedef struct
     unsigned int puts;
 } CliDiff;
 
-// the rounds the trace first holds, doubled as the rounds go past them
+// the rounds the trace first allocates, doubled as the rounds go past them
 #define CLI_DIFF_TRACE_FIRST 64ll
 
 static CliDiff s_room;
@@ -56,7 +56,7 @@ static void *diff_part(unsigned long long *at, unsigned long long bytes)
 
 // the lock taken and the room with it for `then_lines` lines against `now_lines`: 1, or 0 with the lock given back
 // where the cells cannot meet it; and the room given back with the lock
-static int diff_held(unsigned long long then_lines, unsigned long long now_lines)
+static int diff_reserved(unsigned long long then_lines, unsigned long long now_lines)
 {
     cli_lock_take(&s_lock);
     const unsigned long long both = then_lines + now_lines + 1ull;
@@ -65,7 +65,7 @@ static int diff_held(unsigned long long then_lines, unsigned long long now_lines
     const unsigned long long bytes = (8ull * (then_lines + now_lines + (2ull * most) + 3ull)) + (5ull * both) +
                                      (4ull * (now_lines * 3ull + then_lines)) + (16ull * both) + (8ull * 12ull);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
-    s_diff->cell = cli_cell_taken(bytes, "a diff's room");
+    s_diff->cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
     if (s_diff->cell == NULL)
     {
         cli_lock_give(&s_lock);
@@ -87,8 +87,8 @@ static int diff_held(unsigned long long then_lines, unsigned long long now_lines
 
 static void diff_released(void)
 {
-    cli_cell_given(s_diff->trace);
-    cli_cell_given(s_diff->cell);
+    g_cli_cells->persistent_buf_release(s_diff->trace, NULL);
+    g_cli_cells->persistent_buf_release(s_diff->cell, NULL);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     cli_lock_give(&s_lock);
 }
@@ -109,7 +109,7 @@ static int diff_trace_room(long long round)
     rounds = (rounds < (CLI_MOST_EDITS + 1)) ? rounds : (CLI_MOST_EDITS + 1);
     // a round is at most CLI_MOST_EDITS, so the rounds squared fit an unsigned long long
     long long *const grown =
-        cli_cell_taken((unsigned long long)(rounds * rounds) * sizeof(long long), "a diff's trace");
+        g_cli_cells->persistent_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long), NULL);
     if (grown == NULL)
     {
         return 0;
@@ -119,7 +119,7 @@ static int diff_trace_room(long long round)
         memor.cpy(&(MemoriaCfg){
             .dst = grown, .src = s_diff->trace, .bytes = (unsigned long long)(round * round) * sizeof(long long)});
     }
-    cli_cell_given(s_diff->trace);
+    g_cli_cells->persistent_buf_release(s_diff->trace, NULL);
     s_diff->trace = grown;
     s_diff->trace_rounds = rounds;
     return 1;
@@ -174,14 +174,14 @@ static long long cli_run(const CliRuns *runs, long long x, long long y)
     {
         at += 1ull;
     }
-    // a run is at most the lines left, which a long long holds
+    // a run is at most the lines left, which a long long represents
     return (long long)at;
 }
 
-// a step put: 0 keeps a line of `a`, 1 takes it out, 2 puts a line of `b` in
+// a step put: 0 retains a line of `a`, 1 takes it out, 2 puts a line of `b` in
 static void cli_step(unsigned char kind, long long index)
 {
-    // the steps are at most the lines of both, which the room holds, and an index is below 2^32
+    // the steps are at most the lines of both, which the room contains, and an index is below 2^32
     s_diff->step_kind[s_diff->steps] = kind;
     s_diff->step_index[s_diff->steps] = (unsigned int)index;
     s_diff->steps += 1u;
@@ -287,8 +287,8 @@ static int cli_shortest(const CliRuns *runs)
     return 1;
 }
 
-// the lines put in and taken out since the last kept line closed: changed where some were taken out, added where none
-// were, a line taken out marked where none were put in, and their hunk kept
+// the lines put in and taken out since the last unchanged line closed: changed where some were taken out, added where
+// none were, a line taken out marked where none were put in, and their hunk recorded
 static void cli_closed(unsigned int line, unsigned int then_line, unsigned int *out)
 {
     for (unsigned int at = 0u; at < s_diff->puts; at += 1u)
@@ -322,20 +322,20 @@ static void cli_closed(unsigned int line, unsigned int then_line, unsigned int *
 }
 
 // a list of line numbers written as a JSON array
-static void cli_numbers_written(CliLine *out, const unsigned int *numbers, unsigned int count)
+static void cli_numbers_written(VerbaLinea *out, const unsigned int *numbers, unsigned int count)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(out, (at != 0u) ? "," : "");
-        cli_line_decimal(out, numbers[at], 0u);
+        mmgr_line_put(out, (at != 0u) ? "," : "");
+        mmgr_line_decimal(out, numbers[at], 0u);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
-int cli_diff_line_changes(const CliLines *then, const CliLines *now, CliLine *out)
+int cli_diff_line_changes(const CliLines *then, const CliLines *now, VerbaLinea *out)
 {
-    if ((then->lines > CLI_DIFF_LINES) || (now->lines > CLI_DIFF_LINES) || !diff_held(then->lines, now->lines))
+    if ((then->lines > CLI_DIFF_LINES) || (now->lines > CLI_DIFF_LINES) || !diff_reserved(then->lines, now->lines))
     {
         return 0;
     }
@@ -386,33 +386,33 @@ int cli_diff_line_changes(const CliLines *then, const CliLines *now, CliLine *ou
         }
     }
     cli_closed(line, then_line, &taken);
-    cli_line_text(out, "{\"added\":");
+    mmgr_line_put(out, "{\"added\":");
     cli_numbers_written(out, s_diff->added, s_diff->addeds);
-    cli_line_text(out, ",\"changed\":");
+    mmgr_line_put(out, ",\"changed\":");
     cli_numbers_written(out, s_diff->changed, s_diff->changeds);
-    cli_line_text(out, ",\"removed\":");
+    mmgr_line_put(out, ",\"removed\":");
     cli_numbers_written(out, s_diff->removed, s_diff->removeds);
-    cli_line_text(out, ",\"hunks\":[");
+    mmgr_line_put(out, ",\"hunks\":[");
     for (unsigned int at = 0u; at < s_diff->hunks; at += 1u)
     {
         const unsigned int *const hunk = s_diff->hunk[at];
-        cli_line_text(out, (at != 0u) ? ",{\"now\":" : "{\"now\":");
+        mmgr_line_put(out, (at != 0u) ? ",{\"now\":" : "{\"now\":");
         cli_numbers_written(out, hunk, 2u);
-        cli_line_text(out, ",\"then\":");
+        mmgr_line_put(out, ",\"then\":");
         cli_numbers_written(out, hunk + 2, 2u);
         if (hunk[3] > hunk[2])
         {
-            cli_line_text(out, ",\"thenLines\":[");
+            mmgr_line_put(out, ",\"thenLines\":[");
             for (unsigned int one = hunk[2]; one < hunk[3]; one += 1u)
             {
-                cli_line_text(out, (one != hunk[2]) ? "," : "");
+                mmgr_line_put(out, (one != hunk[2]) ? "," : "");
                 cli_document_units_written(out, then->unit + then->start[one], then->length[one]);
             }
-            cli_line_character(out, ']');
+            mmgr_line_ch(out, ']');
         }
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
-    cli_line_text(out, "]}");
+    mmgr_line_put(out, "]}");
     diff_released();
     return 1;
 }
@@ -420,9 +420,9 @@ int cli_diff_line_changes(const CliLines *then, const CliLines *now, CliLine *ou
 long long cli_diff_run_of(const CliLines *then, const CliLines *now, const unsigned long long *hash_then,
                           const unsigned long long *hash_now, long long x, long long y)
 {
-    // the lines of each are below CLI_DIFF_LINES, which a long long holds
+    // the lines of each are below CLI_DIFF_LINES, which a long long represents
     const CliRuns runs = {then, now, 0ull, 0ull, (long long)then->lines, (long long)now->lines};
-    if ((then->lines > CLI_DIFF_LINES) || (now->lines > CLI_DIFF_LINES) || !diff_held(then->lines, now->lines))
+    if ((then->lines > CLI_DIFF_LINES) || (now->lines > CLI_DIFF_LINES) || !diff_reserved(then->lines, now->lines))
     {
         return 0;
     }

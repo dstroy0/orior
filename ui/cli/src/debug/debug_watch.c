@@ -63,14 +63,14 @@ static int watch_number(const char *text, unsigned long long size, unsigned int 
 }
 
 // the bytes lldb names as "address/size" watched by a watchpoint of lldb's own, whose stop orior's script turns into a
-// stop at the next instruction the program runs: 1, or 0 with why said
-static int watch_by_lldb(CliDebugSession *session, const char *data, CliLine *said)
+// stop at the next instruction the program runs: 1, or 0 with why given
+static int watch_by_lldb(CliDebugSession *session, const char *data, VerbaLinea *err_msg)
 {
     const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = data, .cap = CLI_CELLS_POOL, .byte = '/'});
     if (slash == NULL)
     {
-        cli_line_text(said, "lldb named the bytes ");
-        cli_line_text(said, data);
+        mmgr_line_put(err_msg, "lldb named the bytes ");
+        mmgr_line_put(err_msg, data);
         return 0;
     }
     const char *address = data;
@@ -78,17 +78,17 @@ static int watch_by_lldb(CliDebugSession *session, const char *data, CliLine *sa
     {
         address += 2;
     }
-    char command[CLI_NAME_LONGEST * 2u];
-    CliLine line = {command, sizeof(command), 0ull};
-    cli_line_text(&line, "watchpoint set expression -w write -s ");
-    cli_line_text(&line, slash + 1);
-    cli_line_text(&line, " -- 0x");
-    cli_line_counted(&line, address, (unsigned long long)(slash - address));
-    cli_line_closed(&line);
-    char heard[CLI_SAID_LONGEST];
-    CliLine answer = {heard, sizeof(heard), 0ull};
+    char command[CLI_NAME_MAX_LEN * 2u];
+    VerbaLinea line = {command, sizeof(command), 0ull};
+    mmgr_line_put(&line, "watchpoint set expression -w write -s ");
+    mmgr_line_put(&line, slash + 1);
+    mmgr_line_put(&line, " -- 0x");
+    mmgr_line_put_n(&line, address, (unsigned long long)(slash - address));
+    mmgr_line_finish(&line);
+    char answer_buf[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea answer = {answer_buf, sizeof(answer_buf), 0ull};
     unsigned int number = 0u;
-    if (!cli_debug_lldb_script(session, said) || !cli_debug_lldb_command(session, command, &answer, said))
+    if (!cli_debug_lldb_script(session, err_msg) || !cli_debug_lldb_command(session, command, &answer, err_msg))
     {
         return 0;
     }
@@ -106,15 +106,15 @@ static int watch_by_lldb(CliDebugSession *session, const char *data, CliLine *sa
         {
             end -= 1ull;
         }
-        cli_line_counted(said, answer.out + start, end - start);
+        mmgr_line_put_n(err_msg, answer.out + start, end - start);
         return 0;
     }
     line.at = 0ull;
-    cli_line_text(&line, "watchpoint command add -F orior_lldb.changed ");
-    cli_line_decimal(&line, number, 1u);
-    cli_line_closed(&line);
+    mmgr_line_put(&line, "watchpoint command add -F orior_lldb.changed ");
+    mmgr_line_decimal(&line, number, 1u);
+    mmgr_line_finish(&line);
     answer.at = 0ull;
-    if (!cli_debug_lldb_command(session, command, &answer, said))
+    if (!cli_debug_lldb_command(session, command, &answer, err_msg))
     {
         return 0;
     }
@@ -126,7 +126,7 @@ static int watch_by_lldb(CliDebugSession *session, const char *data, CliLine *sa
 #endif
 
 // the data breakpoint `data` added to the session's and all of them set again
-static int watch_set(CliDebugSession *session, const char *data, CliLine *said)
+static int watch_set(CliDebugSession *session, const char *data, VerbaLinea *err_msg)
 {
     CliDebugAnswer *const answer = cli_debug_answer_taken();
     cli_lock_take(&g_cli_debug.lock);
@@ -140,59 +140,59 @@ static int watch_set(CliDebugSession *session, const char *data, CliLine *said)
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = data, .cap = CLI_CELLS_POOL}) + 1u});
         session->data_count += 1u;
     }
-    cli_line_text(&answer->asked, "{\"breakpoints\":[");
+    mmgr_line_put(&answer->args, "{\"breakpoints\":[");
     for (unsigned int at = 0u; at < session->data_count; at += 1u)
     {
-        cli_line_text(&answer->asked, (at > 0u) ? ",{\"dataId\":" : "{\"dataId\":");
-        cli_json_quoted_lossy(&answer->asked, (const unsigned char *)session->data[at],
+        mmgr_line_put(&answer->args, (at > 0u) ? ",{\"dataId\":" : "{\"dataId\":");
+        cli_json_quoted_lossy(&answer->args, (const unsigned char *)session->data[at],
                               cellul.len(&(CatenaFinitaCfg){.src = session->data[at], .cap = CLI_CELLS_POOL}));
-        cli_line_text(&answer->asked, ",\"accessType\":\"write\"}");
+        mmgr_line_put(&answer->args, ",\"accessType\":\"write\"}");
     }
     cli_lock_give(&g_cli_debug.lock);
-    cli_line_text(&answer->asked, "]}");
+    mmgr_line_put(&answer->args, "]}");
     if (!room)
     {
         cli_debug_answer_given(answer);
-        cli_line_text(said, "the session watches as many bytes as it can already");
+        mmgr_line_put(err_msg, "the session watches as many bytes as it can already");
         return 0;
     }
-    const int set = cli_debug_asked(session, "setDataBreakpoints", answer, CLI_DEBUG_ASKING, said);
+    const int set = cli_debug_request(session, "setDataBreakpoints", answer, CLI_DEBUG_REQUEST_TIMEOUT_MS, err_msg);
     cli_debug_answer_given(answer);
     return set;
 }
 
 int cli_debug_watch_data(unsigned long long id, const char *name, int has_reference, long long reference, int has_bytes,
-                         unsigned long long bytes, CliLine *out, CliLine *said)
+                         unsigned long long bytes, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    CliDebugSession *const session = cli_debug_taken(id, said);
+    CliDebugSession *const session = cli_debug_taken(id, err_msg);
     if (session == NULL)
     {
         return 0;
     }
     CliDebugAnswer *const answer = cli_debug_answer_taken();
-    cli_line_text(&answer->asked, "{\"name\":");
-    cli_json_quoted_lossy(&answer->asked, (const unsigned char *)name,
+    mmgr_line_put(&answer->args, "{\"name\":");
+    cli_json_quoted_lossy(&answer->args, (const unsigned char *)name,
                           cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     if (has_reference)
     {
-        cli_line_text(&answer->asked, ",\"variablesReference\":");
-        cli_line_signed(&answer->asked, reference);
+        mmgr_line_put(&answer->args, ",\"variablesReference\":");
+        mmgr_line_decimal_signed(&answer->args, reference);
     }
     if (has_bytes)
     {
-        cli_line_text(&answer->asked, ",\"asAddress\":true,\"bytes\":");
-        cli_line_decimal(&answer->asked, bytes, 1u);
+        mmgr_line_put(&answer->args, ",\"asAddress\":true,\"bytes\":");
+        mmgr_line_decimal(&answer->args, bytes, 1u);
     }
-    cli_line_character(&answer->asked, '}');
-    if (!cli_debug_asked(session, "dataBreakpointInfo", answer, CLI_DEBUG_ASKING, said))
+    mmgr_line_ch(&answer->args, '}');
+    if (!cli_debug_request(session, "dataBreakpointInfo", answer, CLI_DEBUG_REQUEST_TIMEOUT_MS, err_msg))
     {
         cli_debug_answer_given(answer);
         cli_debug_let_go(session);
         return 0;
     }
     const CliJson *const info = &answer->json;
-    char data[CLI_NAME_LONGEST];
-    char description[CLI_SAID_LONGEST];
+    char data[CLI_NAME_MAX_LEN];
+    char description[CLI_ERR_MSG_MAX_LEN];
     const char *const named = cli_json_string(info, cli_json_member(info, answer->root, "dataId"), NULL);
     const char *const described = cli_json_string(info, cli_json_member(info, answer->root, "description"), NULL);
     memor.cpy(&(MemoriaCfg){
@@ -204,7 +204,7 @@ int cli_debug_watch_data(unsigned long long id, const char *name, int has_refere
     cli_debug_answer_given(answer);
     if (named == NULL)
     {
-        cli_line_text(said, (described != NULL) ? description : "the adapter cannot watch that");
+        mmgr_line_put(err_msg, (described != NULL) ? description : "the adapter cannot watch that");
         cli_debug_let_go(session);
         return 0;
     }
@@ -214,12 +214,12 @@ int cli_debug_watch_data(unsigned long long id, const char *name, int has_refere
     // stops the program at the next instruction it runs
     if (cellul.eq(&(CatenaFinitaCfg){.src = session->program, .other = "lldb-dap", .cap = CLI_CELLS_POOL}))
     {
-        watched = watch_by_lldb(session, data, said) ? 1 : -1;
+        watched = watch_by_lldb(session, data, err_msg) ? 1 : -1;
     }
 #endif
     if (watched == 0)
     {
-        watched = watch_set(session, data, said) ? 1 : -1;
+        watched = watch_set(session, data, err_msg) ? 1 : -1;
     }
     cli_debug_let_go(session);
     if (watched < 0)

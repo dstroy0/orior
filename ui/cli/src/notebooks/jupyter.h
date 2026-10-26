@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// jupyter.h: Jupyter's kernels, in any language the machine has one for: found where Jupyter keeps their specs and in
-// the Pythons orior_cli finds, started with a connection file of orior's, and spoken to by Jupyter's messaging protocol
-// over ZMTP, each message signed with the kernel's key.
+// jupyter.h: Jupyter's kernels, in any language the machine has one for: found where Jupyter stores their specs and in
+// the Pythons orior_cli finds, started with a connection file of orior's, and communicated with by Jupyter's messaging
+// protocol over ZMTP, each message signed with the kernel's key.
 //
 // A kernel's specs are read in Jupyter's order, the first of a name standing: the folders JUPYTER_PATH names, the
-// reader's own Jupyter folder, each Python's own, and the system's. A Python orior_cli finds with ipykernel in it and no
-// spec of its own is a kernel too; one without ipykernel is listed with the line that installs it.
+// reader's own Jupyter folder, each Python's own, and the system's. A Python orior_cli finds with ipykernel in it and
+// no spec of its own is a kernel too; one without ipykernel is listed with the line that installs it.
 //
-// An interrupt reaches a kernel as its spec asks: by a message on its control socket, or else by SIGINT, or on Windows
-// by the event ipykernel waits on, which orior_cli makes and names in JPY_INTERRUPT_EVENT as it starts the kernel. A
-// kernel that does not stop when asked is ended (jupyter.c, jupyter_folders.c, jupyter_specs.c, jupyter_readers.c,
-// jupyter_requests.c, jupyter_wire.c, jupyter_debug.c)
+// An interrupt reaches a kernel as its spec requires: by a message on its control socket, or else by SIGINT, or on
+// Windows by the event ipykernel waits on, which orior_cli makes and names in JPY_INTERRUPT_EVENT as it starts the
+// kernel. A kernel that does not stop when requested is ended (jupyter.c, jupyter_folders.c, jupyter_specs.c,
+// jupyter_readers.c, jupyter_requests.c, jupyter_wire.c, jupyter_debug.c)
 #ifndef JUPYTER_H
 #define JUPYTER_H
 
@@ -47,48 +47,48 @@ typedef struct
     int full;
 } CliKernelSpec;
 
-// A running kernel and the sockets orior_cli speaks to it on
+// A running kernel and the sockets orior_cli communicates with it on
 typedef struct CliKernel CliKernel;
 
-// what a kernel said, as the page reads a message, `{"channel", "msg_type", "msg_id", "parent", "content"}`, handed to
+// what a kernel sent, as the page reads a message, `{"channel", "msg_type", "msg_id", "parent", "content"}`, handed to
 // whoever started it, on a thread of the kernel's own
-typedef void (*CliKernelHeard)(void *context, const char *message, unsigned long long size);
+typedef void (*CliKernelRecvFn)(void *context, const char *message, unsigned long long size);
 
 // every kernel the machine has, each name once, in Jupyter's order, written as a JSON array of specs; and the first
 // of them named `name` into `spec`: 1, or 0 where none is (jupyter_specs.c)
-void cli_jupyter_specs_written(CliLine *out);
+void cli_jupyter_specs_written(VerbaLinea *out);
 int cli_jupyter_spec_named(const char *name, CliKernelSpec *spec);
 
-// the kernel `spec` started in `folder`, each message it publishes and each reply to no request handed to `heard`,
-// given once it has answered that it is ready and held once for its starter: the kernel, or NULL with why said; the
-// kernel held once more, for as long as a caller uses it; and a hold given back, the kernel let go with the last, its
-// threads waited for. The name it shows (jupyter.c)
-CliKernel *cli_jupyter_started(const CliKernelSpec *spec, const char *folder, CliKernelHeard heard, void *context,
-                               CliLine *said);
-void cli_jupyter_held(CliKernel *kernel);
+// the kernel `spec` started in `folder`, each message it publishes and each reply to no request handed to `recv`,
+// given once it has answered that it is ready and referenced once for its starter: the kernel, or NULL with why given;
+// the kernel referenced once more, for as long as a caller uses it; and a reference given back, the kernel let go with
+// the last, its threads waited for. The name it shows (jupyter.c)
+CliKernel *cli_jupyter_started(const CliKernelSpec *spec, const char *folder, CliKernelRecvFn recv, void *context,
+                               VerbaLinea *err_msg);
+void cli_jupyter_ref(CliKernel *kernel);
 void cli_jupyter_given(CliKernel *kernel);
 const char *cli_jupyter_display_name(const CliKernel *kernel);
 
 // a request of `msg_type` with `length` bytes of JSON `content` sent on the "shell" or the "control" socket, its id
-// into `id`, which holds CLI_KERNEL_ID; the same, its reply waited for up to `wait` milliseconds and written into
+// into `id`, sized for CLI_KERNEL_ID; the same, its reply waited for up to `wait` milliseconds and written into
 // `reply` as the page reads a message; and code run, its id, which its output and its reply carry as their parent,
-// into `id`. Each 1, or 0 with why said (jupyter_requests.c)
+// into `id`. Each 1, or 0 with why given (jupyter_requests.c)
 int cli_jupyter_sent(CliKernel *kernel, const char *channel, const char *msg_type, const char *content,
-                     unsigned long long length, char *id, CliLine *said);
+                     unsigned long long length, char *id, VerbaLinea *err_msg);
 int cli_jupyter_requested(CliKernel *kernel, const char *channel, const char *msg_type, const char *content,
-                          unsigned long long length, unsigned long long wait, CliLine *reply, CliLine *said);
-int cli_jupyter_executed(CliKernel *kernel, const char *code, unsigned long long length, char *id, CliLine *said);
+                          unsigned long long length, unsigned long long wait, VerbaLinea *reply, VerbaLinea *err_msg);
+int cli_jupyter_executed(CliKernel *kernel, const char *code, unsigned long long length, char *id, VerbaLinea *err_msg);
 
-// what the kernel runs interrupted, as its spec asks: 1, or 0 with why said; whether its process still runs; and the
-// kernel asked to stop, its process ended where it has not stopped within `wait` milliseconds: whether it had to be
-// ended (jupyter_requests.c)
-int cli_jupyter_interrupted(CliKernel *kernel, CliLine *said);
+// what the kernel runs interrupted, as its spec specifies: 1, or 0 with why given; whether its process still runs; and
+// the kernel requested to stop, its process ended where it has not stopped within `wait` milliseconds: whether it had
+// to be ended (jupyter_requests.c)
+int cli_jupyter_interrupted(CliKernel *kernel, VerbaLinea *err_msg);
 int cli_jupyter_alive(CliKernel *kernel);
 int cli_jupyter_stopped(CliKernel *kernel, unsigned long long wait);
 
-// the kernel's next run of the code the file at `file` holds readied to be debugged, under that file's name, with
-// debugpy listening in the kernel's process from the first time it is asked: the port debugpy listens at into `port`,
-// 1, or 0 with why said (jupyter_debug.c)
-int cli_jupyter_debug_next(CliKernel *kernel, const char *file, unsigned int *port, CliLine *said);
+// the kernel's next run of the code the file at `file` contains readied to be debugged, under that file's name, with
+// debugpy listening in the kernel's process from the first time it is requested: the port debugpy listens at into
+// `port`, 1, or 0 with why given (jupyter_debug.c)
+int cli_jupyter_debug_next(CliKernel *kernel, const char *file, unsigned int *port, VerbaLinea *err_msg);
 
 #endif

@@ -10,7 +10,7 @@
 #include "../../../../../ui/cli/src/text/digest.h"
 #include "cli_check.h"
 
-// the rows of a page kept, the first values of each, and the bytes they take
+// the rows of a page recorded, the first values of each, and the bytes they take
 #define MYSQL_ROWS 1000u
 #define MYSQL_VALUES 4u
 #define MYSQL_VALUE 64u
@@ -117,18 +117,18 @@ static void mysql_scrambles(void)
     cli_check(cli_mysql_answer("secret", s_scramble, 20ull, 1, answer) == 32u, "caching_sha2_password's is 32 bytes");
 }
 
-// a row kept, its first MYSQL_VALUES values
-static int mysql_kept(void *context, const CliDbValue *values, unsigned int count)
+// a row recorded, its first MYSQL_VALUES values
+static int mysql_row_capture(void *context, const CliDbValue *values, unsigned int count)
 {
     (void)context;
     for (unsigned int at = 0u; (s_rows < MYSQL_ROWS) && (at < count) && (at < MYSQL_VALUES); at += 1u)
     {
         s_null[s_rows][at] = values[at].null;
         const unsigned long long size = values[at].null ? 0ull : values[at].size;
-        const unsigned long long kept = (size < MYSQL_VALUE - 1u) ? size : MYSQL_VALUE - 1u;
-        memor.cpy(
-            &(MemoriaCfg){.dst = s_value[s_rows][at], .src = values[at].null ? "" : values[at].text, .bytes = kept});
-        s_value[s_rows][at][kept] = '\0';
+        const unsigned long long copy_len = (size < MYSQL_VALUE - 1u) ? size : MYSQL_VALUE - 1u;
+        memor.cpy(&(MemoriaCfg){
+            .dst = s_value[s_rows][at], .src = values[at].null ? "" : values[at].text, .bytes = copy_len});
+        s_value[s_rows][at][copy_len] = '\0';
     }
     s_rows += (s_rows < MYSQL_ROWS) ? 1u : 0u;
     return 1;
@@ -148,8 +148,8 @@ static void mysql_stop(void *context)
     MysqlStopper *const stopper = context;
     query_paused(400u);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    (void)cli_mysql_cancel_sent(&stopper->cancel, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    (void)cli_mysql_cancel_sent(&stopper->cancel, &err_msg);
 }
 
 // every statement of `count` run on `my`, each read whole
@@ -159,11 +159,11 @@ static void mysql_all(CliMysql *my, const char *const *sql, unsigned int count)
     {
         s_rows = 0u;
         (void)cli_mysql_all(my, sql[at], cellul.len(&(CatenaFinitaCfg){.src = sql[at], .cap = CLI_CELLS_POOL}),
-                            mysql_kept, NULL, &s_failure);
+                            mysql_row_capture, NULL, &s_failure);
     }
 }
 
-// whether the column `at` of the head is `name` of `kind`, a number where `numeric`, the kind not held to where NULL
+// whether the column `at` of the head is `name` of `kind`, a number where `numeric`, the kind not checked where NULL
 static int mysql_column(const CliDbHead *head, unsigned int at, const char *name, const char *kind, int numeric)
 {
     return (cellul.eq(&(CatenaFinitaCfg){.src = head->columns[at].name, .other = name, .cap = CLI_CELLS_POOL})) &&
@@ -175,21 +175,21 @@ static int mysql_column(const CliDbHead *head, unsigned int at, const char *name
 // the server `name` names connected to as `user`, NULL where none answers or none is named
 static CliMysql *mysql_server(const char *name, const char *user, const char *password)
 {
-    char host[CLI_NAME_LONGEST];
+    char host[CLI_NAME_MAX_LEN];
     unsigned int port = 0u;
     cli_check_server(name, 3306u, host, &port);
     return cli_mysql_connected(host, port, user, password, "", 5000ull, &s_failure);
 }
 
-// the password ORIOR_<name>_PASSWORD names into `password`, which holds 256: 1, or 0 where it names none
+// the password ORIOR_<name>_PASSWORD names into `password`, which is sized for 256: 1, or 0 where it names none
 static int mysql_password(const char *name, char *password)
 {
     char variable[64];
-    CliLine line = {variable, sizeof(variable), 0ull};
-    cli_line_text(&line, "ORIOR_");
-    cli_line_text(&line, name);
-    cli_line_text(&line, "_PASSWORD");
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {variable, sizeof(variable), 0ull};
+    mmgr_line_put(&line, "ORIOR_");
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, "_PASSWORD");
+    (void)mmgr_line_finish(&line);
     return query_environment_read(variable, password, 256u);
 }
 
@@ -202,28 +202,29 @@ static unsigned long long mysql_stopped(CliMysql *my, int *gave)
     (void)cli_thread_started(&s_stopper.thread);
     const unsigned long long started = cli_clock_milliseconds();
     s_rows = 0u;
-    *gave = cli_mysql_all(my, "SELECT SLEEP(30)", 16ull, mysql_kept, NULL, &s_failure);
+    *gave = cli_mysql_all(my, "SELECT SLEEP(30)", 16ull, mysql_row_capture, NULL, &s_failure);
     return cli_clock_milliseconds() - started;
 }
 
-// the INSERT of a thousand rows numbered from 1, each with `x`, two bytes and no time, into `out`, which holds 2048
+// the INSERT of a thousand rows numbered from 1, each with `x`, two bytes and no time, into `out`, which is sized for
+// 2048
 static void mysql_thousand(char *out)
 {
-    CliLine line = {out, 2048u, 0ull};
-    cli_line_text(&line, "INSERT INTO orior_test.n SELECT 1 + a.d + 10 * b.d + 100 * c.d, 'x', 0x00FF, NULL FROM ");
+    VerbaLinea line = {out, 2048u, 0ull};
+    mmgr_line_put(&line, "INSERT INTO orior_test.n SELECT 1 + a.d + 10 * b.d + 100 * c.d, 'x', 0x00FF, NULL FROM ");
     static const char *const s_names[3] = {"a", "b", "c"};
     for (unsigned int table = 0u; table < 3u; table += 1u)
     {
-        cli_line_text(&line, (table > 0u) ? ", (SELECT 0 d" : "(SELECT 0 d");
+        mmgr_line_put(&line, (table > 0u) ? ", (SELECT 0 d" : "(SELECT 0 d");
         for (unsigned int digit = 1u; digit < 10u; digit += 1u)
         {
-            cli_line_text(&line, " UNION SELECT ");
-            cli_line_decimal(&line, digit, 1u);
+            mmgr_line_put(&line, " UNION SELECT ");
+            mmgr_line_decimal(&line, digit, 1u);
         }
-        cli_line_text(&line, ") ");
-        cli_line_text(&line, s_names[table]);
+        mmgr_line_put(&line, ") ");
+        mmgr_line_put(&line, s_names[table]);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
 }
 
 // each sign-in works and a query's rows come a page at a time
@@ -273,7 +274,7 @@ static void mysql_mysql(const char *password)
             !cli_mysql_head(my)->rows &&
             (cellul.starts(&(CatenaFinitaCfg){
                 .src = cli_mysql_head(my)->tag, .other = "1000 rows affected", .cap = CLI_CELLS_POOL})),
-        "an insert tells the rows it affected");
+        "an insert reports the rows it affected");
     static const char s_select[] = "SELECT n, t, b, at FROM orior_test.n ORDER BY n";
     const int rows = cli_mysql_start(my, s_select, sizeof(s_select) - 1u, &s_failure) && cli_mysql_head(my)->rows;
     const CliDbHead *const head = cli_mysql_head(my);
@@ -284,7 +285,7 @@ static void mysql_mysql(const char *password)
     int done = 0;
     char tag[CLI_DB_TAG];
     s_rows = 0u;
-    (void)cli_mysql_rows(my, 400ull, mysql_kept, NULL, &done, tag, &s_failure);
+    (void)cli_mysql_rows(my, 400ull, mysql_row_capture, NULL, &done, tag, &s_failure);
     cli_check((s_rows == 400u) && !done &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_value[399][0], .other = "400", .cap = CLI_CELLS_POOL})),
               "a page of rows comes");
@@ -292,7 +293,7 @@ static void mysql_mysql(const char *password)
                   s_null[0][3],
               "bytes as hex and a null as none");
     s_rows = 0u;
-    (void)cli_mysql_rows(my, 1000ull, mysql_kept, NULL, &done, tag, &s_failure);
+    (void)cli_mysql_rows(my, 1000ull, mysql_row_capture, NULL, &done, tag, &s_failure);
     cli_check((s_rows == 600u) && done, "and the rest");
     cli_check(cli_mysql_start(my, "BEGIN", 5ull, &s_failure) && !cli_mysql_head(my)->rows, "a transaction begins");
     static const char *const s_delete[1] = {"DELETE FROM orior_test.n WHERE n = 1"};
@@ -310,11 +311,11 @@ static void mysql_mysql(const char *password)
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_value[0][0], .other = "1", .cap = CLI_CELLS_POOL})),
               "a sleep stopped gives 1, at once");
     char literal[64];
-    CliLine line = {literal, sizeof(literal), 0ull};
-    cli_line_text(&line, "SELECT ");
+    VerbaLinea line = {literal, sizeof(literal), 0ull};
+    mmgr_line_put(&line, "SELECT ");
     cli_mysql_literal("it's \\ ok", &line);
     s_rows = 0u;
-    cli_check(cli_mysql_all(my, literal, line.at, mysql_kept, NULL, &s_failure) && (s_rows == 1u) &&
+    cli_check(cli_mysql_all(my, literal, line.at, mysql_row_capture, NULL, &s_failure) && (s_rows == 1u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_value[0][0], .other = "it's \\ ok", .cap = CLI_CELLS_POOL})),
               "a literal reads back as itself");
     static const char *const s_drop[1] = {"DROP DATABASE orior_test"};
@@ -343,7 +344,7 @@ static void mysql_mariadb(const char *password)
     cli_check((mysql_server("MARIADB", "orior_native", "not it") == NULL) &&
                   (cellul.starts(&(CatenaFinitaCfg){.src = s_failure.code, .other = "1045", .cap = CLI_CELLS_POOL})),
               "a wrong password is refused");
-    // MariaDB recurses 1000 times at most unless max_recursive_iterations says otherwise
+    // MariaDB recurses 1000 times at most unless max_recursive_iterations specifies otherwise
     static const char s_select[] =
         "WITH RECURSIVE k(seq) AS (SELECT 1 UNION ALL SELECT seq + 1 FROM k WHERE seq < 900) "
         "SELECT seq, CONCAT('n', seq) AS t FROM k";
@@ -355,12 +356,12 @@ static void mysql_mariadb(const char *password)
     int done = 0;
     char tag[CLI_DB_TAG];
     s_rows = 0u;
-    (void)cli_mysql_rows(my, 600ull, mysql_kept, NULL, &done, tag, &s_failure);
+    (void)cli_mysql_rows(my, 600ull, mysql_row_capture, NULL, &done, tag, &s_failure);
     cli_check((s_rows == 600u) && !done &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_value[599][1], .other = "n600", .cap = CLI_CELLS_POOL})),
               "a page of rows comes");
     s_rows = 0u;
-    (void)cli_mysql_rows(my, 600ull, mysql_kept, NULL, &done, tag, &s_failure);
+    (void)cli_mysql_rows(my, 600ull, mysql_row_capture, NULL, &done, tag, &s_failure);
     cli_check((s_rows == 300u) && done, "and the rest");
     int gave = 0;
     // MariaDB fails a statement its KILL QUERY stops, where MySQL has SLEEP give 1
@@ -369,7 +370,7 @@ static void mysql_mariadb(const char *password)
                   (cellul.starts(&(CatenaFinitaCfg){.src = s_failure.code, .other = "1317", .cap = CLI_CELLS_POOL})),
               "a sleep stopped fails, at once");
     s_rows = 0u;
-    cli_check(cli_mysql_all(my, "SELECT 2", 8ull, mysql_kept, NULL, &s_failure) &&
+    cli_check(cli_mysql_all(my, "SELECT 2", 8ull, mysql_row_capture, NULL, &s_failure) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_value[0][0], .other = "2", .cap = CLI_CELLS_POOL})),
               "and the connection answers after it");
     static const char *const s_drop[1] = {"DROP USER 'orior_native'@'%'"};
@@ -379,6 +380,7 @@ static void mysql_mariadb(const char *password)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     mysql_power();
     mysql_oaep();
     mysql_scrambles();

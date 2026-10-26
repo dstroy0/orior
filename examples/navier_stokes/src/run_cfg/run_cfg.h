@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-// The text is held whole at its own length and the tokens at one per byte at most; no size is written in. A
+// The text is stored whole at its own length and the tokens at one per byte at most; no size is written in. A
 // decimal value is a JSON string, "0.0010016", read exactly as a rational; a count is a JSON number.
 typedef struct
 {
@@ -20,7 +20,7 @@ typedef struct
 } RunCfg;
 
 // the cfg at `path` read and parsed: 1, or 0 with the reason written to `line`
-int run_cfg_open(const char *path, RunCfg *cfg, ScripturaLine *line);
+int run_cfg_open(const char *path, RunCfg *cfg, VerbaLinea *line);
 
 // the token a dotted path names from the root, "fluid.viscosity": its index, or 0 where a part is missing
 unsigned int run_cfg_find(const RunCfg *cfg, const char *path);
@@ -41,7 +41,7 @@ int run_cfg_counts(const RunCfg *cfg, const char *path, std::vector<unsigned lon
 int run_cfg_text(const RunCfg *cfg, const char *path, std::string *value);
 
 // one line naming the members a cfg lacks or could not read
-void run_cfg_missing(ScripturaLine *line, const char *members);
+void run_cfg_missing(VerbaLinea *line, const char *members);
 
 // 1 where a value in this module outgrew the build's width
 int run_cfg_short(void);

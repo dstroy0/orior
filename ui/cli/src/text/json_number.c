@@ -79,7 +79,7 @@ static unsigned int cli_limbs_digits(unsigned int *limb, unsigned int count, cha
     return written;
 }
 
-// the exact decimal digits of a finite float above 0 into `digits`, which holds CLI_NUMBER_DIGITS, and where the point
+// the exact decimal digits of a finite float above 0 into `digits`, sized for CLI_NUMBER_DIGITS, and where the point
 // stands into `point`, the float being 0.d1d2... times ten to it: their count
 static unsigned int cli_exact(double value, char *digits, int *point)
 {
@@ -122,7 +122,7 @@ static unsigned int cli_exact(double value, char *digits, int *point)
         count = cli_limbs_times(limb, count, by);
     }
     const unsigned int written = cli_limbs_digits(limb, count, digits);
-    // a count of digits is below CLI_NUMBER_DIGITS, which an int holds
+    // a count of digits is below CLI_NUMBER_DIGITS, which an int represents
     *point = (int)written - ((exponent < 0) ? -exponent : 0);
     return written;
 }
@@ -133,7 +133,7 @@ static unsigned int cli_rounded(const char *digits, unsigned int count, unsigned
 {
     const unsigned int taken = (count < most) ? count : most;
     memor.cpy(&(MemoriaCfg){.dst = cut, .src = digits, .bytes = taken});
-    unsigned int kept = taken;
+    unsigned int cut_len = taken;
     if (count > most)
     {
         int up = digits[most] > '5';
@@ -148,60 +148,60 @@ static unsigned int cli_rounded(const char *digits, unsigned int count, unsigned
         }
         if (up)
         {
-            while ((kept > 0u) && (cut[kept - 1u] == '9'))
+            while ((cut_len > 0u) && (cut[cut_len - 1u] == '9'))
             {
-                kept -= 1u;
+                cut_len -= 1u;
             }
-            if (kept == 0u)
+            if (cut_len == 0u)
             {
                 cut[0] = '1';
-                kept = 1u;
+                cut_len = 1u;
                 *point += 1;
             }
             else
             {
-                cut[kept - 1u] = (char)(cut[kept - 1u] + 1);
+                cut[cut_len - 1u] = (char)(cut[cut_len - 1u] + 1);
             }
         }
     }
-    while ((kept > 1u) && (cut[kept - 1u] == '0'))
+    while ((cut_len > 1u) && (cut[cut_len - 1u] == '0'))
     {
-        kept -= 1u;
+        cut_len -= 1u;
     }
-    return kept;
+    return cut_len;
 }
 
 // whether `count` digits with the point where `point` stands read back as `value`
 static int cli_reads_back(const char *cut, unsigned int count, int point, double value)
 {
     char text[CLI_NUMBER_SHORTEST + 16u];
-    CliLine line = {text, sizeof(text), 0ull};
-    cli_line_character(&line, cut[0]);
-    cli_line_character(&line, '.');
-    cli_line_counted(&line, cut + 1, count - 1u);
-    cli_line_character(&line, 'e');
-    cli_line_signed(&line, (long long)point - 1ll);
-    cli_line_closed(&line);
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_ch(&line, cut[0]);
+    mmgr_line_ch(&line, '.');
+    mmgr_line_put_n(&line, cut + 1, count - 1u);
+    mmgr_line_ch(&line, 'e');
+    mmgr_line_decimal_signed(&line, (long long)point - 1ll);
+    mmgr_line_finish(&line);
     return strtod(text, NULL) == value;
 }
 
-void cli_json_double(CliLine *out, double value)
+void cli_json_double(VerbaLinea *out, double value)
 {
     unsigned long long bits = 0ull;
     memor.cpy(&(MemoriaCfg){.dst = &bits, .src = &value, .bytes = sizeof(bits)});
     if (((bits >> 52u) & 0x7ffull) == 0x7ffull)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return;
     }
     if ((bits >> 63u) != 0ull)
     {
-        cli_line_character(out, '-');
+        mmgr_line_ch(out, '-');
         value = -value;
     }
     if (value == 0.0)
     {
-        cli_line_text(out, "0.0");
+        mmgr_line_put(out, "0.0");
         return;
     }
     char digits[CLI_NUMBER_DIGITS];
@@ -223,38 +223,38 @@ void cli_json_double(CliLine *out, double value)
     const int shift = point - (int)length;
     if ((shift >= 0) && (point <= 16))
     {
-        cli_line_counted(out, cut, length);
+        mmgr_line_put_n(out, cut, length);
         for (int zero = 0; zero < shift; zero += 1)
         {
-            cli_line_character(out, '0');
+            mmgr_line_ch(out, '0');
         }
-        cli_line_text(out, ".0");
+        mmgr_line_put(out, ".0");
     }
     else if ((point > 0) && (point <= 16))
     {
         // the point stands inside the digits, so it is below their count
-        cli_line_counted(out, cut, (unsigned long long)point);
-        cli_line_character(out, '.');
-        cli_line_counted(out, cut + point, length - (unsigned int)point);
+        mmgr_line_put_n(out, cut, (unsigned long long)point);
+        mmgr_line_ch(out, '.');
+        mmgr_line_put_n(out, cut + point, length - (unsigned int)point);
     }
     else if ((point > -5) && (point <= 0))
     {
-        cli_line_text(out, "0.");
+        mmgr_line_put(out, "0.");
         for (int zero = point; zero < 0; zero += 1)
         {
-            cli_line_character(out, '0');
+            mmgr_line_ch(out, '0');
         }
-        cli_line_counted(out, cut, length);
+        mmgr_line_put_n(out, cut, length);
     }
     else
     {
-        cli_line_character(out, cut[0]);
+        mmgr_line_ch(out, cut[0]);
         if (length > 1u)
         {
-            cli_line_character(out, '.');
-            cli_line_counted(out, cut + 1, length - 1u);
+            mmgr_line_ch(out, '.');
+            mmgr_line_put_n(out, cut + 1, length - 1u);
         }
-        cli_line_character(out, 'e');
-        cli_line_signed(out, (long long)point - 1ll);
+        mmgr_line_ch(out, 'e');
+        mmgr_line_decimal_signed(out, (long long)point - 1ll);
     }
 }

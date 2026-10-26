@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Notices at the reader's breaks: one that answers a press shows at once, any other waits for a save,
-// a commit, a run's end or the keys at rest, and Focus holds every notice until it ends. Not again,
+// a commit, a run's end or the keys at rest, and Focus holds every notice until it ends. Silence,
 // beside a notice, puts its kind away for good, and Preferences brings it back.
 
 import { invoke } from "../../gui/src-js/bridge.js";
@@ -81,7 +81,7 @@ test("Focus holds every notice until it ends, even at a break, and then shows th
   setFocus(false);
 });
 
-test("Not again beside a notice puts its kind away for good: said again, with another count, it shows no more", async () => {
+test("Silence beside a notice puts its kind away for good: said again, with another count, it shows no more", async () => {
   const kind = kindOf("3 files could not be read");
   bringBack(kind);
   try {
@@ -121,4 +121,17 @@ test("Preferences lists each notice put away and shows its kind again on a press
     bringBack(kind);
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   }
+});
+
+test("the lock at the end of the editor's line stands as far in from the work's right line as the file's icon does from its left", async () => {
+  showView("edit");
+  await openFile("hello.py");
+  await ui.waitFor(() => editing().editor?.s && document.querySelector("#statusbar .status-lock")?.checkVisibility(), 10000, "the lock shown");
+  await ui.rest(400);
+  const work = document.querySelector(".work").getBoundingClientRect();
+  const icon = document.querySelector("#statusbar .crumb.file .icon").getBoundingClientRect();
+  const lock = document.querySelector("#statusbar .status-lock").getBoundingClientRect();
+  const left = icon.left - work.left;
+  const right = work.right - lock.right;
+  assert.ok(Math.abs(left - right) < 0.5, `the icon ${left}px in from the work's left line, the lock ${right}px in from its right`);
 });

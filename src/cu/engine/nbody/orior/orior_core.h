@@ -14,7 +14,7 @@ extern "C"
 #endif
 
 /* The dispatch rule reads the field's census directly. The plan carries one. Reading it directly
- * makes the rule exact: the census holds integer counts and the comparison clears its denominators into
+ * makes the rule exact: the census stores integer counts and the comparison clears its denominators into
  * integers. */
 
 /** @brief Anchors a sift engine places. The cascade depth log2(N)/H2 sits near five on these corpora. */
@@ -61,10 +61,10 @@ extern "C"
  * @note THIS CONSTANT IS THE TERMINATION ARGUMENT. Every descent below places one probe per level
  *       and never revisits one. The depth is bounded by this value at compile time. It is
  *       declared in the header because it is part of the contract: a
- *       caller sizing a probe array needs it, and a reader asking whether a recursion
+ *       caller sizing a probe array needs it, and a reader testing whether a recursion
  *       terminates should find its bound in the header instead of having to open the source.
  * @note DEFINED FROM ORIOR_ANCHORS INSTEAD OF COPIED. Defining one from the other makes the compiler
- *       hold the invariant the termination argument rests on.
+ *       maintain the invariant the termination argument rests on.
  */
 #define ORIOR_STEER_ANCHORS ORIOR_ANCHORS
 
@@ -131,7 +131,7 @@ extern "C"
      * @note Dependency depth two. Every probe issues at once and one branch is taken on the combined
      *       result. Measured over 65536 bytes, this runs 2.95 times faster than the in order engine on a
      *       skewed corpus, reaching 3.42 on its widest row, and 1.63 times slower on a memoryless one.
-     *       The advantage holds at every needle length from 4 to 256. The rule that chooses between the
+     *       The advantage is valid at every needle length from 4 to 256. The rule that chooses between the
      *       two therefore reads no needle length.
      */
     size_t orior_free(const uint8_t *corpus, size_t corpus_len, const uint8_t *needle, size_t needle_len);
@@ -139,10 +139,10 @@ extern "C"
     /**
      * @brief What the dispatcher needs to choose an engine, all of it cheap to obtain.
      *
-     * THE FIELD'S CENSUS AND NOT A NUMBER DERIVED FROM IT. The rule this plan feeds asks whether the
+     * THE FIELD'S CENSUS AND NOT A NUMBER DERIVED FROM IT. The rule this plan feeds tests whether the
      * effective alphabet reaches a share of the symbols actually used, and both quantities come out of
      * one pass over the corpus. Carrying the census means the rule reads them exactly, in integers, and
-     * the engine holds no floating point value anywhere.
+     * the engine stores no floating point value anywhere.
      *
      * @note `distinct_symbols` IS NOT A FIELD HERE. The census computes that number authoritatively,
      *       and a public structure carrying a second copy lets a caller hand over two values that
@@ -151,7 +151,7 @@ extern "C"
      * @note `needle_len` is carried and not read, and that is a different case. No ceiling on it beats
      *       having none over the values the bench measures. The rule does not consult it. It
      *       duplicates nothing. It stays.
-     * @warning `census` is BORROWED for the duration of every call taking this plan. A plan holds a
+     * @warning `census` is BORROWED for the duration of every call taking this plan. A plan references a
      *          pointer to it because OriorFieldCensus is about two kilobytes
      *          and a plan is passed by pointer on a hot path.
      */
@@ -176,7 +176,7 @@ extern "C"
      * @note Measured on a corpus of period sixteen: four anchors read 1.1875 bytes per alignment and
      *       one anchor reads 1.0000, for the same survivor rate of exactly 1/16. The reads the extra
      *       three anchors perform are their only contribution.
-     * @warning A period found is not a period the whole corpus keeps. This returns 1 on any corpus
+     * @warning A period found is not a period the whole corpus repeats. This returns 1 on any corpus
      *          whose period search cleared its floor, and a partially coherent corpus would want a
      *          count between the two. Nothing here measures that case.
      */
@@ -191,7 +191,7 @@ extern "C"
      * @param[in] needle     Bytes to find [BORROWS].
      * @param[in] needle_len How many.
      * @return               How many alignments match exactly.
-     * @note The entry a caller holding a corpus should use. The three engines above stay public because a
+     * @note The entry a caller with a corpus should use. The three engines above stay public because a
      *       bench has to be able to time one of them against another with nothing chosen in between.
      */
     size_t orior_run(const OriorPlan *plan, const uint8_t *corpus, size_t corpus_len, const uint8_t *needle,
@@ -208,12 +208,12 @@ extern "C"
      *       effective alphabet 2^H2 reaches 85 percent of the symbols it uses, a flat corpus, takes the
      *       short circuiting engine, and every other corpus takes the free order one. Since 2^H2 is
      *       total squared over the sum of squared counts, the comparison clears its denominators into
-     *       100*total^2 >= 85*distinct*sum(count^2), which holds for the short circuiting engine, and
-     *       holds no floating point value anywhere.
+     *       100*total^2 >= 85*distinct*sum(count^2), which is valid for the short circuiting engine, and
+     *       stores no floating point value anywhere.
      *       Scored against the clock by bench_dispatch. A figure from it belongs to the toolchain that
      *       produced it: re-run the bench before quoting one.
      * @note THE NEEDLE LENGTH TERM CHANGES NO ANSWER ON THIS DATA. Scoring flatness alone ties this rule
-     *       exactly, same rows and same cycles, on every row bench_dispatch scores. It is kept because a
+     *       exactly, same rows and same cycles, on every row bench_dispatch scores. It is retained because a
      *       tunable with no reader is an integration point, and it is named here so nobody concludes
      *       from the code that it is carrying weight. Find a row where it pays or leave it inert.
      * @note The rule is read off the cycle measurements and belongs to the machine that produced them.
@@ -273,11 +273,11 @@ extern "C"
      *       four. An insertion sort is fewer instructions than setting up anything cleverer and is
      *       the right choice and not a concession.
      * @note STABLE, and that is load bearing and not incidental. Two anchors testing equally rare
-     *       symbols keep the order choose_offsets placed them in. The spatial spread that rule exists
+     *       symbols retain the order choose_offsets placed them in. The spatial spread that rule exists
      *       to produce survives wherever rarity does not distinguish. An unstable sort would quietly
      *       discard the spread on a flat corpus, the corpus where the spread is all there is.
      * @note Does nothing where any argument is null, where `count` is zero, or where the census is
-     *       empty. An engine with nothing to steer by keeps the order it was given.
+     *       empty. An engine with nothing to steer by retains the order it was given.
      */
     void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCensus *census, const uint8_t *needle,
                                   size_t needle_len);
@@ -288,7 +288,7 @@ extern "C"
      * @param[in] census Field census [BORROWS].
      * @return           1 for the free order engine, 0 for the short circuiting engine.
      *
-     * @note THE SAME RULE THE ENGINE ALREADY SHIPPED, WITH THE FLOATING POINT REMOVED. The rule asks
+     * @note THE SAME RULE THE ENGINE ALREADY SHIPPED, WITH THE FLOATING POINT REMOVED. The rule tests
      *       whether the effective alphabet 2^H2 sits within 85 percent of the symbols actually used.
      *       Writing H2 as the collision entropy, 2^H2 is exactly total^2 over the sum of the squared
      *       counts. The test
@@ -299,7 +299,7 @@ extern "C"
      *
      *           100 * total^2  >=  85 * distinct * sum(count^2)
      *
-     *       which is a comparison between two exact integers; where it holds, the corpus is flat and
+     *       which is a comparison between two exact integers; where it is true, the corpus is flat and
      *       takes the short circuiting engine (0), and where it fails, the free order engine (1). No
      *       logarithm is taken, no power of two is
      *       approximated by a series, and the threshold is the exact rational 85/100 and not the

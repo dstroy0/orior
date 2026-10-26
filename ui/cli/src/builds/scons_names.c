@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// scons_names.c: what an SConstruct or SConscript says of names and of other files: the names its `Import` calls take,
-// each word of their strings; the names it exports, by `Export`'s strings, keywords and bare names and by the strings
-// of an `exports` given an `SConscript` call; and the SConscripts its `SConscript` calls read, by the strings of their
-// first argument or by their `dirs`, each joined to their `name`, `SConscript` where none is given
+// scons_names.c: what an SConstruct or SConscript declares about names and of other files: the names its `Import` calls
+// take, each word of their strings; the names it exports, by `Export`'s strings, keywords and bare names and by the
+// strings of an `exports` given an `SConscript` call; and the SConscripts its `SConscript` calls read, by the strings
+// of their first argument or by their `dirs`, each joined to their `name`, `SConscript` where none is given
 #include "scons_internal.h"
 
 // The hand an import is handed to: the function and its context
@@ -152,18 +152,18 @@ static void names_dir_string(void *context, unsigned long long from, unsigned lo
         end -= 1u;
     }
     static char s_written[1u << 12u];
-    CliLine written = {s_written, sizeof(s_written), 0ull};
-    cli_line_counted(&written, text + from, end - from);
-    cli_line_character(&written, '/');
-    cli_line_counted(&written, call->name, call->name_size);
-    if (cli_line_fits(&written))
+    VerbaLinea written = {s_written, sizeof(s_written), 0ull};
+    mmgr_line_put_n(&written, text + from, end - from);
+    mmgr_line_ch(&written, '/');
+    mmgr_line_put_n(&written, call->name, call->name_size);
+    if (mmgr_line_ok(&written))
     {
         call->each(call->context, s_written, written.at, from, to);
     }
 }
 
-// an argument's span kept
-static void names_argument_kept(void *context, unsigned long long from, unsigned long long to)
+// an argument's span recorded
+static void names_argument_stored(void *context, unsigned long long from, unsigned long long to)
 {
     CliSconsCall *const call = context;
     if (call->count < CLI_SCONS_ARGUMENTS)
@@ -202,7 +202,7 @@ static void names_script_call(void *context, unsigned long long from, unsigned l
     s_call.count = 0u;
     s_call.each = outer->each;
     s_call.context = outer->context;
-    cli_scons_arguments(from, to, names_argument_kept, &s_call);
+    cli_scons_arguments(from, to, names_argument_stored, &s_call);
     const char *name = "SConscript";
     unsigned long long name_size = 10u;
     unsigned long long dirs_from = 0ull;

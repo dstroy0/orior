@@ -144,7 +144,7 @@ void knf_boxes(const SimScene *scene, KnfBox *box, unsigned short *boxes)
         {
             continue;
         }
-        // a held box lies inside the view. Each bound is non-negative and below the side
+        // a filled box lies inside the view. Each bound is non-negative and below the side
         for (unsigned long long depth = (unsigned long long)entry->box[0]; depth <= (unsigned long long)entry->box[3];
              depth += 1ull)
         {
@@ -212,14 +212,14 @@ int knf_project(SimResults *results, const unsigned short *lanes, KnfRecord *rec
         (status == 0L) && (error.kind == ENGINE_ERROR_NONE) && (broken == 0ull) && (history.windows == KNF_WINDOWS);
     if (ok == 0)
     {
-        scriptura_text(&results->line, "    the entropy history errored: module ");
+        mmgr_line_put(&results->line, "    the entropy history errored: module ");
         // a module is a small non-negative enumerator
-        scriptura_decimal(&results->line, (unsigned long long)error.module, 1u);
-        scriptura_text(&results->line, " site ");
-        scriptura_decimal(&results->line, error.site, 1u);
-        scriptura_text(&results->line, ", broken voxels ");
-        scriptura_decimal(&results->line, broken, 1u);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_decimal(&results->line, (unsigned long long)error.module, 1u);
+        mmgr_line_put(&results->line, " site ");
+        mmgr_line_decimal(&results->line, error.site, 1u);
+        mmgr_line_put(&results->line, ", broken voxels ");
+        mmgr_line_decimal(&results->line, broken, 1u);
+        mmgr_line_ch(&results->line, '\n');
         return 0;
     }
     knf_center(record);

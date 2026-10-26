@@ -9,9 +9,21 @@
 // its value its address.
 
 import { motionReduced } from "./motion.js";
+import { onScheme, scheme } from "./scheme.js";
 
 // What a plugin's panel is drawn with where less motion is asked for.
 const STILL_PANEL = "<style>*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}</style>";
+
+// What a plugin's panel is drawn on before its own HTML: the window's scheme, so its document lays no ground of its
+// own over the panel's, and the window's text color and face, each of which the panel's own styles still set over.
+function panelGround() {
+  const root = getComputedStyle(document.documentElement);
+  return `<style>:root{color-scheme:${scheme() === "light" ? "light" : "dark"};background:transparent;color:${root.getPropertyValue("--fg").trim()};font:13px ${root.getPropertyValue("--head").trim()}}</style>`;
+}
+
+// The plugins whose panels were drawn last, drawn again as the scheme or its colors change.
+let drawnFrom = null;
+onScheme(() => drawnFrom && drawPanels(drawnFrom));
 
 function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
@@ -60,6 +72,7 @@ function heardIn(one, id, frame) {
 
 // The panels of the plugins `running` drawn, each kept as it was where its HTML is the same.
 export function drawPanels(running) {
+  drawnFrom = running;
   const host = document.getElementById("plugin-panels");
   const shown = [...running.values()].flatMap((one) => [...one.panels].map(([id, panel]) => ({ one, id, panel })));
   host.hidden = !shown.length;
@@ -82,7 +95,7 @@ export function drawPanels(running) {
         frame.addEventListener("load", () => heardIn(one, id, frame));
       }
       // A panel draws still where less motion is asked for, its animations and transitions ended.
-      const html = String(panel.html ?? "") + (motionReduced() ? STILL_PANEL : "");
+      const html = panelGround() + String(panel.html ?? "") + (motionReduced() ? STILL_PANEL : "");
       if (frame.dataset.html !== html) {
         frame.dataset.html = html;
         frame.srcdoc = html;

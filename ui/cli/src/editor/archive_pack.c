@@ -10,28 +10,28 @@ typedef struct
     unsigned char *out;
     unsigned long long room;
     unsigned long long size;
-    unsigned long long held;
+    unsigned long long bit_buf;
     unsigned int count;
     int full;
 } CliWriter;
 
 static void cli_put(CliWriter *writer, unsigned int value, unsigned int bits)
 {
-    writer->held |= (unsigned long long)value << writer->count;
+    writer->bit_buf |= (unsigned long long)value << writer->count;
     writer->count += bits;
     while (writer->count >= 8u)
     {
         if (writer->size < writer->room)
         {
-            // the low eight bits held, a byte
-            writer->out[writer->size] = (unsigned char)writer->held;
+            // the low eight bits retained, a byte
+            writer->out[writer->size] = (unsigned char)writer->bit_buf;
             writer->size += 1ull;
         }
         else
         {
             writer->full = 1;
         }
-        writer->held >>= 8u;
+        writer->bit_buf >>= 8u;
         writer->count -= 8u;
     }
 }
@@ -139,10 +139,10 @@ unsigned long long cli_deflate(const unsigned char *data, unsigned long long siz
                 distance = (g_cli_distance_base[each] <= back) ? each : distance;
             }
             cli_literal(&writer, 257u + code);
-            // a run's length past its code's base is below 32, which an unsigned int holds
+            // a run's length past its code's base is below 32, which an unsigned int stores
             cli_put(&writer, (unsigned int)(best - g_cli_length_base[code]), g_cli_length_extra[code]);
             cli_code(&writer, distance, 5u);
-            // a distance past its code's base is below 8192, which an unsigned int holds
+            // a distance past its code's base is below 8192, which an unsigned int stores
             cli_put(&writer, (unsigned int)(back - g_cli_distance_base[distance]), g_cli_distance_extra[distance]);
             taken = best;
         }

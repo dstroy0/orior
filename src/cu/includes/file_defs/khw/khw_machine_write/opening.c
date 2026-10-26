@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// opening.c: the place the least opening begins at and the slot's place, each read from the part's .ksc
+// opening.c: the place the least opening begins at and the probe place, each read from the part's .ksc
 #include "opening.h"
 
 #include "../../ksc/ksc.h"
@@ -33,9 +33,9 @@ unsigned int khw_opening_read(const char *ksc_path)
     return opening_row_read(ksc_path, "opening least", 0u);
 }
 
-unsigned int khw_slot_read(const char *ksc_path)
+unsigned int khw_probe_place_read(const char *ksc_path)
 {
-    return opening_row_read(ksc_path, "slot place", KHW_SLOT_NONE);
+    return opening_row_read(ksc_path, "probe place", KHW_PROBE_PLACE_NONE);
 }
 
 int khw_guard_field_read(const char *ksc_path, unsigned int *first, unsigned int *bits)

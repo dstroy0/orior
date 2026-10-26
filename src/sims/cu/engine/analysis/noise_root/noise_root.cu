@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // The root noise of an object's box. Each term the noise vector table names as shared is planted in turn at three
-// strengths over a scene holding one standing body; the noise detector prices the body's box and every term's yank
+// strengths over a scene containing one standing body; the noise detector prices the body's box and every term's yank
 // through the tower and compression's coder and names the root, the term whose yank saves the most bits. The null
 // names none; a planted term is the root or there is none, never another term; at the strongest each is the root; and
 // every yank returns the box exactly.
@@ -27,7 +27,7 @@
 #define ROOT_WIDTH 64ull
 
 // an offset of 300 and 100 electrons at gain 1 with a read variance of 4: a background voxel's independent variance is
-// 104 and a body voxel's 404, and the offset keeps the strongest planted term inside the lane
+// 104 and a body voxel's 404, and the offset confines the strongest planted term to the lane
 #define ROOT_OFFSET 300ull
 
 #define ROOT_BACKGROUND 100ull
@@ -56,7 +56,7 @@ static const unsigned long long ROOT_HIGH[4] = {ROOT_FRAMES, 14ull, 48ull, 48ull
 static const char *const ROOT_NAMES[NOISE_ROOT_TERMS + 1u] = {"rows", "columns", "planes", "pixels", "stacks", "none"};
 
 // The crystal's price of a lattice of ints: lifted through the tower and coded, the coder's bits. Each lattice is
-// copied to the device on its own; the tower's and the coder's pools are kept at the box's, the largest.
+// copied to the device on its own; the tower's and the coder's pools are sized to the box's, the largest.
 static long root_cost(const int *values, const unsigned long long extent[4], unsigned long long *bits,
                       EngineError *error)
 {
@@ -115,7 +115,7 @@ static void root_camera(SimCamera *camera, unsigned int planted, unsigned long l
 
 // The terms the camera law does not draw, added on the host: a value for each camera pixel, (y, x), shared by every
 // frame and z plane, or a value for each frame and pixel, (t, y, x), shared by every z plane of the stack. Returns the
-// voxel-frames the sum left outside the lane, held at its ends.
+// voxel-frames the sum left outside the lane, clamped at its ends.
 static unsigned long long root_plant(unsigned short *lanes, unsigned int planted, unsigned long long square)
 {
     const unsigned long long plane = ROOT_HEIGHT * ROOT_WIDTH;
@@ -132,7 +132,7 @@ static unsigned long long root_plant(unsigned short *lanes, unsigned int planted
                 const long long value = (long long)lanes[at] + sim_centerd(ROOT_KEY ^ purpose, counter, square);
                 clipped += ((value < 0ll) || (value > SIM_LANE_MAX)) ? 1ull : 0ull;
                 const long long clamped = (value < 0ll) ? 0ll : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
-                // held is clamped to the u16 lane's range just above
+                // the value is clamped to the u16 lane's range just above
                 lanes[at] = (unsigned short)clamped;
                 at += 1ull;
             }
@@ -162,7 +162,7 @@ static void root_box_take(const unsigned short *lanes, int *values)
 }
 
 // a signed value right-aligned in `columns`
-static void root_signed_columns(ScripturaLine *line, long long value, unsigned int columns)
+static void root_signed_columns(VerbaLinea *line, long long value, unsigned int columns)
 {
     // the magnitude of a negative value is its two's complement negation, taken unsigned
     unsigned long long magnitude = (value < 0ll) ? (0ull - (unsigned long long)value) : (unsigned long long)value;
@@ -174,9 +174,9 @@ static void root_signed_columns(ScripturaLine *line, long long value, unsigned i
     }
     for (unsigned int pad = width; pad < columns; pad += 1u)
     {
-        scriptura_character(line, ' ');
+        mmgr_line_ch(line, ' ');
     }
-    scriptura_signed(line, value);
+    mmgr_line_decimal_signed(line, value);
 }
 
 int main(void)
@@ -184,7 +184,7 @@ int main(void)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    ScripturaLine *const line = &results.line;
+    VerbaLinea *const line = &results.line;
     const unsigned long long count = ROOT_FRAMES * ROOT_DEPTH * ROOT_HEIGHT * ROOT_WIDTH;
     const unsigned long long lane_bytes = count * sizeof(unsigned short);
     unsigned long long box[4];
@@ -228,14 +228,14 @@ int main(void)
     scene.bodies = 1u;
     scene.body = &body;
 
-    scriptura_text(line,
+    mmgr_line_put(line,
                    "  the root noise of an object's box: 16 frames x z 2 to 13 x y 16 to 47 x x 16 to 47 around one"
                    " standing body of 300 e, over 100 e at offset 300, read variance 4, a Poisson shot\n");
-    scriptura_text(line,
+    mmgr_line_put(line,
                    "  each term planted alone at variances 64, 256 and 1024, against a background voxel's independent"
                    " 104 and a body voxel's 404; a term's saving is the box's coded bits less its residual's and"
                    " its pattern's, through the tower and compression's coder\n");
-    scriptura_text(line,
+    mmgr_line_put(line,
                    "  planted  variance    box bits      rows   columns    planes    pixels    stacks  root     per"
                    " mille  return\n");
     sim_flush(&results);
@@ -298,16 +298,16 @@ int main(void)
         {
             exact = memcmp(residual, values, (size_t)voxels * sizeof(int)) == 0;
         }
-        scriptura_text(line, "  ");
-        scriptura_text_columns(line, ROOT_NAMES[planted], 7u);
-        scriptura_decimal_columns(line, square, 10u);
-        scriptura_decimal_columns(line, measurement.box_bits, 12u);
+        mmgr_line_put(line, "  ");
+        mmgr_line_put_columns(line, ROOT_NAMES[planted], 7u);
+        mmgr_line_decimal_columns(line, square, 10u);
+        mmgr_line_decimal_columns(line, measurement.box_bits, 12u);
         for (unsigned int term = 0u; term < NOISE_ROOT_TERMS; term += 1u)
         {
             root_signed_columns(line, measurement.saved[term], 10u);
         }
-        scriptura_text(line, "  ");
-        scriptura_text_columns(line, ROOT_NAMES[measurement.root], 7u);
+        mmgr_line_put(line, "  ");
+        mmgr_line_put_columns(line, ROOT_NAMES[measurement.root], 7u);
         // a root saves more than 0 and less than the box's bits, which are a few million here: the box's bits
         // convert to long long exactly and 1000 times the saving is far below 2^63
         const long long per_mille =
@@ -315,7 +315,7 @@ int main(void)
                 ? ((1000ll * measurement.saved[measurement.root]) / (long long)measurement.box_bits)
                 : 0ll;
         root_signed_columns(line, per_mille, 11u);
-        scriptura_text(line, (exact != 0) ? "  exact\n" : "  differs\n");
+        mmgr_line_put(line, (exact != 0) ? "  exact\n" : "  differs\n");
         sim_flush(&results);
         if (planted == NOISE_ROOT_TERMS)
         {

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_files.c: `orior_cli run run-file`, a file run with its language's toolchain, in bash at the tree's top
 // folder, attached to this terminal, exiting with its code; `orior_cli run validate`, each file validated with the tool
-// plugin for its language, what it found and its verdict said, or the whole report as JSON; and `orior_cli edit format`,
-// each file formatted in place with its language's formatter, or with --check each that would change named
+// plugin for its language, what it found and its verdict printed, or the whole report as JSON; and `orior_cli edit
+// format`, each file formatted in place with its language's formatter, or with --check each that would change named
 #include "../code/git.h"
 #include "../plugins/validate.h"
 #include "../runs/run_file.h"
@@ -18,7 +18,7 @@
 #include <stdlib.h>
 
 // A command's room, a cell taken as the command starts and given back as it ends: the tree a text is read into, a
-// line said, a file read and what is made of it
+// line printed, a file read and what is made of it
 typedef struct
 {
     CliJsonNode node[1u << 16u];
@@ -32,10 +32,10 @@ typedef struct
 
 static CliFilesRoom *s_room;
 
-// the command's room taken: 1, or 0 said on the errors
-static int files_held(void)
+// the command's room taken: 1, or 0 reported on the errors
+static int files_room_made(void)
 {
-    s_room = cli_cell_taken(sizeof(*s_room), "a command on files");
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
     if (s_room == NULL)
     {
         cli_err("a command on files could not be taken");
@@ -46,7 +46,7 @@ static int files_held(void)
 // the command's room given back
 static void files_released(void)
 {
-    cli_cell_given(s_room);
+    g_cli_cells->persistent_buf_release(s_room, NULL);
     s_room = NULL;
 }
 
@@ -56,7 +56,7 @@ static unsigned int files_tree(const char *text, unsigned long long size)
     cli_json_begun(&s_room->json, s_room->node, sizeof(s_room->node) / sizeof(s_room->node[0]), s_room->tree_text,
                    sizeof(s_room->tree_text));
     char why[256];
-    CliLine ignored = {why, sizeof(why), 0ull};
+    VerbaLinea ignored = {why, sizeof(why), 0ull};
     return cli_json_read(&s_room->json, text, size, s_room->token, sizeof(s_room->token) / sizeof(s_room->token[0]),
                          &ignored);
 }
@@ -64,22 +64,22 @@ static unsigned int files_tree(const char *text, unsigned long long size)
 // a line of the errors made of up to three texts
 static void files_err(const char *one, const char *two, const char *three)
 {
-    CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-    cli_line_text(&line, one);
-    cli_line_text(&line, two);
-    cli_line_text(&line, three);
-    cli_err_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+    VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+    mmgr_line_put(&line, one);
+    mmgr_line_put(&line, two);
+    mmgr_line_put(&line, three);
+    cli_err_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
 // a word naming a file made a full path into `full`, the word as it is where it cannot be
 static void files_full(const char *word, char *full)
 {
-    if (!query_path_full(word, full, CLI_PATH_LONGEST))
+    if (!query_path_full(word, full, CLI_PATH_MAX_LEN))
     {
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
-        const unsigned long long kept = (size < CLI_PATH_LONGEST) ? size : CLI_PATH_LONGEST - 1ull;
-        memor.cpy(&(MemoriaCfg){.dst = full, .src = word, .bytes = kept});
-        full[kept] = '\0';
+        const unsigned long long copied_len = (size < CLI_PATH_MAX_LEN) ? size : CLI_PATH_MAX_LEN - 1ull;
+        memor.cpy(&(MemoriaCfg){.dst = full, .src = word, .bytes = copied_len});
+        full[copied_len] = '\0';
     }
 }
 
@@ -90,79 +90,79 @@ static int files_run_words(const char *named, const char *const *words, unsigned
         cli_err("run-file takes the one file to run");
         return CLI_WRONG;
     }
-    static char s_root[CLI_PATH_LONGEST];
-    static char s_said[4096];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if (!cli_command_line_tree(named, s_root, &said))
+    static char s_root[CLI_PATH_MAX_LEN];
+    static char s_err_buf[4096];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    if (!cli_command_line_tree(named, s_root, &err_msg))
     {
-        cli_err_line(s_said, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(s_err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_NO_CODE;
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     files_full(words[0], path);
-    char language[CLI_NAME_LONGEST];
+    char language[CLI_NAME_MAX_LEN];
     if (!cli_format_language_of(path, language))
     {
         files_err(words[0], ": no plugin opens it, and so orior_cli knows no way to run it", "");
         return CLI_NO_CODE;
     }
-    CliLine run = {s_room->read, sizeof(s_room->read), 0ull};
-    if (!cli_run_file_line(s_root, path, language, &run, &said))
+    VerbaLinea run = {s_room->read, sizeof(s_room->read), 0ull};
+    if (!cli_run_file_line(s_root, path, language, &run, &err_msg))
     {
-        cli_err_line(s_said, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(s_err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_NO_CODE;
     }
-    const unsigned int tree = files_tree(s_room->read, cli_line_fits(&run) ? run.at : 0ull);
+    const unsigned int tree = files_tree(s_room->read, mmgr_line_ok(&run) ? run.at : 0ull);
     const char *const line = cli_json_string(&s_room->json, cli_json_member(&s_room->json, tree, "line"), NULL);
-    char bash[CLI_PATH_LONGEST];
-    if ((line == NULL) || !cli_runner_bash(bash, &said))
+    char bash[CLI_PATH_MAX_LEN];
+    if ((line == NULL) || !cli_runner_bash(bash, &err_msg))
     {
-        cli_err_line(s_said, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(s_err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_NO_CODE;
     }
     files_err("$ ", line, "");
-    // the run's lines are this terminal's; the window is told that it started and how it ended
-    cli_line_told_begun();
-    CliLine told = {s_room->made, sizeof(s_room->made), 0ull};
-    cli_line_text(&told, "{\"state\":\"started\",\"file\":");
-    cli_json_quoted_lossy(&told, (const unsigned char *)words[0],
+    // the run's lines are this terminal's; the window is notified that it started and how it ended
+    cli_window_channel_begun();
+    VerbaLinea state = {s_room->made, sizeof(s_room->made), 0ull};
+    mmgr_line_put(&state, "{\"state\":\"started\",\"file\":");
+    cli_json_quoted_lossy(&state, (const unsigned char *)words[0],
                           cellul.len(&(CatenaFinitaCfg){.src = words[0], .cap = CLI_CELLS_POOL}));
-    cli_line_text(&told, ",\"line\":");
-    cli_json_quoted(&told, line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&told, ",\"root\":");
-    cli_json_quoted_lossy(&told, (const unsigned char *)s_root,
+    mmgr_line_put(&state, ",\"line\":");
+    cli_json_quoted(&state, line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}));
+    mmgr_line_put(&state, ",\"root\":");
+    cli_json_quoted_lossy(&state, (const unsigned char *)s_root,
                           cellul.len(&(CatenaFinitaCfg){.src = s_root, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&told, '}');
-    cli_line_told(s_room->made, cli_line_fits(&told) ? told.at : 0ull);
+    mmgr_line_ch(&state, '}');
+    cli_window_channel_sent(s_room->made, mmgr_line_ok(&state) ? state.at : 0ull);
     const unsigned long long began = cli_clock_microseconds();
     static char s_path[CLI_PATH_TEXT];
     cli_toolchains_run_path(s_path, sizeof(s_path));
     const CliSetting setting = {"PATH", s_path};
     const char *const command[4] = {bash, "-c", line, NULL};
     long long ran = 0ll;
-    said.at = 0ull;
+    err_msg.at = 0ull;
     int code = CLI_NO_CODE;
-    if (!cli_spawn_shared(command, &setting, 1u, &ran, &said))
+    if (!cli_spawn_shared(command, &setting, 1u, &ran, &err_msg))
     {
-        cli_err_line(s_said, cli_line_fits(&said) ? said.at : 0ull);
+        cli_err_line(s_err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
     }
     else if (ran >= 0ll)
     {
         // an exit code is the system's int
         code = (int)ran;
     }
-    told.at = 0ull;
-    cli_line_text(&told, "{\"state\":\"ended\",\"code\":");
-    cli_line_signed(&told, code);
-    cli_line_text(&told, ",\"ms\":");
-    cli_json_double(&told, (double)(cli_clock_microseconds() - began) / 1000.0);
-    cli_line_character(&told, '}');
-    cli_line_told(s_room->made, cli_line_fits(&told) ? told.at : 0ull);
+    state.at = 0ull;
+    mmgr_line_put(&state, "{\"state\":\"ended\",\"code\":");
+    mmgr_line_decimal_signed(&state, code);
+    mmgr_line_put(&state, ",\"ms\":");
+    cli_json_double(&state, (double)(cli_clock_microseconds() - began) / 1000.0);
+    mmgr_line_ch(&state, '}');
+    cli_window_channel_sent(s_room->made, mmgr_line_ok(&state) ? state.at : 0ull);
     return code;
 }
 
 // the strings of an array member joined by `between`
-static void files_joined(CliLine *out, unsigned int node, const char *name, const char *between)
+static void files_joined(VerbaLinea *out, unsigned int node, const char *name, const char *between)
 {
     const unsigned int array = cli_json_member(&s_room->json, node, name);
     const unsigned int first =
@@ -170,8 +170,8 @@ static void files_joined(CliLine *out, unsigned int node, const char *name, cons
     for (unsigned int item = first; item != CLI_JSON_NONE; item = s_room->json.node[item].next)
     {
         const char *const text = cli_json_string(&s_room->json, item, NULL);
-        cli_line_text(out, (item != first) ? between : "");
-        cli_line_text(out, (text != NULL) ? text : "");
+        mmgr_line_put(out, (item != first) ? between : "");
+        mmgr_line_put(out, (text != NULL) ? text : "");
     }
 }
 
@@ -185,47 +185,48 @@ static double files_number(unsigned int node, const char *name)
     }
     char text[64];
     const unsigned long long length = s_room->json.node[number].length;
-    const unsigned long long kept = (length < sizeof(text)) ? length : sizeof(text) - 1u;
-    memor.cpy(&(MemoriaCfg){.dst = text, .src = s_room->json.text + s_room->json.node[number].text, .bytes = kept});
-    text[kept] = '\0';
+    const unsigned long long copied_len = (length < sizeof(text)) ? length : sizeof(text) - 1u;
+    memor.cpy(
+        &(MemoriaCfg){.dst = text, .src = s_room->json.text + s_room->json.node[number].text, .bytes = copied_len});
+    text[copied_len] = '\0';
     return strtod(text, NULL);
 }
 
-// each check of a report said, then each finding, then the file's verdict
-static void files_report_said(const char *file, unsigned int report)
+// each check of a report printed, then each finding, then the file's verdict
+static void files_report_printed(const char *file, unsigned int report)
 {
     const unsigned int checks = cli_json_member(&s_room->json, report, "checks");
     const unsigned int first =
         cli_json_is(&s_room->json, checks, CFG_JSON_ARRAY) ? s_room->json.node[checks].first : CLI_JSON_NONE;
     for (unsigned int check = first; check != CLI_JSON_NONE; check = s_room->json.node[check].next)
     {
-        CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-        cli_line_text(&line, "  checked ");
+        VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+        mmgr_line_put(&line, "  checked ");
         const unsigned int settings = cli_json_member(&s_room->json, check, "settings");
         if (!cli_json_is(&s_room->json, settings, CFG_JSON_ARRAY) || (s_room->json.node[settings].count == 0u))
         {
-            cli_line_text(&line, "as it is");
+            mmgr_line_put(&line, "as it is");
         }
         files_joined(&line, check, "settings", " ");
-        cli_line_text(&line, ": ");
+        mmgr_line_put(&line, ": ");
         const double seconds = files_number(check, "seconds");
         // the seconds to a tenth, rounded; a check's seconds are not negative
         const unsigned long long tenths = (unsigned long long)(seconds * 10.0 + 0.5);
-        cli_line_decimal(&line, tenths / 10ull, 1u);
-        cli_line_character(&line, '.');
-        cli_line_decimal(&line, tenths % 10ull, 1u);
-        cli_line_text(&line, " s, ");
+        mmgr_line_decimal(&line, tenths / 10ull, 1u);
+        mmgr_line_ch(&line, '.');
+        mmgr_line_decimal(&line, tenths % 10ull, 1u);
+        mmgr_line_put(&line, " s, ");
         const double errors = files_number(check, "errors");
         // a count of errors is a whole number
-        cli_line_decimal(&line, (unsigned long long)errors, 1u);
-        cli_line_text(&line, (errors == 1.0) ? " error" : " errors");
+        mmgr_line_decimal(&line, (unsigned long long)errors, 1u);
+        mmgr_line_put(&line, (errors == 1.0) ? " error" : " errors");
         const unsigned int barriers = cli_json_member(&s_room->json, check, "barriers");
         if (cli_json_is(&s_room->json, barriers, CFG_JSON_ARRAY) && (s_room->json.node[barriers].count > 0u))
         {
-            cli_line_text(&line, ", stopped by ");
+            mmgr_line_put(&line, ", stopped by ");
             files_joined(&line, check, "barriers", ", ");
         }
-        cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+        cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
     const unsigned int findings = cli_json_member(&s_room->json, report, "findings");
     const unsigned int found =
@@ -237,16 +238,16 @@ static void files_report_said(const char *file, unsigned int report)
             cli_json_string(&s_room->json, cli_json_member(&s_room->json, finding, "message"), NULL);
         const char *const lifted =
             cli_json_string(&s_room->json, cli_json_member(&s_room->json, finding, "lifted"), NULL);
-        CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-        cli_line_text(&line, file);
-        cli_line_character(&line, ':');
+        VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+        mmgr_line_put(&line, file);
+        mmgr_line_ch(&line, ':');
         // a line and a column counted from 0 are whole numbers
-        cli_line_decimal(&line, (unsigned long long)files_number(finding, "line") + 1ull, 1u);
-        cli_line_character(&line, ':');
-        cli_line_decimal(&line, (unsigned long long)files_number(finding, "col") + 1ull, 1u);
-        cli_line_text(&line, ": ");
-        cli_line_text(&line, (kind != NULL) ? kind : "");
-        cli_line_text(&line, ": ");
+        mmgr_line_decimal(&line, (unsigned long long)files_number(finding, "line") + 1ull, 1u);
+        mmgr_line_ch(&line, ':');
+        mmgr_line_decimal(&line, (unsigned long long)files_number(finding, "col") + 1ull, 1u);
+        mmgr_line_put(&line, ": ");
+        mmgr_line_put(&line, (kind != NULL) ? kind : "");
+        mmgr_line_put(&line, ": ");
         const char *rest = (message != NULL) ? message : "";
         int head = 1;
         for (;;)
@@ -263,11 +264,11 @@ static void files_report_said(const char *file, unsigned int report)
                 if (!head)
                 {
                     line.at = 0ull;
-                    cli_line_text(&line, "    ");
+                    mmgr_line_put(&line, "    ");
                 }
-                const unsigned long long kept = ((size > 0ull) && (rest[size - 1ull] == '\r')) ? size - 1ull : size;
-                cli_line_counted(&line, rest, kept);
-                cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+                const unsigned long long len = ((size > 0ull) && (rest[size - 1ull] == '\r')) ? size - 1ull : size;
+                mmgr_line_put_n(&line, rest, len);
+                cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
                 head = 0;
             }
             if (end == NULL)
@@ -278,23 +279,23 @@ static void files_report_said(const char *file, unsigned int report)
         }
         if (head)
         {
-            cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+            cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
         }
         if (lifted != NULL)
         {
             line.at = 0ull;
-            cli_line_text(&line, "    ");
-            cli_line_text(&line, lifted);
-            cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+            mmgr_line_put(&line, "    ");
+            mmgr_line_put(&line, lifted);
+            cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
         }
     }
-    const int holds = cli_json_is(&s_room->json, cli_json_member(&s_room->json, report, "holds"), CFG_JSON_TRUE);
+    const int passes = cli_json_is(&s_room->json, cli_json_member(&s_room->json, report, "passes"), CFG_JSON_TRUE);
     const char *const verdict = cli_json_string(&s_room->json, cli_json_member(&s_room->json, report, "verdict"), NULL);
-    CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-    cli_line_text(&line, file);
-    cli_line_text(&line, holds ? ": holds: " : ": does not hold: ");
-    cli_line_text(&line, (verdict != NULL) ? verdict : "");
-    cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+    VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+    mmgr_line_put(&line, file);
+    mmgr_line_put(&line, passes ? ": passes: " : ": fails: ");
+    mmgr_line_put(&line, (verdict != NULL) ? verdict : "");
+    cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
 // whether `flag` is among the words, and whether every other word names a file, there being one
@@ -327,7 +328,7 @@ static int files_validated(const char *const *words, unsigned int count)
         return CLI_WRONG;
     }
     int code = 0;
-    static char s_said[4096];
+    static char s_err_buf[4096];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const file = words[at];
@@ -335,41 +336,41 @@ static int files_validated(const char *const *words, unsigned int count)
         {
             continue;
         }
-        char path[CLI_PATH_LONGEST];
+        char path[CLI_PATH_MAX_LEN];
         files_full(file, path);
-        char language[CLI_NAME_LONGEST];
-        char tool[CLI_NAME_LONGEST];
+        char language[CLI_NAME_MAX_LEN];
+        char tool[CLI_NAME_MAX_LEN];
         if (!cli_format_language_of(path, language) || !cli_validate_tool_for(language, tool))
         {
             files_err(file, ": no tool plugin validates it", "");
             code = CLI_NO_CODE;
             continue;
         }
-        CliLine report = {s_room->read, sizeof(s_room->read), 0ull};
-        CliLine said = {s_said, sizeof(s_said), 0ull};
-        if (!cli_validated(tool, path, &report, &said))
+        VerbaLinea report = {s_room->read, sizeof(s_room->read), 0ull};
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        if (!cli_validated(tool, path, &report, &err_msg))
         {
-            (void)cli_line_closed(&said);
-            files_err(file, ": ", s_said);
+            (void)mmgr_line_finish(&err_msg);
+            files_err(file, ": ", s_err_buf);
             code = CLI_NO_CODE;
             continue;
         }
-        const unsigned int tree = files_tree(s_room->read, cli_line_fits(&report) ? report.at : 0ull);
-        if (!cli_json_is(&s_room->json, cli_json_member(&s_room->json, tree, "holds"), CFG_JSON_TRUE))
+        const unsigned int tree = files_tree(s_room->read, mmgr_line_ok(&report) ? report.at : 0ull);
+        if (!cli_json_is(&s_room->json, cli_json_member(&s_room->json, tree, "passes"), CFG_JSON_TRUE))
         {
             code = CLI_NO_CODE;
         }
         if (json)
         {
-            CliLine pretty = {s_room->made, sizeof(s_room->made), 0ull};
+            VerbaLinea pretty = {s_room->made, sizeof(s_room->made), 0ull};
             if (tree != CLI_JSON_NONE)
             {
                 cli_json_write(&s_room->json, tree, &pretty, 2u, 0);
             }
-            cli_out_line(s_room->made, cli_line_fits(&pretty) ? pretty.at : 0ull);
+            cli_out_line(s_room->made, mmgr_line_ok(&pretty) ? pretty.at : 0ull);
             continue;
         }
-        files_report_said(file, tree);
+        files_report_printed(file, tree);
     }
     return code;
 }
@@ -383,7 +384,7 @@ static int files_formatted(const char *const *words, unsigned int count)
         return CLI_WRONG;
     }
     int code = 0;
-    static char s_said[4096];
+    static char s_err_buf[4096];
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const file = words[at];
@@ -391,9 +392,9 @@ static int files_formatted(const char *const *words, unsigned int count)
         {
             continue;
         }
-        char full[CLI_PATH_LONGEST];
+        char full[CLI_PATH_MAX_LEN];
         files_full(file, full);
-        char language[CLI_NAME_LONGEST];
+        char language[CLI_NAME_MAX_LEN];
         if (!cli_format_language_of(file, language))
         {
             files_err(file, ": no plugin opens it, and so no formatter knows it", "");
@@ -407,17 +408,17 @@ static int files_formatted(const char *const *words, unsigned int count)
             code = CLI_NO_CODE;
             continue;
         }
-        CliLine formatted = {s_room->made, sizeof(s_room->made), 0ull};
-        CliLine said = {s_said, sizeof(s_said), 0ull};
-        if (!cli_format(full, language, s_room->read, size, &formatted, &said))
+        VerbaLinea formatted = {s_room->made, sizeof(s_room->made), 0ull};
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        if (!cli_format(full, language, s_room->read, size, &formatted, &err_msg))
         {
-            cli_err_line(s_said, cli_line_fits(&said) ? said.at : 0ull);
+            cli_err_line(s_err_buf, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
             code = CLI_NO_CODE;
             continue;
         }
         unsigned long long length = 0ull;
         const char *const text = cli_json_string(
-            &s_room->json, files_tree(s_room->made, cli_line_fits(&formatted) ? formatted.at : 0ull), &length);
+            &s_room->json, files_tree(s_room->made, mmgr_line_ok(&formatted) ? formatted.at : 0ull), &length);
         if ((text != NULL) && (length == size) &&
             (memor.cmp(&(MemoriaCfg){.src = text, .other = s_room->read, .bytes = size}) == 0))
         {
@@ -425,10 +426,10 @@ static int files_formatted(const char *const *words, unsigned int count)
         }
         if (check)
         {
-            CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-            cli_line_text(&line, file);
-            cli_line_text(&line, " would change");
-            cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+            VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+            mmgr_line_put(&line, file);
+            mmgr_line_put(&line, " would change");
+            cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
             code = CLI_NO_CODE;
             continue;
         }
@@ -438,17 +439,17 @@ static int files_formatted(const char *const *words, unsigned int count)
             code = CLI_NO_CODE;
             continue;
         }
-        CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-        cli_line_text(&line, file);
-        cli_line_text(&line, " formatted");
-        cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+        VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+        mmgr_line_put(&line, file);
+        mmgr_line_put(&line, " formatted");
+        cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
     return code;
 }
 
 int cli_run_file_words(const char *named, const char *const *words, unsigned int count)
 {
-    if (!files_held())
+    if (!files_room_made())
     {
         return CLI_NO_CODE;
     }
@@ -459,7 +460,7 @@ int cli_run_file_words(const char *named, const char *const *words, unsigned int
 
 int cli_validate_files(const char *const *words, unsigned int count)
 {
-    if (!files_held())
+    if (!files_room_made())
     {
         return CLI_NO_CODE;
     }
@@ -470,7 +471,7 @@ int cli_validate_files(const char *const *words, unsigned int count)
 
 int cli_format_files(const char *const *words, unsigned int count)
 {
-    if (!files_held())
+    if (!files_room_made())
     {
         return CLI_NO_CODE;
     }

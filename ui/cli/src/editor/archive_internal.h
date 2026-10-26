@@ -14,32 +14,32 @@ extern const unsigned int g_cli_length_extra[29];
 extern const unsigned int g_cli_distance_base[30];
 extern const unsigned int g_cli_distance_extra[30];
 
-// a little-endian number of `width` bytes at `at`: 1 with it into `value`, or 0 with why said where the bytes end
+// a little-endian number of `width` bytes at `at`: 1 with it into `value`, or 0 with why given where the bytes end
 // first; a member's name cleaned of a leading `./` or `/` and a trailing `/`, put in the members' texts; and a member
 // put after the members (archive.c)
 int cli_archive_number(const unsigned char *bytes, unsigned long long size, unsigned long long at, unsigned int width,
-                       unsigned long long *value, CliLine *said);
-unsigned int cli_archive_name_kept(CliMembers *members, const char *name, unsigned long long length);
+                       unsigned long long *value, VerbaLinea *err_msg);
+unsigned int cli_archive_name_stored(CliMembers *members, const char *name, unsigned long long length);
 void cli_archive_member_put(CliMembers *members, unsigned int name, unsigned int raw, int has_raw, int dir,
                             unsigned long long size, unsigned long long at);
 
-// a zip's members; a zip member's bytes into `out`, which holds `room`, their count into `out_size`; and the zip with
-// the member at `target` set to `size` bytes of `data`, deflated where that is smaller, into `out`, which holds `room`,
-// its count into `out_size`. Each 1, or 0 with why said (archive_zip.c)
-int cli_zip_members(const unsigned char *bytes, unsigned long long size, CliMembers *members, CliLine *said);
+// a zip's members; a zip member's bytes into `out`, sized for `room`, their count into `out_size`; and the zip with
+// the member at `target` set to `size` bytes of `data`, deflated where that is smaller, into `out`, sized for `room`,
+// its count into `out_size`. Each 1, or 0 with why given (archive_zip.c)
+int cli_zip_members(const unsigned char *bytes, unsigned long long size, CliMembers *members, VerbaLinea *err_msg);
 int cli_zip_data(const unsigned char *bytes, unsigned long long size, const CliMembers *members,
                  const CliMember *member, unsigned char *out, unsigned long long room, unsigned long long *out_size,
-                 CliLine *said);
+                 VerbaLinea *err_msg);
 int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliMember *target,
                  const unsigned char *data, unsigned long long data_size, unsigned char *out, unsigned long long room,
-                 unsigned long long *out_size, CliLine *said);
+                 unsigned long long *out_size, VerbaLinea *err_msg);
 
-// a tar's members; and the tar with the member at `target` set to `size` bytes of `data`, into `out`, which holds
-// `room`, its count into `out_size`. Each 1, or 0 with why said (archive_tar.c)
-int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMembers *members, CliLine *said);
+// a tar's members; and the tar with the member at `target` set to `size` bytes of `data`, into `out`, sized for
+// `room`, its count into `out_size`. Each 1, or 0 with why given (archive_tar.c)
+int cli_tar_members(const unsigned char *bytes, unsigned long long size, CliMembers *members, VerbaLinea *err_msg);
 int cli_tar_with(const unsigned char *bytes, unsigned long long size, const CliMember *target,
                  const unsigned char *data, unsigned long long data_size, unsigned char *out, unsigned long long room,
-                 unsigned long long *out_size, CliLine *said);
+                 unsigned long long *out_size, VerbaLinea *err_msg);
 
 // A room of the archives a path runs through: a cell of `room` bytes, or none
 typedef struct
@@ -48,22 +48,22 @@ typedef struct
     unsigned long long room;
 } CliRoom;
 
-// `room` given `need` bytes for `what`: as it stands where it holds them, else in a cell of that many taken in the
-// old one's place, what the old one held let go; 1, or 0 with why said where the cells cannot meet it or `need` is
+// `room` given `need` bytes for `what`: as it stands where it fits them, else in a cell of that many taken in the
+// old one's place, what the old one occupied let go; 1, or 0 with why given where the cells cannot meet it or `need` is
 // past CLI_ARCHIVE_MOST; and the bytes an archive written anew from `size` bytes may take, an eighth and a page over
 // (archive_path.c)
-int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, CliLine *said);
+int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, VerbaLinea *err_msg);
 unsigned long long cli_archive_grown(unsigned long long size);
 
-// The members of an archive of `kind` whose bytes are `bytes`, read: what a gzipped archive holds, unzipped, into
-// `unpacked`, given the room its trailer says, its count into `unpacked_size`; and a member's bytes, by the archive's
-// kind, into `out`, given the room the member takes. Each 1, or 0 with why said (archive.c)
+// The members of an archive of `kind` whose bytes are `bytes`, read: what a gzipped archive contains, unzipped, into
+// `unpacked`, given the room its trailer specifies, its count into `unpacked_size`; and a member's bytes, by the
+// archive's kind, into `out`, given the room the member takes. Each 1, or 0 with why given (archive.c)
 int cli_members_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const char *inner,
-                   CliMembers *members, CliRoom *unpacked, unsigned long long *unpacked_size, CliLine *said);
+                   CliMembers *members, CliRoom *unpacked, unsigned long long *unpacked_size, VerbaLinea *err_msg);
 int cli_data_of(const unsigned char *bytes, unsigned long long size, unsigned int kind, const unsigned char *unpacked,
                 unsigned long long unpacked_size, const CliMembers *members, const CliMember *member, CliRoom *out,
-                unsigned long long *out_size, CliLine *said);
-// the name a gzipped file's one member goes by, the file's own less its .gz, into `out`, which holds CLI_NAME_LONGEST
+                unsigned long long *out_size, VerbaLinea *err_msg);
+// the name a gzipped file's one member goes by, the file's own less its .gz, into `out`, sized for CLI_NAME_MAX_LEN
 void cli_gz_inner(const char *name, char *out);
 
 // the most archives deep a file is saved within
@@ -72,8 +72,8 @@ void cli_gz_inner(const char *name, char *out);
 #define CLI_ARCHIVE_PARTS 64u
 
 // The archives a path runs through, a cell taken with the lock and given back with it: each level's members, what it
-// holds unpacked, the bytes of the archive within it, and the level written anew; and a tar written before it is
-// gzipped. Each room is a cell of its own, taken sized to what it holds as it is first written and given back with
+// contains unpacked, the bytes of the archive within it, and the level written anew; and a tar written before it is
+// gzipped. Each room is a cell of its own, taken sized to what it contains as it is first written and given back with
 // the levels
 typedef struct
 {
@@ -87,15 +87,15 @@ typedef struct
 extern CliLevels *g_cli_archive_levels;
 extern CliLock g_cli_archive_lock;
 
-// the lock taken and the levels with it: 1, or 0 with why said and the lock given back where the cells cannot meet
+// the lock taken and the levels with it: 1, or 0 with why given and the lock given back where the cells cannot meet
 // them; and the levels given back with the lock (archive_path.c)
-int cli_archive_held(CliLine *said);
+int cli_archive_locked(VerbaLinea *err_msg);
 void cli_archive_released(void);
 
 // A path's parts within an archive
 typedef struct
 {
-    char part[CLI_ARCHIVE_PARTS][CLI_NAME_LONGEST];
+    char part[CLI_ARCHIVE_PARTS][CLI_NAME_MAX_LEN];
     unsigned int count;
 } CliParts;
 
@@ -106,21 +106,21 @@ typedef struct
     const unsigned char *bytes;
     unsigned long long size;
     unsigned int kind;
-    char name[CLI_PATH_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
     unsigned int left;
 } CliDescent;
 
 // a path's parts, its slashes between them and its empty ones left out, put into `parts`; parts `from` to `to`
-// joined by `/` into `out`, which holds CLI_PATH_LONGEST; the file member named `name` of the members, or NULL where
+// joined by `/` into `out`, sized for CLI_PATH_MAX_LEN; the file member named `name` of the members, or NULL where
 // none is; the path's parts followed from the archive at `descent` on into each archive inside it they name, the
-// lock held, each archive's members read into the first level's: 1, or 0 with why said; and the archive a path runs
-// into opened, its file mapped, its kind and name, and the path's parts within it, `missing` saying how a path that
-// runs into no archive is told: 1, or 0 with why said (archive_path.c)
+// lock acquired, each archive's members read into the first level's: 1, or 0 with why given; and the archive a path
+// runs into opened, its file mapped, its kind and name, and the path's parts within it, `missing` specifying how a path
+// that runs into no archive is reported: 1, or 0 with why given (archive_path.c)
 void cli_archive_parts_of(const char *path, CliParts *parts);
 void cli_archive_joined(const CliParts *parts, unsigned int from, unsigned int to, char *out);
 const CliMember *cli_archive_file_named(const CliMembers *members, const char *name);
-int cli_archive_descend(CliDescent *descent, const CliParts *parts, CliLine *said);
+int cli_archive_descend(CliDescent *descent, const CliParts *parts, VerbaLinea *err_msg);
 int cli_archive_opened(const char *root, const char *path, const char *missing, CliDescent *descent, CliParts *parts,
-                       char *file, CliLine *said);
+                       char *file, VerbaLinea *err_msg);
 
 #endif

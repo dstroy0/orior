@@ -133,8 +133,8 @@ def repeat(runs):
     os.makedirs(out, exist_ok=True)
     with open(SCENARIO, encoding="utf-8") as handle:
         specs = [tuple(line.split()) for line in handle if line.strip()]
-    both_held = [at for at, spec in enumerate(specs) if spec == ("held", "held")]
-    held_sides = [(at, side) for at, spec in enumerate(specs) for side in (0, 1) if spec[side] == "held"]
+    both_held = [at for at, spec in enumerate(specs) if spec == ("satisfied", "satisfied")]
+    held_sides = [(at, side) for at, spec in enumerate(specs) for side in (0, 1) if spec[side] == "satisfied"]
     wrong = 0
     busy = 0
     spurious = 0

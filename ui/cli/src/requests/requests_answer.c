@@ -13,7 +13,7 @@ static unsigned long long answer_letter_size(unsigned int letter)
 }
 
 // the body written as a JSON string, its text cut to `most` bytes at a letter's start: 1 where it was cut
-static int answer_body(const CliRequestsAnswer *answer, unsigned long long most, CliLine *out)
+static int answer_body(const CliRequestsAnswer *answer, unsigned long long most, VerbaLinea *out)
 {
     if (answer->binary)
     {
@@ -21,17 +21,17 @@ static int answer_body(const CliRequestsAnswer *answer, unsigned long long most,
         const unsigned long long letters = (whole < most) ? whole : most;
         const unsigned long long groups = letters / 4u;
         const unsigned long long rest = letters % 4u;
-        cli_line_character(out, '"');
+        mmgr_line_ch(out, '"');
         cli_base64(out, answer->body, groups * 3u);
         if (rest > 0u)
         {
             char last[8];
-            CliLine last_line = {last, sizeof(last), 0ull};
+            VerbaLinea last_line = {last, sizeof(last), 0ull};
             const unsigned long long left = answer->size - (groups * 3u);
             cli_base64(&last_line, answer->body + (groups * 3u), (left < 3u) ? left : 3u);
-            cli_line_counted(out, last, rest);
+            mmgr_line_put_n(out, last, rest);
         }
-        cli_line_character(out, '"');
+        mmgr_line_ch(out, '"');
         return letters < whole;
     }
     unsigned long long bytes = 0ull;
@@ -51,94 +51,95 @@ static int answer_body(const CliRequestsAnswer *answer, unsigned long long most,
     return bytes < answer->size;
 }
 
-// pairs of texts written as a JSON array of arrays of two strings: the request's own, or the answer's, kept in its head
-static void answer_sent_headers(const CliRequestsSent *sent, CliLine *out)
+// pairs of texts written as a JSON array of arrays of two strings: the request's own, or the answer's, stored in its
+// head
+static void answer_sent_headers(const CliRequestsSent *sent, VerbaLinea *out)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < sent->headers; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? ",[" : "[");
+        mmgr_line_put(out, (at > 0u) ? ",[" : "[");
         cli_json_quoted(out, sent->header_name[at],
                         cellul.len(&(CatenaFinitaCfg){.src = sent->header_name[at], .cap = CLI_CELLS_POOL}));
-        cli_line_character(out, ',');
+        mmgr_line_ch(out, ',');
         cli_json_quoted(out, sent->header_value[at],
                         cellul.len(&(CatenaFinitaCfg){.src = sent->header_value[at], .cap = CLI_CELLS_POOL}));
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
-static void answer_headers(const CliRequestsAnswer *answer, CliLine *out)
+static void answer_headers(const CliRequestsAnswer *answer, VerbaLinea *out)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < answer->headers; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? ",[" : "[");
+        mmgr_line_put(out, (at > 0u) ? ",[" : "[");
         const CliRequestsText name = answer->header_name[at];
         const CliRequestsText value = answer->header_value[at];
         cli_json_quoted_lossy(out, (const unsigned char *)answer->head + name.at, name.size);
-        cli_line_character(out, ',');
+        mmgr_line_ch(out, ',');
         cli_json_quoted_lossy(out, (const unsigned char *)answer->head + value.at, value.size);
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
 // how long each part took, written as serde writes the times
-static void answer_times(const CliRequestsTimes *times, CliLine *out)
+static void answer_times(const CliRequestsTimes *times, VerbaLinea *out)
 {
     static const char *const names[6] = {
         "{\"resolve\":", ",\"connect\":", ",\"tls\":", ",\"wait\":", ",\"read\":", ",\"total\":"};
     const double values[6] = {times->resolve, times->connect, times->tls, times->wait, times->read, times->total};
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        cli_line_text(out, names[at]);
+        mmgr_line_put(out, names[at]);
         cli_json_double(out, values[at]);
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
 void cli_requests_answer_written(const CliRequestsAnswer *answer, const CliRequestsSent *sent, unsigned long long most,
-                                 CliLine *out)
+                                 VerbaLinea *out)
 {
-    cli_line_text(out, "{\"at\":");
-    cli_line_decimal(out, answer->at, 1u);
-    cli_line_text(out, ",\"sent\":{\"method\":");
+    mmgr_line_put(out, "{\"at\":");
+    mmgr_line_decimal(out, answer->at, 1u);
+    mmgr_line_put(out, ",\"sent\":{\"method\":");
     cli_json_quoted(out, sent->method, cellul.len(&(CatenaFinitaCfg){.src = sent->method, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"url\":");
+    mmgr_line_put(out, ",\"url\":");
     cli_json_quoted(out, sent->url, cellul.len(&(CatenaFinitaCfg){.src = sent->url, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"headers\":");
+    mmgr_line_put(out, ",\"headers\":");
     answer_sent_headers(sent, out);
-    cli_line_text(out, ",\"body\":");
+    mmgr_line_put(out, ",\"body\":");
     cli_json_quoted(out, sent->body, sent->body_size);
-    cli_line_text(out, sent->redirect ? ",\"redirect\":true}" : ",\"redirect\":false}");
-    cli_line_text(out, ",\"url\":");
+    mmgr_line_put(out, sent->redirect ? ",\"redirect\":true}" : ",\"redirect\":false}");
+    mmgr_line_put(out, ",\"url\":");
     cli_json_quoted(out, answer->url, cellul.len(&(CatenaFinitaCfg){.src = answer->url, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"status\":");
-    cli_line_decimal(out, answer->status, 1u);
-    cli_line_text(out, ",\"reason\":");
+    mmgr_line_put(out, ",\"status\":");
+    mmgr_line_decimal(out, answer->status, 1u);
+    mmgr_line_put(out, ",\"reason\":");
     cli_json_quoted_lossy(out, (const unsigned char *)answer->head + answer->reason.at, answer->reason.size);
-    cli_line_text(out, ",\"version\":");
+    mmgr_line_put(out, ",\"version\":");
     cli_json_quoted_lossy(out, (const unsigned char *)answer->head + answer->version.at, answer->version.size);
-    cli_line_text(out, ",\"headers\":");
+    mmgr_line_put(out, ",\"headers\":");
     answer_headers(answer, out);
-    cli_line_text(out, ",\"body\":");
+    mmgr_line_put(out, ",\"body\":");
     const int cut = answer_body(answer, most, out);
-    cli_line_text(out, answer->binary ? ",\"binary\":true,\"size\":" : ",\"binary\":false,\"size\":");
-    cli_line_decimal(out, answer->size, 1u);
-    cli_line_text(out, (answer->cut || cut) ? ",\"cut\":true,\"times\":" : ",\"cut\":false,\"times\":");
+    mmgr_line_put(out, answer->binary ? ",\"binary\":true,\"size\":" : ",\"binary\":false,\"size\":");
+    mmgr_line_decimal(out, answer->size, 1u);
+    mmgr_line_put(out, (answer->cut || cut) ? ",\"cut\":true,\"times\":" : ",\"cut\":false,\"times\":");
     answer_times(&answer->times, out);
-    cli_line_text(out, ",\"redirects\":[");
+    mmgr_line_put(out, ",\"redirects\":[");
     for (unsigned int at = 0u; at < answer->redirects; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? ",[" : "[");
-        cli_line_decimal(out, answer->redirect_status[at], 1u);
-        cli_line_character(out, ',');
+        mmgr_line_put(out, (at > 0u) ? ",[" : "[");
+        mmgr_line_decimal(out, answer->redirect_status[at], 1u);
+        mmgr_line_ch(out, ',');
         cli_json_quoted(out, answer->redirect_url[at],
                         cellul.len(&(CatenaFinitaCfg){.src = answer->redirect_url[at], .cap = CLI_CELLS_POOL}));
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
-    cli_line_text(out, "],\"failed\":");
+    mmgr_line_put(out, "],\"failed\":");
     if (answer->has_failed)
     {
         cli_json_quoted(out, answer->failed,
@@ -146,7 +147,7 @@ void cli_requests_answer_written(const CliRequestsAnswer *answer, const CliReque
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }

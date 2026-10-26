@@ -89,7 +89,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    No rounding. No exceptions. Arbitrary precision throughout. No value is too large. A value too wide for its word is refused on compilation.
+    No rounding. No exceptions. Arbitrary precision throughout. No value is too large. A value too wide for its word is refused on compilation. A tie is broken by name, never by noise. Pi to ten million digits, checked against a second series that shares no arithmetic with the first, is a test the engine runs on itself.
 
     [:octicons-arrow-right-24: The engine](engine.md)
 
@@ -129,7 +129,7 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
     ---
 
-    A program built only from sums, products, exclusive or and AND gives the same answer at every word width. The code writer turns it into PTX, C or SASS. When it doesn't know one of the rules of a target part, it asks the part.
+    A program built only from sums, products, exclusive or and AND gives the same answer at every word width. The code writer turns it into PTX, C or SASS. When it doesn't know one of the rules of a target part, it asks the part. For the binary lambda calculus, two exact bounds put Chaitin's Omega below one eighth, and its first two bits are proved.
 
     [:octicons-arrow-right-24: Two crystals](https://github.com/dstroy0/orior/blob/main/theory/workbooks/engine/two_crystals.md)
 
@@ -172,9 +172,9 @@ Nothing here asks to be believed: every result is traceable, every validated mea
 
 ## What it does not claim
 
-- It doesn't compute Kolmogorov complexity. It puts an upper limit on the complexity of a file by actually writing the file smaller.
-- It doesn't claim any weakness in SHA-256.
-- It can't hold every quantum state in a few numbers. A general state of 100 quantum bits still needs 2^100.
-- It isn't a model, and nothing in it is trained.
-- Some results were found by other people first. Where we know that, the published work is named.
+- It doesn't compute Kolmogorov complexity. It puts an upper limit on the complexity of a file by actually writing the file smaller, using its own categories of noise in the set N\* and lossless compression in exact integers modeled on JPEG 2000.
+- It doesn't claim any weakness in SHA-256. The point of measuring where SHA-256 is uneven is what the deformation of the field shows once the bits that carry the most change are known.
+- It can't hold every quantum state in a few numbers. A state as plain as 100 quantum bits all 0 or all 1 together fits in 792 numbers, and a general state of 100 quantum bits still needs 2^100. What it can do is run an operation on a file that represents the state: a continuous, error-corrected transform over a sliding window, in exact integers of any number of limbs and bits. The file bus is as wide as the machine allows and the maximum register width is respected. A wider register that no hardware has yet is supported by defining the platform and its register width; [`embedded_types`](https://github.com/dstroy0/orior/tree/main/src/cu/includes/embedded_types) holds every platform switch for types.
+- It isn't a model, and nothing in it is trained. The engine is a search algorithm, and the transpiler uses binary relations and several algorithms. There is no neural network and no weighting.
+- Some results were found by other people first. Where we know that, the published work is named. I'm autistic and working this out as I go; I name prior art as I read it, and anyone who sees prior work that isn't cited is asked to point it out so it can be cited.
 - The thought experiments are ideas whose experiment can't be built as written. They are kept apart from the results, and none of them is one.

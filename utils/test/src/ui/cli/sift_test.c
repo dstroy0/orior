@@ -8,7 +8,7 @@
 #include "../../../../../ui/cli/src/text/vector.h"
 #include "cli_check.h"
 
-// the most offsets a search keeps
+// the most offsets a search records
 #define SIFT_FOUND (1u << 14u)
 
 static unsigned char s_texts[6][6000];
@@ -20,8 +20,8 @@ static unsigned long long s_every_count;
 static unsigned char s_wide[CLI_SIFT_WINDOW * 2u + 100u];
 static unsigned char s_flat[20000];
 
-// an offset found kept
-static void sift_kept(void *context, unsigned long long at)
+// an offset found recorded
+static void sift_offset_capture(void *context, unsigned long long at)
 {
     (void)context;
     if (s_found_count < SIFT_FOUND)
@@ -57,7 +57,7 @@ static int sift_agrees(unsigned int path, const unsigned char *text, unsigned lo
                        const unsigned char *needle, unsigned long long needle_length, int fold)
 {
     s_found_count = 0ull;
-    (void)cli_sift_find_all_on(path, text, length, needle, needle_length, fold, sift_kept, NULL);
+    (void)cli_sift_find_all_on(path, text, length, needle, needle_length, fold, sift_offset_capture, NULL);
     sift_every(text, length, needle, needle_length, fold);
     return (s_found_count == s_every_count) &&
            (memor.cmp(&(MemoriaCfg){.src = s_found, .other = s_every, .bytes = s_every_count * sizeof(s_every[0])}) ==
@@ -137,9 +137,9 @@ static void sift_case(void)
     {
         agree &= sift_agrees(paths[path], s_texts[0], 33u * 50u, (const unsigned char *)"fox", 3ull, 1);
         counted &= cli_sift_find_all_on(paths[path], s_texts[0], 33u * 50u, (const unsigned char *)"FOX", 3ull, 1,
-                                        sift_kept, NULL) == 4ull * 50ull + 50ull;
+                                        sift_offset_capture, NULL) == 4ull * 50ull + 50ull;
         counted &= cli_sift_find_all_on(paths[path], s_texts[0], 33u * 50u, (const unsigned char *)"f@x", 3ull, 1,
-                                        sift_kept, NULL) == 50ull;
+                                        sift_offset_capture, NULL) == 50ull;
     }
     cli_check(agree && counted, "a search without case finds each letter in either case, and only letters fold");
 }
@@ -173,24 +173,24 @@ static void census_found(void *context, unsigned long long at)
 }
 
 // a census counted over bytes and uncounted of some of them is a fresh count of the rest; folded, each capital's count
-// joins its small letter's; and a search planned from a kept census finds the needle where one planned from each
+// joins its small letter's; and a search planned from a stored census finds the needle where one planned from each
 // window finds it, over the seam text as sift_seam leaves it
 static void sift_census(void)
 {
     static const unsigned char s_bytes[] = "Aa Bb AAA zz\nQ";
-    CliCensus kept;
-    memor.set(&(MemoriaCfg){.dst = &kept, .val = 0, .bytes = sizeof(kept)});
-    cli_sift_census_counted(&kept, s_bytes, sizeof(s_bytes) - 1u);
-    cli_check((kept.total == (sizeof(s_bytes) - 1u)) && (kept.occurrences['A'] == 4ull) &&
-                  (kept.occurrences['a'] == 1ull),
-              "a census counted holds each byte");
-    cli_sift_census_uncounted(&kept, s_bytes + 6, 3ull);
-    cli_check((kept.total == (sizeof(s_bytes) - 4u)) && (kept.occurrences['A'] == 1ull),
+    CliCensus stored_census;
+    memor.set(&(MemoriaCfg){.dst = &stored_census, .val = 0, .bytes = sizeof(stored_census)});
+    cli_sift_census_counted(&stored_census, s_bytes, sizeof(s_bytes) - 1u);
+    cli_check((stored_census.total == (sizeof(s_bytes) - 1u)) && (stored_census.occurrences['A'] == 4ull) &&
+                  (stored_census.occurrences['a'] == 1ull),
+              "a census counted contains each byte");
+    cli_sift_census_uncounted(&stored_census, s_bytes + 6, 3ull);
+    cli_check((stored_census.total == (sizeof(s_bytes) - 4u)) && (stored_census.occurrences['A'] == 1ull),
               "and bytes uncounted leave it");
     CliCensus folded;
-    cli_sift_census_folded(&kept, &folded);
+    cli_sift_census_folded(&stored_census, &folded);
     cli_check((folded.occurrences['a'] == 2ull) && (folded.occurrences['A'] == 0ull) &&
-                  (folded.occurrences['q'] == 1ull) && (folded.total == kept.total),
+                  (folded.occurrences['q'] == 1ull) && (folded.total == stored_census.total),
               "folded, each capital's count joins its small letter's");
     static const char s_needle[] = "across the seam";
     CliCensus whole;
@@ -199,11 +199,12 @@ static void sift_census(void)
     unsigned long long found = 0ull;
     cli_check(cli_sift_find_all_with(&whole, s_wide, sizeof(s_wide), (const unsigned char *)s_needle,
                                      sizeof(s_needle) - 1u, 0, census_found, &found) == 4ull,
-              "a search planned from the kept census finds the needle at its four places");
+              "a search planned from the stored census finds the needle at its four places");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     sift_paths();
     sift_case();
     sift_seam();
@@ -220,12 +221,12 @@ int main(void)
     sift_made(s_flat, sizeof(s_flat), 26u, 'a', 9ull);
     cli_check(cli_sift_plan(s_flat, sizeof(s_flat), s_flat + 100, 8ull, 0, anchors) == 3u,
               "three anchors of twenty-six letters, and a fourth refutes nothing more");
-    cli_check((cli_sift_find_all((const unsigned char *)"text", 4ull, (const unsigned char *)"", 0ull, 0, sift_kept,
-                                 NULL) == 0ull) &&
+    cli_check((cli_sift_find_all((const unsigned char *)"text", 4ull, (const unsigned char *)"", 0ull, 0,
+                                 sift_offset_capture, NULL) == 0ull) &&
                   (cli_sift_find_all((const unsigned char *)"text", 4ull, (const unsigned char *)"longer text", 11ull,
-                                     0, sift_kept, NULL) == 0ull) &&
-                  (cli_sift_find_all((const unsigned char *)"", 0ull, (const unsigned char *)"x", 1ull, 0, sift_kept,
-                                     NULL) == 0ull),
+                                     0, sift_offset_capture, NULL) == 0ull) &&
+                  (cli_sift_find_all((const unsigned char *)"", 0ull, (const unsigned char *)"x", 1ull, 0,
+                                     sift_offset_capture, NULL) == 0ull),
               "empty and too long needles stand nowhere");
     return cli_checked();
 }

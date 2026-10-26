@@ -8,14 +8,14 @@
 
 // The kind of a form. The lane's structure is what the word web names as the kernel a lane is written into: the
 // declarations, the notes, the lane's and the kernel's opening and close, the launch's and the shared memory's, the
-// states and the asks, and the unit. Each names no operation and has no tree, and a part's ruleset writes it `nop`:
-// the kernel the system accepted is the lane's frame there (The frame asked, Open 6.3). An operation is a form
+// states and the loads, and the unit. Each names no operation and has no tree, and a part's ruleset writes it `nop`:
+// the kernel the system accepted is the lane's frame there (Open 6.3). An operation is a form
 // with a relation of its own, the ladder's, the frame's, the host's questions' or a walk of its own, and a part's
 // ruleset gives it as the part answered it, or leaves it open
 #define SCHEMA_FORM_OPERATION 0u
 #define SCHEMA_FORM_STRUCTURE 1u
 
-// One form a line, held from the formatter: it splits a form's name inside its words, and a search for the name
+// One form a line, protected from the formatter: it splits a form's name inside its words, and a search for the name
 // then misses it
 // clang-format off
 #define OPCODES(form_) \
@@ -114,10 +114,10 @@
     form_(STATE_NEXT, "state_next", 2u, SCHEMA_FORM_STRUCTURE)                                   \
     form_(STATE_EXIT, "state_exit", 0u, SCHEMA_FORM_STRUCTURE)                                   \
     form_(STATE_DISPATCH, "state_dispatch", 2u, SCHEMA_FORM_STRUCTURE)                           \
-    form_(LAUNCH_ASK, "launch_ask", 1u, SCHEMA_FORM_STRUCTURE)                                   \
-    form_(GLOBAL_ASK, "global_ask", 2u, SCHEMA_FORM_STRUCTURE)                                   \
-    form_(GLOBAL_ASK_IF, "global_ask_if", 2u, SCHEMA_FORM_STRUCTURE)                             \
-    form_(GLOBAL_ASK_ATOMIC, "global_ask_atomic", 1u, SCHEMA_FORM_STRUCTURE)                     \
+    form_(LAUNCH_LOAD, "launch_load", 1u, SCHEMA_FORM_STRUCTURE)                                   \
+    form_(GLOBAL_LOAD, "global_load", 2u, SCHEMA_FORM_STRUCTURE)                                   \
+    form_(GLOBAL_LOAD_IF, "global_load_if", 2u, SCHEMA_FORM_STRUCTURE)                             \
+    form_(GLOBAL_ATOMIC, "global_atomic", 1u, SCHEMA_FORM_STRUCTURE)                     \
     form_(LABEL_LOOP, "label_loop", 1u, SCHEMA_FORM_OPERATION)                                   \
     form_(LOOP_BACK_IF, "loop_back_if", 2u, SCHEMA_FORM_OPERATION)                               \
     form_(STATE_LOOP, "state_loop", 3u, SCHEMA_FORM_STRUCTURE)                                   \

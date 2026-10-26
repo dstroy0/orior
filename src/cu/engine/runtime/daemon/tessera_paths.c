@@ -22,7 +22,7 @@ _Alignas(8) static const char s_tessera_temporary[] = "/tmp";
 _Alignas(8) static const char s_tessera_folder[] = "tessera";
 _Alignas(8) static const char s_tessera_lost[] = "lostandfound";
 
-int tessera_text_staged(ScripturaLine *line, const char *text)
+int tessera_text_staged(VerbaLinea *line, const char *text)
 {
     const size_t length = strlen(text);
     char *const staged = (char *)calloc((length / 8u) + 1u, 8u);
@@ -32,16 +32,16 @@ int tessera_text_staged(ScripturaLine *line, const char *text)
         return 0;
     }
     memcpy(staged, text, length);
-    scriptura_text(line, staged);
+    mmgr_line_put(line, staged);
     free(staged);
     return 1;
 }
 
-void tessera_bytes_hex(ScripturaLine *line, const unsigned char *bytes, unsigned int count)
+void tessera_bytes_hex(VerbaLinea *line, const unsigned char *bytes, unsigned int count)
 {
     for (unsigned int byte = 0u; byte < count; byte += 1u)
     {
-        scriptura_hex(line, bytes[byte], 2u);
+        mmgr_line_hex(line, bytes[byte], 2u);
     }
 }
 
@@ -51,26 +51,26 @@ static const char *tessera_environment(const char *name)
     return ((value != NULL) && (value[0] != '\0')) ? value : NULL;
 }
 
-static int tessera_line_done(ScripturaLine *line)
+static int tessera_line_done(VerbaLinea *line)
 {
-    return scriptura_finish(line) != 0ull;
+    return mmgr_line_finish(line) != 0ull;
 }
 
 int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char *path, unsigned int capacity)
 {
-    ScripturaLine line = {path, capacity, 0ull};
+    VerbaLinea line = {path, capacity, 0ull};
 #if defined(_WIN32)
-    scriptura_text(&line, s_tessera_pipe);
+    mmgr_line_put(&line, s_tessera_pipe);
     // a runtime named apart (a test's) is a pipe of its own, as it is a folder of its own on Linux; a backslash, which
-    // a pipe's name may not hold past its prefix, is written as '_'
+    // a pipe's name may not contain past its prefix, is written as '_'
     const char *const runtime = tessera_environment("TESSERA_RUNTIME");
     for (const char *walk = runtime; (walk != NULL) && (*walk != '\0'); walk += 1)
     {
-        scriptura_character(&line, (*walk == '\\') ? '_' : *walk);
+        mmgr_line_ch(&line, (*walk == '\\') ? '_' : *walk);
     }
     if (runtime != NULL)
     {
-        scriptura_character(&line, '-');
+        mmgr_line_ch(&line, '-');
     }
     tessera_bytes_hex(&line, device, TESSERA_DEVICE_BYTES);
 #else
@@ -82,18 +82,18 @@ int tessera_path_endpoint(const unsigned char device[TESSERA_DEVICE_BYTES], char
     }
     else
     {
-        scriptura_text(&line, s_tessera_temporary);
+        mmgr_line_put(&line, s_tessera_temporary);
     }
-    scriptura_text(&line, s_tessera_socket);
+    mmgr_line_put(&line, s_tessera_socket);
     tessera_bytes_hex(&line, device, TESSERA_DEVICE_BYTES);
-    scriptura_text(&line, s_tessera_socket_end);
+    mmgr_line_put(&line, s_tessera_socket_end);
 #endif
     return tessera_line_done(&line);
 }
 
 int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *path, unsigned int capacity)
 {
-    ScripturaLine line = {path, capacity, 0ull};
+    VerbaLinea line = {path, capacity, 0ull};
     const char *const chosen = tessera_environment("TESSERA_STATE");
     if (chosen != NULL)
     {
@@ -108,8 +108,8 @@ int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *p
             return 0;
         }
         tessera_text_staged(&line, local);
-        scriptura_character(&line, TESSERA_SEPARATOR);
-        scriptura_text(&line, s_tessera_folder);
+        mmgr_line_ch(&line, TESSERA_SEPARATOR);
+        mmgr_line_put(&line, s_tessera_folder);
 #else
         const char *const state = tessera_environment("XDG_STATE_HOME");
         const char *const home = tessera_environment("HOME");
@@ -120,16 +120,16 @@ int tessera_path_state(const unsigned char device[TESSERA_DEVICE_BYTES], char *p
         tessera_text_staged(&line, (state != NULL) ? state : home);
         if (state != NULL)
         {
-            scriptura_character(&line, TESSERA_SEPARATOR);
-            scriptura_text(&line, s_tessera_folder);
+            mmgr_line_ch(&line, TESSERA_SEPARATOR);
+            mmgr_line_put(&line, s_tessera_folder);
         }
         else
         {
-            scriptura_text(&line, s_tessera_local_state);
+            mmgr_line_put(&line, s_tessera_local_state);
         }
 #endif
     }
-    scriptura_character(&line, TESSERA_SEPARATOR);
+    mmgr_line_ch(&line, TESSERA_SEPARATOR);
     tessera_bytes_hex(&line, device, TESSERA_DEVICE_BYTES);
     return tessera_line_done(&line);
 }
@@ -141,13 +141,13 @@ int tessera_path_lost(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned
     {
         return 0;
     }
-    ScripturaLine line = {path, capacity, 0ull};
+    VerbaLinea line = {path, capacity, 0ull};
     line.at = strlen(path);
-    scriptura_character(&line, TESSERA_SEPARATOR);
-    scriptura_text(&line, s_tessera_lost);
-    scriptura_character(&line, TESSERA_SEPARATOR);
-    scriptura_hex(&line, identity, 16u);
-    scriptura_character(&line, '-');
+    mmgr_line_ch(&line, TESSERA_SEPARATOR);
+    mmgr_line_put(&line, s_tessera_lost);
+    mmgr_line_ch(&line, TESSERA_SEPARATOR);
+    mmgr_line_hex(&line, identity, 16u);
+    mmgr_line_ch(&line, '-');
     tessera_bytes_hex(&line, signum->bytes, ENGINE_SIGNUM_BYTES);
     return tessera_line_done(&line);
 }

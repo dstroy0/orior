@@ -13,30 +13,30 @@ static char s_pdf[1u << 22u];
 static int pdf_read(const char *layout_text, const CliPrintListing **listing, CliPrintLayout *layout)
 {
     static char s_listing[1u << 16u];
-    CliLine text = {s_listing, sizeof(s_listing), 0ull};
-    cli_line_text(&text, "{\"title\":\"main.py \xe2\x80\x94 orior\",\"lines\":[");
+    VerbaLinea text = {s_listing, sizeof(s_listing), 0ull};
+    mmgr_line_put(&text, "{\"title\":\"main.py \xe2\x80\x94 orior\",\"lines\":[");
     for (unsigned int number = 1u; number <= 120u; number += 1u)
     {
-        cli_line_text(&text, (number > 1u) ? ",{\"number\":" : "{\"number\":");
-        cli_line_decimal(&text, number, 1u);
-        cli_line_text(&text, ",\"runs\":[{\"text\":\"print(");
-        cli_line_decimal(&text, number, 1u);
-        cli_line_text(&text, ") # (\xc3\xa9) \\\\ \xe2\x98\x83\",\"color\":\"#7a5ee0\",\"bold\":");
-        cli_line_text(&text, ((number % 2u) == 0u) ? "true" : "false");
-        cli_line_text(&text, ",\"italic\":");
-        cli_line_text(&text, ((number % 3u) == 0u) ? "true}]}" : "false}]}");
+        mmgr_line_put(&text, (number > 1u) ? ",{\"number\":" : "{\"number\":");
+        mmgr_line_decimal(&text, number, 1u);
+        mmgr_line_put(&text, ",\"runs\":[{\"text\":\"print(");
+        mmgr_line_decimal(&text, number, 1u);
+        mmgr_line_put(&text, ") # (\xc3\xa9) \\\\ \xe2\x98\x83\",\"color\":\"#7a5ee0\",\"bold\":");
+        mmgr_line_put(&text, ((number % 2u) == 0u) ? "true" : "false");
+        mmgr_line_put(&text, ",\"italic\":");
+        mmgr_line_put(&text, ((number % 3u) == 0u) ? "true}]}" : "false}]}");
     }
-    cli_line_text(&text, "],\"tab\":4}");
+    mmgr_line_put(&text, "],\"tab\":4}");
     unsigned int read = CLI_JSON_NONE;
     const CliJson *json = cli_check_parsed(s_listing, text.at, &read);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliPrintListing *held = NULL;
-    if (!cli_print_listing_read(json, read, &held, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    CliPrintListing *read_listing = NULL;
+    if (!cli_print_listing_read(json, read, &read_listing, &err_msg))
     {
         return 0;
     }
-    *listing = held;
+    *listing = read_listing;
     json =
         cli_check_parsed(layout_text, cellul.len(&(CatenaFinitaCfg){.src = layout_text, .cap = CLI_CELLS_POOL}), &read);
     cli_print_layout_read(json, read, layout);
@@ -45,11 +45,12 @@ static int pdf_read(const char *layout_text, const CliPrintListing **listing, Cl
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     static CliPrintLayout s_layout;
     const CliPrintListing *listing = NULL;
     cli_print_take();
     cli_check(pdf_read("{}", &listing, &s_layout), "the listing reads");
-    CliLine pdf = {s_pdf, sizeof(s_pdf) - 1u, 0ull};
+    VerbaLinea pdf = {s_pdf, sizeof(s_pdf) - 1u, 0ull};
     unsigned long long pages = 0ull;
     cli_print_pdf(listing, &s_layout, &pdf, &pages);
     s_pdf[pdf.at] = '\0';
@@ -68,10 +69,10 @@ int main(void)
                  .src = s_pdf, .cap = CLI_CELLS_POOL, .other = "print\\(12\\)", .other_cap = CLI_CELLS_POOL}) != NULL),
         "a line is shown as its text");
     char count[32];
-    CliLine counted = {count, sizeof(count), 0ull};
-    cli_line_text(&counted, "/Count ");
-    cli_line_decimal(&counted, pages, 1u);
-    (void)cli_line_closed(&counted);
+    VerbaLinea counted = {count, sizeof(count), 0ull};
+    mmgr_line_put(&counted, "/Count ");
+    mmgr_line_decimal(&counted, pages, 1u);
+    (void)mmgr_line_finish(&counted);
     cli_check(cellul.find(&(CatenaFinitaCfg){
                   .src = s_pdf, .cap = CLI_CELLS_POOL, .other = count, .other_cap = CLI_CELLS_POOL}) != NULL,
               "the page tree counts the pages");
@@ -106,10 +107,10 @@ int main(void)
             offset = offset * 10ull + (unsigned long long)(line[digit] - '0');
         }
         char object[32];
-        CliLine named = {object, sizeof(object), 0ull};
-        cli_line_decimal(&named, index, 1u);
-        cli_line_text(&named, " 0 obj");
-        (void)cli_line_closed(&named);
+        VerbaLinea named = {object, sizeof(object), 0ull};
+        mmgr_line_decimal(&named, index, 1u);
+        mmgr_line_put(&named, " 0 obj");
+        (void)mmgr_line_finish(&named);
         found =
             (offset < pdf.at) &&
             cli_text_same(s_pdf + offset, object, cellul.len(&(CatenaFinitaCfg){.src = object, .cap = CLI_CELLS_POOL}));

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// git_commit.c: chosen files committed, whole or in part, a commit to each repository that holds some; a file a merge
-// left in conflict marked resolved; and a file put back as the last commit left it
+// git_commit.c: chosen files committed, whole or in part, a commit to each repository that contains some; a file a
+// merge left in conflict marked resolved; and a file put back as the last commit left it
 #include "git_internal.h"
 
 // the most files a commit is chosen, and the most bytes of its message
@@ -9,10 +9,10 @@
 
 #define CLI_GIT_MESSAGE (1u << 16u)
 
-// the bytes the line of what git says of a commit is begun with, doubling as it says more
-#define CLI_GIT_SAID_FIRST 4096u
+// the bytes the line of what git reports of a commit is begun with, doubling as it reports more
+#define CLI_GIT_OUTPUT_INIT_CAP 4096u
 
-// What a commit is made of, held under the lock in one cell sized to the files chosen and the message: the files of one
+// What a commit is made of, guarded by the lock in one cell sized to the files chosen and the message: the files of one
 // repository in part and whole, the words git is run with, the chosen paths, each chosen path's
 // repository and whether it is committed yet, the paths as git is given them from the repository's folder, and the
 // message trimmed, in a room of `message_room` bytes
@@ -24,7 +24,7 @@ typedef struct
     const char **paths;
     unsigned int *owner;
     int *done;
-    char (*shown)[CLI_PATH_LONGEST];
+    char (*shown)[CLI_PATH_MAX_LEN];
     char *message;
     unsigned long long message_room;
 } CliCommitting;
@@ -35,12 +35,12 @@ static const char *s_repos[CLI_GIT_REPOSITORIES];
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // the commit's room taken for `count` chosen paths and `message` trimmed, the message's room CLI_GIT_MESSAGE at the
-// most: 1, or 0 with why said where more files are chosen than a commit takes or the cellblock could not meet it
-static int cli_committing_taken(const char *message, unsigned int count, CliLine *said)
+// most: 1, or 0 with why given where more files are chosen than a commit takes or the cellblock could not meet it
+static int cli_committing_taken(const char *message, unsigned int count, VerbaLinea *err_msg)
 {
     if (count > CLI_GIT_CHOSEN)
     {
-        cli_line_text(said, "more files are chosen than one commit takes");
+        mmgr_line_put(err_msg, "more files are chosen than one commit takes");
         return 0;
     }
     const char *from = message;
@@ -53,14 +53,14 @@ static int cli_committing_taken(const char *message, unsigned int count, CliLine
     const unsigned long long parts = many * sizeof(CliGitPart);
     const unsigned long long pointers = ((many + 8ull) + (many * 2ull)) * sizeof(const char *);
     const unsigned long long marks = many * (sizeof(unsigned int) + sizeof(int));
-    char *const cell =
-        cli_cell_taken_by(&g_cli_git_cells, parts + pointers + marks + (many * CLI_PATH_LONGEST) + room, "a commit");
+    char *const cell = g_cli_cells->persistent_buf_alloc(parts + pointers + marks + (many * CLI_PATH_MAX_LEN) + room,
+                                                         &g_cli_git_cells);
     if (cell == NULL)
     {
-        cli_line_text(said, "a commit's room could not be taken");
+        mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
     }
-    // each list starts on a boundary its type keeps: the cell's on CLI_CELL_ALIGN, the parts' and the pointers'
+    // each list starts on a boundary its type requires: the cell's on MMGR_CARCER_ALIGN, the parts' and the pointers'
     // lengths multiples of a pointer's, and the marks' of an int's
     s_committing.own_parts = (CliGitPart *)(void *)cell;
     s_committing.words = (const char **)(void *)(cell + parts);
@@ -68,8 +68,8 @@ static int cli_committing_taken(const char *message, unsigned int count, CliLine
     s_committing.paths = s_committing.own_whole + many;
     s_committing.owner = (unsigned int *)(void *)(cell + parts + pointers);
     s_committing.done = (int *)(void *)(s_committing.owner + many);
-    s_committing.shown = (char (*)[CLI_PATH_LONGEST])(void *)(cell + parts + pointers + marks);
-    s_committing.message = cell + parts + pointers + marks + (many * CLI_PATH_LONGEST);
+    s_committing.shown = (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + parts + pointers + marks);
+    s_committing.message = cell + parts + pointers + marks + (many * CLI_PATH_MAX_LEN);
     s_committing.message_room = room;
     return 1;
 }
@@ -77,21 +77,21 @@ static int cli_committing_taken(const char *message, unsigned int count, CliLine
 // the commit's room given back
 static void cli_committing_given(void)
 {
-    cli_cell_given_by(&g_cli_git_cells, s_committing.own_parts);
+    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
     s_committing = (CliCommitting){0};
 }
 
-// `message` trimmed into the message held: 1, or 0 with why said where nothing is left
-static int cli_message(const char *message, CliLine *said)
+// `message` trimmed into the message stored: 1, or 0 with why given where nothing is left
+static int cli_message(const char *message, VerbaLinea *err_msg)
 {
     const char *from = message;
     const char *to = message + cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL});
     cli_git_trimmed(&from, &to);
-    CliLine line = {s_committing.message, s_committing.message_room, 0ull};
-    cli_line_counted(&line, from, (unsigned long long)(to - from));
-    if ((from == to) || (cli_line_closed(&line) == 0ull))
+    VerbaLinea line = {s_committing.message, s_committing.message_room, 0ull};
+    mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
+    if ((from == to) || (mmgr_line_finish(&line) == 0ull))
     {
-        cli_line_text(said, (from == to) ? "a commit needs a message" : "the commit's message is too long");
+        mmgr_line_put(err_msg, (from == to) ? "a commit needs a message" : "the commit's message is too long");
         return 0;
     }
     return 1;
@@ -103,44 +103,45 @@ static unsigned int cli_shown_words(const char *const *paths, unsigned int count
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         char *const shown = s_committing.shown[first + index];
-        CliLine line = {shown, CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&line, "./");
-        cli_line_text(&line, paths[index]);
-        cli_line_closed(&line);
+        VerbaLinea line = {shown, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, "./");
+        mmgr_line_put(&line, paths[index]);
+        mmgr_line_finish(&line);
         s_committing.words[at] = shown;
         at += 1u;
     }
     return at;
 }
 
-// the files at `paths` committed with the message held, each as it stands, whether changed, new or gone, every other
-// file left as it was, in the repository at `folder`: git's line for the commit into `out`, 1, or 0 with why said
-static int cli_commit_in(const char *folder, const char *const *paths, unsigned int count, CliLine *out, CliLine *said)
+// the files at `paths` committed with the message stored, each as it stands, whether changed, new or gone, every other
+// file left as it was, in the repository at `folder`: git's line for the commit into `out`, 1, or 0 with why given
+static int cli_commit_in(const char *folder, const char *const *paths, unsigned int count, VerbaLinea *out,
+                         VerbaLinea *err_msg)
 {
     if (count == 0u)
     {
-        cli_line_text(said, "no file is chosen to commit");
+        mmgr_line_put(err_msg, "no file is chosen to commit");
         return 0;
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        char joined[CLI_PATH_LONGEST];
-        if (!cli_inside(folder, paths[at], joined, said))
+        char joined[CLI_PATH_MAX_LEN];
+        if (!cli_inside(folder, paths[at], joined, err_msg))
         {
             return 0;
         }
     }
-    CliLine ran;
-    if (!cli_line_growing(&ran, CLI_GIT_SAID_FIRST, "what git says of a commit"))
+    VerbaLinea ran;
+    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP))
     {
-        cli_line_text(said, "a commit's room could not be taken");
+        mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
     }
     s_committing.words[0] = "add";
     s_committing.words[1] = "-A";
     s_committing.words[2] = "--";
     unsigned int words = cli_shown_words(paths, count, 0u, 3u);
-    int made = cli_git_run(folder, s_committing.words, words, &ran, said);
+    int made = cli_git_run(folder, s_committing.words, words, &ran, err_msg);
     if (made)
     {
         ran.at = 0ull;
@@ -149,63 +150,63 @@ static int cli_commit_in(const char *folder, const char *const *paths, unsigned 
         s_committing.words[2] = s_committing.message;
         s_committing.words[3] = "--";
         words = cli_shown_words(paths, count, 0u, 4u);
-        made = cli_git_run(folder, s_committing.words, words, &ran, said);
+        made = cli_git_run(folder, s_committing.words, words, &ran, err_msg);
     }
     if (made)
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    cli_cell_given(ran.out);
+    g_cli_cells->persistent_buf_release(ran.out, NULL);
     return made;
 }
 
 // the files of `whole` as each stands and the files of `parts` with the text each is given committed with the message
-// held, everything else left as the last commit had it, in what is staged as well: the commit is made from an index of
-// its own, read from the last commit; after it, the tree's index takes the commit's text for each file committed, and a
-// file committed in part keeps the rest of its changes unstaged. git's line for the commit into `out`, 1, or 0 with why
-// said
+// stored, everything else left as the last commit had it, in what is staged as well: the commit is made from an index
+// of its own, read from the last commit; after it, git's index takes the commit's text for each file committed,
+// and a file committed in part leaves the rest of its changes unstaged. git's line for the commit into `out`, 1, or 0
+// with why given
 static int cli_commit_parts_in(const char *folder, const char *const *whole, unsigned int whole_count,
-                               const CliGitPart *parts, unsigned int part_count, CliLine *out, CliLine *said)
+                               const CliGitPart *parts, unsigned int part_count, VerbaLinea *out, VerbaLinea *err_msg)
 {
     if ((whole_count == 0u) && (part_count == 0u))
     {
-        cli_line_text(said, "no file is chosen to commit");
+        mmgr_line_put(err_msg, "no file is chosen to commit");
         return 0;
     }
     for (unsigned int at = 0u; at < (whole_count + part_count); at += 1u)
     {
-        char joined[CLI_PATH_LONGEST];
-        if (!cli_inside(folder, (at < whole_count) ? whole[at] : parts[at - whole_count].path, joined, said))
+        char joined[CLI_PATH_MAX_LEN];
+        if (!cli_inside(folder, (at < whole_count) ? whole[at] : parts[at - whole_count].path, joined, err_msg))
         {
             return 0;
         }
     }
     static const char *const s_where[3] = {"rev-parse", "--git-path", "orior-commit-index"};
-    char named[CLI_PATH_LONGEST];
-    CliLine where = {named, sizeof(named), 0ull};
-    if (!cli_git_run(folder, s_where, 3u, &where, said) || (cli_line_closed(&where) == 0ull))
+    char named[CLI_PATH_MAX_LEN];
+    VerbaLinea where = {named, sizeof(named), 0ull};
+    if (!cli_git_run(folder, s_where, 3u, &where, err_msg) || (mmgr_line_finish(&where) == 0ull))
     {
         return 0;
     }
-    char index[CLI_PATH_LONGEST];
+    char index[CLI_PATH_MAX_LEN];
     const int absolute = (named[0] == '/') || (named[0] == '\\') || ((named[0] != '\0') && (named[1] == ':'));
-    CliLine joined = {index, sizeof(index), 0ull};
-    cli_line_text(&joined, absolute ? "" : folder);
-    cli_line_text(&joined, absolute ? "" : "/");
-    cli_line_text(&joined, named);
-    cli_line_closed(&joined);
-    CliLine ran;
-    if (!cli_line_growing(&ran, CLI_GIT_SAID_FIRST, "what git says of a commit"))
+    VerbaLinea joined = {index, sizeof(index), 0ull};
+    mmgr_line_put(&joined, absolute ? "" : folder);
+    mmgr_line_put(&joined, absolute ? "" : "/");
+    mmgr_line_put(&joined, named);
+    mmgr_line_finish(&joined);
+    VerbaLinea ran;
+    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP))
     {
-        cli_line_text(said, "a commit's room could not be taken");
+        mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
     }
     static const char *const s_head[2] = {"read-tree", "HEAD"};
     static const char *const s_empty[2] = {"read-tree", "--empty"};
-    char unsaid[CLI_PATH_LONGEST];
-    CliLine ignored = {unsaid, sizeof(unsaid), 0ull};
+    char err_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
     int made = cli_git_ran(folder, s_head, 2u, index, NULL, 0ull, &ran, &ignored) ||
-               cli_git_ran(folder, s_empty, 2u, index, NULL, 0ull, &ran, said);
+               cli_git_ran(folder, s_empty, 2u, index, NULL, 0ull, &ran, err_msg);
     if (made && (whole_count != 0u))
     {
         ran.at = 0ull;
@@ -213,20 +214,20 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
         s_committing.words[1] = "-A";
         s_committing.words[2] = "--";
         const unsigned int words = cli_shown_words(whole, whole_count, 0u, 3u);
-        made = cli_git_ran(folder, s_committing.words, words, index, NULL, 0ull, &ran, said);
+        made = cli_git_ran(folder, s_committing.words, words, index, NULL, 0ull, &ran, err_msg);
     }
     for (unsigned int at = 0u; made && (at < part_count); at += 1u)
     {
         static const char *const s_hash[3] = {"hash-object", "-w", "--stdin"};
-        char blob[CLI_NAME_LONGEST];
-        CliLine hashed = {blob, sizeof(blob), 0ull};
-        made = cli_git_ran(folder, s_hash, 3u, index, parts[at].text, parts[at].length, &hashed, said) &&
-               (cli_line_closed(&hashed) != 0ull);
-        char listed[CLI_PATH_LONGEST * 2u];
-        CliLine listing = {listed, sizeof(listed), 0ull};
+        char blob[CLI_NAME_MAX_LEN];
+        VerbaLinea hashed = {blob, sizeof(blob), 0ull};
+        made = cli_git_ran(folder, s_hash, 3u, index, parts[at].text, parts[at].length, &hashed, err_msg) &&
+               (mmgr_line_finish(&hashed) != 0ull);
+        char listed[CLI_PATH_MAX_LEN * 2u];
+        VerbaLinea listing = {listed, sizeof(listed), 0ull};
         const char *const ls[4] = {"ls-files", "-s", "--", parts[at].path};
-        made = made && cli_git_ran(folder, ls, 4u, index, NULL, 0ull, &listing, said);
-        cli_line_closed(&listing);
+        made = made && cli_git_ran(folder, ls, 4u, index, NULL, 0ull, &listing, err_msg);
+        mmgr_line_finish(&listing);
         // the mode the index gives the file, its first word, else a plain file's
         unsigned long long mode_length = 0ull;
         while ((listed[mode_length] != '\0') && (listed[mode_length] != ' ') && (listed[mode_length] != '\t') &&
@@ -234,29 +235,29 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
         {
             mode_length += 1ull;
         }
-        char info[CLI_PATH_LONGEST + CLI_NAME_LONGEST];
-        CliLine cacheinfo = {info, sizeof(info), 0ull};
+        char info[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
+        VerbaLinea cacheinfo = {info, sizeof(info), 0ull};
         if (mode_length != 0ull)
         {
-            cli_line_counted(&cacheinfo, listed, mode_length);
+            mmgr_line_put_n(&cacheinfo, listed, mode_length);
         }
         else
         {
-            cli_line_text(&cacheinfo, "100644");
+            mmgr_line_put(&cacheinfo, "100644");
         }
-        cli_line_character(&cacheinfo, ',');
-        cli_line_text(&cacheinfo, blob);
-        cli_line_character(&cacheinfo, ',');
-        cli_line_text(&cacheinfo, parts[at].path);
+        mmgr_line_ch(&cacheinfo, ',');
+        mmgr_line_put(&cacheinfo, blob);
+        mmgr_line_ch(&cacheinfo, ',');
+        mmgr_line_put(&cacheinfo, parts[at].path);
         const char *const update[4] = {"update-index", "--add", "--cacheinfo", info};
-        made = made && (cli_line_closed(&cacheinfo) != 0ull) &&
-               cli_git_ran(folder, update, 4u, index, NULL, 0ull, &ran, said);
+        made = made && (mmgr_line_finish(&cacheinfo) != 0ull) &&
+               cli_git_ran(folder, update, 4u, index, NULL, 0ull, &ran, err_msg);
     }
     if (made)
     {
         ran.at = 0ull;
         const char *const commit[3] = {"commit", "-m", s_committing.message};
-        made = cli_git_ran(folder, commit, 3u, index, NULL, 0ull, &ran, said);
+        made = cli_git_ran(folder, commit, 3u, index, NULL, 0ull, &ran, err_msg);
     }
     query_removed(index);
     if (made)
@@ -270,21 +271,21 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
             const char *const path = parts[at].path;
             words = cli_shown_words(&path, 1u, whole_count + at, words);
         }
-        char reset_said[CLI_PATH_LONGEST];
-        CliLine reset = {reset_said, sizeof(reset_said), 0ull};
-        made = cli_git_run(folder, s_committing.words, words, &reset, said);
+        char reset_buf[CLI_PATH_MAX_LEN];
+        VerbaLinea reset = {reset_buf, sizeof(reset_buf), 0ull};
+        made = cli_git_run(folder, s_committing.words, words, &reset, err_msg);
     }
     if (made)
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    cli_cell_given(ran.out);
+    g_cli_cells->persistent_buf_release(ran.out, NULL);
     return made;
 }
 
-// the chosen paths put each with the repository of the tree that holds it, and the repositories read: 1, or 0 with
-// why said where no repository holds one
-static int cli_owned(const char *root, const char *const *paths, unsigned int count, CliLine *said)
+// the chosen paths put each with the repository of the tree that contains it, and the repositories read: 1, or 0 with
+// why given where no repository contains one
+static int cli_owned(const char *root, const char *const *paths, unsigned int count, VerbaLinea *err_msg)
 {
     // the repositories read for this commit, given back as it ends
     cli_git_repositories(root, &s_repositories);
@@ -299,8 +300,8 @@ static int cli_owned(const char *root, const char *const *paths, unsigned int co
                           cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}));
         if (owner == NULL)
         {
-            cli_line_text(said, "no repository holds ");
-            cli_line_text(said, paths[at]);
+            mmgr_line_put(err_msg, "no repository contains ");
+            mmgr_line_put(err_msg, paths[at]);
             return 0;
         }
         for (unsigned int repo = 0u; repo < s_repositories.count; repo += 1u)
@@ -312,17 +313,17 @@ static int cli_owned(const char *root, const char *const *paths, unsigned int co
     return 1;
 }
 
-// the folder of repository `repo` of the tree into `folder`, which holds CLI_PATH_LONGEST
+// the folder of repository `repo` of the tree into `folder`, sized for CLI_PATH_MAX_LEN
 static void cli_repo_folder(const char *root, unsigned int repo, char *folder)
 {
-    CliLine line = {folder, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, root);
+    VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, root);
     if (s_repos[repo][0] != '\0')
     {
-        cli_line_character(&line, '/');
-        cli_line_text(&line, s_repos[repo]);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, s_repos[repo]);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // a path of the tree as its repository's folder gives it
@@ -332,16 +333,16 @@ static const char *cli_short(const char *path, unsigned int repo)
     return (length == 0ull) ? path : (path + length + 1ull);
 }
 
-int cli_git_commit(const char *root, const char *message, const char *const *paths, unsigned int count, CliLine *out,
-                   CliLine *said)
+int cli_git_commit(const char *root, const char *message, const char *const *paths, unsigned int count, VerbaLinea *out,
+                   VerbaLinea *err_msg)
 {
     if (count == 0u)
     {
-        cli_line_text(said, "no file is chosen to commit");
+        mmgr_line_put(err_msg, "no file is chosen to commit");
         return 0;
     }
     cli_lock_take(&s_lock);
-    int ok = cli_committing_taken(message, count, said) && cli_owned(root, paths, count, said);
+    int ok = cli_committing_taken(message, count, err_msg) && cli_owned(root, paths, count, err_msg);
     const unsigned long long from = out->at;
     for (unsigned int first = 0u; ok && (first < count); first += 1u)
     {
@@ -360,16 +361,16 @@ int cli_git_commit(const char *root, const char *message, const char *const *pat
                 group += 1u;
             }
         }
-        char folder[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
         cli_repo_folder(root, repo, folder);
-        char error[CLI_PATH_LONGEST];
-        CliLine why = {error, sizeof(error), 0ull};
-        cli_line_text(out, (out->at != from) ? "\n" : "");
+        char error[CLI_PATH_MAX_LEN];
+        VerbaLinea why = {error, sizeof(error), 0ull};
+        mmgr_line_put(out, (out->at != from) ? "\n" : "");
         const unsigned long long line_at = out->at;
         if (!cli_message(message, &why) || !cli_commit_in(folder, s_committing.own_whole, group, out, &why))
         {
             out->at = (line_at > from) ? (line_at - 1ull) : line_at;
-            cli_git_failed_after(out, from, error, why.at, said);
+            cli_git_failed_after(out, from, error, why.at, err_msg);
             ok = 0;
         }
     }
@@ -380,21 +381,21 @@ int cli_git_commit(const char *root, const char *message, const char *const *pat
 }
 
 int cli_git_commit_parts(const char *root, const char *message, const char *const *whole, unsigned int whole_count,
-                         const CliGitPart *parts, unsigned int part_count, CliLine *out, CliLine *said)
+                         const CliGitPart *parts, unsigned int part_count, VerbaLinea *out, VerbaLinea *err_msg)
 {
     if ((whole_count == 0u) && (part_count == 0u))
     {
-        cli_line_text(said, "no file is chosen to commit");
+        mmgr_line_put(err_msg, "no file is chosen to commit");
         return 0;
     }
     cli_lock_take(&s_lock);
     const unsigned int count = whole_count + part_count;
-    int ok = cli_committing_taken(message, count, said);
+    int ok = cli_committing_taken(message, count, err_msg);
     for (unsigned int at = 0u; ok && (at < count); at += 1u)
     {
         s_committing.paths[at] = (at < whole_count) ? whole[at] : parts[at - whole_count].path;
     }
-    ok = ok && cli_owned(root, s_committing.paths, count, said);
+    ok = ok && cli_owned(root, s_committing.paths, count, err_msg);
     const unsigned long long from = out->at;
     for (unsigned int first = 0u; ok && (first < count); first += 1u)
     {
@@ -433,17 +434,17 @@ int cli_git_commit_parts(const char *root, const char *message, const char *cons
                 own_whole += 1u;
             }
         }
-        char folder[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
         cli_repo_folder(root, repo, folder);
-        char error[CLI_PATH_LONGEST];
-        CliLine why = {error, sizeof(error), 0ull};
-        cli_line_text(out, (out->at != from) ? "\n" : "");
+        char error[CLI_PATH_MAX_LEN];
+        VerbaLinea why = {error, sizeof(error), 0ull};
+        mmgr_line_put(out, (out->at != from) ? "\n" : "");
         const unsigned long long line_at = out->at;
         if (!cli_message(message, &why) || !cli_commit_parts_in(folder, s_committing.own_whole, own_whole,
                                                                 s_committing.own_parts, own_parts, out, &why))
         {
             out->at = (line_at > from) ? (line_at - 1ull) : line_at;
-            cli_git_failed_after(out, from, error, why.at, said);
+            cli_git_failed_after(out, from, error, why.at, err_msg);
             ok = 0;
         }
     }
@@ -453,45 +454,45 @@ int cli_git_commit_parts(const char *root, const char *message, const char *cons
     return ok;
 }
 
-int cli_git_resolve(const char *root, const char *path, CliLine *said)
+int cli_git_resolve(const char *root, const char *path, VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
-    char shown[CLI_PATH_LONGEST];
-    if (!cli_git_beside(root, path, folder, shown, said))
+    char folder[CLI_PATH_MAX_LEN];
+    char shown[CLI_PATH_MAX_LEN];
+    if (!cli_git_beside(root, path, folder, shown, err_msg))
     {
         return 0;
     }
     const char *const args[3] = {"add", "--", shown};
-    char told[CLI_PATH_LONGEST];
-    CliLine out = {told, sizeof(told), 0ull};
-    return cli_git_run(folder, args, 3u, &out, said);
+    char out_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
+    return cli_git_run(folder, args, 3u, &out, err_msg);
 }
 
-int cli_git_rollback(const char *root, const char *path, CliLine *said)
+int cli_git_rollback(const char *root, const char *path, VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
-    char shown[CLI_PATH_LONGEST];
-    if (!cli_git_beside(root, path, folder, shown, said))
+    char folder[CLI_PATH_MAX_LEN];
+    char shown[CLI_PATH_MAX_LEN];
+    if (!cli_git_beside(root, path, folder, shown, err_msg))
     {
         return 0;
     }
-    char head[CLI_PATH_LONGEST + 8u];
-    CliLine named = {head, sizeof(head), 0ull};
-    cli_line_text(&named, "HEAD:");
-    cli_line_text(&named, shown);
-    cli_line_closed(&named);
-    const char *const held[3] = {"cat-file", "-e", head};
+    char head[CLI_PATH_MAX_LEN + 8u];
+    VerbaLinea named = {head, sizeof(head), 0ull};
+    mmgr_line_put(&named, "HEAD:");
+    mmgr_line_put(&named, shown);
+    mmgr_line_finish(&named);
+    const char *const exists_args[3] = {"cat-file", "-e", head};
     CliGitGave *const gave = cli_git_taken();
-    const int holds = cli_git_asked(folder, held, 3u, gave);
+    const int exists = cli_git_query(folder, exists_args, 3u, gave);
     cli_git_given(gave);
-    if (!holds)
+    if (!exists)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, " is not in the last commit: delete it from the tree to take it back");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, " is not in the last commit: delete it from the tree to take it back");
         return 0;
     }
     const char *const args[6] = {"restore", "--source=HEAD", "--staged", "--worktree", "--", shown};
-    char told[CLI_PATH_LONGEST];
-    CliLine out = {told, sizeof(told), 0ull};
-    return cli_git_run(folder, args, 6u, &out, said);
+    char out_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea out = {out_buf, sizeof(out_buf), 0ull};
+    return cli_git_run(folder, args, 6u, &out, err_msg);
 }

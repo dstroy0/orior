@@ -9,6 +9,6 @@
 // a report's category as the template's dropdown names it, "unknown" for any other; and the issue's body, laid out
 // as the template's form lays out what is entered in it, its fingerprint `print` last, into `out` (report_page.c)
 const char *cli_report_category_of(const CliReport *report);
-void cli_report_body(const CliReport *report, const char *root, const char *print, CliLine *out);
+void cli_report_body(const CliReport *report, const char *root, const char *print, VerbaLinea *out);
 
 #endif

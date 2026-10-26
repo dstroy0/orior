@@ -4,9 +4,9 @@
 #define INTERFACE_H
 
 // The interface, a probe runner (engine_table.md item 11(f) 3). A probe is a small program that
-// asks the target one question. It runs in a probe process the interface can lose, and the interface records how it ended: the
-// exit status, or the signal or fault that ended it, the output it wrote and the time it took. A probe that kills its
-// process is answered by its death, and the next question is asked from a fresh process
+// queries the target one question. It runs in a probe process the interface can lose, and the interface records how it
+// ended: the exit status, or the signal or fault that ended it, the output it wrote and the time it took. A probe that
+// kills its process is answered by its death, and the next question is queried from a fresh process
 
 #include "../../../engine/engine_config.h"
 
@@ -32,12 +32,12 @@ extern "C"
         INTERFACE_ENDING_OUT_OF_TIME = 4
     } InterfaceEnding;
 
-    // the rule a signal or a fault names, the same on every host; the code keeps what the host told apart
+    // the rule a signal or a fault names, the same on every host; the code preserves what the host distinguished
     typedef enum
     {
         INTERFACE_FAULT_NONE = 0,
         // an integer division by zero or one that overflows (INT_MIN / -1), or a floating-point trap: SIGFPE, which
-        // does not tell them apart, or on Windows 0xC0000094, 0xC0000095 and 0xC000008D to 0xC0000093, which do
+        // does not distinguish them, or on Windows 0xC0000094, 0xC0000095 and 0xC000008D to 0xC0000093, which do
         INTERFACE_FAULT_ARITHMETIC = 1,
         // an address the process may not read or write: SIGSEGV or SIGBUS, or 0xC0000005 and 0xC0000006
         INTERFACE_FAULT_ADDRESS = 2,
@@ -64,9 +64,9 @@ extern "C"
         unsigned long long limit_microseconds;
     } InterfaceProbe;
 
-    // what the interface saw: how the probe ended and its code, the rule that names, the bytes of output it wrote, as many
-    // of them as `output_capacity` holds read into `output` and ended by a zero byte (the capacity counts that byte),
-    // and its wall time. `output` may be NULL with a capacity of 0
+    // what the interface saw: how the probe ended and its code, the rule that names, the bytes of output it wrote, as
+    // many of them as `output_capacity` allows read into `output` and ended by a zero byte (the capacity counts that
+    // byte), and its wall time. `output` may be NULL with a capacity of 0
     typedef struct
     {
         InterfaceEnding ending;
@@ -85,8 +85,8 @@ extern "C"
 
     // The launch queue, shared by every process on the host that starts a child through the interface: at most
     // INTERFACE_LAUNCHES_AT_ONCE children run at once, and INTERFACE_LAUNCH_SPACING_MILLISECONDS pass between one
-    // start and the next. interface_probe_run takes a place before it starts a probe, says the start is made once it
-    // is, which holds the next start off for the spacing, and gives the place back when the probe has ended. A
+    // start and the next. interface_probe_run takes a place before it starts a probe, signals the start is made once it
+    // is, which delays the next start off for the spacing, and gives the place back when the probe has ended. A
     // program that starts a child of its own, the compilers the query crate starts, paces itself by the same two
     // numbers
 #define INTERFACE_LAUNCHES_AT_ONCE 4u

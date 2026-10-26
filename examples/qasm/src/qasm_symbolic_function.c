@@ -10,13 +10,13 @@ static const QasmRationalFunction qasm_symbolic_zero = {{0, 0u, NULL}, {0, 1u, &
 
 static const QasmRationalFunction qasm_symbolic_one = {{0, 1u, &qasm_symbolic_unit}, {0, 1u, &qasm_symbolic_unit}};
 
-// the result replaces what the slot held, or is dropped on an error
-static long qasm_function_install(long status, QasmRationalFunction *result, QasmRationalFunction *slot)
+// the result replaces what the destination contained, or is dropped on an error
+static long qasm_function_install(long status, QasmRationalFunction *result, QasmRationalFunction *destination)
 {
     if (status == 0L)
     {
-        qasm_function_release_parts(slot);
-        *slot = *result;
+        qasm_function_release_parts(destination);
+        *destination = *result;
     }
     else
     {
@@ -25,7 +25,7 @@ static long qasm_function_install(long status, QasmRationalFunction *result, Qas
     return status;
 }
 
-// rat_make: both shifted so neither holds a negative power, reduced by their monic gcd, and the denominator made
+// rat_make: both shifted so neither contains a negative power, reduced by their monic gcd, and the denominator made
 // monic. `made` is empty on entry.
 static long qasm_function_make(const QasmPolynomial *numerator, const QasmPolynomial *denominator,
                                QasmRationalFunction *made, EngineError *error)

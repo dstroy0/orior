@@ -14,7 +14,7 @@ typedef struct
     int place[4];
 } AnswerKeyNode;
 
-long node_slot_of(const AnswerKey *key, long long identity)
+long node_index_of(const AnswerKey *key, long long identity)
 {
     unsigned int low = 0u;
     unsigned int high = key->node_count;

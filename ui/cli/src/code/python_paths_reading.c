@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// python_paths_reading.c: one script's reading held in a cell taken for the script, each list of it sized to the
-// script's bytes within the most a reading holds, and given back once what it found is read
+// python_paths_reading.c: one script's reading stored in a cell taken for the script, each list of it sized to the
+// script's bytes within the most a reading contains, and given back once what it found is read
 #include "python_paths_internal.h"
 
-// the expressions and items a reading holds past its script's bytes, the bytes of texts it holds for each byte of its
-// script, past the bytes it holds for any, as a script's names are put again as the paths it joins
+// the expressions and items a reading stores past its script's bytes, the bytes of texts it stores for each byte of its
+// script, past the bytes it stores for any, as a script's names are put again as the paths it joins
 #define CLI_PY_SLACK 256u
 #define CLI_PY_TEXT_EACH 8ull
 #define CLI_PY_TEXT_ANY (256ull << 10u)
 
 CliPy g_cli_py;
-CliCellsTally g_cli_python_cells = CLI_CELLS_TALLY("cli_python_paths");
+CellOwner g_cli_python_cells = MMGR_CELL_OWNER("cli_python_paths");
 
 // the reading's cell, taken by cli_py_reading_taken
 static unsigned char *s_reading;
@@ -61,7 +61,7 @@ int cli_py_reading_taken(unsigned long long size)
     at += text_most;
     const unsigned long long line_text_at = at;
     at += line_text;
-    s_reading = cli_cell_taken_by(&g_cli_python_cells, at, "a Python script's reading");
+    s_reading = g_cli_cells->persistent_buf_alloc(at, &g_cli_python_cells);
     if (s_reading == NULL)
     {
         return 0;
@@ -85,7 +85,7 @@ int cli_py_reading_taken(unsigned long long size)
 
 void cli_py_reading_given(void)
 {
-    cli_cell_given_by(&g_cli_python_cells, s_reading);
+    g_cli_cells->persistent_buf_release(s_reading, &g_cli_python_cells);
     s_reading = NULL;
     memor.set(&(MemoriaCfg){.dst = &g_cli_py, .val = 0, .bytes = sizeof(g_cli_py)});
     cli_py_lines_placed(NULL, 0u, NULL, NULL, 0u);

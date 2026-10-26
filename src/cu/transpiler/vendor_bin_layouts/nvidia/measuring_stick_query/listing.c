@@ -27,14 +27,14 @@ unsigned long long msq_now(void)
 #endif
 }
 
-// the bytes `size` of them at `bytes` added to the end of `*memory`, which holds `*held` of `*room`: 1, or 0 where the
-// system gives no memory
-int msq_added(unsigned char **memory, size_t *held, size_t *room, const void *bytes, size_t size)
+// the bytes `size` of them at `bytes` added to the end of `*memory`, which contains `*size_used` of `*room`: 1, or 0
+// where the system gives no memory
+int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const void *bytes, size_t size)
 {
-    if ((*held + size) > *room)
+    if ((*size_used + size) > *room)
     {
         size_t grown = (*room != 0u) ? *room : 65536u;
-        while (grown < (*held + size))
+        while (grown < (*size_used + size))
         {
             grown *= 2u;
         }
@@ -46,13 +46,13 @@ int msq_added(unsigned char **memory, size_t *held, size_t *room, const void *by
         *memory = larger;
         *room = grown;
     }
-    memcpy(*memory + *held, bytes, size);
-    *held += size;
+    memcpy(*memory + *size_used, bytes, size);
+    *size_used += size;
     return 1;
 }
 
 // `count` runs at `runs` read by the vendor as one raw run: handed to the run's writer as the reader's stream of the
-// .qry (qry_streamed), the disassembler pointed at that stream and run over it, and everything it printed kept in the
+// .qry (qry_streamed), the disassembler pointed at that stream and run over it, and everything it printed stored in the
 // reader's output and handed to the run as the cross's trace. Nothing but the run's writer writes a file. 0 where the
 // disassembler ended clean, 1 where it did not, and -1 where it could not be run
 int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
@@ -81,7 +81,7 @@ int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count)
     char *const command[] = {(char *)s_nvdisasm, (char *)"--binary", (char *)s_architecture, stream_path, NULL};
     InterfaceAnswer answer;
     const unsigned long long vendor_began = msq_now();
-    // read again where the output ran past the room it was given, the room grown to hold it
+    // read again where the output ran past the room it was given, the room grown to contain it
     for (unsigned int tried = 0u; tried < 2u; tried += 1u)
     {
         memset(&answer, 0, sizeof(answer));
@@ -134,7 +134,7 @@ int msq_word(char c)
 
 void msq_listing_free(MsqListing *listing)
 {
-    // a view holds neither room nor text: its lines are another listing's
+    // a view owns neither room nor text: its lines are another listing's
     if (listing->room != 0u)
     {
         free(listing->lines);
@@ -145,7 +145,7 @@ void msq_listing_free(MsqListing *listing)
 
 // Every instruction of the listing `printed` of `length` bytes, in the order printed: a comment of four or more hex
 // digits giving its offset, `/*<offset>*/`, then space, then its text to the first `;` on its line. Its text past a
-// guard, `@P0 `, `@!UPT `, is its body. The listing keeps one copy of the text, each instruction's text ended in it
+// guard, `@P0 `, `@!UPT `, is its body. The listing stores one copy of the text, each instruction's text ended in it
 // where it ends. 1, or 0 where the system gives no memory
 int msq_listing_read(const char *printed, size_t length, MsqListing *listing)
 {
@@ -290,15 +290,15 @@ MsqReading msq_listing_at(const MsqListing *listing, unsigned long long offset)
 // the address the vendor stopped at, read off `at address 0x<hex>`: 1, or 0 where it names none
 int msq_stopped_at(const char *text, size_t length, unsigned long long *address)
 {
-    static const char s_said[] = "at address 0x";
-    const size_t said = sizeof(s_said) - 1u;
-    for (size_t at = 0u; (at + said) < length; at += 1u)
+    static const char s_address_marker[] = "at address 0x";
+    const size_t marker_length = sizeof(s_address_marker) - 1u;
+    for (size_t at = 0u; (at + marker_length) < length; at += 1u)
     {
-        if (memcmp(text + at, s_said, said) != 0)
+        if (memcmp(text + at, s_address_marker, marker_length) != 0)
         {
             continue;
         }
-        size_t walk = at + said;
+        size_t walk = at + marker_length;
         unsigned long long value = 0ull;
         size_t digits = 0u;
         while ((walk < length) &&

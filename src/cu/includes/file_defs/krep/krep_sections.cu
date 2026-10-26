@@ -90,7 +90,7 @@ extern "C" void krep_side_release(EngineSideSection *section)
 {
     EngineSideBytes *const side = &section->side;
     free(side->pixel_at);
-    free(side->pixel_kept);
+    free(side->pixel_stored);
     free(side->byte_start);
     free(side->bytes);
     free(side->name_start);

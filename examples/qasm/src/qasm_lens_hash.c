@@ -29,13 +29,13 @@ static unsigned long long qasm_lens_splitmix_next(QasmLensSplitMix *draws)
 
 static unsigned int qasm_lens_splitmix_word(QasmLensSplitMix *draws)
 {
-    // masked to its low 32 bits, which an unsigned int holds exactly
+    // masked to its low 32 bits, which an unsigned int represents exactly
     return (unsigned int)(qasm_lens_splitmix_next(draws) & 0xFFFFFFFFull);
 }
 
 unsigned int qasm_lens_splitmix_bits(QasmLensSplitMix *draws, unsigned int count)
 {
-    // masked below 2^count, count at most QASM_LENS_BITS_MAX < 32, which an unsigned int holds exactly
+    // masked below 2^count, count at most QASM_LENS_BITS_MAX < 32, which an unsigned int represents exactly
     return (unsigned int)(qasm_lens_splitmix_next(draws) & ((1ull << count) - 1ull));
 }
 

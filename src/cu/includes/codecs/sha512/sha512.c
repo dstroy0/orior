@@ -7,8 +7,8 @@
 #include <limits.h>
 #include <string.h>
 
-_Static_assert(CHAR_BIT == 8, "sha512: a byte holds 8 bits");
-_Static_assert(ULLONG_MAX >= 0xFFFFFFFFFFFFFFFFull, "sha512: an unsigned long long holds a 64-bit word");
+_Static_assert(CHAR_BIT == 8, "sha512: a byte contains 8 bits");
+_Static_assert(ULLONG_MAX >= 0xFFFFFFFFFFFFFFFFull, "sha512: an unsigned long long represents a 64-bit word");
 
 // the words of the hash value, of the message schedule and of a block
 #define SHA512_STATE_WORDS 8u
@@ -104,7 +104,7 @@ static void sha512_compress(unsigned long long state[SHA512_STATE_WORDS], const 
 void sha512_begun(Sha512 *sha)
 {
     memcpy(sha->state, s_initial_state, sizeof(sha->state));
-    sha->held = 0u;
+    sha->buffered = 0u;
     sha->taken = 0ull;
 }
 
@@ -115,17 +115,17 @@ void sha512_taken(Sha512 *sha, const void *data, size_t bytes)
     sha->taken += bytes;
     while (left > 0u)
     {
-        const size_t room = SHA512_BLOCK_BYTES - sha->held;
+        const size_t room = SHA512_BLOCK_BYTES - sha->buffered;
         const size_t piece = (left < room) ? left : room;
-        memcpy(sha->block + sha->held, at, piece);
-        // a piece is at most the block's 128 bytes, which an unsigned int holds
-        sha->held += (unsigned int)piece;
+        memcpy(sha->block + sha->buffered, at, piece);
+        // a piece is at most the block's 128 bytes, which an unsigned int represents
+        sha->buffered += (unsigned int)piece;
         at += piece;
         left -= piece;
-        if (sha->held == SHA512_BLOCK_BYTES)
+        if (sha->buffered == SHA512_BLOCK_BYTES)
         {
             sha512_compress(sha->state, sha->block);
-            sha->held = 0u;
+            sha->buffered = 0u;
         }
     }
 }
@@ -135,18 +135,18 @@ void sha512_ended(Sha512 *sha, unsigned char digest[SHA512_BYTES])
     // the message is padded with a one bit, zeros, and its length in bits as 128 bits (section 5.1.2)
     const unsigned long long low_bits = sha->taken << 3u;
     const unsigned long long high_bits = sha->taken >> 61u;
-    sha->block[sha->held] = 0x80u;
-    sha->held += 1u;
-    if (sha->held > (SHA512_BLOCK_BYTES - SHA512_LENGTH_BYTES))
+    sha->block[sha->buffered] = 0x80u;
+    sha->buffered += 1u;
+    if (sha->buffered > (SHA512_BLOCK_BYTES - SHA512_LENGTH_BYTES))
     {
-        memset(sha->block + sha->held, 0, SHA512_BLOCK_BYTES - sha->held);
+        memset(sha->block + sha->buffered, 0, SHA512_BLOCK_BYTES - sha->buffered);
         sha512_compress(sha->state, sha->block);
-        sha->held = 0u;
+        sha->buffered = 0u;
     }
-    memset(sha->block + sha->held, 0, SHA512_BLOCK_BYTES - sha->held);
+    memset(sha->block + sha->buffered, 0, SHA512_BLOCK_BYTES - sha->buffered);
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        // each byte of the length shifted down to its own keeps only that byte
+        // each byte of the length shifted down to its own retains only that byte
         sha->block[SHA512_BLOCK_BYTES - 16u + at] = (unsigned char)(high_bits >> (56u - (8u * at)));
         sha->block[SHA512_BLOCK_BYTES - 8u + at] = (unsigned char)(low_bits >> (56u - (8u * at)));
     }
@@ -155,7 +155,7 @@ void sha512_ended(Sha512 *sha, unsigned char digest[SHA512_BYTES])
     {
         for (unsigned int at = 0u; at < 8u; at += 1u)
         {
-            // each byte of a word shifted down to its own keeps only that byte
+            // each byte of a word shifted down to its own retains only that byte
             digest[(8u * word) + at] = (unsigned char)(sha->state[word] >> (56u - (8u * at)));
         }
     }

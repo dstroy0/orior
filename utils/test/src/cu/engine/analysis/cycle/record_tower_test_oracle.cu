@@ -35,7 +35,7 @@ unsigned short tower_test_sample(unsigned int volume, unsigned int position)
     {
         value = (position * 977u) & 0xFFFFu;
     }
-    // the value is masked to 16 bits, which an unsigned short holds exactly
+    // the value is masked to 16 bits, which an unsigned short represents exactly
     return (unsigned short)value;
 }
 
@@ -305,7 +305,7 @@ void tower_test_operation(const unsigned long long extent[4], const unsigned sho
     }
 }
 
-// emit T or T^-1 under a ruleset into `steps` from the registers `in`: sized first with no steps held, then written
+// emit T or T^-1 under a ruleset into `steps` from the registers `in`: sized first with no steps written, then written
 // into a capacity of exactly that size; 1 where both calls ran and wrote as many steps as the first counted
 int tower_test_build(const unsigned long long extent[4], const TowerTestRuleset *ruleset, int inverse,
                      const std::vector<unsigned int> &in, std::vector<unsigned int> &out,

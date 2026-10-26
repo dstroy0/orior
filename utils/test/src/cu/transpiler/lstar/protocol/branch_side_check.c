@@ -1,44 +1,44 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// branch_side_check.c: whether the side a branch is asked from leaves a mark on its reading, put to the host
+// branch_side_check.c: whether the side a branch is queried from leaves a mark on its reading, put to the host
 //
 //     branch_side_check
 //
 // gnascor names a steady lead and a steady rite apart, core and surv. lead and rite are the sign of the signed
 // difference between two branches at a link, and the two names are one state seen from either side unless the side
-// itself leaves a mark. This asks the part whether it does. Two branches doing the same work, seven links each, are
-// put through the known order one after the other, the one asked first changing from trial to trial, and every
-// link's solved cost read against the other branch's. If asking first leaves no mark, the first branch reads dearer
+// itself leaves a mark. This queries the part on whether it does. Two branches doing the same work, seven links each,
+// are put through the known order one after the other, the one queried first changing from trial to trial, and every
+// link's solved cost read against the other branch's. If querying first leaves no mark, the first branch reads dearer
 // in as many trials as the second does.
 //
 // Every branch is solved in exact integers, one pass a trial, and two branches compare at a link by cross-multiplying
-// their exact costs. Nothing is summed and nothing is rounded. A trial reads first-dearer where the branch asked first
-// is dearer at more of its seven links than not, and counts once: a slow pass lands on every link of the branch it
-// falls in, and counting links apart would count one slow pass seven times. The sides are read apart where the trials
-// lean past twice their own spread: (2·first - trials)² > 4·trials.
+// their exact costs. Nothing is summed and nothing is rounded. A trial reads first-dearer where the branch queried
+// first is dearer at more of its seven links than not, and counts once: a slow pass lands on every link of the branch
+// it falls in, and counting links apart would count one slow pass seven times. The sides are read apart where the
+// trials lean past twice their own spread: (2·first - trials)² > 4·trials.
 //
-// One claim is held. Two branches that do not do the same work, the second reading 512 more times at every link,
-// read the first as cheaper at every link, whichever side it is asked from: the sign follows the cost and not the
+// One claim is asserted. Two branches that do not do the same work, the second reading 512 more times at every link,
+// read the first as cheaper at every link, whichever side it is queried from: the sign follows the cost and not the
 // side. Its trials are a descent: a link stands while its count leans past twice its spread neither way, and the
 // trials end the first trial nothing stands, or at CHECK_TRIALS_MOST. Whether the side leaves a mark is printed and
-// not held, since that is the part's to say. Its trials are not cut short where the count first leans: two branches
-// doing the same work give a count that leans by chance at some trial more often than the spread says. It is read on
-// the whole record, at CHECK_TRIALS_MOST. The run size is steered by the part, as query_descent.h states.
+// not asserted, since that is the part's to determine. Its trials are not cut short where the count first leans: two
+// branches doing the same work give a count that leans by chance at some trial more often than the spread predicts. It
+// is read on the whole record, at CHECK_TRIALS_MOST. The run size is steered by the part, as query_descent.h states.
 #include "query_descent.h"
 
 #include <stdio.h>
 
 #define CHECK_LINKS QUERY_DESCENT_LINKS
-// the most trials either reading puts: the bound it is held to, fixed before it starts
+// the most trials either reading puts: the bound it is checked against, fixed before it starts
 #define CHECK_TRIALS_MOST 64u
 
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -57,16 +57,16 @@ typedef struct
 } CheckReading;
 
 // a branch: seven links reading a still word, link k `extra` + 64·k more times past its first read
-static void check_branch(QueryAsk *link, unsigned int side, unsigned long long extra)
+static void check_branch(Query *link, unsigned int side, unsigned long long extra)
 {
     for (unsigned int number = 0u; number < CHECK_LINKS; number += 1u)
     {
-        QueryAsk asked = {0};
-        // a pointer widened to the 64-bit integer an ask carries, which host_entry.h narrows back to the same pointer
-        asked.address = (unsigned long long)&s_owned[((side * CHECK_LINKS) + number) * 16u];
-        asked.qualifier = QUERY_ADVANCES;
-        asked.turns = extra + (64ull * number);
-        link[number] = asked;
+        Query query = {0};
+        // a pointer widened to the 64-bit integer a query carries, which host_entry.h narrows back to the same pointer
+        query.address = (unsigned long long)&s_owned[((side * CHECK_LINKS) + number) * 16u];
+        query.qualifier = QUERY_ADVANCES;
+        query.turns = extra + (64ull * number);
+        link[number] = query;
     }
 }
 
@@ -74,8 +74,7 @@ static void check_branch(QueryAsk *link, unsigned int side, unsigned long long e
 #define CHECK_CLOCK_TURNS (1ull << 26)
 
 // `link` put through the known order on `clock`, one pass of `repeat` puts, solved exactly
-static void check_solve(const QueryAsk *link, unsigned long long clock, unsigned long long repeat,
-                        CheckReading *reading)
+static void check_solve(const Query *link, unsigned long long clock, unsigned long long repeat, CheckReading *reading)
 {
     static QueryCost s_cost[CHECK_LINKS];
     QueryOrder order = {0};
@@ -107,16 +106,16 @@ int main(void)
     unsigned long long clock = 0ull;
     for (unsigned long long word = 0ull; (word < 16ull) && (clock == 0ull); word += 1ull)
     {
-        QueryAsk counts = {0};
+        Query counts = {0};
         counts.address = page + (word * 4ull);
         counts.qualifier = QUERY_ADVANCES;
         counts.turns = CHECK_CLOCK_TURNS;
-        clock = (query_ask(&counts) == 1u) ? counts.address : 0ull;
+        clock = (query_put(&counts) == 1u) ? counts.address : 0ull;
     }
     check_that(clock != 0ull, "a word of the shared page advances, and it is the clock");
 
-    static QueryAsk s_left[CHECK_LINKS];
-    static QueryAsk s_right[CHECK_LINKS];
+    static Query s_left[CHECK_LINKS];
+    static Query s_right[CHECK_LINKS];
     static CheckReading s_first;
     static CheckReading s_second;
     check_branch(s_left, 0u, 0ull);
@@ -125,11 +124,11 @@ int main(void)
     sized.links = CHECK_LINKS;
     sized.clock = clock;
     sized.turns = CHECK_CLOCK_TURNS;
-    QueryDescent kept;
+    QueryDescent descent;
     unsigned int solved = 0u;
-    const unsigned long long repeat = query_descent_size(&sized, &kept, &solved);
+    const unsigned long long repeat = query_descent_size(&sized, &descent, &solved);
 
-    // the held claim: the sign follows the cost from either side, a bit for every trial at every link, 1 where the
+    // the asserted claim: the sign follows the cost from either side, a bit for every trial at every link, 1 where the
     // cheaper branch reads cheaper
     check_branch(s_right, 1u, 512ull);
     unsigned int cheaper[CHECK_LINKS] = {0u};
@@ -182,18 +181,18 @@ int main(void)
     }
     const int marked = (query_descent_leans(first_dearer, CHECK_TRIALS_MOST) != 0) ||
                        (query_descent_leans(CHECK_TRIALS_MOST - first_dearer, CHECK_TRIALS_MOST) != 0);
-    printf("  branches doing the same work, %u trials, the side asked first changing every trial:\n",
+    printf("  branches doing the same work, %u trials, the side queried first changing every trial:\n",
            CHECK_TRIALS_MOST);
-    printf("    the branch asked first reads dearer in %u, the other in %u\n", first_dearer,
+    printf("    the branch queried first reads dearer in %u, the other in %u\n", first_dearer,
            CHECK_TRIALS_MOST - first_dearer);
-    printf("    the branch asked first reads dearer, link by link:");
+    printf("    the branch queried first reads dearer, link by link:");
     for (unsigned int number = 0u; number < CHECK_LINKS; number += 1u)
     {
         printf(" %u", link_first_dearer[number]);
     }
     printf(" of %u\n", CHECK_TRIALS_MOST);
     const char *const verdict = (marked != 0) ? "leaves a mark" : "leaves no mark";
-    printf("    the side asked from %s past twice the spread\n", verdict);
+    printf("    the side queried from %s past twice the spread\n", verdict);
 #else
     printf("  no shared page named to this test on this platform: the branches are not put\n");
 #endif

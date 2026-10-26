@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 #include "ptx_target.h"
 
-// the lane as PTX: ptx.krs, which nvJitLink assembles, its header asked of NVRTC
+// the lane as PTX: ptx.krs, which nvJitLink assembles, its header queried from NVRTC
 PtxTarget::PtxTarget(void) : CodeGenerator("ptx.krs")
 {
 }

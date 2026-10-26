@@ -15,6 +15,8 @@ tessera_run, which admits it on the device's daemon, and the daemon decides what
     harness.py run --idle SECONDS         a suite silent this long once admitted is hung (1800; 0 never)
     harness.py build gui | mmgr           the window's program and MMgr's suites built (harness_build.py)
     harness.py cli build | test           the CLI built and its checks run (harness_cli.py)
+    harness.py container ...              the window's systems as containers that stay up, each with its own copy of the
+                                          tree: Linux, Ubuntu on arm64, Raspberry Pi's Debian, Windows, macOS (harness_container.py)
     harness.py source ...                 the C sources read by the compiler and the linker's tools (harness_build.py)
     harness.py sonarqube ...              the server's project, scan and duplications (harness_sonarqube.py)
     harness.py window ...                 the released window started, ended, pictured, measured, its suite run (harness_window.py)
@@ -76,6 +78,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import harness_build  # noqa: E402
 import harness_cli  # noqa: E402
+import harness_container  # noqa: E402
 import harness_wsl  # noqa: E402
 import harness_sonarqube  # noqa: E402
 import harness_window  # noqa: E402
@@ -441,8 +444,6 @@ IDLE_SECONDS = 1800
 # the processors a suite reserves where its env names none: a suite that links cached objects peaks near one, and
 # the daemon still holds a suite's kept peak where that is more
 PROCESSORS = 2
-CHECKS_LINE = re.compile(r"(\d+) checks, (\d+) failed")
-EXIT_LINE = re.compile(r"test exit (\d+)")
 
 
 def find_tessera_run():
@@ -453,13 +454,9 @@ def find_tessera_run():
 
 
 def script_bash():
-    """The bash that runs a suite script, as a Windows path where tessera_run is a Windows program."""
-    bash = shutil.which("bash")
-    if bash and os.name == "nt":
-        r = subprocess.run(["cygpath", "-m", bash], capture_output=True, text=True)
-        if r.returncode == 0 and r.stdout.strip():
-            return r.stdout.strip()
-    return bash
+    """The bash that runs a suite script, Git's on Windows (harness_cli.bash), as a Windows path where tessera_run is a
+    Windows program."""
+    return harness_cli.bash().replace("\\", "/")
 
 
 def wsl_path(path):
@@ -585,11 +582,7 @@ def script_run_one(name, e, tessera, root=ROOT, script_build=SCRIPT_BUILD, idle=
     secs = time.time() - t0
     with open(log, encoding="utf-8", errors="replace") as fh:
         text = fh.read()
-    checks = failed = 0
-    for m in CHECKS_LINE.finditer(text):
-        checks += int(m.group(1))
-        failed += int(m.group(2))
-    exits = [int(m.group(1)) for m in EXIT_LINE.finditer(text)]
+    checks, failed, exits = harness_cli.output_read(text)
     # a suite passes when the job exited 0, every "test exit" it printed is 0 and no check failed; a script that
     # built nothing and ran nothing prints no check line, which is reported, never read as a pass by silence
     if rc != 0 or failed or any(exits):
@@ -778,7 +771,7 @@ def build_parser():
     p.add_argument("--at", metavar="HASH", help="run the suites of orior as it was at this commit (fetched from origin if need be)")
     p.add_argument("--idle", type=int, default=IDLE_SECONDS, metavar="SECONDS", help="end a suite whose log has not grown this long once admitted (0: never)")
     p.set_defaults(fn=cmd_run)
-    for module in (harness_build, harness_cli, harness_sonarqube, harness_window, harness_wsl):
+    for module in (harness_build, harness_cli, harness_container, harness_sonarqube, harness_window, harness_wsl):
         module.register(sub)
     return ap
 

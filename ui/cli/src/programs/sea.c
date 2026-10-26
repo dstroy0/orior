@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// sea.c: the modules a script asks for from outside Node, the fuse Node reads to know a blob was added, a Windows
+// sea.c: the modules a script requires from outside Node, the fuse Node reads to know a blob was added, a Windows
 // program's signature, and the note a Linux program's blob goes in
 #include "sea.h"
 
@@ -9,7 +9,7 @@ static const char s_fuse[] = "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0";
 
 static const char s_resource[] = "NODE_SEA_BLOB";
 
-// the modules Node holds itself, which a single executable can require
+// the modules Node contains itself, which a single executable can require
 static const char *const s_builtin[51] = {"assert",
                                           "async_hooks",
                                           "buffer",
@@ -62,7 +62,7 @@ static const char *const s_builtin[51] = {"assert",
                                           "dns/promises",
                                           "readline/promises"};
 
-unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_LONGEST], unsigned int room)
+unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_MAX_LEN], unsigned int room)
 {
     static const char *const s_marks[4] = {"require(", "import(", "from ", "import "};
     unsigned int count = 0u;
@@ -107,9 +107,9 @@ unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_LONGEST], 
             }
             if (!bare && (length != 0ull) && !known && (count < room))
             {
-                CliLine line = {found[count], CLI_NAME_LONGEST, 0ull};
-                cli_line_counted(&line, name, length);
-                cli_line_closed(&line);
+                VerbaLinea line = {found[count], CLI_NAME_MAX_LEN, 0ull};
+                mmgr_line_put_n(&line, name, length);
+                mmgr_line_finish(&line);
                 count += 1u;
             }
         }
@@ -117,7 +117,7 @@ unsigned int cli_sea_outside(const char *text, char (*found)[CLI_NAME_LONGEST], 
     return count;
 }
 
-int cli_sea_fuse_at(const unsigned char *program, unsigned long long size, unsigned long long *at, CliLine *said)
+int cli_sea_fuse_at(const unsigned char *program, unsigned long long size, unsigned long long *at, VerbaLinea *err_msg)
 {
     const unsigned long long length = sizeof(s_fuse) - 1u;
     for (unsigned long long place = 0ull; (place + length) <= size; place += 1ull)
@@ -129,7 +129,7 @@ int cli_sea_fuse_at(const unsigned char *program, unsigned long long size, unsig
             return 1;
         }
     }
-    cli_line_text(said, "node holds no single executable's fuse, or holds it turned already");
+    mmgr_line_put(err_msg, "node contains no single executable's fuse, or contains it turned already");
     return 0;
 }
 
@@ -160,36 +160,36 @@ static void cli_put(unsigned char *bytes, unsigned long long at, unsigned long l
 }
 
 int cli_sea_signature(const unsigned char *program, unsigned long long size, unsigned long long *entry,
-                      unsigned long long *length, CliLine *said)
+                      unsigned long long *length, VerbaLinea *err_msg)
 {
     static const char s_ends[] = "the program ends inside its own headers";
     unsigned long long pe = 0ull;
     if ((size < 2ull) || (program[0] != 'M') || (program[1] != 'Z'))
     {
-        cli_line_text(said, "node is no Windows program");
+        mmgr_line_put(err_msg, "node is no Windows program");
         return -1;
     }
     if (!cli_number(program, size, 0x3cull, 4u, &pe))
     {
-        cli_line_text(said, s_ends);
+        mmgr_line_put(err_msg, s_ends);
         return -1;
     }
     if (((pe + 4ull) > size) || (memor.cmp(&(MemoriaCfg){.src = program + pe, .other = "PE\0\0", .bytes = 4u}) != 0))
     {
-        cli_line_text(said, "node is no Windows program");
+        mmgr_line_put(err_msg, "node is no Windows program");
         return -1;
     }
     const unsigned long long optional = pe + 24ull;
     unsigned long long magic = 0ull;
     if (!cli_number(program, size, optional, 2u, &magic))
     {
-        cli_line_text(said, s_ends);
+        mmgr_line_put(err_msg, s_ends);
         return -1;
     }
     if ((magic != 0x20bull) && (magic != 0x10bull))
     {
-        cli_line_text(said, "node's optional header is of the unknown kind 0x");
-        cli_line_hex(said, magic, 1u);
+        mmgr_line_put(err_msg, "node's optional header is of the unknown kind 0x");
+        mmgr_line_hex(err_msg, magic, 1u);
         return -1;
     }
     *entry = optional + ((magic == 0x20bull) ? 112ull : 96ull) + (4ull * 8ull);
@@ -197,7 +197,7 @@ int cli_sea_signature(const unsigned char *program, unsigned long long size, uns
     unsigned long long table = 0ull;
     if (!cli_number(program, size, *entry, 4u, &offset) || !cli_number(program, size, *entry + 4ull, 4u, &table))
     {
-        cli_line_text(said, s_ends);
+        mmgr_line_put(err_msg, s_ends);
         return -1;
     }
     if ((offset == 0ull) || (table == 0ull))
@@ -211,7 +211,7 @@ int cli_sea_signature(const unsigned char *program, unsigned long long size, uns
 }
 
 int cli_sea_note(const unsigned char *program, unsigned long long size, unsigned long long data_size, CliSeaNote *note,
-                 CliLine *said)
+                 VerbaLinea *err_msg)
 {
     static const char s_ends[] = "the program ends inside its own headers";
     const unsigned long long page = 0x1000ull;
@@ -222,7 +222,7 @@ int cli_sea_note(const unsigned char *program, unsigned long long size, unsigned
                                  .bytes = 4u}) != 0) ||
         (program[4] != 2u) || (program[5] != 1u))
     {
-        cli_line_text(said, "node is no 64-bit little-endian Linux program");
+        mmgr_line_put(err_msg, "node is no 64-bit little-endian Linux program");
         return 0;
     }
     unsigned long long phoff = 0ull;
@@ -231,19 +231,19 @@ int cli_sea_note(const unsigned char *program, unsigned long long size, unsigned
     if (!cli_number(program, size, 0x20ull, 8u, &phoff) || !cli_number(program, size, 0x36ull, 2u, &entsize) ||
         !cli_number(program, size, 0x38ull, 2u, &count))
     {
-        cli_line_text(said, s_ends);
+        mmgr_line_put(err_msg, s_ends);
         return 0;
     }
     if (entsize != 56ull)
     {
-        cli_line_text(said, "node's program headers are ");
-        cli_line_decimal(said, entsize, 1u);
-        cli_line_text(said, " bytes each, not 56");
+        mmgr_line_put(err_msg, "node's program headers are ");
+        mmgr_line_decimal(err_msg, entsize, 1u);
+        mmgr_line_put(err_msg, " bytes each, not 56");
         return 0;
     }
     if (((phoff + (count * 56ull)) > size) || (count > CLI_SEA_HEADERS))
     {
-        cli_line_text(said, "node ends inside its program headers");
+        mmgr_line_put(err_msg, "node ends inside its program headers");
         return 0;
     }
     unsigned long long loaded_end = 0ull;
@@ -275,7 +275,7 @@ int cli_sea_note(const unsigned char *program, unsigned long long size, unsigned
     }
     if (!has_load)
     {
-        cli_line_text(said, "node loads no segment");
+        mmgr_line_put(err_msg, "node loads no segment");
         return 0;
     }
     loaded_end -= bias;
@@ -287,7 +287,7 @@ int cli_sea_note(const unsigned char *program, unsigned long long size, unsigned
     const unsigned long long name_size = sizeof(s_resource);
     if (data_size > 0xffffffffull)
     {
-        cli_line_text(said, "the blob is past 4 GB");
+        mmgr_line_put(err_msg, "the blob is past 4 GB");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = note->head, .val = 0, .bytes = sizeof(note->head)});

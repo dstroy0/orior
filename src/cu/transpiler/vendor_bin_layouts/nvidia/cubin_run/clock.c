@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// clock.c: the timer register, read through the BAR0 driver around a launch. The part's .ksc beside the machine file keeps
-// the word of its BAR0 registers that advances, `run answers <offset> clock address` (bus_clock.c), and the carrier
-// reads that word through the BAR0 driver (scaffolding/mmio_read.h) before and after each launch it times: the cost of
-// the launch is the word's advance, in the clock's own count (query_ask.h, Q1). Where the .ksc names no clock or
-// the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer says
-// which clock timed them
+// clock.c: the timer register, read through the BAR0 driver around a launch. The part's .ksc beside the machine file
+// records the word of its BAR0 registers that advances, `run answers <offset> clock address` (bus_clock.c), and the
+// carrier reads that word through the BAR0 driver (scaffolding/mmio_read.h) before and after each launch it times: the
+// cost of the launch is the word's advance, in the clock's own count (query_put.h, Q1). Where the .ksc names no clock
+// or the BAR0 driver is not reached, the launches are timed on the driver's event timer as before, and the answer
+// reports which clock timed them
 #include "cubin_run_internal.h"
 #include "../../../../includes/file_defs/ksc/ksc.h"
 
@@ -33,7 +33,7 @@ int cubin_run_clock_open(const char *machine_path)
             if (ksc_row_read(file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
                 (strcmp(s_row.question, "clock address") == 0))
             {
-                // an offset into BAR0 is far below what an unsigned int holds
+                // an offset into BAR0 is far below what an unsigned int represents
                 s_clock_offset = (unsigned int)s_row.value;
                 named = 1;
             }

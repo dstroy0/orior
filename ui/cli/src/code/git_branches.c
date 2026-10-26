@@ -5,8 +5,8 @@
 #include "../machine/net.h"
 #include "git_internal.h"
 
-// the most bytes of what git says of what it was asked to do kept to be told
-#define CLI_GIT_TOLD (1u << 16u)
+// the most bytes of what git reports of what it was requested to do, stored to be reported
+#define CLI_GIT_OUTPUT_MAX_LEN (1u << 16u)
 
 void cli_git_branches(const char *root, CliBranches *found)
 {
@@ -17,9 +17,9 @@ void cli_git_branches(const char *root, CliBranches *found)
     found->count = 0u;
     cli_git_text_begun(&found->text);
     CliGitGave *const gave = cli_git_taken();
-    const int asked = cli_git_asked(root, s_args, 5u, gave);
+    const int queried = cli_git_query(root, s_args, 5u, gave);
     const char *const end = gave->out + gave->out_size;
-    const char *line = asked ? gave->out : end;
+    const char *line = queried ? gave->out : end;
     while ((line < end) && (found->count < CLI_GIT_BRANCHES))
     {
         const char *stop = line;
@@ -59,52 +59,53 @@ void cli_git_branches(const char *root, CliBranches *found)
     cli_git_given(gave);
 }
 
-// git run with `args` at `root`, what it wrote and said let go: 1, or 0 with what it said went wrong
-static int cli_run_quiet(const char *root, const char *const *args, unsigned int count, CliLine *said)
+// git run with `args` at `root`, what it wrote and reported let go: 1, or 0 with what it reported went wrong
+static int cli_run_quiet(const char *root, const char *const *args, unsigned int count, VerbaLinea *err_msg)
 {
-    static char s_told[CLI_GIT_TOLD];
+    static char s_output_buf[CLI_GIT_OUTPUT_MAX_LEN];
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    CliLine out = {s_told, sizeof(s_told), 0ull};
-    const int ok = cli_git_run(root, args, count, &out, said);
+    VerbaLinea out = {s_output_buf, sizeof(s_output_buf), 0ull};
+    const int ok = cli_git_run(root, args, count, &out, err_msg);
     cli_lock_give(&s_lock);
     return ok;
 }
 
-int cli_git_branch_act(const char *root, const char *act, const char *name, const char *to, CliLine *out, CliLine *said)
+int cli_git_branch_act(const char *root, const char *act, const char *name, const char *to, VerbaLinea *out,
+                       VerbaLinea *err_msg)
 {
     if ((name[0] == '\0') || (name[0] == '-') || (to[0] == '-'))
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " is no branch's name");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " is no branch's name");
         return 0;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "create", .cap = CLI_CELLS_POOL}))
     {
         const char *const check[3] = {"check-ref-format", "--branch", name};
         const char *const args[3] = {"switch", "-c", name};
-        return cli_run_quiet(root, check, 3u, said) && cli_git_run(root, args, 3u, out, said);
+        return cli_run_quiet(root, check, 3u, err_msg) && cli_git_run(root, args, 3u, out, err_msg);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "switch", .cap = CLI_CELLS_POOL}))
     {
-        char remote_ref[CLI_PATH_LONGEST];
-        CliLine line = {remote_ref, sizeof(remote_ref), 0ull};
-        cli_line_text(&line, "refs/remotes/");
-        cli_line_text(&line, name);
-        cli_line_closed(&line);
+        char remote_ref[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {remote_ref, sizeof(remote_ref), 0ull};
+        mmgr_line_put(&line, "refs/remotes/");
+        mmgr_line_put(&line, name);
+        mmgr_line_finish(&line);
         const char *const shown[4] = {"show-ref", "--verify", "--quiet", remote_ref};
-        char unsaid[CLI_PATH_LONGEST];
-        CliLine ignored = {unsaid, sizeof(unsaid), 0ull};
+        char err_buf[CLI_PATH_MAX_LEN];
+        VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
         const int remote = cli_run_quiet(root, shown, 4u, &ignored);
         const char *const track[3] = {"switch", "--track", name};
         const char *const plain[2] = {"switch", name};
-        return remote ? cli_git_run(root, track, 3u, out, said) : cli_git_run(root, plain, 2u, out, said);
+        return remote ? cli_git_run(root, track, 3u, out, err_msg) : cli_git_run(root, plain, 2u, out, err_msg);
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "rename", .cap = CLI_CELLS_POOL}))
     {
         const char *const check[3] = {"check-ref-format", "--branch", to};
         const char *const args[4] = {"branch", "-m", name, to};
-        return cli_run_quiet(root, check, 3u, said) && cli_git_run(root, args, 4u, out, said);
+        return cli_run_quiet(root, check, 3u, err_msg) && cli_git_run(root, args, 4u, out, err_msg);
     }
     static const char *const s_acts[4] = {"delete", "delete-unmerged", "merge", "rebase"};
     static const char *const s_words[4][2] = {
@@ -114,11 +115,11 @@ int cli_git_branch_act(const char *root, const char *act, const char *name, cons
         if (cellul.eq(&(CatenaFinitaCfg){.src = act, .other = s_acts[at], .cap = CLI_CELLS_POOL}))
         {
             const char *const args[3] = {s_words[at][0], (s_words[at][1] != NULL) ? s_words[at][1] : name, name};
-            return cli_git_run(root, args, (s_words[at][1] != NULL) ? 3u : 2u, out, said);
+            return cli_git_run(root, args, (s_words[at][1] != NULL) ? 3u : 2u, out, err_msg);
         }
     }
-    cli_line_text(said, act);
-    cli_line_text(said, " is nothing a branch is asked to do");
+    mmgr_line_put(err_msg, act);
+    mmgr_line_put(err_msg, " is nothing a branch is requested to do");
     return 0;
 }
 
@@ -128,9 +129,9 @@ void cli_git_stashes(const char *root, CliStashes *found)
     found->count = 0u;
     cli_git_text_begun(&found->text);
     CliGitGave *const gave = cli_git_taken();
-    const int asked = cli_git_asked(root, s_args, 3u, gave);
+    const int queried = cli_git_query(root, s_args, 3u, gave);
     const char *const end = gave->out + gave->out_size;
-    const char *line = asked ? gave->out : end;
+    const char *line = queried ? gave->out : end;
     while ((line < end) && (found->count < CLI_GIT_STASHES))
     {
         const char *stop = line;
@@ -145,7 +146,7 @@ void cli_git_stashes(const char *root, CliStashes *found)
         unsigned long long when_length = 0ull;
         const char *const name = cli_git_field(&at, stop, '\x1f', &name_length);
         const char *const when = cli_git_field(&at, stop, '\x1f', &when_length);
-        // the subject is the rest of the line, whatever it holds
+        // the subject is the rest of the line, whatever it contains
         const char *const subject = (at <= stop) ? at : NULL;
         line = next;
         if (when == NULL)
@@ -163,8 +164,8 @@ void cli_git_stashes(const char *root, CliStashes *found)
     cli_git_given(gave);
 }
 
-int cli_git_stash_act(const char *root, const char *act, const char *name, const char *message, CliLine *out,
-                      CliLine *said)
+int cli_git_stash_act(const char *root, const char *act, const char *name, const char *message, VerbaLinea *out,
+                      VerbaLinea *err_msg)
 {
     int named = cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "stash@{", .cap = CLI_CELLS_POOL});
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
@@ -175,8 +176,8 @@ int cli_git_stash_act(const char *root, const char *act, const char *name, const
     }
     if ((!cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "push", .cap = CLI_CELLS_POOL})) && !named)
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " is no stash's name");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " is no stash's name");
         return 0;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "push", .cap = CLI_CELLS_POOL}))
@@ -184,82 +185,82 @@ int cli_git_stash_act(const char *root, const char *act, const char *name, const
         const char *from = message;
         const char *to = message + cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL});
         cli_git_trimmed(&from, &to);
-        char trimmed[CLI_GIT_TOLD];
-        CliLine line = {trimmed, sizeof(trimmed), 0ull};
-        cli_line_counted(&line, from, (unsigned long long)(to - from));
-        cli_line_closed(&line);
+        char trimmed[CLI_GIT_OUTPUT_MAX_LEN];
+        VerbaLinea line = {trimmed, sizeof(trimmed), 0ull};
+        mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
+        mmgr_line_finish(&line);
         const char *const args[5] = {"stash", "push", "--include-untracked", "-m", trimmed};
-        return cli_git_run(root, args, (from == to) ? 3u : 5u, out, said);
+        return cli_git_run(root, args, (from == to) ? 3u : 5u, out, err_msg);
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "apply", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "pop", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = act, .other = "drop", .cap = CLI_CELLS_POOL})))
     {
         const char *const args[3] = {"stash", act, name};
-        return cli_git_run(root, args, 3u, out, said);
+        return cli_git_run(root, args, 3u, out, err_msg);
     }
-    cli_line_text(said, act);
-    cli_line_text(said, " is nothing a stash is asked to do");
+    mmgr_line_put(err_msg, act);
+    mmgr_line_put(err_msg, " is nothing a stash is requested to do");
     return 0;
 }
 
-int cli_git_cherry_pick(const char *root, const char *id, CliLine *out, CliLine *said)
+int cli_git_cherry_pick(const char *root, const char *id, VerbaLinea *out, VerbaLinea *err_msg)
 {
     if (!cli_git_is_id(id))
     {
-        cli_line_text(said, id);
-        cli_line_text(said, " is not a commit");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is not a commit");
         return 0;
     }
     const char *const args[2] = {"cherry-pick", id};
-    return cli_git_run(root, args, 2u, out, said);
+    return cli_git_run(root, args, 2u, out, err_msg);
 }
 
-// the address of the remote the branch follows, or of origin, as git would reach it, into `address`, which holds
-// CLI_PATH_LONGEST, empty where git cannot say
+// the address of the remote the branch follows, or of origin, as git would reach it, into `address`, sized for
+// CLI_PATH_MAX_LEN, empty where git cannot determine
 static void cli_remote_address(const char *root, char *address)
 {
     static const char *const s_args[2] = {"ls-remote", "--get-url"};
-    char unsaid[CLI_PATH_LONGEST];
-    CliLine ignored = {unsaid, sizeof(unsaid), 0ull};
-    CliLine line = {address, CLI_PATH_LONGEST, 0ull};
+    char err_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
+    VerbaLinea line = {address, CLI_PATH_MAX_LEN, 0ull};
     if (!cli_git_run(root, s_args, 2u, &line, &ignored))
     {
         line.at = 0ull;
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
-int cli_git_push(const char *root, CliLine *out, CliLine *said)
+int cli_git_push(const char *root, VerbaLinea *out, VerbaLinea *err_msg)
 {
     static const char *const s_follows[4] = {"rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"};
     static const char *const s_push[1] = {"push"};
     static const char *const s_push_new[4] = {"push", "-u", "origin", "HEAD"};
-    char address[CLI_PATH_LONGEST];
+    char address[CLI_PATH_MAX_LEN];
     cli_remote_address(root, address);
-    if (!cli_net_reach(address, "git push", said))
+    if (!cli_net_reach(address, "git push", err_msg))
     {
         return 0;
     }
-    char unsaid[CLI_PATH_LONGEST];
-    CliLine ignored = {unsaid, sizeof(unsaid), 0ull};
-    return cli_run_quiet(root, s_follows, 4u, &ignored) ? cli_git_run(root, s_push, 1u, out, said)
-                                                        : cli_git_run(root, s_push_new, 4u, out, said);
+    char err_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea ignored = {err_buf, sizeof(err_buf), 0ull};
+    return cli_run_quiet(root, s_follows, 4u, &ignored) ? cli_git_run(root, s_push, 1u, out, err_msg)
+                                                        : cli_git_run(root, s_push_new, 4u, out, err_msg);
 }
 
-int cli_git_pull(const char *root, CliLine *out, CliLine *said)
+int cli_git_pull(const char *root, VerbaLinea *out, VerbaLinea *err_msg)
 {
     static const char *const s_pull[2] = {"pull", "--ff-only"};
-    char address[CLI_PATH_LONGEST];
+    char address[CLI_PATH_MAX_LEN];
     cli_remote_address(root, address);
-    return cli_net_reach(address, "git pull", said) && cli_git_run(root, s_pull, 2u, out, said);
+    return cli_net_reach(address, "git pull", err_msg) && cli_git_run(root, s_pull, 2u, out, err_msg);
 }
 
 int cli_git_ahead_behind(const char *root, unsigned int *ahead, unsigned int *behind)
 {
     static const char *const s_args[4] = {"rev-list", "--left-right", "--count", "HEAD...@{u}"};
     CliGitGave *const gave = cli_git_taken();
-    int found = cli_git_asked(root, s_args, 4u, gave);
+    int found = cli_git_query(root, s_args, 4u, gave);
     unsigned int counts[2] = {0u, 0u};
     unsigned int read = 0u;
     const char *at = gave->out;

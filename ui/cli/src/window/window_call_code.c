@@ -20,169 +20,171 @@
 #include "window_internal.h"
 
 // the languages orior's own inspections read, by the editor's names for them
-static int code_inspect_languages(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_inspect_languages(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     static const char *const s_languages[2] = {"python", "javascript"};
     cli_window_strings(out, s_languages, 2u);
     return 1;
 }
 
 // the classes a parse names, by their index
-static int code_parse_classes(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_parse_classes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     cli_window_strings(out, g_cli_inspect_classes, CLI_INSPECT_CLASSES);
     return 1;
 }
 
 // an edit of the inspections written as the page reads one, its text written beside it
-static void code_edit_written(const CliInspectEdit *edit, const CliLine *text, CliLine *out)
+static void code_edit_written(const CliInspectEdit *edit, const VerbaLinea *text, VerbaLinea *out)
 {
     const CliTextEdit written = {{edit->from.line, edit->from.col},
                                  {edit->to.line, edit->to.col},
                                  text->out,
-                                 cli_line_fits(text) ? text->at : 0ull};
+                                 mmgr_line_ok(text) ? text->at : 0ull};
     cli_text_edit_written(&written, out);
 }
 
 // a line over a cell for an edit of a text of `length` bytes, which writes at most the text twice over and a part of
-// its own besides: the cell, given back by cli_cell_given, or NULL with why said and the line empty
-static char *code_edit_room(unsigned long long length, CliLine *written, CliLine *said)
+// its own besides: the cell, given back by g_cli_cells->persistent_buf_release, or NULL with why given and the line
+// empty
+static char *code_edit_room(unsigned long long length, VerbaLinea *written, VerbaLinea *err_msg)
 {
     const unsigned long long room = (2ull * length) + 4096ull;
-    char *const cell = cli_cell_taken(room, "an edit's text");
-    *written = (CliLine){cell, (cell != NULL) ? room : 0ull, 0ull};
+    char *const cell = g_cli_cells->persistent_buf_alloc(room, NULL);
+    *written = (VerbaLinea){cell, (cell != NULL) ? room : 0ull, 0ull};
     if (cell == NULL)
     {
-        cli_line_text(said, "an edit's text could not be taken");
+        mmgr_line_put(err_msg, "an edit's text could not be taken");
     }
     return cell;
 }
 
-// the text, the language and the line of a call on code: 1, or 0 with why said
+// the text, the language and the line of a call on code: 1, or 0 with why given
 static int code_text_at(const CliServeArgs *args, const char **language, const char **text, unsigned long long *line,
-                        CliLine *said)
+                        VerbaLinea *err_msg)
 {
-    *language = cli_serve_string(args, "language", said);
-    *text = (*language != NULL) ? cli_serve_string(args, "text", said) : NULL;
-    return (*text != NULL) && cli_serve_whole(args, "line", line, said);
+    *language = cli_serve_string(args, "language", err_msg);
+    *text = (*language != NULL) ? cli_serve_string(args, "text", err_msg) : NULL;
+    return (*text != NULL) && cli_serve_whole(args, "line", line, err_msg);
 }
 
 // a docstring drawn up for the function at or around `line` of a text in `language`, in `form`: its edit, and the
 // place to write its summary
-static int code_docstring(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_docstring(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const char *language = NULL;
     const char *text = NULL;
     unsigned long long line = 0ull;
     const char *const form =
-        code_text_at(args, &language, &text, &line, said) ? cli_serve_string(args, "form", said) : NULL;
+        code_text_at(args, &language, &text, &line, err_msg) ? cli_serve_string(args, "form", err_msg) : NULL;
     if (form == NULL)
     {
         return 0;
     }
     CliInspectEdit edit;
     CliInspectPlace summary;
-    CliLine written;
+    VerbaLinea written;
     char *const room =
-        code_edit_room(cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &written, said);
+        code_edit_room(cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &written, err_msg);
     // a line is far below what an unsigned int counts
     const int drawn =
         (room != NULL) &&
         cli_inspect_docstring(language, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
-                              (unsigned int)line, form, &edit, &written, &summary, said);
+                              (unsigned int)line, form, &edit, &written, &summary, err_msg);
     if (drawn)
     {
-        cli_line_character(out, '[');
+        mmgr_line_ch(out, '[');
         code_edit_written(&edit, &written, out);
-        cli_line_character(out, ',');
+        mmgr_line_ch(out, ',');
         const CliTextPlace place = {summary.line, summary.col};
         cli_text_place_written(place, out);
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
-    cli_cell_given(room);
+    g_cli_cells->persistent_buf_release(room, NULL);
     return drawn;
 }
 
 // the edit that sorts the methods of the class at or around `line` of a text in `language` by name
-static int code_sort(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_sort(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const char *language = NULL;
     const char *text = NULL;
     unsigned long long line = 0ull;
-    if (!code_text_at(args, &language, &text, &line, said))
+    if (!code_text_at(args, &language, &text, &line, err_msg))
     {
         return 0;
     }
     CliInspectEdit edit;
-    CliLine written;
+    VerbaLinea written;
     char *const room =
-        code_edit_room(cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &written, said);
+        code_edit_room(cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &written, err_msg);
     // a line is far below what an unsigned int counts
     const int sorted =
         (room != NULL) &&
         cli_inspect_sort_methods(language, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
-                                 (unsigned int)line, &edit, &written, said);
+                                 (unsigned int)line, &edit, &written, err_msg);
     if (sorted)
     {
         code_edit_written(&edit, &written, out);
     }
-    cli_cell_given(room);
+    g_cli_cells->persistent_buf_release(room, NULL);
     return sorted;
 }
 
 // the edit that fills the paragraph of documentation at `line` of a text to `width` columns, 20 at the least
-static int code_fill(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_fill(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const text = cli_serve_string(args, "text", said);
+    const char *const text = cli_serve_string(args, "text", err_msg);
     unsigned long long line = 0ull;
     unsigned long long width = 0ull;
-    if ((text == NULL) || !cli_serve_whole(args, "line", &line, said) || !cli_serve_whole(args, "width", &width, said))
+    if ((text == NULL) || !cli_serve_whole(args, "line", &line, err_msg) ||
+        !cli_serve_whole(args, "width", &width, err_msg))
     {
         return 0;
     }
     CliTextEdit edit;
-    CliLine written;
+    VerbaLinea written;
     char *const room =
-        code_edit_room(cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &written, said);
+        code_edit_room(cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &written, err_msg);
     // a line and a width are far below what an unsigned int counts
     const int filled =
         (room != NULL) &&
         cli_fill(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), (unsigned int)line,
-                 (unsigned int)((width > 20ull) ? width : 20ull), &written, &edit, said);
+                 (unsigned int)((width > 20ull) ? width : 20ull), &written, &edit, err_msg);
     if (filled)
     {
         cli_text_edit_written(&edit, out);
     }
-    cli_cell_given(room);
+    g_cli_cells->persistent_buf_release(room, NULL);
     return filled;
 }
 
 // whether orior_cli reads the file at `path` of the tree itself: a build file, a Gradle script or catalog, a POM, an
 // SConstruct or an SConscript, or JSON, read by its schema
-static int code_reads_file(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_reads_file(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const path = cli_serve_string(args, "path", said);
+    const char *const path = cli_serve_string(args, "path", err_msg);
     if (path == NULL)
     {
         return 0;
     }
-    cli_line_text(out, ((cli_build_kind_of(path) != 0u) || cli_schema_reads(path)) ? "true" : "false");
+    mmgr_line_put(out, ((cli_build_kind_of(path) != 0u) || cli_schema_reads(path)) ? "true" : "false");
     return 1;
 }
 
 // every checker the manifest knows: its id, its name, and the languages it checks
-static int code_checkers_known(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_checkers_known(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     CliJson tree;
     const unsigned int manifest = cli_toolchains_manifest(&tree, 0u, 0ull);
     const unsigned int first = cli_json_is(&tree, manifest, CFG_JSON_ARRAY) ? tree.node[manifest].first : CLI_JSON_NONE;
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     int any = 0;
     for (unsigned int tool = first; tool != CLI_JSON_NONE; tool = tree.node[tool].next)
     {
@@ -193,31 +195,31 @@ static int code_checkers_known(const CliServeArgs *args, CliLine *out, CliLine *
         }
         const char *const id = cli_json_string(&tree, cli_json_member(&tree, tool, "id"), NULL);
         const char *const name = cli_json_string(&tree, cli_json_member(&tree, tool, "name"), NULL);
-        cli_line_text(out, any ? ",[" : "[");
+        mmgr_line_put(out, any ? ",[" : "[");
         cli_window_quoted(out, (id != NULL) ? id : "");
-        cli_line_character(out, ',');
+        mmgr_line_ch(out, ',');
         cli_window_quoted(out, (name != NULL) ? name : "");
-        cli_line_text(out, ",[");
+        mmgr_line_put(out, ",[");
         const unsigned int languages = cli_json_member(&tree, checker, "languages");
         for (unsigned int at = 0u; cli_json_item(&tree, languages, at) != CLI_JSON_NONE; at += 1u)
         {
             const char *const one = cli_json_string(&tree, cli_json_item(&tree, languages, at), NULL);
-            cli_line_text(out, (at > 0u) ? "," : "");
+            mmgr_line_put(out, (at > 0u) ? "," : "");
             cli_window_quoted(out, (one != NULL) ? one : "");
         }
-        cli_line_text(out, "]]");
+        mmgr_line_put(out, "]]");
         any = 1;
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_json_given(&tree);
     return 1;
 }
 
 // every language a formatter formats
-static int code_format_languages(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_format_languages(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     cli_format_languages(out);
     return 1;
 }
@@ -225,40 +227,40 @@ static int code_format_languages(const CliServeArgs *args, CliLine *out, CliLine
 // a plugin written as the page reads it, after those written
 static void code_plugin_written(void *context, const CliPlugin *plugin)
 {
-    CliLine *const out = context;
-    cli_line_text(out, (out->out[out->at - 1u] == '[') ? "{\"id\":" : ",{\"id\":");
+    VerbaLinea *const out = context;
+    mmgr_line_put(out, (out->out[out->at - 1u] == '[') ? "{\"id\":" : ",{\"id\":");
     cli_window_quoted(out, plugin->id);
-    cli_line_text(out, ",\"source\":");
+    mmgr_line_put(out, ",\"source\":");
     cli_window_quoted(out, plugin->source);
-    cli_line_text(out, ",\"folder\":");
+    mmgr_line_put(out, ",\"folder\":");
     if (plugin->folder != NULL)
     {
         cli_window_quoted(out, plugin->folder);
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"text\":");
+    mmgr_line_put(out, ",\"text\":");
     cli_window_counted(out, plugin->text, plugin->size);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
 // every plugin, as plugins.c finds them
-static int code_plugins_read(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_plugins_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
-    cli_line_character(out, '[');
+    (void)err_msg;
+    mmgr_line_ch(out, '[');
     cli_plugins_each(code_plugin_written, out);
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return 1;
 }
 
 // the code the script plugin `id` runs
-static int code_plugin_code(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_plugin_code(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const id = cli_serve_string(args, "id", said);
+    const char *const id = cli_serve_string(args, "id", err_msg);
     if (id == NULL)
     {
         return 0;
@@ -266,24 +268,24 @@ static int code_plugin_code(const CliServeArgs *args, CliLine *out, CliLine *sai
     // the code written straight into the answer's string as it is read
     char piece[4096];
     CliJsonQuoting quoting;
-    CliLine code;
+    VerbaLinea code;
     cli_json_quoting_begun(&quoting, out, &code, piece, sizeof(piece));
-    const int read = cli_plugins_code_of(id, &code, said);
+    const int read = cli_plugins_code_of(id, &code, err_msg);
     cli_json_quoting_ended(&quoting, &code);
     return read;
 }
 
-// the plugin the generator's answers `spec` ask for, as its file would hold it
-static int code_plugin_draft(const CliServeArgs *args, CliLine *out, CliLine *said)
+// the plugin the generator's answers `spec` request, as its file would contain it
+static int code_plugin_draft(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliJson tree = {0};
-    const unsigned int spec = cli_plugins_draft_tree(&tree, args->json, cli_serve_arg(args, "spec"), said);
-    const unsigned int plugin = (spec != CLI_JSON_NONE) ? cli_plugins_draft(&tree, spec, said) : CLI_JSON_NONE;
+    const unsigned int spec = cli_plugins_draft_tree(&tree, args->json, cli_serve_arg(args, "spec"), err_msg);
+    const unsigned int plugin = (spec != CLI_JSON_NONE) ? cli_plugins_draft(&tree, spec, err_msg) : CLI_JSON_NONE;
     if (plugin != CLI_JSON_NONE)
     {
         char piece[4096];
         CliJsonQuoting quoting;
-        CliLine text;
+        VerbaLinea text;
         cli_json_quoting_begun(&quoting, out, &text, piece, sizeof(piece));
         cli_plugins_text_of(&tree, plugin, &text);
         cli_json_quoting_ended(&quoting, &text);
@@ -292,17 +294,17 @@ static int code_plugin_draft(const CliServeArgs *args, CliLine *out, CliLine *sa
     return plugin != CLI_JSON_NONE;
 }
 
-// the plugin the answers `spec` ask for written to the reader's plugins folder, one of its id there kept unless
+// the plugin the answers `spec` request written to the reader's plugins folder, one of its id there retained unless
 // `replace`: its folder
-static int code_plugin_create(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_plugin_create(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     int replace = 0;
-    if (!cli_serve_bool(args, "replace", &replace, said))
+    if (!cli_serve_bool(args, "replace", &replace, err_msg))
     {
         return 0;
     }
-    char folder[CLI_PATH_LONGEST];
-    const int created = cli_plugins_create(args->json, cli_serve_arg(args, "spec"), replace, folder, said);
+    char folder[CLI_PATH_MAX_LEN];
+    const int created = cli_plugins_create(args->json, cli_serve_arg(args, "spec"), replace, folder, err_msg);
     if (created)
     {
         cli_window_quoted(out, folder);
@@ -311,10 +313,10 @@ static int code_plugin_create(const CliServeArgs *args, CliLine *out, CliLine *s
 }
 
 // the menus, as the command line reads them
-static int code_commands_read(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_commands_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    if (!cli_commands_read(said))
+    if (!cli_commands_read(err_msg))
     {
         return 0;
     }
@@ -325,35 +327,35 @@ static int code_commands_read(const CliServeArgs *args, CliLine *out, CliLine *s
 }
 
 // the shell line that brings the tree's dev container up and opens a window on the tree in it, for the terminal to run
-static int code_devcontainer_line(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int code_devcontainer_line(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    char root[CLI_PATH_LONGEST];
-    char program[CLI_PATH_LONGEST];
-    if (!cli_serve_root(root, said))
+    char root[CLI_PATH_MAX_LEN];
+    char program[CLI_PATH_MAX_LEN];
+    if (!cli_serve_root(root, err_msg))
     {
         return 0;
     }
-    CliPlan *const plan = cli_cell_taken(sizeof(*plan), "a dev container's plan");
-    const int planned = (plan != NULL) && cli_devcontainer_plan(root, plan, said);
-    cli_cell_given(plan);
+    CliPlan *const plan = g_cli_cells->persistent_buf_alloc(sizeof(*plan), NULL);
+    const int planned = (plan != NULL) && cli_devcontainer_plan(root, plan, err_msg);
+    g_cli_cells->persistent_buf_release(plan, NULL);
     if (!planned)
     {
         return 0;
     }
     if (!cli_program_own(program, sizeof(program)))
     {
-        cli_line_text(said, "orior's program could not be found");
+        mmgr_line_put(err_msg, "orior's program could not be found");
         return 0;
     }
     char piece[1024];
     CliJsonQuoting quoting;
-    CliLine line;
+    VerbaLinea line;
     cli_json_quoting_begun(&quoting, out, &line, piece, sizeof(piece));
     cli_link_path_word(program, &line);
-    cli_line_text(&line, " --root ");
+    mmgr_line_put(&line, " --root ");
     cli_link_path_word(root, &line);
-    cli_line_text(&line, " file dev-container");
+    mmgr_line_put(&line, " file dev-container");
     cli_json_quoting_ended(&quoting, &line);
     return 1;
 }

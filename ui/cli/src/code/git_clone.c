@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_clone.c: a folder made a repository, and a repository cloned into a folder of its own, each line of git's
-// progress told as it comes
+// progress reported as it comes
 #include "../machine/net.h"
 #include "../toolchains/toolchains.h"
 #include "git_internal.h"
@@ -18,39 +18,39 @@ int cli_git_clone_parent(char *folder)
 #else
     static const char s_home[] = "HOME";
 #endif
-    return query_environment_read(s_home, folder, CLI_PATH_LONGEST) || cli_folder_current(folder, CLI_PATH_LONGEST);
+    return query_environment_read(s_home, folder, CLI_PATH_MAX_LEN) || cli_folder_current(folder, CLI_PATH_MAX_LEN);
 }
 
 int cli_git_opened_parent(char *folder)
 {
-    char home[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
     if (!cli_home_folder(home))
     {
         return 0;
     }
-    CliLine line = {folder, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, home);
-    cli_line_text(&line, "/repositories");
-    return cli_line_closed(&line) != 0ull;
+    VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, home);
+    mmgr_line_put(&line, "/repositories");
+    return mmgr_line_finish(&line) != 0ull;
 }
 
-int cli_git_init(const char *folder, CliLine *out, CliLine *said)
+int cli_git_init(const char *folder, VerbaLinea *out, VerbaLinea *err_msg)
 {
     static const char *const s_init[1] = {"init"};
-    char git[CLI_PATH_LONGEST];
-    CliLine line = {git, sizeof(git), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_text(&line, "/.git");
-    if ((cli_line_closed(&line) != 0ull) && (query_is_file(git) || query_is_folder(git)))
+    char git[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {git, sizeof(git), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_put(&line, "/.git");
+    if ((mmgr_line_finish(&line) != 0ull) && (query_is_file(git) || query_is_folder(git)))
     {
-        cli_line_text(said, folder);
-        cli_line_text(said, " is a repository already");
+        mmgr_line_put(err_msg, folder);
+        mmgr_line_put(err_msg, " is a repository already");
         return 0;
     }
-    return cli_git_run(folder, s_init, 1u, out, said);
+    return cli_git_run(folder, s_init, 1u, out, err_msg);
 }
 
-int cli_git_clone_folder(const char *url, const char *parent, char *folder, CliLine *said)
+int cli_git_clone_folder(const char *url, const char *parent, char *folder, VerbaLinea *err_msg)
 {
     const char *from = url;
     const char *to = url + cellul.len(&(CatenaFinitaCfg){.src = url, .cap = CLI_CELLS_POOL});
@@ -72,32 +72,32 @@ int cli_git_clone_folder(const char *url, const char *parent, char *folder, CliL
     if ((length == 0ull) || ((length == 1ull) && (name[0] == '.')) ||
         ((length == 2ull) && (name[0] == '.') && (name[1] == '.')))
     {
-        cli_line_text(said, url);
-        cli_line_text(said, " names no repository");
+        mmgr_line_put(err_msg, url);
+        mmgr_line_put(err_msg, " names no repository");
         return 0;
     }
-    CliLine line = {folder, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, parent);
-    cli_line_character(&line, '/');
-    cli_line_counted(&line, name, length);
-    if (cli_line_closed(&line) == 0ull)
+    VerbaLinea line = {folder, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, parent);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put_n(&line, name, length);
+    if (mmgr_line_finish(&line) == 0ull)
     {
-        cli_line_text(said, url);
-        cli_line_text(said, ": the folder's path is too long");
+        mmgr_line_put(err_msg, url);
+        mmgr_line_put(err_msg, ": the folder's path is too long");
         return 0;
     }
     return 1;
 }
 
-// whether a folder holds anything, counted as its entries are handed
-static void cli_holds_each(void *context, const char *name, int is_folder)
+// whether a folder contains anything, counted as its entries are handed
+static void cli_folder_entry_counted(void *context, const char *name, int is_folder)
 {
     (void)name;
     (void)is_folder;
     *(int *)context = 1;
 }
 
-// git found in the folders of the PATH `path` names, its full path into `program`: 1, or 0 where none holds it
+// git found in the folders of the PATH `path` names, its full path into `program`: 1, or 0 where none contains it
 static int cli_git_on(const char *path, char *program)
 {
 #if defined(_WIN32)
@@ -112,10 +112,10 @@ static int cli_git_on(const char *path, char *program)
     {
         if ((at[0] == between) || (at[0] == '\0'))
         {
-            CliLine line = {program, CLI_PATH_LONGEST, 0ull};
-            cli_line_counted(&line, folder, (unsigned long long)(at - folder));
-            cli_line_text(&line, s_name);
-            if ((at > folder) && (cli_line_closed(&line) != 0ull) && query_is_file(program))
+            VerbaLinea line = {program, CLI_PATH_MAX_LEN, 0ull};
+            mmgr_line_put_n(&line, folder, (unsigned long long)(at - folder));
+            mmgr_line_put(&line, s_name);
+            if ((at > folder) && (mmgr_line_finish(&line) != 0ull) && query_is_file(program))
             {
                 return 1;
             }
@@ -135,12 +135,12 @@ typedef struct
     unsigned long long length;
     char fatal[CLI_GIT_PROGRESS];
     int has_fatal;
-    void (*said_line)(void *context, const char *line, int ended);
+    void (*progress_line)(void *context, const char *line, int ended);
     void *context;
 } CliProgress;
 
-// the line read so far told, trimmed, with whether it is finished, and let go
-static void cli_told(CliProgress *progress, int ended)
+// the line read so far reported, trimmed, with whether it is finished, and let go
+static void cli_progress_emitted(CliProgress *progress, int ended)
 {
     const char *from = progress->line;
     const char *to = progress->line + progress->length;
@@ -151,10 +151,10 @@ static void cli_told(CliProgress *progress, int ended)
         return;
     }
     char text[CLI_GIT_PROGRESS];
-    CliLine line = {text, sizeof(text), 0ull};
-    cli_line_counted(&line, from, (unsigned long long)(to - from));
-    cli_line_closed(&line);
-    progress->said_line(progress->context, text, ended);
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
+    mmgr_line_finish(&line);
+    progress->progress_line(progress->context, text, ended);
     if (!progress->has_fatal &&
         (cellul.starts(&(CatenaFinitaCfg){.src = text, .other = "fatal: ", .cap = CLI_CELLS_POOL})))
     {
@@ -165,50 +165,51 @@ static void cli_told(CliProgress *progress, int ended)
     }
 }
 
-int cli_git_clone(const char *url, const char *target, void (*said_line)(void *context, const char *line, int ended),
-                  void *context, CliLine *said)
+int cli_git_clone(const char *url, const char *target,
+                  void (*progress_line)(void *context, const char *line, int ended), void *context, VerbaLinea *err_msg)
 {
     static char s_run_path[CLI_GIT_RUN_PATH];
     static CliProgress s_progress;
     static CliLock s_lock = CLI_LOCK_INIT;
-    if (!cli_net_reach(url, "git clone", said))
+    if (!cli_net_reach(url, "git clone", err_msg))
     {
         return 0;
     }
-    int holds = 0;
-    if (query_folder_each(target, cli_holds_each, &holds) && holds)
+    int has_entries = 0;
+    if (query_folder_each(target, cli_folder_entry_counted, &has_entries) && has_entries)
     {
-        cli_line_text(said, target);
-        cli_line_text(said, " is there already and holds files");
+        mmgr_line_put(err_msg, target);
+        mmgr_line_put(err_msg, " is there already and contains files");
         return 0;
     }
     cli_lock_take(&s_lock);
     cli_toolchains_run_path(s_run_path, sizeof(s_run_path));
-    char program[CLI_PATH_LONGEST];
+    char program[CLI_PATH_MAX_LEN];
     if (!cli_toolchains_chosen_program("git", program) && !cli_git_on(s_run_path, program))
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "git is not installed, or not on the PATH: File, Toolchains, or orior_cli file toolchains "
-                            "install git, opens its install page");
+        mmgr_line_put(err_msg,
+                      "git is not installed, or not on the PATH: File, Toolchains, or orior_cli file toolchains "
+                      "install git, opens its install page");
         return 0;
     }
     const char *const words[7] = {program, "clone", "--progress", "--", url, target, NULL};
-    // git asks for no password at a terminal no one can type into; a credential helper still may
+    // git prompts for no password at a terminal no one can type into; a credential helper still may
     const CliSetting settings[2] = {{"PATH", s_run_path}, {"GIT_TERMINAL_PROMPT", "0"}};
     CliSpawned spawned;
-    char why[CLI_PATH_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     if (!cli_spawn_as(CLI_PRIORITY_GUEST, &spawned, words, NULL, settings, 2u, 1, &unstarted))
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "git did not start: ");
-        cli_line_counted(said, why, unstarted.at);
+        mmgr_line_put(err_msg, "git did not start: ");
+        mmgr_line_put_n(err_msg, why, unstarted.at);
         return 0;
     }
     CliProgress *const progress = &s_progress;
     progress->length = 0ull;
     progress->has_fatal = 0;
-    progress->said_line = said_line;
+    progress->progress_line = progress_line;
     progress->context = context;
     for (;;)
     {
@@ -222,7 +223,7 @@ int cli_git_clone(const char *url, const char *target, void (*said_line)(void *c
         {
             if ((chunk[at] == '\n') || (chunk[at] == '\r'))
             {
-                cli_told(progress, chunk[at] == '\n');
+                cli_progress_emitted(progress, chunk[at] == '\n');
             }
             else if (progress->length < (CLI_GIT_PROGRESS - 1u))
             {
@@ -231,7 +232,7 @@ int cli_git_clone(const char *url, const char *target, void (*said_line)(void *c
             }
         }
     }
-    cli_told(progress, 1);
+    cli_progress_emitted(progress, 1);
     // what git writes to its output is read and let go, so it never waits on a full pipe
     for (;;)
     {
@@ -247,13 +248,13 @@ int cli_git_clone(const char *url, const char *target, void (*said_line)(void *c
     {
         if (progress->has_fatal)
         {
-            cli_line_text(said, progress->fatal);
+            mmgr_line_put(err_msg, progress->fatal);
         }
         else
         {
-            cli_line_text(said, "git clone ");
-            cli_line_text(said, url);
-            cli_line_text(said, " failed");
+            mmgr_line_put(err_msg, "git clone ");
+            mmgr_line_put(err_msg, url);
+            mmgr_line_put(err_msg, " failed");
         }
     }
     cli_lock_give(&s_lock);

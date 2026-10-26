@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// picks.c: the window's lists held by number, their rows matched against a query, a long list over the cores
+// picks.c: the window's lists stored by number, their rows matched against a query, a long list over the cores
 #include "picks.h"
 #include "../command_line/cells.h"
 #include "../machine/cores.h"
@@ -11,8 +11,8 @@
 #define CLI_SPREAD_FROM 4096u
 #define CLI_PICKS_PARTS 256u
 
-// A list held: the number it is held by, its rows' count, and its cell, each row's start in the texts and then the
-// texts one after another, each ended by a 0
+// A list stored: the number it is stored under, its rows' count, and its cell, each row's start in the texts and then
+// the texts one after another, each ended by a 0
 typedef struct
 {
     unsigned long long id;
@@ -36,10 +36,10 @@ typedef struct
     CliThread thread;
 } CliPickPart;
 
-// The lists held, in the order they were held, and a match's room, one cell sized to the most rows of a list held and
-// to the parts the cores take, taken again as a longer list is held and given back as the last list is forgotten: the
-// query's letters, each row's score and whether it answered, the rows that answered in order, the parts and how many
-// have ended
+// The lists stored, in the order they were stored, and a match's room, one cell sized to the most rows of a list stored
+// and to the parts the cores take, taken again as a longer list is stored and given back as the last list is forgotten:
+// the query's letters, each row's score and whether it answered, the rows that answered in order, the parts and how
+// many have ended
 typedef struct
 {
     CliPickList list[CLI_PICKS_LISTS];
@@ -58,14 +58,14 @@ typedef struct
     unsigned int ended;
 } CliPicks;
 
-// the lists held; the next number; and the wake the parts end on
+// the lists stored; the next number; and the wake the parts end on
 static CliPicks s_picks;
 static unsigned long long s_next = 1ull;
 static CliWake s_wake = CLI_WAKE_INIT;
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliLock s_ending = CLI_LOCK_INIT;
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
 static void *picks_part(unsigned char **at, unsigned long long bytes)
 {
     void *const part = *at;
@@ -74,7 +74,7 @@ static void *picks_part(unsigned char **at, unsigned long long bytes)
 }
 
 // the match's room taken for `rows` and the parts the cores take, the room before given back: 1, or 0 where no cell is
-// left, the room before kept
+// left, the room before retained
 static int picks_room_taken(unsigned int rows)
 {
     const unsigned int cores = cli_cores_for_work();
@@ -82,12 +82,12 @@ static int picks_room_taken(unsigned int rows)
     const unsigned long long bytes =
         ((unsigned long long)rows * (sizeof(double) + 1ull + (2ull * sizeof(unsigned int)))) +
         ((unsigned long long)parts * sizeof(CliPickPart)) + (5ull * 8ull);
-    void *const room = cli_cell_taken(bytes, "a match over the lists held");
+    void *const room = g_cli_cells->persistent_buf_alloc(bytes, NULL);
     if (room == NULL)
     {
         return 0;
     }
-    cli_cell_given(s_picks.room);
+    g_cli_cells->persistent_buf_release(s_picks.room, NULL);
     s_picks.room = room;
     s_picks.room_rows = rows;
     s_picks.parts = parts;
@@ -100,7 +100,7 @@ static int picks_room_taken(unsigned int rows)
     return 1;
 }
 
-unsigned long long cli_picks_hold(const char *texts, unsigned long long length)
+unsigned long long cli_picks_store(const char *texts, unsigned long long length)
 {
     unsigned long long rows = (length == 0ull) ? 0ull : 1ull;
     for (unsigned long long at = 0ull; at < length; at += 1ull)
@@ -108,13 +108,14 @@ unsigned long long cli_picks_hold(const char *texts, unsigned long long length)
         rows += (texts[at] == '\n') ? 1ull : 0ull;
     }
     cli_lock_take(&s_lock);
-    // a row's start is an unsigned int's, so a text past one's reach is not held
+    // a row's start is an unsigned int's, so a text past one's reach is not stored
     if ((s_picks.lists >= CLI_PICKS_LISTS) || (length >= 0xffffffffull))
     {
         cli_lock_give(&s_lock);
         return 0ull;
     }
-    unsigned char *const cell = cli_cell_taken((rows * sizeof(unsigned int)) + length + 1ull + 8ull, "a list held");
+    unsigned char *const cell =
+        g_cli_cells->persistent_buf_alloc((rows * sizeof(unsigned int)) + length + 1ull + 8ull, NULL);
     if (cell == NULL)
     {
         cli_lock_give(&s_lock);
@@ -122,7 +123,7 @@ unsigned long long cli_picks_hold(const char *texts, unsigned long long length)
     }
     if (((s_picks.room == NULL) || (rows > s_picks.room_rows)) && !picks_room_taken((unsigned int)rows))
     {
-        cli_cell_given(cell);
+        g_cli_cells->persistent_buf_release(cell, NULL);
         cli_lock_give(&s_lock);
         return 0ull;
     }
@@ -146,7 +147,7 @@ unsigned long long cli_picks_hold(const char *texts, unsigned long long length)
     }
     if ((length > 0ull) && (texts[length - 1ull] == '\n'))
     {
-        // a text that ends with a newline holds an empty row after it
+        // a text that ends with a newline has an empty row after it
         list->row[row] = (unsigned int)length;
     }
     list->text[length] = '\0';
@@ -170,7 +171,7 @@ void cli_picks_forget(unsigned long long id)
         cli_lock_give(&s_lock);
         return;
     }
-    cli_cell_given(s_picks.list[at].cell);
+    g_cli_cells->persistent_buf_release(s_picks.list[at].cell, NULL);
     for (unsigned int list = at + 1u; list < s_picks.lists; list += 1u)
     {
         s_picks.list[list - 1u] = s_picks.list[list];
@@ -178,23 +179,23 @@ void cli_picks_forget(unsigned long long id)
     s_picks.lists -= 1u;
     if (s_picks.lists == 0u)
     {
-        cli_cell_given(s_picks.room);
+        g_cli_cells->persistent_buf_release(s_picks.room, NULL);
         s_picks.room = NULL;
         s_picks.room_rows = 0u;
     }
     cli_lock_give(&s_lock);
 }
 
-// the row `index` of the list being matched held against the query by the part: 1 with its score, or 0
+// the row `index` of the list being matched matched against the query by the part: 1 with its score, or 0
 static int cli_pick_matched(CliPickPart *part, unsigned int index, double *score)
 {
     const char *const text = s_picks.matching->text + s_picks.matching->row[index];
     const unsigned int count = cli_files_letters(text, part->shown, part->lower, CLI_FUZZY_LETTERS);
-    return cli_files_fuzzy_held(s_picks.wanted, s_picks.wanted_count, part->shown, part->lower, count, part->latest,
-                                score, part->hits, &part->hit_count);
+    return cli_files_fuzzy_matches(s_picks.wanted, s_picks.wanted_count, part->shown, part->lower, count, part->latest,
+                                   score, part->hits, &part->hit_count);
 }
 
-// a part's rows matched, each row's score kept by its place
+// a part's rows matched, each row's score recorded by its place
 static void cli_part_matched(CliPickPart *part)
 {
     for (unsigned int index = part->from; index < part->to; index += 1u)
@@ -205,7 +206,7 @@ static void cli_part_matched(CliPickPart *part)
     }
 }
 
-// a part matched on a thread of its own, its end told
+// a part matched on a thread of its own, its end reported
 static void cli_part_thread(void *context)
 {
     cli_part_matched((CliPickPart *)context);
@@ -224,7 +225,7 @@ static void cli_picks_matched(unsigned int count)
     {
         const unsigned long long from = (unsigned long long)at * share;
         const unsigned long long to = (unsigned long long)(at + 1u) * share;
-        // each end is at most the count, which an unsigned int holds
+        // each end is at most the count, which an unsigned int stores
         s_picks.part[at].from = (unsigned int)((from < count) ? from : count);
         s_picks.part[at].to = (unsigned int)((to < count) ? to : count);
     }
@@ -291,7 +292,8 @@ static unsigned int cli_picks_sorted(unsigned int count)
     return found;
 }
 
-int cli_picks_find(unsigned long long id, const char *query, unsigned long long most, CliLine *out, CliLine *said)
+int cli_picks_find(unsigned long long id, const char *query, unsigned long long most, VerbaLinea *out,
+                   VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
     unsigned int at = 0u;
@@ -302,8 +304,8 @@ int cli_picks_find(unsigned long long id, const char *query, unsigned long long 
     if (at == s_picks.lists)
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "no list is held by ");
-        cli_line_decimal(said, id, 0u);
+        mmgr_line_put(err_msg, "no list is stored under ");
+        mmgr_line_decimal(err_msg, id, 0u);
         return 0;
     }
     s_picks.matching = &s_picks.list[at];
@@ -326,7 +328,7 @@ int cli_picks_find(unsigned long long id, const char *query, unsigned long long 
     // the shown rows matched again on this thread for the places that matched
     CliPickPart *const part = &s_picks.part[0];
     const unsigned long long shown = (found < most) ? found : most;
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned long long place = 0ull; place < shown; place += 1ull)
     {
         const unsigned int index = s_picks.order[place];
@@ -336,19 +338,19 @@ int cli_picks_find(unsigned long long id, const char *query, unsigned long long 
         {
             cli_pick_matched(part, index, &score);
         }
-        cli_line_text(out, (place != 0ull) ? ",{\"at\":" : "{\"at\":");
-        cli_line_decimal(out, index, 0u);
-        cli_line_text(out, ",\"score\":");
+        mmgr_line_put(out, (place != 0ull) ? ",{\"at\":" : "{\"at\":");
+        mmgr_line_decimal(out, index, 0u);
+        mmgr_line_put(out, ",\"score\":");
         cli_json_double(out, s_picks.score[index]);
-        cli_line_text(out, ",\"hits\":[");
+        mmgr_line_put(out, ",\"hits\":[");
         for (unsigned int hit = 0u; hit < part->hit_count; hit += 1u)
         {
-            cli_line_text(out, (hit != 0u) ? "," : "");
-            cli_line_decimal(out, part->hits[hit], 0u);
+            mmgr_line_put(out, (hit != 0u) ? "," : "");
+            mmgr_line_decimal(out, part->hits[hit], 0u);
         }
-        cli_line_text(out, "]}");
+        mmgr_line_put(out, "]}");
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_lock_give(&s_lock);
     return 1;
 }

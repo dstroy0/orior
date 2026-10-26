@@ -21,8 +21,8 @@ extern "C"
 // ends each lane's arithmetic.
 #define QASM_FRACTION_BITS 60u
 
-// 2^QASM_FRACTION_BITS is written as one CONSTANT step whose right word holds 2^(QASM_FRACTION_BITS - 32), and
-// 2^(2 QASM_FRACTION_BITS) as one limb of the exact scale: both hold for 32 to 63 bits and no other
+// 2^QASM_FRACTION_BITS is written as one CONSTANT step whose right word contains 2^(QASM_FRACTION_BITS - 32), and
+// 2^(2 QASM_FRACTION_BITS) as one limb of the exact scale: both are valid for 32 to 63 bits and no other
 #if defined(__cplusplus)
 static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM_FRACTION_BITS lies from 32 to 63");
 #else
@@ -38,7 +38,7 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
 // how many limbs one amplitude takes in the state: re and im, 64 bits each, two's complement
 #define QASM_STATE_LIMBS 4u
 
-// the bound E and the probabilities are held in units of 2^-(2 QASM_FRACTION_BITS), in this many 32-bit limbs
+// the bound E and the probabilities are represented in units of 2^-(2 QASM_FRACTION_BITS), in this many 32-bit limbs
 #define QASM_WIDE_LIMBS 8u
 
 #define QASM_REASON_CAPACITY 512u
@@ -143,10 +143,10 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
 
     long qasm_run(const QasmRunRequest *request, QasmOutcome *outcome);
 
-    // the device bytes a run of this circuit holds at once
+    // the device bytes a run of this circuit occupies at once
     unsigned long long qasm_device_bytes(const QasmCircuit *circuit);
 
-    // the bitstring over the clbits in Qiskit's order, c[clbits - 1] first; capacity holds clbits + 1
+    // the bitstring over the clbits in Qiskit's order, c[clbits - 1] first; capacity has room for clbits + 1
     void qasm_bitstring(const QasmCircuit *circuit, unsigned long long outcome, char *text, size_t capacity);
 
     // units of 2^-(2 QASM_FRACTION_BITS) as a decimal with `places` digits after the point, truncated
@@ -224,8 +224,8 @@ _Static_assert((QASM_FRACTION_BITS >= 32u) && (QASM_FRACTION_BITS <= 63u), "QASM
     QASM_BOTH int qasm_output_read(const unsigned int *record, unsigned int offset, unsigned int bits, long long *value)
     {
         unsigned long long low = 0ull;
-        const unsigned int kept = (bits < 64u) ? bits : 64u;
-        for (unsigned int at = 0u; at < kept; at += 1u)
+        const unsigned int width_used = (bits < 64u) ? bits : 64u;
+        for (unsigned int at = 0u; at < width_used; at += 1u)
         {
             const unsigned int place = offset + at;
             low |= (unsigned long long)((record[place >> 5u] >> (place & 31u)) & 1u) << at;

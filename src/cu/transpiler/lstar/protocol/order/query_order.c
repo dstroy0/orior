@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query_order.c: the known order of asks put through the query protocol, timed exactly on a clock that is an address
+// query_order.c: the known order of queries put through the query protocol, timed exactly on a clock that is an address
 #include "query_order.h"
 
 // The reads of the clock word from now until it next turns over through `reads`, and the word it turns over to
@@ -30,16 +30,16 @@ static void query_order_exact(OriorExactInteger *value, unsigned long long given
     value->sign = (given != 0ull) ? 1 : 0;
 }
 
-// a run's cost multiplies two counts of 64 bits and takes one such product from another: four limbs hold every
+// a run's cost multiplies two counts of 64 bits and takes one such product from another: four limbs represent every
 // term, and the exact calls below are given no width they can refuse
-_Static_assert((unsigned long long)(ORIOR_EXACT_LIMBS) >= 4ull, "a run's cost holds two 64-bit counts multiplied");
+_Static_assert((unsigned long long)(ORIOR_EXACT_LIMBS) >= 4ull, "a run's cost represents two 64-bit counts multiplied");
 
 // The links `covered` marks, each put `repeat` times, timed on a clock that turns over now and then and read finely by
 // counting. The run starts on a turn of the clock. When it ends, the reads of the clock word until its next turn are
 // counted, and so are the reads across the whole turn after that. The run's cost is the clock's advance from the turn
 // it started on to the turn after it ended, less the tail: the share of the following turn the counted reads cover.
-// That is spanned - tail * turn_span / turn_reads, kept as the rational it is, through `cost`. 1, or 0 where the clock
-// did not turn inside the order's turns at one of the three turns the run waits on
+// That is spanned - tail * turn_span / turn_reads, retained as the rational it is, through `cost`. 1, or 0 where the
+// clock did not turn inside the order's turns at one of the three turns the run waits on
 static int query_order_run(const QueryOrder *order, const unsigned char *covered, QueryCost *cost)
 {
     unsigned long long waited = 0ull;
@@ -54,10 +54,10 @@ static int query_order_run(const QueryOrder *order, const unsigned char *covered
         {
             if (covered[link] != 0u)
             {
-                QueryAsk asked = order->link[link];
-                asked.clock = 0ull;
-                asked.bound = 0ull;
-                query_ask(&asked);
+                Query query = order->link[link];
+                query.clock = 0ull;
+                query.bound = 0ull;
+                query_put(&query);
             }
         }
     }
@@ -70,43 +70,43 @@ static int query_order_run(const QueryOrder *order, const unsigned char *covered
     {
         return 0;
     }
-    // each advance in the clock word's own width, which holds one wrap of the counter
+    // each advance in the clock word's own width, which represents one wrap of the counter
     const unsigned long long spanned = (unsigned long long)(after - start);
     const unsigned long long turn_span = (unsigned long long)(next - after);
     OriorExactInteger left;
     OriorExactInteger right;
-    OriorExactInteger kept;
+    OriorExactInteger product;
     OriorExactInteger taken;
     query_order_exact(&left, spanned);
     query_order_exact(&right, turn_reads);
-    orior_exact_multiply(&left, &right, &kept);
+    orior_exact_multiply(&left, &right, &product);
     query_order_exact(&left, tail);
     query_order_exact(&right, turn_span);
     orior_exact_multiply(&left, &right, &taken);
-    orior_exact_subtract(&kept, &taken, &cost->numerator);
+    orior_exact_subtract(&product, &taken, &cost->numerator);
     query_order_exact(&cost->denominator, turn_reads);
     return 1;
 }
 
 int query_order_put(const QueryOrder *order, QueryCost *cost)
 {
-    if ((ask_order_fits(order->links) == 0) || (order->clock == 0ull))
+    if ((hadamard_order_fits(order->links) == 0) || (order->clock == 0ull))
     {
         return 0;
     }
-    unsigned char covered[ASK_ORDER_LINKS_MOST];
-    // Every pass's answer is kept as it came back. Nothing is summed away and nothing is cut to a least: the spread
+    unsigned char covered[HADAMARD_ORDER_LINKS_MOST];
+    // Every pass's answer is retained as it came back. Nothing is summed away and nothing is cut to a least: the spread
     // across passes is the noise floor, read and not set
     for (unsigned int pass = 0u; pass < order->passes; pass += 1u)
     {
-        for (unsigned int ask = 0u; ask < order->links; ask += 1u)
+        for (unsigned int row = 0u; row < order->links; row += 1u)
         {
             for (unsigned int link = 0u; link < order->links; link += 1u)
             {
-                // ask_order_covers answers 1 or 0
-                covered[link] = (unsigned char)ask_order_covers(order->links, ask, link);
+                // hadamard_order_covers answers 1 or 0
+                covered[link] = (unsigned char)hadamard_order_covers(order->links, row, link);
             }
-            if (query_order_run(order, covered, &cost[(pass * order->links) + ask]) == 0)
+            if (query_order_run(order, covered, &cost[(pass * order->links) + row]) == 0)
             {
                 return 0;
             }
@@ -118,31 +118,31 @@ int query_order_put(const QueryOrder *order, QueryCost *cost)
 int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteger *numerator,
                       OriorExactInteger *denominator)
 {
-    if (ask_order_fits(links) == 0)
+    if (hadamard_order_fits(links) == 0)
     {
         return 0;
     }
-    // every ask's denominator but its own, multiplied together: the factor its numerator takes onto the common one
-    OriorExactInteger others[ASK_ORDER_LINKS_MOST];
+    // every query's denominator but its own, multiplied together: the factor its numerator takes onto the common one
+    OriorExactInteger others[HADAMARD_ORDER_LINKS_MOST];
     OriorExactInteger factor;
-    for (unsigned int ask = 0u; ask < links; ask += 1u)
+    for (unsigned int row = 0u; row < links; row += 1u)
     {
-        query_order_exact(&others[ask], 1ull);
+        query_order_exact(&others[row], 1ull);
         for (unsigned int other = 0u; other < links; other += 1u)
         {
-            if (other == ask)
+            if (other == row)
             {
                 continue;
             }
             OriorExactInteger product;
-            if (orior_exact_multiply(&others[ask], &cost[other].denominator, &product) != ORIOR_EXACT_OK)
+            if (orior_exact_multiply(&others[row], &cost[other].denominator, &product) != ORIOR_EXACT_OK)
             {
                 return 0;
             }
-            others[ask] = product;
+            others[row] = product;
         }
     }
-    // the common denominator: links + 1 times every ask's denominator
+    // the common denominator: links + 1 times every query's denominator
     OriorExactInteger every;
     if (orior_exact_multiply(&others[0], &cost[0].denominator, &every) != ORIOR_EXACT_OK)
     {
@@ -153,23 +153,23 @@ int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteg
     {
         return 0;
     }
-    // Link c: the sum over every ask r of (4 when r covers c, else 0, less 2) times r's numerator times the others. The
-    // weight is 2 or -2, put as twice the term added or taken away
+    // Link c: the sum over every query r of (4 when r covers c, else 0, less 2) times r's numerator times the others.
+    // The weight is 2 or -2, put as twice the term added or taken away
     for (unsigned int link = 0u; link < links; link += 1u)
     {
         orior_exact_zero(&numerator[link]);
-        for (unsigned int ask = 0u; ask < links; ask += 1u)
+        for (unsigned int row = 0u; row < links; row += 1u)
         {
             OriorExactInteger term;
             OriorExactInteger twice;
             OriorExactInteger sum;
-            if ((orior_exact_multiply(&cost[ask].numerator, &others[ask], &term) != ORIOR_EXACT_OK) ||
+            if ((orior_exact_multiply(&cost[row].numerator, &others[row], &term) != ORIOR_EXACT_OK) ||
                 (orior_exact_add(&term, &term, &twice) != ORIOR_EXACT_OK))
             {
                 return 0;
             }
             OriorExactStatus moved = ORIOR_EXACT_OK;
-            if (ask_order_covers(links, ask, link) != 0)
+            if (hadamard_order_covers(links, row, link) != 0)
             {
                 moved = orior_exact_add(&numerator[link], &twice, &sum);
             }
@@ -189,15 +189,15 @@ int query_order_solve(unsigned int links, const QueryCost *cost, OriorExactInteg
 
 int query_order_sweep(const QueryOrder *order, unsigned int seed, unsigned int sweeps, QueryCost *sweep_cost)
 {
-    if ((ask_order_fits(order->links) == 0) || (order->clock == 0ull))
+    if ((hadamard_order_fits(order->links) == 0) || (order->clock == 0ull))
     {
         return 0;
     }
-    unsigned char covered[ASK_ORDER_LINKS_MOST];
-    for (unsigned int ask = 0u; ask < sweeps; ask += 1u)
+    unsigned char covered[HADAMARD_ORDER_LINKS_MOST];
+    for (unsigned int row = 0u; row < sweeps; row += 1u)
     {
-        ask_sweep_covers(order->links, seed, ask, covered);
-        if (query_order_run(order, covered, &sweep_cost[ask]) == 0)
+        hadamard_sweep_covers(order->links, seed, row, covered);
+        if (query_order_run(order, covered, &sweep_cost[row]) == 0)
         {
             return 0;
         }

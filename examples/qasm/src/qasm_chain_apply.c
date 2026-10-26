@@ -26,7 +26,7 @@ long qasm_chain_apply_two(QasmChain *chain, const void *gate, unsigned int site,
     QasmMatrix pivot_columns = QASM_MATRIX_EMPTY;
     QasmMatrix reduced_rows = QASM_MATRIX_EMPTY;
     QasmMatrix fresh[4] = {QASM_MATRIX_EMPTY, QASM_MATRIX_EMPTY, QASM_MATRIX_EMPTY, QASM_MATRIX_EMPTY};
-    QasmSlot term;
+    QasmElement term;
     memset(&term, 0, sizeof(term));
     long status = 0L;
     for (unsigned int pair = 0u; (status == 0L) && (pair < 4u); pair += 1u)
@@ -291,7 +291,7 @@ long qasm_chain_seal(const QasmChain *chain, unsigned char *signum, EngineError 
             total += qasm_number_bytes(&((const QasmNumber *)(const void *)matrix->elements)[index], NULL);
         }
     }
-    // a chain whose every bond fell to rank 0 holds no entries and seals an empty stream, as the Python digests one
+    // a chain whose every bond fell to rank 0 contains no entries and seals an empty stream, as the Python digests one
     unsigned char *const bytes = (unsigned char *)malloc((total > 0u) ? total : 1u);
     if (QASM_CHECK(bytes != NULL, chain, error, ENGINE_ERROR_RESOURCE) == 0)
     {

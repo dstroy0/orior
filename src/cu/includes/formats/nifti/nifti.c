@@ -224,9 +224,9 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
     const unsigned long long negative = second ? 0x8000000000000000ull : 0x8000ull;
     const unsigned char *const dimensions_at = bytes + (second ? 16u : 40u);
     unsigned long long dimensions[NIFTI_DIMENSIONS + 1u];
-    for (unsigned int slot = 0u; slot <= NIFTI_DIMENSIONS; slot += 1u)
+    for (unsigned int at = 0u; at <= NIFTI_DIMENSIONS; at += 1u)
     {
-        dimensions[slot] = nifti_load(dimensions_at + (slot * dimension_bytes), dimension_bytes, big_endian);
+        dimensions[at] = nifti_load(dimensions_at + (at * dimension_bytes), dimension_bytes, big_endian);
     }
     const unsigned long long rank = dimensions[0u];
     if ((rank < 1ull) || (rank > NIFTI_DIMENSIONS))
@@ -255,18 +255,14 @@ static unsigned int nifti_header(const unsigned char *bytes, unsigned long long 
     built.extent.rank = (unsigned int)rank;
     for (unsigned int axis = 0u; axis < built.extent.rank; axis += 1u)
     {
-        const unsigned int slot = built.extent.rank - axis;
-        const unsigned long long extent = dimensions[slot];
+        const unsigned int at = built.extent.rank - axis;
+        const unsigned long long extent = dimensions[at];
         if ((extent == 0ull) || (extent >= negative) || !nifti_multiply(data_bytes, extent, &data_bytes))
         {
             return 0u;
         }
         built.extent.sizes[axis] = extent;
-        built.extent.axes[axis] = (slot == 1u)   ? 'x'
-                                 : (slot == 2u) ? 'y'
-                                 : (slot == 3u) ? 'z'
-                                 : (slot == 4u) ? 't'
-                                                : '\0';
+        built.extent.axes[axis] = (at == 1u) ? 'x' : (at == 2u) ? 'y' : (at == 3u) ? 'z' : (at == 4u) ? 't' : '\0';
     }
     const unsigned long long wide_offset = nifti_load(bytes + 168u, 8u, big_endian);
     unsigned long long data_offset = wide_offset;
@@ -343,7 +339,7 @@ static unsigned int nifti_prepare(const char *path, const char *member, const En
     *image_path = NULL;
     if (member != NULL)
     {
-        fprintf(stderr, "nifti: %s holds one image; a member was named\n", path);
+        fprintf(stderr, "nifti: %s contains one image; a member was named\n", path);
         return 0u;
     }
     char *const header_owned = nifti_existing_sibling(tools, path, "img", "hdr");

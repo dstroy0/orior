@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // shape_match.c: the match of a pattern's parts against the code's tokens. A word matches a token of its kind and its
 // text, a statement's end any statement's end; a placeholder bound already matches the same tokens again, and one not
-// bound tries each end it may reach, in order, until the rest matches. A match from one place takes at most
-// CLI_SHAPE_STEPS steps before it is given up. The ends tried are kept on the matcher's stack, CLI_SHAPE_ENDS at the
+// bound tries each end it may reach, in order, until the rest matches, its brackets and its statements' ends read by
+// the roles the tokens' grammar names. A match from one place takes at most
+// CLI_SHAPE_STEPS steps before it is given up. The ends tried are stored on the matcher's stack, CLI_SHAPE_ENDS at the
 // most, those past it not tried
 #include "shape_internal.h"
 
-// the most steps a match from one place may take, the most ends kept to be tried at once, and the ends the stack is
+// the most steps a match from one place may take, the most ends stored to be tried at once, and the ends the stack is
 // begun with, doubling as they are put
 #define CLI_SHAPE_STEPS 20000u
 #define CLI_SHAPE_ENDS (1u << 20u)
@@ -15,7 +16,7 @@
 
 void cli_shape_ends_given(CliShapeMatcher *matcher)
 {
-    cli_cell_given_by(&g_cli_shape_cells, matcher->ends);
+    g_cli_cells->persistent_buf_release(matcher->ends, &g_cli_shape_cells);
     matcher->ends = NULL;
     matcher->ends_top = 0u;
     matcher->ends_room = 0u;
@@ -28,34 +29,17 @@ static const char *match_text(const CliShapeMatcher *matcher, unsigned int at, u
     return matcher->src + matcher->tokens->start[at];
 }
 
-// whether the code's token at `at` is `text`
-static int match_is(const CliShapeMatcher *matcher, unsigned int at, const char *text)
-{
-    unsigned long long size = 0ull;
-    const char *const own = match_text(matcher, at, &size);
-    return (cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) == size) &&
-           (memor.cmp(&(MemoriaCfg){.src = own, .other = text, .bytes = (size_t)size}) == 0);
-}
-
-// how much a token opens or closes a bracket
+// how much a token opens or closes a bracket, as its roles name it
 static int match_depth_of(const CliShapeMatcher *matcher, unsigned int at)
 {
-    unsigned long long size = 0ull;
-    const char *const text = match_text(matcher, at, &size);
-    if (size != 1u)
-    {
-        return 0;
-    }
-    return ((text[0] == '(') || (text[0] == '[') || (text[0] == '{'))   ? 1
-           : ((text[0] == ')') || (text[0] == ']') || (text[0] == '}')) ? -1
-                                                                        : 0;
+    const unsigned char role = matcher->tokens->role[at];
+    return ((role & CLI_SHAPE_OPENS) != 0u) ? 1 : ((role & CLI_SHAPE_CLOSES) != 0u) ? -1 : 0;
 }
 
 // whether the code's token at `at` ends a statement where it stands outside brackets
 static int match_ends_statement(const CliShapeMatcher *matcher, unsigned int at)
 {
-    const unsigned char kind = matcher->tokens->kind[at];
-    return (kind == CLI_SHAPE_BREAK) || ((kind == CLI_SHAPE_PUNCT) && match_is(matcher, at, ";"));
+    return (matcher->tokens->kind[at] == CLI_SHAPE_BREAK) || ((matcher->tokens->role[at] & CLI_SHAPE_STATEMENT) != 0u);
 }
 
 // an end put on the stack where it fits: the stack moved into a cell of twice its room where it is full, below
@@ -65,8 +49,7 @@ static void match_end_put(CliShapeMatcher *matcher, unsigned int end)
     if ((matcher->ends_top == matcher->ends_room) && (matcher->ends_room < CLI_SHAPE_ENDS))
     {
         const unsigned int room = (matcher->ends_room == 0u) ? CLI_SHAPE_ENDS_FIRST : (matcher->ends_room * 2u);
-        unsigned int *const grown =
-            cli_cell_taken_by(&g_cli_shape_cells, room * sizeof(*grown), "the ends a match by shape tries");
+        unsigned int *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &g_cli_shape_cells);
         if (grown != NULL)
         {
             if (matcher->ends_top != 0u)
@@ -74,7 +57,7 @@ static void match_end_put(CliShapeMatcher *matcher, unsigned int end)
                 memor.cpy(
                     &(MemoriaCfg){.dst = grown, .src = matcher->ends, .bytes = matcher->ends_top * sizeof(*grown)});
             }
-            cli_cell_given_by(&g_cli_shape_cells, matcher->ends);
+            g_cli_cells->persistent_buf_release(matcher->ends, &g_cli_shape_cells);
             matcher->ends = grown;
             matcher->ends_room = room;
         }
@@ -121,7 +104,8 @@ static void match_ends(CliShapeMatcher *matcher, unsigned int hole, unsigned int
             continue;
         }
         depth += change;
-        if ((depth == 0) && (match_ends_statement(matcher, at_end) || (match_is(matcher, at_end, "}") && (change < 0))))
+        if ((depth == 0) && (match_ends_statement(matcher, at_end) ||
+                             (((matcher->tokens->role[at_end] & CLI_SHAPE_REGION) != 0u) && (change < 0))))
         {
             match_end_put(matcher, at_end + 1u);
             if (last)
@@ -139,9 +123,9 @@ static void match_ends(CliShapeMatcher *matcher, unsigned int hole, unsigned int
     {
         for (unsigned int low = first, high = matcher->ends_top; low + 1u < high; low += 1u, high -= 1u)
         {
-            const unsigned int kept = matcher->ends[low];
+            const unsigned int pivot = matcher->ends[low];
             matcher->ends[low] = matcher->ends[high - 1u];
-            matcher->ends[high - 1u] = kept;
+            matcher->ends[high - 1u] = pivot;
         }
     }
 }

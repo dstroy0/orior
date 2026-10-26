@@ -7,8 +7,8 @@
 #include <limits.h>
 #include <string.h>
 
-_Static_assert(CHAR_BIT == 8, "sha256: a byte holds 8 bits");
-_Static_assert(UINT_MAX >= 0xFFFFFFFFu, "sha256: an unsigned int holds a 32-bit word");
+_Static_assert(CHAR_BIT == 8, "sha256: a byte contains 8 bits");
+_Static_assert(UINT_MAX >= 0xFFFFFFFFu, "sha256: an unsigned int represents a 32-bit word");
 
 // the words of the hash value, of the message schedule and of a block
 #define SHA256_STATE_WORDS 8u
@@ -32,7 +32,7 @@ static const unsigned int s_round_constant[SHA256_SCHEDULE_WORDS] = {
 static const unsigned int s_initial_state[SHA256_STATE_WORDS] = {0x6a09e667u, 0xbb67ae85u, 0x3c6ef372u, 0xa54ff53au,
                                                                  0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u};
 
-// `word` rotated right by `count`, 0 < count < 32, kept to 32 bits
+// `word` rotated right by `count`, 0 < count < 32, limited to 32 bits
 static unsigned int sha256_rotate(unsigned int word, unsigned int count)
 {
     return ((word >> count) | (word << (32u - count))) & 0xFFFFFFFFu;
@@ -109,8 +109,9 @@ void sha256_bits(const void *data, unsigned long long bits, unsigned char digest
     memcpy(tail, &message[blocks * SHA256_BLOCK_BYTES], left);
     // the bits of a byte the message ends partway through are its most significant, and the 1 the padding begins
     // with is the next bit down
-    const unsigned int kept = (spare_bits == 0u) ? 0u : (unsigned int)message[whole_bytes] & (0xFF00u >> spare_bits);
-    tail[left] = (unsigned char)(kept | (0x80u >> spare_bits));
+    const unsigned int last_bits =
+        (spare_bits == 0u) ? 0u : (unsigned int)message[whole_bytes] & (0xFF00u >> spare_bits);
+    tail[left] = (unsigned char)(last_bits | (0x80u >> spare_bits));
     const size_t tail_bytes =
         ((left + 1u + SHA256_LENGTH_BYTES) <= SHA256_BLOCK_BYTES) ? SHA256_BLOCK_BYTES : (2u * SHA256_BLOCK_BYTES);
     for (unsigned int at = 0u; at < SHA256_LENGTH_BYTES; at += 1u)

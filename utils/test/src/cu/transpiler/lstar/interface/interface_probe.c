@@ -4,7 +4,7 @@
 // nanosleep is POSIX, outside strict C11
 #define _POSIX_C_SOURCE 200809L
 #endif
-// A probe for the interface test: one question a process, named by its first word, asked of the host part and its
+// A probe for the interface test: one question a process, named by its first word, posed to the host part and its
 // system. Built with no optimization: each question reaches the part as written. The operands are volatile: no compiler
 // folds a division it can see is undefined, and the part itself answers
 #include <limits.h>
@@ -21,8 +21,8 @@
 #include <time.h>
 #endif
 
-// the exit of a question this part is not asked
-#define PROBE_NOT_ASKED 77
+// the exit of a question this part is not requested
+#define PROBE_NOT_REQUESTED 77
 
 // a question this probe does not know
 #define PROBE_UNKNOWN 64
@@ -32,7 +32,7 @@ static volatile int s_probe_zero = 0;
 static volatile int s_probe_least = INT_MIN;
 static volatile int s_probe_minus_one = -1;
 
-// each frame holds a page the compiler cannot drop, and the call is not the frame's last act. No call becomes a
+// each frame occupies a page the compiler cannot drop, and the call is not the frame's last act. No call becomes a
 // jump. The recursion without end is the question, and MSVC's warning that it overflows the stack is its answer
 // foretold
 #if defined(_MSC_VER)
@@ -75,8 +75,8 @@ int main(int count, char **arguments)
     }
     if ((strcmp(question, "flood") == 0) && (count > 2))
     {
-        // more than any pipe holds, written a piece at a time: an interface that does not read a pipe as it is
-        // written holds the probe here
+        // more than any pipe buffers, written a piece at a time: an interface that does not read a pipe as it is
+        // written blocks the probe here
         char piece[4096];
         memset(piece, 'x', sizeof(piece));
         unsigned long left = strtoul(arguments[2], NULL, 10);
@@ -115,7 +115,7 @@ int main(int count, char **arguments)
 #elif defined(__GNUC__) && defined(__aarch64__)
         __asm__ volatile("udf #0");
 #else
-        return PROBE_NOT_ASKED;
+        return PROBE_NOT_REQUESTED;
 #endif
         return 0;
     }
@@ -128,7 +128,7 @@ int main(int count, char **arguments)
 #elif defined(__GNUC__) && defined(__aarch64__)
         __asm__ volatile("brk #0");
 #else
-        return PROBE_NOT_ASKED;
+        return PROBE_NOT_REQUESTED;
 #endif
         return 0;
     }

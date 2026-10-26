@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// inspect_tree_calls.c: the call hierarchy the tree's index answers where no language server does. A call of a name
+// inspect_tree_calls.c: the call hierarchy the tree answers where no language server does. A call of a name
 // reaches the functions of that name in the caller's file, or, where its file declares none, those of the other files
 // of its language, by their paths and their places. A function's callees are each function its calls reach, with the
 // spans of those calls; its callers each function of the tree, by the paths in order, that calls its name where that
@@ -11,13 +11,13 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// What one call reaches: each function's file and place, and the order and the kept lists they are sorted by, each
+// What one call reaches: each function's file and place, and the order and the stored lists they are sorted by, each
 // as long as the tree has functions
 static unsigned int *s_reached_file;
 static unsigned int *s_reached_at;
 static unsigned int *s_order;
-static unsigned int *s_kept_file;
-static unsigned int *s_kept_at;
+static unsigned int *s_sorted_file;
+static unsigned int *s_sorted_at;
 
 // A function's callees, each file and place, in the order first reached, and its calls: each call's callee and span
 static unsigned int *s_callee_file;
@@ -35,11 +35,11 @@ static void calls_counted(unsigned long long *functions, unsigned long long *cal
     *calls = 0ull;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        const CliTreeFile *const held = &CLI_TREE_FILE(file);
-        for (unsigned int at = 0u; held->used && (at < held->facts.functions); at += 1u)
+        const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
+        for (unsigned int at = 0u; tree_file->used && (at < tree_file->facts.functions); at += 1u)
         {
             *functions += 1ull;
-            *calls = (held->facts.function[at].calls > *calls) ? held->facts.function[at].calls : *calls;
+            *calls = (tree_file->facts.function[at].calls > *calls) ? tree_file->facts.function[at].calls : *calls;
         }
     }
 }
@@ -48,14 +48,14 @@ static void calls_counted(unsigned long long *functions, unsigned long long *cal
 static unsigned int *calls_reached_taken(unsigned long long functions)
 {
     unsigned int *const cell =
-        cli_cell_taken((5ull * functions + 5ull) * sizeof(unsigned int), "the functions a call reaches");
+        g_cli_cells->persistent_buf_alloc((5ull * functions + 5ull) * sizeof(unsigned int), NULL);
     if (cell != NULL)
     {
         s_reached_file = cell;
         s_reached_at = s_reached_file + functions + 1ull;
         s_order = s_reached_at + functions + 1ull;
-        s_kept_file = s_order + functions + 1ull;
-        s_kept_at = s_kept_file + functions + 1ull;
+        s_sorted_file = s_order + functions + 1ull;
+        s_sorted_at = s_sorted_file + functions + 1ull;
     }
     return cell;
 }
@@ -124,14 +124,14 @@ static unsigned int calls_reached(unsigned int file, const char *name, unsigned 
     }
     for (unsigned int other = 0u; other < g_cli_tree_files; other += 1u)
     {
-        const CliTreeFile *const held = &CLI_TREE_FILE(other);
-        if (!held->used || (other == file) || (held->python != CLI_TREE_FILE(file).python))
+        const CliTreeFile *const tree_file = &CLI_TREE_FILE(other);
+        if (!tree_file->used || (other == file) || (tree_file->python != CLI_TREE_FILE(file).python))
         {
             continue;
         }
-        for (unsigned int at = 0u; at < held->facts.functions; at += 1u)
+        for (unsigned int at = 0u; at < tree_file->facts.functions; at += 1u)
         {
-            if (calls_named(&held->facts, &held->facts.function[at], name, size))
+            if (calls_named(&tree_file->facts, &tree_file->facts.function[at], name, size))
             {
                 s_reached_file[count] = other;
                 s_reached_at[count] = at;
@@ -143,11 +143,11 @@ static unsigned int calls_reached(unsigned int file, const char *name, unsigned 
     qsort(s_order, count, sizeof(s_order[0]), calls_reached_order);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        s_kept_file[at] = s_reached_file[s_order[at]];
-        s_kept_at[at] = s_reached_at[s_order[at]];
+        s_sorted_file[at] = s_reached_file[s_order[at]];
+        s_sorted_at[at] = s_reached_at[s_order[at]];
     }
-    memor.cpy(&(MemoriaCfg){.dst = s_reached_file, .src = s_kept_file, .bytes = count * sizeof(s_reached_file[0])});
-    memor.cpy(&(MemoriaCfg){.dst = s_reached_at, .src = s_kept_at, .bytes = count * sizeof(s_reached_at[0])});
+    memor.cpy(&(MemoriaCfg){.dst = s_reached_file, .src = s_sorted_file, .bytes = count * sizeof(s_reached_file[0])});
+    memor.cpy(&(MemoriaCfg){.dst = s_reached_at, .src = s_sorted_at, .bytes = count * sizeof(s_reached_at[0])});
     return count;
 }
 
@@ -174,8 +174,8 @@ static unsigned int calls_callee(unsigned int file, unsigned int at, unsigned in
 static unsigned char *calls_callees_taken(unsigned long long sites)
 {
     const unsigned long long numbers = (5ull * sites + 5ull) * sizeof(unsigned int);
-    unsigned char *const cell = cli_cell_taken(numbers + ((2ull * sites + 2ull) * sizeof(CliInspectSpan)),
-                                               "a function's callees and their calls");
+    unsigned char *const cell =
+        g_cli_cells->persistent_buf_alloc(numbers + ((2ull * sites + 2ull) * sizeof(CliInspectSpan)), NULL);
     if (cell != NULL)
     {
         s_callee_file = (unsigned int *)(void *)cell;
@@ -231,11 +231,11 @@ static void calls_callees_handed(unsigned int file, unsigned int at, unsigned lo
     }
     for (unsigned int callee = 0u; callee < callees; callee += 1u)
     {
-        const CliTreeFile *const held = &CLI_TREE_FILE(s_callee_file[callee]);
-        each(context, held->path, &held->facts, s_callee_at[callee], s_grouped + s_callee_first[callee],
+        const CliTreeFile *const tree_file = &CLI_TREE_FILE(s_callee_file[callee]);
+        each(context, tree_file->path, &tree_file->facts, s_callee_at[callee], s_grouped + s_callee_first[callee],
              s_callee_sites[callee]);
     }
-    cli_cell_given(cell);
+    g_cli_cells->persistent_buf_release(cell, NULL);
 }
 
 void cli_inspect_tree_callees(const char *path, unsigned int at, CliInspectReached each, void *context)
@@ -259,7 +259,7 @@ void cli_inspect_tree_callees(const char *path, unsigned int at, CliInspectReach
         }
         calls_callees_handed(file, at, sites, each, context);
     }
-    cli_cell_given(reached);
+    g_cli_cells->persistent_buf_release(reached, NULL);
     cli_lock_give(&g_cli_tree_lock);
 }
 
@@ -290,7 +290,7 @@ void cli_inspect_tree_callers(const char *path, unsigned int at, CliInspectReach
     calls_counted(&functions, &calls_most);
     const unsigned long long numbers = (g_cli_tree_files + 1ull) * sizeof(unsigned int);
     unsigned char *const cell =
-        cli_cell_taken(numbers + ((calls_most + 1ull) * sizeof(CliInspectSpan)), "a function's callers");
+        g_cli_cells->persistent_buf_alloc(numbers + ((calls_most + 1ull) * sizeof(CliInspectSpan)), NULL);
     if (cell == NULL)
     {
         cli_lock_give(&g_cli_tree_lock);
@@ -339,6 +339,6 @@ void cli_inspect_tree_callers(const char *path, unsigned int at, CliInspectReach
             }
         }
     }
-    cli_cell_given(cell);
+    g_cli_cells->persistent_buf_release(cell, NULL);
     cli_lock_give(&g_cli_tree_lock);
 }

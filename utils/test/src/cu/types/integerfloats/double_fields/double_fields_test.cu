@@ -1,18 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// double_fields' ribosome held 1:1 against double_fields.c. The record program double_fields_record fills is encoded,
-// laid out and loaded by the calls engine_record_encode makes, swept on the device and run on the host, and every
-// lane's four answers are checked against double_fields_sign, double_fields_exp, double_fields_mant and
+// double_fields' ribosome checked 1:1 against double_fields.c. The record program double_fields_record fills is
+// encoded, laid out and loaded by the calls engine_record_encode makes, swept on the device and run on the host, and
+// every lane's four answers are checked against double_fields_sign, double_fields_exp, double_fields_mant and
 // double_fields_merge on the same words. The lanes are the edges of a double, every field at its least and most,
-// and drawn words; a merge's request carries words past every mask: the masking is asked as well. The test is
+// and drawn words; a merge's request carries words past every mask: the masking is tested as well. The test is
 // one job on the device's tessera daemon.
 #include "codegen_device.h"
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/includes/types/integerfloats/double_fields/double_fields.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 #include <cuda_runtime.h>
 #include <stdlib.h>
@@ -27,7 +29,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } DoubleFieldsTestResults;
 
 static void double_fields_test_check(DoubleFieldsTestResults *results, int passed, const char *what)
@@ -36,9 +38,9 @@ static void double_fields_test_check(DoubleFieldsTestResults *results, int passe
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -129,7 +131,7 @@ int main(int count, char **arguments)
     const LayoutRequest device_request = {program.steps,   program.count,   program.field_bits, program.field_offset,
                                           program.fields,  program.members, program.in_limbs,   program.outputs,
                                           program.output_count, program.tables, program.table_count, program.reuse};
-    ok = ok && (layout_device_held(&device_request, &layout, 0) != 0);
+    ok = ok && (layout_device_agrees(&device_request, &layout, 0) != 0);
     double_fields_test_check(&results, ok, "the program laid out on the device is the host's layout, word for word");
     unsigned int out_offset[DOUBLE_FIELDS_RECORD_OUTPUTS] = {0u, 0u, 0u, 0u};
     unsigned int out_bits[DOUBLE_FIELDS_RECORD_OUTPUTS] = {0u, 0u, 0u, 0u};
@@ -276,12 +278,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     double_fields_test_check(&results, (job.checks == 2ull) && (job.failures == 0ull),
                              "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  double fields test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  double fields test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

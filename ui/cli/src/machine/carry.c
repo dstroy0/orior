@@ -7,7 +7,7 @@
 #include "../text/text.h"
 #include "carry_internal.h"
 
-// the most a file of the reader's that travels holds
+// the most a file of the reader's that travels carries
 #define CLI_CARRY_LARGEST (16ull << 20u)
 
 // the files that travel, each a file or a folder of orior's own folder, by its place there; and the settings that
@@ -16,15 +16,15 @@
 // take here, and the file or folder the settings are carried through
 static const char *const s_carried[7] = {"settings.json", "menus.json",       "user.css",  "themes/",
                                          "plugins/",      "plugin_settings/", "languages/"};
-static const char *const s_machine[6] = {"machine",       "signing.",   "environment.",
-                                         "memory-budget", "cores-kept", "carry.place"};
+static const char *const s_machine[6] = {"machine",       "signing.",       "environment.",
+                                         "memory-budget", "cores-reserved", "carry.place"};
 
 void cli_carried_clear(CliCarried *carried)
 {
     for (unsigned int at = 0u; at < carried->count; at += 1u)
     {
-        cli_cell_given(carried->value[at]);
-        cli_cell_given(carried->place[at]);
+        g_cli_cells->persistent_buf_release(carried->value[at], NULL);
+        g_cli_cells->persistent_buf_release(carried->place[at], NULL);
         carried->value[at] = NULL;
         carried->place[at] = NULL;
     }
@@ -74,7 +74,7 @@ static void carry_released(CliCarried *paths, CliCarryRoom *room, CliLock *lock)
 // `size` bytes of `text` in a cell of their own, a 0 after them: the cell, or NULL where none could be taken
 static char *cli_carried_cell(const char *text, unsigned long long size, const char *what)
 {
-    char *const cell = (size < CLI_CARRIED_TEXT) ? cli_cell_taken(size + 1ull, what) : NULL;
+    char *const cell = (size < CLI_CARRIED_TEXT) ? g_cli_cells->persistent_buf_alloc(size + 1ull, NULL) : NULL;
     if (cell != NULL)
     {
         // a size below CLI_CARRIED_TEXT fits a size_t
@@ -104,16 +104,16 @@ int cli_carried_put(CliCarried *carried, const char *place, const char *value, u
                                  "a carried place");
     if ((pooled_place == NULL) || (pooled_value == NULL))
     {
-        cli_cell_given(pooled_value);
+        g_cli_cells->persistent_buf_release(pooled_value, NULL);
         if (!there)
         {
-            cli_cell_given(pooled_place);
+            g_cli_cells->persistent_buf_release(pooled_place, NULL);
         }
         return 0;
     }
     if (there)
     {
-        cli_cell_given(carried->value[at]);
+        g_cli_cells->persistent_buf_release(carried->value[at], NULL);
     }
     else
     {
@@ -147,18 +147,18 @@ int cli_carry_machine(const char *key)
 
 // `size` bytes of settings text made plain, which is never longer than the text, and read into the room's tree, a
 // fresh one in a cell sized to it with `nodes_more` nodes and `text_more` bytes over where `fresh` is 1, else beside
-// what it holds: the object read, an empty one where it is no object, CLI_JSON_NONE where the tree has no cell
+// what it contains: the object read, an empty one where it is no object, CLI_JSON_NONE where the tree has no cell
 static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsigned long long size, int fresh,
                                      unsigned int nodes_more, unsigned long long text_more)
 {
-    char *const plain_text = cli_cell_taken(size + 1ull, "a settings file's plain text");
-    CliLine plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
+    char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
+    VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_text != NULL)
     {
         cli_plain_json(text, size, &plain);
     }
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     unsigned int root = CLI_JSON_NONE;
     if (fresh)
     {
@@ -167,19 +167,19 @@ static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsig
                                     : CLI_JSON_NONE;
         if (room->json.node == NULL)
         {
-            (void)cli_json_held(&room->json, nodes_more, text_more, "a settings tree");
+            (void)cli_json_reserved(&room->json, nodes_more, text_more, "a settings tree");
         }
     }
     else if (plain_text != NULL)
     {
         const unsigned int tokens_most = cli_json_tokens_counted(plain_text, plain.at) + 1u;
         CfgJsonToken *const tokens =
-            cli_cell_taken((unsigned long long)tokens_most * sizeof(*tokens), "a settings file's tokens");
+            g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(*tokens), NULL);
         root = (tokens != NULL) ? cli_json_read(&room->json, plain_text, plain.at, tokens, tokens_most, &unread)
                                 : CLI_JSON_NONE;
-        cli_cell_given(tokens);
+        g_cli_cells->persistent_buf_release(tokens, NULL);
     }
-    cli_cell_given(plain_text);
+    g_cli_cells->persistent_buf_release(plain_text, NULL);
     if (room->json.node == NULL)
     {
         return CLI_JSON_NONE;
@@ -200,11 +200,11 @@ unsigned int cli_carry_settings_beside(CliCarryRoom *room, const char *text, uns
     return carry_plain_read(room, text, size, 0, 0u, 0ull);
 }
 
-void cli_carry_settings_written(CliCarryRoom *room, unsigned int object, CliLine *out)
+void cli_carry_settings_written(CliCarryRoom *room, unsigned int object, VerbaLinea *out)
 {
     cli_json_sorted(&room->json, object);
     cli_json_write(&room->json, object, out, 2u, 0);
-    cli_line_character(out, '\n');
+    mmgr_line_ch(out, '\n');
 }
 
 int cli_carry_allowed(const char *place)
@@ -255,17 +255,17 @@ static void cli_under_each(void *context, const char *name, int is_folder)
     {
         return;
     }
-    char path[CLI_PATH_LONGEST];
-    char place[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
+    char place[CLI_PATH_MAX_LEN];
     cli_full(walk->folder, name, path);
-    CliLine line = {place, sizeof(place), 0ull};
-    cli_line_text(&line, walk->under);
-    cli_line_text(&line, name);
+    VerbaLinea line = {place, sizeof(place), 0ull};
+    mmgr_line_put(&line, walk->under);
+    mmgr_line_put(&line, name);
     if (is_folder)
     {
-        cli_line_character(&line, '/');
+        mmgr_line_ch(&line, '/');
     }
-    if (cli_line_closed(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return;
     }
@@ -283,11 +283,11 @@ void cli_carry_files(const char *folder, CliCarried *found)
     cli_carried_clear(found);
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        char path[CLI_PATH_LONGEST];
+        char path[CLI_PATH_MAX_LEN];
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_carried[at], .cap = CLI_CELLS_POOL});
         if (s_carried[at][length - 1ull] == '/')
         {
-            char dir[CLI_NAME_LONGEST];
+            char dir[CLI_NAME_MAX_LEN];
             memor.cpy(&(MemoriaCfg){
                 .dst = dir,
                 .src = s_carried[at],
@@ -307,7 +307,7 @@ void cli_carry_files(const char *folder, CliCarried *found)
     }
 }
 
-int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said)
+int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg)
 {
     static CliCarried s_paths;
     static CliCarryRoom s_room;
@@ -323,12 +323,12 @@ int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said)
         unsigned long long size = 0ull;
         if (cli_file_size(path, &size) && (size > CLI_CARRY_LARGEST))
         {
-            cli_line_text(said, path);
-            cli_line_text(said, " is over 16 MB, the most a file that travels holds");
+            mmgr_line_put(err_msg, path);
+            mmgr_line_put(err_msg, " is over 16 MB, the most a file that travels carries");
             carry_released(&s_paths, &s_room, &s_lock);
             return 0;
         }
-        const unsigned char *const bytes = cli_file_held_utf8(path, &size);
+        const unsigned char *const bytes = cli_file_read_utf8(path, &size);
         if (bytes == NULL)
         {
             continue;
@@ -347,16 +347,15 @@ int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said)
                 }
                 member = next;
             }
-            CliLine written;
-            if ((object != CLI_JSON_NONE) &&
-                cli_line_growing(&written, CLI_CARRY_WRITTEN_FIRST, "a settings file written"))
+            VerbaLinea written;
+            if ((object != CLI_JSON_NONE) && cli_growing_line_made(&written, CLI_CARRY_WRITTEN_FIRST))
             {
                 cli_carry_settings_written(&s_room, object, &written);
-                if (cli_line_fits(&written))
+                if (mmgr_line_ok(&written))
                 {
                     cli_carried_put(packed, place, written.out, written.at);
                 }
-                cli_cell_given(written.out);
+                g_cli_cells->persistent_buf_release(written.out, NULL);
             }
         }
         else
@@ -373,14 +372,14 @@ int cli_carry_pack(const char *home, CliCarried *packed, CliLine *said)
 static int cli_has_remote(const char *folder)
 {
     static const char *const s_remote[1] = {"remote"};
-    char remotes[CLI_NAME_LONGEST * 4u];
-    char why[CLI_NAME_LONGEST];
-    CliLine out = {remotes, sizeof(remotes), 0ull};
-    CliLine unrun = {why, sizeof(why), 0ull};
+    char remotes[CLI_NAME_MAX_LEN * 4u];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea out = {remotes, sizeof(remotes), 0ull};
+    VerbaLinea unrun = {why, sizeof(why), 0ull};
     return cli_git_run(folder, s_remote, 1u, &out, &unrun) && (out.at > 0ull);
 }
 
-int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
+int cli_carry_read(const char *from, CliCarried *there, VerbaLinea *err_msg)
 {
     static CliCarried s_paths;
     static CliCarryRoom s_room;
@@ -390,11 +389,12 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
     cli_carried_clear(there);
     if (query_is_folder(from))
     {
-        char git[CLI_PATH_LONGEST];
+        char git[CLI_PATH_MAX_LEN];
         cli_full(from, ".git", git);
-        char words[CLI_NAME_LONGEST * 4u];
-        CliLine pulled = {words, sizeof(words), 0ull};
-        if ((query_is_file(git) || query_is_folder(git)) && cli_has_remote(from) && !cli_git_pull(from, &pulled, said))
+        char words[CLI_NAME_MAX_LEN * 4u];
+        VerbaLinea pulled = {words, sizeof(words), 0ull};
+        if ((query_is_file(git) || query_is_folder(git)) && cli_has_remote(from) &&
+            !cli_git_pull(from, &pulled, err_msg))
         {
             carry_released(&s_paths, &s_room, &s_lock);
             return 0;
@@ -403,7 +403,7 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
         for (unsigned int at = 0u; at < s_paths.count; at += 1u)
         {
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_file_held_utf8(cli_carried_value(&s_paths, at), &size);
+            const unsigned char *const bytes = cli_file_read_utf8(cli_carried_value(&s_paths, at), &size);
             if (bytes != NULL)
             {
                 cli_carried_put(there, cli_carried_place(&s_paths, at), (const char *)bytes, size);
@@ -414,16 +414,16 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
         return 1;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held_utf8(from, &size);
+    const unsigned char *const bytes = cli_file_read_utf8(from, &size);
     if (bytes == NULL)
     {
-        cli_line_text(said, from);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, from);
+        mmgr_line_put(err_msg, ": it could not be read");
         carry_released(&s_paths, &s_room, &s_lock);
         return 0;
     }
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_taken(&s_room.json, (const char *)bytes, size, 0u, 0ull, &unread);
     cli_file_let_go(bytes, size);
     const char *const mark = cli_json_string(&s_room.json, cli_json_member(&s_room.json, root, "orior"), NULL);
@@ -445,8 +445,8 @@ int cli_carry_read(const char *from, CliCarried *there, CliLine *said)
     }
     if (!read)
     {
-        cli_line_text(said, from);
-        cli_line_text(said, (root == CLI_JSON_NONE) ? ": it is no JSON" : " holds no settings orior_cli carried");
+        mmgr_line_put(err_msg, from);
+        mmgr_line_put(err_msg, (root == CLI_JSON_NONE) ? ": it is no JSON" : " contains no settings orior_cli carried");
     }
     carry_released(&s_paths, &s_room, &s_lock);
     return read;

@@ -1,18 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// comms.c: the parts registered and their grants, the listeners on each channel, and each message said: refused where
-// its speaker may not speak there, else counted, kept among its channel's last, and handed to every listener the
+// comms.c: the parts registered and their grants, the listeners on each channel, and each message sent: refused where
+// its sender may not send there, else counted, stored among its channel's last, and handed to every listener the
 // channel's name is granted to
 #include "comms_internal.h"
 
 #include "../text/text.h"
 
 CliCommsRoom g_cli_comms = {.lock = CLI_LOCK_INIT};
-CliCellsTally g_cli_comms_cells = CLI_CELLS_TALLY("cli_comms");
+CellOwner g_cli_comms_cells = MMGR_CELL_OWNER("cli_comms");
 
-// a table of `*room` places of `width` bytes grown to twice as many, or to CLI_COMMS_FIRST where it holds none, up to
-// `most`, the places added empty and `table` given back: the table, or NULL where it holds `most` or the cell is
-// refused and `table` is kept, under the lock
+// a table of `*room` places of `width` bytes grown to twice as many, or to CLI_COMMS_FIRST where it contains none, up
+// to `most`, the places added empty and `table` given back: the table, or NULL where it contains `most` or the cell is
+// refused and `table` is retained, under the lock
 static void *comms_grown(void *table, unsigned int *room, unsigned int most, unsigned long long width, const char *what)
 {
     if (*room >= most)
@@ -21,7 +21,7 @@ static void *comms_grown(void *table, unsigned int *room, unsigned int most, uns
     }
     const unsigned int doubled = (*room == 0u) ? CLI_COMMS_FIRST : (2u * *room);
     const unsigned int taken = (doubled < most) ? doubled : most;
-    void *const grown = cli_cell_taken_by(&g_cli_comms_cells, (unsigned long long)taken * width, what);
+    void *const grown = g_cli_cells->persistent_buf_alloc((unsigned long long)taken * width, &g_cli_comms_cells);
     if (grown == NULL)
     {
         return NULL;
@@ -30,7 +30,7 @@ static void *comms_grown(void *table, unsigned int *room, unsigned int most, uns
     if (table != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = table, .bytes = (size_t)((unsigned long long)*room * width)});
-        cli_cell_given_by(&g_cli_comms_cells, table);
+        g_cli_cells->persistent_buf_release(table, &g_cli_comms_cells);
     }
     *room = taken;
     return grown;
@@ -51,26 +51,27 @@ static unsigned int comms_part_of(const char *key)
 }
 
 int cli_comms_register(const char *name, int has_process, unsigned int process, const char *const *listen,
-                       unsigned int listens, const char *const *speak, unsigned int speaks, char *key, CliLine *said)
+                       unsigned int listens, const char *const *send_grant, unsigned int send_grants, char *key,
+                       VerbaLinea *err_msg)
 {
     unsigned char secret[32];
     if (!cli_random_bytes(secret, sizeof(secret)))
     {
-        cli_line_text(said, "the system gave no secret");
+        mmgr_line_put(err_msg, "the system gave no secret");
         return 0;
     }
-    if ((listens > CLI_COMMS_GRANTS) || (speaks > CLI_COMMS_GRANTS))
+    if ((listens > CLI_COMMS_GRANTS) || (send_grants > CLI_COMMS_GRANTS))
     {
-        cli_line_text(said, "a part holds at most 16 grants to listen and 16 to speak");
+        mmgr_line_put(err_msg, "a part has at most 16 grants to listen and 16 to send");
         return 0;
     }
-    CliLine written = {key, CLI_COMMS_KEY, 0ull};
+    VerbaLinea written = {key, CLI_COMMS_KEY, 0ull};
     for (unsigned int at = 0u; at < sizeof(secret); at += 1u)
     {
-        cli_line_character(&written, "0123456789abcdef"[secret[at] >> 4u]);
-        cli_line_character(&written, "0123456789abcdef"[secret[at] & 15u]);
+        mmgr_line_ch(&written, "0123456789abcdef"[secret[at] >> 4u]);
+        mmgr_line_ch(&written, "0123456789abcdef"[secret[at] & 15u]);
     }
-    cli_line_closed(&written);
+    mmgr_line_finish(&written);
     cli_lock_take(&g_cli_comms.lock);
     CliCommsPart *part = NULL;
     for (unsigned int at = 0u; (at < g_cli_comms.parts_room) && (part == NULL); at += 1u)
@@ -85,21 +86,21 @@ int cli_comms_register(const char *name, int has_process, unsigned int process, 
         g_cli_comms.parts = (grown != NULL) ? grown : g_cli_comms.parts;
         part = (grown != NULL) ? &g_cli_comms.parts[place] : NULL;
     }
-    const unsigned int grants = listens + speaks;
-    char (*const granted)[CLI_NAME_LONGEST] =
+    const unsigned int grants = listens + send_grants;
+    char (*const granted)[CLI_NAME_MAX_LEN] =
         ((part != NULL) && (grants != 0u))
-            ? cli_cell_taken_by(&g_cli_comms_cells, (unsigned long long)grants * CLI_NAME_LONGEST, "a part's grants")
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)grants * CLI_NAME_MAX_LEN, &g_cli_comms_cells)
             : NULL;
     if ((part == NULL) || ((grants != 0u) && (granted == NULL)))
     {
         cli_lock_give(&g_cli_comms.lock);
-        cli_line_text(said, "the comms layer holds as many parts as it can");
+        mmgr_line_put(err_msg, "the comms layer has as many parts as it can");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = part, .val = 0, .bytes = sizeof(*part)});
     part->taken = 1;
     part->listen = granted;
-    part->speak = (granted != NULL) ? (granted + listens) : NULL;
+    part->send_grant = (granted != NULL) ? (granted + listens) : NULL;
     memor.cpy(&(MemoriaCfg){
         .dst = part->key, .src = key, .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
     memor.cpy(&(MemoriaCfg){.dst = part->name,
@@ -114,22 +115,24 @@ int cli_comms_register(const char *name, int has_process, unsigned int process, 
                           .src = listen[at],
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = listen[at], .cap = CLI_CELLS_POOL}) + 1u});
     }
-    for (unsigned int at = 0u; at < speaks; at += 1u)
+    for (unsigned int at = 0u; at < send_grants; at += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = part->speak[at],
-                                .src = speak[at],
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = speak[at], .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = part->send_grant[at],
+                          .src = send_grant[at],
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = send_grant[at], .cap = CLI_CELLS_POOL}) + 1u});
     }
     part->listens = listens;
-    part->speaks = speaks;
+    part->send_grants = send_grants;
     cli_lock_give(&g_cli_comms.lock);
     return 1;
 }
 
-int cli_comms_register_kept(const char *name, const char *const *listen, unsigned int listens, const char *const *speak,
-                            unsigned int speaks, char *key, CliLine *said)
+int cli_comms_register_persistent(const char *name, const char *const *listen, unsigned int listens,
+                                  const char *const *send_grant, unsigned int send_grants, char *key,
+                                  VerbaLinea *err_msg)
 {
-    if (!cli_comms_register(name, 0, 0u, listen, listens, speak, speaks, key, said))
+    if (!cli_comms_register(name, 0, 0u, listen, listens, send_grant, send_grants, key, err_msg))
     {
         return 0;
     }
@@ -137,70 +140,71 @@ int cli_comms_register_kept(const char *name, const char *const *listen, unsigne
     const unsigned int at = comms_part_of(key);
     if (at < CLI_COMMS_PARTS)
     {
-        g_cli_comms.parts[at].held = 1;
+        g_cli_comms.parts[at].persistent = 1;
     }
     cli_lock_give(&g_cli_comms.lock);
     return 1;
 }
 
-// the first of `asked`, `count` of them, that no grant of `held`, `held_count` of them, holds within it, NULL where
-// each is held
-static const char *comms_beyond(const char *const *asked, unsigned int count, const char (*held)[CLI_NAME_LONGEST],
-                                unsigned int held_count)
+// the first of `wanted`, `count` of them, that no grant of `granted`, `granted_count` of them, contains within it, NULL
+// where each is granted
+static const char *comms_beyond(const char *const *wanted, unsigned int count, const char (*granted)[CLI_NAME_MAX_LEN],
+                                unsigned int granted_count)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         int within = 0;
-        for (unsigned int grant = 0u; (grant < held_count) && !within; grant += 1u)
+        for (unsigned int grant = 0u; (grant < granted_count) && !within; grant += 1u)
         {
-            within = cli_comms_within(asked[at], held[grant]);
+            within = cli_comms_within(wanted[at], granted[grant]);
         }
         if (!within)
         {
-            return asked[at];
+            return wanted[at];
         }
     }
     return NULL;
 }
 
 int cli_comms_register_under(const char *parent, const char *name, int has_process, unsigned int process,
-                             const char *const *listen, unsigned int listens, const char *const *speak,
-                             unsigned int speaks, char *key, CliLine *said)
+                             const char *const *listen, unsigned int listens, const char *const *send_grant,
+                             unsigned int send_grants, char *key, VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_comms.lock);
     const unsigned int at = comms_part_of(parent);
     if (at == CLI_COMMS_PARTS)
     {
         cli_lock_give(&g_cli_comms.lock);
-        cli_line_text(said, "that key is no part's");
+        mmgr_line_put(err_msg, "that key is no part's");
         return 0;
     }
     const CliCommsPart *const granter = &g_cli_comms.parts[at];
     const char *beyond =
-        comms_beyond(listen, listens, (const char (*)[CLI_NAME_LONGEST])granter->listen, granter->listens);
+        comms_beyond(listen, listens, (const char (*)[CLI_NAME_MAX_LEN])granter->listen, granter->listens);
     beyond = (beyond != NULL)
                  ? beyond
-                 : comms_beyond(speak, speaks, (const char (*)[CLI_NAME_LONGEST])granter->speak, granter->speaks);
+                 : comms_beyond(send_grant, send_grants, (const char (*)[CLI_NAME_MAX_LEN])granter->send_grant,
+                                granter->send_grants);
     if (beyond != NULL)
     {
-        cli_line_text(said, granter->name);
-        cli_line_text(said, " may not grant ");
-        cli_line_text(said, beyond);
-        cli_line_text(said, ", which is not its own");
+        mmgr_line_put(err_msg, granter->name);
+        mmgr_line_put(err_msg, " may not grant ");
+        mmgr_line_put(err_msg, beyond);
+        mmgr_line_put(err_msg, ", which is not its own");
         cli_lock_give(&g_cli_comms.lock);
         return 0;
     }
     cli_lock_give(&g_cli_comms.lock);
-    return cli_comms_register(name, has_process, process, listen, listens, speak, speaks, key, said);
+    return cli_comms_register(name, has_process, process, listen, listens, send_grant, send_grants, key, err_msg);
 }
 
-int cli_comms_held(const char *key)
+int cli_comms_is_persistent(const char *key)
 {
     cli_lock_take(&g_cli_comms.lock);
     const unsigned int at = comms_part_of(key);
-    const int held = (at < CLI_COMMS_PARTS) && g_cli_comms.parts[at].held;
+    const int persistent = (at < CLI_COMMS_PARTS) && g_cli_comms.parts[at].persistent;
     cli_lock_give(&g_cli_comms.lock);
-    return held;
+    return persistent;
 }
 
 void cli_comms_bind(const char *key, unsigned int process)
@@ -222,9 +226,9 @@ void cli_comms_leave(const char *key)
     if (at < CLI_COMMS_PARTS)
     {
         g_cli_comms.parts[at].taken = 0;
-        cli_cell_given_by(&g_cli_comms_cells, g_cli_comms.parts[at].listen);
+        g_cli_cells->persistent_buf_release(g_cli_comms.parts[at].listen, &g_cli_comms_cells);
         g_cli_comms.parts[at].listen = NULL;
-        g_cli_comms.parts[at].speak = NULL;
+        g_cli_comms.parts[at].send_grant = NULL;
         for (unsigned int one = 0u; one < g_cli_comms.listeners_room; one += 1u)
         {
             CliCommsListener *const listener = &g_cli_comms.listeners[one];
@@ -259,15 +263,15 @@ int cli_comms_name_of(const char *key, char *name)
     return at < CLI_COMMS_PARTS;
 }
 
-int cli_comms_listen(const char *key, const char *channel, int queued, CliCommsHeard heard, void *context,
-                     unsigned int *listener, CliLine *said)
+int cli_comms_listen(const char *key, const char *channel, int queued, CliCommsRecvFn recv, void *context,
+                     unsigned int *listener, VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_comms.lock);
     const unsigned int at = comms_part_of(key);
     if (at == CLI_COMMS_PARTS)
     {
         cli_lock_give(&g_cli_comms.lock);
-        cli_line_text(said, "that key is no part's");
+        mmgr_line_put(err_msg, "that key is no part's");
         return 0;
     }
     const CliCommsPart *const part = &g_cli_comms.parts[at];
@@ -278,9 +282,9 @@ int cli_comms_listen(const char *key, const char *channel, int queued, CliCommsH
     }
     if (!granted)
     {
-        cli_line_text(said, part->name);
-        cli_line_text(said, " may not listen on ");
-        cli_line_text(said, channel);
+        mmgr_line_put(err_msg, part->name);
+        mmgr_line_put(err_msg, " may not listen on ");
+        mmgr_line_put(err_msg, channel);
         cli_lock_give(&g_cli_comms.lock);
         return 0;
     }
@@ -299,7 +303,7 @@ int cli_comms_listen(const char *key, const char *channel, int queued, CliCommsH
     if (vacant < g_cli_comms.listeners_room)
     {
         CliCommsListener *const place = &g_cli_comms.listeners[vacant];
-        *place = (CliCommsListener){1, at, "", queued, heard, context};
+        *place = (CliCommsListener){1, at, "", queued, recv, context};
         memor.cpy(&(MemoriaCfg){.dst = place->pattern,
                                 .src = channel,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = channel, .cap = CLI_CELLS_POOL}) + 1u});
@@ -308,7 +312,7 @@ int cli_comms_listen(const char *key, const char *channel, int queued, CliCommsH
         return 1;
     }
     cli_lock_give(&g_cli_comms.lock);
-    cli_line_text(said, "the comms layer holds as many listeners as it can");
+    mmgr_line_put(err_msg, "the comms layer has as many listeners as it can");
     return 0;
 }
 
@@ -322,7 +326,7 @@ void cli_comms_unlisten(unsigned int listener)
     cli_lock_give(&g_cli_comms.lock);
 }
 
-// the traffic of `channel`, made where it has none, NULL where the channels kept are full, under the lock
+// the traffic of `channel`, made where it has none, NULL where the channels stored are full, under the lock
 static CliCommsTraffic *comms_traffic_of(const char *channel)
 {
     for (unsigned int at = 0u; at < g_cli_comms.channels; at += 1u)
@@ -351,66 +355,66 @@ static CliCommsTraffic *comms_traffic_of(const char *channel)
     return made;
 }
 
-// a message kept among its channel's last in a cell of its own, the oldest let go past the most kept; kept not at all
-// where the cell is refused
-static void comms_kept(CliCommsTraffic *traffic, const char *from, const char *body, unsigned long long size)
+// a message stored among its channel's last in a cell of its own, the oldest let go past the most stored; stored not at
+// all where the cell is refused
+static void comms_stored(CliCommsTraffic *traffic, const char *from, const char *body, unsigned long long size)
 {
     char sized[64];
-    CliLine sized_line = {sized, sizeof(sized), 0ull};
-    cli_line_text(&sized_line, "\"a body of ");
-    cli_line_decimal(&sized_line, size, 1u);
-    cli_line_text(&sized_line, " bytes\"");
-    const int whole = size < CLI_COMMS_KEPT_BODY;
-    const char *const said = whole ? body : sized;
-    const unsigned long long said_size = whole ? size : sized_line.at;
+    VerbaLinea sized_line = {sized, sizeof(sized), 0ull};
+    mmgr_line_put(&sized_line, "\"a body of ");
+    mmgr_line_decimal(&sized_line, size, 1u);
+    mmgr_line_put(&sized_line, " bytes\"");
+    const int whole = size < CLI_COMMS_STORED_BODY_MAX;
+    const char *const stored = whole ? body : sized;
+    const unsigned long long stored_size = whole ? size : sized_line.at;
     const unsigned long long from_size = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u;
-    char *const cell = cli_cell_taken_by(&g_cli_comms_cells, from_size + said_size, "a message kept");
+    char *const cell = g_cli_cells->persistent_buf_alloc(from_size + stored_size, &g_cli_comms_cells);
     if (cell == NULL)
     {
         return;
     }
-    const unsigned int place = (traffic->first + traffic->count) % CLI_COMMS_KEPT;
-    CliCommsKept *const kept = &traffic->last[place];
-    if (traffic->count == CLI_COMMS_KEPT)
+    const unsigned int place = (traffic->first + traffic->count) % CLI_COMMS_STORED_MAX;
+    CliCommsStoredMsg *const stored_msg = &traffic->last[place];
+    if (traffic->count == CLI_COMMS_STORED_MAX)
     {
-        traffic->first = (traffic->first + 1u) % CLI_COMMS_KEPT;
-        cli_cell_given_by(&g_cli_comms_cells, kept->from);
+        traffic->first = (traffic->first + 1u) % CLI_COMMS_STORED_MAX;
+        g_cli_cells->persistent_buf_release(stored_msg->from, &g_cli_comms_cells);
     }
     else
     {
         traffic->count += 1u;
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = from, .bytes = (size_t)from_size});
-    memor.cpy(&(MemoriaCfg){.dst = cell + from_size, .src = said, .bytes = (size_t)said_size});
-    kept->from = cell;
-    kept->body = cell + from_size;
-    kept->size = said_size;
+    memor.cpy(&(MemoriaCfg){.dst = cell + from_size, .src = stored, .bytes = (size_t)stored_size});
+    stored_msg->from = cell;
+    stored_msg->body = cell + from_size;
+    stored_msg->size = stored_size;
 }
 
-int cli_comms_say(const char *key, const char *channel, const char *body, unsigned long long size,
-                  unsigned long long *heard, CliLine *said)
+int cli_comms_send(const char *key, const char *channel, const char *body, unsigned long long size,
+                   unsigned long long *delivered, VerbaLinea *err_msg)
 {
     // the listeners called once the lock is let go, each its function and context, in this speaker's own room, as a
-    // listener called may speak in turn
-    CliCommsHeard calls_heard[CLI_COMMS_LISTENERS];
+    // listener called may send in turn
+    CliCommsRecvFn recv_fns[CLI_COMMS_LISTENERS];
     void *calls_context[CLI_COMMS_LISTENERS];
     cli_lock_take(&g_cli_comms.lock);
     const unsigned int at = comms_part_of(key);
     if (at == CLI_COMMS_PARTS)
     {
         cli_lock_give(&g_cli_comms.lock);
-        cli_line_text(said, "that key is no part's");
+        mmgr_line_put(err_msg, "that key is no part's");
         return 0;
     }
     CliCommsPart *const part = &g_cli_comms.parts[at];
-    char name[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = name,
                             .src = part->name,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = part->name, .cap = CLI_CELLS_POOL}) + 1u});
     int granted = 0;
-    for (unsigned int grant = 0u; (grant < part->speaks) && !granted; grant += 1u)
+    for (unsigned int grant = 0u; (grant < part->send_grants) && !granted; grant += 1u)
     {
-        granted = cli_comms_grants(part->speak[grant], channel);
+        granted = cli_comms_grants(part->send_grant[grant], channel);
     }
     CliCommsTraffic *const traffic = comms_traffic_of(channel);
     if (!granted)
@@ -421,17 +425,17 @@ int cli_comms_say(const char *key, const char *channel, const char *body, unsign
             traffic->refused += 1ull;
         }
         cli_lock_give(&g_cli_comms.lock);
-        cli_line_text(said, name);
-        cli_line_text(said, " may not speak on ");
-        cli_line_text(said, channel);
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " may not send on ");
+        mmgr_line_put(err_msg, channel);
         return 0;
     }
-    part->said += 1ull;
+    part->sent_count += 1ull;
     if (traffic != NULL)
     {
         traffic->messages += 1ull;
         traffic->bytes += size;
-        comms_kept(traffic, name, body, size);
+        comms_stored(traffic, name, body, size);
     }
     unsigned long long count = 0ull;
     unsigned int calls = 0u;
@@ -444,14 +448,14 @@ int cli_comms_say(const char *key, const char *channel, const char *body, unsign
         }
         if (!listener->queued)
         {
-            calls_heard[calls] = listener->heard;
+            recv_fns[calls] = listener->recv;
             calls_context[calls] = listener->context;
             calls += 1u;
             count += 1ull;
         }
         else
         {
-            const int got = listener->heard(listener->context, channel, name, body, size);
+            const int got = listener->recv(listener->context, channel, name, body, size);
             count += (got > 0) ? 1ull : 0ull;
             // a listener whose reader is gone is let go
             listener->taken = (got == 0) ? 0 : listener->taken;
@@ -460,9 +464,9 @@ int cli_comms_say(const char *key, const char *channel, const char *body, unsign
     cli_lock_give(&g_cli_comms.lock);
     for (unsigned int one = 0u; one < calls; one += 1u)
     {
-        (void)calls_heard[one](calls_context[one], channel, name, body, size);
+        (void)recv_fns[one](calls_context[one], channel, name, body, size);
     }
-    *heard = count;
+    *delivered = count;
     return 1;
 }
 

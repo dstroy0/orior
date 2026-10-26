@@ -117,9 +117,10 @@
     }
     const edges = [
       ["left", "#strip", () => ({ x: 4, y: Math.round(innerHeight / 2) })],
-      ["top", "header.bar, #toolbar", () => ({ x: Math.round(innerWidth / 2), y: 4 })],
+      ["top", 'header.bar, #toolbar, #mode-edit .desk[data-tabs="row"] > .tabs', () => ({ x: Math.round(innerWidth / 2), y: 4 })],
       ["bottom", "#statusbar", () => ({ x: Math.round(innerWidth / 2), y: innerHeight - 4 })],
       ["controls", "#window-controls", () => ({ x: innerWidth - 40, y: 4 })],
+      ["right", "#mode-edit .editor > .ed-mini", () => ({ x: innerWidth - 4, y: Math.round(innerHeight / 2) })],
     ];
     const edge = edges.find(([, parts]) => node.closest(parts));
     if (!edge || document.body.dataset.reveal === edge[0]) {
@@ -130,7 +131,8 @@
     while (document.body.dataset.reveal !== edge[0] && performance.now() < until) {
       await frame();
     }
-    const slid = performance.now() + 400;
+    // the part slides in and, a slide after, the work takes its room
+    const slid = performance.now() + 750;
     while (performance.now() < slid) {
       await frame();
     }
@@ -231,6 +233,8 @@
     // A media feature the system sets, as prefers-reduced-motion, told to the page as `value`; with
     // no value, the page has what the system truly sets.
     media: async (name, value = "") => ask({ op: "media", name, value }),
+    // The page's garbage collected, so what a measure of its memory reads is what it keeps.
+    gc: async () => ask({ op: "gc" }),
     // A program started apart from the window, waited for unless `wait` is false: its words, its
     // environment and what its standard input reads.
     run: async (program, args = [], { env = {}, input = "", wait = true } = {}) => ask({ op: "run", program, args, env, input, wait }),
@@ -267,6 +271,9 @@
     },
     frame,
     rest: (ms) => new Promise((next) => setTimeout(next, ms)),
+    // A part the claim has taken off an edge brought back as a person brings it, for a test that
+    // measures the part before it presses it.
+    brought: async (target) => edgeRested(elementOf(target)),
     text: (target) => elementOf(target).textContent.trim(),
     shown: (target) => {
       const node = typeof target === "string" ? document.querySelector(target) : target;
@@ -282,9 +289,9 @@
   // causes is kept in `calls.made`, and what a test answers is forgotten once it ends.
   const HELD = "held by the test harness";
   const REFUSED = new Set([
-    "app_exit", "window_open", "window_act", "view_open", "link_open", "home_reveal", "templates_reveal",
+    "app_exit", "window_open", "window_act", "link_open", "home_reveal", "templates_reveal",
     "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
-    "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_keep", "plugin_create", "project_create",
+    "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_save", "plugin_create", "project_create",
     "walker_probe", "print_page",
   ]);
   const refused = (name) => REFUSED.has(name) || name.startsWith("deploy") || name === "pick" || (name.startsWith("plugin:") && !name.startsWith("plugin:event|"));
@@ -323,8 +330,7 @@
   // memory.tsv beside the run's report: the test, the bytes in RAM and reserved over every process,
   // the app's own process's, the cellblock's pool and its two peaks, and the share of the app's
   // reserved bytes the pool accounts for.
-  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\ttallies\tkept_calls\trust_live"];
-  let counting = false;
+  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\towners"];
   // The rows the files before this one wrote, read once, so the table runs across the whole run and
   // not the last file alone.
   let kept_before = null;
@@ -337,23 +343,18 @@
       kept_before = text.split("\n").filter((line) => line.trim() && !line.startsWith("test\t"));
       memoryRows.push(...kept_before);
     }
-    const read = await invoke("memory_use").catch(() => null);
-    const cells = await invoke("cells_said").catch(() => null);
+    const read = await invoke("memory_usage").catch(() => null);
+    const cells = await invoke("cells_usage").catch(() => null);
     // the three modules holding the most at their peaks, each as name:bytes, for the audit of who holds what
-    const listed = await invoke("cells_tallies").catch(() => null);
-    const tallies = (listed?.tallies ?? []).sort((a, b) => b.hw - a.hw).slice(0, 3).map((one) => `${one.name}:${one.hw}`).join(",");
-    // the three calls of the tree's side that kept the most bytes over the test, each as name:bytes, the count
-    // turned on at the first sample and reset at each
-    const calls = await invoke("memory_calls", { on: counting ? undefined : true, reset: true }).catch(() => null);
-    counting = true;
-    const kept = Object.entries(calls ?? {}).filter(([, one]) => one.kept > 0).sort((a, b) => b[1].kept - a[1].kept).slice(0, 3).map(([call, one]) => `${call}:${one.kept}`).join(",");
+    const listed = await invoke("cells_owners").catch(() => null);
+    const owners = (listed?.owners ?? []).sort((a, b) => b.hw - a.hw).slice(0, 3).map((one) => `${one.name}:${one.hw}`).join(",");
     if (!read || !cells || !home) {
       return;
     }
     // the window's own process by its name: the parts stand largest first, and the web view is the largest
     const own = read.parts.find((one) => one.name === "orior_gui") ?? { working: 0, commit: 0 };
     const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
-    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, tallies, kept, read.rust_live ?? 0].join("\t"));
+    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, owners].join("\t"));
     await invoke("file_write_any", { path: `${String(home).replace(/\\/g, "/")}/../memory.tsv`, text: `${memoryRows.join("\n")}\n` }).catch(() => {});
   }
 

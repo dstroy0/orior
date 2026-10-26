@@ -10,7 +10,7 @@
 
 #define TERMS_KEY 0x5445524D53ull
 
-// 96 frames of 32 x 128 x 128: the structure function's lag 64 keeps 32 pairs a voxel
+// 96 frames of 32 x 128 x 128: the structure function's lag 64 leaves 32 pairs a voxel
 #define TERMS_FRAMES 96ull
 
 #define TERMS_DEPTH 32ull
@@ -34,7 +34,7 @@
 // the shared offsets planted, each of variance 4 a frame
 #define TERMS_SHARED_SQUARE 4ull
 
-// flicker: octaves 0 to 5, each of variance 16, held 1 to 32 frames
+// flicker: octaves 0 to 5, each of variance 16, sustained 1 to 32 frames
 #define TERMS_FLICKER_SQUARE 16ull
 
 #define TERMS_FLICKER_OCTAVES 6u
@@ -47,7 +47,7 @@
 // z mixing: each plane but the first takes 1/8 of the plane before it, the way an interpolation along z would
 #define TERMS_MIX_EIGHTHS 1ull
 
-// the constant boxes: one held at 0 and one at the lane's top
+// the constant boxes: one fixed at 0 and one at the lane's top
 #define TERMS_ZERO_BOX_VOXELS (3ull * 20ull * 40ull)
 
 #define TERMS_TOP_BOX_VOXELS (1ull * 4ull * 4ull)
@@ -60,8 +60,8 @@
 
 #define TERMS_PLANE_PARTS 150ll
 
-// the shot laws are read at 16 electrons, where the moment pass holds a block's fourth cumulant to about 1.4 lane units
-// to the fourth over the static blocks, and third to about 0.1
+// the shot laws are read at 16 electrons, where the moment pass resolves a block's fourth cumulant to about 1.4 lane
+// units to the fourth over the static blocks, and third to about 0.1
 #define TERMS_SHOT_BACKGROUND 16ull
 
 // the ladder's scene: 1 electron plus 1 a column along x, read at gain 2
@@ -99,7 +99,7 @@
 
 #define TERMS_EXPOSURES 2ull
 
-// thinning: 64 electrons of light, each counted electron kept with chance a / 4 for a from 1 to 4
+// thinning: 64 electrons of light, each counted electron retained with chance a / 4 for a from 1 to 4
 #define TERMS_THIN_LIGHT 64ull
 
 #define TERMS_THIN_BITS 2u

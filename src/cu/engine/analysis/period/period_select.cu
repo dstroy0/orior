@@ -29,7 +29,7 @@ int period_lattice_fill(const PeriodRequest *request, PeriodLattice *lattice, un
     {
         const unsigned long long extent = request->extent[axis - 1u];
         const unsigned long long lags = extent / 2ull;
-        // every count here is at most the voxel count, which was held below 2^32. Each narrows exactly
+        // every count here is at most the voxel count, which was bounded below 2^32. Each narrows exactly
         lattice->extent[axis - 1u] = (unsigned int)extent;
         lattice->stride[axis - 1u] = (unsigned int)stride;
         lattice->usable[axis - 1u] = (unsigned int)(extent - lags);
@@ -90,7 +90,7 @@ static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, un
     if (ok != 0)
     {
         const unsigned long long needed = (pass->voxels + PERIOD_THREADS - 1ull) / PERIOD_THREADS;
-        // the block count is held below the resident count, far below 2^32
+        // the block count is bounded below the resident count, far below 2^32
         const unsigned int blocks =
             (unsigned int)((needed < (unsigned long long)pass->columns) ? needed : pass->columns);
         period_histogram_kernel<<<blocks, PERIOD_THREADS>>>(pass->lanes, pass->voxels, pass->device_histogram);
@@ -99,7 +99,7 @@ static int period_count(const PeriodPass *pass, const PeriodLattice *lattice, un
     if ((ok != 0) && (end > begin))
     {
         const unsigned long long entries = end - begin;
-        // the row count is held at or below the grid's row limit
+        // the row count is bounded at or below the grid's row limit
         const unsigned int rows = (unsigned int)((entries < PERIOD_GRID_ROWS_MAX) ? entries : PERIOD_GRID_ROWS_MAX);
         const dim3 grid(pass->columns, rows, 1u);
         period_agreement_kernel<<<grid, PERIOD_THREADS>>>(pass->lanes, *lattice, begin, end, pass->device_agreement);
@@ -152,7 +152,7 @@ static int period_null_axis(const PeriodRequest *request, const PeriodLattice *l
     }
     const unsigned long long lines = lattice->voxels / lattice->extent[axis];
     const unsigned long long needed = (lines + PERIOD_THREADS - 1ull) / PERIOD_THREADS;
-    // the block count is held below the resident count, far below 2^32
+    // the block count is bounded below the resident count, far below 2^32
     const unsigned int blocks =
         (unsigned int)((needed < (unsigned long long)shuffled_pass->columns) ? needed : shuffled_pass->columns);
     period_line_shuffle_kernel<<<blocks, PERIOD_THREADS>>>(device_shuffled, shuffle, *lattice, axis, lines);
@@ -242,8 +242,8 @@ extern "C" long period_read(const PeriodRequest *request)
     unsigned long long *const agreement = (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
     unsigned long long *const shuffled_agreement =
         (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
-    const size_t band_slots = (size_t)((draws != 0ull) ? (draws * lattice.rank) : 1ull);
-    PeriodMargin *const bands = (PeriodMargin *)calloc(band_slots, sizeof(PeriodMargin));
+    const size_t band_count = (size_t)((draws != 0ull) ? (draws * lattice.rank) : 1ull);
+    PeriodMargin *const bands = (PeriodMargin *)calloc(band_count, sizeof(PeriodMargin));
     unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ull};
     int ok = PERIOD_CHECK((histogram != NULL) && (shuffled_histogram != NULL) && (agreement != NULL) &&
                               (shuffled_agreement != NULL) && (bands != NULL),
@@ -365,11 +365,11 @@ extern "C" long period_draw(const PeriodRequest *request, unsigned long long dra
     return (ok != 0) ? 0L : PERIOD_ERROR;
 }
 
-static void period_margin_text(ScripturaLine *line, const PeriodMargin *margin)
+static void period_margin_text(VerbaLinea *line, const PeriodMargin *margin)
 {
-    scriptura_decimal(line, margin->numerator, 1u);
-    scriptura_character(line, '/');
-    scriptura_decimal(line, margin->denominator, 1u);
+    mmgr_line_decimal(line, margin->numerator, 1u);
+    mmgr_line_ch(line, '/');
+    mmgr_line_decimal(line, margin->denominator, 1u);
 }
 
 extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
@@ -378,7 +378,7 @@ extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
     {
         return 0;
     }
-    ScripturaLine line;
+    VerbaLinea line;
     line.capacity = PERIOD_ROW_TEXT * ((unsigned long long)measurement->rank + 1ull);
     line.out = (char *)malloc((size_t)line.capacity);
     line.at = 0ull;
@@ -386,51 +386,51 @@ extern "C" int period_print(const PeriodMeasurement *measurement, FILE *file)
     {
         return 0;
     }
-    scriptura_text(&line, "  period over ");
-    scriptura_decimal(&line, measurement->voxels, 1u);
-    scriptura_text(&line, " voxels, ");
-    scriptura_decimal(&line, measurement->collisions, 1u);
-    scriptura_text(&line, " colliding pairs, a null band of ");
-    scriptura_decimal(&line, measurement->draws, 1u);
-    scriptura_text(&line, " shuffles\n");
+    mmgr_line_put(&line, "  period over ");
+    mmgr_line_decimal(&line, measurement->voxels, 1u);
+    mmgr_line_put(&line, " voxels, ");
+    mmgr_line_decimal(&line, measurement->collisions, 1u);
+    mmgr_line_put(&line, " colliding pairs, a null band of ");
+    mmgr_line_decimal(&line, measurement->draws, 1u);
+    mmgr_line_put(&line, " shuffles\n");
     for (unsigned int axis = 0u; axis < measurement->rank; axis += 1u)
     {
         const PeriodAxis *const result = &measurement->axis[axis];
-        scriptura_text(&line, "    axis ");
-        scriptura_decimal(&line, axis, 1u);
-        scriptura_text(&line, ": extent ");
-        scriptura_decimal(&line, result->extent, 1u);
-        scriptura_text(&line, ", lags 1 to ");
-        scriptura_decimal(&line, result->lags, 1u);
-        scriptura_text(&line, " over ");
-        scriptura_decimal(&line, result->pairs_per_lag, 1u);
-        scriptura_text(&line, " pairs each; period ");
-        scriptura_decimal(&line, result->period, 1u);
-        scriptura_text(&line, " (candidate ");
-        scriptura_decimal(&line, result->candidate, 1u);
-        scriptura_text(&line, ", agreeing ");
-        scriptura_decimal(&line, result->agreement_at_candidate, 1u);
-        scriptura_text(&line, " against ");
-        scriptura_decimal(&line, result->agreement_beside_candidate, 1u);
-        scriptura_text(&line, " beside it, ");
-        scriptura_decimal(&line, result->agreement_at_double, 1u);
-        scriptura_text(&line, " against ");
-        scriptura_decimal(&line, result->agreement_beside_double, 1u);
-        scriptura_text(&line, " beside twice it; height ");
+        mmgr_line_put(&line, "    axis ");
+        mmgr_line_decimal(&line, axis, 1u);
+        mmgr_line_put(&line, ": extent ");
+        mmgr_line_decimal(&line, result->extent, 1u);
+        mmgr_line_put(&line, ", lags 1 to ");
+        mmgr_line_decimal(&line, result->lags, 1u);
+        mmgr_line_put(&line, " over ");
+        mmgr_line_decimal(&line, result->pairs_per_lag, 1u);
+        mmgr_line_put(&line, " pairs each; period ");
+        mmgr_line_decimal(&line, result->period, 1u);
+        mmgr_line_put(&line, " (candidate ");
+        mmgr_line_decimal(&line, result->candidate, 1u);
+        mmgr_line_put(&line, ", agreeing ");
+        mmgr_line_decimal(&line, result->agreement_at_candidate, 1u);
+        mmgr_line_put(&line, " against ");
+        mmgr_line_decimal(&line, result->agreement_beside_candidate, 1u);
+        mmgr_line_put(&line, " beside it, ");
+        mmgr_line_decimal(&line, result->agreement_at_double, 1u);
+        mmgr_line_put(&line, " against ");
+        mmgr_line_decimal(&line, result->agreement_beside_double, 1u);
+        mmgr_line_put(&line, " beside twice it; height ");
         period_margin_text(&line, &result->margin);
-        scriptura_text(&line, "; ");
-        scriptura_decimal(&line, result->band_count, 1u);
-        scriptura_text(&line, " shuffles reached a peak");
+        mmgr_line_put(&line, "; ");
+        mmgr_line_decimal(&line, result->band_count, 1u);
+        mmgr_line_put(&line, " shuffles reached a peak");
         if (result->band_count != 0ull)
         {
-            scriptura_text(&line, ", from ");
+            mmgr_line_put(&line, ", from ");
             period_margin_text(&line, &result->band_bottom);
-            scriptura_text(&line, " to ");
+            mmgr_line_put(&line, " to ");
             period_margin_text(&line, &result->band_top);
         }
-        scriptura_text(&line, ")\n");
+        mmgr_line_put(&line, ")\n");
     }
-    const int written = scriptura_write(&line, file);
+    const int written = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at));
     free(line.out);
     return written;
 }

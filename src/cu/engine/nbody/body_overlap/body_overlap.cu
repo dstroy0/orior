@@ -73,7 +73,7 @@ __global__ static void overlap_kernel(const unsigned long long *positive_before,
     }
     const unsigned int first = chunk * BODY_OVERLAP_CHUNK;
     const unsigned int end = ((voxels - first) < BODY_OVERLAP_CHUNK) ? voxels : (first + BODY_OVERLAP_CHUNK);
-    unsigned int slot = (offsets != NULL) ? offsets[chunk] : 0u;
+    unsigned int written = (offsets != NULL) ? offsets[chunk] : 0u;
     unsigned int runs = 0u;
     unsigned long long run_pair = 0ull;
     unsigned int run_length = 0u;
@@ -102,9 +102,9 @@ __global__ static void overlap_kernel(const unsigned long long *positive_before,
         }
         if ((run_length != 0u) && (offsets != NULL))
         {
-            pairs[slot] = run_pair;
-            lengths[slot] = run_length;
-            slot += 1u;
+            pairs[written] = run_pair;
+            lengths[written] = run_length;
+            written += 1u;
         }
         runs += (run_length != 0u) ? 1u : 0u;
         run_pair = pair;
@@ -112,8 +112,8 @@ __global__ static void overlap_kernel(const unsigned long long *positive_before,
     }
     if ((run_length != 0u) && (offsets != NULL))
     {
-        pairs[slot] = run_pair;
-        lengths[slot] = run_length;
+        pairs[written] = run_pair;
+        lengths[written] = run_length;
     }
     runs += (run_length != 0u) ? 1u : 0u;
     if (offsets == NULL)
@@ -184,7 +184,7 @@ extern "C" unsigned long long body_overlap_bytes(unsigned long long voxels, unsi
 {
     const unsigned long long words = (voxels + 63ull) / 64ull;
     const unsigned long long chunks = (voxels + BODY_OVERLAP_CHUNK - 1ull) / BODY_OVERLAP_CHUNK;
-    // the runs' room as reserve_overlap grows it: half again over what is asked
+    // the runs' room as reserve_overlap grows it: half again over what is requested
     const unsigned long long capacity = (runs + 1ull) + ((runs + 1ull) / 2ull);
     return (2ull * overlap_paged(words * sizeof(unsigned long long), page)) +
            (2ull * overlap_paged(voxels * sizeof(unsigned int), page)) +
@@ -367,18 +367,18 @@ static long overlap_results(const BodyOverlapRequest *args, OverlapView view, co
             answer = (long)distinct;
             if (distinct <= (size_t)args->capacity)
             {
-                size_t slot = 0u;
+                size_t written = 0u;
                 for (size_t run = 0u; run < total; run += 1u)
                 {
                     if ((run != 0u) && (pairs[run] == pairs[run - 1u]))
                     {
-                        args->counts[slot - 1u] += lengths[run];
+                        args->counts[written - 1u] += lengths[run];
                         continue;
                     }
-                    args->peaks_before[slot] = (unsigned int)(pairs[run] >> 32u);
-                    args->peaks_after[slot] = (unsigned int)(pairs[run] & 0xFFFFFFFFull);
-                    args->counts[slot] = lengths[run];
-                    slot += 1u;
+                    args->peaks_before[written] = (unsigned int)(pairs[run] >> 32u);
+                    args->peaks_after[written] = (unsigned int)(pairs[run] & 0xFFFFFFFFull);
+                    args->counts[written] = lengths[run];
+                    written += 1u;
                 }
             }
         }

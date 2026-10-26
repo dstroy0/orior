@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // python_paths_internal.h: what the Python paths sources share: the expressions read from one script, their texts and
-// the values they may be, held while the script is read under the module's lock
+// the values they may be, stored while the script is read under the module's lock
 #ifndef PYTHON_PATHS_INTERNAL_H
 #define PYTHON_PATHS_INTERNAL_H
 
@@ -9,7 +9,7 @@
 #include "python_paths.h"
 
 // the most expressions, list items, letters of one expression, bytes of texts, values and names one script's reading
-// holds; no expression; and the most values a pairing of two lists gives. A reading's own most of each is sized to
+// contains; no expression; and the most values a pairing of two lists gives. A reading's own most of each is sized to
 // its script within these
 #define CLI_PY_EXPRS 16384u
 #define CLI_PY_ITEMS 16384u
@@ -90,18 +90,18 @@ typedef struct
     unsigned int ranged;
     CliPyName name[CLI_PY_NAMES];
     unsigned int names;
-    char file[CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
     unsigned int *found;
     unsigned int founds;
 } CliPy;
 
 extern CliPy g_cli_py;
 
-// the cells a script's reading is held in (python_paths.c)
-extern CliCellsTally g_cli_python_cells;
+// the cells a script's reading is allocated in (python_paths.c)
+extern CellOwner g_cli_python_cells;
 
 // the reading of a script of `size` bytes begun empty in a cell sized to it, the reading before given back: 1, or 0
-// where the cell is refused and the reading holds nothing; and the reading's cell given back once what it found is
+// where the cell is refused and the reading contains nothing; and the reading's cell given back once what it found is
 // read (python_paths.c)
 int cli_py_reading_taken(unsigned long long size);
 void cli_py_reading_given(void);
@@ -111,7 +111,7 @@ void cli_py_lines_placed(char *text, unsigned int text_most, unsigned int *start
                          unsigned int lines_most);
 
 // `length` bytes of `text` put in the texts, a 0 after them: their place, or CLI_PY_NONE where they do not fit; the
-// text at a place; and the expression `length` bytes of `text` say, read whole: its place, or CLI_PY_NONE where it
+// text at a place; and the expression `length` bytes of `text` denote, read whole: its place, or CLI_PY_NONE where it
 // is not one the reading takes (python_paths_parse.c)
 unsigned int cli_py_text_put(const char *text, unsigned long long length);
 const char *cli_py_text(unsigned int at);
@@ -123,12 +123,12 @@ unsigned int cli_py_parse(const char *text, unsigned long long length);
 // above a path, itself first, up to the top of its drive (python_paths_eval.c)
 void cli_py_value_put(unsigned int text);
 CliValues cli_py_values_from(unsigned int first);
-int cli_py_dotted(unsigned int expr, CliLine *out);
+int cli_py_dotted(unsigned int expr, VerbaLinea *out);
 CliValues cli_py_eval(unsigned int expr);
 CliValues cli_py_folders_in(const char *folder);
 CliValues cli_py_upward(const char *path);
-// the folder that holds `path`, as `os.path.dirname` gives it, written into `out` (python_paths_eval.c)
-void cli_py_parent(const char *path, CliLine *out);
+// the folder that contains `path`, as `os.path.dirname` gives it, written into `out` (python_paths_eval.c)
+void cli_py_parent(const char *path, VerbaLinea *out);
 
 // what the script at `file`, `size` bytes of `text`, puts on `sys.path`, as it may write them, read into the found,
 // the reading taken for it and given back with cli_py_reading_given once the found are read; none found where its

@@ -21,7 +21,7 @@ source "$TOP/../utils/maint/engine/build_stamp.sh"
 build_stamp navier_stokes
 
 SIMS_CU="$SRC/sims/cu"
-SCRIPTURA="$SRC/cu/engine/runtime/scriptura"
+source "$SRC/cu/includes/file_defs/file_defs.sh"
 NO_ROUNDING="$SRC/cu/includes/types/integers"
 CFG_JSON="$SRC/cu/includes/formats/cfg_json"
 DAEMON_DIRECTORY="$SRC/cu/engine/runtime/daemon"
@@ -57,7 +57,7 @@ WIDTH=()
 if [ -n "${SIM_EXACT_LIMBS:-}" ]; then
     WIDTH=(-DORIOR_EXACT_LIMBS="${SIM_EXACT_LIMBS}u")
 fi
-INCLUDES=(-I "$SRC/cu/engine" -I "$SIMS_CU" -I "$SCRIPTURA" -I "$NO_ROUNDING" -I "$CFG_JSON"
+INCLUDES=(-I "$SRC/cu/engine" -I "$SIMS_CU" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$NO_ROUNDING" -I "$CFG_JSON"
           -I "$DAEMON_DIRECTORY" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
 for module in "${MODULES[@]}"; do
     INCLUDES+=(-I "$ROOT/src/$module")
@@ -67,7 +67,7 @@ done
 # directory the build reads, is newer than it
 OBJECT_DIRECTORY="$BUILD_ROOT/build/navier_stokes_objects_${SIM_EXACT_LIMBS:-default}"
 mkdir -p "$OBJECT_DIRECTORY"
-HEADER_DIRECTORIES=("$SIMS_CU" "$SCRIPTURA" "$NO_ROUNDING" "$CFG_JSON" "$DAEMON_DIRECTORY" "$OBSIGNATIO" "$OBSIGNATIO_CU")
+HEADER_DIRECTORIES=("$SIMS_CU" "$FILE_DEFS_MMGR_TOP/src/verba_scribo" "$NO_ROUNDING" "$CFG_JSON" "$DAEMON_DIRECTORY" "$OBSIGNATIO" "$OBSIGNATIO_CU")
 for module in "${MODULES[@]}"; do
     HEADER_DIRECTORIES+=("$ROOT/src/$module")
 done
@@ -107,7 +107,7 @@ build_unit()
 }
 
 OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$CFG_JSON/cfg_json.c"; do
     object="$OBJECT_DIRECTORY/$(basename "$source" .c).$EXTENSION"
     build_object "$source" "$object"

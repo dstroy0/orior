@@ -13,18 +13,18 @@
 // The files a plugin's `main` names
 typedef struct
 {
-    char main[CLI_PLUGINS_MAINS][CLI_PATH_LONGEST];
+    char main[CLI_PLUGINS_MAINS][CLI_PATH_MAX_LEN];
     unsigned int mains;
 } CliCodeMains;
 
-// `name` kept as one of the files the plugin's code is read from, where room is left
-static void code_main_kept(CliCodeMains *mains, const char *name)
+// `name` recorded as one of the files the plugin's code is read from, where room is left
+static void code_main_put(CliCodeMains *mains, const char *name)
 {
     if (mains->mains < CLI_PLUGINS_MAINS)
     {
-        CliLine kept = {mains->main[mains->mains], CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&kept, name);
-        mains->mains += (cli_line_closed(&kept) != 0ull) ? 1u : 0u;
+        VerbaLinea main_line = {mains->main[mains->mains], CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&main_line, name);
+        mains->mains += (mmgr_line_finish(&main_line) != 0ull) ? 1u : 0u;
     }
 }
 
@@ -33,22 +33,22 @@ static int code_mains_read(const char *text, unsigned long long size, CliCodeMai
 {
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    char why[CLI_PATH_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, text, size, 0u, 0ull, &said);
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned int root = cli_json_taken(&json, text, size, 0u, 0ull, &err_msg);
     mains->mains = 0u;
     const unsigned int main = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "main") : CLI_JSON_NONE;
     for (unsigned int item = cli_json_is(&json, main, CFG_JSON_ARRAY) ? json.node[main].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json.node[item].next)
     {
         const char *const name = cli_json_string(&json, item, NULL);
-        // a name that is no string is kept empty, so it is refused as no file of the folder's
-        code_main_kept(mains, (name != NULL) ? name : "");
+        // a name that is no string is recorded empty, so it is refused as no file of the folder's
+        code_main_put(mains, (name != NULL) ? name : "");
     }
     const char *const one = cli_json_string(&json, main, NULL);
     if (mains->mains == 0u)
     {
-        code_main_kept(mains, (one != NULL) ? one : "plugin.js");
+        code_main_put(mains, (one != NULL) ? one : "plugin.js");
     }
     cli_json_given(&json);
     return root != CLI_JSON_NONE;
@@ -75,32 +75,32 @@ static int code_own(const char *name)
     return own && (name[0] != '\0');
 }
 
-// the file `name` of the plugin's folder `folder` read onto the end of `out`: 1, or 0 with why said
-static int code_file_read(const char *folder, const char *name, CliLine *out, CliLine *said)
+// the file `name` of the plugin's folder `folder` read onto the end of `out`: 1, or 0 with why given
+static int code_file_read(const char *folder, const char *name, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char file[CLI_PATH_LONGEST];
-    CliLine line = {file, sizeof(file), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
+    char file[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {file, sizeof(file), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
     unsigned long long file_size = 0ull;
     const int found =
-        (cli_line_closed(&line) != 0ull) && cli_file_size(file, &file_size) && cli_line_room(out, file_size);
-    const unsigned long long room = cli_line_fits(out) ? (out->capacity - out->at) : 0ull;
+        (mmgr_line_finish(&line) != 0ull) && cli_file_size(file, &file_size) && cli_growing_line_room(out, file_size);
+    const unsigned long long room = mmgr_line_ok(out) ? (out->capacity - out->at) : 0ull;
     const unsigned long long size =
         found ? qry_member_file_read(file, (unsigned char *)(out->out + out->at), room) : QRY_MEMBER_UNREAD;
     if (size == QRY_MEMBER_UNREAD)
     {
-        cli_line_text(said, file);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     out->at += size;
     return 1;
 }
 
-int cli_plugins_code_in(const char *id, const char *folder, const char *text, unsigned long long size, CliLine *out,
-                        CliLine *said)
+int cli_plugins_code_in(const char *id, const char *folder, const char *text, unsigned long long size, VerbaLinea *out,
+                        VerbaLinea *err_msg)
 {
     static CliCodeMains s_mains;
     static CliLock s_mains_lock = CLI_LOCK_INIT;
@@ -108,26 +108,25 @@ int cli_plugins_code_in(const char *id, const char *folder, const char *text, un
     int done = code_mains_read(text, size, &s_mains);
     if (!done)
     {
-        cli_line_text(said, id);
-        cli_line_text(said, ": its plugin.json does not read");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, ": its plugin.json does not read");
     }
     for (unsigned int at = 0u; done && (at < s_mains.mains); at += 1u)
     {
         done = code_own(s_mains.main[at]);
         if (!done)
         {
-            cli_line_text(said, id);
-            cli_line_text(said, " names ");
-            cli_line_text(said, s_mains.main[at]);
-            cli_line_text(said, ", which is not a file of its own folder");
+            mmgr_line_put(err_msg, id);
+            mmgr_line_put(err_msg, " names ");
+            mmgr_line_put(err_msg, s_mains.main[at]);
+            mmgr_line_put(err_msg, ", which is not a file of its own folder");
         }
     }
     for (unsigned int at = 0u; done && (at < s_mains.mains); at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "\n" : "");
-        done = code_file_read(folder, s_mains.main[at], out, said);
+        mmgr_line_put(out, (at > 0u) ? "\n" : "");
+        done = code_file_read(folder, s_mains.main[at], out, err_msg);
     }
     cli_lock_give(&s_mains_lock);
     return done;
 }
-

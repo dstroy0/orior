@@ -14,9 +14,9 @@ int line_read(const unsigned char *bytes, unsigned long long size, unsigned long
     // the rest of the text, which a size_t counts as the text is in memory
     const unsigned char *const end = (const unsigned char *)memchr(bytes + *at, '\n', (size_t)(size - *at));
     const size_t length = (end != NULL) ? (size_t)(end - (bytes + *at)) : (size_t)(size - *at);
-    const size_t kept = (length < room) ? length : (room - 1u);
-    memcpy(line, bytes + *at, kept);
-    line[kept] = '\0';
+    const size_t copy_len = (length < room) ? length : (room - 1u);
+    memcpy(line, bytes + *at, copy_len);
+    line[copy_len] = '\0';
     *at += (unsigned long long)length + 1ull;
     return 1;
 }
@@ -138,7 +138,7 @@ int line_unsigned(const char **at, unsigned int *value)
     {
         return 0;
     }
-    // the test above holds the number inside 32 bits
+    // the test above bounds the number inside 32 bits
     *value = (unsigned int)read;
     *at = walk;
     return 1;
@@ -155,7 +155,7 @@ int line_signed(const char **at, int *value)
     {
         return 0;
     }
-    // the test above holds the magnitude inside an int's range, its least taken through a long long
+    // the test above bounds the magnitude inside an int's range, its least taken through a long long
     *value = (int)(negative ? -(long long)read : (long long)read);
     *at = walk;
     return 1;

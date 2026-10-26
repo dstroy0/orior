@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// regexp_letters.c: a letter's Unicode properties and its case, as the matcher reads them. ASCII holds exactly; past it
-// the blocks listed below hold: the Latin, Greek, Cyrillic, Armenian, Georgian and fullwidth cases, and the letters and
-// numbers of the scripts named in the tables. A letter of a block not listed has no property and no other case
+// regexp_letters.c: a letter's Unicode properties and its case, as the matcher reads them. ASCII matches exactly; past
+// it the blocks listed below match: the Latin, Greek, Cyrillic, Armenian, Georgian and fullwidth cases, and the letters
+// and numbers of the scripts named in the tables. A letter of a block not listed has no property and no other case
 #include "regexp.h"
 
 // a block whose capitals each have their small letter `offset` above: every one from `first` to `last`, or the even or
@@ -37,7 +37,7 @@ static const CliCaseBlock s_case_blocks[] = {
     {0x1ea0u, 0x1effu, 1u, CLI_CASE_EVEN},   {0x2160u, 0x216fu, 16u, CLI_CASE_ALL},
     {0x24b6u, 0x24cfu, 26u, CLI_CASE_ALL},   {0xff21u, 0xff3au, 32u, CLI_CASE_ALL}};
 
-// the cases no block above holds: a capital and the small letter it takes, then a small letter and the capital it
+// the cases no block above covers: a capital and the small letter it takes, then a small letter and the capital it
 // takes, where the two do not go back the same way
 static const unsigned int s_lowered[][2] = {{0x178u, 0xffu}, {0x130u, 'i'}};
 
@@ -57,7 +57,7 @@ static const unsigned int s_numbers[][2] = {{'0', '9'},         {0xb2u, 0xb3u}, 
                                             {0x660u, 0x669u},   {0x6f0u, 0x6f9u},  {0x966u, 0x96fu}, {0x2160u, 0x2188u},
                                             {0x2460u, 0x249bu}, {0xff10u, 0xff19u}};
 
-static int cli_case_holds(const CliCaseBlock *block, unsigned int capital)
+static int cli_case_contains(const CliCaseBlock *block, unsigned int capital)
 {
     if ((capital < block->first) || (capital > block->last))
     {
@@ -77,7 +77,7 @@ unsigned int cli_regexp_lower(unsigned int letter)
     }
     for (unsigned int at = 0u; at < (sizeof(s_case_blocks) / sizeof(s_case_blocks[0])); at += 1u)
     {
-        if (cli_case_holds(&s_case_blocks[at], letter))
+        if (cli_case_contains(&s_case_blocks[at], letter))
         {
             return letter + s_case_blocks[at].offset;
         }
@@ -97,7 +97,7 @@ unsigned int cli_regexp_upper(unsigned int letter)
     for (unsigned int at = 0u; at < (sizeof(s_case_blocks) / sizeof(s_case_blocks[0])); at += 1u)
     {
         const unsigned int offset = s_case_blocks[at].offset;
-        if ((letter >= offset) && cli_case_holds(&s_case_blocks[at], letter - offset))
+        if ((letter >= offset) && cli_case_contains(&s_case_blocks[at], letter - offset))
         {
             return letter - offset;
         }

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // requests_test.c: Requests' check: a file's requests are read with their names, lines, headers and bodies; variables
 // come from the file and the environment chosen, the private values over the shared; the private file is made beside
-// the file and named in the .gitignore; a curl line becomes a request and a request a curl line; and each request keeps
-// its last answers, the last first, orior's own folder a folder of the run's
+// the file and named in the .gitignore; a curl line becomes a request and a request a curl line; and each request
+// stores its last answers, the last first, orior's own folder a folder of the run's
 #include "../../../../../ui/cli/src/requests/requests_internal.h"
 #include "cli_check.h"
 
@@ -18,7 +18,7 @@ static CliRequestsSent s_sent;
 static CliRequestsAnswer s_answer;
 static char s_body[1u << 16u];
 static char s_out[16u << 20u];
-static char s_big[CLI_REQUESTS_KEPT_BODY + 10u];
+static char s_big[CLI_REQUESTS_HISTORY_BODY_MAX + 10u];
 
 // a text of the parsed file's pool
 static const char *requests_text(CliRequestsText text)
@@ -26,12 +26,12 @@ static const char *requests_text(CliRequestsText text)
     return cli_requests_text(s_parsed.text, text);
 }
 
-// the key of a request of the parsed file into `key`, which holds `room`
+// the key of a request of the parsed file into `key`, which is sized for `room`
 static const char *requests_key(const CliRequest *request, char *key, unsigned long long room)
 {
-    CliLine line = {key, room, 0ull};
+    VerbaLinea line = {key, room, 0ull};
     cli_requests_key(&s_parsed, request, &line);
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return key;
 }
 
@@ -72,7 +72,7 @@ static void requests_parsed(void)
             !make->redirect && make->has_body &&
             (cellul.eq(&(CatenaFinitaCfg){
                 .src = requests_text(make->body), .other = "{\"name\": \"{{who}}\"}", .cap = CLI_CELLS_POOL})),
-        "a request named, kept from redirects, with its body");
+        "a request named, protected from redirects, with its body");
     cli_check(
         (cellul.eq(&(CatenaFinitaCfg){.src = requests_text(upload->method), .other = "GET", .cap = CLI_CELLS_POOL})) &&
             upload->has_body_file &&
@@ -94,14 +94,14 @@ static void requests_parsed(void)
                                            .cap = CLI_CELLS_POOL}),
               "one with no name by its method and address");
     cli_check((s_parsed.requests_room == 1u) && (s_parsed.text_room <= (2u * sizeof(s_bare)) + 64u),
-              "a file read holds as many requests as its parts and texts as twice its bytes");
+              "a file read contains as many requests as its parts and texts as twice its bytes");
     cli_requests_parsed_given(&s_parsed);
 }
 
 // the folder `name` of the run's, its api/v1 made, into `root`
 static void requests_root(const char *name, char *root)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     cli_check_folder(name, root);
     cli_full(root, "api/v1", folder);
     (void)query_folder_made(folder);
@@ -110,7 +110,7 @@ static void requests_root(const char *name, char *root)
 // a file of the tree `root` written
 static void requests_written(const char *root, const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
@@ -126,62 +126,62 @@ static const char *requests_value(const char *name)
 // variables come from the file and the environment chosen, the private values over the shared
 static void requests_values(void)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     requests_root("requests_values", root);
     requests_written(root, "api/" CLI_REQUESTS_PUBLIC,
                      "{\"$shared\": {\"who\": \"all\"}, \"dev\": {\"host\": \"localhost:1\", \"token\": \"none\"}, "
                      "\"prod\": {\"host\": \"example.com\"}}");
     requests_written(root, CLI_REQUESTS_PRIVATE, "{\"dev\": {\"token\": \"secret\"}}");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_requests_environments(root, "api/v1/calls.http", &out, &said), "the environments are read");
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_requests_environments(root, "api/v1/calls.http", &out, &err_msg), "the environments are read");
     cli_check_text(s_out, out.at,
                    "{\"names\":[\"dev\",\"prod\"],\"shared\":\"api/" CLI_REQUESTS_PUBLIC
                    "\",\"private\":\"" CLI_REQUESTS_PRIVATE "\"}",
                    "their names, and the files they come from");
     cli_check(
-        cli_requests_values(root, "api/v1/calls.http", "dev", &s_values, &said) &&
+        cli_requests_values(root, "api/v1/calls.http", "dev", &s_values, &err_msg) &&
             (cellul.eq(
                 &(CatenaFinitaCfg){.src = requests_value("host"), .other = "localhost:1", .cap = CLI_CELLS_POOL})) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = requests_value("token"), .other = "secret", .cap = CLI_CELLS_POOL})) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = requests_value("who"), .other = "all", .cap = CLI_CELLS_POOL})),
         "the private values over the shared, $shared to every environment");
     cli_requests_values_given(&s_values);
-    cli_check((g_cli_requests_cells.holds == 0ull) && (g_cli_requests_cells.hw != 0ull),
+    cli_check((g_cli_requests_cells.in_use == 0ull) && (g_cli_requests_cells.hw != 0ull),
               "the environments and their values are read in cells each given back");
     cli_check(cli_requests_verifies(root, "api/v1/calls.http", "dev"), "a certificate is checked");
     requests_written(root, CLI_REQUESTS_PRIVATE,
                      "{\"dev\": {\"token\": \"secret\", \"SSLConfiguration\": {\"verifyHostCertificate\": false}}}");
     cli_check(!cli_requests_verifies(root, "api/v1/calls.http", "dev") &&
                   cli_requests_verifies(root, "api/v1/calls.http", "prod"),
-              "unless the environment says not to");
+              "unless the environment specifies not to");
     char key[256];
-    CliLine key_line = {key, sizeof(key), 0ull};
-    CliLine body = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    cli_line_growing(&body, 4096ull, "a test request's body");
-    said.at = 0ull;
+    VerbaLinea key_line = {key, sizeof(key), 0ull};
+    VerbaLinea body = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    cli_growing_line_made(&body, 4096ull);
+    err_msg.at = 0ull;
     cli_check(cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, "dev", &s_sent, &body,
-                                 &key_line, &said),
+                                 &key_line, &err_msg),
               "a request is made ready");
     cli_check_text(key, key_line.at, "make", "the request the line is in");
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = s_sent.url, .other = "http://localhost:1/v1/items", .cap = CLI_CELLS_POOL}),
         "its address filled in");
     cli_check_text(s_sent.body, s_sent.body_size, "{\"name\": \"all\"}", "and its body");
-    said.at = 0ull;
+    err_msg.at = 0ull;
     cli_check(!cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, NULL, &s_sent, &body,
-                                  NULL, &said) &&
-                  (cli_line_closed(&said) != 0ull) &&
+                                  NULL, &err_msg) &&
+                  (mmgr_line_finish(&err_msg) != 0ull) &&
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = why, .cap = CLI_CELLS_POOL, .other = "{{host}}", .other_cap = CLI_CELLS_POOL}) != NULL),
               "no environment, no host");
-    cli_cell_given(body.out);
+    g_cli_cells->persistent_buf_release(body.out, NULL);
     static CliRequestsValues s_none;
     static const char s_dynamic[] = "{{$uuid}} {{$timestamp}}";
     out.at = 0ull;
-    said.at = 0ull;
-    cli_check(cli_requests_filled(s_dynamic, sizeof(s_dynamic) - 1u, &s_none, &out, &said) && (out.at > 40ull) &&
+    err_msg.at = 0ull;
+    cli_check(cli_requests_filled(s_dynamic, sizeof(s_dynamic) - 1u, &s_none, &out, &err_msg) && (out.at > 40ull) &&
                   (s_out[14] == '4'),
               "a uuid of version 4 and a timestamp");
     out.at = 0ull;
@@ -195,15 +195,15 @@ static void requests_values(void)
 // the private file is made beside the file and named in the .gitignore
 static void requests_private(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     requests_root("requests_private", root);
     requests_written(root, "api/" CLI_REQUESTS_PUBLIC, "{\"local\": {}, \"stage\": {}}");
     requests_written(root, ".gitignore", "target");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_requests_private_made(root, "api/calls.http", &out, &said), "the private file is made");
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_requests_private_made(root, "api/calls.http", &out, &err_msg), "the private file is made");
     cli_check_text(s_out, out.at, "\"api/" CLI_REQUESTS_PRIVATE "\"", "beside the file");
     cli_full(root, "api/" CLI_REQUESTS_PRIVATE, path);
     unsigned long long size = qry_member_file_read(path, (unsigned char *)s_body, sizeof(s_body));
@@ -217,8 +217,8 @@ static void requests_private(void)
     cli_check_text(s_body, (size != QRY_MEMBER_UNREAD) ? size : 0ull, "target\n" CLI_REQUESTS_PRIVATE "\n",
                    "and named in the .gitignore");
     out.at = 0ull;
-    cli_check(cli_requests_private_made(root, "api/calls.http", &out, &said), "made again");
-    cli_check_text(s_out, out.at, "\"api/" CLI_REQUESTS_PRIVATE "\"", "the one there is kept");
+    cli_check(cli_requests_private_made(root, "api/calls.http", &out, &err_msg), "made again");
+    cli_check_text(s_out, out.at, "\"api/" CLI_REQUESTS_PRIVATE "\"", "the one there is retained");
     size = qry_member_file_read(path, (unsigned char *)s_body, sizeof(s_body));
     cli_check_text(s_body, (size != QRY_MEMBER_UNREAD) ? size : 0ull, "target\n" CLI_REQUESTS_PRIVATE "\n",
                    "and named once");
@@ -229,9 +229,10 @@ static int requests_from_curl(const char *line)
 {
     char written[4096];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {written, sizeof(written), 0ull};
-    if (!cli_requests_from_curl(line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}), &out, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {written, sizeof(written), 0ull};
+    if (!cli_requests_from_curl(line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}), &out,
+                                &err_msg))
     {
         return 0;
     }
@@ -295,7 +296,7 @@ static void requests_curl(void)
     s_sent.body = "{}";
     s_sent.body_size = 2ull;
     char written[4096];
-    CliLine out = {written, sizeof(written), 0ull};
+    VerbaLinea out = {written, sizeof(written), 0ull};
     cli_requests_curl_written(&s_sent, &out);
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(written, out.at, &read);
@@ -318,55 +319,56 @@ static void requests_curl(void)
               "and back");
 }
 
-// the answers kept for the request at `line` of s_kept, read into the shared tree: the array of them
+// the answers stored for the request at `line` of s_calls, read into the shared tree: the array of them
 static unsigned int requests_answers(const char *root, unsigned long long line, const CliJson **json)
 {
-    static const char s_kept[] = "### make\nGET http://h/a\n\n### other\nGET http://h/b\n\n### none\nGET "
-                                 "http://h/c\n\n### big\nGET http://h/d\n";
+    static const char s_calls[] = "### make\nGET http://h/a\n\n### other\nGET http://h/b\n\n### none\nGET "
+                                  "http://h/c\n\n### big\nGET http://h/d\n";
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    (void)cli_requests_answers(root, "calls.http", s_kept, sizeof(s_kept) - 1u, line, &out, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    (void)cli_requests_answers(root, "calls.http", s_calls, sizeof(s_calls) - 1u, line, &out, &err_msg);
     unsigned int read = CLI_JSON_NONE;
     *json = cli_check_parsed(s_out, out.at, &read);
     return cli_json_member(*json, read, "answers");
 }
 
-// an answer at `at` with `size` bytes of `body` kept under `key`: 1, or 0
-static int requests_keep(const char *root, const char *key, unsigned long long at, const char *body,
-                         unsigned long long size)
+// an answer at `at` with `size` bytes of `body` stored under `key`: 1, or 0
+static int requests_history_put(const char *root, const char *key, unsigned long long at, const char *body,
+                                unsigned long long size)
 {
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_answer.at = at;
     s_answer.status = 200u;
     s_answer.body = (const unsigned char *)body;
     s_answer.size = size;
-    return cli_requests_keep(root, "calls.http", key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
-                             &s_answer, &s_sent, &said);
+    return cli_requests_history_save(root, "calls.http", key,
+                                     cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), &s_answer,
+                                     &s_sent, &err_msg);
 }
 
-// each request keeps its last answers, the last first
-static void requests_kept(void)
+// each request stores its last answers, the last first
+static void requests_history(void)
 {
-    char root[CLI_PATH_LONGEST];
-    cli_check_folder("requests_kept", root);
+    char root[CLI_PATH_MAX_LEN];
+    cli_check_folder("requests_stored", root);
     memor.set(&(MemoriaCfg){.dst = s_big, .val = 'x', .bytes = sizeof(s_big)});
-    int kept = 1;
-    for (unsigned int at = 0u; at < (CLI_REQUESTS_KEEP + 2u); at += 1u)
+    int saved = 1;
+    for (unsigned int at = 0u; at < (CLI_REQUESTS_HISTORY_MAX + 2u); at += 1u)
     {
-        kept = kept && requests_keep(root, "make", at, s_big, (at == 0u) ? sizeof(s_big) : 0ull);
+        saved = saved && requests_history_put(root, "make", at, s_big, (at == 0u) ? sizeof(s_big) : 0ull);
     }
-    cli_check(kept && requests_keep(root, "other", 99ull, "", 0ull), "answers are kept");
+    cli_check(saved && requests_history_put(root, "other", 99ull, "", 0ull), "answers are stored");
     const CliJson *json = NULL;
     const unsigned int make = requests_answers(root, 1ull, &json);
-    int order = (cli_json_is(json, make, CFG_JSON_ARRAY) && (json->node[make].count == CLI_REQUESTS_KEEP));
-    for (unsigned int at = 0u; order && (at < CLI_REQUESTS_KEEP); at += 1u)
+    int order = (cli_json_is(json, make, CFG_JSON_ARRAY) && (json->node[make].count == CLI_REQUESTS_HISTORY_MAX));
+    for (unsigned int at = 0u; order && (at < CLI_REQUESTS_HISTORY_MAX); at += 1u)
     {
         const unsigned int when = cli_json_member(json, cli_json_item(json, make, at), "at");
         char wanted[16];
-        CliLine line = {wanted, sizeof(wanted), 0ull};
-        cli_line_decimal(&line, CLI_REQUESTS_KEEP + 1u - at, 1u);
+        VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+        mmgr_line_decimal(&line, CLI_REQUESTS_HISTORY_MAX + 1u - at, 1u);
         order = (when != CLI_JSON_NONE) && (json->node[when].length == line.at) &&
                 (memor.cmp(
                      &(MemoriaCfg){.src = json->text + json->node[when].text, .other = wanted, .bytes = line.at}) == 0);
@@ -375,20 +377,21 @@ static void requests_kept(void)
     const unsigned int other = requests_answers(root, 4ull, &json);
     cli_check(json->node[other].count == 1u, "each request its own");
     const unsigned int none = requests_answers(root, 7ull, &json);
-    cli_check(json->node[none].count == 0u, "and none where none were kept");
+    cli_check(json->node[none].count == 0u, "and none where none were stored");
     memor.set(&(MemoriaCfg){.dst = s_big, .val = 'y', .bytes = sizeof(s_big)});
-    cli_check(requests_keep(root, "big", 0ull, s_big, sizeof(s_big)), "a large answer is kept");
+    cli_check(requests_history_put(root, "big", 0ull, s_big, sizeof(s_big)), "a large answer is stored");
     const unsigned int answers = requests_answers(root, 10ull, &json);
     const unsigned int big = cli_json_item(json, answers, 0u);
     const unsigned int body = cli_json_member(json, big, "body");
     cli_check(cli_json_is(json, cli_json_member(json, big, "cut"), CFG_JSON_TRUE) &&
-                  (json->node[body].length == CLI_REQUESTS_KEPT_BODY),
+                  (json->node[body].length == CLI_REQUESTS_HISTORY_BODY_MAX),
               "its body cut");
 }
 
 int main(void)
 {
-    char home[CLI_PATH_LONGEST];
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    char home[CLI_PATH_MAX_LEN];
     cli_check_folder("requests_home", home);
     (void)query_environment_set("ORIOR_HOME", home);
     requests_parsed();
@@ -400,6 +403,6 @@ int main(void)
                             .src = "GET",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "GET", .cap = CLI_CELLS_POOL}) + 1u});
     s_sent.body = "";
-    requests_kept();
+    requests_history();
     return cli_checked();
 }

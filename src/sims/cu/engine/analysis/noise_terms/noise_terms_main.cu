@@ -40,7 +40,7 @@ int main(void)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "  the noise terms, each planted in the camera law and read back by the noise detector"
                    "\n");
     const unsigned long long count = TERMS_FRAMES * TERMS_DEPTH * TERMS_HEIGHT * TERMS_WIDTH;
@@ -63,7 +63,7 @@ int main(void)
 
     if (ok)
     {
-        scriptura_text(&results.line, "  the null: shot and read noise and the fixed pattern only\n");
+        mmgr_line_put(&results.line, "  the null: shot and read noise and the fixed pattern only\n");
         terms_camera(&camera);
         if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
         {
@@ -72,13 +72,13 @@ int main(void)
             terms_neighbors(&results, lanes, 0ll);
             terms_spikes(&results, lanes, 0ull, camera.shot);
             sim_flush(&results);
-            scriptura_text(&results.line, "  the null mixed along z, 1/8 of the plane before (an interpolation's"
+            mmgr_line_put(&results.line, "  the null mixed along z, 1/8 of the plane before (an interpolation's"
                                           " weights): (1/8)(7/8) / ((7/8)^2 + (1/8)^2) = 7/50\n");
             terms_mix(lanes);
             terms_neighbors(&results, lanes, 140ll);
         }
         sim_flush(&results);
-        scriptura_text(&results.line, "  the null with a box held at 0 and a box held at the top\n");
+        mmgr_line_put(&results.line, "  the null with a box fixed at 0 and a box fixed at the top\n");
         if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
         {
             terms_boxes(lanes);
@@ -91,7 +91,7 @@ int main(void)
                                          "  a plane offset of variance 4 a frame\n"};
     for (unsigned int shared = 0u; ok && (shared < 3u); shared += 1u)
     {
-        scriptura_text(&results.line, shared_names[shared]);
+        mmgr_line_put(&results.line, shared_names[shared]);
         terms_camera(&camera);
         camera.row_square = (shared == 0u) ? TERMS_SHARED_SQUARE : 0ull;
         camera.column_square = (shared == 1u) ? TERMS_SHARED_SQUARE : 0ull;
@@ -104,7 +104,8 @@ int main(void)
     }
     if (ok)
     {
-        scriptura_text(&results.line, "  flicker: octaves 0 to 5, each of variance 16, held 2^o frames at a voxel\n");
+        mmgr_line_put(&results.line,
+                       "  flicker: octaves 0 to 5, each of variance 16, sustained 2^o frames at a voxel\n");
         terms_camera(&camera);
         camera.flicker_square = TERMS_FLICKER_SQUARE;
         camera.flicker_octaves = TERMS_FLICKER_OCTAVES;
@@ -113,7 +114,7 @@ int main(void)
             terms_flicker(&results, lanes, TERMS_FLICKER_SQUARE, TERMS_FLICKER_OCTAVES);
         }
         sim_flush(&results);
-        scriptura_text(&results.line, "  spikes of 256 electrons at one voxel-frame in 1024\n");
+        mmgr_line_put(&results.line, "  spikes of 256 electrons at one voxel-frame in 1024\n");
         terms_camera(&camera);
         camera.spike_numerator = 1ull;
         camera.spike_denominator = TERMS_SPIKE_DENOMINATOR;
@@ -133,7 +134,7 @@ int main(void)
         " cumulants\n"};
     for (unsigned int each = 0u; ok && (each < 2u); each += 1u)
     {
-        scriptura_text(&results.line, law_names[each]);
+        mmgr_line_put(&results.line, law_names[each]);
         terms_camera(&camera);
         camera.shot = laws[each];
         scene.background = TERMS_SHOT_BACKGROUND;
@@ -152,16 +153,16 @@ int main(void)
                              "lanes read");
         if (copied)
         {
-            scriptura_text(&results.line, "    rendered at 100 electrons in ");
-            scriptura_decimal(&results.line, spent, 1u);
-            scriptura_text(&results.line, " microseconds\n");
+            mmgr_line_put(&results.line, "    rendered at 100 electrons in ");
+            mmgr_line_decimal(&results.line, spent, 1u);
+            mmgr_line_put(&results.line, " microseconds\n");
             terms_spikes(&results, lanes, 0ull, laws[each]);
         }
         sim_flush(&results);
     }
     if (ok)
     {
-        scriptura_text(&results.line,
+        mmgr_line_put(&results.line,
                        "  the ladder and the tail: a Poisson shot at gain 2 over 1 to 128 electrons along x,"
                        " offset 20, read variance 4, no fixed pattern\n");
         terms_camera(&camera);
@@ -180,7 +181,7 @@ int main(void)
     }
     if (ok)
     {
-        scriptura_text(&results.line, "  crosstalk read in the null\n");
+        mmgr_line_put(&results.line, "  crosstalk read in the null\n");
         terms_camera(&camera);
         unsigned short *const drawn = (unsigned short *)malloc((size_t)lane_bytes);
         sim_check(&results, drawn != NULL, "the crosstalk copy");
@@ -188,7 +189,7 @@ int main(void)
         {
             terms_crosstalk(&results, lanes, 0ull);
             sim_flush(&results);
-            scriptura_text(&results.line,
+            mmgr_line_put(&results.line,
                            "  the null with each voxel taking 1/8 of each x neighbor's value after the draw"
                            "\n");
             memcpy(drawn, lanes, (size_t)lane_bytes);
@@ -200,7 +201,7 @@ int main(void)
     }
     if (ok)
     {
-        scriptura_text(&results.line,
+        mmgr_line_put(&results.line,
                        "  charge before the gain: no light, offset 20, gain 2, read variance 4, reset variance"
                        " 4, a Poisson dark shot; a bias series, then a dark series at 16 and at 32 dark"
                        " electrons a frame\n");
@@ -218,18 +219,18 @@ int main(void)
             {
                 camera.key = TERMS_KEY + exposure;
                 camera.dark = exposure * TERMS_DARK;
-                scriptura_text(&results.line, "    ");
-                scriptura_decimal(&results.line, camera.dark, 1u);
-                scriptura_text(&results.line, " dark electrons a frame\n");
+                mmgr_line_put(&results.line, "    ");
+                mmgr_line_decimal(&results.line, camera.dark, 1u);
+                mmgr_line_put(&results.line, " dark electrons a frame\n");
                 if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
                 {
                     terms_charge(&results, bias, lanes, &camera);
                 }
             }
             sim_flush(&results);
-            scriptura_text(&results.line,
+            mmgr_line_put(&results.line,
                            "  thinning: 64 electrons of light against the same bias, each counted electron"
-                           " kept with chance q = a/4; g f' = g (1 + q (f - 1))\n");
+                           " retained with chance q = a/4; g f' = g (1 + q (f - 1))\n");
             camera.dark = 0ull;
             scene.background = TERMS_THIN_LIGHT;
             const unsigned long long thin_laws[3] = {SIM_SHOT_POISSON, SIM_SHOT_HALF, SIM_SHOT_PAIRED};
@@ -240,39 +241,39 @@ int main(void)
                                                "    twice a Poisson count of pairs, f = 2\n"};
             for (unsigned int law = 0u; law < 3u; law += 1u)
             {
-                scriptura_text(&results.line, thin_names[law]);
+                mmgr_line_put(&results.line, thin_names[law]);
                 camera.shot = thin_laws[law];
-                camera.keep_bits = TERMS_THIN_BITS;
-                for (unsigned long long keep = 1ull; keep <= TERMS_THIN_STEPS; keep += 1ull)
+                camera.thin_bits = TERMS_THIN_BITS;
+                for (unsigned long long thin_step = 1ull; thin_step <= TERMS_THIN_STEPS; thin_step += 1ull)
                 {
-                    camera.key = TERMS_KEY + (16ull * (law + 1ull)) + keep;
-                    camera.keep_numerator = keep;
-                    scriptura_text(&results.line, "    q = ");
-                    scriptura_decimal(&results.line, keep, 1u);
-                    scriptura_text(&results.line, "/4\n");
+                    camera.key = TERMS_KEY + (16ull * (law + 1ull)) + thin_step;
+                    camera.thin_numerator = thin_step;
+                    mmgr_line_put(&results.line, "    q = ");
+                    mmgr_line_decimal(&results.line, thin_step, 1u);
+                    mmgr_line_put(&results.line, "/4\n");
                     if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
                     {
                         // g (4 d + a (n - d)) / (4 d), each term a few units
                         const long long denominator = 4ll * fano_denominator[law];
                         const long long numerator =
                             (long long)camera.gain *
-                            (denominator + ((long long)keep * (fano_numerator[law] - fano_denominator[law])));
+                            (denominator + ((long long)thin_step * (fano_numerator[law] - fano_denominator[law])));
                         terms_thinned(&results, bias, lanes, numerator, (unsigned long long)denominator);
                     }
                 }
                 sim_flush(&results);
             }
-            scriptura_text(&results.line,
+            mmgr_line_put(&results.line,
                            "    the Poisson count thinned, then the excess, F^2 = 2: g f' = 2 g at every q\n");
             camera.shot = SIM_SHOT_POISSON;
             camera.excess = 1u;
-            for (unsigned long long keep = 1ull; keep <= TERMS_THIN_STEPS; keep += 3ull)
+            for (unsigned long long thin_step = 1ull; thin_step <= TERMS_THIN_STEPS; thin_step += 3ull)
             {
-                camera.key = TERMS_KEY + 128ull + keep;
-                camera.keep_numerator = keep;
-                scriptura_text(&results.line, "    q = ");
-                scriptura_decimal(&results.line, keep, 1u);
-                scriptura_text(&results.line, "/4\n");
+                camera.key = TERMS_KEY + 128ull + thin_step;
+                camera.thin_numerator = thin_step;
+                mmgr_line_put(&results.line, "    q = ");
+                mmgr_line_decimal(&results.line, thin_step, 1u);
+                mmgr_line_put(&results.line, "/4\n");
                 if (terms_render(&results, &scene, &camera, device_lanes, lanes, count))
                 {
                     // the gain is a small positive constant
@@ -286,7 +287,7 @@ int main(void)
     }
     if (ok)
     {
-        scriptura_text(&results.line,
+        mmgr_line_put(&results.line,
                        "  optical crosstalk: a plant along x of period 16 and amplitude 64 over 100 electrons,"
                        " blurred by (1, 2, 1)/4 along x before the draw\n");
         terms_camera(&camera);
@@ -307,10 +308,10 @@ int main(void)
     }
     if (ok)
     {
-        scriptura_text(&results.line,
+        mmgr_line_put(&results.line,
                        "  the structure function against the shared scale: a plant along x of 60 to 180"
                        " electrons, no fixed pattern; the null, then a light scale of 4 octaves of variance"
-                       " 1024 over 2^10, octave o held 2^o frames\n");
+                       " 1024 over 2^10, octave o sustained 2^o frames\n");
         terms_camera(&camera);
         camera.pattern_range = 0ull;
         scene.background = TERMS_STRUCTURE_BACKGROUND;
@@ -320,7 +321,7 @@ int main(void)
         scene.plant_key = TERMS_STRUCTURE_KEY;
         for (unsigned int scaled = 0u; scaled < 2u; scaled += 1u)
         {
-            scriptura_text(&results.line, (scaled != 0u) ? "    the scale\n" : "    the null\n");
+            mmgr_line_put(&results.line, (scaled != 0u) ? "    the scale\n" : "    the null\n");
             camera.scale_square = (scaled != 0u) ? TERMS_SCALE_SQUARE : 0ull;
             camera.scale_octaves = (scaled != 0u) ? TERMS_SCALE_OCTAVES : 0u;
             camera.scale_bits = (scaled != 0u) ? TERMS_SCALE_BITS : 0u;
@@ -336,7 +337,7 @@ int main(void)
     }
     if (ok)
     {
-        scriptura_text(&results.line,
+        mmgr_line_put(&results.line,
                        "  the gain and offset patterns: flat lights of 100, 200 and 400 electrons, the fixed"
                        " pattern per voxel; the null, each pixel's gain (1024 + p)/1024, p in [-32, 32],"
                        " each pixel's offset o in [0, 12], and both\n");
@@ -346,7 +347,7 @@ int main(void)
                                                                   "    the gain and offset patterns\n"};
         for (unsigned int patterned = 0u; patterned < TERMS_HALVES_CAMERAS; patterned += 1u)
         {
-            scriptura_text(&results.line, cameras[patterned]);
+            mmgr_line_put(&results.line, cameras[patterned]);
             const int gained = (patterned & 1u) != 0u;
             const int offset = (patterned & 2u) != 0u;
             camera.gain_pattern_range = gained ? TERMS_GAIN_PATTERN_RANGE : 0ull;

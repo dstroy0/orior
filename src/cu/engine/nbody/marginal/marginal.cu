@@ -58,8 +58,8 @@ __global__ static void marginal_kernel(MarginalLaunch launch)
     {
         return;
     }
-    const MarginalQuestion asked = launch.questions[question];
-    const MarginalSource *const sources = &launch.sources[asked.source_first];
+    const MarginalQuestion one = launch.questions[question];
+    const MarginalSource *const sources = &launch.sources[one.source_first];
     unsigned int *const sums = &launch.question_sums[(unsigned long long)question * MARGINAL_SUMS * MARGINAL_LIMBS];
     for (unsigned int word = 0u; word < (MARGINAL_SUMS * MARGINAL_LIMBS); word += 1u)
     {
@@ -87,7 +87,7 @@ __global__ static void marginal_kernel(MarginalLaunch launch)
     unsigned int depth = 0u;
     for (;;)
     {
-        if (depth == asked.sources)
+        if (depth == one.sources)
         {
             marginal_gather(&sums[MARGINAL_TOTAL * MARGINAL_LIMBS], product[depth], depth + 1u);
             unsigned int *const outcome =

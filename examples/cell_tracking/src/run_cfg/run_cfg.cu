@@ -51,7 +51,7 @@ static const CfgSwitch CFG_SWITCHES[CFG_SWITCH_COUNT] = {
     {"merge_split", &TreeRules::merge_split},
     {"merge_target", &TreeRules::merge_target},
     {"forward_only", &TreeRules::forward_only},
-    {"keep_view", &TreeRules::keep_view},
+    {"retain_view", &TreeRules::retain_view},
     {"resolve", &TreeRules::resolve},
     {"sticky", &TreeRules::sticky},
     {"motion_check", &TreeRules::motion_check},
@@ -102,23 +102,23 @@ char *cfg_copy(const char *piece)
     return copy ? (char *)memcpy(copy, piece, size) : NULL;
 }
 
-// names an output at parse: its path is held, and the rules take the export, object and vis directories. Nothing is
-// made or opened. A run errored at parse changes no file. 0 when the path could not be held
+// names an output at parse: its path is stored, and the rules take the export, object and vis directories. Nothing is
+// made or opened. A run errored at parse changes no file. 0 when the path could not be stored
 bool name_output(TreeRules *rules, RunInputs *inputs, unsigned int output, const char *path)
 {
     free(inputs->outputs[output]);
     inputs->outputs[output] = path ? cfg_copy(path) : NULL;
-    const char *const kept = inputs->outputs[output];
-    rules->export_directory = (output == 2u) ? kept : rules->export_directory;
-    rules->object_directory = (output == 3u) ? kept : rules->object_directory;
-    rules->object = (output == 3u) ? !!kept : rules->object;
-    rules->vis_directory = (output == 4u) ? kept : rules->vis_directory;
-    return !path || kept;
+    const char *const output_name = inputs->outputs[output];
+    rules->export_directory = (output == 2u) ? output_name : rules->export_directory;
+    rules->object_directory = (output == 3u) ? output_name : rules->object_directory;
+    rules->object = (output == 3u) ? !!output_name : rules->object;
+    rules->vis_directory = (output == 4u) ? output_name : rules->vis_directory;
+    return !path || output_name;
 }
 
 // the file a named output writes: its own path, or index.html in the vis directory. The export and the object are
-// directories and write no file here. They give NULL, as does an index path longer than a path may be (said)
-static const char *output_file(const char *kept, unsigned int output, char *index_path, size_t capacity)
+// directories and write no file here. They give NULL, as does an index path longer than a path may be (reported)
+static const char *output_file(const char *output_name, unsigned int output, char *index_path, size_t capacity)
 {
     if ((output == 2u) || (output == 3u))
     {
@@ -126,12 +126,12 @@ static const char *output_file(const char *kept, unsigned int output, char *inde
     }
     if (output != 4u)
     {
-        return kept;
+        return output_name;
     }
-    const int written = snprintf(index_path, capacity, "%s/index.html", kept);
+    const int written = snprintf(index_path, capacity, "%s/index.html", output_name);
     if ((written <= 0) || ((size_t)written >= capacity))
     {
-        fprintf(stderr, "  %s/index.html is longer than a path may be\n", kept);
+        fprintf(stderr, "  %s/index.html is longer than a path may be\n", output_name);
         return NULL;
     }
     return index_path;
@@ -141,17 +141,17 @@ static const char *output_file(const char *kept, unsigned int output, char *inde
 // made, as open_output makes them, and its file is opened to append, which never truncates, and closed. A file that
 // would not open to read before the probe, and is empty after it, is taken as made by the probe and removed (a removal
 // that fails leaves it, empty). 0 when the directories or the file would not open. A file that opened to read, or
-// held anything, is unchanged
+// contained anything, is unchanged
 bool probe_output(const RunInputs *inputs, unsigned int output)
 {
-    const char *const kept = inputs->outputs[output];
-    if (!kept)
+    const char *const output_name = inputs->outputs[output];
+    if (!output_name)
     {
         return true;
     }
-    if (!engine_directories_make(kept, (output >= 2u) && (output <= 4u)))
+    if (!engine_directories_make(output_name, (output >= 2u) && (output <= 4u)))
     {
-        fprintf(stderr, "  could not make the directories of %s\n", kept);
+        fprintf(stderr, "  could not make the directories of %s\n", output_name);
         return false;
     }
     if ((output == 2u) || (output == 3u))
@@ -159,7 +159,7 @@ bool probe_output(const RunInputs *inputs, unsigned int output)
         return true;
     }
     char index_path[ENGINE_PATH_CAPACITY];
-    const char *const file = output_file(kept, output, index_path, sizeof(index_path));
+    const char *const file = output_file(output_name, output, index_path, sizeof(index_path));
     if (!file)
     {
         return false;
@@ -187,23 +187,24 @@ bool probe_output(const RunInputs *inputs, unsigned int output)
 
 // opens a named output once every output has passed probe_output: its directories are made, and its file is opened
 // and its header written. What an error can still leave is two things: when an open fails although its own probe
-// passed, the outputs opened before it hold their headers; and directories made for the outputs before a failure stay
+// passed, the outputs opened before it contain their headers; and directories made for the outputs before a failure
+// stay
 bool open_output(TreeRules *rules, const RunInputs *inputs, unsigned int output)
 {
-    const char *const kept = inputs->outputs[output];
+    const char *const output_name = inputs->outputs[output];
     FILE **const files[RUN_OUTPUTS] = {&rules->edges,     &rules->coherence, NULL,          NULL,
                                        &rules->vis_index, &rules->pool,      &rules->nodes, &rules->submission};
-    if (kept && !engine_directories_make(kept, (output >= 2u) && (output <= 4u)))
+    if (output_name && !engine_directories_make(output_name, (output >= 2u) && (output <= 4u)))
     {
-        fprintf(stderr, "  could not make the directories of %s\n", kept);
+        fprintf(stderr, "  could not make the directories of %s\n", output_name);
         return false;
     }
-    if (!kept || !files[output])
+    if (!output_name || !files[output])
     {
         return true;
     }
     char index_path[ENGINE_PATH_CAPACITY];
-    const char *const name = output_file(kept, output, index_path, sizeof(index_path));
+    const char *const name = output_file(output_name, output, index_path, sizeof(index_path));
     if (!name)
     {
         return false;
@@ -219,10 +220,10 @@ bool open_output(TreeRules *rules, const RunInputs *inputs, unsigned int output)
     if (output == 0u)
     {
         fprintf(file, "sample\ttime\tstatus\ttrue_z\ttrue_y\ttrue_x\tview_z\tview_y\tview_x\tcarried_z\tcarried_y"
-                      "\tcarried_x\tbody_voxels\tfollows\theld\tnull_draws\tnull_at_least\tnull_best\tnull_held"
+                      "\tcarried_x\tbody_voxels\tfollows\tretained\tnull_draws\tnull_at_least\tnull_best\tnull_retained"
                       "\tarm_object\ttruth_onward\tlinked_onward"
                       "\ttruth_leaf\tchosen_leaf\tbest_leaf\ttruth_shared\tchosen_shared\tbest_shared\ttruth_mutual"
-                      "\tone_object\tobject_links\tobject_links_truth\tunified_links\tunified_holds_truth\tmembers"
+                      "\tone_object\tobject_links\tobject_links_truth\tunified_links\tunified_contains_truth\tmembers"
                       "\ttruth_weight\tlinked_weight\ttruth_web\tlinked_web\n");
     }
     if (output == 5u)
@@ -232,7 +233,7 @@ bool open_output(TreeRules *rules, const RunInputs *inputs, unsigned int output)
     }
     if (output == 6u)
     {
-        fprintf(file, "sample\ttime\tleaf\tz\ty\tx\tvoxels\tobject\tobject_members\tforward\tdeparture\theld"
+        fprintf(file, "sample\ttime\tleaf\tz\ty\tx\tvoxels\tobject\tobject_members\tforward\tdeparture\tretained"
                       "\tobject_link\tobject_links\tnull_draws\tnull_at_least\tnull_best"
                       "\ttower_target\ttower_rounds\tbackward\tbody\tstate\tparent\ttouches\tsplit_from\n");
     }
@@ -252,7 +253,7 @@ bool open_output(TreeRules *rules, const RunInputs *inputs, unsigned int output)
                 "<!doctype html><meta charset=utf-8><title>What the engine sees</title><style>body{background:#111;"
                 "color:#ddd;font:14px sans-serif;margin:16px}figure{margin:0 0 28px}img{image-rendering:pixelated;"
                 "max-width:100%%}figcaption{max-width:1100px;margin-top:6px}b{color:#fff}</style><h1>Failing edges, "
-                "as the engine holds them</h1><p>Left: frame t at the source node's z. Right: frame t+1 at the "
+                "as the engine stores them</h1><p>Left: frame t at the source node's z. Right: frame t+1 at the "
                 "target node's z. Both crops are centerd on the source node. Positive voxels are tinted by object; "
                 "object boundaries in the object's color. Green outline: the source cell (left) and the true "
                 "target (right). Red outline: an object the tree linked the cell to. Yellow: linked and true. Green "
@@ -341,23 +342,23 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             {
                 const CfgJsonToken *const setting = &tokens[rule + 1u];
                 bool known = false;
-                for (unsigned int slot = 0u; slot < CFG_SWITCH_COUNT; slot += 1u)
+                for (unsigned int at = 0u; at < CFG_SWITCH_COUNT; at += 1u)
                 {
-                    const bool named = cfg_json_names(text, &tokens[rule], CFG_SWITCHES[slot].name);
+                    const bool named = cfg_json_names(text, &tokens[rule], CFG_SWITCHES[at].name);
                     const bool boolean = (setting->kind == CFG_JSON_TRUE) || (setting->kind == CFG_JSON_FALSE);
                     ok = ok &&
                          (!named || boolean || cfg_error(path, text, setting->start, "a rule takes true or false"));
-                    rules->*CFG_SWITCHES[slot].rule =
-                        (named && boolean) ? (setting->kind == CFG_JSON_TRUE) : rules->*CFG_SWITCHES[slot].rule;
+                    rules->*CFG_SWITCHES[at].rule =
+                        (named && boolean) ? (setting->kind == CFG_JSON_TRUE) : rules->*CFG_SWITCHES[at].rule;
                     known = known || named;
                 }
                 if (cfg_json_names(text, &tokens[rule], "climb"))
                 {
                     const bool read = cfg_json_string(text, setting, word, sizeof(word));
                     int mode = -1;
-                    for (int slot = 0; read && (slot < 4); slot += 1)
+                    for (int at = 0; read && (at < 4); at += 1)
                     {
-                        mode = (strcmp(word, CLIMB_NAMES[slot]) == 0) ? slot : mode;
+                        mode = (strcmp(word, CLIMB_NAMES[at]) == 0) ? at : mode;
                     }
                     ok = (mode >= 0) || cfg_error(path, text, setting->start, "climb is off, machine, host or check");
                     rules->climb = (mode >= 0) ? mode : rules->climb;
@@ -411,17 +412,17 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             const char *const errors[3] = {"source is the dataset's directory, a path or null",
                                              "set is the directory the engine's .iapx live in, a path or null",
                                              "axes names the source's axes in order from t z y x c, or null"};
-            for (unsigned int slot = 0u; ok && (slot < 3u); slot += 1u)
+            for (unsigned int at = 0u; ok && (at < 3u); at += 1u)
             {
-                if (paths[slot] == 0u)
+                if (paths[at] == 0u)
                 {
                     continue;
                 }
-                const bool none = (tokens[paths[slot]].kind == CFG_JSON_NULL);
-                ok = none || cfg_json_string(text, &tokens[paths[slot]], word, sizeof(word)) ||
-                     cfg_error(path, text, tokens[paths[slot]].start, errors[slot]);
-                free(*fields[slot]);
-                *fields[slot] = (ok && !none) ? cfg_copy(word) : NULL;
+                const bool none = (tokens[paths[at]].kind == CFG_JSON_NULL);
+                ok = none || cfg_json_string(text, &tokens[paths[at]], word, sizeof(word)) ||
+                     cfg_error(path, text, tokens[paths[at]].start, errors[at]);
+                free(*fields[at]);
+                *fields[at] = (ok && !none) ? cfg_copy(word) : NULL;
             }
             if (ok && species)
             {
@@ -450,19 +451,19 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             {
                 ok = (tokens[samples].kind == CFG_JSON_ARRAY) ||
                      cfg_error(path, text, tokens[samples].start, "samples is a list");
-                for (unsigned int slot = 0u; slot < inputs->count; slot += 1u)
+                for (unsigned int at = 0u; at < inputs->count; at += 1u)
                 {
-                    free(inputs->samples[slot]);
+                    free(inputs->samples[at]);
                 }
                 free(inputs->samples);
                 inputs->count = 0u;
                 inputs->samples = (char **)calloc((size_t)tokens[samples].count + 1u, sizeof(char *));
-                for (unsigned int slot = 0u; ok && (slot < tokens[samples].count); slot += 1u)
+                for (unsigned int at = 0u; ok && (at < tokens[samples].count); at += 1u)
                 {
-                    const unsigned int element = samples + 1u + slot;
+                    const unsigned int element = samples + 1u + at;
                     ok = cfg_json_string(text, &tokens[element], word, sizeof(word)) ||
                          cfg_error(path, text, tokens[element].start, "a sample is a name");
-                    inputs->samples[slot] = ok ? cfg_copy(word) : NULL;
+                    inputs->samples[at] = ok ? cfg_copy(word) : NULL;
                     inputs->count += (unsigned int)ok;
                 }
             }
@@ -479,16 +480,16 @@ bool apply_cfg(const char *path, TreeRules *rules, RunInputs *inputs)
             for (unsigned int inner = 0u; ok && (inner < token->count); inner += 1u)
             {
                 const CfgJsonToken *const setting = &tokens[output + 1u];
-                int slot = -1;
+                int at = -1;
                 for (int name = 0; name < (int)(sizeof(OUTPUT_NAMES) / sizeof(OUTPUT_NAMES[0])); name += 1)
                 {
-                    slot = cfg_json_names(text, &tokens[output], OUTPUT_NAMES[name]) ? name : slot;
+                    at = cfg_json_names(text, &tokens[output], OUTPUT_NAMES[name]) ? name : at;
                 }
                 const bool none = (setting->kind == CFG_JSON_NULL);
-                ok = ((slot >= 0) || cfg_error(path, text, tokens[output].start, "output has no such output")) &&
+                ok = ((at >= 0) || cfg_error(path, text, tokens[output].start, "output has no such output")) &&
                      (none || cfg_json_string(text, setting, word, sizeof(word)) ||
                       cfg_error(path, text, setting->start, "an output is a path or null")) &&
-                     name_output(rules, inputs, (unsigned int)slot, none ? NULL : word);
+                     name_output(rules, inputs, (unsigned int)at, none ? NULL : word);
                 output = tokens[output + 1u].next;
             }
         }
@@ -524,19 +525,19 @@ bool first_samples(RunInputs *inputs, bool from_source)
     const size_t count = (directory != NULL) ? (size_t)(from_source ? engine_source_samples(directory, &names)
                                                                     : engine_set_samples(directory, &names))
                                              : 0u;
-    const size_t kept = (count < inputs->first) ? count : inputs->first;
-    for (size_t slot = kept; slot < count; slot += 1u)
+    const size_t taken = (count < inputs->first) ? count : inputs->first;
+    for (size_t at = taken; at < count; at += 1u)
     {
-        free(names[slot]);
+        free(names[at]);
     }
-    for (unsigned int slot = 0u; slot < inputs->count; slot += 1u)
+    for (unsigned int at = 0u; at < inputs->count; at += 1u)
     {
-        free(inputs->samples[slot]);
+        free(inputs->samples[at]);
     }
     free(inputs->samples);
     inputs->samples = names;
-    inputs->count = (unsigned int)kept;
-    return kept != 0u;
+    inputs->count = (unsigned int)taken;
+    return taken != 0u;
 }
 
 bool write_cfg(const TreeRules *rules, const RunInputs *inputs, CfgText *out)
@@ -547,11 +548,11 @@ bool write_cfg(const TreeRules *rules, const RunInputs *inputs, CfgText *out)
                     "{\n  \"scheme\": \"cell_tracking.cfg\",\n  \"version\": 1,\n  \"floor\": {\n    \"entropy\": ");
     cfg_append_text(out, inputs->floor_entropy ? "true" : "false");
     cfg_append_text(out, "\n  },\n  \"track\": {\n");
-    for (unsigned int slot = 0u; slot < CFG_SWITCH_COUNT; slot += 1u)
+    for (unsigned int at = 0u; at < CFG_SWITCH_COUNT; at += 1u)
     {
         char line[128];
-        snprintf(line, sizeof(line), "    \"%s\": %s,\n", CFG_SWITCHES[slot].name,
-                 (rules->*CFG_SWITCHES[slot].rule) ? "true" : "false");
+        snprintf(line, sizeof(line), "    \"%s\": %s,\n", CFG_SWITCHES[at].name,
+                 (rules->*CFG_SWITCHES[at].rule) ? "true" : "false");
         cfg_append_text(out, line);
     }
     char line[128];
@@ -567,10 +568,10 @@ bool write_cfg(const TreeRules *rules, const RunInputs *inputs, CfgText *out)
     snprintf(line, sizeof(line), ",\n    \"channel\": %u", inputs->channel);
     cfg_append_text(out, line);
     cfg_append_text(out, ",\n    \"samples\": [");
-    for (unsigned int slot = 0u; slot < inputs->count; slot += 1u)
+    for (unsigned int at = 0u; at < inputs->count; at += 1u)
     {
-        cfg_append_text(out, slot ? ", " : "");
-        cfg_append_quoted(out, inputs->samples[slot]);
+        cfg_append_text(out, at ? ", " : "");
+        cfg_append_quoted(out, inputs->samples[at]);
     }
     snprintf(line, sizeof(line), "],\n    \"first\": %u,\n    \"species\": ", inputs->first);
     cfg_append_text(out, line);
@@ -579,12 +580,12 @@ bool write_cfg(const TreeRules *rules, const RunInputs *inputs, CfgText *out)
              ",\n    \"voxel_pm\": [%llu, %llu, %llu],\n    \"membrane_pm\": %llu\n  },\n  \"output\": {\n",
              inputs->voxel_pm[0], inputs->voxel_pm[1], inputs->voxel_pm[2], inputs->membrane_pm);
     cfg_append_text(out, line);
-    for (unsigned int slot = 0u; slot < RUN_OUTPUTS; slot += 1u)
+    for (unsigned int at = 0u; at < RUN_OUTPUTS; at += 1u)
     {
-        snprintf(line, sizeof(line), "    \"%s\": ", OUTPUT_NAMES[slot]);
+        snprintf(line, sizeof(line), "    \"%s\": ", OUTPUT_NAMES[at]);
         cfg_append_text(out, line);
-        cfg_append_quoted(out, inputs->outputs[slot]);
-        cfg_append_text(out, ((slot + 1u) < RUN_OUTPUTS) ? ",\n" : "\n  },\n");
+        cfg_append_quoted(out, inputs->outputs[at]);
+        cfg_append_text(out, ((at + 1u) < RUN_OUTPUTS) ? ",\n" : "\n  },\n");
     }
     cfg_append_text(out, "  \"view\": ");
     cfg_append_text(out, inputs->view ? inputs->view : "{}");

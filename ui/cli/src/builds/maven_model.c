@@ -1,10 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // maven_model.c: what a POM gives its children: its parents read first, by their relative path, `../pom.xml` where it
-// gives none, and in the local repository where the path holds no POM of it, eight above it at most; then its own
+// gives none, and in the local repository where the path contains no POM of it, eight above it at most; then its own
 // coordinates, its properties and its profiles', and the dependencies their management gives a version. The local
 // repository the user's settings name, and the program that runs a build. One model is read at a time, under its lock;
-// a POM larger than CLI_MAVEN_POM_TEXT is not read as a parent, and properties past what the model holds are left out
+// a POM larger than CLI_MAVEN_POM_TEXT is not read as a parent, and properties past what the model contains are left
+// out
 #include "../command_line/cells.h"
 #include "maven_internal.h"
 
@@ -28,7 +29,7 @@ typedef struct
 static CliMavenMapped model_mapped(const char *path)
 {
     CliMavenMapped mapped = {NULL, 0ull};
-    mapped.bytes = cli_file_held(path, &mapped.size);
+    mapped.bytes = cli_file_read(path, &mapped.size);
     if ((mapped.bytes != NULL) && (mapped.size > CLI_MAVEN_POM_TEXT))
     {
         cli_file_let_go(mapped.bytes, mapped.size);
@@ -62,7 +63,7 @@ const char *cli_maven_property(const CliMavenModel *model, const char *name, uns
     return NULL;
 }
 
-// a property set, in place of what it held where `replace`, or only where it holds none
+// a property set, in place of what it contained where `replace`, or only where it contains none
 static void model_set(CliMavenModel *model, const char *name, unsigned long long name_size, const char *value,
                       unsigned long long value_size, int replace)
 {
@@ -82,14 +83,14 @@ static void model_set(CliMavenModel *model, const char *name, unsigned long long
     {
         return;
     }
-    const unsigned int value_at = cli_maven_model_kept(model, value, value_size);
+    const unsigned int value_at = cli_maven_model_text_stored(model, value, value_size);
     if (value_at == CLI_MAVEN_MODEL_TEXT)
     {
         return;
     }
     if (at == model->properties)
     {
-        const unsigned int name_at = cli_maven_model_kept(model, name, name_size);
+        const unsigned int name_at = cli_maven_model_text_stored(model, name, name_size);
         if (name_at == CLI_MAVEN_MODEL_TEXT)
         {
             return;
@@ -102,38 +103,38 @@ static void model_set(CliMavenModel *model, const char *name, unsigned long long
     model->value_size[at] = (unsigned int)value_size;
 }
 
-void cli_maven_resolve(const char *value, unsigned long long size, const CliMavenModel *model, CliLine *out)
+void cli_maven_resolve(const char *value, unsigned long long size, const CliMavenModel *model, VerbaLinea *out)
 {
     static char s_turn[2][1u << 16u];
     static CliLock s_resolve_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_resolve_lock);
-    CliLine line = {s_turn[0], sizeof(s_turn[0]), 0ull};
-    cli_line_counted(&line, value, size);
-    unsigned int held = 0u;
-    for (unsigned int round = 0u; (round < 8u) && cli_line_fits(&line); round += 1u)
+    VerbaLinea line = {s_turn[0], sizeof(s_turn[0]), 0ull};
+    mmgr_line_put_n(&line, value, size);
+    unsigned int turn_at = 0u;
+    for (unsigned int round = 0u; (round < 8u) && mmgr_line_ok(&line); round += 1u)
     {
         unsigned long long start = 0ull;
         unsigned long long length = 0ull;
-        if (!cli_text_find(s_turn[held], line.at, "${", 2u, &start) ||
-            !cli_text_find(s_turn[held] + start, line.at - start, "}", 1u, &length))
+        if (!cli_text_find(s_turn[turn_at], line.at, "${", 2u, &start) ||
+            !cli_text_find(s_turn[turn_at] + start, line.at - start, "}", 1u, &length))
         {
             break;
         }
         unsigned long long given_size = 0ull;
-        const char *const given = cli_maven_property(model, s_turn[held] + start + 2u, length - 2u, &given_size);
+        const char *const given = cli_maven_property(model, s_turn[turn_at] + start + 2u, length - 2u, &given_size);
         if (given == NULL)
         {
             break;
         }
-        const unsigned int next = 1u - held;
-        CliLine turned = {s_turn[next], sizeof(s_turn[next]), 0ull};
-        cli_line_counted(&turned, s_turn[held], start);
-        cli_line_counted(&turned, given, given_size);
-        cli_line_counted(&turned, s_turn[held] + start + length + 1u, line.at - start - length - 1u);
+        const unsigned int next = 1u - turn_at;
+        VerbaLinea turned = {s_turn[next], sizeof(s_turn[next]), 0ull};
+        mmgr_line_put_n(&turned, s_turn[turn_at], start);
+        mmgr_line_put_n(&turned, given, given_size);
+        mmgr_line_put_n(&turned, s_turn[turn_at] + start + length + 1u, line.at - start - length - 1u);
         line = turned;
-        held = next;
+        turn_at = next;
     }
-    cli_line_counted(out, s_turn[held], line.at);
+    mmgr_line_put_n(out, s_turn[turn_at], line.at);
     cli_lock_give(&s_resolve_lock);
 }
 
@@ -155,14 +156,14 @@ int cli_maven_given(const char *name, unsigned long long size)
 // the reader's home folder into `out`
 static int model_home(char *out)
 {
-    return query_environment_read("USERPROFILE", out, CLI_PATH_LONGEST) ||
-           query_environment_read("HOME", out, CLI_PATH_LONGEST);
+    return query_environment_read("USERPROFILE", out, CLI_PATH_MAX_LEN) ||
+           query_environment_read("HOME", out, CLI_PATH_MAX_LEN);
 }
 
 int cli_maven_user_settings(char *out)
 {
-    char home[CLI_PATH_LONGEST];
-    char m2[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char m2[CLI_PATH_MAX_LEN];
     if (!model_home(home))
     {
         return 0;
@@ -176,7 +177,7 @@ int cli_maven_local_repository(char *out)
 {
     // the settings mapped and read into a tree; settings larger than a POM is read as are read as settings that are not
     // there
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (cli_maven_user_settings(path))
     {
         const CliMavenMapped mapped = model_mapped(path);
@@ -186,10 +187,10 @@ int cli_maven_local_repository(char *out)
             CliXml settings;
             // the file's bytes are read as its text
             cli_xml_parse((const char *)mapped.bytes, mapped.size, &settings);
-            CliLine named = {out, CLI_PATH_LONGEST, 0ull};
+            VerbaLinea named = {out, CLI_PATH_MAX_LEN, 0ull};
             const unsigned int root = cli_xml_root(&settings);
             named_one = (root != CLI_XML_NONE) && cli_xml_text_of(&settings, root, "localRepository", &named) &&
-                        (named.at > 0u) && (cli_line_closed(&named) > 0u);
+                        (named.at > 0u) && (mmgr_line_finish(&named) > 0u);
             cli_xml_given(&settings);
         }
         model_unmapped(mapped);
@@ -198,8 +199,8 @@ int cli_maven_local_repository(char *out)
             return 1;
         }
     }
-    char home[CLI_PATH_LONGEST];
-    char m2[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char m2[CLI_PATH_MAX_LEN];
     if (!model_home(home))
     {
         return 0;
@@ -213,8 +214,8 @@ int cli_maven_local_repository(char *out)
 static int model_text_of(const CliXml *xml, unsigned int of, const char *name, char *room, unsigned long long size,
                          unsigned long long *length)
 {
-    CliLine line = {room, size, 0ull};
-    const int found = cli_xml_text_of(xml, of, name, &line) && cli_line_fits(&line);
+    VerbaLinea line = {room, size, 0ull};
+    const int found = cli_xml_text_of(xml, of, name, &line) && mmgr_line_ok(&line);
     *length = line.at;
     return found;
 }
@@ -224,12 +225,12 @@ static int model_text_of(const CliXml *xml, unsigned int of, const char *name, c
 static int model_parent_pom(const char *path, const CliXml *xml, unsigned int parent, char *place,
                             CliMavenMapped *mapped)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(path, folder))
     {
         return 0;
     }
-    char relative[CLI_PATH_LONGEST];
+    char relative[CLI_PATH_MAX_LEN];
     unsigned long long relative_size = 0ull;
     if (cli_xml_child(xml, parent, "relativePath") == CLI_XML_NONE)
     {
@@ -246,8 +247,8 @@ static int model_parent_pom(const char *path, const CliXml *xml, unsigned int pa
         cli_full(folder, relative, place);
         if (query_is_folder(place))
         {
-            char folder_place[CLI_PATH_LONGEST];
-            memor.cpy(&(MemoriaCfg){.dst = folder_place, .src = place, .bytes = CLI_PATH_LONGEST});
+            char folder_place[CLI_PATH_MAX_LEN];
+            memor.cpy(&(MemoriaCfg){.dst = folder_place, .src = place, .bytes = CLI_PATH_MAX_LEN});
             cli_full(folder_place, "pom.xml", place);
         }
         *mapped = model_mapped(place);
@@ -262,7 +263,7 @@ static int model_parent_pom(const char *path, const CliXml *xml, unsigned int pa
     unsigned long long group_size = 0ull;
     unsigned long long artifact_size = 0ull;
     unsigned long long version_size = 0ull;
-    char repository[CLI_PATH_LONGEST];
+    char repository[CLI_PATH_MAX_LEN];
     if (!model_text_of(xml, parent, "groupId", group, sizeof(group), &group_size) ||
         !model_text_of(xml, parent, "artifactId", artifact, sizeof(artifact), &artifact_size) ||
         !model_text_of(xml, parent, "version", version, sizeof(version), &version_size) ||
@@ -270,23 +271,23 @@ static int model_parent_pom(const char *path, const CliXml *xml, unsigned int pa
     {
         return 0;
     }
-    CliLine line = {place, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, repository);
-    cli_line_character(&line, '/');
+    VerbaLinea line = {place, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, repository);
+    mmgr_line_ch(&line, '/');
     for (unsigned long long at = 0ull; at < group_size; at += 1u)
     {
-        cli_line_character(&line, (group[at] == '.') ? '/' : group[at]);
+        mmgr_line_ch(&line, (group[at] == '.') ? '/' : group[at]);
     }
-    cli_line_character(&line, '/');
-    cli_line_counted(&line, artifact, artifact_size);
-    cli_line_character(&line, '/');
-    cli_line_counted(&line, version, version_size);
-    cli_line_character(&line, '/');
-    cli_line_counted(&line, artifact, artifact_size);
-    cli_line_character(&line, '-');
-    cli_line_counted(&line, version, version_size);
-    cli_line_text(&line, ".pom");
-    if (cli_line_closed(&line) == 0u)
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put_n(&line, artifact, artifact_size);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put_n(&line, version, version_size);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put_n(&line, artifact, artifact_size);
+    mmgr_line_ch(&line, '-');
+    mmgr_line_put_n(&line, version, version_size);
+    mmgr_line_put(&line, ".pom");
+    if (mmgr_line_finish(&line) == 0u)
     {
         return 0;
     }
@@ -304,8 +305,8 @@ static void model_holder(const CliXml *xml, unsigned int holder, CliMavenModel *
     for (unsigned int one = (properties != CLI_XML_NONE) ? xml->element[properties].first : CLI_XML_NONE;
          one != CLI_XML_NONE; one = xml->element[one].next)
     {
-        CliLine value = {s_value, sizeof(s_value), 0ull};
-        if (!cli_xml_text(xml, one, &value) || !cli_line_fits(&value))
+        VerbaLinea value = {s_value, sizeof(s_value), 0ull};
+        if (!cli_xml_text(xml, one, &value) || !mmgr_line_ok(&value))
         {
             value.at = 0ull;
         }
@@ -327,12 +328,12 @@ static void model_holder(const CliXml *xml, unsigned int holder, CliMavenModel *
             model_text_of(xml, one, "artifactId", s_artifact, sizeof(s_artifact), &artifact_size) &&
             cli_maven_managed_room(model))
         {
-            CliLine key = {s_value, sizeof(s_value), 0ull};
+            VerbaLinea key = {s_value, sizeof(s_value), 0ull};
             cli_maven_resolve(s_group, group_size, model, &key);
-            cli_line_character(&key, ':');
+            mmgr_line_ch(&key, ':');
             cli_maven_resolve(s_artifact, artifact_size, model, &key);
             const unsigned int at =
-                cli_line_fits(&key) ? cli_maven_model_kept(model, s_value, key.at) : CLI_MAVEN_MODEL_TEXT;
+                mmgr_line_ok(&key) ? cli_maven_model_text_stored(model, s_value, key.at) : CLI_MAVEN_MODEL_TEXT;
             if (at != CLI_MAVEN_MODEL_TEXT)
             {
                 model->managed_at[model->managed] = at;
@@ -340,7 +341,7 @@ static void model_holder(const CliXml *xml, unsigned int holder, CliMavenModel *
                 model->managed += 1u;
             }
         }
-        CliLine scope = {s_group, sizeof(s_group), 0ull};
+        VerbaLinea scope = {s_group, sizeof(s_group), 0ull};
         model->imports |= cli_xml_text_of(xml, one, "scope", &scope) && (scope.at == 6u) &&
                           (memor.cmp(&(MemoriaCfg){.src = s_group, .other = "import", .bytes = 6u}) == 0);
     }
@@ -365,11 +366,11 @@ static void model_read(const char *path, const char *text, unsigned long long si
     static char s_value[1u << 16u];
     if (parent != CLI_XML_NONE)
     {
-        char place[CLI_PATH_LONGEST];
+        char place[CLI_PATH_MAX_LEN];
         CliMavenMapped mapped = {NULL, 0ull};
         if ((depth < CLI_MAVEN_DEPTH) && model_parent_pom(path, xml, parent, place, &mapped))
         {
-            // the parent's bytes are read as its text; what the model keeps of it is copied into the model's text
+            // the parent's bytes are read as its text; what the model retains of it is copied into the model's text
             model_read(place, (const char *)mapped.bytes, mapped.size, depth + 1u, model);
             model_unmapped(mapped);
         }
@@ -419,23 +420,23 @@ void cli_maven_model_of(const char *path, const char *text, unsigned long long s
 
 void cli_maven_program(const char *root, const char *folder, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
-    char at[CLI_PATH_LONGEST];
-    char above[CLI_PATH_LONGEST];
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+    char at[CLI_PATH_MAX_LEN];
+    char above[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = at, .src = folder, .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL});
-    char up[CLI_PATH_LONGEST];
-    CliLine ups = {up, sizeof(up), 0ull};
+    char up[CLI_PATH_MAX_LEN];
+    VerbaLinea ups = {up, sizeof(up), 0ull};
     for (;;)
     {
-        char wrapper[CLI_PATH_LONGEST];
+        char wrapper[CLI_PATH_MAX_LEN];
         cli_full(at, "mvnw", wrapper);
         if (query_is_file(wrapper))
         {
-            cli_line_counted(&line, up, ups.at);
-            cli_line_text(&line, (ups.at == 0u) ? "./mvnw" : "mvnw");
-            (void)cli_line_closed(&line);
+            mmgr_line_put_n(&line, up, ups.at);
+            mmgr_line_put(&line, (ups.at == 0u) ? "./mvnw" : "mvnw");
+            (void)mmgr_line_finish(&line);
             return;
         }
         const char after = at[length];
@@ -443,13 +444,13 @@ void cli_maven_program(const char *root, const char *folder, char *out)
         if ((cellul.eq(&(CatenaFinitaCfg){.src = at, .other = root, .cap = CLI_CELLS_POOL})) || !inside ||
             !cli_path_parent(at, above))
         {
-            cli_line_text(&line, "mvn");
-            (void)cli_line_closed(&line);
+            mmgr_line_put(&line, "mvn");
+            (void)mmgr_line_finish(&line);
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = at,
                                 .src = above,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = above, .cap = CLI_CELLS_POOL}) + 1u});
-        cli_line_text(&ups, "../");
+        mmgr_line_put(&ups, "../");
     }
 }

@@ -3,9 +3,10 @@
 // servers_start.c: a server found and started: the toolchain whose `server` serves a language; the server of a tree
 // started where it is not running, at the tree's top, every server stopped where another tree is served; clangd started
 // again, given back its files, where the build's database changed; one that ended started again and given back its
-// files, unless it ended RESTARTS times of late, when it is left stopped and why is said; and one that cannot be found
-// or does not start not tried again until the tree changes. A server that checks its projects as a whole is given each
-// project the tree holds; the options of a tree whose own code is held back, or whose code runs, are added to its own
+// files, unless it ended RESTARTS times of late, when it is left stopped and why is reported; and one that cannot be
+// found or does not start not tried again until the tree changes. A server that checks its projects as a whole is given
+// each project the tree contains; the options of a tree whose own code is disabled, or whose code runs, are added to
+// its own
 #include "../builds/compile_db.h"
 #include "../toolchains/toolchains.h"
 #include "servers_internal.h"
@@ -14,35 +15,35 @@
 
 CliServersState g_cli_servers = {CLI_LOCK_INIT};
 
-// the files a server that ended or is started again held, to be given back to the one started after it
+// the files a server that ended or is started again had open, to be given back to the one started after it
 static CliKeyed s_reopen;
 
 // the manifest read, under its own lock
 
-// a string member of a manifest object copied into `out`, which holds `room`
+// a string member of a manifest object copied into `out`, sized for `room`
 static void start_string(const CliJson *json, unsigned int object, const char *name, char *out, unsigned long long room)
 {
     unsigned long long size = 0ull;
     const char *const text = cli_json_string(json, cli_json_member(json, object, name), &size);
-    const unsigned long long kept = ((text != NULL) && (size < room)) ? size : 0ull;
-    memor.cpy(&(MemoriaCfg){.dst = out, .src = (text != NULL) ? text : "", .bytes = (size_t)kept});
-    out[kept] = '\0';
+    const unsigned long long copied_len = ((text != NULL) && (size < room)) ? size : 0ull;
+    memor.cpy(&(MemoriaCfg){.dst = out, .src = (text != NULL) ? text : "", .bytes = (size_t)copied_len});
+    out[copied_len] = '\0';
 }
 
-// a JSON member of a manifest object written into `out`, which holds `room`, empty where it has none
+// a JSON member of a manifest object written into `out`, sized for `room`, empty where it has none
 static void start_json(const CliJson *json, unsigned int object, const char *name, char *out, unsigned long long room)
 {
     const unsigned int member = cli_json_member(json, object, name);
-    CliLine line = {out, room, 0ull};
+    VerbaLinea line = {out, room, 0ull};
     if (member != CLI_JSON_NONE)
     {
         cli_json_write(json, member, &line, 0u, 0);
     }
-    if (!cli_line_fits(&line))
+    if (!mmgr_line_ok(&line))
     {
         line.at = 0ull;
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
 }
 
 // a server's spec read from the manifest's tool at `tool`
@@ -71,7 +72,7 @@ static void start_spec(const CliJson *json, unsigned int tool, unsigned int serv
     {
         unsigned long long size = 0ull;
         const char *const text = cli_json_string(json, at, &size);
-        if ((text != NULL) && (size < CLI_NAME_LONGEST))
+        if ((text != NULL) && (size < CLI_NAME_MAX_LEN))
         {
             memor.cpy(&(MemoriaCfg){.dst = spec->language[spec->languages], .src = text, .bytes = (size_t)size});
             spec->language[spec->languages][size] = '\0';
@@ -85,7 +86,7 @@ static void start_spec(const CliJson *json, unsigned int tool, unsigned int serv
         unsigned long long size = 0ull;
         const char *const text = cli_json_string(json, at, &size);
         const char *const key = json->text + json->node[at].key;
-        if ((text != NULL) && (size < CLI_NAME_LONGEST) &&
+        if ((text != NULL) && (size < CLI_NAME_MAX_LEN) &&
             (cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) < sizeof(spec->id_extension[0])))
         {
             memor.cpy(&(MemoriaCfg){.dst = spec->id_extension[spec->ids],
@@ -99,8 +100,9 @@ static void start_spec(const CliJson *json, unsigned int tool, unsigned int serv
     start_string(json, server, "setup", spec->setup, sizeof(spec->setup));
     start_string(json, server, "projects", spec->projects, sizeof(spec->projects));
     start_string(json, server, "checks", spec->checks, sizeof(spec->checks));
-    start_json(json, server, "held", spec->held, sizeof(spec->held));
+    start_json(json, server, "blocked", spec->blocked_args, sizeof(spec->blocked_args));
     start_json(json, server, "trusted", spec->trusted, sizeof(spec->trusted));
+    spec->slices = cli_json_is(json, cli_json_member(json, server, "slices"), CFG_JSON_TRUE);
 }
 
 int cli_servers_spec_for(const char *language, CliServerSpec *spec)
@@ -148,21 +150,21 @@ void cli_servers_id_of(const CliServerSpec *spec, const char *path, const char *
         const char one = dot[1 + at];
         extension[at] = ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one;
     }
-    CliLine line = {id, CLI_NAME_LONGEST, 0ull};
+    VerbaLinea line = {id, CLI_NAME_MAX_LEN, 0ull};
     for (unsigned int at = 0u; at < spec->ids; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = spec->id_extension[at], .other = extension, .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line, spec->id_name[at]);
-            (void)cli_line_closed(&line);
+            mmgr_line_put(&line, spec->id_name[at]);
+            (void)mmgr_line_finish(&line);
             return;
         }
     }
-    cli_line_text(&line, language);
-    (void)cli_line_closed(&line);
+    mmgr_line_put(&line, language);
+    (void)mmgr_line_finish(&line);
 }
 
-CliLsp *cli_servers_holding(const char *path)
+CliLsp *cli_servers_owner_of(const char *path)
 {
     cli_lock_take(&g_cli_servers.lock);
     CliLsp *found = NULL;
@@ -172,15 +174,28 @@ CliLsp *cli_servers_holding(const char *path)
         if (one->used && cli_lsp_has(one->lsp, path))
         {
             found = one->lsp;
-            cli_lsp_held(found);
+            cli_lsp_ref(found);
         }
     }
     cli_lock_give(&g_cli_servers.lock);
     return found;
 }
 
-// a file a server held kept to be given back to the one started after it
-static void start_reopen_kept(void *context, const char *path, const char *text, unsigned long long length)
+int cli_servers_slicing(const CliLsp *server)
+{
+    cli_lock_take(&g_cli_servers.lock);
+    int slicing = 0;
+    for (unsigned int at = 0u; at < CLI_SERVERS_MOST; at += 1u)
+    {
+        const CliServerRunning *const one = &g_cli_servers.running[at];
+        slicing |= one->used && (one->lsp == server) && one->spec.slices;
+    }
+    cli_lock_give(&g_cli_servers.lock);
+    return slicing;
+}
+
+// a file a server had open retained to be given back to the one started after it
+static void start_reopen_stored(void *context, const char *path, const char *text, unsigned long long length)
 {
     (void)context;
     (void)cli_keyed_put(&s_reopen, path, "", text, length);
@@ -208,14 +223,14 @@ static const char *start_failed(const char *tool)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = g_cli_servers.failed_tool[at], .other = tool, .cap = CLI_CELLS_POOL}))
         {
-            return g_cli_servers.failed_said[at];
+            return g_cli_servers.failed_msg[at];
         }
     }
     return NULL;
 }
 
-// why the toolchain `tool` failed kept
-static void start_failure(const char *tool, const char *said)
+// why the toolchain `tool` failed recorded
+static void start_failure(const char *tool, const char *err_msg)
 {
     unsigned int at = 0u;
     while ((at < g_cli_servers.failed) &&
@@ -228,12 +243,12 @@ static void start_failure(const char *tool, const char *said)
         return;
     }
     g_cli_servers.failed += (at == g_cli_servers.failed) ? 1u : 0u;
-    CliLine line = {g_cli_servers.failed_tool[at], CLI_NAME_LONGEST, 0ull};
-    cli_line_text(&line, tool);
-    (void)cli_line_closed(&line);
-    CliLine why = {g_cli_servers.failed_said[at], sizeof(g_cli_servers.failed_said[at]), 0ull};
-    cli_line_text(&why, said);
-    (void)cli_line_closed(&why);
+    VerbaLinea line = {g_cli_servers.failed_tool[at], CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put(&line, tool);
+    (void)mmgr_line_finish(&line);
+    VerbaLinea why = {g_cli_servers.failed_msg[at], sizeof(g_cli_servers.failed_msg[at]), 0ull};
+    mmgr_line_put(&why, err_msg);
+    (void)mmgr_line_finish(&why);
 }
 
 // whether the toolchain `tool`'s server, which ended, may be started again, its end counted
@@ -252,17 +267,17 @@ static int start_again(const char *tool)
     }
     if (at == g_cli_servers.restarted)
     {
-        CliLine line = {g_cli_servers.restart_tool[at], CLI_NAME_LONGEST, 0ull};
-        cli_line_text(&line, tool);
-        (void)cli_line_closed(&line);
+        VerbaLinea line = {g_cli_servers.restart_tool[at], CLI_NAME_MAX_LEN, 0ull};
+        mmgr_line_put(&line, tool);
+        (void)mmgr_line_finish(&line);
         cli_restarts_made(&g_cli_servers.restarts[at], CLI_SERVERS_RESTARTS, CLI_SERVERS_RESTARTS_WITHIN);
         g_cli_servers.restarted += 1u;
     }
     return cli_restarts_died(&g_cli_servers.restarts[at], cli_clock_milliseconds());
 }
 
-CliLsp *cli_servers_server(const char *root, const char *language, const CliServersEmit *emit, CliServerSpec *spec,
-                           CliLine *said)
+CliLsp *cli_servers_server(const char *root, const char *language, const CliServersSink *sink, CliServerSpec *spec,
+                           VerbaLinea *err_msg)
 {
     if (!cli_servers_spec_for(language, spec))
     {
@@ -274,9 +289,9 @@ CliLsp *cli_servers_server(const char *root, const char *language, const CliServ
         cli_lock_give(&g_cli_servers.lock);
         cli_servers_stop_all();
         cli_lock_take(&g_cli_servers.lock);
-        CliLine line = {g_cli_servers.root, CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&line, root);
-        (void)cli_line_closed(&line);
+        VerbaLinea line = {g_cli_servers.root, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, root);
+        (void)mmgr_line_finish(&line);
     }
     cli_keyed_clear(&s_reopen);
     cli_keyed_begun(&s_reopen, "files to open again", 256u);
@@ -288,7 +303,7 @@ CliLsp *cli_servers_server(const char *root, const char *language, const CliServ
     {
         CliLsp *const old = g_cli_servers.running[at].lsp;
         g_cli_servers.running[at].used = 0;
-        cli_lsp_held_each(old, start_reopen_kept, NULL);
+        cli_lsp_open_each(old, start_reopen_stored, NULL);
         cli_servers_stop_later(old);
     }
     else if (at < CLI_SERVERS_MOST)
@@ -296,7 +311,7 @@ CliLsp *cli_servers_server(const char *root, const char *language, const CliServ
         CliLsp *const server = g_cli_servers.running[at].lsp;
         if (cli_lsp_alive(server))
         {
-            cli_lsp_held(server);
+            cli_lsp_ref(server);
             cli_lock_give(&g_cli_servers.lock);
             return server;
         }
@@ -304,40 +319,40 @@ CliLsp *cli_servers_server(const char *root, const char *language, const CliServ
         if (!start_again(spec->tool))
         {
             char why[CLI_LSP_COMPLAINT];
-            CliLine complaint = {why, sizeof(why), 0ull};
+            VerbaLinea complaint = {why, sizeof(why), 0ull};
             cli_lsp_complaint(server, &complaint);
-            cli_line_text(said, spec->program);
-            cli_line_text(said, " ended ");
-            cli_line_decimal(said, CLI_SERVERS_RESTARTS + 1u, 1u);
-            cli_line_text(said, " times within ");
-            cli_line_decimal(said, CLI_SERVERS_RESTARTS_WITHIN / 1000u, 1u);
-            cli_line_text(said, " s and is left stopped");
+            mmgr_line_put(err_msg, spec->program);
+            mmgr_line_put(err_msg, " ended ");
+            mmgr_line_decimal(err_msg, CLI_SERVERS_RESTARTS + 1u, 1u);
+            mmgr_line_put(err_msg, " times within ");
+            mmgr_line_decimal(err_msg, CLI_SERVERS_RESTARTS_WITHIN / 1000u, 1u);
+            mmgr_line_put(err_msg, " s and is left stopped");
             if (complaint.at > 0u)
             {
-                cli_line_text(said, ": ");
-                cli_line_counted(said, why, complaint.at);
+                mmgr_line_put(err_msg, ": ");
+                mmgr_line_put_n(err_msg, why, complaint.at);
             }
-            (void)cli_line_closed(said);
-            start_failure(spec->tool, said->out);
-            cli_lsp_given(server);
+            (void)mmgr_line_finish(err_msg);
+            start_failure(spec->tool, err_msg->out);
+            cli_lsp_unref(server);
             cli_lock_give(&g_cli_servers.lock);
             return NULL;
         }
-        cli_lsp_held_each(server, start_reopen_kept, NULL);
-        cli_lsp_given(server);
+        cli_lsp_open_each(server, start_reopen_stored, NULL);
+        cli_lsp_unref(server);
     }
     const char *const failed = start_failed(spec->tool);
     if (failed != NULL)
     {
-        cli_line_text(said, failed);
+        mmgr_line_put(err_msg, failed);
         cli_lock_give(&g_cli_servers.lock);
         return NULL;
     }
-    CliLsp *const server = cli_servers_launch(root, spec, emit, said);
+    CliLsp *const server = cli_servers_launch(root, spec, sink, err_msg);
     if (server == NULL)
     {
-        (void)cli_line_closed(said);
-        start_failure(spec->tool, said->out);
+        (void)mmgr_line_finish(err_msg);
+        start_failure(spec->tool, err_msg->out);
         cli_lock_give(&g_cli_servers.lock);
         return NULL;
     }
@@ -351,23 +366,26 @@ CliLsp *cli_servers_server(const char *root, const char *language, const CliServ
         const char *beside = NULL;
         unsigned long long size = 0ull;
         const char *const text = cli_keyed_get(&s_reopen, path, &beside, &size);
-        char id[CLI_NAME_LONGEST];
+        char id[CLI_NAME_MAX_LEN];
         cli_servers_id_of(spec, path, language, id);
         char ignored[256];
-        CliLine quiet = {ignored, sizeof(ignored), 0ull};
+        VerbaLinea quiet = {ignored, sizeof(ignored), 0ull};
         (void)cli_lsp_opened(server, path, id, text, size, &quiet);
     }
-    for (unsigned int slot = 0u; slot < CLI_SERVERS_MOST; slot += 1u)
+    for (unsigned int index = 0u; index < CLI_SERVERS_MOST; index += 1u)
     {
-        if (!g_cli_servers.running[slot].used)
+        if (!g_cli_servers.running[index].used)
         {
-            g_cli_servers.running[slot].used = 1;
-            g_cli_servers.running[slot].lsp = server;
-            g_cli_servers.running[slot].spec = *spec;
+            g_cli_servers.running[index].used = 1;
+            g_cli_servers.running[index].lsp = server;
+            g_cli_servers.running[index].spec = *spec;
+            g_cli_servers.running[index].waits = 0u;
+            g_cli_servers.running[index].asks = 0ull;
+            g_cli_servers.running[index].quiet_from = cli_clock_milliseconds();
             break;
         }
     }
-    cli_lsp_held(server);
+    cli_lsp_ref(server);
     cli_lock_give(&g_cli_servers.lock);
     return server;
 }

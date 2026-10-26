@@ -20,7 +20,7 @@ extern "C"
  * @note Given as limbs here or as bits in ORIOR_EXACT_BITS. The one not given follows from the
  *       other, and both given must agree. The widths are written without casts so #if can weigh
  *       them.
- * @note 128 limbs is 4096 bits, which holds 1024 decimal digits with room over. That is the scale
+ * @note 128 limbs is 4096 bits, which represents 1024 decimal digits with room over. That is the scale
  *       representation/exact.py ingests at, and the two forms have to agree on the same values or
  *       a cross check between them means nothing.
  * @note The value a limb array carries is the expansion sum(limb[i] * (2^32)^i), whose top
@@ -31,7 +31,7 @@ extern "C"
  * @note A build selects any power of two from 1 limb up, 32 bits up, with no ceiling. Every arm is
  *       graded from 1 limb to 32768 by utils/maint/engine/check_exact_widths.sh, and the portable
  *       reference to 4194304 bits by utils/test/src/cu/includes/types/integers/exact_transform_test.sh.
- * @note A width below 4096 bits cannot hold the 1024 digit floor. A build selecting one declares
+ * @note A width below 4096 bits cannot represent the 1024 digit floor. A build selecting one declares
  *       its own ORIOR_EXACT_DIGITS, and the floor assert below errors on it by name where it does not.
  * @note Defined on both arms so #if always has a value and an unset build is never a silent false.
  */
@@ -51,21 +51,21 @@ extern "C"
 #endif
 
 /**
- * @brief Decimal digits the fixed width is guaranteed to hold, matching representation.exact.
+ * @brief Decimal digits the fixed width is guaranteed to represent, matching representation.exact.
  *
- * @note A declared floor and never the capacity. 128 limbs is 4096 bits, which actually holds 1232
+ * @note A declared floor and never the capacity. 128 limbs is 4096 bits, which actually represents 1232
  *       decimal digits. 208 of them are headroom this constant does not promise.
  * @note The floor counts every digit of the stored integer, the integer part of the value included.
  *       A value carried at d decimal places is stored as value times 10^d. At d = 1024 the width
- *       holds a magnitude below 2^4096 / 10^1024, about 1e209, and errors on anything larger. The
+ *       represents a magnitude below 2^4096 / 10^1024, about 1e209, and errors on anything larger. The
  *       CODATA 2022 kilogram-hertz relationship, 1.35639248965e50, needs 3569 bits at 1024 places,
- *       which this width holds and the earlier 3456-bit width errored.
+ *       which this width represents and the earlier 3456-bit width errored.
  * @warning Never size a buffer from this. A width computed from digits is short the moment anybody
  *          raises the floor toward the real capacity, and a device allocation sized that way would
  *          be short by exactly the amount nobody was watching. Size from ORIOR_EXACT_LIMBS or from
  *          sizeof(OriorExactInteger), which cannot drift apart from the array they describe.
  * @note Defined on both arms, like the limb count. A build can then raise the floor and the assert
- *       below decides whether the width holds it. A knob the build cannot set is a knob whose guard
+ *       below decides whether the width represents it. A knob the build cannot set is a knob whose guard
  *       has never been exercised.
  */
 #ifndef ORIOR_EXACT_DIGITS
@@ -74,7 +74,7 @@ extern "C"
 
 /* The width is a power of two of at least one limb. The expansion's top coefficient
  * 2^ORIOR_EXACT_BITS is then a power of two and the top magnitude bit sits at a fixed position at
- * every size the build selects. Scaling is by doubling the limb count, 128 to 256 to 512, holding
+ * every size the build selects. Scaling is by doubling the limb count, 128 to 256 to 512, representing
  * 4096, 8192, 16384 bits. A width that is not a power of two, an override such as the earlier 108
  * limbs, fails compilation here. The power of two test alone passes a width of zero, because
  * 0 & (0 - 1) is 0. The bottom of the range is tested with it. */
@@ -97,7 +97,7 @@ extern "C"
                   "ORIOR_EXACT_BITS and ORIOR_EXACT_LIMBS must name the same width");
     static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
                       (unsigned long long)(ORIOR_EXACT_BITS),
-                  "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS holds");
+                  "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS represents");
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 _Static_assert(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
                    (((unsigned long long)(ORIOR_EXACT_BITS) & ((unsigned long long)(ORIOR_EXACT_BITS)-1ull)) == 0ull),
@@ -106,7 +106,7 @@ _Static_assert((unsigned long long)(ORIOR_EXACT_BITS) == ((unsigned long long)(O
                "ORIOR_EXACT_BITS and ORIOR_EXACT_LIMBS must name the same width");
 _Static_assert(((((unsigned long long)(ORIOR_EXACT_DIGITS) * 3322ull) / 1000ull) + 1ull) <=
                    (unsigned long long)(ORIOR_EXACT_BITS),
-               "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS holds");
+               "ORIOR_EXACT_DIGITS declares more decimal digits than ORIOR_EXACT_LIMBS represents");
 #else
 typedef char orior_exact_bits_are_a_power_of_two[(((unsigned long long)(ORIOR_EXACT_BITS) >= 32ull) &&
                                                    (((unsigned long long)(ORIOR_EXACT_BITS) &
@@ -122,10 +122,10 @@ typedef char orior_exact_digits_fit_the_width[(((((unsigned long long)(ORIOR_EXA
 #endif
 
 /**
- * @brief The widest width whose working copies are held on the stack, in limbs.
+ * @brief The widest width whose working copies are stored on the stack, in limbs.
  *
  * @note Past it every width-sized working copy is allocated from the heap. 4096 limbs is 16 KiB a copy,
- *       and the widest call, the gcd, holds nine of them.
+ *       and the widest call, the gcd, uses nine of them.
  */
 #ifndef ORIOR_EXACT_STACK_LIMBS
 #define ORIOR_EXACT_STACK_LIMBS 4096u
@@ -152,7 +152,7 @@ typedef char orior_exact_digits_fit_the_width[(((((unsigned long long)(ORIOR_EXA
  * @note Measured on an RTX 3070 host (x86-64, MSVC -O2): Karatsuba and the transform meet near 8192
  *       limbs, and the transform is 1.44x ahead at 16384, 1.55x at 32768 and 1.85x at 65536.
  * @note Those ratios are one reading. Repeated readings of the same code on the same host differ by up
- *       to about 1.3x, and 16384 has read 1.02x and 1.32x. The crossover at 8192 held on every run.
+ *       to about 1.3x, and 16384 has read 1.02x and 1.32x. The crossover at 8192 was confirmed on every run.
  */
 #ifndef ORIOR_EXACT_TRANSFORM_LIMBS
 #define ORIOR_EXACT_TRANSFORM_LIMBS 8192u
@@ -168,7 +168,7 @@ typedef char orior_exact_digits_fit_the_width[(((((unsigned long long)(ORIOR_EXA
  *       alone: long division leads to 4096 limbs, and Newton is 1.21x ahead at 8192, 1.06x at 16384,
  *       1.81x at 32768 and 2.44x at 65536.
  * @note One reading as well. Another run read 1.09x at 8192 and 1.45x at 16384. Ratios within about
- *       1.3x are not settled by one reading, and the crossover at 8192 held on every run.
+ *       1.3x are not settled by one reading, and the crossover at 8192 was confirmed on every run.
  */
 #ifndef ORIOR_EXACT_NEWTON_LIMBS
 #define ORIOR_EXACT_NEWTON_LIMBS 8192u

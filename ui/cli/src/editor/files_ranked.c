@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_ranked.c: the quick open: the tree's files, less what the search's patterns hide, read behind the window and
-// held, and those that answer a query, the best first. A file named exactly as typed scores over any match, one whose
+// stored, and those that answer a query, the best first. A file named exactly as typed scores over any match, one whose
 // name starts with what was typed half that, and one opened lately over the match itself
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
@@ -16,25 +16,25 @@
 
 // The tree's files as the last quick open read them, in the current room, the other the reader's: the tree, when they
 // were read, whether they are being read again, whether they have been read once, and how many reads have begun. Each
-// room is the files picked from a held view of the tree; the room the reader leaves behind is let go as it turns
+// room is the files picked from a pinned view of the tree; the room the reader leaves behind is let go as it turns
 typedef struct
 {
     CliPicked room[2];
     unsigned int current;
-    char root[CLI_PATH_LONGEST];
-    int kept;
+    char root[CLI_PATH_MAX_LEN];
+    int is_cached;
     unsigned long long at;
     int reading;
     int read;
     unsigned long long begun;
     CliThread reader;
-} CliHeld;
+} CliCachedFiles;
 
-static CliHeld s_held;
+static CliCachedFiles s_cached;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // whether the quick open reads a file: the search's patterns do not hide it
-static int cli_ranked_keeps(void *context, const char *path)
+static int cli_ranked_includes(void *context, const char *path)
 {
     return !cli_patterns_hides((const CliPatterns *)context, path, 0);
 }
@@ -44,31 +44,32 @@ static int cli_ranked_keeps(void *context, const char *path)
 static void cli_reader(void *context)
 {
     static CliPatterns s_patterns;
-    static char s_root[CLI_PATH_LONGEST];
+    static char s_root[CLI_PATH_MAX_LEN];
     static CliLock s_turn = CLI_LOCK_INIT;
     (void)context;
     cli_lock_take(&s_turn);
     cli_lock_take(&s_lock);
     memor.cpy(&(MemoriaCfg){.dst = s_root,
-                            .src = s_held.root,
-                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_held.root, .cap = CLI_CELLS_POOL}) + 1u});
-    const unsigned long long begun = s_held.begun;
-    const unsigned int spare = 1u - s_held.current;
+                            .src = s_cached.root,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_cached.root, .cap = CLI_CELLS_POOL}) + 1u});
+    const unsigned long long begun = s_cached.begun;
+    const unsigned int spare = 1u - s_cached.current;
     cli_lock_give(&s_lock);
     cli_patterns_of(CLI_PART_SEARCH, &s_patterns);
     CliPicked picked;
-    (void)cli_files_picked(&picked, s_root, cli_ranked_keeps, &s_patterns);
+    (void)cli_files_picked(&picked, s_root, cli_ranked_includes, &s_patterns);
     cli_lock_take(&s_lock);
-    if (s_held.kept && (cellul.eq(&(CatenaFinitaCfg){.src = s_held.root, .other = s_root, .cap = CLI_CELLS_POOL})) &&
-        (s_held.begun == begun))
+    if (s_cached.is_cached &&
+        (cellul.eq(&(CatenaFinitaCfg){.src = s_cached.root, .other = s_root, .cap = CLI_CELLS_POOL})) &&
+        (s_cached.begun == begun))
     {
-        cli_picked_let(&s_held.room[spare]);
-        s_held.room[spare] = picked;
-        cli_picked_let(&s_held.room[s_held.current]);
-        s_held.current = spare;
-        s_held.at = cli_clock_milliseconds();
-        s_held.reading = 0;
-        s_held.read = 1;
+        cli_picked_let(&s_cached.room[spare]);
+        s_cached.room[spare] = picked;
+        cli_picked_let(&s_cached.room[s_cached.current]);
+        s_cached.current = spare;
+        s_cached.at = cli_clock_milliseconds();
+        s_cached.reading = 0;
+        s_cached.read = 1;
     }
     else
     {
@@ -78,46 +79,47 @@ static void cli_reader(void *context)
     cli_lock_give(&s_turn);
 }
 
-// the tree's files read again on a thread of their own, the lock held
+// the tree's files read again on a thread of their own, the lock acquired
 static void cli_read_into(void)
 {
-    s_held.reading = 1;
-    s_held.begun += 1ull;
-    s_held.reader = (CliThread){cli_reader, NULL, CLI_PRIORITY_IDLE};
-    if (!cli_thread_started(&s_held.reader))
+    s_cached.reading = 1;
+    s_cached.begun += 1ull;
+    s_cached.reader = (CliThread){cli_reader, NULL, CLI_PRIORITY_IDLE};
+    if (!cli_thread_started(&s_cached.reader))
     {
-        s_held.reading = 0;
+        s_cached.reading = 0;
     }
 }
 
-// whether the files held are the tree's at `root`, the lock held
-static int cli_held_for(const char *root)
+// whether the files stored are the tree's at `root`, the lock acquired
+static int cli_cached_for(const char *root)
 {
-    return s_held.kept && (cellul.eq(&(CatenaFinitaCfg){.src = s_held.root, .other = root, .cap = CLI_CELLS_POOL}));
+    return s_cached.is_cached &&
+           (cellul.eq(&(CatenaFinitaCfg){.src = s_cached.root, .other = root, .cap = CLI_CELLS_POOL}));
 }
 
-// the files held for the tree at `root`, none yet, the rooms of another tree let go, and their first read begun, the
-// lock held
-static void cli_held_begun(const char *root)
+// the files stored for the tree at `root`, none yet, the rooms of another tree let go, and their first read begun, the
+// lock acquired
+static void cli_cached_begun(const char *root)
 {
-    memor.cpy(&(MemoriaCfg){.dst = s_held.root,
+    memor.cpy(&(MemoriaCfg){.dst = s_cached.root,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    s_held.kept = 1;
-    s_held.at = cli_clock_milliseconds();
-    cli_picked_let(&s_held.room[0]);
-    cli_picked_let(&s_held.room[1]);
-    s_held.read = 0;
-    s_held.begun = 0ull;
+    s_cached.is_cached = 1;
+    s_cached.at = cli_clock_milliseconds();
+    cli_picked_let(&s_cached.room[0]);
+    cli_picked_let(&s_cached.room[1]);
+    s_cached.read = 0;
+    s_cached.begun = 0ull;
     cli_read_into();
 }
 
 void cli_files_read_behind(const char *root)
 {
     cli_lock_take(&s_lock);
-    if (!cli_held_for(root))
+    if (!cli_cached_for(root))
     {
-        cli_held_begun(root);
+        cli_cached_begun(root);
     }
     cli_lock_give(&s_lock);
 }
@@ -125,15 +127,15 @@ void cli_files_read_behind(const char *root)
 int cli_files_unread(const char *root)
 {
     cli_lock_take(&s_lock);
-    const int unread = !(cli_held_for(root) && s_held.read);
+    const int unread = !(cli_cached_for(root) && s_cached.read);
     cli_lock_give(&s_lock);
     return unread;
 }
 
-void cli_files_forget_held(void)
+void cli_files_view_cleared(void)
 {
     cli_lock_take(&s_lock);
-    if (s_held.kept)
+    if (s_cached.is_cached)
     {
         cli_read_into();
     }
@@ -147,15 +149,15 @@ typedef struct
     double score;
 } CliFound;
 
-// The query as the files are held against it: its letters in lower case and where its last part after a slash starts,
-// which a file's name is held against; those less whitespace, as a match looks for them; the same less ASCII's
-// whitespace, read where the query in lower case is all ASCII; and the letters of the file being matched, as they are
-// and in lower case, and the places that matched
+// The query as the files are matched against it: its letters in lower case and where its last part after a slash
+// starts, which a file's name is matched against; those less whitespace, as a match looks for them; the same less
+// ASCII's whitespace, read where the query in lower case is all ASCII; and the letters of the file being matched, as
+// they are and in lower case, and the places that matched
 typedef struct
 {
     unsigned int lowered[CLI_FUZZY_LETTERS];
     unsigned int lowered_count;
-    unsigned int asked;
+    unsigned int query_tail;
     unsigned int wanted[CLI_FUZZY_LETTERS];
     unsigned int wanted_count;
     unsigned int wanted_bytes[CLI_FUZZY_LETTERS];
@@ -177,12 +179,12 @@ typedef struct
 static CliRanking *s_ranking;
 
 // the ranking taken: 1, or 0 with no file found written, as one still reading, where no room for it is left
-static int ranking_held(CliLine *out)
+static int ranking_reserved(VerbaLinea *out)
 {
-    s_ranking = cli_cell_taken(sizeof(*s_ranking), "a ranking of the tree's files");
+    s_ranking = g_cli_cells->persistent_buf_alloc(sizeof(*s_ranking), NULL);
     if (s_ranking == NULL)
     {
-        cli_line_text(out, "{\"found\":[],\"reading\":true}");
+        mmgr_line_put(out, "{\"found\":[],\"reading\":true}");
     }
     return s_ranking != NULL;
 }
@@ -190,18 +192,18 @@ static int ranking_held(CliLine *out)
 // the ranking given back
 static void ranking_released(void)
 {
-    cli_cell_given(s_ranking);
+    g_cli_cells->persistent_buf_release(s_ranking, NULL);
     s_ranking = NULL;
 }
 
 // the query read into the ranking
 static void cli_query_read(const char *query)
 {
-    // a letter count is below CLI_FUZZY_LETTERS, which an unsigned int holds
+    // a letter count is below CLI_FUZZY_LETTERS, which an unsigned int stores
     s_ranking->lowered_count =
         (unsigned int)cli_regexp_letters(query, cellul.len(&(CatenaFinitaCfg){.src = query, .cap = CLI_CELLS_POOL}),
                                          s_ranking->lowered, CLI_FUZZY_LETTERS);
-    s_ranking->asked = 0u;
+    s_ranking->query_tail = 0u;
     s_ranking->wanted_count = 0u;
     s_ranking->wanted_bytes_count = 0u;
     s_ranking->ascii = 1;
@@ -210,7 +212,7 @@ static void cli_query_read(const char *query)
         const unsigned int letter = cli_regexp_lower(s_ranking->lowered[at]);
         s_ranking->lowered[at] = letter;
         s_ranking->ascii = s_ranking->ascii && (letter < 0x80u);
-        s_ranking->asked = (letter == '/') ? (at + 1u) : s_ranking->asked;
+        s_ranking->query_tail = (letter == '/') ? (at + 1u) : s_ranking->query_tail;
         const int ascii_white =
             (letter == ' ') || (letter == '\t') || (letter == '\n') || (letter == '\f') || (letter == '\r');
         if (!ascii_white)
@@ -226,7 +228,7 @@ static void cli_query_read(const char *query)
     }
 }
 
-// the query's letters as typed in the path in lower case, as a match: the last place the path holds them, in its
+// the query's letters as typed in the path in lower case, as a match: the last place the path contains them, in its
 // name where it does, each letter's place in it, and a score that puts a match in the name and at the start of a word
 // first
 static int cli_typed(double *score)
@@ -267,7 +269,7 @@ static int cli_typed(double *score)
     return 1;
 }
 
-// the file at `path` held against the query, its letters read into the ranking: 1 with its score and places, or 0
+// the file at `path` matched against the query, its letters read into the ranking: 1 with its score and places, or 0
 // where it does not answer
 static int cli_matched(const char *path, int fuzzy, double *score)
 {
@@ -297,10 +299,10 @@ static int cli_matched(const char *path, int fuzzy, double *score)
 // whether `count` letters of the file's name in lower case from `at` are the query's last part
 static int cli_named_as(unsigned int at, unsigned int count)
 {
-    const unsigned int asked = s_ranking->lowered_count - s_ranking->asked;
-    return (count == asked) && (memor.cmp(&(MemoriaCfg){.src = s_ranking->lower + at,
-                                                        .other = s_ranking->lowered + s_ranking->asked,
-                                                        .bytes = count * sizeof(unsigned int)}) == 0);
+    const unsigned int tail_count = s_ranking->lowered_count - s_ranking->query_tail;
+    return (count == tail_count) && (memor.cmp(&(MemoriaCfg){.src = s_ranking->lower + at,
+                                                             .other = s_ranking->lowered + s_ranking->query_tail,
+                                                             .bytes = count * sizeof(unsigned int)}) == 0);
 }
 
 // what the file matched last scores for its name: EXACT named as typed, with or without its extension, half that
@@ -318,14 +320,15 @@ static double cli_named(void)
     {
         return CLI_RANKED_EXACT;
     }
-    const unsigned int asked = s_ranking->lowered_count - s_ranking->asked;
-    const int starts = (asked <= length) && (memor.cmp(&(MemoriaCfg){.src = s_ranking->lower + name,
-                                                                     .other = s_ranking->lowered + s_ranking->asked,
-                                                                     .bytes = asked * sizeof(unsigned int)}) == 0);
+    const unsigned int tail_count = s_ranking->lowered_count - s_ranking->query_tail;
+    const int starts =
+        (tail_count <= length) && (memor.cmp(&(MemoriaCfg){.src = s_ranking->lower + name,
+                                                           .other = s_ranking->lowered + s_ranking->query_tail,
+                                                           .bytes = tail_count * sizeof(unsigned int)}) == 0);
     return starts ? (CLI_RANKED_EXACT / 2.0) : 0.0;
 }
 
-// the found sorted by score, the highest first, those that score the same kept in their order
+// the found sorted by score, the highest first, those that score the same retained in their order
 static void cli_found_sorted(unsigned int count)
 {
     CliFound *from = s_ranking->found;
@@ -356,10 +359,10 @@ static void cli_found_sorted(unsigned int count)
     }
 }
 
-// the `paths` the ranking holds that answer `query`, at most `most` of them, the best first, written into `out`, the
-// lock held; `read` says whether the tree's files were read
+// the `paths` the ranking contains that answer `query`, at most `most` of them, the best first, written into `out`, the
+// lock acquired; `read` reports whether the tree's files were read
 static void cli_ranked_of(unsigned int paths, const char *query, const char *const *recent, unsigned int recents,
-                          unsigned int most, int fuzzy, int read, CliLine *out)
+                          unsigned int most, int fuzzy, int read, VerbaLinea *out)
 {
     cli_query_read(query);
     unsigned int found = 0u;
@@ -382,56 +385,56 @@ static void cli_ranked_of(unsigned int paths, const char *query, const char *con
     }
     cli_found_sorted(found);
     const unsigned int shown = (found < most) ? found : most;
-    cli_line_text(out, "{\"found\":[");
+    mmgr_line_put(out, "{\"found\":[");
     for (unsigned int at = 0u; at < shown; at += 1u)
     {
         const CliFound *const one = &s_ranking->found[at];
         const char *const path = s_ranking->path[one->index];
         double score = 0.0;
         cli_matched(path, fuzzy, &score);
-        cli_line_text(out, (at != 0u) ? ",{\"path\":" : "{\"path\":");
+        mmgr_line_put(out, (at != 0u) ? ",{\"path\":" : "{\"path\":");
         cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"score\":");
+        mmgr_line_put(out, ",\"score\":");
         cli_json_double(out, one->score);
-        cli_line_text(out, ",\"hits\":[");
+        mmgr_line_put(out, ",\"hits\":[");
         for (unsigned int hit = 0u; hit < s_ranking->hit_count; hit += 1u)
         {
             if (hit != 0u)
             {
-                cli_line_character(out, ',');
+                mmgr_line_ch(out, ',');
             }
-            cli_line_decimal(out, s_ranking->hits[hit], 0u);
+            mmgr_line_decimal(out, s_ranking->hits[hit], 0u);
         }
-        cli_line_text(out, "]}");
+        mmgr_line_put(out, "]}");
     }
-    cli_line_text(out, read ? "],\"reading\":false}" : "],\"reading\":true}");
+    mmgr_line_put(out, read ? "],\"reading\":false}" : "],\"reading\":true}");
 }
 
 void cli_files_ranked(const char *root, const char *query, const char *const *recent, unsigned int recents,
-                      unsigned int most, int fuzzy, CliLine *out)
+                      unsigned int most, int fuzzy, VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    if (!ranking_held(out))
+    if (!ranking_reserved(out))
     {
         cli_lock_give(&s_lock);
         return;
     }
     int read = 0;
-    if (cli_held_for(root))
+    if (cli_cached_for(root))
     {
-        const int old = (cli_clock_milliseconds() - s_held.at) >= CLI_RANKED_SEEN_FOR;
-        if (s_held.read && old && !s_held.reading)
+        const int old = (cli_clock_milliseconds() - s_cached.at) >= CLI_RANKED_SEEN_FOR;
+        if (s_cached.read && old && !s_cached.reading)
         {
             cli_read_into();
         }
-        read = s_held.read;
+        read = s_cached.read;
     }
     else
     {
-        cli_held_begun(root);
+        cli_cached_begun(root);
     }
     // until the files are read, those opened lately alone answer
-    const CliPicked *const files = read ? &s_held.room[s_held.current] : NULL;
+    const CliPicked *const files = read ? &s_cached.room[s_cached.current] : NULL;
     unsigned int paths = 0u;
     for (unsigned int index = 0u; read && (index < files->count); index += 1u)
     {
@@ -449,10 +452,10 @@ void cli_files_ranked(const char *root, const char *query, const char *const *re
 }
 
 void cli_files_ranked_in(const char *const *files, unsigned int count, const char *query, const char *const *recent,
-                         unsigned int recents, unsigned int most, int fuzzy, CliLine *out)
+                         unsigned int recents, unsigned int most, int fuzzy, VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    if (!ranking_held(out))
+    if (!ranking_reserved(out))
     {
         cli_lock_give(&s_lock);
         return;

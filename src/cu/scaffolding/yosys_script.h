@@ -22,7 +22,7 @@ class YosysScript : public Target
     std::string synthesis(const std::string &source, const std::string &top, const std::string &memories);
 };
 
-// the Yosys script a process holds, its ruleset read at its first call to ruleset()
+// the Yosys script a process retains, its ruleset read at its first call to ruleset()
 YosysScript &yosys_script(void);
 
 #endif

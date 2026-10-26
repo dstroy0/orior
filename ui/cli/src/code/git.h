@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// git.h: what git says of the tree: the branch it is on, the files that differ from the last commit and how, the
+// git.h: what git reports about the tree: the branch it is on, the files that differ from the last commit and how, the
 // commits that touched a file, every branch's commits laid out as a graph and the files each changed, the commit that
 // last changed each line of a file, and a file's text as one of those commits left it or as the last did. In a tree
-// git cannot read, each of these comes back empty. What git is asked to do, for the Commit window and the Git menu:
+// git cannot read, each of these comes back empty. What git is requested to do, for the Commit window and the Git menu:
 // commit chosen files, push, pull where nothing would merge, put a file back as the last commit left it, act on
 // branches, put changes aside in a stash and bring them back, and apply a commit of another branch, each giving git's
 // own words where it refuses. Here too is the clone of a repository into a folder of its own, for File, Clone
@@ -15,8 +15,8 @@
 #include "../command_line/cells.h"
 #include "../command_line/cli_internal.h"
 
-// the cells the lists git gives keep their texts in (git_run.c)
-extern CliCellsTally g_cli_git_cells;
+// the cells the lists git gives store their texts in (git_run.c)
+extern CellOwner g_cli_git_cells;
 
 // the repository File, Clone Repository offers first
 #define CLI_GIT_ORIOR "https://github.com/dstroy0/orior.git"
@@ -24,8 +24,8 @@ extern CliCellsTally g_cli_git_cells;
 // the most bytes of the texts of one list git gives
 #define CLI_GIT_TEXT (1u << 22u)
 
-// The texts of a list, in a cell of `room` grown as they are kept: each one ended by a 0 at its place, the place 0
-// holding the empty text, and 1 in `full` where one did not fit and was kept empty
+// The texts of a list, in a cell of `room` grown as they are stored: each one ended by a 0 at its place, the place 0
+// containing the empty text, and 1 in `full` where one did not fit and was left empty
 typedef struct
 {
     char *bytes;
@@ -34,15 +34,15 @@ typedef struct
     int full;
 } CliGitText;
 
-// the texts made empty, a list holding none before, or one given back; `length` bytes of `from` kept: their place;
-// the text at a place, the empty text where the list holds no cell; and the texts' cell given back, the list holding
+// the texts made empty, a list containing none before, or one given back; `length` bytes of `from` stored: their place;
+// the text at a place, the empty text where the list has no cell; and the texts' cell given back, the list containing
 // none
 void cli_git_text_begun(CliGitText *text);
 unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long long length);
 const char *cli_git_text_of(const CliGitText *text, unsigned int at);
 void cli_git_text_given(CliGitText *text);
 
-// the most repositories, changed files, branches, stashes and commits a list holds
+// the most repositories, changed files, branches, stashes and commits a list contains
 #define CLI_GIT_REPOSITORIES 256u
 
 #define CLI_GIT_CHANGED 65536u
@@ -143,81 +143,81 @@ typedef struct
     unsigned long long length;
 } CliGitPart;
 
-// the commit the tree at `root` stands at into `commit`, which holds CLI_NAME_LONGEST, its time in seconds since 1970,
-// and whether the tree holds no change past it: 1, or 0 where the tree is in no repository or has no commit
+// the commit the tree at `root` stands at into `commit`, sized for CLI_NAME_MAX_LEN, its time in seconds since 1970,
+// and whether the tree has no change past it: 1, or 0 where the tree is in no repository or has no commit
 int cli_git_head(const char *root, char *commit, long long *when, int *clean);
-// the branch the tree is on, or the short id of the commit it stands at where it is on none, into `name`, which holds
-// CLI_NAME_LONGEST: 1, or 0 where git cannot say
+// the branch the tree is on, or the short id of the commit it stands at where it is on none, into `name`, sized for
+// CLI_NAME_MAX_LEN: 1, or 0 where git cannot determine
 int cli_git_branch(const char *root, char *name);
-// the name of the repository at `root` into `name`, which holds CLI_NAME_LONGEST: the last part of its `origin`
+// the name of the repository at `root` into `name`, sized for CLI_NAME_MAX_LEN: the last part of its `origin`
 // remote's address, without a `.git` ending, the folder's name where it has no `origin`
 void cli_git_name(const char *root, char *name);
 // the repositories of the tree: the one the tree is in, where it is in one, then each folder under it, four deep at
-// most, that holds a repository of its own, a submodule among them, by path; hidden folders and those a build or a
+// most, that contains a repository of its own, a submodule among them, by path; hidden folders and those a build or a
 // package manager fills are not searched
 void cli_git_repositories(const char *root, CliRepositories *found);
-// the text of a file a merge left in conflict, as one of its stages holds it: 1 the base, 2 the branch merged into, 3
+// the text of a file a merge left in conflict, as one of its stages stores it: 1 the base, 2 the branch merged into, 3
 // the branch merged, into `out`: 1, or 0 where git has none
-int cli_git_stage_text(const char *root, const char *file, unsigned int stage, CliLine *out);
-// every file under the tree that differs from the last commit of the repository that holds it, by its path in the tree,
-// for the `count` repositories at `repos` where `named`, or every one of the tree where not
+int cli_git_stage_text(const char *root, const char *file, unsigned int stage, VerbaLinea *out);
+// every file under the tree that differs from the last commit of the repository that contains it, by its path in the
+// tree, for the `count` repositories at `repos` where `named`, or every one of the tree where not
 void cli_git_changed(const char *root, const char *const *repos, unsigned int count, int named, CliChangedList *found);
-// the files at `paths` committed with `message`, each as it stands, in the repository that holds it, a commit to each
-// repository that holds some; and the files of `whole` as each stands and the files of `parts` with the text each is
-// given, the same way: git's line for each commit into `out`, 1, or 0 with why said
-int cli_git_commit(const char *root, const char *message, const char *const *paths, unsigned int count, CliLine *out,
-                   CliLine *said);
+// the files at `paths` committed with `message`, each as it stands, in the repository that contains it, a commit to
+// each repository that contains some; and the files of `whole` as each stands and the files of `parts` with the text
+// each is given, the same way: git's line for each commit into `out`, 1, or 0 with why given
+int cli_git_commit(const char *root, const char *message, const char *const *paths, unsigned int count, VerbaLinea *out,
+                   VerbaLinea *err_msg);
 int cli_git_commit_parts(const char *root, const char *message, const char *const *whole, unsigned int whole_count,
-                         const CliGitPart *parts, unsigned int part_count, CliLine *out, CliLine *said);
+                         const CliGitPart *parts, unsigned int part_count, VerbaLinea *out, VerbaLinea *err_msg);
 // git run at `root` with nothing to answer a prompt with, `args`, `count` of them: what it wrote into `out`, 1, or 0
-// with what it said went wrong
-int cli_git_run(const char *root, const char *const *args, unsigned int count, CliLine *out, CliLine *said);
+// with what it reported went wrong
+int cli_git_run(const char *root, const char *const *args, unsigned int count, VerbaLinea *out, VerbaLinea *err_msg);
 // every local and remote branch, the one with the newest commit first, less each remote's HEAD
 void cli_git_branches(const char *root, CliBranches *found);
-// what the branches list asks done to a branch: `create` makes one from the branch open and goes on it, `switch` goes
-// on one, a remote one made a local branch that follows it, `rename` names it `to`, `delete` takes it out where its
-// commits are merged and `delete-unmerged` where they are not, `merge` merges it into the branch open, and `rebase`
-// sets the branch open's own commits on it: git's words into `out`, 1, or 0 with why said
-int cli_git_branch_act(const char *root, const char *act, const char *name, const char *to, CliLine *out,
-                       CliLine *said);
+// what the branches list requests done to a branch: `create` makes one from the branch open and goes on it, `switch`
+// goes on one, a remote one made a local branch that follows it, `rename` names it `to`, `delete` takes it out where
+// its commits are merged and `delete-unmerged` where they are not, `merge` merges it into the branch open, and `rebase`
+// sets the branch open's own commits on it: git's words into `out`, 1, or 0 with why given
+int cli_git_branch_act(const char *root, const char *act, const char *name, const char *to, VerbaLinea *out,
+                       VerbaLinea *err_msg);
 // every stash, the newest first
 void cli_git_stashes(const char *root, CliStashes *found);
-// what is asked done to the stashes: `push` puts every change aside, new files with them, under `message` where one is
-// given; `apply` brings stash `name` back and keeps it; `pop` brings it back and drops it where it comes back whole;
-// `drop` throws it away: git's words into `out`, 1, or 0 with why said
-int cli_git_stash_act(const char *root, const char *act, const char *name, const char *message, CliLine *out,
-                      CliLine *said);
-// the commits of other branches, local and remote, that the branch the tree is on does not hold, merges aside, the
+// what is requested done to the stashes: `push` puts every change aside, new files with them, under `message` where one
+// is given; `apply` brings stash `name` back and retains it; `pop` brings it back and drops it where it comes back
+// whole; `drop` throws it away: git's words into `out`, 1, or 0 with why given
+int cli_git_stash_act(const char *root, const char *act, const char *name, const char *message, VerbaLinea *out,
+                      VerbaLinea *err_msg);
+// the commits of other branches, local and remote, that the branch the tree is on does not contain, merges aside, the
 // newest first; a commit already applied to it under another id is not one
 void cli_git_elsewhere(const char *root, CliCommits *found);
 // commit `id` applied to the branch the tree is on as a commit of its own: git's words into `out`, 1, or 0 with why
-// said, where the change does not fit leaving the files in conflict for the merge window
-int cli_git_cherry_pick(const char *root, const char *id, CliLine *out, CliLine *said);
-// a file a merge left in conflict marked resolved, as it now stands, by staging it: 1, or 0 with why said
-int cli_git_resolve(const char *root, const char *path, CliLine *said);
+// given, where the change does not fit leaving the files in conflict for the merge window
+int cli_git_cherry_pick(const char *root, const char *id, VerbaLinea *out, VerbaLinea *err_msg);
+// a file a merge left in conflict marked resolved, as it now stands, by staging it: 1, or 0 with why given
+int cli_git_resolve(const char *root, const char *path, VerbaLinea *err_msg);
 // the branch pushed to the remote it follows, or to origin under its own name where it follows none; and the commits of
 // the remote branch it follows brought in, only where its own commits are all among them: git's words into `out`, 1,
-// or 0 with why said
-int cli_git_push(const char *root, CliLine *out, CliLine *said);
-int cli_git_pull(const char *root, CliLine *out, CliLine *said);
+// or 0 with why given
+int cli_git_push(const char *root, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_git_pull(const char *root, VerbaLinea *out, VerbaLinea *err_msg);
 // how many commits the branch has that its remote does not, and the other way: 1, or 0 where it follows no remote
 int cli_git_ahead_behind(const char *root, unsigned int *ahead, unsigned int *behind);
 // the file at `path` put back as the last commit left it, its changes in the tree and in what is staged taken back; a
-// file the last commit does not hold is refused: 1, or 0 with why said
-int cli_git_rollback(const char *root, const char *path, CliLine *said);
-// the commits that touched `file`, the newest first, following it through renames: 1, or 0 with why said
-int cli_git_commits(const char *root, const char *file, CliCommits *found, CliLine *said);
-// the text of `file` as commit `id` left it into `out`: 1, or 0 with why said; as the first parent of `id` left it: 1,
-// or 0 where the commit has no parent or the parent does not hold the file; as the last commit left it: 1, or 0 where
-// the tree is not git's or the last commit does not hold the file
-int cli_git_text_at(const char *root, const char *file, const char *id, CliLine *out, CliLine *said);
-int cli_git_text_before(const char *root, const char *file, const char *id, CliLine *out);
-int cli_git_head_text(const char *root, const char *file, CliLine *out);
-// who made commit `id` into `name`, and its subject into `subject`: 1, or 0 where git cannot say
-int cli_git_made_by(const char *root, const char *id, CliLine *name, CliLine *subject);
+// file the last commit does not contain is refused: 1, or 0 with why given
+int cli_git_rollback(const char *root, const char *path, VerbaLinea *err_msg);
+// the commits that touched `file`, the newest first, following it through renames: 1, or 0 with why given
+int cli_git_commits(const char *root, const char *file, CliCommits *found, VerbaLinea *err_msg);
+// the text of `file` as commit `id` left it into `out`: 1, or 0 with why given; as the first parent of `id` left it: 1,
+// or 0 where the commit has no parent or the parent does not contain the file; as the last commit left it: 1, or 0
+// where the tree is not git's or the last commit does not contain the file
+int cli_git_text_at(const char *root, const char *file, const char *id, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_git_text_before(const char *root, const char *file, const char *id, VerbaLinea *out);
+int cli_git_head_text(const char *root, const char *file, VerbaLinea *out);
+// who made commit `id` into `name`, and its subject into `subject`: 1, or 0 where git cannot determine
+int cli_git_made_by(const char *root, const char *id, VerbaLinea *name, VerbaLinea *subject);
 
 // the most commits the graph draws, and the most a search over them finds; the most parents and names of a commit
-// kept; and the most strokes of every row
+// stored; and the most strokes of every row
 #define CLI_GIT_GRAPH 2000u
 
 #define CLI_GIT_PARENTS 16u
@@ -257,11 +257,11 @@ typedef struct
 } CliGraph;
 
 // the commits of every branch, the newest first and none before its children, laid out as a graph; with a `query`, the
-// commits whose subject, id or branches hold each of its words, in any case, and their author where `authors`, from the
-// whole history, each on a line of its own (git_graph.c)
+// commits whose subject, id or branches contain each of its words, in any case, and their author where `authors`, from
+// the whole history, each on a line of its own (git_graph.c)
 void cli_git_graph(const char *root, const char *query, int authors, CliGraph *found);
 
-// the most files a commit is told to have changed
+// the most files a commit is reported to have changed
 #define CLI_GIT_TOUCHED 16384u
 
 // A file a commit changed from its first parent, or from nothing where it has none: its path under the tree, its state
@@ -281,10 +281,10 @@ typedef struct
     CliGitText text;
 } CliTouchedList;
 
-// the files under the tree that commit `id` changed: 1, or 0 with why said (git_lists.c)
-int cli_git_touched(const char *root, const char *id, CliTouchedList *found, CliLine *said);
+// the files under the tree that commit `id` changed: 1, or 0 with why given (git_lists.c)
+int cli_git_touched(const char *root, const char *id, CliTouchedList *found, VerbaLinea *err_msg);
 
-// the most lines of a file and the most commits its history holds
+// the most lines of a file and the most commits its history contains
 #define CLI_GIT_LINES (1u << 20u)
 
 #define CLI_GIT_LINE_COMMITS 65536u
@@ -306,8 +306,8 @@ typedef struct
     int has_was;
 } CliLineCommit;
 
-// The commit that last changed each line of a file: `line` holds, for each line, its commit's place in `commit`, or -1
-// for a line no commit holds yet
+// The commit that last changed each line of a file: `line` stores, for each line, its commit's place in `commit`, or -1
+// for a line no commit contains yet
 typedef struct
 {
     CliLineCommit commit[CLI_GIT_LINE_COMMITS];
@@ -317,35 +317,36 @@ typedef struct
     CliGitText text;
 } CliLineHistory;
 
-// the commit that last changed each line of `file` as `text`, `length` bytes, holds it, the file as the editor has it,
-// edits and all, a line the last commit does not hold being no commit's: 1, or 0 with why said (git_lines.c)
+// the commit that last changed each line of `file` as `text`, `length` bytes, contains it, the file as the editor has
+// it, edits and all, a line the last commit does not contain being no commit's: 1, or 0 with why given (git_lines.c)
 int cli_git_line_history(const char *root, const char *file, const char *text, unsigned long long length,
-                         CliLineHistory *found, CliLine *said);
+                         CliLineHistory *found, VerbaLinea *err_msg);
 
 // the folder a clone goes in where none is named, the reader's home, and the folder File, Open, Repository clones
-// into, one of orior's own, apart from the reader's, each into `folder`, which holds CLI_PATH_LONGEST: 1, or 0 where
+// into, one of orior's own, apart from the reader's, each into `folder`, sized for CLI_PATH_MAX_LEN: 1, or 0 where
 // there is none; `folder` made a repository, as git init does, a folder that is one already left as it is; the folder
 // a clone of `url` makes under `parent` into `folder`, the last part of the address without `.git`, as git itself
 // names it; and `url` cloned into `target`, a folder that is not there yet or is empty, each line of git's progress
-// handed to `said_line` as it comes with whether the line is finished. Each 1, or 0 with why said (git_clone.c)
+// handed to `progress_line` as it comes with whether the line is finished. Each 1, or 0 with why given (git_clone.c)
 int cli_git_clone_parent(char *folder);
 int cli_git_opened_parent(char *folder);
-int cli_git_init(const char *folder, CliLine *out, CliLine *said);
-int cli_git_clone_folder(const char *url, const char *parent, char *folder, CliLine *said);
-int cli_git_clone(const char *url, const char *target, void (*said_line)(void *context, const char *line, int ended),
-                  void *context, CliLine *said);
+int cli_git_init(const char *folder, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_git_clone_folder(const char *url, const char *parent, char *folder, VerbaLinea *err_msg);
+int cli_git_clone(const char *url, const char *target,
+                  void (*progress_line)(void *context, const char *line, int ended), void *context,
+                  VerbaLinea *err_msg);
 
 // each list written as the page reads it, a JSON array of objects whose members are the fields above by their names, a
 // state a letter of its own, a path or a branch one has not `null`; a touched file's path and the path it had each
 // written after `repo` and a `/` where `repo` is not empty; and a file's line history as `{"commits", "lines"}`
 // (git_written.c)
-void cli_git_repositories_written(const CliRepositories *found, CliLine *out);
-void cli_git_changed_written(const CliChangedList *found, CliLine *out);
-void cli_git_commits_written(const CliCommits *found, CliLine *out);
-void cli_git_branches_written(const CliBranches *found, CliLine *out);
-void cli_git_stashes_written(const CliStashes *found, CliLine *out);
-void cli_git_graph_written(const CliGraph *found, CliLine *out);
-void cli_git_touched_written(const CliTouchedList *found, const char *repo, CliLine *out);
-void cli_git_line_history_written(const CliLineHistory *found, CliLine *out);
+void cli_git_repositories_written(const CliRepositories *found, VerbaLinea *out);
+void cli_git_changed_written(const CliChangedList *found, VerbaLinea *out);
+void cli_git_commits_written(const CliCommits *found, VerbaLinea *out);
+void cli_git_branches_written(const CliBranches *found, VerbaLinea *out);
+void cli_git_stashes_written(const CliStashes *found, VerbaLinea *out);
+void cli_git_graph_written(const CliGraph *found, VerbaLinea *out);
+void cli_git_touched_written(const CliTouchedList *found, const char *repo, VerbaLinea *out);
+void cli_git_line_history_written(const CliLineHistory *found, VerbaLinea *out);
 
 #endif

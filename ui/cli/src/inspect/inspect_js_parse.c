@@ -5,7 +5,7 @@
 // declared and each class from its first word to its closing brace
 #include "inspect_js.h"
 
-// the most functions a parse keeps the parameters of, and the most parameters it keeps
+// the most functions a parse records the parameters of, and the most parameters it records
 #define CLI_JS_SCOPES (CLI_INSPECT_TOKENS / 8u)
 #define CLI_JS_PARAMS (CLI_INSPECT_TOKENS / 4u)
 
@@ -91,7 +91,7 @@ unsigned int cli_js_parameters(const char *src, unsigned int open, CliInspectSet
     return first;
 }
 
-// the functions' parameters kept: each function's span, and its names among the parameters' tokens
+// the functions' parameters recorded: each function's span, and its names among the parameters' tokens
 static void parse_scopes(const char *src)
 {
     s_scopes = 0u;
@@ -125,7 +125,7 @@ static void parse_scopes(const char *src)
     }
 }
 
-// whether the name at `at` is a parameter of a function whose span holds it
+// whether the name at `at` is a parameter of a function whose span contains it
 static int parse_parameter(const char *src, unsigned int at)
 {
     const CliInspectTok *const tok = &g_cli_inspect_tok[at];

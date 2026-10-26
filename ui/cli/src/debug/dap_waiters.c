@@ -4,7 +4,7 @@
 // let go of, its place among those waiting freed and its answer passed over when it comes
 #include "dap_internal.h"
 
-int cli_dap_answered(CliDap *dap, unsigned long long seq, CliLine *said)
+int cli_dap_answered(CliDap *dap, unsigned long long seq, VerbaLinea *err_msg)
 {
     int answered = -1;
     cli_lock_take(&dap->lock);
@@ -14,7 +14,7 @@ int cli_dap_answered(CliDap *dap, unsigned long long seq, CliLine *said)
         if (waiter->waiting && (waiter->seq == seq) && waiter->answered)
         {
             answered = (waiter->error[0] == '\0') ? 1 : 0;
-            cli_line_text(said, waiter->error);
+            mmgr_line_put(err_msg, waiter->error);
         }
     }
     cli_lock_give(&dap->lock);

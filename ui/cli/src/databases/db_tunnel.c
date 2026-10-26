@@ -12,25 +12,25 @@ int cli_db_tunnel_open(CliDbTunnel *tunnel, const char *through, const char *hos
     static CliWords s_words;
     static char s_path[CLI_PATH_TEXT];
     static CliLock s_lock = CLI_LOCK_INIT;
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned int local = 0u;
     memor.set(&(MemoriaCfg){.dst = tunnel, .val = 0, .bytes = sizeof(*tunnel)});
-    if (!cli_port_free(&local, &said))
+    if (!cli_port_free(&local, &err_msg))
     {
-        cli_line_closed(&said);
-        cli_db_failure_said(failure, why);
+        mmgr_line_finish(&err_msg);
+        cli_db_failure_set(failure, why);
         return 0;
     }
-    char forward[CLI_NAME_LONGEST * 2u];
-    CliLine forward_line = {forward, sizeof(forward), 0ull};
-    cli_line_text(&forward_line, "127.0.0.1:");
-    cli_line_decimal(&forward_line, local, 1u);
-    cli_line_character(&forward_line, ':');
-    cli_line_text(&forward_line, host);
-    cli_line_character(&forward_line, ':');
-    cli_line_decimal(&forward_line, port, 1u);
-    cli_line_closed(&forward_line);
+    char forward[CLI_NAME_MAX_LEN * 2u];
+    VerbaLinea forward_line = {forward, sizeof(forward), 0ull};
+    mmgr_line_put(&forward_line, "127.0.0.1:");
+    mmgr_line_decimal(&forward_line, local, 1u);
+    mmgr_line_ch(&forward_line, ':');
+    mmgr_line_put(&forward_line, host);
+    mmgr_line_ch(&forward_line, ':');
+    mmgr_line_decimal(&forward_line, port, 1u);
+    mmgr_line_finish(&forward_line);
     const char *const words[11] = {"-N",
                                    "-L",
                                    forward,
@@ -57,16 +57,16 @@ int cli_db_tunnel_open(CliDbTunnel *tunnel, const char *through, const char *hos
     cli_words_put(&s_words, through);
     cli_toolchains_run_path(s_path, sizeof(s_path));
     const CliSetting settings[1] = {{"PATH", s_path}};
-    const int started = cli_spawn(&tunnel->child, s_words.word, NULL, settings, 1u, 1, &said);
+    const int started = cli_spawn(&tunnel->child, s_words.word, NULL, settings, 1u, 1, &err_msg);
     cli_lock_give(&s_lock);
     if (!started)
     {
-        char message[CLI_SAID_LONGEST + 64u];
-        CliLine line = {message, sizeof(message), 0ull};
-        cli_line_text(&line, "ssh, which the tunnel goes through: ");
-        cli_line_counted(&line, said.out, said.at);
-        cli_line_closed(&line);
-        cli_db_failure_said(failure, message);
+        char message[CLI_ERR_MSG_MAX_LEN + 64u];
+        VerbaLinea line = {message, sizeof(message), 0ull};
+        mmgr_line_put(&line, "ssh, which the tunnel goes through: ");
+        mmgr_line_put_n(&line, err_msg.out, err_msg.at);
+        mmgr_line_finish(&line);
+        cli_db_failure_set(failure, message);
         return 0;
     }
     const unsigned long long until = cli_clock_milliseconds() + CLI_DB_WAIT;
@@ -75,7 +75,7 @@ int cli_db_tunnel_open(CliDbTunnel *tunnel, const char *through, const char *hos
         long long code = 0ll;
         if (cli_spawn_poll(&tunnel->child, &code) != 0)
         {
-            // what ssh said to its errors as it ended, trimmed
+            // what ssh printed to its errors as it ended, trimmed
             char errors[CLI_DB_FIELD];
             unsigned long long used = 0ull;
             for (unsigned long long got = 1ull; (got > 0ull) && (used < sizeof(errors));)
@@ -91,10 +91,10 @@ int cli_db_tunnel_open(CliDbTunnel *tunnel, const char *through, const char *hos
             }
             cli_spawn_closed(&tunnel->child);
             memor.set(&(MemoriaCfg){.dst = failure, .val = 0, .bytes = sizeof(*failure)});
-            CliLine message = {failure->message, sizeof(failure->message), 0ull};
-            cli_line_text(&message, "ssh ");
-            cli_line_text(&message, through);
-            cli_line_text(&message, " ended: ");
+            VerbaLinea message = {failure->message, sizeof(failure->message), 0ull};
+            mmgr_line_put(&message, "ssh ");
+            mmgr_line_put(&message, through);
+            mmgr_line_put(&message, " ended: ");
             unsigned long long start = 0ull;
             while ((start < used) && (cellul.chr(&(CatenaFinitaCfg){
                                           .src = " \t\n\r\f\v", .cap = CLI_CELLS_POOL, .byte = errors[start]}) != NULL))
@@ -102,44 +102,44 @@ int cli_db_tunnel_open(CliDbTunnel *tunnel, const char *through, const char *hos
                 start += 1u;
             }
             cli_lossy(&message, (const unsigned char *)errors + start, used - start);
-            cli_line_closed(&message);
+            mmgr_line_finish(&message);
             memor.cpy(&(MemoriaCfg){
                 .dst = failure->hint,
-                .src = "The tunnel signs in with the keys ssh's agent holds and the reader's ~/.ssh/config, "
-                       "as the terminal's ssh does; a machine that asks for a password needs a key put on "
+                .src = "The tunnel signs in with the keys ssh's agent has and the reader's ~/.ssh/config, "
+                       "as the terminal's ssh does; a machine that prompts for a password needs a key put on "
                        "it.",
                 .bytes =
                     cellul.len(&(CatenaFinitaCfg){
-                        .src = "The tunnel signs in with the keys ssh's agent holds and the reader's ~/.ssh/config, "
-                               "as the terminal's ssh does; a machine that asks for a password needs a key put on "
+                        .src = "The tunnel signs in with the keys ssh's agent has and the reader's ~/.ssh/config, "
+                               "as the terminal's ssh does; a machine that prompts for a password needs a key put on "
                                "it.",
                         .cap = CLI_CELLS_POOL}) +
                     1u});
             return 0;
         }
         CliSocket probe;
-        if (cli_socket_connected_within(&probe, "127.0.0.1", local, 200u, &said))
+        if (cli_socket_connected_within(&probe, "127.0.0.1", local, 200u, &err_msg))
         {
             cli_socket_closed(&probe);
             tunnel->port = local;
             tunnel->open = 1;
             return 1;
         }
-        said.at = 0ull;
+        err_msg.at = 0ull;
         if (cli_clock_milliseconds() > until)
         {
             cli_spawn_killed(&tunnel->child);
             (void)cli_spawn_wait(&tunnel->child);
             cli_spawn_closed(&tunnel->child);
-            char message[CLI_NAME_LONGEST + 64u];
-            CliLine line = {message, sizeof(message), 0ull};
-            cli_line_text(&line, "ssh ");
-            cli_line_text(&line, through);
-            cli_line_text(&line, " made no tunnel in ");
-            cli_line_decimal(&line, CLI_DB_WAIT / 1000ull, 1u);
-            cli_line_text(&line, " s");
-            cli_line_closed(&line);
-            cli_db_failure_said(failure, message);
+            char message[CLI_NAME_MAX_LEN + 64u];
+            VerbaLinea line = {message, sizeof(message), 0ull};
+            mmgr_line_put(&line, "ssh ");
+            mmgr_line_put(&line, through);
+            mmgr_line_put(&line, " made no tunnel in ");
+            mmgr_line_decimal(&line, CLI_DB_WAIT / 1000ull, 1u);
+            mmgr_line_put(&line, " s");
+            mmgr_line_finish(&line);
+            cli_db_failure_set(failure, message);
             return 0;
         }
         query_paused(100u);

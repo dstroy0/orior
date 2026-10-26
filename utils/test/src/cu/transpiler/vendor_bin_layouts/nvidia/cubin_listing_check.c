@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cubin_listing_check.c: the cut of a cubin's listing into each kernel's held on a listing shaped as the vendor prints
-// a cubin of two kernels
+// cubin_listing_check.c: the cut of a cubin's listing into each kernel's checked on a listing shaped as the vendor
+// prints a cubin of two kernels
 //
 //   lines     a kernel's listing is its code section's instruction lines in order, with no other line
 //   labels    a label the code names is put as the offset of the instruction it stands before, forward and back
 //   end       a label after the last instruction stands at the end of the code
-//   unset     a mark naming a label the section does not set is kept as printed
-//   apart     a section no kernel is named for, and a kernel no section holds, are left out
+//   unset     a mark naming a label the section does not set is retained as printed
+//   apart     a section no kernel is named for, and a kernel no section contains, are left out
 //   info      a section's `.sectioninfo` and `.sectionflags` lines open no section of their own
 //   note      a note the cubin carries for an instruction, `(*"BRANCH_TARGETS ..."*)`, is put as the one space a raw
 //             read prints in its place
@@ -21,10 +21,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -91,11 +91,11 @@ int main(void)
     check_that(cubin_listing_cut(s_listing, sizeof(s_listing) - 1u, names, 3u, &cut), "the listing is cut");
     check_that(cut_reads(&cut, 2u, s_one),
                "lines, labels, unset: k_one reads its instruction lines with each label it sets put as its offset, "
-               "forward and back, and the label it does not set kept as printed");
+               "forward and back, and the label it does not set retained as printed");
     check_that(cut_reads(&cut, 0u, s_two), "labels: k_two's forward label is put as the offset after the NOP");
-    check_that(!cut.found[1] && (cut.size[1] == 0u), "apart: a kernel no section holds is not found");
+    check_that(!cut.found[1] && (cut.size[1] == 0u), "apart: a kernel no section contains is not found");
     check_that(cut.text_size == (strlen(s_one) + strlen(s_two)),
-               "apart: no line of the section no kernel is named for is kept");
+               "apart: no line of the section no kernel is named for is retained");
     cubin_listing_cut_freed(&cut);
     // a label after the last instruction, the listing ending with no newline
     static const char s_ending[] = "\t.section\t.text.k_end,\"ax\",@progbits\n"

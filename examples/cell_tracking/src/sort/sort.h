@@ -27,7 +27,7 @@ extern "C"
 #define SORT_TERM_FIRST 0x8u
 #define SORT_TERMS SORT_TERM_DISTANCE
 
-// a pair record: its sources, targets, gate pairs, components and chosen links, then the chosen links' kept, level
+// a pair record: its sources, targets, gate pairs, components and chosen links, then the chosen links' retained, level
 // and crossed pairs, 64 bits each
 #define SORT_PAIR_WORDS 11u
 
@@ -70,8 +70,8 @@ extern "C"
         const int *stills;
     } SortPairRequest;
 
-    // the pair's links, its arrays grown to `capacity` gate pairs and kept between calls. `needs` is the K a component
-    // too wide for 32 bits needs, with `needs_past_64` set when it passes 64 bits too
+    // the pair's links, its arrays grown to `capacity` gate pairs and retained between calls. `needs` is the K a
+    // component too wide for 32 bits needs, with `needs_past_64` set when it passes 64 bits too
     typedef struct
     {
         unsigned int capacity;
@@ -84,7 +84,7 @@ extern "C"
         unsigned int *flags;
         unsigned int components;
         unsigned int chosen;
-        unsigned long long kept;
+        unsigned long long retained;
         unsigned long long level;
         unsigned long long crossed;
         unsigned int why;
@@ -102,7 +102,7 @@ extern "C"
 
     void sort_links_release(SortLinks *links);
 
-    // the device bytes the gate holds for frames of at most `maximum` points
+    // the device bytes the gate allocates for frames of at most `maximum` points
     unsigned long long sort_reserve_bytes(unsigned int maximum);
 
     // gives back the gate's device pool

@@ -139,7 +139,10 @@ test("a change to the page is patched where it changed, its scroll and its field
   assert.ok(!drawn.whole && drawn.changed >= 1 && drawn.added === 0, `patched: ${JSON.stringify(drawn)}`);
   assert.equal(page(), before, "the same page, not loaded again");
   assert.equal(page().getElementById("field").value, "typed");
-  assert.equal(page().scrollingElement.scrollTop, bottom, "at the same scroll");
+  // the keys typed claim the window's edges and the frame grows by what they give it, which brings the page's
+  // bottom up: a page left at its bottom stands at its bottom as it is now
+  const most = page().scrollingElement.scrollHeight - page().defaultView.innerHeight;
+  assert.equal(page().scrollingElement.scrollTop, Math.min(bottom, most), "at the same scroll");
 });
 
 test("the element the cursor stands in is outlined over the frame, and brought into sight", async () => {

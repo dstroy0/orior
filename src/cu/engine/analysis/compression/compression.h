@@ -41,12 +41,13 @@ extern "C"
 
     unsigned long long compression_chunks(unsigned long long count);
 
-    // the device bytes compression holds for `count` values before it measures them: its chunk pool, each chunk's bits
-    // and offset beside the scan's scratch, rounded to the page; 0 for a count it errors. The stream is sized by the
-    // values and held as a pool of its own, whose bytes are the stream's limbs and one more, rounded to the page.
+    // the device bytes compression allocates for `count` values before it measures them: its chunk pool, each chunk's
+    // bits and offset beside the scan's scratch, rounded to the page; 0 for a count it errors. The stream is sized by
+    // the values and allocated as a pool of its own, whose bytes are the stream's limbs and one more, rounded to the
+    // page.
     unsigned long long compression_reserve_bytes(unsigned long long count);
 
-    // frees the chunk pool and the stream compression holds between calls
+    // frees the chunk pool and the stream compression retains between calls
     void compression_resident_release(void);
 
 #ifdef __cplusplus

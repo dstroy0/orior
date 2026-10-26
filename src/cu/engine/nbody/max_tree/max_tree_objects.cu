@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// max_tree_objects.cu: roots, peaks, census, packing and holding
+// max_tree_objects.cu: roots, peaks, census, packing and retention
 #include "max_tree_device_internal.h"
 
 int max_tree_cc(const unsigned char *ranges, unsigned int depth, unsigned int height, unsigned int width,
@@ -77,10 +77,10 @@ __global__ void max_tree_peak_kernel(const unsigned int *code, const unsigned ch
     }
 }
 
-__global__ void max_tree_mark_kernel(const unsigned int *residual, unsigned int held, const unsigned int *code,
+__global__ void max_tree_mark_kernel(const unsigned int *residual, unsigned int limb_count, const unsigned int *code,
                                      const unsigned char *ranges, const unsigned int *label,
                                      const unsigned long long *best, unsigned int voxels, unsigned int writing,
-                                     unsigned int *at_chunk, unsigned int *slot_at, EngineBody *bodies)
+                                     unsigned int *at_chunk, unsigned int *body_of, EngineBody *bodies)
 {
     const unsigned int chunk = (blockIdx.x * blockDim.x) + threadIdx.x;
     const unsigned int first = chunk * MAX_TREE_CHUNK;
@@ -89,7 +89,7 @@ __global__ void max_tree_mark_kernel(const unsigned int *residual, unsigned int 
         return;
     }
     const unsigned int end = ((voxels - first) < MAX_TREE_CHUNK) ? voxels : (first + MAX_TREE_CHUNK);
-    unsigned int slot = (writing != 0u) ? at_chunk[chunk] : 0u;
+    unsigned int body_at = (writing != 0u) ? at_chunk[chunk] : 0u;
     for (unsigned int voxel = first; voxel < end; voxel += 1u)
     {
         const unsigned int inside = (unsigned int)(ranges[voxel] != 0u);
@@ -97,29 +97,29 @@ __global__ void max_tree_mark_kernel(const unsigned int *residual, unsigned int 
         const unsigned int peak = inside & (unsigned int)(max_tree_peak_of(best, root) == voxel);
         if ((peak & writing) != 0u)
         {
-            EngineBody *const body = &bodies[slot];
+            EngineBody *const body = &bodies[body_at];
             body->peak = voxel;
             body->code = code[voxel];
             body->parent = 0xFFFFFFFFu;
             body->forward = -1;
             body->backward = -1;
-            // a level held in fewer limbs is above zero, and its limbs past `held` are zeros
+            // a level stored in fewer limbs is above zero, and its limbs past `limb_count` are zeros
             for (unsigned int limb = 0u; limb < ENGINE_RESIDUAL_LIMBS; limb += 1u)
             {
-                body->level[limb] = (limb < held) ? residual[((size_t)voxel * held) + limb] : 0u;
+                body->level[limb] = (limb < limb_count) ? residual[((size_t)voxel * limb_count) + limb] : 0u;
             }
-            slot_at[voxel] = slot;
+            body_of[voxel] = body_at;
         }
-        slot += peak;
+        body_at += peak;
     }
     if (writing == 0u)
     {
-        at_chunk[chunk] = slot;
+        at_chunk[chunk] = body_at;
     }
 }
 
 __global__ void max_tree_object_census_kernel(const unsigned char *ranges, const unsigned int *label,
-                                              const unsigned long long *best, const unsigned int *slot_at,
+                                              const unsigned long long *best, const unsigned int *body_of,
                                               unsigned int depth, unsigned int height, unsigned int width,
                                               EngineBody *bodies, unsigned int *labels)
 {
@@ -136,7 +136,7 @@ __global__ void max_tree_object_census_kernel(const unsigned char *ranges, const
     }
     const unsigned int peak = max_tree_peak_of(best, label[voxel]);
     labels[voxel] = peak;
-    EngineBody *const body = &bodies[slot_at[peak]];
+    EngineBody *const body = &bodies[body_of[peak]];
     const unsigned int plane = height * width;
     const unsigned long long z = (unsigned long long)(voxel / plane);
     const unsigned long long y = (unsigned long long)((voxel % plane) / width);
@@ -160,7 +160,7 @@ __global__ void max_tree_object_census_kernel(const unsigned char *ranges, const
     }
 }
 
-__global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int held, unsigned int voxels,
+__global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int limb_count, unsigned int voxels,
                                      unsigned int words, unsigned long long *packed)
 {
     const unsigned int word = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -173,7 +173,7 @@ __global__ void max_tree_pack_kernel(const unsigned int *residual, unsigned int 
     unsigned long long bits = 0ull;
     for (unsigned int voxel = first; voxel < end; voxel += 1u)
     {
-        bits |= (unsigned long long)max_tree_selected(residual, voxel, held) << (voxel - first);
+        bits |= (unsigned long long)max_tree_selected(residual, voxel, limb_count) << (voxel - first);
     }
     packed[word] = bits;
 }
@@ -236,14 +236,14 @@ void max_tree_release_resident(MaxTreeResident *resident)
     free(resident->host_chunks);
     cudaFree(resident->packed);
     cudaFree(resident->bodies);
-    for (unsigned int slot = 0u; slot < 2u; slot += 1u)
+    for (unsigned int body_at = 0u; body_at < 2u; body_at += 1u)
     {
-        cudaFree(resident->kept_code[slot]);
-        cudaFree(resident->kept_values[slot]);
+        cudaFree(resident->frame_code[body_at]);
+        cudaFree(resident->frame_values[body_at]);
     }
-    const int keeping = resident->keeping;
+    const int retaining = resident->retaining_frames;
     memset(resident, 0, sizeof(*resident));
-    resident->keeping = keeping;
+    resident->retaining_frames = retaining;
 }
 
 int max_tree_reserve(size_t voxels, EngineError *error)
@@ -315,14 +315,14 @@ int max_tree_reserve(size_t voxels, EngineError *error)
                                &resident->packed, error);
     resident->host_chunks = (unsigned int *)malloc(chunks * sizeof(unsigned int));
     ok = ok && MAX_TREE_CHECK(resident->host_chunks != NULL, &resident->host_chunks, error, ENGINE_ERROR_RESOURCE);
-    for (unsigned int slot = 0u; (resident->keeping != 0) && (slot < 2u); slot += 1u)
+    for (unsigned int body_at = 0u; (resident->retaining_frames != 0) && (body_at < 2u); body_at += 1u)
     {
         ok = ok &&
-             MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->kept_code[slot], voxels * sizeof(unsigned int)),
-                                   &resident->kept_code[slot], error) &&
-             MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->kept_values[slot],
+             MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->frame_code[body_at], voxels * sizeof(unsigned int)),
+                                   &resident->frame_code[body_at], error) &&
+             MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&resident->frame_values[body_at],
                                               (voxels + 2u) * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)),
-                                   &resident->kept_values[slot], error);
+                                   &resident->frame_values[body_at], error);
     }
     if (ok == 0)
     {
@@ -367,7 +367,7 @@ extern "C" unsigned long long max_tree_objects_bytes(size_t voxels, size_t bodie
     scratch = (max_bytes > scratch) ? max_bytes : scratch;
     const unsigned long long lanes = (unsigned long long)voxels;
     const unsigned long long words4 = lanes * sizeof(unsigned int);
-    // max_tree_reserve's buffers in its order, then the bodies max_tree_grow_bodies holds for `bodies`
+    // max_tree_reserve's buffers in its order, then the bodies max_tree_grow_bodies allocates for `bodies`
     unsigned long long bytes = max_tree_paged(words4) + (4ull * max_tree_paged(words4)) + max_tree_paged(scratch) +
                                max_tree_paged(lanes) + max_tree_paged(words4) +
                                max_tree_paged(lanes * sizeof(unsigned long long)) + max_tree_paged(words4) +

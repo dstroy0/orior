@@ -5,7 +5,7 @@
 #include "../text/text.h"
 #include "python_paths_internal.h"
 
-// the most folders one folder holds that a loop over its entries takes
+// the most folders one folder contains that a loop over its entries takes
 #define CLI_PY_FOLDERS 4096u
 #define CLI_PY_FOLDER_TEXT (1u << 20u)
 
@@ -36,9 +36,9 @@ static CliValues cli_none(void)
 }
 
 // a text written into `line` put as a value
-static void cli_line_put(const CliLine *line)
+static void cli_line_put(const VerbaLinea *line)
 {
-    if (cli_line_fits(line))
+    if (mmgr_line_ok(line))
     {
         cli_py_value_put(cli_py_text_put(line->out, line->at));
     }
@@ -50,7 +50,7 @@ static int cli_parts(char letter)
     return (letter == '/') || (letter == '\\');
 }
 
-void cli_py_parent(const char *path, CliLine *out)
+void cli_py_parent(const char *path, VerbaLinea *out)
 {
     const char *last = NULL;
     for (const char *at = path; at[0] != '\0'; at += 1)
@@ -64,7 +64,7 @@ void cli_py_parent(const char *path, CliLine *out)
     // the slash lies in the path, at or past its start
     const unsigned long long at = (unsigned long long)(last - path);
     const unsigned long long length = (at == 0ull) ? 1ull : (((at == 2ull) && (path[1] == ':')) ? 3ull : at);
-    cli_line_counted(out, path, length);
+    mmgr_line_put_n(out, path, length);
 }
 
 // whether a path stands alone when it is joined onto another
@@ -80,26 +80,26 @@ static int cli_absolute(const char *part)
 }
 
 // `part` joined onto `base` as `os.path.join` joins them, written into `out`
-static void cli_joined(const char *base, const char *part, CliLine *out)
+static void cli_joined(const char *base, const char *part, VerbaLinea *out)
 {
     if (cli_absolute(part) || (base[0] == '\0'))
     {
-        cli_line_text(out, part);
+        mmgr_line_put(out, part);
         return;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL});
-    cli_line_text(out, base);
+    mmgr_line_put(out, base);
     if (!cli_parts(base[length - 1ull]))
     {
-        cli_line_character(out, CLI_PY_SEPARATOR);
+        mmgr_line_ch(out, CLI_PY_SEPARATOR);
     }
-    cli_line_text(out, part);
+    mmgr_line_put(out, part);
 }
 
 // every pairing of the values of `one` and `other`, joined, or added where `join` is 0, at most CLI_PY_PAIRS of them
 static CliValues cli_pairs(CliValues one, CliValues other, int join)
 {
-    static char s_made[CLI_PATH_LONGEST * 2u];
+    static char s_made[CLI_PATH_MAX_LEN * 2u];
     const unsigned int mark = g_cli_py.values;
     unsigned int made = 0u;
     for (unsigned int left = 0u; (left < one.count) && (made < CLI_PY_PAIRS); left += 1u)
@@ -108,15 +108,15 @@ static CliValues cli_pairs(CliValues one, CliValues other, int join)
         {
             const char *const base = cli_py_text(g_cli_py.value[one.first + left]);
             const char *const part = cli_py_text(g_cli_py.value[other.first + right]);
-            CliLine line = {s_made, sizeof(s_made), 0ull};
+            VerbaLinea line = {s_made, sizeof(s_made), 0ull};
             if (join)
             {
                 cli_joined(base, part, &line);
             }
             else
             {
-                cli_line_text(&line, base);
-                cli_line_text(&line, part);
+                mmgr_line_put(&line, base);
+                mmgr_line_put(&line, part);
             }
             cli_line_put(&line);
             made += 1u;
@@ -128,8 +128,8 @@ static CliValues cli_pairs(CliValues one, CliValues other, int join)
 // each value's folder above, `steps` times over
 static CliValues cli_parents(CliValues values, long long steps)
 {
-    static char s_at[CLI_PATH_LONGEST];
-    static char s_up[CLI_PATH_LONGEST];
+    static char s_at[CLI_PATH_MAX_LEN];
+    static char s_up[CLI_PATH_MAX_LEN];
     const unsigned int mark = g_cli_py.values;
     for (unsigned int index = 0u; index < values.count; index += 1u)
     {
@@ -141,10 +141,10 @@ static CliValues cli_parents(CliValues values, long long steps)
                      1u});
         for (long long step = 0ll; step < steps; step += 1ll)
         {
-            CliLine up = {s_up, sizeof(s_up), 0ull};
+            VerbaLinea up = {s_up, sizeof(s_up), 0ull};
             cli_py_parent(s_at, &up);
             const unsigned long long length = up.at;
-            cli_line_closed(&up);
+            mmgr_line_finish(&up);
             memor.cpy(&(MemoriaCfg){
                 .dst = s_at,
                 .src = (length == 0ull) ? "" : s_up,
@@ -156,18 +156,18 @@ static CliValues cli_parents(CliValues values, long long steps)
     return cli_py_values_from(mark);
 }
 
-int cli_py_dotted(unsigned int expr, CliLine *out)
+int cli_py_dotted(unsigned int expr, VerbaLinea *out)
 {
     const CliExpr *const one = &g_cli_py.expr[expr];
     if (one->kind == CLI_EXPR_NAME)
     {
-        cli_line_text(out, cli_py_text(one->text));
+        mmgr_line_put(out, cli_py_text(one->text));
         return 1;
     }
     if ((one->kind == CLI_EXPR_ATTR) && cli_py_dotted(one->left, out))
     {
-        cli_line_character(out, '.');
-        cli_line_text(out, cli_py_text(one->text));
+        mmgr_line_ch(out, '.');
+        mmgr_line_put(out, cli_py_text(one->text));
         return 1;
     }
     return 0;
@@ -192,10 +192,10 @@ static CliValues cli_joined_all(CliValues all, const CliExpr *call, unsigned int
 // what a call may be: the calls of `os.path` and `pathlib` that give a path
 static CliValues cli_called(const CliExpr *call)
 {
-    char dotted[CLI_NAME_LONGEST];
-    CliLine line = {dotted, sizeof(dotted), 0ull};
+    char dotted[CLI_NAME_MAX_LEN];
+    VerbaLinea line = {dotted, sizeof(dotted), 0ull};
     const int named = cli_py_dotted(call->left, &line);
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     const char *const name = named ? dotted : "";
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "os.path.dirname", .cap = CLI_CELLS_POOL}))
     {
@@ -386,13 +386,13 @@ static void cli_folder_each(void *context, const char *name, int is_folder)
     memor.cpy(&(MemoriaCfg){.dst = s_folders.text + s_folders.used, .src = name, .bytes = length});
     s_folders.name[s_folders.count] = s_folders.text + s_folders.used;
     s_folders.count += 1u;
-    // the text is below CLI_PY_FOLDER_TEXT bytes, which an unsigned int holds
+    // the text is below CLI_PY_FOLDER_TEXT bytes, which an unsigned int stores
     s_folders.used += (unsigned int)length;
 }
 
 CliValues cli_py_folders_in(const char *folder)
 {
-    static char s_path[CLI_PATH_LONGEST];
+    static char s_path[CLI_PATH_MAX_LEN];
     s_folders.used = 0u;
     s_folders.count = 0u;
     const unsigned int mark = g_cli_py.values;
@@ -403,18 +403,18 @@ CliValues cli_py_folders_in(const char *folder)
     // the paths sort as their folder's names do, the folder before them the same
     for (unsigned int at = 1u; at < s_folders.count; at += 1u)
     {
-        const char *const held = s_folders.name[at];
+        const char *const pivot = s_folders.name[at];
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(s_folders.name[place - 1u], held) > 0))
+        while ((place > 0u) && (cli_text_order(s_folders.name[place - 1u], pivot) > 0))
         {
             s_folders.name[place] = s_folders.name[place - 1u];
             place -= 1u;
         }
-        s_folders.name[place] = held;
+        s_folders.name[place] = pivot;
     }
     for (unsigned int at = 0u; at < s_folders.count; at += 1u)
     {
-        CliLine line = {s_path, sizeof(s_path), 0ull};
+        VerbaLinea line = {s_path, sizeof(s_path), 0ull};
         cli_joined(folder, s_folders.name[at], &line);
         cli_line_put(&line);
     }
@@ -423,18 +423,18 @@ CliValues cli_py_folders_in(const char *folder)
 
 CliValues cli_py_upward(const char *path)
 {
-    static char s_at[CLI_PATH_LONGEST];
-    static char s_up[CLI_PATH_LONGEST];
+    static char s_at[CLI_PATH_MAX_LEN];
+    static char s_up[CLI_PATH_MAX_LEN];
     const unsigned int mark = g_cli_py.values;
     memor.cpy(&(MemoriaCfg){
         .dst = s_at, .src = path, .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
     cli_py_value_put(cli_py_text_put(s_at, cellul.len(&(CatenaFinitaCfg){.src = s_at, .cap = CLI_CELLS_POOL})));
     for (;;)
     {
-        CliLine up = {s_up, sizeof(s_up), 0ull};
+        VerbaLinea up = {s_up, sizeof(s_up), 0ull};
         cli_py_parent(s_at, &up);
         const unsigned long long length = up.at;
-        cli_line_closed(&up);
+        mmgr_line_finish(&up);
         if ((length == 0ull) || (cellul.eq(&(CatenaFinitaCfg){.src = s_up, .other = s_at, .cap = CLI_CELLS_POOL})))
         {
             return cli_py_values_from(mark);

@@ -149,7 +149,7 @@ def run(binary):
     big_lambda, cs = log_constants()
     write_input(given, gammas, cs)
     ran = subprocess.run([binary, given, taken], capture_output=True, text=True,
-                         env=dict(os.environ, CYCLE_RECORD_KEEP_PTX="1"))
+                         env=dict(os.environ, CYCLE_RECORD_RETAIN_PTX="1"))
     if ran.returncode:
         print(ran.stdout.strip()[-2000:])
         print(ran.stderr.strip()[-2000:])

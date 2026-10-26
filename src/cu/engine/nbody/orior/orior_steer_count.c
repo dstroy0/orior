@@ -144,9 +144,9 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
     // probe, checked here once before the alignment loop because this is a public entry a caller can
     // hand a probe the sweep never made. A probe that does not fit gets 0, the error a null probe
     // array with a nonzero count gets above.
-    for (size_t slot = 0u; slot < count; slot += 1u)
+    for (size_t index = 0u; index < count; index += 1u)
     {
-        if (orior_steer_probe_fits(&probes[slot], needle_len) == 0)
+        if (orior_steer_probe_fits(&probes[index], needle_len) == 0)
         {
             return 0u;
         }
@@ -155,13 +155,13 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
     size_t found = 0u;
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
-        size_t slot = 0u;
-        while (slot < count)
+        size_t index = 0u;
+        while (index < count)
         {
             int agrees = 1;
-            for (size_t step = 0u; step < probes[slot].length; step += 1u)
+            for (size_t step = 0u; step < probes[index].length; step += 1u)
             {
-                const size_t offset = probes[slot].origin + (step * probes[slot].step);
+                const size_t offset = probes[index].origin + (step * probes[index].step);
                 orior_steer_probes += 1u;
                 if (corpus[at + offset] != needle[offset])
                 {
@@ -173,9 +173,9 @@ size_t orior_steer_count_with_probes(const uint8_t *corpus, size_t corpus_len, c
             {
                 break;
             }
-            slot += 1u;
+            index += 1u;
         }
-        if (slot == count)
+        if (index == count)
         {
             if (memcmp(corpus + at, needle, needle_len) == 0)
             {
@@ -219,17 +219,17 @@ size_t orior_steer_count(const uint8_t *corpus, size_t corpus_len, const uint8_t
 
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
-        size_t slot = 0u;
-        while (slot < ORIOR_STEER_ANCHORS)
+        size_t index = 0u;
+        while (index < ORIOR_STEER_ANCHORS)
         {
             orior_steer_probes += 1u;
-            if (corpus[at + offsets[slot]] != needle[offsets[slot]])
+            if (corpus[at + offsets[index]] != needle[offsets[index]])
             {
                 break;
             }
-            slot += 1u;
+            index += 1u;
         }
-        if (slot == ORIOR_STEER_ANCHORS)
+        if (index == ORIOR_STEER_ANCHORS)
         {
             if (memcmp(corpus + at, needle, needle_len) == 0)
             {
@@ -253,7 +253,7 @@ void orior_steer_scan_counters_reset(void)
 
 const OriorSteerEngine *orior_steer_best_engine(void)
 {
-    // Widest first, and each arm asks the processor before it is taken. The x86 arms and the ARM arms
+    // Widest first, and each arm queries the processor before it is taken. The x86 arms and the ARM arms
     // are gated by mutually exclusive build macros. At most one architecture's ladder is compiled
     // in and the rest fold away. A present arm returning NULL means the build carried it but the
     // running part does not, and the next arm down is tried.

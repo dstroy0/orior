@@ -24,7 +24,7 @@ extern "C"
     typedef enum
     {
         ENGINE_SMOOTH = 1,
-        ENGINE_KEEP = 2,
+        ENGINE_SAVE = 2,
         ENGINE_SCALE_SUBTRACT = 3,
         // a running sum of `orders[axis]` voxels along each axis; 0 and 1 leave the axis as it is
         ENGINE_COMB = 4,
@@ -133,7 +133,7 @@ extern "C"
 
 #define ENGINE_GOLDEN_RUNGS 92u
 
-// The register file: ENGINE_RECORD_LIMBS_MAX limbs of live registers, each register's sign held beside it. It is
+// The register file: ENGINE_RECORD_LIMBS_MAX limbs of live registers, each register's sign stored beside it. It is
 // the record machine's one binding resource. The step count is the scheduler's n and has no bound of its own: floors
 // of steps stack in one step table, register reuse frees a register after its last reader, and a lane runs the whole
 // stack in one launch.

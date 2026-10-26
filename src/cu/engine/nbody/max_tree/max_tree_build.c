@@ -3,9 +3,9 @@
 // max_tree_build.c: the tree built
 #include "max_tree_internal.h"
 
-OriorExactInteger g_asked_left;
-OriorExactInteger g_asked_right;
-static unsigned int s_asked_ready = 0u;
+OriorExactInteger g_compare_left;
+OriorExactInteger g_compare_right;
+static unsigned int s_compare_ready = 0u;
 
 static void max_tree_exact_of(const unsigned int *residual, unsigned int voxel, OriorExactInteger *value)
 {
@@ -29,29 +29,29 @@ static void max_tree_exact_of(const unsigned int *residual, unsigned int voxel, 
     value->sign = magnitude * ((negative != 0u) ? -1 : 1);
 }
 
-void max_tree_ask_ready(void)
+void max_tree_compare_ready(void)
 {
-    if (s_asked_ready == 0u)
+    if (s_compare_ready == 0u)
     {
-        orior_exact_zero(&g_asked_left);
-        orior_exact_zero(&g_asked_right);
-        s_asked_ready = 1u;
+        orior_exact_zero(&g_compare_left);
+        orior_exact_zero(&g_compare_right);
+        s_compare_ready = 1u;
     }
 }
 
 int max_tree_selects(const unsigned int *residual, unsigned int voxel)
 {
-    max_tree_ask_ready();
-    max_tree_exact_of(residual, voxel, &g_asked_left);
-    return (g_asked_left.sign > 0) ? 1 : 0;
+    max_tree_compare_ready();
+    max_tree_exact_of(residual, voxel, &g_compare_left);
+    return (g_compare_left.sign > 0) ? 1 : 0;
 }
 
 int max_tree_before(const unsigned int *residual, unsigned int left, unsigned int right)
 {
-    max_tree_ask_ready();
-    max_tree_exact_of(residual, left, &g_asked_left);
-    max_tree_exact_of(residual, right, &g_asked_right);
-    const int order = orior_exact_compare(&g_asked_left, &g_asked_right);
+    max_tree_compare_ready();
+    max_tree_exact_of(residual, left, &g_compare_left);
+    max_tree_exact_of(residual, right, &g_compare_right);
+    const int order = orior_exact_compare(&g_compare_left, &g_compare_right);
     if (order != 0)
     {
         return (order > 0) ? -1 : 1;
@@ -61,10 +61,10 @@ int max_tree_before(const unsigned int *residual, unsigned int left, unsigned in
 
 int max_tree_same(const unsigned int *residual, unsigned int left, unsigned int right)
 {
-    max_tree_ask_ready();
-    max_tree_exact_of(residual, left, &g_asked_left);
-    max_tree_exact_of(residual, right, &g_asked_right);
-    return orior_exact_equal(&g_asked_left, &g_asked_right);
+    max_tree_compare_ready();
+    max_tree_exact_of(residual, left, &g_compare_left);
+    max_tree_exact_of(residual, right, &g_compare_right);
+    return orior_exact_equal(&g_compare_left, &g_compare_right);
 }
 
 static const unsigned int *s_ordering_residual = NULL;
@@ -170,8 +170,8 @@ static long max_tree_grow(const unsigned int *residual, unsigned int depth, unsi
                 (unsigned int)(((near_z * (long long)height) + near_y) * (long long)width + near_x);
             const unsigned int axis = step / 2u;
             const unsigned int lower = ((step % 2u) != 0u) ? voxel : near;
-            const int kept = (every != 0u) || (bound[((size_t)lower * 3u) + axis] != 0u);
-            if ((arrived[near] == 0u) || (kept == 0))
+            const int passes = (every != 0u) || (bound[((size_t)lower * 3u) + axis] != 0u);
+            if ((arrived[near] == 0u) || (passes == 0))
             {
                 continue;
             }

@@ -73,8 +73,8 @@ static unsigned int scheduler_behind_earlier(unsigned int writer, unsigned int r
 }
 
 // each instruction of a section that writes a register, followed to the first instruction that reads it: where the
-// writer sets a write barrier, whether a wait on it stands between them; where it sets none, whether it is held behind
-// a later one's barrier, and otherwise the cycles between them. The look stops at an instruction that leaves the
+// writer sets a write barrier, whether a wait on it stands between them; where it sets none, whether it is blocked
+// behind a later one's barrier, and otherwise the cycles between them. The look stops at an instruction that leaves the
 // straight line, one that writes the register again, and past SCHEDULER_REACH instructions
 static void scheduler_follow(unsigned int count)
 {
@@ -154,13 +154,13 @@ int scheduler_cubin(unsigned long long size)
             continue;
         }
         const unsigned int instructions = (unsigned int)(length / 16ull);
-        const unsigned int kept =
+        const unsigned int retained =
             (instructions < SCHEDULER_SECTION_INSTRUCTIONS) ? instructions : SCHEDULER_SECTION_INSTRUCTIONS;
-        for (unsigned int at = 0u; at < kept; at += 1u)
+        for (unsigned int at = 0u; at < retained; at += 1u)
         {
             scheduler_instruction(&s_cubin[offset + (16ull * at)], 16ull * at, &s_section[at]);
         }
-        scheduler_follow(kept);
+        scheduler_follow(retained);
     }
     return 1;
 }
@@ -209,9 +209,9 @@ int scheduler_record(const char *path)
             s_unread, s_operations);
     fprintf(out, "An operation's soonest read is the fewest cycles, its stalls summed, between it and the first "
                  "instruction that reads the register it writes, over every place it sets no write barrier and no "
-                 "later one holds it. Readers waiting count the first readers of a register it writes with a write "
+                 "later one blocks it. Readers waiting count the first readers of a register it writes with a write "
                  "barrier where a wait on that barrier stands between the two, at the reader or before it, against "
-                 "those where none does. A barrier counts its producers, and a wait on it holds until all of them are "
+                 "those where none does. A barrier counts its producers, and a wait on it blocks until all of them are "
                  "back. Behind a later one counts the first readers of a register it writes with no barrier where a "
                  "later instruction of the same operation sets one, waited on before the read. Behind an earlier one "
                  "counts those where no later one does and an earlier instruction of the same operation sets one, "

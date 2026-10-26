@@ -6,10 +6,11 @@
 
 int main(void)
 {
-    char home[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char parent[CLI_PATH_LONGEST];
-    char made[CLI_PATH_LONGEST];
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    char home[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char parent[CLI_PATH_MAX_LEN];
+    char made[CLI_PATH_MAX_LEN];
     cli_check_folder("templates_home", home);
     (void)query_environment_set("ORIOR_HOME", home);
     cli_full(home, "templates/script/{{name}}", path);
@@ -21,31 +22,31 @@ int main(void)
     cli_full(home, "templates/app", path);
     (void)query_folder_made(path);
     char list[256];
-    CliLine listed = {list, sizeof(list), 0ull};
+    VerbaLinea listed = {list, sizeof(list), 0ull};
     cli_templates_list(&listed);
     cli_check_text(list, listed.at, "[\"app\",\"script\"]", "the templates list, in order");
     cli_full(home, "work", parent);
     (void)query_folder_made(parent);
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_templates_create("script", parent, "tally", made, &said), "a project begins from the template");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_templates_create("script", parent, "counter", made, &err_msg), "a project begins from the template");
     char text[64];
-    cli_full(made, "tally/main.py", path);
+    cli_full(made, "counter/main.py", path);
     unsigned long long size = qry_member_file_read(path, (unsigned char *)text, sizeof(text));
-    cli_check_text(text, (size == QRY_MEMBER_UNREAD) ? 0ull : size, "\"\"\"tally.\"\"\"\ntally()\n",
+    cli_check_text(text, (size == QRY_MEMBER_UNREAD) ? 0ull : size, "\"\"\"counter.\"\"\"\ncounter()\n",
                    "its name is written in, each time the text names it");
     cli_full(made, "logo.bin", path);
     size = qry_member_file_read(path, (unsigned char *)text, sizeof(text));
     cli_check((size == 3ull) && (memor.cmp(&(MemoriaCfg){.src = text, .other = "\xff\xfe\x00", .bytes = 3u}) == 0),
               "a file that is no text is copied as it is");
-    said.at = 0ull;
-    cli_check(!cli_templates_create("script", parent, "tally", made, &said),
+    err_msg.at = 0ull;
+    cli_check(!cli_templates_create("script", parent, "counter", made, &err_msg),
               "a folder there already is not written over");
-    said.at = 0ull;
-    const int climbs = cli_templates_create("../x", parent, "y", made, &said);
-    said.at = 0ull;
-    cli_check(!climbs && !cli_templates_create("script", parent, "a/b", made, &said),
+    err_msg.at = 0ull;
+    const int climbs = cli_templates_create("../x", parent, "y", made, &err_msg);
+    err_msg.at = 0ull;
+    cli_check(!climbs && !cli_templates_create("script", parent, "a/b", made, &err_msg),
               "a template or a name that leaves its folder is refused");
-    cli_check(g_cli_templates_cells.holds == 0ull, "and every cell the templates took is given back");
+    cli_check(g_cli_templates_cells.in_use == 0ull, "and every cell the templates took is given back");
     return cli_checked();
 }

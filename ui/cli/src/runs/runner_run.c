@@ -11,7 +11,7 @@
 #include "../text/text.h"
 #include <math.h>
 
-// the runs held, the next run's number, whether runs share this process's console, and the lock and wake over them
+// the runs open, the next run's number, whether runs share this process's console, and the lock and wake over them
 CliRun g_cli_runs[CLI_RUNS_MOST];
 unsigned long long g_cli_next_run;
 static int s_attached;
@@ -42,7 +42,7 @@ double cli_run_since(const CliRun *run)
 }
 
 // whether a reader has stopped the run
-static int cli_held(const CliRun *run)
+static int cli_stopping(const CliRun *run)
 {
     cli_lock_take(&g_cli_runs_lock);
     const int stopped = run->stopped;
@@ -50,45 +50,45 @@ static int cli_held(const CliRun *run)
     return stopped;
 }
 
-// A line the run says of its own, on its errors
-static void cli_say(void *context, const char *text, unsigned long long length)
+// A line the run prints of its own, on its errors
+static void cli_run_print(void *context, const char *text, unsigned long long length)
 {
-    char line[CLI_PATH_LONGEST * 4u];
-    CliLine kept = {line, sizeof(line), 0ull};
-    cli_line_counted(&kept, text, length);
-    cli_line_closed(&kept);
+    char line[CLI_PATH_MAX_LEN * 4u];
+    VerbaLinea line_out = {line, sizeof(line), 0ull};
+    mmgr_line_put_n(&line_out, text, length);
+    mmgr_line_finish(&line_out);
     cli_run_line((CliRun *)context, "stderr", line);
 }
 
-static void cli_said(CliRun *run, const char *text)
+static void cli_run_print_text(CliRun *run, const char *text)
 {
-    cli_say(run, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    cli_run_print(run, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
 // The program the build made, found once from the lines the steps before printed, and what it loads and how it compares
-// said as it is found: 1, its path in `file`, or 0 with why said into `why`
+// reported as it is found: 1, its path in `file`, or 0 with why given into `why`
 typedef struct
 {
     int looked;
     int found;
-    char file[CLI_PATH_LONGEST];
-    char why[CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
+    char why[CLI_PATH_MAX_LEN];
 } CliMade;
 
 static int cli_find_made(CliRun *run, CliMade *made)
 {
     const char *const id = cli_catalog_at(&run->catalog, run->catalog.job[0].id);
-    const QuerySink say = {cli_say, run};
+    const QuerySink sink = {cli_run_print, run};
     if (!made->looked)
     {
         made->looked = 1;
-        CliLine why = {made->why, sizeof(made->why), 0ull};
+        VerbaLinea why = {made->why, sizeof(made->why), 0ull};
         made->found = cli_executables_made(run->root, id, run->values, run->lines, made->file, &why);
-        cli_line_closed(&why);
+        mmgr_line_finish(&why);
         if (made->found)
         {
             static char s_path[1u << 16u];
-            static char s_folders[256][CLI_PATH_LONGEST];
+            static char s_folders[256][CLI_PATH_MAX_LEN];
             cli_toolchains_run_path(s_path, sizeof(s_path));
 #if defined(_WIN32)
             const char separator = ';';
@@ -101,9 +101,9 @@ static int cli_find_made(CliRun *run, CliMade *made)
             {
                 if (((at[0] == separator) || (at[0] == '\0')) && (at > from) && (count < 256u))
                 {
-                    CliLine line = {s_folders[count], CLI_PATH_LONGEST, 0ull};
-                    cli_line_counted(&line, from, (unsigned long long)(at - from));
-                    count += (cli_line_closed(&line) != 0ull) ? 1u : 0u;
+                    VerbaLinea line = {s_folders[count], CLI_PATH_MAX_LEN, 0ull};
+                    mmgr_line_put_n(&line, from, (unsigned long long)(at - from));
+                    count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
                 }
                 if (at[0] == '\0')
                 {
@@ -111,28 +111,28 @@ static int cli_find_made(CliRun *run, CliMade *made)
                 }
                 from = (at[0] == separator) ? (at + 1) : from;
             }
-            cli_binary_said(made->file, (const char (*)[CLI_PATH_LONGEST])s_folders, count, say);
-            cli_executables_built_advice(run->root, id, run->lines, say);
-            cli_executables_compare_build(run->root, id, made->file, say);
+            cli_binary_print(made->file, (const char (*)[CLI_PATH_MAX_LEN])s_folders, count, sink);
+            cli_executables_built_advice(run->root, id, run->lines, sink);
+            cli_executables_compare_build(run->root, id, made->file, sink);
         }
         else
         {
-            cli_said(run, made->why);
+            cli_run_print_text(run, made->why);
         }
     }
     return made->found;
 }
 
-// One step's command run: its line said, its process started in its own group where the run is detached, its lines
+// One step's command run: its line printed, its process started in its own group where the run is detached, its lines
 // carried, its exit read into `code` and when it began into `step_began`: 1 where it ran, 0 where it could not start or
 // was stopped first
 static int cli_step(CliRun *run, CliCommand *command, const char *shown, const char *view_out, int *has_code,
                     long long *code, double *step_began)
 {
     static char s_path[1u << 16u];
-    const CliSaid line = {CLI_SAID_LINE, run->run, NULL, "command", shown, 0,
-                          0ll,           0,        NULL, 0u,        NULL,  cli_run_since(run)};
-    run->sink.said(run->sink.context, &line);
+    const CliRunEvent line = {CLI_RUN_EVENT_LINE, run->run, NULL, "command", shown, 0, 0ll, 0, NULL, 0u, NULL,
+                              cli_run_since(run)};
+    run->sink.emit(run->sink.context, &line);
     if (cellul.eq(&(CatenaFinitaCfg){.src = run->catalog.job[0].opens, .other = "views", .cap = CLI_CELLS_POOL}))
     {
         query_folder_made(view_out);
@@ -146,15 +146,15 @@ static int cli_step(CliRun *run, CliCommand *command, const char *shown, const c
         cli_command_set(command, "PATH", s_path);
     }
     char number[24];
-    CliLine named = {number, sizeof(number), 0ull};
-    cli_line_decimal(&named, run->run, 1u);
-    cli_line_closed(&named);
+    VerbaLinea named = {number, sizeof(number), 0ull};
+    mmgr_line_decimal(&named, run->run, 1u);
+    mmgr_line_finish(&named);
     // the run's number in the step's environment: a command that would reach a window open on the tree sees it is a
     // job's own and runs where it is
     cli_command_set(command, CLI_RUN_VARIABLE, number);
     *step_began = cli_run_since(run);
-    // the run is looked at last, and the process joined to it, under one hold of the lock: Stop, which marks the run
-    // and then reads it, either finds the process there or keeps it from starting
+    // the run is looked at last, and the process joined to it, under one acquisition of the lock: Stop, which marks the
+    // run and then reads it, either finds the process there or prevents it from starting
     cli_lock_take(&g_cli_runs_lock);
     if (run->stopped)
     {
@@ -162,10 +162,10 @@ static int cli_step(CliRun *run, CliCommand *command, const char *shown, const c
         return 0;
     }
     CliSpawned spawned;
-    char why[CLI_PATH_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int started = cli_spawn(&spawned, command->words.word, command->has_folder ? command->folder : NULL,
-                                  command->setting, command->settings, !s_attached, &said);
+                                  command->setting, command->settings, !s_attached, &err_msg);
     if (started)
     {
         run->process = spawned.id;
@@ -175,13 +175,13 @@ static int cli_step(CliRun *run, CliCommand *command, const char *shown, const c
     cli_lock_give(&g_cli_runs_lock);
     if (!started)
     {
-        cli_line_closed(&said);
-        char line_text[CLI_PATH_LONGEST + 32u];
-        CliLine could = {line_text, sizeof(line_text), 0ull};
-        cli_line_text(&could, "could not start: ");
-        cli_line_text(&could, why);
-        cli_line_closed(&could);
-        cli_said(run, line_text);
+        mmgr_line_finish(&err_msg);
+        char line_text[CLI_PATH_MAX_LEN + 32u];
+        VerbaLinea could = {line_text, sizeof(line_text), 0ull};
+        mmgr_line_put(&could, "could not start: ");
+        mmgr_line_put(&could, why);
+        mmgr_line_finish(&could);
+        cli_run_print_text(run, line_text);
         *has_code = 0;
         return 0;
     }
@@ -205,7 +205,7 @@ enum
     CLI_READY_SIGN
 };
 
-// After a step ran: what is said of the program it ran where it ran the program the build made, and whether the run
+// After a step ran: what is reported of the program it ran where it ran the program the build made, and whether the run
 // goes on. 1 where it goes on
 static int cli_after_step(CliRun *run, int made_step, double step_began, int has_code, long long code, int *built)
 {
@@ -215,17 +215,17 @@ static int cli_after_step(CliRun *run, int made_step, double step_began, int has
         if (run->has_first)
         {
             char line[96];
-            CliLine said = {line, sizeof(line), 0ull};
-            cli_line_text(&said, "the program wrote its first line ");
+            VerbaLinea line_out = {line, sizeof(line), 0ull};
+            mmgr_line_put(&line_out, "the program wrote its first line ");
             const double after = run->first - step_began;
-            // a span in milliseconds, rounded, is far inside what a long long holds
-            cli_line_signed(&said, (long long)llround(after));
-            cli_line_text(&said, " ms after it started");
-            cli_line_closed(&said);
-            cli_said(run, line);
+            // a span in milliseconds, rounded, is far inside what a long long represents
+            mmgr_line_decimal_signed(&line_out, (long long)llround(after));
+            mmgr_line_put(&line_out, " ms after it started");
+            mmgr_line_finish(&line_out);
+            cli_run_print_text(run, line);
         }
-        const QuerySink say = {cli_say, run};
-        cli_executables_ran_advice(run->root, id, has_code, code, run->lines, say);
+        const QuerySink sink = {cli_run_print, run};
+        cli_executables_ran_advice(run->root, id, has_code, code, run->lines, sink);
     }
     else if (!has_code || (code != 0ll))
     {
@@ -236,10 +236,10 @@ static int cli_after_step(CliRun *run, int made_step, double step_began, int has
 
 // the commands that sign the program, and the lock they are made under, one run signing at a time
 static CliCommand s_signing[4];
-static char s_signing_shown[4][CLI_PATH_LONGEST * 4u];
+static char s_signing_shown[4][CLI_PATH_MAX_LEN * 4u];
 static CliLock s_signing_lock = CLI_LOCK_INIT;
 
-// The program the build made signed: each signing command run as a step, then what signing it said. 1 where the run
+// The program the build made signed: each signing command run as a step, then what signing it reported. 1 where the run
 // goes on
 static int cli_signed(CliRun *run, CliMade *made, const char *view_out, int *has_code, long long *code, int *built)
 {
@@ -250,14 +250,14 @@ static int cli_signed(CliRun *run, CliMade *made, const char *view_out, int *has
         return 0;
     }
     cli_lock_take(&s_signing_lock);
-    char why[CLI_PATH_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int steps = cli_executables_sign_steps(made->file, s_signing, s_signing_shown, 4u, &said);
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int steps = cli_executables_sign_steps(made->file, s_signing, s_signing_shown, 4u, &err_msg);
     if (steps < 0)
     {
         cli_lock_give(&s_signing_lock);
-        cli_line_closed(&said);
-        cli_said(run, why);
+        mmgr_line_finish(&err_msg);
+        cli_run_print_text(run, why);
         *has_code = 0;
         *built = 0;
         return 0;
@@ -266,9 +266,9 @@ static int cli_signed(CliRun *run, CliMade *made, const char *view_out, int *has
     for (int at = 0; goes && (at < steps); at += 1)
     {
         double began = 0.0;
-        if (cli_held(run) || !cli_step(run, &s_signing[at], s_signing_shown[at], view_out, has_code, code, &began))
+        if (cli_stopping(run) || !cli_step(run, &s_signing[at], s_signing_shown[at], view_out, has_code, code, &began))
         {
-            *has_code = cli_held(run) ? *has_code : 0;
+            *has_code = cli_stopping(run) ? *has_code : 0;
             goes = 0;
             break;
         }
@@ -277,20 +277,21 @@ static int cli_signed(CliRun *run, CliMade *made, const char *view_out, int *has
     cli_lock_give(&s_signing_lock);
     if (goes)
     {
-        const QuerySink say = {cli_say, run};
-        cli_executables_signed_said(made->file, say);
+        const QuerySink sink = {cli_run_print, run};
+        cli_executables_signature_print(made->file, sink);
     }
     return goes;
 }
 
-// a run's end said, with the code of its last step, the pages it wrote and the program it made, its cells given back
-// and its end told to those waiting on it
-static void cli_run_ended(CliRun *run, int has_code, long long code, const char (*pages_found)[CLI_PATH_LONGEST],
+// a run's end reported, with the code of its last step, the pages it wrote and the program it made, its cells given
+// back and its end reported to those waiting on it
+static void cli_run_ended(CliRun *run, int has_code, long long code, const char (*pages_found)[CLI_PATH_MAX_LEN],
                           unsigned int pages, const char *made)
 {
-    const CliSaid end = {CLI_SAID_END, run->run,      NULL,        NULL,  NULL, has_code,
-                         code,         cli_held(run), pages_found, pages, made, cli_run_since(run)};
-    run->sink.said(run->sink.context, &end);
+    const CliRunEvent end = {
+        CLI_RUN_EVENT_END, run->run, NULL, NULL, NULL, has_code, code, cli_stopping(run), pages_found, pages, made,
+        cli_run_since(run)};
+    run->sink.emit(run->sink.context, &end);
     cli_lock_take(&g_cli_runs_lock);
     cli_run_cells_given(run);
     run->ended = 1;
@@ -298,35 +299,35 @@ static void cli_run_ended(CliRun *run, int has_code, long long code, const char 
     cli_lock_give(&g_cli_runs_lock);
 }
 
-// A run's steps taken in turn on its thread, its end said after the last
+// A run's steps taken in turn on its thread, its end reported after the last
 void cli_run_steps(void *context)
 {
     CliRun *const run = (CliRun *)context;
     const CliCatalog *const catalog = &run->catalog;
     const CliJob *const job = &catalog->job[0];
-    // the command a step runs and the line it is shown as, a cell of the run's held while it runs; and the pages it
-    // wrote, a cell taken as it ends
+    // the command a step runs and the line it is shown as, a cell of the run's allocated while it runs; and the pages
+    // it wrote, a cell taken as it ends
     typedef struct
     {
         CliCommand command;
         char shown[CLI_COMMAND_TEXT];
     } CliRunCommand;
-    CliRunCommand *const held = cli_cell_taken(sizeof(CliRunCommand), "a run's command");
-    if (held == NULL)
+    CliRunCommand *const run_command = g_cli_cells->persistent_buf_alloc(sizeof(CliRunCommand), NULL);
+    if (run_command == NULL)
     {
-        cli_said(run, "a run's command could not be taken");
+        cli_run_print_text(run, "a run's command could not be taken");
         cli_run_ended(run, 0, 0ll, NULL, 0u, NULL);
         return;
     }
-    CliCommand *const command = &held->command;
-    char view_out[CLI_PATH_LONGEST];
-    CliLine named = {view_out, sizeof(view_out), 0ull};
-    cli_line_text(&named, run->root);
-    cli_line_text(&named, "/build/ui/views/");
-    cli_line_decimal(&named, cli_process_own(), 1u);
-    cli_line_character(&named, '-');
-    cli_line_decimal(&named, run->run, 1u);
-    cli_line_closed(&named);
+    CliCommand *const command = &run_command->command;
+    char view_out[CLI_PATH_MAX_LEN];
+    VerbaLinea named = {view_out, sizeof(view_out), 0ull};
+    mmgr_line_put(&named, run->root);
+    mmgr_line_put(&named, "/build/ui/views/");
+    mmgr_line_decimal(&named, cli_process_own(), 1u);
+    mmgr_line_ch(&named, '-');
+    mmgr_line_decimal(&named, run->run, 1u);
+    mmgr_line_finish(&named);
     const int views = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "views", .cap = CLI_CELLS_POOL});
     const int program = cellul.eq(&(CatenaFinitaCfg){.src = job->opens, .other = "program", .cap = CLI_CELLS_POOL});
     if (views)
@@ -368,7 +369,7 @@ void cli_run_steps(void *context)
     memor.set(&(MemoriaCfg){.dst = &made, .val = 0, .bytes = sizeof(made)});
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        if (cli_held(run))
+        if (cli_stopping(run))
         {
             break;
         }
@@ -381,7 +382,7 @@ void cli_run_steps(void *context)
             continue;
         }
         const CliStep *const step = &catalog->step[ready[at][1]];
-        CliLine shown = {held->shown, CLI_COMMAND_TEXT, 0ull};
+        VerbaLinea shown = {run_command->shown, CLI_COMMAND_TEXT, 0ull};
         const int made_step = ready[at][0] == CLI_READY_MADE;
         if (made_step)
         {
@@ -394,19 +395,19 @@ void cli_run_steps(void *context)
         }
         else
         {
-            char why[CLI_PATH_LONGEST];
-            CliLine said = {why, sizeof(why), 0ull};
-            if (!cli_runner_command(run->root, catalog, step, run->values, command, &shown, &said))
+            char why[CLI_PATH_MAX_LEN];
+            VerbaLinea err_msg = {why, sizeof(why), 0ull};
+            if (!cli_runner_command(run->root, catalog, step, run->values, command, &shown, &err_msg))
             {
-                cli_line_closed(&said);
-                cli_said(run, why);
+                mmgr_line_finish(&err_msg);
+                cli_run_print_text(run, why);
                 has_code = 0;
                 break;
             }
         }
-        cli_line_closed(&shown);
+        mmgr_line_finish(&shown);
         double began = 0.0;
-        if (!cli_step(run, command, held->shown, view_out, &has_code, &code, &began))
+        if (!cli_step(run, command, run_command->shown, view_out, &has_code, &code, &began))
         {
             built = built && made_step;
             break;
@@ -416,18 +417,18 @@ void cli_run_steps(void *context)
             break;
         }
     }
-    cli_cell_given(held);
-    char (*const pages_found)[CLI_PATH_LONGEST] =
-        views ? cli_cell_taken((unsigned long long)CLI_VIEWS_MOST * CLI_PATH_LONGEST, "the pages a run wrote") : NULL;
+    g_cli_cells->persistent_buf_release(run_command, NULL);
+    char (*const pages_found)[CLI_PATH_MAX_LEN] =
+        views ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MOST * CLI_PATH_MAX_LEN, NULL) : NULL;
     const unsigned int pages = (pages_found != NULL) ? cli_run_pages(run->root, view_out, run->lines, pages_found) : 0u;
-    const int stopped = cli_held(run);
+    const int stopped = cli_stopping(run);
     const char *const id = cli_catalog_at(catalog, job->id);
     if (program && !built && !stopped)
     {
-        const QuerySink say = {cli_say, run};
-        cli_executables_advice(id, run->lines, say);
+        const QuerySink sink = {cli_run_print, run};
+        cli_executables_advice(id, run->lines, sink);
     }
-    char made_text[CLI_PATH_LONGEST];
+    char made_text[CLI_PATH_MAX_LEN];
     const int has_made = program && built && !stopped && cli_find_made(run, &made);
     if (has_made)
     {
@@ -444,7 +445,7 @@ void cli_run_steps(void *context)
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = made.file, .cap = CLI_CELLS_POOL}) + 1u});
         }
     }
-    cli_run_ended(run, has_code, code, (const char (*)[CLI_PATH_LONGEST])pages_found, pages,
+    cli_run_ended(run, has_code, code, (const char (*)[CLI_PATH_MAX_LEN])pages_found, pages,
                   has_made ? made_text : NULL);
-    cli_cell_given(pages_found);
+    g_cli_cells->persistent_buf_release(pages_found, NULL);
 }

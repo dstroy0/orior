@@ -39,7 +39,7 @@
 // comparison is the machine's. The shuffles are drawn with sim_draw, keyed by the input's seed, the pair and the
 // shuffle. They are not Python's draws, and a p here is a p over different shuffles of the same null.
 //
-// The input is what subgrouping.py writes. The output holds every pair's m, S, n, P and a, its excess + 1 and p
+// The input is what subgrouping.py writes. The output contains every pair's m, S, n, P and a, its excess + 1 and p
 // whole, and the verdicts.
 //
 // Checks:
@@ -52,7 +52,9 @@
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include "record_stages.h"
@@ -259,20 +261,20 @@ static void group_signed_program(unsigned int bits, StageProgram *program)
 static int group_means(SimResults *job, const std::vector<std::vector<StageRational>> &groups,
                        std::vector<StageRational> *means, std::vector<Stage> *stages, EngineError *error)
 {
-    std::vector<std::vector<StageRational>> held = groups;
+    std::vector<std::vector<StageRational>> copied_groups = groups;
     int ok = 1;
     while (ok)
     {
         StageRows rows;
         std::vector<StageRational> widths;
-        for (size_t group = 0u; group < held.size(); group += 1u)
+        for (size_t group = 0u; group < copied_groups.size(); group += 1u)
         {
-            for (size_t at = 0u; (at + 1u) < held[group].size(); at += 2u)
+            for (size_t at = 0u; (at + 1u) < copied_groups[group].size(); at += 2u)
             {
-                rows.push_back({held[group][at].num, held[group][at].den, held[group][at + 1u].num,
-                                held[group][at + 1u].den});
-                widths.push_back(held[group][at]);
-                widths.push_back(held[group][at + 1u]);
+                rows.push_back({copied_groups[group][at].num, copied_groups[group][at].den,
+                                copied_groups[group][at + 1u].num, copied_groups[group][at + 1u].den});
+                widths.push_back(copied_groups[group][at]);
+                widths.push_back(copied_groups[group][at + 1u]);
             }
         }
         if (rows.empty())
@@ -286,30 +288,30 @@ static int group_means(SimResults *job, const std::vector<std::vector<StageRatio
         group_add_program(stage_widest(widths), &stage->program);
         std::vector<std::vector<StageWhole>> out;
         ok = stage_rows(job, stage, rows, &out, error);
-        std::vector<std::vector<StageRational>> next(held.size());
+        std::vector<std::vector<StageRational>> next(copied_groups.size());
         size_t lane = 0u;
-        for (size_t group = 0u; ok && (group < held.size()); group += 1u)
+        for (size_t group = 0u; ok && (group < copied_groups.size()); group += 1u)
         {
-            for (size_t at = 0u; at < held[group].size(); at += 2u)
+            for (size_t at = 0u; at < copied_groups[group].size(); at += 2u)
             {
-                if ((at + 1u) < held[group].size())
+                if ((at + 1u) < copied_groups[group].size())
                 {
                     next[group].push_back(stage_pair_of(out[lane]));
                     lane += 1u;
                 }
                 else
                 {
-                    next[group].push_back(held[group][at]);
+                    next[group].push_back(copied_groups[group][at]);
                 }
             }
         }
-        held = next;
+        copied_groups = next;
     }
     StageRows rows;
     std::vector<StageRational> widths;
-    for (size_t group = 0u; group < held.size(); group += 1u)
+    for (size_t group = 0u; group < copied_groups.size(); group += 1u)
     {
-        const StageRational sum = held[group].empty() ? stage_unit() : held[group][0];
+        const StageRational sum = copied_groups[group].empty() ? stage_unit() : copied_groups[group][0];
         rows.push_back({sum.num, sum.den, stage_whole(groups[group].empty() ? 1ull : groups[group].size())});
         widths.push_back(sum);
     }
@@ -321,7 +323,7 @@ static int group_means(SimResults *job, const std::vector<std::vector<StageRatio
     std::vector<std::vector<StageWhole>> out;
     ok = ok && stage_rows(job, stage, rows, &out, error);
     means->clear();
-    for (size_t group = 0u; ok && (group < held.size()); group += 1u)
+    for (size_t group = 0u; ok && (group < copied_groups.size()); group += 1u)
     {
         means->push_back(stage_pair_of(out[group]));
     }
@@ -347,7 +349,7 @@ int main(int count, char **arguments)
         return 2;
     }
 
-    // the languages held: enough meanings, not a reconstruction, ordered by branch and then name
+    // the languages retained: enough meanings, not a reconstruction, ordered by branch and then name
     std::vector<GroupLanguage> languages;
     for (size_t at = 0u; at < read.size(); at += 1u)
     {
@@ -654,15 +656,15 @@ int main(int count, char **arguments)
                 continue;
             }
             const size_t best = partner_of[left][partner_orders[left].sorted.back()];
-            const int holds = in(best, group);
+            const int in_group = in(best, group);
             char line[256];
             snprintf(line, sizeof(line), "(%c) %s best Salish partner %s %s", (pass == 0) ? 'a' : 'b',
                      stage_shown(languages[left].name, 18u, 1).c_str(),
-                     stage_shown(languages[best].name, 18u, 1).c_str(), holds ? "pass" : "FAIL");
+                     stage_shown(languages[best].name, 18u, 1).c_str(), in_group ? "pass" : "FAIL");
             lines.push_back(line);
         }
     }
-    const int means_hold = ok && (second_signs.size() == 2u) && (second_signs[0] == 1) && (second_signs[1] == 1);
+    const int means_agree = ok && (second_signs.size() == 2u) && (second_signs[0] == 1) && (second_signs[1] == 1);
     std::vector<std::string> failures;
     for (size_t at = 0u; ok && (at < outside.size()); at += 1u)
     {
@@ -700,7 +702,7 @@ int main(int count, char **arguments)
         {
             fprintf(out, "%s\n", lines[at].c_str());
         }
-        fprintf(out, "(c) %s\n", means_hold ? "pass" : "FAIL");
+        fprintf(out, "(c) %s\n", means_agree ? "pass" : "FAIL");
         fprintf(out, "(d) %s\n", failures.empty() ? "pass" : "FAIL");
         const char *kinds[6] = {"interior", "central", "interior-central", "nuxalk-interior", "nuxalk-central",
                                 "nuxalk-tsamosan"};
@@ -748,7 +750,7 @@ int main(int count, char **arguments)
         }
         printf("(c) mean excess: Interior pairs %s (%zu), Central pairs %s (%zu), Interior-Central %s (%zu): %s\n",
                shown[means_at].c_str(), groups[0].size(), shown[means_at + 1u].c_str(), groups[1].size(),
-               shown[means_at + 2u].c_str(), groups[2].size(), means_hold ? "pass" : "FAIL");
+               shown[means_at + 2u].c_str(), groups[2].size(), means_agree ? "pass" : "FAIL");
         printf("(d) outside-Salish pairs with shuffle p below %llu/%llu: ", settings.p_below[0], settings.p_below[1]);
         if (failures.empty())
         {

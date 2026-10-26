@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -15,7 +15,7 @@
  *       limb arithmetic on the device is the portable arithmetic, transcribed for the device and
  *       checked against the host the same way every other arm is.
  * @note A big integer is a fixed width limb array here exactly as it is on the host. A device can
- *       hold one for that reason alone. The representation is a transform of the value, and the
+ *       store one for that reason alone. The representation is a transform of the value, and the
  *       device carries the same transform, one warp's worth of limbs at a time.
  * @note Only `agreement` is handed over. A single comparison is far too small to be worth a bus
  *       crossing. The arm's `equal` and `compare` stay on the host and are the portable ones.
@@ -34,7 +34,7 @@ extern "C"
      * @brief Whether a usable CUDA device is present.
      *
      * @return 1 where at least one device answered, 0 otherwise.
-     * @note Asked at run time. A binary built with CUDA still runs on machines with no device, and the
+     * @note Queried at run time. A binary built with CUDA still runs on machines with no device, and the
      *       arm has to report itself absent there instead of failing inside a launch.
      */
     int orior_exact_cuda_available(void);
@@ -43,7 +43,7 @@ extern "C"
      * @brief The name and compute capability of the device this arm would use.
      *
      * @param[out] text  Where the description is written [BORROWS].
-     * @param[in]  capacity  How many bytes `text` holds.
+     * @param[in]  capacity  How many bytes `text` contains.
      * @return           1 where a description was written, 0 where no device answered.
      */
     int orior_exact_cuda_describe(char *text, size_t capacity);

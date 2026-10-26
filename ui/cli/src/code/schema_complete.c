@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_complete.c: what completes the word before the cursor in a JSON file: where the cursor stands, the steps to
-// the value it is in, whether it is at a key and inside a string; the schemas that hold there, `$ref`s followed and
-// `allOf`, `anyOf`, `oneOf` and `if`'s branches taken together; and from them the keys the object does not hold yet,
+// the value it is in, whether it is at a key and inside a string; the schemas that apply there, `$ref`s followed and
+// `allOf`, `anyOf`, `oneOf` and `if`'s branches taken together; and from them the keys the object does not contain yet,
 // each written with what its type opens, or the values the schema allows. A text nested deeper than CLI_SCHEMA_FRAMES
-// or holding more keys open than CLI_SCHEMA_OPEN_KEYS is read as far as they hold; the schemas past CLI_SCHEMA_REACHED
-// are not offered
+// or containing more keys open than CLI_SCHEMA_OPEN_KEYS is read as far as they fit; the schemas past
+// CLI_SCHEMA_REACHED are not offered
 #include "schema_internal.h"
 
 // the deepest frames read
 #define CLI_SCHEMA_FRAMES 512u
 
-// What stands open: an object, its key, whether its colon was passed and its first key held, or an array and its index
+// What stands open: an object, its key, whether its colon was passed and its first key read, or an array and its index
 typedef struct
 {
     int object;
@@ -164,7 +164,7 @@ int cli_schema_spot(const char *text, unsigned long long size)
 unsigned int g_cli_schema_reached[CLI_SCHEMA_REACHED];
 unsigned int g_cli_schema_reached_count;
 
-// the schemas that hold at the end of the steps from `at` of `schema`, read in `base`, put among those reached
+// the schemas that apply at the end of the steps from `at` of `schema`, read in `base`, put among those reached
 static void complete_schemas_at(const char *text, unsigned int schema, const char *base, unsigned int at,
                                 unsigned int depth)
 {
@@ -176,10 +176,9 @@ static void complete_schemas_at(const char *text, unsigned int schema, const cha
     }
     unsigned long long size = 0ull;
     const char *const reference = cli_schema_string(json, schema, "$ref", &size);
-    // the base a reference is read in, a cell held while the schemas under it are reached
-    char *const doc = (reference != NULL)
-                          ? cli_cell_taken_by(&g_cli_schema_cells, CLI_PATH_LONGEST, "the base a reference is read in")
-                          : NULL;
+    // the base a reference is read in, a cell retained while the schemas under it are reached
+    char *const doc =
+        (reference != NULL) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_MAX_LEN, &g_cli_schema_cells) : NULL;
     if (doc != NULL)
     {
         const unsigned int target = cli_schema_resolve(store, base, reference, size, doc);
@@ -188,7 +187,7 @@ static void complete_schemas_at(const char *text, unsigned int schema, const cha
             complete_schemas_at(text, target, doc, at, depth + 1u);
         }
     }
-    cli_cell_given_by(&g_cli_schema_cells, doc);
+    g_cli_cells->persistent_buf_release(doc, &g_cli_schema_cells);
     static const char *const s_words[5] = {"allOf", "anyOf", "oneOf", "then", "else"};
     for (unsigned int word = 0u; word < 5u; word += 1u)
     {
@@ -266,17 +265,17 @@ static void complete_schemas_at(const char *text, unsigned int schema, const cha
     }
 }
 
-void cli_schema_detail(const CliJson *json, unsigned int schema, CliLine *out)
+void cli_schema_detail(const CliJson *json, unsigned int schema, VerbaLinea *out)
 {
     unsigned long long size = 0ull;
-    const char *said = cli_schema_string(json, schema, "description", &size);
-    said = (said != NULL) ? said : cli_schema_string(json, schema, "title", &size);
-    if (said != NULL)
+    const char *description = cli_schema_string(json, schema, "description", &size);
+    description = (description != NULL) ? description : cli_schema_string(json, schema, "title", &size);
+    if (description != NULL)
     {
-        const char *const newline = memor.chr(&(MemoriaCfg){.src = said, .val = '\n', .bytes = (size_t)size});
-        unsigned long long line = (newline != NULL) ? (unsigned long long)(newline - said) : size;
-        line -= ((line > 0u) && (said[line - 1u] == '\r')) ? 1u : 0u;
-        cli_line_counted(out, said, line);
+        const char *const newline = memor.chr(&(MemoriaCfg){.src = description, .val = '\n', .bytes = (size_t)size});
+        unsigned long long line = (newline != NULL) ? (unsigned long long)(newline - description) : size;
+        line -= ((line > 0u) && (description[line - 1u] == '\r')) ? 1u : 0u;
+        mmgr_line_put_n(out, description, line);
         return;
     }
     const unsigned int kind = cli_schema_get(json, schema, "type");
@@ -287,7 +286,7 @@ void cli_schema_detail(const CliJson *json, unsigned int schema, CliLine *out)
     const char *const text = cli_json_string(json, kind, &size);
     if (text != NULL)
     {
-        cli_line_counted(out, text, size);
+        mmgr_line_put_n(out, text, size);
         return;
     }
     cli_json_write(json, kind, out, 0u, 1);

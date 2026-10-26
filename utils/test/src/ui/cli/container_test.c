@@ -14,7 +14,7 @@
 #include "../../../../../ui/cli/src/text/text.h"
 
 static CliProcess s_listed[1u << 14u];
-static char s_said[1u << 16u];
+static char s_output[1u << 16u];
 
 // the words of a program that waits a while, as a server does
 static const char *const *container_waiting(void)
@@ -39,11 +39,11 @@ static int container_alive(unsigned int id)
 #if defined(__linux__)
     char path[64];
     char stat[512];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, "/proc/");
-    cli_line_decimal(&line, id, 1u);
-    cli_line_text(&line, "/stat");
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, "/proc/");
+    mmgr_line_decimal(&line, id, 1u);
+    mmgr_line_put(&line, "/stat");
+    (void)mmgr_line_finish(&line);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)stat, sizeof(stat) - 1u);
     stat[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
     const char *const close =
@@ -64,20 +64,20 @@ static int container_still(unsigned int id)
     return container_alive(id);
 }
 
-// what a started process writes to its output read whole into s_said, until its end
+// what a started process writes to its output read whole into s_output, until its end
 static unsigned long long container_read(CliSpawned *spawned)
 {
     unsigned long long size = 0ull;
     for (;;)
     {
-        const unsigned long long piece = cli_spawn_read(spawned->out, s_said + size, sizeof(s_said) - 1u - size);
+        const unsigned long long piece = cli_spawn_read(spawned->out, s_output + size, sizeof(s_output) - 1u - size);
         if (piece == 0ull)
         {
             break;
         }
         size += piece;
     }
-    s_said[size] = '\0';
+    s_output[size] = '\0';
     return size;
 }
 
@@ -88,15 +88,15 @@ static void container_groups(void)
     static const char *const s_late[4] = {"cmd", "/c", "cmd /c ping -n 30 127.0.0.1 >nul & echo late", NULL};
     static const char *const s_ran[4] = {"cmd", "/c", "echo ran", NULL};
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliSpawned spawned;
-    cli_check(cli_spawn(&spawned, s_ran, NULL, NULL, 0u, 1, &said) && (spawned.group != 0ull), "a job of its own");
+    cli_check(cli_spawn(&spawned, s_ran, NULL, NULL, 0u, 1, &err_msg) && (spawned.group != 0ull), "a job of its own");
     (void)container_read(&spawned);
     (void)cli_spawn_wait(&spawned);
     cli_spawn_closed(&spawned);
-    cli_check(cellul.starts(&(CatenaFinitaCfg){.src = s_said, .other = "ran", .cap = CLI_CELLS_POOL}),
+    cli_check(cellul.starts(&(CatenaFinitaCfg){.src = s_output, .other = "ran", .cap = CLI_CELLS_POOL}),
               "a process started in a group runs");
-    (void)cli_spawn(&spawned, s_late, NULL, NULL, 0u, 1, &said);
+    (void)cli_spawn(&spawned, s_late, NULL, NULL, 0u, 1, &err_msg);
     query_paused(800u);
     const unsigned long long ended = cli_clock_milliseconds();
     cli_spawn_group_end(spawned.group);
@@ -105,20 +105,20 @@ static void container_groups(void)
     cli_spawn_closed(&spawned);
     cli_check((cli_clock_milliseconds() - ended < 5000ull) &&
                   (cellul.find(&(CatenaFinitaCfg){
-                       .src = s_said, .cap = CLI_CELLS_POOL, .other = "late", .other_cap = CLI_CELLS_POOL}) == NULL),
+                       .src = s_output, .cap = CLI_CELLS_POOL, .other = "late", .other_cap = CLI_CELLS_POOL}) == NULL),
               "a group's end ends every process its first started and their output with them");
-    (void)cli_spawn(&spawned, s_late, NULL, NULL, 0u, 1, &said);
+    (void)cli_spawn(&spawned, s_late, NULL, NULL, 0u, 1, &err_msg);
     const unsigned int left = (unsigned int)spawned.id;
     query_paused(800u);
     cli_spawn_closed(&spawned);
     cli_check(!container_still(left), "a group let go of, as when orior ends, ends every process in it");
-    char bash[CLI_PATH_LONGEST];
-    if (!cli_runner_bash(bash, &said))
+    char bash[CLI_PATH_MAX_LEN];
+    if (!cli_runner_bash(bash, &err_msg))
     {
         return;
     }
     const char *const script[4] = {bash, "-c", "echo began; sleep 20; echo late", NULL};
-    (void)cli_spawn(&spawned, script, NULL, NULL, 0u, 1, &said);
+    (void)cli_spawn(&spawned, script, NULL, NULL, 0u, 1, &err_msg);
     char first[8] = "";
     unsigned long long size = 0ull;
     while (size < 5ull)
@@ -139,7 +139,7 @@ static void container_groups(void)
     cli_spawn_closed(&spawned);
     cli_check((cli_clock_milliseconds() - ended_script < 5000ull) &&
                   (cellul.find(&(CatenaFinitaCfg){
-                       .src = s_said, .cap = CLI_CELLS_POOL, .other = "late", .other_cap = CLI_CELLS_POOL}) == NULL),
+                       .src = s_output, .cap = CLI_CELLS_POOL, .other = "late", .other_cap = CLI_CELLS_POOL}) == NULL),
               "a group's end ends a script's processes under git's bash launcher");
 }
 #endif
@@ -195,17 +195,17 @@ static void container_restarts(void)
     cli_check(cli_restarts_count(&s_restarts, start + 200000ull) == 1u, "and no longer counted");
 }
 
-// this program run again with `variable` set: the ids its head says, into `ids`, which holds 2: their count
+// this program run again with `variable` set: the ids its head reports, into `ids`, which is sized for 2: their count
 static unsigned int container_head(const char *variable, unsigned int *ids)
 {
-    char program[CLI_PATH_LONGEST];
+    char program[CLI_PATH_MAX_LEN];
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     (void)cli_program_own(program, sizeof(program));
     const char *const words[2] = {program, NULL};
     const CliSetting settings[1] = {{variable, "1"}};
     CliSpawned spawned;
-    if (!cli_spawn(&spawned, words, NULL, settings, 1u, 0, &said))
+    if (!cli_spawn(&spawned, words, NULL, settings, 1u, 0, &err_msg))
     {
         return 0u;
     }
@@ -213,7 +213,7 @@ static unsigned int container_head(const char *variable, unsigned int *ids)
     const long long code = cli_spawn_wait(&spawned);
     cli_spawn_closed(&spawned);
     const char *at = cellul.find(
-        &(CatenaFinitaCfg){.src = s_said, .cap = CLI_CELLS_POOL, .other = "ids ", .other_cap = CLI_CELLS_POOL});
+        &(CatenaFinitaCfg){.src = s_output, .cap = CLI_CELLS_POOL, .other = "ids ", .other_cap = CLI_CELLS_POOL});
     unsigned int count = 0u;
     if ((code != 0ll) || (at == NULL))
     {
@@ -233,33 +233,33 @@ static unsigned int container_head(const char *variable, unsigned int *ids)
     return count;
 }
 
-// the ids a head says written to the output, `ids` then each
-static void container_said(const unsigned int *ids, unsigned int count)
+// the ids a head reports written to the output, `ids` then each
+static void container_ids_written(const unsigned int *ids, unsigned int count)
 {
     char text[64];
-    CliLine line = {text, sizeof(text), 0ull};
-    cli_line_text(&line, "ids");
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_put(&line, "ids");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_character(&line, ' ');
-        cli_line_decimal(&line, ids[at], 1u);
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_decimal(&line, ids[at], 1u);
     }
-    cli_line_character(&line, '\n');
+    mmgr_line_ch(&line, '\n');
     query_terminal_written(0, text, line.at);
 }
 
-// the head of a container: it starts a waiting program inside, and, where `outside`, one outside, says their ids and
+// the head of a container: it starts a waiting program inside, and, where `outside`, one outside, reports their ids and
 // ends; where not, it serves until its input ends, at once, first
 static int container_as_head(int outside)
 {
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_container_held())
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (!cli_container_made())
     {
         return 1;
     }
     CliSpawned inside;
-    if (!cli_spawn(&inside, container_waiting(), NULL, NULL, 0u, 0, &said))
+    if (!cli_spawn(&inside, container_waiting(), NULL, NULL, 0u, 0, &err_msg))
     {
         return 1;
     }
@@ -270,7 +270,7 @@ static int container_as_head(int outside)
         static CliOutcome s_outcome;
         static const char *const s_serve[1] = {"serve"};
         cli_command_line_run(s_serve, 1u, &s_outcome);
-        container_said(ids, 1u);
+        container_ids_written(ids, 1u);
         return 0;
     }
     if (!cli_started_outside(container_waiting(), &ids[1]))
@@ -290,7 +290,7 @@ static int container_as_head(int outside)
     {
         return 1;
     }
-    container_said(ids, 2u);
+    container_ids_written(ids, 2u);
 #if !defined(_WIN32)
     cli_container_members_ended();
 #endif
@@ -299,6 +299,7 @@ static int container_as_head(int outside)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     char head[8];
     if (query_environment_read("ORIOR_SERVE_HEAD", head, sizeof(head)))
     {

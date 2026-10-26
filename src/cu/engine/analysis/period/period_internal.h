@@ -7,7 +7,9 @@
 #include "period.h"
 
 #include "../../runtime/device_pool/device_pool.h"
-#include "../../runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 
 #include <cuda_runtime.h>
 
@@ -87,8 +89,8 @@ typedef struct
     size_t agreement_entries;
 } PeriodPass;
 
-// the histogram, the agreement and the shuffled lanes are slices of one pool, kept after the call and sized for the
-// most voxels and the most agreement entries asked so far
+// the histogram, the agreement and the shuffled lanes are slices of one pool, retained after the call and sized for the
+// most voxels and the most agreement entries requested so far
 typedef struct
 {
     DevicePool pool;

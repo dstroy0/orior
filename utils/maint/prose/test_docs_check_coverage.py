@@ -6,7 +6,7 @@
 #
 #   Usage:  python utils/maint/prose/test_docs_check_coverage.py
 #
-# Two gaps, one pass, and they are one pass because either one alone hides the other: a build file
+# Two rules in one file, because either one alone hides the other: a build file
 # such as CMakeLists.txt is opened by the extension list, and the alphabet stage reads the pattern
 # the standard states and not a list of literals.
 #
@@ -386,8 +386,8 @@ class BuildFilesAreReadAtAll(unittest.TestCase):
         self.assertFalse(docs_check.checked_file("some/where/NOTES.txt"))
 
     def test_a_git_hook_is_selected_although_it_has_no_extension(self):
-        # A four-extension sweep dropped a hook and took the gate with it. That is the failure
-        # HOOK_NAMES exists for, and orior keeps three of these under roots it already scans.
+        # A hook has no extension, and a sweep by extension drops it and the gate with it. HOOK_NAMES
+        # exists for that, and orior keeps three of these under roots it already scans.
         for name in ("pre-commit", "commit-msg", "pre-push"):
             self.assertTrue(docs_check.build_file(os.path.join("hooks", name)), name)
 
@@ -395,7 +395,7 @@ class BuildFilesAreReadAtAll(unittest.TestCase):
         for suffix in docs_check.BUILD_SUFFIXES:
             self.assertTrue(docs_check.checked_file("build" + suffix), suffix)
 
-    def test_the_default_run_now_reads_build_files(self):
+    def test_the_default_run_reads_build_files(self):
         # Asserted against the roots this repository actually scans. The selection rule is
         # measured where it has to work and not only against a made-up path.
         roots = list(docs_check.DEFAULT_ROOTS)
@@ -470,7 +470,7 @@ class TheCommentExtractorForTheHashForm(unittest.TestCase):
 
 
 class TheAlphabetStageIsAPatternAndNotAList(unittest.TestCase):
-    """code-documentation:149 states the rule as a shape, and this stage was ten literals.
+    """code-documentation:149 states the rule as a shape.
 
     docs-check: quoting
     "Never a British variant, and the ban is on the pattern rather than on a list: no `-ise` or
@@ -480,10 +480,9 @@ class TheAlphabetStageIsAPatternAndNotAList(unittest.TestCase):
     """
 
     def test_the_stage_is_spliced_into_the_table_that_enforces_it(self):
-        # THE STRUCTURAL HALF OF THE SAME FAULT, and the part nobody had named. LOCALE was read at
-        # one site that chose a word in the report, and BANNED carried a second hand-written copy of
-        # the same ten patterns. Adding a pattern to LOCALE alone changed a label and produced no
-        # finding, and the two copies could be edited apart with no signal at all.
+        # LOCALE is the single copy of the definition patterns, spliced into BANNED. A pattern in
+        # LOCALE that BANNED does not hold reports nothing, and two copies can be edited apart with
+        # no signal at all.
         for pattern in docs_check.LOCALE:
             self.assertIn(
                 pattern,
@@ -493,12 +492,12 @@ class TheAlphabetStageIsAPatternAndNotAList(unittest.TestCase):
             )
         self.assertEqual(len(set(docs_check.LOCALE)), len(docs_check.LOCALE))
 
-    def test_the_ten_it_used_to_be_are_carried_forward_character_for_character(self):
+    def test_the_first_ten_keep_their_human_rate_keys_character_for_character(self):
         # Nine of the ten are keys in HUMAN_RATE, which is keyed by the pattern string itself.
         # Rewriting one to fold it into a general arm takes a measured rate out of
-        # submission_check.py's table with nothing left to say it was ever there. `whilst` carries
-        # no rate, because it fired zero times in the papers HUMAN_RATE was counted over.
-        was_ten = (
+        # submission_check.py's table with nothing left to show the rate. `whilst` carries no rate,
+        # because it has no hit in the papers HUMAN_RATE is counted over.
+        first_ten = (
             r"\blabelled\b",
             r"\bmodelled\b",
             r"\bneighbour",
@@ -510,8 +509,8 @@ class TheAlphabetStageIsAPatternAndNotAList(unittest.TestCase):
             r"\borganis(e|es|ed|ing|ation|ations)\b",
             r"\banalyse(s|d)?\b",
         )
-        self.assertEqual(docs_check.LOCALE[: len(was_ten)], was_ten)
-        dead = [one for one in was_ten if one not in docs_check.HUMAN_RATE]
+        self.assertEqual(docs_check.LOCALE[: len(first_ten)], first_ten)
+        dead = [one for one in first_ten if one not in docs_check.HUMAN_RATE]
         self.assertEqual(
             dead, [r"\bwhilst\b"], "a measured rate lost its key: %s" % (dead,)
         )
@@ -557,7 +556,7 @@ class TheAlphabetStageIsAPatternAndNotAList(unittest.TestCase):
 
 
 class PrecisionOverRecall(unittest.TestCase):
-    """Every one of these was a false positive in the measurement, and each is held out by name.
+    """Each of these is named, and none of them is reported.
 
     A gate that reports everything and leaves a person to sort it gets switched off inside a week.
     """
@@ -638,8 +637,7 @@ class PrecisionOverRecall(unittest.TestCase):
             self.assertFalse(stage_reaches(word), "reported as British: %r" % word)
 
     def test_a_safe_stem_is_matched_from_the_end_of_a_word(self):
-        # These are the compounds the measurement turned up. An exemption anchored at the start of
-        # the word missed every one of them.
+        # Compounds. An exemption anchored at the start of the word misses every one of them.
         for word in (
             "madvise",
             "keycompromise",
@@ -649,10 +647,10 @@ class PrecisionOverRecall(unittest.TestCase):
         ):
             self.assertFalse(stage_reaches(word), "reported as British: %r" % word)
 
-    def test_two_stems_that_were_removed_stay_removed(self):
-        # `anis` exempts `organise`, which ends in those five letters. `mortis` exempts `amortise`,
-        # which ends in those six. A stem matched from the end has to be checked against the British
-        # words that end the same way, and these two were not.
+    def test_anis_and_mortis_are_not_safe_stems(self):
+        # These two must not be added. `anis` would exempt `organise`, which ends in those five
+        # letters, and `mortis` would exempt `amortise`, which ends in those six. A stem matched
+        # from the end has to be checked against the British words that end the same way.
         self.assertTrue(stage_reaches("organise"))
         self.assertTrue(stage_reaches("amortise"))
         self.assertTrue(stage_reaches("amortised"))
@@ -675,8 +673,6 @@ class PrecisionOverRecall(unittest.TestCase):
             self.assertFalse(stage_reaches(word), "reported as British: %r" % word)
 
     def test_programmed_and_programming_are_american(self):
-        # Getting this wrong cost 835 false positives in the first measurement pass, which was more
-        # than half of everything the arms reported.
         self.assertFalse(stage_reaches("programmed"))
         self.assertFalse(stage_reaches("programming"))
         self.assertTrue(stage_reaches("programme"))
@@ -728,9 +724,9 @@ class PrecisionOverRecall(unittest.TestCase):
         self.assertFalse(stage_reaches("fulfilled"))
         self.assertFalse(stage_reaches("appalling"))
 
-    def test_the_isable_arm_was_removed_and_stays_removed(self):
-        # It matched `controldisable` and every other compound ending in `disable`, and bought
-        # three real hits across five repositories and the whole of CPython.
+    def test_no_isable_arm(self):
+        # An -isable arm must not be added. It matches `controldisable` and every other compound
+        # ending in `disable`.
         for word in (
             "disable",
             "disabled",
@@ -740,45 +736,44 @@ class PrecisionOverRecall(unittest.TestCase):
         ):
             self.assertFalse(stage_reaches(word), "reported as British: %r" % word)
 
-
     def test_the_stage_reports_nothing_in_either_standard(self):
-        # The governing test, in the slice this pass owns. A gate that flags the documents that
+        # The governing test, in the alphabet stage's slice. A gate that flags the documents that
         # authorize it is wrong by construction, and a new pattern arm is the most likely way to
         # break that. The standards write `initialise` and `behaviour` by name at :149 and :157,
         # inside backticks. The document is naming a form there, and a name is not a use.
-        skills = os.environ.get("PROSE_STANDARDS_DIR", "")
+        standards = {
+            "code-documentation": os.environ.get("PROSE_STANDARD_DOCUMENTATION", ""),
+            "code-comments": os.environ.get("PROSE_STANDARD_COMMENTS", ""),
+        }
         checked = 0
-        for name in ("code-documentation", "code-comments") if skills else ():
-            path = os.path.join(skills, name, "SKILL.md")
-            if not os.path.isfile(path):
+        for name, path in standards.items():
+            if not path or not os.path.isfile(path):
                 continue
             checked += 1
             got = definition_findings(path)
-            self.assertEqual(
-                got, [], "%s/SKILL.md reported on definition: %s" % (name, got)
-            )
+            self.assertEqual(got, [], "%s reported on definition: %s" % (name, got))
         if not checked:
-            self.skipTest("PROSE_STANDARDS_DIR does not name the two standards")
+            self.skipTest("PROSE_STANDARD_DOCUMENTATION and PROSE_STANDARD_COMMENTS do not name the two standards")
 
 
-class TheWorkBesideThisOneIsUntouched(unittest.TestCase):
-    """Guards for the two passes this one sits between. A rebuild drops them without deciding to."""
+class TheOtherStagesAreUntouched(unittest.TestCase):
+    """Guards for the structural stage and the tiers. A rebuild drops them without deciding to."""
 
-    def test_the_structural_gate_still_errors_a_doxygen_reference(self):
+    def test_the_structural_gate_errors_a_doxygen_reference(self):
         self.assertFalse(docs_check.path_candidate("@ref HTTP_10"))
         self.assertFalse(
             docs_check.path_candidate("const char *user, const char *pass")
         )
         self.assertTrue(docs_check.path_candidate("docs/README.md"))
 
-    def test_the_tier_split_still_names_its_sections(self):
+    def test_the_tiers_name_their_sections(self):
         self.assertEqual(docs_check.tier_of(r"\brather\b"), "A")
         self.assertIn("code-documentation:110", docs_check.AUTHORITY[r"\brather\b"])
 
-    def test_a_new_extension_added_no_breaking_rule(self):
-        # The structural stage fails a commit. A build file becoming readable must not turn a
-        # comment in one into an errored commit by accident. em_dashes is the only structural rule
-        # that runs on every extension, and it already ran that way on .py, .c and .h.
+    def test_a_build_file_comment_fails_no_commit(self):
+        # The structural stage fails a commit, and a plain comment in a build file must not fail
+        # one. em_dashes is the only structural rule that runs on every extension, .py, .c and .h
+        # among them.
         said = docs_check.prose_only("x/build.sh", ["# a plain comment", "echo hi"])
         self.assertEqual(docs_check.em_dashes(said), [])
         self.assertEqual(docs_check.em_dashes(["# " + chr(0x2014)]), [(1, "em dash")])

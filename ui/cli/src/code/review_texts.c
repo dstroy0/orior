@@ -23,17 +23,17 @@ int cli_review_room(char **room, unsigned long long *size, unsigned long long us
         grown *= 2ull;
     }
     grown = (grown < most) ? grown : most;
-    char *const moved = cli_cell_taken(grown, what);
+    char *const moved = g_cli_cells->persistent_buf_alloc(grown, NULL);
     if (moved == NULL)
     {
         return 0;
     }
     if (*room != NULL)
     {
-        // the bytes taken are below the room's size, which a size_t holds
+        // the bytes taken are below the room's size, which a size_t stores
         memor.cpy(&(MemoriaCfg){.dst = moved, .src = *room, .bytes = (size_t)used});
     }
-    cli_cell_given(*room);
+    g_cli_cells->persistent_buf_release(*room, NULL);
     *room = moved;
     *size = grown;
     return 1;
@@ -49,28 +49,28 @@ unsigned int cli_review_text_put(const char *text, unsigned long long length)
     const unsigned int at = g_cli_review.used;
     memor.cpy(&(MemoriaCfg){.dst = g_cli_review.text + at, .src = text, .bytes = length});
     g_cli_review.text[at + length] = '\0';
-    // the texts are below CLI_REVIEW_TEXT bytes, which an unsigned int holds
+    // the texts are below CLI_REVIEW_TEXT bytes, which an unsigned int stores
     g_cli_review.used += (unsigned int)length + 1u;
     return at;
 }
 
-int cli_review_text_kept(CliLine *line, int written, unsigned int *at, unsigned long long *size)
+int cli_review_text_added(VerbaLinea *line, int written, unsigned int *at, unsigned long long *size)
 {
-    // a text is kept where the texts grew by it
+    // a text is stored where the texts grew by it
     const unsigned int was = g_cli_review.used;
-    if (written && cli_line_fits(line))
+    if (written && mmgr_line_ok(line))
     {
         *at = cli_review_text_put(line->out, line->at);
     }
-    const int kept = g_cli_review.used != was;
-    *size = kept ? line->at : 0ull;
-    cli_cell_given(line->out);
-    return kept;
+    const int added = g_cli_review.used != was;
+    *size = added ? line->at : 0ull;
+    g_cli_cells->persistent_buf_release(line->out, NULL);
+    return added;
 }
 
-CliLine cli_review_text_line(void)
+VerbaLinea cli_review_text_line(void)
 {
-    CliLine line = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_line_growing(&line, CLI_REVIEW_TEXT_FIRST, "a text a review reads");
+    VerbaLinea line = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_growing_line_made(&line, CLI_REVIEW_TEXT_FIRST);
     return line;
 }

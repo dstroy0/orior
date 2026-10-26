@@ -60,7 +60,7 @@ typedef struct TesseraPeer
     EngineSignum signum;
     unsigned long long declared;
     unsigned long long standing;
-    unsigned long long holding_microseconds;
+    unsigned long long grace_microseconds;
     unsigned long long sweep_microseconds;
     int has_decisive;
     TesseraFrame decisive;

@@ -14,27 +14,28 @@ int cli_cargo_result_line(const char *line, unsigned long long size, unsigned lo
                           unsigned long long *name_size, const char **outcome);
 
 // each failed test's message and the place it panicked, a path as the compiler wrote it, NULL for none, and a line
-// counted from 1, from the harness's report of its failures, handed to `each`, a test failing twice told by its last
+// counted from 1, from the harness's report of its failures, handed to `each`, a test failing twice reported by its
+// last
 void cli_cargo_failures_each(const char *out, unsigned long long size,
                              void (*each)(void *context, const char *name, unsigned long long name_size,
                                           const char *message, unsigned long long message_size, const char *path,
                                           long long line),
                              void *context);
 
-// a path and a line from `path:line:column` into `path`, which holds CLI_PATH_LONGEST, with forward slashes, and
+// a path and a line from `path:line:column` into `path`, sized for CLI_PATH_MAX_LEN, with forward slashes, and
 // `line`: 1, or 0 where the text is none
 int cli_cargo_place_of(const char *text, unsigned long long size, char *path, long long *line);
 
-// the compiler's first error in what a build said into `error`, which holds `room`, its size into `length`, and the
-// place it names into `path` and `line`, `path` empty where it names none: 1, or 0 where it said no error; and the last
-// line of a text that is not blank, trimmed, or `none` where every line is, the same way
-int cli_cargo_build_error(const char *said, unsigned long long size, char *error, unsigned long long room,
+// the compiler's first error in what a build printed into `error`, sized for `room`, its size into `length`, and the
+// place it names into `path` and `line`, `path` empty where it names none: 1, or 0 where it printed no error; and the
+// last line of a text that is not blank, trimmed, or `none` where every line is, the same way
+int cli_cargo_build_error(const char *output, unsigned long long size, char *error, unsigned long long room,
                           unsigned long long *length, char *path, long long *line);
 void cli_cargo_last_line(const char *text, unsigned long long size, const char *none, char *out,
                          unsigned long long room, unsigned long long *length);
 
-// the folder whose paths a package's panics and errors are written from into `workspace`, which holds
-// CLI_PATH_LONGEST: the workspace's, where the package is one of a workspace in the tree, or the package's own
+// the folder whose paths a package's panics and errors are written from into `workspace`, is sized for
+// CLI_PATH_MAX_LEN: the workspace's, where the package is one of a workspace in the tree, or the package's own
 void cli_cargo_workspace_of(const char *root, const char *package, char *workspace);
 
 #endif

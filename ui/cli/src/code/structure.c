@@ -58,7 +58,8 @@ static int cli_alphanumeric(unsigned int letter)
     return cli_regexp_property(CLI_REGEXP_LETTER, letter) || cli_regexp_property(CLI_REGEXP_NUMBER, letter);
 }
 
-// what a token keeps taking after its first letter: a name's letters, a number's, or a string's to its closing quote
+// what a token continues taking after its first letter: a name's letters, a number's, or a string's to its closing
+// quote
 enum
 {
     CLI_TAKE_NAME,
@@ -105,7 +106,7 @@ int cli_structure_lex(const char *text, unsigned long long size, CliSide *side)
             return 0;
         }
         const unsigned int from = column;
-        // a place in the text below what a side holds, which an unsigned int counts
+        // a place in the text below what a side contains, which an unsigned int counts
         const unsigned int start = (unsigned int)(at - text);
         column += cli_units(letter);
         at += bytes;
@@ -119,29 +120,29 @@ int cli_structure_lex(const char *text, unsigned long long size, CliSide *side)
         {
             unsigned int next_bytes = 0u;
             const unsigned int next = cli_letter(at, end, &next_bytes);
-            int keep = next != '\n';
-            if (keep && (take == CLI_TAKE_NAME))
+            int continues = next != '\n';
+            if (continues && (take == CLI_TAKE_NAME))
             {
-                keep = cli_alphanumeric(next) || (next == '_') || (next == '$');
+                continues = cli_alphanumeric(next) || (next == '_') || (next == '$');
             }
-            else if (keep && (take == CLI_TAKE_NUMBER))
+            else if (continues && (take == CLI_TAKE_NUMBER))
             {
-                keep = cli_alphanumeric(next) || (next == '.') || (next == '_');
+                continues = cli_alphanumeric(next) || (next == '.') || (next == '_');
             }
-            else if (keep)
+            else if (continues)
             {
-                keep = !closed;
+                continues = !closed;
                 closed = closed || (!escaped && (next == letter));
                 escaped = !escaped && (next == '\\');
             }
-            if (!keep)
+            if (!continues)
             {
                 break;
             }
             column += cli_units(next);
             at += next_bytes;
         }
-        // as above, a place in the text a side holds
+        // as above, a place in the text a side contains
         const CliToken token = {line, from, column, start, (unsigned int)(at - text)};
         side->token[side->tokens] = token;
         side->tokens += 1u;
@@ -150,8 +151,8 @@ int cli_structure_lex(const char *text, unsigned long long size, CliSide *side)
     return 1;
 }
 
-// Myers' shortest edit. It keeps one band of its frontier for each edit, and what it keeps grows with the edits and not
-// with the sequences, in the compare's room
+// Myers' shortest edit. It stores one band of its frontier for each edit, and what it stores grows with the edits and
+// not with the sequences, in the compare's room
 
 static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *b, int m, CliStep *steps,
                               unsigned int room)
@@ -164,7 +165,7 @@ static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *
     int found = -1;
     for (int d = 0; (found < 0) && (d <= most); d += 1)
     {
-        // the frontier before this edit kept, d squared on, the band from middle - d to middle + d
+        // the frontier before this edit stored, d squared on, the band from middle - d to middle + d
         memor.cpy(&(MemoriaCfg){.dst = g_cli_structure->trace + (d * d),
                                 .src = g_cli_structure->frontier + (middle - d),
                                 .bytes = sizeof(int) * (size_t)((2 * d) + 1)});
@@ -208,7 +209,7 @@ static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *
             x -= 1;
             y -= 1;
             // the places are inside the sequences, which an unsigned int counts
-            const CliStep step = {CLI_STEP_KEEP, (unsigned int)x, (unsigned int)y};
+            const CliStep step = {CLI_STEP_EQUAL, (unsigned int)x, (unsigned int)y};
             steps[count] = step;
             count += 1u;
         }
@@ -234,15 +235,15 @@ static unsigned int cli_myers(const unsigned int *a, int n, const unsigned int *
     {
         x -= 1;
         y -= 1;
-        const CliStep step = {CLI_STEP_KEEP, (unsigned int)x, (unsigned int)y};
+        const CliStep step = {CLI_STEP_EQUAL, (unsigned int)x, (unsigned int)y};
         steps[count] = step;
         count += 1u;
     }
     for (unsigned int low = 0u; (count != 0u) && (low < (count - 1u - low)); low += 1u)
     {
-        const CliStep held = steps[low];
+        const CliStep pivot = steps[low];
         steps[low] = steps[count - 1u - low];
-        steps[count - 1u - low] = held;
+        steps[count - 1u - low] = pivot;
     }
     return count;
 }
@@ -267,11 +268,11 @@ unsigned int cli_structure_shortest(const unsigned int *a, unsigned int n, const
     unsigned int count = 0u;
     for (unsigned int at = 0u; at < head; at += 1u)
     {
-        const CliStep step = {CLI_STEP_KEEP, at, at};
+        const CliStep step = {CLI_STEP_EQUAL, at, at};
         steps[count] = step;
         count += 1u;
     }
-    // the sequences are below what a side holds, which an int counts
+    // the sequences are below what a side contains, which an int counts
     const unsigned int core =
         cli_myers(a + head, (int)(n - head - tail), b + head, (int)(m - head - tail), steps + count, room - count);
     if (core == CLI_STRUCTURE_NONE)
@@ -286,7 +287,7 @@ unsigned int cli_structure_shortest(const unsigned int *a, unsigned int n, const
     count += core;
     for (unsigned int back = 0u; back < tail; back += 1u)
     {
-        const CliStep step = {CLI_STEP_KEEP, n - tail + back, m - tail + back};
+        const CliStep step = {CLI_STEP_EQUAL, n - tail + back, m - tail + back};
         steps[count] = step;
         count += 1u;
     }
@@ -304,7 +305,7 @@ static int cli_token_same(const CliSide *one, unsigned int at, const CliSide *ot
                                     .bytes = left->end - left->start}) == 0);
 }
 
-// whether two lines hold tokens of the same texts, one for one
+// whether two lines contain tokens of the same texts, one for one
 static int cli_line_same(const CliSide *one, unsigned int line, const CliSide *other, unsigned int other_line)
 {
     const unsigned int count = one->line_first[line + 1u] - one->line_first[line];

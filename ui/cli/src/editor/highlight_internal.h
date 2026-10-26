@@ -10,7 +10,7 @@
 // none: no token, no next, no state
 #define CLI_HIGHLIGHT_NONE 0xffffffffu
 
-// the most of each part one grammar holds as it is read
+// the most of each part one grammar contains as it is read
 #define CLI_GRAMMAR_NODES (1u << 17u)
 
 #define CLI_GRAMMAR_ITEMS (1u << 16u)
@@ -33,12 +33,12 @@
 
 #define CLI_GRAMMAR_TEXT (1u << 20u)
 
-// the most rules one state holds, its includes read in
+// the most rules one state contains, its includes read in
 #define CLI_GRAMMAR_OWN 16384u
 
 // the longest part of a line that is colored, in the page's units, the rest taking no token; the most letters of a
 // line read, the most states stacked, and the most bytes the states each line ends in take
-#define CLI_HIGHLIGHT_LONGEST 20000u
+#define CLI_HIGHLIGHT_MAX_LEN 20000u
 
 #define CLI_HIGHLIGHT_LETTERS (1u << 20u)
 
@@ -103,9 +103,9 @@ typedef struct
     unsigned char starts_at[128];
 } CliHighlightList;
 
-// A grammar's parts, wherever they are held: the patterns' nodes, items, child places and their first letters; the
+// A grammar's parts, wherever they are stored: the patterns' nodes, items, child places and their first letters; the
 // rules, tokens and cases; the rules of each state in turn, and the states; the words, each list's in order, and the
-// lists; the names; and the texts, each ended by a NUL. Each count is how many it holds
+// lists; the names; and the texts, each ended by a NUL. Each count is how many it contains
 typedef struct
 {
     CliRegexpNode *node;
@@ -138,9 +138,9 @@ typedef struct
 } CliGrammar;
 
 // The room a grammar is read into, its parts placed in one cell the keeper takes for one read at the sizes the
-// grammar's JSON bounds, each no more than its CLI_GRAMMAR_ limit: the parts as a grammar holds them; each state's own
-// rules and includes before the includes are read in, a rule's place or an include's name marked; the room a pattern
-// is read into; and how many of each the room holds, the texts in bytes
+// grammar's JSON bounds, each no more than its CLI_GRAMMAR_ limit: the parts as a grammar contains them; each state's
+// own rules and includes before the includes are read in, a rule's place or an include's name marked; the room a
+// pattern is read into; and how many of each the room contains, the texts in bytes
 typedef struct
 {
     CliRegexpNode *node;
@@ -177,17 +177,18 @@ typedef struct
 // endings take more leaves them cut
 #define CLI_HIGHLIGHT_ENDING 256ull
 
-// The coloring room, its parts placed in one cell the keeper takes once and keeps, at twice the sizes the largest
-// coloring asked so far, taken again only where a larger one comes: a line's letters, `most` of them for the longest
-// line; where each starts in UTF-16 units and the line's end last; its runs; the states stacked; the text a case is
-// picked by, four bytes a letter; and the state each of `count` lines ends in, the endings holding `endings_size` bytes
+// The coloring room, its parts placed in one cell the keeper takes once and retains, at twice the sizes the largest
+// coloring requested so far, taken again only where a larger one comes: a line's letters, `most` of them for the
+// longest line; where each starts in UTF-16 units and the line's end last; its runs; the states stacked; the text a
+// case is picked by, four bytes a letter; and the state each of `count` lines ends in, the endings occupying
+// `endings_size` bytes
 typedef struct
 {
     unsigned int *letters;
     unsigned int *cols;
     unsigned int *run_col;
     unsigned int *run_name;
-    char (*stack)[CLI_NAME_LONGEST];
+    char (*stack)[CLI_NAME_MAX_LEN];
     char *picked;
     char *key;
     char *endings;
@@ -196,17 +197,22 @@ typedef struct
     unsigned long long endings_size;
 } CliHighlightRoom;
 
-// the grammar at `def` in `json` read into `grammar`, its parts in `room` (highlight.c): 1, or 0 with why said
-int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *room, CliGrammar *grammar, CliLine *said);
+// the grammar at `def` in `json` read into `grammar`, its parts in `room` (highlight.c): 1, or 0 with why given
+int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *room, CliGrammar *grammar,
+                       VerbaLinea *err_msg);
 // a rule's pattern as the matcher reads it, its arrays the grammar's
 void cli_highlight_pattern(const CliGrammar *grammar, const CliHighlightRule *rule, CliRegexp *pattern);
-// the state named `name`, `length` bytes, CLI_HIGHLIGHT_NONE where the grammar has none; whether a list of words holds
-// a word, `length` bytes
+// the state named `name`, `length` bytes, CLI_HIGHLIGHT_NONE where the grammar has none; whether a list of words
+// contains a word, `length` bytes
 unsigned int cli_highlight_state(const CliGrammar *grammar, const char *name, unsigned long long length);
 int cli_highlight_has_word(const CliGrammar *grammar, const CliHighlightList *list, const char *word,
                            unsigned long long length);
-// `count` lines colored with a grammar in `room`, written as cli_highlight_color writes them (highlight_line.c)
+// `count` lines colored with a grammar in `room`, written as cli_highlight_color writes them; and the same lines'
+// leaves handed to `each` as cli_highlight_leaves hands them (highlight_line.c)
 void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, const char *state, const char *const *lines,
-                         unsigned int count, CliLine *out);
+                         unsigned int count, VerbaLinea *out);
+void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, const char *state,
+                             const char *const *lines, unsigned int count, CliLeavesEach each, void *context,
+                             VerbaLinea *ended);
 
 #endif

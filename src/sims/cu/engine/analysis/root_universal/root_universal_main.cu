@@ -3,15 +3,15 @@
 // root_universal_main.cu: the extent printed and main
 #include "root_universal_internal.h"
 
-static void root_extent_print(ScripturaLine *line, const unsigned long long extent[4])
+static void root_extent_print(VerbaLinea *line, const unsigned long long extent[4])
 {
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
         if (axis != 0u)
         {
-            scriptura_text(line, " x ");
+            mmgr_line_put(line, " x ");
         }
-        scriptura_decimal(line, extent[axis], 1u);
+        mmgr_line_decimal(line, extent[axis], 1u);
     }
 }
 
@@ -20,7 +20,7 @@ int main(void)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    ScripturaLine *const line = &results.line;
+    VerbaLinea *const line = &results.line;
 
     SimCamera camera;
     memset(&camera, 0, sizeof(camera));
@@ -34,7 +34,7 @@ int main(void)
     RootVolume volume[ROOT_EXTENTS];
     memset(volume, 0, sizeof(volume));
     // both volumes' device lanes, the tower's and the coder's pools for the larger, and the table of the widest edge;
-    // the coded stream, sized by the values, is left to the kept peak
+    // the coded stream, sized by the values, is left to the retained peak
     unsigned long long declared = (unsigned long long)ROOT_TABLE_CAPACITY * sizeof(unsigned int);
     unsigned long long lanes_declared = 0ull;
     for (unsigned int shaped = 0u; shaped < ROOT_EXTENTS; shaped += 1u)
@@ -64,19 +64,19 @@ int main(void)
         crystal[at] = (int *)malloc((size_t)lanes_max * sizeof(int));
         ok = ok && (crystal[at] != NULL);
     }
-    sim_check(&results, ok, "the sim's tables and crystals were held");
+    sim_check(&results, ok, "the sim's tables and crystals were allocated");
 
-    scriptura_text(
+    mmgr_line_put(
         line,
         "  the root universal: the tower with reversible lookup edges between its floors, on camera-law volumes\n");
-    scriptura_text(line, "  (signal 200 e plus a ramp of 1 e a column, 6 moving bodies of 150 to 400 e, read variance "
+    mmgr_line_put(line, "  (signal 200 e plus a ramp of 1 e a column, 6 moving bodies of 150 to 400 e, read variance "
                          "3, fixed pattern 0 to 8)\n\n");
 
-    scriptura_text(
+    mmgr_line_put(
         line,
         "  1. the root stays exact: random edge programs (1 to 6 edges, random floors, widths 1 to 12 bits, and one\n");
-    scriptura_text(line, "     20-bit edge per extent) through lift, code, wipe, decode, lower\n");
-    scriptura_text(
+    mmgr_line_put(line, "     20-bit edge per extent) through lift, code, wipe, decode, lower\n");
+    mmgr_line_put(
         line, "  extent (t x z x y x)  floors  volumes  edges laid out  plain exact  edged exact  crystals changed\n");
     sim_flush(&results);
     for (unsigned int shaped = 0u; ok && (shaped < ROOT_EXTENTS); shaped += 1u)
@@ -100,24 +100,24 @@ int main(void)
             changed += (memcmp(crystal[0], crystal[1], (size_t)here->lanes * sizeof(int)) != 0) ? 1ull : 0ull;
             edge_count += program.count;
         }
-        scriptura_text(line, "  ");
+        mmgr_line_put(line, "  ");
         root_extent_print(line, here->extent);
-        scriptura_decimal_columns(line, here->floors, 11u);
-        scriptura_decimal_columns(line, ROOT_EXACT_VOLUMES, 9u);
-        scriptura_decimal_columns(line, edge_count, 12u);
-        scriptura_decimal_columns(line, plain_exact, 13u);
-        scriptura_decimal_columns(line, edged_exact, 13u);
-        scriptura_decimal_columns(line, changed, 18u);
-        scriptura_character(line, '\n');
+        mmgr_line_decimal_columns(line, here->floors, 11u);
+        mmgr_line_decimal_columns(line, ROOT_EXACT_VOLUMES, 9u);
+        mmgr_line_decimal_columns(line, edge_count, 12u);
+        mmgr_line_decimal_columns(line, plain_exact, 13u);
+        mmgr_line_decimal_columns(line, edged_exact, 13u);
+        mmgr_line_decimal_columns(line, changed, 18u);
+        mmgr_line_ch(line, '\n');
         sim_flush(&results);
         sim_check(&results, plain_exact == ROOT_EXACT_VOLUMES, "every plain crystal rebuilt its lanes exactly");
         sim_check(&results, edged_exact == ROOT_EXACT_VOLUMES,
                   "every edged crystal rebuilt its lanes exactly through the coder");
     }
 
-    scriptura_text(line, "\n  2. edges fold in order: on floor 1 of 4 x 12 x 48 x 48, 8-bit edges a then b against the "
+    mmgr_line_put(line, "\n  2. edges fold in order: on floor 1 of 4 x 12 x 48 x 48, 8-bit edges a then b against the "
                          "one table b(a(i))\n");
-    scriptura_text(line, "  volumes  a,b = b(a)  b,a differs  a on 1, b on 2 differs\n");
+    mmgr_line_put(line, "  volumes  a,b = b(a)  b,a differs  a on 1, b on 2 differs\n");
     sim_flush(&results);
     unsigned long long folds = 0ull;
     unsigned long long orders = 0ull;
@@ -163,18 +163,18 @@ int main(void)
         orders += (memcmp(crystal[0], crystal[2], bytes) != 0) ? 1ull : 0ull;
         blocks += (memcmp(crystal[0], crystal[3], bytes) != 0) ? 1ull : 0ull;
     }
-    scriptura_decimal_columns(line, ROOT_FOLD_VOLUMES, 9u);
-    scriptura_decimal_columns(line, folds, 12u);
-    scriptura_decimal_columns(line, orders, 13u);
-    scriptura_decimal_columns(line, blocks, 24u);
-    scriptura_character(line, '\n');
+    mmgr_line_decimal_columns(line, ROOT_FOLD_VOLUMES, 9u);
+    mmgr_line_decimal_columns(line, folds, 12u);
+    mmgr_line_decimal_columns(line, orders, 13u);
+    mmgr_line_decimal_columns(line, blocks, 24u);
+    mmgr_line_ch(line, '\n');
     sim_flush(&results);
-    // "differs" is read on these keyed draws: tables that agree on every value the crystal holds would lay out the same
-    // crystal swapped or split. The last two checks show order and blocking on these volumes, not for every table
+    // "differs" is read on these keyed draws: tables that agree on every value the crystal contains would lay out the
+    // same crystal swapped or split. The last two checks show order and blocking on these volumes, not for every table
     sim_check(&results, folds == ROOT_FOLD_VOLUMES,
               "two edges on one floor fold into the one table that composes them");
     sim_check(&results, orders == ROOT_FOLD_VOLUMES,
-              "the fold keeps order: the swapped pair lays out a different crystal");
+              "the fold preserves order: the swapped pair lays out a different crystal");
     sim_check(&results, blocks == ROOT_FOLD_VOLUMES, "a floor between two edges blocks the fold");
 
     const unsigned int width[ROOT_COST_WIDTHS] = {2u, 4u, 8u, 12u};
@@ -210,32 +210,32 @@ int main(void)
         }
     }
     const unsigned long long coded = (unsigned long long)ROOT_COST_VOLUMES * folded->lanes;
-    scriptura_text(line, "\n  3. the price: coded bits a voxel on 4 x 12 x 48 x 48 over ");
-    scriptura_decimal(line, ROOT_COST_VOLUMES, 1u);
-    scriptura_text(line, " volumes, one keyed random permutation a floor\n");
-    scriptura_text(line, "  no edge: ");
+    mmgr_line_put(line, "\n  3. the price: coded bits a voxel on 4 x 12 x 48 x 48 over ");
+    mmgr_line_decimal(line, ROOT_COST_VOLUMES, 1u);
+    mmgr_line_put(line, " volumes, one keyed random permutation a floor\n");
+    mmgr_line_put(line, "  no edge: ");
     sim_fraction_print(line, plain_bits, coded, 3u);
-    scriptura_text(line, "\n  floor (coefficients touched):  0 (");
-    scriptura_decimal(line, root_region(folded->extent, 0u), 1u);
-    scriptura_text(line, ")  ");
-    scriptura_decimal(line, floors / 2u, 1u);
-    scriptura_text(line, " (");
-    scriptura_decimal(line, root_region(folded->extent, floors / 2u), 1u);
-    scriptura_text(line, ")  ");
-    scriptura_decimal(line, floors, 1u);
-    scriptura_text(line, " collapsed (");
-    scriptura_decimal(line, root_region(folded->extent, floors), 1u);
-    scriptura_text(line, ")  every floor\n");
-    scriptura_text(line, "  width    floor 0    middle    collapsed    every floor\n");
+    mmgr_line_put(line, "\n  floor (coefficients touched):  0 (");
+    mmgr_line_decimal(line, root_region(folded->extent, 0u), 1u);
+    mmgr_line_put(line, ")  ");
+    mmgr_line_decimal(line, floors / 2u, 1u);
+    mmgr_line_put(line, " (");
+    mmgr_line_decimal(line, root_region(folded->extent, floors / 2u), 1u);
+    mmgr_line_put(line, ")  ");
+    mmgr_line_decimal(line, floors, 1u);
+    mmgr_line_put(line, " collapsed (");
+    mmgr_line_decimal(line, root_region(folded->extent, floors), 1u);
+    mmgr_line_put(line, ")  every floor\n");
+    mmgr_line_put(line, "  width    floor 0    middle    collapsed    every floor\n");
     for (unsigned int wide = 0u; wide < ROOT_COST_WIDTHS; wide += 1u)
     {
-        scriptura_decimal_columns(line, width[wide], 7u);
+        mmgr_line_decimal_columns(line, width[wide], 7u);
         for (unsigned int placed = 0u; placed < ROOT_PLACES; placed += 1u)
         {
-            scriptura_text(line, (placed == 0u) ? "     " : "    ");
+            mmgr_line_put(line, (placed == 0u) ? "     " : "    ");
             sim_fraction_print(line, cost[wide][placed], coded, 3u);
         }
-        scriptura_character(line, '\n');
+        mmgr_line_ch(line, '\n');
     }
     sim_flush(&results);
     sim_check(&results, exact_trips == trips, "every coded crystal, edged or not, rebuilt its lanes exactly");

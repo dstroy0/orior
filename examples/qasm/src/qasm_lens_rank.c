@@ -136,14 +136,14 @@ static void qasm_lens_generator_bytes(const QasmLensState *table, unsigned int s
     for (unsigned int image = 1u; image < size; image += 1u)
     {
         const size_t generator = first_generator + (image - 1u);
-        unsigned char *const generator_slot = &bytes[generator * QASM_LENS_GENERATOR_BYTES];
+        unsigned char *const generator_bytes = &bytes[generator * QASM_LENS_GENERATOR_BYTES];
         for (unsigned int word = 0u; word < QASM_LENS_STATE_WORDS; word += 1u)
         {
             const unsigned int value = table[image].word[word] ^ table[0].word[word];
             for (unsigned int byte = 0u; byte < 4u; byte += 1u)
             {
-                // one byte of the word, masked to eight bits, which an unsigned char holds exactly
-                generator_slot[(4u * word) + byte] = (unsigned char)((value >> (8u * byte)) & 0xFFu);
+                // one byte of the word, masked to eight bits, which an unsigned char represents exactly
+                generator_bytes[(4u * word) + byte] = (unsigned char)((value >> (8u * byte)) & 0xFFu);
             }
         }
     }
@@ -226,7 +226,7 @@ long qasm_lens_read(const QasmLensRequest *request, QasmLensMeasurement *measure
     measurement->raw_rank = raw_rank;
     // a rank over 256 columns is at most 256
     measurement->complement = QASM_LENS_RAW_BITS - raw_rank;
-    // the lift keeps the raw columns. Its rank is at least the raw rank
+    // the lift retains the raw columns. Its rank is at least the raw rank
     measurement->lift_extra_rank = lift_rank - raw_rank;
     measurement->forward_vanish = forward_vanish;
     measurement->backward_vanish = backward_vanish;

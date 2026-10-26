@@ -24,7 +24,7 @@
 // each point's faces, then each point's six differences, all in the order of the frame's .points
 #define SCAN_HEADER_WORDS 6u
 
-// .drift opens with frames, depth, height, width and the three weights; each frame then holds its positive voxels,
+// .drift opens with frames, depth, height, width and the three weights; each frame then contains its positive voxels,
 // and every frame after the first the lag (z, y, x) carrying the previous frame's positive set onto it and the
 // agreement at that lag
 #define SCAN_DRIFT_HEADER_WORDS 7u
@@ -374,7 +374,7 @@ static int scan_ingest(const ScanRequest *request, const char *sample, unsigned 
     }
     else
     {
-        printf("not held (a half holds one value)\n");
+        printf("not found (a half contains one value)\n");
     }
     return counted;
 }
@@ -395,7 +395,7 @@ static void scan_contrast_map(const ScanContrast *contrast, const unsigned short
 static int scan_frames(const ScanRequest *request, const char *sample, const ScanVolume *volume, ScanContrast *contrast,
                        ScanPoints *points, ScanResults *results)
 {
-    // every extent is held at or below 2^32 - 1 by scan_load. Each narrows to unsigned int exactly
+    // every extent is bounded at or below 2^32 - 1 by scan_load. Each narrows to unsigned int exactly
     const unsigned int header[SCAN_HEADER_WORDS] = {(unsigned int)volume->extent[0], (unsigned int)volume->extent[1],
                                                     (unsigned int)volume->extent[2], (unsigned int)volume->extent[3],
                                                     contrast->residual_limbs,        contrast->bits};

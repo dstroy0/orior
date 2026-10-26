@@ -8,7 +8,7 @@
 QASM="$TOP/examples/qasm/src"
 
 QASM_CU="$TOP/examples/qasm/src"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
 CYCLE="$TOP/src/cu/engine/analysis/cycle"
 CYCLE_CU="$TOP/src/cu/engine/analysis/cycle"
@@ -22,7 +22,7 @@ KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 OBSIGNATIO="$TOP/src/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$TOP/src/cu/engine/runtime/obsignatio"
 DAEMON_DIRECTORY="$TOP/src/cu/engine/runtime/daemon"
-INCLUDES=(-I "$TOP/src/cu/engine" -I "$QASM" -I "$QASM_CU" -I "$SCRIPTURA" -I "$NO_ROUNDING" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU"
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$QASM" -I "$QASM_CU" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$NO_ROUNDING" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU"
           -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU" -I "$DAEMON_DIRECTORY")
 
 qasm_host_setup()
@@ -71,7 +71,7 @@ qasm_c_object()
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
             cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
@@ -93,22 +93,24 @@ qasm_build()
     build_stamp "$1"
     qasm_host_setup || return 1
     OBJECTS=()
-    SCRIPTURA_OBJECTS=()
+    LINEA_OBJECTS=()
     local source
     local object
-    for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+    # the formats with the line: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
+    for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
                   "$CYCLE/cycle.c" "$QASM"/qasm_{exact,trig,lexer,expression,gates,statements,read}.c \
                   "$QASM"/qasm_field_{rational,number}.c "$QASM/qasm_dense.c" "$QASM"/qasm_chain_{matrix,apply}.c \
                   "$QASM"/qasm_symbolic_{polynomial,function}.c "$QASM"/qasm_lens_{hash,rank}.c; do
         object="$OUT/$(basename "$source" .c)_c.$EXTENSION"
         qasm_c_object "$source" "$object" || return 1
         OBJECTS+=("$object")
-        case "$(basename "$source")" in
-            scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+        case "$source" in
+            */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
         esac
     done
     for source in "$QASM_CU/qasm.cu" "$QASM_CU/qasm_program.cu" "$QASM_CU/qasm_run.cu" "$QASM_CU"/qasm_self_{program,run}.cu "$CYCLE_CU"/cycle*.cu \
-                  "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu"; do
+                  "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \
+                  "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu"; do
         object="$OUT/$(basename "$source" .cu)_cu.$EXTENSION"
         qasm_cu_object "$source" "$object" || return 1
         OBJECTS+=("$object")
@@ -139,7 +141,7 @@ qasm_build()
     DAEMON="$OUT/tessera_daemon$EXECUTABLE"
     rm -f "$DAEMON"
     nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LONG_PATHS[@]}" -o "$DAEMON" "${DAEMON_OBJECTS[@]}" \
-        "${SCRIPTURA_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
+        "${LINEA_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
     [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; return 1; }
     return 0
 }

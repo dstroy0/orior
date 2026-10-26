@@ -52,8 +52,8 @@ void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCens
     }
 
     // Insertion sort, descending by magnitude, and STABLE. The strict greater-than in the shift
-    // test keeps it stable: an equal magnitude does not displace the entry already placed, and
-    // anchors testing equally rare symbols keep the spatial spread choose_offsets gave them.
+    // test retains it stable: an equal magnitude does not displace the entry already placed, and
+    // anchors testing equally rare symbols retain the spatial spread choose_offsets gave them.
     for (size_t placed = 1u; placed < count; placed += 1u)
     {
         const size_t moving_offset = offsets[placed];
@@ -63,10 +63,10 @@ void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCens
         }
         const uint64_t moving = orior_steer_magnitude(census, needle[moving_offset]);
 
-        size_t slot = placed;
-        while (slot > 0u)
+        size_t at = placed;
+        while (at > 0u)
         {
-            const size_t settled_offset = offsets[slot - 1u];
+            const size_t settled_offset = offsets[at - 1u];
             const uint64_t settled =
                 (settled_offset < needle_len) ? orior_steer_magnitude(census, needle[settled_offset]) : 0u;
             if (settled > moving)
@@ -77,10 +77,10 @@ void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCens
             {
                 break;
             }
-            offsets[slot] = offsets[slot - 1u];
-            slot -= 1u;
+            offsets[at] = offsets[at - 1u];
+            at -= 1u;
         }
-        offsets[slot] = moving_offset;
+        offsets[at] = moving_offset;
     }
 }
 
@@ -93,7 +93,7 @@ void orior_steer_probe_order(size_t *offsets, size_t count, const OriorFieldCens
  *       Writing the two limbs directly is reading that declaration instead of reaching around it;
  *       there is no decimal text here to route through orior_exact_from_decimal and converting a
  *       counter to text to parse it back would be slower and just as exact.
- * @note limb[1] exists because the assert at the top of this file holds the engine to 8 limbs or
+ * @note limb[1] exists because the assert at the top of this file limits the engine to 8 limbs or
  *       more.
  */
 static void steer_exact_from_u64(OriorExactInteger *value, uint64_t from)
@@ -187,7 +187,7 @@ int orior_steer_prefers_free(const OriorFieldCensus *census)
  * defensive. A planner that samples badly, ranks wrongly, or is outright broken still lands on some
  * element of the null group, and every element yields the same count. The planner moves inside the
  * null and the null has one value. Correctness is therefore not something the planner can spend,
- * and speed is the only currency it holds.
+ * and speed is the only currency it uses.
  * ---------------------------------------------------------------------------------------------- */
 
 /**
@@ -227,9 +227,9 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
     const size_t alignments = (corpus_len - needle_len) + 1u;
     const uint8_t wanted = needle[offset];
 
-    // THE WIDEST ENGINE THIS MACHINE CARRIES, ASKED ONCE. The scan is where a planner spends its
+    // THE WIDEST ENGINE THIS MACHINE CARRIES, QUERIED ONCE. The scan is where a planner spends its
     // time, and an engine graded against the portable one but never called is a measurement instead
-    // of a speedup. The engine is resolved once and held, because asking the processor on every
+    // of a speedup. The engine is resolved once and cached, because querying the processor on every
     // candidate would cost more than the candidates do.
     //
     // Only at stride one. A sampled scan walks every Nth alignment and the engines count every one.
@@ -237,9 +237,9 @@ size_t steer_truthy_after(const uint8_t *corpus, size_t corpus_len, const uint8_
     // to the loop below, the same code the portable engine runs.
     if (stride == 1u)
     {
-        // Resolved through orior_steer_best_engine, which holds the one dispatch every arm is added
+        // Resolved through orior_steer_best_engine, which contains the one dispatch every arm is added
         // to. Reproducing the #if ladder here would be a second copy that a new arm could miss, and a
-        // scan that keeps running the old widest arm while a wider one reports itself present has
+        // scan that continues running the old widest arm while a wider one reports itself present has
         // the unused-implementation defect the scan counters exist to catch.
         static const OriorSteerEngine *chosen = NULL;
         static int resolved = 0;

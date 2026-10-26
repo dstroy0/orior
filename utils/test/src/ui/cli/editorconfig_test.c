@@ -4,12 +4,12 @@
 #include "../../../../../ui/cli/src/editor/editorconfig.h"
 #include "cli_check.h"
 
-static char s_root[CLI_PATH_LONGEST];
+static char s_root[CLI_PATH_MAX_LEN];
 
 // `text` written to the file `name` under the root
 static void editorconfig_written(const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_root, name, path);
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
@@ -17,27 +17,28 @@ static void editorconfig_written(const char *name, const char *text)
 // the indent of the file `name` under the root checked against `tabs`, -1 for none, and `size`, 0 for none
 static void editorconfig_checked(const char *name, int tabs, unsigned int size)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_root, name, path);
     CliIndent indent;
     cli_indent(path, &indent);
     char what[256];
-    CliLine line = {what, sizeof(what), 0ull};
-    cli_line_text(&line, name);
-    cli_line_text(&line, (tabs < 0) ? " has no indent set" : ((tabs > 0) ? " is indented by tabs" : " by spaces"));
+    VerbaLinea line = {what, sizeof(what), 0ull};
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, (tabs < 0) ? " has no indent set" : ((tabs > 0) ? " is indented by tabs" : " by spaces"));
     if (size > 0u)
     {
-        cli_line_text(&line, ", ");
-        cli_line_decimal(&line, size, 1u);
-        cli_line_text(&line, " wide");
+        mmgr_line_put(&line, ", ");
+        mmgr_line_decimal(&line, size, 1u);
+        mmgr_line_put(&line, " wide");
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     cli_check((indent.tabs == tabs) && ((size == 0u) ? !indent.sized : (indent.sized && (indent.size == size))), what);
 }
 
 int main(void)
 {
-    char deep[CLI_PATH_LONGEST];
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    char deep[CLI_PATH_MAX_LEN];
     cli_check_folder("editorconfig", s_root);
     cli_full(s_root, "src/deep", deep);
     (void)query_folder_made(deep);

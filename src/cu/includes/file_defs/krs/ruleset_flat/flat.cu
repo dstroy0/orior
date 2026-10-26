@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// flat.cu: the flat ruleset: the relations read, a file, the names and the schema, the capacities, the memory's size, the template, what is kept, and the constructs
+// flat.cu: the flat ruleset: the relations read, a file, the names and the schema, the capacities, the memory's size,
+// the template, what is stored, and the constructs
 #include "ruleset_flat_internal.h"
 
 int ruleset_relations_read(const std::string *paths, unsigned int count, const RulesetCoreSchema *schema,
@@ -16,7 +17,7 @@ int ruleset_relations_read(const std::string *paths, unsigned int count, const R
             *error = paths[file];
             return 0;
         }
-        // a set of files is held under RULESET_FILE_MAX letters, which 32 bits count
+        // a set of files is bounded under RULESET_FILE_MAX letters, which 32 bits count
         memory->files.push_back(RulesetCoreSpan{(unsigned int)memory->text.size(), (unsigned int)read.size()});
         memory->text.insert(memory->text.end(), read.begin(), read.end());
         memory->labels.push_back(paths[file].substr(paths[file].find_last_of("/\\") + 1u));
@@ -106,9 +107,9 @@ void ruleset_flat_schema(const RulesetSchema *schema, RulesetFlat *flat)
 void ruleset_capacities(unsigned int text_length, RulesetCoreRead *read)
 {
     // every letter written is one of the file's or stands for an escape of two; every piece begins a text or follows a
-    // slot, each at least three letters of the file, and every text is at least a line's; every word is at least a
-    // letter and a space, and a head's parameters are its words
-    // a form's fixed registers are folded into its text past the letters read, at most once each
+    // placeholder, each at least three letters of the file, and every text is at least a line's; every word is at least
+    // a letter and a space, and a head's parameters are its words a form's fixed registers are folded into its text
+    // past the letters read, at most once each
     read->letter_capacity = (2u * text_length) + 2u;
     read->piece_capacity = (2u * text_length) + 2u;
     read->word_capacity = text_length + 2u;
@@ -120,7 +121,7 @@ void ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read)
     // an empty vector's data is NULL, and every list is given at least one entry
     memory->letters.assign((size_t)read->letter_capacity, 0u);
     memory->pieces.assign((size_t)read->piece_capacity, RulesetCoreSpan{});
-    memory->slots.assign((size_t)read->piece_capacity, 0u);
+    memory->placeholders.assign((size_t)read->piece_capacity, 0u);
     memory->words.assign((size_t)read->word_capacity, RulesetCoreSpan{});
     memory->banks.assign((size_t)schema->bank_count + 1u, RulesetCoreTemplate{});
     memory->fixed.assign((size_t)schema->fixed_count + 1u, RulesetCoreSpan{});
@@ -134,7 +135,7 @@ void ruleset_memory_size(RulesetMemory *memory, RulesetCoreRead *read)
     memory->building_parameters.assign((size_t)read->word_capacity, RulesetCoreSpan{});
     read->letters = memory->letters.data();
     read->pieces = memory->pieces.data();
-    read->slots = memory->slots.data();
+    read->placeholders = memory->placeholders.data();
     read->words = memory->words.data();
     read->banks = memory->banks.data();
     read->fixed = memory->fixed.data();
@@ -154,20 +155,20 @@ static std::string ruleset_flat_text(const std::string &text, RulesetCoreSpan sp
     return text.substr(span.first, span.length);
 }
 
-// the template `form` of `read` as the host holds it
+// the template `form` of `read` as the host stores it
 static InstrTemplate ruleset_flat_template(const RulesetCoreRead *read, const RulesetCoreTemplate *form)
 {
-    InstrTemplate kept;
+    InstrTemplate made;
     for (unsigned int piece = 0u; piece < form->piece_count; piece += 1u)
     {
         const RulesetCoreSpan span = read->pieces[form->piece_first + piece];
-        kept.pieces.push_back(std::string((const char *)&read->letters[span.first], span.length));
+        made.pieces.push_back(std::string((const char *)&read->letters[span.first], span.length));
     }
-    for (unsigned int slot = 0u; (slot + 1u) < form->piece_count; slot += 1u)
+    for (unsigned int at = 0u; (at + 1u) < form->piece_count; at += 1u)
     {
-        kept.slots.push_back(read->slots[form->slot_first + slot]);
+        made.placeholders.push_back(read->placeholders[form->placeholder_first + at]);
     }
-    return kept;
+    return made;
 }
 
 // why `read` did not read the file, as the host's reader gives it
@@ -214,7 +215,7 @@ static std::string ruleset_flat_why(const RulesetCoreRead *read, const std::stri
     }
 }
 
-void ruleset_keep(const RulesetCoreRead *read, const std::string &text, Ruleset *rules)
+void ruleset_store(const RulesetCoreRead *read, const std::string &text, Ruleset *rules)
 {
     const RulesetSchema *const schema = rules->schema;
     for (unsigned int bank = 0u; bank < schema->bank_count; bank += 1u)
@@ -237,16 +238,16 @@ void ruleset_keep(const RulesetCoreRead *read, const std::string &text, Ruleset 
         for (unsigned int line = 0u; line < construct->line_count; line += 1u)
         {
             const RulesetCoreLine *const read_line = &read->lines[construct->line_first + line];
-            PseudoLine kept;
-            kept.form = read_line->form;
+            PseudoLine made;
+            made.form = read_line->form;
             for (unsigned int given = 0u; given < read_line->argument_count; given += 1u)
             {
                 const RulesetCoreArgument *const argument = &read->arguments[read_line->argument_first + given];
-                const PseudoOperand operand = {(PseudoOperandKind)argument->kind, argument->slot, argument->number,
-                                               ruleset_flat_text(text, argument->text)};
-                kept.arguments.push_back(operand);
+                const PseudoOperand operand = {(PseudoOperandKind)argument->kind, argument->placeholder,
+                                               argument->number, ruleset_flat_text(text, argument->text)};
+                made.arguments.push_back(operand);
             }
-            rules->constructs[form].lines.push_back(kept);
+            rules->constructs[form].lines.push_back(made);
         }
     }
     rules->name = ruleset_flat_text(text, read->name);
@@ -286,22 +287,23 @@ void ruleset_flat_constructs(const Ruleset *rules, RulesetFlatConstructs *flat)
             flat->lines.push_back(flat_line);
             for (const PseudoOperand &given : line.arguments)
             {
-                const RulesetCoreArgument argument = {(unsigned int)given.kind, given.slot, given.number,
+                const RulesetCoreArgument argument = {(unsigned int)given.kind, given.placeholder, given.number,
                                                       RulesetCoreSpan{0u, 0u}};
                 flat->arguments.push_back(argument);
             }
         }
     }
-    // each form's slots end to end, the scratch its text names among them
+    // each form's placeholders end to end, the scratch its text names among them
     for (const InstrTemplate &form : rules->forms)
     {
-        flat->form_slot_first.push_back((unsigned int)flat->form_slots.size());
-        flat->form_slots.insert(flat->form_slots.end(), form.slots.begin(), form.slots.end());
+        flat->form_placeholder_first.push_back((unsigned int)flat->form_placeholders.size());
+        flat->form_placeholders.insert(flat->form_placeholders.end(), form.placeholders.begin(),
+                                       form.placeholders.end());
     }
-    flat->form_slot_first.push_back((unsigned int)flat->form_slots.size());
+    flat->form_placeholder_first.push_back((unsigned int)flat->form_placeholders.size());
     // a vector's data is NULL where it is empty
     flat->constructs.push_back(RulesetCoreConstruct{0u, 0u});
     flat->lines.push_back(RulesetCoreLine{0u, 0u, 0u});
     flat->arguments.push_back(RulesetCoreArgument{0u, 0u, 0u, RulesetCoreSpan{0u, 0u}});
-    flat->form_slots.push_back(0u);
+    flat->form_placeholders.push_back(0u);
 }

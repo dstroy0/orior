@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// version_catalog_check.c: a version catalog checked against itself: what kept it from reading; a section it has no
-// place for; an alias that is none or whose accessor another above it has; a library's alias that starts with a
+// version_catalog_check.c: a version catalog checked against itself: what prevented it from reading; a section it has
+// no place for; an alias that is none or whose accessor another above it has; a library's alias that starts with a
 // section of the catalog's accessor; each version, library, plugin and bundle written in its form, its table's keys
 // known, the versions it names by `version.ref` and the libraries a bundle lists there; and each snapshot, with the
 // line that refreshes the build's dependencies. The accessors of more versions or libraries than CLI_VERSIONS_NAMES are
-// not kept
+// not stored
 #include "version_catalog_internal.h"
 
 // the keys of a version's table
@@ -15,7 +15,7 @@ CliVersionsNames g_cli_versions_known;
 CliVersionsNames g_cli_versions_libraries;
 
 // the accessors of the section `name`'s entries into `names`, each as long as its key, so a cell of as many as the
-// section's entries and one of their keys' bytes hold them
+// section's entries and one of their keys' bytes fit them
 int cli_versions_names_of(const char *name, CliVersionsNames *names)
 {
     names->count = 0u;
@@ -39,14 +39,14 @@ int cli_versions_names_of(const char *name, CliVersionsNames *names)
     // each is under its most, so it fits an unsigned int
     names->most = (unsigned int)((count < CLI_VERSIONS_NAMES) ? count : CLI_VERSIONS_NAMES);
     names->room = (unsigned int)((bytes < CLI_VERSIONS_NAMES_TEXT) ? bytes : CLI_VERSIONS_NAMES_TEXT) + 1u;
-    names->at = cli_cell_taken_by(&g_cli_versions_cells, 2ull * (names->most + 1ull) * sizeof(unsigned int),
-                                  "a catalog's accessors");
+    names->at =
+        g_cli_cells->persistent_buf_alloc(2ull * (names->most + 1ull) * sizeof(unsigned int), &g_cli_versions_cells);
     names->size = (names->at != NULL) ? names->at + names->most + 1u : NULL;
-    names->text = cli_cell_taken_by(&g_cli_versions_cells, names->room, "a catalog's accessors' texts");
+    names->text = g_cli_cells->persistent_buf_alloc(names->room, &g_cli_versions_cells);
     if ((names->at == NULL) || (names->text == NULL))
     {
-        cli_cell_given_by(&g_cli_versions_cells, names->text);
-        cli_cell_given_by(&g_cli_versions_cells, names->at);
+        g_cli_cells->persistent_buf_release(names->text, &g_cli_versions_cells);
+        g_cli_cells->persistent_buf_release(names->at, &g_cli_versions_cells);
         names->at = NULL;
         names->size = NULL;
         names->text = NULL;
@@ -65,9 +65,9 @@ int cli_versions_names_of(const char *name, CliVersionsNames *names)
         for (unsigned int entry = section->first; entry != CLI_VERSIONS_NONE; entry = g_cli_versions.field[entry].next)
         {
             const CliVersionsField *const field = &g_cli_versions.field[entry];
-            CliLine line = {names->text + names->used, names->room - names->used, 0ull};
+            VerbaLinea line = {names->text + names->used, names->room - names->used, 0ull};
             cli_versions_accessor(cli_versions_text(field->key_at), field->key_size, &line);
-            if ((names->count < names->most) && cli_line_fits(&line))
+            if ((names->count < names->most) && mmgr_line_ok(&line))
             {
                 names->at[names->count] = names->used;
                 names->size[names->count] = (unsigned int)line.at;
@@ -79,8 +79,8 @@ int cli_versions_names_of(const char *name, CliVersionsNames *names)
     return 1;
 }
 
-// the accessor of `size` bytes of `name` into `out`, and whether `names` holds it
-int cli_versions_holds(const CliVersionsNames *names, const char *name, unsigned long long size, CliLine *out)
+// the accessor of `size` bytes of `name` into `out`, and whether `names` contains it
+int cli_versions_contains(const CliVersionsNames *names, const char *name, unsigned long long size, VerbaLinea *out)
 {
     cli_versions_accessor(name, size, out);
     for (unsigned int at = 0u; at < names->count; at += 1u)
@@ -99,13 +99,13 @@ int cli_versions_holds(const CliVersionsNames *names, const char *name, unsigned
 static void check_update(CliVersionsCheck *check, unsigned int finding, const char *coordinates,
                          unsigned long long size)
 {
-    CliLine title = cli_build_said(check->found);
-    cli_line_text(&title, "Update the snapshot ");
-    cli_line_counted(&title, coordinates, size);
-    char line[CLI_PATH_LONGEST + 64u];
-    CliLine command = {line, sizeof(line), 0ull};
-    cli_line_text(&command, check->program);
-    cli_line_text(&command, " --refresh-dependencies dependencies");
+    VerbaLinea title = cli_build_msg_line(check->found);
+    mmgr_line_put(&title, "Update the snapshot ");
+    mmgr_line_put_n(&title, coordinates, size);
+    char line[CLI_PATH_MAX_LEN + 64u];
+    VerbaLinea command = {line, sizeof(line), 0ull};
+    mmgr_line_put(&command, check->program);
+    mmgr_line_put(&command, " --refresh-dependencies dependencies");
     cli_build_run_fix(check->found, finding, &title, check->folder,
                       cellul.len(&(CatenaFinitaCfg){.src = check->folder, .cap = CLI_CELLS_POOL}), line, command.at);
 }
@@ -114,12 +114,12 @@ static void check_update(CliVersionsCheck *check, unsigned int finding, const ch
 void cli_versions_snapshot(CliVersionsCheck *check, unsigned long long from, unsigned long long to, const char *text,
                            unsigned long long size)
 {
-    CliLine said = cli_build_said(check->found);
-    cli_line_character(&said, '`');
-    cli_line_counted(&said, text, size);
-    cli_line_text(&said, "` is a snapshot, whose newest build Gradle fetches when it refreshes its dependencies");
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put_n(&msg, text, size);
+    mmgr_line_put(&msg, "` is a snapshot, whose newest build Gradle fetches when it refreshes its dependencies");
     const unsigned int finding =
-        cli_build_finding(check->found, &said, check->lines, from, to, CLI_BUILD_NOTE, "snapshot");
+        cli_build_finding(check->found, &msg, check->lines, from, to, CLI_BUILD_NOTE, "snapshot");
     check_update(check, finding, text, size);
 }
 
@@ -127,11 +127,11 @@ void cli_versions_snapshot(CliVersionsCheck *check, unsigned long long from, uns
 void cli_versions_entry_error(CliVersionsCheck *check, const CliVersionsField *field, const char *code,
                               const char *rest)
 {
-    CliLine said = cli_build_said(check->found);
-    cli_line_character(&said, '`');
-    cli_line_counted(&said, cli_versions_text(field->key_at), field->key_size);
-    cli_line_text(&said, rest);
-    (void)cli_build_finding(check->found, &said, check->lines, field->from, field->to, CLI_BUILD_ERROR, code);
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put_n(&msg, cli_versions_text(field->key_at), field->key_size);
+    mmgr_line_put(&msg, rest);
+    (void)cli_build_finding(check->found, &msg, check->lines, field->from, field->to, CLI_BUILD_ERROR, code);
 }
 
 // the fixes that change the span `from` to `to` to each name of `known` near `name`
@@ -152,11 +152,11 @@ void cli_versions_near(CliVersionsCheck *check, unsigned int finding, const char
     }
     for (unsigned int at = 0u; at < near.count; at += 1u)
     {
-        CliLine title = cli_build_said(check->found);
-        cli_line_text(&title, "Change to ");
-        cli_line_text(&title, open);
-        cli_line_counted(&title, near.near[at], near.near_size[at]);
-        cli_line_text(&title, close);
+        VerbaLinea title = cli_build_msg_line(check->found);
+        mmgr_line_put(&title, "Change to ");
+        mmgr_line_put(&title, open);
+        mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
+        mmgr_line_put(&title, close);
         cli_build_edit_fix(check->found, finding, &title, check->lines, from, to, near.near[at], near.near_size[at]);
     }
 }
@@ -165,26 +165,26 @@ void cli_versions_near(CliVersionsCheck *check, unsigned int finding, const char
 static void check_unknown_key(CliVersionsCheck *check, const CliVersionsField *field, const char *const *known,
                               unsigned int count, const char *of)
 {
-    CliLine said = cli_build_said(check->found);
-    cli_line_text(&said, of);
-    cli_line_text(&said, " has no key `");
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_put(&msg, of);
+    mmgr_line_put(&msg, " has no key `");
     const char *const key = cli_versions_text(field->key_at);
     for (unsigned int at = 0u; at < field->key_size; at += 1u)
     {
         if (key[at] != '`')
         {
-            cli_line_character(&said, key[at]);
+            mmgr_line_ch(&msg, key[at]);
         }
     }
-    cli_line_text(&said, "`: its keys are ");
+    mmgr_line_put(&msg, "`: its keys are ");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&said, (at > 0u) ? ", `" : "`");
-        cli_line_text(&said, known[at]);
-        cli_line_character(&said, '`');
+        mmgr_line_put(&msg, (at > 0u) ? ", `" : "`");
+        mmgr_line_put(&msg, known[at]);
+        mmgr_line_ch(&msg, '`');
     }
     const unsigned int finding =
-        cli_build_finding(check->found, &said, check->lines, field->from, field->to, CLI_BUILD_WARNING, "catalog-key");
+        cli_build_finding(check->found, &msg, check->lines, field->from, field->to, CLI_BUILD_WARNING, "catalog-key");
     cli_versions_near(check, finding, key, field->key_size, known, count, NULL, field->from, field->to, "", "");
 }
 
@@ -258,10 +258,10 @@ void cli_versions_versioned(CliVersionsCheck *check, const CliVersionsField *tab
                  (field->shape == CLI_VERSIONS_TEXT) &&
                  cli_build_snapshot(cli_versions_text(field->text_at), field->text_size))
         {
-            CliLine full = {check->full, 2u * check->room, 0ull};
-            cli_line_counted(&full, coordinates, coordinates_size);
-            cli_line_character(&full, ':');
-            cli_line_counted(&full, cli_versions_text(field->text_at), field->text_size);
+            VerbaLinea full = {check->full, 2u * check->room, 0ull};
+            mmgr_line_put_n(&full, coordinates, coordinates_size);
+            mmgr_line_ch(&full, ':');
+            mmgr_line_put_n(&full, cli_versions_text(field->text_at), field->text_size);
             cli_versions_snapshot(check, field->value_from, field->value_to, check->full, full.at);
         }
         if (named == NULL)
@@ -270,16 +270,16 @@ void cli_versions_versioned(CliVersionsCheck *check, const CliVersionsField *tab
         }
         const char *const name = cli_versions_text(named->text_at);
         char accessor[1u << 12u];
-        CliLine line = {accessor, sizeof(accessor), 0ull};
-        if (cli_versions_holds(&g_cli_versions_known, name, named->text_size, &line))
+        VerbaLinea line = {accessor, sizeof(accessor), 0ull};
+        if (cli_versions_contains(&g_cli_versions_known, name, named->text_size, &line))
         {
             continue;
         }
-        CliLine said = cli_build_said(check->found);
-        cli_line_text(&said, "The catalog's `[versions]` has no `");
-        cli_line_counted(&said, name, named->text_size);
-        cli_line_character(&said, '`');
-        const unsigned int finding = cli_build_finding(check->found, &said, check->lines, named->value_from,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_put(&msg, "The catalog's `[versions]` has no `");
+        mmgr_line_put_n(&msg, name, named->text_size);
+        mmgr_line_ch(&msg, '`');
+        const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, named->value_from,
                                                        named->value_to, CLI_BUILD_ERROR, "catalog-reference");
         cli_versions_near(check, finding, accessor, line.at, NULL, 0u, &g_cli_versions_known, named->value_from,
                           named->value_to, "", "");

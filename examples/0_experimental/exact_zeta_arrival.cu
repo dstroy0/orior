@@ -27,7 +27,9 @@
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -277,7 +279,7 @@ int main(int count, char **arguments)
          (cudaMemcpy(device_state[0], state.data(), state_bytes, cudaMemcpyHostToDevice) == cudaSuccess) &&
          (cudaMemcpy(device_constants, constants.data(), constants.size() * sizeof(unsigned int),
                      cudaMemcpyHostToDevice) == cudaSuccess);
-    sim_check(&job, ok, "the seeds and the constants are held on the device");
+    sim_check(&job, ok, "the seeds and the constants are stored on the device");
 
     FILE *out = ok ? fopen(arguments[2], "w") : NULL;
     ok = ok && (out != NULL);

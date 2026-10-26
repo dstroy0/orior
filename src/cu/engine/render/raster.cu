@@ -11,14 +11,14 @@ __device__ static unsigned long long device_death_level(const unsigned char *cor
 {
     *matched = 0;
 
-    for (unsigned long long slot = 0u; slot < probe_count; slot += 1u)
+    for (unsigned long long index = 0u; index < probe_count; index += 1u)
     {
-        for (unsigned long long step = 0u; step < probes[slot].length; step += 1u)
+        for (unsigned long long step = 0u; step < probes[index].length; step += 1u)
         {
-            const unsigned long long offset = probes[slot].origin + (step * probes[slot].step);
+            const unsigned long long offset = probes[index].origin + (step * probes[index].step);
             if (corpus[at + offset] != needle[offset])
             {
-                return slot;
+                return index;
             }
         }
     }
@@ -116,7 +116,7 @@ __device__ static unsigned char device_sample(const DeviceConfig *config, const 
  * @brief Renders every alignment into the raster, one thread each.
  *
  * @note The atomics run on a 32-bit staging buffer because CUDA has no 8-bit atomicMin. The host
- *       narrows the result afterward, which costs one pass over the cells and keeps the reduction
+ *       narrows the result afterward, which costs one pass over the cells and retains the reduction
  *       exact.
  */
 __global__ void render_alignments(unsigned int *staging, DeviceConfig config, const unsigned char *corpus,

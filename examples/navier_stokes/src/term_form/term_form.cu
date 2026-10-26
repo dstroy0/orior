@@ -3,7 +3,9 @@
 // term_form.cu: forms in terms (term_form.h)
 #include "term_form.h"
 
-#include "scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 
 #include <algorithm>
 
@@ -17,10 +19,10 @@ bool TermKeyOrder::operator()(const TermKey &left, const TermKey &right) const
     return left.power < right.power;
 }
 
-// the slots of the program: the key at each, the slot of each key, and the slot of each product of two
-static std::vector<TermKey> s_term_slots;
-static std::map<TermKey, unsigned int, TermKeyOrder> s_term_slot_of;
-static std::map<std::pair<unsigned int, unsigned int>, unsigned int> s_term_slot_product;
+// the indices of the program: the key at each, the index of each key, and the index of each product of two
+static std::vector<TermKey> s_term_keys;
+static std::map<TermKey, unsigned int, TermKeyOrder> s_term_index_of;
+static std::map<std::pair<unsigned int, unsigned int>, unsigned int> s_term_index_product;
 
 OriorExactInteger term_form_unit(void)
 {
@@ -62,30 +64,30 @@ static TermKey term_form_key(SimRational e, const TermPower &power)
     return key;
 }
 
-static unsigned int term_form_slot(const TermKey &key)
+static unsigned int term_form_index(const TermKey &key)
 {
-    const auto found = s_term_slot_of.find(key);
-    if (found != s_term_slot_of.end())
+    const auto found = s_term_index_of.find(key);
+    if (found != s_term_index_of.end())
     {
         return found->second;
     }
-    const unsigned int slot = (unsigned int)s_term_slots.size();
-    s_term_slots.push_back(key);
-    s_term_slot_of.insert(std::make_pair(key, slot));
-    return slot;
+    const unsigned int term_at = (unsigned int)s_term_keys.size();
+    s_term_keys.push_back(key);
+    s_term_index_of.insert(std::make_pair(key, term_at));
+    return term_at;
 }
 
-static unsigned int term_form_slot_product(unsigned int left, unsigned int right)
+static unsigned int term_form_index_product(unsigned int left, unsigned int right)
 {
     const std::pair<unsigned int, unsigned int> pair = (left < right) ? std::make_pair(left, right)
                                                                       : std::make_pair(right, left);
-    const auto found = s_term_slot_product.find(pair);
-    if (found != s_term_slot_product.end())
+    const auto found = s_term_index_product.find(pair);
+    if (found != s_term_index_product.end())
     {
         return found->second;
     }
-    const TermPower &left_power = s_term_slots[left].power;
-    const TermPower &right_power = s_term_slots[right].power;
+    const TermPower &left_power = s_term_keys[left].power;
+    const TermPower &right_power = s_term_keys[right].power;
     const size_t size = (left_power.size() > right_power.size()) ? left_power.size() : right_power.size();
     TermPower power(size, 0u);
     for (size_t index = 0u; index < size; index += 1u)
@@ -93,20 +95,20 @@ static unsigned int term_form_slot_product(unsigned int left, unsigned int right
         power[index] = ((index < left_power.size()) ? left_power[index] : 0u) +
                        ((index < right_power.size()) ? right_power[index] : 0u);
     }
-    const unsigned int slot =
-        term_form_slot(term_form_key(sim_rational_sum(s_term_slots[left].e, s_term_slots[right].e), power));
-    s_term_slot_product.insert(std::make_pair(pair, slot));
-    return slot;
+    const unsigned int term_at =
+        term_form_index(term_form_key(sim_rational_sum(s_term_keys[left].e, s_term_keys[right].e), power));
+    s_term_index_product.insert(std::make_pair(pair, term_at));
+    return term_at;
 }
 
-// the entry at `slot`, the array grown to hold it
-static OriorExactInteger *term_form_entry(TermForm *form, unsigned int slot)
+// the entry at `term_at`, the array grown to contain it
+static OriorExactInteger *term_form_entry(TermForm *form, unsigned int term_at)
 {
-    if (form->magnitude.size() <= slot)
+    if (form->magnitude.size() <= term_at)
     {
-        form->magnitude.resize((size_t)slot + 1u, term_form_nothing());
+        form->magnitude.resize((size_t)term_at + 1u, term_form_nothing());
     }
-    return &form->magnitude[slot];
+    return &form->magnitude[term_at];
 }
 
 // trailing zeros dropped, and the entries and the denominator divided by the factor they share
@@ -157,36 +159,36 @@ static TermForm term_form_term(const TermKey &key, SimRational coefficient)
     {
         return form;
     }
-    *term_form_entry(&form, term_form_slot(key)) = coefficient.numerator;
+    *term_form_entry(&form, term_form_index(key)) = coefficient.numerator;
     form.denominator = coefficient.denominator;
     return form;
 }
 
-// the coefficient at `slot` as a rational in lowest terms
-static SimRational term_form_coefficient(const TermForm &form, size_t slot)
+// the coefficient at `term_at` as a rational in lowest terms
+static SimRational term_form_coefficient(const TermForm &form, size_t term_at)
 {
     SimRational value;
-    value.numerator = form.magnitude[slot];
+    value.numerator = form.magnitude[term_at];
     value.denominator = form.denominator;
     sim_rational_settle(&value);
     return value;
 }
 
-// the slots holding a term, in key order
-static std::vector<unsigned int> term_form_held(const TermForm &form)
+// the indices containing a term, in key order
+static std::vector<unsigned int> term_form_occupied(const TermForm &form)
 {
-    std::vector<unsigned int> held;
-    for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
+    std::vector<unsigned int> occupied;
+    for (size_t term_at = 0u; term_at < form.magnitude.size(); term_at += 1u)
     {
-        if (form.magnitude[slot].sign != 0)
+        if (form.magnitude[term_at].sign != 0)
         {
-            held.push_back((unsigned int)slot);
+            occupied.push_back((unsigned int)term_at);
         }
     }
     const TermKeyOrder order;
-    std::sort(held.begin(), held.end(),
-              [&order](unsigned int left, unsigned int right) { return order(s_term_slots[left], s_term_slots[right]); });
-    return held;
+    std::sort(occupied.begin(), occupied.end(),
+              [&order](unsigned int left, unsigned int right) { return order(s_term_keys[left], s_term_keys[right]); });
+    return occupied;
 }
 
 TermForm term_form_rational(SimRational value)
@@ -234,19 +236,19 @@ TermForm term_form_sum(const TermForm &left, const TermForm &right)
     }
     const size_t size = (left.magnitude.size() > right.magnitude.size()) ? left.magnitude.size() : right.magnitude.size();
     sum.magnitude.assign(size, term_form_nothing());
-    for (size_t slot = 0u; slot < size; slot += 1u)
+    for (size_t term_at = 0u; term_at < size; term_at += 1u)
     {
         OriorExactInteger first = term_form_nothing();
         OriorExactInteger second = term_form_nothing();
-        if ((slot < left.magnitude.size()) && (left.magnitude[slot].sign != 0))
+        if ((term_at < left.magnitude.size()) && (left.magnitude[term_at].sign != 0))
         {
-            term_form_check(sim_exact_product(&left.magnitude[slot], &left_factor, &first));
+            term_form_check(sim_exact_product(&left.magnitude[term_at], &left_factor, &first));
         }
-        if ((slot < right.magnitude.size()) && (right.magnitude[slot].sign != 0))
+        if ((term_at < right.magnitude.size()) && (right.magnitude[term_at].sign != 0))
         {
-            term_form_check(sim_exact_product(&right.magnitude[slot], &right_factor, &second));
+            term_form_check(sim_exact_product(&right.magnitude[term_at], &right_factor, &second));
         }
-        term_form_check(sim_exact_sum(&first, &second, &sum.magnitude[slot]));
+        term_form_check(sim_exact_sum(&first, &second, &sum.magnitude[term_at]));
     }
     term_form_settle(&sum);
     return sum;
@@ -270,11 +272,11 @@ TermForm term_form_scaled(const TermForm &form, SimRational factor)
         return scaled;
     }
     scaled.magnitude.assign(form.magnitude.size(), term_form_nothing());
-    for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
+    for (size_t term_at = 0u; term_at < form.magnitude.size(); term_at += 1u)
     {
-        if (form.magnitude[slot].sign != 0)
+        if (form.magnitude[term_at].sign != 0)
         {
-            term_form_check(sim_exact_product(&form.magnitude[slot], &factor.numerator, &scaled.magnitude[slot]));
+            term_form_check(sim_exact_product(&form.magnitude[term_at], &factor.numerator, &scaled.magnitude[term_at]));
         }
     }
     term_form_check(sim_exact_product(&form.denominator, &factor.denominator, &scaled.denominator));
@@ -301,10 +303,10 @@ TermForm term_form_product(const TermForm &left, const TermForm &right)
             {
                 continue;
             }
-            const unsigned int slot = term_form_slot_product((unsigned int)first, (unsigned int)second);
+            const unsigned int term_at = term_form_index_product((unsigned int)first, (unsigned int)second);
             OriorExactInteger part;
             term_form_check(sim_exact_product(&left.magnitude[first], &right.magnitude[second], &part));
-            OriorExactInteger *const entry = term_form_entry(&product, slot);
+            OriorExactInteger *const entry = term_form_entry(&product, term_at);
             OriorExactInteger total;
             term_form_check(sim_exact_sum(entry, &part, &total));
             *entry = total;
@@ -334,13 +336,13 @@ TermForm term_form_unit_reduced(const TermForm &form, SimRational ratio, unsigne
     for (;;)
     {
         size_t mixed = reduced.magnitude.size();
-        for (size_t slot = 0u; slot < reduced.magnitude.size(); slot += 1u)
+        for (size_t term_at = 0u; term_at < reduced.magnitude.size(); term_at += 1u)
         {
-            const TermPower &power = s_term_slots[slot].power;
-            if ((reduced.magnitude[slot].sign != 0) && (power.size() > share) && (power[share] > 0u) &&
-                term_form_multiple(s_term_slots[slot].e, ratio))
+            const TermPower &power = s_term_keys[term_at].power;
+            if ((reduced.magnitude[term_at].sign != 0) && (power.size() > share) && (power[share] > 0u) &&
+                term_form_multiple(s_term_keys[term_at].e, ratio))
             {
-                mixed = slot;
+                mixed = term_at;
                 break;
             }
         }
@@ -351,33 +353,33 @@ TermForm term_form_unit_reduced(const TermForm &form, SimRational ratio, unsigne
         }
         // e^ratio share -> 1 - share, over the same denominator
         const OriorExactInteger value = reduced.magnitude[mixed];
-        const SimRational lowered_e = sim_rational_difference(s_term_slots[mixed].e, ratio);
-        TermPower lowered = s_term_slots[mixed].power;
+        const SimRational lowered_e = sim_rational_difference(s_term_keys[mixed].e, ratio);
+        TermPower lowered = s_term_keys[mixed].power;
         reduced.magnitude[mixed] = term_form_nothing();
         lowered[share] -= 1u;
-        TermPower kept = lowered;
-        kept[share] += 1u;
-        const unsigned int lowered_slot = term_form_slot(term_form_key(lowered_e, lowered));
-        const unsigned int kept_slot = term_form_slot(term_form_key(lowered_e, kept));
+        TermPower retained = lowered;
+        retained[share] += 1u;
+        const unsigned int lowered_term = term_form_index(term_form_key(lowered_e, lowered));
+        const unsigned int retained_term = term_form_index(term_form_key(lowered_e, retained));
         OriorExactInteger total;
-        term_form_check(sim_exact_sum(term_form_entry(&reduced, lowered_slot), &value, &total));
-        *term_form_entry(&reduced, lowered_slot) = total;
-        term_form_check(sim_exact_less(term_form_entry(&reduced, kept_slot), &value, &total));
-        *term_form_entry(&reduced, kept_slot) = total;
+        term_form_check(sim_exact_sum(term_form_entry(&reduced, lowered_term), &value, &total));
+        *term_form_entry(&reduced, lowered_term) = total;
+        term_form_check(sim_exact_less(term_form_entry(&reduced, retained_term), &value, &total));
+        *term_form_entry(&reduced, retained_term) = total;
     }
 }
 
 TermForm term_form_square_reduced(const TermForm &form, unsigned int root, SimRational square)
 {
     TermForm reduced;
-    for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
+    for (size_t term_at = 0u; term_at < form.magnitude.size(); term_at += 1u)
     {
-        if (form.magnitude[slot].sign == 0)
+        if (form.magnitude[term_at].sign == 0)
         {
             continue;
         }
-        TermPower power = s_term_slots[slot].power;
-        SimRational value = term_form_coefficient(form, slot);
+        TermPower power = s_term_keys[term_at].power;
+        SimRational value = term_form_coefficient(form, term_at);
         if (power.size() > root)
         {
             while (power[root] >= 2u)
@@ -386,7 +388,7 @@ TermForm term_form_square_reduced(const TermForm &form, unsigned int root, SimRa
                 value = sim_rational_product(value, square);
             }
         }
-        reduced = term_form_sum(reduced, term_form_term(term_form_key(s_term_slots[slot].e, power), value));
+        reduced = term_form_sum(reduced, term_form_term(term_form_key(s_term_keys[term_at].e, power), value));
     }
     return reduced;
 }
@@ -404,7 +406,7 @@ unsigned int term_book_id(TermBook *book, const std::string &name)
     return (unsigned int)(book->names.size() - 1u);
 }
 
-// every limb in hex from the highest held; two values share a text only where they are equal
+// every limb in hex from the highest stored; two values share a text only where they are equal
 static std::string term_book_limbs(const OriorExactInteger &value)
 {
     static const char digits[] = "0123456789abcdef";
@@ -444,8 +446,8 @@ int term_form_zero(const TermForm &form)
 
 SimRational term_form_constant(const TermForm &form)
 {
-    const auto found = s_term_slot_of.find(term_form_key(sim_rational(0ll, 1ll), TermPower()));
-    if ((found == s_term_slot_of.end()) || (found->second >= form.magnitude.size()) ||
+    const auto found = s_term_index_of.find(term_form_key(sim_rational(0ll, 1ll), TermPower()));
+    if ((found == s_term_index_of.end()) || (found->second >= form.magnitude.size()) ||
         (form.magnitude[found->second].sign == 0))
     {
         return sim_rational(0ll, 1ll);
@@ -456,13 +458,13 @@ SimRational term_form_constant(const TermForm &form)
 SimRational term_form_largest(const TermForm &form)
 {
     SimRational largest = sim_rational(0ll, 1ll);
-    for (size_t slot = 0u; slot < form.magnitude.size(); slot += 1u)
+    for (size_t term_at = 0u; term_at < form.magnitude.size(); term_at += 1u)
     {
-        if (form.magnitude[slot].sign == 0)
+        if (form.magnitude[term_at].sign == 0)
         {
             continue;
         }
-        const SimRational size = sim_rational_absolute(term_form_coefficient(form, slot));
+        const SimRational size = sim_rational_absolute(term_form_coefficient(form, term_at));
         if (sim_rational_sign(sim_rational_difference(size, largest)) > 0)
         {
             largest = size;
@@ -475,8 +477,8 @@ SimRational term_form_coefficient_of(const TermForm &form, unsigned int term)
 {
     TermPower power(term + 1u, 0u);
     power[term] = 1u;
-    const auto found = s_term_slot_of.find(term_form_key(sim_rational(0ll, 1ll), power));
-    if ((found == s_term_slot_of.end()) || !term_form_holds(form, found->second))
+    const auto found = s_term_index_of.find(term_form_key(sim_rational(0ll, 1ll), power));
+    if ((found == s_term_index_of.end()) || !term_form_has(form, found->second))
     {
         return sim_rational(0ll, 1ll);
     }
@@ -487,13 +489,13 @@ size_t term_form_e_count(const TermForm &form)
 {
     size_t count = 0u;
     const TermKey *last = NULL;
-    for (unsigned int slot : term_form_held(form))
+    for (unsigned int term_at : term_form_occupied(form))
     {
-        if ((last == NULL) || !sim_rational_equal(last->e, s_term_slots[slot].e))
+        if ((last == NULL) || !sim_rational_equal(last->e, s_term_keys[term_at].e))
         {
             count += 1u;
         }
-        last = &s_term_slots[slot];
+        last = &s_term_keys[term_at];
     }
     return count;
 }
@@ -501,13 +503,13 @@ size_t term_form_e_count(const TermForm &form)
 // one exact integer in decimal, its sign first
 static void term_form_write_integer(FILE *file, const OriorExactInteger &value, std::vector<char> *buffer)
 {
-    ScripturaLine line;
+    VerbaLinea line;
     line.out = buffer->data();
     line.capacity = buffer->size();
     line.at = 0ull;
     if (value.sign < 0)
     {
-        scriptura_character(&line, '-');
+        mmgr_line_ch(&line, '-');
     }
     sim_exact_decimal(&line, &value);
     if (line.at >= line.capacity)
@@ -521,10 +523,10 @@ void term_form_write(FILE *file, const TermForm &form, const std::vector<std::st
 {
     // a magnitude of the build's width in decimal, groups of nine, with room for its sign
     std::vector<char> buffer((size_t)(SIM_DECIMAL_GROUPS * SIM_DECIMAL_GROUP_DIGITS + 8ull));
-    for (unsigned int slot : term_form_held(form))
+    for (unsigned int term_at : term_form_occupied(form))
     {
-        const TermKey &key = s_term_slots[slot];
-        const SimRational coefficient = term_form_coefficient(form, slot);
+        const TermKey &key = s_term_keys[term_at];
+        const SimRational coefficient = term_form_coefficient(form, term_at);
         term_form_write_integer(file, coefficient.numerator, &buffer);
         fputc('/', file);
         term_form_write_integer(file, coefficient.denominator, &buffer);
@@ -558,33 +560,33 @@ size_t term_form_terms(const TermForm &form)
     return count;
 }
 
-std::vector<unsigned int> term_form_slots(const TermForm &form)
+std::vector<unsigned int> term_form_indices(const TermForm &form)
 {
-    return term_form_held(form);
+    return term_form_occupied(form);
 }
 
-int term_form_holds(const TermForm &form, unsigned int slot)
+int term_form_has(const TermForm &form, unsigned int term_at)
 {
-    return (slot < form.magnitude.size()) && (form.magnitude[slot].sign != 0);
+    return (term_at < form.magnitude.size()) && (form.magnitude[term_at].sign != 0);
 }
 
-const TermKey &term_form_key_at(unsigned int slot)
+const TermKey &term_form_key_at(unsigned int term_at)
 {
-    return s_term_slots[slot];
+    return s_term_keys[term_at];
 }
 
-SimRational term_form_coefficient_at(const TermForm &form, unsigned int slot)
+SimRational term_form_coefficient_at(const TermForm &form, unsigned int term_at)
 {
-    if (!term_form_holds(form, slot))
+    if (!term_form_has(form, term_at))
     {
         return sim_rational(0ll, 1ll);
     }
-    return term_form_coefficient(form, slot);
+    return term_form_coefficient(form, term_at);
 }
 
-std::string term_form_key_text(unsigned int slot, const std::vector<std::string> &names)
+std::string term_form_key_text(unsigned int term_at, const std::vector<std::string> &names)
 {
-    const TermKey &key = s_term_slots[slot];
+    const TermKey &key = s_term_keys[term_at];
     std::string text;
     if (sim_rational_sign(key.e) != 0)
     {

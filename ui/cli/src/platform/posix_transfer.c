@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // posix_transfer.c: a region of the transfer layer on Linux and macOS: a memory file sealed against every change once
 // written on Linux, an unlinked file in the reader's own temporary folder on macOS; and a descriptor sent over a socket
-// with a frame's first byte, and kept as it comes with the bytes read
+// with a frame's first byte, and queued as it comes with the bytes read
 #if !defined(_WIN32)
 // memfd_create and its seals are Linux's own; sendmsg's control headers are POSIX, outside strict C11
 #if defined(__linux__)
@@ -25,7 +25,7 @@
 #include <stdint.h>
 
 #if defined(__linux__)
-// the seals a region from another process holds before it is read: against writing, shrinking and growing, and
+// the seals a region from another process carries before it is read: against writing, shrinking and growing, and
 // against any of those seals taken off; and the calls that add them and read them, where the headers do not name them
 #define CLI_SEALED 15
 #ifndef F_ADD_SEALS
@@ -38,75 +38,75 @@
 #endif
 #endif
 
-// what the system said of the last call that failed, after `what`
-static void transfer_failed(CliLine *said, const char *what)
+// what the system reported of the last call that failed, after `what`
+static void transfer_failed(VerbaLinea *err_msg, const char *what)
 {
     const int error = errno;
-    cli_line_text(said, what);
-    cli_line_text(said, ": the system said ");
-    cli_line_decimal(said, (unsigned long long)error, 1u);
+    mmgr_line_put(err_msg, what);
+    mmgr_line_put(err_msg, ": the system reported ");
+    mmgr_line_decimal(err_msg, (unsigned long long)error, 1u);
 }
 
-// a descriptor of new memory of `size` bytes no other process can find: -1 with why said where none is made
-static int transfer_made(unsigned long long size, CliLine *said)
+// a descriptor of new memory of `size` bytes no other process can find: -1 with why given where none is made
+static int transfer_made(unsigned long long size, VerbaLinea *err_msg)
 {
 #if defined(__linux__)
     const int fd = memfd_create("orior-transfer", MFD_CLOEXEC | MFD_ALLOW_SEALING);
     if (fd < 0)
     {
-        transfer_failed(said, "the system made no region");
+        transfer_failed(err_msg, "the system made no region");
         return -1;
     }
 #else
     unsigned char secret[8];
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     char name[96];
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_random_bytes(secret, sizeof(secret)))
     {
-        cli_line_text(said, "the system gave no secret");
+        mmgr_line_put(err_msg, "the system gave no secret");
         return -1;
     }
-    CliLine named = {name, sizeof(name), 0ull};
-    cli_line_text(&named, "orior-transfer-");
-    cli_line_decimal(&named, cli_process_own(), 1u);
-    cli_line_character(&named, '-');
+    VerbaLinea named = {name, sizeof(name), 0ull};
+    mmgr_line_put(&named, "orior-transfer-");
+    mmgr_line_decimal(&named, cli_process_own(), 1u);
+    mmgr_line_ch(&named, '-');
     for (unsigned int at = 0u; at < sizeof(secret); at += 1u)
     {
-        cli_line_character(&named, "0123456789abcdef"[secret[at] >> 4u]);
-        cli_line_character(&named, "0123456789abcdef"[secret[at] & 15u]);
+        mmgr_line_ch(&named, "0123456789abcdef"[secret[at] >> 4u]);
+        mmgr_line_ch(&named, "0123456789abcdef"[secret[at] & 15u]);
     }
-    cli_line_closed(&named);
+    mmgr_line_finish(&named);
     cli_temp_folder(folder);
     cli_full(folder, name, path);
     const int fd = open(path, O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
     if (fd < 0)
     {
-        transfer_failed(said, path);
+        transfer_failed(err_msg, path);
         return -1;
     }
     (void)unlink(path);
 #endif
     if (ftruncate(fd, (off_t)size) != 0)
     {
-        transfer_failed(said, "the region was not sized");
+        transfer_failed(err_msg, "the region was not sized");
         close(fd);
         return -1;
     }
     return fd;
 }
 
-int cli_region_with(CliRegion *region, const void *bytes, unsigned long long size, CliLine *said)
+int cli_region_with(CliRegion *region, const void *bytes, unsigned long long size, VerbaLinea *err_msg)
 {
     memor.set(&(MemoriaCfg){.dst = region, .val = 0, .bytes = sizeof(*region)});
     if (size > CLI_TRANSFER_MOST)
     {
-        cli_line_decimal(said, size, 1u);
-        cli_line_text(said, " bytes is past the most a region holds");
+        mmgr_line_decimal(err_msg, size, 1u);
+        mmgr_line_put(err_msg, " bytes is past the most a region supports");
         return 0;
     }
     const unsigned long long room = (size > 0ull) ? size : 1ull;
-    const int fd = transfer_made(room, said);
+    const int fd = transfer_made(room, err_msg);
     if (fd < 0)
     {
         return 0;
@@ -114,7 +114,7 @@ int cli_region_with(CliRegion *region, const void *bytes, unsigned long long siz
     void *view = mmap(NULL, (size_t)room, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED)
     {
-        transfer_failed(said, "the system showed no region");
+        transfer_failed(err_msg, "the system showed no region");
         close(fd);
         return 0;
     }
@@ -124,14 +124,14 @@ int cli_region_with(CliRegion *region, const void *bytes, unsigned long long siz
     munmap(view, (size_t)room);
     if (fcntl(fd, F_ADD_SEALS, CLI_SEALED) != 0)
     {
-        transfer_failed(said, "the region was not sealed");
+        transfer_failed(err_msg, "the region was not sealed");
         close(fd);
         return 0;
     }
     view = mmap(NULL, (size_t)room, PROT_READ, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED)
     {
-        transfer_failed(said, "the system showed no region");
+        transfer_failed(err_msg, "the system showed no region");
         close(fd);
         return 0;
     }
@@ -139,18 +139,18 @@ int cli_region_with(CliRegion *region, const void *bytes, unsigned long long siz
     region->section = (unsigned long long)fd;
     region->view = (const unsigned char *)view;
     region->length = size;
-    region->held = 1;
+    region->mapped = 1;
     return 1;
 }
 
-// a refusal of the descriptor `fd` that came from another process: it closed, why said already
+// a refusal of the descriptor `fd` that came from another process: it closed, why given already
 static int transfer_refused(int fd)
 {
     close(fd);
     return 0;
 }
 
-int cli_region_received(CliRegion *region, unsigned long long handle, unsigned long long length, CliLine *said)
+int cli_region_received(CliRegion *region, unsigned long long handle, unsigned long long length, VerbaLinea *err_msg)
 {
     memor.set(&(MemoriaCfg){.dst = region, .val = 0, .bytes = sizeof(*region)});
     // the descriptor is the region's from now on, and closed on each path that fails
@@ -159,36 +159,36 @@ int cli_region_received(CliRegion *region, unsigned long long handle, unsigned l
     const unsigned long long room = (length > 0ull) ? length : 1ull;
     if (length > CLI_TRANSFER_MOST)
     {
-        cli_line_decimal(said, length, 1u);
-        cli_line_text(said, " bytes is past the most a region holds");
+        mmgr_line_decimal(err_msg, length, 1u);
+        mmgr_line_put(err_msg, " bytes is past the most a region supports");
         return transfer_refused(fd);
     }
     if ((size < 0) || ((unsigned long long)size < length))
     {
-        cli_line_text(said, "the region holds ");
-        cli_line_signed(said, (long long)size);
-        cli_line_text(said, " bytes, and was said to hold ");
-        cli_line_decimal(said, length, 1u);
+        mmgr_line_put(err_msg, "the region contains ");
+        mmgr_line_decimal_signed(err_msg, (long long)size);
+        mmgr_line_put(err_msg, " bytes, and was declared to contain ");
+        mmgr_line_decimal(err_msg, length, 1u);
         return transfer_refused(fd);
     }
 #if defined(__linux__)
     if ((fcntl(fd, F_GET_SEALS) & CLI_SEALED) != CLI_SEALED)
     {
-        cli_line_text(said, "the region is not sealed against change");
+        mmgr_line_put(err_msg, "the region is not sealed against change");
         return transfer_refused(fd);
     }
     // the view is no longer than the region, which no one can shrink
     const void *const view = mmap(NULL, (size_t)room, PROT_READ, MAP_SHARED, fd, 0);
     if (view == MAP_FAILED)
     {
-        transfer_failed(said, "the system showed no region");
+        transfer_failed(err_msg, "the system showed no region");
         return transfer_refused(fd);
     }
     region->section = (unsigned long long)fd;
 #else
     // the process that made the region could change it still, so it is copied whole into a region of this process's
-    // own, which no one else holds
-    const int own = transfer_made(room, said);
+    // own, which no one else has
+    const int own = transfer_made(room, err_msg);
     if (own < 0)
     {
         return transfer_refused(fd);
@@ -196,7 +196,7 @@ int cli_region_received(CliRegion *region, unsigned long long handle, unsigned l
     void *const view = mmap(NULL, (size_t)room, PROT_READ | PROT_WRITE, MAP_SHARED, own, 0);
     if (view == MAP_FAILED)
     {
-        transfer_failed(said, "the system showed no region");
+        transfer_failed(err_msg, "the system showed no region");
         close(own);
         return transfer_refused(fd);
     }
@@ -205,11 +205,11 @@ int cli_region_received(CliRegion *region, unsigned long long handle, unsigned l
         const ssize_t got = pread(fd, (unsigned char *)view + at, (size_t)(length - at), (off_t)at);
         if (got <= 0)
         {
-            cli_line_text(said, "the region ended at ");
-            cli_line_decimal(said, at, 1u);
-            cli_line_text(said, " of its ");
-            cli_line_decimal(said, length, 1u);
-            cli_line_text(said, " bytes");
+            mmgr_line_put(err_msg, "the region ended at ");
+            mmgr_line_decimal(err_msg, at, 1u);
+            mmgr_line_put(err_msg, " of its ");
+            mmgr_line_decimal(err_msg, length, 1u);
+            mmgr_line_put(err_msg, " bytes");
             munmap(view, (size_t)room);
             close(own);
             return transfer_refused(fd);
@@ -221,13 +221,13 @@ int cli_region_received(CliRegion *region, unsigned long long handle, unsigned l
 #endif
     region->view = (const unsigned char *)view;
     region->length = length;
-    region->held = 1;
+    region->mapped = 1;
     return 1;
 }
 
 void cli_region_closed(CliRegion *region)
 {
-    if (region->held)
+    if (region->mapped)
     {
         // the view's bytes given back as the system took them, writable or not
         munmap((void *)(uintptr_t)region->view, (size_t)((region->length > 0ull) ? region->length : 1ull));

@@ -46,7 +46,7 @@
 
 // the camera's shot laws, 0 for none: sim_poisson_four_cumulants, the camera's own, whose first four cumulants are
 // each S, a Poisson count's; and Binomial(4S, 1/2) - S, of mean and variance S but symmetric (third cumulant 0,
-// fourth -S/2), kept for a sim to read beside it
+// fourth -S/2), stored for a sim to read beside it
 #define SIM_SHOT_POISSON 1ull
 
 #define SIM_SHOT_SYMMETRIC 2ull
@@ -97,7 +97,7 @@ typedef struct
     unsigned long long row_square;
     unsigned long long column_square;
     unsigned long long plane_square;
-    // flicker octaves 0 up to this count, each a draw of flicker_square held for 2^o frames at a voxel
+    // flicker octaves 0 up to this count, each a draw of flicker_square sustained for 2^o frames at a voxel
     unsigned long long flicker_square;
     unsigned int flicker_octaves;
     // a spike of spike_electrons at a voxel-frame, at the rate numerator over denominator
@@ -109,19 +109,19 @@ typedef struct
     // drawn per voxel-frame (kTC), level-free like the read
     unsigned long long dark;
     unsigned long long reset_square;
-    // a count law's stages after the draw, each off unless set (rows 12 to 14): every counted electron kept with
-    // chance keep_numerator / 2^keep_bits, keep_bits 1 to 16 (quantum efficiency, a binomial thinning); then, where
+    // a count law's stages after the draw, each off unless set (rows 12 to 14): every counted electron retained with
+    // chance thin_numerator / 2^thin_bits, thin_bits 1 to 16 (quantum efficiency, a binomial thinning); then, where
     // excess is set, every electron left doubled or lost with chance 1/2, F^2 = 2 (an electron-multiplying register)
-    unsigned long long keep_numerator;
-    unsigned int keep_bits;
+    unsigned long long thin_numerator;
+    unsigned int thin_bits;
     unsigned int excess;
     // optical crosstalk (row 16), 0 unless set, 1 to 4: the light takes blur_eighths / 8 of each x neighbor's before
-    // the draw and keeps (8 - 2 blur_eighths) / 8 of its own, rounded to the nearest; an edge voxel's missing
+    // the draw and retains (8 - 2 blur_eighths) / 8 of its own, rounded to the nearest; an edge voxel's missing
     // neighbor is itself
     unsigned long long blur_eighths;
     // a light scale shared by the whole volume, with memory (row 10), off unless scale_bits is set, 1 to 32: frame t's
     // light times (2^scale_bits + e_t) / 2^scale_bits before the draw, rounded to the nearest, e_t the sum of
-    // scale_octaves draws of variance scale_square, octave o's held for 2^o frames
+    // scale_octaves draws of variance scale_square, octave o's sustained for 2^o frames
     unsigned long long scale_square;
     unsigned int scale_octaves;
     unsigned int scale_bits;
@@ -164,7 +164,7 @@ static inline void sim_founders_draw(SimDraws *draws, const SimScene *scene, Sim
     for (unsigned int index = 0u; index < founders; index += 1u)
     {
         SimBody *const founder = &body[index];
-        // each extent is far below 2^63, and the margins keep a founder inside at birth
+        // each extent is far below 2^63, and the margins place a founder inside at birth
         founder->center[0] = (long long)sim_draws_between(draws, 4ull, scene->extent[0] - 5ull);
         founder->center[1] = (long long)sim_draws_between(draws, 16ull, scene->extent[1] - 17ull);
         founder->center[2] = (long long)sim_draws_between(draws, 16ull, scene->extent[2] - 17ull);
@@ -185,7 +185,7 @@ static inline void sim_founders_draw(SimDraws *draws, const SimScene *scene, Sim
 static inline __host__ __device__ long long sim_body_at(const SimBody *body, unsigned long long frame,
                                                         unsigned int axis)
 {
-    // frames since birth are below the frame count, which the scene keeps far under 2^63
+    // frames since birth are below the frame count, which the scene bounds far under 2^63
     return body->center[axis] + (body->velocity[axis] * (long long)(frame - body->born));
 }
 
@@ -243,7 +243,7 @@ static inline __host__ __device__ long long sim_centerd(unsigned long long key, 
     return (long long)sim_binomial_half(key, counter, 4ull * square) - (2ll * (long long)square);
 }
 
-// the shared scale's e_t in frame t: scale_octaves draws of variance scale_square, octave o's held for 2^o frames
+// the shared scale's e_t in frame t: scale_octaves draws of variance scale_square, octave o's sustained for 2^o frames
 static inline __host__ __device__ long long sim_scale(const SimCamera *camera, unsigned long long frame)
 {
     long long shared = 0ll;
@@ -257,7 +257,7 @@ static inline __host__ __device__ long long sim_scale(const SimCamera *camera, u
 }
 
 // The light a voxel's draw is made from: the scene's signal, blurred along x before the draw, then scaled by the
-// shared scale, each where the camera says so.
+// shared scale, each where the camera specifies so.
 static inline __host__ __device__ unsigned long long sim_light(const SimScene *scene, const SimCamera *camera,
                                                                unsigned long long frame, const long long *place)
 {
@@ -275,7 +275,7 @@ static inline __host__ __device__ unsigned long long sim_light(const SimScene *s
     }
     if (camera->scale_bits != 0u)
     {
-        // the unit is far below 2^62, and the scale is held at 1 at least
+        // the unit is far below 2^62, and the scale is at least 1
         const long long unit = 1ll << camera->scale_bits;
         const long long scale = unit + sim_scale(camera, frame);
         const unsigned long long factor = (scale < 1ll) ? 1ull : (unsigned long long)scale;

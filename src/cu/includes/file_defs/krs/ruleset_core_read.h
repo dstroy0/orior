@@ -17,7 +17,7 @@ CODEGEN_CORE int ruleset_core_ended(RulesetCoreRead *read, unsigned int end, uns
 }
 
 // one entry of a ruleset, `kind` the first word of its line and `rest` the rest of the line, read against the
-// ruleset's schema, as ruleset_entry reads it: 1 where the entry holds, else 0 and why in the read's end
+// ruleset's schema, as ruleset_entry reads it: 1 where the entry is valid, else 0 and why in the read's end
 CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind, RulesetCoreSpan rest)
 {
     const RulesetCoreSchema *const schema = &read->schema;
@@ -37,7 +37,7 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind,
     const unsigned int parameter_count = (head_count == 0u) ? 0u : (head_count - 1u);
     RulesetCoreTemplate form = {0u, 0u, 0u};
     // the head: the ruleset's name, the toolchain that builds its text, where its header comes from, and the three a
-    // file may leave out: shared, 1 where the lane holds the file and its signs in shared memory; write_ports, the
+    // file may leave out: shared, 1 where the lane stores the file and its signs in shared memory; write_ports, the
     // memory writes its text can make in one state; and part, the part whose .krs and .kdm are read after the file
     if (ruleset_core_is(read, kind, "ruleset") || ruleset_core_is(read, kind, "toolchain") ||
         ruleset_core_is(read, kind, "header") || ruleset_core_is(read, kind, "shared") ||
@@ -86,7 +86,7 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind,
     if (ruleset_core_is(read, kind, "form"))
     {
         const unsigned int named = ruleset_core_find(read, schema->forms, schema->form_count, name);
-        // a form with nothing after its equals has not said whether it is a nop or an error, and is neither
+        // a form with nothing after its equals has not specified whether it is a nop or an error, and is neither
         if ((has_equals == 0) || (text.length == 0u) || (named == schema->form_count) ||
             (parameter_count != schema->form_parameters[named]) || (read->form_given[named] != 0u) ||
             !ruleset_core_split(read, text, read->text, parameters, parameter_count, 1, &form))
@@ -135,8 +135,8 @@ CODEGEN_CORE int ruleset_core_entry(RulesetCoreRead *read, RulesetCoreSpan kind,
 }
 
 // one line of the construct being read, as ruleset_pseudo_line reads it: `end` closes it, and any other line is a
-// form, or a construct given before it in the file, and its arguments, split at spaces. 1 where the line holds, else 0
-// and why in the read's end
+// form, or a construct given before it in the file, and its arguments, split at spaces. 1 where the line is valid, else
+// 0 and why in the read's end
 CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan line)
 {
     const RulesetCoreSchema *const schema = &read->schema;
@@ -175,7 +175,7 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
                                    read->building_parameters[parameter].length))
             {
                 argument.kind = RULESET_CORE_PARAMETER;
-                argument.slot = parameter;
+                argument.placeholder = parameter;
             }
         }
         const unsigned int colon = ruleset_core_find_letter(read, word, (unsigned char)':', 0u);
@@ -190,7 +190,7 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
                 return ruleset_core_ended(read, RULESET_CORE_SCRATCH_WORD, read->building, word);
             }
             argument.kind = RULESET_CORE_SCRATCH;
-            argument.slot = bank;
+            argument.placeholder = bank;
             argument.number = number;
         }
         read->arguments[read->argument_count] = argument;
@@ -206,7 +206,7 @@ CODEGEN_CORE int ruleset_core_pseudo_line(RulesetCoreRead *read, RulesetCoreSpan
 // Each place of a given form that names a fixed register written as the register's text, once every fixed register is
 // given: the piece before the place, the register and the piece after it one piece, written past the letters read.
 // The pieces of one form are folded into the piece being written while it ends the letters, and copied only where it
-// does not. 0 where the letters the read was given cannot hold them
+// does not. 0 where the letters the read was given cannot contain them
 CODEGEN_CORE int ruleset_core_fixed_folded(RulesetCoreRead *read)
 {
     for (unsigned int named = 0u; named < read->schema.form_count; named += 1u)
@@ -217,15 +217,15 @@ CODEGEN_CORE int ruleset_core_fixed_folded(RulesetCoreRead *read)
             continue;
         }
         unsigned int written = 0u;
-        unsigned int slots = 0u;
-        for (unsigned int slot = 0u; (slot + 1u) < form->piece_count; slot += 1u)
+        unsigned int remaining = 0u;
+        for (unsigned int at = 0u; (at + 1u) < form->piece_count; at += 1u)
         {
-            const unsigned int value = read->slots[form->slot_first + slot];
-            const RulesetCoreSpan after = read->pieces[form->piece_first + slot + 1u];
+            const unsigned int value = read->placeholders[form->placeholder_first + at];
+            const RulesetCoreSpan after = read->pieces[form->piece_first + at + 1u];
             if (value < RULESET_CORE_FIXED_PLACE)
             {
-                read->slots[form->slot_first + slots] = value;
-                slots += 1u;
+                read->placeholders[form->placeholder_first + remaining] = value;
+                remaining += 1u;
                 written += 1u;
                 read->pieces[form->piece_first + written] = after;
                 continue;
@@ -266,7 +266,7 @@ CODEGEN_CORE int ruleset_core_fixed_folded(RulesetCoreRead *read)
 }
 
 // the file read into the read against its schema, as ruleset_read reads it past opening the file: its first line is
-// krs 1, every entry holds, and every bank, fixed register and form the code generator names is given with the
+// krs 1, every entry is valid, and every bank, fixed register and form the code generator names is given with the
 // ruleset's name, toolchain and header, else the read ends with why. A line that begins with # is a comment, and a
 // blank line is nothing
 CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
@@ -276,7 +276,7 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
     const RulesetCoreTemplate empty = {0u, 0u, 0u};
     read->letter_count = 0u;
     read->piece_count = 0u;
-    read->slot_count = 0u;
+    read->placeholder_count = 0u;
     read->line_count = 0u;
     read->argument_count = 0u;
     read->name = none;
@@ -311,13 +311,13 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
     const RulesetCoreSpan file = {0u, read->text_length};
     unsigned int number = 0u;
     unsigned int at = 0u;
-    int holds = 1;
-    while ((at < read->text_length) && (holds != 0))
+    int ok = 1;
+    while ((at < read->text_length) && (ok != 0))
     {
         const unsigned int end = ruleset_core_find_letter(read, file, (unsigned char)'\n', at);
         // a checkout that ends its lines with a carriage return as well leaves each line as it was written
-        const unsigned int kept = ((end > at) && (read->text[end - 1u] == '\r')) ? (end - 1u) : end;
-        const RulesetCoreSpan line = {at, kept - at};
+        const unsigned int line_end = ((end > at) && (read->text[end - 1u] == '\r')) ? (end - 1u) : end;
+        const RulesetCoreSpan line = {at, line_end - at};
         number += 1u;
         at = end + 1u;
         const unsigned int space = ruleset_core_find_letter(read, line, (unsigned char)' ', 0u);
@@ -325,24 +325,24 @@ CODEGEN_CORE void ruleset_core_read(RulesetCoreRead *read)
         read->line = number;
         if (number == 1u)
         {
-            holds = ruleset_core_is(read, line, "krs 1") ? 1 : ruleset_core_ended(read, RULESET_CORE_NOT_KRS, 0u, none);
+            ok = ruleset_core_is(read, line, "krs 1") ? 1 : ruleset_core_ended(read, RULESET_CORE_NOT_KRS, 0u, none);
         }
         else if ((line.length == 0u) || (read->text[line.first] == '#'))
         {
-            holds = 1;
+            ok = 1;
         }
         else if (constructing)
         {
-            holds = ruleset_core_pseudo_line(read, line);
+            ok = ruleset_core_pseudo_line(read, line);
         }
         else
         {
             const RulesetCoreSpan rest =
                 (space == line.length) ? none : ruleset_core_part(line, space + 1u, line.length);
-            holds = ruleset_core_entry(read, ruleset_core_part(line, 0u, space), rest);
+            ok = ruleset_core_entry(read, ruleset_core_part(line, 0u, space), rest);
         }
     }
-    if (holds == 0)
+    if (ok == 0)
     {
         return;
     }

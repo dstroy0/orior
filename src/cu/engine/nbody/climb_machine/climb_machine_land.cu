@@ -3,7 +3,7 @@
 // climb_machine_land.cu: land, boxes, maps and rows
 #include "climb_machine_internal.h"
 
-__global__ void machine_land_mass_kernel(const unsigned int *climber_side, const unsigned int *side_slots,
+__global__ void machine_land_mass_kernel(const unsigned int *climber_side, const unsigned int *side_residents,
                                          const unsigned int *climber_entry_start, const unsigned int *entry_first,
                                          const unsigned int *entry_end, const int *centers,
                                          const unsigned int *row_first, const unsigned int *run_at_row,
@@ -18,7 +18,7 @@ __global__ void machine_land_mass_kernel(const unsigned int *climber_side, const
         return;
     }
     const unsigned int side = climber_side[climber];
-    const unsigned long long other = (unsigned long long)side_slots[(2u * side) + 1u];
+    const unsigned long long other = (unsigned long long)side_residents[(2u * side) + 1u];
     const int *const center = &centers[3u * climber];
     const unsigned int plane = geometry.height * geometry.width;
     unsigned int best_leaf = CLIMB_MACHINE_OUTSIDE;
@@ -76,7 +76,7 @@ __global__ void machine_land_mass_kernel(const unsigned int *climber_side, const
     landed[climber] = best_leaf;
 }
 
-__global__ void machine_land_kernel(const unsigned int *climber_side, const unsigned int *side_slots,
+__global__ void machine_land_kernel(const unsigned int *climber_side, const unsigned int *side_residents,
                                     const unsigned int *climber_peak, const int *centers, const unsigned int *row_first,
                                     const unsigned int *run_at_row, const unsigned int *run_start,
                                     const unsigned int *run_length, const unsigned int *run_leaf,
@@ -101,7 +101,7 @@ __global__ void machine_land_kernel(const unsigned int *climber_side, const unsi
         landed[climber] = CLIMB_MACHINE_OUTSIDE;
         return;
     }
-    const unsigned long long other = (unsigned long long)side_slots[(2u * climber_side[climber]) + 1u];
+    const unsigned long long other = (unsigned long long)side_residents[(2u * climber_side[climber]) + 1u];
     const unsigned long long voxel =
         (unsigned long long)((z * (long long)geometry.height + y) * (long long)geometry.width + x);
     const unsigned long long rows = (unsigned long long)geometry.depth * geometry.height;
@@ -128,7 +128,7 @@ __global__ void machine_land_kernel(const unsigned int *climber_side, const unsi
 }
 
 __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, MachineBoxCells box,
-                                   const unsigned int *climber_side, const unsigned int *side_slots,
+                                   const unsigned int *climber_side, const unsigned int *side_residents,
                                    const unsigned int *climber_entry_start, const unsigned int *entry_first,
                                    const unsigned int *entry_end, const unsigned int *row_first,
                                    const unsigned int *run_at_row, const unsigned int *run_start,
@@ -150,8 +150,8 @@ __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, Mac
     const unsigned int write_at = (writing != 0u) ? box.entry_first[cell] : 0u;
     unsigned int pieces = 0u;
     const unsigned int side = climber_side[climber];
-    const unsigned long long own_word = (unsigned long long)side_slots[2u * side] * geometry.words;
-    const unsigned long long other = (unsigned long long)side_slots[(2u * side) + 1u];
+    const unsigned long long own_word = (unsigned long long)side_residents[2u * side] * geometry.words;
+    const unsigned long long other = (unsigned long long)side_residents[(2u * side) + 1u];
     const unsigned long long other_word = other * geometry.words;
     const unsigned long long rows = (unsigned long long)geometry.depth * geometry.height;
     const unsigned long long base = other * (unsigned long long)run_capacity;
@@ -209,19 +209,19 @@ __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, Mac
                     box.count[write_at + pieces] = shared;
                 }
                 pieces += 1u;
-                unsigned int slot = used;
+                unsigned int resident = used;
                 for (unsigned int seen = 0u; seen < used; seen += 1u)
                 {
-                    slot = (targets[seen] == leaf) ? seen : slot;
+                    resident = (targets[seen] == leaf) ? seen : resident;
                 }
-                if ((slot == used) && (used == CLIMB_MACHINE_BOX_TARGETS))
+                if ((resident == used) && (used == CLIMB_MACHINE_BOX_TARGETS))
                 {
                     overflow = 1u;
                     continue;
                 }
-                targets[slot] = leaf;
-                counts[slot] = (slot == used) ? shared : (counts[slot] + shared);
-                used += (slot == used) ? 1u : 0u;
+                targets[resident] = leaf;
+                counts[resident] = (resident == used) ? shared : (counts[resident] + shared);
+                used += (resident == used) ? 1u : 0u;
             }
         }
     }
@@ -240,10 +240,10 @@ __global__ void machine_box_kernel(unsigned int cells, unsigned int writing, Mac
         box.cell_raw[cell] = overflow;
         return;
     }
-    for (unsigned int slot = 0u; (raw == 0u) && (slot < used); slot += 1u)
+    for (unsigned int resident = 0u; (raw == 0u) && (resident < used); resident += 1u)
     {
-        box.target[write_at + slot] = targets[slot];
-        box.count[write_at + slot] = counts[slot];
+        box.target[write_at + resident] = targets[resident];
+        box.count[write_at + resident] = counts[resident];
     }
     const unsigned int last = (raw != 0u) ? pieces : used;
     if (outside != 0u)
@@ -274,7 +274,7 @@ __global__ void machine_row_kernel(const unsigned int *labels, const int *map, u
     }
     const unsigned int first = row * geometry.width;
     const unsigned int end = first + geometry.width;
-    unsigned int slot = (offsets != NULL) ? offsets[row] : 0u;
+    unsigned int resident = (offsets != NULL) ? offsets[row] : 0u;
     unsigned int runs = 0u;
     unsigned int voxel = first;
     while (voxel < end)
@@ -293,10 +293,10 @@ __global__ void machine_row_kernel(const unsigned int *labels, const int *map, u
         }
         if (offsets != NULL)
         {
-            run_start[slot] = start;
-            run_length[slot] = voxel - start;
-            run_leaf[slot] = (unsigned int)leaf;
-            slot += 1u;
+            run_start[resident] = start;
+            run_length[resident] = voxel - start;
+            run_leaf[resident] = (unsigned int)leaf;
+            resident += 1u;
         }
         runs += 1u;
     }
@@ -328,13 +328,13 @@ int machine_launched(void)
     return (cudaGetLastError() == cudaSuccess) ? 1 : 0;
 }
 
-unsigned int machine_slot_of(const ClimbMachine *machine, unsigned int frame)
+unsigned int machine_resident_of(const ClimbMachine *machine, unsigned int frame)
 {
-    for (unsigned int slot = 0u; slot < machine->capacity; slot += 1u)
+    for (unsigned int resident = 0u; resident < machine->capacity; resident += 1u)
     {
-        if (machine->slot_frame[slot] == frame)
+        if (machine->resident_frame[resident] == frame)
         {
-            return slot;
+            return resident;
         }
     }
     return CLIMB_MACHINE_EMPTY;

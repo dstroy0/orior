@@ -28,7 +28,8 @@ void stick_nvcc_read(const char *path)
                 }
                 if (at == s_kernels)
                 {
-                    s_kernel = (StickKernel *)stick_held(realloc(s_kernel, (s_kernels + 1u) * sizeof(StickKernel)));
+                    s_kernel =
+                        (StickKernel *)stick_allocated(realloc(s_kernel, (s_kernels + 1u) * sizeof(StickKernel)));
                     memset(&s_kernel[at], 0, sizeof(StickKernel));
                     s_kernel[at].name = stick_copy(name, length);
                     s_kernels += 1u;
@@ -46,7 +47,7 @@ void stick_nvcc_read(const char *path)
     }
 }
 
-// the operations of the listing nvdisasm wrote at `path`, in order, NOP left out, kept after `operations`
+// the operations of the listing nvdisasm wrote at `path`, in order, NOP left out, stored after `operations`
 static void stick_listing_operations(const char *path, StickNumbers *operations)
 {
     stick_read(path);
@@ -95,8 +96,8 @@ static void stick_lane_operations(const char *path, StickNumbers *operations)
     }
 }
 
-// the tab-apart cells of `line`, at most `most` of them, the last holding the rest of the line: their count, each cell
-// a copy at `cell`
+// the tab-apart cells of `line`, at most `most` of them, the last containing the rest of the line: their count, each
+// cell a copy at `cell`
 unsigned int stick_cells(const char *line, char **cell, unsigned int most)
 {
     unsigned int count = 0u;
@@ -137,7 +138,7 @@ void stick_engine_read(const char *table, const char *directory)
             }
             if (at == s_engines)
             {
-                s_engine = (StickEngine *)stick_held(realloc(s_engine, (s_engines + 1u) * sizeof(StickEngine)));
+                s_engine = (StickEngine *)stick_allocated(realloc(s_engine, (s_engines + 1u) * sizeof(StickEngine)));
                 memset(&s_engine[at], 0, sizeof(StickEngine));
                 s_engine[at].name = stick_copy(name, strlen(name));
                 s_engines += 1u;
@@ -176,9 +177,9 @@ void stick_engine_read(const char *table, const char *directory)
 }
 
 // the operations the SASS ruleset's forms write, each instruction of each form's text, its guard cut, marked in
-// `held`, from sass.krs at `path`, then sm_86.krs and the blocks of the ruleset's language of sm_86.kdm beside it,
+// `buffer`, from sass.krs at `path`, then sm_86.krs and the blocks of the ruleset's language of sm_86.kdm beside it,
 // then those of sass.ksc beside it
-void stick_ruleset_operations(const char *path, unsigned char **held, unsigned int *room)
+void stick_ruleset_operations(const char *path, unsigned char **buffer, unsigned int *room)
 {
     // the folder sass.krs stands in, to its last separator, and its stem, to the dot of its extension
     const char *slash = NULL;
@@ -197,7 +198,7 @@ void stick_ruleset_operations(const char *path, unsigned char **held, unsigned i
     for (unsigned int file = 0u; file < 4u; file += 1u)
     {
         stick_read(files[file]);
-        // a .krs is the ruleset's language whole; a .kdm and a .ksc hold it in its blocks (klang.h)
+        // a .krs is the ruleset's language whole; a .kdm and a .ksc contain it in its blocks (klang.h)
         unsigned int from = 0u;
         unsigned int first = 0u;
         unsigned int past = s_file.lines;
@@ -246,11 +247,11 @@ void stick_ruleset_operations(const char *path, unsigned char **held, unsigned i
                         if (operation >= *room)
                         {
                             const unsigned int grown = (operation + 1u) * 2u;
-                            *held = (unsigned char *)stick_held(realloc(*held, grown));
-                            memset(&(*held)[*room], 0, grown - *room);
+                            *buffer = (unsigned char *)stick_allocated(realloc(*buffer, grown));
+                            memset(&(*buffer)[*room], 0, grown - *room);
                             *room = grown;
                         }
-                        (*held)[operation] = 1u;
+                        (*buffer)[operation] = 1u;
                     }
                     free(cut);
                     if (newline == NULL)
@@ -269,7 +270,7 @@ void stick_ruleset_operations(const char *path, unsigned char **held, unsigned i
     }
 }
 
-// the kernel named `name`, or NULL where nvcc's listing holds none
+// the kernel named `name`, or NULL where nvcc's listing contains none
 const StickEngine *stick_engine_of(const char *name)
 {
     for (unsigned int at = 0u; at < s_engines; at += 1u)
@@ -294,8 +295,8 @@ int stick_name_order(const void *left, const void *right)
     return strcmp(s_name[*(const unsigned int *)left], s_name[*(const unsigned int *)right]);
 }
 
-// `text` with every `|` written `\|`, written into `record`, which holds `room`, at `at`: the offset past it, `room`
-// where it did not fit
+// `text` with every `|` written `\|`, written into `record`, which has room for `room`, at `at`: the offset past it,
+// `room` where it did not fit
 size_t stick_escaped(char *record, size_t room, size_t at, const char *text)
 {
     size_t written = at;
@@ -320,9 +321,9 @@ void stick_counted(const StickNumbers *operations, unsigned int *count)
     }
 }
 
-// each operation `count` holds more of than `less`, `<name> <more>`, apart by ", ", in the order of their names,
-// written into `record`, which holds `room`, at `at`; `less` NULL where none is taken away: the offset past them,
-// `room` where they did not fit
+// each operation `count` contains more of than `less`, `<name> <more>`, apart by ", ", in the order of their names,
+// written into `record`, which has room for `room`, at `at`; `less` NULL where none is taken away: the offset past
+// them, `room` where they did not fit
 size_t stick_counts_written(char *record, size_t room, size_t at, const unsigned int *order, const unsigned int *count,
                             const unsigned int *less)
 {

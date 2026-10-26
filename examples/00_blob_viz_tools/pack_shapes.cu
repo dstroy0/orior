@@ -1,14 +1,14 @@
 /* Greedy packing on a surface, on the device. The count can be taken where sampling on a host
  * cannot reach.
  *
- * Prints one line: shape dims gap typical kept candidates
+ * Prints one line: shape dims gap typical accepted candidates
  *
  * WHAT IS ON THE DEVICE AND WHAT IS NOT
  *
- * Greedy packing is sequential by definition: whether a point is kept depends on every point kept
- * before it. What parallelizes is the expensive half, which is asking one candidate whether it
- * clears every point already kept. So the device answers that for a batch at a time and the host
- * walks the batch in order, settling the few candidates that clear the kept set against each other.
+ * Greedy packing is sequential by definition: whether a point is accepted depends on every point accepted
+ * before it. What parallelizes is the expensive half, which is testing one candidate whether it
+ * clears every point already accepted. So the device answers that for a batch at a time and the host
+ * walks the batch in order, settling the few candidates that clear the accepted set against each other.
  *
  * The answer is the same answer a purely sequential pass would give, and that is checked instead of
  * asserted: the driver runs this and the host version over the same shapes at low dimensions
@@ -17,7 +17,7 @@
  * WHY THE GAP IS NOT PASSED IN
  *
  * A gap that means one thing on a sphere means another on a cube of nominally similar size, and a
- * fixed gap stops meaning anything at all as the dimension climbs. So the caller asks for a
+ * fixed gap stops meaning anything at all as the dimension climbs. So the caller requests for a
  * fraction, the device measures the middle distance between two points on this surface, and the gap
  * is that fraction of it. The fraction is comparable across shapes and dimensions where an absolute
  * length is not.
@@ -91,7 +91,7 @@ __host__ __device__ inline void place(float *out, int dims, int shape, uint64_t 
     if (shape == CUBE)
     {
         /* A facet first and then a place on it. Drawing inside the solid and pushing outward
-         * instead crowds the corners. A cube then looks as though it holds more than it
+         * instead crowds the corners. A cube then looks as though it contains more than it
          * does, and the error grows with the dimension. */
         int facet = (int)(next_unit(state) * dims);
         if (facet >= dims)
@@ -146,13 +146,13 @@ __global__ void make_points(float *points, int count, int dims, int shape, uint6
 }
 
 /**
- * @brief Marks which candidates in this batch sit clear of every point already kept.
+ * @brief Marks which candidates in this batch sit clear of every point already accepted.
  *
- * One thread per candidate, walking the kept set. The kept set is read by every thread in the
+ * One thread per candidate, walking the accepted set. The accepted set is read by every thread in the
  * block in the same order. It streams out of cache instead of being fetched per thread.
  */
-__global__ void clear_of_kept(const float *kept, int kept_count, const float *batch, int batch_count,
-                              int dims, float limit, int *ok)
+__global__ void clear_of_placed(const float *placed, int placed_count, const float *batch, int batch_count, int dims,
+                                float limit, int *ok)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= batch_count)
@@ -161,9 +161,9 @@ __global__ void clear_of_kept(const float *kept, int kept_count, const float *ba
     }
     const float *mine = batch + (size_t)index * dims;
     int clear = 1;
-    for (int other = 0; other < kept_count && clear; other++)
+    for (int other = 0; other < placed_count && clear; other++)
     {
-        const float *theirs = kept + (size_t)other * dims;
+        const float *theirs = placed + (size_t)other * dims;
         float total = 0.0f;
         for (int at = 0; at < dims; at++)
         {
@@ -183,7 +183,7 @@ __global__ void clear_of_kept(const float *kept, int kept_count, const float *ba
 }
 
 /**
- * @brief The same test with the running total kept in double.
+ * @brief The same test with the running total stored in double.
  *
  * The points are the same points and only the accumulator changes. Nineteen squared differences
  * summed in single precision carry about a part in ten million of error, and the decision being
@@ -192,8 +192,8 @@ __global__ void clear_of_kept(const float *kept, int kept_count, const float *ba
  * arrangement and not about floating point in general, and it is cheaper to answer than to argue:
  * run both and see whether the count moves.
  */
-__global__ void clear_of_kept_wide(const float *kept, int kept_count, const float *batch,
-                                   int batch_count, int dims, double limit, int *ok)
+__global__ void clear_of_placed_wide(const float *placed, int placed_count, const float *batch, int batch_count,
+                                     int dims, double limit, int *ok)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index >= batch_count)
@@ -202,9 +202,9 @@ __global__ void clear_of_kept_wide(const float *kept, int kept_count, const floa
     }
     const float *mine = batch + (size_t)index * dims;
     int clear = 1;
-    for (int other = 0; other < kept_count && clear; other++)
+    for (int other = 0; other < placed_count && clear; other++)
     {
-        const float *theirs = kept + (size_t)other * dims;
+        const float *theirs = placed + (size_t)other * dims;
         double total = 0.0;
         for (int at = 0; at < dims; at++)
         {
@@ -293,17 +293,17 @@ int main(int argc, char **argv)
         return 2;
     }
 
-    /* Candidates are drawn a batch at a time and thrown away again, never held all at once. A pool
+    /* Candidates are drawn a batch at a time and thrown away again, never stored all at once. A pool
      * big enough to saturate a surface in nineteen dimensions is large and almost all of it is
-     * errored. Holding it costs memory to store points that were only ever going to be rejected.
-     * Drawing fresh ones against a kept set that is already growing does the same work, keeps the
+     * errored. Storing it costs memory to store points that were only ever going to be rejected.
+     * Drawing fresh ones against a accepted set that is already growing does the same work, maintains the
      * footprint at one batch, and lets the run stop when it stops finding anything and not when
      * a number chosen in advance runs out. */
     int block = 256;
     int batch = 4096;
     float *scratch = NULL;
     int *flags = NULL;
-    float *kept = NULL;
+    float *placed = NULL;
 
     if (cudaMalloc(&scratch, (size_t)batch * dims * sizeof(float)) != cudaSuccess)
     {
@@ -341,9 +341,9 @@ int main(int argc, char **argv)
     float limit = gap * gap;
 
     int capacity = 300000;
-    if (cudaMalloc(&kept, (size_t)capacity * dims * sizeof(float)) != cudaSuccess)
+    if (cudaMalloc(&placed, (size_t)capacity * dims * sizeof(float)) != cudaSuccess)
     {
-        fprintf(stderr, "the device errored memory for the kept set\n");
+        fprintf(stderr, "the device errored memory for the accepted set\n");
         return 1;
     }
 
@@ -365,21 +365,20 @@ int main(int argc, char **argv)
 
         if (wide_math)
         {
-            clear_of_kept_wide<<<(wide + block - 1) / block, block>>>(
-                kept, count, scratch, wide, dims, (double)limit, flags);
+            clear_of_placed_wide<<<(wide + block - 1) / block, block>>>(placed, count, scratch, wide, dims,
+                                                                        (double)limit, flags);
         }
         else
         {
-            clear_of_kept<<<(wide + block - 1) / block, block>>>(
-                kept, count, scratch, wide, dims, limit, flags);
+            clear_of_placed<<<(wide + block - 1) / block, block>>>(placed, count, scratch, wide, dims, limit, flags);
         }
         cudaMemcpy(clear.data(), flags, (size_t)wide * sizeof(int), cudaMemcpyDeviceToHost);
         cudaMemcpy(here.data(), scratch, (size_t)wide * dims * sizeof(float),
                    cudaMemcpyDeviceToHost);
         tried += wide;
 
-        /* The device said which candidates clear everything kept before this batch began. What it
-         * cannot say is which of them clear each other, because that depends on decisions being
+        /* The device reported which candidates clear everything accepted before this batch began. What it
+         * cannot report is which of them clear each other, because that depends on decisions being
          * made now. So they are settled here, in the order they arrived. That order gives
          * the same answer a sequential pass would reach. */
         int added = 0;
@@ -416,8 +415,8 @@ int main(int argc, char **argv)
 
         if (added > 0)
         {
-            cudaMemcpy(kept + (size_t)was * dims, &mine[(size_t)was * dims],
-                       (size_t)added * dims * sizeof(float), cudaMemcpyHostToDevice);
+            cudaMemcpy(placed + (size_t)was * dims, &mine[(size_t)was * dims], (size_t)added * dims * sizeof(float),
+                       cudaMemcpyHostToDevice);
         }
         if (count >= capacity)
         {
@@ -435,7 +434,7 @@ int main(int argc, char **argv)
         }
     }
 
-    /* Three states and never two. Filling the kept buffer breaks the loop before the quiet
+    /* Three states and never two. Filling the accepted buffer breaks the loop before the quiet
      * counter can reach twelve, and a capped run is not one that ran out of candidates: raising the
      * candidate count cannot help, because the wall is compiled in at `capacity`. */
     const char *name = shape == SPHERE ? "sphere" : (shape == CUBE ? "cube" : "orthoplex");
@@ -444,7 +443,7 @@ int main(int argc, char **argv)
            state, wide_math ? "double" : "single");
 
     cudaFree(scratch);
-    cudaFree(kept);
+    cudaFree(placed);
     cudaFree(flags);
     return 0;
 }

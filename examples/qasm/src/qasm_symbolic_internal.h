@@ -14,7 +14,7 @@
     engine_error_check((condition_), (kind_), ENGINE_MODULE_QASM, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
                        (error_))
 
-// Every exponent a polynomial holds stays within this bound. A sum of two, or a shift by one, fits an int.
+// Every exponent a polynomial contains stays within this bound. A sum of two, or a shift by one, fits an int.
 #define QASM_EXPONENT_MAX (INT_MAX / 4)
 
 #define QASM_POLYNOMIAL_EMPTY {0, 0u, NULL}

@@ -41,12 +41,13 @@ extern "C"
     unsigned int cycle_record_in_limbs(const CycleRecord *record, unsigned int member);
 
     // 1 where the loaded program runs as its own compiled kernel, its resident written after its lane; 0 where it runs
-    // on the interpreter (a step the compiler does not hold, NVRTC or nvJitLink not found, or CYCLE_RECORD_INTERPRET=1)
+    // on the interpreter (a step the compiler does not support, NVRTC or nvJitLink not found, or
+    // CYCLE_RECORD_INTERPRET=1)
     int cycle_record_compiled(const CycleRecord *record);
 
     // the host's copy of the loaded program's block, read back from the device as each launch ends: where it stands,
-    // sealed whenever no launch holds it. A compiled program runs resident and writes it on the device; a program on
-    // the interpreter leaves it laid out
+    // sealed whenever no launch references it. A compiled program runs resident and writes it on the device; a program
+    // on the interpreter leaves it laid out
     const EngineProgramBlock *cycle_record_block(const CycleRecord *record);
 
     typedef struct
@@ -78,11 +79,11 @@ extern "C"
 
     long cycle_record_run_host(const CycleRecordHostRequest *request);
 
-// the latch's answer where no lane's output holds: the minimum over no lane, infinity
+// the latch's answer where no lane's output is true: the minimum over no lane, infinity
 #define CYCLE_LATCH_NONE 0xFFFFFFFFFFFFFFFFull
 
     // The latch: the first of `count` records whose output at bit `offset`, `bits` wide, is not zero, the least such
-    // lane, or CYCLE_LATCH_NONE where no lane's is; the output is a program's condition, and it holds where it is not
+    // lane, or CYCLE_LATCH_NONE where no lane's is; the output is a program's condition, and it is true where it is not
     // zero. The minimum is associative, commutative and idempotent. Any grouping returns the lane a serial scan from
     // lane 0 does. cycle_record_latch reads records in device memory by a tree over each warp and one atomic minimum
     // over the device, and only the lane comes back to the host; cycle_record_latch_host reads records in host memory
@@ -104,13 +105,13 @@ extern "C"
 
     // The sum: over each run of `group` consecutive records of `count`, the output at bit `offset`, `bits` wide, read
     // as two's complement, summed exactly into `sum_limbs` limbs of two's complement at `sums`, in host memory, one sum
-    // a run. `count` is a whole number of runs, a run holds at most 2^32 records, and sum_limbs * 32 holds `bits` and
-    // the bits of `group` beside them, and no sum wraps: a request that cannot hold its sums errors before a record is
-    // read. The sum is associative and commutative, and any grouping of the records returns the serial sum.
-    // cycle_record_sum reads records in device memory: each 32-bit limb of the field is summed over a run into 64 bits,
-    // which hold 2^32 of them, the negative fields are counted beside, and the host takes the carries and subtracts
-    // 2^bits a negative field once a run; only those totals come back. cycle_record_sum_host reads records in host
-    // memory and adds them in order, each sign-extended to `sum_limbs` limbs.
+    // a run. `count` is a whole number of runs, a run contains at most 2^32 records, and sum_limbs * 32 represents
+    // `bits` and the bits of `group` beside them, and no sum wraps: a request that cannot represent its sums errors
+    // before a record is read. The sum is associative and commutative, and any grouping of the records returns the
+    // serial sum. cycle_record_sum reads records in device memory: each 32-bit limb of the field is summed over a run
+    // into 64 bits, which represent 2^32 of them, the negative fields are counted beside, and the host takes the
+    // carries and subtracts 2^bits a negative field once a run; only those totals come back. cycle_record_sum_host
+    // reads records in host memory and adds them in order, each sign-extended to `sum_limbs` limbs.
     typedef struct
     {
         const unsigned int *records;
@@ -131,10 +132,11 @@ extern "C"
 
     long cycle_record_sum_host(const CycleRecordSumRequest *request);
 
-    // cycle_record_sum keeps its device scratch between calls, grown to the most a sum has asked; this gives it back
+    // cycle_record_sum retains its device scratch between calls, grown to the most a sum has requested; this gives it
+    // back
     void cycle_record_sum_release(void);
 
-    // cycle_run keeps its scratch, its lanes' table and its folds on the device between calls; this gives them back
+    // cycle_run retains its scratch, its lanes' table and its folds on the device between calls; this gives them back
     void cycle_resident_release(void);
 
     // The sort: within each run of `group` consecutive records of `count`, the lanes in the order of their output at
@@ -144,7 +146,8 @@ extern "C"
     // most 2^32 records. cycle_record_sort reads records and writes the order in device memory: a run whose records
     // and lanes fit one thread block's shared memory is sorted there by a bitonic network over (output, lane), and a
     // longer run by a radix sort of four bits a pass over the device, the output's bits and then the run's number.
-    // cycle_record_sort_host reads and writes them in host memory, by a merge that keeps equal outputs in lane order.
+    // cycle_record_sort_host reads and writes them in host memory, by a merge that preserves equal outputs in lane
+    // order.
     typedef struct
     {
         const unsigned int *records;

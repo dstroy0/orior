@@ -30,7 +30,7 @@ KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 OUT="$TOP/build/monolith/forms"
 mkdir -p "$OUT"
 
@@ -54,9 +54,9 @@ esac
 # the tool, linked from the code generator and the record programs as sass_lane_needs is
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCLE"
     -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE"
-    -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
+    -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
 OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
     object="$OUT/$(basename "$source" .c).o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
         cc -std=c11 -O2 -w "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
@@ -70,23 +70,23 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
     esac
     object="$OUT/$(basename "$source").o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
-        c++ -std=c++17 -O2 -w "${INCLUDES[@]}" -x c++ -c "$source" -o "$object" || exit 1
+        "$FILE_DEFS_CXX" -std=c++17 -O2 -w "${INCLUDES[@]}" -x c++ -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
 # the machine file's reader and our assembler, which every SASS form read is assembled through before it is written, and
 # the system classification the folds this pass finds are written into (interface_sass_probe_class.c)
-for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
+for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
     "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/interface_sass_probe_class.c"; do
-    object="$OUT/$(basename "$source").o"
+    object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
         cc -std=c11 -O2 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/parsers" \
-            -I "$TOP/src/cu/transpiler/lstar/interface" -c "$source" -o "$object" || exit 1
+            -I "$TOP/src/cu/transpiler/lstar/interface" "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
-c++ -std=c++17 -O2 -Wall "${INCLUDES[@]}" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.cpp" -o "$OUT/monolith_forms.o" || exit 1
-c++ -o "$OUT/monolith_forms" "$OUT/monolith_forms.o" "${OBJECTS[@]}" -lpthread || exit 1
+"$FILE_DEFS_CXX" -std=c++17 -O2 -Wall "${INCLUDES[@]}" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_forms.cpp" -o "$OUT/monolith_forms.o" || exit 1
+"$FILE_DEFS_CXX" -o "$OUT/monolith_forms" "$OUT/monolith_forms.o" "${OBJECTS[@]}" -lpthread || exit 1
 
 # the rulesets are named from the top of the tree, which is where the generator reads them from
 cd "$TOP" || exit 1

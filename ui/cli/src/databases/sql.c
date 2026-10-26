@@ -312,28 +312,28 @@ void cli_sql_statements(const char *text, unsigned long long length, unsigned in
     }
 }
 
-// The statement a place stands in: the first that holds it, and else the last that ends before it
+// The statement a place stands in: the first that contains it, and else the last that ends before it
 typedef struct
 {
     unsigned long long at;
-    CliSqlSpan holding;
-    int held;
+    CliSqlSpan enclosing;
+    int has_enclosing;
     CliSqlSpan before;
-    int found;
+    int has_before;
 } CliSqlFinding;
 
 static void cli_finding_each(void *context, CliSqlSpan span)
 {
     CliSqlFinding *const finding = (CliSqlFinding *)context;
-    if (!finding->held && (finding->at >= span.start) && (finding->at <= span.end))
+    if (!finding->has_enclosing && (finding->at >= span.start) && (finding->at <= span.end))
     {
-        finding->holding = span;
-        finding->held = 1;
+        finding->enclosing = span;
+        finding->has_enclosing = 1;
     }
     if (span.end <= finding->at)
     {
         finding->before = span;
-        finding->found = 1;
+        finding->has_before = 1;
     }
 }
 
@@ -344,12 +344,12 @@ int cli_sql_statement_at(const char *text, unsigned long long length, unsigned l
     memor.set(&(MemoriaCfg){.dst = &finding, .val = 0, .bytes = sizeof(finding)});
     finding.at = at;
     cli_sql_statements(text, length, dialect, cli_finding_each, &finding);
-    if (finding.held)
+    if (finding.has_enclosing)
     {
-        *span = finding.holding;
+        *span = finding.enclosing;
         return 1;
     }
-    if (!finding.found)
+    if (!finding.has_before)
     {
         return 0;
     }

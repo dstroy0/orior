@@ -4,7 +4,7 @@
 // and the file tabled by a who
 #include "../../../../transpiler/lstar/protocol/table_text.h"
 #include "../../../parsers/who.h"
-#include "krep_internal.h"
+#include "krep_records_internal.h"
 
 void krep_open(KrepFile *file, const char *kind)
 {
@@ -43,7 +43,7 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
         if (!krep_number_read(bytes, size, &at, &code) || !krep_number_read(bytes, size, &at, &count) ||
             (code > 0xffffffffull))
         {
-            stopped = "holds a record that runs past its end";
+            stopped = "contains a record that runs past its end";
             break;
         }
         if (code == KREP_RECORD_TEXT)
@@ -51,7 +51,7 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
             // the count of a text is its bytes, each one of the file's
             if (count > (size - at))
             {
-                stopped = "holds a text that runs past its end";
+                stopped = "contains a text that runs past its end";
                 break;
             }
             if (krep_text_taken(file, (const char *)(bytes + at), count) == 0ull)
@@ -64,7 +64,7 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
         // a record's count is at most its numbers, each at least one of the file's bytes
         if (count > (size - at))
         {
-            stopped = "holds a record that runs past its end";
+            stopped = "contains a record that runs past its end";
             break;
         }
         unsigned long long *const owned = (count > (sizeof(s_words) / sizeof(s_words[0])))
@@ -78,9 +78,10 @@ int krep_read(KrepFile *file, const char *path, const char *kind, char *error, s
         }
         for (unsigned long long word = 0ull; (stopped == NULL) && (word < count); word += 1ull)
         {
-            stopped = krep_number_read(bytes, size, &at, &words[word]) ? NULL : "holds a record that runs past its end";
+            stopped =
+                krep_number_read(bytes, size, &at, &words[word]) ? NULL : "contains a record that runs past its end";
         }
-        // a code and a count read past those above are at most what an unsigned int holds
+        // a code and a count read past those above are at most what an unsigned int represents
         if ((stopped == NULL) && !krep_record_add(file, (unsigned int)code, words, (unsigned int)count))
         {
             stopped = "has a record there was no memory for";
@@ -120,12 +121,12 @@ static unsigned long long krep_filed(const KrepFile *file, const char *path, Who
     }
     for (unsigned int at = 0u; at < file->records; at += 1u)
     {
-        const KrepRecord *const held = &file->record[at];
-        text = krep_number_added(s_text_bytes, room, text, held->code);
-        text = krep_number_added(s_text_bytes, room, text, held->count);
-        for (unsigned int place = 0u; place < held->count; place += 1u)
+        const KrepRecord *const entry = &file->record[at];
+        text = krep_number_added(s_text_bytes, room, text, entry->code);
+        text = krep_number_added(s_text_bytes, room, text, entry->count);
+        for (unsigned int place = 0u; place < entry->count; place += 1u)
         {
-            text = krep_number_added(s_text_bytes, room, text, held->word[place]);
+            text = krep_number_added(s_text_bytes, room, text, entry->word[place]);
         }
     }
     const unsigned long long time =
@@ -147,7 +148,7 @@ int krep_write_by(const KrepFile *file, const char *path, Who who)
     {
         return krep_filed(file, path, who) != 0ull;
     }
-    // the file its rows put together written, the view of its table, and not the one held: its bytes' blob linked to
+    // the file its rows put together written, the view of its table, and not the one stored: its bytes' blob linked to
     // the head row of the rows it was written from
     KrepFile view;
     memset(&view, 0, sizeof(view));
@@ -296,11 +297,11 @@ int krep_tabled_by(KrepFile *file, QryShared *buffer, const char *table, const c
     words[1] = 0ull;
     for (unsigned int at = 0u; (file->key != 0ull) && (at < file->records); at += 1u)
     {
-        const KrepRecord *const held = &file->record[at];
-        if (held->code == KREP_RECORD_WHO)
+        const KrepRecord *const entry = &file->record[at];
+        if (entry->code == KREP_RECORD_WHO)
         {
-            words[0] = (held->count == 2u) ? held->word[0] : 0ull;
-            words[1] = (held->count == 2u) ? held->word[1] : 0ull;
+            words[0] = (entry->count == 2u) ? entry->word[0] : 0ull;
+            words[1] = (entry->count == 2u) ? entry->word[1] : 0ull;
         }
         krep_record_row(file, at, words);
     }

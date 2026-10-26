@@ -9,7 +9,7 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// What the search of one package keeps: the tree, where the tests go, the manifest, package and target, and the files
+// What the search of one package records: the tree, where the tests go, the manifest, package and target, and the files
 // followed, where each starts in their texts, both in cells grown as they fill
 typedef struct
 {
@@ -48,7 +48,7 @@ static const char *found_put(CliCargoTests *tests, const char *text, unsigned lo
     if ((piece == NULL) || ((piece->used + length + 1ull) > piece->room))
     {
         const unsigned long long room = ((length + 1ull) > CLI_CARGO_PIECE) ? (length + 1ull) : CLI_CARGO_PIECE;
-        piece = cli_cell_taken_by(&g_cli_cargo_cells, sizeof(*piece) + room, "a piece of the Rust tests' texts");
+        piece = g_cli_cells->persistent_buf_alloc(sizeof(*piece) + room, &g_cli_cargo_cells);
         if (piece == NULL)
         {
             tests->full = 1;
@@ -71,14 +71,14 @@ void cli_cargo_tests_given(CliCargoTests *tests)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        cli_cell_given_by(&g_cli_cargo_cells, piece);
+        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
         piece = next;
     }
-    cli_cell_given_by(&g_cli_cargo_cells, tests->found);
+    g_cli_cells->persistent_buf_release(tests->found, &g_cli_cargo_cells);
     *tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ull, 0};
 }
 
-// whether a file of the package was followed already: 1, else it is kept as followed and 0
+// whether a file of the package was followed already: 1, else it is recorded as followed and 0
 static int found_seen(CliCargoWalk *walk, const char *file)
 {
     for (unsigned long long at = 0ull; at < walk->seen_count; at += 1ull)
@@ -113,10 +113,10 @@ static int found_seen(CliCargoWalk *walk, const char *file)
 }
 
 // a test the search found put with its names
-static void found_test(CliCargoWalk *walk, const char *file, const char *path, const CliRustHeld *held)
+static void found_test(CliCargoWalk *walk, const char *file, const char *path, const CliRustItem *item)
 {
-    const char *const inline_names = g_cli_cargo_scan.names + held->inline_names;
-    const char *const name = g_cli_cargo_scan.names + held->name;
+    const char *const inline_names = g_cli_cargo_scan.names + item->inline_names;
+    const char *const name = g_cli_cargo_scan.names + item->name;
     CliCargoTests *const tests = walk->tests;
     if (tests->count == CLI_CARGO_FOUND)
     {
@@ -134,12 +134,12 @@ static void found_test(CliCargoWalk *walk, const char *file, const char *path, c
             return;
         }
         tests->found = grown;
-        // the room doubles from a count below CLI_CARGO_FOUND, which an unsigned int holds twice over
+        // the room doubles from a count below CLI_CARGO_FOUND, which an unsigned int stores twice over
         tests->room = (unsigned int)room;
     }
     char inside[4096];
     char full[4096];
-    char id[CLI_PATH_LONGEST + 4096u];
+    char id[CLI_PATH_MAX_LEN + 4096u];
     cli_cargo_joined(inline_names, name, "::", inside, sizeof(inside));
     cli_cargo_joined(path, inside, "::", full, sizeof(full));
     cli_cargo_joined(file, inside, "::", id, sizeof(id));
@@ -151,7 +151,7 @@ static void found_test(CliCargoWalk *walk, const char *file, const char *path, c
             ? found_put(tests, inline_names, cellul.len(&(CatenaFinitaCfg){.src = inline_names, .cap = CLI_CELLS_POOL}))
             : NULL;
     found->test.name = found_put(tests, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    found->test.line = held->line;
+    found->test.line = item->line;
     found->manifest = walk->manifest;
     found->package = walk->package;
     found->target = walk->target;
@@ -159,24 +159,24 @@ static void found_test(CliCargoWalk *walk, const char *file, const char *path, c
     tests->count += 1u;
 }
 
-// the modules of `file`, a path in the tree whose own module path is `path`, followed: each test it holds found, and
-// each module it names with `mod name;` followed in turn. A file that is a target's first, or a mod.rs, holds its
-// modules' files beside it; any other holds them in the folder of its own name
+// the modules of `file`, a path in the tree whose own module path is `path`, followed: each test it contains found, and
+// each module it names with `mod name;` followed in turn. A file that is a target's first, or a mod.rs, has its
+// modules' files beside it; any other stores them in the folder of its own name
 static void found_walk(CliCargoWalk *walk, const char *file, const char *path, int owns_folder)
 {
     if (found_seen(walk, file))
     {
         return;
     }
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     cli_full(walk->root, file, full);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(full, &size);
+    const unsigned char *const bytes = cli_file_read(full, &size);
     if (bytes == NULL)
     {
         return;
     }
-    const unsigned int first = g_cli_cargo_scan.held_count;
+    const unsigned int first = g_cli_cargo_scan.item_count;
     const unsigned long long names = g_cli_cargo_scan.name_used;
     unsigned int count = 0u;
     if (cli_utf8_whole((const char *)bytes, size))
@@ -187,12 +187,12 @@ static void found_walk(CliCargoWalk *walk, const char *file, const char *path, i
     cli_file_let_go(bytes, size);
     for (unsigned int at = first; at < first + count; at += 1u)
     {
-        if (g_cli_cargo_scan.held[at].test)
+        if (g_cli_cargo_scan.items[at].test)
         {
-            found_test(walk, file, path, &g_cli_cargo_scan.held[at]);
+            found_test(walk, file, path, &g_cli_cargo_scan.items[at]);
         }
     }
-    char base[CLI_PATH_LONGEST];
+    char base[CLI_PATH_MAX_LEN];
     const char *const slash =
         cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '/');
     const size_t folder_size = (slash != NULL) ? (size_t)(slash - file) : 0u;
@@ -204,56 +204,56 @@ static void found_walk(CliCargoWalk *walk, const char *file, const char *path, i
     {
         stem_size -= 3u;
     }
-    CliLine base_line = {base, sizeof(base), 0ull};
-    cli_line_counted(&base_line, file, folder_size);
+    VerbaLinea base_line = {base, sizeof(base), 0ull};
+    mmgr_line_put_n(&base_line, file, folder_size);
     if (!owns_folder)
     {
-        cli_line_text(&base_line, (folder_size > 0u) ? "/" : "");
-        cli_line_counted(&base_line, stem, stem_size);
+        mmgr_line_put(&base_line, (folder_size > 0u) ? "/" : "");
+        mmgr_line_put_n(&base_line, stem, stem_size);
     }
-    cli_line_closed(&base_line);
+    mmgr_line_finish(&base_line);
     for (unsigned int at = first; at < first + count; at += 1u)
     {
-        const CliRustHeld held = g_cli_cargo_scan.held[at];
-        if (held.test)
+        const CliRustItem item = g_cli_cargo_scan.items[at];
+        if (item.test)
         {
             continue;
         }
-        const char *const inline_names = g_cli_cargo_scan.names + held.inline_names;
-        const char *const name = g_cli_cargo_scan.names + held.name;
-        char dir[CLI_PATH_LONGEST];
-        char tail[CLI_PATH_LONGEST];
+        const char *const inline_names = g_cli_cargo_scan.names + item.inline_names;
+        const char *const name = g_cli_cargo_scan.names + item.name;
+        char dir[CLI_PATH_MAX_LEN];
+        char tail[CLI_PATH_MAX_LEN];
         char whole[4096];
         char inner[4096];
-        CliLine dir_line = {dir, sizeof(dir), 0ull};
-        cli_line_text(&dir_line, base);
+        VerbaLinea dir_line = {dir, sizeof(dir), 0ull};
+        mmgr_line_put(&dir_line, base);
         for (const char *one = inline_names; *one != '\0';)
         {
             const char *const next = cellul.find(
                 &(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
             const size_t length = (next != NULL) ? (size_t)(next - one)
                                                  : cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL});
-            cli_line_text(&dir_line, (dir_line.at > 0ull) ? "/" : "");
-            cli_line_counted(&dir_line, one, length);
+            mmgr_line_put(&dir_line, (dir_line.at > 0ull) ? "/" : "");
+            mmgr_line_put_n(&dir_line, one, length);
             one += length + ((next != NULL) ? 2u : 0u);
         }
-        cli_line_closed(&dir_line);
+        mmgr_line_finish(&dir_line);
         cli_cargo_joined(inline_names, name, "::", inner, sizeof(inner));
         cli_cargo_joined(path, inner, "::", whole, sizeof(whole));
-        char flat[CLI_PATH_LONGEST];
-        char nested[CLI_PATH_LONGEST];
-        CliLine tail_line = {tail, sizeof(tail), 0ull};
-        cli_line_text(&tail_line, name);
-        cli_line_text(&tail_line, ".rs");
-        cli_line_closed(&tail_line);
+        char flat[CLI_PATH_MAX_LEN];
+        char nested[CLI_PATH_MAX_LEN];
+        VerbaLinea tail_line = {tail, sizeof(tail), 0ull};
+        mmgr_line_put(&tail_line, name);
+        mmgr_line_put(&tail_line, ".rs");
+        mmgr_line_finish(&tail_line);
         cli_cargo_joined(dir, tail, "/", flat, sizeof(flat));
         tail_line.at = 0ull;
-        cli_line_text(&tail_line, name);
-        cli_line_text(&tail_line, "/mod.rs");
-        cli_line_closed(&tail_line);
+        mmgr_line_put(&tail_line, name);
+        mmgr_line_put(&tail_line, "/mod.rs");
+        mmgr_line_finish(&tail_line);
         cli_cargo_joined(dir, tail, "/", nested, sizeof(nested));
-        char flat_full[CLI_PATH_LONGEST];
-        char nested_full[CLI_PATH_LONGEST];
+        char flat_full[CLI_PATH_MAX_LEN];
+        char nested_full[CLI_PATH_MAX_LEN];
         cli_full(walk->root, flat, flat_full);
         cli_full(walk->root, nested, nested_full);
         if (query_is_file(flat_full))
@@ -265,7 +265,7 @@ static void found_walk(CliCargoWalk *walk, const char *file, const char *path, i
             found_walk(walk, nested, whole, 1);
         }
     }
-    g_cli_cargo_scan.held_count = first;
+    g_cli_cargo_scan.item_count = first;
     g_cli_cargo_scan.name_used = names;
 }
 
@@ -278,7 +278,7 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
     CliCargoWalk walk = {root, tests, NULL, NULL, {0u, NULL}, NULL, 0ull, 0ull, NULL, 0ull, 0ull};
     cli_cargo_tests_given(tests);
     cli_cargo_scan_given();
-    const CliFiles *const files = cli_files_held(root);
+    const CliFiles *const files = cli_files_view(root);
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
     {
         const char *const manifest = cli_files_at(files, index);
@@ -305,27 +305,27 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
             }
             part += size + ((slash != NULL) ? 1u : 0u);
         }
-        char manifest_full[CLI_PATH_LONGEST];
+        char manifest_full[CLI_PATH_MAX_LEN];
         cli_full(root, manifest, manifest_full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = searched ? cli_file_held(manifest_full, &size) : NULL;
+        const unsigned char *const bytes = searched ? cli_file_read(manifest_full, &size) : NULL;
         if (bytes == NULL)
         {
             continue;
         }
-        char package[CLI_NAME_LONGEST];
-        char folder[CLI_PATH_LONGEST];
-        CliLine folder_line = {folder, sizeof(folder), 0ull};
+        char package[CLI_NAME_MAX_LEN];
+        char folder[CLI_PATH_MAX_LEN];
+        VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
         size_t folder_size = length - 10u;
         while ((folder_size > 0u) && (manifest[folder_size - 1u] == '/'))
         {
             folder_size -= 1u;
         }
-        cli_line_counted(&folder_line, manifest, folder_size);
-        cli_line_closed(&folder_line);
+        mmgr_line_put_n(&folder_line, manifest, folder_size);
+        mmgr_line_finish(&folder_line);
         const int read =
             cli_utf8_whole((const char *)bytes, size) && cli_cargo_package_name((const char *)bytes, size, package);
-        char package_folder[CLI_PATH_LONGEST];
+        char package_folder[CLI_PATH_MAX_LEN];
         cli_full(root, folder, package_folder);
         unsigned int target_count = 0u;
         const CliCargoFirst *const firsts =
@@ -342,7 +342,7 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
         for (unsigned int target = 0u; target < target_count; target += 1u)
         {
             const CliCargoFirst *const first = &firsts[target];
-            char file[CLI_PATH_LONGEST];
+            char file[CLI_PATH_MAX_LEN];
             cli_cargo_joined(folder, first->path, "/", file, sizeof(file));
             walk.target = (CliCargoTarget){
                 first->kind,
@@ -355,8 +355,8 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
     }
     cli_cargo_firsts_given();
     cli_files_let(files);
-    cli_cell_given_by(&g_cli_cargo_cells, walk.seen);
-    cli_cell_given_by(&g_cli_cargo_cells, walk.seen_text);
+    g_cli_cells->persistent_buf_release(walk.seen, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(walk.seen_text, &g_cli_cargo_cells);
     cli_cargo_scan_given();
     cli_lock_give(&s_found_lock);
 }

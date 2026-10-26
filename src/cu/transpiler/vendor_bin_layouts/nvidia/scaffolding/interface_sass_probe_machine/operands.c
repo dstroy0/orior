@@ -14,11 +14,11 @@ void sass_machine_listing(SassMachine *machine, const SassListing *listing)
     for (unsigned int number = 0u; number < listing->count; number += 1u)
     {
         const SassInstruction *const instruction = &listing->instructions[number];
-        SassForm *kept = NULL;
-        // an instruction the listing gave no encoding for says nothing about how its form encodes
+        SassForm *found_form = NULL;
+        // an instruction the listing gave no encoding for shows nothing about how its form encodes
         if ((instruction->low != 0ull) || (instruction->high != 0ull))
         {
-            sass_machine_take(machine, instruction->text, instruction->low, instruction->high, &kept);
+            sass_machine_take(machine, instruction->text, instruction->low, instruction->high, &found_form);
         }
     }
 }
@@ -83,7 +83,7 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
     const int renamed = (strcmp(parts.operation, base->operation) != 0);
     unsigned int changed = base->operands;
     unsigned int count = 0u;
-    // operands that print one field twice, as BAR.SYNC R0, R0 prints its one register: each that moved held the
+    // operands that print one field twice, as BAR.SYNC R0, R0 prints its one register: each that moved carried the
     // text the first did and moved to the text the first did
     int twins = 1;
     for (unsigned int place = 0u; place < base->operands; place += 1u)
@@ -97,7 +97,7 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
                     (base->kind[place] == base->kind[changed]);
         }
     }
-    // a renamed operation holds the field only where the operand that moved is still the kind it was
+    // a renamed operation carries the field only where the operand that moved is still the kind it was
     if ((count != 0u) && renamed && (parts.kind[changed] != base->kind[changed]))
     {
         return base->operands;
@@ -105,7 +105,7 @@ unsigned int sass_operand_changed(const SassInstructionParts *base, const char *
     return ((count == 1u) || ((count > 1u) && twins)) ? changed : base->operands;
 }
 
-// the operand of `base` past `operand` that `text` moves as it moves `operand`, holding the same text before and
+// the operand of `base` past `operand` that `text` moves as it moves `operand`, containing the same text before and
 // after, or the operand count where none does
 unsigned int sass_operand_twin(const SassInstructionParts *base, const char *text, unsigned int operand)
 {
@@ -137,27 +137,28 @@ void sass_form_turned(const SassForm *form)
 }
 
 // 1 where `text` is `base` under another name with one operand more at its end: the guard and the operation's name
-// before its first dot kept, the name past it changed, and every operand `base` prints still there, a mark aside,
+// before its first dot retained, the name past it changed, and every operand `base` prints still there, a mark aside,
 // since IMAD.X prints as ~R the register IMAD.IADD prints as -R. The same operation printing one operand more is
-// that operand at a value the text leaves out, as a load prints its predicate past PT, and the form holds it as its
+// that operand at a value the text leaves out, as a load prints its predicate past PT, and the form carries it as its
 // own bits
 static int sass_operand_gained(const SassInstructionParts *base, const char *text)
 {
     SassInstructionParts parts;
     sass_instruction_read(text, &parts);
-    int kept = (strcmp(parts.guard, base->guard) == 0) && sass_operation_root_same(parts.operation, base->operation) &&
-               (strcmp(parts.operation, base->operation) != 0) && (parts.operands == (base->operands + 1u));
-    for (unsigned int place = 0u; kept && (place < base->operands); place += 1u)
+    int same_base = (strcmp(parts.guard, base->guard) == 0) &&
+                    sass_operation_root_same(parts.operation, base->operation) &&
+                    (strcmp(parts.operation, base->operation) != 0) && (parts.operands == (base->operands + 1u));
+    for (unsigned int place = 0u; same_base && (place < base->operands); place += 1u)
     {
-        kept = (strcmp(parts.operand[place], base->operand[place]) == 0);
+        same_base = (strcmp(parts.operand[place], base->operand[place]) == 0);
     }
-    return kept;
+    return same_base;
 }
 
-// The operand a form holds and does not print, its run kept as operand `base->operands`, one past those it prints. A
-// turned bit that adds one operand at the end and keeps the rest names it, as bit 74 of IMAD.IADD does, which prints
-// IMAD.X with its carry-in predicate; that encoding's own bits turned over give the run of the operand it added. The
-// form takes the first such bit and one unprinted operand. 1, or 0 where the disassembler failed on the turned bits
+// The operand a form carries and does not print, its run stored as operand `base->operands`, one past those it prints.
+// A turned bit that adds one operand at the end and retains the rest names it, as bit 74 of IMAD.IADD does, which
+// prints IMAD.X with its carry-in predicate; that encoding's own bits turned over give the run of the operand it added.
+// The form takes the first such bit and one unprinted operand. 1, or 0 where the disassembler failed on the turned bits
 int sass_form_unprinted(SassForm *form, const SassInstructionParts *base, const char *architecture,
                                const char *folder, unsigned int number)
 {

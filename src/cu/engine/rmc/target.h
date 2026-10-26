@@ -15,8 +15,8 @@
 #include <string>
 #include <vector>
 
-// the division operations' scratch per lane, in limbs: long division holds the normalized numerator (one limb
-// over) and divisor; the gcd holds its three remainders ahead of that; the exact quotient holds the shifted
+// the division operations' scratch per lane, in limbs: long division stores the normalized numerator (one limb
+// over) and divisor; the gcd stores its three remainders ahead of that; the exact quotient stores the shifted
 // numerator and divisor, the inverse with its step product, and the next inverse
 #define CODEGEN_RECORD_SCRATCH(wide_) ((5u * (wide_)) + 4u)
 
@@ -66,10 +66,10 @@ struct TargetInfo
 // (codegen_core.h, MachineInstr)
 #define ASM_PRINTER_ALL_ONES 0xFFFFFFFFu
 
-// a ruleset read against its code generator's schema, held once a process
+// a ruleset read against its code generator's schema, retained once a process
 struct Ruleset;
 
-// what a language's code generator asks of its ruleset (ruleset_reader.h)
+// what a language's code generator requires of its ruleset (ruleset_reader.h)
 struct RulesetSchema;
 
 // The code generator's base: what every language shares, and no language. It reads a language's ruleset from its .krs
@@ -83,7 +83,7 @@ class Target
     Target &operator=(const Target &) = delete;
     virtual ~Target();
 
-    // the language's ruleset, read once a process; NULL where it errors, `report` saying which on stderr
+    // the language's ruleset, read once a process; NULL where it errors, `report` reporting which on stderr
     const Ruleset *ruleset(int report);
 
     // the schema the language reads its ruleset against, read or not
@@ -92,9 +92,9 @@ class Target
     // the folds of the classification beside the ruleset read again, for a pass that has just written it
     void folds_read(void);
 
-    // a program's lane in the language under `header`, the places a thread holds in shared memory and the most words
-    // it holds live at once (0 where the language does not reckon them); empty where the ruleset is not read, or the
-    // program is one the language does not hold
+    // a program's lane in the language under `header`, the places a thread uses in shared memory and the most words
+    // it uses live at once (0 where the language does not reckon them); empty where the ruleset is not read, or the
+    // program is one the language does not support
     virtual std::string program(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
                                 unsigned int *places, unsigned int *live) = 0;
 
@@ -108,21 +108,21 @@ class Target
     Ruleset *rules;
 };
 
-// A ruleset read from outside the code generator, by the names its .krs file gives, for a probe that asks the target
+// A ruleset read from outside the code generator, by the names its .krs file gives, for a probe that queries the target
 // how it answers each form (the cell's membership queries, engine_table.md item 11(f) 4). The code generator itself
 // writes by the places in its schema
 
 // form `name` appended to `text`, its arguments in the order of its parameters; 0, and nothing written, where the
 // ruleset writes no form of that name or the form takes another count of arguments. Where the ruleset gives the form
 // as a construct (a line `construct <name> <parameter>...`, its lines to `end`), each scratch register {bank:n} it
-// names is asked of `scratch` by the bank's name once a writing, and 0 where `scratch` answers empty
+// names is queried from `scratch` by the bank's name once a writing, and 0 where `scratch` answers empty
 int ruleset_opcode(const Ruleset *rules, const std::string &name, const std::vector<std::string> &arguments,
                    const std::function<std::string(const std::string &bank)> &scratch, std::string &text);
 
 // register `number` of the bank `bank`; empty where the ruleset has no bank of that name
 std::string ruleset_register(const Ruleset *rules, const std::string &bank, unsigned int number);
 
-// the register every lane holds throughout named `name`; empty where the ruleset holds none of that name
+// the register every lane uses throughout named `name`; empty where the ruleset contains none of that name
 std::string ruleset_physreg(const Ruleset *rules, const std::string &name);
 
 #endif

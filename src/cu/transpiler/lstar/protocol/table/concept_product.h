@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// concept_product.h: a pair's product, what its two forms make of what they read, held put by put and named once it is
-// whole (P13, the concepts)
+// concept_product.h: a pair's product, what its two forms make of what they read, recorded put by put and named once it
+// is whole (P13, the concepts)
 //
-// A put's product is read at the form: the values the form reads, each as the part holds it just before the form, and
-// the value each of the two forms writes, each as the part holds it just after. A case is alike where the two forms
+// A put's product is read at the form: the values the form reads, each as the part stores it just before the form, and
+// the value each of the two forms writes, each as the part stores it just after. A case is alike where the two forms
 // write one value and apart where they write two, and the product is what came back at each combination of the values
 // read. The links of a carrier before the form and after it are deltas of their own, and enter no product. A product
 // is a concept once it is whole, a row at every combination of the values the cases are made of: two pairs of one
-// product are one concept, whatever forms name them and whatever carriers held them. orior_klq_identity puts a pair until
-// its product is whole, and orior_klq_decoder writes the concept beneath the pair
+// product are one concept, whatever forms name them and whatever carriers carried them. orior_klq_identity puts a pair
+// until its product is whole, and orior_klq_decoder writes the concept beneath the pair
 #ifndef CONCEPT_PRODUCT_H
 #define CONCEPT_PRODUCT_H
 
@@ -38,12 +38,12 @@ struct ConceptProduct
 {
     std::vector<int> kinds;
     std::map<std::string, std::set<char>> rows;
-    // 1 where two puts read the form as different values, and no product is held
+    // 1 where two puts read the form as different values, and no product is recorded
     int mixed = 0;
 };
 
 // The values the cases are made of, by kind, from every operand of every case: each operand is a wide, its low and
-// its high word a word, and a flag holds or does not
+// its high word a word, and a flag is set or does not
 static inline std::vector<std::set<unsigned long long>> concept_values(const std::vector<unsigned long long> &operands)
 {
     std::vector<std::set<unsigned long long>> cased(3u);
@@ -58,7 +58,7 @@ static inline std::vector<std::set<unsigned long long>> concept_values(const std
 }
 
 // The values the cases are made of, `cased`, with the values `qualifiers` the pair's forms write of their own, each a
-// word and a wide: a value a form brings decides where the two forms agree, and the pair's product holds a row at it
+// word and a wide: a value a form brings decides where the two forms agree, and the pair's product contains a row at it
 static inline std::vector<std::set<unsigned long long>> concept_values_qualified(
     const std::vector<std::set<unsigned long long>> &cased, const std::set<unsigned long long> &qualifiers)
 {
@@ -78,34 +78,33 @@ static inline int concept_qualified(const ConceptProduct &product, const std::se
     int alike = 0;
     int apart = 0;
     int qualified = 1;
-    for (const auto &held : product.rows)
+    for (const auto &row : product.rows)
     {
-        const int row_alike = (held.second.count('=') != 0u) ? 1 : 0;
+        const int row_alike = (row.second.count('=') != 0u) ? 1 : 0;
         alike |= row_alike;
-        apart |= (held.second.count('x') != 0u) ? 1 : 0;
-        int holds_qualifier = 0;
+        apart |= (row.second.count('x') != 0u) ? 1 : 0;
+        int reads_qualifier = 0;
         size_t start = 0u;
-        for (size_t comma = held.first.find(','); comma != std::string::npos; comma = held.first.find(',', start))
+        for (size_t comma = row.first.find(','); comma != std::string::npos; comma = row.first.find(',', start))
         {
-            const unsigned long long value = std::stoull(held.first.substr(start, comma - start), nullptr, 16);
-            holds_qualifier |= (qualifiers.count(value) != 0u) ? 1 : 0;
+            const unsigned long long value = std::stoull(row.first.substr(start, comma - start), nullptr, 16);
+            reads_qualifier |= (qualifiers.count(value) != 0u) ? 1 : 0;
             start = comma + 1u;
         }
-        qualified &= (!row_alike || holds_qualifier) ? 1 : 0;
+        qualified &= (!row_alike || reads_qualifier) ? 1 : 0;
     }
     return (alike && apart && qualified) ? 1 : 0;
 }
 
-// A put's product, held into `product`: what came back of each case, `writes_from` and `writes_to` one value or two,
-// as a function of the values `reads` the form reads there, a register and its `.hi` one wide value, in the order the
-// form names them, each combination alike, apart, or both where the cases holding it came back both. A parameter the
-// chain binds to a literal is read by its name after `=`, and a flag's after `P=`, a flag as a register `P` is. A
-// combination is held where every value is one the cases are made of, `cased`, so that every carrier holds the same
-// rows
-static inline void concept_product_held(const ConceptReads &reads, const std::vector<unsigned long long> &writes_from,
+// A put's product, recorded into `product`: what came back of each case, `writes_from` and `writes_to` one value or
+// two, as a function of the values `reads` the form reads there, a register and its `.hi` one wide value, in the order
+// the form names them, each combination alike, apart, or both where the cases containing it came back both. A parameter
+// the chain binds to a literal is read by its name after `=`, and a flag's after `P=`, a flag as a register `P` is. A
+// combination is recorded where every value is one the cases are made of, `cased`, so that every carrier records the
+// same rows
+static inline void concept_product_made(const ConceptReads &reads, const std::vector<unsigned long long> &writes_from,
                                         const std::vector<unsigned long long> &writes_to,
-                                        const std::vector<std::set<unsigned long long>> &cased,
-                                        ConceptProduct *product)
+                                        const std::vector<std::set<unsigned long long>> &cased, ConceptProduct *product)
 {
     // each value the form reads, by the register its pair's low word goes by, and the reads of its low and high word
     std::vector<std::string> bases;
@@ -160,7 +159,7 @@ static inline void concept_product_held(const ConceptReads &reads, const std::ve
         }
         const char came_back = (writes_from[place] == writes_to[place]) ? '=' : 'x';
         std::string values;
-        int held = 1;
+        int cased_all = 1;
         for (size_t value = 0u; value < bases.size(); value += 1u)
         {
             const unsigned long long low = (low_at[value] >= 0) ? reads[(size_t)low_at[value]].second[place] : 0ull;
@@ -169,12 +168,12 @@ static inline void concept_product_held(const ConceptReads &reads, const std::ve
                                                 ? ((high << 32u) | (low & 0xffffffffull))
                                             : (low_at[value] >= 0) ? low
                                                                    : high;
-            held &= (cased[(size_t)kinds[value]].count(read) != 0u) ? 1 : 0;
+            cased_all &= (cased[(size_t)kinds[value]].count(read) != 0u) ? 1 : 0;
             char written[24];
             snprintf(written, sizeof(written), "%llx,", read);
             values += written;
         }
-        if (held)
+        if (cased_all)
         {
             product->rows[values].insert(came_back);
         }
@@ -185,9 +184,9 @@ static inline void concept_product_held(const ConceptReads &reads, const std::ve
 static inline size_t concept_signal(const ConceptProduct &product)
 {
     size_t signal = 0u;
-    for (const auto &held : product.rows)
+    for (const auto &row : product.rows)
     {
-        signal += (held.second.size() == 1u) ? 1u : 0u;
+        signal += (row.second.size() == 1u) ? 1u : 0u;
     }
     return signal;
 }
@@ -213,9 +212,9 @@ static inline std::string concept_identity(const ConceptProduct &product,
         return std::string();
     }
     std::string written;
-    for (const auto &held : product.rows)
+    for (const auto &row : product.rows)
     {
-        written += held.first + ((held.second.size() > 1u) ? "?" : std::string(1u, *held.second.begin())) + ";";
+        written += row.first + ((row.second.size() > 1u) ? "?" : std::string(1u, *row.second.begin())) + ";";
     }
     unsigned long long hashed = 0xcbf29ce484222325ull;
     for (const char letter : written)

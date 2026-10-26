@@ -16,10 +16,10 @@
 // oracle, which itself equals the kernels on the 5/3. For every ruleset, T read through T^-1 as one program returns
 // crystals drawn anywhere in the fields' widths. An operation F read through T^-1 (the block's sum, and its energy
 // along x, the sum of the squared differences of x neighbors) equals F on tower_lower's samples. Every program runs
-// on the device and the host, word for word. The emitter sizes a program before it is held, and it errors on a register
-// that is not earlier, a capacity too small, an empty extent and a malformed step, leaving the program as it was.
-// Every sweep gives back the stack its frame grew. The limit after the blocks is the limit before them.
-// The test is one job on the device's tessera daemon, submitted before its first device work.
+// on the device and the host, word for word. The emitter sizes a program before it is allocated, and it errors on a
+// register that is not earlier, a capacity too small, an empty extent and a malformed step, leaving the program as it
+// was. Every sweep gives back the stack its frame grew. The limit after the blocks is the limit before them. The test
+// is one job on the device's tessera daemon, submitted before its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
@@ -37,7 +37,7 @@
 
 #define TOWER_TEST_SAMPLE_BITS 16u
 
-// the device holds one volume for the kernels and one program's records at a time, far below this
+// the device stores one volume for the kernels and one program's records at a time, far below this
 #define TOWER_TEST_DECLARED (16ull << 20u)
 
 // the 5/3 as tower.h states it: the highs less floor((x_2j + x_(2j+2)) / 2), the lows plus floor((d_(j-1) + d_j + 2) /

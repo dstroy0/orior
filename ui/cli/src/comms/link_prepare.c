@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// link_prepare.c: orior's server put on another machine where it is not there: the machine asked what it is, the
+// link_prepare.c: orior's server put on another machine where it is not there: the machine queried what it is, the
 // server for it found or built here, sent under a name of its size and the time it was written, and the line that
 // starts it on the tree given
 #include "../runs/runner.h"
@@ -9,7 +9,7 @@
 
 #include "../text/text.h"
 
-// the most lines of a failed build said
+// the most lines of a failed build reported
 #define CLI_LINK_BUILD_LINES 6u
 
 int cli_link_is_windows(const char *system)
@@ -49,7 +49,7 @@ static int prepare_is(const char *word, unsigned long long size, const char *nam
            (memor.cmp(&(MemoriaCfg){.src = word, .other = name, .bytes = (size_t)size}) == 0);
 }
 
-int cli_link_target(const char *system, char *target, CliLine *said)
+int cli_link_target(const char *system, char *target, VerbaLinea *err_msg)
 {
     unsigned long long at = 0ull;
     const char *kind = NULL;
@@ -64,26 +64,26 @@ int cli_link_target(const char *system, char *target, CliLine *said)
                                   : NULL;
     if (named == NULL)
     {
-        cli_line_text(said, "orior_cli builds no server for ");
-        cli_line_counted(said, arch, arch_size);
+        mmgr_line_put(err_msg, "orior_cli builds no server for ");
+        mmgr_line_put_n(err_msg, arch, arch_size);
         return 0;
     }
     if (!prepare_is(kind, kind_size, "Linux"))
     {
-        cli_line_text(said, "orior_cli builds no server for ");
-        cli_line_counted(said, kind, kind_size);
-        cli_line_text(said, " from this machine");
+        mmgr_line_put(err_msg, "orior_cli builds no server for ");
+        mmgr_line_put_n(err_msg, kind, kind_size);
+        mmgr_line_put(err_msg, " from this machine");
         return 0;
     }
-    CliLine line = {target, CLI_NAME_LONGEST, 0ull};
-    cli_line_text(&line, named);
-    cli_line_text(&line, "-unknown-linux-musl");
-    cli_line_closed(&line);
+    VerbaLinea line = {target, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put(&line, named);
+    mmgr_line_put(&line, "-unknown-linux-musl");
+    mmgr_line_finish(&line);
     return 1;
 }
 
-// the last lines of what a build wrote to its errors said
-static void prepare_build_said(const CliRan *ran, CliLine *said)
+// the last lines of what a build wrote to its errors reported
+static void prepare_build_err_written(const CliRan *ran, VerbaLinea *err_msg)
 {
     unsigned long long start = ran->err_size;
     unsigned int lines = 0u;
@@ -101,109 +101,109 @@ static void prepare_build_said(const CliRan *ran, CliLine *said)
         lines += (ran->err[start - 1u] == '\n') ? 1u : 0u;
         start -= 1u;
     }
-    cli_lossy(said, (const unsigned char *)ran->err + start, end - start);
+    cli_lossy(err_msg, (const unsigned char *)ran->err + start, end - start);
 }
 
-// orior's server built here for `target` from the tree's own sources, its path into `path`: 1, or 0 with why said
-static int prepare_built(const char *target, CliLinkStated stated, void *context, char *path, CliLine *said)
+// orior's server built here for `target` from the tree's own sources, its path into `path`: 1, or 0 with why given
+static int prepare_built(const char *target, CliLinkStated stated, void *context, char *path, VerbaLinea *err_msg)
 {
-    char tree[CLI_PATH_LONGEST];
-    char script[CLI_PATH_LONGEST];
-    CliLine script_line = {script, sizeof(script), 0ull};
+    char tree[CLI_PATH_MAX_LEN];
+    char script[CLI_PATH_MAX_LEN];
+    VerbaLinea script_line = {script, sizeof(script), 0ull};
     const int found = cli_tree_found(tree);
     if (found)
     {
-        cli_line_text(&script_line, tree);
-        cli_line_text(&script_line, "/ui/cli/build.sh");
+        mmgr_line_put(&script_line, tree);
+        mmgr_line_put(&script_line, "/ui/cli/build.sh");
     }
-    if (!found || (cli_line_closed(&script_line) == 0ull) || !query_is_file(script))
+    if (!found || (mmgr_line_finish(&script_line) == 0ull) || !query_is_file(script))
     {
-        cli_line_text(said, "no orior_cli server for ");
-        cli_line_text(said, target);
-        cli_line_text(said, " is beside this program, under servers/");
-        cli_line_text(said, target);
-        cli_line_text(said, "/orior_cli");
+        mmgr_line_put(err_msg, "no orior_cli server for ");
+        mmgr_line_put(err_msg, target);
+        mmgr_line_put(err_msg, " is beside this program, under servers/");
+        mmgr_line_put(err_msg, target);
+        mmgr_line_put(err_msg, "/orior_cli");
         return 0;
     }
-    char told[CLI_NAME_LONGEST + 64u];
-    CliLine told_line = {told, sizeof(told), 0ull};
-    cli_line_text(&told_line, "Building orior's server for ");
-    cli_line_text(&told_line, target);
-    cli_line_closed(&told_line);
-    stated(context, "preparing", told);
-    char bash[CLI_PATH_LONGEST];
-    if (!cli_runner_bash(bash, said))
+    char msg_buf[CLI_NAME_MAX_LEN + 64u];
+    VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
+    mmgr_line_put(&msg, "Building orior's server for ");
+    mmgr_line_put(&msg, target);
+    mmgr_line_finish(&msg);
+    stated(context, "preparing", msg_buf);
+    char bash[CLI_PATH_MAX_LEN];
+    if (!cli_runner_bash(bash, err_msg))
     {
         return 0;
     }
-    CliLine built = {path, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&built, tree);
-    cli_line_text(&built, "/build/cli/");
-    cli_line_text(&built, target);
-    cli_line_text(&built, "/orior_cli");
-    cli_line_closed(&built);
+    VerbaLinea built = {path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&built, tree);
+    mmgr_line_put(&built, "/build/cli/");
+    mmgr_line_put(&built, target);
+    mmgr_line_put(&built, "/orior_cli");
+    mmgr_line_finish(&built);
     const char *const words[4] = {bash, script, target, NULL};
     CliRan *const ran = cli_ran_taken();
-    int done = cli_ran(words, tree, NULL, 0u, ran, said);
+    int done = cli_ran(words, tree, NULL, 0u, ran, err_msg);
     if (done && ((ran->code != 0) || !query_is_file(path)))
     {
-        prepare_build_said(ran, said);
+        prepare_build_err_written(ran, err_msg);
         done = 0;
     }
     cli_ran_given(ran);
     return done;
 }
 
-// orior's server for a machine `uname -sm` says is `system`, its path into `path`: ORIOR_SERVER where it is set; on
+// orior's server for a machine `uname -sm` reports is `system`, its path into `path`: ORIOR_SERVER where it is set; on
 // Windows this program, which serves as well; elsewhere one built for the machine's target, beside this program under
-// servers/, or built from the tree's own sources for it. 1, or 0 with why said
-static int prepare_server(const char *system, CliLinkStated stated, void *context, char *path, CliLine *said)
+// servers/, or built from the tree's own sources for it. 1, or 0 with why given
+static int prepare_server(const char *system, CliLinkStated stated, void *context, char *path, VerbaLinea *err_msg)
 {
-    if (query_environment_read("ORIOR_SERVER", path, CLI_PATH_LONGEST))
+    if (query_environment_read("ORIOR_SERVER", path, CLI_PATH_MAX_LEN))
     {
         return 1;
     }
-    char program[CLI_PATH_LONGEST];
+    char program[CLI_PATH_MAX_LEN];
     const int known = qry_member_program(program, sizeof(program));
     if (cli_link_is_windows(system))
     {
         if (!known)
         {
-            cli_line_text(said, "this program's path is not known");
+            mmgr_line_put(err_msg, "this program's path is not known");
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = path, .src = program, .bytes = sizeof(program)});
         return 1;
     }
-    char target[CLI_NAME_LONGEST];
-    if (!cli_link_target(system, target, said))
+    char target[CLI_NAME_MAX_LEN];
+    if (!cli_link_target(system, target, err_msg))
     {
         return 0;
     }
-    char folder[CLI_PATH_LONGEST];
-    CliLine beside = {path, CLI_PATH_LONGEST, 0ull};
+    char folder[CLI_PATH_MAX_LEN];
+    VerbaLinea beside = {path, CLI_PATH_MAX_LEN, 0ull};
     if (known && cli_path_parent(program, folder))
     {
-        cli_line_text(&beside, folder);
-        cli_line_text(&beside, "/servers/");
-        cli_line_text(&beside, target);
-        cli_line_text(&beside, "/orior_cli");
-        if ((cli_line_closed(&beside) != 0ull) && query_is_file(path))
+        mmgr_line_put(&beside, folder);
+        mmgr_line_put(&beside, "/servers/");
+        mmgr_line_put(&beside, target);
+        mmgr_line_put(&beside, "/orior_cli");
+        if ((mmgr_line_finish(&beside) != 0ull) && query_is_file(path))
         {
             return 1;
         }
     }
-    return prepare_built(target, stated, context, path, said);
+    return prepare_built(target, stated, context, path, err_msg);
 }
 
-// the line `uname -sm` and the server's home on the machine, asked of it, into `system` and `home`, which each hold
-// CLI_PATH_LONGEST: 1, or 0 with why said
-static int prepare_probe(const CliLinkAddress *address, char *system, char *home, CliLine *said)
+// the line `uname -sm` and the server's home on the machine, queried from it, into `system` and `home`, which each are
+// sized for CLI_PATH_MAX_LEN: 1, or 0 with why given
+static int prepare_probe(const CliLinkAddress *address, char *system, char *home, VerbaLinea *err_msg)
 {
-    char probe[2u * CLI_PATH_LONGEST];
-    CliLine probe_line = {probe, sizeof(probe), 0ull};
-    if (!cli_link_ask(address, "uname -sm; printf '%s\\n' \"${ORIOR_SERVER_HOME:-$HOME/.orior/server}\"", NULL, 0ull,
-                      &probe_line, said))
+    char probe[2u * CLI_PATH_MAX_LEN];
+    VerbaLinea probe_line = {probe, sizeof(probe), 0ull};
+    if (!cli_link_remote_run(address, "uname -sm; printf '%s\\n' \"${ORIOR_SERVER_HOME:-$HOME/.orior/server}\"", NULL,
+                             0ull, &probe_line, err_msg))
     {
         return 0;
     }
@@ -228,7 +228,7 @@ static int prepare_probe(const CliLinkAddress *address, char *system, char *home
         {
             stop -= 1u;
         }
-        const unsigned long long size = (stop - start < CLI_PATH_LONGEST) ? (stop - start) : (CLI_PATH_LONGEST - 1u);
+        const unsigned long long size = (stop - start < CLI_PATH_MAX_LEN) ? (stop - start) : (CLI_PATH_MAX_LEN - 1u);
         memor.cpy(&(MemoriaCfg){.dst = fields[field], .src = probe + start, .bytes = (size_t)size});
         fields[field][size] = '\0';
         at = (end < probe_line.at) ? (end + 1u) : end;
@@ -236,87 +236,88 @@ static int prepare_probe(const CliLinkAddress *address, char *system, char *home
     return 1;
 }
 
-int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *context, CliLine *start, CliLine *said)
+int cli_link_prepare(const CliLinkAddress *address, CliLinkStated stated, void *context, VerbaLinea *start,
+                     VerbaLinea *err_msg)
 {
-    char system[CLI_PATH_LONGEST];
-    char home[CLI_PATH_LONGEST];
-    char local[CLI_PATH_LONGEST];
+    char system[CLI_PATH_MAX_LEN];
+    char home[CLI_PATH_MAX_LEN];
+    char local[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
     unsigned long long changed = 0ull;
-    if (!prepare_probe(address, system, home, said) || !prepare_server(system, stated, context, local, said))
+    if (!prepare_probe(address, system, home, err_msg) || !prepare_server(system, stated, context, local, err_msg))
     {
         return 0;
     }
     if (!cli_file_stamp(local, &size, &changed))
     {
-        cli_line_text(said, local);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, local);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
-    char folder[CLI_PATH_LONGEST + 64u];
-    CliLine folder_line = {folder, sizeof(folder), 0ull};
-    cli_line_text(&folder_line, home);
-    cli_line_text(&folder_line, "/" CLI_VERSION "-");
-    cli_line_decimal(&folder_line, size, 1u);
-    cli_line_character(&folder_line, '-');
-    cli_line_decimal(&folder_line, changed / 1000u, 1u);
-    cli_line_closed(&folder_line);
-    char program[CLI_PATH_LONGEST + 128u];
-    CliLine program_line = {program, sizeof(program), 0ull};
-    cli_line_text(&program_line, folder);
-    cli_line_text(&program_line, cli_link_is_windows(system) ? "/orior_cli.exe" : "/orior_cli");
-    cli_line_closed(&program_line);
-    char line[(4u * CLI_PATH_LONGEST) + 128u];
-    CliLine test = {line, sizeof(line), 0ull};
-    cli_line_text(&test, "test -x ");
+    char folder[CLI_PATH_MAX_LEN + 64u];
+    VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+    mmgr_line_put(&folder_line, home);
+    mmgr_line_put(&folder_line, "/" CLI_VERSION "-");
+    mmgr_line_decimal(&folder_line, size, 1u);
+    mmgr_line_ch(&folder_line, '-');
+    mmgr_line_decimal(&folder_line, changed / 1000u, 1u);
+    mmgr_line_finish(&folder_line);
+    char program[CLI_PATH_MAX_LEN + 128u];
+    VerbaLinea program_line = {program, sizeof(program), 0ull};
+    mmgr_line_put(&program_line, folder);
+    mmgr_line_put(&program_line, cli_link_is_windows(system) ? "/orior_cli.exe" : "/orior_cli");
+    mmgr_line_finish(&program_line);
+    char line[(4u * CLI_PATH_MAX_LEN) + 128u];
+    VerbaLinea test = {line, sizeof(line), 0ull};
+    mmgr_line_put(&test, "test -x ");
     cli_link_quote(program, cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), &test);
-    cli_line_closed(&test);
-    char why[CLI_SAID_LONGEST];
-    CliLine none = {why, sizeof(why), 0ull};
-    CliLine nothing = {NULL, 0ull, 0ull};
-    if (!cli_link_ask(address, line, NULL, 0ull, &nothing, &none))
+    mmgr_line_finish(&test);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea none = {why, sizeof(why), 0ull};
+    VerbaLinea nothing = {NULL, 0ull, 0ull};
+    if (!cli_link_remote_run(address, line, NULL, 0ull, &nothing, &none))
     {
-        char told[CLI_PATH_LONGEST + 64u];
-        CliLine told_line = {told, sizeof(told), 0ull};
-        cli_line_text(&told_line, "Sending orior's server to ");
-        cli_link_machine(address, &told_line);
-        cli_line_closed(&told_line);
-        stated(context, "preparing", told);
+        char msg_buf[CLI_PATH_MAX_LEN + 64u];
+        VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
+        mmgr_line_put(&msg, "Sending orior's server to ");
+        cli_link_machine(address, &msg);
+        mmgr_line_finish(&msg);
+        stated(context, "preparing", msg_buf);
         unsigned long long bytes_size = 0ull;
-        const unsigned char *const bytes = cli_file_held(local, &bytes_size);
+        const unsigned char *const bytes = cli_file_read(local, &bytes_size);
         if (bytes == NULL)
         {
-            cli_line_text(said, local);
-            cli_line_text(said, ": it could not be read");
+            mmgr_line_put(err_msg, local);
+            mmgr_line_put(err_msg, ": it could not be read");
             return 0;
         }
-        char part[CLI_PATH_LONGEST + 136u];
-        CliLine part_line = {part, sizeof(part), 0ull};
-        cli_line_text(&part_line, program);
-        cli_line_text(&part_line, ".part");
-        cli_line_closed(&part_line);
-        CliLine send = {line, sizeof(line), 0ull};
-        cli_line_text(&send, "mkdir -p ");
+        char part[CLI_PATH_MAX_LEN + 136u];
+        VerbaLinea part_line = {part, sizeof(part), 0ull};
+        mmgr_line_put(&part_line, program);
+        mmgr_line_put(&part_line, ".part");
+        mmgr_line_finish(&part_line);
+        VerbaLinea send = {line, sizeof(line), 0ull};
+        mmgr_line_put(&send, "mkdir -p ");
         cli_link_quote(folder, cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}), &send);
-        cli_line_text(&send, " && cat > ");
+        mmgr_line_put(&send, " && cat > ");
         cli_link_quote(part, cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL}), &send);
-        cli_line_text(&send, " && chmod +x ");
+        mmgr_line_put(&send, " && chmod +x ");
         cli_link_quote(part, cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL}), &send);
-        cli_line_text(&send, " && mv -f ");
+        mmgr_line_put(&send, " && mv -f ");
         cli_link_quote(part, cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL}), &send);
-        cli_line_character(&send, ' ');
+        mmgr_line_ch(&send, ' ');
         cli_link_quote(program, cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), &send);
-        cli_line_closed(&send);
-        const int sent = cli_link_ask(address, line, (const char *)bytes, bytes_size, &nothing, said);
+        mmgr_line_finish(&send);
+        const int sent = cli_link_remote_run(address, line, (const char *)bytes, bytes_size, &nothing, err_msg);
         cli_file_let_go(bytes, bytes_size);
         if (!sent)
         {
             return 0;
         }
     }
-    cli_line_text(start, "exec ");
+    mmgr_line_put(start, "exec ");
     cli_link_quote(program, cellul.len(&(CatenaFinitaCfg){.src = program, .cap = CLI_CELLS_POOL}), start);
-    cli_line_text(start, " serve --root ");
+    mmgr_line_put(start, " serve --root ");
     cli_link_quote(address->folder, cellul.len(&(CatenaFinitaCfg){.src = address->folder, .cap = CLI_CELLS_POOL}),
                    start);
     return 1;

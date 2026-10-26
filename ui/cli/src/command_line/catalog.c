@@ -42,12 +42,12 @@ void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most
 #define CLI_CATALOG_FIRST 16u
 #define CLI_CATALOG_TEXT_FIRST 1024u
 
-void cli_catalog_growing(CliCatalog *catalog, CliCellsTally *cells, unsigned int jobs_most)
+void cli_catalog_growing(CliCatalog *catalog, CellOwner *cells, unsigned int jobs_most)
 {
     cli_catalog_begun(catalog, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u);
     catalog->cells = cells;
     catalog->jobs_cap = jobs_most;
-    catalog->text = cli_cell_taken_by(cells, CLI_CATALOG_TEXT_FIRST, "a catalog's texts");
+    catalog->text = g_cli_cells->persistent_buf_alloc(CLI_CATALOG_TEXT_FIRST, cells);
     catalog->text_most = (catalog->text != NULL) ? CLI_CATALOG_TEXT_FIRST : 0u;
     catalog->full = (catalog->text == NULL);
     if (catalog->text != NULL)
@@ -60,20 +60,20 @@ void cli_catalog_growing(CliCatalog *catalog, CliCellsTally *cells, unsigned int
 
 void cli_catalog_given(CliCatalog *catalog)
 {
-    CliCellsTally *const cells = catalog->cells;
+    CellOwner *const cells = catalog->cells;
     if (cells != NULL)
     {
-        cli_cell_given_by(cells, catalog->job);
-        cli_cell_given_by(cells, catalog->param);
-        cli_cell_given_by(cells, catalog->step);
-        cli_cell_given_by(cells, catalog->arg);
-        cli_cell_given_by(cells, catalog->list);
-        cli_cell_given_by(cells, catalog->text);
+        g_cli_cells->persistent_buf_release(catalog->job, cells);
+        g_cli_cells->persistent_buf_release(catalog->param, cells);
+        g_cli_cells->persistent_buf_release(catalog->step, cells);
+        g_cli_cells->persistent_buf_release(catalog->arg, cells);
+        g_cli_cells->persistent_buf_release(catalog->list, cells);
+        g_cli_cells->persistent_buf_release(catalog->text, cells);
     }
     cli_catalog_begun(catalog, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u);
 }
 
-// `list`, `count` items of `each` bytes held of `*most`, made to hold `wanted` in all: the list, moved into a cell of
+// `list`, `count` items of `each` bytes stored of `*most`, made to fit `wanted` in all: the list, moved into a cell of
 // doubled room where the catalog grows and it is full; or NULL with the catalog full where it does not grow or the cell
 // is refused
 static void *cli_catalog_room(CliCatalog *catalog, void *list, unsigned int count, unsigned int *most,
@@ -88,15 +88,16 @@ static void *cli_catalog_room(CliCatalog *catalog, void *list, unsigned int coun
     {
         room *= 2u;
     }
-    void *const larger =
-        (catalog->cells != NULL) ? cli_cell_taken_by(catalog->cells, (unsigned long long)room * each, what) : NULL;
+    void *const larger = (catalog->cells != NULL)
+                             ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * each, catalog->cells)
+                             : NULL;
     if (larger == NULL)
     {
         catalog->full = 1;
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    cli_cell_given_by(catalog->cells, list);
+    g_cli_cells->persistent_buf_release(list, catalog->cells);
     *most = room;
     return larger;
 }
@@ -289,7 +290,7 @@ unsigned int cli_catalog_find(const CliCatalog *catalog, const char *id)
     return CLI_CATALOG_NONE;
 }
 
-// a text of `from` kept in `to`
+// a text of `from` stored in `to`
 static const char *cli_from(const CliCatalog *from, unsigned int text)
 {
     return (text == CLI_CATALOG_NONE) ? NULL : cli_catalog_at(from, text);
@@ -332,8 +333,8 @@ unsigned int cli_catalog_copy(const CliCatalog *from, unsigned int index, CliCat
     return to->full ? CLI_CATALOG_NONE : made;
 }
 
-// the bytes a text of `from` takes kept again, its 0 among them, none where it is none
-static unsigned long long cli_kept_size(const CliCatalog *from, unsigned int text)
+// the bytes a text of `from` takes stored again, its 0 among them, none where it is none
+static unsigned long long cli_stored_size(const CliCatalog *from, unsigned int text)
 {
     return (text == CLI_CATALOG_NONE)
                ? 0ull
@@ -344,79 +345,79 @@ void cli_catalog_job_extent(const CliCatalog *from, unsigned int index, CliCatal
 {
     const CliJob *const job = &from->job[index];
     *extent = (CliCatalogExtent){job->params, job->steps, 0u, 0u, 16ull};
-    extent->text += cli_kept_size(from, job->id) + cli_kept_size(from, job->title) + cli_kept_size(from, job->file) +
-                    cli_kept_size(from, job->about);
+    extent->text += cli_stored_size(from, job->id) + cli_stored_size(from, job->title) +
+                    cli_stored_size(from, job->file) + cli_stored_size(from, job->about);
     for (unsigned int at = 0u; at < job->params; at += 1u)
     {
         const CliParam *const param = &from->param[job->param_first + at];
-        extent->text += cli_kept_size(from, param->key) + cli_kept_size(from, param->fallback);
+        extent->text += cli_stored_size(from, param->key) + cli_stored_size(from, param->fallback);
         extent->lists += param->choices;
         for (unsigned int each = 0u; each < param->choices; each += 1u)
         {
-            extent->text += cli_kept_size(from, from->list[param->first + each]);
+            extent->text += cli_stored_size(from, from->list[param->first + each]);
         }
     }
     for (unsigned int at = 0u; at < job->steps; at += 1u)
     {
         const CliStep *const step = &from->step[job->step_first + at];
-        extent->text += cli_kept_size(from, step->text) + cli_kept_size(from, step->tool_program);
+        extent->text += cli_stored_size(from, step->text) + cli_stored_size(from, step->tool_program);
         extent->args += step->args;
         for (unsigned int each = 0u; each < step->args; each += 1u)
         {
             const CliArg *const arg = &from->arg[step->first + each];
             for (unsigned int part = 0u; part < 4u; part += 1u)
             {
-                extent->text += cli_kept_size(from, arg->text[part]);
+                extent->text += cli_stored_size(from, arg->text[part]);
             }
             extent->lists += arg->words;
             for (unsigned int word = 0u; word < arg->words; word += 1u)
             {
-                extent->text += cli_kept_size(from, from->list[arg->first + word]);
+                extent->text += cli_stored_size(from, from->list[arg->first + word]);
             }
         }
     }
 }
 
 // a text written as a JSON string
-static void cli_quoted(CliLine *out, const char *text)
+static void cli_quoted(VerbaLinea *out, const char *text)
 {
     cli_json_quoted(out, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-void cli_catalog_job_written(const CliCatalog *catalog, unsigned int index, CliLine *out)
+void cli_catalog_job_written(const CliCatalog *catalog, unsigned int index, VerbaLinea *out)
 {
     const CliJob *const job = &catalog->job[index];
-    cli_line_text(out, "{\"id\":");
+    mmgr_line_put(out, "{\"id\":");
     cli_quoted(out, cli_catalog_at(catalog, job->id));
-    cli_line_text(out, ",\"group\":");
+    mmgr_line_put(out, ",\"group\":");
     cli_quoted(out, job->group);
-    cli_line_text(out, ",\"title\":");
+    mmgr_line_put(out, ",\"title\":");
     cli_quoted(out, cli_catalog_at(catalog, job->title));
-    cli_line_text(out, ",\"file\":");
+    mmgr_line_put(out, ",\"file\":");
     cli_quoted(out, cli_catalog_at(catalog, job->file));
-    cli_line_text(out, ",\"about\":");
+    mmgr_line_put(out, ",\"about\":");
     cli_quoted(out, cli_catalog_at(catalog, job->about));
-    cli_line_text(out, ",\"params\":[");
+    mmgr_line_put(out, ",\"params\":[");
     for (unsigned int at = 0u; at < job->params; at += 1u)
     {
         const CliParam *const param = &catalog->param[job->param_first + at];
-        cli_line_text(out, (at != 0u) ? ",{\"key\":" : "{\"key\":");
+        mmgr_line_put(out, (at != 0u) ? ",{\"key\":" : "{\"key\":");
         cli_quoted(out, cli_catalog_at(catalog, param->key));
-        cli_line_text(out, ",\"kind\":");
+        mmgr_line_put(out, ",\"kind\":");
         cli_quoted(out, param->kind);
-        cli_line_text(out, ",\"choices\":[");
+        mmgr_line_put(out, ",\"choices\":[");
         for (unsigned int each = 0u; each < param->choices; each += 1u)
         {
-            cli_line_text(out, (each != 0u) ? "," : "");
+            mmgr_line_put(out, (each != 0u) ? "," : "");
             cli_quoted(out, cli_catalog_at(catalog, catalog->list[param->first + each]));
         }
-        cli_line_text(out, "],\"default\":");
+        mmgr_line_put(out, "],\"default\":");
         cli_quoted(out, cli_catalog_at(catalog, param->fallback));
-        cli_line_text(out, param->required ? ",\"required\":true}" : ",\"required\":false}");
+        mmgr_line_put(out, param->required ? ",\"required\":true}" : ",\"required\":false}");
     }
-    cli_line_text(out, "],\"opens\":");
+    mmgr_line_put(out, "],\"opens\":");
     cli_quoted(out, job->opens);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
 void cli_values_begun(CliValues *values)

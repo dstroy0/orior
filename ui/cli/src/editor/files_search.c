@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_search.c: every line in the tree's files that holds a query. The files are what git tracks or would track, or
-// the whole tree where git cannot read it. Text is found by the sift: a worker on each core orior's work may take
+// files_search.c: every line in the tree's files that contains a query. The files are what git tracks or would track,
+// or the whole tree where git cannot read it. Text is found by the sift: a worker on each core orior's work may take
 // reads the next file into a cell of its own, grown as a larger file comes, and searches it there, so a search takes
 // one cell a worker and not two a file; a regular expression is git's to search
 #include "../machine/cores.h"
@@ -23,7 +23,7 @@ typedef struct
     unsigned long long room_size;
 } CliSearchWorker;
 
-// One search: the files searched, picked from the view of the tree held through the search, and the most bytes of one
+// One search: the files searched, picked from the view of the tree pinned through the search, and the most bytes of one
 // read, what is looked for and its letters in lower case; the next file to read; the workers searching; the lines
 // found; and each worker's thread and cell
 typedef struct
@@ -51,25 +51,25 @@ typedef struct
     unsigned int order;
 } CliFileHits;
 
-// a line found put among those held (files_search_hits.c); where no room for it is given it is let go
+// a line found put among those stored (files_search_hits.c); where no room for it is given it is let go
 static void cli_hit_put(void *context, unsigned long long line, unsigned long long col, const unsigned char *text,
                         unsigned long long size)
 {
     CliFileHits *const file = (CliFileHits *)context;
     cli_lock_take(&s_lock);
-    CliHeldHit *const hit = cli_hits_slot(&s_search.hits);
+    CliSearchHit *const hit = cli_hits_take(&s_search.hits);
     if (hit != NULL)
     {
-        // a hit's bytes are at most CLI_HIT_BYTES, which an unsigned int holds
-        const unsigned int kept = (unsigned int)((size < CLI_HIT_BYTES) ? size : CLI_HIT_BYTES);
-        *hit = (CliHeldHit){file->file, file->order, line, col, kept, {0}};
-        memor.cpy(&(MemoriaCfg){.dst = hit->text, .src = text, .bytes = kept});
+        // a hit's bytes are at most CLI_HIT_BYTES, which an unsigned int stores
+        const unsigned int copied_len = (unsigned int)((size < CLI_HIT_BYTES) ? size : CLI_HIT_BYTES);
+        *hit = (CliSearchHit){file->file, file->order, line, col, copied_len, {0}};
+        memor.cpy(&(MemoriaCfg){.dst = hit->text, .src = text, .bytes = copied_len});
     }
     file->order += 1u;
     cli_lock_give(&s_lock);
 }
 
-// a file read searched, where its start holds no 0 that marks it as no text
+// a file read searched, where its start contains no 0 that marks it as no text
 static void cli_searched(const unsigned char *bytes, unsigned long long size, unsigned int index)
 {
     const unsigned long long look = (size < CLI_BINARY_LOOK) ? size : CLI_BINARY_LOOK;
@@ -80,7 +80,7 @@ static void cli_searched(const unsigned char *bytes, unsigned long long size, un
     }
 }
 
-// room for a file of `size` bytes in a worker's cell: the cell as it is where it holds them, else one taken anew of
+// room for a file of `size` bytes in a worker's cell: the cell as it is where it fits them, else one taken anew of
 // twice the cell's bytes or the file's and one, the cell before given back; NULL, so the file is passed over, where it
 // is larger than the search reads or no cell is given
 static unsigned char *cli_worker_roomed(void *context, unsigned long long size)
@@ -92,10 +92,10 @@ static unsigned char *cli_worker_roomed(void *context, unsigned long long size)
     }
     if ((size + 1ull) > worker->room_size)
     {
-        cli_cell_given(worker->room);
+        g_cli_cells->persistent_buf_release(worker->room, NULL);
         unsigned long long room = (worker->room_size * 2ull > size + 1ull) ? (worker->room_size * 2ull) : (size + 1ull);
         room = (room < CLI_WORKER_ROOM_FIRST) ? CLI_WORKER_ROOM_FIRST : room;
-        worker->room = cli_cell_taken(room, "a search worker's room");
+        worker->room = g_cli_cells->persistent_buf_alloc(room, NULL);
         worker->room_size = (worker->room != NULL) ? room : 0ull;
     }
     return worker->room;
@@ -115,19 +115,19 @@ static void cli_worker(void *context)
         {
             break;
         }
-        char full[CLI_PATH_LONGEST];
-        CliLine line = {full, sizeof(full), 0ull};
-        cli_line_text(&line, s_search.root);
-        cli_line_character(&line, '/');
-        cli_line_text(&line, cli_picked_at(&s_search.paths, index));
+        char full[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {full, sizeof(full), 0ull};
+        mmgr_line_put(&line, s_search.root);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, cli_picked_at(&s_search.paths, index));
         unsigned long long size = 0ull;
-        if ((cli_line_closed(&line) != 0ull) && cli_file_read_whole(full, cli_worker_roomed, worker, &size) &&
+        if ((mmgr_line_finish(&line) != 0ull) && cli_file_read_whole(full, cli_worker_roomed, worker, &size) &&
             (worker->room != NULL))
         {
             cli_searched(worker->room, size, index);
         }
     }
-    cli_cell_given(worker->room);
+    g_cli_cells->persistent_buf_release(worker->room, NULL);
     worker->room = NULL;
     worker->room_size = 0ull;
     cli_lock_take(&s_lock);
@@ -144,24 +144,24 @@ typedef struct
 } CliSearchHides;
 
 // whether a search reads a file: neither the search's patterns nor the set hide it
-static int cli_search_keeps(void *context, const char *path)
+static int cli_search_includes(void *context, const char *path)
 {
     const CliSearchHides *const hides = (const CliSearchHides *)context;
     return !cli_patterns_hides(hides->patterns, path, 0) && !cli_patterns_hides(hides->set, path, 0);
 }
 
-// the tree's files the search reads picked into the search, the view held until the search ends: git's view, or the
-// tree's own files where git cannot read it, less those the patterns hide; none where no view could be held. And the
+// the tree's files the search reads picked into the search, the view pinned until the search ends: git's view, or the
+// tree's own files where git cannot read it, less those the patterns hide; none where no view could be pinned. And the
 // most bytes it reads of one, a tree git cannot read passing over a larger file
 static void cli_search_paths(const char *root, const CliPatterns *patterns, const CliPatterns *set)
 {
     CliSearchHides hides = {patterns, set};
-    (void)cli_files_picked(&s_search.paths, root, cli_search_keeps, &hides);
+    (void)cli_files_picked(&s_search.paths, root, cli_search_includes, &hides);
     s_search.most = ((s_search.paths.seen != NULL) && s_search.paths.seen->git) ? ~0ull : CLI_SEARCHED_BYTES;
 }
 
 // the files read and searched, a worker on each core the work may take, and the lines found written
-static void cli_search_run(CliLine *out)
+static void cli_search_run(VerbaLinea *out)
 {
     const unsigned int budget = cli_cores_for_work();
     const unsigned int files = (s_search.paths.count > 1u) ? s_search.paths.count : 1u;
@@ -196,25 +196,25 @@ static void cli_search_run(CliLine *out)
     CliSearchHits *const hits = &s_search.hits;
     cli_hits_sorted(hits);
     const unsigned int shown = (hits->lives < CLI_HITS_MOST) ? hits->lives : CLI_HITS_MOST;
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < shown; at += 1u)
     {
-        const CliHeldHit *const hit = &hits->pool[hits->live[at]];
+        const CliSearchHit *const hit = &hits->pool[hits->live[at]];
         cli_hit_written(out, at == 0u, cli_picked_at(&s_search.paths, hit->file), hit->line, hit->col, hit->text,
                         hit->size);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
-int cli_files_search(const char *root, const char *query, CliSearching how, const CliPatterns *set, CliLine *out,
-                     CliLine *said)
+int cli_files_search(const char *root, const char *query, CliSearching how, const CliPatterns *set, VerbaLinea *out,
+                     VerbaLinea *err_msg)
 {
     static CliPatterns s_patterns;
     static CliWords s_specs;
     static CliLock s_turn = CLI_LOCK_INIT;
     if (query[0] == '\0')
     {
-        cli_line_text(out, "[]");
+        mmgr_line_put(out, "[]");
         return 1;
     }
     cli_lock_take(&s_turn);
@@ -222,10 +222,10 @@ int cli_files_search(const char *root, const char *query, CliSearching how, cons
     s_specs.count = 0u;
     s_specs.used = 0u;
     s_specs.full = 0;
-    cli_patterns_kept_specs(set, &s_specs);
+    cli_patterns_include_specs(set, &s_specs);
     if (s_specs.count == 0u)
     {
-        cli_patterns_kept_specs(&s_patterns, &s_specs);
+        cli_patterns_include_specs(&s_patterns, &s_specs);
     }
     if (s_specs.count == 0u)
     {
@@ -235,7 +235,7 @@ int cli_files_search(const char *root, const char *query, CliSearching how, cons
     cli_patterns_hidden_specs(set, &s_specs);
     if (how.regex)
     {
-        const int came = cli_search_by_git(root, query, how, &s_specs, &s_patterns, set, out, said);
+        const int came = cli_search_by_git(root, query, how, &s_specs, &s_patterns, set, out, err_msg);
         if (came != CLI_GIT_SEARCH_NONE)
         {
             cli_lock_give(&s_turn);
@@ -244,7 +244,7 @@ int cli_files_search(const char *root, const char *query, CliSearching how, cons
     }
     s_search.root = root;
     cli_search_paths(root, &s_patterns, set);
-    // a letter count is below CLI_FUZZY_LETTERS, which an unsigned int holds
+    // a letter count is below CLI_FUZZY_LETTERS, which an unsigned int stores
     const unsigned int letters = (unsigned int)cli_regexp_letters(
         query, cellul.len(&(CatenaFinitaCfg){.src = query, .cap = CLI_CELLS_POOL}), s_search.lower, CLI_FUZZY_LETTERS);
     int ascii = 1;

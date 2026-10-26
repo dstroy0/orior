@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pieces.c: a text of a length not known before it is written held as it is written: a line whose flush puts each
+// pieces.c: a text of a length not known before it is written buffered as it is written: a line whose flush puts each
 // piece it fills in a cell of that piece's size, the cells linked in the order written, handed on in that order and
 // given back once the text is
 #include "pieces.h"
@@ -9,10 +9,10 @@
 
 // `size` bytes of a piece put in a cell of their own after the pieces before: 1, or 0 with the pieces refused where
 // the cell cannot be taken
-static int pieces_put(void *context, const char *bytes, unsigned long long size)
+static int pieces_put(void *context, const char *bytes, size_t size)
 {
     CliPieces *const pieces = (CliPieces *)context;
-    CliPiece *const piece = cli_cell_taken(sizeof(CliPiece) + size, "a piece of a text held");
+    CliPiece *const piece = g_cli_cells->persistent_buf_alloc(sizeof(CliPiece) + size, NULL);
     if (piece == NULL)
     {
         pieces->refused = 1;
@@ -39,15 +39,15 @@ int cli_pieces_added(CliPieces *pieces, const char *bytes, unsigned long long si
     return (size == 0ull) || pieces_put(pieces, bytes, size);
 }
 
-void cli_pieces_begun(CliPieces *pieces, CliLine *line, char *piece, unsigned long long piece_size)
+void cli_pieces_begun(CliPieces *pieces, VerbaLinea *line, char *piece, unsigned long long piece_size)
 {
     *pieces = (CliPieces){NULL, NULL, 0ull, 0};
-    *line = (CliLine){piece, piece_size, 0ull, pieces_put, pieces, 0ull};
+    *line = (VerbaLinea){piece, piece_size, 0ull, pieces_put, pieces, 0ull};
 }
 
-int cli_pieces_ended(CliPieces *pieces, CliLine *line)
+int cli_pieces_ended(CliPieces *pieces, VerbaLinea *line)
 {
-    return (line->at == 0ull) ? !pieces->refused : (cli_line_flushed(line) && !pieces->refused);
+    return (line->at == 0ull) ? !pieces->refused : (mmgr_line_flush(line) && !pieces->refused);
 }
 
 void cli_pieces_each(const CliPieces *pieces, void (*each)(void *context, const char *bytes, unsigned long long size),
@@ -75,17 +75,17 @@ void cli_pieces_given(CliPieces *pieces)
     while (piece != NULL)
     {
         CliPiece *const next = piece->next;
-        cli_cell_given(piece);
+        g_cli_cells->persistent_buf_release(piece, NULL);
         piece = next;
     }
     *pieces = (CliPieces){NULL, NULL, 0ull, 0};
 }
 
-char *cli_pieces_joined(CliPieces *pieces, CliLine *line, const char *what, unsigned long long *size)
+char *cli_pieces_joined(CliPieces *pieces, VerbaLinea *line, const char *what, unsigned long long *size)
 {
     const int whole = cli_pieces_ended(pieces, line);
     *size = pieces->size;
-    char *const joined = whole ? cli_cell_taken(*size + 1ull, what) : NULL;
+    char *const joined = whole ? g_cli_cells->persistent_buf_alloc(*size + 1ull, NULL) : NULL;
     if (joined != NULL)
     {
         cli_pieces_copied(pieces, joined);

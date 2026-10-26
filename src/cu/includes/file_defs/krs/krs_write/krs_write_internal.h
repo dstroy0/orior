@@ -31,7 +31,7 @@
 #define KRS_WORDS ((unsigned int)(sizeof(s_word_web) / sizeof(s_word_web[0])))
 
 // the names a form's relation is handed back under, as khw_write writes them: a ladder relation's, and a frame
-// relation's (The frame forms asked, Open 6.4)
+// relation's (Open 6.4)
 #define KRS_READS_LADDER "ladder."
 
 #define KRS_READS_FRAME "frame."
@@ -70,8 +70,8 @@ unsigned int krs_ranked(const unsigned int *writer, unsigned int writers);
 unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writers);
 unsigned int krs_parameters_named(const char *path, const char *name, char parameter[][KRS_NAME]);
 
-// the place `{<place>}` at `walk` into `place`, its letters, braces too, into `length`: 1, or 0 where `walk` holds
-// none or a place an unsigned int does not hold
+// the place `{<place>}` at `walk` into `place`, its letters, braces too, into `length`: 1, or 0 where `walk` contains
+// none or a place an unsigned int does not represent
 int krs_place_read(const char *walk, unsigned int *place, int *length);
 int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order);
 int krs_text_named(const KrsForm *form, const unsigned int *order, char parameter[][KRS_NAME], unsigned int parameters,

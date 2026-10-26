@@ -9,13 +9,13 @@
 
 #include <stddef.h>
 
-// the bytes of a member's ring, a power of two: a record takes at most half of it; and the members a run keeps a ring
-// for at the most, its region laid with fewer where its ask is smaller
+// the bytes of a member's ring, a power of two: a record takes at most half of it; and the members a run allocates a
+// ring for at the most, its region laid with fewer where its request is smaller
 #define QRY_WRITER_RING_BYTES (64ull << 20u)
 #define QRY_WRITER_MEMBERS QRY_WRITER_MEMBERS_MOST
 
 // the longest path of the top of the tree, and of a run's .qry
-#define QRY_WRITER_TOP_LONGEST 1024u
+#define QRY_WRITER_TOP_MAX_LEN 1024u
 
 // the run's shared memory and a member's ring in it, laid out where the writer and the member are
 // (qry_writer_internal.h): a module of the run sees neither's fields
@@ -30,7 +30,7 @@ extern "C"
 // a file's size where it could not be read whole
 #define QRY_MEMBER_UNREAD 0xffffffffffffffffull
 
-// the environment variable that names the .qry a run's writer holds open, which every member of the run joins
+// the environment variable that names the .qry a run's writer has open, which every member of the run joins
 #define QRY_ENVIRONMENT "QRY"
 
 // the name of a panic's record on the line, and of each account a party gives of a question at its conference
@@ -56,7 +56,7 @@ extern "C"
     // memory let go
     void qry_member_parted(void);
 
-    // 1 while the writer of the run of the .qry at `path` writes, not yet asked to stop, whether this process
+    // 1 while the writer of the run of the .qry at `path` writes, not yet requested to stop, whether this process
     // is a member of it
     int qry_member_writer_runs(const char *path);
 
@@ -64,52 +64,52 @@ extern "C"
     // appends to the run: NULL where there is no run or every ring is taken
     QryRing *qry_member_ring(void);
 
-    // The record of `name` holding the `blob_length` bytes at `blob`, at `priority`, written once into this thread's
-    // ring at its tail with its time on the one clock and its CRC, a ring that holds no room for it first waited on;
+    // The record of `name` containing the `blob_length` bytes at `blob`, at `priority`, written once into this thread's
+    // ring at its tail with its time on the one clock and its CRC, a ring that has no room for it first waited on;
     // a panic or a critical record waited on until it is on the disk. Its time, which keys it among the run's
     // records, or 0 where there is no ring, the record is larger than half a ring or the name is none a record takes
     unsigned long long qry_member_append(const char *name, const void *blob, unsigned long long blob_length,
                                          unsigned int priority);
 
     // this thread's ring waited on until the writer has taken every record in it: the places the schedule then
-    // holds, a place past every record this thread appended
+    // contains, a place past every record this thread appended
     unsigned long long qry_member_settled(void);
 
-    // every ring waited on until the writer has taken every record each kept as this was called: the places the
-    // schedule then holds
+    // every ring waited on until the writer has taken every record each contained as this was called: the places the
+    // schedule then contains
     unsigned long long qry_member_rings_settled(void);
 
     // The record at place `*at` of the writer's schedule, where it stands in the run, and `*at` moved past it: a
-    // reader starts at 0 and keeps `*at`, each read going on from where the last stopped. 1, or 0 where the schedule
-    // holds nothing past `*at`. The record's name follows its head, and its blob its name. A read from 0, and every
+    // reader starts at 0 and tracks `*at`, each read going on from where the last stopped. 1, or 0 where the schedule
+    // contains nothing past `*at`. The record's name follows its head, and its blob its name. A read from 0, and every
     // latest found, waits first until the writer has taken what this thread handed (qry_member_settled)
     int qry_member_read(unsigned long long *at, const QryRecord **record);
 
     // The record at place `*at` of the schedule of the run `run` maps, which this process views without being a
-    // member of it (qry_member_shared), and `*at` moved past it: 1, or 0 where the schedule holds nothing past `*at`
+    // member of it (qry_member_shared), and `*at` moved past it: 1, or 0 where the schedule contains nothing past `*at`
     int qry_member_viewed_read(QryShared *run, unsigned long long *at, const QryRecord **record);
 
-    // 1 while the writer of the run `run` maps writes, not yet asked to stop
+    // 1 while the writer of the run `run` maps writes, not yet requested to stop
     int qry_member_viewed_writing(QryShared *run);
 
     // the place plus 1 of the panic on the line of the run `run` maps, 0 while its line is quiet
     unsigned long long qry_member_viewed_panicked(QryShared *run);
 
-    // every record of `name` the run holds, the blobs joined into `gathered`, which holds `room`, in the order of the
-    // writer's schedule: their bytes, or QRY_MEMBER_UNREAD where they do not fit
+    // every record of `name` the run contains, the blobs joined into `gathered`, which has room for `room`, in the
+    // order of the writer's schedule: their bytes, or QRY_MEMBER_UNREAD where they do not fit
     unsigned long long qry_member_gathered(const char *name, unsigned char *gathered, unsigned long long room);
 
     // the latest record of `name`, the schedule read from its end back, and its place in `*place` where `place` is
-    // not NULL: 1, or 0 where the run holds none
+    // not NULL: 1, or 0 where the run contains none
     int qry_member_latest(const char *name, const QryRecord **record, unsigned long long *place);
 
     // the blob of the latest record of `name` where it stands, its bytes, and its place where `place` is not NULL: 1,
-    // or 0 where the run holds none
+    // or 0 where the run contains none
     int qry_member_blob(const char *name, const unsigned char **blob, unsigned long long *size,
                         unsigned long long *place);
 
-    // The file at `path` as the run holds it: the latest record of its name, its path from the top of the tree. A
-    // file the run holds no record of is read from the disk and taken into the run, and that record found. 1, or 0
+    // The file at `path` as the run stores it: the latest record of its name, its path from the top of the tree. A
+    // file the run stores no record of is read from the disk and taken into the run, and that record found. 1, or 0
     // where the path stands outside the top or the file is neither the run's nor the disk's
     int qry_member_file(const char *path, const QryRecord **record);
 
@@ -117,7 +117,7 @@ extern "C"
     // NULL where there is no run or the path stands outside the top
     const char *qry_member_file_name(const char *path);
 
-    // the blob of the file at `path` as the run holds it (qry_member_file), where it stands, and its bytes; with no
+    // the blob of the file at `path` as the run stores it (qry_member_file), where it stands, and its bytes; with no
     // run, the disk's file mapped where it lies: 1, or 0 where the file is neither the run's nor the disk's
     int qry_member_file_blob(const char *path, const unsigned char **blob, unsigned long long *size);
 
@@ -128,9 +128,9 @@ extern "C"
 
     // The `size` bytes at `bytes` appended critical as `:<name>`, which the writer writes into the run's .qry's named
     // stream `<qry>:<name>` as it takes it, for a program that reads its input only from a file's path, as the
-    // vendor's disassembler does; the stream's path into `path`, which holds `room`. The record's time once the
-    // stream holds the bytes, or 0 where it could not be had: no run, a name that holds `/`, `\` or `:`, or a system
-    // that gives a file no named stream
+    // vendor's disassembler does; the stream's path into `path`, which has room for `room`. The record's time once the
+    // stream contains the bytes, or 0 where it could not be had: no run, a name that contains `/`, `\` or `:`, or a
+    // system that gives a file no named stream
     unsigned long long qry_member_streamed(const char *name, const void *bytes, unsigned long long size, char *path,
                                            size_t room);
 
@@ -140,7 +140,7 @@ extern "C"
     // the line closed on the ruling of the panic at `panic`, place plus 1, as qry_member_panicked gives it
     void qry_member_line_closed(unsigned long long panic);
 
-    // the writer asked to write the rest of the run and stop
+    // the writer requested to write the rest of the run and stop
     void qry_member_stopped(void);
 
     // the one clock every process of the run reads, in nanoseconds
@@ -155,12 +155,12 @@ extern "C"
     // this process's number, as the system gives it
     unsigned long long qry_member_process(void);
 
-    // the path of the .qry the environment's QRY names into `path`, which holds `room`: 1, or 0 where it names none
-    // or the path does not fit
+    // the path of the .qry the environment's QRY names into `path`, which has room for `room`: 1, or 0 where it names
+    // none or the path does not fit
     int qry_member_named(char *path, size_t room);
 
-    // the path of this process's program file into `path`, which holds `room`: 1, or 0 where it does not fit or the
-    // system gives none
+    // the path of this process's program file into `path`, which has room for `room`: 1, or 0 where it does not fit or
+    // the system gives none
     int qry_member_program(char *path, size_t room);
 
     // the file at `path` mapped whole to be read where it lies, its size in `*size`: its bytes, or NULL where it
@@ -170,8 +170,8 @@ extern "C"
     // the `size` bytes at `bytes` qry_member_file_mapped mapped let go
     void qry_member_file_unmapped(const unsigned char *bytes, unsigned long long size);
 
-    // the file at `path` read whole into `bytes`, which holds `room`, read to its end whatever length the system
-    // gives it: the bytes it holds, or QRY_MEMBER_UNREAD where it could not be read whole or is larger than `room`
+    // the file at `path` read whole into `bytes`, which has room for `room`, read to its end whatever length the system
+    // gives it: the bytes it contains, or QRY_MEMBER_UNREAD where it could not be read whole or is larger than `room`
     unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, unsigned long long room);
 
 #ifdef __cplusplus

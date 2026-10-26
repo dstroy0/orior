@@ -116,7 +116,7 @@ unsigned long long cubin_pattern_read(const char *path, unsigned char *pattern, 
     fclose(file);
     if (!fits || (size == 0ull) || (kernel[0] == '\0'))
     {
-        printf("  cubin_write: %s holds no container the system accepted that reads and fits\n", path);
+        printf("  cubin_write: %s contains no container the system accepted that reads and fits\n", path);
         return 0ull;
     }
     return size;

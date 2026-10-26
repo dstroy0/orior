@@ -123,10 +123,10 @@ std::map<std::string, StallField> stall_fields(const char *ksc)
     return fields;
 }
 
-// The cases a pair's product is put over where the cases a question holds leave it short of whole: each of the three
+// The cases a pair's product is put over where the cases a question contains leave it short of whole: each of the three
 // operands put through the values every case is put through and `qualifiers`, the values the pair's forms write of
-// their own, every combination of them, cut into runs the run channel holds. The run `run` of them into `question`,
-// and the count of runs. The host computes none of them, and a product asks nothing of the host
+// their own, every combination of them, cut into runs the run channel carries. The run `run` of them into `question`,
+// and the count of runs. The host computes none of them, and a product requires nothing of the host
 unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long long> &qualifiers, unsigned int run)
 {
     std::vector<unsigned long long> values(s_values, s_values + IDENTITY_VALUES);
@@ -162,7 +162,7 @@ unsigned int whole_cases(RunQuestion *question, const std::set<unsigned long lon
 }
 
 // The cases a question is put over: every case the host computes, spread evenly through them only where the run
-// channel holds fewer. The words of each into `question`, and the host's place of each into `places`
+// channel carries fewer. The words of each into `question`, and the host's place of each into `places`
 void stall_cases(RunQuestion *question, std::vector<unsigned int> *places)
 {
     places->clear();
@@ -192,19 +192,19 @@ unsigned long long record_hash(const void *bytes, size_t size, unsigned long lon
     return hash;
 }
 
-std::map<std::string, AskRecorded> s_record;
+std::map<std::string, QueryRecorded> s_record;
 
 std::string s_record_ksc;
 
-// The part's query record, its .kqr beside its .ksc and of the same stem, held in memory for the run: every untimed
-// ask a cycle put and what came back, by the question's identity, every timed ask a sample of its own, and the paths
-// the last cycle read off them. Whatever asks an untimed ask again, in this cycle or a later one, is answered from it,
-// and the part is asked it once; an ask that timed out is asked again until an answer resolves it, and an ask the gate
-// censored or the part answered illegal, timed or not, is censored without a process every time after, the part's
-// answer kept as it gave it. It is read where R is read and written back where R is, and its path is
-// empty where it could not be read, so that nothing writes over a record no mode read. What a cycle puts is placed in
-// the record's order by its cycle and mode, its seed and its rounds (kqr_mark), each written before the first new ask
-// or sample that follows it and nowhere where none follows: a cycle the record answers whole adds no line to it
+// The part's query record, its .kqr beside its .ksc and of the same stem, stored in memory for the run: every untimed
+// query a cycle put and what came back, by the question's identity, every timed query a sample of its own, and the
+// paths the last cycle read off them. Whatever queries an untimed query again, in this cycle or a later one, is
+// answered from it, and the part is queried once; a query that timed out is queried again until an answer resolves it,
+// and a query the gate censored or the part answered illegal, timed or not, is censored without a process every time
+// after, the part's answer recorded as it gave it. It is read where R is read and written back where R is, and its path
+// is empty where it could not be read, so that nothing writes over a record no mode read. What a cycle puts is placed
+// in the record's order by its cycle and mode, its seed and its rounds (kqr_mark), each written before the first new
+// query or sample that follows it and nowhere where none follows: a cycle the record answers whole adds no line to it
 KqrRecord s_query_record;
 
 // the flags of the trace's choices, read from their table (src/cu/includes/file_defs/klq/query_trace.tsv) when the pair
@@ -213,14 +213,13 @@ QueryTrace s_query_trace;
 
 static std::string s_query_record_path;
 
-int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
-                               Who who);
+int ksc_answers_written(const char *ksc, const std::string &queried, const std::vector<std::string> &rows, Who who);
 
-void cuts_asked(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
-                       const std::vector<unsigned int> &slots, const RunQuestion *question, unsigned long long *asks,
-                       unsigned int mark, std::vector<RunQuestion> *asked);
+void cuts_queried(const std::vector<std::vector<unsigned char>> &codes, const std::vector<int> &dangerous,
+                  const std::vector<unsigned int> &places, const RunQuestion *question, unsigned long long *queries,
+                  unsigned int mark, std::vector<RunQuestion> *questions);
 
-// the record written back to the .ksc it was read from, every ask a row in the order of its keys
+// the record written back to the .ksc it was read from, every query a row in the order of its keys
 void record_close(void)
 {
     if (s_record_ksc.empty())
@@ -232,10 +231,10 @@ void record_close(void)
     {
         char word[16];
         snprintf(word, sizeof(word), "%08x", recorded.second.word);
-        rows.push_back("run " + recorded.second.answer + " " + word + " ask " + recorded.first +
+        rows.push_back("run " + recorded.second.answer + " " + word + " query " + recorded.first +
                        (recorded.second.refusal.empty() ? "" : (" " + recorded.second.refusal)));
     }
-    if (!ksc_answers_write(s_record_ksc.c_str(), "ask", rows))
+    if (!ksc_answers_write(s_record_ksc.c_str(), "query", rows))
     {
         printf("  the record could not be written to %s\n", s_record_ksc.c_str());
     }
@@ -248,28 +247,29 @@ void record_close(void)
 }
 
 // the record read from `ksc`, written back to it when the program ends, and the query record beside it, a cycle of
-// mode `mode` pending in its order; and the channel told how far a container's code reaches, as `ksc` holds it
+// mode `mode` pending in its order; and the channel informed how far a container's code reaches, as `ksc` stores it
 void record_open(const char *ksc, const char *mode)
 {
     s_record.clear();
     s_record_ksc = ksc;
-    // how far a container's code reaches, for a register hold the cross gives the channel (run_channel.h)
+    // how far a container's code reaches, for a register refusal the cross gives the channel (run_channel.h)
     if (!run_channel_registers_past(ksc))
     {
-        printf("  %s holds no answer of how far a container's code reaches: a register hold stays held\n", ksc);
+        printf("  %s contains no answer of how far a container's code reaches: a register refusal stays refused\n",
+               ksc);
     }
-    KscFile held = {};
+    KscFile ksc_file = {};
     static KscRow s_row;
-    ksc_read(&held, ksc);
-    for (unsigned int at = 0u; at < held.lines; at += 1u)
+    ksc_read(&ksc_file, ksc);
+    for (unsigned int at = 0u; at < ksc_file.lines; at += 1u)
     {
-        if (!ksc_row_read(held.line[at], "run", &s_row) || (strncmp(s_row.question, "ask ", 4u) != 0))
+        if (!ksc_row_read(ksc_file.line[at], "run", &s_row) || (strncmp(s_row.question, "query ", 6u) != 0))
         {
             continue;
         }
         const std::string answer = s_row.answer;
         const std::string word = s_row.word;
-        std::stringstream words(s_row.question + 4);
+        std::stringstream words(s_row.question + 6);
         std::string key;
         std::string part;
         for (unsigned int place = 0u; (place < 6u) && (words >> part); place += 1u)
@@ -280,9 +280,9 @@ void record_open(const char *ksc, const char *mode)
         std::getline(words, refusal);
         refusal = (!refusal.empty() && (refusal[0] == ' ')) ? refusal.substr(1u) : refusal;
         // the word is the host's place of the first case apart, at most eight hex digits
-        s_record[key] = AskRecorded{answer, (unsigned int)s_row.value, refusal};
+        s_record[key] = QueryRecorded{answer, (unsigned int)s_row.value, refusal};
     }
-    ksc_free(&held);
+    ksc_free(&ksc_file);
     const std::string classified = ksc;
     const size_t stem_at = classified.find_last_of("/\\") + 1u;
     const size_t suffix_at = classified.find_last_of('.');
@@ -296,7 +296,7 @@ void record_open(const char *ksc, const char *mode)
     }
     else
     {
-        // the record a view of the run's table of asks, written as its rows put it together
+        // the record a view of the run's table of queries, written as its rows put it together
         kqr_tabled(&s_query_record, qry_member_run(), s_query_record_path.c_str());
     }
     kqr_mark(&s_query_record, KQR_CYCLE_RECORD, mode);

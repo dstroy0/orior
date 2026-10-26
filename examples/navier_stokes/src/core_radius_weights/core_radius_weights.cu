@@ -427,13 +427,16 @@ void core_radius_device_open(CoreRadiusDevice *device, unsigned int orders, unsi
     int count = 0;
     const size_t residue_bytes = (size_t)CORE_RADIUS_KINDS * orders * primes_count * modes * sizeof(uint32_t);
     const size_t sum_bytes = (size_t)CORE_RADIUS_SUMS * primes_count * modes * sizeof(uint32_t);
-    device->held = (cudaGetDeviceCount(&count) == cudaSuccess) && (count > 0) && (cudaMalloc((void **)&device->residues, residue_bytes) == cudaSuccess) &&
-                   (cudaMemset(device->residues, 0, residue_bytes) == cudaSuccess) &&
-                   (cudaMalloc((void **)&device->lengths_device, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
-                   (cudaMemset(device->lengths_device, 0, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
-                   (cudaMalloc((void **)&device->primes_device, primes_count * sizeof(uint32_t)) == cudaSuccess) &&
-                   (cudaMemcpy(device->primes_device, device->primes.data(), primes_count * sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess) &&
-                   (cudaMalloc((void **)&device->sums, sum_bytes) == cudaSuccess);
+    device->available =
+        (cudaGetDeviceCount(&count) == cudaSuccess) && (count > 0) &&
+        (cudaMalloc((void **)&device->residues, residue_bytes) == cudaSuccess) &&
+        (cudaMemset(device->residues, 0, residue_bytes) == cudaSuccess) &&
+        (cudaMalloc((void **)&device->lengths_device, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
+        (cudaMemset(device->lengths_device, 0, device->lengths.size() * sizeof(uint32_t)) == cudaSuccess) &&
+        (cudaMalloc((void **)&device->primes_device, primes_count * sizeof(uint32_t)) == cudaSuccess) &&
+        (cudaMemcpy(device->primes_device, device->primes.data(), primes_count * sizeof(uint32_t),
+                    cudaMemcpyHostToDevice) == cudaSuccess) &&
+        (cudaMalloc((void **)&device->sums, sum_bytes) == cudaSuccess);
 }
 
 void core_radius_device_close(CoreRadiusDevice *device)
@@ -446,13 +449,13 @@ void core_radius_device_close(CoreRadiusDevice *device)
 
 void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigned int k, const CoreRadiusWeights &weights, const OriorExactInteger *unit)
 {
-    if (!device->held)
+    if (!device->available)
     {
         return;
     }
     if ((k >= device->orders) || (weights.size() > device->modes))
     {
-        device->held = 0;
+        device->available = 0;
         return;
     }
     std::vector<uint32_t> residues((size_t)device->primes_count * device->modes, 0u);
@@ -469,7 +472,7 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigne
                          (orior_exact_compare(&remainder, &zero) == 0) && (sim_rational_sign(weights[m]) >= 0);
         if (!read)
         {
-            device->held = 0;
+            device->available = 0;
             return;
         }
         device->widest = std::max(device->widest, core_radius_bits(&whole));
@@ -486,12 +489,13 @@ void core_radius_device_put(CoreRadiusDevice *device, unsigned int kind, unsigne
             residues[(size_t)t * device->modes + m] = (uint32_t)residue;
         }
     }
-    const size_t slot = (size_t)kind * device->orders + k;
+    const size_t at = (size_t)kind * device->orders + k;
     // a length is at most the device's modes, which fit 32 bits
-    device->lengths[slot] = (uint32_t)weights.size();
-    device->held = (cudaMemcpy(device->residues + slot * device->primes_count * device->modes, residues.data(), residues.size() * sizeof(uint32_t),
-                               cudaMemcpyHostToDevice) == cudaSuccess) &&
-                   (cudaMemcpy(device->lengths_device + slot, &device->lengths[slot], sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess);
+    device->lengths[at] = (uint32_t)weights.size();
+    device->available = (cudaMemcpy(device->residues + at * device->primes_count * device->modes, residues.data(),
+                                    residues.size() * sizeof(uint32_t), cudaMemcpyHostToDevice) == cudaSuccess) &&
+                        (cudaMemcpy(device->lengths_device + at, &device->lengths[at], sizeof(uint32_t),
+                                    cudaMemcpyHostToDevice) == cudaSuccess);
 }
 
 void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const OriorExactInteger *unit, CoreRadiusWeights sums[CORE_RADIUS_SUMS])
@@ -500,7 +504,7 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Ori
     {
         sums[sum].clear();
     }
-    if (!device->held)
+    if (!device->available)
     {
         return;
     }
@@ -533,16 +537,17 @@ void core_radius_device_sums(CoreRadiusDevice *device, unsigned int k, const Ori
     }
     if ((2u * device->widest + count_bits >= 30u * device->primes_count) || (modes > device->modes))
     {
-        device->held = 0;
+        device->available = 0;
         return;
     }
     const dim3 grid((modes + CORE_RADIUS_THREADS - 1u) / CORE_RADIUS_THREADS, device->primes_count, CORE_RADIUS_SUMS);
     core_radius_device_kernel<<<grid, CORE_RADIUS_THREADS>>>(device->residues, device->lengths_device, device->primes_device, device->primes_count, device->orders,
                                                              device->modes, k, device->sums);
     std::vector<uint32_t> residues((size_t)CORE_RADIUS_SUMS * device->primes_count * device->modes);
-    device->held = (cudaGetLastError() == cudaSuccess) &&
-                   (cudaMemcpy(residues.data(), device->sums, residues.size() * sizeof(uint32_t), cudaMemcpyDeviceToHost) == cudaSuccess);
-    if (!device->held)
+    device->available = (cudaGetLastError() == cudaSuccess) &&
+                        (cudaMemcpy(residues.data(), device->sums, residues.size() * sizeof(uint32_t),
+                                    cudaMemcpyDeviceToHost) == cudaSuccess);
+    if (!device->available)
     {
         return;
     }

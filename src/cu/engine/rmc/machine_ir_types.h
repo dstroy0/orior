@@ -23,7 +23,7 @@
     bank_(FILE, "file") bank_(SIGN, "sign") bank_(OUT, "out") bank_(ATOM, "atom") bank_(TEMPORARY, "temporary")        \
         bank_(WIDE, "wide") bank_(PREDICATE, "predicate") bank_(MEMBER, "member") bank_(IMMEDIATE, "immediate")
 
-// every register the lane holds throughout that the code generator passes to a form by name
+// every register the lane uses throughout that the code generator passes to a form by name
 #define PHYSREGS(fixed_)                                                                                               \
     fixed_(ZERO, "zero") fixed_(LANE_NUMBER, "lane_number") fixed_(RECORD, "record") fixed_(INDEX, "index")            \
         fixed_(BODY, "body") fixed_(BODIES, "bodies") fixed_(TABLES, "tables") fixed_(THREADS, "threads")              \
@@ -83,7 +83,7 @@ CODEGEN_CORE unsigned int codegen_operand_count(unsigned int form)
 #define CODEGEN_UNBEGUN 0xFFFFFFFFu
 
 // what an argument is: a register of a bank by its number (the bank immediate a word's value), a register the lane
-// holds throughout, a count or an offset in decimal, or a small signed number in decimal
+// uses throughout, a count or an offset in decimal, or a small signed number in decimal
 enum MachineOperandKind
 {
     OPERAND_REGISTER = 1,
@@ -103,7 +103,7 @@ struct MachineOperand
 
 // a form decided: its place in the schema, how many arguments it takes, its arguments, and where the scratch its
 // construct takes begins in each of the temporaries, the 64-bit temporaries and the predicates, where the ruleset gives
-// it as a construct. The program's note holds its step count alone and its resident none
+// it as a construct. The program's note contains its step count alone and its resident none
 struct MachineInstr
 {
     unsigned int form;
@@ -144,7 +144,7 @@ struct IrProgram
 // a lane being decided: the program; the step being decided; the temporaries, 64-bit temporaries and predicates taken
 // and the most taken; the next loop's number; 1 where the step can leave the lane errored, where it reads the tables,
 // and where a form breaks the lane; one past the atom word the step last read; and the sink the forms go to, the forms
-// it holds, and how many were decided, which a sink too small for them does not stop
+// it contains, and how many were decided, which a sink too small for them does not stop
 struct MachineFunction
 {
     const IrProgram *program;
@@ -186,8 +186,8 @@ struct IrStep
 
 // the lane's body being split into states, a clock each: each form's cost by its place in the schema, how much a state
 // may chain and how many memory writes it may make; the state being written, the cost it has chained and the writes it
-// has made, 1 where it holds a form, 1 where its last form ends it and 1 where its last form left the lane; the states,
-// the most cost one state chains, and the forms that alone cost more than a state holds; each error's label, by the
+// has made, 1 where it contains a form, 1 where its last form ends it and 1 where its last form left the lane; the states,
+// the most cost one state chains, and the forms that alone cost more than a state contains; each error's label, by the
 // error it names (-1 the opening's), and its first state, as many as `dispatch_max`; and each loop's first state, by
 // the loop's number, as many as `loop_count`
 struct Schedule

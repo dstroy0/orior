@@ -218,7 +218,7 @@ int goodstein_value(const GoodsteinNotation &form, unsigned long long base, unsi
 }
 
 // subtract one at base: the lowest term c . b^L leaves (c - 1) . b^L and, where L > 0, the run of b - 1 over the
-// exponents 0 .. L - 1 of this base. 0 where L's value at base leaves 64 bits. The run's range cannot be held.
+// exponents 0 .. L - 1 of this base. 0 where L's value at base leaves 64 bits. The run's range cannot be represented.
 int goodstein_decrement(GoodsteinNotation &form, unsigned long long base)
 {
     const GoodsteinBlock lowest = form.blocks.back();

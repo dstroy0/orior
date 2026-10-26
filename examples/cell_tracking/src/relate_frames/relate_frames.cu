@@ -55,20 +55,20 @@ static long long body_coherence(const EngineBuffers *buffers, const unsigned int
     return score;
 }
 
-static void climb_lag(const EngineBuffers *buffers, unsigned int slot, unsigned int leaf,
+static void climb_lag(const EngineBuffers *buffers, unsigned int buffer_at, unsigned int leaf,
                       const unsigned int *contact_start, const unsigned int *contacts,
                       const unsigned long long *own_positive, const unsigned long long *other_positive,
                       const int *start, int *climbed)
 {
     const auto patch_coherence = [&](const int *lag) -> long long {
-        const unsigned int *const leaf_start = buffers->leaf_start[slot];
-        long long total = body_coherence(buffers, &buffers->leaf_voxels[slot][leaf_start[leaf]],
+        const unsigned int *const leaf_start = buffers->leaf_start[buffer_at];
+        long long total = body_coherence(buffers, &buffers->leaf_voxels[buffer_at][leaf_start[leaf]],
                                          leaf_start[leaf + 1u] - leaf_start[leaf], own_positive, other_positive, lag);
         for (unsigned int contact = (contact_start != NULL) ? contact_start[leaf] : 0u;
              (contact_start != NULL) && (contact < contact_start[leaf + 1u]); contact += 1u)
         {
             const unsigned int near = contacts[contact];
-            total += body_coherence(buffers, &buffers->leaf_voxels[slot][leaf_start[near]],
+            total += body_coherence(buffers, &buffers->leaf_voxels[buffer_at][leaf_start[near]],
                                     leaf_start[near + 1u] - leaf_start[near], own_positive, other_positive, lag);
         }
         return total;
@@ -167,7 +167,7 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
 {
     int lag[3] = {0, 0, 0};
     unsigned long long mark = engine_clock_microseconds();
-    if (rules->keep_view == 0)
+    if (rules->retain_view == 0)
     {
         ShiftAgreementRequest motion;
         memset(&motion, 0, sizeof(motion));
@@ -382,7 +382,7 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
     {
         return 0;
     }
-    unsigned int kept = 0u;
+    unsigned int retained = 0u;
     for (unsigned int pair = 0u; pair < pairs; pair += 1u)
     {
         const int before = engine_leaf_of_peak(earlier->peaks, earlier->leaf_count, buffers->overlap_before[pair]);
@@ -392,15 +392,15 @@ int relate_frames(EngineBuffers *buffers, TreeFrame *earlier, TreeFrame *later, 
             continue;
         }
         earlier->triple_start[(unsigned int)before + 1u] += 1u;
-        earlier->triple_after[kept] = (unsigned int)after;
-        earlier->triple_shared[kept] = buffers->overlap_shared[pair];
-        kept += 1u;
+        earlier->triple_after[retained] = (unsigned int)after;
+        earlier->triple_shared[retained] = buffers->overlap_shared[pair];
+        retained += 1u;
     }
     for (unsigned int leaf = 0u; leaf < earlier->leaf_count; leaf += 1u)
     {
         earlier->triple_start[leaf + 1u] += earlier->triple_start[leaf];
     }
-    earlier->triple_count = kept;
+    earlier->triple_count = retained;
     clocks->overlap += engine_clock_microseconds() - mark;
     if (rules->cast != 0)
     {
@@ -491,7 +491,7 @@ static int cast_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeFr
     {
         leaf_at_peak[later->peaks[leaf]] = (int)leaf;
     }
-    unsigned int kept = 0u;
+    unsigned int retained = 0u;
     for (unsigned int leaf = 0u; (ok != 0) && (leaf < earlier->leaf_count); leaf += 1u)
     {
         const int *const lag =
@@ -535,9 +535,9 @@ static int cast_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeFr
             stamp[found] = leaf + 1u;
             counts[found] += 1u;
         }
-        if ((kept + met) > capacity)
+        if ((retained + met) > capacity)
         {
-            const size_t grown = (kept + met) * 2u;
+            const size_t grown = (retained + met) * 2u;
             unsigned int *const wider_after = (unsigned int *)realloc(after, grown * sizeof(unsigned int));
             unsigned int *const wider_shared = (unsigned int *)realloc(shared, grown * sizeof(unsigned int));
             after = (wider_after != NULL) ? wider_after : after;
@@ -558,12 +558,12 @@ static int cast_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeFr
         }
         for (unsigned int step = 0u; (ok != 0) && (step < met); step += 1u)
         {
-            after[kept] = touched[step];
-            shared[kept] = (counts[touched[step]] > largest_shared[touched[step]]) ? counts[touched[step]]
-                                                                                   : largest_shared[touched[step]];
+            after[retained] = touched[step];
+            shared[retained] = (counts[touched[step]] > largest_shared[touched[step]]) ? counts[touched[step]]
+                                                                                       : largest_shared[touched[step]];
             counts[touched[step]] = 0u;
             largest_shared[touched[step]] = 0u;
-            kept += 1u;
+            retained += 1u;
         }
         starts[leaf + 1u] = met;
     }
@@ -592,7 +592,7 @@ static int cast_triples(EngineBuffers *buffers, TreeFrame *earlier, const TreeFr
     earlier->triple_start = starts;
     earlier->triple_after = after;
     earlier->triple_shared = shared;
-    earlier->triple_count = kept;
+    earlier->triple_count = retained;
     return 1;
 }
 

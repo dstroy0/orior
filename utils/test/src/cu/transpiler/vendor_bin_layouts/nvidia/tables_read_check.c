@@ -7,7 +7,7 @@
 //              OPCODES line gives them
 //   fields     a field is its runs of bits high to low and the operand written in it, a value fixed by the class
 //              read as such; a field of two runs reads and writes across both
-//   constant   a FORMAT holding a `C:` operand names its bank and offset fields; one holding none names none
+//   constant   a FORMAT containing a `C:` operand names its bank and offset fields; one containing none names none
 //   class of   an encoding belongs to the first class whose opcode field reads as its opcode, and to none where
 //              no class's does
 //
@@ -20,10 +20,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -121,7 +121,7 @@ int main(void)
                "fields: a value written across two runs reads back, its high bits in the high run");
     check_that(tables_field_named(mov, "Sa_bank") == NULL, "fields: a name the class has no field of is NULL");
 
-    check_that((mov->bank[0] == '\0') && (mov->offset[0] == '\0'), "constant: the move holds no constant operand");
+    check_that((mov->bank[0] == '\0') && (mov->offset[0] == '\0'), "constant: the move has no constant operand");
     check_that((strcmp(ldc->bank, "Sa_bank") == 0) && (strcmp(ldc->offset, "Ra_offset") == 0),
                "constant: the load's bank and offset fields are named off its FORMAT");
     // the two fields joined on one encoding line each take the operand's argument in their place
@@ -135,7 +135,7 @@ int main(void)
                "constant: the offset's field is the second, bits 40 to 53");
     check_that(tables_field_by_operand(mov, "Sa_bank") == NULL, "constant: an operand no field takes is NULL");
     check_that((ldc->offset_bits == 17u) && (mov->offset_bits == 0u),
-               "constant: the offset operand's width is read off the FORMAT, SImm(17), and a class with none holds 0");
+               "constant: the offset operand's width is read off the FORMAT, SImm(17), and a class with none reads 0");
     // the bytes a read takes: the size operand's choices as the FORMAT lists them, U8 S8 U16 S16 32 64, the field's
     // value choosing one; four where the FORMAT names no size
     unsigned long long sized_low = 0ull;
@@ -168,7 +168,7 @@ int main(void)
     // ILLEGAL_INSTR_ENCODING_ERROR passed over as no condition on the registers
     check_that((mov->conditions == 1u) && (ldc->conditions == 2u) &&
                    (strcmp(ldc->size_list, "SZ_U8_S8_U16_S16_32_64") == 0),
-               "conditions: the register conditions of each class are kept, under their list's name");
+               "conditions: the register conditions of each class are stored, under their list's name");
     const char *failed = NULL;
     unsigned long long odd_low = read_low;
     unsigned long long odd_high = read_high;
@@ -178,16 +178,16 @@ int main(void)
                "conditions: a 64-bit load into R7 fails the misaligned condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 6ull);
     check_that(tables_class_legal(ldc, odd_low, odd_high, NULL),
-               "conditions: the same load into R6 holds to every condition");
+               "conditions: the same load into R6 satisfies every condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 254ull);
     check_that(!tables_class_legal(ldc, odd_low, odd_high, &failed) && (strstr(failed, "R254") != NULL),
                "conditions: a 64-bit load into R254 fails the range condition");
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 255ull);
-    check_that(tables_class_legal(ldc, odd_low, odd_high, NULL), "conditions: a 64-bit load into RZ holds");
+    check_that(tables_class_legal(ldc, odd_low, odd_high, NULL), "conditions: a 64-bit load into RZ is legal");
     tables_field_write(tables_field_named(ldc, "sz"), &odd_low, &odd_high, 4ull);
     tables_field_write(tables_field_named(ldc, "Rd"), &odd_low, &odd_high, 7ull);
     check_that(tables_class_legal(ldc, odd_low, odd_high, NULL),
-               "conditions: a 32-bit load into R7 holds, the width's guard not met");
+               "conditions: a 32-bit load into R7 is legal, the width's guard not met");
     check_that(tables_class_legal(mov, low, high, NULL),
                "conditions: the move's eight-bit register is always in range");
 
@@ -203,7 +203,7 @@ int main(void)
     tables_field_write(tables_field_named(ldc, "opcode"), &low, &high, 0x1b82ull);
     check_that(tables_class_of(&set, low, high) == NULL, "class of: one with bit 91 set is no class's");
     tables_set_freed(&set);
-    check_that((set.class_ == NULL) && (set.count == 0u), "classes: the set freed holds nothing");
+    check_that((set.class_ == NULL) && (set.count == 0u), "classes: the set freed contains nothing");
 
     printf("tables_read_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

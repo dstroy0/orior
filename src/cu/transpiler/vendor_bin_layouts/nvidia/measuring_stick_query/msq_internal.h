@@ -26,7 +26,7 @@
 #endif
 
 // a NOP for the architecture: put in place of an instruction the vendor calls illegal so the run reads past it. The
-// instruction it stands in for is already held; its own reading is never used
+// instruction it stands in for is already blocked; its own reading is never used
 static const unsigned char s_nop[16] = {0x18u, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
                                         0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc0u, 0x0fu, 0x00u};
 
@@ -72,7 +72,7 @@ typedef struct
 } MsqLine;
 
 // A listing: its instructions, and the one copy of the vendor's text they lie in. A listing that is a view of the
-// lines of another, a piece of one reading, holds no room and no text of its own
+// lines of another, a piece of one reading, owns no room and no text of its own
 typedef struct
 {
     MsqLine *lines;
@@ -89,15 +89,15 @@ typedef struct
 } MsqBytes;
 
 // a question: its answers' stem, its code's name, its slot, the registers its kernel allots, its container's code, and
-// its slot instruction as the part would be handed it, where the code holds the slot
+// its probe instruction as the part would be handed it, where the code contains the probe
 typedef struct
 {
     char stem[256];
     char code_name[256];
-    unsigned long long slot;
+    unsigned long long place;
     unsigned int registers;
     MsqBytes code;
-    int slotted;
+    int placed;
     unsigned char word[16];
     size_t word_index;
     size_t whole_index;
@@ -108,7 +108,7 @@ typedef struct
 } MsqQuestion;
 
 // A reader of the vendor's disassembler over raw runs: the stream its runs are handed as, the run it is handing, the
-// output it was handed back, and the count of runs it read. `ident` keeps the blob names of readers that run at once
+// output it was handed back, and the count of runs it read. `ident` records the blob names of readers that run at once
 // apart, and `stream` their streams
 typedef struct
 {
@@ -139,9 +139,9 @@ typedef struct
     size_t slot_count;
 } MsqDistinct;
 
-// A frame's reading, a question's code with its slot put to a NOP where it holds one: the place of every instruction
-// the vendor calls illegal, and the listing it reads once each of those is put to a NOP. `readable` 0 where the vendor
-// stopped at no instruction it named, and the frame can be held by no encoding
+// A frame's reading, a question's code with its probe put to a NOP where it contains one: the place of every
+// instruction the vendor calls illegal, and the listing it reads once each of those is put to a NOP. `readable` 0 where
+// the vendor stopped at no instruction it named, and the frame can be blocked by no encoding
 typedef struct
 {
     unsigned long long *illegal;
@@ -181,8 +181,8 @@ typedef struct
 
 // The pieces set aside from the accumulated run, each read alone by a pool of reader threads at once, each thread a
 // reader of its own: `aside` lists them by their place in `pieces`, every one put before a thread starts, and a thread
-// takes the next by `next`. What each reads goes where its kind's reading is kept: a slot encoding's into `readings`,
-// a frame's into `frame_read`, a tail's addressed registers into `addressed`
+// takes the next by `next`. What each reads goes where its kind's reading is stored: a probe encoding's into
+// `readings`, a frame's into `frame_read`, a tail's addressed registers into `addressed`
 typedef struct
 {
     const MsqPiece *pieces;
@@ -199,26 +199,27 @@ typedef struct
     const char *why;
 } MsqPool;
 
-// what the cross holds, kept as it goes: the held list, the report, the lines it says of each hold, the holds the
-// teacher reads, and the slots it read clear, a line `<stem> <operation>` each, for a conference the gate may call
+// what the cross records, stored as it goes: the gated list, the report, the lines it reports of each refusal, the
+// refusals the teacher reads, and the slots it read clear, a line `<stem> <operation>` each, for a conference the gate
+// may call
 typedef struct
 {
-    unsigned char *held;
-    size_t held_size;
-    size_t held_room;
+    unsigned char *gated;
+    size_t gated_size;
+    size_t gated_room;
     unsigned char *report;
     size_t report_size;
     size_t report_room;
-    unsigned char *said;
-    size_t said_size;
-    size_t said_room;
+    unsigned char *report;
+    size_t report_size;
+    size_t report_room;
     unsigned char *listed;
     size_t listed_size;
     size_t listed_room;
     unsigned char *read;
     size_t read_size;
     size_t read_room;
-} MsqHolds;
+} MsqVerdicts;
 
 extern QryShared *s_run;
 extern const char *s_nvdisasm;
@@ -227,7 +228,7 @@ extern _Atomic unsigned long long s_streamed_nanoseconds;
 extern _Atomic unsigned long long s_vendor_nanoseconds;
 
 unsigned long long msq_now(void);
-int msq_added(unsigned char **memory, size_t *held, size_t *room, const void *bytes, size_t size);
+int msq_added(unsigned char **memory, size_t *size_used, size_t *room, const void *bytes, size_t size);
 int msq_read(MsqReader *reader, const MsqBytes *runs, size_t count);
 int msq_space(char c);
 int msq_word(char c);
@@ -244,7 +245,7 @@ int msq_container_code(const MsqBytes *container, MsqBytes *code);
 int msq_distinct_made(MsqDistinct *set, size_t most);
 size_t msq_distinct_index(MsqDistinct *set, const MsqBytes *item);
 void msq_distinct_free(MsqDistinct *set);
-int msq_illegal_said(const char *text, size_t length);
+int msq_illegal_found(const char *text, size_t length);
 void *msq_pool_worker(void *argument);
 unsigned int msq_processors(void);
 int msq_accumulated_read(MsqReader *reader, MsqPiece *pieces, size_t count, MsqListing *listing);
@@ -254,9 +255,11 @@ void msq_pieces_cut(MsqListing *listing, const MsqPiece *pieces, size_t count, M
 int msq_frame_read(MsqReader *reader, const MsqBytes *frame, MsqFrame *read);
 void msq_frame_free(MsqFrame *read);
 int msq_control_read(const char *body);
-void msq_clear_said(MsqHolds *holds, const MsqQuestion *question, const char *body, const unsigned char *encoding);
+void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const char *body,
+                        const unsigned char *encoding);
 unsigned int msq_clearing(unsigned long long reached);
-void msq_hold_said(MsqHolds *holds, const MsqQuestion *question, const unsigned char *encoding, const char *why, unsigned int clearing);
+void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const unsigned char *encoding,
+                       const char *why, unsigned int clearing);
 void msq_stem(const char *name, char *stem, size_t room);
 void msq_extension_put(const char *name, const char *extension, char *put, size_t room);
 

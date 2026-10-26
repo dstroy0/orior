@@ -54,7 +54,8 @@ test("a LaTeX file shows as its pages beside its text, the cursor's line marked 
   editor.goTo(4, 3);
   await ui.waitFor(() => pane().querySelector('.tex-page[data-page="2"] .tex-here'), 3000);
   assert.equal(pane().querySelector('.tex-page[data-page="1"] .tex-here'), null);
-});
+  // the test's own time covers the minute its wait for the pages allows the make
+}, { timeout: 90000 });
 
 test("a key typed is made again, the last pages kept while it is", async () => {
   const before = pane().querySelector(".tex-pages");

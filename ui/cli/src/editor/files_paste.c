@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_paste.c: files and folders copied or moved into a folder of the tree, a name the folder holds already
+// files_paste.c: files and folders copied or moved into a folder of the tree, a name the folder contains already
 // numbered, and a file brought from another machine written a part at a time beside the file it becomes
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "files_internal.h"
 
-// the bytes of the paths a paste's walk holds to go to, and the most of them; and the most numbers a free name is
+// the bytes of the paths a paste's walk queues to go to, and the most of them; and the most numbers a free name is
 // looked for under
 #define CLI_PENDING_TEXT (1u << 23u)
 #define CLI_PENDING_MOST 65536u
@@ -34,7 +34,7 @@ int cli_paste_name(const char *path, char *name)
     const unsigned long long length = end - start;
     const int up = (length == 2ull) && (path[start] == '.') && (path[start + 1ull] == '.');
     const int drive = (start == 0ull) && (length == 2ull) && (path[1] == ':');
-    if ((length == 0ull) || (length >= CLI_PATH_LONGEST) || up || drive)
+    if ((length == 0ull) || (length >= CLI_PATH_MAX_LEN) || up || drive)
     {
         return 0;
     }
@@ -68,11 +68,11 @@ static int cli_there(const char *path)
 
 void cli_paste_free(const char *folder, const char *name, char *path)
 {
-    CliLine first = {path, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&first, folder);
-    cli_line_character(&first, '/');
-    cli_line_text(&first, name);
-    cli_line_closed(&first);
+    VerbaLinea first = {path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&first, folder);
+    mmgr_line_ch(&first, '/');
+    mmgr_line_put(&first, name);
+    mmgr_line_finish(&first);
     if (!cli_there(path))
     {
         return;
@@ -85,18 +85,18 @@ void cli_paste_free(const char *folder, const char *name, char *path)
     // the dot lies in the name, at or past its start
     const unsigned long long stem =
         split ? (unsigned long long)(dot - name) : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    char numbered[CLI_PATH_LONGEST];
+    char numbered[CLI_PATH_MAX_LEN];
     for (unsigned int number = 2u; number < CLI_FREE_MOST; number += 1u)
     {
-        CliLine line = {numbered, sizeof(numbered), 0ull};
-        cli_line_text(&line, folder);
-        cli_line_character(&line, '/');
-        cli_line_counted(&line, name, stem);
-        cli_line_text(&line, " (");
-        cli_line_decimal(&line, number, 0u);
-        cli_line_character(&line, ')');
-        cli_line_text(&line, split ? dot : "");
-        if ((cli_line_closed(&line) != 0ull) && !cli_there(numbered))
+        VerbaLinea line = {numbered, sizeof(numbered), 0ull};
+        mmgr_line_put(&line, folder);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put_n(&line, name, stem);
+        mmgr_line_put(&line, " (");
+        mmgr_line_decimal(&line, number, 0u);
+        mmgr_line_ch(&line, ')');
+        mmgr_line_put(&line, split ? dot : "");
+        if ((mmgr_line_finish(&line) != 0ull) && !cli_there(numbered))
         {
             memor.cpy(
                 &(MemoriaCfg){.dst = path,
@@ -107,24 +107,24 @@ void cli_paste_free(const char *folder, const char *name, char *path)
     }
 }
 
-void cli_pasted_written(CliLine *out, int first, const char *from, const char *to)
+void cli_pasted_written(VerbaLinea *out, int first, const char *from, const char *to)
 {
-    cli_line_text(out, first ? "{\"from\":" : ",{\"from\":");
+    mmgr_line_put(out, first ? "{\"from\":" : ",{\"from\":");
     if (from != NULL)
     {
         cli_json_quoted(out, from, cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}));
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"to\":");
+    mmgr_line_put(out, ",\"to\":");
     cli_json_quoted(out, to, cellul.len(&(CatenaFinitaCfg){.src = to, .cap = CLI_CELLS_POOL}));
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
 // A walk's paths still to go to, each a pair, where it is and where it goes, the last put first taken; and the names a
-// folder holds as it is read
+// folder contains as it is read
 typedef struct
 {
     char text[CLI_PENDING_TEXT];
@@ -141,7 +141,7 @@ typedef struct
 // the walk's pending pairs, a cell taken with the walk's lock and given back with it
 static CliPending *s_pending;
 
-// a pair put to go to: 1, or 0 where the walk holds no more
+// a pair put to go to: 1, or 0 where the walk has room for no more
 static int cli_pending_put(const char *source, const char *target)
 {
     const unsigned long long source_length =
@@ -179,51 +179,51 @@ static void cli_pending_name(void *context, const char *name, int is_folder)
     s_pending->name_count += 1u;
 }
 
-// a folder's entries put to go to, the first last so it is taken first: 1, or 0 with why said
-static int cli_pending_entries(const char *source, const char *target, CliLine *said)
+// a folder's entries put to go to, the first last so it is taken first: 1, or 0 with why given
+static int cli_pending_entries(const char *source, const char *target, VerbaLinea *err_msg)
 {
     s_pending->name_count = 0u;
     s_pending->names_used = 0ull;
     if (!query_folder_each(source, cli_pending_name, NULL))
     {
-        cli_line_text(said, source);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, source);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     for (unsigned int index = s_pending->name_count; !s_pending->full && (index > 0u); index -= 1u)
     {
         const char *const name = s_pending->names + s_pending->name_start[index - 1u];
-        char from[CLI_PATH_LONGEST];
-        char to[CLI_PATH_LONGEST];
-        CliLine from_line = {from, sizeof(from), 0ull};
-        CliLine to_line = {to, sizeof(to), 0ull};
-        cli_line_text(&from_line, source);
-        cli_line_character(&from_line, '/');
-        cli_line_text(&from_line, name);
-        cli_line_text(&to_line, target);
-        cli_line_character(&to_line, '/');
-        cli_line_text(&to_line, name);
-        s_pending->full = s_pending->full || (cli_line_closed(&from_line) == 0ull) ||
-                          (cli_line_closed(&to_line) == 0ull) || !cli_pending_put(from, to);
+        char from[CLI_PATH_MAX_LEN];
+        char to[CLI_PATH_MAX_LEN];
+        VerbaLinea from_line = {from, sizeof(from), 0ull};
+        VerbaLinea to_line = {to, sizeof(to), 0ull};
+        mmgr_line_put(&from_line, source);
+        mmgr_line_ch(&from_line, '/');
+        mmgr_line_put(&from_line, name);
+        mmgr_line_put(&to_line, target);
+        mmgr_line_ch(&to_line, '/');
+        mmgr_line_put(&to_line, name);
+        s_pending->full = s_pending->full || (mmgr_line_finish(&from_line) == 0ull) ||
+                          (mmgr_line_finish(&to_line) == 0ull) || !cli_pending_put(from, to);
     }
     if (s_pending->full)
     {
-        cli_line_text(said, source);
-        cli_line_text(said, ": it holds more than a paste takes");
+        mmgr_line_put(err_msg, source);
+        mmgr_line_put(err_msg, ": it contains more than a paste takes");
         return 0;
     }
     return 1;
 }
 
-int cli_paste_walked(const char *source, const char *target, CliPasteEach each, void *context, CliLine *said)
+int cli_paste_walked(const char *source, const char *target, CliPasteEach each, void *context, VerbaLinea *err_msg)
 {
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    s_pending = cli_cell_taken(sizeof(*s_pending), "a paste's walk");
+    s_pending = g_cli_cells->persistent_buf_alloc(sizeof(*s_pending), NULL);
     if (s_pending == NULL)
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "a paste's walk could not be taken");
+        mmgr_line_put(err_msg, "a paste's walk could not be taken");
         return 0;
     }
     s_pending->count = 0u;
@@ -234,8 +234,8 @@ int cli_paste_walked(const char *source, const char *target, CliPasteEach each, 
     {
         s_pending->count -= 1u;
         const char *const pair = s_pending->text + s_pending->start[s_pending->count];
-        char from[CLI_PATH_LONGEST];
-        char to[CLI_PATH_LONGEST];
+        char from[CLI_PATH_MAX_LEN];
+        char to[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = from,
                                 .src = pair,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = pair, .cap = CLI_CELLS_POOL}) + 1u});
@@ -248,211 +248,211 @@ int cli_paste_walked(const char *source, const char *target, CliPasteEach each, 
                      1u});
         s_pending->used = s_pending->start[s_pending->count];
         const int folder = query_is_folder(from);
-        walked = each(context, from, to, folder, said) && (!folder || cli_pending_entries(from, to, said));
+        walked = each(context, from, to, folder, err_msg) && (!folder || cli_pending_entries(from, to, err_msg));
     }
-    cli_cell_given(s_pending);
+    g_cli_cells->persistent_buf_release(s_pending, NULL);
     s_pending = NULL;
     cli_lock_give(&s_lock);
     return walked;
 }
 
-// What a paste's walk copies: the path it was asked for, which a failure names
+// What a paste's walk copies: the path it was requested, which a failure names
 typedef struct
 {
     const char *source;
 } CliCopying;
 
 // a folder made, or a file copied
-static int cli_copied(void *context, const char *source, const char *target, int folder, CliLine *said)
+static int cli_copied(void *context, const char *source, const char *target, int folder, VerbaLinea *err_msg)
 {
     const CliCopying *const copying = (const CliCopying *)context;
     if (folder ? query_folder_made(target) : query_file_copied(source, target))
     {
         return 1;
     }
-    cli_line_text(said, copying->source);
-    cli_line_text(said, ": it could not be copied");
+    mmgr_line_put(err_msg, copying->source);
+    mmgr_line_put(err_msg, ": it could not be copied");
     return 0;
 }
 
-// that a path could not be moved, said
-static int cli_unmoved(const char *path, CliLine *said)
+// that a path could not be moved, reported
+static int cli_unmoved(const char *path, VerbaLinea *err_msg)
 {
-    cli_line_text(said, path);
-    cli_line_text(said, ": it could not be moved");
+    mmgr_line_put(err_msg, path);
+    mmgr_line_put(err_msg, ": it could not be moved");
     return 0;
 }
 
-// one of a paste's paths copied or moved into `folder`, where it went into `target`: 1, or 0 with why said. A move
+// one of a paste's paths copied or moved into `folder`, where it went into `target`: 1, or 0 with why given. A move
 // between drives is a copy and then a removal
 static int cli_pasted_one(const char *source, const char *folder, const char *name, int moving, char *target,
-                          CliLine *said)
+                          VerbaLinea *err_msg)
 {
     if (query_is_folder(source) && cli_paste_under(source, folder))
     {
-        cli_line_text(said, source);
-        cli_line_text(said, " is not pasted into itself");
+        mmgr_line_put(err_msg, source);
+        mmgr_line_put(err_msg, " is not pasted into itself");
         return 0;
     }
     cli_paste_free(folder, name, target);
     CliCopying copying = {source};
     if (!moving)
     {
-        return cli_paste_walked(source, target, cli_copied, &copying, said);
+        return cli_paste_walked(source, target, cli_copied, &copying, err_msg);
     }
     const int moved = cli_moved(source, target);
     if (moved == CLI_MOVE_FAILED)
     {
-        return cli_unmoved(source, said);
+        return cli_unmoved(source, err_msg);
     }
     if (moved == CLI_MOVE_ACROSS)
     {
-        if (!cli_paste_walked(source, target, cli_copied, &copying, said))
+        if (!cli_paste_walked(source, target, cli_copied, &copying, err_msg))
         {
             return 0;
         }
-        return query_removed(source) || cli_unmoved(source, said);
+        return query_removed(source) || cli_unmoved(source, err_msg);
     }
     return 1;
 }
 
-int cli_paste_begun(const char *root, const char *into, char *folder, CliLine *out, CliLine *said)
+int cli_paste_begun(const char *root, const char *into, char *folder, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!cli_inside(root, into, folder, said))
+    if (!cli_inside(root, into, folder, err_msg))
     {
         return 0;
     }
     if (!query_is_folder(folder))
     {
-        cli_line_text(said, into);
-        cli_line_text(said, " is no folder");
+        mmgr_line_put(err_msg, into);
+        mmgr_line_put(err_msg, " is no folder");
         return 0;
     }
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     return 1;
 }
 
-int cli_paste_named(const char *source, char *name, CliLine *said)
+int cli_paste_named(const char *source, char *name, VerbaLinea *err_msg)
 {
     if (!cli_paste_name(source, name))
     {
-        cli_line_text(said, source);
-        cli_line_text(said, " has no name");
+        mmgr_line_put(err_msg, source);
+        mmgr_line_put(err_msg, " has no name");
         return 0;
     }
     return 1;
 }
 
 int cli_files_paste(const char *root, const char *into, const char *const *from, unsigned int count, int moving,
-                    CliLine *out, CliLine *said)
+                    VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
-    if (!cli_paste_begun(root, into, folder, out, said))
+    char folder[CLI_PATH_MAX_LEN];
+    if (!cli_paste_begun(root, into, folder, out, err_msg))
     {
         return 0;
     }
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const char *const source = from[index];
-        char name[CLI_PATH_LONGEST];
-        if (!cli_paste_named(source, name, said))
+        char name[CLI_PATH_MAX_LEN];
+        if (!cli_paste_named(source, name, err_msg))
         {
             return 0;
         }
-        char was[CLI_PATH_LONGEST];
+        char was[CLI_PATH_MAX_LEN];
         const int inside = cli_paste_under(root, source);
         if (inside)
         {
             cli_relative(root, source, was);
         }
         // a file moved into the folder it is in stays where it is
-        char parent[CLI_PATH_LONGEST];
+        char parent[CLI_PATH_MAX_LEN];
         const int stays = moving && cli_path_parent(source, parent) && cli_paste_under(parent, folder) &&
                           cli_paste_under(folder, parent);
-        char target[CLI_PATH_LONGEST];
-        if (!stays && !cli_pasted_one(source, folder, name, moving, target, said))
+        char target[CLI_PATH_MAX_LEN];
+        if (!stays && !cli_pasted_one(source, folder, name, moving, target, err_msg))
         {
             return 0;
         }
-        char to[CLI_PATH_LONGEST];
+        char to[CLI_PATH_MAX_LEN];
         cli_relative(root, stays ? source : target, to);
         cli_pasted_written(out, index == 0u, inside ? was : NULL, to);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_files_forget_seen();
     return 1;
 }
 
-int cli_files_free_in(const char *root, const char *into, const char *name, char *path, CliLine *said)
+int cli_files_free_in(const char *root, const char *into, const char *name, char *path, VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
-    if (!cli_inside(root, into, folder, said))
+    char folder[CLI_PATH_MAX_LEN];
+    if (!cli_inside(root, into, folder, err_msg))
     {
         return 0;
     }
     if (!query_is_folder(folder))
     {
-        cli_line_text(said, into);
-        cli_line_text(said, " is no folder");
+        mmgr_line_put(err_msg, into);
+        mmgr_line_put(err_msg, " is no folder");
         return 0;
     }
-    char free_path[CLI_PATH_LONGEST];
+    char free_path[CLI_PATH_MAX_LEN];
     cli_paste_free(folder, name, free_path);
     cli_relative(root, free_path, path);
     return 1;
 }
 
 int cli_files_write_part(const char *root, const char *path, unsigned long long at, const void *data,
-                         unsigned long long size, int last, CliLine *said)
+                         unsigned long long size, int last, VerbaLinea *err_msg)
 {
-    char target[CLI_PATH_LONGEST];
-    if (!cli_inside(root, path, target, said))
+    char target[CLI_PATH_MAX_LEN];
+    if (!cli_inside(root, path, target, err_msg))
     {
         return 0;
     }
-    char name[CLI_PATH_LONGEST];
-    char parent[CLI_PATH_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
+    char parent[CLI_PATH_MAX_LEN];
     if (!cli_paste_name(target, name) || !cli_path_parent(target, parent))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, " has no name");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, " has no name");
         return 0;
     }
     // the parts go to a file beside the target, begun afresh by the part at 0
-    char part[CLI_PATH_LONGEST];
-    CliLine line = {part, sizeof(part), 0ull};
-    cli_line_text(&line, parent);
-    cli_line_text(&line, "/.");
-    cli_line_text(&line, name);
-    cli_line_text(&line, ".orior-part");
+    char part[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {part, sizeof(part), 0ull};
+    mmgr_line_put(&line, parent);
+    mmgr_line_put(&line, "/.");
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, ".orior-part");
     unsigned long long has = 0ull;
-    if ((cli_line_closed(&line) == 0ull) || ((at != 0ull) && !cli_file_size(part, &has)))
+    if ((mmgr_line_finish(&line) == 0ull) || ((at != 0ull) && !cli_file_size(part, &has)))
     {
-        cli_line_text(said, part);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, part);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     if (has != at)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": a part at ");
-        cli_line_decimal(said, at, 0u);
-        cli_line_text(said, " came after ");
-        cli_line_decimal(said, has, 0u);
-        cli_line_text(said, " bytes");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": a part at ");
+        mmgr_line_decimal(err_msg, at, 0u);
+        mmgr_line_put(err_msg, " came after ");
+        mmgr_line_decimal(err_msg, has, 0u);
+        mmgr_line_put(err_msg, " bytes");
         return 0;
     }
     if (!cli_file_appended(part, data, size, at == 0ull))
     {
-        cli_line_text(said, part);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, part);
+        mmgr_line_put(err_msg, ": it could not be written");
         return 0;
     }
     if (last)
     {
         if (!query_file_renamed(part, target))
         {
-            return cli_unmoved(target, said);
+            return cli_unmoved(target, err_msg);
         }
         cli_files_forget_seen();
     }

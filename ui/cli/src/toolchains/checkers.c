@@ -22,10 +22,10 @@ static CliCheckRoom *s_room;
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // the lock taken and the room a cell under it: 1, or 0 with the lock given back where no cell is left
-static int checkers_held(void)
+static int checkers_locked(void)
 {
     cli_lock_take(&s_lock);
-    s_room = cli_cell_taken(sizeof(*s_room), "a checker's room");
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
     if (s_room == NULL)
     {
         cli_lock_give(&s_lock);
@@ -39,7 +39,7 @@ static int checkers_held(void)
 static void checkers_released(void)
 {
     cli_json_given(&s_room->json);
-    cli_cell_given(s_room);
+    g_cli_cells->persistent_buf_release(s_room, NULL);
     s_room = NULL;
     cli_lock_give(&s_lock);
 }
@@ -89,7 +89,7 @@ static int cli_same_lower(const char *text, const char *lower)
 
 int cli_checkers_named(const char *name, char *id)
 {
-    char wanted[CLI_NAME_LONGEST];
+    char wanted[CLI_NAME_MAX_LEN];
     const char *from = name;
     while ((from[0] == ' ') || ((from[0] >= '\t') && (from[0] <= '\r')))
     {
@@ -108,7 +108,7 @@ int cli_checkers_named(const char *name, char *id)
     {
         at[0] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
     }
-    if (!checkers_held())
+    if (!checkers_locked())
     {
         return 0;
     }
@@ -134,7 +134,7 @@ int cli_checkers_named(const char *name, char *id)
 
 int cli_checkers_reads_tree(const char *id)
 {
-    if (!checkers_held())
+    if (!checkers_locked())
     {
         return 0;
     }
@@ -147,7 +147,7 @@ int cli_checkers_reads_tree(const char *id)
 
 int cli_checkers_reads_input(const char *id)
 {
-    if (!checkers_held())
+    if (!checkers_locked())
     {
         return 0;
     }
@@ -160,7 +160,7 @@ int cli_checkers_reads_input(const char *id)
 
 int cli_checkers_checks(const char *id, const char *language)
 {
-    if (!checkers_held())
+    if (!checkers_locked())
     {
         return 0;
     }
@@ -177,15 +177,15 @@ int cli_checkers_checks(const char *id, const char *language)
     return checks;
 }
 
-void cli_checkers_languages(CliLine *out)
+void cli_checkers_languages(VerbaLinea *out)
 {
-    if (!checkers_held())
+    if (!checkers_locked())
     {
-        cli_line_text(out, "{}");
+        mmgr_line_put(out, "{}");
         return;
     }
     const unsigned int manifest = cli_manifest();
-    cli_line_character(out, '{');
+    mmgr_line_ch(out, '{');
     unsigned int written = 0u;
     for (unsigned int at = 0u; cli_json_item(&s_room->json, manifest, at) != CLI_JSON_NONE; at += 1u)
     {
@@ -196,9 +196,9 @@ void cli_checkers_languages(CliLine *out)
             continue;
         }
         const char *const id = cli_string_or(tool, "id", "");
-        cli_line_text(out, (written != 0u) ? "," : "");
+        mmgr_line_put(out, (written != 0u) ? "," : "");
         cli_json_quoted(out, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ":[");
+        mmgr_line_put(out, ":[");
         const unsigned int languages = cli_json_member(&s_room->json, spec, "languages");
         unsigned int listed = 0u;
         for (unsigned int one = 0u; cli_json_item(&s_room->json, languages, one) != CLI_JSON_NONE; one += 1u)
@@ -208,19 +208,20 @@ void cli_checkers_languages(CliLine *out)
                 cli_json_string(&s_room->json, cli_json_item(&s_room->json, languages, one), &length);
             if (language != NULL)
             {
-                cli_line_text(out, (listed != 0u) ? "," : "");
+                mmgr_line_put(out, (listed != 0u) ? "," : "");
                 cli_json_quoted(out, language, length);
                 listed += 1u;
             }
         }
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
         written += 1u;
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
     checkers_released();
 }
 
-// whether `size` bytes hold no more than whitespace, and the last line of them that is not blank written into `said`
+// whether `size` bytes contain no more than whitespace, and the last line of them that is not blank written into
+// `err_msg`
 static int cli_blank_text(const char *text, unsigned long long size)
 {
     for (unsigned long long at = 0ull; at < size; at += 1ull)
@@ -233,7 +234,7 @@ static int cli_blank_text(const char *text, unsigned long long size)
     return 1;
 }
 
-static void cli_last_line(const char *text, unsigned long long size, CliLine *said)
+static void cli_last_line(const char *text, unsigned long long size, VerbaLinea *err_msg)
 {
     unsigned long long end = size;
     while ((end > 0ull) && ((text[end - 1ull] == ' ') || ((text[end - 1ull] >= '\t') && (text[end - 1ull] <= '\r'))))
@@ -249,40 +250,40 @@ static void cli_last_line(const char *text, unsigned long long size, CliLine *sa
     {
         start += 1ull;
     }
-    cli_lossy(said, (const unsigned char *)text + start, end - start);
+    cli_lossy(err_msg, (const unsigned char *)text + start, end - start);
 }
 
 // the checker `tool` run with the words of its spec's `args_key`, `{file}` written as `file`, from the tree `root`,
-// `length` bytes of `input` on its input where it is given, and its findings read into the room: 1, or 0 with why said
+// `length` bytes of `input` on its input where it is given, and its findings read into the room: 1, or 0 with why given
 static int cli_checked(unsigned int tool, const char *args_key, const char *file, const char *root, const char *input,
-                       unsigned long long length, CliLine *said)
+                       unsigned long long length, VerbaLinea *err_msg)
 {
     CliJson *const json = &s_room->json;
     const char *const name = cli_string_or(tool, "name", "");
     const unsigned int spec = cli_json_member(json, tool, "checker");
     const char *const program_name = cli_string_or(spec, "program", "");
     const char *const reads = cli_string_or(spec, "reads", "");
-    if (cli_trust_held_back(root))
+    if (cli_trust_blocked(root))
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " does not run in a tree whose own code is held back");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " does not run in a tree whose own code is disabled");
         return 0;
     }
     unsigned int folders = 0u;
-    char (*const path)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&folders);
-    cli_toolchains_find(json, tool, (const char (*)[CLI_PATH_LONGEST])path, folders, &s_room->found);
-    cli_cell_given(path);
-    char program[CLI_PATH_LONGEST];
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders);
+    cli_toolchains_find(json, tool, (const char (*)[CLI_PATH_MAX_LEN])path, folders, &s_room->found);
+    g_cli_cells->persistent_buf_release(path, NULL);
+    char program[CLI_PATH_MAX_LEN];
     const char *const names[1] = {program_name};
     if ((s_room->found.folder[0] == '\0') || !cli_toolchains_program_in(s_room->found.folder, names, 1u, program))
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " is not found: File, Toolchains opens its install page or takes its folder");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " is not found: File, Toolchains opens its install page or takes its folder");
         return 0;
     }
     const char *words[CLI_WORDS_MOST + 2u] = {program};
     unsigned int count = 1u;
-    CliLine filled = {s_room->words, sizeof(s_room->words), 0ull};
+    VerbaLinea filled = {s_room->words, sizeof(s_room->words), 0ull};
     const unsigned int args = cli_json_member(json, spec, args_key);
     for (unsigned int at = 0u; (count <= CLI_WORDS_MOST) && (cli_json_item(json, args, at) != CLI_JSON_NONE); at += 1u)
     {
@@ -297,37 +298,37 @@ static int cli_checked(unsigned int tool, const char *args_key, const char *file
             const int named =
                 (file != NULL) &&
                 (cellul.starts(&(CatenaFinitaCfg){.src = letter, .other = "{file}", .cap = CLI_CELLS_POOL}));
-            cli_line_text(&filled, named ? file : "");
+            mmgr_line_put(&filled, named ? file : "");
             if (!named)
             {
-                cli_line_character(&filled, letter[0]);
+                mmgr_line_ch(&filled, letter[0]);
             }
             letter += named ? 6 : 1;
         }
-        cli_line_character(&filled, '\0');
+        mmgr_line_ch(&filled, '\0');
         words[count] = s_room->words + start;
-        count += cli_line_fits(&filled) ? 1u : 0u;
+        count += mmgr_line_ok(&filled) ? 1u : 0u;
     }
     words[count] = NULL;
     cli_toolchains_run_path(s_room->path, sizeof(s_room->path));
     const CliSetting settings[1] = {{"PATH", s_room->path}};
     CliRan *const ran = cli_ran_taken();
-    char why[CLI_NAME_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     if (!cli_ran_fed(words, root, settings, 1u, input, length, ran, &unstarted))
     {
         cli_ran_given(ran);
-        cli_line_text(said, program);
-        cli_line_text(said, ": ");
-        cli_line_counted(said, why, unstarted.at);
+        mmgr_line_put(err_msg, program);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, why, unstarted.at);
         return 0;
     }
     if (cli_blank_text(ran->out, ran->out_size) && !cli_blank_text(ran->err, ran->err_size) &&
         (!cellul.eq(&(CatenaFinitaCfg){.src = reads, .other = "lines", .cap = CLI_CELLS_POOL})))
     {
-        cli_line_text(said, name);
-        cli_line_text(said, ": ");
-        cli_last_line(ran->err, ran->err_size, said);
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, ": ");
+        cli_last_line(ran->err, ran->err_size, err_msg);
         cli_ran_given(ran);
         return 0;
     }
@@ -337,55 +338,55 @@ static int cli_checked(unsigned int tool, const char *args_key, const char *file
 }
 
 // the findings written by file, as `[[path, [diagnostic]]]`
-static void cli_findings_written(CliLine *out)
+static void cli_findings_written(VerbaLinea *out)
 {
     const CliFindings *const findings = &s_room->findings;
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int file = 0u; file < findings->files; file += 1u)
     {
-        cli_line_text(out, (file != 0u) ? ",[" : "[");
+        mmgr_line_put(out, (file != 0u) ? ",[" : "[");
         cli_json_quoted(out, findings->path[file],
                         cellul.len(&(CatenaFinitaCfg){.src = findings->path[file], .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",[");
+        mmgr_line_put(out, ",[");
         unsigned int written = 0u;
         for (unsigned int at = 0u; at < findings->findings; at += 1u)
         {
             if (findings->file_of[at] == file)
             {
-                cli_line_text(out, (written != 0u) ? "," : "");
-                cli_line_counted(out, findings->text + findings->start[at], findings->length[at]);
+                mmgr_line_put(out, (written != 0u) ? "," : "");
+                mmgr_line_put_n(out, findings->text + findings->start[at], findings->length[at]);
                 written += 1u;
             }
         }
-        cli_line_text(out, "]]");
+        mmgr_line_put(out, "]]");
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
 int cli_checkers_check_file(const char *id, const char *root, const char *path, const char *text,
-                            unsigned long long length, CliLine *out, CliLine *said)
+                            unsigned long long length, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!checkers_held())
+    if (!checkers_locked())
     {
-        cli_line_text(said, "a check could not be taken");
+        mmgr_line_put(err_msg, "a check could not be taken");
         return 0;
     }
     const unsigned int tool = cli_checker_of(cli_manifest(), id);
     if (tool == CLI_JSON_NONE)
     {
-        cli_line_text(said, id);
-        cli_line_text(said, " is not in the manifest");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is not in the manifest");
         checkers_released();
         return 0;
     }
     const unsigned int spec = cli_json_member(&s_room->json, tool, "checker");
     const int stdin_read = cli_json_is(&s_room->json, cli_json_member(&s_room->json, spec, "stdin"), CFG_JSON_TRUE);
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = (stdin_read && (text == NULL)) ? cli_file_held(path, &size) : NULL;
+    const unsigned char *const mapped = (stdin_read && (text == NULL)) ? cli_file_read(path, &size) : NULL;
     const char *const input =
         stdin_read ? ((text != NULL) ? text : ((mapped != NULL) ? (const char *)mapped : "")) : NULL;
     const unsigned long long input_length = (text != NULL) ? length : size;
-    const int checked = cli_checked(tool, "args", path, root, input, input_length, said);
+    const int checked = cli_checked(tool, "args", path, root, input, input_length, err_msg);
     if (mapped != NULL)
     {
         cli_file_let_go(mapped, size);
@@ -399,22 +400,22 @@ int cli_checkers_check_file(const char *id, const char *root, const char *path, 
     return checked;
 }
 
-int cli_checkers_check_tree(const char *id, const char *root, CliLine *out, CliLine *said)
+int cli_checkers_check_tree(const char *id, const char *root, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!checkers_held())
+    if (!checkers_locked())
     {
-        cli_line_text(said, "a check could not be taken");
+        mmgr_line_put(err_msg, "a check could not be taken");
         return 0;
     }
     const unsigned int tool = cli_checker_of(cli_manifest(), id);
     const unsigned int spec = cli_json_member(&s_room->json, tool, "checker");
     if (!cli_json_is(&s_room->json, cli_json_member(&s_room->json, spec, "tree"), CFG_JSON_ARRAY))
     {
-        cli_line_text(out, "[]");
+        mmgr_line_put(out, "[]");
         checkers_released();
         return 1;
     }
-    const int checked = cli_checked(tool, "tree", NULL, root, NULL, 0ull, said);
+    const int checked = cli_checked(tool, "tree", NULL, root, NULL, 0ull, err_msg);
     if (checked)
     {
         cli_findings_written(out);

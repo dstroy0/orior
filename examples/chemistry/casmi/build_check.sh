@@ -21,7 +21,7 @@ KEY_SCHEDULE="$SOURCE/engine/analysis/key_schedule"
 TOWER="$SOURCE/engine/analysis/tower"
 COMPRESSION="$SOURCE/engine/analysis/compression"
 DEVICE_POOL="$SOURCE/engine/runtime/device_pool"
-SCRIPTURA="$SOURCE/engine/runtime/scriptura"
+source "$SOURCE/includes/file_defs/file_defs.sh"
 INTEGERS="$SOURCE/types/integers"
 SNAPPY="$SOURCE/includes/codecs/snappy"
 ZSTD="$SOURCE/includes/codecs/zstd"
@@ -59,12 +59,12 @@ for one in $ARCHES; do
 done
 
 INCLUDES=(-I "$SOURCE/engine" -I "$TOP/src/sims/cu" -I "$CYCLE" -I "$KEYMATH" -I "$KEY_SCHEDULE" -I "$TOWER"
-          -I "$COMPRESSION" -I "$DEVICE_POOL" -I "$INTEGERS" -I "$SCRIPTURA" -I "$SNAPPY" -I "$ZSTD" -I "$ROOT/src"
+          -I "$COMPRESSION" -I "$DEVICE_POOL" -I "$INTEGERS" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$SNAPPY" -I "$ZSTD" -I "$ROOT/src"
           "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$INTEGERS"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+LINEA_OBJECTS=()
+for source in "${FILE_DEFS_LINEA[@]}" "$INTEGERS"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$INTEGERS/exact_record/exact_record.c" "$SOURCE/types/integerfloats/edouble/edouble_record.c" "$CYCLE/cycle.c" "$SNAPPY"/*.c "$ZSTD"/*.c \
               "$ROOT/src/parquet/parquet.c"; do
     object="$OUT/$(basename "$source" .c)_casmi_check.$EXTENSION"
@@ -77,11 +77,11 @@ for source in "$SCRIPTURA"/*.c "$INTEGERS"/exact_integer_{add,limbs,multiply,div
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
-tessera_build casmi_check "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build casmi_check "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$ROOT/src/check/lane_check.cu" "$TOP/src/sims/cu/sim_job.cu" "$CYCLE"/cycle*.cu "$CODEGEN"/*.cu "$PARSER"/*.cu \

@@ -55,9 +55,9 @@ static std::set<unsigned long long> operands_deciding(const std::vector<std::vec
             }
             by_rest[rest].insert(came_back[place]);
         }
-        for (const auto &held : by_rest)
+        for (const auto &entry : by_rest)
         {
-            if (held.second.size() > 1u)
+            if (entry.second.size() > 1u)
             {
                 deciding.insert(operand);
                 break;
@@ -160,10 +160,10 @@ std::string put_decoded(const LoggedPut &put, const std::vector<std::vector<std:
     {
         return std::string();
     }
-    // two readings of the same bits under two statements agree wherever every value the form reads fits every statement,
-    // below the top of a byte read signed, the narrowest signed width the cases hold: a modifier apart only past that
-    // is the statement's. The values are the form's own, read at the form, and a put the part held no read of is read
-    // into no set
+    // two readings of the same bits under two statements agree wherever every value the form reads fits every
+    // statement, below the top of a byte read signed, the narrowest signed width the cases represent: a modifier apart
+    // only past that is the statement's. The values are the form's own, read at the form, and a put the part recorded
+    // no read of is read into no set
     if (!put_read(put))
     {
         return std::string();

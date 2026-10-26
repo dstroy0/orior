@@ -12,16 +12,16 @@
 
 #define CLI_ITEMS_MOST 512u
 
-#define CLI_LABEL_LONGEST 256u
+#define CLI_LABEL_MAX_LEN 256u
 
 // One item of a menu: its label, the command it runs, the keys that run it in the window, the words it takes after
 // its name, and 1 where the command line runs it in the terminal
 typedef struct
 {
-    char label[CLI_LABEL_LONGEST];
-    char command[CLI_LABEL_LONGEST];
-    char keys[CLI_LABEL_LONGEST];
-    char args[CLI_LABEL_LONGEST];
+    char label[CLI_LABEL_MAX_LEN];
+    char command[CLI_LABEL_MAX_LEN];
+    char keys[CLI_LABEL_MAX_LEN];
+    char args[CLI_LABEL_MAX_LEN];
     int console;
 } CliItem;
 
@@ -29,15 +29,15 @@ typedef struct
 extern const unsigned char g_cli_commands_json[];
 extern const unsigned long long g_cli_commands_json_size;
 
-// the list read: 1, or 0 with why said
-int cli_commands_read(CliLine *said);
+// the list read: 1, or 0 with why given
+int cli_commands_read(VerbaLinea *err_msg);
 unsigned int cli_menus(void);
-// the menu's title, which holds CLI_LABEL_LONGEST; the word the command line takes for it, its title in lower case;
+// the menu's title, sized for CLI_LABEL_MAX_LEN; the word the command line takes for it, its title in lower case;
 // its split; its groups, their count
 void cli_menu_title(unsigned int menu, char *title);
 void cli_menu_word(unsigned int menu, char *word);
 void cli_menu_split(unsigned int menu, char *split);
-unsigned int cli_menu_groups(unsigned int menu, char (*groups)[CLI_LABEL_LONGEST], unsigned int room);
+unsigned int cli_menu_groups(unsigned int menu, char (*groups)[CLI_LABEL_MAX_LEN], unsigned int room);
 // every item of the menu, those of its groups among them, in order: their count
 unsigned int cli_menu_items(unsigned int menu, CliItem *items, unsigned int room);
 // the item of the menu whose command is `word`: 1, or 0 where it has none; and the words an item must be given, each

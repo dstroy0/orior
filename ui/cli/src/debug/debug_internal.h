@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// debug_internal.h: what the debug sources share: the sessions, each in a place of its own, the adapter it speaks to,
+// debug_internal.h: what the debug sources share: the sessions, each in a place of its own, the adapter it connects to,
 // what it is, and the marks its stops are read by
 #ifndef DEBUG_INTERNAL_H
 #define DEBUG_INTERNAL_H
@@ -10,11 +10,11 @@
 #include "../text/pieces.h"
 #include "debug.h"
 
-// the most requests asked of adapters at once
+// the most requests sent to adapters at once
 #define CLI_DEBUG_ANSWERS 4u
 
 // the most sessions at once, one adapter each; the exceptions one adapter can stop on; the most breakpoints the reader
-// placed that a session keeps, and its data breakpoints, and those each list is begun with, doubling as they come; and
+// placed that a session stores, and its data breakpoints, and those each list is begun with, doubling as they come; and
 // the nodes and bytes over an event's own its tree is read with, for what a stop rewritten adds
 #define CLI_DEBUG_SESSIONS CLI_DAPS_MOST
 #define CLI_DEBUG_FILTERS 32u
@@ -28,14 +28,14 @@
 #define CLI_DEBUG_START_NODES 8192u
 #define CLI_DEBUG_START_TEXT (1u << 18u)
 
-// the cells the sessions' places hold: their lists and the trees they start with (debug_place.c)
-extern CliCellsTally g_cli_debug_cells;
+// the cells the sessions' places occupy: their lists and the trees they start with (debug_place.c)
+extern CellOwner g_cli_debug_cells;
 
 // how long, in milliseconds, the adapter has to start, to be ready for breakpoints, and to launch the program; a
-// request about the stopped program may take; after it is initialized an adapter has to say it is ready before the
+// request about the stopped program may take; after it is initialized an adapter has to report it is ready before the
 // launch, as gdb does; and a build for debugging may take
 #define CLI_DEBUG_STARTING 30000ull
-#define CLI_DEBUG_ASKING 10000ull
+#define CLI_DEBUG_REQUEST_TIMEOUT_MS 10000ull
 #define CLI_DEBUG_EARLY 150ull
 #define CLI_DEBUG_BUILDING 300000ull
 
@@ -45,20 +45,20 @@ extern CliCellsTally g_cli_debug_cells;
 // An exception the adapter can stop on: its name to the adapter, its label, and whether it is on
 typedef struct
 {
-    char filter[CLI_NAME_LONGEST];
-    char label[CLI_NAME_LONGEST];
+    char filter[CLI_NAME_MAX_LEN];
+    char label[CLI_NAME_MAX_LEN];
     int on;
 } CliDebugFilter;
 
 // A session as the window shows it: its number, its name, the toolchain debugging it, its language, the session that
 // started it, the exceptions it can stop on, what its adapter can do, the number of the process it debugs once the
-// adapter says it, and whether it steps backward and is a recorded run
+// adapter reports it, and whether it steps backward and is a recorded run
 typedef struct
 {
     unsigned long long id;
-    char name[CLI_PATH_LONGEST];
-    char tool[CLI_NAME_LONGEST];
-    char language[CLI_NAME_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
+    char tool[CLI_NAME_MAX_LEN];
+    char language[CLI_NAME_MAX_LEN];
     int has_parent;
     unsigned long long parent;
     CliDebugFilter filters[CLI_DEBUG_FILTERS];
@@ -76,24 +76,24 @@ typedef struct
     int recorded;
 } CliDebugInfo;
 
-// A session's place: whether it is taken, listed among the sessions, its adapter's last event heard, and how many use
-// it, the session's own use one of them; what it is; its adapter and the adapter's program; its data breakpoints, set
-// again whole with each one added; the breakpoints the reader placed, and whether a data breakpoint is set through
+// A session's place: whether it is taken, listed among the sessions, its adapter's last event received, and how many
+// use it, the session's own use one of them; what it is; its adapter and the adapter's program; its data breakpoints,
+// set again whole with each one added; the breakpoints the reader placed, and whether a data breakpoint is set through
 // lldb's own watchpoints, whose stops come at breakpoints of no such number; whether orior's script is loaded into
-// lldb; the native session whose breakpoints of a step across go at the next stop; the process the adapter says it
-// debugs; whether the adapter said it is initialized; where its events go; the threads that let the adapter go and
+// lldb; the native session whose breakpoints of a step across go at the next stop; the process the adapter reports it
+// debugs; whether the adapter reported it is initialized; where its events go; the threads that let the adapter go and
 // take a step across's breakpoints away, and the session whose breakpoints they take; and the tree the session's
 // start is made in. The two lists are cells grown as they come, and they and the tree are given back with the place
 typedef struct
 {
     int taken;
     int listed;
-    int heard_end;
+    int adapter_ended;
     unsigned int users;
     CliDebugInfo info;
     CliDap *dap;
-    char program[CLI_PATH_LONGEST];
-    char (*data)[CLI_NAME_LONGEST];
+    char program[CLI_PATH_MAX_LEN];
+    char (*data)[CLI_NAME_MAX_LEN];
     unsigned int data_count;
     unsigned int data_room;
     long long *placed;
@@ -105,7 +105,7 @@ typedef struct
     unsigned long long across;
     unsigned long long pid;
     int initialized;
-    CliDebugEmit emit;
+    CliDebugSink sink;
     CliThread giver;
     int giving;
     CliThread clearer;
@@ -121,7 +121,7 @@ typedef struct
 void *cli_debug_grown(void *list, unsigned int count, unsigned int *room, unsigned long long size, unsigned int most);
 void cli_debug_place_freed(CliDebugSession *place);
 
-// The sessions, the number the next takes, their lock and the wake of a session's adapter saying it is initialized
+// The sessions, the number the next takes, their lock and the wake of a session's adapter reporting it is initialized
 typedef struct
 {
     CliDebugSession sessions[CLI_DEBUG_SESSIONS];
@@ -132,50 +132,50 @@ typedef struct
 
 extern CliDebugRoom g_cli_debug;
 
-// A request asked of an adapter: whether it is taken; its arguments as written, held in pieces over a piece of its own
-// and joined as it is asked; the answer's body, in a cell of its size; and the body read as a tree taken to its size,
+// A request sent to an adapter: whether it is taken; its arguments as written, stored in pieces over a piece of its own
+// and joined as it is sent; the answer's body, in a cell of its size; and the body read as a tree taken to its size,
 // its root
 typedef struct
 {
     int taken;
     CliPieces pieces;
     char piece[1024];
-    CliLine asked;
+    VerbaLinea args;
     char *body;
     CliJson json;
     unsigned int root;
 } CliDebugAnswer;
 
-// a request's room taken, waiting while every one is in use, its arguments empty to write into `asked`; `command`
-// asked of the session taken with those arguments, an empty object where none are written, its answer waited for up
-// to `wait` milliseconds and read: 1, or 0 with why said; and the room given back (debug_session.c)
+// a request's room taken, waiting while every one is in use, its arguments empty to write into `answer`; `command`
+// sent to the session taken with those arguments, an empty object where none are written, its answer waited for up
+// to `wait` milliseconds and read: 1, or 0 with why given; and the room given back (debug_session.c)
 CliDebugAnswer *cli_debug_answer_taken(void);
-int cli_debug_asked(CliDebugSession *session, const char *command, CliDebugAnswer *answer, unsigned long long wait,
-                    CliLine *said);
+int cli_debug_request(CliDebugSession *session, const char *command, CliDebugAnswer *answer, unsigned long long wait,
+                      VerbaLinea *err_msg);
 void cli_debug_answer_given(CliDebugAnswer *answer);
 
-// session `id` listed, taken for a request, its adapter held: NULL with "that session has ended" said where it is not
-// listed; a session taken let go, its adapter given back, its place freed where it was the last use of a session no
-// longer listed whose adapter ended; a free place taken for a session, NULL where every one is taken; and what a
+// session `id` listed, taken for a request, its adapter referenced: NULL with "that session has ended" given where it
+// is not listed; a session taken let go, its adapter given back, its place freed where it was the last use of a session
+// no longer listed whose adapter ended; a free place taken for a session, NULL where every one is taken; and what a
 // session is written as the window reads it (debug_session.c)
-CliDebugSession *cli_debug_taken(unsigned long long id, CliLine *said);
+CliDebugSession *cli_debug_taken(unsigned long long id, VerbaLinea *err_msg);
 void cli_debug_let_go(CliDebugSession *session);
 CliDebugSession *cli_debug_place(void);
-void cli_debug_info_written(const CliDebugInfo *info, CliLine *out);
+void cli_debug_info_written(const CliDebugInfo *info, VerbaLinea *out);
 // the native session debugging the same process as Python session `id`, taken, NULL where there is none
 CliDebugSession *cli_debug_native_of(unsigned long long id);
 
 // the breakpoints of `file` of the array `breakpoints` of `json` set through a session taken, each placed one's number
-// kept, each line and whether it is bound written into `out` as pairs: 1, or 0 with why said (debug_session.c)
+// retained, each line and whether it is bound written into `out` as pairs: 1, or 0 with why given (debug_session.c)
 int cli_debug_set(CliDebugSession *session, const char *file, const CliJson *json, unsigned int breakpoints,
-                  CliLine *out, CliLine *said);
+                  VerbaLinea *out, VerbaLinea *err_msg);
 
 // whether node `node` of `json` is a whole number, it into `value`, and the same of one at least 0; whether it is
 // true; the text of a string node, `fallback` where it is none; whether a session in `language` debugs the file at
-// `file`; `bytes` from base64, `size` of them, into `out`, which holds `room`: their count; the node `from` of `json`
+// `file`; `bytes` from base64, `size` of them, into `out`, sized for `room`: their count; the node `from` of `json`
 // made in `to` with each "{name}" in its strings filled in from `names` and `withs`, `count` of them, and each string
 // of digits alone made a number where `numbered`; the arguments that set stepping for a session in `language` put in
-// the object `arguments` of `to`, as the object `stepping` of `json` asks; and the breakpoints of the array
+// the object `arguments` of `to`, as the object `stepping` of `json` specifies; and the breakpoints of the array
 // `breakpoints` of `json` written as the protocol writes them (debug_arguments.c)
 int cli_debug_signed(const CliJson *json, unsigned int node, long long *value);
 int cli_debug_unsigned(const CliJson *json, unsigned int node, unsigned long long *value);
@@ -188,33 +188,33 @@ unsigned int cli_debug_filled(CliJson *to, const CliJson *json, unsigned int fro
                               const char *const *withs, unsigned int count, int numbered);
 void cli_debug_step_arguments(const char *language, const CliJson *json, unsigned int stepping, CliJson *to,
                               unsigned int arguments);
-void cli_debug_breakpoints_written(const CliJson *json, unsigned int breakpoints, CliLine *out);
+void cli_debug_breakpoints_written(const CliJson *json, unsigned int breakpoints, VerbaLinea *out);
 // the stack frame at node `frame` of an adapter's answer written as the window reads it, `{"id", "name", "path",
 // "line", "col", "ip"}`, its line and column counted from 0 and its path written by `named` (debug_requests.c)
 void cli_debug_frame_written(const CliJson *json, unsigned int frame, CliDebugPathWritten named, void *context,
-                             CliLine *out);
+                             VerbaLinea *out);
 
 // the adapter for `language` that is found, the toolchain `ahead` names tried first, its spec made in `json` from the
-// manifest, its node, the toolchain's name and id, and the program's path, each into what holds its longest: 1, or 0
-// with why said; the program a CMake or Meson build makes from `made`, built as that build builds it, into `program`;
-// and the file at `path` built for debugging where its language is built, by the toolchain `ahead` names where it
-// builds it and the first found where not, the program into `program`: 1 with `built` set, 1 with it clear for a
-// language that runs from its source, or 0 with why said (debug_find.c)
+// manifest, its node, the toolchain's name and id, and the program's path, each into what is sized for its longest: 1,
+// or 0 with why given; the program a CMake or Meson build makes from `made`, built as that build builds it, into
+// `program`; and the file at `path` built for debugging where its language is built, by the toolchain `ahead` names
+// where it builds it and the first found where not, the program into `program`: 1 with `built` set, 1 with it clear for
+// a language that runs from its source, or 0 with why given (debug_find.c)
 int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, unsigned int *spec, char *tool,
-                      char *tool_id, char *program, CliLine *said);
-int cli_debug_build_program(const CliProgram *made, char *program, CliLine *said);
+                      char *tool_id, char *program, VerbaLinea *err_msg);
+int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *err_msg);
 int cli_debug_build(const char *root, const char *path, const char *language, const char *ahead, char *program,
-                    int *built, CliLine *said);
+                    int *built, VerbaLinea *err_msg);
 
-// an adapter's event heard for the session in place `context`; a stop at a breakpoint the reader did not place, in a
-// session whose data breakpoints are lldb's own watchpoints, told as the stop of a data breakpoint, which it is
-// (debug_heard.c)
-void cli_debug_heard(void *context, const char *event, const char *body, unsigned long long size);
-// `text` run as a command of lldb's own in the session taken, what it says into `out`: 1, or 0 with why said, a
-// command that failed said in the answer's text; and orior's script loaded into lldb in the session taken, once
+// an adapter's event received for the session in place `context`; a stop at a breakpoint the reader did not place, in a
+// session whose data breakpoints are lldb's own watchpoints, reported as the stop of a data breakpoint, which it is
+// (debug_events.c)
+void cli_debug_event(void *context, const char *event, const char *body, unsigned long long size);
+// `text` run as a command of lldb's own in the session taken, what it prints into `out`: 1, or 0 with why given, a
+// command that failed reported in the answer's text; and orior's script loaded into lldb in the session taken, once
 // (debug_step.c)
-int cli_debug_lldb_command(CliDebugSession *session, const char *text, CliLine *out, CliLine *said);
-int cli_debug_lldb_script(CliDebugSession *session, CliLine *said);
+int cli_debug_lldb_command(CliDebugSession *session, const char *text, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_debug_lldb_script(CliDebugSession *session, VerbaLinea *err_msg);
 
 // orior's script in lldb (debug_lldb.c)
 extern const char g_cli_debug_lldb_script[];

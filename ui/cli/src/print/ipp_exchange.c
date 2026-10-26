@@ -43,26 +43,27 @@ static int cli_port(const char *from, const char *to, unsigned int *port)
             return 0;
         }
     }
-    // checked against the most 16 bits hold above
+    // checked against the most 16 bits represent above
     *port = (unsigned int)value;
     return 1;
 }
 
-int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path, CliLine *said)
+int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path, VerbaLinea *err_msg)
 {
     const char *rest = cli_after(uri, "ipp://");
     if ((rest == NULL) && (cli_after(uri, "ipps://") != NULL))
     {
-        cli_line_text(said, uri);
-        cli_line_text(said, " takes only encrypted IPP, which orior_cli does not speak; the printer's ipp:// address, "
-                            "where it has one, reaches it");
+        mmgr_line_put(err_msg, uri);
+        mmgr_line_put(err_msg,
+                      " takes only encrypted IPP, which orior_cli does not support; the printer's ipp:// address, "
+                      "where it has one, reaches it");
         return 0;
     }
     rest = (rest != NULL) ? rest : cli_after(uri, "http://");
     if (rest == NULL)
     {
-        cli_line_text(said, uri);
-        cli_line_text(said, " is no ipp:// address");
+        mmgr_line_put(err_msg, uri);
+        mmgr_line_put(err_msg, " is no ipp:// address");
         return 0;
     }
     const char *const slash = cellul.chr(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .byte = '/'});
@@ -72,7 +73,7 @@ int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path,
         .dst = path,
         .src = (slash != NULL) ? slash : "/",
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (slash != NULL) ? slash : "/", .cap = CLI_CELLS_POOL}) + 1u});
-    CliLine named = {host, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea named = {host, CLI_PATH_MAX_LEN, 0ull};
     *port = 631u;
     if (rest[0] == '[')
     {
@@ -83,12 +84,12 @@ int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path,
         }
         if (close == end)
         {
-            cli_line_text(said, uri);
-            cli_line_text(said, " has an address that does not close");
+            mmgr_line_put(err_msg, uri);
+            mmgr_line_put(err_msg, " has an address that does not close");
             return 0;
         }
-        cli_line_counted(&named, rest + 1, (unsigned long long)(close - rest - 1));
-        cli_line_closed(&named);
+        mmgr_line_put_n(&named, rest + 1, (unsigned long long)(close - rest - 1));
+        mmgr_line_finish(&named);
         if (((close + 1) < end) && (close[1] == ':') && !cli_port(close + 2, end, port))
         {
             *port = 631u;
@@ -100,12 +101,12 @@ int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path,
     {
         colon = (at[0] == ':') ? at : colon;
     }
-    cli_line_counted(&named, rest, (unsigned long long)(((colon != NULL) ? colon : end) - rest));
-    cli_line_closed(&named);
+    mmgr_line_put_n(&named, rest, (unsigned long long)(((colon != NULL) ? colon : end) - rest));
+    mmgr_line_finish(&named);
     if ((colon != NULL) && !cli_port(colon + 1, end, port))
     {
-        cli_line_text(said, uri);
-        cli_line_text(said, " names no port");
+        mmgr_line_put(err_msg, uri);
+        mmgr_line_put(err_msg, " names no port");
         return 0;
     }
     return 1;
@@ -177,48 +178,48 @@ static int cli_chunk_size(const unsigned char *from, const unsigned char *to, un
 static int cli_sent(const CliSocket *socket, const char *host, unsigned int port, const char *path,
                     const CliIppMessage *request, const unsigned char *document, unsigned long long size)
 {
-    CliLine body;
-    if (!cli_line_growing(&body, CLI_IPP_FIRST, "a request encoded for a printer"))
+    VerbaLinea body;
+    if (!cli_growing_line_made(&body, CLI_IPP_FIRST))
     {
         return 0;
     }
     cli_ipp_encode(request, &body);
-    if (!cli_line_fits(&body))
+    if (!mmgr_line_ok(&body))
     {
-        cli_cell_given(body.out);
+        g_cli_cells->persistent_buf_release(body.out, NULL);
         return 0;
     }
-    char head[CLI_PATH_LONGEST * 3u];
-    CliLine line = {head, sizeof(head), 0ull};
-    cli_line_text(&line, "POST ");
-    cli_line_text(&line, path);
-    cli_line_text(&line, " HTTP/1.1\r\nHost: ");
+    char head[CLI_PATH_MAX_LEN * 3u];
+    VerbaLinea line = {head, sizeof(head), 0ull};
+    mmgr_line_put(&line, "POST ");
+    mmgr_line_put(&line, path);
+    mmgr_line_put(&line, " HTTP/1.1\r\nHost: ");
     const int bracketed = cellul.chr(&(CatenaFinitaCfg){.src = host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL;
-    cli_line_text(&line, bracketed ? "[" : "");
-    cli_line_text(&line, host);
-    cli_line_text(&line, bracketed ? "]:" : ":");
-    cli_line_decimal(&line, port, 1u);
-    cli_line_text(&line, "\r\nContent-Type: application/ipp\r\nContent-Length: ");
-    cli_line_decimal(&line, body.at + size, 1u);
-    cli_line_text(&line, "\r\nConnection: close\r\nUser-Agent: orior\r\n\r\n");
-    const int sent = cli_line_fits(&line) && cli_socket_written(socket, head, line.at) &&
+    mmgr_line_put(&line, bracketed ? "[" : "");
+    mmgr_line_put(&line, host);
+    mmgr_line_put(&line, bracketed ? "]:" : ":");
+    mmgr_line_decimal(&line, port, 1u);
+    mmgr_line_put(&line, "\r\nContent-Type: application/ipp\r\nContent-Length: ");
+    mmgr_line_decimal(&line, body.at + size, 1u);
+    mmgr_line_put(&line, "\r\nConnection: close\r\nUser-Agent: orior\r\n\r\n");
+    const int sent = mmgr_line_ok(&line) && cli_socket_written(socket, head, line.at) &&
                      cli_socket_written(socket, body.out, body.at) &&
                      ((size == 0ull) || cli_socket_written(socket, document, size));
-    cli_cell_given(body.out);
+    g_cli_cells->persistent_buf_release(body.out, NULL);
     return sent;
 }
 
 // The answer's body put together in place from what was read past its head, from `at` on: by its length, in chunks,
-// each moved down over the chunk sizes before it, or to the end; its size into `size`: 1, or 0 with why said
+// each moved down over the chunk sizes before it, or to the end; its size into `size`: 1, or 0 with why given
 static int cli_body(const char *host, unsigned long long at, unsigned long long read, int chunked, int has_length,
-                    unsigned long long length, unsigned long long *size, CliLine *said)
+                    unsigned long long length, unsigned long long *size, VerbaLinea *err_msg)
 {
     if (!chunked)
     {
         const unsigned long long taken = has_length ? length : (read - at);
         if ((at + taken) > read)
         {
-            cli_line_text(said, "the printer's answer is cut short");
+            mmgr_line_put(err_msg, "the printer's answer is cut short");
             return 0;
         }
         *size = taken;
@@ -233,8 +234,8 @@ static int cli_body(const char *host, unsigned long long at, unsigned long long 
         unsigned long long chunk = 0ull;
         if (!cli_chunk_size(s_answer + at, s_answer + stop, &chunk))
         {
-            cli_line_text(said, host);
-            cli_line_text(said, " sent a chunk orior_cli cannot read");
+            mmgr_line_put(err_msg, host);
+            mmgr_line_put(err_msg, " sent a chunk orior_cli cannot read");
             return 0;
         }
         if (chunk == 0ull)
@@ -243,7 +244,7 @@ static int cli_body(const char *host, unsigned long long at, unsigned long long 
         }
         if ((next + chunk) > read)
         {
-            cli_line_text(said, "the printer's answer is cut short");
+            mmgr_line_put(err_msg, "the printer's answer is cut short");
             return 0;
         }
         // a chunk's bytes follow its size's line, so where they go is at or below where they are
@@ -256,17 +257,17 @@ static int cli_body(const char *host, unsigned long long at, unsigned long long 
 }
 
 static int cli_exchanged(const char *uri, const CliIppMessage *request, const unsigned char *document,
-                         unsigned long long size, CliIppMessage *answer, CliLine *said)
+                         unsigned long long size, CliIppMessage *answer, VerbaLinea *err_msg)
 {
-    char host[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char host[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     unsigned int port = 631u;
-    if (!cli_ipp_address(uri, host, &port, path, said))
+    if (!cli_ipp_address(uri, host, &port, path, err_msg))
     {
         return 0;
     }
     CliSocket socket = {0ull};
-    if (!cli_socket_connected(&socket, host, port, said))
+    if (!cli_socket_connected(&socket, host, port, err_msg))
     {
         return 0;
     }
@@ -274,20 +275,20 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     if (!cli_sent(&socket, host, port, path, request, document, size))
     {
         cli_socket_closed(&socket);
-        cli_line_text(said, host);
-        cli_line_text(said, ": the job did not go");
+        mmgr_line_put(err_msg, host);
+        mmgr_line_put(err_msg, ": the job did not go");
         return 0;
     }
     unsigned long long read = 0ull;
-    CliLine answer_line;
-    int reading = cli_line_growing(&answer_line, CLI_IPP_FIRST, "a printer's answer");
-    while (reading && (read < CLI_IPP_ANSWER) && cli_line_room(&answer_line, CLI_IPP_READ))
+    VerbaLinea answer_line;
+    int reading = cli_growing_line_made(&answer_line, CLI_IPP_FIRST);
+    while (reading && (read < CLI_IPP_ANSWER) && cli_growing_line_room(&answer_line, CLI_IPP_READ))
     {
         const unsigned long long room = answer_line.capacity - read - 1ull;
-        const unsigned long long asked = ((read + room) < CLI_IPP_ANSWER) ? room : (CLI_IPP_ANSWER - read);
-        const long long got = cli_socket_some(&socket, answer_line.out + read, asked);
+        const unsigned long long chunk = ((read + room) < CLI_IPP_ANSWER) ? room : (CLI_IPP_ANSWER - read);
+        const long long got = cli_socket_some(&socket, answer_line.out + read, chunk);
         reading = got > 0ll;
-        // a count read is below the room asked
+        // a count read is below the room requested
         read += reading ? (unsigned long long)got : 0ull;
         answer_line.at = read;
     }
@@ -295,7 +296,7 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     s_answer = (unsigned char *)answer_line.out;
     if (s_answer == NULL)
     {
-        cli_line_text(said, "a printer's answer could not be given a cell");
+        mmgr_line_put(err_msg, "a printer's answer could not be given a cell");
         return 0;
     }
     unsigned long long stop = 0ull;
@@ -320,9 +321,9 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     }
     if ((digits == 0ull) || (((word + digits) < stop) && (s_answer[word + digits] != ' ')))
     {
-        cli_line_text(said, host);
-        cli_line_text(said, " did not answer as a printer: ");
-        cli_line_counted(said, (const char *)s_answer, stop);
+        mmgr_line_put(err_msg, host);
+        mmgr_line_put(err_msg, " did not answer as a printer: ");
+        mmgr_line_put_n(err_msg, (const char *)s_answer, stop);
         return 0;
     }
     unsigned long long length = 0ull;
@@ -370,31 +371,31 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     }
     if (code == 401ull)
     {
-        cli_line_text(said, host);
-        cli_line_text(said, " asks who prints: it takes jobs only from a user it knows");
+        mmgr_line_put(err_msg, host);
+        mmgr_line_put(err_msg, " requires a user name: it takes jobs only from a user it knows");
         return 0;
     }
     if (code != 200ull)
     {
-        cli_line_text(said, host);
-        cli_line_text(said, " answered HTTP ");
-        cli_line_decimal(said, code, 1u);
+        mmgr_line_put(err_msg, host);
+        mmgr_line_put(err_msg, " answered HTTP ");
+        mmgr_line_decimal(err_msg, code, 1u);
         return 0;
     }
     unsigned long long body = 0ull;
-    return cli_body(host, at, read, chunked, has_length, length, &body, said) &&
-           cli_ipp_decode(s_answer + at, body, answer, said);
+    return cli_body(host, at, read, chunked, has_length, length, &body, err_msg) &&
+           cli_ipp_decode(s_answer + at, body, answer, err_msg);
 }
 
 int cli_ipp_exchange(const char *uri, const CliIppMessage *request, const unsigned char *document,
-                     unsigned long long size, CliIppMessage *answer, CliLine *said)
+                     unsigned long long size, CliIppMessage *answer, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
-    const int done = cli_exchanged(uri, request, document, size, answer, said);
+    const int done = cli_exchanged(uri, request, document, size, answer, err_msg);
     // the answer's own texts are in its bytes; a document after them lay in the answer read, which is given back
     answer->data = NULL;
     answer->data_length = 0ull;
-    cli_cell_given(s_answer);
+    g_cli_cells->persistent_buf_release(s_answer, NULL);
     s_answer = NULL;
     cli_lock_give(&s_lock);
     return done;

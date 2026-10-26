@@ -62,8 +62,8 @@ static const char *const RUN_PART_NAMES[RUN_PARTS] = {
     "schedule", "iapx-prove", "entropy", "floor",  "flatten", "track", "fingerprint", "scan", "flicker",
     "lines",    "neighbors",  "clips",   "pixels", "moments", "sort",  "output",      "faces"};
 
-// a host part holds nothing on the device and asks no job of the daemon: the output reads .points and .links and
-// writes rows, and the faces read .points, .drift, .shape and .links and write each sample's .faces
+// a host part allocates nothing on the device and requests no job from the daemon: the output reads .points and .links
+// and writes rows, and the faces read .points, .drift, .shape and .links and write each sample's .faces
 static int run_part_host(RunPart part)
 {
     return (part == RUN_OUTPUT) || (part == RUN_FACES);
@@ -96,14 +96,14 @@ static int run_part_named(const char *name, RunPart *part)
     return 0;
 }
 
-#define RUN_JOB_HOLDING_MICROSECONDS 2000000ull
+#define RUN_JOB_GRACE_MICROSECONDS 2000000ull
 #define RUN_JOB_SWEEP_MICROSECONDS 20000ull
 #define RUN_JOB_IDLE_MICROSECONDS 5000000ull
 
 static unsigned int s_override = 0u;
 
-// `total` is the declaration with the bytes the process already held on the device as it asked, its context among them,
-// which the daemon measured and told on admission
+// `total` is the declaration with the bytes the process already allocated on the device as it requested, its context
+// among them, which the daemon measured and reported on admission
 typedef struct
 {
     TesseraClient *client;
@@ -112,10 +112,10 @@ typedef struct
     unsigned long long total;
 } RunJob;
 
-// what a part holds on the device for its largest lattice of `lanes`: the lattice in 16-bit lanes, as one allocation
-// rounded to the page, where the part holds it there (`lattice`); and where it lifts or lowers its lattices (`tower`),
-// the tower's pool and compression's chunk pool, each kept for the largest lattice the job has asked. The stream, sized
-// by the values, and the seal's passing buffers are left to the peak the daemon keeps.
+// what a part allocates on the device for its largest lattice of `lanes`: the lattice in 16-bit lanes, as one
+// allocation rounded to the page, where the part allocates it there (`lattice`); and where it lifts or lowers its
+// lattices (`tower`), the tower's pool and compression's chunk pool, each retained for the largest lattice the job has
+// requested. The stream, sized by the values, and the seal's passing buffers are left to the peak the daemon tracks.
 static unsigned long long run_job_lattice_bytes(unsigned long long lanes, int lattice, int tower)
 {
     DevicePoolPlan plan = {0ull, 0ull, 0};
@@ -128,12 +128,12 @@ static unsigned long long run_job_lattice_bytes(unsigned long long lanes, int la
 static unsigned long long run_job_declared(const RunInputs *inputs, const char *name, int lattice, int tower, int drift,
                                            int gate)
 {
-    // the largest sample's holdings; the daemon measures the rest and keeps the peak under the signum. A part that
-    // drifts (`drift`) also holds what shift_agreement keeps for a sample's frame, its extents in the order the drift
-    // passes them; those bytes step with the padded lengths and not the voxels. The most over the samples is taken.
-    // A part that gates (`gate`) holds the gate's pool for the most points a frame over the samples' .points
+    // the largest sample's holdings; the daemon measures the rest and tracks the peak under the signum. A part that
+    // drifts (`drift`) also allocates what shift_agreement retains for a sample's frame, its extents in the order the
+    // drift passes them; those bytes step with the padded lengths and not the voxels. The most over the samples is
+    // taken. A part that gates (`gate`) allocates the gate's pool for the most points a frame over the samples' .points
     unsigned long long maximum = 0ull;
-    unsigned long long kept = 0ull;
+    unsigned long long retained = 0ull;
     for (unsigned int at = 0u; at < inputs->count; at += 1u)
     {
         EngineError error;
@@ -151,7 +151,7 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
         else if (engine_iapx_head(inputs->set, inputs->samples[at], extent, &error) == 0L)
         {
             lanes = extent[0] * extent[1] * extent[2] * extent[3];
-            // an extent past 32 bits reads as 0, which shift_agreement errors and keeps nothing for
+            // an extent past 32 bits reads as 0, which shift_agreement errors and retains nothing for
             unsigned int extents[ENGINE_AXES];
             for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
             {
@@ -159,7 +159,7 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
             }
             const unsigned long long reserve_bytes =
                 (drift != 0) ? shift_agreement_reserve_bytes(ENGINE_AXES, extents) : 0ull;
-            kept = (reserve_bytes > kept) ? reserve_bytes : kept;
+            retained = (reserve_bytes > retained) ? reserve_bytes : retained;
         }
         maximum = (lanes > maximum) ? lanes : maximum;
     }
@@ -173,16 +173,17 @@ static unsigned long long run_job_declared(const RunInputs *inputs, const char *
     const unsigned long long gated = (gate != 0) ? sort_reserve_bytes(points) : 0ull;
     if (drift != 0)
     {
-        printf("  tessera: %s declares %llu bytes: %llu for its lattice and tower, %llu the drift keeps\n", name,
-               lattice_bytes + kept, lattice_bytes, kept);
+        printf("  tessera: %s declares %llu bytes: %llu for its lattice and tower, %llu the drift retains\n", name,
+               lattice_bytes + retained, lattice_bytes, retained);
     }
     if (gate != 0)
     {
-        printf("  tessera: %s declares %llu bytes: %llu for its lattice and tower, %llu the gate holds for %u points a"
-               " frame\n",
-               name, lattice_bytes + gated, lattice_bytes, gated, points);
+        printf(
+            "  tessera: %s declares %llu bytes: %llu for its lattice and tower, %llu the gate allocates for %u points a"
+            " frame\n",
+            name, lattice_bytes + gated, lattice_bytes, gated, points);
     }
-    return lattice_bytes + kept + gated;
+    return lattice_bytes + retained + gated;
 }
 
 static int run_job_submit(const char *name, const CfgText *effective, const RunInputs *inputs, int lattice, int tower,
@@ -199,11 +200,11 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
         fprintf(stderr, "  tessera: %s: the device did not answer who it is\n", name);
         return 0;
     }
-    TesseraJobAsk ask;
-    memset(&ask, 0, sizeof(ask));
-    memcpy(ask.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    TesseraJobSubmit submit;
+    memset(&submit, 0, sizeof(submit));
+    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&ask.luid, properties.luid, sizeof(ask.luid));
+    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
 #endif
     const size_t named = strlen(name) + 1u;
     const size_t request_bytes = named + effective->length;
@@ -214,8 +215,8 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
     }
     memcpy(request, name, named);
     memcpy(request + named, effective->bytes, effective->length);
-    const ObsignatioSignumRequest signum = {request,          request_bytes,       NULL,  OBSIGNATIO_MODE_HASH,
-                                            ask.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
+    const ObsignatioSignumRequest signum = {
+        request, request_bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, &error};
     const long hashed = obsignatio_signum(&signum);
     free(request);
     job->declared = run_job_declared(inputs, name, lattice, tower, drift, gate);
@@ -224,7 +225,7 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
                        (strlen(daemon) + sizeof("/tessera_daemon.exe") <= sizeof(daemon));
     if ((hashed != 0L) || (job->declared == 0ull) || !placed)
     {
-        fprintf(stderr, "  tessera: %s: no job could be asked (signum, declaration or the daemon's place)\n", name);
+        fprintf(stderr, "  tessera: %s: no job could be requested (signum, declaration or the daemon's place)\n", name);
         return 0;
     }
 #if defined(_WIN32)
@@ -232,39 +233,40 @@ static int run_job_submit(const char *name, const CfgText *effective, const RunI
 #else
     strcat(daemon, "/tessera_daemon");
 #endif
-    ask.declared = job->declared;
-    ask.holding_microseconds = RUN_JOB_HOLDING_MICROSECONDS;
-    ask.sweep_microseconds = RUN_JOB_SWEEP_MICROSECONDS;
-    ask.idle_microseconds = RUN_JOB_IDLE_MICROSECONDS;
-    ask.daemon_path = daemon;
-    ask.error = &error;
-    if (tessera_job_submit(&ask, &job->client, &job->ticket) != 0L)
+    submit.declared = job->declared;
+    submit.grace_microseconds = RUN_JOB_GRACE_MICROSECONDS;
+    submit.sweep_microseconds = RUN_JOB_SWEEP_MICROSECONDS;
+    submit.idle_microseconds = RUN_JOB_IDLE_MICROSECONDS;
+    submit.daemon_path = daemon;
+    submit.error = &error;
+    if (tessera_job_submit(&submit, &job->client, &job->ticket) != 0L)
     {
         fprintf(stderr, "  tessera: %s: the daemon (%s) did not take the job\n", name, daemon);
         return 0;
     }
-    if (job->ticket.asked != 0u)
+    if (job->ticket.over_budget != 0u)
     {
-        printf("  tessera: %s declares %llu bytes over its kept peak of %llu\n", name, job->declared,
+        printf("  tessera: %s declares %llu bytes over its tracked peak of %llu\n", name, job->declared,
                job->ticket.last_peak);
         const long answered = (s_override != 0u) ? tessera_job_override(job->client, &job->ticket, &error)
                                                  : tessera_job_wait(job->client, &job->ticket, &error);
         if ((answered != 0L) || (job->ticket.lost != 0u))
         {
             fprintf(stderr,
-                    "  tessera: %s was held past its holding time and lost; --override admits it on its"
+                    "  tessera: %s was reserved past its grace time and lost; --override admits it on its"
                     " declaration (ticket in %s)\n",
                     name, job->ticket.lost_path);
             if (answered == 0L)
             {
-                tessera_job_precalc_kept(job->client, &error);
+                tessera_job_precalc_saved(job->client, &error);
             }
             job->client = NULL;
             return 0;
         }
     }
     job->total = job->declared + job->ticket.standing;
-    printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process held as it asked\n",
+    printf("  tessera: %s admitted, %llu bytes reserved; it declared %llu over the %llu its process allocated as it "
+           "requested\n",
            name, job->ticket.granted, job->declared, job->ticket.standing);
     return 1;
 }
@@ -764,7 +766,7 @@ static int run_flattened_prepare(const RunInputs *inputs, FlattenResident *flatt
     }
     if (ok == 0)
     {
-        fprintf(stderr, "  flattened.iapx in %s does not hold its samples in order\n", inputs->set);
+        fprintf(stderr, "  flattened.iapx in %s does not store its samples in order\n", inputs->set);
         return 0;
     }
     rules->flattened = flattened_set->magnitudes;
@@ -901,15 +903,15 @@ typedef struct
     unsigned int difference_offset[CONTACT_SIDE_DIFFERENCE_OUTPUTS];
     unsigned int difference_bits[CONTACT_SIDE_DIFFERENCE_OUTPUTS];
     EngineRecordRequest difference_encode_request;
-    EngineRecordStep kept_program[CONTACT_SIDE_KEPT_STEPS];
-    unsigned int kept_outputs[CONTACT_SIDE_KEPT_OUTPUTS];
-    unsigned int kept_offset[CONTACT_SIDE_KEPT_OUTPUTS];
-    unsigned int kept_bits[CONTACT_SIDE_KEPT_OUTPUTS];
-    EngineRecordRequest kept_encode_request;
+    EngineRecordStep retained_program[CONTACT_SIDE_SIGN_STEPS];
+    unsigned int retained_outputs[CONTACT_SIDE_SIGN_OUTPUTS];
+    unsigned int retained_offset[CONTACT_SIDE_SIGN_OUTPUTS];
+    unsigned int retained_bits[CONTACT_SIDE_SIGN_OUTPUTS];
+    EngineRecordRequest retained_encode_request;
 } RunContactSide;
 
 static int run_contact_side_prepare(const RunInputs *inputs, const FlattenResident *flattened, RunContactSide *side,
-                                    CycleRecord **difference_record, CycleRecord **kept_record, TreeRules *rules)
+                                    CycleRecord **difference_record, CycleRecord **retained_record, TreeRules *rules)
 {
     ContactSideDifferenceRequest difference;
     memset(&difference, 0, sizeof(difference));
@@ -934,7 +936,7 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
     apart->output_offset = side->difference_offset;
     apart->output_bits = side->difference_bits;
     *difference_record = NULL;
-    *kept_record = NULL;
+    *retained_record = NULL;
     EngineError error;
     memset(&error, 0, sizeof(error));
     const long apart_bits = (contact_side_difference_program(&difference, side->difference_program,
@@ -947,32 +949,32 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
         track_error_report("contact side difference", &error);
         return 0;
     }
-    ContactSideKeptRequest kept;
-    memset(&kept, 0, sizeof(kept));
+    ContactSideSignRequest retained;
+    memset(&retained, 0, sizeof(retained));
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        kept.difference_field[axis] = axis;
+        retained.difference_field[axis] = axis;
     }
     const unsigned int apart_limbs = cycle_record_out_limbs(*difference_record);
-    EngineRecordRequest *const verdict = &side->kept_encode_request;
+    EngineRecordRequest *const verdict = &side->retained_encode_request;
     memset(verdict, 0, sizeof(*verdict));
-    verdict->steps = side->kept_program;
-    verdict->count = CONTACT_SIDE_KEPT_STEPS;
+    verdict->steps = side->retained_program;
+    verdict->count = CONTACT_SIDE_SIGN_STEPS;
     verdict->field_bits = side->difference_bits;
     verdict->field_offset = side->difference_offset;
     verdict->fields = CONTACT_SIDE_DIFFERENCE_OUTPUTS;
     verdict->in_limbs[CONTACT_SIDE_BEFORE] = apart_limbs;
     verdict->in_limbs[CONTACT_SIDE_AFTER] = apart_limbs;
     verdict->members = CONTACT_SIDE_MEMBERS;
-    verdict->outputs = side->kept_outputs;
-    verdict->output_count = CONTACT_SIDE_KEPT_OUTPUTS;
-    verdict->output_offset = side->kept_offset;
-    verdict->output_bits = side->kept_bits;
-    const long kept_bits =
-        (contact_side_kept_program(&kept, side->kept_program, side->kept_outputs) == CONTACT_SIDE_ERROR)
+    verdict->outputs = side->retained_outputs;
+    verdict->output_count = CONTACT_SIDE_SIGN_OUTPUTS;
+    verdict->output_offset = side->retained_offset;
+    verdict->output_bits = side->retained_bits;
+    const long retained_bit_count =
+        (contact_side_sign_program(&retained, side->retained_program, side->retained_outputs) == CONTACT_SIDE_ERROR)
             ? ENGINE_ERROR
-            : engine_record_encode(verdict, kept_record, &error);
-    if (kept_bits == ENGINE_ERROR)
+            : engine_record_encode(verdict, retained_record, &error);
+    if (retained_bit_count == ENGINE_ERROR)
     {
         fprintf(stderr, "  contact side: the verdict program did not encode\n");
         track_error_report("contact side verdict", &error);
@@ -980,12 +982,12 @@ static int run_contact_side_prepare(const RunInputs *inputs, const FlattenReside
     }
     rules->contact_difference_record = *difference_record;
     rules->contact_difference_encode_request = apart;
-    rules->contact_kept_record = *kept_record;
-    rules->contact_kept_encode_request = verdict;
+    rules->contact_retained_record = *retained_record;
+    rules->contact_retained_encode_request = verdict;
     printf("  contact side: the difference, %u steps, a record of %ld bits in %u limbs; the verdict, %u steps, %ld bits"
            " in %u limbs\n",
-           CONTACT_SIDE_DIFFERENCE_STEPS, apart_bits, apart_limbs, CONTACT_SIDE_KEPT_STEPS, kept_bits,
-           cycle_record_out_limbs(*kept_record));
+           CONTACT_SIDE_DIFFERENCE_STEPS, apart_bits, apart_limbs, CONTACT_SIDE_SIGN_STEPS, retained_bit_count,
+           cycle_record_out_limbs(*retained_record));
     return 1;
 }
 
@@ -1050,7 +1052,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
     RunVelocity *const velocity = (RunVelocity *)calloc(1u, sizeof(RunVelocity));
     RunDivision *const division = (RunDivision *)calloc(1u, sizeof(RunDivision));
     CycleRecord *difference_record = NULL;
-    CycleRecord *kept_record = NULL;
+    CycleRecord *retained_record = NULL;
     RunContactSide *const side = (RunContactSide *)calloc(1u, sizeof(RunContactSide));
     int ready = (velocity != NULL) && (division != NULL) && (side != NULL) &&
                 (((rules->print_match == 0) && (rules->velocity == 0) && (rules->division == 0) &&
@@ -1064,7 +1066,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
                       (run_division_prepare(inputs, &flattened, division, &division_record, &matched) != 0));
     ready = ready &&
             ((rules->contact_side == 0) ||
-             (run_contact_side_prepare(inputs, &flattened, side, &difference_record, &kept_record, &matched) != 0));
+             (run_contact_side_prepare(inputs, &flattened, side, &difference_record, &retained_record, &matched) != 0));
     if (ready == 0)
     {
         free(prints);
@@ -1073,7 +1075,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
         cycle_record_release(velocity_record);
         cycle_record_release(division_record);
         cycle_record_release(difference_record);
-        cycle_record_release(kept_record);
+        cycle_record_release(retained_record);
         free(velocity);
         free(division);
         free(side);
@@ -1118,9 +1120,9 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
             printf("    %-22s %5llu   %llu.%llu%%\n", names[row], values[row], percent, tenth);
         }
     }
-    if ((g_web_asked + g_web_capped) > 0ULL)
+    if ((g_web_queried + g_web_capped) > 0ULL)
     {
-        printf("    web: asked of %llu objects, moved %llu, capped %llu over %u bodies\n", g_web_asked, g_web_moved,
+        printf("    web: queried %llu objects, moved %llu, capped %llu over %u bodies\n", g_web_queried, g_web_moved,
                g_web_capped, WEB_MEMBERS);
     }
     if ((g_mutual_alone + g_mutual_split + g_mutual_empty) > 0ULL)
@@ -1158,7 +1160,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
                 "%s\trun\t%s\t%u samples, %d failed\t0\t0\t0\t0\t0\t%llu\t%llu\t%llu\t%llu\t%llu\t%llu"
                 "\t0\t0\t0\t0\t0\t0\t0\t0\t%llu\t0\t%llu\t%llu\t%llu\t%u\t%llu\t%llu\t%llu\n",
                 when, log_rules(), inputs->count, failures, total, pooled.correct, pooled.branched, pooled.wrong,
-                pooled.unlinked, pooled.missed, wall, g_web_asked, g_web_moved, g_web_capped, WEB_MEMBERS,
+                pooled.unlinked, pooled.missed, wall, g_web_queried, g_web_moved, g_web_capped, WEB_MEMBERS,
                 g_damp_leaves, g_damp_landings, (unsigned long long)DAMP_DEVIATIONS);
         fclose(log);
     }
@@ -1168,7 +1170,7 @@ static int run_track(const TreeRules *rules, const RunInputs *inputs)
     cycle_record_release(velocity_record);
     cycle_record_release(division_record);
     cycle_record_release(difference_record);
-    cycle_record_release(kept_record);
+    cycle_record_release(retained_record);
     free(velocity);
     free(division);
     free(side);
@@ -1187,7 +1189,7 @@ int main(int argc, char **argv)
     // --gate-still: the sort's gate also takes each source's still place; the sort alone reads it
     unsigned int gate_still = 0u;
     // the sort's costs are O7's, each distance's level in the sample's pooled count of first-rank links, unless
-    // --cost-distance keeps the first pass's weighted squared distances; the sort alone reads it
+    // --cost-distance retains the first pass's weighted squared distances; the sort alone reads it
     unsigned int cost_first = 1u;
     int argument = 1;
     while ((argument < argc) && (strncmp(argv[argument], "--", 2u) == 0))
@@ -1359,9 +1361,9 @@ int main(int argc, char **argv)
         {
             rules.forward_only = 1;
         }
-        else if (strcmp(flag, "--keep-view") == 0)
+        else if (strcmp(flag, "--retain-view") == 0)
         {
-            rules.keep_view = 1;
+            rules.retain_view = 1;
         }
         else if (strcmp(flag, "--no-resolve") == 0)
         {
@@ -1545,16 +1547,16 @@ int main(int argc, char **argv)
     }
     if (argument < argc)
     {
-        for (unsigned int slot = 0u; slot < inputs.count; slot += 1u)
+        for (unsigned int index = 0u; index < inputs.count; index += 1u)
         {
-            free(inputs.samples[slot]);
+            free(inputs.samples[index]);
         }
         free(inputs.samples);
         inputs.count = (unsigned int)(argc - argument);
         inputs.samples = (char **)calloc((size_t)inputs.count + 1u, sizeof(char *));
-        for (unsigned int slot = 0u; inputs.samples && (slot < inputs.count); slot += 1u)
+        for (unsigned int index = 0u; inputs.samples && (index < inputs.count); index += 1u)
         {
-            inputs.samples[slot] = cfg_copy(argv[argument + (int)slot]);
+            inputs.samples[index] = cfg_copy(argv[argument + (int)index]);
         }
     }
     if (!inputs.count && inputs.first)
@@ -1572,9 +1574,9 @@ int main(int argc, char **argv)
         fprintf(stderr,
                 "usage: track_driver --ingest --source directory [--axes tzyx] [--channel c] <set> [<sample> ...]\n"
                 "       track_driver [--cfg run.cfg] [--cfg-out effective.cfg] [--run part ...] [--plan path]"
-                " [--pick] [--merge-split] [--merge-target] [--forward-only] [--keep-view] [--no-resolve] [--climb]"
+                " [--pick] [--merge-split] [--merge-target] [--forward-only] [--retain-view] [--no-resolve] [--climb]"
                 " [--edges path] [--object directory] [<set> [<sample> ...]]\n"
-                "  the source is the dataset as it came; the set holds one <sample>/<sample>.iapx per sample,"
+                "  the source is the dataset as it came; the set contains one <sample>/<sample>.iapx per sample,"
                 " made from the source by --ingest and by nothing else\n"
                 "  --run names one part; each part once, the parts running in the order given: schedule, iapx-prove,"
                 " entropy, floor, flatten, track, fingerprint, scan, flicker, lines, neighbors, clips,"
@@ -1583,7 +1585,7 @@ int main(int argc, char **argv)
                 " override it\n"
                 "  every part but output and faces, and --ingest, is one job on the device's tessera daemon"
                 " (tessera_daemon beside this program); --override admits a job that declares more than its"
-                " request's kept peak. output and faces are host parts and ask no job\n");
+                " request's tracked peak. output and faces are host parts and request no job\n");
         return 2;
     }
     if ((s_ingest == 0u) && (s_part_count == 0u))
@@ -1637,7 +1639,7 @@ int main(int argc, char **argv)
         }
     }
     const char *const directory = inputs.set;
-    // the device's context is made before any job is asked, and only when some part asks one
+    // the device's context is made before any job is requested, and only when some part requests one
     unsigned int device_parts = 0u;
     for (unsigned int at = 0u; at < s_part_count; at += 1u)
     {
@@ -1649,7 +1651,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        printf("  every part named is a host part: no device job is asked, and no device context is made\n");
+        printf("  every part named is a host part: no device job is requested, and no device context is made\n");
     }
 
     if (s_ingest != 0u)
@@ -1685,9 +1687,9 @@ int main(int argc, char **argv)
         printf("  run %s\n", RUN_PART_NAMES[part]);
         RunJob job;
         memset(&job, 0, sizeof(job));
-        // iapx-prove lowers every lattice to prove it and holds none of its own on the device; schedule reads only the
-        // heads, and fingerprint only flattened.iapx. Neither lowers one; the sort reads only .points and .drift,
-        // and holds no lattice and lowers none
+        // iapx-prove lowers every lattice to prove it and allocates none of its own on the device; schedule reads only
+        // the heads, and fingerprint only flattened.iapx. Neither lowers one; the sort reads only .points and .drift,
+        // and allocates no lattice and lowers none
         const int lattice = (part != RUN_IAPX_PROVE) && (part != RUN_SORT);
         const int tower = (part != RUN_SCHEDULE) && (part != RUN_FINGERPRINT) && (part != RUN_SORT);
         // the scan alone drifts its frames through shift_agreement, and the sort alone gates its frame pairs
@@ -1885,7 +1887,7 @@ int main(int argc, char **argv)
         }
         if (failures != 0)
         {
-            fprintf(stderr, "  run %s did not hold; the parts after it do not run\n", RUN_PART_NAMES[part]);
+            fprintf(stderr, "  run %s failed; the parts after it do not run\n", RUN_PART_NAMES[part]);
         }
     }
     if (rules.coherence != NULL)
@@ -1903,21 +1905,21 @@ int main(int argc, char **argv)
     // the nodes and the submission close checked (output_close): a write that failed on either, or a close that fails,
     // has lost rows, and fails the run
     FILE *const closing[2] = {rules.nodes, rules.submission};
-    const unsigned int closing_slots[2] = {6u, 7u};
+    const unsigned int closing_outputs[2] = {6u, 7u};
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
-        if (output_close(closing[at], inputs.outputs[closing_slots[at]]) == 0)
+        if (output_close(closing[at], inputs.outputs[closing_outputs[at]]) == 0)
         {
             failures = 1;
         }
     }
-    for (unsigned int slot = 0u; slot < inputs.count; slot += 1u)
+    for (unsigned int index = 0u; index < inputs.count; index += 1u)
     {
-        free(inputs.samples[slot]);
+        free(inputs.samples[index]);
     }
-    for (unsigned int slot = 0u; slot < RUN_OUTPUTS; slot += 1u)
+    for (unsigned int index = 0u; index < RUN_OUTPUTS; index += 1u)
     {
-        free(inputs.outputs[slot]);
+        free(inputs.outputs[index]);
     }
     free(inputs.samples);
     free(inputs.source);

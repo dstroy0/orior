@@ -15,8 +15,8 @@
 // lower case; and each finding's file and its diagnostic, written as JSON, in the texts
 typedef struct
 {
-    char path[CLI_CHECK_FILES][CLI_PATH_LONGEST];
-    char key[CLI_CHECK_FILES][CLI_PATH_LONGEST];
+    char path[CLI_CHECK_FILES][CLI_PATH_MAX_LEN];
+    char key[CLI_CHECK_FILES][CLI_PATH_MAX_LEN];
     unsigned int files;
     unsigned int file_of[CLI_CHECK_FINDINGS];
     unsigned int start[CLI_CHECK_FINDINGS];

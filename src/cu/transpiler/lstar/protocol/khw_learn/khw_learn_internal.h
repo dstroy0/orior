@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most places a kernel's code holds, and the bytes of one instruction
+// the most places a kernel's code contains, and the bytes of one instruction
 #define KHW_PLACES 256u
 
 #define KHW_INSTRUCTION 16u
@@ -39,8 +39,8 @@
 #define KHW_SETTINGS 2u
 #define KHW_STAGES 2u
 
-// the two registers the kernel leaves a case's words in, found by asking: a run set to one of these numbers reads that
-// register, and the two words differ: an operand field answers two different words, a modifier one
+// the two registers the kernel leaves a case's words in, found by querying: a run set to one of these numbers reads
+// that register, and the two words differ: an operand field answers two different words, a modifier one
 #define KHW_FIRST_REGISTER 0u
 
 #define KHW_SECOND_REGISTER 7u
@@ -51,11 +51,11 @@
 // the launches the kernel's own question is timed over, as a task's cost is read (P11, Step 10)
 #define KHW_LAUNCHES 100u
 
-// how many times over a form is written in a costs question, one copy a place after the slot: the many links of one
-// ask, which raise a form's cost above a launch's own (P6, Q5)
+// how many times over a form is written in a costs question, one copy a place after the probe place: the many links of
+// one query, which raise a form's cost above a launch's own (P6, Q5)
 #define KHW_COST_COPIES 2048u
 
-// the row a form's cost is kept under in the part's .ksc: its word the least launch's advance of the clock the part
+// the row a form's cost is stored under in the part's .ksc: its word the least launch's advance of the clock the part
 // named over the copies, less the kernel's alone, and its question the form and the spread of the launches,
 // `run answers <least> cost <low> <high> <spread>`, in hex as every run row writes them
 #define KHW_COST_ROW "run answers %016llx cost %016llx %016llx %016llx"
@@ -78,19 +78,19 @@ extern unsigned char s_kernel_text[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned char s_code[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned int s_kernel_places;
 // the kernel's places before the one the least opening begins at, dropped from every question's code and put as the
-// frame round's candidates like the kept ones, since the part ran each of them
+// frame round's candidates like the retained ones, since the part ran each of them
 extern unsigned char s_opening_text[KHW_PLACES * KHW_INSTRUCTION];
 extern unsigned int s_opening_places;
-// the slot's place among the kept places where the kernel listing names it, the part's answer in its .ksc, and
+// the probe place among the retained places where the kernel listing names it, the part's answer in its .ksc, and
 // s_kernel_places where it names none
-extern unsigned int s_kernel_slot;
-extern unsigned int s_slot;
+extern unsigned int s_kernel_probe_place;
+extern unsigned int s_probe_place;
 extern unsigned long long s_unreached_low;
 extern unsigned long long s_unreached_high;
 extern const char *s_fields;
 extern char s_ksc_path[1024];
 extern RunQuestion s_question;
-extern unsigned long long s_asks;
+extern unsigned long long s_query_count;
 extern unsigned int s_launches;
 extern RunQuestion *s_pool;
 extern unsigned int s_pooled;
@@ -106,31 +106,32 @@ void khw_run_write(unsigned long long *low, unsigned long long *high, unsigned i
                    unsigned long long value);
 void khw_kernel_put(unsigned char *code);
 void khw_code_put(unsigned char *code, unsigned int place, unsigned long long low, unsigned long long high);
-int khw_asked(const unsigned int word[][2], unsigned int count, unsigned int slot, unsigned long long *answered);
+int khw_question_put(const unsigned int word[][2], unsigned int count, unsigned int place,
+                     unsigned long long *answered);
 unsigned int khw_pooled(unsigned int place, unsigned long long low, unsigned long long high,
                         const unsigned int word[][2], unsigned int count);
 void khw_round_carried(void);
 unsigned int khw_anchor_cases(unsigned int anchor, int swapped, unsigned int word[][2], unsigned int *plain,
                               unsigned int *signed_read);
 unsigned int khw_candidate_answer(const KhwCandidate *candidate, const unsigned int *word);
-// whether the questions put now are predicate ones, the store after the slot guarded by P0 (khw_kernel_put)
+// whether the questions put now are predicate ones, the store after the probe place guarded by P0 (khw_kernel_put)
 void khw_store_guarded(int on);
 int khw_store_is_guarded(void);
 void khw_union_written(void);
 // the relation `question` answers, judged against the register relations where `guarded` is 0 and against the
 // predicate relations where it is 1, the question having been put with the store guarded by P0
-int khw_relation_of(const RunQuestion *question, KhwAnswered *held, int guarded);
-// 1 where `question`, put plain, answered the second word on every case: the slot left the register the kernel
+int khw_relation_of(const RunQuestion *question, KhwAnswered *form, int guarded);
+// 1 where `question`, put plain, answered the second word on every case: the probe place left the register the kernel
 // stores alone, as a form that writes a predicate does
 int khw_second_word_standing(const RunQuestion *question);
-int khw_relation_asked(unsigned long long low, unsigned long long high, KhwAnswered *held);
-int khw_first_round(KhwAnswered *kernel, unsigned int *slot, unsigned long long *nanoseconds);
-void khw_turns_asked(KhwAnswered *held, const unsigned int word[1][2]);
+int khw_relation_queried(unsigned long long low, unsigned long long high, KhwAnswered *form);
+int khw_first_round(KhwAnswered *kernel, unsigned int *place, unsigned long long *nanoseconds);
+void khw_turns_queried(KhwAnswered *form, const unsigned int word[1][2]);
 unsigned int khw_forms_in_phase(unsigned int phase, KhwAnswered **forms);
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected);
 int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsigned int which, unsigned int word[2]);
 int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int words);
-int khw_answers_alike(const KhwAnswered *held, const KhwAnswered *other);
+int khw_answers_alike(const KhwAnswered *form, const KhwAnswered *other);
 int khw_form_stands_for(const KhwAnswered *older, const KhwAnswered *newer);
 int khw_form_stood_for(const KhwAnswered *forms, unsigned int count, const KhwAnswered *newer);
 unsigned int khw_forms_folded(KhwAnswered *forms, unsigned int count);
@@ -138,51 +139,51 @@ unsigned int khw_forms_placed_twice(KhwAnswered **forms, unsigned int count);
 unsigned int khw_comparisons_void(KhwAnswered **forms, unsigned int count);
 void khw_plan_handed(const char *pass, unsigned long long questions);
 unsigned int khw_fields_turns(KhwAnswered *const *forms, unsigned int count);
-// the turning cases `held` is turned over: one, or for a predicate form each of khw_predicate_words
-unsigned int khw_turning_cases(const KhwAnswered *held);
+// the turning cases `form` is turned over: one, or for a predicate form each of khw_predicate_words
+unsigned int khw_turning_cases(const KhwAnswered *form);
 unsigned int khw_fields_registers(KhwAnswered *const *forms, unsigned int count);
-void khw_fields_asked(KhwAnswered *held);
+void khw_fields_queried(KhwAnswered *form);
 int khw_kernel_read(void);
-int khw_form_asked(unsigned long long low, unsigned long long high);
-unsigned int khw_seeds_asked(const char *name);
+int khw_form_queried(unsigned long long low, unsigned long long high);
+unsigned int khw_seeds_queried(const char *name);
 unsigned int khw_widened(unsigned int from, int discover);
-unsigned int khw_costs_asked(const char *path);
+unsigned int khw_costs_queried(const char *path);
 // the round's line on the console: its count of questions and the clocks the channel spent on it since `before`
 void khw_round_printed(unsigned int count, const unsigned long long before[4]);
 void khw_fields_written(const char *path);
-void khw_enumerate(unsigned int slot, const char *forms);
+void khw_enumerate(unsigned int place, const char *forms);
 unsigned int khw_fixed_register(const char *name);
 int khw_named_already(unsigned long long low, unsigned long long high);
-// the narrowest field of the instruction word, as the part's .ksc gives them, that holds the bits `first` to `last`:
+// the narrowest field of the instruction word, as the part's .ksc gives them, that contains the bits `first` to `last`:
 // 1 with its name, into `name` of `room` bytes, its first bit and its width; 0 where the .ksc gives none that does
-int khw_field_holding(unsigned int first, unsigned int last, char *name, size_t room, unsigned int *field_first,
-                      unsigned int *field_bits);
+int khw_field_covering(unsigned int first, unsigned int last, char *name, size_t room, unsigned int *field_first,
+                       unsigned int *field_bits);
 int khw_field_read(const char *name, unsigned int *first, unsigned int *bits);
 // the fields of the instruction word the part's .ksc gives, each its first bit and its width, into `first` and
-// `bits`, which hold `room`: their count
+// `bits`, which have room for `room`: their count
 #define KHW_FIELDS 32u
 unsigned int khw_fields_listed(unsigned int *first, unsigned int *bits, unsigned int room);
-// The runs of `held` gathered from `turned`, one entry a bit up to KHW_TURN_LAST, 1 where the bit's turn changed the
+// The runs of `form` gathered from `turned`, one entry a bit up to KHW_TURN_LAST, 1 where the bit's turn changed the
 // answer: the adjacent turned bits, cut where the fields the part names end, `fields` of them with their first bits
-// and widths. Two adjacent turned bits are one run where one field holds both, the narrowest where fields nest, or
-// none holds either. Each run holds no place and a register's kind. The count of runs
+// and widths. Two adjacent turned bits are one run where one field contains both, the narrowest where fields nest, or
+// none contains either. Each run contains no place and a register's kind. The count of runs
 unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const unsigned int *field_first,
-                               const unsigned int *field_bits, KhwAnswered *held);
+                               const unsigned int *field_bits, KhwAnswered *form);
 unsigned int khw_frame_pooled(unsigned long long low, unsigned long long high, const unsigned int word[][2],
                               unsigned int count);
 const unsigned int (*khw_frame_cases(unsigned int *count))[2];
 void khw_frame_stalled(unsigned long long *low, unsigned long long *high);
-int khw_frame_of(const RunQuestion *question, KhwAnswered *held);
-unsigned int khw_frame_round(const KhwAnswered *slot_form, int discover);
+int khw_frame_of(const RunQuestion *question, KhwAnswered *form);
+unsigned int khw_frame_round(const KhwAnswered *probed_form, int discover);
 
-// What one form holds through a stage of a pass: the form, its turning case `word` and the answer `expected` of it,
+// What one form carries through a stage of a pass: the form, its turning case `word` and the answer `expected` of it,
 // where its questions begin in the round being written, and the answer the part gave its turning case `base`. A
 // ladder form's questions carry one case, read at 0; a frame form's carry FRAME_READ_AT + 1 cases of its word pair,
 // read at FRAME_READ_AT, the thread whose lane and block differ from each other and from 0. A predicate form is turned
-// over each of its turning cases (khw_predicate_words), `turning` the one this stage holds
+// over each of its turning cases (khw_predicate_words), `turning` the one this stage carries
 typedef struct
 {
-    KhwAnswered *held;
+    KhwAnswered *form;
     unsigned int word[1][2];
     unsigned long long expected;
     unsigned int at;
@@ -192,15 +193,14 @@ typedef struct
     unsigned int turning;
 } KhwStaged;
 
-int khw_turning_case(KhwAnswered *held, KhwStaged *stage);
-void khw_ladder_registers_read(KhwAnswered *held, unsigned int at, const KhwStaged *stage);
-void khw_frame_addresses_read(KhwAnswered *held, unsigned int at, const KhwStaged *stage);
-void khw_frame_registers_read(KhwAnswered *held, unsigned int at, const KhwStaged *stage);
+int khw_turning_case(KhwAnswered *form, KhwStaged *stage);
+void khw_ladder_registers_read(KhwAnswered *form, unsigned int at, const KhwStaged *stage);
+void khw_frame_addresses_read(KhwAnswered *form, unsigned int at, const KhwStaged *stage);
+void khw_frame_registers_read(KhwAnswered *form, unsigned int at, const KhwStaged *stage);
 void khw_frame_cases_written(void);
 void khw_frame_nothing_read(const RunQuestion *question);
-unsigned int khw_run_settings(const KhwAnswered *held, unsigned int stage, unsigned int run,
-                              unsigned int *settings);
-unsigned int khw_slot_fields(unsigned int *first, unsigned int *bits);
+unsigned int khw_run_settings(const KhwAnswered *form, unsigned int stage, unsigned int run, unsigned int *settings);
+unsigned int khw_probe_fields(unsigned int *first, unsigned int *bits);
 unsigned int khw_staged_pooled(const KhwStaged *stage, unsigned long long low, unsigned long long high);
 extern unsigned int s_frame_word[FRAME_CASES][2];
 

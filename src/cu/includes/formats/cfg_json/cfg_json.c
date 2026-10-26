@@ -29,17 +29,17 @@ static unsigned int cfg_json_token(CfgJsonWalk *walk, CfgJsonKind kind, size_t s
 {
     if (walk->count == walk->capacity)
     {
-        walk->reason = "more tokens than the reader holds";
+        walk->reason = "more tokens than the reader supports";
         return 0u;
     }
-    const unsigned int slot = walk->count;
-    walk->tokens[slot].kind = kind;
-    walk->tokens[slot].start = start;
-    walk->tokens[slot].end = end;
-    walk->tokens[slot].count = 0u;
-    walk->tokens[slot].next = slot + 1u;
+    const unsigned int at = walk->count;
+    walk->tokens[at].kind = kind;
+    walk->tokens[at].start = start;
+    walk->tokens[at].end = end;
+    walk->tokens[at].count = 0u;
+    walk->tokens[at].next = at + 1u;
     walk->count += 1u;
-    return slot + 1u;
+    return at + 1u;
 }
 
 static int cfg_json_literal(CfgJsonWalk *walk, const char *defined, CfgJsonKind kind)
@@ -387,7 +387,7 @@ int cfg_json_string(const char *text, const CfgJsonToken *token, char *out, size
         ok = (letter != 0u) && (letter != CFG_JSON_NO_LETTER) && (written + bytes < capacity);
         if (ok)
         {
-            // each byte is the letter's bits in turn under its UTF-8 mark, which a char holds
+            // each byte is the letter's bits in turn under its UTF-8 mark, which a char represents
             static const unsigned int s_marks[5] = {0x00u, 0x00u, 0xc0u, 0xe0u, 0xf0u};
             for (size_t place = bytes; place > 1u; place -= 1u)
             {

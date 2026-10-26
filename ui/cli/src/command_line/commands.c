@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // commands.c: the commands, as commands.json lists them: the window's menus, and the command line's words. A menu is a
 // title and its items, and a menu of jobs names the catalog's groups it lists, split by what each job works on where
-// `split` says so. An item is a label, the command it runs, the keys that run it in the window, the words it takes
+// `split` specifies so. An item is a label, the command it runs, the keys that run it in the window, the words it takes
 // after its name, and whether the command line runs it itself, in the terminal, or opens the window to run it there.
 // The window reads the same file for the rest of an item: what it needs before it can act, and a label that changes
 // with the scheme. The list is built into the program, as the window builds in the same one, and read once
@@ -11,17 +11,17 @@
 #include "../text/json_tree.h"
 #include "cells.h"
 
-// the list as it is built in, with a zero after it, read where it lies; and its tokens, a cell of their count held for
-// as long as the program runs
+// the list as it is built in, with a zero after it, read where it lies; and its tokens, a cell of their count allocated
+// for as long as the program runs
 static const char *s_text;
 static unsigned long long s_size;
 static CfgJsonToken *s_tokens;
 static unsigned int s_count;
-// the token of each menu, in the order the list holds them
+// the token of each menu, in the order the list contains them
 static unsigned int s_menu[CLI_MENUS_MOST];
 static unsigned int s_menus;
 
-int cli_commands_read(CliLine *said)
+int cli_commands_read(VerbaLinea *err_msg)
 {
     if (s_count != 0u)
     {
@@ -33,27 +33,27 @@ int cli_commands_read(CliLine *said)
     const unsigned int tokens = cli_json_tokens_counted(s_text, s_size) + 1u;
     s_tokens = (s_tokens != NULL)
                    ? s_tokens
-                   : cli_cell_taken((unsigned long long)tokens * sizeof(*s_tokens), "the commands' tokens");
+                   : g_cli_cells->persistent_buf_alloc((unsigned long long)tokens * sizeof(*s_tokens), NULL);
     if (s_tokens == NULL)
     {
-        cli_line_text(said, "commands.json: the cells cannot meet its tokens");
+        mmgr_line_put(err_msg, "commands.json: the cells cannot meet its tokens");
         return 0;
     }
     CfgJsonParse parse;
     // a list far below what a size_t counts
     if (!cfg_json_parse_metadata(s_text, (size_t)s_size, s_tokens, tokens, &parse))
     {
-        cli_line_text(said, "commands.json: ");
-        cli_line_text(said, parse.reason);
-        cli_line_text(said, " at line ");
-        cli_line_decimal(said, parse.line, 0u);
+        mmgr_line_put(err_msg, "commands.json: ");
+        mmgr_line_put(err_msg, parse.reason);
+        mmgr_line_put(err_msg, " at line ");
+        mmgr_line_decimal(err_msg, parse.line, 0u);
         return 0;
     }
     s_count = parse.tokens;
     const unsigned int menus = cfg_json_member(s_text, s_tokens, 0u, "menus");
     if ((menus == 0u) || (s_tokens[menus].kind != CFG_JSON_ARRAY))
     {
-        cli_line_text(said, "commands.json holds no menus");
+        mmgr_line_put(err_msg, "commands.json contains no menus");
         s_count = 0u;
         return 0;
     }
@@ -72,7 +72,7 @@ unsigned int cli_menus(void)
     return s_menus;
 }
 
-// the string member `name` of the object at token `object` into `out`, which holds `room`; empty where it has none
+// the string member `name` of the object at token `object` into `out`, sized for `room`; empty where it has none
 static void cli_member_text(unsigned int object, const char *name, char *out, size_t room)
 {
     const unsigned int value = cfg_json_member(s_text, s_tokens, object, name);
@@ -85,7 +85,7 @@ static void cli_member_text(unsigned int object, const char *name, char *out, si
 
 void cli_menu_title(unsigned int menu, char *title)
 {
-    cli_member_text(s_menu[menu], "title", title, CLI_LABEL_LONGEST);
+    cli_member_text(s_menu[menu], "title", title, CLI_LABEL_MAX_LEN);
 }
 
 void cli_menu_word(unsigned int menu, char *word)
@@ -99,10 +99,10 @@ void cli_menu_word(unsigned int menu, char *word)
 
 void cli_menu_split(unsigned int menu, char *split)
 {
-    cli_member_text(s_menu[menu], "split", split, CLI_LABEL_LONGEST);
+    cli_member_text(s_menu[menu], "split", split, CLI_LABEL_MAX_LEN);
 }
 
-unsigned int cli_menu_groups(unsigned int menu, char (*groups)[CLI_LABEL_LONGEST], unsigned int room)
+unsigned int cli_menu_groups(unsigned int menu, char (*groups)[CLI_LABEL_MAX_LEN], unsigned int room)
 {
     const unsigned int list = cfg_json_member(s_text, s_tokens, s_menu[menu], "groups");
     if ((list == 0u) || (s_tokens[list].kind != CFG_JSON_ARRAY))
@@ -115,7 +115,7 @@ unsigned int cli_menu_groups(unsigned int menu, char (*groups)[CLI_LABEL_LONGEST
     {
         if (s_tokens[at].kind == CFG_JSON_STRING)
         {
-            cfg_json_string(s_text, &s_tokens[at], groups[count], CLI_LABEL_LONGEST);
+            cfg_json_string(s_text, &s_tokens[at], groups[count], CLI_LABEL_MAX_LEN);
             count += 1u;
         }
         at = s_tokens[at].next;
@@ -220,7 +220,7 @@ int cli_menu_named(const char *word, unsigned int *menu)
 {
     for (unsigned int at = 0u; at < s_menus; at += 1u)
     {
-        char named[CLI_LABEL_LONGEST];
+        char named[CLI_LABEL_MAX_LEN];
         cli_menu_word(at, named);
         if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = word, .cap = CLI_CELLS_POOL}))
         {

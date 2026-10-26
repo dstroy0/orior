@@ -3,7 +3,7 @@
 // python_paths.h: the folders a tree's Python scripts put on `sys.path` as they run, read from their text with no
 // setup, for Python's server to search for the modules the scripts import from them. A script that writes
 // `sys.path.insert(0, os.path.join(ROOT, "src", "python"))` names a folder its server knows nothing of until it is
-// told.
+// given.
 //
 // What is read: `sys.path.insert`, `sys.path.append`, `sys.path.extend` and `sys.path[:0] = [...]`, of an expression
 // made of `__file__`, strings, the names the script set before it, `os.path`'s `dirname`, `abspath`, `realpath`,
@@ -11,7 +11,7 @@
 // and a string's `rsplit(sep, 1)[0]`. A name set again from itself, as a loop walks up a folder at a time until a
 // folder is there, stands for each folder above its first value; a name a `for` takes from a tuple or a list stands
 // for each of them, and one it takes from `os.scandir`, `os.listdir` or `iterdir` for each folder in that folder. Of
-// what an expression may be, the folders that are there in the tree are kept (python_paths.c, python_paths_parse.c,
+// what an expression may be, the folders that are there in the tree are retained (python_paths.c, python_paths_parse.c,
 // python_paths_eval.c)
 #ifndef PYTHON_PATHS_H
 #define PYTHON_PATHS_H

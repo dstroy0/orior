@@ -5,10 +5,10 @@
 // CYCLE_RECORD_HOST_C=1 builds each lane written as C source (code_generator("c.krs")) with the host's C++ compiler in
 // place of NVRTC: the lane and its resident (program_unit) under a host prelude that reads the CUDA names they use
 // with each host thread a thread block of one thread. The text is compiled to a shared library in the cache folder,
-// kept there by its text, and loaded; its resident, cycle_program, runs the lanes on the host's threads, as many as
+// cached there by its text, and loaded; its resident, cycle_program, runs the lanes on the host's threads, as many as
 // $CYCLE_HOST_THREADS names, else the host's hardware threads. The run copies the lane's
-// inputs from the device and its records and errors back: the check (CYCLE_RECORD_CHECK=1) holds it to the
-// interpreter as it holds the device's. On Windows the compiler is nvcc handing the source to the host compiler
+// inputs from the device and its records and errors back: the check (CYCLE_RECORD_CHECK=1) checks it against the
+// interpreter as it checks the device's. On Windows the compiler is nvcc handing the source to the host compiler
 // alone, with -ccbin $CYCLE_HOST_CCBIN where it is set; elsewhere it is $CXX, else c++
 #include "cycle_compile_internal.h"
 #include "cycle_record_internal.h"
@@ -95,7 +95,7 @@ static inline unsigned long long atomicCAS(unsigned long long *address, unsigned
 #endif
 
 // a program the host's compiler built in this process, found again by its whole text, and the records loaded that
-// hold it: the last one released unloads it
+// reference it: the last one released unloads it
 struct CycleHostProgram
 {
     std::string source;
@@ -227,7 +227,7 @@ static int cycle_host_compiler_run(const std::string &source, const std::string 
 static void *cycle_host_library_open(const std::string &path)
 {
 #if defined(_WIN32)
-    // a module handle is held as a plain pointer beside the Linux one
+    // a module handle is stored as a plain pointer beside the Linux one
     return (void *)LoadLibraryA(path.c_str());
 #else
     return dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
@@ -243,8 +243,8 @@ static void cycle_host_library_close(void *library)
 #endif
 }
 
-// The host text of a C lane found in this process, else in the cache folder, else compiled there and kept, then
-// loaded. The cache holds the text beside its library, and a library is used only where the text beside it is this
+// The host text of a C lane found in this process, else in the cache folder, else compiled there and cached, then
+// loaded. The cache contains the text beside its library, and a library is used only where the text beside it is this
 // text byte for byte; each is written beside its name and renamed to it, and no reader finds half a file. 0 where
 // there is no cache folder, or the compile or the load failed
 int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *record, const std::string &source,
@@ -365,7 +365,8 @@ int cycle_host_program_load(const EngineRecordLayout *layout, CycleRecord *recor
     return 1;
 }
 
-// a hold on a host program loaded in this process given back, where `entry` is one; the last hold released unloads it
+// a reference to a host program loaded in this process given back, where `entry` is one; the last reference released
+// unloads it
 void cycle_host_program_release(CycleHostEntry entry)
 {
     for (size_t at = 0u; (entry != NULL) && (at < s_cycle_host_programs.size()); at += 1u)
@@ -399,20 +400,20 @@ static unsigned int cycle_host_threads(unsigned long long lanes)
 {
     const char *const named = getenv("CYCLE_HOST_THREADS");
     char *end = NULL;
-    const unsigned long long asked =
+    const unsigned long long requested =
         ((named != NULL) && (named[0] >= '0') && (named[0] <= '9')) ? strtoull(named, &end, 10) : 0ull;
     const unsigned long long hardware = std::thread::hardware_concurrency();
     const unsigned long long threads =
-        ((asked != 0ull) && (end != NULL) && (*end == '\0')) ? asked : ((hardware != 0ull) ? hardware : 1ull);
-    const unsigned long long held = (threads < lanes) ? threads : lanes;
+        ((requested != 0ull) && (end != NULL) && (*end == '\0')) ? requested : ((hardware != 0ull) ? hardware : 1ull);
+    const unsigned long long used = (threads < lanes) ? threads : lanes;
     // at most the lanes and at most what the environment or the hardware names; a run of more than 2^32 - 1 threads
-    // is held to that
-    return (unsigned int)((held == 0ull) ? 1ull : ((held > 0xFFFFFFFFull) ? 0xFFFFFFFFull : held));
+    // is limited to that
+    return (unsigned int)((used == 0ull) ? 1ull : ((used > 0xFFFFFFFFull) ? 0xFFFFFFFFull : used));
 }
 
 // The host program run resident, as the device's is (cycle_record_resident): its block laid out for this run, then
 // the program started on the host's threads, each a thread block of one thread (cycle_host_threads), again from
-// where its block says it stands until every lane is done. The threads take lanes from the one counter, and the last
+// where its block records it stands until every lane is done. The threads take lanes from the one counter, and the last
 // one out writes the host's copy of the block. The lanes' members, index and tables are read from the device first,
 // and the records and the error count are written back to it last. The host has no clock the program reads: its
 // launch time is taken around each start
@@ -460,7 +461,7 @@ int cycle_host_resident(const CycleRecord *record, CycleCompiledLaunch program, 
     block->ttl = ttl;
     block->wdt = wdt;
     block->lanes = program.count;
-    // the records' address is held as a 64-bit word, as every word of the block is
+    // the records' address is stored as a 64-bit word, as every word of the block is
     block->result = (unsigned long long)(uintptr_t)out.data();
     block->result_words = out_words;
     block->checksum = cycle_block_seal(block);

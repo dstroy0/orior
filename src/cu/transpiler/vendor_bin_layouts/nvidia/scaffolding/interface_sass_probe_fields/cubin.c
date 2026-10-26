@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cubin.c: the container: a file read and written, a word read and written, the kernel, a splice, a place found, the container written, the keys, a flip held safe, the first field and the operand at a place
+// cubin.c: the container: a file read and written, a word read and written, the kernel, a splice, a place found, the
+// container written, the keys, a flip checked safe, the first field and the operand at a place
 #include "fields_internal.h"
 
 SassMachine s_machine;
@@ -8,18 +9,18 @@ unsigned char s_pattern[FIELDS_CUBIN_BYTES];
 static unsigned char s_cubin[FIELDS_CUBIN_BYTES];
 unsigned char s_code[FIELDS_CODE_BYTES];
 char s_kernel_text[FIELDS_TEXT_BYTES];
-char s_asking[FIELDS_TEXT_BYTES];
+char s_query_text[FIELDS_TEXT_BYTES];
 static unsigned int s_exits[FIELDS_EXITS];
 char s_kernel[128];
 unsigned long long s_pattern_size;
 
-// each operation key, the low word's bits the sweep puts every value of: whether the machine file holds a form under
-// it, and whether any form it holds there transfers control or waits
+// each operation key, the low word's bits the sweep puts every value of: whether the machine file contains a form under
+// it, and whether any form it contains there transfers control or waits
 static unsigned char s_key_known[SASS_OPERATION_MASK + 1u];
 
 static unsigned char s_key_control[SASS_OPERATION_MASK + 1u];
 
-// `path` read whole into `bytes`, which holds `room`: the bytes read, 0 where it was not read
+// `path` read whole into `bytes`, which has room for `room`: the bytes read, 0 where it was not read
 unsigned long long fields_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     FILE *const file = fopen(path, "rb");
@@ -70,8 +71,8 @@ int fields_kernel(const char *kernel_text, char *kernel, size_t room)
     return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
-// the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel holds no such
-// line or `text` will not hold the whole
+// the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel contains no
+// such line or `text` will not contain the whole
 int fields_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
     const char *const line = strstr(kernel_text, "\nIADD3 ");
@@ -141,7 +142,7 @@ int fields_cubin(const unsigned char *code, unsigned int count, unsigned int pla
 
 // the key table filled from the machine file's forms: a key is known where any form sits under it, and control where
 // any form under it transfers control or waits. The sweep put every key to the disassembler from each of several
-// carriers, and the file holds every operation a key named there. The counts go to the standard output
+// carriers, and the file contains every operation a key named there. The counts go to the standard output
 void fields_keys(void)
 {
     unsigned int known = 0u;
@@ -151,20 +152,20 @@ void fields_keys(void)
         const unsigned long long key = s_machine.form[at].low & SASS_OPERATION_MASK;
         known += (s_key_known[key] == 0u) ? 1u : 0u;
         s_key_known[key] = 1u;
-        // a turned bit that writes a control transfer or a wait is run as it is and not refused: its key is held off
-        // the part
+        // a turned bit that writes a control transfer or a wait is run as it is and not refused: its key is blocked
+        // from the part
         if (sass_operation_control_or_wait(s_machine.form[at].operation) && (s_key_control[key] == 0u))
         {
             s_key_control[key] = 1u;
             control += 1u;
         }
     }
-    printf("operation keys: %u known, %u holding a control or wait form\n", known, control);
+    printf("operation keys: %u known, %u containing a control or wait form\n", known, control);
 }
 
 // 1 where the instruction at `place` in s_code, turned at `bit`, is safe to run on the part. The operation key names
-// the operation, and the turned encoding is run only where the machine file holds forms under its key and no control
-// transfer or wait among them: such an instruction falls through whatever its other bits hold, and cannot loop or
+// the operation, and the turned encoding is run only where the machine file contains forms under its key and no control
+// transfer or wait among them: such an instruction falls through whatever its other bits contain, and cannot loop or
 // stall the part. A turn past the key leaves the key, and the instruction's own operation, as they were. `name` takes
 // the operation the turned encoding reads back as, or the key where no form reads it back. A `bit` of 128 turns nothing
 int fields_flip_safe(unsigned int place, unsigned int bit, char *name, size_t room)
@@ -195,7 +196,7 @@ int fields_flip_safe(unsigned int place, unsigned int bit, char *name, size_t ro
 }
 
 // the first instruction of the file at `path` that is a form to probe, into `instruction`: 1, or 0 where the file
-// holds none. The kernel's own IADD3 and blank lines are passed over, as the write pass passes them
+// contains none. The kernel's own IADD3 and blank lines are passed over, as the write pass passes them
 int fields_first(const char *path, char *instruction, size_t room)
 {
     FILE *const file = fopen(path, "rb");

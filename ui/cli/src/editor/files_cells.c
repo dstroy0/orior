@@ -1,29 +1,29 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_cells.c: the files' cells and the lists made of them: a list's paths and places taken at the sizes a count of
-// them gives, put, sorted and given back; and the files of a held view a reader keeps, by their places in it. The cells
-// are the one cellblock's, counted to the files' own mark, which their report gives
+// them gives, put, sorted and given back; and the files of a pinned view a reader picks, by their places in it. The
+// cells are the one cellblock's, counted to the files' own mark, which their report gives
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "files_internal.h"
 
 // what the views, a walk's folders, and the lists the search, the quick open, a folder's listing and the watch make
-// hold in the cellblock
-static CliCellsTally s_tally = CLI_CELLS_TALLY("cli_files_views");
+// occupy in the cellblock
+static CellOwner s_owner = MMGR_CELL_OWNER("cli_files_views");
 
-void cli_files_cells_said(CliLine *out)
+void cli_files_cells_usage_written(VerbaLinea *out)
 {
-    cli_cells_tally_said(&s_tally, out);
+    cli_cells_owner_usage_written(&s_owner, out);
 }
 
 void *cli_files_cell_taken(unsigned long long bytes)
 {
-    return cli_cell_taken_by(&s_tally, bytes, "the tree's files");
+    return g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
 }
 
 void cli_files_cell_given(void *cell)
 {
-    cli_cell_given_by(&s_tally, cell);
+    g_cli_cells->persistent_buf_release(cell, &s_owner);
 }
 
 const char *cli_files_at(const CliFiles *files, unsigned int index)
@@ -37,7 +37,7 @@ int cli_files_put(CliFiles *files, const char *path, unsigned long long length)
     {
         return 0;
     }
-    // a place is below CLI_FILES_TEXT, which an unsigned int holds
+    // a place is below CLI_FILES_TEXT, which an unsigned int stores
     files->start[files->count] = (unsigned int)files->used;
     memor.cpy(&(MemoriaCfg){.dst = files->text + files->used, .src = path, .bytes = length});
     files->text[files->used + length] = '\0';
@@ -46,7 +46,7 @@ int cli_files_put(CliFiles *files, const char *path, unsigned long long length)
     return 1;
 }
 
-int cli_files_holds(const CliFiles *files, const char *path)
+int cli_files_contains(const CliFiles *files, const char *path)
 {
     unsigned int low = 0u;
     unsigned int high = files->count;
@@ -65,7 +65,7 @@ int cli_files_holds(const CliFiles *files, const char *path)
 }
 
 // the places of `files` sorted by their paths' bytes, runs of one, two, four and on merged in turn between the places
-// and `spare`, which holds as many
+// and `spare`, sized for as many
 static void files_merged(CliFiles *files, unsigned int *spare)
 {
     unsigned int *from = files->start;
@@ -88,9 +88,9 @@ static void files_merged(CliFiles *files, unsigned int *spare)
                 other += first ? 0u : 1u;
             }
         }
-        unsigned int *const held = from;
+        unsigned int *const src = from;
         from = to;
-        to = held;
+        to = src;
     }
     if (from != files->start)
     {
@@ -111,19 +111,19 @@ int cli_files_sorted(CliFiles *files)
     }
     files_merged(files, spare);
     cli_files_cell_given(spare);
-    // each path kept once
-    unsigned int kept = 0u;
+    // each path listed once
+    unsigned int sorted_count = 0u;
     for (unsigned int at = 0u; at < files->count; at += 1u)
     {
-        if ((kept == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = files->text + files->start[kept - 1u],
-                                                           .other = files->text + files->start[at],
-                                                           .cap = CLI_CELLS_POOL})))
+        if ((sorted_count == 0u) || (!cellul.eq(&(CatenaFinitaCfg){.src = files->text + files->start[sorted_count - 1u],
+                                                                   .other = files->text + files->start[at],
+                                                                   .cap = CLI_CELLS_POOL})))
         {
-            files->start[kept] = files->start[at];
-            kept += 1u;
+            files->start[sorted_count] = files->start[at];
+            sorted_count += 1u;
         }
     }
-    files->count = kept;
+    files->count = sorted_count;
     return 1;
 }
 
@@ -141,7 +141,7 @@ int cli_files_made(CliFiles *files, unsigned long long count, unsigned long long
     {
         return 1;
     }
-    // each held to its limit, which an unsigned int counts
+    // each bounded by its limit, which an unsigned int counts
     files->most = (unsigned int)((count < CLI_FILES_MOST) ? count : CLI_FILES_MOST);
     files->text_most = (bytes < CLI_FILES_TEXT) ? bytes : CLI_FILES_TEXT;
     files->start = cli_files_cell_taken((unsigned long long)files->most * sizeof(unsigned int));
@@ -154,19 +154,19 @@ int cli_files_made(CliFiles *files, unsigned long long count, unsigned long long
     return 1;
 }
 
-int cli_files_picked(CliPicked *picked, const char *root, int (*keeps)(void *context, const char *path), void *context)
+int cli_files_picked(CliPicked *picked, const char *root, int (*filter)(void *context, const char *path), void *context)
 {
     *picked = (CliPicked){NULL, NULL, 0u};
-    const CliSeen *const seen = cli_seen_held(root);
+    const CliSeen *const seen = cli_seen_acquire(root);
     if (seen == NULL)
     {
         return 0;
     }
-    // the files kept counted first, so their places are a cell of as many
+    // the files picked counted first, so their places are a cell of as many
     unsigned int count = 0u;
     for (unsigned int index = 0u; index < seen->files.count; index += 1u)
     {
-        count += keeps(context, cli_files_at(&seen->files, index)) ? 1u : 0u;
+        count += filter(context, cli_files_at(&seen->files, index)) ? 1u : 0u;
     }
     unsigned int *const place =
         (count != 0u) ? cli_files_cell_taken((unsigned long long)count * sizeof(unsigned int)) : NULL;
@@ -175,16 +175,16 @@ int cli_files_picked(CliPicked *picked, const char *root, int (*keeps)(void *con
         cli_seen_let(seen);
         return 0;
     }
-    unsigned int kept = 0u;
-    for (unsigned int index = 0u; (index < seen->files.count) && (kept < count); index += 1u)
+    unsigned int picked_count = 0u;
+    for (unsigned int index = 0u; (index < seen->files.count) && (picked_count < count); index += 1u)
     {
-        if (keeps(context, cli_files_at(&seen->files, index)))
+        if (filter(context, cli_files_at(&seen->files, index)))
         {
-            place[kept] = index;
-            kept += 1u;
+            place[picked_count] = index;
+            picked_count += 1u;
         }
     }
-    *picked = (CliPicked){seen, place, kept};
+    *picked = (CliPicked){seen, place, picked_count};
     return 1;
 }
 

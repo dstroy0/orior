@@ -18,7 +18,7 @@ class VhdlTarget : public CodeGenerator
     const ScheduleModel *program_schedule_model(void) const override;
 };
 
-// the VHDL code generator a process holds, its ruleset read at its first call to ruleset()
+// the VHDL code generator a process retains, its ruleset read at its first call to ruleset()
 VhdlTarget &vhdl_target(void);
 
 #endif

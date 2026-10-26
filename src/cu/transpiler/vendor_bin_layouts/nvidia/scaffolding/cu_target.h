@@ -16,7 +16,7 @@ class CuTarget : public CodeGenerator
     CuTarget(void);
 };
 
-// the CUDA source's code generator a process holds, its ruleset read at its first call to ruleset()
+// the CUDA source's code generator a process retains, its ruleset read at its first call to ruleset()
 CuTarget &cu_target(void);
 
 #endif

@@ -12,6 +12,10 @@
     "perLine": true,
     "tokenizer": {
       "root": [
+        [
+          "^(\\[+)(\\s*)([^\\]\\s](?:[^\\]]*[^\\]\\s])?)(\\s*)(\\]+)",
+          ["keyword","keyword","keyword.declaration.module","keyword","keyword"]
+        ],
         ["^\\s*\\[\\[?[^\\]]*\\]\\]?","keyword"],
         ["^(\\s*)([\\w.\\-\"']+)(\\s*)([=:])",["","variable","","operator"]],
         ["[#;].*$","comment"],
@@ -19,7 +23,8 @@
         ["'[^']*'","string"],
         ["\\b(?:true|false)\\b","keyword"],
         ["[+-]?\\d[\\d_:.eE+\\-TZ]*","number"],
-        ["[{}[\\]]","@brackets"],
+        ["[{\\[]","delimiter.bracket.open"],
+        ["[}\\]]","delimiter.bracket.close"],
         ["[,=]","delimiter"],
         ["[^\\s#;\"'{}[\\],=]+|\\s+",""]
       ]

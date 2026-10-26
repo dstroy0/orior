@@ -17,6 +17,8 @@
     "builtins": ["echo","printf","cd","test","read","pwd","true","false","command","type","wait","kill"],
     "tokenizer": {
       "root": [
+        ["^(\\s*)(function)(\\s+)([\\w-]+)",["","keyword","","declaration.function"]],
+        ["^(\\s*)([A-Za-z_][\\w-]*)(?=\\s*\\(\\))",["","declaration.function"]],
         ["\\s+",""],
         ["#.*$","comment"],
         ["\\$(?:\\{[^}]*\\}|[A-Za-z_]\\w*|[0-9#?@*$!-])","variable"],
@@ -28,7 +30,10 @@
         ["[A-Za-z_][\\w.-]*",{"cases":{"@words":"keyword","@builtins":"predefined","@default":""}}],
         ["-{1,2}[A-Za-z][\\w-]*","attribute.name"],
         ["\\d+","number"],
-        ["[{}()[\\]]","@brackets"],
+        ["\\{","delimiter.bracket.region.open"],
+        ["\\}","delimiter.bracket.region.close"],
+        ["[(\\[]","delimiter.bracket.open"],
+        ["[)\\]]","delimiter.bracket.close"],
         ["[<>=!&|;]+","operator"]
       ],
       "string": [

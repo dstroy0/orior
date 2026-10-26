@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// schema_offer.c: what completes the word before the cursor in a JSON file, from the schemas that hold where it stands:
-// at a key, each key they give the object that it does not hold yet, inside a string the rest of its name and outside
-// one its name written with what its type opens; at a value, each value their `enum`, `const`, `default` and
-// `examples` allow and the booleans and null their types take, inside a string only the strings
+// schema_offer.c: what completes the word before the cursor in a JSON file, from the schemas that apply where it
+// stands: at a key, each key they give the object that it does not contain yet, inside a string the rest of its name
+// and outside one its name written with what its type opens; at a value, each value their `enum`, `const`, `default`
+// and `examples` allow and the booleans and null their types take, inside a string only the strings
 #include "schema_internal.h"
 
 // the most keys and values offered, and the bytes they take
@@ -17,8 +17,8 @@ static int offer_letter(unsigned int letter)
            (letter == '@') || (letter == '/');
 }
 
-// whether the object the cursor is in holds the key `name` before it, by its raw text
-static int offer_held(const char *text, const char *name, unsigned long long size)
+// whether the object the cursor is in contains the key `name` before it, by its raw text
+static int offer_has_key(const char *text, const char *name, unsigned long long size)
 {
     const CliSchemaSpot *const spot = &g_cli_schema_spot;
     for (unsigned int at = spot->keys_first; at < spot->keys_first + spot->keys; at += 1u)
@@ -33,7 +33,7 @@ static int offer_held(const char *text, const char *name, unsigned long long siz
     return 0;
 }
 
-// the keys the schemas reached give the object that it does not hold yet, each once, put after the token
+// the keys the schemas reached give the object that it does not contain yet, each once, put after the token
 static void offer_keys(const char *text, unsigned long long token, unsigned long long at, CliCompletions *items)
 {
     const CliJson *const json = &g_cli_schema_store->json;
@@ -49,7 +49,7 @@ static void offer_keys(const char *text, unsigned long long token, unsigned long
         {
             const char *const name = json->text + json->node[one].key;
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-            int seen = offer_held(text, name, size);
+            int seen = offer_has_key(text, name, size);
             for (unsigned int earlier = 0u; !seen && (earlier < offered); earlier += 1u)
             {
                 seen = (cellul.eq(&(CatenaFinitaCfg){.src = s_offered[earlier], .other = name, .cap = CLI_CELLS_POOL}));
@@ -62,7 +62,7 @@ static void offer_keys(const char *text, unsigned long long token, unsigned long
             s_offered[offered] = name;
             offered += 1u;
             static char s_detail[1u << 12u];
-            CliLine detail = {s_detail, sizeof(s_detail), 0ull};
+            VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
             cli_schema_detail(json, one, &detail);
             if (g_cli_schema_spot.in_string)
             {
@@ -90,26 +90,26 @@ static void offer_keys(const char *text, unsigned long long token, unsigned long
                 shape = "[$0]";
             }
             static char s_quoted[1u << 13u];
-            CliLine quoted = {s_quoted, sizeof(s_quoted), 0ull};
+            VerbaLinea quoted = {s_quoted, sizeof(s_quoted), 0ull};
             cli_json_quoted(&quoted, name, size);
             static char s_insert[1u << 14u];
-            CliLine insert = {s_insert, sizeof(s_insert), 0ull};
+            VerbaLinea insert = {s_insert, sizeof(s_insert), 0ull};
             for (unsigned long long letter = 0ull; letter < quoted.at; letter += 1u)
             {
-                cli_line_text(&insert, (s_quoted[letter] == '$') ? "\\$" : "");
+                mmgr_line_put(&insert, (s_quoted[letter] == '$') ? "\\$" : "");
                 if (s_quoted[letter] != '$')
                 {
-                    cli_line_character(&insert, s_quoted[letter]);
+                    mmgr_line_ch(&insert, s_quoted[letter]);
                 }
             }
-            cli_line_text(&insert, ": ");
-            cli_line_text(&insert, shape);
+            mmgr_line_put(&insert, ": ");
+            mmgr_line_put(&insert, shape);
             (void)cli_completion_put(items, name, size, "field", s_detail, detail.at, s_insert, insert.at, 1);
         }
     }
 }
 
-// The values offered: each its text and detail, kept once
+// The values offered: each its text and detail, listed once
 typedef struct
 {
     unsigned int at[CLI_SCHEMA_OFFERED];
@@ -127,7 +127,7 @@ static CliSchemaOffered s_values;
 static void offer_value(const CliJson *json, unsigned int value, const char *detail, unsigned long long detail_size)
 {
     static char s_text[1u << 14u];
-    CliLine line = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea line = {s_text, sizeof(s_text), 0ull};
     if (g_cli_schema_spot.in_string)
     {
         unsigned long long size = 0ull;
@@ -136,13 +136,13 @@ static void offer_value(const CliJson *json, unsigned int value, const char *det
         {
             return;
         }
-        cli_line_counted(&line, text, size);
+        mmgr_line_put_n(&line, text, size);
     }
     else
     {
         cli_json_write(json, value, &line, 0u, 1);
     }
-    if (!cli_line_fits(&line) || (s_values.count == CLI_SCHEMA_OFFERED) ||
+    if (!mmgr_line_ok(&line) || (s_values.count == CLI_SCHEMA_OFFERED) ||
         (line.at + detail_size > CLI_SCHEMA_OFFERED_TEXT - s_values.used))
     {
         return;
@@ -200,7 +200,7 @@ static void offer_values(const char *token, unsigned long long token_size, CliCo
     {
         const unsigned int one = g_cli_schema_reached[reached];
         static char s_detail[1u << 12u];
-        CliLine detail = {s_detail, sizeof(s_detail), 0ull};
+        VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
         cli_schema_detail(json, one, &detail);
         const unsigned int choices = cli_schema_get(json, one, "enum");
         for (unsigned int at = cli_json_is(json, choices, CFG_JSON_ARRAY) ? json->node[choices].first : CLI_JSON_NONE;
@@ -247,7 +247,7 @@ void cli_schema_complete(const char *path, const char *text, unsigned long long 
                          unsigned int col, CliCompletions *items)
 {
     const unsigned long long at = cli_build_byte_at(text, size, line, col);
-    if (!cli_schema_held())
+    if (!cli_schema_locked())
     {
         return;
     }
@@ -257,7 +257,7 @@ void cli_schema_complete(const char *path, const char *text, unsigned long long 
         return;
     }
     cli_schema_read(text, size, g_cli_schema_read);
-    char key[CLI_PATH_LONGEST];
+    char key[CLI_PATH_MAX_LEN];
     int named = 0;
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;

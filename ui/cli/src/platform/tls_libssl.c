@@ -15,7 +15,7 @@
 
 // the values of libssl's calls orior_cli hands it: load the library's error strings and ciphers, a host's name as the
 // SSL_ctrl that sets the name it is reached by, the option that reads an end with no close as an end, and what
-// SSL_get_error says
+// SSL_get_error returns
 #define CLI_SSL_NOW 2
 
 #define CLI_SSL_SET_HOST_NAME 55
@@ -68,7 +68,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static CliSsl s_ssl;
 // 0 where the library was not looked for, 1 where it was found whole, -1 where it was not, and what was missing
 static int s_loaded;
-static char s_missing[CLI_NAME_LONGEST];
+static char s_missing[CLI_NAME_MAX_LEN];
 
 // a call found in the library, a function's address as the symbol gives it
 static void *cli_found(void *handle, const char *name, int needed)
@@ -132,7 +132,7 @@ static int cli_address(const char *host)
     return (inet_pton(AF_INET, host, bytes) == 1) || (inet_pton(AF_INET6, host, bytes) == 1);
 }
 
-CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine *said)
+CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
     const int loaded = cli_loaded();
@@ -148,14 +148,15 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     cli_lock_give(&s_lock);
     if (!loaded)
     {
-        cli_line_text(said, (s_missing[0] != '\0') ? "the system's libssl has no "
-                                                   : "no libssl is installed, and TLS on this system goes through it");
-        cli_line_text(said, s_missing);
+        mmgr_line_put(err_msg, (s_missing[0] != '\0')
+                                   ? "the system's libssl has no "
+                                   : "no libssl is installed, and TLS on this system goes through it");
+        mmgr_line_put(err_msg, s_missing);
         return NULL;
     }
     if (tls == NULL)
     {
-        cli_line_text(said, "TLS: more sessions are open than orior_cli holds");
+        mmgr_line_put(err_msg, "TLS: more sessions are open than orior_cli supports");
         return NULL;
     }
     tls->socket = socket;
@@ -164,7 +165,7 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     if (tls->context == NULL)
     {
         tls->used = 0;
-        cli_line_text(said, "TLS: libssl made no context");
+        mmgr_line_put(err_msg, "TLS: libssl made no context");
         return NULL;
     }
     if (s_ssl.set_options != NULL)
@@ -181,15 +182,15 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     {
         s_ssl.context_free(tls->context);
         tls->used = 0;
-        cli_line_text(said, "TLS: libssl made no session");
+        mmgr_line_put(err_msg, "TLS: libssl made no session");
         return NULL;
     }
-    // the socket's descriptor, which an int holds
+    // the socket's descriptor, which an int stores
     s_ssl.set_fd(tls->ssl, (int)(socket->handle - 1ull));
     if (!cli_address(host))
     {
         // the name handed as SSL_ctrl takes it, in room of its own
-        char name[CLI_PATH_LONGEST];
+        char name[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = name,
                                 .src = host,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = host, .cap = CLI_CELLS_POOL}) + 1u});
@@ -202,20 +203,20 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     if (s_ssl.connect(tls->ssl) != 1)
     {
         const long code = s_ssl.verify_result(tls->ssl);
-        cli_line_text(said, "TLS: ");
+        mmgr_line_put(err_msg, "TLS: ");
         if (code == 0l)
         {
-            cli_line_text(said, "the handshake failed");
+            mmgr_line_put(err_msg, "the handshake failed");
         }
         else if (s_ssl.verify_text != NULL)
         {
-            cli_line_text(said, s_ssl.verify_text(code));
+            mmgr_line_put(err_msg, s_ssl.verify_text(code));
         }
         else
         {
-            cli_line_text(said, "the certificate did not check (");
-            cli_line_signed(said, code);
-            cli_line_character(said, ')');
+            mmgr_line_put(err_msg, "the certificate did not check (");
+            mmgr_line_decimal_signed(err_msg, code);
+            mmgr_line_ch(err_msg, ')');
         }
         cli_tls_closed(tls);
         return NULL;
@@ -223,8 +224,8 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     return tls;
 }
 
-// what a call that took nothing says: 1 to try again, else its answer into `result`
-static int cli_retried(const CliTls *tls, int returned, long long *result, CliLine *said)
+// what a call that took nothing returns: 1 to try again, else its answer into `result`
+static int cli_retried(const CliTls *tls, int returned, long long *result, VerbaLinea *err_msg)
 {
     const int code = s_ssl.error(tls->ssl, returned);
     if ((code == CLI_SSL_WANT_READ) || (code == CLI_SSL_WANT_WRITE))
@@ -241,13 +242,13 @@ static int cli_retried(const CliTls *tls, int returned, long long *result, CliLi
         *result = CLI_SOCKET_WAITED;
         return 0;
     }
-    cli_line_text(said, "TLS: libssl said ");
-    cli_line_signed(said, code);
+    mmgr_line_put(err_msg, "TLS: libssl reported ");
+    mmgr_line_decimal_signed(err_msg, code);
     *result = CLI_SOCKET_FAILED;
     return 0;
 }
 
-long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, CliLine *said)
+long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, VerbaLinea *err_msg)
 {
     // a piece is at most what an int counts
     const int piece = (int)((room < 0x7fffffffull) ? room : 0x7fffffffull);
@@ -259,14 +260,14 @@ long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, CliLine 
         {
             return read;
         }
-        if (!cli_retried(tls, read, &result, said))
+        if (!cli_retried(tls, read, &result, err_msg))
         {
             return result;
         }
     }
 }
 
-long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, CliLine *said)
+long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, VerbaLinea *err_msg)
 {
     const int piece = (int)((size < 0x7fffffffull) ? size : 0x7fffffffull);
     for (;;)
@@ -277,7 +278,7 @@ long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, 
         {
             return written;
         }
-        if (!cli_retried(tls, written, &result, said))
+        if (!cli_retried(tls, written, &result, err_msg))
         {
             return (result == 0ll) ? CLI_SOCKET_FAILED : result;
         }

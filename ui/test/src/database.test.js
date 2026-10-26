@@ -129,7 +129,7 @@ test("Connect asks for the password the keychain lacks, and keeps it only where 
   await ui.click([...sheetOpen().querySelectorAll("button")].find((one) => one.textContent === "Connect"));
   await ui.waitFor(() => barButton("Disconnect"), 15000);
   const last = callsTo("db_connect").at(-1).args;
-  assert.equal(last.keep, false, "the keychain was not asked to keep it");
+  assert.equal(last.save, false, "the keychain was not asked to keep it");
   await ui.waitFor(() => panel().querySelector('.db-node[data-label="public"]'), 10000);
 });
 
@@ -329,7 +329,7 @@ test("a SQLite file of the tree is a connection with no password", async () => {
 test("a MySQL connection signs in and reads rows", async () => {
   const my = server("MYSQL");
   await invoke("db_save", { connection: { name: "harness-my", kind: "mysql", host: my.host, port: Number(my.port), user: "root", database: "", file: "", ssh: "", matters: false, guard: "" }, was: null, password: null });
-  await invoke("db_connect", { name: "harness-my", password: my.password, keep: false });
+  await invoke("db_connect", { name: "harness-my", password: my.password, save: false });
   await readConnections();
   const said = await runOn("harness-my", "SELECT 6 * 7 AS answer");
   assert.equal(said.rows[0][0], "42");

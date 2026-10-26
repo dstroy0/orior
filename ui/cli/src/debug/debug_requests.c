@@ -1,21 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// debug_requests.c: what a session is asked about its stopped program: the exceptions it stops on and the one it
+// debug_requests.c: what a session is queried about its stopped program: the exceptions it stops on and the one it
 // stopped on, its threads and their stacks, the scopes and variables of a frame, what an expression comes to, a
 // recorded run's history of a name and a step gone to, and the memory and the instructions at an address
 #include "debug_internal.h"
 
-// session `id` taken and a request's room with it: the room, or NULL with why said
-static CliDebugAnswer *requests_begun(unsigned long long id, CliDebugSession **session, CliLine *said)
+// session `id` taken and a request's room with it: the room, or NULL with why given
+static CliDebugAnswer *requests_begun(unsigned long long id, CliDebugSession **session, VerbaLinea *err_msg)
 {
-    *session = cli_debug_taken(id, said);
+    *session = cli_debug_taken(id, err_msg);
     return (*session != NULL) ? cli_debug_answer_taken() : NULL;
 }
 
-// the request asked of the session taken and the session let go where it failed: 1, or 0 with why said
-static int requests_asked(CliDebugSession *session, const char *command, CliDebugAnswer *answer, CliLine *said)
+// the request sent to the session taken and the session let go where it failed: 1, or 0 with why given
+static int requests_send(CliDebugSession *session, const char *command, CliDebugAnswer *answer, VerbaLinea *err_msg)
 {
-    if (!cli_debug_asked(session, command, answer, CLI_DEBUG_ASKING, said))
+    if (!cli_debug_request(session, command, answer, CLI_DEBUG_REQUEST_TIMEOUT_MS, err_msg))
     {
         cli_debug_answer_given(answer);
         cli_debug_let_go(session);
@@ -33,13 +33,14 @@ static int requests_done(CliDebugSession *session, CliDebugAnswer *answer)
 }
 
 // a string member of a node written as JSON, `fallback` where it is none, or null where `fallback` is NULL
-static void requests_text(const CliJson *json, unsigned int node, const char *name, const char *fallback, CliLine *out)
+static void requests_text(const CliJson *json, unsigned int node, const char *name, const char *fallback,
+                          VerbaLinea *out)
 {
     unsigned long long length = 0ull;
     const char *const text = cli_json_string(json, cli_json_member(json, node, name), &length);
     if ((text == NULL) && (fallback == NULL))
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return;
     }
     cli_json_quoted_lossy(out, (const unsigned char *)((text != NULL) ? text : fallback),
@@ -48,24 +49,24 @@ static void requests_text(const CliJson *json, unsigned int node, const char *na
 }
 
 // a signed member of a node written, 0 where it is none
-static void requests_signed(const CliJson *json, unsigned int node, const char *name, CliLine *out)
+static void requests_signed(const CliJson *json, unsigned int node, const char *name, VerbaLinea *out)
 {
     long long value = 0ll;
     (void)cli_debug_signed(json, cli_json_member(json, node, name), &value);
-    cli_line_signed(out, value);
+    mmgr_line_decimal_signed(out, value);
 }
 
-// a line counted from 1 written counted from 0, `fallback` where it is none, its low 32 bits kept as the window's
+// a line counted from 1 written counted from 0, `fallback` where it is none, its low 32 bits retained as the window's
 static void requests_line(const CliJson *json, unsigned int node, const char *name, unsigned long long fallback,
-                          CliLine *out)
+                          VerbaLinea *out)
 {
     unsigned long long line = fallback;
     (void)cli_debug_unsigned(json, cli_json_member(json, node, name), &line);
-    cli_line_decimal(out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
+    mmgr_line_decimal(out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
 }
 
 // a path written by `named`, or as it came where none is given
-static void requests_path(CliDebugPathWritten named, void *context, const char *path, CliLine *out)
+static void requests_path(CliDebugPathWritten named, void *context, const char *path, VerbaLinea *out)
 {
     if (named != NULL)
     {
@@ -77,9 +78,9 @@ static void requests_path(CliDebugPathWritten named, void *context, const char *
 }
 
 // a variable an adapter wrote, its name `name` where that is given
-static void requests_variable(const CliJson *json, unsigned int one, const char *name, CliLine *out)
+static void requests_variable(const CliJson *json, unsigned int one, const char *name, VerbaLinea *out)
 {
-    cli_line_text(out, "{\"name\":");
+    mmgr_line_put(out, "{\"name\":");
     if (name != NULL)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)name,
@@ -89,34 +90,35 @@ static void requests_variable(const CliJson *json, unsigned int one, const char 
     {
         requests_text(json, one, "name", "", out);
     }
-    cli_line_text(out, ",\"value\":");
+    mmgr_line_put(out, ",\"value\":");
     const int has_value = (cli_json_string(json, cli_json_member(json, one, "value"), NULL) != NULL);
     requests_text(json, one, has_value ? "value" : "result", "", out);
-    cli_line_text(out, ",\"kind\":");
+    mmgr_line_put(out, ",\"kind\":");
     requests_text(json, one, "type", "", out);
-    cli_line_text(out, ",\"reference\":");
+    mmgr_line_put(out, ",\"reference\":");
     requests_signed(json, one, "variablesReference", out);
-    cli_line_text(out, ",\"memory\":");
+    mmgr_line_put(out, ",\"memory\":");
     requests_text(json, one, "memoryReference", NULL, out);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
-int cli_debug_exceptions(unsigned long long id, const CliJson *json, unsigned int on, CliLine *out, CliLine *said)
+int cli_debug_exceptions(unsigned long long id, const CliJson *json, unsigned int on, VerbaLinea *out,
+                         VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"filters\":[");
+    mmgr_line_put(&answer->args, "{\"filters\":[");
     for (unsigned int at = 0u; cli_json_item(json, on, at) != CLI_JSON_NONE; at += 1u)
     {
-        cli_line_text(&answer->asked, (at > 0u) ? "," : "");
-        cli_json_write(json, cli_json_item(json, on, at), &answer->asked, 0u, 0);
+        mmgr_line_put(&answer->args, (at > 0u) ? "," : "");
+        cli_json_write(json, cli_json_item(json, on, at), &answer->args, 0u, 0);
     }
-    cli_line_text(&answer->asked, "]}");
-    if (!requests_asked(session, "setExceptionBreakpoints", answer, said))
+    mmgr_line_put(&answer->args, "]}");
+    if (!requests_send(session, "setExceptionBreakpoints", answer, err_msg))
     {
         return 0;
     }
@@ -135,197 +137,197 @@ int cli_debug_exceptions(unsigned long long id, const CliJson *json, unsigned in
         }
     }
     cli_lock_give(&g_cli_debug.lock);
-    cli_line_text(out, "null");
+    mmgr_line_put(out, "null");
     return requests_done(session, answer);
 }
 
-int cli_debug_raised(unsigned long long id, long long thread, CliLine *out, CliLine *said)
+int cli_debug_raised(unsigned long long id, long long thread, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"threadId\":");
-    cli_line_signed(&answer->asked, thread);
-    cli_line_character(&answer->asked, '}');
-    if (!requests_asked(session, "exceptionInfo", answer, said))
+    mmgr_line_put(&answer->args, "{\"threadId\":");
+    mmgr_line_decimal_signed(&answer->args, thread);
+    mmgr_line_ch(&answer->args, '}');
+    if (!requests_send(session, "exceptionInfo", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
-    cli_line_text(out, "{\"id\":");
-    requests_text(told, answer->root, "exceptionId", "", out);
-    cli_line_text(out, ",\"description\":");
-    requests_text(told, answer->root, "description", "", out);
-    cli_line_text(out, ",\"stack\":");
-    requests_text(told, cli_json_member(told, answer->root, "details"), "stackTrace", "", out);
-    cli_line_character(out, '}');
+    const CliJson *const reply = &answer->json;
+    mmgr_line_put(out, "{\"id\":");
+    requests_text(reply, answer->root, "exceptionId", "", out);
+    mmgr_line_put(out, ",\"description\":");
+    requests_text(reply, answer->root, "description", "", out);
+    mmgr_line_put(out, ",\"stack\":");
+    requests_text(reply, cli_json_member(reply, answer->root, "details"), "stackTrace", "", out);
+    mmgr_line_ch(out, '}');
     return requests_done(session, answer);
 }
 
-int cli_debug_threads(unsigned long long id, CliLine *out, CliLine *said)
+int cli_debug_threads(unsigned long long id, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
-    if ((answer == NULL) || !requests_asked(session, "threads", answer, said))
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
+    if ((answer == NULL) || !requests_send(session, "threads", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
-    const unsigned int threads = cli_json_member(told, answer->root, "threads");
-    cli_line_character(out, '[');
-    for (unsigned int at = 0u; cli_json_item(told, threads, at) != CLI_JSON_NONE; at += 1u)
+    const CliJson *const reply = &answer->json;
+    const unsigned int threads = cli_json_member(reply, answer->root, "threads");
+    mmgr_line_ch(out, '[');
+    for (unsigned int at = 0u; cli_json_item(reply, threads, at) != CLI_JSON_NONE; at += 1u)
     {
-        const unsigned int one = cli_json_item(told, threads, at);
-        cli_line_text(out, (at > 0u) ? ",{\"id\":" : "{\"id\":");
-        requests_signed(told, one, "id", out);
-        cli_line_text(out, ",\"name\":");
-        requests_text(told, one, "name", "", out);
-        cli_line_character(out, '}');
+        const unsigned int one = cli_json_item(reply, threads, at);
+        mmgr_line_put(out, (at > 0u) ? ",{\"id\":" : "{\"id\":");
+        requests_signed(reply, one, "id", out);
+        mmgr_line_put(out, ",\"name\":");
+        requests_text(reply, one, "name", "", out);
+        mmgr_line_ch(out, '}');
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return requests_done(session, answer);
 }
 
-int cli_debug_stack(unsigned long long id, long long thread, CliDebugPathWritten named, void *context, CliLine *out,
-                    CliLine *said)
+int cli_debug_stack(unsigned long long id, long long thread, CliDebugPathWritten named, void *context, VerbaLinea *out,
+                    VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"threadId\":");
-    cli_line_signed(&answer->asked, thread);
-    cli_line_text(&answer->asked, ",\"startFrame\":0,\"levels\":200}");
-    if (!requests_asked(session, "stackTrace", answer, said))
+    mmgr_line_put(&answer->args, "{\"threadId\":");
+    mmgr_line_decimal_signed(&answer->args, thread);
+    mmgr_line_put(&answer->args, ",\"startFrame\":0,\"levels\":200}");
+    if (!requests_send(session, "stackTrace", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
-    const unsigned int frames = cli_json_member(told, answer->root, "stackFrames");
-    cli_line_character(out, '[');
-    for (unsigned int at = 0u; cli_json_item(told, frames, at) != CLI_JSON_NONE; at += 1u)
+    const CliJson *const reply = &answer->json;
+    const unsigned int frames = cli_json_member(reply, answer->root, "stackFrames");
+    mmgr_line_ch(out, '[');
+    for (unsigned int at = 0u; cli_json_item(reply, frames, at) != CLI_JSON_NONE; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "," : "");
-        cli_debug_frame_written(told, cli_json_item(told, frames, at), named, context, out);
+        mmgr_line_put(out, (at > 0u) ? "," : "");
+        cli_debug_frame_written(reply, cli_json_item(reply, frames, at), named, context, out);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return requests_done(session, answer);
 }
 
 void cli_debug_frame_written(const CliJson *json, unsigned int frame, CliDebugPathWritten named, void *context,
-                             CliLine *out)
+                             VerbaLinea *out)
 {
     const char *const path =
         cli_json_string(json, cli_json_member(json, cli_json_member(json, frame, "source"), "path"), NULL);
-    cli_line_text(out, "{\"id\":");
+    mmgr_line_put(out, "{\"id\":");
     requests_signed(json, frame, "id", out);
-    cli_line_text(out, ",\"name\":");
+    mmgr_line_put(out, ",\"name\":");
     requests_text(json, frame, "name", "", out);
-    cli_line_text(out, ",\"path\":");
+    mmgr_line_put(out, ",\"path\":");
     if (path != NULL)
     {
         requests_path(named, context, path, out);
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"line\":");
+    mmgr_line_put(out, ",\"line\":");
     requests_line(json, frame, "line", 1ull, out);
-    cli_line_text(out, ",\"col\":");
+    mmgr_line_put(out, ",\"col\":");
     requests_line(json, frame, "column", 1ull, out);
-    cli_line_text(out, ",\"ip\":");
+    mmgr_line_put(out, ",\"ip\":");
     requests_text(json, frame, "instructionPointerReference", NULL, out);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
-int cli_debug_scopes(unsigned long long id, long long frame, CliLine *out, CliLine *said)
+int cli_debug_scopes(unsigned long long id, long long frame, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"frameId\":");
-    cli_line_signed(&answer->asked, frame);
-    cli_line_character(&answer->asked, '}');
-    if (!requests_asked(session, "scopes", answer, said))
+    mmgr_line_put(&answer->args, "{\"frameId\":");
+    mmgr_line_decimal_signed(&answer->args, frame);
+    mmgr_line_ch(&answer->args, '}');
+    if (!requests_send(session, "scopes", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
-    const unsigned int scopes = cli_json_member(told, answer->root, "scopes");
-    cli_line_character(out, '[');
-    for (unsigned int at = 0u; cli_json_item(told, scopes, at) != CLI_JSON_NONE; at += 1u)
+    const CliJson *const reply = &answer->json;
+    const unsigned int scopes = cli_json_member(reply, answer->root, "scopes");
+    mmgr_line_ch(out, '[');
+    for (unsigned int at = 0u; cli_json_item(reply, scopes, at) != CLI_JSON_NONE; at += 1u)
     {
-        const unsigned int one = cli_json_item(told, scopes, at);
-        cli_line_text(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
-        requests_text(told, one, "name", "", out);
-        cli_line_text(out, ",\"reference\":");
-        requests_signed(told, one, "variablesReference", out);
-        cli_line_text(out, cli_debug_true(told, cli_json_member(told, one, "expensive")) ? ",\"expensive\":true}"
-                                                                                         : ",\"expensive\":false}");
+        const unsigned int one = cli_json_item(reply, scopes, at);
+        mmgr_line_put(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
+        requests_text(reply, one, "name", "", out);
+        mmgr_line_put(out, ",\"reference\":");
+        requests_signed(reply, one, "variablesReference", out);
+        mmgr_line_put(out, cli_debug_true(reply, cli_json_member(reply, one, "expensive")) ? ",\"expensive\":true}"
+                                                                                           : ",\"expensive\":false}");
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return requests_done(session, answer);
 }
 
-int cli_debug_variables(unsigned long long id, long long reference, CliLine *out, CliLine *said)
+int cli_debug_variables(unsigned long long id, long long reference, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"variablesReference\":");
-    cli_line_signed(&answer->asked, reference);
-    cli_line_character(&answer->asked, '}');
-    if (!requests_asked(session, "variables", answer, said))
+    mmgr_line_put(&answer->args, "{\"variablesReference\":");
+    mmgr_line_decimal_signed(&answer->args, reference);
+    mmgr_line_ch(&answer->args, '}');
+    if (!requests_send(session, "variables", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
-    const unsigned int variables = cli_json_member(told, answer->root, "variables");
-    cli_line_character(out, '[');
-    for (unsigned int at = 0u; cli_json_item(told, variables, at) != CLI_JSON_NONE; at += 1u)
+    const CliJson *const reply = &answer->json;
+    const unsigned int variables = cli_json_member(reply, answer->root, "variables");
+    mmgr_line_ch(out, '[');
+    for (unsigned int at = 0u; cli_json_item(reply, variables, at) != CLI_JSON_NONE; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "," : "");
-        requests_variable(told, cli_json_item(told, variables, at), NULL, out);
+        mmgr_line_put(out, (at > 0u) ? "," : "");
+        requests_variable(reply, cli_json_item(reply, variables, at), NULL, out);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return requests_done(session, answer);
 }
 
 int cli_debug_evaluate(unsigned long long id, const char *expression, int has_frame, long long frame,
-                       const char *context, CliLine *out, CliLine *said)
+                       const char *context, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
     // with no frame chosen the frame is left out, which an adapter takes as its global scope
-    cli_line_text(&answer->asked, "{\"expression\":");
-    cli_json_quoted_lossy(&answer->asked, (const unsigned char *)expression,
+    mmgr_line_put(&answer->args, "{\"expression\":");
+    cli_json_quoted_lossy(&answer->args, (const unsigned char *)expression,
                           cellul.len(&(CatenaFinitaCfg){.src = expression, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&answer->asked, ",\"context\":");
-    cli_json_quoted_lossy(&answer->asked, (const unsigned char *)context,
+    mmgr_line_put(&answer->args, ",\"context\":");
+    cli_json_quoted_lossy(&answer->args, (const unsigned char *)context,
                           cellul.len(&(CatenaFinitaCfg){.src = context, .cap = CLI_CELLS_POOL}));
     if (has_frame)
     {
-        cli_line_text(&answer->asked, ",\"frameId\":");
-        cli_line_signed(&answer->asked, frame);
+        mmgr_line_put(&answer->args, ",\"frameId\":");
+        mmgr_line_decimal_signed(&answer->args, frame);
     }
-    cli_line_character(&answer->asked, '}');
-    if (!requests_asked(session, "evaluate", answer, said))
+    mmgr_line_ch(&answer->args, '}');
+    if (!requests_send(session, "evaluate", answer, err_msg))
     {
         return 0;
     }
@@ -334,158 +336,158 @@ int cli_debug_evaluate(unsigned long long id, const char *expression, int has_fr
 }
 
 int cli_debug_history(unsigned long long id, long long frame, const char *name, CliDebugPathWritten named,
-                      void *context, CliLine *out, CliLine *said)
+                      void *context, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"frameId\":");
-    cli_line_signed(&answer->asked, frame);
-    cli_line_text(&answer->asked, ",\"name\":");
-    cli_json_quoted_lossy(&answer->asked, (const unsigned char *)name,
+    mmgr_line_put(&answer->args, "{\"frameId\":");
+    mmgr_line_decimal_signed(&answer->args, frame);
+    mmgr_line_put(&answer->args, ",\"name\":");
+    cli_json_quoted_lossy(&answer->args, (const unsigned char *)name,
                           cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&answer->asked, '}');
-    if (!requests_asked(session, "orior/history", answer, said))
+    mmgr_line_ch(&answer->args, '}');
+    if (!requests_send(session, "orior/history", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
-    const unsigned int changes = cli_json_member(told, answer->root, "changes");
-    cli_line_character(out, '[');
-    for (unsigned int at = 0u; cli_json_item(told, changes, at) != CLI_JSON_NONE; at += 1u)
+    const CliJson *const reply = &answer->json;
+    const unsigned int changes = cli_json_member(reply, answer->root, "changes");
+    mmgr_line_ch(out, '[');
+    for (unsigned int at = 0u; cli_json_item(reply, changes, at) != CLI_JSON_NONE; at += 1u)
     {
-        const unsigned int one = cli_json_item(told, changes, at);
+        const unsigned int one = cli_json_item(reply, changes, at);
         unsigned long long step = 0ull;
-        (void)cli_debug_unsigned(told, cli_json_member(told, one, "step"), &step);
-        cli_line_text(out, (at > 0u) ? ",{\"step\":" : "{\"step\":");
-        cli_line_decimal(out, step, 1u);
-        cli_line_text(out, ",\"line\":");
-        requests_line(told, one, "line", 1ull, out);
-        cli_line_text(out, ",\"path\":");
-        requests_path(named, context, cli_debug_text(told, cli_json_member(told, one, "path"), ""), out);
-        cli_line_text(out, ",\"value\":");
-        requests_text(told, one, "value", NULL, out);
-        cli_line_text(out, cli_debug_true(told, cli_json_member(told, one, "before")) ? ",\"before\":true}"
-                                                                                      : ",\"before\":false}");
+        (void)cli_debug_unsigned(reply, cli_json_member(reply, one, "step"), &step);
+        mmgr_line_put(out, (at > 0u) ? ",{\"step\":" : "{\"step\":");
+        mmgr_line_decimal(out, step, 1u);
+        mmgr_line_put(out, ",\"line\":");
+        requests_line(reply, one, "line", 1ull, out);
+        mmgr_line_put(out, ",\"path\":");
+        requests_path(named, context, cli_debug_text(reply, cli_json_member(reply, one, "path"), ""), out);
+        mmgr_line_put(out, ",\"value\":");
+        requests_text(reply, one, "value", NULL, out);
+        mmgr_line_put(out, cli_debug_true(reply, cli_json_member(reply, one, "before")) ? ",\"before\":true}"
+                                                                                        : ",\"before\":false}");
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return requests_done(session, answer);
 }
 
-int cli_debug_goto(unsigned long long id, unsigned long long step, CliLine *out, CliLine *said)
+int cli_debug_goto(unsigned long long id, unsigned long long step, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"step\":");
-    cli_line_decimal(&answer->asked, step, 1u);
-    cli_line_character(&answer->asked, '}');
-    if (!requests_asked(session, "orior/goto", answer, said))
+    mmgr_line_put(&answer->args, "{\"step\":");
+    mmgr_line_decimal(&answer->args, step, 1u);
+    mmgr_line_ch(&answer->args, '}');
+    if (!requests_send(session, "orior/goto", answer, err_msg))
     {
         return 0;
     }
-    cli_line_text(out, "null");
+    mmgr_line_put(out, "null");
     return requests_done(session, answer);
 }
 
 int cli_debug_memory(unsigned long long id, const char *reference, long long offset, unsigned long long count,
-                     CliLine *out, CliLine *said)
+                     VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"memoryReference\":");
-    cli_json_quoted_lossy(&answer->asked, (const unsigned char *)reference,
+    mmgr_line_put(&answer->args, "{\"memoryReference\":");
+    cli_json_quoted_lossy(&answer->args, (const unsigned char *)reference,
                           cellul.len(&(CatenaFinitaCfg){.src = reference, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&answer->asked, ",\"offset\":");
-    cli_line_signed(&answer->asked, offset);
-    cli_line_text(&answer->asked, ",\"count\":");
-    cli_line_decimal(&answer->asked, count, 1u);
-    cli_line_character(&answer->asked, '}');
-    if (!requests_asked(session, "readMemory", answer, said))
+    mmgr_line_put(&answer->args, ",\"offset\":");
+    mmgr_line_decimal_signed(&answer->args, offset);
+    mmgr_line_put(&answer->args, ",\"count\":");
+    mmgr_line_decimal(&answer->args, count, 1u);
+    mmgr_line_ch(&answer->args, '}');
+    if (!requests_send(session, "readMemory", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
+    const CliJson *const reply = &answer->json;
     unsigned long long length = 0ull;
-    const char *const data = cli_json_string(told, cli_json_member(told, answer->root, "data"), &length);
+    const char *const data = cli_json_string(reply, cli_json_member(reply, answer->root, "data"), &length);
     unsigned long long unreadable = 0ull;
-    (void)cli_debug_unsigned(told, cli_json_member(told, answer->root, "unreadableBytes"), &unreadable);
-    cli_line_text(out, "{\"address\":");
-    requests_text(told, answer->root, "address", reference, out);
-    cli_line_text(out, ",\"bytes\":[");
+    (void)cli_debug_unsigned(reply, cli_json_member(reply, answer->root, "unreadableBytes"), &unreadable);
+    mmgr_line_put(out, "{\"address\":");
+    requests_text(reply, answer->root, "address", reference, out);
+    mmgr_line_put(out, ",\"bytes\":[");
     // the bytes read from memory, in a cell of the most the base64 text decodes to
     const unsigned long long most = ((length / 4ull) + 1ull) * 3ull;
-    unsigned char *const decoded = (data != NULL) ? cli_cell_taken(most, "the bytes read from memory") : NULL;
+    unsigned char *const decoded = (data != NULL) ? g_cli_cells->persistent_buf_alloc(most, NULL) : NULL;
     const unsigned long long bytes = (decoded != NULL) ? cli_debug_base64(data, length, decoded, most) : 0ull;
     for (unsigned long long at = 0ull; at < bytes; at += 1ull)
     {
-        cli_line_text(out, (at > 0ull) ? "," : "");
-        cli_line_decimal(out, decoded[at], 1u);
+        mmgr_line_put(out, (at > 0ull) ? "," : "");
+        mmgr_line_decimal(out, decoded[at], 1u);
     }
-    cli_cell_given(decoded);
-    cli_line_text(out, "],\"unreadable\":");
-    cli_line_decimal(out, unreadable, 1u);
-    cli_line_character(out, '}');
+    g_cli_cells->persistent_buf_release(decoded, NULL);
+    mmgr_line_put(out, "],\"unreadable\":");
+    mmgr_line_decimal(out, unreadable, 1u);
+    mmgr_line_ch(out, '}');
     return requests_done(session, answer);
 }
 
 int cli_debug_instructions(unsigned long long id, const char *reference, long long offset, long long count,
-                           CliLine *out, CliLine *said)
+                           VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliDebugSession *session = NULL;
-    CliDebugAnswer *const answer = requests_begun(id, &session, said);
+    CliDebugAnswer *const answer = requests_begun(id, &session, err_msg);
     if (answer == NULL)
     {
         return 0;
     }
-    cli_line_text(&answer->asked, "{\"memoryReference\":");
-    cli_json_quoted_lossy(&answer->asked, (const unsigned char *)reference,
+    mmgr_line_put(&answer->args, "{\"memoryReference\":");
+    cli_json_quoted_lossy(&answer->args, (const unsigned char *)reference,
                           cellul.len(&(CatenaFinitaCfg){.src = reference, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&answer->asked, ",\"instructionOffset\":");
-    cli_line_signed(&answer->asked, offset);
-    cli_line_text(&answer->asked, ",\"instructionCount\":");
-    cli_line_signed(&answer->asked, count);
-    cli_line_text(&answer->asked, ",\"resolveSymbols\":true}");
-    if (!requests_asked(session, "disassemble", answer, said))
+    mmgr_line_put(&answer->args, ",\"instructionOffset\":");
+    mmgr_line_decimal_signed(&answer->args, offset);
+    mmgr_line_put(&answer->args, ",\"instructionCount\":");
+    mmgr_line_decimal_signed(&answer->args, count);
+    mmgr_line_put(&answer->args, ",\"resolveSymbols\":true}");
+    if (!requests_send(session, "disassemble", answer, err_msg))
     {
         return 0;
     }
-    const CliJson *const told = &answer->json;
-    const unsigned int instructions = cli_json_member(told, answer->root, "instructions");
-    cli_line_character(out, '[');
-    for (unsigned int at = 0u; cli_json_item(told, instructions, at) != CLI_JSON_NONE; at += 1u)
+    const CliJson *const reply = &answer->json;
+    const unsigned int instructions = cli_json_member(reply, answer->root, "instructions");
+    mmgr_line_ch(out, '[');
+    for (unsigned int at = 0u; cli_json_item(reply, instructions, at) != CLI_JSON_NONE; at += 1u)
     {
-        const unsigned int one = cli_json_item(told, instructions, at);
+        const unsigned int one = cli_json_item(reply, instructions, at);
         unsigned long long line = 0ull;
-        cli_line_text(out, (at > 0u) ? ",{\"address\":" : "{\"address\":");
-        requests_text(told, one, "address", "", out);
-        cli_line_text(out, ",\"text\":");
-        requests_text(told, one, "instruction", "", out);
-        cli_line_text(out, ",\"bytes\":");
-        requests_text(told, one, "instructionBytes", "", out);
-        cli_line_text(out, ",\"symbol\":");
-        requests_text(told, one, "symbol", "", out);
-        cli_line_text(out, ",\"line\":");
-        if (cli_debug_unsigned(told, cli_json_member(told, one, "line"), &line))
+        mmgr_line_put(out, (at > 0u) ? ",{\"address\":" : "{\"address\":");
+        requests_text(reply, one, "address", "", out);
+        mmgr_line_put(out, ",\"text\":");
+        requests_text(reply, one, "instruction", "", out);
+        mmgr_line_put(out, ",\"bytes\":");
+        requests_text(reply, one, "instructionBytes", "", out);
+        mmgr_line_put(out, ",\"symbol\":");
+        requests_text(reply, one, "symbol", "", out);
+        mmgr_line_put(out, ",\"line\":");
+        if (cli_debug_unsigned(reply, cli_json_member(reply, one, "line"), &line))
         {
-            cli_line_decimal(out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
+            mmgr_line_decimal(out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
         }
         else
         {
-            cli_line_text(out, "null");
+            mmgr_line_put(out, "null");
         }
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return requests_done(session, answer);
 }

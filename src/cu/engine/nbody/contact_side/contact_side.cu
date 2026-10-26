@@ -64,12 +64,12 @@ extern "C" long contact_side_difference_program(const ContactSideDifferenceReque
     return (writer.written == CONTACT_SIDE_DIFFERENCE_STEPS) ? (long)CONTACT_SIDE_DIFFERENCE_STEPS : CONTACT_SIDE_ERROR;
 }
 
-extern "C" long contact_side_kept_program(const ContactSideKeptRequest *request,
-                                          EngineRecordStep program[CONTACT_SIDE_KEPT_STEPS],
-                                          unsigned int outputs[CONTACT_SIDE_KEPT_OUTPUTS])
+extern "C" long contact_side_sign_program(const ContactSideSignRequest *request,
+                                          EngineRecordStep program[CONTACT_SIDE_SIGN_STEPS],
+                                          unsigned int outputs[CONTACT_SIDE_SIGN_OUTPUTS])
 {
-    memset(program, 0, CONTACT_SIDE_KEPT_STEPS * sizeof(EngineRecordStep));
-    ContactSideWriter writer = {program, CONTACT_SIDE_KEPT_STEPS, 0u};
+    memset(program, 0, CONTACT_SIDE_SIGN_STEPS * sizeof(EngineRecordStep));
+    ContactSideWriter writer = {program, CONTACT_SIDE_SIGN_STEPS, 0u};
     const unsigned int one = contact_side_constant(&writer, 1ull);
     unsigned int dot = 0u;
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
@@ -85,8 +85,8 @@ extern "C" long contact_side_kept_program(const ContactSideKeptRequest *request,
     const unsigned int raised = contact_side_put(&writer, ENGINE_RECORD_SUM, dot, one, 0u);
     const unsigned int side = contact_side_put(&writer, ENGINE_RECORD_COMPARE, raised, one, 0u);
     const unsigned int above = contact_side_put(&writer, ENGINE_RECORD_SUM, side, one, 0u);
-    outputs[CONTACT_SIDE_KEPT] = contact_side_put(&writer, ENGINE_RECORD_PRODUCT, side, above, 0u);
+    outputs[CONTACT_SIDE_SAME] = contact_side_put(&writer, ENGINE_RECORD_PRODUCT, side, above, 0u);
     const unsigned int below = contact_side_put(&writer, ENGINE_RECORD_DIFFERENCE, side, one, 0u);
     outputs[CONTACT_SIDE_CROSSED] = contact_side_put(&writer, ENGINE_RECORD_PRODUCT, side, below, 0u);
-    return (writer.written == CONTACT_SIDE_KEPT_STEPS) ? (long)CONTACT_SIDE_KEPT_STEPS : CONTACT_SIDE_ERROR;
+    return (writer.written == CONTACT_SIDE_SIGN_STEPS) ? (long)CONTACT_SIDE_SIGN_STEPS : CONTACT_SIDE_ERROR;
 }

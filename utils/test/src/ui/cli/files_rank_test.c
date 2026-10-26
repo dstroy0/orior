@@ -20,21 +20,21 @@ static const char *rank_paths(unsigned long long size, int *reading)
     const CliJson *const json = cli_check_parsed(s_out, size, &read);
     const unsigned int found = cli_json_member(json, read, "found");
     *reading = cli_json_is(json, cli_json_member(json, read, "reading"), CFG_JSON_TRUE);
-    CliLine line = {s_shown, sizeof(s_shown), 0ull};
+    VerbaLinea line = {s_shown, sizeof(s_shown), 0ull};
     for (unsigned int at = 0u; cli_json_item(json, found, at) != CLI_JSON_NONE; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, cli_check_member_text(cli_json_item(json, found, at), "path"));
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, cli_check_member_text(cli_json_item(json, found, at), "path"));
     }
     const unsigned int hits = cli_json_member(json, cli_json_item(json, found, 0u), "hits");
-    cli_line_character(&line, '#');
+    mmgr_line_ch(&line, '#');
     for (unsigned int at = 0u; cli_json_item(json, hits, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int hit = cli_json_item(json, hits, at);
-        cli_line_text(&line, (at > 0u) ? "," : "");
-        cli_line_counted(&line, json->text + json->node[hit].text, json->node[hit].length);
+        mmgr_line_put(&line, (at > 0u) ? "," : "");
+        mmgr_line_put_n(&line, json->text + json->node[hit].text, json->node[hit].length);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return s_shown;
 }
 
@@ -42,7 +42,7 @@ static const char *rank_paths(unsigned long long size, int *reading)
 static const char *rank_in(const char *const *files, unsigned int count, const char *query, const char *const *recent,
                            unsigned int recents, int fuzzy)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_files_ranked_in(files, count, query, recent, recents, 10u, fuzzy, &out);
     int reading = 0;
     return rank_paths(out.at, &reading);
@@ -76,15 +76,15 @@ static void rank_going(void)
 // a quick open answers from the recent files until the tree is read
 static void rank_reading(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("files_reading", root);
     cli_full(root, "alpha.txt", path);
     (void)query_file_written(path, "one", 3ull);
     cli_full(root, "apple.txt", path);
     (void)query_file_written(path, "two", 3ull);
     static const char *const s_recent[1] = {"apple.txt"};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_files_ranked(root, "a", s_recent, 1u, 10u, 1, &out);
     int reading = 0;
     const char *const first = rank_paths(out.at, &reading);
@@ -127,7 +127,7 @@ static unsigned long long rank_whole(const CliJson *json, unsigned int node, con
 
 // a window or a slice written into `out` read into `window`, the line read only once the call that wrote it is made: 1,
 // or 0 where it was not written
-static int rank_window(int written, const CliLine *out, RankWindow *window)
+static int rank_window(int written, const VerbaLinea *out, RankWindow *window)
 {
     if (!written)
     {
@@ -147,16 +147,16 @@ static int rank_window(int written, const CliLine *out, RankWindow *window)
 }
 
 // line `n` of the file, as written
-static void rank_line(CliLine *out, unsigned long long n)
+static void rank_line(VerbaLinea *out, unsigned long long n)
 {
-    cli_line_text(out, "line ");
-    cli_line_decimal(out, n, 1u);
-    cli_line_character(out, ' ');
+    mmgr_line_put(out, "line ");
+    mmgr_line_decimal(out, n, 1u);
+    mmgr_line_ch(out, ' ');
     for (unsigned long long x = 0ull; x < (n % 37ull); x += 1ull)
     {
-        cli_line_character(out, 'x');
+        mmgr_line_ch(out, 'x');
     }
-    cli_line_character(out, '\n');
+    mmgr_line_ch(out, '\n');
 }
 
 // the number `n` of the "line n " a window's text starts with
@@ -176,25 +176,25 @@ static void rank_windows(void)
     static RankWindow s_window;
     static RankWindow s_below;
     static RankWindow s_above;
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[1024];
     char wanted[128];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("files_window", root);
-    CliLine text = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea text = {s_text, sizeof(s_text), 0ull};
     for (unsigned long long n = 0ull; n < 5000ull; n += 1ull)
     {
         rank_line(&text, n);
     }
     cli_full(root, "lines.txt", path);
     (void)query_file_written(path, s_text, text.at);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(rank_window(cli_files_slice(root, "lines.txt", 2500ull, 3000ull, &out, &said), &out, &s_window) &&
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(rank_window(cli_files_slice(root, "lines.txt", 2500ull, 3000ull, &out, &err_msg), &out, &s_window) &&
                   (s_window.start >= 2500ull) && (s_window.end >= 3000ull) && (s_window.end > s_window.start),
               "a slice is read about its bytes");
     s_window.line = rank_first_line(s_window.text);
-    CliLine first = {wanted, sizeof(wanted), 0ull};
+    VerbaLinea first = {wanted, sizeof(wanted), 0ull};
     rank_line(&first, s_window.line);
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_window.text, .cap = CLI_CELLS_POOL});
     cli_check(cli_text_same(s_window.text, wanted, first.at) &&
@@ -202,8 +202,8 @@ static void rank_windows(void)
                   (s_window.text[length - 1u] == '\n'),
               "its whole lines, from a line's first byte");
     out.at = 0ull;
-    cli_check(rank_window(cli_files_slice(root, "lines.txt", s_window.end, s_window.end + 2000ull, &out, &said), &out,
-                          &s_below) &&
+    cli_check(rank_window(cli_files_slice(root, "lines.txt", s_window.end, s_window.end + 2000ull, &out, &err_msg),
+                          &out, &s_below) &&
                   (s_below.start == s_window.end),
               "the slice below starts where it ends");
     unsigned long long lines = 0ull;
@@ -211,17 +211,17 @@ static void rank_windows(void)
     {
         lines += (s_window.text[at] == '\n') ? 1ull : 0ull;
     }
-    CliLine next = {wanted, sizeof(wanted), 0ull};
-    cli_line_text(&next, "line ");
-    cli_line_decimal(&next, s_window.line + lines, 1u);
-    cli_line_character(&next, ' ');
+    VerbaLinea next = {wanted, sizeof(wanted), 0ull};
+    mmgr_line_put(&next, "line ");
+    mmgr_line_decimal(&next, s_window.line + lines, 1u);
+    mmgr_line_ch(&next, ' ');
     cli_check(cli_text_same(s_below.text, wanted, next.at), "with the line after its last");
     out.at = 0ull;
     const unsigned long long from = (s_window.start > 2000ull) ? (s_window.start - 2000ull) : 0ull;
-    cli_check(rank_window(cli_files_slice(root, "lines.txt", from, s_window.start, &out, &said), &out, &s_above) &&
+    cli_check(rank_window(cli_files_slice(root, "lines.txt", from, s_window.start, &out, &err_msg), &out, &s_above) &&
                   (s_above.end == s_window.start),
               "the slice above ends where it starts");
-    CliLine before = {wanted, sizeof(wanted), 0ull};
+    VerbaLinea before = {wanted, sizeof(wanted), 0ull};
     rank_line(&before, s_window.line - 1ull);
     const unsigned long long above = cellul.len(&(CatenaFinitaCfg){.src = s_above.text, .cap = CLI_CELLS_POOL});
     cli_check((above >= before.at) &&
@@ -229,7 +229,7 @@ static void rank_windows(void)
                        .src = s_above.text + above - before.at, .other = wanted, .bytes = before.at}) == 0),
               "with the line before its first");
     out.at = 0ull;
-    cli_check(rank_window(cli_files_slice(root, "lines.txt", 999999ull, 1000099ull, &out, &said), &out, &s_window) &&
+    cli_check(rank_window(cli_files_slice(root, "lines.txt", 999999ull, 1000099ull, &out, &err_msg), &out, &s_window) &&
                   (s_window.end == s_window.size),
               "a slice past the end ends at the file's");
 }
@@ -246,13 +246,13 @@ static int rank_fuzzy(const char *query, const char *text, unsigned long long fr
         return (wanted != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = wanted, .other = "-", .cap = CLI_CELLS_POOL}));
     }
     char hits[256];
-    CliLine line = {hits, sizeof(hits), 0ull};
+    VerbaLinea line = {hits, sizeof(hits), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "," : "");
-        cli_line_decimal(&line, s_hits[at], 1u);
+        mmgr_line_put(&line, (at > 0u) ? "," : "");
+        mmgr_line_decimal(&line, s_hits[at], 1u);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     const double apart = (got > score) ? (got - score) : (score - got);
     return ((score < 0.0) || (apart < 1e-9)) &&
            ((wanted == NULL) || (cellul.eq(&(CatenaFinitaCfg){.src = hits, .other = wanted, .cap = CLI_CELLS_POOL})));
@@ -260,6 +260,7 @@ static int rank_fuzzy(const char *query, const char *text, unsigned long long fr
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     rank_going();
     rank_reading();
     rank_windows();

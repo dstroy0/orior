@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_scan.c: a text read by its letters, its line and its column counted in UTF-16 units as the editor and the
-// protocol count columns; the tokens and the comments a reader keeps; and a set of names
+// protocol count columns; the tokens and the comments a reader records; and a set of names
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
 #include "inspect_internal.h"

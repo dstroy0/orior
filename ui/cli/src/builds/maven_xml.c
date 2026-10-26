@@ -4,7 +4,7 @@
 // whole; each opening tag an element under the one left open, a tag ending `/>` closing itself; each closing tag
 // closing the nearest element of its name left open and those left open inside it, which are not closed; and an
 // element's text with its CDATA's markers and its entities read. Elements past CLI_XML_ELEMENTS, comments past
-// CLI_XML_COMMENTS and what kept the file from reading past CLI_XML_ERRORS are not kept
+// CLI_XML_COMMENTS and what prevented the file from reading past CLI_XML_ERRORS are not stored
 #include "maven_internal.h"
 
 // what is passed whole: its opening and its closing
@@ -16,24 +16,24 @@ int cli_xml_name_letter(unsigned int letter)
     return cli_text_alphanumeric(letter) || (letter == '_') || (letter == ':') || (letter == '.') || (letter == '-');
 }
 
-CliCellsTally g_cli_xml_cells = CLI_CELLS_TALLY("cli_xml");
+CellOwner g_cli_xml_cells = MMGR_CELL_OWNER("cli_xml");
 
 void cli_xml_given(CliXml *xml)
 {
-    cli_cell_given_by(&g_cli_xml_cells, xml->element);
+    g_cli_cells->persistent_buf_release(xml->element, &g_cli_xml_cells);
     *xml = (CliXml){xml->text, 0ull, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
 }
 
-// the room of a list a text holding `tags` `<`s can fill, no more than `most`
+// the room of a list a text containing `tags` `<`s can fill, no more than `most`
 static unsigned int xml_room(unsigned long long tags, unsigned int most)
 {
-    // a count no more than `most`, which an unsigned int holds
+    // a count no more than `most`, which an unsigned int stores
     return (tags < most) ? (unsigned int)tags : most;
 }
 
-// `xml` made to read `size` bytes of `text`, its lists' rooms in one cell sized to the `<`s the text holds, each no
-// more than its most: 1, or 0 with nothing to be kept where the cell is refused
-static int xml_held(CliXml *xml, const char *text, unsigned long long size)
+// `xml` made to read `size` bytes of `text`, its lists' rooms in one cell sized to the `<`s the text contains, each no
+// more than its most: 1, or 0 with nothing to be stored where the cell is refused
+static int xml_reserved(CliXml *xml, const char *text, unsigned long long size)
 {
     unsigned long long tags = 0ull;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
@@ -48,8 +48,8 @@ static int xml_held(CliXml *xml, const char *text, unsigned long long size)
     const unsigned long long comment_bytes = (unsigned long long)comments * sizeof(unsigned long long);
     const unsigned long long error_bytes = (unsigned long long)errors * sizeof(CliXmlError);
     const unsigned long long open_bytes = (unsigned long long)elements * sizeof(unsigned int);
-    unsigned char *const cell = cli_cell_taken_by(
-        &g_cli_xml_cells, element_bytes + (2ull * comment_bytes) + error_bytes + open_bytes + 1ull, "an XML file read");
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
+        element_bytes + (2ull * comment_bytes) + error_bytes + open_bytes + 1ull, &g_cli_xml_cells);
     *xml = (CliXml){text, size, NULL, 0u, 0u, NULL, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u};
     if (cell == NULL)
     {
@@ -67,7 +67,7 @@ static int xml_held(CliXml *xml, const char *text, unsigned long long size)
     return 1;
 }
 
-// what kept the file from reading kept
+// what prevented the file from reading, recorded
 static void xml_error(CliXml *xml, unsigned long long from, unsigned long long to, unsigned int kind,
                       unsigned int element, unsigned long long name_from, unsigned long long name_to)
 {
@@ -182,7 +182,7 @@ static void xml_opening(CliXml *xml, unsigned long long from, unsigned long long
 
 void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml)
 {
-    if (!xml_held(xml, text, size))
+    if (!xml_reserved(xml, text, size))
     {
         return;
     }
@@ -254,36 +254,36 @@ void cli_xml_parse(const char *text, unsigned long long size, CliXml *xml)
     }
 }
 
-void cli_xml_error_said(const CliXml *xml, const CliXmlError *error, CliLine *out)
+void cli_xml_error_written(const CliXml *xml, const CliXmlError *error, VerbaLinea *out)
 {
     if (error->kind < 4u)
     {
-        cli_line_text(out, "This `");
-        cli_line_text(out, s_skip_open[error->kind]);
-        cli_line_text(out, "` is not closed with `");
-        cli_line_text(out, s_skip_close[error->kind]);
-        cli_line_character(out, '`');
+        mmgr_line_put(out, "This `");
+        mmgr_line_put(out, s_skip_open[error->kind]);
+        mmgr_line_put(out, "` is not closed with `");
+        mmgr_line_put(out, s_skip_close[error->kind]);
+        mmgr_line_ch(out, '`');
     }
     else if (error->kind == CLI_XML_TAG_OPEN)
     {
-        cli_line_text(out, "This tag is not closed with `>`");
+        mmgr_line_put(out, "This tag is not closed with `>`");
     }
     else if (error->kind == CLI_XML_NO_ELEMENT)
     {
-        cli_line_text(out, "This `<` starts no element");
+        mmgr_line_put(out, "This `<` starts no element");
     }
     else if (error->kind == CLI_XML_NOT_CLOSED)
     {
         const CliXmlElement *const element = &xml->element[error->element];
-        cli_line_text(out, "`<");
-        cli_line_counted(out, xml->text + element->from, element->to - element->from);
-        cli_line_text(out, ">` is not closed");
+        mmgr_line_put(out, "`<");
+        mmgr_line_put_n(out, xml->text + element->from, element->to - element->from);
+        mmgr_line_put(out, ">` is not closed");
     }
     else
     {
-        cli_line_text(out, "`</");
-        cli_line_counted(out, xml->text + error->name_from, error->name_to - error->name_from);
-        cli_line_text(out, ">` closes no element");
+        mmgr_line_put(out, "`</");
+        mmgr_line_put_n(out, xml->text + error->name_from, error->name_to - error->name_from);
+        mmgr_line_put(out, ">` closes no element");
     }
 }
 
@@ -319,7 +319,7 @@ unsigned int cli_xml_child(const CliXml *xml, unsigned int of, const char *name)
     return CLI_XML_NONE;
 }
 
-int cli_xml_text(const CliXml *xml, unsigned int of, CliLine *out)
+int cli_xml_text(const CliXml *xml, unsigned int of, VerbaLinea *out)
 {
     const CliXmlElement *const element = &xml->element[of];
     if ((element->children > 0u) || !element->closed || (element->inner_to < element->inner_from))
@@ -347,17 +347,17 @@ int cli_xml_text(const CliXml *xml, unsigned int of, CliLine *out)
         }
         if (entity < 5u)
         {
-            cli_line_character(out, s_letters[entity]);
+            mmgr_line_ch(out, s_letters[entity]);
             at += cellul.len(&(CatenaFinitaCfg){.src = s_entities[entity], .cap = CLI_CELLS_POOL});
             continue;
         }
-        cli_line_character(out, raw[at]);
+        mmgr_line_ch(out, raw[at]);
         at += 1u;
     }
     return 1;
 }
 
-int cli_xml_text_of(const CliXml *xml, unsigned int of, const char *name, CliLine *out)
+int cli_xml_text_of(const CliXml *xml, unsigned int of, const char *name, VerbaLinea *out)
 {
     const unsigned int child = (of != CLI_XML_NONE) ? cli_xml_child(xml, of, name) : CLI_XML_NONE;
     return (child != CLI_XML_NONE) && cli_xml_text(xml, child, out);

@@ -134,7 +134,7 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
             chose("unwritable", link_address);
             return 0;
         }
-        // a link the stand-in writes as it stood is no ask
+        // a link the stand-in writes as it stood is no query
         if (standing == found.str(0))
         {
             chose("unchanged", link_address);
@@ -154,23 +154,23 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         char address[32];
         snprintf(address, sizeof(address), "%s:%04x", chain.first.c_str(), 16u * link);
         const std::vector<std::string> &expected = host[chain.first];
-        // a stand-in a lesson of the overseer holds is answered as held at this link, and the part never sees it
+        // a stand-in a lesson of the overseer blocks is answered as blocked at this link, and the part never sees it
         char overseen[160];
-        if (overseer_holds(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
+        if (overseer_blocks(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen)))
         {
             chose("overseen", link_address);
-            if (s_ask_trace != NULL)
+            if (s_trace_log != NULL)
             {
-                ask_written(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
-                            overseen);
-                ask_flushed(s_ask_trace);
+                query_log_print(s_trace_log, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
+                                overseen);
+                query_log_flushed(s_trace_log);
             }
             continue;
         }
         // Past the first case apart a link adds to the product alone, and only where the form reads in a shape no
-        // link read before it: a link of a shape read before holds the same rows, and is no branch of its own. The
+        // link read before it: a link of a shape read before contains the same rows, and is no branch of its own. The
         // cycle loops while the product is not whole and a branch is left, and ends at a whole product or with
-        // every branch put or steered off. Its verdict stands, and it asks nothing
+        // every branch put or steered off. Its verdict stands, and it requires nothing
         const int past_closed = !closed.empty();
         // The steer: the links of one delta are one band, the nearest first. A band is truthy where a put in it
         // adds a row that came back one way, signal, and falsy where its puts add none or only rows that came back
@@ -180,7 +180,7 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         {
             if (past_closed && (band != LONG_MIN) && !band_truthy)
             {
-                if (s_ask_log != NULL)
+                if (s_query_log != NULL)
                 {
                     chose("steered_off", link_address);
                 }
@@ -198,41 +198,61 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
             chose("shape_read", link_address);
             continue;
         }
-        // the stand-in is the question's slot: the cross reads it as the probe it is (measuring_stick_query.c)
-        question.slot = link;
-        const int alike =
-            past_closed ? 0 : vector_alike(code, expected, places, &question, &asks, carriers.magnitudes[chain.first].first);
-        const unsigned int put_outcome = past_closed ? (unsigned int)RUN_HELD : question.outcome;
+        // the stand-in is the question's probe place: the cross reads it as the probe it is (measuring_stick_query.c)
+        question.place = link;
+        const int alike = past_closed ? 0
+                                      : vector_alike(code, expected, places, &question, &queries,
+                                                     carriers.magnitudes[chain.first].first);
+        const unsigned int put_outcome = past_closed ? (unsigned int)RUN_GATED : question.outcome;
         if (!past_closed)
         {
             chose(alike ? "alike" : (put_outcome == RUN_ANSWERED) ? "apart" : "refused", link_address);
         }
-        if ((s_ask_trace != NULL) && !past_closed)
+        if ((s_trace_log != NULL) && !past_closed)
         {
-            ask_written(s_ask_trace, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
-                        alike                           ? "alike"
-                        : (put_outcome == RUN_ANSWERED) ? "apart"
-                                                        : question.refused);
-            ask_flushed(s_ask_trace);
+            query_log_print(s_trace_log, "pair %s in place of %s at %s: %s\n", to.c_str(), from.c_str(), address,
+                            alike                           ? "alike"
+                            : (put_outcome == RUN_ANSWERED) ? "apart"
+                                                            : question.refused);
+            query_log_flushed(s_trace_log);
         }
         // a put the part refused, or a carrier ended on, calls a conference: its guidance is what the learner puts
-        // next, and a lesson it teaches holds the stand-in's own product below off the part
+        // next, and a lesson it teaches blocks the stand-in's own product below from the part
         unsigned int guidance = OVERSEER_HANDS_OFF;
-        if (!past_closed && !alike && (put_outcome != RUN_ANSWERED) && (put_outcome != RUN_HELD))
+        if (!past_closed && !alike && (put_outcome != RUN_ANSWERED) && (put_outcome != RUN_GATED))
         {
             guidance = conferred(
                 from, to, "the pair " + from + " " + to + ", " + to + " put in place of " + from + " at " + address,
                 standing, chain.first, scratch_taken, question, closed, link_address);
         }
-        const int stand_in_held = overseer_holds(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen));
-        // the put beneath its ask in the log: the link as it stood, the link standing in its place, each on one
+        const int stand_in_blocked = overseer_blocks(standing.c_str(), chain.first.c_str(), overseen, sizeof(overseen));
+        // the put beneath its query in the log: the link as it stood, the link standing in its place, each on one
         // line of the log, and the operands only the form it stood as names
-        if (s_ask_log != NULL)
+        if (s_query_log != NULL)
         {
-            const PutLink link = {from,      to,     from_names, from_text, read_by_to,   unified,
-                                  fixed,     qualifiers, pair_cased, question, places,  product,
-                                  chain,     found,  given,      flow,      link_at,      link_address,
-                                  standing,  address, found_link.vector.first, stand_in_held, shape_new};
+            const PutLink link = {from,
+                                  to,
+                                  from_names,
+                                  from_text,
+                                  read_by_to,
+                                  unified,
+                                  fixed,
+                                  qualifiers,
+                                  pair_cased,
+                                  question,
+                                  places,
+                                  product,
+                                  chain,
+                                  found,
+                                  given,
+                                  flow,
+                                  link_at,
+                                  link_address,
+                                  standing,
+                                  address,
+                                  found_link.vector.first,
+                                  stand_in_blocked,
+                                  shape_new};
             band_truthy |= link.logged(*this);
         }
         // the conference's guidance: the stand-in brought it on, and the pair is put the other way round, or its
@@ -266,11 +286,11 @@ int PairWork::put(const std::string &from, const std::string &to, std::string *v
         }
         if (put_outcome == RUN_ANSWERED)
         {
-            // the verdict is the first case apart; with the log kept, the pair is put on until its product is whole
+            // the verdict is the first case apart; with the log retained, the pair is put on until its product is whole
             closed = closed.empty() ? ("closed " + std::string(address) + " " + case_text(s_apart_at) + "->" +
                                        expected[s_apart_at])
                                     : closed;
-            if ((s_ask_log == NULL) || concept_whole(product, pair_cased))
+            if ((s_query_log == NULL) || concept_whole(product, pair_cased))
             {
                 *verdict = closed;
                 return 1;

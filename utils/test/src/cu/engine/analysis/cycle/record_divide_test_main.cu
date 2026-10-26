@@ -102,7 +102,7 @@ static void divide_wide(DivideResults *results)
         divide_take(record, table[4].out_offset, table[4].out_bits, &common);
         identities = divide_valid(&operand[2u * lane], &operand[(2u * lane) + 1u], &quotient, &remainder, &common);
     }
-    divide_check(results, identities, "wide: the division identities and the gcd hold on every lane");
+    divide_check(results, identities, "wide: the division identities and the gcd are satisfied on every lane");
     divide_free(&loaded);
 
     if (divide_load(&exact, &loaded) == 0)
@@ -150,7 +150,7 @@ static void divide_wide(DivideResults *results)
 
 // a constant divisor narrows its quotient by floor(log2 c) bits. Signed 40-bit factors multiplied by 3, 12 and
 // 2^32 + 7 divide back exactly; the last is a 3-limb numerator whose 41-bit quotient takes 2 limbs. The device's
-// exact quotient must work at the numerator's width and keep only the register's. A signed 64-bit value over
+// exact quotient must work at the numerator's width and retain only the register's. A signed 64-bit value over
 // 2^32 + 7 is a 32-bit quotient in one limb, against the library's.
 static void divide_constant(DivideResults *results)
 {
@@ -184,8 +184,8 @@ static void divide_constant(DivideResults *results)
         divide_check(results, 0, "the constant division program loads");
         return;
     }
-    // 40 + 2 bits over 3 (2 bits) keeps 41; 40 + 4 over 12 (4 bits) keeps 41; 40 + 33 over 2^32 + 7 keeps 41 in 2
-    // limbs from 73 in 3; 64 over 2^32 + 7 keeps 32
+    // 40 + 2 bits over 3 (2 bits) retains 41; 40 + 4 over 12 (4 bits) retains 41; 40 + 33 over 2^32 + 7 retains 41 in 2
+    // limbs from 73 in 3; 64 over 2^32 + 7 retains 32
     const EngineRecordTerm *const term = loaded.key.term;
     divide_check(results,
                  (term[6].bits == 41u) && (term[8].bits == 41u) && (term[10].bits == 41u) && (term[9].bits == 73u) &&
@@ -200,7 +200,7 @@ static void divide_constant(DivideResults *results)
     unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
     if ((atoms == NULL) || (operand == NULL) || (host_out == NULL) || (device_out == NULL))
     {
-        divide_check(results, 0, "the constant lanes are held");
+        divide_check(results, 0, "the constant lanes are allocated");
         free(atoms);
         free(operand);
         free(host_out);
@@ -288,12 +288,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     divide_check(&results, (admitted != 0) && (job.failures == 0ull),
                  "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record divide test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record divide test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

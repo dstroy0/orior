@@ -1,20 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // db_open.c: a connection opened as two links, the one that runs the reader's statements and the one that reads the
-// schema, through an ssh tunnel where it goes through one; each link held for its work and made again, tunnel and
+// schema, through an ssh tunnel where it goes through one; each link acquired for its work and made again, tunnel and
 // all, where its connection broke; the session's zone; and the statement each link runs stopped from another thread.
-// Each connection is a cell taken as it opens and given back as it closes, its slot here empty while none is open in
+// Each connection is a cell taken as it opens and given back as it closes, its place here empty while none is open in
 // it. A stop is sent under the stop lock, and a link's stop is let go under it before the link closes, so no stop
 // reaches a link closed
 #include "db_internal.h"
 
-CliCellsTally g_cli_db_cells = CLI_CELLS_TALLY("cli_databases");
+CellOwner g_cli_db_cells = MMGR_CELL_OWNER("cli_databases");
 
 static CliDbOpen *s_opens[CLI_DB_OPENS];
 static CliLock s_opens_lock = CLI_LOCK_INIT;
 
 // a link to the database made, through the tunnel where the connection goes through ssh: 1, or 0 with the failure
-// said
+// given
 static int open_link(CliDbOpen *open, CliDbLink *link, int runs, CliDbFailure *failure)
 {
     const CliDbConnection *const config = &open->config;
@@ -39,10 +39,10 @@ static int open_link(CliDbOpen *open, CliDbLink *link, int runs, CliDbFailure *f
     return cli_db_link_open(link, open->root, config, open->password, "127.0.0.1", port, runs, failure);
 }
 
-// the first value of the first row a question gives, kept
+// the first value of the first row a question gives, retained
 static int open_first(void *context, const CliDbValue *values, unsigned int count)
 {
-    CliLine *const out = (CliLine *)context;
+    VerbaLinea *const out = (VerbaLinea *)context;
     if ((out->at == 0ull) && (count > 0u) && !values[0].null)
     {
         cli_lossy(out, (const unsigned char *)values[0].text, values[0].size);
@@ -53,13 +53,13 @@ static int open_first(void *context, const CliDbValue *values, unsigned int coun
 void cli_db_zone_read(CliDbOpen *open)
 {
     static const char s_zone[] = "SELECT IF(@@session.time_zone = 'SYSTEM', @@system_time_zone, @@session.time_zone)";
-    char zone[CLI_NAME_LONGEST];
-    CliLine out = {zone, sizeof(zone) - 1u, 0ull};
+    char zone[CLI_NAME_MAX_LEN];
+    VerbaLinea out = {zone, sizeof(zone) - 1u, 0ull};
     cli_lock_take(&open->query_lock);
     if (open->query.kind == CLI_DB_LINK_PG)
     {
-        const char *const said = cli_pg_parameter(open->query.pg, "TimeZone");
-        cli_line_text(&out, (said != NULL) ? said : "");
+        const char *const tz_name = cli_pg_parameter(open->query.pg, "TimeZone");
+        mmgr_line_put(&out, (tz_name != NULL) ? tz_name : "");
     }
     else if (open->query.kind == CLI_DB_LINK_MY)
     {
@@ -79,21 +79,22 @@ CliDbOpen *cli_db_connect(const char *root, const CliDbConnection *config, const
 {
     CliDbOpen *open = NULL;
     cli_lock_take(&s_opens_lock);
-    unsigned int slot = 0u;
-    while ((slot < CLI_DB_OPENS) && (s_opens[slot] != NULL))
+    unsigned int entry_at = 0u;
+    while ((entry_at < CLI_DB_OPENS) && (s_opens[entry_at] != NULL))
     {
-        slot += 1u;
+        entry_at += 1u;
     }
-    if (slot < CLI_DB_OPENS)
+    if (entry_at < CLI_DB_OPENS)
     {
-        open = cli_cell_taken_by(&g_cli_db_cells, sizeof(CliDbOpen), "a database connection");
-        s_opens[slot] = open;
+        open = g_cli_cells->persistent_buf_alloc(sizeof(CliDbOpen), &g_cli_db_cells);
+        s_opens[entry_at] = open;
     }
     cli_lock_give(&s_opens_lock);
     if (open == NULL)
     {
-        cli_db_failure_said(failure, (slot < CLI_DB_OPENS) ? "no room is left to open a database connection in"
-                                                           : "orior_cli holds as many database connections open as it can");
+        cli_db_failure_set(failure, (entry_at < CLI_DB_OPENS)
+                                        ? "no room is left to open a database connection in"
+                                        : "orior_cli has as many database connections open as it can");
         return NULL;
     }
     open->config = *config;
@@ -108,10 +109,10 @@ CliDbOpen *cli_db_connect(const char *root, const CliDbConnection *config, const
     }
     else
     {
-        char account[CLI_PATH_LONGEST];
-        CliLine account_line = {account, sizeof(account), 0ull};
+        char account[CLI_PATH_MAX_LEN];
+        VerbaLinea account_line = {account, sizeof(account), 0ull};
         cli_db_account(config, &account_line);
-        cli_line_closed(&account_line);
+        mmgr_line_finish(&account_line);
         if (!cli_keychain_read("database", account, open->password, sizeof(open->password)))
         {
             open->password[0] = '\0';
@@ -121,12 +122,12 @@ CliDbOpen *cli_db_connect(const char *root, const CliDbConnection *config, const
     open->meta_lock = (CliLock)CLI_LOCK_INIT;
     open->stop_lock = (CliLock)CLI_LOCK_INIT;
     open->tunnel_lock = (CliLock)CLI_LOCK_INIT;
-    open->held_lock = (CliLock)CLI_LOCK_INIT;
+    open->results_lock = (CliLock)CLI_LOCK_INIT;
     open->zone_lock = (CliLock)CLI_LOCK_INIT;
     open->busy = 0;
     open->zone[0] = '\0';
     memor.set(&(MemoriaCfg){.dst = &open->tunnel, .val = 0, .bytes = sizeof(open->tunnel)});
-    memor.set(&(MemoriaCfg){.dst = &open->held, .val = 0, .bytes = sizeof(open->held)});
+    memor.set(&(MemoriaCfg){.dst = &open->results, .val = 0, .bytes = sizeof(open->results)});
     if (!open_link(open, &open->query, 1, failure))
     {
         cli_db_close(open);
@@ -165,20 +166,20 @@ void cli_db_close(CliDbOpen *open)
     cli_lock_take(&open->tunnel_lock);
     cli_db_tunnel_closed(&open->tunnel);
     cli_lock_give(&open->tunnel_lock);
-    if (open->held.path[0] != '\0')
+    if (open->results.path[0] != '\0')
     {
-        (void)query_removed(open->held.path);
+        (void)query_removed(open->results.path);
     }
     cli_lock_take(&s_opens_lock);
-    for (unsigned int slot = 0u; slot < CLI_DB_OPENS; slot += 1u)
+    for (unsigned int entry_at = 0u; entry_at < CLI_DB_OPENS; entry_at += 1u)
     {
-        s_opens[slot] = (s_opens[slot] == open) ? NULL : s_opens[slot];
+        s_opens[entry_at] = (s_opens[entry_at] == open) ? NULL : s_opens[entry_at];
     }
     cli_lock_give(&s_opens_lock);
-    cli_cell_given_by(&g_cli_db_cells, open);
+    g_cli_cells->persistent_buf_release(open, &g_cli_db_cells);
 }
 
-// a link held and handed to `work`, made first where it is none, and let go where its connection broke, the next
+// a link acquired and handed to `work`, made first where it is none, and let go where its connection broke, the next
 // statement connecting again
 static int open_with(CliDbOpen *open, CliDbLink *link, CliLock *lock, CliDbStop *stop, int *has_stop, int runs,
                      int (*work)(void *context, CliDbLink *link, CliDbFailure *failure), void *context,
@@ -262,35 +263,35 @@ const char *cli_db_transaction(CliDbOpen *open)
     return state;
 }
 
-void cli_db_zone(CliDbOpen *open, CliLine *out)
+void cli_db_zone(CliDbOpen *open, VerbaLinea *out)
 {
     cli_lock_take(&open->zone_lock);
-    cli_line_text(out, open->zone);
+    mmgr_line_put(out, open->zone);
     cli_lock_give(&open->zone_lock);
 }
 
-int cli_db_stop(CliDbOpen *open, CliLine *said)
+int cli_db_stop(CliDbOpen *open, VerbaLinea *err_msg)
 {
     cli_lock_take(&open->stop_lock);
     const int has = open->has_stop;
-    const int sent = has && cli_db_stop_sent(&open->stop, said);
+    const int sent = has && cli_db_stop_sent(&open->stop, err_msg);
     cli_lock_give(&open->stop_lock);
     if (!has)
     {
-        cli_line_text(said, "nothing runs");
+        mmgr_line_put(err_msg, "nothing runs");
     }
     return sent;
 }
 
-int cli_db_stop_reading(CliDbOpen *open, CliLine *said)
+int cli_db_stop_reading(CliDbOpen *open, VerbaLinea *err_msg)
 {
     cli_lock_take(&open->stop_lock);
     const int has = open->has_meta_stop;
-    const int sent = has && cli_db_stop_sent(&open->meta_stop, said);
+    const int sent = has && cli_db_stop_sent(&open->meta_stop, err_msg);
     cli_lock_give(&open->stop_lock);
     if (!has)
     {
-        cli_line_text(said, "nothing is read");
+        mmgr_line_put(err_msg, "nothing is read");
     }
     return sent;
 }

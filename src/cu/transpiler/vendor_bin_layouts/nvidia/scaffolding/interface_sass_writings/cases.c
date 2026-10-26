@@ -21,7 +21,7 @@ unsigned char s_pattern[WRITINGS_CUBIN_BYTES];
 static unsigned char s_cubin[WRITINGS_CUBIN_BYTES];
 unsigned char s_code[WRITINGS_CODE_BYTES];
 char s_kernel_text[WRITINGS_TEXT_BYTES];
-char s_asking[WRITINGS_TEXT_BYTES];
+char s_query_text[WRITINGS_TEXT_BYTES];
 static unsigned int s_exits[WRITINGS_EXITS];
 char s_kernel[128];
 unsigned long long s_pattern_size;
@@ -33,7 +33,7 @@ unsigned int s_cases;
 WritingsRelation s_relation[WRITINGS_RELATIONS];
 unsigned int s_relations;
 
-// `path` read whole into `bytes`, which holds `room`: the bytes read, 0 where it was not read
+// `path` read whole into `bytes`, sized for `room`: the bytes read, 0 where it was not read
 unsigned long long writings_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     FILE *const file = fopen(path, "rb");
@@ -94,7 +94,7 @@ unsigned int writings_expected(const WritingsRelation *relation, const unsigned 
 // The cases a form is put with, every relation read on every one: the ladder's own two-word cases, the words a width
 // turns on put against the counts a shift turns on, and words drawn as chain_build draws its sweep to fill a launch.
 // The ladder's cases are small words, and a form that agrees with a relation on small words alone, as a dot product
-// of bytes agrees with a product, is told apart by the drawn ones
+// of bytes agrees with a product, is distinguished by the drawn ones
 void writings_cases(void)
 {
     static const unsigned int s_edge_words[] = {0u, 1u, 0x7fffffffu, 0x80000000u, 0xffffffffu};
@@ -142,8 +142,8 @@ int writings_kernel(const char *kernel_text, char *kernel, size_t room)
     return (kernel_text[6u + length] == ':') && (snprintf(kernel, room, "%.*s", (int)length, kernel_text + 6) < (int)room);
 }
 
-// the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel holds no such
-// line or `text` will not hold the whole
+// the kernel with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel contains no
+// such line or `text` will not fit the whole
 int writings_splice(const char *kernel_text, const char *lines, char *text, size_t room)
 {
     const char *const line = strstr(kernel_text, "\nIADD3 ");
@@ -175,7 +175,7 @@ static const char *writings_mark(unsigned int mark)
 }
 
 // `operand`, which begins with a register token, written to `out` with that token replaced by `put`, a .hi dropped and
-// any other suffix kept
+// any other suffix retained
 static void writings_swap(const char *operand, const char *put, char *out, size_t room)
 {
     size_t length = 0u;
@@ -184,8 +184,8 @@ static void writings_swap(const char *operand, const char *put, char *out, size_
         length = (operand[1] == 'Z') ? 2u : (1u + strspn(operand + 1, "0123456789"));
     }
     const char *const rest = operand + length;
-    const size_t kept = strlen(rest) - (sass_high_half(operand) ? 3u : 0u);
-    snprintf(out, room, "%s%.*s", put, (int)kept, rest);
+    const size_t rest_length = strlen(rest) - (sass_high_half(operand) ? 3u : 0u);
+    snprintf(out, room, "%s%.*s", put, (int)rest_length, rest);
 }
 
 // 1 where `form` is put to the part: it writes its first operand, a register, it neither transfers control nor waits,
@@ -267,7 +267,7 @@ unsigned int writings_in_order(unsigned int sources)
 
 // `form`'s own instruction written to `out` with its result moved to WRITINGS_RESULT and each register source given
 // WRITINGS_LEFT, WRITINGS_RIGHT or RZ by `assignment` (writings_digit). The operand `table` is written as `value`;
-// every other predicate and number keeps the value the form was seen with. 1, or 0 where `out` will not hold it
+// every other predicate and number retains the value the form was seen with. 1, or 0 where `out` will not fit it
 int writings_instruction(const SassForm *form, unsigned int table, unsigned int value, unsigned int assignment,
                                 char *out, size_t room)
 {

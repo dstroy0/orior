@@ -6,7 +6,7 @@
 #define QRY_H
 
 // the longest name a record takes
-#define QRY_NAME_LONGEST 255u
+#define QRY_NAME_MAX_LEN 255u
 
 // a record's priority, the lowest number first: a panic, a critical record, and an ordinary one
 #define QRY_PANIC 0u

@@ -43,19 +43,19 @@ static int sort_comment(const char *src, unsigned int index)
 }
 
 int cli_inspect_py_sort_methods(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                                CliLine *text, CliLine *said)
+                                VerbaLinea *text, VerbaLinea *err_msg)
 {
     cli_py_read(src, size);
     const unsigned int at = cli_py_around(src, line, "class");
     if (at == g_cli_py_lines)
     {
-        cli_line_text(said, "Sort Methods by Name sorts the class the cursor is in.");
+        mmgr_line_put(err_msg, "Sort Methods by Name sorts the class the cursor is in.");
         return 0;
     }
     const unsigned int end = cli_py_block_end(at);
     if (end <= at + 1u)
     {
-        cli_line_text(said, "The class's body stands on its header's line.");
+        mmgr_line_put(err_msg, "The class's body stands on its header's line.");
         return 0;
     }
     const unsigned int indent = g_cli_py_line[at + 1u].indent;
@@ -111,7 +111,7 @@ int cli_inspect_py_sort_methods(const char *src, unsigned long long size, unsign
     }
     if (members == 0u)
     {
-        cli_line_text(said, "The class has no members.");
+        mmgr_line_put(err_msg, "The class has no members.");
         return 0;
     }
     const unsigned int first = s_firsts[0];
@@ -119,7 +119,7 @@ int cli_inspect_py_sort_methods(const char *src, unsigned long long size, unsign
     if ((last >= physical) ||
         !cli_inspect_sorted_body(src, size, s_starts, s_ends, s_firsts, s_lasts, s_names, s_name_sizes, members, text))
     {
-        cli_line_text(said, "The class's methods stand in the order of their names.");
+        mmgr_line_put(err_msg, "The class's methods stand in the order of their names.");
         return 0;
     }
     unsigned int end_col = 0u;

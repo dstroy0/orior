@@ -42,8 +42,8 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
 {
     cli_lock_take(&s_lock);
     unsigned int count = 0u;
-    char why[CLI_SAID_LONGEST];
-    CliLine none = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea none = {why, sizeof(why), 0ull};
     const CliDeployment *deployments = NULL;
     if (!cli_deploy_read(root, &s_tree, &deployments, &count, &none))
     {
@@ -52,36 +52,36 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const CliDeployment *const deployment = &deployments[index];
-        static char s_id[CLI_PATH_LONGEST];
-        CliLine id = {s_id, sizeof(s_id), 0ull};
+        static char s_id[CLI_PATH_MAX_LEN];
+        VerbaLinea id = {s_id, sizeof(s_id), 0ull};
         char piece[CLI_DEPLOY_PIECE];
         CliPieces pieces;
-        CliLine about;
+        VerbaLinea about;
         cli_pieces_begun(&pieces, &about, piece, sizeof(piece));
-        cli_line_text(&id, "deploy/");
-        cli_line_text(&id, deployment->name);
-        cli_line_text(&about, "sends the files of ");
-        cli_line_text(&about, deployment->from);
-        cli_line_text(&about, " to ");
+        mmgr_line_put(&id, "deploy/");
+        mmgr_line_put(&id, deployment->name);
+        mmgr_line_put(&about, "sends the files of ");
+        mmgr_line_put(&about, deployment->from);
+        mmgr_line_put(&about, " to ");
         for (unsigned int at = 0u; at < deployment->tos; at += 1u)
         {
-            cli_line_text(&about, (at > 0u) ? ", " : "");
-            cli_line_text(&about, deployment->to[at]);
+            mmgr_line_put(&about, (at > 0u) ? ", " : "");
+            mmgr_line_put(&about, deployment->to[at]);
         }
-        cli_line_text(&about, ", a new release at each turned to once every place holds it.");
+        mmgr_line_put(&about, ", a new release at each turned to once every place has it.");
         unsigned long long size = 0ull;
         char *const joined = cli_pieces_joined(&pieces, &about, "a deployment's job", &size);
         const int listed =
-            (cli_line_closed(&id) != 0ull) && (joined != NULL) &&
+            (mmgr_line_finish(&id) != 0ull) && (joined != NULL) &&
             (cli_catalog_job(catalog, s_id, "deploy", deployment->name, "deploy.json", joined, "") != CLI_CATALOG_NONE);
-        cli_cell_given(joined);
+        g_cli_cells->persistent_buf_release(joined, NULL);
         if (!listed)
         {
             continue;
         }
         jobs_choice(catalog, "do", "preview", "send", "roll back");
-        jobs_choice(catalog, "changed there", "keep them", "replace them", NULL);
-        jobs_choice(catalog, "gone there", "keep them", "delete them", NULL);
+        jobs_choice(catalog, "changed there", "retain them", "replace them", NULL);
+        jobs_choice(catalog, "gone there", "retain them", "delete them", NULL);
         cli_catalog_step(catalog, CLI_PROGRAM_ORIOR, NULL, NULL, 0);
         cli_catalog_arg(catalog, CLI_ARG_LIT, "deploy", NULL, NULL, NULL, 0);
         cli_catalog_arg(catalog, CLI_ARG_LIT, deployment->name, NULL, NULL, NULL, 0);

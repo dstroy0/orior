@@ -4,7 +4,7 @@
 #include "pi_tower_internal.h"
 
 // the run on the device: the tail's lanes reduced to the first total, then sweep after sweep of term lanes, each sweep
-// one cycle of the term program over as many lanes as the device holds at once, reduced with the total carried in
+// one cycle of the term program over as many lanes as the device supports at once, reduced with the total carried in
 int pi_tower_bbp_sum(SimResults *results, PiTowerBbp *bbp, int report, PiTowerBbpRun *run)
 {
     EngineError error;
@@ -130,38 +130,38 @@ std::string pi_tower_bbp_hex(const PiTowerBbp *bbp, const PiWide &sum, unsigned 
 // one run's line: its size on the engine, how it went, and the digits it certified
 void pi_tower_bbp_print(SimResults *results, const PiTowerBbp *bbp, const PiTowerBbpRun *run, unsigned int certified)
 {
-    scriptura_text(&results->line, "    hex position ");
+    mmgr_line_put(&results->line, "    hex position ");
     pi_tower_print_decimal(&results->line, bbp->position);
-    scriptura_text(&results->line, ": ");
+    mmgr_line_put(&results->line, ": ");
     pi_tower_print_decimal(&results->line, bbp->terms);
-    scriptura_text(&results->line, " term lanes of ");
-    scriptura_decimal(&results->line, bbp->term.layout.steps, 1u);
-    scriptura_text(&results->line, " steps on ");
-    scriptura_decimal(&results->line, bbp->term.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " register limbs, ");
-    scriptura_decimal(&results->line, bbp->tail_terms, 1u);
-    scriptura_text(&results->line, " tail lanes, W ");
-    scriptura_decimal(&results->line, bbp->fraction_bits, 1u);
-    scriptura_text(&results->line, "; ");
-    scriptura_decimal(&results->line, run->sweeps, 1u);
-    scriptura_text(&results->line, " cycles of up to ");
-    scriptura_decimal(&results->line, bbp->lanes, 1u);
-    scriptura_text(&results->line, " lanes in ");
+    mmgr_line_put(&results->line, " term lanes of ");
+    mmgr_line_decimal(&results->line, bbp->term.layout.steps, 1u);
+    mmgr_line_put(&results->line, " steps on ");
+    mmgr_line_decimal(&results->line, bbp->term.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " register limbs, ");
+    mmgr_line_decimal(&results->line, bbp->tail_terms, 1u);
+    mmgr_line_put(&results->line, " tail lanes, W ");
+    mmgr_line_decimal(&results->line, bbp->fraction_bits, 1u);
+    mmgr_line_put(&results->line, "; ");
+    mmgr_line_decimal(&results->line, run->sweeps, 1u);
+    mmgr_line_put(&results->line, " cycles of up to ");
+    mmgr_line_decimal(&results->line, bbp->lanes, 1u);
+    mmgr_line_put(&results->line, " lanes in ");
     // a run's seconds are non-negative and far below 2^64 microseconds. The floor fits the word
     sim_fraction_print(&results->line, (unsigned long long)(run->seconds * 1000000.0), 1000000ull, 3u);
-    scriptura_text(&results->line, " s");
+    mmgr_line_put(&results->line, " s");
     if (run->finished != 0)
     {
-        scriptura_text(&results->line, "; ");
-        scriptura_decimal(&results->line, certified, 1u);
-        scriptura_text(&results->line, " bits certified: ");
-        scriptura_text(&results->line, pi_tower_bbp_hex(bbp, run->sum, certified / 4u).c_str());
+        mmgr_line_put(&results->line, "; ");
+        mmgr_line_decimal(&results->line, certified, 1u);
+        mmgr_line_put(&results->line, " bits certified: ");
+        mmgr_line_put(&results->line, pi_tower_bbp_hex(bbp, run->sum, certified / 4u).c_str());
     }
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }
 
-// the lanes a sweep holds: every thread the device keeps resident at once
+// the lanes a sweep spans: every thread resident on the device at once
 unsigned long long pi_tower_bbp_lanes(void)
 {
     int device = 0;
@@ -175,9 +175,9 @@ unsigned long long pi_tower_bbp_lanes(void)
            (unsigned long long)properties.maxThreadsPerMultiProcessor;
 }
 
-// the hex position whose window holds the turn at depth n, and the window's bits through it: the cell at 2^n is
+// the hex position whose window contains the turn at depth n, and the window's bits through it: the cell at 2^n is
 // floor(alpha 2^n), and its low bits are alpha's bits n - 63 .. n, which the run from position floor((n - 64) / 4)
-// holds within its first 67
+// contains within its first 67
 PiWide pi_tower_depth_position(const PiWide &depth, unsigned int *window)
 {
     const PiWide range = pi_tower_unsigned(64ull);
@@ -200,7 +200,7 @@ unsigned long long pi_tower_bbp_cell(const PiTowerBbp *bbp, const PiWide &sum, u
     return pi_tower_word(pi_tower_quotient(sum, pi_tower_power_two(bbp->fraction_bits - window)));
 }
 
-// the bytes a segment's largest window holds on the device: its last, whose position and widths are the largest
+// the bytes a segment's largest window occupies on the device: its last, whose position and widths are the largest
 static int pi_tower_segment_declared(const PiWide &position, unsigned int digits, unsigned long long lanes,
                                      unsigned long long *declared, EngineError *error)
 {
@@ -269,12 +269,12 @@ static void pi_tower_segment_print(SimResults *results, const PiWide &position, 
 {
     for (size_t at = 0u; at < segment.size(); at += 64u)
     {
-        scriptura_text(&results->line, "    ");
+        mmgr_line_put(&results->line, "    ");
         pi_tower_print_decimal(&results->line,
                                pi_tower_sum(position, pi_tower_unsigned((unsigned long long)at + 1ull)));
-        scriptura_text(&results->line, "  ");
-        scriptura_text(&results->line, segment.substr(at, 64u).c_str());
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  ");
+        mmgr_line_put(&results->line, segment.substr(at, 64u).c_str());
+        mmgr_line_ch(&results->line, '\n');
         sim_flush(results);
     }
 }
@@ -294,20 +294,20 @@ void pi_tower_segment_request(SimResults *results, int count, char **arguments, 
     {
         return;
     }
-    scriptura_text(&results->line, "  a segment on the engine: ");
-    scriptura_decimal(&results->line, digits, 1u);
-    scriptura_text(&results->line, " hex digits from position ");
+    mmgr_line_put(&results->line, "  a segment on the engine: ");
+    mmgr_line_decimal(&results->line, digits, 1u);
+    mmgr_line_put(&results->line, " hex digits from position ");
     pi_tower_print_decimal(&results->line, pi_tower_sum(position, pi_tower_unsigned(1ull)));
-    scriptura_text(&results->line, ", a window every ");
-    scriptura_decimal(&results->line, PI_TOWER_SEGMENT_STEP, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, ", a window every ");
+    mmgr_line_decimal(&results->line, PI_TOWER_SEGMENT_STEP, 1u);
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
     std::string segment;
     const PiTowerSegment result = pi_tower_bbp_segment(results, position, digits, lanes, 1, &segment);
     pi_tower_segment_print(results, position, segment);
-    scriptura_text(&results->line, "    ");
-    scriptura_decimal(&results->line, result.windows, 1u);
-    scriptura_text(&results->line, " windows\n");
+    mmgr_line_put(&results->line, "    ");
+    mmgr_line_decimal(&results->line, result.windows, 1u);
+    mmgr_line_put(&results->line, " windows\n");
     sim_flush(results);
     sim_check(results, result.ran && result.finished && (segment.size() == digits),
               "engine: every window ran and summed all its terms");
@@ -321,11 +321,11 @@ void pi_tower_segment_request(SimResults *results, int count, char **arguments, 
         if ((pi_tower_compare(pi_tower_unsigned(s_pi_tower_published[at].position - 1ull), position) == 0) &&
             (segment.size() >= expected.size()))
         {
-            scriptura_text(&results->line, "    Bailey's at position ");
-            scriptura_decimal(&results->line, s_pi_tower_published[at].position, 1u);
-            scriptura_text(&results->line, ": ");
-            scriptura_text(&results->line, expected.c_str());
-            scriptura_character(&results->line, '\n');
+            mmgr_line_put(&results->line, "    Bailey's at position ");
+            mmgr_line_decimal(&results->line, s_pi_tower_published[at].position, 1u);
+            mmgr_line_put(&results->line, ": ");
+            mmgr_line_put(&results->line, expected.c_str());
+            mmgr_line_ch(&results->line, '\n');
             matched = matched && (segment.compare(0u, expected.size(), expected) == 0);
             compared += 1u;
         }

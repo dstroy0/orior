@@ -14,7 +14,7 @@ int main(int count, char **arguments)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    ScripturaLine *const line = &results.line;
+    VerbaLinea *const line = &results.line;
     const unsigned int bits_count = plane_number(count, arguments, "--bits", PLANE_BITS);
     const unsigned int draws = plane_number(count, arguments, "--draws", PLANE_DRAWS);
     const std::string directory = plane_directory(count, arguments);
@@ -26,13 +26,13 @@ int main(int count, char **arguments)
         {
             limbs *= 2ull;
         }
-        scriptura_text(line, "  errored: the draws are at least 1, the bits are 64 to ");
-        scriptura_decimal(line, PLANE_BITS_MAX, 1u);
-        scriptura_text(line, ", and the bracket needs an exact width of ");
-        scriptura_decimal(line, needed, 1u);
-        scriptura_text(line, " bits: run with SIM_EXACT_LIMBS=");
-        scriptura_decimal(line, limbs, 1u);
-        scriptura_character(line, '\n');
+        mmgr_line_put(line, "  errored: the draws are at least 1, the bits are 64 to ");
+        mmgr_line_decimal(line, PLANE_BITS_MAX, 1u);
+        mmgr_line_put(line, ", and the bracket needs an exact width of ");
+        mmgr_line_decimal(line, needed, 1u);
+        mmgr_line_put(line, " bits: run with SIM_EXACT_LIMBS=");
+        mmgr_line_decimal(line, limbs, 1u);
+        mmgr_line_ch(line, '\n');
         sim_check(&results, 0, "the request fits the exact width");
         return sim_close(&results, "pi plane");
     }
@@ -65,9 +65,9 @@ int main(int count, char **arguments)
     sim_check(&results, drew, "every shape is drawn for pi and for one shuffle of its bits");
     if (drew)
     {
-        scriptura_text(line, "  the pictures, pi_<shape>.png and shuffled_<shape>.png, are in ");
-        scriptura_text(line, directory.c_str());
-        scriptura_character(line, '\n');
+        mmgr_line_put(line, "  the pictures, pi_<shape>.png and shuffled_<shape>.png, are in ");
+        mmgr_line_put(line, directory.c_str());
+        mmgr_line_ch(line, '\n');
     }
 
     std::vector<unsigned int> longest(bits_count);
@@ -98,21 +98,21 @@ int main(int count, char **arguments)
     if (ok)
     {
         const PlaneExtent &rings = extents[PLANE_WIDTHS + 2u];
-        const PlaneLine &spoke = found[PLANE_WIDTHS + 2u];
+        const PlaneLine &radial = found[PLANE_WIDTHS + 2u];
         std::vector<unsigned char> first_drawn;
         plane_shuffle(bits, 0u, &first_drawn);
         const PlaneLine drawn_line = plane_longest_line(rings, first_drawn.data(), steps);
         const int sparse =
-            plane_sparse_picture(rings, bits.data(), spoke, directory + "/pi_disc_rings_sparse.png") &&
+            plane_sparse_picture(rings, bits.data(), radial, directory + "/pi_disc_rings_sparse.png") &&
             plane_sparse_picture(rings, first_drawn.data(), drawn_line, directory + "/shuffled_disc_rings_sparse.png");
         sim_check(&results, sparse, "the ring-filled disc is drawn sparse, its longest line in red");
-        scriptura_text(line, "  the sparse ring: pi's longest line on the ring-filled disc is ");
-        plane_line_print(line, spoke);
-        scriptura_text(line, ", every bit of it a ");
-        scriptura_decimal(line, bits[(size_t)spoke.start], 1u);
-        scriptura_text(line, "; the shuffle's is ");
+        mmgr_line_put(line, "  the sparse ring: pi's longest line on the ring-filled disc is ");
+        plane_line_print(line, radial);
+        mmgr_line_put(line, ", every bit of it a ");
+        mmgr_line_decimal(line, bits[(size_t)radial.start], 1u);
+        mmgr_line_put(line, "; the shuffle's is ");
         plane_line_print(line, drawn_line);
-        scriptura_character(line, '\n');
+        mmgr_line_ch(line, '\n');
         sim_flush(&results);
     }
     unsigned int pi_lag = 0u;
@@ -208,12 +208,12 @@ int main(int count, char **arguments)
 
     if (ok && shuffled)
     {
-        scriptura_text(line, "  every width at once, the longest run of equal bits at any difference 1 to ");
-        scriptura_decimal(line, bits_count - 1u, 1u);
-        scriptura_text(line, ": ");
-        scriptura_decimal(line, pi_lag_length, 1u);
-        scriptura_text(line, " at difference ");
-        scriptura_decimal(line, pi_lag, 1u);
+        mmgr_line_put(line, "  every width at once, the longest run of equal bits at any difference 1 to ");
+        mmgr_line_decimal(line, bits_count - 1u, 1u);
+        mmgr_line_put(line, ": ");
+        mmgr_line_decimal(line, pi_lag_length, 1u);
+        mmgr_line_put(line, " at difference ");
+        mmgr_line_decimal(line, pi_lag, 1u);
         plane_band_print(line, lag_band, pi_lag_length);
         std::vector<unsigned int> order(bits_count - 1u);
         for (unsigned int lag = 1u; lag < bits_count; lag += 1u)
@@ -222,93 +222,93 @@ int main(int count, char **arguments)
         }
         std::stable_sort(order.begin(), order.end(),
                          [&longest](unsigned int left, unsigned int right) { return longest[left] > longest[right]; });
-        scriptura_text(line, "  pi's longest runs by difference:");
+        mmgr_line_put(line, "  pi's longest runs by difference:");
         for (unsigned int rank = 0u; rank < PLANE_TOP_LAGS; rank += 1u)
         {
-            scriptura_text(line, "  ");
-            scriptura_decimal(line, longest[order[rank]], 1u);
-            scriptura_text(line, " at ");
-            scriptura_decimal(line, order[rank], 1u);
+            mmgr_line_put(line, "  ");
+            mmgr_line_decimal(line, longest[order[rank]], 1u);
+            mmgr_line_put(line, " at ");
+            mmgr_line_decimal(line, order[rank], 1u);
         }
-        scriptura_character(line, '\n');
-        scriptura_text(line, "  pi's convergent denominators as differences:");
+        mmgr_line_ch(line, '\n');
+        mmgr_line_put(line, "  pi's convergent denominators as differences:");
         const unsigned int denominators[3] = {7u, 106u, 113u};
         for (unsigned int convergent = 0u; convergent < 3u; convergent += 1u)
         {
-            scriptura_text(line, "  ");
-            scriptura_decimal(line, longest[denominators[convergent]], 1u);
-            scriptura_text(line, " at ");
-            scriptura_decimal(line, denominators[convergent], 1u);
+            mmgr_line_put(line, "  ");
+            mmgr_line_decimal(line, longest[denominators[convergent]], 1u);
+            mmgr_line_put(line, " at ");
+            mmgr_line_decimal(line, denominators[convergent], 1u);
         }
-        scriptura_character(line, '\n');
+        mmgr_line_ch(line, '\n');
         sim_flush(&results);
         for (size_t extent = 0u; extent < extents.size(); extent += 1u)
         {
-            scriptura_text(line, "  ");
-            scriptura_text(line, extents[extent].name.c_str());
-            scriptura_text(line, " (");
-            scriptura_decimal(line, extents[extent].width, 1u);
-            scriptura_text(line, " x ");
-            scriptura_decimal(line, extents[extent].height, 1u);
-            scriptura_text(line, "): pi's longest line ");
+            mmgr_line_put(line, "  ");
+            mmgr_line_put(line, extents[extent].name.c_str());
+            mmgr_line_put(line, " (");
+            mmgr_line_decimal(line, extents[extent].width, 1u);
+            mmgr_line_put(line, " x ");
+            mmgr_line_decimal(line, extents[extent].height, 1u);
+            mmgr_line_put(line, "): pi's longest line ");
             plane_line_print(line, found[extent]);
             plane_band_print(line, band[extent], found[extent].length);
             sim_flush(&results);
         }
-        scriptura_text(
+        mmgr_line_put(
             line, "  the ones' spread, sum over the classes of (2 ones - size)^2; a residue is one place on every");
-        scriptura_text(line, " arm of the twindragon, a block one whole sub-dragon\n");
+        mmgr_line_put(line, " arm of the twindragon, a block one whole sub-dragon\n");
         for (unsigned int kind = 0u; kind < 2u * PLANE_SCALES; kind += 1u)
         {
             const unsigned int scale = (kind / 2u) + 1u;
             // the kind's low bit chooses residues or blocks
             const unsigned long long measurement = plane_spread(bits.data(), bits_count, scale, (int)(kind % 2u));
-            scriptura_text(line, ((kind % 2u) == 0u) ? "  residues mod 2^" : "  blocks, 2^");
-            scriptura_decimal(line, scale, 1u);
-            scriptura_text(line, ((kind % 2u) == 0u) ? ": pi's spread " : " of them: pi's spread ");
-            scriptura_decimal(line, measurement, 1u);
+            mmgr_line_put(line, ((kind % 2u) == 0u) ? "  residues mod 2^" : "  blocks, 2^");
+            mmgr_line_decimal(line, scale, 1u);
+            mmgr_line_put(line, ((kind % 2u) == 0u) ? ": pi's spread " : " of them: pi's spread ");
+            mmgr_line_decimal(line, measurement, 1u);
             plane_band_print(line, spread_band[kind], measurement);
             sim_flush(&results);
         }
         const unsigned long long depth_measurement =
             plane_depth_spread(dragon, dragon_depth, bits.data(), depth_ones, depth_sizes);
-        scriptura_text(line, "  the twindragon by depth from its edge, 1 the arm points and the lace to ");
-        scriptura_decimal(line, PLANE_DEPTHS, 1u);
-        scriptura_text(line, " and deeper the middle; pi's ones of the pixels at each depth:");
+        mmgr_line_put(line, "  the twindragon by depth from its edge, 1 the arm points and the lace to ");
+        mmgr_line_decimal(line, PLANE_DEPTHS, 1u);
+        mmgr_line_put(line, " and deeper the middle; pi's ones of the pixels at each depth:");
         for (unsigned int level = 1u; level <= PLANE_DEPTHS; level += 1u)
         {
-            scriptura_text(line, "  ");
-            scriptura_decimal(line, depth_ones[level], 1u);
-            scriptura_character(line, '/');
-            scriptura_decimal(line, depth_sizes[level], 1u);
+            mmgr_line_put(line, "  ");
+            mmgr_line_decimal(line, depth_ones[level], 1u);
+            mmgr_line_ch(line, '/');
+            mmgr_line_decimal(line, depth_sizes[level], 1u);
         }
-        scriptura_text(line, "\n  pi's spread over the depths ");
-        scriptura_decimal(line, depth_measurement, 1u);
+        mmgr_line_put(line, "\n  pi's spread over the depths ");
+        mmgr_line_decimal(line, depth_measurement, 1u);
         plane_band_print(line, depth_band, depth_measurement);
         sim_flush(&results);
 
-        scriptura_text(line, "  the sphere: the integer shell of radius ");
-        scriptura_signed(line, sphere_radius);
-        scriptura_text(line, ", ");
-        scriptura_decimal(line, sphere_count, 1u);
-        scriptura_text(line, " points, holding pi's first ");
-        scriptura_decimal(line, sphere_count, 1u);
-        scriptura_text(line, " bits, seen from +z, -z, +x and -x\n");
+        mmgr_line_put(line, "  the sphere: the integer shell of radius ");
+        mmgr_line_decimal_signed(line, sphere_radius);
+        mmgr_line_put(line, ", ");
+        mmgr_line_decimal(line, sphere_count, 1u);
+        mmgr_line_put(line, " points, containing pi's first ");
+        mmgr_line_decimal(line, sphere_count, 1u);
+        mmgr_line_put(line, " bits, seen from +z, -z, +x and -x\n");
         for (size_t fill = 0u; fill < spheres.size(); fill += 1u)
         {
-            scriptura_text(line, "  ");
-            scriptura_text(line, spheres[fill].name.c_str());
-            scriptura_text(line, ": pi's longest line on the views ");
+            mmgr_line_put(line, "  ");
+            mmgr_line_put(line, spheres[fill].name.c_str());
+            mmgr_line_put(line, ": pi's longest line on the views ");
             plane_line_print(line, sphere_found[fill]);
             plane_band_print(line, sphere_line_band[fill], sphere_found[fill].length);
-            scriptura_text(line, "  ");
-            scriptura_text(line, spheres[fill].name.c_str());
-            scriptura_text(line, ": pi's spread over the circles of latitude ");
-            scriptura_decimal(line, sphere_latitude[fill], 1u);
+            mmgr_line_put(line, "  ");
+            mmgr_line_put(line, spheres[fill].name.c_str());
+            mmgr_line_put(line, ": pi's spread over the circles of latitude ");
+            mmgr_line_decimal(line, sphere_latitude[fill], 1u);
             plane_band_print(line, sphere_latitude_band[fill], sphere_latitude[fill]);
             sim_flush(&results);
         }
-        scriptura_text(line, "  the golden sphere's spirals, pi's longest run at each Fibonacci difference:\n");
+        mmgr_line_put(line, "  the golden sphere's spirals, pi's longest run at each Fibonacci difference:\n");
         unsigned long long golden_max = 0ull;
         for (unsigned int fibonacci = 0u; fibonacci < PLANE_FIBONACCI; fibonacci += 1u)
         {
@@ -318,14 +318,14 @@ int main(int count, char **arguments)
             }
             const unsigned long long run = longest[s_plane_fibonacci[fibonacci]];
             golden_max = std::max(golden_max, run);
-            scriptura_text(line, "    F = ");
-            scriptura_decimal(line, s_plane_fibonacci[fibonacci], 1u);
-            scriptura_text(line, ": ");
-            scriptura_decimal(line, run, 1u);
+            mmgr_line_put(line, "    F = ");
+            mmgr_line_decimal(line, s_plane_fibonacci[fibonacci], 1u);
+            mmgr_line_put(line, ": ");
+            mmgr_line_decimal(line, run, 1u);
             plane_band_print(line, fibonacci_band[fibonacci], run);
         }
-        scriptura_text(line, "  the longest over every Fibonacci difference ");
-        scriptura_decimal(line, golden_max, 1u);
+        mmgr_line_put(line, "  the longest over every Fibonacci difference ");
+        mmgr_line_decimal(line, golden_max, 1u);
         plane_band_print(line, fibonacci_band[PLANE_FIBONACCI], golden_max);
         sim_flush(&results);
     }
@@ -353,22 +353,22 @@ int main(int count, char **arguments)
             path_band.push_back(drawn_ones);
             at_or_below += (drawn_ones <= ones) ? 1ull : 0ull;
         }
-        scriptura_text(line, "  the drawn path: ");
-        scriptura_decimal(line, under.size(), 1u);
-        scriptura_text(line, " cells of the ring-filled disc, pi's ones on them ");
-        scriptura_decimal(line, ones, 1u);
-        scriptura_text(line, ", its zeros ");
-        scriptura_decimal(line, under.size() - ones, 1u);
-        scriptura_text(line, "; ");
-        scriptura_decimal(line, at_or_below, 1u);
-        scriptura_text(line, " of the draws at or below pi's ones");
+        mmgr_line_put(line, "  the drawn path: ");
+        mmgr_line_decimal(line, under.size(), 1u);
+        mmgr_line_put(line, " cells of the ring-filled disc, pi's ones on them ");
+        mmgr_line_decimal(line, ones, 1u);
+        mmgr_line_put(line, ", its zeros ");
+        mmgr_line_decimal(line, under.size() - ones, 1u);
+        mmgr_line_put(line, "; ");
+        mmgr_line_decimal(line, at_or_below, 1u);
+        mmgr_line_put(line, " of the draws at or below pi's ones");
         if (!under.empty() && !path_band.empty())
         {
             plane_band_print(line, path_band, ones);
         }
         else
         {
-            scriptura_character(line, '\n');
+            mmgr_line_ch(line, '\n');
         }
         sim_check(&results, !under.empty(), "the drawn path lies on the disc");
         sim_flush(&results);

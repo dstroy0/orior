@@ -3,8 +3,8 @@
 // noise_detector_ladder.cu: the ladder
 #include "noise_detector_internal.h"
 
-// A sample's quiet static voxels, their frames in blocks as the moment pass takes them, each kept block added to the
-// ladder's sums at its voxel's level over the other blocks
+// A sample's quiet static voxels, their frames in blocks as the moment pass takes them, each retained block added to
+// the ladder's sums at its voxel's level over the other blocks
 static long noise_ladder_sample(const unsigned short *volume, const unsigned long long extent[4], NoiseLadderSums *sums,
                                 unsigned long long *left_out, EngineError *error)
 {

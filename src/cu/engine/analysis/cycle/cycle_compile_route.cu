@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cycle_compile_route.cu: holding programs, the route and the device's code generator
+// cycle_compile_route.cu: caching programs, the route and the device's code generator
 #include "../../../includes/file_defs/krs/ruleset_reader.h"
 #include "cycle_compile_internal.h"
 
 static std::vector<CycleCompiledProgram> s_cycle_programs;
 
-// the program found in this process by its text, else in the cache, else built and kept in both, then loaded as a
+// the program found in this process by its text, else in the cache, else built and cached in both, then loaded as a
 // library: PTX where `ptx`, which nvJitLink assembles as it links it alone, else C source that
-// NVRTC compiles first. `written` is the whole nanoseconds the text took to write, for the report. 0 where the build or the
-// load failed
+// NVRTC compiles first. `written` is the whole nanoseconds the text took to write, for the report. 0 where the build or
+// the load failed
 static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *record, const CycleTarget *lane_target,
                               const std::string &text, int ptx, int lto, unsigned long long written, int report)
 {
@@ -105,7 +105,8 @@ static int cycle_program_load(const EngineRecordLayout *layout, CycleRecord *rec
     return 1;
 }
 
-// a hold on a program loaded in this process given back, where `kernel` is one; the last hold released unloads it
+// a reference to a program loaded in this process given back, where `kernel` is one; the last reference released
+// unloads it
 void cycle_program_release(cudaKernel_t kernel)
 {
     for (size_t at = 0u; (kernel != NULL) && (at < s_cycle_programs.size()); at += 1u)
@@ -130,13 +131,13 @@ static TargetInfo cycle_target_info(const CycleTarget *lane_target)
                       g_cycle_compiler.major, g_cycle_compiler.minor, g_cycle_prelude};
 }
 
-// Rule (i): a program held as PTX routed between its two rulesets by its local frame against the device's stack limit.
-// A frame past the limit has the runtime grow the stack for every resident thread at a run's first launch, and
+// Rule (i): a program stored as PTX routed between its two rulesets by its local frame against the device's stack
+// limit. A frame past the limit has the runtime grow the stack for every resident thread at a run's first launch, and
 // cycle_stack_return gives it back once the run is done: 7.449 to 10.130 ms a run on the record tests, against 0.127 to
 // 1.630 ms for frames within the limit (engine_table item 11(f)). Past the limit the program is built as
 // C source as well, and the smaller frame runs, the C source's wherever it fits and the PTX's does not; the
-// other's hold is given back. Where the C source does not build, or its frame cannot be read, the PTX runs.
-// CYCLE_RECORD_KEEP_PTX=1 turns the rule off: a program held as PTX runs as PTX
+// other's reference is given back. Where the C source does not build, or its frame cannot be read, the PTX runs.
+// CYCLE_RECORD_RETAIN_PTX=1 turns the rule off: a program stored as PTX runs as PTX
 static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *record, const CycleTarget *lane_target,
                                int lto, int report)
 {
@@ -146,7 +147,7 @@ static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *re
         (cudaFuncGetAttributes(&attributes, (const void *)record->kernel) != cudaSuccess) ||
         (attributes.localSizeBytes <= limit))
     {
-        // an error the runtime still holds is the attempt's own, dropped before a run reads it as its own
+        // an error the runtime still retains is the attempt's own, dropped before a run reads it as its own
         cudaGetLastError();
         return;
     }
@@ -190,7 +191,7 @@ static void cycle_record_route(const EngineRecordLayout *layout, CycleRecord *re
         char character[64];
         snprintf(character, sizeof(character), "a %zu-byte frame", source_frame);
         fprintf(stderr,
-                "  cycle: a program of %u steps as PTX holds a %zu-byte local frame, past the %zu-byte stack "
+                "  cycle: a program of %u steps as PTX uses a %zu-byte local frame, past the %zu-byte stack "
                 "limit; as C source, %s: it runs as %s\n",
                 layout->steps, ptx_frame, limit, (read != 0) ? character : "not built",
                 (source_runs != 0) ? "C" : "PTX");
@@ -213,7 +214,7 @@ static std::vector<std::string> s_cycle_codegen_written;
 // file read on the device and its written forms laid out once for the target and the header, the forms decided on the
 // device a thread a step, laid out as the assembly printer's records there, written by the record machine a lane a byte
 // and gathered. The host code generator's text is the check: the device's ruleset, its written forms and its text are
-// held to the host's word for word and byte for byte. Returns 1 where the device's text is built, and 0, with
+// checked against the host's word for word and byte for byte. Returns 1 where the device's text is built, and 0, with
 // the step that differed on stderr, where the device did not write it or any of the three is apart from the host's.
 // The device splits the lane where `generator`'s program() splits it. A text the device wrote before in this process
 // is not written again
@@ -330,13 +331,13 @@ static int cycle_codegen_on_device(const CodeGenerator &generator, const Ruleset
 }
 
 // the program's lane written as PTX and built, else its C source compiled by NVRTC and built, found in this process or
-// the cache where either was built before, and the places it holds in shared memory set. PTX is not written where the
-// block is LTO-IR, CYCLE_RECORD_NVRTC=1 or CYCLE_RECORD_HOST_C=1, and a program held as PTX is routed by rule (i).
-// Under CYCLE_RECORD_HOST_C=1 the C source is built by the host's compiler in place of NVRTC. 0 where it stays on the
-// interpreter: no NVRTC or nvJitLink, a step neither holds, a C source whose ruleset c.krs errored, a compile, link
-// or load that failed, or the assembly printer run while it writes its own lane. Every lane is written by the device
-// (cycle_codegen_on_device) but the assembly printer's own: CYCLE_ERROR, with ENGINE_ERROR_LOGIC in `error`, where
-// the device's lane is not the host code generator's
+// the cache where either was built before, and the places it occupies in shared memory set. PTX is not written where
+// the block is LTO-IR, CYCLE_RECORD_NVRTC=1 or CYCLE_RECORD_HOST_C=1, and a program stored as PTX is routed by rule
+// (i). Under CYCLE_RECORD_HOST_C=1 the C source is built by the host's compiler in place of NVRTC. 0 where it stays on
+// the interpreter: no NVRTC or nvJitLink, a step neither supports, a C source whose ruleset c.krs errored, a compile,
+// link or load that failed, or the assembly printer run while it writes its own lane. Every lane is written by the
+// device (cycle_codegen_on_device) but the assembly printer's own: CYCLE_ERROR, with ENGINE_ERROR_LOGIC in `error`,
+// where the device's lane is not the host code generator's
 int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, EngineError *error)
 {
     const int report = cycle_environment_set("CYCLE_RECORD_REPORT");
@@ -393,13 +394,13 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
         }
         if ((report != 0) && !ptx.empty())
         {
-            fprintf(stderr, "  cycle: a program of %u steps as PTX holds at most %u words live a lane\n", layout->steps,
+            fprintf(stderr, "  cycle: a program of %u steps as PTX uses at most %u words live a lane\n", layout->steps,
                     live);
         }
         if (!ptx.empty() && cycle_program_load(layout, record, lane_target, ptx, 1, lto, written, report))
         {
             record->places = places;
-            if (cycle_environment_set("CYCLE_RECORD_KEEP_PTX") == 0)
+            if (cycle_environment_set("CYCLE_RECORD_RETAIN_PTX") == 0)
             {
                 cycle_record_route(layout, record, lane_target, lto, report);
             }
@@ -410,7 +411,7 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
             fprintf(stderr, "  cycle: a program of %u steps goes to NVRTC (%s)\n", layout->steps,
                     (rules == NULL)  ? "its ruleset, ptx.krs, errored"
                     : header.empty() ? "PTX's header could not be read"
-                    : ptx.empty()    ? "a step the lane does not hold, or a form given other arguments than it takes"
+                    : ptx.empty()    ? "a step the lane does not support, or a form given other arguments than it takes"
                                      : "its PTX did not build");
         }
     }
@@ -437,8 +438,9 @@ int cycle_record_compile(const EngineRecordLayout *layout, CycleRecord *record, 
         if (report != 0)
         {
             fprintf(stderr, "  cycle: a program of %u steps runs on the interpreter (%s)\n", layout->steps,
-                    (source_rules == NULL) ? "its C ruleset, c.krs, errored"
-                                           : "a step it does not hold, or a form given other arguments than it takes");
+                    (source_rules == NULL)
+                        ? "its C ruleset, c.krs, errored"
+                        : "a step it does not support, or a form given other arguments than it takes");
         }
         return 0;
     }

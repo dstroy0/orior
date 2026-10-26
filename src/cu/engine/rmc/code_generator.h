@@ -4,9 +4,9 @@
 #define CODE_GENERATOR_H
 
 // The register lane, the code generator that names no language: each step unrolled at its widths into
-// straight-line text over registers the lane holds itself, every line a form of the language's ruleset. A language is
+// straight-line text over registers the lane uses itself, every line a form of the language's ruleset. A language is
 // its ruleset's file, and the file names the toolchain that builds its text, where its header comes from, how many
-// memory writes its text can make in one state (write_ports), whether it holds the lane's file and signs in the thread
+// memory writes its text can make in one state (write_ports), whether it uses the lane's file and signs in the thread
 // block's shared memory (shared), and the part whose files are read after it (part)
 
 #include "codegen_core.h"
@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-// a budget or a port count that holds anything
+// a budget or a port count that contains anything
 #define SCHEDULE_UNBOUNDED 0xFFFFFFFFu
 
 // how a lane is split into states, a clock each: the cost of each form by the name its ruleset gives it, as the
@@ -32,7 +32,7 @@ struct ScheduleModel
 };
 
 // a lane as it was split: its states, the most cost one state chains, and the forms that alone cost more than a state
-// holds
+// is true
 struct ScheduleReport
 {
     unsigned int states;
@@ -59,16 +59,16 @@ class CodeGenerator : public Target
     std::string program(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
                         unsigned int *places, unsigned int *live) override;
 
-    // the lane split into states by `model`, as program() writes it otherwise; `report` told how it was split
+    // the lane split into states by `model`, as program() writes it otherwise; `report` informed how it was split
     std::string scheduled(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
                           unsigned int *places, unsigned int *live, const ScheduleModel &model, ScheduleReport *report);
 
     // the forms program() writes the lane in, as the core decides them (codegen_core.h), in the text's order, the
-    // header's place held by an item of the form ASM_PRINTER_ALL_ONES, and the places the lane holds in shared memory;
-    // 0 where program() writes nothing for want of a form. The device decides the same (codegen_device.h)
+    // header's place occupied by an item of the form ASM_PRINTER_ALL_ONES, and the places the lane uses in shared
+    // memory; 0 where program() writes nothing for want of a form. The device decides the same (codegen_device.h)
     int decided(const EngineRecordLayout *layout, unsigned int *places, std::vector<MachineInstr> *items);
 
-    // the forms scheduled() writes the lane in, as decided() gives program()'s, and `report` told how it was split
+    // the forms scheduled() writes the lane in, as decided() gives program()'s, and `report` informed how it was split
     int decided(const EngineRecordLayout *layout, const ScheduleModel &model, ScheduleReport *report,
                 unsigned int *places, std::vector<MachineInstr> *items);
 
@@ -80,40 +80,40 @@ class CodeGenerator : public Target
     // NULL where program() writes the lane whole
     virtual const ScheduleModel *program_schedule_model(void) const;
 
-    // how many registers the language's one register file holds for the lane, where every bank is in that file and
+    // how many registers the language's one register file contains for the lane, where every bank is in that file and
     // the banks are laid end to end from the counts the lane declares, in place of each being numbered from 0. A
     // language whose registers are virtual gives each bank a namespace of its own and answers 0. A lane whose banks
-    // run past what the file holds is written by nobody: program() refuses it, in place of writing a register the
+    // run past what the file contains is written by nobody: program() refuses it, in place of writing a register the
     // language has pinned to something else
-    virtual unsigned int register_file_holds(void) const;
+    virtual unsigned int register_file_size(void) const;
 
     // Whether the language writes the program resident itself. Most do: the resident is a form of the ruleset like
     // any other, and program() puts it after the lane. A language whose resident reaches it already built answers
-    // 0, and program() leaves the form out in place of asking the ruleset for it
+    // 0, and program() leaves the form out in place of querying the ruleset for it
     virtual int program_unit_written(void) const;
 
     // 1 where program() splits the lane, `costs` then its model as the core splits by it, for the device to split the
     // same
     int program_schedule_costs(ScheduleCosts *costs) const;
 
-    // each register the lane last written holds, one a line: the register as the ruleset writes it, what holds it, its
-    // bank, its fixed register's name, or the form whose scratch it is, and the items that claim and release it, by
-    // their place in the lane from 1 and their form (codegen_held)
-    const std::string &held(void) const;
+    // each register the lane last written uses, one a line: the register as the ruleset writes it, what contains it,
+    // its bank, its fixed register's name, or the form whose scratch it is, and the items that claim and release it, by
+    // their place in the lane from 1 and their form (codegen_claims)
+    const std::string &register_claims(void) const;
 
   private:
     int decide(const EngineRecordLayout *layout, const ScheduleModel *model, ScheduleReport *report,
                unsigned int *places, unsigned int *live, std::vector<MachineInstr> *items);
 
-    std::string held_lines;
+    std::string claim_lines;
 
     std::string lane(const EngineRecordLayout *layout, const TargetInfo *target, const std::string &header,
                      unsigned int *places, unsigned int *live, const ScheduleModel *model, ScheduleReport *report);
 };
 
-// the code generator a process holds for the ruleset `file`, its ruleset read at its first call to ruleset(). A ruleset
-// that gives shared 1 lays out the file and its signs in shared memory, a thread's places a word each across the
-// thread block's threads and the signs a byte each after them, as the record machine sizes them: the lane then holds
+// the code generator a process retains for the ruleset `file`, its ruleset read at its first call to ruleset(). A
+// ruleset that gives shared 1 lays out the file and its signs in shared memory, a thread's places a word each across
+// the thread block's threads and the signs a byte each after them, as the record machine sizes them: the lane then uses
 // the file's places there and opens by finding its signs
 CodeGenerator &code_generator(const char *file);
 

@@ -139,19 +139,19 @@ static std::vector<PlaneSpherePoint> plane_shell_points(long long radius)
     return points;
 }
 
-// the widest shell that holds no more points than the bits
+// the widest shell that contains no more points than the bits
 std::vector<PlaneSpherePoint> plane_shell(unsigned int count, long long *radius)
 {
-    std::vector<PlaneSpherePoint> kept;
+    std::vector<PlaneSpherePoint> retained;
     *radius = 0ll;
     for (long long trial = 1ll;; trial += 1ll)
     {
         std::vector<PlaneSpherePoint> points = plane_shell_points(trial);
         if (points.size() > count)
         {
-            return kept;
+            return retained;
         }
-        kept.swap(points);
+        retained.swap(points);
         *radius = trial;
     }
 }

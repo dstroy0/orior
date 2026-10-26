@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // python_paths_search.c: the tree's Python scripts that touch `sys.path` read, and the folders they name in the tree
-// counted, the most used first, the reading kept for thirty seconds
+// counted, the most used first, the reading cached for thirty seconds
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
@@ -11,13 +11,13 @@
 // and the most one script names
 #define CLI_PY_LARGEST (1ull << 20u)
 #define CLI_PY_FRESH_FOR 30000ull
-#define CLI_PY_KEPT 1024u
+#define CLI_PY_COUNTS_MAX 1024u
 #define CLI_PY_SEEN 256u
 
 // A folder the scripts name, and how many of them name it
 typedef struct
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned int count;
 } CliPyCount;
 
@@ -25,12 +25,12 @@ typedef struct
 // one script names, and its text
 typedef struct
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     unsigned long long at;
-    int kept;
-    CliPyCount counted[CLI_PY_KEPT];
+    int has_counts;
+    CliPyCount counted[CLI_PY_COUNTS_MAX];
     unsigned int counts;
-    char seen[CLI_PY_SEEN][CLI_PATH_LONGEST];
+    char seen[CLI_PY_SEEN][CLI_PATH_MAX_LEN];
     unsigned int seens;
 } CliPySearch;
 
@@ -73,7 +73,7 @@ static int cli_searched(const char *file)
     }
 }
 
-// whether `size` bytes are UTF-8 whole and hold `sys.path`
+// whether `size` bytes are UTF-8 whole and contain `sys.path`
 static int cli_touches_path(const unsigned char *bytes, unsigned long long size)
 {
     unsigned long long at = 0ull;
@@ -128,10 +128,10 @@ static void cli_seen_counted(void)
         {
             at += 1u;
         }
-        if ((at == s_search.counts) && (s_search.counts < CLI_PY_KEPT))
+        if ((at == s_search.counts) && (s_search.counts < CLI_PY_COUNTS_MAX))
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = s_search.counted[at].path, .bytes = CLI_PATH_LONGEST, .src = s_search.seen[one]});
+                &(MemoriaCfg){.dst = s_search.counted[at].path, .bytes = CLI_PATH_MAX_LEN, .src = s_search.seen[one]});
             s_search.counted[at].count = 0u;
             s_search.counts += 1u;
         }
@@ -145,17 +145,17 @@ static void cli_seen_counted(void)
 // the script at `file` of the tree read, and the folders in the tree other than `top` it names counted
 static void cli_script_read(const char *root, const char *top, const char *file)
 {
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, root);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, file);
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, root);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, file);
     unsigned long long size = 0ull;
-    if ((cli_line_closed(&line) == 0ull) || !cli_file_size(path, &size) || (size > CLI_PY_LARGEST))
+    if ((mmgr_line_finish(&line) == 0ull) || !cli_file_size(path, &size) || (size > CLI_PY_LARGEST))
     {
         return;
     }
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     if (bytes == NULL)
     {
         return;
@@ -166,7 +166,7 @@ static void cli_script_read(const char *root, const char *top, const char *file)
         s_search.seens = 0u;
         for (unsigned int at = 0u; at < g_cli_py.founds; at += 1u)
         {
-            char folder[CLI_PATH_LONGEST];
+            char folder[CLI_PATH_MAX_LEN];
             const int full = query_path_full(cli_py_text(g_cli_py.found[at]), folder, sizeof(folder));
             if (full && query_is_folder(folder) && cli_paste_under(top, folder) &&
                 (!cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = top, .cap = CLI_CELLS_POOL})))
@@ -184,12 +184,12 @@ unsigned int cli_python_paths(const char *root, unsigned int most, void (*each)(
                               void *context)
 {
     cli_lock_take(&s_lock);
-    const int fresh = s_search.kept &&
+    const int fresh = s_search.has_counts &&
                       (cellul.eq(&(CatenaFinitaCfg){.src = s_search.root, .other = root, .cap = CLI_CELLS_POOL})) &&
                       ((cli_clock_milliseconds() - s_search.at) < CLI_PY_FRESH_FOR);
     if (!fresh)
     {
-        char top[CLI_PATH_LONGEST];
+        char top[CLI_PATH_MAX_LEN];
         if (!query_path_full(root, top, sizeof(top)))
         {
             memor.cpy(&(MemoriaCfg){.dst = top,
@@ -197,7 +197,7 @@ unsigned int cli_python_paths(const char *root, unsigned int most, void (*each)(
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
         }
         s_search.counts = 0u;
-        const CliFiles *const files = cli_files_held(root);
+        const CliFiles *const files = cli_files_view(root);
         for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
         {
             const char *const file = cli_files_at(files, index);
@@ -210,22 +210,22 @@ unsigned int cli_python_paths(const char *root, unsigned int most, void (*each)(
         // the most used first, then by path
         for (unsigned int at = 1u; at < s_search.counts; at += 1u)
         {
-            const CliPyCount held = s_search.counted[at];
+            const CliPyCount pivot = s_search.counted[at];
             unsigned int place = at;
-            while ((place > 0u) && ((s_search.counted[place - 1u].count < held.count) ||
-                                    ((s_search.counted[place - 1u].count == held.count) &&
-                                     (cli_text_order(s_search.counted[place - 1u].path, held.path) > 0))))
+            while ((place > 0u) && ((s_search.counted[place - 1u].count < pivot.count) ||
+                                    ((s_search.counted[place - 1u].count == pivot.count) &&
+                                     (cli_text_order(s_search.counted[place - 1u].path, pivot.path) > 0))))
             {
                 s_search.counted[place] = s_search.counted[place - 1u];
                 place -= 1u;
             }
-            s_search.counted[place] = held;
+            s_search.counted[place] = pivot;
         }
         memor.cpy(&(MemoriaCfg){.dst = s_search.root,
                                 .src = root,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
         s_search.at = cli_clock_milliseconds();
-        s_search.kept = 1;
+        s_search.has_counts = 1;
     }
     const unsigned int count = (s_search.counts < most) ? s_search.counts : most;
     for (unsigned int at = 0u; at < count; at += 1u)

@@ -1,10 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksg_check.c: a file's seal held to what ksg.h says it is. The root the seal folds as the lines come is the root of
-// the leaves made again whole and joined as RFC 6962 joins a Merkle tree's, at the largest power of two below their
-// count; the same bytes handed in pieces of every size seal alike; one line changed changes that leaf and the root and
-// no other leaf; a file of no bytes is one leaf; a line longer than KSG_LINE_MOST is a leaf for each KSG_LINE_MOST of
-// it; and the trailer holds the size, KSG_LINE_MOST, the count of leaves and the root. Exit 0 where every one held
+// ksg_check.c: a file's seal checked against what ksg.h specifies. The root the seal folds as the lines come is the
+// root of the leaves made again whole and joined as RFC 6962 joins a Merkle tree's, at the largest power of two below
+// their count; the same bytes handed in pieces of every size seal alike; one line changed changes that leaf and the
+// root and no other leaf; a file of no bytes is one leaf; a line longer than KSG_LINE_MOST is a leaf for each
+// KSG_LINE_MOST of it; and the trailer contains the size, KSG_LINE_MOST, the count of leaves and the root. Exit 0 where
+// every one passed
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio_internal.h"
 #include "../../../../../../../src/cu/includes/file_defs/ksg/ksg.h"
 #include "verba_scribo/verba_scribo.h"
@@ -27,18 +28,18 @@ static KsgCheckLeaves s_one;
 static KsgCheckLeaves s_other;
 static char s_text[KSG_CHECK_BYTES];
 static unsigned int s_failed;
-static unsigned int s_held;
+static unsigned int s_passed;
 
-// one check said: held, or failed, by `what`
-static void ksg_check(int held, const char *what)
+// one check reported: passed, or failed, by `what`
+static void ksg_check(int passed, const char *what)
 {
-    printf("%s%s\n", held ? "  ok   " : "  FAIL ", what);
-    s_held += held ? 1u : 0u;
-    s_failed += held ? 0u : 1u;
+    printf("%s%s\n", passed ? "  ok   " : "  FAIL ", what);
+    s_passed += passed ? 1u : 0u;
+    s_failed += passed ? 0u : 1u;
 }
 
-// a leaf kept in the leaves handed as context
-static int ksg_kept(void *context, const unsigned char *leaf, unsigned long long line)
+// a leaf stored in the leaves handed as context
+static int ksg_leaf_stored(void *context, const unsigned char *leaf, unsigned long long line)
 {
     (void)line;
     KsgCheckLeaves *const leaves = context;
@@ -58,7 +59,7 @@ static int ksg_sealed(const char *text, unsigned long long size, unsigned long l
 {
     static KsgSeal s_seal;
     leaves->count = 0u;
-    int whole = ksg_seal_begun(&s_seal, ksg_kept, leaves);
+    int whole = ksg_seal_begun(&s_seal, ksg_leaf_stored, leaves);
     for (unsigned long long at = 0ull; whole && (at < size); at += piece)
     {
         const unsigned long long left = size - at;
@@ -98,7 +99,7 @@ static void ksg_root_again(const KsgCheckLeaves *leaves, unsigned long long size
     unsigned char rooted[16u + KSG_SIGNUM_BYTES];
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        // each word shifted down to one byte keeps only that byte
+        // each word shifted down to one byte retains only that byte
         rooted[at] = (unsigned char)(size >> (8u * at));
         rooted[8u + at] = (unsigned char)((unsigned long long)KSG_LINE_MOST >> (8u * at));
     }
@@ -139,11 +140,11 @@ int main(void)
     for (unsigned int leaves = 1u; leaves <= 1000u; leaves += (leaves < 40u) ? 1u : 97u)
     {
         const unsigned long long part = ksg_text(leaves, 0u);
-        int held = ksg_sealed(s_text, part, part, &s_one, root, trailer);
+        int sealed = ksg_sealed(s_text, part, part, &s_one, root, trailer);
         ksg_root_again(&s_one, part, again);
-        held = held && (memcmp(root, again, KSG_SIGNUM_BYTES) == 0);
-        ksg_check(held, (leaves == 1u) ? "the root folded as the lines come is RFC 6962's root of the leaves"
-                                       : "and for another count of lines");
+        sealed = sealed && (memcmp(root, again, KSG_SIGNUM_BYTES) == 0);
+        ksg_check(sealed, (leaves == 1u) ? "the root folded as the lines come is RFC 6962's root of the leaves"
+                                         : "and for another count of lines");
     }
     int alike = ksg_sealed(s_text, size, size, &s_one, root, trailer);
     for (unsigned long long piece = 1ull; alike && (piece <= 4096ull); piece *= 3ull)
@@ -185,7 +186,7 @@ int main(void)
     }
     ksg_check((words[0] == long_size) && (words[1] == KSG_LINE_MOST) && (words[2] == 12u) &&
                   (memcmp(trailer + 24u, root, KSG_SIGNUM_BYTES) == 0),
-              "the trailer holds the size, KSG_LINE_MOST, the count of leaves and the root");
-    printf("ksg check: %u held, %u failed\n", s_held, s_failed);
+              "the trailer contains the size, KSG_LINE_MOST, the count of leaves and the root");
+    printf("ksg check: %u checks, %u failed\n", s_passed + s_failed, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

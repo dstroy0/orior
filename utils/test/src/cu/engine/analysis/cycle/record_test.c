@@ -5,8 +5,8 @@
 // record operation are encoded (keymath), laid out (key_schedule) and run by cycle_record_run_host, the exact integer
 // library's own steps, with no device and no CUDA toolchain. Each program's inputs come from one xorshift stream:
 // every host draws the same atoms, and the test prints a digest of the inputs and of every output word: two parts
-// whose lines match run the record machine word for word alike. The device's record tests hold the device to this
-// same oracle on the x86 host. A part that matches x86 here matches the device too. It also holds that a laid-out
+// whose lines match run the record machine word for word alike. The device's record tests check the device against this
+// same oracle on the x86 host. A part that matches x86 here matches the device too. It also checks that a laid-out
 // program with its registers reused writes the records the unreused one does, and that a zero divisor and an inexact
 // division error on the run.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"

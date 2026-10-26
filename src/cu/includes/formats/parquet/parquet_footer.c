@@ -10,7 +10,7 @@ _Static_assert(PARQUET_MAGIC_BYTES == (sizeof(PARQUET_MAGIC) - 1u),
 #define PARQUET_REQUIRED 0u
 #define PARQUET_REPEATED 2u
 
-// one schema element's parent, as the preorder walk of the schema holds it
+// one schema element's parent, as the preorder walk of the schema records it
 typedef struct
 {
     unsigned long long children_left;
@@ -198,7 +198,7 @@ static int parquet_column_metadata_read(ParquetCursor *cursor, const ParquetLeaf
         else if ((field_id == 4ll) && (kind == PARQUET_THRIFT_I32))
         {
             const unsigned long long codec = parquet_nonnegative_read(cursor);
-            // a codec is 0 through 7, stored as i32; one past it is kept as the last unknown one, and an unknown
+            // a codec is 0 through 7, stored as i32; one past it is stored as the last unknown one, and an unknown
             // codec is refused where a page is decoded
             chunk->codec = (ParquetCodec)((codec <= (unsigned long long)PARQUET_LZ4_RAW) ? codec : 0xFFull);
         }
@@ -342,7 +342,7 @@ static int parquet_file_metadata_read(ParquetCursor *cursor, ParquetFooter *foot
                     return 0;
                 }
             }
-            // the count was held to PARQUET_ROW_GROUPS_MOST above and fits an unsigned int
+            // the count was limited to PARQUET_ROW_GROUPS_MOST above and fits an unsigned int
             footer->row_group_count = (unsigned int)count;
         }
         else
@@ -372,7 +372,7 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     {
         return 0;
     }
-    // the size was held at twelve or more above, and the conversion is exact
+    // the size was checked at twelve or more above, and the conversion is exact
     const unsigned long long file_size = (unsigned long long)file_bytes;
     unsigned char trailer[PARQUET_TRAILER_BYTES];
     EngineFileRange range;
@@ -402,7 +402,7 @@ int parquet_footer_read(const EngineIngestTools *tools, const char *path, Parque
     range.bytes = footer_bytes;
     range.out = text;
     ParquetCursor cursor = {text, footer_bytes, 0ull, 0u};
-    // the footer's bytes are held to 16 MiB above, and the count converts exactly
+    // the footer's bytes are limited to 16 MiB above, and the count converts exactly
     const int read = (tools->read(&range) == (long long)footer_bytes);
     const int decoded = read && parquet_file_metadata_read(&cursor, footer) && (cursor.broken == 0u);
     free(text);

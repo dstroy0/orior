@@ -206,7 +206,7 @@ reads has changed.
      - The run channel. `run_channel.h` declares `run_channel_open`, `run_channel_ask`, `run_channel_close` and
        `run_channel_carrier`, and nothing defines one of them. `tessera_run` defines a `run_channel_open` and a
        `run_channel_close` that take other arguments. The channel written under these names cannot link beside it.
-     - No ask reaches a target. `query_ask`, `query_order_put` and the sweeps run on the host alone.
+     - No ask reaches a target. `query_put`, `query_order_put` and the sweeps run on the host alone.
      - `period_read` is not the stride's source: `bus_enum` reads the stride off the kinds alone.
      - `engine_lattice_bits` has no caller, and the noise root box is priced only where a caller passes a cost.
      - `max_tree_probe_levels`, `max_tree_nodes`, `max_tree_pairs` and `max_tree_overlap_sums` are called by tests
@@ -271,7 +271,7 @@ reads has changed.
    counted_inverse (8) and redundant (16). floors holds the 1992-step program whose PTX frame passes the stack
    limit, and NVRTC compiles its C source in 934 s once; the cache holds the cubin after. The C builds of
    record_boundary's four parts have not run. 10 have no result: record_vhdl, the C pairs of speed, table, tower
-   and order, residual_odd, shift_agreement_hold, tessera_device, tower_edge and unit_sweep_planes. The C build of
+   and order, residual_odd, shift_agreement_reserve, tessera_device, tower_edge and unit_sweep_planes. The C build of
    order writes a 12293-step program as 17 MB of C source in one function, and the host's compiler does not finish
    it inside the harness's 1800 s. interface_sass puts its asks against the machine file the tree
    holds, 63 checks, 0 failed: 36 questions in the part's own code answer as each says, and 26 of the 27 kernels

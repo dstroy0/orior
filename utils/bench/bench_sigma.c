@@ -203,7 +203,7 @@ int main(void)
     }
 
     printf("\n  A four byte symbol over its whole range is NOT MEASURED here. The table would want\n");
-    printf("  %.1f GB of counters at four bytes a slot. The oracle column does not move, because\n",
+    printf("  %.1f GB of counters at four bytes a counter. The oracle column does not move, because\n",
            (double)(1ull << 32) * 4.0 / 1073741824.0);
     printf("  nothing in it is indexed by a symbol.\n\n");
 

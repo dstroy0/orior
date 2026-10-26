@@ -55,7 +55,7 @@ static int cli_utf8(const unsigned char *bytes, unsigned long long size, int cut
     return 1;
 }
 
-// whether the first bytes hold a 0
+// whether the first bytes contain a 0
 static int cli_probe_zero(const unsigned char *bytes, unsigned long long size)
 {
     const unsigned long long look = (size < CLI_PROBE_BYTES) ? size : CLI_PROBE_BYTES;
@@ -64,64 +64,64 @@ static int cli_probe_zero(const unsigned char *bytes, unsigned long long size)
 
 // a file read written as the window reads it: its path and size, its text or its first bytes, and whether it opens as
 // a window
-static void cli_opened_written(CliLine *out, const char *path, unsigned long long size, const unsigned char *text,
+static void cli_opened_written(VerbaLinea *out, const char *path, unsigned long long size, const unsigned char *text,
                                const unsigned char *bytes, unsigned long long length, int windowed)
 {
-    cli_line_text(out, "{\"path\":");
+    mmgr_line_put(out, "{\"path\":");
     cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"size\":");
-    cli_line_decimal(out, size, 0u);
-    cli_line_text(out, ",\"text\":");
+    mmgr_line_put(out, ",\"size\":");
+    mmgr_line_decimal(out, size, 0u);
+    mmgr_line_put(out, ",\"text\":");
     if (text != NULL)
     {
         cli_json_quoted(out, (const char *)text, length);
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"bytes\":");
+    mmgr_line_put(out, ",\"bytes\":");
     if (bytes != NULL)
     {
-        cli_line_character(out, '[');
+        mmgr_line_ch(out, '[');
         for (unsigned long long at = 0ull; at < length; at += 1ull)
         {
             if (at != 0ull)
             {
-                cli_line_character(out, ',');
+                mmgr_line_ch(out, ',');
             }
-            cli_line_decimal(out, bytes[at], 0u);
+            mmgr_line_decimal(out, bytes[at], 0u);
         }
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, windowed ? ",\"windowed\":true}" : ",\"windowed\":false}");
+    mmgr_line_put(out, windowed ? ",\"windowed\":true}" : ",\"windowed\":false}");
 }
 
 // a file within an archive read out of it whole, through pieces into a cell of its size given back once it is
 // written as a file read
-static int cli_archived_read(const char *root, const char *file, CliLine *out, CliLine *said)
+static int cli_archived_read(const char *root, const char *file, VerbaLinea *out, VerbaLinea *err_msg)
 {
     char piece[4096];
     CliPieces pieces;
-    CliLine read;
+    VerbaLinea read;
     cli_pieces_begun(&pieces, &read, piece, sizeof(piece));
-    if (!cli_archive_read(root, file, &read, said))
+    if (!cli_archive_read(root, file, &read, err_msg))
     {
         cli_pieces_given(&pieces);
         return 0;
     }
     unsigned long long size = 0ull;
-    char *const held = cli_pieces_joined(&pieces, &read, "a file read out of an archive", &size);
-    if (held == NULL)
+    char *const joined = cli_pieces_joined(&pieces, &read, "a file read out of an archive", &size);
+    if (joined == NULL)
     {
-        cli_line_text(said, "the file read out of the archive could not be held");
+        mmgr_line_put(err_msg, "the file read out of the archive could not be stored");
         return 0;
     }
-    const unsigned char *const bytes = (const unsigned char *)held;
+    const unsigned char *const bytes = (const unsigned char *)joined;
     // the path with the slashes at either end left off
     const char *from = file;
     while (from[0] == '/')
@@ -133,10 +133,10 @@ static int cli_archived_read(const char *root, const char *file, CliLine *out, C
     {
         length -= 1ull;
     }
-    char path[CLI_PATH_LONGEST];
-    const unsigned long long kept = (length < CLI_PATH_LONGEST) ? length : (CLI_PATH_LONGEST - 1ull);
-    memor.cpy(&(MemoriaCfg){.dst = path, .src = from, .bytes = kept});
-    path[kept] = '\0';
+    char path[CLI_PATH_MAX_LEN];
+    const unsigned long long copied_len = (length < CLI_PATH_MAX_LEN) ? length : (CLI_PATH_MAX_LEN - 1ull);
+    memor.cpy(&(MemoriaCfg){.dst = path, .src = from, .bytes = copied_len});
+    path[copied_len] = '\0';
     if (!cli_probe_zero(bytes, size) && cli_utf8(bytes, size, 0))
     {
         cli_opened_written(out, path, size, bytes, NULL, size, 0);
@@ -145,83 +145,83 @@ static int cli_archived_read(const char *root, const char *file, CliLine *out, C
     {
         cli_opened_written(out, path, size, NULL, bytes, (size < CLI_SHOWN_BYTES) ? size : CLI_SHOWN_BYTES, 0);
     }
-    cli_cell_given(held);
+    g_cli_cells->persistent_buf_release(joined, NULL);
     return 1;
 }
 
-// that a file could not be read, said
-static void cli_unread(const char *file, CliLine *said)
+// that a file could not be read, reported
+static void cli_unread(const char *file, VerbaLinea *err_msg)
 {
-    cli_line_text(said, file);
-    cli_line_text(said, ": it could not be read");
+    mmgr_line_put(err_msg, file);
+    mmgr_line_put(err_msg, ": it could not be read");
 }
 
-// the file at `file` inside the tree mapped whole, its full path into `path`: its bytes, or NULL with why said
+// the file at `file` inside the tree mapped whole, its full path into `path`: its bytes, or NULL with why given
 static const unsigned char *cli_mapped(const char *root, const char *file, char *path, unsigned long long *size,
-                                       CliLine *said)
+                                       VerbaLinea *err_msg)
 {
-    if (!cli_inside(root, file, path, said))
+    if (!cli_inside(root, file, path, err_msg))
     {
         return NULL;
     }
-    const unsigned char *const bytes = cli_file_held(path, size);
+    const unsigned char *const bytes = cli_file_read(path, size);
     if (bytes == NULL)
     {
-        cli_unread(file, said);
+        cli_unread(file, err_msg);
     }
     return bytes;
 }
 
-// `count` bytes of the file `file` of `root` from `from`, held in a cell, the file's whole size into `whole`: the
-// bytes, `held` of them, or NULL with why said. A file larger than the window pages is never held whole: its shape is
+// `count` bytes of the file `file` of `root` from `from`, stored in a cell, the file's whole size into `whole`: the
+// bytes, `got` of them, or NULL with why given. A file larger than the window pages is never stored whole: its shape is
 // read off its first bytes and a slice off the bytes about it, each read at its offset
 static const unsigned char *cli_piece(const char *root, const char *file, char *path, unsigned long long from,
-                                      unsigned long long count, unsigned long long *held, unsigned long long *whole,
-                                      CliLine *said)
+                                      unsigned long long count, unsigned long long *got, unsigned long long *whole,
+                                      VerbaLinea *err_msg)
 {
-    if (!cli_inside(root, file, path, said))
+    if (!cli_inside(root, file, path, err_msg))
     {
         return NULL;
     }
     if (!cli_file_size(path, whole))
     {
-        cli_unread(file, said);
+        cli_unread(file, err_msg);
         return NULL;
     }
     const unsigned long long room = (from < *whole) ? *whole - from : 0ull;
-    const unsigned char *const bytes = cli_file_piece_held(path, from, (count < room) ? count : room, held);
+    const unsigned char *const bytes = cli_file_piece_read(path, from, (count < room) ? count : room, got);
     if (bytes == NULL)
     {
-        cli_unread(file, said);
+        cli_unread(file, err_msg);
     }
     return bytes;
 }
 
-int cli_files_read(const char *root, const char *file, CliLine *out, CliLine *said)
+int cli_files_read(const char *root, const char *file, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char archive[CLI_PATH_LONGEST];
-    char inner[CLI_PATH_LONGEST];
+    char archive[CLI_PATH_MAX_LEN];
+    char inner[CLI_PATH_MAX_LEN];
     if (cli_archive_split(root, file, archive, inner) && (inner[0] != '\0'))
     {
-        return cli_archived_read(root, file, out, said);
+        return cli_archived_read(root, file, out, err_msg);
     }
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    if (!cli_inside(root, file, path, said))
+    if (!cli_inside(root, file, path, err_msg))
     {
         return 0;
     }
     if (!cli_file_size(path, &size))
     {
-        cli_unread(file, said);
+        cli_unread(file, err_msg);
         return 0;
     }
-    char shown_path[CLI_PATH_LONGEST];
+    char shown_path[CLI_PATH_MAX_LEN];
     cli_relative(root, path, shown_path);
     if (size <= CLI_WINDOW_FROM)
     {
-        // a file the window takes whole is held whole
-        const unsigned char *const text = cli_mapped(root, file, path, &size, said);
+        // a file the window takes whole is stored whole
+        const unsigned char *const text = cli_mapped(root, file, path, &size, err_msg);
         if (text == NULL)
         {
             return 0;
@@ -238,18 +238,18 @@ int cli_files_read(const char *root, const char *file, CliLine *out, CliLine *sa
         cli_file_let_go(text, size);
         return 1;
     }
-    // a file the window pages: its first bytes alone, read at their offset; text where they hold no 0 and read as
+    // a file the window pages: its first bytes alone, read at their offset; text where they contain no 0 and read as
     // UTF-8, a letter the cut splits aside
-    unsigned long long held = 0ull;
-    const unsigned char *const bytes = cli_piece(root, file, path, 0ull, CLI_SHOWN_BYTES, &held, &size, said);
+    unsigned long long got = 0ull;
+    const unsigned char *const bytes = cli_piece(root, file, path, 0ull, CLI_SHOWN_BYTES, &got, &size, err_msg);
     if (bytes == NULL)
     {
         return 0;
     }
-    const unsigned long long probe = (held < CLI_PROBE_BYTES) ? held : CLI_PROBE_BYTES;
-    const int text = !cli_probe_zero(bytes, held) && cli_utf8(bytes, probe, 1);
-    cli_opened_written(out, shown_path, size, NULL, text ? NULL : bytes, text ? 0ull : held, text);
-    cli_file_let_go(bytes, held);
+    const unsigned long long probe = (got < CLI_PROBE_BYTES) ? got : CLI_PROBE_BYTES;
+    const int text = !cli_probe_zero(bytes, got) && cli_utf8(bytes, probe, 1);
+    cli_opened_written(out, shown_path, size, NULL, text ? NULL : bytes, text ? 0ull : got, text);
+    cli_file_let_go(bytes, got);
     return 1;
 }
 
@@ -278,42 +278,42 @@ static unsigned long long cli_newlines(const unsigned char *bytes, unsigned long
     return count;
 }
 
-// whole lines written as the window reads them: the bytes from `start` to `end` of `bytes`, which hold the file from
+// whole lines written as the window reads them: the bytes from `start` to `end` of `bytes`, which contain the file from
 // its byte `base`, the file's size, the number of the first line, and the lines in the whole file
-static void cli_slice_written(CliLine *out, const unsigned char *bytes, unsigned long long base,
+static void cli_slice_written(VerbaLinea *out, const unsigned char *bytes, unsigned long long base,
                               unsigned long long start, unsigned long long end, unsigned long long size,
                               unsigned long long line, unsigned long long lines)
 {
-    cli_line_text(out, "{\"start\":");
-    cli_line_decimal(out, base + start, 0u);
-    cli_line_text(out, ",\"end\":");
-    cli_line_decimal(out, base + end, 0u);
-    cli_line_text(out, ",\"size\":");
-    cli_line_decimal(out, size, 0u);
-    cli_line_text(out, ",\"line\":");
-    cli_line_decimal(out, line, 0u);
-    cli_line_text(out, ",\"lines\":");
-    cli_line_decimal(out, lines, 0u);
-    cli_line_text(out, ",\"text\":");
+    mmgr_line_put(out, "{\"start\":");
+    mmgr_line_decimal(out, base + start, 0u);
+    mmgr_line_put(out, ",\"end\":");
+    mmgr_line_decimal(out, base + end, 0u);
+    mmgr_line_put(out, ",\"size\":");
+    mmgr_line_decimal(out, size, 0u);
+    mmgr_line_put(out, ",\"line\":");
+    mmgr_line_decimal(out, line, 0u);
+    mmgr_line_put(out, ",\"lines\":");
+    mmgr_line_decimal(out, lines, 0u);
+    mmgr_line_put(out, ",\"text\":");
     cli_json_quoted_lossy(out, bytes + start, end - start);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
-int cli_files_slice(const char *root, const char *file, unsigned long long start, unsigned long long end, CliLine *out,
-                    CliLine *said)
+int cli_files_slice(const char *root, const char *file, unsigned long long start, unsigned long long end,
+                    VerbaLinea *out, VerbaLinea *err_msg)
 {
     // the bytes about the slice, from the byte before `start` so that its line's start is read, with slack past `end`
-    // for the line end there, the slack doubled while the piece holds neither line end and the file goes on; a slice
+    // for the line end there, the slack doubled while the piece contains neither line end and the file goes on; a slice
     // past the file's end ends at the end
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned long long size = 0ull;
-    if (!cli_inside(root, file, path, said))
+    if (!cli_inside(root, file, path, err_msg))
     {
         return 0;
     }
     if (!cli_file_size(path, &size))
     {
-        cli_unread(file, said);
+        cli_unread(file, err_msg);
         return 0;
     }
     start = (start < size) ? start : size;
@@ -322,25 +322,25 @@ int cli_files_slice(const char *root, const char *file, unsigned long long start
     unsigned long long count = ((end > base) ? end - base : 0ull) + CLI_SHOWN_BYTES;
     for (;;)
     {
-        unsigned long long held = 0ull;
+        unsigned long long got = 0ull;
         unsigned long long whole = 0ull;
-        const unsigned char *const bytes = cli_piece(root, file, path, base, count, &held, &whole, said);
+        const unsigned char *const bytes = cli_piece(root, file, path, base, count, &got, &whole, err_msg);
         if (bytes == NULL)
         {
             return 0;
         }
         const unsigned long long at_end = ((end > base) ? end - base : 0ull);
-        const unsigned long long from = cli_line_start(bytes, start - base, held);
-        const unsigned long long to_at = cli_line_start(bytes, (at_end < held) ? at_end : held, held);
+        const unsigned long long from = cli_line_start(bytes, start - base, got);
+        const unsigned long long to_at = cli_line_start(bytes, (at_end < got) ? at_end : got, got);
         const unsigned long long to = (to_at > from) ? to_at : from;
-        const int reached = (base + held >= whole) || ((from < held) && (to < held));
+        const int reached = (base + got >= whole) || ((from < got) && (to < got));
         if (reached)
         {
             cli_slice_written(out, bytes, base, from, to, whole, 0ull, 0ull);
-            cli_file_let_go(bytes, held);
+            cli_file_let_go(bytes, got);
             return 1;
         }
-        cli_file_let_go(bytes, held);
+        cli_file_let_go(bytes, got);
         count *= 2ull;
     }
 }

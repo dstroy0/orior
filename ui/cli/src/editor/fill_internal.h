@@ -22,7 +22,7 @@ typedef struct
 // The lines written into the edit's text: where they go, where the last starts, and how many there are
 typedef struct
 {
-    CliLine *out;
+    VerbaLinea *out;
     unsigned long long line_start;
     unsigned int lines;
 } CliFilled;
@@ -59,13 +59,13 @@ void cli_fill_edit_of(const char *text, const CliFillLine *first, const CliFillL
 // in none (fill_comment.c)
 int cli_fill_comment(const char *text, unsigned long long size, const CliFillLine *at, unsigned int width,
                      CliFilled *filled, CliTextEdit *edit);
-// the comment fill's room, a cell taken under the fill's lock: 1, or 0 with why said; and the room given back before
+// the comment fill's room, a cell taken under the fill's lock: 1, or 0 with why given; and the room given back before
 // the lock is (fill_comment.c)
-int cli_fill_comment_held(CliLine *said);
+int cli_fill_comment_locked(VerbaLinea *err_msg);
 void cli_fill_comment_released(void);
 
 // the paragraph of the Python docstring around `at`, up to a blank line or a line of the closing quotes alone, the
-// opening quotes kept at the head of its first line and the closing quotes at the end of its last: 1 with its edit,
+// opening quotes placed at the head of its first line and the closing quotes at the end of its last: 1 with its edit,
 // or 0 where `at` stands in none (fill_docstring.c)
 int cli_fill_docstring(const char *text, unsigned long long size, const CliFillLine *at, unsigned int width,
                        CliFilled *filled, CliTextEdit *edit);

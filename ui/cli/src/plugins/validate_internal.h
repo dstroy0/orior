@@ -29,22 +29,22 @@
 #define CLI_VALIDATE_LINE_NODES 4096u
 #define CLI_VALIDATE_LINE_TEXT (1u << 20u)
 
-// the most bytes the file's own settings changed and the checks run are said in
+// the most bytes the file's own settings changed and the checks run are written in
 #define CLI_VALIDATE_OWN (1u << 16u)
 #define CLI_VALIDATE_CHECKS_TEXT (1u << 16u)
 
-// a place of the room's texts that holds none
+// a place of the room's texts that contains none
 #define CLI_VALIDATE_NONE (~0ull)
 
 // A limit of the machine: its name and what it is, the arrays of the kinds and the words of the messages it stops a
-// check with and of the words, `not` in its plugin.json, those messages do not hold, the word that sets it, and where
-// it starts, how many times it grows a step and how far it goes
+// check with and of the words, `not` in its plugin.json, those messages do not contain, the word that sets it, and
+// where it starts, how many times it grows a step and how far it goes
 typedef struct
 {
     const char *name;
     const char *about;
     unsigned int kinds;
-    unsigned int says;
+    unsigned int phrases;
     unsigned int unless;
     const char *lift;
     unsigned long long start;
@@ -52,16 +52,16 @@ typedef struct
     unsigned long long ceiling;
 } CliBarrier;
 
-// A flag: the array of its words, the severity a use of one is, and what it says
+// A flag: the array of its words, the severity a use of one is, and what it means
 typedef struct
 {
     unsigned int words;
     unsigned int severity;
-    const char *says;
+    const char *phrases;
 } CliFlag;
 
-// A tool as its plugin.json says it: its id, name, languages and toolchain; its program, words, the names that mark a
-// project, the words inside one, and its patience in seconds; its barriers and flags; and whether it audits, with the
+// A tool as its plugin.json declares it: its id, name, languages and toolchain; its program, words, the names that mark
+// a project, the words inside one, and its patience in seconds; its barriers and flags; and whether it audits, with the
 // arrays and the line of its audit, `explains` an object
 typedef struct
 {
@@ -140,8 +140,8 @@ typedef struct
 // names; the copy checked; the first check's messages and the last's; one line of the prover's read; the findings;
 // the toolchains, the PATH's folders, the toolchain found and the PATH a check runs with; a check's output; each
 // limit grown by its barrier's name, the first barrier of that name standing for it, whether it stops the check at
-// its ceiling and whether it went through once lifted; the file's own settings changed and the checks run, said; and
-// whether a check ran, whether the last ran out of time, and the lines of the file
+// its ceiling and whether it went through once lifted; the file's own settings changed and the checks run, reported;
+// and whether a check ran, whether the last ran out of time, and the lines of the file
 typedef struct
 {
     CliJson json;
@@ -186,30 +186,30 @@ typedef struct
 // the room, a cell taken with the validation's lock and given back with it; and the lock taken with the room: 1, or 0
 // with the lock given back where the cells cannot meet it; and the room given back with the lock (validate.c)
 extern CliValidateRoom *g_cli_validate;
-int cli_validate_held(void);
+int cli_validate_locked(void);
 void cli_validate_released(void);
 
-// whether the JSON array `array` holds the string of `length` bytes `text`; and whether `length` bytes of `text`
-// hold `part` (validate_tool.c)
-int cli_validate_holds(const CliJson *json, unsigned int array, const char *text, unsigned long long length);
+// whether the JSON array `array` contains the string of `length` bytes `text`; and whether `length` bytes of `text`
+// contain `part` (validate_tool.c)
+int cli_validate_in_array(const CliJson *json, unsigned int array, const char *text, unsigned long long length);
 int cli_validate_contains(const char *text, unsigned long long length, const char *part);
 // the tool plugin `id` read into the room's tool: 1, or 0 where no tool plugin is of that id
 int cli_validate_tool_read(const char *id);
 
-// `size` bytes of text with their comments and strings blanked, every letter kept in its place as one, so that each
-// word found in it is a word of the code, into the room's code: 1, or 0 where it is larger than the room holds; each
-// word of the code with its line and column into the room's words; the full name of each theorem the code declares,
-// with the namespaces open where it is declared, into the room's theorems; and each use of a flagged word, as a word
-// or the last part of a dotted name, `@` before it or not, a finding (validate_code.c)
+// `size` bytes of text with their comments and strings blanked, every letter preserved in its place as one, so that
+// each word found in it is a word of the code, into the room's code: 1, or 0 where it is larger than the room fits;
+// each word of the code with its line and column into the room's words; the full name of each theorem the code
+// declares, with the namespaces open where it is declared, into the room's theorems; and each use of a flagged word, as
+// a word or the last part of a dotted name, `@` before it or not, a finding (validate_code.c)
 int cli_validate_code_of(const char *text, unsigned long long size);
 void cli_validate_words_of(void);
 void cli_validate_theorems_in(void);
 void cli_validate_flags_in(void);
 
-// the messages in a check's output, a line that is no message kept as an error with no place, as a crash writes one,
-// into `messages`; the barrier a message says stopped the check, by its kind or its words, -1 for none; the axioms a
-// theorem rests on, from the message that answers the line asking for them: 1 with the name's start and size and the
-// list's, 0 where the message answers none, `none` 1 where it rests on no axioms (validate_messages.c)
+// the messages in a check's output, a line that is no message recorded as an error with no place, as a crash writes
+// one, into `messages`; the barrier a message shows stopped the check, by its kind or its words, -1 for none; the
+// axioms a theorem rests on, from the message that answers the line requesting for them: 1 with the name's start and
+// size and the list's, 0 where the message answers none, `none` 1 where it rests on no axioms (validate_messages.c)
 void cli_validate_messages_of(const char *output, unsigned long long size, CliProverMessages *messages);
 int cli_validate_barrier_of(const CliProverMessages *messages, const CliProverMessage *message);
 int cli_validate_axioms_of(const char *text, unsigned long long size, unsigned long long *name,
@@ -217,30 +217,30 @@ int cli_validate_axioms_of(const char *text, unsigned long long size, unsigned l
 
 // the copy of `size` bytes of text that is checked, into the room's copy: each `set_option <name> <value>` of the
 // options `names`, `count` of them in the order of their names, set to its value of `values` where that is larger,
-// each change said into `changed`, "; " between them, and the lines that ask for each theorem's axioms after it: the
-// copy's size, or more than the room holds where it does not fit (validate_messages.c)
+// each change written into `changed`, "; " between them, and the lines that request each theorem's axioms after it: the
+// copy's size, or more than the room fits where it does not fit (validate_messages.c)
 unsigned long long cli_validate_copy_of(const char *text, unsigned long long size, const char *const *names,
-                                        const unsigned long long *values, unsigned int count, CliLine *changed);
+                                        const unsigned long long *values, unsigned int count, VerbaLinea *changed);
 
-// the limits grown, by their barriers' names in order, into `keys`, which holds CLI_VALIDATE_BARRIERS: their count
+// the limits grown, by their barriers' names in order, into `keys`, sized for CLI_VALIDATE_BARRIERS: their count
 // (validate.c)
 unsigned int cli_validate_grown_keys(unsigned int *keys);
 
 // the words that run the program on `file` into `words`, the limits' settings just before the file, where the prover
 // reads its own options, the first of them at `from` and `settings` of them, and the folder they run from into `dir`,
-// which holds CLI_PATH_LONGEST; and one check run, taking at most the tool's patience: its output, the error stream
-// after it where it says anything, into the room's output, the seconds it took into `seconds`, and whether it ran
-// out of time into the room. Each 1, or 0 with why said (validate_run.c)
+// sized for CLI_PATH_MAX_LEN; and one check run, taking at most the tool's patience: its output, the error stream
+// after it where it prints anything, into the room's output, the seconds it took into `seconds`, and whether it ran
+// out of time into the room. Each 1, or 0 with why given (validate_run.c)
 int cli_validate_command_for(const char *program, const char *file, const char *project, CliWords *words,
-                             unsigned int *from, unsigned int *settings, char *dir, CliLine *said);
-int cli_validate_checked(const CliWords *words, const char *dir, double *seconds, CliLine *said);
+                             unsigned int *from, unsigned int *settings, char *dir, VerbaLinea *err_msg);
+int cli_validate_checked(const CliWords *words, const char *dir, double *seconds, VerbaLinea *err_msg);
 
-// the last check's messages: each axiom answer kept, each barrier's error passed over, and the rest the mathematics,
-// each a finding: the count of axiom answers; and each axiom a theorem rests on past those trusted said, as a finding
-// where the proof does not stand on a gap the prover put there, the theorem's name into `untrusted`
-// (validate_axioms.c)
+// the last check's messages: each axiom answer recorded, each barrier's error passed over, and the rest the
+// mathematics, each a finding: the count of axiom answers; and each axiom a theorem rests on past those trusted
+// reported, as a finding where the proof does not stand on a gap the prover put there, the theorem's name into
+// `untrusted` (validate_axioms.c)
 unsigned int cli_validate_mathematics(void);
-void cli_validate_axioms_reported(unsigned int answers, CliLine *untrusted);
+void cli_validate_axioms_reported(unsigned int answers, VerbaLinea *untrusted);
 
 // the first barrier of the name barrier `at` has, which stands for that name's limit (validate.c)
 unsigned int cli_validate_key_of(unsigned int at);
@@ -250,6 +250,6 @@ unsigned int cli_validate_key_of(unsigned int at);
 // for none (validate_report.c)
 void cli_validate_finding_put(const CliFinding *finding, const char *message, unsigned long long length,
                               const char *lifted);
-void cli_validate_reported(const char *path, const char *project, CliLine *report);
+void cli_validate_reported(const char *path, const char *project, VerbaLinea *report);
 
 #endif

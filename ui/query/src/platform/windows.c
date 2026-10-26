@@ -12,57 +12,57 @@
 #include <stdint.h>
 
 // the longest command line a process is started with, its zero counted
-#define QUERY_COMMAND_LONGEST 32768u
+#define QUERY_COMMAND_MAX_LEN 32768u
 
 // the hundreds of nanoseconds from 1601 to 1970, which the system's file times count from
 #define QUERY_EPOCH_TICKS 116444736000000000ull
 
 #define QUERY_TICKS_A_SECOND 10000000ull
 
-// `word` added to `line` quoted as the C runtime splits it back: in quotes where it is empty or holds a space, a tab
+// `word` added to `line` quoted as the C runtime splits it back: in quotes where it is empty or contains a space, a tab
 // or a quote, the backslashes before a quote and before the closing one doubled
-static void query_word_quoted(CliLine *line, const char *word)
+static void query_word_quoted(VerbaLinea *line, const char *word)
 {
     const int quoted = (word[0] == '\0') || (word[cli_text_upto(word, " \t\n\v\"")] != '\0');
     if (!quoted)
     {
-        cli_line_text(line, word);
+        mmgr_line_put(line, word);
         return;
     }
-    cli_line_character(line, '"');
+    mmgr_line_ch(line, '"');
     unsigned int slashes = 0u;
     for (const char *walk = word; *walk != '\0'; walk += 1)
     {
         const unsigned int doubled = (*walk == '"') ? (slashes + 1u) : 0u;
         for (unsigned int added = 0u; added < doubled; added += 1u)
         {
-            cli_line_character(line, '\\');
+            mmgr_line_ch(line, '\\');
         }
         slashes = (*walk == '\\') ? (slashes + 1u) : 0u;
-        cli_line_character(line, *walk);
+        mmgr_line_ch(line, *walk);
     }
     for (unsigned int added = 0u; added < slashes; added += 1u)
     {
-        cli_line_character(line, '\\');
+        mmgr_line_ch(line, '\\');
     }
-    cli_line_character(line, '"');
+    mmgr_line_ch(line, '"');
 }
 
 int query_process_start(QueryProcess *started, const char *const *words, const char *folder, int output)
 {
     started->process = 0ull;
     started->output = 0ull;
-    static char s_line[QUERY_COMMAND_LONGEST];
-    CliLine line = {s_line, sizeof(s_line), 0ull};
+    static char s_line[QUERY_COMMAND_MAX_LEN];
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
     for (unsigned int at = 0u; words[at] != NULL; at += 1u)
     {
         if (at != 0u)
         {
-            cli_line_character(&line, ' ');
+            mmgr_line_ch(&line, ' ');
         }
         query_word_quoted(&line, words[at]);
     }
-    if (cli_line_closed(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
@@ -123,7 +123,7 @@ int query_process_start(QueryProcess *started, const char *const *words, const c
         return 0;
     }
     CloseHandle(process.hThread);
-    // a handle is a pointer's width, which an unsigned long long holds
+    // a handle is a pointer's width, which an unsigned long long represents
     started->process = (unsigned long long)(uintptr_t)process.hProcess;
     started->output = (read_end != INVALID_HANDLE_VALUE) ? (unsigned long long)(uintptr_t)read_end : 0ull;
     return 1;
@@ -162,7 +162,7 @@ long long query_process_wait(QueryProcess *process)
     }
     process->process = 0ull;
     process->output = 0ull;
-    // an exit code is a DWORD, which a long long holds
+    // an exit code is a DWORD, which a long long represents
     return read ? (long long)code : -1ll;
 }
 
@@ -198,27 +198,27 @@ int query_environment_read(const char *name, char *value, size_t room)
     return read;
 }
 
-int query_environment_said(const char *name, CliLine *out)
+int query_environment_written(const char *name, VerbaLinea *out)
 {
-    static char s_value[QUERY_ENVIRONMENT_LONGEST];
+    static char s_value[QUERY_ENVIRONMENT_MAX_LEN];
     static SRWLOCK s_lock = SRWLOCK_INIT;
     AcquireSRWLockExclusive(&s_lock);
     const int read = query_environment_read(name, s_value, sizeof(s_value));
     if (read)
     {
-        cli_line_text(out, s_value);
+        mmgr_line_put(out, s_value);
     }
     ReleaseSRWLockExclusive(&s_lock);
-    return read && cli_line_fits(out);
+    return read && mmgr_line_ok(out);
 }
 
 int query_folder_each(const char *folder, void (*each)(void *context, const char *name, int is_folder), void *context)
 {
-    char pattern[QUERY_PATH_LONGEST + 4u];
-    CliLine line = {pattern, sizeof(pattern), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_text(&line, "\\*");
-    if (cli_line_closed(&line) == 0ull)
+    char pattern[QUERY_PATH_MAX_LEN + 4u];
+    VerbaLinea line = {pattern, sizeof(pattern), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_put(&line, "\\*");
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
@@ -242,7 +242,7 @@ int query_folder_each(const char *folder, void (*each)(void *context, const char
 
 int query_folder_made(const char *folder)
 {
-    char path[QUERY_PATH_LONGEST];
+    char path[QUERY_PATH_MAX_LEN];
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL});
     if (length >= sizeof(path))
     {
@@ -253,14 +253,14 @@ int query_folder_made(const char *folder)
     {
         if ((path[at] == '/') || (path[at] == '\\') || (path[at] == '\0'))
         {
-            const char held = path[at];
+            const char saved_char = path[at];
             path[at] = '\0';
             // a drive's own name, `C:`, is no folder to make
             if (!((at == 2u) && (path[1] == ':')))
             {
                 CreateDirectoryA(path, NULL);
             }
-            path[at] = held;
+            path[at] = saved_char;
         }
     }
     return query_is_folder(folder);
@@ -276,13 +276,13 @@ typedef struct
 static void query_entry_removed(void *context, const char *name, int is_folder)
 {
     QueryRemoval *const removal = (QueryRemoval *)context;
-    char path[QUERY_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, removal->folder);
-    cli_line_character(&line, '\\');
-    cli_line_text(&line, name);
+    char path[QUERY_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, removal->folder);
+    mmgr_line_ch(&line, '\\');
+    mmgr_line_put(&line, name);
     (void)is_folder;
-    removal->whole = (cli_line_closed(&line) != 0ull) && query_removed(path) && removal->whole;
+    removal->whole = (mmgr_line_finish(&line) != 0ull) && query_removed(path) && removal->whole;
 }
 
 int query_removed(const char *path)

@@ -49,26 +49,26 @@ unsigned int krs_parameters_named(const char *path, const char *name, char param
 }
 
 // 1 where `word`, its leaf k reading the relation's word order[k], answers `anchor` on every case of it the ladder
-// holds, the relation read signed where `signed_read` says, and the ladder holds at least one
+// satisfies, the relation read signed where `signed_read` specifies, and the ladder satisfies at least one
 static int krs_word_answers(const Word *word, unsigned int anchor, int signed_read, const unsigned int *order)
 {
     unsigned int cases = 0u;
     for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
     {
-        const LadderQuestion *const held = &s_ladder_cases[at];
+        const LadderQuestion *const ladder_case = &s_ladder_cases[at];
         unsigned int answer = 0u;
-        if ((held->anchor != anchor) || (held->words != (unsigned int)word->reads) ||
-            !ladder_answer(anchor, held->word, held->words, &answer))
+        if ((ladder_case->anchor != anchor) || (ladder_case->words != (unsigned int)word->reads) ||
+            !ladder_answer(anchor, ladder_case->word, ladder_case->words, &answer))
         {
             continue;
         }
-        answer = (signed_read != 0) ? ladder_signed_answer(anchor, held->word) : answer;
+        answer = (signed_read != 0) ? ladder_signed_answer(anchor, ladder_case->word) : answer;
         PreceptCase given;
         memset(&given, 0, sizeof(given));
         given.operands = word->reads;
         for (unsigned int leaf = 0u; leaf < word->reads; leaf += 1u)
         {
-            given.operand[leaf] = held->word[order[leaf]];
+            given.operand[leaf] = ladder_case->word[order[leaf]];
         }
         unsigned int value = 0u;
         if (!precept_value(word->node, word->nodes, &given, &value) || (value != answer))
@@ -82,7 +82,7 @@ static int krs_word_answers(const Word *word, unsigned int anchor, int signed_re
 
 // The order the leaves of `word` read the relation's words in for `form` to write it, into `order`: the first, counted
 // as the orders of the words are counted, under which the word's tree answers the form's relation on every case. 1, or
-// 0 where the word reads another count of words than the relation holds or no order answers
+// 0 where the word reads another count of words than the relation has or no order answers
 int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order)
 {
     const unsigned int words = s_ladder_words[form->anchor];
@@ -115,8 +115,8 @@ int krs_word_written(const Word *word, const KrsForm *form, unsigned int *order)
     return 0;
 }
 
-// The text of `form` with each place named, into `written`, which holds `room`: the answer's place as the first
-// parameter and the relation's word order[k] as parameter k + 1, each as {<name>}. 1, or 0 where the text holds a
+// The text of `form` with each place named, into `written`, which has room for `room`: the answer's place as the first
+// parameter and the relation's word order[k] as parameter k + 1, each as {<name>}. 1, or 0 where the text contains a
 // place no parameter names, leaves a place the word reads unwritten, or does not fit
 int krs_text_named(const KrsForm *form, const unsigned int *order, char parameter[][KRS_NAME], unsigned int parameters,
                    char *written, size_t room)
@@ -157,7 +157,7 @@ int krs_text_named(const KrsForm *form, const unsigned int *order, char paramete
     return (found == ((1u << (words + 1u)) - 1u)) ? 1 : 0;
 }
 
-// the folder `path` lies in, into `folder`, which holds `room`: "." where it names none
+// the folder `path` lies in, into `folder`, which has room for `room`: "." where it names none
 void krs_folder_of(const char *path, char *folder, size_t room)
 {
     const char *const slash = strrchr(path, '/');
@@ -179,7 +179,7 @@ int krs_place_read(const char *walk, unsigned int *place, int *length)
     {
         return 0;
     }
-    // a place an unsigned int holds, and the braces around it, which an int counts
+    // a place an unsigned int represents, and the braces around it, which an int counts
     *place = (unsigned int)read;
     *length = (int)(inside + 1 - walk);
     return 1;

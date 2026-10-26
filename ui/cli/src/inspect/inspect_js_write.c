@@ -6,7 +6,7 @@
 #include "../text/json_tree.h"
 #include "inspect_js.h"
 
-// the most parameters and thrown names a JSDoc comment names, and the most members a class sorted holds
+// the most parameters and thrown names a JSDoc comment names, and the most members a class sorted contains
 #define CLI_JS_NAMED 256u
 #define CLI_JS_MEMBERS (CLI_INSPECT_TOKENS / 4u)
 
@@ -77,22 +77,22 @@ static unsigned int write_function_at(const char *src, unsigned int line)
             continue;
         }
         const unsigned int close = g_cli_js_pair[at];
-        const int holds = (g_cli_inspect_tok[at].from.line <= line) && (close != CLI_JS_NO) &&
-                          (g_cli_inspect_tok[close].to.line >= line);
+        const int encloses = (g_cli_inspect_tok[at].from.line <= line) && (close != CLI_JS_NO) &&
+                             (g_cli_inspect_tok[close].to.line >= line);
         const int named_on = (g_cli_inspect_tok[cli_js_function_name(src, at)].from.line == line);
-        found = (holds || named_on) ? at : found;
+        found = (encloses || named_on) ? at : found;
     }
     return found;
 }
 
 int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                             CliLine *text, CliInspectPlace *summary, CliLine *said)
+                             VerbaLinea *text, CliInspectPlace *summary, VerbaLinea *err_msg)
 {
     cli_js_read(src, size);
     const unsigned int open = write_function_at(src, line);
     if (open == CLI_JS_NO)
     {
-        cli_line_text(said, "Write Docstring writes one for the function the cursor is in.");
+        mmgr_line_put(err_msg, "Write Docstring writes one for the function the cursor is in.");
         return 0;
     }
     const unsigned int close = (g_cli_js_pair[open] != CLI_JS_NO) ? g_cli_js_pair[open] : open;
@@ -129,7 +129,7 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
                            (memor.cmp(&(MemoriaCfg){.src = src + end - 2u, .other = "*/", .bytes = 2u}) == 0);
         if ((to_line + 1u == first_line) && closed)
         {
-            cli_line_text(said, "The function has a comment over it.");
+            mmgr_line_put(err_msg, "The function has a comment over it.");
             return 0;
         }
     }
@@ -188,38 +188,38 @@ int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned 
     write_indent(src, size, first_line, &indent_start, &indent_end);
     const char *const indent = src + indent_start;
     const unsigned long long indent_size = indent_end - indent_start;
-    cli_line_counted(text, indent, indent_size);
-    cli_line_text(text, "/**\n");
-    cli_line_counted(text, indent, indent_size);
-    cli_line_text(text, " * \n");
+    mmgr_line_put_n(text, indent, indent_size);
+    mmgr_line_put(text, "/**\n");
+    mmgr_line_put_n(text, indent, indent_size);
+    mmgr_line_put(text, " * \n");
     if ((params > 0u) || gives || (thrown > 0u))
     {
-        cli_line_counted(text, indent, indent_size);
-        cli_line_text(text, " *\n");
+        mmgr_line_put_n(text, indent, indent_size);
+        mmgr_line_put(text, " *\n");
     }
     for (unsigned int index = 0u; index < params; index += 1u)
     {
         unsigned int length = 0u;
         const char *const word = write_word(src, s_params[index], &length);
-        cli_line_counted(text, indent, indent_size);
-        cli_line_text(text, " * @param ");
-        cli_line_counted(text, word, length);
-        cli_line_character(text, '\n');
+        mmgr_line_put_n(text, indent, indent_size);
+        mmgr_line_put(text, " * @param ");
+        mmgr_line_put_n(text, word, length);
+        mmgr_line_ch(text, '\n');
     }
     if (gives)
     {
-        cli_line_counted(text, indent, indent_size);
-        cli_line_text(text, " * @returns\n");
+        mmgr_line_put_n(text, indent, indent_size);
+        mmgr_line_put(text, " * @returns\n");
     }
     for (unsigned int index = 0u; index < thrown; index += 1u)
     {
-        cli_line_counted(text, indent, indent_size);
-        cli_line_text(text, " * @throws {");
-        cli_line_counted(text, s_thrown[index], s_thrown_size[index]);
-        cli_line_text(text, "}\n");
+        mmgr_line_put_n(text, indent, indent_size);
+        mmgr_line_put(text, " * @throws {");
+        mmgr_line_put_n(text, s_thrown[index], s_thrown_size[index]);
+        mmgr_line_put(text, "}\n");
     }
-    cli_line_counted(text, indent, indent_size);
-    cli_line_text(text, " */\n");
+    mmgr_line_put_n(text, indent, indent_size);
+    mmgr_line_put(text, " */\n");
     unsigned int units = 0u;
     for (unsigned long long letter_at = indent_start; letter_at < indent_end;)
     {
@@ -275,7 +275,7 @@ static unsigned int write_member_end(const char *src, unsigned int start, unsign
 }
 
 int cli_inspect_js_sort_methods(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                                CliLine *text, CliLine *said)
+                                VerbaLinea *text, VerbaLinea *err_msg)
 {
     cli_js_read(src, size);
     unsigned int open = CLI_JS_NO;
@@ -288,7 +288,7 @@ int cli_inspect_js_sort_methods(const char *src, unsigned long long size, unsign
     }
     if (open == CLI_JS_NO)
     {
-        cli_line_text(said, "Sort Methods by Name sorts the class the cursor is in.");
+        mmgr_line_put(err_msg, "Sort Methods by Name sorts the class the cursor is in.");
         return 0;
     }
     const unsigned int close = g_cli_js_pair[open];
@@ -333,7 +333,7 @@ int cli_inspect_js_sort_methods(const char *src, unsigned long long size, unsign
     }
     if (members == 0u)
     {
-        cli_line_text(said, "The class has no members.");
+        mmgr_line_put(err_msg, "The class has no members.");
         return 0;
     }
     const unsigned int first = s_firsts[0];
@@ -341,7 +341,7 @@ int cli_inspect_js_sort_methods(const char *src, unsigned long long size, unsign
     if ((last >= physical) || !cli_inspect_sorted_body(src, size, s_starts, s_ends, s_firsts, s_lasts, s_member_names,
                                                        s_member_sizes, members, text))
     {
-        cli_line_text(said, "The class's methods stand in the order of their names.");
+        mmgr_line_put(err_msg, "The class's methods stand in the order of their names.");
         return 0;
     }
     unsigned int end_col = 0u;

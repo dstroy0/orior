@@ -230,8 +230,8 @@ int adversarial_case_boundaries(void)
  * @brief Case 4. A symbol the field never produces, graded on the count and on the ordering paying.
  *
  * @return 0 where both arms count zero and the steered arm reads strictly fewer, 1 otherwise.
- * @note TWO CLAIMS, GRADED SEPARATELY. The count being zero says the answer is right. The steered
- *       arm reading fewer bytes than the spatial arm says the ordering put the absent symbol first,
+ * @note TWO CLAIMS, GRADED SEPARATELY. The count being zero shows the answer is right. The steered
+ *       arm reading fewer bytes than the spatial arm shows the ordering put the absent symbol first,
  *       as the magnitude rule promises. An engine passing the first and failing the
  *       second is correct and is not steering, and one assertion covering both would hide it.
  * @note THE SECOND CLAIM IS A RELATIONSHIP, and an earlier version of this case made it a CONSTANT.

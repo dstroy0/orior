@@ -1,14 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// version_catalog_cells.c: the cells a catalog read is held in, each counted from its text before it is read. A section
-// starts at a `[`, a field at its `=` and a string of a list between two quotes, so each part is a cell of as many as
-// those bytes make, up to its most. What kept a catalog from reading is at most four a line and one more a `{` and a
-// `,`. Each text the reader keeps is bytes of the catalog's own, none kept twice, or a message of its own naming a key,
-// so its texts take the catalog's bytes, a message's for each error and a terminator each. A key or a string is closed
-// on its line, so the longest line holds it
+// version_catalog_cells.c: the cells a catalog read is allocated in, each counted from its text before it is read. A
+// section starts at a `[`, a field at its `=` and a string of a list between two quotes, so each part is a cell of as
+// many as those bytes make, up to its most. What prevented a catalog from reading is at most four a line and one more a
+// `{` and a
+// `,`. Each text the reader stores is bytes of the catalog's own, none stored twice, or a message of its own naming a
+// key, so its texts take the catalog's bytes, a message's for each error and a terminator each. A key or a string is
+// closed on its line, so the longest line contains it
 #include "version_catalog_internal.h"
 
-CliCellsTally g_cli_versions_cells = CLI_CELLS_TALLY("cli_version_catalogs");
+CellOwner g_cli_versions_cells = MMGR_CELL_OWNER("cli_version_catalogs");
 
 // `count` up to `most`
 static unsigned long long cells_most(unsigned long long count, unsigned long long most)
@@ -48,23 +49,23 @@ int cli_versions_taken(const char *text, unsigned long long size)
     parsed->fields_room = (unsigned int)cells_most(equals, CLI_VERSIONS_FIELDS);
     parsed->items_room = (unsigned int)cells_most(quotes / 2u, CLI_VERSIONS_ITEMS);
     parsed->errors_room = (unsigned int)cells_most((4ull * lines) + braces + commas + 1ull, CLI_VERSIONS_ERRORS);
-    const unsigned long long kept =
+    const unsigned long long rooms_total =
         parsed->sections_room + (2ull * parsed->fields_room) + parsed->items_room + parsed->errors_room;
     parsed->pool_room = (unsigned int)cells_most(
-        size + kept + ((unsigned long long)parsed->errors_room * CLI_VERSIONS_SAID), CLI_VERSIONS_POOL);
+        size + rooms_total + ((unsigned long long)parsed->errors_room * CLI_VERSIONS_MSG_MAX_LEN), CLI_VERSIONS_POOL);
     // a part of none is a cell of one, so every part is a cell
-    parsed->section = cli_cell_taken_by(
-        &g_cli_versions_cells, (parsed->sections_room + 1ull) * sizeof(CliVersionsSection), "a catalog's sections");
-    parsed->field = cli_cell_taken_by(&g_cli_versions_cells, (parsed->fields_room + 1ull) * sizeof(CliVersionsField),
-                                      "a catalog's fields");
-    parsed->item = cli_cell_taken_by(&g_cli_versions_cells, (parsed->items_room + 1ull) * sizeof(CliVersionsItem),
-                                     "a catalog's lists");
-    parsed->error = cli_cell_taken_by(&g_cli_versions_cells, (parsed->errors_room + 1ull) * sizeof(CliVersionsError),
-                                      "what kept a catalog from reading");
-    parsed->pool = cli_cell_taken_by(&g_cli_versions_cells, parsed->pool_room + 1ull, "a catalog's texts");
-    // a key or a string the line holds, and after it a message naming a key
-    parsed->line = cli_cell_taken_by(&g_cli_versions_cells, (2ull * (parsed->longest + 1ull)) + CLI_VERSIONS_SAID,
-                                     "a catalog's line");
+    parsed->section = g_cli_cells->persistent_buf_alloc((parsed->sections_room + 1ull) * sizeof(CliVersionsSection),
+                                                        &g_cli_versions_cells);
+    parsed->field = g_cli_cells->persistent_buf_alloc((parsed->fields_room + 1ull) * sizeof(CliVersionsField),
+                                                      &g_cli_versions_cells);
+    parsed->item =
+        g_cli_cells->persistent_buf_alloc((parsed->items_room + 1ull) * sizeof(CliVersionsItem), &g_cli_versions_cells);
+    parsed->error = g_cli_cells->persistent_buf_alloc((parsed->errors_room + 1ull) * sizeof(CliVersionsError),
+                                                      &g_cli_versions_cells);
+    parsed->pool = g_cli_cells->persistent_buf_alloc(parsed->pool_room + 1ull, &g_cli_versions_cells);
+    // a key or a string the line contains, and after it a message naming a key
+    parsed->line = g_cli_cells->persistent_buf_alloc((2ull * (parsed->longest + 1ull)) + CLI_VERSIONS_MSG_MAX_LEN,
+                                                     &g_cli_versions_cells);
     if ((parsed->section == NULL) || (parsed->field == NULL) || (parsed->item == NULL) || (parsed->error == NULL) ||
         (parsed->pool == NULL) || (parsed->line == NULL))
     {
@@ -77,8 +78,8 @@ int cli_versions_taken(const char *text, unsigned long long size)
 // a section's accessors given back
 static void cells_names_given(CliVersionsNames *names)
 {
-    cli_cell_given_by(&g_cli_versions_cells, names->text);
-    cli_cell_given_by(&g_cli_versions_cells, names->at);
+    g_cli_cells->persistent_buf_release(names->text, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(names->at, &g_cli_versions_cells);
     names->at = NULL;
     names->size = NULL;
     names->text = NULL;
@@ -93,12 +94,12 @@ void cli_versions_released(void)
     cells_names_given(&g_cli_versions_libraries);
     cells_names_given(&g_cli_versions_known);
     CliVersionsParsed *const parsed = &g_cli_versions;
-    cli_cell_given_by(&g_cli_versions_cells, parsed->line);
-    cli_cell_given_by(&g_cli_versions_cells, parsed->pool);
-    cli_cell_given_by(&g_cli_versions_cells, parsed->error);
-    cli_cell_given_by(&g_cli_versions_cells, parsed->item);
-    cli_cell_given_by(&g_cli_versions_cells, parsed->field);
-    cli_cell_given_by(&g_cli_versions_cells, parsed->section);
+    g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
+    g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
     parsed->line = NULL;
     parsed->pool = NULL;
     parsed->error = NULL;

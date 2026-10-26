@@ -122,7 +122,7 @@ static void omega_hand_settle(const OmegaCounts *counts, unsigned int length, un
 
 // The run planned as jobs: each length's terms in rank order, cut every OMEGA_JOB_TERMS. The plan is the same
 // on every run. A finished job's exact counts are one line of the ledger, written whole and flushed, and a run finds
-// every job its ledger already holds under the same budgets and runs only the rest. A run stopped at any point
+// every job its ledger already records under the same budgets and runs only the rest. A run stopped at any point
 // resumes where it stopped, and reaching a longer L costs only the new lengths.
 #define OMEGA_JOB_TERMS (1ull << 28u)
 
@@ -215,7 +215,7 @@ static int omega_ledger_write(const char *path, const OmegaCounts *counts, unsig
 // while the device runs the next; launches are sized toward a quarter second of device time. `ledger` may be NULL.
 int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int workers, const char *ledger,
                  unsigned int *threads_used, unsigned long long *host_runs, unsigned long long *jobs_run,
-                 unsigned long long *jobs_kept, OmegaResults *fates)
+                 unsigned long long *jobs_retained, OmegaResults *fates)
 {
     omega_results_open(fates);
     std::vector<OmegaLedgerJob> done;
@@ -273,20 +273,20 @@ int omega_device(SimResults *results, const OmegaCounts *counts, unsigned int wo
         {
             const unsigned long long job_count =
                 ((total - job_from) < OMEGA_JOB_TERMS) ? (total - job_from) : OMEGA_JOB_TERMS;
-            const OmegaLedgerJob *kept = NULL;
+            const OmegaLedgerJob *ledger_job = NULL;
             for (const OmegaLedgerJob &one : done)
             {
                 if ((one.steps == counts->steps) && (one.tokens == counts->tokens) && (one.length == length) &&
                     (one.from == job_from) && (one.count == job_count))
                 {
-                    kept = &one;
+                    ledger_job = &one;
                     break;
                 }
             }
-            if (kept != NULL)
+            if (ledger_job != NULL)
             {
-                omega_merge(fates, &kept->results);
-                *jobs_kept += 1ull;
+                omega_merge(fates, &ledger_job->results);
+                *jobs_retained += 1ull;
                 continue;
             }
             omega_results_open(&job);

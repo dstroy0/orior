@@ -3,13 +3,13 @@
 // compile_db.h: the compilation database clangd reads: the build's own. The code help reads the compiler the build
 // uses, with its include folders and its defines, and no file of settings is written by hand.
 //
-// A tree that holds its own database keeps it: a compile_commands.json at its top or in its build/ folder, or the
+// A tree that has its own database uses it: a compile_commands.json at its top or in its build/ folder, or the
 // folder a .clangd at its top names. Otherwise each CMake project orior_cli configured gives its targets' sources from
 // CMake's file API, which answers for every generator, Visual Studio's among them, from the configuration configured
 // last; and each Meson build gives the compile_commands.json Meson writes. They are written together to
 // build/orior/compile_commands.json.
 //
-// clangd asks each compiler the database names, but MSVC's cl, for its own headers and target (`--query-driver`);
+// clangd queries each compiler the database names, but MSVC's cl, for its own headers and target (`--query-driver`);
 // where one is cl, clangd runs in Visual Studio's environment, as cl does. The database is looked for again at most
 // every two seconds, and a clangd running when it changes is started again on it (compile_db.c, compile_db_look.c,
 // compile_db_gather.c, compile_db_program.c)
@@ -27,9 +27,9 @@
 // in order, each once, and whether one of them is MSVC's cl
 typedef struct
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     int has_folder;
-    char compiler[CLI_COMPILERS][CLI_PATH_LONGEST];
+    char compiler[CLI_COMPILERS][CLI_PATH_MAX_LEN];
     unsigned int compilers;
     int msvc;
 } CliDatabase;
@@ -40,11 +40,11 @@ typedef struct
 typedef struct
 {
     char tool[16];
-    char build[CLI_PATH_LONGEST];
-    char target[CLI_NAME_LONGEST];
-    char config[CLI_NAME_LONGEST];
-    char program[CLI_PATH_LONGEST];
-    char compiler[CLI_NAME_LONGEST];
+    char build[CLI_PATH_MAX_LEN];
+    char target[CLI_NAME_MAX_LEN];
+    char config[CLI_NAME_MAX_LEN];
+    char program[CLI_PATH_MAX_LEN];
+    char compiler[CLI_NAME_MAX_LEN];
 } CliProgram;
 
 // Visual Studio's environment, as its vcvars64.bat sets it: each name and its value
@@ -59,7 +59,7 @@ typedef struct
 // the database of the tree at `root` into `database`, gathered and written where the tree's builds changed since the
 // last look, at most every two seconds: 1 where it changed since the last look at this tree, else 0; whether a
 // compiler is MSVC's cl; the words clangd starts with for a database put after `words`: the folder it is given and
-// the compilers it may ask for their headers and target, every one but cl
+// the compilers it may query for their headers and target, every one but cl
 int cli_compile_db_refresh(const char *root, CliDatabase *database);
 int cli_compile_db_is_cl(const char *compiler);
 void cli_compile_db_words(const CliDatabase *database, CliWords *words);
@@ -72,5 +72,52 @@ int cli_compile_db_program_of(const char *root, const char *file, CliProgram *pr
 // Visual Studio's environment for a program that runs as cl does, read once, from the newest Visual Studio with its
 // C++ tools that vswhere finds: NULL off Windows or where none is found
 const CliVsEnvironment *cli_compile_db_vs_environment(void);
+
+// the most parameters of a define read
+#define CLI_DEFINE_PARAMS 32u
+
+// One define a branch inherits, as its `-D` word gives it: its name; whether it is called with arguments, and if so
+// its parameters' names, how many, and whether it takes the arguments past them, a `-D` word's `...`; its value; and
+// the node it is given to, its path from the tree's top, empty for the top's own; each text one that stands while it
+// is handed on
+typedef struct
+{
+    const char *name;
+    int called;
+    const char *param[CLI_DEFINE_PARAMS];
+    unsigned int params;
+    int rest;
+    const char *value;
+    const char *node;
+} CliDefineGiven;
+
+// what each define a branch inherits is handed to
+typedef void (*CliDefineEach)(void *context, const CliDefineGiven *define);
+// each define the file or folder at `path`, from the top of the tree at `root`, inherits from the tree's compilation
+// database handed to `each`: the top's, then each folder's down to its own, so a later one stands in for an earlier
+// of the same name. The database's entries are read again each time its file changes: each entry's `-D` and `/D`
+// words, a define every entry under a folder gives with the same value given to that folder, the highest such, and an
+// entry's file keeping those its folder does not give it (compile_db_flags.c)
+void cli_compile_db_defines_of(const char *root, const char *path, CliDefineEach each, void *context);
+
+// the kinds of an include folder or file, in the order a compiler searches the folders: a folder searched for an
+// include in quotes alone (`-iquote`), a folder (`-I`, `/I`), a system folder (`-isystem`), a folder searched last
+// (`-idirafter`), and a file included before the first line (`-include`, `/FI`)
+#define CLI_INCLUDE_QUOTE 0u
+#define CLI_INCLUDE_FOLDER 1u
+#define CLI_INCLUDE_SYSTEM 2u
+#define CLI_INCLUDE_AFTER 3u
+#define CLI_INCLUDE_FORCED 4u
+// what each include folder or file is handed to: its whole path, its slashes `/`, a text that stands while `each`
+// runs, and its kind
+typedef void (*CliIncludeEach)(void *context, const char *path, unsigned int kind);
+// each include folder and file of the file at `path`, from the top of the tree at `root`, from the tree's compilation
+// database handed to `each`, the folders in the order a compiler searches them and then the files included before its
+// first line: its own entry's, or a file no entry names takes those of the entry sharing the most of its folders
+// (compile_db_flags.c)
+void cli_compile_db_includes_of(const char *root, const char *path, CliIncludeEach each, void *context);
+// every include folder and file the entries of the tree's compilation database name handed to `each`, each once
+// (compile_db_flags.c)
+void cli_compile_db_includes_all(const char *root, CliIncludeEach each, void *context);
 
 #endif

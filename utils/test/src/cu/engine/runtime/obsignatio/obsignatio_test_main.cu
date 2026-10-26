@@ -24,7 +24,7 @@ static void test_device_error(TestResults *results)
 }
 #endif
 
-static int test_staged(ScripturaLine *line, const char *text, unsigned int columns)
+static int test_staged(VerbaLinea *line, const char *text, unsigned int columns)
 {
     const size_t length = strlen(text);
     char *const staged = (char *)calloc((length / 8u) + 1u, 8u);
@@ -36,11 +36,11 @@ static int test_staged(ScripturaLine *line, const char *text, unsigned int colum
     memcpy(staged, text, length);
     if (columns == 0u)
     {
-        scriptura_text(line, staged);
+        mmgr_line_put(line, staged);
     }
     else
     {
-        scriptura_text_columns(line, staged, columns);
+        mmgr_line_put_columns(line, staged, columns);
     }
     free(staged);
     return 1;
@@ -50,31 +50,31 @@ static int test_report(const TestResults *tallies, unsigned int count, const cha
 {
     const unsigned long long capacity =
         strlen("  obsignatio against \n") + strlen(vectors_path) + (count * TEST_REPORT_ROW) + 1ull;
-    ScripturaLine line = {(char *)malloc((size_t)capacity), capacity, 0ull};
+    VerbaLinea line = {(char *)malloc((size_t)capacity), capacity, 0ull};
     if (line.out == NULL)
     {
         return 0;
     }
     test_staged(&line, "  obsignatio against ", 0u);
     test_staged(&line, vectors_path, 0u);
-    scriptura_character(&line, '\n');
+    mmgr_line_ch(&line, '\n');
     for (unsigned int index = 0u; index < count; index += 1u)
     {
         const TestResults *const results = &tallies[index];
         test_staged(&line, "  ", 0u);
         test_staged(&line, results->name, TEST_NAME_COLUMNS);
-        scriptura_decimal_columns(&line, results->cases, TEST_COUNT_COLUMNS);
+        mmgr_line_decimal_columns(&line, results->cases, TEST_COUNT_COLUMNS);
         test_staged(&line, " cases, ", 0u);
-        scriptura_decimal(&line, results->failures, 1u);
+        mmgr_line_decimal(&line, results->failures, 1u);
         test_staged(&line, " failed", 0u);
         if (results->failures != 0ull)
         {
             test_staged(&line, ", first at case ", 0u);
-            scriptura_decimal(&line, results->first_failure, 1u);
+            mmgr_line_decimal(&line, results->first_failure, 1u);
         }
-        scriptura_character(&line, '\n');
+        mmgr_line_ch(&line, '\n');
     }
-    const int written = scriptura_write(&line, stdout);
+    const int written = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), stdout) == line.at));
     free(line.out);
     return written;
 }

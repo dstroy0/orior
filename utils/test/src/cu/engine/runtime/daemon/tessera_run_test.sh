@@ -123,7 +123,7 @@ check "two jobs of $PAIR that fit ran at once (the second waited $WAITED ms)" $?
 # 4: errors
 "$RUN" --processors 999 -- "$BURN" 1 10 0 2> "$SCRATCH/many.err"
 STATUS=$?
-[ "$STATUS" -eq 125 ] && grep -q "asks 999 processors" "$SCRATCH/many.err"
+[ "$STATUS" -eq 125 ] && grep -q "requests 999 processors" "$SCRATCH/many.err"
 check "999 processors errors with 125 ($STATUS)" $?
 "$RUN" --processors 1 "$BURN" 1 10 0 2> "$SCRATCH/usage.err"
 STATUS=$?
@@ -142,7 +142,7 @@ rm -rf "$CHILDREN"
 STATUS=$?
 cat "$SCRATCH/child.err" "$SCRATCH/child.out"
 PEAK="$(thousandths peak processors "$SCRATCH/child.err")"
-[ "$STATUS" -eq 5 ] && grep -q "says it lives; its pid is recorded" "$SCRATCH/child.err" \
+[ "$STATUS" -eq 5 ] && grep -q "reports it lives; its pid is recorded" "$SCRATCH/child.err" \
     && grep -q "its pid confirmed against the parent's record" "$SCRATCH/child.err"
 check "a watched command's child said it lives, was recorded and confirmed, and exit 5 was handed on ($STATUS)" $?
 [ "$PEAK" -ge 1000 ] && [ "$PEAK" -le 2100 ]
@@ -157,7 +157,7 @@ PARENT=$!
 sleep 3
 kill_hard "$PARENT"
 wait "$PARENT" 2> /dev/null
-log_holds "was asked to end" 40
+log_holds "was requested to end" 40
 FOUND=$?
 cat "$SCRATCH/orphan.err"
 cat "$CHILDREN"/*.log 2> /dev/null
@@ -175,14 +175,14 @@ if [ "$WINDOWS" -eq 0 ]; then
     PARENT=$!
     sleep 2
     kill -STOP "$PARENT"
-    log_holds "was asked to end" 30
+    log_holds "was requested to end" 30
     FOUND=$?
     kill -CONT "$PARENT"
     wait "$PARENT"
     STATUS=$?
     cat "$SCRATCH/stopped.err"
-    [ "$FOUND" -eq 0 ] && grep -qs "the parent still holds its record" "$CHILDREN"/*.log \
-        && grep -qs "holds its record but is not responding" "$CHILDREN"/*.log && [ "$STATUS" -eq 124 ] \
+    [ "$FOUND" -eq 0 ] && grep -qs "the parent still locks its record" "$CHILDREN"/*.log \
+        && grep -qs "locks its record but is not responding" "$CHILDREN"/*.log && [ "$STATUS" -eq 124 ] \
         && burn_ended 60001
     check "the child of a stopped parent waited out the unresponsive time, ended the command, and 124 was handed on ($STATUS)" $?
 fi

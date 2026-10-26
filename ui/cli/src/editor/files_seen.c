@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // files_seen.c: the view of the tree, git's where git can read it, every file it tracks or would track and every folder
-// holding one, or else every file walked from the top; kept a few seconds and read again behind the window as it ages.
-// A view is held in place by its readers: there are two, each with its holders counted atomically, and a view is read
-// into only while no holder holds it and no other read fills it. A view's lists are cells of the cellblock counted to
-// the files, made at the sizes the tree gives and given back as the view is read again; the walk's folders still to
-// look in are such cells too
+// containing one, or else every file walked from the top; cached a few seconds and read again behind the window as it
+// ages. A view is pinned in place by its readers: there are two, each with its holders counted atomically, and a view
+// is read into only while no holder pins it and no other read fills it. A view's lists are cells of the cellblock
+// counted to the files, made at the sizes the tree gives and given back as the view is read again; the walk's folders
+// still to look in are such cells too
 #include "../command_line/cells.h"
 #include "../machine/trust.h"
 #include "../text/text.h"
@@ -19,13 +19,13 @@
 
 #define CLI_WALK_PENDING 4096u
 
-// the folders a walk does not go into where git cannot say: version control's own, and the one cargo writes the app's
-// build to
+// the folders a walk does not go into where git cannot determine: version control's own, and the one cargo writes the
+// app's build to
 static const char *const s_skipped[2] = {".git", "target"};
 
-// The two views and what is kept of them: each view; its holders, raised under the lock as a reader holds it and
-// lowered as it lets it go; whether a read fills it and whether it holds files; the tree the views were read for,
-// which view is current, whether one is kept, and whether one is being read again behind it, of which tree and into
+// The two views and what is cached of them: each view; its holders, raised under the lock as a reader pins it and
+// lowered as it lets it go; whether a read fills it and whether it contains files; the tree the views were read for,
+// which view is current, whether one is cached, and whether one is being read again behind it, of which tree and into
 // which view
 typedef struct
 {
@@ -33,20 +33,20 @@ typedef struct
     _Atomic unsigned int holders[2];
     int filling[2];
     int has[2];
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     unsigned int current;
-    int kept;
+    int is_cached;
     int reseeing;
     CliThread reseer;
-    char reseen_root[CLI_PATH_LONGEST];
+    char reseen_root[CLI_PATH_MAX_LEN];
     unsigned int reseen_at;
-} CliKept;
+} CliSeenCache;
 
-static CliKept s_kept;
+static CliSeenCache s_cache;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// A walk of the tree's folders: those still to look in, each a cell holding its path, the folder looked in, and where
-// each file found goes
+// A walk of the tree's folders: those still to look in, each a cell containing its path, the folder looked in, and
+// where each file found goes
 typedef struct
 {
     char **pending;
@@ -73,12 +73,12 @@ static void walk_pending(CliWalk *walk, const char *path)
 static void walk_each(void *context, const char *name, int is_folder)
 {
     CliWalk *const walk = (CliWalk *)context;
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, walk->folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    if (cli_line_closed(&line) == 0ull)
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, walk->folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return;
     }
@@ -93,7 +93,7 @@ static void walk_each(void *context, const char *name, int is_folder)
         }
         return;
     }
-    char relative[CLI_PATH_LONGEST];
+    char relative[CLI_PATH_MAX_LEN];
     cli_relative(walk->root, path, relative);
     walk->each(walk->context, relative, cellul.len(&(CatenaFinitaCfg){.src = relative, .cap = CLI_CELLS_POOL}));
 }
@@ -139,7 +139,7 @@ static void seen_put(void *context, const char *path, unsigned long long length)
 }
 
 // the files of the tree at `root` walked into the view: counted on a first walk, their list made at that size, put on
-// a second, and sorted: 1 where the view holds files
+// a second, and sorted: 1 where the view contains files
 static int seen_walked(const char *root, CliSeen *view)
 {
     CliCounted counted = {0ull, 0ull};
@@ -167,8 +167,8 @@ static int seen_git_read(const char *root, CliSeen *view)
     words[count] = "-z";
     words[count + 1u] = NULL;
     CliRan *const ran = cli_ran_taken();
-    char why[CLI_NAME_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     if (!cli_ran(words, root, NULL, 0u, ran, &unstarted) || (ran->code != 0ll))
     {
         cli_ran_given(ran);
@@ -230,7 +230,7 @@ static unsigned long long seen_name(const char *path, unsigned long long length,
 }
 
 // the name and the ending of each of the view's files into its kinds, each once: put into a list made for every file's
-// two, then copied into one made at the size they come to. 1, or 0 where the cellblock cannot meet them, none kept
+// two, then copied into one made at the size they come to. 1, or 0 where the cellblock cannot meet them, none stored
 static int seen_kinds_read(CliSeen *view)
 {
     unsigned long long count = 0ull;
@@ -275,8 +275,8 @@ static int seen_kinds_read(CliSeen *view)
 }
 
 // the view of the tree at `root` read into `view`, its lists from before given back first: git's, or the files walked
-// where git cannot read the tree or lists nothing of it, and the names and endings of its files. 1 where the view holds
-// files. The view is the read's alone: no holder holds it and its filling is marked
+// where git cannot read the tree or lists nothing of it, and the names and endings of its files. 1 where the view
+// contains files. The view is the read's alone: no holder pins it and its filling is marked
 static int seen_read(const char *root, CliSeen *view)
 {
     cli_files_emptied(&view->files);
@@ -289,7 +289,7 @@ static int seen_read(const char *root, CliSeen *view)
         cli_files_emptied(&view->files);
         cli_files_emptied(&view->dirs);
     }
-    // a view whose kinds the cellblock cannot meet still holds its files, and uses no tool for them
+    // a view whose kinds the cellblock cannot meet still contains its files, and uses no tool for them
     const int has = view->git || seen_walked(root, view);
     if (has)
     {
@@ -298,99 +298,99 @@ static int seen_read(const char *root, CliSeen *view)
     return has;
 }
 
-// whether a view is free to be read into: no holder holds it and no read fills it. Under the lock
+// whether a view is free to be read into: no holder pins it and no read fills it. Under the lock
 static int seen_free(unsigned int at)
 {
     // Acquire, so the reads of a holder that let the view go are done before it is filled again
-    return !s_kept.filling[at] && (atomic_load_explicit(&s_kept.holders[at], memory_order_acquire) == 0u);
+    return !s_cache.filling[at] && (atomic_load_explicit(&s_cache.holders[at], memory_order_acquire) == 0u);
 }
 
-// a view held: its holders raised. Under the lock, which is what keeps a view from being chosen to be filled between
-// the choice of it here and the raise
-static const CliSeen *seen_hold(unsigned int at)
+// a view pinned: its holders raised. Under the lock, which is what prevents a view from being chosen to be filled
+// between the choice of it here and the raise
+static const CliSeen *seen_acquire(unsigned int at)
 {
     // Acquire, so the holder reads the view as the read that filled it left it
-    (void)atomic_fetch_add_explicit(&s_kept.holders[at], 1u, memory_order_acquire);
-    return &s_kept.view[at];
+    (void)atomic_fetch_add_explicit(&s_cache.holders[at], 1u, memory_order_acquire);
+    return &s_cache.view[at];
 }
 
-// every view no holder holds and no read fills given back its lists. Under the lock
+// every view no holder pins and no read fills given back its lists. Under the lock
 static void seen_views_emptied(void)
 {
     for (unsigned int at = 0u; at < 2u; at += 1u)
     {
         if (seen_free(at))
         {
-            cli_files_emptied(&s_kept.view[at].files);
-            cli_files_emptied(&s_kept.view[at].dirs);
-            cli_files_emptied(&s_kept.view[at].kinds);
-            s_kept.has[at] = 0;
+            cli_files_emptied(&s_cache.view[at].files);
+            cli_files_emptied(&s_cache.view[at].dirs);
+            cli_files_emptied(&s_cache.view[at].kinds);
+            s_cache.has[at] = 0;
         }
     }
 }
 
-// the view read again behind the window into the view the hold chose, made current where the same tree is kept still
+// the view read again behind the window into the view the pin chose, made current where the same tree is cached still
 static void seen_reseen(void *context)
 {
     (void)context;
     cli_lock_take(&s_lock);
-    const unsigned int at = s_kept.reseen_at;
-    char root[CLI_PATH_LONGEST];
+    const unsigned int at = s_cache.reseen_at;
+    char root[CLI_PATH_MAX_LEN];
     memor.cpy(
         &(MemoriaCfg){.dst = root,
-                      .src = s_kept.reseen_root,
-                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_kept.reseen_root, .cap = CLI_CELLS_POOL}) + 1u});
+                      .src = s_cache.reseen_root,
+                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = s_cache.reseen_root, .cap = CLI_CELLS_POOL}) + 1u});
     cli_lock_give(&s_lock);
-    // the view is this read's alone while it reads: its filling is marked and no holder held it as the read began
-    const int has = seen_read(root, &s_kept.view[at]);
+    // the view is this read's alone while it reads: its filling is marked and no holder pinned it as the read began
+    const int has = seen_read(root, &s_cache.view[at]);
     cli_lock_take(&s_lock);
-    s_kept.filling[at] = 0;
-    s_kept.has[at] = has;
-    if (s_kept.kept && (cellul.eq(&(CatenaFinitaCfg){.src = s_kept.root, .other = root, .cap = CLI_CELLS_POOL})))
+    s_cache.filling[at] = 0;
+    s_cache.has[at] = has;
+    if (s_cache.is_cached && (cellul.eq(&(CatenaFinitaCfg){.src = s_cache.root, .other = root, .cap = CLI_CELLS_POOL})))
     {
-        s_kept.current = at;
+        s_cache.current = at;
     }
-    s_kept.reseeing = 0;
-    if (!s_kept.kept)
+    s_cache.reseeing = 0;
+    if (!s_cache.is_cached)
     {
         seen_views_emptied();
     }
     cli_lock_give(&s_lock);
 }
 
-const CliSeen *cli_seen_held(const char *root)
+const CliSeen *cli_seen_acquire(const char *root)
 {
     cli_lock_take(&s_lock);
-    const unsigned int current = s_kept.current;
+    const unsigned int current = s_cache.current;
     const int same =
-        s_kept.kept && (cellul.eq(&(CatenaFinitaCfg){.src = s_kept.root, .other = root, .cap = CLI_CELLS_POOL}));
-    if (same && ((cli_clock_milliseconds() - s_kept.view[current].at) < CLI_SEEN_FOR))
+        s_cache.is_cached && (cellul.eq(&(CatenaFinitaCfg){.src = s_cache.root, .other = root, .cap = CLI_CELLS_POOL}));
+    if (same && ((cli_clock_milliseconds() - s_cache.view[current].at) < CLI_SEEN_FOR))
     {
-        const CliSeen *const held = s_kept.has[current] ? seen_hold(current) : NULL;
+        const CliSeen *const seen = s_cache.has[current] ? seen_acquire(current) : NULL;
         cli_lock_give(&s_lock);
-        return held;
+        return seen;
     }
-    if (same && s_kept.has[current])
+    if (same && s_cache.has[current])
     {
         const unsigned int spare = 1u - current;
-        if (!s_kept.reseeing && seen_free(spare))
+        if (!s_cache.reseeing && seen_free(spare))
         {
-            s_kept.reseeing = 1;
-            s_kept.filling[spare] = 1;
-            s_kept.reseen_at = spare;
-            memor.cpy(&(MemoriaCfg){.dst = s_kept.reseen_root,
+            s_cache.reseeing = 1;
+            s_cache.filling[spare] = 1;
+            s_cache.reseen_at = spare;
+            memor.cpy(&(MemoriaCfg){.dst = s_cache.reseen_root,
                                     .src = root,
                                     .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-            s_kept.reseer = (CliThread){seen_reseen, NULL, CLI_PRIORITY_IDLE};
-            if (!cli_thread_started(&s_kept.reseer))
+            s_cache.reseer = (CliThread){seen_reseen, NULL, CLI_PRIORITY_IDLE};
+            if (!cli_thread_started(&s_cache.reseer))
             {
-                s_kept.reseeing = 0;
-                s_kept.filling[spare] = 0;
+                s_cache.reseeing = 0;
+                s_cache.filling[spare] = 0;
             }
         }
-        const CliSeen *const held = seen_hold(current);
+        const CliSeen *const seen = seen_acquire(current);
         cli_lock_give(&s_lock);
-        return held;
+        return seen;
     }
     // read now, into the current view where it is free, else the other; neither free, none is read
     const unsigned int at = seen_free(current) ? current : (seen_free(1u - current) ? (1u - current) : 2u);
@@ -399,17 +399,17 @@ const CliSeen *cli_seen_held(const char *root)
         cli_lock_give(&s_lock);
         return NULL;
     }
-    s_kept.filling[at] = 1;
-    s_kept.has[at] = seen_read(root, &s_kept.view[at]);
-    s_kept.filling[at] = 0;
-    memor.cpy(&(MemoriaCfg){.dst = s_kept.root,
+    s_cache.filling[at] = 1;
+    s_cache.has[at] = seen_read(root, &s_cache.view[at]);
+    s_cache.filling[at] = 0;
+    memor.cpy(&(MemoriaCfg){.dst = s_cache.root,
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
-    s_kept.current = at;
-    s_kept.kept = 1;
-    const CliSeen *const held = s_kept.has[at] ? seen_hold(at) : NULL;
+    s_cache.current = at;
+    s_cache.is_cached = 1;
+    const CliSeen *const seen = s_cache.has[at] ? seen_acquire(at) : NULL;
     cli_lock_give(&s_lock);
-    return held;
+    return seen;
 }
 
 void cli_seen_let(const CliSeen *seen)
@@ -418,14 +418,14 @@ void cli_seen_let(const CliSeen *seen)
     {
         return;
     }
-    const unsigned int at = (seen == &s_kept.view[1]) ? 1u : 0u;
+    const unsigned int at = (seen == &s_cache.view[1]) ? 1u : 0u;
     // Release, so whatever the holder read is done before the view is chosen to be filled again
-    (void)atomic_fetch_sub_explicit(&s_kept.holders[at], 1u, memory_order_release);
+    (void)atomic_fetch_sub_explicit(&s_cache.holders[at], 1u, memory_order_release);
 }
 
-const CliFiles *cli_files_held(const char *root)
+const CliFiles *cli_files_view(const char *root)
 {
-    const CliSeen *const seen = cli_seen_held(root);
+    const CliSeen *const seen = cli_seen_acquire(root);
     return (seen != NULL) ? &seen->files : NULL;
 }
 
@@ -433,26 +433,26 @@ void cli_files_let(const CliFiles *files)
 {
     if (files != NULL)
     {
-        const int second = (files == &s_kept.view[1].files) || (files == &s_kept.view[1].kinds);
-        cli_seen_let(second ? &s_kept.view[1] : &s_kept.view[0]);
+        const int second = (files == &s_cache.view[1].files) || (files == &s_cache.view[1].kinds);
+        cli_seen_let(second ? &s_cache.view[1] : &s_cache.view[0]);
     }
 }
 
-const CliFiles *cli_files_kinds_held(const char *root)
+const CliFiles *cli_files_kinds_view(const char *root)
 {
-    const CliSeen *const seen = cli_seen_held(root);
+    const CliSeen *const seen = cli_seen_acquire(root);
     return (seen != NULL) ? &seen->kinds : NULL;
 }
 
 // the view read behind the window, as a tree opens, for the first list or search
 static void seen_warmed(void *context)
 {
-    cli_seen_let(cli_seen_held((const char *)context));
+    cli_seen_let(cli_seen_acquire((const char *)context));
 }
 
 void cli_files_warm(const char *root)
 {
-    static char s_root[CLI_PATH_LONGEST];
+    static char s_root[CLI_PATH_MAX_LEN];
     static CliThread s_warmer;
     static CliLock s_warm_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_warm_lock);
@@ -466,7 +466,7 @@ void cli_files_warm(const char *root)
 void cli_files_forget_seen(void)
 {
     cli_lock_take(&s_lock);
-    s_kept.kept = 0;
+    s_cache.is_cached = 0;
     seen_views_emptied();
     cli_lock_give(&s_lock);
 }

@@ -58,7 +58,7 @@ async function drawMemory() {
   if (still()) {
     return;
   }
-  const read = await invoke("memory_use").catch(() => null);
+  const read = await invoke("memory_usage").catch(() => null);
   memory.read = read;
   node.hidden = !read;
   if (!read) {
@@ -66,7 +66,7 @@ async function drawMemory() {
   }
   // The cellblock's own account beside the system's: its pool and its peaks, and the share of the app's own
   // process the cellblock accounts for.
-  const cells = await invoke("cells_said").catch(() => null);
+  const cells = await invoke("cells_usage").catch(() => null);
   const own = read.parts.find((part) => part.name === read.parts[0]?.name);
   const accounted = cells && own && own.commit > 0 ? `${((cells.pool / own.commit) * 100).toFixed(0)}% of its reserved` : "";
   const cellblock = cells ? `cellblock: pool ${megabytes(cells.pool)}, peaks ${megabytes(cells.persistent)} persistent and ${megabytes(cells.temporary)} temporary${accounted ? `, ${accounted}` : ""}` : "";
@@ -175,7 +175,7 @@ export const kindOf = (text) => String(text).split("\n")[0].replace(/\d+/g, "#")
 
 // Puts a word on the bar for a moment: its first line, and all of it over it, at once where it
 // answers what the reader did and at the next break where it does not. A press takes it away, and
-// does `act` first where there is one; Not again beside it puts its kind away for good. The bell
+// does `act` first where there is one; Silence beside it puts its kind away for good. The bell
 // keeps it.
 export function say(text, { failed = false, act = null, kind = null } = {}) {
   const notice = { text: String(text), failed, act, at: Date.now(), kind: kind ?? kindOf(text) };

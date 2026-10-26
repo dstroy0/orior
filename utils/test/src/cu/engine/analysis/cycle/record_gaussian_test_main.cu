@@ -180,13 +180,13 @@ int main(int count, char **arguments)
     }
     sim_check(&results, every_filled, "some lane needs every bit of every floor's width: the norm's bound is tight");
 
-    scriptura_text(&results.line, "  the encoding's widths, floors 1 to 8:");
+    mmgr_line_put(&results.line, "  the encoding's widths, floors 1 to 8:");
     for (unsigned int level = 1u; (ok != 0) && (level <= GAUSSIAN_TEST_FLOORS); level += 1u)
     {
-        scriptura_character(&results.line, ' ');
-        scriptura_decimal(&results.line, (unsigned long long)key.term[2u * level].bits, 1u);
+        mmgr_line_ch(&results.line, ' ');
+        mmgr_line_decimal(&results.line, (unsigned long long)key.term[2u * level].bits, 1u);
     }
-    scriptura_text(&results.line, " bits, half a bit a floor, as the values grow\n");
+    mmgr_line_put(&results.line, " bits, half a bit a floor, as the values grow\n");
 
     // eight inverse floors take floor 8's 16 z back through z (1 + i)^(8 - k) to z, on every lane
     const unsigned int inverse_limbs = (ok != 0) ? inverse[GAUSSIAN_TEST_FLOORS].layout.out_limbs : 0u;
@@ -201,7 +201,7 @@ int main(int count, char **arguments)
     for (unsigned int lane = 0u; (returned != 0) && (lane < GAUSSIAN_TEST_LANES); lane += 1u)
     {
         const unsigned int *const lane_record = &device_out[(size_t)lane * out_limbs];
-        // floor 8's values lie in [-2^27, 2^27). Their low 32 bits of two's complement hold the whole value
+        // floor 8's values lie in [-2^27, 2^27). Their low 32 bits of two's complement represent the whole value
         eight[2u * lane] = (unsigned int)(unsigned long long)gaussian_take(lane_record, eighth_real->out_offset,
                                                                            eighth_real->out_bits);
         eight[(2u * lane) + 1u] = (unsigned int)(unsigned long long)gaussian_take(
@@ -268,7 +268,7 @@ int main(int count, char **arguments)
     {
         for (unsigned int pair = 0u; (agreed != 0) && (pair < GAUSSIAN_TEST_PAIRS); pair += 1u)
         {
-            // each value lies below 2^25 in magnitude. Its low 32 bits of two's complement hold it whole
+            // each value lies below 2^25 in magnitude. Its low 32 bits of two's complement represent it whole
             const unsigned int atoms_pair[2] = {(unsigned int)(unsigned long long)pair_real[pair],
                                                 (unsigned int)(unsigned long long)pair_imaginary[pair]};
             memset(&error, 0, sizeof(error));
@@ -304,11 +304,11 @@ int main(int count, char **arguments)
         "j inverse floors error on a pair exactly where (1 + i)^j does not divide it: a pair of mixed parity is a "
         "lane the machine errors");
     sim_check(&results, quotients, "where they run, each level is z / (1 + i)^k, the Gaussian division on the CPU");
-    scriptura_text(&results.line, "  the chosen pairs through 1 to 8 inverse floors: ");
-    scriptura_decimal(&results.line, ran_count, 1u);
-    scriptura_text(&results.line, " runs, ");
-    scriptura_decimal(&results.line, error_count, 1u);
-    scriptura_text(&results.line, " errored\n");
+    mmgr_line_put(&results.line, "  the chosen pairs through 1 to 8 inverse floors: ");
+    mmgr_line_decimal(&results.line, ran_count, 1u);
+    mmgr_line_put(&results.line, " runs, ");
+    mmgr_line_decimal(&results.line, error_count, 1u);
+    mmgr_line_put(&results.line, " errored\n");
     free(eight);
     free(inverse_host);
     free(inverse_device);

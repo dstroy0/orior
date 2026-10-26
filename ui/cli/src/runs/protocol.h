@@ -4,7 +4,7 @@
 // every command of the query a job of the Protocol menu (catalog.h), and the words of `orior_cli protocol` run by the
 // query.
 //
-// Nothing here holds a list of languages or parts. Each is the files of the bridge's folder that name it: a language
+// Nothing here stores a list of languages or parts. Each is the files of the bridge's folder that name it: a language
 // its map to the bridge, .klm, and its ruleset, .krs; a part its machine file, .khw, its record, .kqr, and its costs,
 // .ksc. The query reads them the same way (query_jobs.c)
 #ifndef PROTOCOL_H
@@ -14,12 +14,12 @@
 
 // the programs as the toolchains find them: the gcc or the llvm toolchain's compilers, whichever is chosen, the cuda
 // toolchain's nvcc and the programs beside it, the msvc toolchain's cl, the python toolchain's program; the PATH alone
-// where no toolchain is chosen. A program not found is said as the toolchains say it: the tool's name, and that File,
-// Toolchains opens its install page or takes its folder
+// where no toolchain is chosen. A program not found is reported as the toolchains report it: the tool's name, and that
+// File, Toolchains opens its install page or takes its folder
 QueryPrograms cli_protocol_programs(void);
 
-// `orior_cli protocol <words>`, `count` of them, run on the tree at `root`, each line said through `sink`: the code to exit
-// with, or -1 with why the words could not be run said through `sink`
+// `orior_cli protocol <words>`, `count` of them, run on the tree at `root`, each line printed through `sink`: the code
+// to exit with, or -1 with why the words could not be run printed through `sink`
 int cli_protocol_run(const char *root, const char *const *words, unsigned int count, QuerySink sink);
 
 #endif

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// series_rule.cu: series held by the rule of their entries, in one normal form (series_rule.h)
+// series_rule.cu: series stored by the rule of their entries, in one normal form (series_rule.h)
 #include "series_rule.h"
 
 #include "term_form.h"
@@ -147,7 +147,7 @@ static SeriesRulePolynomial series_rule_raised(SeriesRulePolynomial polynomial, 
     return polynomial;
 }
 
-// the part added, a Cauchy product's pair held in its order and a pair of one entry held even under i -> k + c - i
+// the part added, a Cauchy product's pair stored in its order and a pair of one entry stored even under i -> k + c - i
 static void series_rule_add(SeriesRule *rule, SeriesRuleKey key, SeriesRuleFactor factor)
 {
     if (key.product)
@@ -374,7 +374,7 @@ static int series_rule_entry_parity(const SeriesRuleEntry &entry, const std::vec
 
 int series_rule_parity(const SeriesRule &rule, const std::vector<int> &parities)
 {
-    int held = 0;
+    int matched = 0;
     for (const auto &part : rule)
     {
         int factor = 0;
@@ -392,13 +392,13 @@ int series_rule_parity(const SeriesRule &rule, const std::vector<int> &parities)
         {
             parity *= series_rule_entry_parity(part.first.second, parities);
         }
-        if ((held != 0) && (held != parity))
+        if ((matched != 0) && (matched != parity))
         {
             return 0;
         }
-        held = parity;
+        matched = parity;
     }
-    return held;
+    return matched;
 }
 
 static std::string series_rule_polynomial_text(const SeriesRulePolynomial &polynomial)

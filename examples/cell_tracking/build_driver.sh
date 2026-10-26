@@ -86,7 +86,7 @@ FUNCTIONALS=(cell_tracking/src/run_cfg cu/includes/formats/cfg_json cell_trackin
              cu/engine/nbody/marginal
              cu/engine/nbody/contact_side cu/engine/nbody/box_history
              cu/engine/nbody/heaviest_matching cu/includes/types/integerfloats/double_fields
-             cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura cell_tracking/src/relate_frames
+             cu/includes/types/integerfloats/decimal_double cell_tracking/src/relate_frames
              cell_tracking/src/group_objects cell_tracking/src/link_objects cell_tracking/src/bodies
              cell_tracking/src/score_sample cell_tracking/src/coherence cell_tracking/src/peaks
              cell_tracking/src/scan cell_tracking/src/sort cell_tracking/src/divide cell_tracking/src/faces
@@ -98,6 +98,9 @@ INGEST=(cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/infl
         cu/includes/formats/parquet)
 FUNCTIONALS+=("${INGEST[@]}")
 FUNCTIONAL_INCLUDES=(-I "$ENGINE" -I "$ENGINE/../../cu/engine" -I "$ENGINE/../includes/codecs/crc" -I "$ENGINE/../../cu/includes/codecs/crc" -I "$ENGINE/runtime/daemon")
+# MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
+source "$ENGINE/../includes/file_defs/file_defs.sh"
+FUNCTIONAL_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 FUNCTIONAL_SOURCES=("$ENGINE/../../cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for functional in "${FUNCTIONALS[@]}"; do
     folder="$(build_path "$functional")"
@@ -108,27 +111,35 @@ for functional in "${FUNCTIONALS[@]}"; do
     done
 done
 
-PORTABLE_OBJECTS=()
+PORTABLE_SOURCES=()
 for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/includes/formats/cfg_json \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
-                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
+                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double \
                 "${INGEST[@]}"; do
-    for source in "$(build_path "$portable")"/*.c; do
-        name="$(basename "$source" .c)"
-        case "$(uname -s)" in
-            MINGW*|MSYS*|CYGWIN*) OBJECT="$OUT/${name}_portable.obj" ;;
-            *) OBJECT="$OUT/${name}_portable.o" ;;
-        esac
-        rm -f "$OBJECT"
-        case "$(uname -s)" in
-            MINGW*|MSYS*|CYGWIN*)
-                nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
-            *)
-                cc -std=c11 -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
-        esac
-        [ -f "$OBJECT" ] || { echo "  build failed: $portable/$name.c did not compile"; exit 1; }
-        PORTABLE_OBJECTS+=("$OBJECT")
-    done
+    PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
+done
+PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}")
+PORTABLE_OBJECTS=()
+# the line's objects, which the daemon links too
+LINEA_OBJECTS=()
+for source in "${PORTABLE_SOURCES[@]}"; do
+    name="$(basename "$source" .c)"
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) OBJECT="$OUT/${name}_portable.obj" ;;
+        *) OBJECT="$OUT/${name}_portable.o" ;;
+    esac
+    rm -f "$OBJECT"
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
+        *)
+            cc -std=c11 -O2 -g -fPIC "${FUNCTIONAL_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT" ;;
+    esac
+    [ -f "$OBJECT" ] || { echo "  build failed: $source did not compile"; exit 1; }
+    PORTABLE_OBJECTS+=("$OBJECT")
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$OBJECT") ;;
+    esac
 done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     case "$(uname -s)" in
@@ -153,12 +164,6 @@ case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) SUFFIX=.exe; OBJECT_SUFFIX=obj; DAEMON_LIBRARIES=(-lpdh) ;;
     *) SUFFIX=; OBJECT_SUFFIX=o; DAEMON_LIBRARIES=(-ldl -lpthread) ;;
 esac
-SCRIPTURA_OBJECTS=()
-for object in "${PORTABLE_OBJECTS[@]}"; do
-    case "$(basename "$object")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
-    esac
-done
 TESSERA_CLIENT_OBJECTS=()
 TESSERA_DAEMON_OBJECTS=()
 for name in tessera_client_{socket,jobs} tessera_paths tessera_frame tessera_self tessera_ledger tessera_measure \
@@ -191,7 +196,7 @@ for name in obsignatio_{hash,seal}; do
     SEAL_OBJECTS+=("$SEAL_OBJECT")
 done
 nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${LINK_FLAGS[@]}" -o "$DAEMON" "${TESSERA_DAEMON_OBJECTS[@]}" \
-    "${SCRIPTURA_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
+    "${LINEA_OBJECTS[@]}" "${SEAL_OBJECTS[@]}" "${DAEMON_LIBRARIES[@]}"
 [ -f "$DAEMON" ] || { echo "  build failed: the tessera daemon did not link"; exit 1; }
 echo "  built $DAEMON"
 

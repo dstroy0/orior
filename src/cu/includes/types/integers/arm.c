@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
  * @file arm.c
- * @brief Presents the portable C11 operations as an arm, letting a driver hold it in one table.
+ * @brief Presents the portable C11 operations as an arm, letting a driver store it in one table.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * @note The functions are the ones in exact_integer_*.c and are not reimplemented here. This file is a

@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// scheduler_check.c: a round held to P13 on the run channel's dry carrier, which writes each question it is handed in
-// the order it is handed them and answers none
+// scheduler_check.c: a round checked against P13 on the run channel's dry carrier, which writes each question it is
+// handed in the order it is handed them and answers none
 //
 //   order      the question that settles the most entries is put first, and two that settle as many in the order
 //              handed
 //   all        every question of a round is put, a round past SCHEDULER_ROUND_MOST to more than one process
-//   held       a question nothing carried answers nothing, and the round counts none answered
-//   stopped    a panic on the line ruled stops the run, and every question put after it is held with that reason; a
+//   gated      a question nothing carried answers nothing, and the round counts none answered
+//   stopped    a panic on the line ruled stops the run, and every question put after it is refused with that reason; a
 //              refusal the conference rules the instruction's own, the carrier ended clean, closes the line and
 //              stops nothing
 //
@@ -26,10 +26,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -48,9 +48,9 @@ int main(int count, char **words)
     // the run the check runs in
     (void)words;
     check_that(qry_member_run() != NULL, "the check runs in a run");
-    // the airlock lets a round through a channel whose carrier reads a held list alone (run_channel_checked): the dry
+    // the airlock lets a round through a channel whose carrier reads a gated list alone (run_channel_checked): the dry
     // carrier reads none, and the list is named so that the round passes the airlock as a live one does
-    const char *const carrier[] = {"dry", "--held", "held.txt", NULL};
+    const char *const carrier[] = {"dry", "--gated", "gated.txt", NULL};
     check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens");
     RunQuestion *const pool = (RunQuestion *)calloc(CHECK_QUESTIONS, sizeof(RunQuestion));
     if (pool == NULL)
@@ -61,7 +61,7 @@ int main(int count, char **words)
     static unsigned char s_code[CHECK_QUESTIONS][16];
     RunQuestion *question[CHECK_QUESTIONS];
     unsigned int settles[CHECK_QUESTIONS];
-    // each question's code its own number, so that the order written says which was put when
+    // each question's code its own number, so that the order written shows which was put when
     for (unsigned int at = 0u; at < CHECK_QUESTIONS; at += 1u)
     {
         s_code[at][0] = (unsigned char)(at & 0xffu);
@@ -77,12 +77,12 @@ int main(int count, char **words)
     const unsigned int answered = scheduler_round(question, settles, CHECK_QUESTIONS);
     run_channel_close();
     check_that(answered == 0u, "a round nothing carried answers nothing");
-    unsigned int held = 0u;
+    unsigned int gated = 0u;
     for (unsigned int at = 0u; at < CHECK_QUESTIONS; at += 1u)
     {
-        held += (pool[at].outcome == RUN_HELD) ? 1u : 0u;
+        gated += (pool[at].outcome == RUN_GATED) ? 1u : 0u;
     }
-    check_that(held == CHECK_QUESTIONS, "every question of the round is put, and reads held");
+    check_that(gated == CHECK_QUESTIONS, "every question of the round is put, and reads gated");
 
     // the order the dry channel handed them in, read back off each question's code in the run
     unsigned int written[CHECK_QUESTIONS];
@@ -99,9 +99,9 @@ int main(int count, char **words)
         const size_t line_length =
             (line_end != NULL) ? (size_t)(line_end - (list + at_line)) : (size_t)(list_size - at_line);
         char line[256];
-        const size_t kept = (line_length < (sizeof(line) - 1u)) ? line_length : (sizeof(line) - 1u);
-        memcpy(line, list + at_line, kept);
-        line[kept] = '\0';
+        const size_t copied = (line_length < (sizeof(line) - 1u)) ? line_length : (sizeof(line) - 1u);
+        memcpy(line, list + at_line, copied);
+        line[copied] = '\0';
         at_line += (unsigned long long)line_length + 1ull;
         char code_name[256];
         const unsigned char *code = NULL;
@@ -131,11 +131,11 @@ int main(int count, char **words)
     }
     check_that(ordered, "the most settling first, and the order handed between equals");
 
-    // the stop: a panic on the line ruled, and every question of the round after it held with the stop's reason, on
+    // the stop: a panic on the line ruled, and every question of the round after it refused with the stop's reason, on
     // the dry channel as on a live one
     check_that(run_channel_open(carrier, 1000000ull) == 1, "the dry channel opens again");
     check_that(!run_channel_panic_ruled(), "the run is not stopped before a panic");
-    // a clean refusal: the carrier ended clean, and every account the conference hears reads the cause as the
+    // a clean refusal: the carrier ended clean, and every account the conference receives reads the cause as the
     // question's own instruction; the line closes and the run goes on
     qry_member_append("panic.txt", (const unsigned char *)"refused", 7ull, QRY_PANIC);
     check_that(qry_member_panicked() != 0ull, "a refusal's panic opens the line");
@@ -155,7 +155,7 @@ int main(int count, char **words)
     run_channel_line_ruled(question[0]);
     check_that(!run_channel_panic_ruled() && (qry_member_panicked() == 0ull),
                "a clean refusal ruled the instruction's own closes the line and stops nothing");
-    // a panic no conference heard an account of, on a question of its own: the line stays open and the run stops
+    // a panic no conference received an account of, on a question of its own: the line stays open and the run stops
     qry_member_append("panic.txt", (const unsigned char *)"faulted", 7ull, QRY_PANIC);
     check_that(qry_member_panicked() != 0ull, "a panic opens the line");
     s_channel.carrier_clean = 0;
@@ -169,7 +169,7 @@ int main(int count, char **words)
         stopped += ((pool[at].outcome == RUN_NO_CHANNEL) && (strstr(pool[at].refused, "stopped") != NULL)) ? 1u : 0u;
     }
     check_that((after == 0u) && (stopped == CHECK_QUESTIONS),
-               "every question after the stop is held with the stop's reason");
+               "every question after the stop is refused with the stop's reason");
     free(pool);
     printf("scheduler_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

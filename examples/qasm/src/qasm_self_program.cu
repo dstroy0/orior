@@ -21,7 +21,7 @@ const QasmRational *qasm_self_part(const QasmNumber *value, unsigned int part)
     return parts[part];
 }
 
-QasmRational *qasm_self_part_slot(QasmNumber *value, unsigned int part)
+QasmRational *qasm_self_part_at(QasmNumber *value, unsigned int part)
 {
     QasmRational *const parts[QASM_SELF_PARTS] = {&value->real.rational, &value->real.sqrt2, &value->imaginary.rational,
                                                   &value->imaginary.sqrt2};
@@ -35,8 +35,8 @@ unsigned int qasm_self_step(QasmSelfSteps *list, EngineRecordOperation operation
     if ((list->spent == 0) && (list->count == list->capacity))
     {
         const unsigned int wanted = (list->capacity == 0u) ? 1024u : (list->capacity * 2u);
-        // a doubling that wraps asks for less than it holds, and errors as a list that cannot grow; the count is
-        // widened to size_t, which holds any unsigned int
+        // a doubling that wraps requests less than it has, and errors as a list that cannot grow; the count is
+        // widened to size_t, which represents any unsigned int
         EngineRecordStep *const grown =
             (wanted > list->capacity)
                 ? (EngineRecordStep *)realloc(list->steps, (size_t)wanted * sizeof(EngineRecordStep))

@@ -8,12 +8,12 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void reduce_check(int held, const char *what, unsigned int first, unsigned int second)
+static void reduce_check(int passed, const char *what, unsigned int first, unsigned int second)
 {
     s_checks += 1u;
-    if (held != 0)
+    if (passed != 0)
     {
-        printf("  held: %s (%u %u)\n", what, first, second);
+        printf("  passed: %s (%u %u)\n", what, first, second);
     }
     else
     {
@@ -33,7 +33,7 @@ int main(void)
     uint8_t pixels[2] = {0u, 0u};
     int rendered = orior_raster_host(pixels, &config, corpus, 9u, needle, 2u, NULL, 0u);
     reduce_check((rendered != 0) && (pixels[0] == 0u) && (pixels[1] == 0u),
-                 "the raster's minimum keeps a 0 byte that arrives first", pixels[0], pixels[1]);
+                 "the raster's minimum retains a 0 byte that arrives first", pixels[0], pixels[1]);
     config.reduce = ORIOR_REDUCE_MAX;
     rendered = orior_raster_host(pixels, &config, corpus, 9u, needle, 2u, NULL, 0u);
     reduce_check((rendered != 0) && (pixels[0] == 9u) && (pixels[1] == 6u),
@@ -42,7 +42,7 @@ int main(void)
     uint8_t voxels[2] = {0u, 0u};
     rendered = orior_volume_render_host(voxels, &volume, corpus, 9u, needle, 2u, NULL, 0u, NULL);
     reduce_check((rendered != 0) && (voxels[0] == 0u) && (voxels[1] == 3u),
-                 "the volume's minimum keeps a 0 byte that arrives first and again later", voxels[0], voxels[1]);
+                 "the volume's minimum retains a 0 byte that arrives first and again later", voxels[0], voxels[1]);
     // sixteen cells and eight alignments: the cells nothing reaches write ORIOR_RASTER_EMPTY
     uint8_t wide[16];
     const OriorRasterConfig sparse = {16u, 1u, ORIOR_LAYOUT_ROWS, ORIOR_CHANNEL_BYTE, ORIOR_REDUCE_MIN, 1u};
@@ -52,7 +52,7 @@ int main(void)
     {
         empty += (wide[cell] == (uint8_t)ORIOR_RASTER_EMPTY) ? 1u : 0u;
     }
-    // the eight alignments land on cells 0, 2, ..., 14; of those, two hold the byte 0
+    // the eight alignments land on cells 0, 2, ..., 14; of those, two contain the byte 0
     reduce_check((rendered != 0) && (empty == 10u) && (wide[2] == 9u), "a raster wider than its alignments", empty,
                  wide[2]);
     printf("  orior_raster reduce test: %u checks, %u failed\n", s_checks, s_failed);

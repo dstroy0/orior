@@ -75,7 +75,7 @@ static int measure_test_child_ends(unsigned long long *failed)
     const int ended = (process != NULL) && !tessera_process_lives(process);
     tessera_process_release(process);
 #endif
-    printf("  a child held: lived %d, then ended %d\n", lived, ended);
+    printf("  a child opened: lived %d, then ended %d\n", lived, ended);
     *failed += lived ? 0ull : 1ull;
     *failed += ended ? 0ull : 1ull;
     return 2;
@@ -139,7 +139,7 @@ int main(void)
     failed += ((reported ? !read_other : read_other) && (used_other == 0ull)) ? 0ull : 1ull;
     cases += 1ull;
     // the runtime's byte count is a size_t, which fits in an unsigned long long
-    printf("  device %llu bytes (the runtime says %llu), in use %llu then %llu\n", capacity,
+    printf("  device %llu bytes (the runtime reports %llu), in use %llu then %llu\n", capacity,
            (unsigned long long)properties.totalGlobalMem, in_use_before, in_use_after);
     printf("  this process %llu bytes, then %llu after %llu allocated (%s)\n", used_before, used_after,
            MEASURE_TEST_BYTES, reported ? "read by itself: WSL reports each process's own bytes" : "read by pid");

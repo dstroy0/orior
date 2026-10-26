@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // The cores kept for the reader as orior's own work spreads over the machine's: KEPT_LEAST at the
-// fewest, the reader's to raise in Preferences or as `cores-kept` in their settings file, which a
+// fewest, the reader's to raise in Preferences or as `cores-reserved` in their settings file, which a
 // tree's file does not set. The window gives the count to orior's side as it starts and each time it
 // changes, and the search, the tests and the reading of a tree's files spread over what is left.
 
 import { invoke } from "./bridge.js";
 
-export const CORES_KEY = "orior.cores-kept";
+export const CORES_KEY = "orior.cores-reserved";
 
 export const KEPT_LEAST = 1;
 
@@ -26,7 +26,7 @@ export function coresKept() {
 // Gives orior's side the cores kept, and answers what it took: the cores kept, those its work may
 // take, and the machine's.
 export function giveCores() {
-  return invoke("cores_keep", { kept: coresKept() }).catch(() => null);
+  return invoke("cores_reserve", { reserved: coresKept() }).catch(() => null);
 }
 
 export function setCoresKept(kept) {

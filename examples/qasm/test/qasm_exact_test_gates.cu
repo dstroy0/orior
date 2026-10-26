@@ -168,7 +168,7 @@ int qasm_test_amplitude_is(const QasmChain *chain, unsigned int value, const cha
     QasmNumber amplitude = qasm_number_zero;
     for (unsigned int site = 0u; site < chain->sites; site += 1u)
     {
-        // the value is 0 or 1, which an unsigned char holds exactly
+        // the value is 0 or 1, which an unsigned char represents exactly
         bits[site] = (unsigned char)value;
     }
     return (qasm_chain_amplitude(chain, bits, &amplitude, error) == 0L) &&
@@ -286,7 +286,7 @@ void qasm_test_exact_qubits(QasmResults *results)
         results,
         qasm_test_error_here(qasm_rational_divide(&nudge, &zero_rational, &quotient, &engine_error), &engine_error),
         "exact: a division by zero errors, a request error from qasm");
-    qasm_test_check(results, qasm_test_clean(&error), "exact: no error was raised on the paths that held");
+    qasm_test_check(results, qasm_test_clean(&error), "exact: no error was raised on the paths that succeeded");
     qasm_dense_release(&bell);
     qasm_dense_release(&ghz);
     qasm_dense_release(&phased);

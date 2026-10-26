@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -11,15 +11,15 @@
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
  * @note ONE FILE FOR EVERY x86 BUILD. The loops are a property of the instruction set and are
- *       shared across every operating system. Both ways of asking the processor about AVX2 live
+ *       shared across every operating system. Both ways of querying the processor about AVX2 live
  *       here together with them, and no second copy that could disagree with this one exists.
  * @note Two detection paths, both arms of the gate defined. MSVC has no __builtin_cpu_supports and
  *       takes __cpuidex directly. GCC and Clang have the builtin and use it on any host. A compiler
  *       carrying neither reports the arm absent instead of guessing.
- * @note Asked at run time deliberately. A binary built where AVX2 was available still runs on
+ * @note Queried at run time deliberately. A binary built where AVX2 was available still runs on
  *       machines that lack it, and calling in there raises an illegal instruction.
  * @note THE NAME STILL NAMES THE OPERATING SYSTEM. Two builds running the same instructions have
- *       to be told apart in a row of results, because what a row compares includes the compiler and
+ *       to be distinguished in a row of results, because what a row compares includes the compiler and
  *       the operating system that built it. Folding the files did not change what a row prints.
  * @note Both comparisons walk from the top limb down. At a scale of 1024 decimal digits a deposited
  *       value has hundreds of trailing zero digits. The low limbs are zero on both sides and carry
@@ -32,7 +32,7 @@
 
 #if defined(_MSC_VER)
 #include <intrin.h>
-/** @brief Set where this translation unit can ask the processor about AVX2. */
+/** @brief Set where this translation unit can query the processor about AVX2. */
 #define ORIOR_AVX2_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
 #define ORIOR_AVX2_CAN_DETECT 1
@@ -47,7 +47,7 @@
 #define ORIOR_AVX2_ARM_NAME "avx2-linux"
 #endif
 
-/** @brief Limbs compared per AVX2 instruction. 256 bits holds eight 32 bit limbs. */
+/** @brief Limbs compared per AVX2 instruction. 256 bits contains eight 32 bit limbs. */
 #define ORIOR_AVX2_LANES 8u
 
 /**
@@ -117,7 +117,7 @@ static int avx2_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
- * @note A vector reports that a block differs and not which limb differs first. The block holding
+ * @note A vector reports that a block differs and not which limb differs first. The block containing
  *       the highest difference is found with the vector and then walked backward one limb at a time,
  *       which runs at most eight scalar steps once per comparison.
  */
@@ -154,7 +154,7 @@ static int avx2_magnitude_compare(const uint32_t *left, const uint32_t *right)
 }
 
 /**
- * @brief Whether two integers hold the same value, sign included.
+ * @brief Whether two integers have the same value, sign included.
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].

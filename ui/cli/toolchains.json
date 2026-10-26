@@ -120,7 +120,7 @@
       "runs": {"c.c": "{clang} {file} -o {out} && {out}", "c.cpp": "{clang++} {file} -o {out} && {out}", "c.cc": "{clang++} {file} -o {out} && {out}"},
       "builds": {"c.c": ["{clang}", "-g", "-O0", "{path}", "-o", "{out}"], "c.cpp": ["{clang++}", "-g", "-O0", "{path}", "-o", "{out}"], "c.cc": ["{clang++}", "-g", "-O0", "{path}", "-o", "{out}"]},
       "debugger": {"program": "lldb-dap", "args": [], "languages": ["c", "rust"], "launch": {"program": "{program}", "cwd": "{root}", "args": [], "stopOnEntry": false}, "path": {"windows": ["%LOCALAPPDATA%\\Programs\\Python\\Python311", "%ProgramFiles%\\Python311"]}},
-      "server": {"program": "clangd", "args": ["--background-index", "--header-insertion=never", "--log=error"], "languages": ["c"], "ids": {"c": "c", "h": "cpp", "cpp": "cpp", "hpp": "cpp", "cc": "cpp", "cu": "cuda-cpp", "cuh": "cuda-cpp"}},
+      "server": {"program": "clangd", "args": ["--header-insertion=never", "--log=error"], "languages": ["c"], "ids": {"c": "c", "h": "cpp", "cpp": "cpp", "hpp": "cpp", "cc": "cpp", "cu": "cuda-cpp", "cuh": "cuda-cpp"}, "slices": true},
       "version": ["--version"],
       "install": {"any": "https://github.com/llvm/llvm-project/releases"},
       "places": {"windows": ["%ProgramFiles%\\LLVM\\bin"], "macos": ["/opt/homebrew/opt/llvm/bin", "/usr/local/opt/llvm/bin"], "linux": ["/usr/bin", "/usr/lib/llvm-*/bin"]}
@@ -167,7 +167,7 @@
       "programs": ["cargo", "rustc", "rustfmt"],
       "runs": {"rust": "{rustc} {file} -o {out} && {out}"},
       "builds": {"rust": ["{rustc}", "-g", "-C", "opt-level=0", "{path}", "-o", "{out}"]},
-      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck", "held": {"cargo": {"buildScripts": {"enable": false}}, "procMacro": {"enable": false}, "checkOnSave": false}, "trusted": {"check": {"overrideCommand": ["cargo", "build", "--workspace", "--all-targets", "--message-format=json-diagnostic-rendered-ansi", "--keep-going"]}}},
+      "server": {"program": "rust-analyzer", "args": [], "languages": ["rust"], "setup": "rustup component add rust-analyzer", "projects": "Cargo.toml", "checks": "rust-analyzer/runFlycheck", "blocked": {"cargo": {"buildScripts": {"enable": false}}, "procMacro": {"enable": false}, "checkOnSave": false}, "trusted": {"check": {"overrideCommand": ["cargo", "build", "--workspace", "--all-targets", "--message-format=json-diagnostic-rendered-ansi", "--keep-going"]}}},
       "version": ["--version"],
       "formats": ["rust"],
       "format": {"program": "rustfmt", "args": ["--edition", "{edition}"]},
@@ -254,7 +254,7 @@
       "group": "Checkers",
       "for": "SonarQube's analysis of the tree's code through the language server and analyzers SonarQube for IDE installs, and the Java it carries",
       "programs": ["java"],
-      "holds": "../../../server",
+      "contains": "../../../server",
       "install": {"any": "https://marketplace.visualstudio.com/items?itemName=SonarSource.sonarlint-vscode"},
       "places": {"windows": ["%USERPROFILE%\\.vscode\\extensions\\sonarsource.sonarlint-vscode-*\\jre\\*\\bin"], "any": ["~/.vscode/extensions/sonarsource.sonarlint-vscode-*/jre/*/bin"]}
     },
@@ -615,7 +615,7 @@
       "uses": ["*.cs", "*.csproj", "*.fs", "*.fsproj", "*.vb", "*.vbproj", "*.sln"],
       "programs": ["dotnet"],
       "version": ["--version"],
-      "holds": "sdk",
+      "contains": "sdk",
       "install": {"any": "https://dotnet.microsoft.com/download"},
       "places": {"windows": ["%ProgramFiles%\\dotnet", "%LOCALAPPDATA%\\Microsoft\\dotnet"], "macos": ["/usr/local/share/dotnet", "~/.dotnet"], "linux": ["/usr/share/dotnet", "/usr/lib/dotnet", "~/.dotnet"]}
     },

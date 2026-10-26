@@ -17,8 +17,8 @@
 // The step table itself is laid out on the device as well, from the program's steps: keymath's encoding
 // (keymath_core.h) and key_schedule's layout (key_schedule_core.h), each in one thread, since each step reads the steps
 // before it, the one keymath_record_encode and key_schedule_record_layout run on the host. The assembly printer is laid
-// out there too, from what asm_printer_ruleset_build kept of it, and checked against the host's layout word for word
-// before the record machine loads it
+// out there too, from what asm_printer_ruleset_build retained of it, and checked against the host's layout word for
+// word before the record machine loads it
 
 #include "asm_printer.h"
 #include "code_generator.h"
@@ -46,10 +46,11 @@ struct LayoutRequest
 };
 
 // the lane of `layout` written by the device in the ruleset `text_rules` was laid out from, `places` the places it
-// holds in shared memory (the file's where the language lays it out there, else 0), split into states by `costs` where
+// uses in shared memory (the file's where the language lays it out there, else 0), split into states by `costs` where
 // it is given (the language's CodeGenerator::program_schedule_costs, where its program() splits the lane): 1 where it
-// was written, its text in `text`; 0, and why in `error`, where a step is one the lane does not hold, a form breaks
-// the lane, the text is more than the assembly printer holds, the device errored on a call, or the build has no device
+// was written, its text in `text`; 0, and why in `error`, where a step is one the lane does not support, a form breaks
+// the lane, the text is more than the assembly printer supports, the device errored on a call, or the build has no
+// device
 int codegen_device(const EngineRecordLayout *layout, const AsmPrinterRuleset *text_rules, unsigned int places,
                    const ScheduleCosts *costs, std::string *text, std::string *error);
 
@@ -65,9 +66,9 @@ int codegen_device_steps(const LayoutRequest *request, const AsmPrinterRuleset *
 
 // the forms of the lane of `layout` as the device decides them, in the text's order, each construct taking its scratch
 // from `scratch` (ruleset_scratch), and read back into `items`: those CodeGenerator::decided gives, where `costs`
-// is NULL, else the lane split by `costs` into states and `report` told how, as the scheduled decided gives them. 1
-// where they were decided; 0, and why in `error`, where a step is one the lane does not hold, a form breaks the lane,
-// the device errored on a call, or the build has no device
+// is NULL, else the lane split by `costs` into states and `report` informed how, as the scheduled decided gives them. 1
+// where they were decided; 0, and why in `error`, where a step is one the lane does not support, a form breaks the
+// lane, the device errored on a call, or the build has no device
 int codegen_device_instrs(const EngineRecordLayout *layout, const std::vector<unsigned int> &scratch,
                           unsigned int places, const ScheduleCosts *costs, ScheduleReport *report,
                           std::vector<MachineInstr> *items, std::string *error);
@@ -75,15 +76,15 @@ int codegen_device_instrs(const EngineRecordLayout *layout, const std::vector<un
 // 1 where two layouts are the same word for word: their sizes, step tables and tables' values
 int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right);
 
-// the program of `request` laid out by the device, the path every program takes, and held to `layout`, the host's
-// layout of it, word for word: 1 where the two agree, the host's released and the device's left in `layout`, the line
-// on stderr where `report` asks; else 0 with the reason on stderr, the host's left in `layout`
-int layout_device_held(const LayoutRequest *request, EngineRecordLayout *layout, int report);
+// the program of `request` laid out by the device, the path every program takes, and checked against `layout`, the
+// host's layout of it, word for word: 1 where the two agree, the host's released and the device's left in `layout`, the
+// line on stderr where `report` requests; else 0 with the reason on stderr, the host's left in `layout`
+int layout_device_agrees(const LayoutRequest *request, EngineRecordLayout *layout, int report);
 
 // asm_printer_ruleset_build on the device: the schema checked on the host, the scratch taken by the device
 // (ruleset_scratch_device), then the build (asm_printer_core.h) in one device thread and the program laid out by the
-// device (layout_device). The program's key is not kept, and its output is the program's. 1 where it is built, else 0
-// and why in `error`, as the host's build errors, or where the device errored on a call or the build has no device
+// device (layout_device). The program's key is not retained, and its output is the program's. 1 where it is built, else
+// 0 and why in `error`, as the host's build errors, or where the device errored on a call or the build has no device
 int asm_printer_ruleset_device(const Ruleset *rules, const TargetInfo *target, const std::string &header,
                                AsmPrinterRuleset *text_rules, std::string *error);
 

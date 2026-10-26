@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// completions.c: completion items, each its texts kept in its items' room, made unique by what they show and written as
-// the page reads them
+// completions.c: completion items, each its texts stored in its items' room, made unique by what they show and written
+// as the page reads them
 #include "../text/edits.h"
 #include "../text/json_tree.h"
 
@@ -12,8 +12,8 @@ void cli_completions_begun(CliCompletions *items)
     items->full = 0;
 }
 
-// `size` bytes of `bytes` kept in the items' room: where they start, or CLI_COMPLETIONS_TEXT where they do not fit
-static unsigned int completions_kept(CliCompletions *items, const char *bytes, unsigned long long size)
+// `size` bytes of `bytes` stored in the items' room: where they start, or CLI_COMPLETIONS_TEXT where they do not fit
+static unsigned int completions_text_stored(CliCompletions *items, const char *bytes, unsigned long long size)
 {
     if (size + 1u > CLI_COMPLETIONS_TEXT - items->used)
     {
@@ -36,9 +36,9 @@ int cli_completion_put(CliCompletions *items, const char *label, unsigned long l
         return 0;
     }
     const unsigned int used = items->used;
-    const unsigned int label_at = completions_kept(items, label, label_size);
-    const unsigned int detail_at = completions_kept(items, detail, detail_size);
-    const unsigned int insert_at = completions_kept(items, insert, insert_size);
+    const unsigned int label_at = completions_text_stored(items, label, label_size);
+    const unsigned int detail_at = completions_text_stored(items, detail, detail_size);
+    const unsigned int insert_at = completions_text_stored(items, insert, insert_size);
     if ((label_at == CLI_COMPLETIONS_TEXT) || (detail_at == CLI_COMPLETIONS_TEXT) ||
         (insert_at == CLI_COMPLETIONS_TEXT))
     {
@@ -55,12 +55,12 @@ int cli_completion_put(CliCompletions *items, const char *label, unsigned long l
 
 void cli_completions_unique(CliCompletions *items)
 {
-    unsigned int kept = 0u;
+    unsigned int count = 0u;
     for (unsigned int at = 0u; at < items->count; at += 1u)
     {
         const CliCompletion *const one = &items->item[at];
         int seen = 0;
-        for (unsigned int before = 0u; !seen && (before < kept); before += 1u)
+        for (unsigned int before = 0u; !seen && (before < count); before += 1u)
         {
             const CliCompletion *const other = &items->item[before];
             seen =
@@ -70,23 +70,23 @@ void cli_completions_unique(CliCompletions *items)
         }
         if (!seen)
         {
-            items->item[kept] = *one;
-            kept += 1u;
+            items->item[count] = *one;
+            count += 1u;
         }
     }
-    items->count = kept;
+    items->count = count;
 }
 
-void cli_completion_written(const CliCompletions *items, unsigned int at, CliLine *out)
+void cli_completion_written(const CliCompletions *items, unsigned int at, VerbaLinea *out)
 {
     const CliCompletion *const one = &items->item[at];
-    cli_line_text(out, "{\"label\":");
+    mmgr_line_put(out, "{\"label\":");
     cli_json_quoted(out, items->text + one->label_at, one->label_size);
-    cli_line_text(out, ",\"kind\":");
+    mmgr_line_put(out, ",\"kind\":");
     cli_json_quoted(out, one->kind, cellul.len(&(CatenaFinitaCfg){.src = one->kind, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"detail\":");
+    mmgr_line_put(out, ",\"detail\":");
     cli_json_quoted(out, items->text + one->detail_at, one->detail_size);
-    cli_line_text(out, ",\"insert\":");
+    mmgr_line_put(out, ",\"insert\":");
     cli_json_quoted(out, items->text + one->insert_at, one->insert_size);
-    cli_line_text(out, one->snippet ? ",\"snippet\":true}" : "}");
+    mmgr_line_put(out, one->snippet ? ",\"snippet\":true}" : "}");
 }

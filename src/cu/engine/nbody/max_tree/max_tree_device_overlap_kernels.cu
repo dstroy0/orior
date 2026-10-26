@@ -76,9 +76,9 @@ __global__ void max_tree_overlap_partners_kernel(const unsigned long long *sorte
     {
         return;
     }
-    // the high half holds an earlier label below 2^32. It narrows to unsigned int exactly
+    // the high half contains an earlier label below 2^32. It narrows to unsigned int exactly
     atomicAdd(&earlier_partners[(unsigned int)(pair >> 32u)], 1u);
-    // the low half holds a later label below 2^32. It narrows to unsigned int exactly
+    // the low half contains a later label below 2^32. It narrows to unsigned int exactly
     atomicAdd(&later_partners[(unsigned int)(pair & 0xFFFFFFFFull)], 1u);
 }
 
@@ -107,9 +107,9 @@ __global__ void max_tree_overlap_backs_kernel(const unsigned long long *sorted, 
     {
         return;
     }
-    // the high half holds an earlier label below 2^32. It narrows to unsigned int exactly
+    // the high half contains an earlier label below 2^32. It narrows to unsigned int exactly
     const unsigned int earlier = (unsigned int)(pair >> 32u);
-    // the low half holds a later label below 2^32. It narrows to unsigned int exactly
+    // the low half contains a later label below 2^32. It narrows to unsigned int exactly
     const unsigned int later = (unsigned int)(pair & 0xFFFFFFFFull);
     if (later_partners[later] == 1u)
     {

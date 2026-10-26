@@ -113,8 +113,8 @@ static void cycle_host_uncomplement(OriorExactInteger *value, unsigned int limbs
         value->limb[at] = (uint32_t)(total & 0xFFFFFFFFull);
         carry = total >> 32u;
     }
-    const unsigned int kept = bits - (32u * (limbs - 1u));
-    value->limb[limbs - 1u] &= (kept < 32u) ? ((1u << kept) - 1u) : 0xFFFFFFFFu;
+    const unsigned int top_bits = bits - (32u * (limbs - 1u));
+    value->limb[limbs - 1u] &= (top_bits < 32u) ? ((1u << top_bits) - 1u) : 0xFFFFFFFFu;
     cycle_host_settle(value, (negative != 0) ? -1 : 1);
 }
 
@@ -156,8 +156,8 @@ static void cycle_host_wrap(const DeviceRecordStep *step, const OriorExactIntege
     {
         result.limb[at] = cycle_host_complement(source, at, &carry);
     }
-    const unsigned int kept = step->wrap_bits - (32u * (step->limbs - 1u));
-    result.limb[step->limbs - 1u] &= (kept < 32u) ? ((1u << kept) - 1u) : 0xFFFFFFFFu;
+    const unsigned int top_bits = step->wrap_bits - (32u * (step->limbs - 1u));
+    result.limb[step->limbs - 1u] &= (top_bits < 32u) ? ((1u << top_bits) - 1u) : 0xFFFFFFFFu;
     const unsigned int top = step->wrap_bits - 1u;
     const int negative = (((result.limb[top / 32u] >> (top % 32u)) & 1u) != 0u) ? 1 : 0;
     cycle_host_uncomplement(&result, step->limbs, step->wrap_bits, negative);
@@ -339,7 +339,7 @@ long cycle_record_run_host(const CycleRecordHostRequest *request)
     }
     for (unsigned int at = 0u; at < layout->steps; at += 1u)
     {
-        // a step wider than the host's exact integer cannot be held on the host
+        // a step wider than the host's exact integer cannot be represented on the host
         if (!CYCLE_CHECK(layout->step_table[at].limbs <= ORIOR_EXACT_LIMBS, &layout->step_table[at], error,
                          ENGINE_ERROR_REQUEST))
         {
@@ -554,7 +554,7 @@ long cycle_record_sort_host(const CycleRecordSortRequest *request)
     {
         return CYCLE_ERROR;
     }
-    // a run of at most 2^32 records is held in host memory, its count below SIZE_MAX
+    // a run of at most 2^32 records is stored in host memory, its count below SIZE_MAX
     unsigned int *const spare = (unsigned int *)malloc((size_t)request->group * sizeof(unsigned int));
     if (!CYCLE_CHECK(spare != NULL, request, error, ENGINE_ERROR_RESOURCE))
     {
@@ -571,7 +571,7 @@ long cycle_record_sort_host(const CycleRecordSortRequest *request)
             order[at] = (unsigned int)((run * group) + at);
         }
         // bottom-up merges of widening spans; a record from the left span goes first unless the right one's field is
-        // less. Equal fields keep their lanes' order
+        // less. Equal fields preserve their lanes' order
         for (unsigned long long span = 1ull; span < group; span *= 2ull)
         {
             for (unsigned long long start = 0ull; start < group; start += 2ull * span)

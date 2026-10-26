@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// who_check.c: a who held to what the who table gives (who.h)
+// who_check.c: a who checked against what the who table gives (who.h)
 //
 //   here       the who of a line of this file numbers this file, gives the line, and numbers this program's source
 //   code       a who's code reads back as the who it was made from, and a code of other letters is none
 //   named      a who named through the table gives this file's path and line, and the program's source
-//   filed      a file written through the run's writer is the run's, read back as the run holds it
+//   filed      a file written through the run's writer is the run's, read back as the run stores it
 //
 //     who_check <folder>
 //
@@ -20,10 +20,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -57,8 +57,9 @@ int main(int count, char **words)
     snprintf(expected, sizeof(expected), "utils/test/src/cu/types/file_defs/who/who_check.c:%u ", line);
     check_that(who_named(here, named, sizeof(named)) && (strncmp(named, expected, strlen(expected)) == 0),
                "a who named gives this file's path and line");
-    check_that(strstr(named, " utils/test/src/cu/types/file_defs/who/who_check.c 20") != NULL,
-               "and the program's source, and the year");
+    char program[160];
+    snprintf(program, sizeof(program), " utils/test/src/cu/types/file_defs/who/who_check.c %llu", here.time);
+    check_that(strstr(named, program) != NULL, "and the program's source, and the time");
     printf("  %s: %s\n", code, named);
 
     char path[1024];
@@ -68,7 +69,7 @@ int main(int count, char **words)
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     check_that(qry_member_file_blob(path, &bytes, &size) && (size == 4u) && (memcmp(bytes, "who\n", 4u) == 0),
-               "and is the run's, read back as the run holds it");
+               "and is the run's, read back as the run stores it");
 
     printf("who_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;

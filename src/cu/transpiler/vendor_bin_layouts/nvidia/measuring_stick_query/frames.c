@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frames.c: the pieces set aside from the accumulated run read alone by a pool of reader threads, each frame read
-// against the vendor, and what the cross says of an instruction read clear or held
+// against the vendor, and what the cross reports of an instruction read clear or blocked
 #include "msq_internal.h"
 
-// the pool marked failed for `why`, the first reason given kept as the pool's
+// the pool marked failed for `why`, the first reason given recorded as the pool's
 static void msq_failed(MsqPool *pool, const char *why)
 {
     if (!atomic_load(&pool->failed))
@@ -14,10 +14,10 @@ static void msq_failed(MsqPool *pool, const char *why)
     atomic_store(&pool->failed, 1);
 }
 
-// One piece set aside, read alone. A slot encoding the vendor stopped at in the accumulated run is illegal by that
+// One piece set aside, read alone. A probe encoding the vendor stopped at in the accumulated run is illegal by that
 // stop and is read no more; one set aside unread is read alone, its reading the line at its start, or illegal where
-// the vendor says so. A frame is read whole (msq_frame_read). A tail's registers that address memory are read off what
-// the vendor prints of it alone. 1, or 0 where the vendor could not be run or the system gave no memory
+// the vendor reports so. A frame is read whole (msq_frame_read). A tail's registers that address memory are read off
+// what the vendor prints of it alone. 1, or 0 where the vendor could not be run or the system gave no memory
 static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piece)
 {
     if (piece->kind == MSQ_PIECE_FRAME)
@@ -41,11 +41,11 @@ static int msq_piece_read(MsqReader *reader, MsqPool *pool, const MsqPiece *piec
     }
     if (piece->kind == MSQ_PIECE_WORD)
     {
-        // the reading points into the listing's text, which the cross keeps until it ends
+        // the reading points into the listing's text, which the cross retains until it ends
         pool->readings[piece->index] =
             (status == 0) ? msq_listing_at(&listing, 0ull) : (MsqReading){MSQ_NONE, "", NULL};
         pool->readings[piece->index].kind =
-            ((status != 0) && msq_illegal_said(reader->output, (size_t)reader->output_size))
+            ((status != 0) && msq_illegal_found(reader->output, (size_t)reader->output_size))
                 ? MSQ_ILLEGAL
                 : pool->readings[piece->index].kind;
         listing.text = (status == 0) ? NULL : listing.text;
@@ -185,10 +185,10 @@ int msq_control_read(const char *body)
 }
 
 // one instruction of `question` the cross read clear, its text `body` and its sixteen bytes at `encoding`, added to
-// the slots and instructions read clear the teacher reads: `<stem> <operation> <low> <high>`, the operation the
+// the probes and instructions read clear the teacher reads: `<stem> <operation> <low> <high>`, the operation the
 // instruction's first word short of its modifiers
-void msq_clear_said(MsqHolds *holds, const MsqQuestion *question, const char *body,
-                           const unsigned char *encoding)
+void msq_clear_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const char *body,
+                        const unsigned char *encoding)
 {
     size_t start = 0u;
     const size_t word = msq_first_word(body, &start);
@@ -204,10 +204,10 @@ void msq_clear_said(MsqHolds *holds, const MsqQuestion *question, const char *bo
     char clear[400];
     const int written = snprintf(clear, sizeof(clear), "%s %.*s %016llx %016llx\n", question->stem, (int)length,
                                  body + start, low, high);
-    msq_added(&holds->read, &holds->read_size, &holds->read_room, clear, (size_t)written);
+    msq_added(&verdicts->read, &verdicts->read_size, &verdicts->read_room, clear, (size_t)written);
 }
 
-// the count of registers that clears a hold of a register past the count, `reached` the highest register it reaches:
+// the count of registers that clears a refusal of a register past the count, `reached` the highest register it reaches:
 // one past it, or 0 where that is past MSQ_ALLOTTED_MOST
 unsigned int msq_clearing(unsigned long long reached)
 {
@@ -215,11 +215,11 @@ unsigned int msq_clearing(unsigned long long reached)
     return (reached < MSQ_ALLOTTED_MOST) ? (unsigned int)(reached + 1ull) : 0u;
 }
 
-// One hold of `question`: the encoding at `encoding`, NULL where there is none to hold, added to the held list, the
-// hold and `why` to the report and to what is said, and to the holds the teacher reads with `clearing`, the count of
-// registers that clears it, 0 where none does
-void msq_hold_said(MsqHolds *holds, const MsqQuestion *question, const unsigned char *encoding, const char *why,
-                          unsigned int clearing)
+// One refusal of `question`: the encoding at `encoding`, NULL where there is none to block, added to the gated list,
+// the refusal and `why` to the report and to what is reported, and to the refusals the teacher reads with `clearing`,
+// the count of registers that clears it, 0 where none does
+void msq_gate_reported(MsqVerdicts *verdicts, const MsqQuestion *question, const unsigned char *encoding,
+                       const char *why, unsigned int clearing)
 {
     char where[48] = "(no encoding)";
     if (encoding != NULL)
@@ -230,16 +230,16 @@ void msq_hold_said(MsqHolds *holds, const MsqQuestion *question, const unsigned 
         memcpy(&high, encoding + 8u, 8u);
         char line[48];
         const int length = snprintf(line, sizeof(line), "%016llx %016llx\n", low, high);
-        msq_added(&holds->held, &holds->held_size, &holds->held_room, line, (size_t)length);
+        msq_added(&verdicts->gated, &verdicts->gated_size, &verdicts->gated_room, line, (size_t)length);
         snprintf(where, sizeof(where), "%016llx %016llx", low, high);
     }
-    char said[640];
-    int length = snprintf(said, sizeof(said), "  %s  %s  [%s]\n", question->stem, why, where);
-    msq_added(&holds->report, &holds->report_size, &holds->report_room, said, (size_t)length);
-    length = snprintf(said, sizeof(said), "    %s  %s\n", question->stem, why);
-    msq_added(&holds->said, &holds->said_size, &holds->said_room, said, (size_t)length);
-    length = snprintf(said, sizeof(said), "%s %u %s\n", question->stem, clearing, why);
-    msq_added(&holds->listed, &holds->listed_size, &holds->listed_room, said, (size_t)length);
+    char report_line[640];
+    int length = snprintf(report_line, sizeof(report_line), "  %s  %s  [%s]\n", question->stem, why, where);
+    msq_added(&verdicts->report, &verdicts->report_size, &verdicts->report_room, report_line, (size_t)length);
+    length = snprintf(report_line, sizeof(report_line), "    %s  %s\n", question->stem, why);
+    msq_added(&verdicts->report, &verdicts->report_size, &verdicts->report_room, report_line, (size_t)length);
+    length = snprintf(report_line, sizeof(report_line), "%s %u %s\n", question->stem, clearing, why);
+    msq_added(&verdicts->listed, &verdicts->listed_size, &verdicts->listed_room, report_line, (size_t)length);
 }
 
 // the stem of `name`: past its last `/` or `\`, short of its last `.`

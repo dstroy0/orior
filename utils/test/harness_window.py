@@ -2,14 +2,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 """harness.py window: the released window started, ended, watched, pictured and measured, on Windows.
 
-    harness.py window start [--display \\\\.\\DISPLAY3] [--id N]   one window alone, placed on the display
+    harness.py window start [--display \\\\.\\DISPLAY1] [--id N]   one window alone, placed on the display
     harness.py window ended                                      every window running from the release program ended
     harness.py window watch [--seconds 25]                       started alone with its output kept, ended after
     harness.py window shot [--id N] [--width 480] [--height 320] its top-left pictured to build/harness/window_shot.png
     harness.py window zoom [--x --y --width --height --scale]    a part drawn larger to build/harness/window_zoom.png
-    harness.py window frames [--id N] [--every 40] [--for 1200]  pictured whole every --every ms into build/harness/frames,
-                             [--port P --trigger JS] [--start]   an expression run first, or started and pictured from
-                                                                 its first moment
+    harness.py window record [--for 3000] [--start]              recorded as a video at the display's rate, lossless, into
+                             [--port P --trigger JS]             build/harness/recordings, an expression run first, or
+                                                                 started and recorded from before its first frame
+    harness.py window slide [REC] [--from S] [--to S] [--crop]   a recording slid through a frame at a time, each against
+                                                                 the one before, into build/harness/slide (harness_record.py)
     harness.py window dump [--path FILE]                         the newest crash dump read under cdb, the faulting stack
     harness.py window eval --port P EXPRESSION                   an expression run on the window's page, its answer printed
     harness.py window type --port P [--key] TEXT                 text typed into the window key by key, or one chord
@@ -19,8 +21,13 @@
     harness.py window luminance [--floor 78] [--each 6]          the dark scheme's tokens by lightness, with their rules
     harness.py window cpu [--minutes 2] [--step 5] [--spike 150] its processor time each step, its busiest threads, a
                                                                  stack of the busiest past the spike, to window_cpu.txt
-    harness.py window in-job --id N                              whether a process sits in a job
+    harness.py window gpu [--seconds 50] [--id N]                its process tree's GPU 3D engine share each second and
+                                                                 its processor time, to window_gpu.txt
+    harness.py window in-job --id N                             whether a process sits in a job
     harness.py window test [arg...]                              the window's suite, ui/test/src (harness_window_test.py)
+    harness.py window motion [--port P] [--edges E] [--rounds N] the window's motions as each edge's part comes and goes,
+                                                                 what is not smooth and what does not match, ranked, to
+                                                                 build/harness/motion (harness_motion.py)
 
 The window's program is build/cargo/release/<gui>.exe, gui as bin_names.tsv names it. Every start ends the windows
 running from that program first; one window therefore runs at a time, and its process id is kept in build/harness/window.pid
@@ -40,7 +47,7 @@ ROOT = findroot.root()
 HARNESS_BUILD = os.path.join(ROOT, "build", "harness")
 PID_FILE = os.path.join(HARNESS_BUILD, "window.pid")
 CDB = r"C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe"
-DISPLAY = r"\\.\DISPLAY3"
+DISPLAY = r"\\.\DISPLAY1"
 PLACE_TRIES = 100
 PLACE_POLL_S = 0.1
 MIB = 1048576.0
@@ -233,52 +240,6 @@ def frames_window_started():
     return process
 
 
-def cmd_frames(a):
-    """The window pictured whole every --every milliseconds for --for milliseconds, each frame a PNG under
-    build/harness/frames, numbered; where --port and --trigger are given, the expression runs on the window's page
-    through its debugging port as the first frame is taken: the frames show what it sets in motion. With --start
-    the suite's build of the window is started on the fixture tree and pictured from its first moment, and ended
-    after."""
-    if not windows_only():
-        return 1
-    import harness_win32 as win
-
-    started = frames_window_started() if a.start else None
-    found = window_of(started.pid if started else a.id)
-    if not found:
-        return 1
-    process_id, _, rect = found
-    handle, _ = win.main_window(process_id)
-    left, top, right, bottom = win.window_rect(handle)
-    folder = os.path.join(HARNESS_BUILD, "frames")
-    for old in os.listdir(folder) if os.path.isdir(folder) else []:
-        os.remove(os.path.join(folder, old))
-    os.makedirs(folder, exist_ok=True)
-    if a.port and a.trigger:
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import harness_cdp
-
-        conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
-        conn.call("Runtime.enable", timeout=10)
-        conn.evaluate(a.trigger, timeout=10)
-    began = time.monotonic()
-    grabbed = []
-    while (time.monotonic() - began) * 1000.0 < a.seconds_for:
-        grabbed.append((int((time.monotonic() - began) * 1000.0), win.screen_pixels(left, top, right - left, bottom - top)))
-        time.sleep(a.every / 1000.0)
-    if started:
-        started.kill()
-        started.wait()
-    crop = [int(one) for one in a.crop.split(",")] if a.crop else None
-    for count, (at, rows) in enumerate(grabbed):
-        if crop:
-            rows = [row[crop[0] * 3 : (crop[0] + crop[2]) * 3] for row in rows[crop[1] : crop[1] + crop[3]]]
-            rows = win.rows_scaled(rows, a.scale)
-        win.png_written(os.path.join(folder, "%03d_%04dms.png" % (count, at)), rows)
-    print("window %d at %d,%d to %d,%d, %d frames every %d ms: %s" % (process_id, left, top, right, bottom, len(grabbed), a.every, folder))
-    return 0
-
-
 def cmd_eval(a):
     """An expression run on the window's page through its debugging port, its answer printed: a promise is
     awaited, and an object is printed as JSON."""
@@ -387,8 +348,11 @@ def cmd_regions(a):
         totals[name] = totals.get(name, 0) + size
         allocations[(name, allocation)] = allocations.get((name, allocation), 0) + size
     print("process %d committed: %s" % (process_id, ", ".join("%s %d MB" % (name, bytes_ >> 20) for name, bytes_ in sorted(totals.items()))))
-    for (name, allocation), size in sorted(allocations.items(), key=lambda one: -one[1])[: a.count]:
-        print("  %-8s %18s %6d MB" % (name, "0x%x" % allocation, size >> 20))
+    largest = sorted(allocations.items(), key=lambda one: -one[1])[: a.count]
+    # a mapped allocation named by the file behind it; one the paging file backs has no name
+    files = win.mapped_names(process_id, [allocation for (name, allocation), _ in largest if name == "mapped"])
+    for (name, allocation), size in largest:
+        print("  %-8s %18s %6d MB  %s" % (name, "0x%x" % allocation, size >> 20, files.get(allocation, "")))
     return 0
 
 
@@ -398,7 +362,7 @@ def cmd_memory(a):
     import harness_win32 as win
 
     wanted = program().lower()
-    roots = [process_id for process_id, _, _ in win.processes() if win.image_path(process_id).lower() == wanted]
+    roots = [a.id] if a.id else [process_id for process_id, _, _ in win.processes() if win.image_path(process_id).lower() == wanted]
     if not roots:
         print("no window running")
         return 1
@@ -426,6 +390,49 @@ def cmd_cpu(a):
     words = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Minutes", str(a.minutes),
              "-Step", str(a.step), "-Spike", str(a.spike), "-Log", log, "-Symbols", os.path.dirname(program())]
     return subprocess.call(words)
+
+
+def cmd_gpu(a):
+    """The released window's process tree over --seconds: the processor time its processes used, and each second the
+    share of the GPU's 3D engine they kept busy as the system counts it (typeperf over the GPU Engine counters), their
+    mean and their most, to build/harness/window_gpu.txt."""
+    if not windows_only():
+        return 1
+    import csv
+    import harness_win32 as win
+
+    process_id = a.id or pid_read()
+    if not process_id or not win.alive(process_id):
+        print("no window running: harness.py window start")
+        return 1
+    tree = win.process_tree(process_id)
+    before = {one: win.processor_seconds(one) or 0.0 for one in tree}
+    sampled = os.path.join(HARNESS_BUILD, "window_gpu.csv")
+    subprocess.run(["typeperf", r"\GPU Engine(*)\Utilization Percentage", "-si", "1", "-sc", str(a.seconds), "-f", "CSV", "-o", sampled, "-y"],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    each = {one: (win.processor_seconds(one) or 0.0) - before.get(one, 0.0) for one in win.process_tree(process_id)}
+    used = sum(each.values())
+    names = {one: exe for one, _, exe in win.processes()}
+    named = re.compile(r"pid_(\d+)_.*engtype_3D\)")
+    with open(sampled, encoding="utf-8", errors="replace", newline="") as kept:
+        rows = list(csv.reader(kept))
+    columns = [at for at, head in enumerate(rows[0]) if (found := named.search(head)) and int(found.group(1)) in tree] if rows else []
+    seconds = []
+    for row in rows[1:]:
+        values = [row[at].strip() for at in columns if at < len(row)]
+        if values and all(value for value in values):
+            seconds.append(sum(float(value) for value in values))
+    if not seconds:
+        print("no GPU Engine sample named the window's processes")
+        return 1
+    lines = ["window %d, %d processes, %d s" % (process_id, len(tree), len(seconds)),
+             "3D engine busy: mean %.2f%%, most %.2f%%" % (sum(seconds) / len(seconds), max(seconds)),
+             "processor: %.2f s over %d s, %.1f%% of one core" % (used, a.seconds, 100.0 * used / a.seconds)]
+    lines += ["  %7d %-28s %7.2f s" % (one, names.get(one, "?"), spent) for one, spent in sorted(each.items(), key=lambda kept: -kept[1]) if spent > 0.0]
+    with open(os.path.join(HARNESS_BUILD, "window_gpu.txt"), "w", encoding="utf-8", newline="\n") as out:
+        out.write("\n".join(lines) + "\n")
+    print("\n".join(lines))
+    return 0
 
 
 def cmd_in_job(a):
@@ -514,17 +521,6 @@ def register(sub):
     p.add_argument("--height", type=int, default=320)
     p.set_defaults(fn=cmd_shot)
 
-    p = window.add_parser("frames", help="the window pictured whole every --every ms for --for ms, to build/harness/frames, an expression run on its page first")
-    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
-    p.add_argument("--every", type=int, default=40)
-    p.add_argument("--for", dest="seconds_for", type=int, default=1200, help="milliseconds")
-    p.add_argument("--port", type=int, default=0, help="the window's debugging port, for --trigger")
-    p.add_argument("--trigger", default="", help="an expression run on the page as the first frame is taken")
-    p.add_argument("--start", action="store_true", help="the suite's build started on the fixture tree and pictured from its first moment")
-    p.add_argument("--crop", default="", help="LEFT,TOP,WIDTH,HEIGHT of the window kept of each frame, drawn --scale times larger")
-    p.add_argument("--scale", type=int, default=4)
-    p.set_defaults(fn=cmd_frames)
-
     p = window.add_parser("eval", help="an expression run on the window's page through its debugging port, its answer printed")
     p.add_argument("--port", type=int, required=True, help="the window's debugging port, as window test --keep-window prints it")
     p.add_argument("--seconds", type=int, default=30, help="how long the answer is waited for")
@@ -555,6 +551,7 @@ def register(sub):
     p.set_defaults(fn=cmd_debug)
 
     p = window.add_parser("memory", help="the window's process tree, each one's private working set and commit")
+    p.add_argument("--id", type=int, default=0, help="the window's process, as the suite's; the released window's where none")
     p.set_defaults(fn=cmd_memory)
 
     p = window.add_parser("regions", help="the window's committed bytes by kind, private, mapped and image, and its largest allocations")
@@ -574,10 +571,20 @@ def register(sub):
     p.add_argument("--spike", type=int, default=150)
     p.set_defaults(fn=cmd_cpu)
 
+    p = window.add_parser("gpu", help="the window's process tree over --seconds, the GPU's 3D engine it kept busy and the "
+                                       "processor time it used, to build/harness/window_gpu.txt")
+    p.add_argument("--seconds", type=int, default=50, help="how long it is watched, the lattice's whole loop where none is given")
+    p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
+    p.set_defaults(fn=cmd_gpu)
+
     p = window.add_parser("in-job", help="whether a process sits in a job")
     p.add_argument("--id", type=int, required=True)
     p.set_defaults(fn=cmd_in_job)
 
+    import harness_motion
+    import harness_record
     import harness_window_test
 
     harness_window_test.register(window)
+    harness_motion.register(window)
+    harness_record.register(window)

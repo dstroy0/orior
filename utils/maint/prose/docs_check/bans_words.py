@@ -9,6 +9,8 @@
 
 WORDS = (
     r"\bheld\b",
+    # slot stands only in an accepted engineering context. Every one is reported, and a person
+    # decides the site.
     r"\bslots?\b",
     r"\btap(?:s|ped|ping)?\b",
     r"\brelay(?:s|ed|ing)?\b",

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // schema_read.c: a JSON file read with the place of each of its values: spaces and comments, `//` and `/* */`, passed
-// over; a string's escapes read; each fault said with its span and the reading carried on past it, so one file gives
-// all its faults at once; values nested deeper than 512 not read. Values, members and texts past what the read holds
-// are not kept, and it is marked full
+// over; a string's escapes read; each fault reported with its span and the reading carried on past it, so one file
+// gives all its faults at once; values nested deeper than 512 not read. Values, members and texts past what the read
+// fits are not stored, and it is marked full
 #include "schema_internal.h"
 
 #include <stdlib.h>
@@ -25,8 +25,8 @@ static int read_peek(const CliSchemaReader *reader)
     return (reader->at < reader->read->size) ? (unsigned char)reader->read->text[reader->at] : -1;
 }
 
-// `size` bytes kept in the pool: where they start, CLI_SCHEMA_POOL where they do not fit
-static unsigned int read_kept(CliSchemaRead *read, const char *bytes, unsigned long long size)
+// `size` bytes stored in the pool: where they start, CLI_SCHEMA_POOL where they do not fit
+static unsigned int read_stored(CliSchemaRead *read, const char *bytes, unsigned long long size)
 {
     if (!cli_schema_read_room(read, 0ull, 0ull, read->used + size + 1u))
     {
@@ -40,20 +40,20 @@ static unsigned int read_kept(CliSchemaRead *read, const char *bytes, unsigned l
     return at;
 }
 
-// a fault kept with its span, what it says written as `before`, `size` bytes of `middle`, and `after`
+// a fault stored with its span, what it reports written as `before`, `size` bytes of `middle`, and `after`
 static void read_error(CliSchemaReader *reader, unsigned long long from, unsigned long long to, const char *before,
                        const char *middle, unsigned long long size, const char *after)
 {
     CliSchemaRead *const read = reader->read;
-    static char s_said[1u << 14u];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    cli_line_text(&said, before);
-    cli_line_counted(&said, middle, size);
-    cli_line_text(&said, after);
-    const unsigned int at = cli_line_fits(&said) ? read_kept(read, s_said, said.at) : CLI_SCHEMA_POOL;
+    static char s_err_buf[1u << 14u];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    mmgr_line_put(&err_msg, before);
+    mmgr_line_put_n(&err_msg, middle, size);
+    mmgr_line_put(&err_msg, after);
+    const unsigned int at = mmgr_line_ok(&err_msg) ? read_stored(read, s_err_buf, err_msg.at) : CLI_SCHEMA_POOL;
     if ((read->errors < CLI_SCHEMA_ERRORS) && (at != CLI_SCHEMA_POOL))
     {
-        read->error[read->errors] = (CliSchemaError){from, to, at, (unsigned int)said.at};
+        read->error[read->errors] = (CliSchemaError){from, to, at, (unsigned int)err_msg.at};
         read->errors += 1u;
     }
 }
@@ -104,7 +104,7 @@ static unsigned long long read_stop(const CliSchemaReader *reader, const char *s
 }
 
 // a string in double quotes, its escapes read, into `out`
-static void read_string(CliSchemaReader *reader, CliLine *out)
+static void read_string(CliSchemaReader *reader, VerbaLinea *out)
 {
     const char *const text = reader->read->text;
     const unsigned long long size = reader->read->size;
@@ -126,7 +126,7 @@ static void read_string(CliSchemaReader *reader, CliLine *out)
         reader->at += length;
         if (letter != '\\')
         {
-            cli_line_counted(out, text + reader->at - length, length);
+            mmgr_line_put_n(out, text + reader->at - length, length);
             continue;
         }
         if (reader->at >= size)
@@ -141,7 +141,7 @@ static void read_string(CliSchemaReader *reader, CliLine *out)
             (next < 0x80u) ? memor.chr(&(MemoriaCfg){.src = s_from, .val = (int)next, .bytes = 5u}) : NULL;
         if (escape != NULL)
         {
-            cli_line_character(out, s_to[escape - s_from]);
+            mmgr_line_ch(out, s_to[escape - s_from]);
         }
         else if (next == 'u')
         {
@@ -159,7 +159,7 @@ static void read_string(CliSchemaReader *reader, CliLine *out)
         }
         else
         {
-            cli_line_counted(out, text + reader->at - length, length);
+            mmgr_line_put_n(out, text + reader->at - length, length);
         }
     }
     read_error(reader, start, reader->at, "This string is not closed with `\"` on its line", "", 0u, "");
@@ -220,10 +220,10 @@ static unsigned int read_members(CliSchemaReader *reader, unsigned int *first)
             continue;
         }
         const unsigned long long from = reader->at;
-        CliLine key = {s_key, sizeof(s_key), 0ull};
+        VerbaLinea key = {s_key, sizeof(s_key), 0ull};
         read_string(reader, &key);
         const unsigned long long to = reader->at;
-        const unsigned int key_at = read_kept(read, s_key, key.at);
+        const unsigned int key_at = read_stored(read, s_key, key.at);
         const unsigned long long key_size = key.at;
         read_blank(reader);
         unsigned int value = CLI_SCHEMA_NONE;
@@ -454,12 +454,12 @@ static unsigned int read_value(CliSchemaReader *reader)
     if (byte == '"')
     {
         static char s_string[1u << 20u];
-        CliLine text = {s_string, sizeof(s_string), 0ull};
+        VerbaLinea text = {s_string, sizeof(s_string), 0ull};
         read_string(reader, &text);
         const unsigned int node = read_node(reader, CLI_SCHEMA_TEXT, from);
         if (node != CLI_SCHEMA_NONE)
         {
-            reader->read->node[node].text_at = read_kept(reader->read, s_string, text.at);
+            reader->read->node[node].text_at = read_stored(reader->read, s_string, text.at);
             reader->read->node[node].text_size = (unsigned int)text.at;
         }
         return node;
@@ -495,6 +495,6 @@ void cli_schema_read(const char *text, unsigned long long size, CliSchemaRead *r
     if ((reader.at < size) && (read->root != CLI_SCHEMA_NONE))
     {
         read_error(&reader, reader.at, (reader.at + 1u < size) ? reader.at + 1u : size,
-                   "The file holds one value, and more stands after it", "", 0u, "");
+                   "The file contains one value, and more stands after it", "", 0u, "");
     }
 }

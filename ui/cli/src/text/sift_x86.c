@@ -77,7 +77,7 @@ unsigned long long cli_sift_window_sse2(const unsigned char *window, unsigned lo
         while (mask != 0u)
         {
             const unsigned long long here = at + cli_lowest(mask);
-            if (cli_sift_holds(window, needle, needle_length, anchors, anchor_count, tested, here, fold))
+            if (cli_sift_matches(window, needle, needle_length, anchors, anchor_count, tested, here, fold))
             {
                 found(context, base + here);
                 count += 1ull;
@@ -117,7 +117,7 @@ CLI_AVX2_TARGET unsigned long long cli_sift_window_avx2(const unsigned char *win
         while (mask != 0u)
         {
             const unsigned long long here = at + cli_lowest(mask);
-            if (cli_sift_holds(window, needle, needle_length, anchors, anchor_count, tested, here, fold))
+            if (cli_sift_matches(window, needle, needle_length, anchors, anchor_count, tested, here, fold))
             {
                 found(context, base + here);
                 count += 1ull;

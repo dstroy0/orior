@@ -1,15 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// naming_check.c: the vendor's writer's texts held on forms written by hand (The ladder's words asked, Open 6.4)
+// naming_check.c: the vendor's writer's texts checked on forms written by hand (Open 6.4)
 //
 //   name     a form is named from the table by its relation, the count of its sources and its kind, none where no kind
 //            row reads the relation
 //   mark     a take form carries the vendor's mark on the operand at the relation's second word, in whatever bit
 //            order the operands stand
-//   flag     a run of one bit with no place prints nothing, and is kept past the operand count; a wider run with no
+//   flag     a run of one bit with no place prints nothing, and is retained past the operand count; a wider run with no
 //            place prints as a register
 //   guard    a predicate run prints before the operation as the vendor writes a guard
-//   kept     the form kept in a machine holds each printed operand's run under its operand and the mark on its operand
+//   stored   the form stored in a machine contains each printed operand's run under its operand and the mark on its
+//   operand
 //
 //     naming_check <mnemonics>
 #include "../../../../../../../src/cu/includes/file_defs/khw/khw_machine_write/khw_machine_write_internal.h"
@@ -17,10 +18,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -54,7 +55,7 @@ static void hand_form(KhwForm *form, const char *relation, unsigned long long lo
     }
 }
 
-// the text the writer composes for `form`, held against `expected`
+// the text the writer composes for `form`, checked against `expected`
 static void check_text(const KhwForm *form, const char *expected, const char *what)
 {
     char text[SASS_MACHINE_TEXT];
@@ -77,8 +78,8 @@ int main(int count, char **words)
     }
     check_that(khw_pieces_read(words[1]), "the vendor's table is read");
 
-    // the kernel's IADD3 at the slot, its registers R7, R0 and R7 in the fields 16-23, 24-31 and 32-39, and bit 72 a
-    // negate bit, clear
+    // the kernel's IADD3 at the probe place, its registers R7, R0 and R7 in the fields 16-23, 24-31 and 32-39, and bit
+    // 72 a negate bit, clear
     const unsigned long long add_low = 0x0000000700077210ull;
     const unsigned long long add_high = 0x004fca0007ffe0ffull;
     const HandRun add_runs[4] = {{16u, 23u, 2u, KHW_KIND_REGISTER},
@@ -120,7 +121,7 @@ int main(int count, char **words)
     hand_form(&banked, "frame.dim", 0x0040000000017a02ull | (0x28ull << 38u), 0x000fe40000000f00ull, dim_runs, 3u);
     check_text(&banked, "MOV R1, c[0x1][0x28]", "the bank and the offset read from the encoding's bits");
 
-    // a parameter's word read from the constant bank: its offset run a place, printed as the run holds it
+    // a parameter's word read from the constant bank: its offset run a place, printed as the run encodes it
     const HandRun parameter_runs[2] = {{16u, 23u, 1u, KHW_KIND_REGISTER}, {38u, 53u, 0u, KHW_KIND_CONSTANT}};
     KhwForm parameter;
     hand_form(&parameter, "frame.parameter", 0x0000000000017a02ull | (0x170ull << 38u), 0x000fe40000000f00ull,
@@ -136,7 +137,7 @@ int main(int count, char **words)
                                   {87u, 89u, SASS_RUN_NO_PLACE, KHW_KIND_PREDICATE}};
     KhwForm test;
     hand_form(&test, "ladder.at_least", 0x000000070000720cull, 0x0000000003f00000ull, test_runs, 5u);
-    test.signedness_asked = 1;
+    test.signedness_queried = 1;
     check_text(&test, "ISETP.GE.U32.AND P0, PT, R0, R7, PT",
                "a test form names its test, its unsigned reading and its join, the predicates it writes and reads "
                "operands in their order");
@@ -149,26 +150,26 @@ int main(int count, char **words)
     hand_form(&guarded, "frame.exit", 0x000000000000094dull, 0x000fea0003800000ull, exit_runs, 1u);
     check_text(&guarded, "@P0 EXIT", "a predicate run prints before the operation");
 
-    // the forms kept in a machine: the flag past the operand count, the mark on its operand
+    // the forms stored in a machine: the flag past the operand count, the mark on its operand
     memset(&s_test_machine, 0, sizeof(s_test_machine));
     char text[SASS_MACHINE_TEXT];
     khw_text_composed(&add, text, sizeof(text));
-    check_that(khw_form_kept(&s_test_machine, &add, text), "the add form is kept");
-    const SassForm *const kept_add = &s_test_machine.form[0];
-    check_that((kept_add->runs == 4u) && (kept_add->run[3].operand == SASS_MACHINE_OPERANDS) &&
-                   (kept_add->run[0].operand == 0u) && (kept_add->run[1].operand == 1u) &&
-                   (kept_add->run[2].operand == 2u),
+    check_that(khw_form_store(&s_test_machine, &add, text), "the add form is stored");
+    const SassForm *const form_add = &s_test_machine.form[0];
+    check_that((form_add->runs == 4u) && (form_add->run[3].operand == SASS_MACHINE_OPERANDS) &&
+                   (form_add->run[0].operand == 0u) && (form_add->run[1].operand == 1u) &&
+                   (form_add->run[2].operand == 2u),
                "its three registers are the operands 0 to 2 and the flag stands past the operand count");
     khw_text_composed(&take, text, sizeof(text));
-    check_that(khw_form_kept(&s_test_machine, &take, text), "the take form is kept");
-    const SassForm *const kept_take = &s_test_machine.form[1];
-    check_that((kept_take->operands == 3u) && (kept_take->mark[2] == SASS_MARK_NEGATE) &&
-                   (kept_take->mark[1] == SASS_MARK_NONE),
+    check_that(khw_form_store(&s_test_machine, &take, text), "the take form is stored");
+    const SassForm *const form_take = &s_test_machine.form[1];
+    check_that((form_take->operands == 3u) && (form_take->mark[2] == SASS_MARK_NEGATE) &&
+                   (form_take->mark[1] == SASS_MARK_NONE),
                "its third operand carries the negate mark and its second none");
     khw_text_composed(&dim, text, sizeof(text));
-    check_that(khw_form_kept(&s_test_machine, &dim, text), "the dim form is kept");
+    check_that(khw_form_store(&s_test_machine, &dim, text), "the dim form is stored");
     khw_text_composed(&parameter, text, sizeof(text));
-    check_that(khw_form_kept(&s_test_machine, &parameter, text), "the parameter form is kept");
+    check_that(khw_form_store(&s_test_machine, &parameter, text), "the parameter form is stored");
     check_that((s_test_machine.forms == 4u) && (strcmp(s_test_machine.form[2].relation, "frame.dim") == 0) &&
                    (strcmp(s_test_machine.form[3].relation, "frame.parameter") == 0) &&
                    (strcmp(s_test_machine.form[3].text, "MOV R1, c[0x0][0x170]") == 0),

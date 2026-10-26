@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // matching_rule.cu: the exterior, its tails and the parts of the six matching functions of Duraiswami's matched core
-// as identities among held functions (jet_rule.h)
+// as identities among stored functions (jet_rule.h)
 #include "run_cfg.h"
 
 #include "jet_rule.h"
@@ -23,7 +23,7 @@
 //     int X F_ext^2 dX = -c^2 X^(-2h) / (4 h) + (c^2 / 2) (2d)^(-2h) int (z w^2 - z^(-1-2h)) dz,
 // with H = 2 X F_ext and H_pow = sqrt 2 c X^(-h), int H_pow dX = sqrt 2 c X^(1-h) / (1 - h).
 // Checks:
-// 1. The torque's and the force's parts: g - G_X - q is 0 for any F and U, V and Pi held by their relations.
+// 1. The torque's and the force's parts: g - G_X - q is 0 for any F and U, V and Pi defined by their relations.
 // 2. The same with one part of the torque's changed is not 0.
 // 3. F_ext with Kummer's w solves the exterior's equation T_{-(A+1/2)} F - 2 (X F)_XX = 0.
 // 4. The tails: each identity's derivative in X is 0, with Kummer's equation for w.
@@ -36,7 +36,7 @@
 //        X T0_theta = X (X F Q_s / L + 2 X F_X),   sqrt(2X) T0_z = X N_s / L + 2 X U_X,
 //    (X T0_theta)_X = -X R_theta and (sqrt(2X) T0_z)_X = -R_z for any F and U: the stress is minus the integrated
 //    residuals, the torque and the force of 1, and with (1 - h) I taken as (1 - 2 h) I it is not.
-// 7. Every exact value is held in the build's width.
+// 7. Every exact value is stored in the build's width.
 // 8. Every identity is written whole to the cfg's record.
 // The request: matching_rule <cfg>.
 //     bash examples/navier_stokes/run.sh matching_rule examples/navier_stokes/cfg/matching_rule.cfg
@@ -56,7 +56,7 @@ static JetRule matching_rule_x(long long numerator, long long denominator)
     return jet_rule_power(JET_RULE_BASE_X, numerator, denominator, 0ll, 1ll);
 }
 
-// d = 1 - eta^2, held as the base d
+// d = 1 - eta^2, represented as the base d
 static JetRule matching_rule_end(void)
 {
     return jet_rule_power(JET_RULE_BASE_D, 1ll, 1ll, 0ll, 1ll);
@@ -90,8 +90,8 @@ static JetRule matching_rule_z(const JetRule &field, const JetRule &two_b)
 
 static int matching_rule_report(SimResults *results, int passed, const char *pass, const char *fail, const char *what)
 {
-    scriptura_text(&results->line, passed ? pass : fail);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, passed ? pass : fail);
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
     sim_check(results, passed, what);
     return passed;
@@ -167,11 +167,11 @@ int main(int count, char **arguments)
     const JetRule force = jet_rule_difference(jet_rule_difference(along, jet_rule_x(force_bracket)), force_local);
     const int torque_zero = jet_rule_zero(torque);
     const int force_zero = jet_rule_zero(force);
-    scriptura_text(&results.line, "  the parts of the torque: ");
-    scriptura_text(&results.line, torque_zero ? "g - G_X - q is 0" : "g - G_X - q is not 0");
-    scriptura_text(&results.line, "; of the force: ");
-    scriptura_text(&results.line, force_zero ? "0" : "not 0");
-    scriptura_text(&results.line, ", for any F and U\n");
+    mmgr_line_put(&results.line, "  the parts of the torque: ");
+    mmgr_line_put(&results.line, torque_zero ? "g - G_X - q is 0" : "g - G_X - q is not 0");
+    mmgr_line_put(&results.line, "; of the force: ");
+    mmgr_line_put(&results.line, force_zero ? "0" : "not 0");
+    mmgr_line_put(&results.line, ", for any F and U\n");
     sim_flush(&results);
     sim_check(&results, torque_zero && force_zero, "the parts of the torque and the force");
 
@@ -218,8 +218,9 @@ int main(int count, char **arguments)
                                                 matching_rule_times(root_two_c, matching_rule_times(jet_rule_power(JET_RULE_BASE_TWO, -1ll, 1ll, -1ll, 1ll),
                                                                                                     matching_rule_times(jet_rule_power(JET_RULE_BASE_D, -1ll, 1ll, -1ll, 1ll), matching_rule_times(x, w)))));
     const int tails = jet_rule_zero(h_tail) && jet_rule_zero(s_tail) && jet_rule_zero(power_tail) && jet_rule_zero(h_field);
-    matching_rule_report(&results, tails, "  the tails of H and S and the integral of H_pow hold with Kummer's equation",
-                         "  a tail identity does not hold", "the tails");
+    matching_rule_report(&results, tails,
+                         "  the tails of H and S and the integral of H_pow are valid with Kummer's equation",
+                         "  a tail identity is not valid", "the tails");
     // the exterior's equation on X F_ext, and the tail of H with h - 1 taken as h - 2, are not 0
     const JetRule moved = matching_rule_times(x, exterior);
     const JetRule moved_outside = jet_rule_difference(matching_rule_t(moved, matching_rule_in_h(1ll, 1ll)),
@@ -252,7 +253,7 @@ int main(int count, char **arguments)
     const JetRule volume_m = matching_rule_times(jet_rule_over_l(),
                                                  jet_rule_difference(jet_rule_scaled(matching_rule_times(eta, matching_rule_times(x, u)), sim_rational(2ll, 1ll)), moment_flux));
     const int continuity = jet_rule_zero(jet_rule_difference(jet_rule_x(volume_m), c));
-    // the left sides with v0 = V / X and Pi held by Pi_X = F^2
+    // the left sides with v0 = V / X and Pi defined by Pi_X = F^2
     const JetRule inflow_m = matching_rule_times(volume_m, matching_rule_x(-1ll, 1ll));
     JetRule theta_m = jet_rule_sum(t_f, matching_rule_times(inflow_m, jet_rule_sum(matching_rule_times(x, jet_rule_x(f)), f)));
     theta_m = jet_rule_sum(theta_m, matching_rule_times(u, z_f));
@@ -286,13 +287,13 @@ int main(int count, char **arguments)
     const JetRule stress_theta = jet_rule_sum(jet_rule_x(x_t_theta), matching_rule_times(x, theta_m));
     const JetRule stress_z = jet_rule_sum(jet_rule_x(root_t_z), along_m);
     const int stress = continuity && jet_rule_zero(stress_theta) && jet_rule_zero(stress_z);
-    scriptura_text(&results.line, "  continuity from M: ");
-    scriptura_text(&results.line, continuity ? "V_X = C" : "V_X differs from C");
-    scriptura_text(&results.line, "; the stress of the five integrals against the residuals: theta ");
-    scriptura_text(&results.line, jet_rule_zero(stress_theta) ? "equal" : "differs");
-    scriptura_text(&results.line, ", z ");
-    scriptura_text(&results.line, jet_rule_zero(stress_z) ? "equal" : "differs");
-    scriptura_text(&results.line, ", for any F and U\n");
+    mmgr_line_put(&results.line, "  continuity from M: ");
+    mmgr_line_put(&results.line, continuity ? "V_X = C" : "V_X differs from C");
+    mmgr_line_put(&results.line, "; the stress of the five integrals against the residuals: theta ");
+    mmgr_line_put(&results.line, jet_rule_zero(stress_theta) ? "equal" : "differs");
+    mmgr_line_put(&results.line, ", z ");
+    mmgr_line_put(&results.line, jet_rule_zero(stress_z) ? "equal" : "differs");
+    mmgr_line_put(&results.line, ", for any F and U\n");
     sim_flush(&results);
     sim_check(&results, stress, "the stress of the five integrals against the residuals");
     // (1 - h) I taken as (1 - 2 h) I in Q_s adds -h X I / (2 L) to X T0_theta
@@ -301,9 +302,10 @@ int main(int count, char **arguments)
     matching_rule_report(&results, !jet_rule_zero(changed_stress), "  the stress with (1 - h) I taken as (1 - 2 h) I is not 0",
                          "  the stress with a changed part is still 0", "a changed stress seen");
 
-    const int held = !jet_rule_short() && !run_cfg_short() && !record_short();
-    matching_rule_report(&results, held, "  every exact value is held in the build's width",
-                         "  a value outgrew the build's width or an exponent passed a word", "every exact value held");
+    const int fits = !jet_rule_short() && !run_cfg_short() && !record_short();
+    matching_rule_report(&results, fits, "  every exact value is stored in the build's width",
+                         "  a value outgrew the build's width or an exponent passed a word",
+                         "every exact value stored");
     FILE *const record = record_open(arguments[1], &cfg, "report.record");
     int recorded = 0;
     if (record != NULL)

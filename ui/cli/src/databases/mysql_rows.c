@@ -25,7 +25,7 @@ static int rows_stringy(unsigned int code)
     return (code == 15u) || ((code >= 249u) && (code <= 254u));
 }
 
-// an OK packet's tag, its counts and the server's status and warnings kept
+// an OK packet's tag, its counts and the server's status and warnings recorded
 static void rows_ok(CliMysql *mysql, char *tag)
 {
     const unsigned char *const payload = mysql->packet;
@@ -44,13 +44,13 @@ static void rows_ok(CliMysql *mysql, char *tag)
     mysql->status = ((at < size) ? payload[at] : 0u) | ((at + 1u < size) ? ((unsigned int)payload[at + 1u] << 8u) : 0u);
     mysql->warnings =
         ((at + 2u < size) ? payload[at + 2u] : 0u) | ((at + 3u < size) ? ((unsigned int)payload[at + 3u] << 8u) : 0u);
-    CliLine out = {tag, CLI_DB_TAG, 0ull};
-    cli_line_decimal(&out, affected, 1u);
-    cli_line_text(&out, (affected == 1ull) ? " row affected" : " rows affected");
+    VerbaLinea out = {tag, CLI_DB_TAG, 0ull};
+    mmgr_line_decimal(&out, affected, 1u);
+    mmgr_line_put(&out, (affected == 1ull) ? " row affected" : " rows affected");
     if (inserted > 0ull)
     {
-        cli_line_text(&out, ", last insert id ");
-        cli_line_decimal(&out, inserted, 1u);
+        mmgr_line_put(&out, ", last insert id ");
+        mmgr_line_decimal(&out, inserted, 1u);
     }
     unsigned long long start = at + 4u;
     unsigned long long end = size;
@@ -66,13 +66,13 @@ static void rows_ok(CliMysql *mysql, char *tag)
     }
     if (start < end)
     {
-        cli_line_text(&out, ": ");
+        mmgr_line_put(&out, ": ");
         cli_lossy(&out, payload + start, end - start);
     }
-    cli_line_closed(&out);
+    mmgr_line_finish(&out);
 }
 
-// an EOF packet's warnings and status kept
+// an EOF packet's warnings and status recorded
 static void rows_eof(CliMysql *mysql)
 {
     const unsigned char *const payload = mysql->packet;
@@ -115,9 +115,9 @@ static int rows_columns(CliMysql *mysql, unsigned long long count, CliDbFailure 
         }
         const int named = cli_mysql_lenenc_bytes(definition, size, &at, &start, &length);
         CliDbColumn *const column = &mysql->head.columns[mysql->head.column_count];
-        CliLine name = {column->name, sizeof(column->name), 0ull};
+        VerbaLinea name = {column->name, sizeof(column->name), 0ull};
         cli_lossy(&name, definition + start, named ? length : 0ull);
-        cli_line_closed(&name);
+        mmgr_line_finish(&name);
         unsigned long long fixed = 0ull;
         (void)cli_mysql_lenenc_bytes(definition, size, &at, &start, &length);
         (void)cli_mysql_lenenc(definition, size, &at, &fixed);
@@ -129,17 +129,17 @@ static int rows_columns(CliMysql *mysql, unsigned long long count, CliDbFailure 
         {
             kind = ((code >= 249u) && (code <= 252u)) ? "blob" : "binary";
         }
-        CliLine kind_line = {column->kind, sizeof(column->kind), 0ull};
+        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ull};
         if (kind[0] == '\0')
         {
-            cli_line_text(&kind_line, "type ");
-            cli_line_decimal(&kind_line, code, 1u);
+            mmgr_line_put(&kind_line, "type ");
+            mmgr_line_decimal(&kind_line, code, 1u);
         }
         else
         {
-            cli_line_text(&kind_line, kind);
+            mmgr_line_put(&kind_line, kind);
         }
-        cli_line_closed(&kind_line);
+        mmgr_line_finish(&kind_line);
         mysql->codes[mysql->head.column_count] = (unsigned char)code;
         mysql->charsets[mysql->head.column_count] = charset;
         mysql->head.column_count += 1u;
@@ -195,7 +195,7 @@ static int rows_head(CliMysql *mysql, CliDbFailure *failure)
     {
         (void)cli_mysql_sent(mysql, NULL, 0ull, failure);
         (void)cli_mysql_packet(mysql, failure);
-        cli_db_failure_said(failure, "orior_cli sends no file to LOAD DATA LOCAL INFILE");
+        cli_db_failure_set(failure, "orior_cli sends no file to LOAD DATA LOCAL INFILE");
         return 0;
     }
     unsigned long long at = 0ull;
@@ -209,7 +209,7 @@ static int rows_head(CliMysql *mysql, CliDbFailure *failure)
 }
 
 // COM_QUERY and the statement sent as one payload, in packets of at most 16 MiB, each piece written from the
-// statement where it lies: 1, or 0 with the failure said
+// statement where it lies: 1, or 0 with the failure given
 static int rows_query_sent(CliMysql *mysql, const char *sql, unsigned long long size, CliDbFailure *failure)
 {
     const unsigned long long total = size + 1ull;
@@ -235,7 +235,7 @@ static int rows_query_sent(CliMysql *mysql, const char *sql, unsigned long long 
     }
     if (!sent)
     {
-        cli_db_failure_said(failure, "the connection broke: the server closed it");
+        cli_db_failure_set(failure, "the connection broke: the server closed it");
     }
     return sent;
 }
@@ -256,21 +256,21 @@ static const char *rows_hex(CliMysql *mysql, unsigned long long *used, const uns
                             unsigned long long size, unsigned long long *length)
 {
     static const char s_digits[] = "0123456789ABCDEF";
-    CliLine out = {mysql->hex + *used, sizeof(mysql->hex) - *used, 0ull};
+    VerbaLinea out = {mysql->hex + *used, sizeof(mysql->hex) - *used, 0ull};
     const unsigned long long shown = (size > 256u) ? 256ull : size;
-    cli_line_text(&out, "0x");
+    mmgr_line_put(&out, "0x");
     for (unsigned long long at = 0ull; at < shown; at += 1ull)
     {
-        cli_line_character(&out, s_digits[bytes[at] >> 4u]);
-        cli_line_character(&out, s_digits[bytes[at] & 15u]);
+        mmgr_line_ch(&out, s_digits[bytes[at] >> 4u]);
+        mmgr_line_ch(&out, s_digits[bytes[at] & 15u]);
     }
     if (size > 256u)
     {
-        cli_line_text(&out, "\xE2\x80\xA6 (");
-        cli_line_decimal(&out, size, 1u);
-        cli_line_text(&out, " bytes)");
+        mmgr_line_put(&out, "\xE2\x80\xA6 (");
+        mmgr_line_decimal(&out, size, 1u);
+        mmgr_line_put(&out, " bytes)");
     }
-    if (!cli_line_fits(&out))
+    if (!mmgr_line_ok(&out))
     {
         return NULL;
     }
@@ -283,14 +283,14 @@ static const char *rows_hex(CliMysql *mysql, unsigned long long *used, const uns
 // connection's row: their count
 static unsigned int rows_row(CliMysql *mysql)
 {
-    const unsigned char *const said = mysql->packet;
+    const unsigned char *const packet = mysql->packet;
     const unsigned long long size = mysql->size;
     unsigned long long at = 0ull;
     unsigned long long used = 0ull;
     for (unsigned int column = 0u; column < mysql->head.column_count; column += 1u)
     {
         CliDbValue *const value = &mysql->row[column];
-        if ((at < size) && (said[at] == 0xfbu))
+        if ((at < size) && (packet[at] == 0xfbu))
         {
             at += 1u;
             *value = (CliDbValue){NULL, 0ull, 1};
@@ -298,7 +298,7 @@ static unsigned int rows_row(CliMysql *mysql)
         }
         unsigned long long start = 0ull;
         unsigned long long length = 0ull;
-        if (!cli_mysql_lenenc_bytes(said, size, &at, &start, &length))
+        if (!cli_mysql_lenenc_bytes(packet, size, &at, &start, &length))
         {
             start = at;
             length = 0ull;
@@ -306,15 +306,16 @@ static unsigned int rows_row(CliMysql *mysql)
         const unsigned int code = mysql->codes[column];
         const int binary = (mysql->charsets[column] == 63u) && (rows_stringy(code) || (code == 16u) || (code == 255u));
         const int as_hex =
-            binary && (!cli_utf8_whole((const char *)said + start, length) || (code == 16u) || (code == 255u));
+            binary && (!cli_utf8_whole((const char *)packet + start, length) || (code == 16u) || (code == 255u));
         unsigned long long hex_length = 0ull;
-        const char *const hex = as_hex ? rows_hex(mysql, &used, said + start, length, &hex_length) : NULL;
-        *value = (hex != NULL) ? (CliDbValue){hex, hex_length, 0} : (CliDbValue){(const char *)said + start, length, 0};
+        const char *const hex = as_hex ? rows_hex(mysql, &used, packet + start, length, &hex_length) : NULL;
+        *value =
+            (hex != NULL) ? (CliDbValue){hex, hex_length, 0} : (CliDbValue){(const char *)packet + start, length, 0};
     }
     return mysql->head.column_count;
 }
 
-int cli_mysql_rows(CliMysql *mysql, unsigned long long count, CliDbRowTold told, void *context, int *done, char *tag,
+int cli_mysql_rows(CliMysql *mysql, unsigned long long count, CliDbRowFn each_row, void *context, int *done, char *tag,
                    CliDbFailure *failure)
 {
     unsigned long long read = 0ull;
@@ -340,10 +341,10 @@ int cli_mysql_rows(CliMysql *mysql, unsigned long long count, CliDbRowTold told,
             {
                 return 0;
             }
-            CliLine out = {tag, CLI_DB_TAG, 0ull};
-            cli_line_decimal(&out, read, 1u);
-            cli_line_text(&out, (read == 1ull) ? " row read" : " rows read");
-            cli_line_closed(&out);
+            VerbaLinea out = {tag, CLI_DB_TAG, 0ull};
+            mmgr_line_decimal(&out, read, 1u);
+            mmgr_line_put(&out, (read == 1ull) ? " row read" : " rows read");
+            mmgr_line_finish(&out);
             *done = 1;
             return 1;
         }
@@ -355,7 +356,7 @@ int cli_mysql_rows(CliMysql *mysql, unsigned long long count, CliDbRowTold told,
         }
         const unsigned int values = rows_row(mysql);
         read += 1ull;
-        if (!told(context, mysql->row, values))
+        if (!each_row(context, mysql->row, values))
         {
             return 1;
         }
@@ -377,7 +378,7 @@ int cli_mysql_finish(CliMysql *mysql, CliDbFailure *failure)
     return 1;
 }
 
-int cli_mysql_all(CliMysql *mysql, const char *sql, unsigned long long size, CliDbRowTold told, void *context,
+int cli_mysql_all(CliMysql *mysql, const char *sql, unsigned long long size, CliDbRowFn each_row, void *context,
                   CliDbFailure *failure)
 {
     char tag[CLI_DB_TAG];
@@ -387,7 +388,7 @@ int cli_mysql_all(CliMysql *mysql, const char *sql, unsigned long long size, Cli
     }
     for (int done = !mysql->head.rows; !done;)
     {
-        if (!cli_mysql_rows(mysql, 4096ull, told, context, &done, tag, failure))
+        if (!cli_mysql_rows(mysql, 4096ull, each_row, context, &done, tag, failure))
         {
             return 0;
         }
@@ -425,46 +426,46 @@ void cli_mysql_canceller(const CliMysql *mysql, CliMysqlCancel *cancel)
     *cancel = mysql->cancel;
 }
 
-int cli_mysql_cancel_sent(const CliMysqlCancel *cancel, CliLine *said)
+int cli_mysql_cancel_sent(const CliMysqlCancel *cancel, VerbaLinea *err_msg)
 {
     CliDbFailure failure;
     CliMysql *const other =
         cli_mysql_connected(cancel->host, cancel->port, cancel->user, cancel->password, "", 5000ull, &failure);
     if (other == NULL)
     {
-        cli_db_failure_written(&failure, said);
+        cli_db_failure_written(&failure, err_msg);
         return 0;
     }
     char kill[64];
-    CliLine statement = {kill, sizeof(kill), 0ull};
-    cli_line_text(&statement, "KILL QUERY ");
-    cli_line_decimal(&statement, cancel->id, 1u);
+    VerbaLinea statement = {kill, sizeof(kill), 0ull};
+    mmgr_line_put(&statement, "KILL QUERY ");
+    mmgr_line_decimal(&statement, cancel->id, 1u);
     const int killed = cli_mysql_all(other, statement.out, statement.at, rows_passed, NULL, &failure);
     if (!killed)
     {
-        cli_db_failure_written(&failure, said);
+        cli_db_failure_written(&failure, err_msg);
     }
     cli_mysql_closed(other);
     return killed;
 }
 
-void cli_mysql_literal(const char *text, CliLine *out)
+void cli_mysql_literal(const char *text, VerbaLinea *out)
 {
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
     for (const char *letter = text; *letter != '\0'; letter += 1)
     {
         if (*letter == '\\')
         {
-            cli_line_text(out, "\\\\");
+            mmgr_line_put(out, "\\\\");
         }
         else if (*letter == '\'')
         {
-            cli_line_text(out, "''");
+            mmgr_line_put(out, "''");
         }
         else
         {
-            cli_line_character(out, *letter);
+            mmgr_line_ch(out, *letter);
         }
     }
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
 }

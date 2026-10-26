@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// who.c: the who of a write, its source and program numbered by the who table as the run holds it and its time on
+// who.c: the who of a write, its source and program numbered by the who table as the run stores it and its time on
 // the run's one clock, its two words, its code and its name
 #include "who.h"
 
@@ -11,15 +11,15 @@
 
 #include <string.h>
 
-// the sources whose numbers were asked, each looked up in the table once
-#define WHO_ASKED 64u
+// the sources whose numbers were requested, each looked up in the table once
+#define WHO_LOOKUPS 64u
 
 // the longest path a who names
-#define WHO_PATH_LONGEST 1024u
+#define WHO_PATH_MAX_LEN 1024u
 
-static const char *s_who_asked[WHO_ASKED];
-static unsigned int s_who_asked_number[WHO_ASKED];
-static unsigned int s_who_asked_next;
+static const char *s_who_lookup[WHO_LOOKUPS];
+static unsigned int s_who_lookup_number[WHO_LOOKUPS];
+static unsigned int s_who_lookup_next;
 static unsigned int s_who_program;
 static int s_who_program_found;
 
@@ -59,13 +59,13 @@ static int who_hex(const char *text, unsigned int letters, unsigned long long *v
     return 1;
 }
 
-// the who table as the run holds it: 1, or 0 where there is no run or no table
+// the who table as the run stores it: 1, or 0 where there is no run or no table
 static int who_table(const unsigned char **table, unsigned long long *size)
 {
     const char *const run_top = qry_member_top();
-    char path[WHO_PATH_LONGEST + sizeof(WHO_TABLE) + 1u];
+    char path[WHO_PATH_MAX_LEN + sizeof(WHO_TABLE) + 1u];
     const size_t top = (run_top != NULL) ? strlen(run_top) : 0u;
-    if ((top == 0u) || (top >= WHO_PATH_LONGEST))
+    if ((top == 0u) || (top >= WHO_PATH_MAX_LEN))
     {
         return 0;
     }
@@ -75,12 +75,12 @@ static int who_table(const unsigned char **table, unsigned long long *size)
     return qry_member_file_blob(path, table, size);
 }
 
-// the next row of the table at `*at` into `number` and `source`, which holds WHO_PATH_LONGEST: 1, or 0 where no row
-// is left; a line that is no row gives number 0
+// the next row of the table at `*at` into `number` and `source`, which has room for WHO_PATH_MAX_LEN: 1, or 0 where no
+// row is left; a line that is no row gives number 0
 static int who_row(const unsigned char *table, unsigned long long size, unsigned long long *at, unsigned int *number,
                    char *source)
 {
-    char line[WHO_PATH_LONGEST + 16u];
+    char line[WHO_PATH_MAX_LEN + 16u];
     if (!line_read(table, size, at, line, sizeof(line)))
     {
         return 0;
@@ -94,13 +94,13 @@ static int who_row(const unsigned char *table, unsigned long long size, unsigned
         return 1;
     }
     const size_t length = strcspn(tab + 1, "\r");
-    if (length >= WHO_PATH_LONGEST)
+    if (length >= WHO_PATH_MAX_LEN)
     {
         return 1;
     }
     memcpy(source, tab + 1, length);
     source[length] = '\0';
-    // four hex digits are below 0x10000, which an unsigned int holds
+    // four hex digits are below 0x10000, which an unsigned int represents
     *number = (unsigned int)value;
     return 1;
 }
@@ -124,10 +124,10 @@ static int who_same_letters(const char *one, const char *other, size_t length)
 // gives none or the path stands outside the top
 static unsigned int who_source_number(const char *file)
 {
-    char plain[WHO_PATH_LONGEST];
+    char plain[WHO_PATH_MAX_LEN];
     const size_t length = strlen(file);
     const char *const run_top = qry_member_top();
-    if ((run_top == NULL) || (length >= WHO_PATH_LONGEST))
+    if ((run_top == NULL) || (length >= WHO_PATH_MAX_LEN))
     {
         return 0u;
     }
@@ -149,7 +149,7 @@ static unsigned int who_source_number(const char *file)
     unsigned long long size = 0ull;
     unsigned long long at = 0ull;
     unsigned int number = 0u;
-    char source[WHO_PATH_LONGEST];
+    char source[WHO_PATH_MAX_LEN];
     if (!who_table(&table, &size))
     {
         return 0u;
@@ -166,10 +166,10 @@ static unsigned int who_source_number(const char *file)
 
 // the number of the program's own source: the last source the table gives whose name without its kind is the
 // program's, a header after every other; 0 where none is. The table only grows, so a source given a new path stands
-// after the row its old path keeps
+// after the row its old path retains
 static unsigned int who_program_number(void)
 {
-    char path[WHO_PATH_LONGEST];
+    char path[WHO_PATH_MAX_LEN];
     if (!qry_member_program(path, sizeof(path)))
     {
         return 0u;
@@ -184,7 +184,7 @@ static unsigned int who_program_number(void)
     unsigned int number = 0u;
     unsigned int found = 0u;
     unsigned int header = 0u;
-    char source[WHO_PATH_LONGEST];
+    char source[WHO_PATH_MAX_LEN];
     if (!who_table(&table, &size))
     {
         return 0u;
@@ -219,17 +219,17 @@ Who who_here(const char *file, unsigned int line)
     }
     who.program = s_who_program;
     int found = 0;
-    for (unsigned int at = 0u; (at < WHO_ASKED) && !found; at += 1u)
+    for (unsigned int at = 0u; (at < WHO_LOOKUPS) && !found; at += 1u)
     {
-        found = (s_who_asked[at] == file);
-        who.source = found ? s_who_asked_number[at] : who.source;
+        found = (s_who_lookup[at] == file);
+        who.source = found ? s_who_lookup_number[at] : who.source;
     }
     if (!found)
     {
         who.source = who_source_number(file);
-        s_who_asked[s_who_asked_next] = file;
-        s_who_asked_number[s_who_asked_next] = who.source;
-        s_who_asked_next = (s_who_asked_next + 1u) % WHO_ASKED;
+        s_who_lookup[s_who_lookup_next] = file;
+        s_who_lookup_number[s_who_lookup_next] = who.source;
+        s_who_lookup_next = (s_who_lookup_next + 1u) % WHO_LOOKUPS;
     }
     return who;
 }
@@ -244,7 +244,7 @@ void who_words(Who who, unsigned long long *words)
 
 Who who_of_words(const unsigned long long *words)
 {
-    // each field is sixteen bits of the first word, which an unsigned int holds
+    // each field is sixteen bits of the first word, which an unsigned int represents
     const Who who = {(unsigned int)((words[0] >> 48u) & 0xffffull), (unsigned int)((words[0] >> 32u) & 0xffffull),
                      (unsigned int)((words[0] >> 16u) & 0xffffull), words[1]};
     return who;
@@ -278,17 +278,18 @@ int who_read(const char *code, Who *who)
     return 1;
 }
 
-// the path the table gives the number `number` into `source`, which holds WHO_PATH_LONGEST: `-` where it gives none
+// the path the table gives the number `number` into `source`, which has room for WHO_PATH_MAX_LEN: `-` where it gives
+// none
 static void who_source_path(unsigned int number, char *source)
 {
     const unsigned char *table = NULL;
     unsigned long long size = 0ull;
     unsigned long long at = 0ull;
-    unsigned int held = 0u;
+    unsigned int row_number = 0u;
     const int read = (number != 0u) && who_table(&table, &size);
-    while (read && who_row(table, size, &at, &held, source))
+    while (read && who_row(table, size, &at, &row_number, source))
     {
-        if (held == number)
+        if (row_number == number)
         {
             return;
         }
@@ -299,7 +300,7 @@ static void who_source_path(unsigned int number, char *source)
 
 int who_named(Who who, char *text, size_t room)
 {
-    char source[WHO_PATH_LONGEST];
+    char source[WHO_PATH_MAX_LEN];
     who_source_path(who.source, source);
     size_t at = verba_textus.put(&(VerbaTextusCfg){.out = text, .cap = room, .at = 0u, .text = source});
     at = verba_littera.ch(&(VerbaLitteraCfg){.out = text, .cap = room, .at = at, .ch = ':'});

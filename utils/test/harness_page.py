@@ -213,7 +213,7 @@ class Page:
     def ready(self):
         """The port's domains the run needs turned on: events, the page, the log, the binding the runner calls, the
         files served under /__harness/, and the page told it has the focus."""
-        for method in ("Runtime.enable", "Page.enable", "Log.enable"):
+        for method in ("Runtime.enable", "Page.enable", "Log.enable", "Inspector.enable"):
             self.conn.call(method, timeout=10)
         self.conn.call("Runtime.addBinding", timeout=10, name="__harnessCall")
         self.conn.call("Fetch.enable", timeout=10, patterns=[{"urlPattern": "*/__harness/*", "requestStage": "Request"}])
@@ -223,9 +223,13 @@ class Page:
         return self.conn.evaluate(expression, timeout=wait)
 
     def leave(self):
-        """The page left and loaded fresh: marked as left, as the reload answers before the page it loads is there."""
+        """The page left and loaded fresh: marked as left, as the reload answers before the page it loads is there. A
+        crashed page takes no mark and is reloaded all the same, which is what brings it back."""
         try:
             self.conn.evaluate("window.__harnessLeft = true", timeout=10)
+        except (RuntimeError, TimeoutError, ConnectionError):
+            pass
+        try:
             self.conn.call("Page.reload", timeout=30, ignoreCache=True)
         except (RuntimeError, TimeoutError, ConnectionError):
             pass

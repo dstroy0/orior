@@ -11,6 +11,7 @@
 #if !defined(_WIN32)
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -43,7 +44,7 @@ QryShared *qry_writer_shared_made(const char *path, unsigned long long bytes)
 {
     qry_shared_named(path, s_name);
     const int memory = shm_open(s_name, O_CREAT | O_EXCL | O_RDWR, 0600);
-    // the region is sized whole, its bytes what the system holds
+    // the region is sized whole, its bytes what the system allocates
     if ((memory < 0) || (ftruncate(memory, (off_t)bytes) != 0))
     {
         return NULL;
@@ -101,7 +102,7 @@ int qry_writer_file_closed(long long file)
 // the folder `path` is in made sure of on the disk; a rename into it therefore stands once the call returns
 static void qry_writer_folder_synced(const char *path)
 {
-    char folder[QRY_WRITER_TOP_LONGEST + QRY_NAME_LONGEST + 2u];
+    char folder[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
     const size_t length = strlen(path);
     const char *const cut = strrchr(path, '/');
     if ((cut == NULL) || (length >= sizeof(folder)))
@@ -109,9 +110,9 @@ static void qry_writer_folder_synced(const char *path)
         return;
     }
     // the cut stands inside the path; its place is therefore not negative and below its length
-    const size_t kept = (cut == path) ? 1u : (size_t)(cut - path);
-    memcpy(folder, path, kept);
-    folder[kept] = '\0';
+    const size_t folder_len = (cut == path) ? 1u : (size_t)(cut - path);
+    memcpy(folder, path, folder_len);
+    folder[folder_len] = '\0';
     const int opened = open(folder, O_RDONLY | O_CLOEXEC);
     if (opened >= 0)
     {
@@ -142,16 +143,24 @@ void qry_writer_paused(void)
     nanosleep(&pause, NULL);
 }
 
-// Raising a process takes a privilege the writer does not ask for: it keeps the level it was started at
+// Raising a process takes a privilege the writer does not request: it retains the level it was started at
 void qry_writer_raised(void)
 {
+}
+
+// A process no signal reaches has ended; one the writer may not signal, or one ended and not yet waited on by its
+// parent, runs as far as the writer can tell
+int qry_writer_process_ended(unsigned long long process)
+{
+    // a member's process number is a pid_t it stored widened
+    return (kill((pid_t)process, 0) != 0) && (errno == ESRCH);
 }
 
 unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     const int file = open(path, O_RDONLY);
-    struct stat held;
-    if ((file < 0) || (fstat(file, &held) != 0) || ((unsigned long long)held.st_size > room))
+    struct stat st;
+    if ((file < 0) || (fstat(file, &st) != 0) || ((unsigned long long)st.st_size > room))
     {
         if (file >= 0)
         {
@@ -159,8 +168,8 @@ unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, 
         }
         return QRY_MEMBER_UNREAD;
     }
-    // the file read to its end, since a file of /proc gives a length of 0 and holds its text all the same; one byte
-    // more than `room` holds leaves it unread
+    // the file read to its end, since a file of /proc gives a length of 0 and contains its text all the same; one byte
+    // more than `room` has room for leaves it unread
     unsigned long long done = 0ull;
     for (;;)
     {
@@ -195,23 +204,23 @@ QryShared *qry_member_shared(const char *path)
     }
     // the writer sizes the object after it names it; one not yet sized, or whose whole the writer has not written yet,
     // is no run yet
-    struct stat held;
-    if ((fstat(memory, &held) != 0) || ((unsigned long long)held.st_size < sizeof(QryShared)))
+    struct stat st;
+    if ((fstat(memory, &st) != 0) || ((unsigned long long)st.st_size < sizeof(QryShared)))
     {
         close(memory);
         return NULL;
     }
     // the region's bytes a size_t counts
-    void *const view = mmap(NULL, (size_t)held.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, memory, 0);
+    void *const view = mmap(NULL, (size_t)st.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, memory, 0);
     close(memory);
     if (view == MAP_FAILED)
     {
         return NULL;
     }
     QryShared *const shared = (QryShared *)view;
-    if (atomic_load(&shared->whole) != (unsigned long long)held.st_size)
+    if (atomic_load(&shared->whole) != (unsigned long long)st.st_size)
     {
-        munmap(view, (size_t)held.st_size);
+        munmap(view, (size_t)st.st_size);
         return NULL;
     }
     return shared;
@@ -231,7 +240,7 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
 
 void qry_member_unshared(QryShared *run)
 {
-    // the region's bytes, which its head holds, a size_t counts
+    // the region's bytes, which its head records, a size_t counts
     munmap(run, (size_t)atomic_load(&run->whole));
 }
 
@@ -274,8 +283,8 @@ const unsigned char *qry_member_file_mapped(const char *path, unsigned long long
 {
     static const unsigned char s_none[1] = {0u};
     const int file = open(path, O_RDONLY);
-    struct stat held;
-    if ((file < 0) || (fstat(file, &held) != 0))
+    struct stat st;
+    if ((file < 0) || (fstat(file, &st) != 0))
     {
         if (file >= 0)
         {
@@ -284,7 +293,7 @@ const unsigned char *qry_member_file_mapped(const char *path, unsigned long long
         return NULL;
     }
     // a file's size is not negative
-    *size = (unsigned long long)held.st_size;
+    *size = (unsigned long long)st.st_size;
     if (*size == 0ull)
     {
         close(file);

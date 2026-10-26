@@ -9,16 +9,16 @@
 //
 // A member's lanes are its bytes, two to a lane, the first byte the low half and an odd last byte padded with 0: the
 // footer's own bytes for `footer`, and for a leaf the values its column chunk stores, in the file's order, each as
-// the bytes the file holds it in. A DOUBLE stays its eight little-endian bytes and no floating point value is formed.
-// A BYTE_ARRAY value is its bytes, one after the other. A null holds no value and no bytes. A member of no bytes has
+// the bytes the file stores it in. A DOUBLE stays its eight little-endian bytes and no floating point value is formed.
+// A BYTE_ARRAY value is its bytes, one after the other. A null has no value and no bytes. A member of no bytes has
 // one lane of 0.
 //
-// What the lanes do not carry is the member's side, each part a leaf of the side bytes kept exact beside the lanes:
+// What the lanes do not carry is the member's side, each part a leaf of the side bytes stored exact beside the lanes:
 //   bytes       the member's byte count, eight bytes little-endian, which strips the pad;
 //   definition  a leaf's definition levels, a byte each, one a level, in the file's order;
 //   repetition  its repetition levels, the same;
 //   lengths     a BYTE_ARRAY leaf's value lengths, four bytes little-endian each, one a value.
-// The levels say every null and every empty list apart: a value is present where its definition level is the leaf's
+// The levels distinguish every null and every empty list: a value is present where its definition level is the leaf's
 // ceiling, and a row starts where its repetition level is 0.
 //
 // Pages V1 and V2, PLAIN, PLAIN_DICTIONARY and RLE_DICTIONARY values, RLE and bit-packed levels, and uncompressed,

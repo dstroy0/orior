@@ -25,7 +25,9 @@ import { fuzzy } from "./fuzzy.js";
 
 const ROWS = "button, summary";
 
-const inSight = (row) => row.offsetParent !== null;
+// A row is in sight where neither it nor any element holding it is laid out as none or has its content hidden, as a
+// closed group's rows are.
+const inSight = (row) => row.checkVisibility();
 
 function rowsOf(list) {
   return [...list.querySelectorAll(ROWS)].filter(inSight);

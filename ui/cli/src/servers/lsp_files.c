@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // lsp_files.c: the files a language server has open, each by its URI with its version and the text it was last given,
-// that text kept in a file of orior's own in the system's folder for passing files, so a file's whole text is held on
-// the disk and not in memory
+// that text stored in a file of orior's own in the system's folder for passing files, so a file's whole text is stored
+// on the disk and not in memory
 #include "lsp_internal.h"
 
 // the most files every server has open at once, the places the table of them is begun with, doubling as files are
@@ -11,7 +11,7 @@
 #define CLI_LSP_FILES_FIRST 16u
 #define CLI_LSP_URI 2048u
 
-CliCellsTally g_cli_lsp_files_cells = CLI_CELLS_TALLY("cli_lsp_files");
+CellOwner g_cli_lsp_files_cells = MMGR_CELL_OWNER("cli_lsp_files");
 
 // A file a server has open: whether its place is taken, the server, its URI in a cell of its length, and its version
 typedef struct
@@ -22,29 +22,29 @@ typedef struct
     unsigned long long version;
 } CliLspFile;
 
-// the files open, by place, in a cell whose room doubles as places are wanted; a place keeps its number while its file
-// is open, the file its text is kept in named by it
+// the files open, by place, in a cell whose room doubles as places are wanted; a place retains its number while its
+// file is open, the file its text is stored in named by it
 static CliLspFile *s_files;
 static unsigned int s_files_room;
 static CliLock s_files_lock = CLI_LOCK_INIT;
 
-// the file the text of the open file at `place` is kept in, into `path`, which holds CLI_PATH_LONGEST, its folder made
-static void files_kept_path(unsigned int place, char *path)
+// the file the text of the open file at `place` is stored in, into `path`, sized for CLI_PATH_MAX_LEN, its folder made
+static void files_saved_path(unsigned int place, char *path)
 {
-    char temporary[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char temporary[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     char name[64];
-    CliLine name_line = {name, sizeof(name), 0ull};
-    cli_line_text(&name_line, "orior-lsp-");
-    cli_line_decimal(&name_line, cli_process_own(), 1u);
-    cli_line_closed(&name_line);
+    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    mmgr_line_put(&name_line, "orior-lsp-");
+    mmgr_line_decimal(&name_line, cli_process_own(), 1u);
+    mmgr_line_finish(&name_line);
     cli_temp_folder(temporary);
     cli_full(temporary, name, folder);
     (void)query_folder_made(folder);
     name_line.at = 0ull;
-    cli_line_decimal(&name_line, place, 1u);
-    cli_line_text(&name_line, ".txt");
-    cli_line_closed(&name_line);
+    mmgr_line_decimal(&name_line, place, 1u);
+    mmgr_line_put(&name_line, ".txt");
+    mmgr_line_finish(&name_line);
     cli_full(folder, name, path);
 }
 
@@ -62,15 +62,15 @@ static unsigned int files_place(const CliLsp *lsp, const char *uri)
     return CLI_LSP_FILES;
 }
 
-// the table's room doubled, under the files' lock, its new places free: 1, or 0 where it holds the most or the larger
-// cell is refused
+// the table's room doubled, under the files' lock, its new places free: 1, or 0 where it contains the most or the
+// larger cell is refused
 static int files_grown(void)
 {
     const unsigned int doubled = (s_files_room == 0u) ? CLI_LSP_FILES_FIRST : (s_files_room * 2u);
     const unsigned int room = (doubled < CLI_LSP_FILES) ? doubled : CLI_LSP_FILES;
     CliLspFile *const larger =
         (s_files_room < CLI_LSP_FILES)
-            ? cli_cell_taken_by(&g_cli_lsp_files_cells, (unsigned long long)room * sizeof(CliLspFile), "the files open")
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliLspFile), &g_cli_lsp_files_cells)
             : NULL;
     if (larger == NULL)
     {
@@ -78,19 +78,20 @@ static int files_grown(void)
     }
     memor.set(&(MemoriaCfg){.dst = larger, .val = 0, .bytes = (size_t)room * sizeof(CliLspFile)});
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = s_files, .bytes = (size_t)s_files_room * sizeof(CliLspFile)});
-    cli_cell_given_by(&g_cli_lsp_files_cells, s_files);
+    g_cli_cells->persistent_buf_release(s_files, &g_cli_lsp_files_cells);
     s_files = larger;
     s_files_room = room;
     return 1;
 }
 
-// the place at `at` let go, under the files' lock, the file its text was kept in removed and its URI's cell given back
+// the place at `at` let go, under the files' lock, the file its text was stored in removed and its URI's cell given
+// back
 static void files_let_go(unsigned int at)
 {
-    char kept[CLI_PATH_LONGEST];
-    files_kept_path(at, kept);
-    (void)query_removed(kept);
-    cli_cell_given_by(&g_cli_lsp_files_cells, s_files[at].uri);
+    char saved_path[CLI_PATH_MAX_LEN];
+    files_saved_path(at, saved_path);
+    (void)query_removed(saved_path);
+    g_cli_cells->persistent_buf_release(s_files[at].uri, &g_cli_lsp_files_cells);
     s_files[at].uri = NULL;
     s_files[at].taken = 0;
 }
@@ -110,34 +111,34 @@ static unsigned int files_place_taken(const CliLsp *lsp, const char *uri)
     {
         vacant += 1u;
     }
-    char *const kept = ((vacant < s_files_room) || files_grown())
-                           ? cli_cell_taken_by(&g_cli_lsp_files_cells, length + 1ull, "an open file's URI")
-                           : NULL;
-    if (kept == NULL)
+    char *const text_cell = ((vacant < s_files_room) || files_grown())
+                                ? g_cli_cells->persistent_buf_alloc(length + 1ull, &g_cli_lsp_files_cells)
+                                : NULL;
+    if (text_cell == NULL)
     {
         return CLI_LSP_FILES;
     }
-    memor.cpy(&(MemoriaCfg){.dst = kept, .src = uri, .bytes = length + 1u});
-    s_files[vacant] = (CliLspFile){1, lsp->number, kept, 1ull};
+    memor.cpy(&(MemoriaCfg){.dst = text_cell, .src = uri, .bytes = length + 1u});
+    s_files[vacant] = (CliLspFile){1, lsp->number, text_cell, 1ull};
     return vacant;
 }
 
-// the text of an open file kept: 1, or 0 with why said
-static int files_kept(unsigned int place, const char *text, unsigned long long length, CliLine *said)
+// the text of an open file stored: 1, or 0 with why given
+static int files_text_saved(unsigned int place, const char *text, unsigned long long length, VerbaLinea *err_msg)
 {
-    char path[CLI_PATH_LONGEST];
-    files_kept_path(place, path);
+    char path[CLI_PATH_MAX_LEN];
+    files_saved_path(place, path);
     if (!query_file_written(path, text, length))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be written");
         return 0;
     }
     return 1;
 }
 
 int cli_lsp_opened(CliLsp *lsp, const char *path, const char *language_id, const char *text, unsigned long long length,
-                   CliLine *said)
+                   VerbaLinea *err_msg)
 {
     char uri[CLI_LSP_URI];
     cli_lsp_uri_of(path, uri, sizeof(uri));
@@ -147,14 +148,14 @@ int cli_lsp_opened(CliLsp *lsp, const char *path, const char *language_id, const
     {
         s_files[place].version = 1ull;
     }
-    const int kept = (place < CLI_LSP_FILES) && files_kept(place, text, length, said);
+    const int saved = (place < CLI_LSP_FILES) && files_text_saved(place, text, length, err_msg);
     cli_lock_give(&s_files_lock);
     if (place == CLI_LSP_FILES)
     {
-        cli_line_text(said, "no more files are held open at once");
+        mmgr_line_put(err_msg, "no more files can be open at once");
         return 0;
     }
-    if (!kept)
+    if (!saved)
     {
         return 0;
     }
@@ -172,10 +173,10 @@ int cli_lsp_opened(CliLsp *lsp, const char *path, const char *language_id, const
     message[0] = head;
     memor.cpy(&(MemoriaCfg){.dst = message + 1, .src = parts, .bytes = sizeof(parts)});
     message[8] = tail;
-    return cli_lsp_send_parts(&lsp->input, &lsp->input_lock, message, 9u, said);
+    return cli_lsp_send_parts(&lsp->input, &lsp->input_lock, message, 9u, err_msg);
 }
 
-int cli_lsp_changed(CliLsp *lsp, const char *path, const char *text, unsigned long long length, CliLine *said)
+int cli_lsp_changed(CliLsp *lsp, const char *path, const char *text, unsigned long long length, VerbaLinea *err_msg)
 {
     char uri[CLI_LSP_URI];
     cli_lsp_uri_of(path, uri, sizeof(uri));
@@ -187,20 +188,20 @@ int cli_lsp_changed(CliLsp *lsp, const char *path, const char *text, unsigned lo
         s_files[place].version += 1ull;
         version = s_files[place].version;
     }
-    const int kept = (place < CLI_LSP_FILES) && files_kept(place, text, length, said);
+    const int saved = (place < CLI_LSP_FILES) && files_text_saved(place, text, length, err_msg);
     cli_lock_give(&s_files_lock);
     if (place == CLI_LSP_FILES)
     {
-        cli_line_text(said, "no more files are held open at once");
+        mmgr_line_put(err_msg, "no more files can be open at once");
         return 0;
     }
-    if (!kept)
+    if (!saved)
     {
         return 0;
     }
     char number[24];
-    CliLine number_line = {number, sizeof(number), 0ull};
-    cli_line_decimal(&number_line, version, 1u);
+    VerbaLinea number_line = {number, sizeof(number), 0ull};
+    mmgr_line_decimal(&number_line, version, 1u);
     const CliLspPart message[7] = {
         CLI_LSP_RAW(
             "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didChange\",\"params\":{\"textDocument\":{\"uri\":\""),
@@ -210,10 +211,10 @@ int cli_lsp_changed(CliLsp *lsp, const char *path, const char *text, unsigned lo
         CLI_LSP_RAW("},\"contentChanges\":[{\"text\":\""),
         {text, length, 1},
         CLI_LSP_RAW("\"}]}}")};
-    return cli_lsp_send_parts(&lsp->input, &lsp->input_lock, message, 7u, said);
+    return cli_lsp_send_parts(&lsp->input, &lsp->input_lock, message, 7u, err_msg);
 }
 
-int cli_lsp_text(CliLsp *lsp, const char *path, CliLine *out)
+int cli_lsp_text(CliLsp *lsp, const char *path, VerbaLinea *out)
 {
     char uri[CLI_LSP_URI];
     cli_lsp_uri_of(path, uri, sizeof(uri));
@@ -222,11 +223,11 @@ int cli_lsp_text(CliLsp *lsp, const char *path, CliLine *out)
     int read = 0;
     if (place < CLI_LSP_FILES)
     {
-        char kept[CLI_PATH_LONGEST];
-        files_kept_path(place, kept);
+        char saved_path[CLI_PATH_MAX_LEN];
+        files_saved_path(place, saved_path);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_held(kept, &size);
-        cli_line_counted(out, (bytes != NULL) ? (const char *)bytes : "", (bytes != NULL) ? size : 0ull);
+        const unsigned char *const bytes = cli_file_read(saved_path, &size);
+        mmgr_line_put_n(out, (bytes != NULL) ? (const char *)bytes : "", (bytes != NULL) ? size : 0ull);
         if (bytes != NULL)
         {
             cli_file_let_go(bytes, size);
@@ -237,16 +238,16 @@ int cli_lsp_text(CliLsp *lsp, const char *path, CliLine *out)
     return read;
 }
 
-int cli_lsp_read_again(CliLsp *lsp, const char *path, CliLine *said)
+int cli_lsp_read_again(CliLsp *lsp, const char *path, VerbaLinea *err_msg)
 {
     char uri[CLI_LSP_URI];
     cli_lsp_uri_of(path, uri, sizeof(uri));
     cli_lock_take(&s_files_lock);
     const unsigned int place = files_place(lsp, uri);
-    char kept[CLI_PATH_LONGEST];
+    char saved_path[CLI_PATH_MAX_LEN];
     if (place < CLI_LSP_FILES)
     {
-        files_kept_path(place, kept);
+        files_saved_path(place, saved_path);
     }
     cli_lock_give(&s_files_lock);
     if (place == CLI_LSP_FILES)
@@ -254,9 +255,9 @@ int cli_lsp_read_again(CliLsp *lsp, const char *path, CliLine *said)
         return 1;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(kept, &size);
+    const unsigned char *const bytes = cli_file_read(saved_path, &size);
     const int changed =
-        cli_lsp_changed(lsp, path, (bytes != NULL) ? (const char *)bytes : "", (bytes != NULL) ? size : 0ull, said);
+        cli_lsp_changed(lsp, path, (bytes != NULL) ? (const char *)bytes : "", (bytes != NULL) ? size : 0ull, err_msg);
     if (bytes != NULL)
     {
         cli_file_let_go(bytes, size);
@@ -264,7 +265,7 @@ int cli_lsp_read_again(CliLsp *lsp, const char *path, CliLine *said)
     return changed;
 }
 
-int cli_lsp_closed(CliLsp *lsp, const char *path, CliLine *said)
+int cli_lsp_closed(CliLsp *lsp, const char *path, VerbaLinea *err_msg)
 {
     char uri[CLI_LSP_URI];
     cli_lsp_uri_of(path, uri, sizeof(uri));
@@ -280,7 +281,18 @@ int cli_lsp_closed(CliLsp *lsp, const char *path, CliLine *said)
             "{\"jsonrpc\":\"2.0\",\"method\":\"textDocument/didClose\",\"params\":{\"textDocument\":{\"uri\":\""),
         {uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}), 1},
         CLI_LSP_RAW("\"}}}")};
-    return cli_lsp_send_parts(&lsp->input, &lsp->input_lock, message, 3u, said);
+    return cli_lsp_send_parts(&lsp->input, &lsp->input_lock, message, 3u, err_msg);
+}
+
+unsigned long long cli_lsp_version(CliLsp *lsp, const char *path)
+{
+    char uri[CLI_LSP_URI];
+    cli_lsp_uri_of(path, uri, sizeof(uri));
+    cli_lock_take(&s_files_lock);
+    const unsigned int place = files_place(lsp, uri);
+    const unsigned long long version = (place < CLI_LSP_FILES) ? s_files[place].version : 0ull;
+    cli_lock_give(&s_files_lock);
+    return version;
 }
 
 int cli_lsp_has(CliLsp *lsp, const char *path)
@@ -293,7 +305,7 @@ int cli_lsp_has(CliLsp *lsp, const char *path)
     return has;
 }
 
-void cli_lsp_held_each(CliLsp *lsp,
+void cli_lsp_open_each(CliLsp *lsp,
                        void (*each)(void *context, const char *path, const char *text, unsigned long long length),
                        void *context)
 {
@@ -310,9 +322,9 @@ void cli_lsp_held_each(CliLsp *lsp,
             bytes += cellul.len(&(CatenaFinitaCfg){.src = s_files[at].uri, .cap = CLI_LSP_URI}) + 1ull;
         }
     }
-    unsigned int *const places = cli_cell_taken_by(
-        &g_cli_lsp_files_cells, ((unsigned long long)count + 1ull) * sizeof(unsigned int), "the places of files held");
-    char *const uris = cli_cell_taken_by(&g_cli_lsp_files_cells, bytes + 1ull, "the URIs of files held");
+    unsigned int *const places = g_cli_cells->persistent_buf_alloc(
+        ((unsigned long long)count + 1ull) * sizeof(unsigned int), &g_cli_lsp_files_cells);
+    char *const uris = g_cli_cells->persistent_buf_alloc(bytes + 1ull, &g_cli_lsp_files_cells);
     count = ((places != NULL) && (uris != NULL)) ? count : 0u;
     unsigned int copied = 0u;
     unsigned long long used = 0ull;
@@ -335,23 +347,23 @@ void cli_lsp_held_each(CliLsp *lsp,
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_LSP_URI});
         const char *const this_uri = uri;
         uri += length + 1ull;
-        char path[CLI_PATH_LONGEST];
+        char path[CLI_PATH_MAX_LEN];
         if (!cli_lsp_path_of(this_uri, length, path))
         {
             continue;
         }
-        char kept[CLI_PATH_LONGEST];
-        files_kept_path(places[one], kept);
+        char saved_path[CLI_PATH_MAX_LEN];
+        files_saved_path(places[one], saved_path);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_held(kept, &size);
+        const unsigned char *const bytes = cli_file_read(saved_path, &size);
         each(context, path, (bytes != NULL) ? (const char *)bytes : "", (bytes != NULL) ? size : 0ull);
         if (bytes != NULL)
         {
             cli_file_let_go(bytes, size);
         }
     }
-    cli_cell_given_by(&g_cli_lsp_files_cells, uris);
-    cli_cell_given_by(&g_cli_lsp_files_cells, places);
+    g_cli_cells->persistent_buf_release(uris, &g_cli_lsp_files_cells);
+    g_cli_cells->persistent_buf_release(places, &g_cli_lsp_files_cells);
 }
 
 void cli_lsp_files_let_go(const CliLsp *lsp)

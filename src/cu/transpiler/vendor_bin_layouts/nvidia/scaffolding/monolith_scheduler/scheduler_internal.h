@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// scheduler_internal.h: what the modules of the monolith's scheduler share: its includes, the bounds of a container, a section and the operations, an instruction and an operation as read, the machine, container, section and operations held, and the functions one module reads from another
+// scheduler_internal.h: what the modules of the monolith's scheduler share: its includes, the bounds of a container, a
+// section and the operations, an instruction and an operation as read, the machine, container, section and operations
+// stored, and the functions one module reads from another
 #ifndef MONOLITH_SCHEDULER_INTERNAL_H
 #define MONOLITH_SCHEDULER_INTERNAL_H
 
@@ -11,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin takes, the most instructions a section holds, the most operations kept apart, the most
+// the most bytes a cubin takes, the most instructions a section contains, the most operations tracked apart, the most
 // registers an instruction reads, and the farthest a reader is looked for past the instruction it reads from
 #define SCHEDULER_CUBIN_BYTES 4194304u
 

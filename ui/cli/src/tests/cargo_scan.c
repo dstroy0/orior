@@ -1,18 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cargo_scan.c: a file of Rust read as the search for tests reads it: its tokens, comments, strings and characters
-// passed over, and the tests and the modules it holds
+// passed over, and the tests and the modules it contains
 #include "cargo_tests_internal.h"
 
 CliCargoScan g_cli_cargo_scan;
-CliCellsTally g_cli_cargo_cells = CLI_CELLS_TALLY("cli_cargo_tests");
+CellOwner g_cli_cargo_cells = MMGR_CELL_OWNER("cli_cargo_tests");
 
 void *cli_cargo_grown(void *cell, unsigned long long *room, unsigned long long most, unsigned long long width,
                       const char *what)
 {
     const unsigned long long doubled = 2ull * *room;
     const unsigned long long taken = (most > doubled) ? most : doubled;
-    void *const grown = cli_cell_taken_by(&g_cli_cargo_cells, taken * width, what);
+    void *const grown = g_cli_cells->persistent_buf_alloc(taken * width, &g_cli_cargo_cells);
     if (grown == NULL)
     {
         return NULL;
@@ -20,7 +20,7 @@ void *cli_cargo_grown(void *cell, unsigned long long *room, unsigned long long m
     if (cell != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = cell, .bytes = (size_t)(*room * width)});
-        cli_cell_given_by(&g_cli_cargo_cells, cell);
+        g_cli_cells->persistent_buf_release(cell, &g_cli_cargo_cells);
     }
     *room = taken;
     return grown;
@@ -54,7 +54,7 @@ static int scan_white(unsigned int letter)
            (letter == 0x2029u) || (letter == 0x202fu) || (letter == 0x205fu) || (letter == 0x3000u);
 }
 
-// whether a letter is one a word holds: an ASCII letter, digit or `_`, or a letter past ASCII that is no whitespace,
+// whether a letter is one a word contains: an ASCII letter, digit or `_`, or a letter past ASCII that is no whitespace,
 // punctuation, arrow, mathematical sign or drawing
 static int scan_word(unsigned int letter)
 {
@@ -67,7 +67,7 @@ static int scan_word(unsigned int letter)
            !((letter >= 0x3000u) && (letter <= 0x303fu)) && !((letter >= 0xa0u) && (letter <= 0xbfu));
 }
 
-// a token counted, and put where the tokens' cell holds one more
+// a token counted, and put where the tokens' cell fits one more
 static void scan_put(unsigned int kind, unsigned int letter, unsigned long long start, unsigned long long end,
                      unsigned int line)
 {
@@ -119,7 +119,7 @@ static unsigned long long scan_raw(const char *text, unsigned long long size, un
     return at;
 }
 
-// the tokens of the text counted, each put where the tokens' cell holds it
+// the tokens of the text counted, each put where the tokens' cell fits it
 static void scan_tokens_put(const char *text, unsigned long long size)
 {
     g_cli_cargo_scan.token_count = 0u;
@@ -250,14 +250,14 @@ static void scan_tokens_put(const char *text, unsigned long long size)
 
 void cli_cargo_tokens(const char *text, unsigned long long size)
 {
-    cli_cell_given_by(&g_cli_cargo_cells, g_cli_cargo_scan.tokens);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
     g_cli_cargo_scan.tokens = NULL;
     g_cli_cargo_scan.token_room = 0ull;
     scan_tokens_put(text, size);
     const unsigned long long counted = g_cli_cargo_scan.token_count;
-    g_cli_cargo_scan.tokens = (counted != 0ull) ? cli_cell_taken_by(&g_cli_cargo_cells, counted * sizeof(CliRustToken),
-                                                                    "a Rust file's tokens")
-                                                : NULL;
+    g_cli_cargo_scan.tokens =
+        (counted != 0ull) ? g_cli_cells->persistent_buf_alloc(counted * sizeof(CliRustToken), &g_cli_cargo_cells)
+                          : NULL;
     g_cli_cargo_scan.token_room = (g_cli_cargo_scan.tokens != NULL) ? counted : 0ull;
     scan_tokens_put(text, size);
     g_cli_cargo_scan.token_count = (unsigned int)g_cli_cargo_scan.token_room;
@@ -265,9 +265,9 @@ void cli_cargo_tokens(const char *text, unsigned long long size)
 
 void cli_cargo_scan_given(void)
 {
-    cli_cell_given_by(&g_cli_cargo_cells, g_cli_cargo_scan.tokens);
-    cli_cell_given_by(&g_cli_cargo_cells, g_cli_cargo_scan.held);
-    cli_cell_given_by(&g_cli_cargo_cells, g_cli_cargo_scan.names);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.tokens, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.items, &g_cli_cargo_cells);
+    g_cli_cells->persistent_buf_release(g_cli_cargo_scan.names, &g_cli_cargo_cells);
     memor.set(&(MemoriaCfg){.dst = &g_cli_cargo_scan, .val = 0, .bytes = sizeof(g_cli_cargo_scan)});
 }
 
@@ -286,7 +286,7 @@ static int scan_is_word(const char *text, unsigned int at, const char *word)
            (memor.cmp(&(MemoriaCfg){.src = text + token->start, .other = word, .bytes = token->size}) == 0);
 }
 
-// `length` bytes put in the names, ended by a 0, the names' cell holding them: where they start
+// `length` bytes put in the names, ended by a 0, the names' cell containing them: where they start
 static unsigned long long scan_name_put(const char *text, unsigned long long length)
 {
     const unsigned long long at = g_cli_cargo_scan.name_used;
@@ -296,29 +296,29 @@ static unsigned long long scan_name_put(const char *text, unsigned long long len
     return at;
 }
 
-// a test or a module held, with the modules written in the file it stands in, `count` of them by their tokens
-static void scan_held(const char *text, const unsigned int *inline_names, unsigned int count, unsigned int name,
-                      int test)
+// a test or a module stored, with the modules written in the file it stands in, `count` of them by their tokens
+static void scan_item_put(const char *text, const unsigned int *inline_names, unsigned int count, unsigned int name,
+                          int test)
 {
     char joined[4096];
-    CliLine line = {joined, sizeof(joined), 0ull};
+    VerbaLinea line = {joined, sizeof(joined), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const CliRustToken *const token = &g_cli_cargo_scan.tokens[inline_names[at]];
-        cli_line_text(&line, (at > 0u) ? "::" : "");
-        cli_line_counted(&line, text + token->start, token->size);
+        mmgr_line_put(&line, (at > 0u) ? "::" : "");
+        mmgr_line_put_n(&line, text + token->start, token->size);
     }
     const CliRustToken *const named = &g_cli_cargo_scan.tokens[name];
-    const unsigned long long held_most = g_cli_cargo_scan.held_count + 1ull;
-    if (held_most > g_cli_cargo_scan.held_room)
+    const unsigned long long items_needed = g_cli_cargo_scan.item_count + 1ull;
+    if (items_needed > g_cli_cargo_scan.item_room)
     {
-        CliRustHeld *const grown = cli_cargo_grown(g_cli_cargo_scan.held, &g_cli_cargo_scan.held_room, held_most,
-                                                   sizeof(CliRustHeld), "the tests and modules followed");
+        CliRustItem *const grown = cli_cargo_grown(g_cli_cargo_scan.items, &g_cli_cargo_scan.item_room, items_needed,
+                                                   sizeof(CliRustItem), "the tests and modules followed");
         if (grown == NULL)
         {
             return;
         }
-        g_cli_cargo_scan.held = grown;
+        g_cli_cargo_scan.items = grown;
     }
     const unsigned long long names_most = g_cli_cargo_scan.name_used + line.at + 1ull + named->size + 1ull;
     if (names_most > g_cli_cargo_scan.name_room)
@@ -333,8 +333,8 @@ static void scan_held(const char *text, const unsigned int *inline_names, unsign
     }
     const unsigned long long inline_at = scan_name_put(joined, line.at);
     const unsigned long long name_at = scan_name_put(text + named->start, named->size);
-    g_cli_cargo_scan.held[g_cli_cargo_scan.held_count] = (CliRustHeld){test, inline_at, name_at, named->line};
-    g_cli_cargo_scan.held_count += 1u;
+    g_cli_cargo_scan.items[g_cli_cargo_scan.item_count] = (CliRustItem){test, inline_at, name_at, named->line};
+    g_cli_cargo_scan.item_count += 1u;
 }
 
 // an attribute passed over from its `#`: 1 into `marked` where its path, up to its first sign that is not `::`, ends in
@@ -381,7 +381,7 @@ static unsigned int scan_attribute(const char *text, unsigned int at, int *marke
 
 unsigned int cli_cargo_scan(const char *text)
 {
-    const unsigned int first = g_cli_cargo_scan.held_count;
+    const unsigned int first = g_cli_cargo_scan.item_count;
     unsigned int inline_names[CLI_CARGO_INLINE];
     unsigned long long inline_depths[CLI_CARGO_INLINE];
     unsigned int open = 0u;
@@ -401,7 +401,7 @@ unsigned int cli_cargo_scan(const char *text)
         {
             if (scan_is_mark(at + 2u, ';'))
             {
-                scan_held(text, inline_names, open, at + 1u, 0);
+                scan_item_put(text, inline_names, open, at + 1u, 0);
                 at += 3u;
             }
             else if (scan_is_mark(at + 2u, '{') && (open < CLI_CARGO_INLINE))
@@ -423,7 +423,7 @@ unsigned int cli_cargo_scan(const char *text)
         {
             if (marked)
             {
-                scan_held(text, inline_names, open, at + 1u, 1);
+                scan_item_put(text, inline_names, open, at + 1u, 1);
             }
             marked = 0;
             at += 2u;
@@ -445,5 +445,5 @@ unsigned int cli_cargo_scan(const char *text)
         }
         at += 1u;
     }
-    return g_cli_cargo_scan.held_count - first;
+    return g_cli_cargo_scan.item_count - first;
 }

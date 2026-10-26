@@ -8,7 +8,7 @@
 // instructions' addresses and mnemonics (disasm_verify.c, disasm_verify_steps.c, disasm_verify_read.c). One row a
 // function to the output, the function, how many instructions each reader gave, and "same" or where they first differ,
 // each reader's index, address and mnemonic there; exit 0 where every function reads the same, 1 where one differs,
-// CLI_NO_CODE where a tool is missing or a step fails, which is said to the errors
+// CLI_NO_CODE where a tool is missing or a step fails, which is reported to the errors
 #ifndef DISASM_VERIFY_H
 #define DISASM_VERIFY_H
 
@@ -49,15 +49,15 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count);
 
 // the functions the IR text `ir`, `size` bytes, defines, each `define` of a function that is no declaration, their
 // names into `names` up to `room`: how many, those past the room left out (disasm_verify_read.c)
-unsigned int cli_disasm_functions_defined(const char *ir, unsigned long long size, char (*names)[CLI_NAME_LONGEST],
+unsigned int cli_disasm_functions_defined(const char *ir, unsigned long long size, char (*names)[CLI_NAME_MAX_LEN],
                                           unsigned int room);
 // the symbol of `name` in the program's symbols as llvm-nm lists them, `text` of `size` bytes: `name` itself where the
 // program defines it, else `name` with the suffix link-time optimization gives a promoted local, as name.llvm.1234;
-// into `symbol`, which holds CLI_NAME_LONGEST: 1, or 0 where the program has no such symbol
+// into `symbol`, sized for CLI_NAME_MAX_LEN: 1, or 0 where the program has no such symbol
 int cli_disasm_symbol_of(const char *text, unsigned long long size, const char *name, char *symbol);
 // the instructions of the function `symbol` read from llvm-objdump's output with each instruction's bytes shown, `text`
-// of `size` bytes, into `reading`, whose cell holds CLI_DISASM_INSTRUCTIONS: 1, or 0 where the output holds no such
-// function
+// of `size` bytes, into `reading`, whose cell is sized for CLI_DISASM_INSTRUCTIONS: 1, or 0 where the output contains
+// no such function
 int cli_disasm_objdump_read(const char *text, unsigned long long size, const char *symbol, CliDisasmReading *reading);
 // the units of the function from the file the plugin's script wrote, `text` of `size` bytes: its instructions, and the
 // runs of bytes Ghidra left raw
@@ -72,38 +72,40 @@ int cli_disasm_ghidra_read(const char *text, unsigned long long size, const char
 int cli_disasm_same(const CliDisasmReading *one, const CliDisasmReading *other, unsigned int *at,
                     unsigned int *other_at);
 
-// a path made of `parts`, each put after the one before, into `path`, which holds CLI_PATH_LONGEST: 1, or 0 where it
+// a path made of `parts`, each put after the one before, into `path`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it
 // does not fit (disasm_verify.c)
 int cli_disasm_path(char *path, const char *const *parts);
 
-// the steps, each a program run with the toolchains' PATH within its patience, and said with its errors' first bytes
-// where it ends with a code other than 0 (disasm_verify_steps.c): the PATH read from the toolchains before the first
+// the steps, each a program run with the toolchains' PATH within its patience, and reported with its errors' first
+// bytes where it ends with a code other than 0 (disasm_verify_steps.c): the PATH read from the toolchains before the
+// first
 void cli_disasm_steps_begun(void);
-// a program of `names` beside the compiler at `compiler`, into `path`: 1, or 0 with which said
-int cli_disasm_beside(const char *compiler, const char *const *names, char *path, CliLine *said);
+// a program of `names` beside the compiler at `compiler`, into `path`: 1, or 0 with which given
+int cli_disasm_beside(const char *compiler, const char *const *names, char *path, VerbaLinea *err_msg);
 // the tree's command line built with link-time optimization for `target` by build.sh, run with `compiler` as its CC:
-// 1, or 0 with why said
-int cli_disasm_built(const char *top, const char *target, const char *compiler, CliLine *said);
+// 1, or 0 with why given
+int cli_disasm_built(const char *top, const char *target, const char *compiler, VerbaLinea *err_msg);
 // the module's functions listed from its IR: the object lifted with the lifter into the IR file, and the file read for
-// the functions it defines, into `names`: how many; or 0 with why said. With GNU's lifter, `gnu`, the list it prints
+// the functions it defines, into `names`: how many; or 0 with why given. With GNU's lifter, `gnu`, the list it prints
 // stands as the IR's definitions
 unsigned int cli_disasm_functions(int gnu, const char *lifter, const char *object, const char *ir,
-                                  char (*names)[CLI_NAME_LONGEST], CliLine *said);
+                                  char (*names)[CLI_NAME_MAX_LEN], VerbaLinea *err_msg);
 // the functions' symbols in `program`, listed by `lister`, each of `names` into `symbols`, a function the program
-// does not hold left as an empty symbol: how many hold, or 0 with why said where the lister did not run
-unsigned int cli_disasm_symbols(const char *lister, const char *program, const char (*names)[CLI_NAME_LONGEST],
-                                char (*symbols)[CLI_NAME_LONGEST], unsigned int count, CliLine *said);
+// does not contain left as an empty symbol: how many contain, or 0 with why given where the lister did not run
+unsigned int cli_disasm_symbols(const char *lister, const char *program, const char (*names)[CLI_NAME_MAX_LEN],
+                                char (*symbols)[CLI_NAME_MAX_LEN], unsigned int count, VerbaLinea *err_msg);
 // the symbols' instructions read from `program` by `disassembler`, Intel's syntax with each instruction's bytes, as
-// text the readers take, written to `into`: what the run gave, or NULL with why said
-CliRan *cli_disasm_disassembled(const char *disassembler, const char *program, const char (*symbols)[CLI_NAME_LONGEST],
-                                unsigned int count, const char *into, CliLine *said);
-// Ghidra's analyzer run headless over `program`, loaded as `loader` says and analyzed by the script alone, in a project
-// under `folder`, the plugin's script read from the tree at `top` and run with the symbols' names, its lines written to `into`:
-// the file's bytes, `size` of them, or NULL with why said
+// text the readers take, written to `into`: what the run gave, or NULL with why given
+CliRan *cli_disasm_disassembled(const char *disassembler, const char *program, const char (*symbols)[CLI_NAME_MAX_LEN],
+                                unsigned int count, const char *into, VerbaLinea *err_msg);
+// Ghidra's analyzer run headless over `program`, loaded as `loader` specifies and analyzed by the script alone, in a
+// project under `folder`, the plugin's script read from the tree at `top` and run with the symbols' names, its lines
+// written to `into`: the file's bytes, `size` of them, or NULL with why given
 const unsigned char *cli_disasm_ghidra(const char *analyzer, const char *const *loader, const char *top,
-                                       const char *folder, const char *program, const char (*symbols)[CLI_NAME_LONGEST],
-                                       unsigned int count, const char *into, unsigned long long *size, CliLine *said);
-// the program executed, with `help`: 1 where it ends with 0, or 0 with why said
-int cli_disasm_executed(const char *program, CliLine *said);
+                                       const char *folder, const char *program, const char (*symbols)[CLI_NAME_MAX_LEN],
+                                       unsigned int count, const char *into, unsigned long long *size,
+                                       VerbaLinea *err_msg);
+// the program executed, with `help`: 1 where it ends with 0, or 0 with why given
+int cli_disasm_executed(const char *program, VerbaLinea *err_msg);
 
 #endif

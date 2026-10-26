@@ -30,7 +30,7 @@ int layout_same(const EngineRecordLayout *left, const EngineRecordLayout *right)
 
 // what the steps leave for the lane's own forms, a word each: the most temporaries, 64-bit temporaries and predicates
 // any step took, 1 where any reads the tables, where a form breaks the lane and where a step is one the lane does not
-// hold, and what the last step left taken in each bank, which the lane's own forms go on from
+// use, and what the last step left taken in each bank, which the lane's own forms go on from
 enum CodegenSummary
 {
     CODEGEN_TEMPS_MAX = 0,
@@ -38,7 +38,7 @@ enum CodegenSummary
     CODEGEN_PREDICATES_MAX = 2,
     CODEGEN_TABLES = 3,
     CODEGEN_BROKEN = 4,
-    CODEGEN_UNHELD = 5,
+    CODEGEN_STEP_FAILED = 5,
     CODEGEN_TEMPS = 6,
     CODEGEN_WIDES = 7,
     CODEGEN_PREDICATES = 8,
@@ -61,14 +61,14 @@ enum CodegenPart
     CODEGEN_PARTS = 9
 };
 
-// where each part's items begin among the lane's, and how many it holds
+// where each part's items begin among the lane's, and how many it contains
 struct CodegenParts
 {
     unsigned long long at[CODEGEN_PARTS];
     unsigned long long count[CODEGEN_PARTS];
 };
 
-// a byte the assembly printer wrote that is not 0, which the text holds
+// a byte the assembly printer wrote that is not 0, which the text contains
 struct NonzeroByte
 {
     __host__ __device__ bool operator()(const unsigned char &byte) const
@@ -205,7 +205,7 @@ static unsigned long long codegen_device_scan(DeviceArena *memory, const Counted
         return 0ull;
     }
     size_t bytes = 0u;
-    // held below CODEGEN_COUNT_MAX by the callers
+    // bounded below CODEGEN_COUNT_MAX by the callers
     memory->ok = cub::DeviceScan::ExclusiveSum(NULL, bytes, counts, sums, (int)count) == cudaSuccess;
     void *const temporary = codegen_device_take<unsigned char>(memory, bytes);
     memory->ok =

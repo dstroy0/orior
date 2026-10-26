@@ -79,8 +79,8 @@ static inline __device__ int omega_pool_grows(const OmegaToken *stored, const un
     return 0;
 }
 
-// A walk over one subterm keeping the lambdas above each token. The frames, one byte each in the pool's frame
-// buffer at the term's own place, hold the children still to start and whether the frame is a lambda; a subterm has
+// A walk over one subterm tracking the lambdas above each token. The frames, one byte each in the pool's frame
+// buffer at the term's own place, store the children still to start and whether the frame is a lambda; a subterm has
 // no more frames open than it has tokens.
 typedef struct
 {

@@ -1,0 +1,2 @@
+CompileFlags:
+  Add: [-xc, --target=wasm32, -std=c11, -ffreestanding, -nostdlib]

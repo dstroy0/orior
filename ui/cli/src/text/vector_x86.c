@@ -243,7 +243,7 @@ unsigned long long cli_vector_find_sse2(const unsigned short *text, unsigned lon
             tail = cli_fold8(tail);
         }
         const __m128i both = _mm_and_si128(_mm_cmpeq_epi16(head, first), _mm_cmpeq_epi16(tail, last));
-        // the movemask of a block is its 16 bits, one of each lane's two kept
+        // the movemask of a block is its 16 bits, one of each lane's two retained
         unsigned int mask = ((unsigned int)_mm_movemask_epi8(both)) & 0x5555u;
         while (mask != 0u)
         {
@@ -280,7 +280,7 @@ CLI_AVX2_TARGET unsigned long long cli_vector_find_avx2(const unsigned short *te
             tail = cli_fold16(tail);
         }
         const __m256i both = _mm256_and_si256(_mm256_cmpeq_epi16(head, first), _mm256_cmpeq_epi16(tail, last));
-        // the movemask of a block is its 32 bits, one of each lane's two kept
+        // the movemask of a block is its 32 bits, one of each lane's two retained
         unsigned int mask = ((unsigned int)_mm256_movemask_epi8(both)) & 0x55555555u;
         while (mask != 0u)
         {

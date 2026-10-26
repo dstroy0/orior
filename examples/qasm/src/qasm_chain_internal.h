@@ -22,7 +22,7 @@
 typedef union {
     QasmNumber number;
     QasmRationalFunction function;
-} QasmSlot;
+} QasmElement;
 
 unsigned char *qasm_matrix_at(const QasmMatrix *matrix, unsigned int row, unsigned int column);
 

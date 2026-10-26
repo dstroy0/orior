@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 # The record machine's lane as VHDL held to the host oracle, where GHDL is on the path: the code generator, keymath and
 # key_schedule and krep are host code in .cu files and the test C++, compiled as C++; cycle.c, the exact integer's
-# pieces and scriptura as C. GHDL analyzes and runs each program's lane in a work folder in the system's temporary folder. Where
+# pieces and MMgr's line as C. GHDL analyzes and runs each program's lane in a work folder in the system's temporary folder. Where
 # the build's output holds vhdl.kcs (vhdl_construction_set.sh), the lane is cut by that construction set as well.
 set -u
 
@@ -21,17 +21,17 @@ KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 KREP="$TOP/src/cu/includes/file_defs/krep"
 KREP_CU="$TOP/src/cu/includes/file_defs/krep"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 build_stamp record_vhdl_test
 
 command -v ghdl > /dev/null 2>&1 || { echo "  not run: GHDL is not on the path"; exit 0; }
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU"
-          -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$KREP" -I "$KREP_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA")
+          -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$KREP" -I "$KREP_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}")
 BINARY="$OUT/record_vhdl_test"
 rm -f "$BINARY"
 OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$CYCLE/cycle.c"; do
     object="$OUT/$(basename "$source" .c)_vhdl.o"
     rm -f "$object"
@@ -40,14 +40,14 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
     OBJECTS+=("$object")
 done
 for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu "$KREP_CU"/krep_{io,sections}.cu \
-              "$TEST/record_vhdl_test.cpp"; do
+              "$TEST/vhdl_target.cu" "$TEST/yosys_script.cu" "$TEST/record_vhdl_test.cpp"; do
     object="$OUT/$(basename "$source")_vhdl.o"
     rm -f "$object"
-    c++ -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$source" -o "$object"
+    "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -x c++ -c "$source" -o "$object"
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
 done
-c++ -o "$BINARY" "${OBJECTS[@]}" -lpthread
+"$FILE_DEFS_CXX" -o "$BINARY" "${OBJECTS[@]}" -lpthread
 [ -f "$BINARY" ] || { echo "  build failed: the test did not link"; exit 1; }
 
 # the work folder is the system's own temporary folder, not the build's output: a synthesis writes its Verilog in small

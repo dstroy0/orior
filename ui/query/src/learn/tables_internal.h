@@ -24,18 +24,18 @@
 void query_tables_in(const char *folder, const char *name, char *path);
 void query_tables_of(const char *out, const char *arch, char *instructions, char *latencies);
 void query_in_container(const char *root, const char *path, char *inside);
-int query_program(const QueryContext *context, QueryRole role, char *path, CliLine *said);
+int query_program(const QueryContext *context, QueryRole role, char *path, VerbaLinea *err_msg);
 unsigned int query_architectures(QueryContext *context, const QueryRun *run, const char *const *words,
-                                 unsigned int count, char (*arches)[16], CliLine *said);
-int query_disassembler(QueryContext *context, const QueryRun *run, const char *out, char *program, CliLine *said);
+                                 unsigned int count, char (*arches)[16], VerbaLinea *err_msg);
+int query_disassembler(QueryContext *context, const QueryRun *run, const char *out, char *program, VerbaLinea *err_msg);
 int query_key_cubin(QueryContext *context, const QueryRun *run, const char *out, const char *arch, char *cubin,
-                    CliLine *said);
+                    VerbaLinea *err_msg);
 
 // the compiler's version, `V13.3.73`, read off `nvcc --version` into `version`: 1, or 0 where it names none; the
 // architectures `nvcc --list-gpu-arch` lists, `compute_86` read as `sm_86`, into `arches`: their count; and the
-// vendor's archive of nvdisasm at `version` named into `archive`, which holds `room` (tables.c)
-int query_version_of(const unsigned char *said, unsigned long long size, char *version, size_t room);
-unsigned int query_architectures_of(const unsigned char *said, unsigned long long size, char (*arches)[16]);
+// vendor's archive of nvdisasm at `version` named into `archive`, sized for `room` (tables.c)
+int query_version_of(const unsigned char *output, unsigned long long size, char *version, size_t room);
+unsigned int query_architectures_of(const unsigned char *output, unsigned long long size, char (*arches)[16]);
 void query_archive_named(const char *version, char *archive, size_t room);
 
 #endif

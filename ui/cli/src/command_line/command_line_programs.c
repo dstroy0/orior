@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_programs.c: the command line's words that are programs of their own: `serve` answers a window on
 // another machine over its input and output; `write-raised` copies a file orior_cli staged over the file the reader
-// gave the rights to write; `keep-run` runs a job the server keeps, a process of its own; `deploy` previews, sends or
-// rolls back a deployment the tree names; `libraries` says what a program loads and from where; and `sea` builds a
-// script into Node's single executable
+// gave the rights to write; `detached-run` runs a job the server detaches, a process of its own; `deploy` previews,
+// sends or rolls back a deployment the tree names; `libraries` reports what a program loads and from where; and `sea`
+// builds a script into Node's single executable
 #include "../deploy/deploy.h"
 #include "../machine/raised.h"
 #include "../programs/binary.h"
@@ -22,27 +22,27 @@ typedef struct
     char path[CLI_PATH_TEXT];
 } CliProgramsReading;
 
-static char s_said[1u << 14u];
+static char s_err_buf[1u << 14u];
 static char s_line[1u << 16u];
 
-// a line said written to the output
+// a line printed written to the output
 static void programs_out(void *context, const char *line, unsigned long long size)
 {
     (void)context;
     cli_out_line(line, size);
 }
 
-// a line said written to the errors
+// a line printed written to the errors
 static void programs_err(void *context, const char *line, unsigned long long size)
 {
     (void)context;
     cli_err_line(line, size);
 }
 
-// why said written to the errors, and `code`
-static int programs_failed(const CliLine *said, int code)
+// why given written to the errors, and `code`
+static int programs_failed(const VerbaLinea *err_msg, int code)
 {
-    cli_err_line(said->out, cli_line_fits(said) ? said->at : 0ull);
+    cli_err_line(err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ull);
     return code;
 }
 
@@ -50,11 +50,11 @@ static int programs_failed(const CliLine *said, int code)
 // ended with it, on the machine the window reached as on the window's own
 static int programs_serve(const char *named)
 {
-    static char s_root[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if ((named != NULL) && !cli_command_line_tree(named, s_root, &said))
+    static char s_root[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    if ((named != NULL) && !cli_command_line_tree(named, s_root, &err_msg))
     {
-        return programs_failed(&said, CLI_NO_CODE);
+        return programs_failed(&err_msg, CLI_NO_CODE);
     }
     cli_serve((named != NULL) ? s_root : NULL);
     cli_container_members_ended();
@@ -71,30 +71,30 @@ static int programs_deploy(const char *named, const char *const *words, unsigned
                 "files changed there and of files gone from the tree");
         return CLI_WRONG;
     }
-    static char s_root[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if ((named != NULL) ? !cli_command_line_tree(named, s_root, &said) : !cli_folder_current(s_root, sizeof(s_root)))
+    static char s_root[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    if ((named != NULL) ? !cli_command_line_tree(named, s_root, &err_msg) : !cli_folder_current(s_root, sizeof(s_root)))
     {
         if (named == NULL)
         {
-            cli_line_text(&said, "orior_cli finds no folder to run in");
+            mmgr_line_put(&err_msg, "orior_cli finds no folder to run in");
         }
-        return programs_failed(&said, CLI_NO_CODE);
+        return programs_failed(&err_msg, CLI_NO_CODE);
     }
     const int replace =
         (count > 3u) &&
         (cellul.eq(&(CatenaFinitaCfg){.src = words[3], .other = "replace them", .cap = CLI_CELLS_POOL}));
     const int remove =
         (count > 4u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[4], .other = "delete them", .cap = CLI_CELLS_POOL}));
-    if (!cli_deploy_run(s_root, words[1], act, replace, remove, programs_out, NULL, &said))
+    if (!cli_deploy_run(s_root, words[1], act, replace, remove, programs_out, NULL, &err_msg))
     {
-        return programs_failed(&said, CLI_WRONG);
+        return programs_failed(&err_msg, CLI_WRONG);
     }
     return 0;
 }
 
 // `orior_cli libraries <program>`: each library the program loads, where it is found and the file found, then what the
-// report tells of the program
+// report reports about the program
 static int programs_libraries(const char *const *words, unsigned int count)
 {
     static const char *const s_found[] = {"beside",      "system",     "redistributable", "debug_runtime",
@@ -104,7 +104,7 @@ static int programs_libraries(const char *const *words, unsigned int count)
         cli_err("libraries takes the program to read");
         return CLI_WRONG;
     }
-    CliProgramsReading *const reading = cli_cell_taken(sizeof(*reading), "what a program's libraries are read with");
+    CliProgramsReading *const reading = g_cli_cells->persistent_buf_alloc(sizeof(*reading), NULL);
     if (reading == NULL)
     {
         cli_err("the cells cannot meet what a program's libraries are read with");
@@ -122,15 +122,15 @@ static int programs_libraries(const char *const *words, unsigned int count)
     {
         most += (at[0] == between) ? 1u : 0u;
     }
-    char (*const folder)[CLI_PATH_LONGEST] =
-        cli_cell_taken((unsigned long long)most * CLI_PATH_LONGEST, "the PATH's folders a program's libraries are in");
+    char (*const folder)[CLI_PATH_MAX_LEN] =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, NULL);
     unsigned int folders = 0u;
     for (const char *part = reading->path; (folder != NULL) && (part != NULL) && (folders < most);)
     {
         const char *const end = cellul.chr(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL, .byte = between});
         const size_t size =
             (end != NULL) ? (size_t)(end - part) : cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
-        if ((size > 0u) && (size < CLI_PATH_LONGEST))
+        if ((size > 0u) && (size < CLI_PATH_MAX_LEN))
         {
             memor.cpy(&(MemoriaCfg){.dst = folder[folders], .src = part, .bytes = size});
             folder[folders][size] = '\0';
@@ -138,30 +138,30 @@ static int programs_libraries(const char *const *words, unsigned int count)
         }
         part = (end != NULL) ? end + 1 : NULL;
     }
-    CliLine said = {s_said, sizeof(s_said), 0ull};
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
     const int read =
-        cli_binary_read(words[1], (const char (*)[CLI_PATH_LONGEST])folder, folders, &reading->report, &said);
-    cli_cell_given(folder);
+        cli_binary_read(words[1], (const char (*)[CLI_PATH_MAX_LEN])folder, folders, &reading->report, &err_msg);
+    g_cli_cells->persistent_buf_release(folder, NULL);
     if (!read)
     {
-        cli_cell_given(reading);
-        return programs_failed(&said, CLI_WRONG);
+        g_cli_cells->persistent_buf_release(reading, NULL);
+        return programs_failed(&err_msg, CLI_WRONG);
     }
     const CliBinaryReport *const report = &reading->report;
     for (unsigned int at = 0u; at < report->libraries; at += 1u)
     {
         const CliLibrary *const one = &report->library[at];
-        CliLine line = {s_line, sizeof(s_line), 0ull};
-        cli_line_text(&line, one->name);
-        cli_line_text(&line, "  ");
-        cli_line_text(&line, (one->found < (sizeof(s_found) / sizeof(s_found[0]))) ? s_found[one->found] : "");
-        cli_line_text(&line, "  ");
-        cli_line_text(&line, one->has_at ? one->at : "");
-        cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        mmgr_line_put(&line, one->name);
+        mmgr_line_put(&line, "  ");
+        mmgr_line_put(&line, (one->found < (sizeof(s_found) / sizeof(s_found[0]))) ? s_found[one->found] : "");
+        mmgr_line_put(&line, "  ");
+        mmgr_line_put(&line, one->has_at ? one->at : "");
+        cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
-    const QuerySink say = {programs_err, NULL};
-    cli_binary_report_said(report, say);
-    cli_cell_given(reading);
+    const QuerySink sink = {programs_err, NULL};
+    cli_binary_report_print(report, sink);
+    g_cli_cells->persistent_buf_release(reading, NULL);
     return 0;
 }
 
@@ -175,19 +175,19 @@ static int programs_sea(const char *const *words, unsigned int count)
     }
     const int module =
         (count > 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[3], .other = "module", .cap = CLI_CELLS_POOL}));
-    char node[CLI_PATH_LONGEST];
-    char made[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    const QuerySink say = {programs_out, NULL};
-    if (!cli_executables_program("node", "node", node, &said) ||
-        !cli_sea_build(node, words[1], words[2], module, say, made, &said))
+    char node[CLI_PATH_MAX_LEN];
+    char made[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    const QuerySink sink = {programs_out, NULL};
+    if (!cli_executables_program("node", "node", node, &err_msg) ||
+        !cli_sea_build(node, words[1], words[2], module, sink, made, &err_msg))
     {
-        return programs_failed(&said, CLI_WRONG);
+        return programs_failed(&err_msg, CLI_WRONG);
     }
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, "made ");
-    cli_line_text(&line, made);
-    cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, "made ");
+    mmgr_line_put(&line, made);
+    cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
     return 0;
 }
 
@@ -206,13 +206,13 @@ int cli_line_program(const char *first, const char *named, const char *const *wo
             *code = CLI_WRONG;
             return 1;
         }
-        CliLine said = {s_said, sizeof(s_said), 0ull};
-        *code = cli_raised_copy_over(words[1], words[2], &said) ? 0 : programs_failed(&said, 1);
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        *code = cli_raised_copy_over(words[1], words[2], &err_msg) ? 0 : programs_failed(&err_msg, 1);
         return 1;
     }
-    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "keep-run", .cap = CLI_CELLS_POOL}))
+    if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "detached-run", .cap = CLI_CELLS_POOL}))
     {
-        *code = (count > 1u) ? cli_serve_keep_run(words[1]) : CLI_WRONG;
+        *code = (count > 1u) ? cli_serve_detached_run(words[1]) : CLI_WRONG;
         return 1;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "deploy", .cap = CLI_CELLS_POOL}))

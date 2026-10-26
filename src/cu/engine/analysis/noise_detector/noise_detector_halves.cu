@@ -172,7 +172,7 @@ extern "C" long noise_lines_volume(const unsigned short *volume, const unsigned 
         return NOISE_DETECTOR_ERROR;
     }
     NoiseLineCell *const cells = (NoiseLineCell *)malloc((size_t)NOISE_LINE_CELLS * sizeof(NoiseLineCell));
-    // four exact integers, held apart from the stack
+    // four exact integers, stored apart from the stack
     NoisePlanePool *const pool = (NoisePlanePool *)malloc(sizeof(NoisePlanePool));
     NoiseStaticPool still;
     // a volume read alone writes no plane table and so needs no name
@@ -261,7 +261,7 @@ extern "C" void noise_root_extent(unsigned int term, const unsigned long long bo
 {
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        const int kept = (term < NOISE_ROOT_TERMS) && ((NOISE_ROOT_SHARED[term] & NOISE_ROOT_AXIS(axis)) == 0u);
-        pattern[axis] = (kept != 0) ? box[axis] : 1ull;
+        const int unshared = (term < NOISE_ROOT_TERMS) && ((NOISE_ROOT_SHARED[term] & NOISE_ROOT_AXIS(axis)) == 0u);
+        pattern[axis] = (unshared != 0) ? box[axis] : 1ull;
     }
 }

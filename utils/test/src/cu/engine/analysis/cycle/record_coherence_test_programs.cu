@@ -19,9 +19,9 @@ void coherence_check(CoherenceResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -132,7 +132,8 @@ long long coherence_reduce(unsigned long long word, unsigned int bits)
 {
     const unsigned long long low = word & ((1ull << bits) - 1ull);
     const unsigned long long top = 1ull << (bits - 1u);
-    // a set top kept bit means 2^bits comes off: low - top - top, taken apart so neither half leaves the signed range
+    // a set top retained bit means 2^bits comes off: low - top - top, taken apart so neither half leaves the signed
+    // range
     return ((low & top) != 0ull) ? ((long long)(low - top) - (long long)top) : (long long)low;
 }
 
@@ -258,7 +259,7 @@ void coherence_programs(CoherenceResults *results)
     CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
     if ((atoms == NULL) || (program == NULL))
     {
-        coherence_check(results, 0, "the coherence lanes are held");
+        coherence_check(results, 0, "the coherence lanes are allocated");
         free(atoms);
         free(program);
         return;
@@ -304,7 +305,7 @@ void coherence_programs(CoherenceResults *results)
             unsigned long long native[COHERENCE_TEST_INPUTS + COHERENCE_TEST_OPERATIONS];
             for (unsigned int input = 0u; input < COHERENCE_TEST_INPUTS; input += 1u)
             {
-                // a signed input's two's complement word: the cast keeps its bits
+                // a signed input's two's complement word: the cast preserves its bits
                 native[input] = (unsigned long long)coherence_signed_input(atoms[lane * COHERENCE_TEST_INPUTS + input]);
             }
             for (unsigned int at = 0u; at < COHERENCE_TEST_OPERATIONS; at += 1u)
@@ -329,17 +330,17 @@ void coherence_programs(CoherenceResults *results)
         free(device_out);
         coherence_free(&loaded);
     }
-    scriptura_text(&results->line, "  coherence: ");
-    scriptura_decimal(&results->line, COHERENCE_TEST_PROGRAMS, 1u);
-    scriptura_text(&results->line, " random programs of ");
-    scriptura_decimal(&results->line, COHERENCE_TEST_OPERATIONS, 1u);
-    scriptura_text(&results->line, " operations, widest exact register ");
-    scriptura_decimal(&results->line, widest, 1u);
-    scriptura_text(&results->line, " bits; ");
-    scriptura_decimal(&results->line, agreements, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, comparisons, 1u);
-    scriptura_text(&results->line, " lane-widths agree three ways\n");
+    mmgr_line_put(&results->line, "  coherence: ");
+    mmgr_line_decimal(&results->line, COHERENCE_TEST_PROGRAMS, 1u);
+    mmgr_line_put(&results->line, " random programs of ");
+    mmgr_line_decimal(&results->line, COHERENCE_TEST_OPERATIONS, 1u);
+    mmgr_line_put(&results->line, " operations, widest exact register ");
+    mmgr_line_decimal(&results->line, widest, 1u);
+    mmgr_line_put(&results->line, " bits; ");
+    mmgr_line_decimal(&results->line, agreements, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, comparisons, 1u);
+    mmgr_line_put(&results->line, " lane-widths agree three ways\n");
     coherence_check(results, loaded_all, "every random program encodes, lays out and loads");
     coherence_check(results, words_all, "every program's device records equal the host's word for word");
     coherence_check(results, (comparisons != 0ull) && (agreements == comparisons),

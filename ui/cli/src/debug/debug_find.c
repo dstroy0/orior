@@ -10,12 +10,12 @@
 
 #include "../text/text.h"
 
-// the most toolchains one search names, and the most lines of a failed build told
+// the most toolchains one search names, and the most lines of a failed build reported
 #define CLI_DEBUG_NAMED 64u
 #define CLI_DEBUG_TAIL 12u
 
-// The PATH's folders, a cell of a search's, a tool found, and the lock they and a search's toolchains are held by
-static char (*s_folders)[CLI_PATH_LONGEST];
+// The PATH's folders, a cell of a search's, a tool found, and the lock they and a search's toolchains are guarded by
+static char (*s_folders)[CLI_PATH_MAX_LEN];
 static CliFound s_found;
 static CliLock s_lock = CLI_LOCK_INIT;
 
@@ -23,13 +23,13 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static void find_released(CliJson *manifest)
 {
     cli_json_given(manifest);
-    cli_cell_given(s_folders);
+    g_cli_cells->persistent_buf_release(s_folders, NULL);
     s_folders = NULL;
     cli_lock_give(&s_lock);
 }
 
-// whether the array `array` of `json` holds the string `text`
-static int find_holds(const CliJson *json, unsigned int array, const char *text)
+// whether the array `array` of `json` contains the string `text`
+static int find_contains(const CliJson *json, unsigned int array, const char *text)
 {
     for (unsigned int at = 0u; cli_json_item(json, array, at) != CLI_JSON_NONE; at += 1u)
     {
@@ -43,12 +43,12 @@ static int find_holds(const CliJson *json, unsigned int array, const char *text)
 }
 
 // the names of the toolchains `named`, `count` of them, joined by " or " into `out`
-static void find_names_joined(const CliJson *json, const unsigned int *named, unsigned int count, CliLine *out)
+static void find_names_joined(const CliJson *json, const unsigned int *named, unsigned int count, VerbaLinea *out)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? " or " : "");
-        cli_line_text(out, cli_debug_text(json, cli_json_member(json, named[at], "name"), ""));
+        mmgr_line_put(out, (at > 0u) ? " or " : "");
+        mmgr_line_put(out, cli_debug_text(json, cli_json_member(json, named[at], "name"), ""));
     }
 }
 
@@ -79,7 +79,7 @@ static void find_ahead_first(const CliJson *json, unsigned int *named, unsigned 
 }
 
 int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, unsigned int *spec, char *tool,
-                      char *tool_id, char *program, CliLine *said)
+                      char *tool_id, char *program, VerbaLinea *err_msg)
 {
     unsigned int named[CLI_DEBUG_NAMED];
     unsigned int specs[CLI_DEBUG_NAMED];
@@ -95,9 +95,10 @@ int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, un
         const unsigned int debugger = cli_json_member(&manifest_json, one, "debugger");
         const unsigned int systems = cli_json_member(&manifest_json, debugger, "systems");
         const int on_system = (cli_json_item(&manifest_json, systems, 0u) == CLI_JSON_NONE) ||
-                              find_holds(&manifest_json, systems, system);
+                              find_contains(&manifest_json, systems, system);
         if (cli_json_is(&manifest_json, debugger, CFG_JSON_OBJECT) &&
-            find_holds(&manifest_json, cli_json_member(&manifest_json, debugger, "languages"), language) && on_system)
+            find_contains(&manifest_json, cli_json_member(&manifest_json, debugger, "languages"), language) &&
+            on_system)
         {
             named[count] = one;
             specs[count] = debugger;
@@ -107,8 +108,8 @@ int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, un
     if (count == 0u)
     {
         find_released(&manifest_json);
-        cli_line_text(said, "orior_cli has no debugger for ");
-        cli_line_text(said, language);
+        mmgr_line_put(err_msg, "orior_cli has no debugger for ");
+        mmgr_line_put(err_msg, language);
         return 0;
     }
     find_ahead_first(&manifest_json, named, specs, count, ahead);
@@ -116,7 +117,7 @@ int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, un
     s_folders = cli_toolchains_path_taken(&folders);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_toolchains_find(&manifest_json, named[at], (const char (*)[CLI_PATH_LONGEST])s_folders, folders, &s_found);
+        cli_toolchains_find(&manifest_json, named[at], (const char (*)[CLI_PATH_MAX_LEN])s_folders, folders, &s_found);
         const char *const names[1] = {
             cli_debug_text(&manifest_json, cli_json_member(&manifest_json, specs[at], "program"), "")};
         if ((s_found.folder[0] != '\0') && cli_toolchains_program_in(s_found.folder, names, 1u, program))
@@ -142,18 +143,18 @@ int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, un
             return 1;
         }
     }
-    find_names_joined(&manifest_json, named, count, said);
+    find_names_joined(&manifest_json, named, count, err_msg);
     find_released(&manifest_json);
-    cli_line_text(said, " debugs it, and is not found: File, Toolchains opens its install page or takes its folder");
+    mmgr_line_put(err_msg, " debugs it, and is not found: File, Toolchains opens its install page or takes its folder");
     return 0;
 }
 
 // the last lines of what a build wrote that are not blank, `most` of them at most, joined by "\n" into `out`
-static void find_tail(const char *text, unsigned long long size, unsigned int most, CliLine *out)
+static void find_tail(const char *text, unsigned long long size, unsigned int most, VerbaLinea *out)
 {
     unsigned long long starts[CLI_DEBUG_TAIL];
     unsigned long long ends[CLI_DEBUG_TAIL];
-    unsigned int kept = 0u;
+    unsigned int count = 0u;
     for (unsigned long long start = 0ull; start < size;)
     {
         const char *const newline = memor.chr(&(MemoriaCfg){.src = text + start, .val = '\n', .bytes = size - start});
@@ -168,29 +169,29 @@ static void find_tail(const char *text, unsigned long long size, unsigned int mo
         }
         if (!blank)
         {
-            const unsigned int place = (kept < most) ? kept : most - 1u;
-            for (unsigned int moved = 0u; (kept >= most) && (moved + 1u < most); moved += 1u)
+            const unsigned int place = (count < most) ? count : most - 1u;
+            for (unsigned int moved = 0u; (count >= most) && (moved + 1u < most); moved += 1u)
             {
                 starts[moved] = starts[moved + 1u];
                 ends[moved] = ends[moved + 1u];
             }
             starts[place] = start;
             ends[place] = end;
-            kept = (kept < most) ? kept + 1u : kept;
+            count = (count < most) ? count + 1u : count;
         }
         start = next;
     }
-    for (unsigned int at = 0u; at < kept; at += 1u)
+    for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "\n" : "");
+        mmgr_line_put(out, (at > 0u) ? "\n" : "");
         cli_lossy(out, (const unsigned char *)text + starts[at], ends[at] - starts[at]);
     }
 }
 
-int cli_debug_build_program(const CliProgram *made, char *program, CliLine *said)
+int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *err_msg)
 {
-    char tool[CLI_PATH_LONGEST];
-    if (!cli_executables_program(made->tool, made->tool, tool, said))
+    char tool[CLI_PATH_MAX_LEN];
+    if (!cli_executables_program(made->tool, made->tool, tool, err_msg))
     {
         return 0;
     }
@@ -201,32 +202,32 @@ int cli_debug_build_program(const CliProgram *made, char *program, CliLine *said
     const char *const meson_words[6] = {tool, "compile", "-C", made->build, made->target, NULL};
     const char *const cmake_words[9] = {tool,       "--build",    made->build, "--target", made->target,
                                         "--config", made->config, NULL,        NULL};
-    char why[CLI_SAID_LONGEST];
-    CliLine unsaid = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_buf = {why, sizeof(why), 0ull};
     CliRan *const ran = cli_ran_taken();
-    if (!cli_ran(meson ? meson_words : cmake_words, NULL, settings, 1u, ran, &unsaid))
+    if (!cli_ran(meson ? meson_words : cmake_words, NULL, settings, 1u, ran, &err_buf))
     {
         cli_ran_given(ran);
-        cli_line_text(said, tool);
-        cli_line_text(said, ": ");
-        cli_line_counted(said, unsaid.out, unsaid.at);
+        mmgr_line_put(err_msg, tool);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, err_buf.out, err_buf.at);
         return 0;
     }
     if (ran->code != 0ll)
     {
         // what the build wrote to its output, then to its errors, as one text, a cell of their size
-        char *const both = cli_cell_taken(ran->out_size + ran->err_size + 1ull, "a failed build's output");
-        cli_line_text(said, "The build of ");
-        cli_line_text(said, made->target);
-        cli_line_text(said, " failed");
+        char *const both = g_cli_cells->persistent_buf_alloc(ran->out_size + ran->err_size + 1ull, NULL);
+        mmgr_line_put(err_msg, "The build of ");
+        mmgr_line_put(err_msg, made->target);
+        mmgr_line_put(err_msg, " failed");
         if (both != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = both, .src = ran->out, .bytes = ran->out_size});
             memor.cpy(&(MemoriaCfg){.dst = both + ran->out_size, .src = ran->err, .bytes = ran->err_size});
-            cli_line_text(said, ":\n");
-            find_tail(both, ran->out_size + ran->err_size, CLI_DEBUG_TAIL, said);
+            mmgr_line_put(err_msg, ":\n");
+            find_tail(both, ran->out_size + ran->err_size, CLI_DEBUG_TAIL, err_msg);
         }
-        cli_cell_given(both);
+        g_cli_cells->persistent_buf_release(both, NULL);
         cli_ran_given(ran);
         return 0;
     }
@@ -237,8 +238,8 @@ int cli_debug_build_program(const CliProgram *made, char *program, CliLine *said
     return 1;
 }
 
-// the extension of the file `path` names, lowercase, into `out`, which holds CLI_NAME_LONGEST, empty where it has
-// none; and its name without its extension into `stem`, which holds CLI_PATH_LONGEST
+// the extension of the file `path` names, lowercase, into `out`, sized for CLI_NAME_MAX_LEN, empty where it has
+// none; and its name without its extension into `stem`, sized for CLI_PATH_MAX_LEN
 static void find_name_parts(const char *path, char *out, char *stem)
 {
     const char *name = path;
@@ -249,27 +250,27 @@ static void find_name_parts(const char *path, char *out, char *stem)
     const char *const dot =
         cli_text_last(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), '.');
     const int has = (dot != NULL) && (dot != name);
-    CliLine extension = {out, CLI_NAME_LONGEST, 0ull};
+    VerbaLinea extension = {out, CLI_NAME_MAX_LEN, 0ull};
     for (const char *letter = has ? dot + 1 : ""; *letter != '\0'; letter += 1)
     {
         const char one = *letter;
-        cli_line_character(&extension, ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one);
+        mmgr_line_ch(&extension, ((one >= 'A') && (one <= 'Z')) ? (char)(one - 'A' + 'a') : one);
     }
-    cli_line_closed(&extension);
-    CliLine stem_line = {stem, CLI_PATH_LONGEST, 0ull};
-    cli_line_counted(&stem_line, name,
-                     has ? (unsigned long long)(dot - name)
-                         : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-    cli_line_closed(&stem_line);
+    mmgr_line_finish(&extension);
+    VerbaLinea stem_line = {stem, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put_n(&stem_line, name,
+                    has ? (unsigned long long)(dot - name)
+                        : cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
+    mmgr_line_finish(&stem_line);
 }
 
 // the words of the build of the toolchain `named` found, at `program`, filled in: the file's path, the program it
 // makes and the toolchain's program, and each other "{name}" the toolchain's program of that name in its folder, put
-// into `words`: 1, or 0 with why said
+// into `words`: 1, or 0 with why given
 static int find_build_words(const CliJson *json, unsigned int named, unsigned int words_node, const char *path,
-                            const char *out, const char *program, CliWords *words, CliLine *said)
+                            const char *out, const char *program, CliWords *words, VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(program, folder))
     {
         folder[0] = '\0';
@@ -293,19 +294,19 @@ static int find_build_words(const CliJson *json, unsigned int named, unsigned in
         }
         else if ((length >= 2ull) && (text[0] == '{') && (text[length - 1ull] == '}'))
         {
-            char name[CLI_NAME_LONGEST];
-            char found[CLI_PATH_LONGEST];
-            CliLine name_line = {name, sizeof(name), 0ull};
-            cli_line_counted(&name_line, text + 1, length - 2ull);
-            cli_line_closed(&name_line);
+            char name[CLI_NAME_MAX_LEN];
+            char found[CLI_PATH_MAX_LEN];
+            VerbaLinea name_line = {name, sizeof(name), 0ull};
+            mmgr_line_put_n(&name_line, text + 1, length - 2ull);
+            mmgr_line_finish(&name_line);
             const char *const names[1] = {name};
             if (!cli_toolchains_program_in(folder, names, 1u, found))
             {
-                cli_line_text(said, cli_debug_text(json, cli_json_member(json, named, "name"), ""));
-                cli_line_text(said, " has no ");
-                cli_line_text(said, name);
-                cli_line_text(said, " in ");
-                cli_line_text(said, folder);
+                mmgr_line_put(err_msg, cli_debug_text(json, cli_json_member(json, named, "name"), ""));
+                mmgr_line_put(err_msg, " has no ");
+                mmgr_line_put(err_msg, name);
+                mmgr_line_put(err_msg, " in ");
+                mmgr_line_put(err_msg, folder);
                 return 0;
             }
             cli_words_put(words, found);
@@ -319,17 +320,17 @@ static int find_build_words(const CliJson *json, unsigned int named, unsigned in
 }
 
 int cli_debug_build(const char *root, const char *path, const char *language, const char *ahead, char *program,
-                    int *built, CliLine *said)
+                    int *built, VerbaLinea *err_msg)
 {
-    char extension[CLI_NAME_LONGEST];
-    char stem[CLI_PATH_LONGEST];
-    char keys[2][CLI_NAME_LONGEST];
+    char extension[CLI_NAME_MAX_LEN];
+    char stem[CLI_PATH_MAX_LEN];
+    char keys[2][CLI_NAME_MAX_LEN];
     find_name_parts(path, extension, stem);
-    CliLine key = {keys[0], sizeof(keys[0]), 0ull};
-    cli_line_text(&key, language);
-    cli_line_character(&key, '.');
-    cli_line_text(&key, extension);
-    cli_line_closed(&key);
+    VerbaLinea key = {keys[0], sizeof(keys[0]), 0ull};
+    mmgr_line_put(&key, language);
+    mmgr_line_ch(&key, '.');
+    mmgr_line_put(&key, extension);
+    mmgr_line_finish(&key);
     memor.cpy(&(MemoriaCfg){.dst = keys[1],
                             .src = language,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_CELLS_POOL}) + 1u});
@@ -364,10 +365,10 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     unsigned int folders = 0u;
     s_folders = cli_toolchains_path_taken(&folders);
     unsigned int chosen = count;
-    char compiler[CLI_PATH_LONGEST];
+    char compiler[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; (at < count) && (chosen == count); at += 1u)
     {
-        cli_toolchains_find(&json, named[at], (const char (*)[CLI_PATH_LONGEST])s_folders, folders, &s_found);
+        cli_toolchains_find(&json, named[at], (const char (*)[CLI_PATH_MAX_LEN])s_folders, folders, &s_found);
         if (s_found.has_program)
         {
             chosen = at;
@@ -379,23 +380,23 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     }
     if (chosen == count)
     {
-        find_names_joined(&json, named, count, said);
+        find_names_joined(&json, named, count, err_msg);
         find_released(&json);
-        cli_line_text(said,
+        mmgr_line_put(err_msg,
                       " builds it, and is not found: File, Toolchains opens its install page or takes its folder");
         return 0;
     }
-    char out_folder[CLI_PATH_LONGEST];
-    char build_folder[CLI_PATH_LONGEST];
+    char out_folder[CLI_PATH_MAX_LEN];
+    char build_folder[CLI_PATH_MAX_LEN];
     cli_full(root, "build", build_folder);
     cli_full(build_folder, "debug", out_folder);
     if (!query_folder_made(out_folder))
     {
         find_released(&json);
-        cli_line_text(said, "build/debug: the folder could not be made");
+        mmgr_line_put(err_msg, "build/debug: the folder could not be made");
         return 0;
     }
-    char out[CLI_PATH_LONGEST];
+    char out[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
     // the stem's own extension, where it has one, gives way to .exe, as a program's name is set on Windows
     char *const dot = cli_text_last(stem, cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), '.');
@@ -403,10 +404,10 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     {
         *dot = '\0';
     }
-    CliLine exe = {stem + cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}),
-                   CLI_PATH_LONGEST - cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), 0ull};
-    cli_line_text(&exe, ".exe");
-    cli_line_closed(&exe);
+    VerbaLinea exe = {stem + cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}),
+                      CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}), 0ull};
+    mmgr_line_put(&exe, ".exe");
+    mmgr_line_finish(&exe);
 #endif
     cli_full(out_folder, stem, out);
     static CliWords s_words;
@@ -415,11 +416,11 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     s_words.count = 0u;
     s_words.used = 0u;
     s_words.full = 0;
-    const int filled = find_build_words(&json, named[chosen], words_of[chosen], path, out, compiler, &s_words, said);
+    const int filled = find_build_words(&json, named[chosen], words_of[chosen], path, out, compiler, &s_words, err_msg);
     find_released(&json);
     if (filled && (s_words.count == 0u))
     {
-        cli_line_text(said, "the build names no program");
+        mmgr_line_put(err_msg, "the build names no program");
     }
     if (!filled || (s_words.count == 0u))
     {
@@ -429,44 +430,45 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     char run_path[CLI_PATH_TEXT];
     cli_toolchains_run_path(run_path, sizeof(run_path));
     const CliSetting settings[1] = {{"PATH", run_path}};
-    char why[CLI_SAID_LONGEST];
-    CliLine unsaid = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_buf = {why, sizeof(why), 0ull};
     CliRan *const ran = cli_ran_taken();
-    const int ran_well = cli_ran_within(s_words.word, root, settings, 1u, NULL, 0ull, CLI_DEBUG_BUILDING, ran, &unsaid);
+    const int ran_well =
+        cli_ran_within(s_words.word, root, settings, 1u, NULL, 0ull, CLI_DEBUG_BUILDING, ran, &err_buf);
     if (!ran_well)
     {
-        cli_line_text(said, s_words.word[0]);
-        cli_line_text(said, ": ");
-        cli_line_counted(said, unsaid.out, unsaid.at);
+        mmgr_line_put(err_msg, s_words.word[0]);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, err_buf.out, err_buf.at);
     }
     cli_lock_give(&s_words_lock);
     if (ran_well && ran->stopped)
     {
-        cli_line_text(said, "the build took longer than 300 s");
+        mmgr_line_put(err_msg, "the build took longer than 300 s");
     }
     else if (ran_well && (ran->code != 0ll))
     {
         unsigned long long length = 0ull;
-        cli_line_text(said, "the build for debugging failed:\n");
+        mmgr_line_put(err_msg, "the build for debugging failed:\n");
         // its errors, then its output, trimmed at both ends
-        const unsigned long long start = said->at;
-        cli_lossy(said, (const unsigned char *)ran->err, ran->err_size);
-        cli_lossy(said, (const unsigned char *)ran->out, ran->out_size);
-        while ((said->at > start) &&
+        const unsigned long long start = err_msg->at;
+        cli_lossy(err_msg, (const unsigned char *)ran->err, ran->err_size);
+        cli_lossy(err_msg, (const unsigned char *)ran->out, ran->out_size);
+        while ((err_msg->at > start) &&
                (cellul.chr(&(CatenaFinitaCfg){
-                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = said->out[said->at - 1ull]}) != NULL))
+                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = err_msg->out[err_msg->at - 1ull]}) != NULL))
         {
-            said->at -= 1ull;
+            err_msg->at -= 1ull;
         }
-        while ((start + length < said->at) &&
+        while ((start + length < err_msg->at) &&
                (cellul.chr(&(CatenaFinitaCfg){
-                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = said->out[start + length]}) != NULL))
+                    .src = " \t\r\n\f\v", .cap = CLI_CELLS_POOL, .byte = err_msg->out[start + length]}) != NULL))
         {
             length += 1ull;
         }
         memor.move_down(&(MemoriaCfg){
-            .dst = said->out + start, .src = said->out + start + length, .bytes = said->at - start - length});
-        said->at -= length;
+            .dst = err_msg->out + start, .src = err_msg->out + start + length, .bytes = err_msg->at - start - length});
+        err_msg->at -= length;
     }
     const int done = ran_well && !ran->stopped && (ran->code == 0ll);
     cli_ran_given(ran);

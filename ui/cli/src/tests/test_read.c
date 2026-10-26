@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// test_read.c: what a process of a run writes: its output read line by line as it comes, each line kept in its output
+// test_read.c: what a process of a run writes: its output read line by line as it comes, each line stored in its output
 // file, and its errors read whole into its errors file on a thread of their own
 #include "test_runs_internal.h"
 
@@ -11,7 +11,7 @@ static void read_batch_written(CliTestWorker *worker, int fresh)
     worker->batch_size = 0ull;
 }
 
-// a line ended: handed on, and kept, with "\n" after it, in the output; a "\r" before its end taken off
+// a line ended: handed on, and stored, with "\n" after it, in the output; a "\r" before its end taken off
 static void read_line_ended(CliTestWorker *worker,
                             void (*line)(CliTestWorker *worker, const char *text, unsigned long long size), int *fresh)
 {
@@ -72,7 +72,7 @@ void cli_test_lines_read(CliTestWorker *worker,
     read_batch_written(worker, fresh);
 }
 
-// a process's errors read whole into its errors file, then told read
+// a process's errors read whole into its errors file, then reported read
 static void read_errors(void *context)
 {
     CliTestWorker *const worker = (CliTestWorker *)context;
@@ -128,7 +128,7 @@ void cli_test_errors_waited(CliTestWorker *worker)
 const char *cli_test_file_read(const char *path, unsigned long long *size)
 {
     *size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, size);
+    const unsigned char *const bytes = cli_file_read(path, size);
     if ((bytes != NULL) && !cli_utf8_whole((const char *)bytes, *size))
     {
         cli_file_let_go(bytes, *size);

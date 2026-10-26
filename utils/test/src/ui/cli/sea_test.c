@@ -12,7 +12,7 @@ static void sea_put(unsigned char *bytes, unsigned long long at, unsigned long l
 {
     for (unsigned int each = 0u; each < width; each += 1u)
     {
-        // a byte of the number, its low eight bits kept
+        // a byte of the number, its low eight bits retained
         bytes[at + each] = (unsigned char)((value >> (8u * each)) & 0xffu);
     }
 }
@@ -35,7 +35,7 @@ static void sea_outside(void)
         "const fs = require('fs');\nconst p = require(\"node:path\");\nconst x = require('./helper');"
         "\nimport y from 'left-pad';\nimport { readFile } from \"fs/promises\";\n"
         "const z = await import(`chalk`);\n";
-    char found[8][CLI_NAME_LONGEST];
+    char found[8][CLI_NAME_MAX_LEN];
     const unsigned int count = cli_sea_outside(s_text, found, 8u);
     cli_check((count == 3u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = found[0], .other = "./helper", .cap = CLI_CELLS_POOL})) &&
@@ -45,29 +45,29 @@ static void sea_outside(void)
     cli_check(cli_sea_outside("console.log(require('os').cpus().length);", found, 8u) == 0u, "and Node's own are not");
 }
 
-// a script that asks for a module from outside Node is refused before node runs, its text read into a cell of its
+// a script that requests a module from outside Node is refused before node runs, its text read into a cell of its
 // size and given back
 static void sea_refused(void)
 {
     static const char s_text[] = "const pad = require('left-pad');\n";
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char out[CLI_PATH_LONGEST];
-    char made[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char out[CLI_PATH_MAX_LEN];
+    char made[CLI_PATH_MAX_LEN];
     cli_check_folder("sea", dir);
     cli_full(dir, "main.js", path);
     cli_full(dir, "main", out);
     (void)query_file_written(path, s_text, sizeof(s_text) - 1u);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    const QuerySink say = {NULL, NULL};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const QuerySink sink = {NULL, NULL};
     cli_check(
-        !cli_sea_build("node", path, out, 0, say, made, &said) && (cli_line_closed(&said) != 0ull) &&
+        !cli_sea_build("node", path, out, 0, sink, made, &err_msg) && (mmgr_line_finish(&err_msg) != 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
-                 .src = why, .cap = sizeof(why), .other = "asks for left-pad", .other_cap = CLI_CELLS_POOL}) != NULL) &&
-            (g_cli_sea_cells.holds == 0ull) && (g_cli_sea_cells.hw != 0ull) &&
+                 .src = why, .cap = sizeof(why), .other = "requires left-pad", .other_cap = CLI_CELLS_POOL}) != NULL) &&
+            (g_cli_sea_cells.in_use == 0ull) && (g_cli_sea_cells.hw != 0ull) &&
             (g_cli_sea_cells.hw < (sizeof(s_text) * 4u)),
-        "a script that asks for a module outside Node is refused, read into a cell of its size");
+        "a script that requests a module outside Node is refused, read into a cell of its size");
 }
 
 // the fuse turns once
@@ -75,16 +75,16 @@ static void sea_fuse(void)
 {
     static char s_fused[] = "head NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2:0 tail";
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long at = 0ull;
     const unsigned long long size = sizeof(s_fused) - 1u;
-    cli_check(cli_sea_fuse_at((const unsigned char *)s_fused, size, &at, &said) && (s_fused[at] == '0'),
+    cli_check(cli_sea_fuse_at((const unsigned char *)s_fused, size, &at, &err_msg) && (s_fused[at] == '0'),
               "the fuse is found");
     s_fused[at] = '1';
     cli_check(cellul.find(&(CatenaFinitaCfg){
                   .src = s_fused, .cap = CLI_CELLS_POOL, .other = "b2:1 tail", .other_cap = CLI_CELLS_POOL}) != NULL,
               "and turned");
-    cli_check(!cli_sea_fuse_at((const unsigned char *)s_fused, size, &at, &said), "a fuse turned turns no more");
+    cli_check(!cli_sea_fuse_at((const unsigned char *)s_fused, size, &at, &err_msg), "a fuse turned turns no more");
 }
 
 // a signature at the end is cut away
@@ -99,14 +99,14 @@ static void sea_signature(void)
     sea_put(s_program, entry, 0x300u, 4u);
     sea_put(s_program, entry + 4u, 0x100u, 4u);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned long long found = 0ull;
     unsigned long long length = 0ull;
-    cli_check((cli_sea_signature(s_program, 0x400u, &found, &length, &said) == 1) && (found == entry) &&
+    cli_check((cli_sea_signature(s_program, 0x400u, &found, &length, &err_msg) == 1) && (found == entry) &&
                   (length == 0x300u),
               "a signature at the end is cut away");
     memor.set(&(MemoriaCfg){.dst = s_program + entry, .val = 0, .bytes = 8u});
-    cli_check(cli_sea_signature(s_program, 0x300u, &found, &length, &said) == 0, "and a program cut has none");
+    cli_check(cli_sea_signature(s_program, 0x300u, &found, &length, &err_msg) == 0, "and a program cut has none");
 }
 
 // a note goes in a loaded segment past the others
@@ -132,14 +132,14 @@ static void sea_note(void)
         sea_put(s_program, heads[head][0] + 40u, heads[head][5], 8u);
     }
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_sea_note(s_program, sizeof(s_program), 5ull, &s_note, &said), "a note is made");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_sea_note(s_program, sizeof(s_program), 5ull, &s_note, &err_msg), "a note is made");
     cli_check((s_note.region == 0x5000u) && (s_note.table_size == 4u * 56u), "its segment stands past the others");
     cli_check((sea_number(s_note.table, 0u, 4u) == 6u) && (sea_number(s_note.table, 16u, 8u) == 0x405000u),
               "the program headers move with it");
     cli_check((sea_number(s_note.table, 2u * 56u, 4u) == 1u) &&
                   (sea_number(s_note.table, 2u * 56u + 8u, 8u) == 0x5000u),
-              "a loaded segment holds it");
+              "a loaded segment contains it");
     cli_check((sea_number(s_note.table, 3u * 56u, 4u) == 4u) &&
                   (sea_number(s_note.table, 3u * 56u + 8u, 8u) == s_note.note_at),
               "and a note's header names it");
@@ -151,6 +151,7 @@ static void sea_note(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     sea_outside();
     sea_refused();
     sea_fuse();

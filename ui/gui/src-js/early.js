@@ -4,7 +4,8 @@
 // Every entry the page keeps under a key starting `orior.` is kept as well in orior's own folder, laid
 // out as the README's "orior's own folder" says, KEEP_REST after it last changed and as the page goes.
 // The folder's entries are in the page's storage before this script runs; where the folder keeps
-// nothing yet, every entry is written there now.
+// nothing yet, every entry is written there now. The entries go as bridge.js sends a window's own call,
+// since this script runs before any module loads.
 {
   const KEEP_REST = 400;
   const changed = new Map();
@@ -14,7 +15,8 @@
     if (changed.size) {
       const changes = Object.fromEntries(changed);
       changed.clear();
-      window.__TAURI_INTERNALS__?.invoke("kept_write", { changes }).catch(() => {});
+      const body = new TextEncoder().encode(JSON.stringify({ changes }));
+      window.__TAURI_INTERNALS__?.invoke("call", body, { headers: { "orior-call": "state_write", "orior-own": "1" } }).catch(() => {});
     }
   };
   const note = (key, text) => {

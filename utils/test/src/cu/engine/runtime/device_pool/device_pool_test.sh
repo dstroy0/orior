@@ -8,7 +8,7 @@ TOP="$(cd "$TEST/../../../../../../.." && pwd)"
 DEVICE_POOL="$TOP/src/cu/engine/runtime/device_pool"
 DEVICE_POOL_CU="$TOP/src/cu/engine/runtime/device_pool"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"
 build_stamp device_pool_test
@@ -47,11 +47,11 @@ for one in $ARCHES; do
     GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
-INCLUDES=(-I "$TOP/src/cu/engine" -I "$DEVICE_POOL" -I "$NO_ROUNDING" -I "$SCRIPTURA" "${TESSERA_INCLUDES[@]}")
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$DEVICE_POOL" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}" "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+LINEA_OBJECTS=()
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
     object="$OUT/$(basename "$source" .c)_pool.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
@@ -62,13 +62,13 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
 # the test is a job on the device's tessera daemon, built beside it, and reads its own device bytes through the
 # counter the daemon reads
-tessera_build pool "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build pool "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST/device_pool_test.cu" "$TOP/src/sims/cu/sim_job.cu" "$DEVICE_POOL_CU/device_pool.cu" \

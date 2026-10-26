@@ -21,32 +21,32 @@
 // written. The rest of the two listings is the same register for register, and the two links name the same registers:
 // nothing but the two links sets the questions apart. An identity is carried by every slice whose links are its own,
 // and each of them is information about it. Members the same are the same identity, and the carriers of one identity
-// are told apart by address, the position of each member in the chain: question by question, then link by link within
-// a question. Where two carriers contend, the one whose most basal member sits first comes first, and an identity's
-// address is its first carrier's.
+// are distinguished by address, the position of each member in the chain: question by question, then link by link
+// within a question. Where two carriers contend, the one whose most basal member sits first comes first, and an
+// identity's address is its first carrier's.
 //
-// A chain reads in its grammar and holds its whole intent, and a member's place in that grammar is its context: for
+// A chain reads in its grammar and carries its whole intent, and a member's place in that grammar is its context: for
 // each register its link names, the nearest link before it and the nearest after it in its own chain that name the same
-// register, with the slot each names it in. No link's meaning is read, only the names links share. The carriers of one
-// identity are gathered by context, each context the same members in one place of the grammar, addressed by its most
-// basal carrier and given a verdict of its own.
+// register, with the placeholder each names it in. No link's meaning is read, only the names links share. The carriers
+// of one identity are gathered by context, each context the same members in one place of the grammar, addressed by its
+// most basal carrier and given a verdict of its own.
 //
-// A question's chain as a whole is an identity too, and so is each window of it: each held at the first address it
+// A question's chain as a whole is an identity too, and so is each window of it: each recorded at the first address it
 // occurs at, each primitive a link that first occurs where it stands, and each chain a signature of the identities it
 // is read as, its primitives and its operands, with a number its contents in their order give it.
 //
 // Every file a mode writes goes through the run's writer (qry_member.h): a current file of the tree, Lstar.klq, the
-// .ksc, the .kqr or the .kdm, written by it in the file's place (qry_member_filed), and a table of the run's own a blob of the
-// run named by the table's own name. slice hands the run slices.txt, each slice a line, chains.txt, the primitives and
-// the chains, and host_questions.cpp, every question whose operands and result are integers that a slice holds, that is
-// a task of register pressure, or that <ours folder> holds the engine's chain for, compiled for the host as C++ with
-// the arity every kernel shares. The host computes each over every case, and its answers are the blob
-// IDENTITY_HOST_ANSWERS of the run (qry_member.h), as is every <host answers> named above; read then gives
-// each identity its verdict: the first case the two questions of one of its slices answer apart closes it as two
-// operations, and an identity alike on every case asked stays open with its count of cases. A case the host's C would
-// trap on or leave undefined is asked of nothing. Each identity is written to Lstar.klq after its keys, with the forms
-// of the given rulesets whose texts write its links, and with the rule a link breaks where asking the part as written
-// would end it
+// .ksc, the .kqr or the .kdm, written by it in the file's place (qry_member_filed), and a table of the run's own a blob
+// of the run named by the table's own name. slice hands the run slices.txt, each slice a line, chains.txt, the
+// primitives and the chains, and host_questions.cpp, every question whose operands and result are integers that a slice
+// represents, that is a task of register pressure, or that <ours folder> contains the engine's chain for, compiled for
+// the host as C++ with the arity every kernel shares. The host computes each over every case, and its answers are the
+// blob IDENTITY_HOST_ANSWERS of the run (qry_member.h), as is every <host answers> named above; read then gives each
+// identity its verdict: the first case the two questions of one of its slices answer apart closes it as two operations,
+// and an identity alike on every case queried stays open with its count of cases. A case the host's C would trap on or
+// leave undefined is queried of nothing. Each identity is written to Lstar.klq after its keys, with the forms of the
+// given rulesets whose texts write its links, and with the rule a link breaks where querying the part as written would
+// end it
 #include "identity/identity_internal.h"
 
 int main(int count, char **words)
@@ -55,11 +55,11 @@ int main(int count, char **words)
     {
         std::vector<const char *> carrier(words + 9, words + count);
         carrier.push_back(NULL);
-        // the frame asked, the fixed registers asked and the banks walked first in the same run: the container
-        // returned and the least opening, then the slot, zero and what each register holds at it, then the last
-        // register and the last predicate, each answer written to the .ksc and its record closed before the pairs open
-        // theirs; an ask the record holds is not put again. The part's fields the walks read are in the .ksc already,
-        // written by khw_write when the part was learned
+        // the frame queried, the fixed registers queried and the banks walked first in the same run: the container
+        // returned and the least opening, then the probe place, zero and what each register contains at it, then the
+        // last register and the last predicate, each answer written to the .ksc and its record closed before the pairs
+        // open theirs; a query the record contains is not put again. The part's fields the walks read are in the .ksc
+        // already, written by khw_write when the part was learned
         identity_frame(words[2], words[3], words[4], words[5], carrier.data());
         record_close();
         identity_fixed(words[2], words[3], words[4], words[5], carrier.data());

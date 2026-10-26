@@ -6,10 +6,11 @@
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     static unsigned char s_bytes[(1u << 20u) + 4099u];
     static const unsigned long long s_lengths[2] = {70000ull, (1ull << 20u) + 4099ull};
-    char folder[CLI_PATH_LONGEST];
-    char full[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char full[CLI_PATH_MAX_LEN];
     cli_check_folder("mapped", folder);
     cli_full(folder, "bytes.txt", full);
     for (unsigned int each = 0u; each < 2u; each += 1u)
@@ -23,10 +24,10 @@ int main(void)
         unsigned long long size = 0ull;
         const unsigned char *const mapped = qry_member_file_mapped(full, &size);
         char what[64];
-        CliLine line = {what, sizeof(what), 0ull};
-        cli_line_decimal(&line, length, 1u);
-        cli_line_text(&line, " bytes map as they are");
-        (void)cli_line_closed(&line);
+        VerbaLinea line = {what, sizeof(what), 0ull};
+        mmgr_line_decimal(&line, length, 1u);
+        mmgr_line_put(&line, " bytes map as they are");
+        (void)mmgr_line_finish(&line);
         cli_check((mapped != NULL) && (size == length) &&
                       (memor.cmp(&(MemoriaCfg){.src = mapped, .other = s_bytes, .bytes = length}) == 0),
                   what);

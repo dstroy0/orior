@@ -10,7 +10,7 @@
 // the numbers this process has appended, an open table twice the texts a run of it numbers
 #define TABLE_TEXT_SLOTS (1u << 16u)
 
-static unsigned long long s_table_text_held[TABLE_TEXT_SLOTS];
+static unsigned long long s_table_text_numbers[TABLE_TEXT_SLOTS];
 static unsigned long long s_table_text_row[QRY_WRITER_RING_BYTES / 16ull];
 
 unsigned long long table_text(const void *bytes, unsigned long long length)
@@ -34,12 +34,12 @@ unsigned long long table_text(const void *bytes, unsigned long long length)
     }
     unsigned int slot = (unsigned int)(number & (TABLE_TEXT_SLOTS - 1u));
     unsigned int tried = 0u;
-    while ((s_table_text_held[slot] != 0ull) && (s_table_text_held[slot] != number) && (tried < TABLE_TEXT_SLOTS))
+    while ((s_table_text_numbers[slot] != 0ull) && (s_table_text_numbers[slot] != number) && (tried < TABLE_TEXT_SLOTS))
     {
         slot = (slot + 1u) & (TABLE_TEXT_SLOTS - 1u);
         tried += 1u;
     }
-    if ((tried < TABLE_TEXT_SLOTS) && (s_table_text_held[slot] == 0ull))
+    if ((tried < TABLE_TEXT_SLOTS) && (s_table_text_numbers[slot] == 0ull))
     {
         s_table_text_row[0] = 0ull;
         s_table_text_row[1] = 0ull;
@@ -50,7 +50,7 @@ unsigned long long table_text(const void *bytes, unsigned long long length)
         memcpy(&s_table_text_row[4], text, (size_t)length);
         if (qry_member_append(TABLE_TEXTS, s_table_text_row, words * 8ull, QRY_ORDINARY))
         {
-            s_table_text_held[slot] = number;
+            s_table_text_numbers[slot] = number;
         }
     }
     return number;

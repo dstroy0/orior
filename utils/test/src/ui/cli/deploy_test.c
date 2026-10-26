@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deploy_test.c: the deployments' check: patterns leave out names, paths and folders, a release is named by its UTC
-// time, a place is a machine or a folder here, a tar stream holds each file with its mode and a long name in a PAX
+// time, a place is a machine or a folder here, a tar stream contains each file with its mode and a long name in a PAX
 // header, and a difference shows the lines taken out and put in
 #include "../../../../../ui/cli/src/deploy/deploy_internal.h"
 #include "cli_check.h"
 
-static char s_said[1024];
-static CliLine s_said_line = {s_said, sizeof(s_said), 0ull};
+static char s_printed[1024];
+static VerbaLinea s_printed_line = {s_printed, sizeof(s_printed), 0ull};
 static unsigned char s_stream[8192];
 
 // the pattern that leaves out `path`, the empty text where none does
@@ -18,12 +18,12 @@ static const char *deploy_left_out(const char *path)
     return (pattern != NULL) ? pattern : "";
 }
 
-// the release named `seconds` after 1970 began, into `out`, which holds 32
+// the release named `seconds` after 1970 began, into `out`, which is sized for 32
 static const char *deploy_release(unsigned long long seconds, char *out)
 {
-    CliLine line = {out, 32u, 0ull};
+    VerbaLinea line = {out, 32u, 0ull};
     cli_deploy_release_name(seconds, &line);
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -32,52 +32,52 @@ static int deploy_here(const char *text)
 {
     CliDeployPlace place;
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    return cli_deploy_place(text, "C:/tree", &place, &said) ? place.here : -1;
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return cli_deploy_place(text, "C:/tree", &place, &err_msg) ? place.here : -1;
 }
 
-// a line the run says kept after the others, `|` between them
-static void deploy_said(void *context, const char *line, unsigned long long size)
+// a line the run prints recorded after the others, `|` between them
+static void deploy_print_capture(void *context, const char *line, unsigned long long size)
 {
     (void)context;
-    cli_line_text(&s_said_line, (s_said_line.at > 0ull) ? "|" : "");
-    cli_line_counted(&s_said_line, line, size);
+    mmgr_line_put(&s_printed_line, (s_printed_line.at > 0ull) ? "|" : "");
+    mmgr_line_put_n(&s_printed_line, line, size);
 }
 
-// a tar stream holds each file with its mode and a long name in a PAX header
+// a tar stream contains each file with its mode and a long name in a PAX header
 static void deploy_tar(void)
 {
     static const char s_script[] = "#!/bin/sh\r\necho hi\r\n";
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char tar[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char tar[CLI_PATH_MAX_LEN];
     char long_name[256];
-    CliLine name = {long_name, sizeof(long_name), 0ull};
+    VerbaLinea name = {long_name, sizeof(long_name), 0ull};
     for (unsigned int at = 0u; at < 20u; at += 1u)
     {
-        cli_line_text(&name, "folder");
+        mmgr_line_put(&name, "folder");
     }
-    char folder[CLI_PATH_LONGEST];
-    (void)cli_line_closed(&name);
+    char folder[CLI_PATH_MAX_LEN];
+    (void)mmgr_line_finish(&name);
     cli_check_folder("deploy_tar", dir);
     cli_full(dir, long_name, folder);
     (void)query_folder_made(folder);
-    cli_line_text(&name, "/x.txt");
-    (void)cli_line_closed(&name);
+    mmgr_line_put(&name, "/x.txt");
+    (void)mmgr_line_finish(&name);
     cli_full(dir, "run.sh", path);
     (void)query_file_written(path, s_script, sizeof(s_script) - 1u);
     cli_full(dir, long_name, path);
     (void)query_file_written(path, s_script, sizeof(s_script) - 1u);
     cli_full(dir, "stream.tar", tar);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_lock_take(&g_cli_deploy_lock);
     g_cli_deploy.root = dir;
     g_cli_deploy.deployment.from = ".";
     CliDeploySent sent[2] = {{"run.sh", 0755u, ""}, {long_name, 0644u, ""}};
     g_cli_deploy.sent = sent;
     g_cli_deploy.sents = 2u;
-    const int written = cli_deploy_tar(tar, NULL, 0u, 1000ull, &said);
+    const int written = cli_deploy_tar(tar, NULL, 0u, 1000ull, &err_msg);
     g_cli_deploy.sent = NULL;
     g_cli_deploy.sents = 0u;
     cli_lock_give(&g_cli_deploy_lock);
@@ -91,10 +91,10 @@ static void deploy_tar(void)
                   (memor.cmp(&(MemoriaCfg){.src = s_stream + 512, .other = s_script, .bytes = 20u}) == 0),
               "its bytes follow its header");
     char pax[300];
-    CliLine pax_line = {pax, sizeof(pax), 0ull};
-    cli_line_text(&pax_line, "path=");
-    cli_line_text(&pax_line, long_name);
-    (void)cli_line_closed(&pax_line);
+    VerbaLinea pax_line = {pax, sizeof(pax), 0ull};
+    mmgr_line_put(&pax_line, "path=");
+    mmgr_line_put(&pax_line, long_name);
+    (void)mmgr_line_finish(&pax_line);
     int named = 0;
     for (unsigned long long at = 1536ull; (read >= 2048ull) && (at + pax_line.at <= 2048ull); at += 1ull)
     {
@@ -106,6 +106,7 @@ static void deploy_tar(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = deploy_left_out("app.js.map"), .other = "*.map", .cap = CLI_CELLS_POOL}),
         "a pattern leaves out a name");
@@ -114,7 +115,7 @@ int main(void)
               "in any folder");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = deploy_left_out("drafts/one.md"), .other = "drafts/", .cap = CLI_CELLS_POOL}),
-              "a folder's pattern leaves out what it holds");
+              "a folder's pattern leaves out what it contains");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = deploy_left_out("site/drafts/one.md"), .other = "drafts/", .cap = CLI_CELLS_POOL}),
               "wherever it stands");
@@ -141,11 +142,11 @@ int main(void)
     cli_check(deploy_here("./out") == 1, "and one under the tree");
     deploy_tar();
     cli_lock_take(&g_cli_deploy_lock);
-    g_cli_deploy.say = deploy_said;
+    g_cli_deploy.print = deploy_print_capture;
     g_cli_deploy.context = NULL;
     cli_deploy_difference("a\nb\nc\n", 6ull, "a\nB\nc\n", 6ull);
     cli_lock_give(&g_cli_deploy_lock);
-    cli_check_text(s_said, s_said_line.at, "  @@ line 2|  - b|  + B",
+    cli_check_text(s_printed, s_printed_line.at, "  @@ line 2|  - b|  + B",
                    "a difference shows the lines taken out and put in");
     return cli_checked();
 }

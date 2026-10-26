@@ -5,7 +5,7 @@
 
 // Haar measure counted: a tower of 4 samples and one level, whose range each way is 3 bits. Every input quantum at
 // level w + 3 runs through the map and the output's quantum at level w is tallied. The map's low w bits read only the
-// inputs' low w + 3. The map on quanta is well defined, and a map that keeps Haar measure sends exactly 2^(4 . 3)
+// inputs' low w + 3. The map on quanta is well defined, and a map that preserves Haar measure sends exactly 2^(4 . 3)
 // input quanta onto every output quantum, from any window of representatives. T where `inverse` is 0 and T^-1 where it
 // is 1, each a part of its own.
 void boundary_counted(BoundaryResults *results, unsigned int inverse)
@@ -108,18 +108,19 @@ void boundary_counted(BoundaryResults *results, unsigned int inverse)
     } while (0);
     free(program);
     free(tower);
-    scriptura_text(&results->line, "  counted: ");
-    scriptura_text(&results->line, map);
-    scriptura_text(&results->line,
+    mmgr_line_put(&results->line, "  counted: ");
+    mmgr_line_put(&results->line, map);
+    mmgr_line_put(&results->line,
                    " over 4 samples and one level, every input quantum at level w + 3 for w = 1 and 2, from two "
                    "windows; ");
-    scriptura_decimal(&results->line, balanced, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, runs, 1u);
-    scriptura_text(&results->line, " runs send exactly 4096 input quanta onto every output quantum\n");
+    mmgr_line_decimal(&results->line, balanced, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, runs, 1u);
+    mmgr_line_put(&results->line, " runs send exactly 4096 input quanta onto every output quantum\n");
     boundary_check(results, ran_all != 0, "the counted tower runs on the host and the device, word for word");
-    boundary_check(results, (runs == 4u) && (balanced == runs),
-                   "the map keeps Haar measure: every output quantum at level w has 2^12 input quanta at level w + 3");
+    boundary_check(
+        results, (runs == 4u) && (balanced == runs),
+        "the map preserves Haar measure: every output quantum at level w has 2^12 input quanta at level w + 3");
 }
 
 static unsigned long long boundary_power_mod(unsigned long long base, unsigned long long exponent,
@@ -267,17 +268,18 @@ void boundary_volume(BoundaryResults *results)
             identity = identity && (entry == ((row == column) ? (1ll << (2u * BOUNDARY_TEST_RANGE)) : 0ll));
         }
     }
-    scriptura_text(&results->line, "  volume: det M = ");
-    scriptura_signed(&results->line, forward_sign);
-    scriptura_text(&results->line, " and det M^-1 = ");
-    scriptura_signed(&results->line, inverse_sign);
-    scriptura_text(&results->line, " exactly, by primes past ");
-    scriptura_decimal(&results->line, (unsigned long long)forward_bits, 1u);
-    scriptura_text(&results->line, " and ");
-    scriptura_decimal(&results->line, (unsigned long long)inverse_bits, 1u);
-    scriptura_text(&results->line, " bits; M M^-1 = I ");
-    scriptura_text(&results->line, (identity != 0) ? "holds\n" : "fails\n");
-    boundary_check(results, (forward != 0) && (inverse != 0), "T and T^-1 keep volume: det M = det M^-1 = +-1 exactly");
+    mmgr_line_put(&results->line, "  volume: det M = ");
+    mmgr_line_decimal_signed(&results->line, forward_sign);
+    mmgr_line_put(&results->line, " and det M^-1 = ");
+    mmgr_line_decimal_signed(&results->line, inverse_sign);
+    mmgr_line_put(&results->line, " exactly, by primes past ");
+    mmgr_line_decimal(&results->line, (unsigned long long)forward_bits, 1u);
+    mmgr_line_put(&results->line, " and ");
+    mmgr_line_decimal(&results->line, (unsigned long long)inverse_bits, 1u);
+    mmgr_line_put(&results->line, " bits; M M^-1 = I ");
+    mmgr_line_put(&results->line, (identity != 0) ? "passes\n" : "fails\n");
+    boundary_check(results, (forward != 0) && (inverse != 0),
+                   "T and T^-1 preserve volume: det M = det M^-1 = +-1 exactly");
     boundary_check(results, identity, "T^-1's matrix is the inverse of T's");
 }
 

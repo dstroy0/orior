@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The host daemon's ledger: each decision is tessera_ledger_core.h's, the source the device's tessera runs too. Before
-// a decision that can add a job, a kept peak or a deadline, the ledger grows each array to the most the decision can
+// a decision that can add a job, a tracked peak or a deadline, the ledger grows each array to the most the decision can
 // add. An array that does not grow is left to the core, which errors where it needs the array.
 #include "tessera_ledger.h"
 #include "tessera_ledger_core.h"
@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// `items` grown to hold `wanted` of `size` bytes each, its capacity doubled until it does
+// `items` grown to contain `wanted` of `size` bytes each, its capacity doubled until it does
 static int tessera_grow(void **items, unsigned long long *capacity, unsigned long long wanted, size_t size)
 {
     if (wanted <= *capacity)
@@ -101,10 +101,10 @@ int tessera_ledger_measure(TesseraLedger *ledger, unsigned long long identity, u
     return tessera_core_measure(ledger, identity, used, event);
 }
 
-int tessera_ledger_remember(TesseraLedger *ledger, const TesseraHistory *kept)
+int tessera_ledger_remember(TesseraLedger *ledger, const TesseraHistory *entry)
 {
     (void)tessera_reserve(ledger, TESSERA_CALL_REMEMBER);
-    return tessera_core_remember(ledger, kept);
+    return tessera_core_remember(ledger, entry);
 }
 
 int tessera_ledger_release(TesseraLedger *ledger, unsigned long long identity, unsigned long long now, int finished)

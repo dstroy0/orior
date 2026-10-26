@@ -15,7 +15,7 @@ void psi_digits(unsigned long long index, unsigned long long base, unsigned int 
 
 void psi_sprecher(SimResults *results, const PsiCase *psi_case)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     OriorExactInteger denominator;
     OriorExactInteger power;
     sim_rational_status_check(sim_exact_power(psi_case->base, psi_case->weight[PSI_EXHAUSTIVE], &power));
@@ -49,19 +49,19 @@ void psi_sprecher(SimResults *results, const PsiCase *psi_case)
         previous = numerator;
     }
     sim_check(results, descents != 0ull, "Sprecher's psi descends on D_5");
-    scriptura_text(line, "\n  1. Sprecher's psi (2.4), n = 2, gamma = 10: psi(0.58999) = ");
+    mmgr_line_put(line, "\n  1. Sprecher's psi (2.4), n = 2, gamma = 10: psi(0.58999) = ");
     sim_rational_print(line, low);
-    scriptura_text(line, " and psi(0.59) = ");
+    mmgr_line_put(line, " and psi(0.59) = ");
     sim_rational_print(line, high);
-    scriptura_text(line, " (the paper's (2.5), exact)\n     it descends between ");
-    scriptura_decimal(line, descents, 1u);
-    scriptura_text(line, " of the 99,999 neighboring pairs of D_5, the first at 0.");
+    mmgr_line_put(line, " (the paper's (2.5), exact)\n     it descends between ");
+    mmgr_line_decimal(line, descents, 1u);
+    mmgr_line_put(line, " of the 99,999 neighboring pairs of D_5, the first at 0.");
     psi_digits(first, psi_case->base, PSI_EXHAUSTIVE, digit);
     for (unsigned int at = 0u; at < PSI_EXHAUSTIVE; at += 1u)
     {
-        scriptura_character(line, (char)('0' + digit[at]));
+        mmgr_line_ch(line, (char)('0' + digit[at]));
     }
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
     sim_flush(results);
 }
 
@@ -168,7 +168,7 @@ unsigned long long psi_wide_side(const PsiCase *psi_case, unsigned long long til
 void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale *scale, unsigned long long tilt,
                     OriorExactInteger *measured_widest)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const unsigned long long base = psi_case->base;
     unsigned long long maximum = 1ull;
     for (unsigned int level = 0u; level < PSI_EXHAUSTIVE; level += 1u)
@@ -179,7 +179,7 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
     OriorExactInteger *table = (OriorExactInteger *)malloc((size_t)(maximum + 1ull) * sizeof(OriorExactInteger));
     if ((below == NULL) || (table == NULL))
     {
-        sim_check(results, 0, "the level tables were held");
+        sim_check(results, 0, "the level tables were allocated");
         free(below);
         free(table);
         return;
@@ -192,9 +192,9 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
     sim_exact_unsigned(&predicted, 2ull);
     const unsigned long long side = psi_wide_side(psi_case, tilt);
     unsigned long long points = base;
-    scriptura_text(line, "     reading ");
-    scriptura_text(line, psi_measurement(psi_case, tilt));
-    scriptura_text(
+    mmgr_line_put(line, "     reading ");
+    mmgr_line_put(line, psi_measurement(psi_case, tilt));
+    mmgr_line_put(
         line,
         ":\n     level   points   step = recursion   increasing   least gap = g^-beta(L)   widest gap = predicted\n");
     for (unsigned int level = 1u; level <= PSI_EXHAUSTIVE; level += 1u)
@@ -249,12 +249,12 @@ void psi_exhaustive(SimResults *results, const PsiCase *psi_case, const PsiScale
         sim_check(results, increasing == points, "psi is strictly increasing on every neighboring pair");
         sim_check(results, least_is_unit, "the least gap at level L is exactly gamma^-beta(L)");
         sim_check(results, widest_predicted, "the widest gap is the gap recursion's");
-        scriptura_decimal_columns(line, level, 10u);
-        scriptura_decimal_columns(line, points, 9u);
-        scriptura_decimal_columns(line, matched, 19u);
-        scriptura_decimal_columns(line, increasing, 13u);
-        scriptura_text(line, least_is_unit ? "                      yes" : "                       NO");
-        scriptura_text(line, widest_predicted ? "                      yes\n" : "                       NO\n");
+        mmgr_line_decimal_columns(line, level, 10u);
+        mmgr_line_decimal_columns(line, points, 9u);
+        mmgr_line_decimal_columns(line, matched, 19u);
+        mmgr_line_decimal_columns(line, increasing, 13u);
+        mmgr_line_put(line, least_is_unit ? "                      yes" : "                       NO");
+        mmgr_line_put(line, widest_predicted ? "                      yes\n" : "                       NO\n");
     }
     sim_flush(results);
     free(below);

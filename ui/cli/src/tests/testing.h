@@ -27,9 +27,9 @@ typedef struct
 } CliTest;
 
 // a test written as the window reads one, `{"id", "file", "class", "name", "line"}`
-void cli_test_written(const CliTest *test, CliLine *out);
+void cli_test_written(const CliTest *test, VerbaLinea *out);
 
-// the most values one of pytest's rules holds, and the bytes all of them take
+// the most values one of pytest's rules has, and the bytes all of them take
 #define CLI_TEST_VALUES 64u
 #define CLI_TEST_RULES_TEXT 8192u
 
@@ -54,7 +54,7 @@ typedef struct
 
 // pytest's own rules into `rules`; a value of one of them; the rules of `size` bytes of a configuration file's text,
 // read from its `section`, as `[pytest]`: 1, or 0 where it has no such section; and the rules the tree at `root` gives,
-// from the first of its configuration files that holds them, as pytest reads them (testing.c)
+// from the first of its configuration files that contains them, as pytest reads them (testing.c)
 void cli_test_rules_own(CliTestRules *rules);
 const char *cli_test_rule_value(const CliTestRules *rules, const CliTestRule *rule, unsigned int at);
 int cli_test_rules_in(const char *text, unsigned long long size, const char *section, CliTestRules *rules);
@@ -65,7 +65,7 @@ void cli_test_rules_of(const char *root, CliTestRules *rules);
 int cli_test_glob(const char *pattern, const char *name, unsigned long long size);
 int cli_test_named(const CliTestRules *rules, const CliTestRule *rule, const char *name, unsigned long long size);
 
-// A test found, handed on with its texts kept while the call lasts
+// A test found, handed on with its texts retained while the call lasts
 typedef void (*CliTestEach)(void *context, const CliTest *test);
 
 // the tests of one Python file, `size` bytes of its text, at `file` in the tree, each handed to `each` in the order of

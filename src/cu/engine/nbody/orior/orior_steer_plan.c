@@ -47,11 +47,11 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     //
     // ON RESUME THE SURVIVORS ARE THE INPUT AND ARE NOT RESET. A caller composes a recursive spawn by
     // running one descent, then running the next over the survivors the last one left. The child
-    // reads only what the parent kept standing and its cost is the survivor count and not the whole
+    // reads only what the parent left standing and its cost is the survivor count and not the whole
     // field. The engine cannot check that an incoming survivor set is a valid superset of the true
-    // occurrences; that obligation is the caller's, and it holds when the set came from an earlier
+    // occurrences; that obligation is the caller's, and it is satisfied when the set came from an earlier
     // descent on this field. A lone survivor is still not an answer: it has passed only the probes
-    // placed so far, and the caller verifies it against the conditions not yet asked with a full
+    // placed so far, and the caller verifies it against the conditions not yet tested with a full
     // compare before calling it found.
     if (resume == 0)
     {
@@ -64,7 +64,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
     size_t chosen[ORIOR_STEER_ANCHORS];
     size_t placed = 0u;
 
-    // THE BOUNDED DESCENT. One coarm per level, at most `count` levels, which the guard above holds
+    // THE BOUNDED DESCENT. One coarm per level, at most `count` levels, which the guard above bounds
     // at or under ORIOR_STEER_ANCHORS. The corpus picks a level's offset and, through the destroy
     // rule below, can end the descent early unless `force_full_depth` is set. The ceiling is decided
     // before the program starts and this loop terminates for the same reason a for loop over a fixed
@@ -100,7 +100,7 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
 
             const size_t standing =
                 steer_truthy_after(corpus, corpus_len, needle, needle_len, survivors, offset, stride, any);
-            // Strictly fewer survivors wins. A tie keeps the earlier candidate, and
+            // Strictly fewer survivors wins. A tie retains the earlier candidate, and
             // the descent is therefore deterministic on identical input.
             if ((found == 0) || (standing < best_standing))
             {
@@ -136,9 +136,9 @@ static size_t steer_descend(size_t *offsets, size_t count, const uint8_t *corpus
         steer_make_falsy(corpus, corpus_len, needle, needle_len, survivors, best_offset, any);
     }
 
-    for (size_t slot = 0u; slot < placed; slot += 1u)
+    for (size_t index = 0u; index < placed; index += 1u)
     {
-        offsets[slot] = chosen[slot];
+        offsets[index] = chosen[index];
     }
     return placed;
 }

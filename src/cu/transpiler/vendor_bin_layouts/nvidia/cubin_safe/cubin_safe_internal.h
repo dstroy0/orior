@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cubin_safe_internal.h: what the modules of the gate share: its includes, the stall and wait shifts, the bounds of the sections and the register fields, the held and admitted encodings, and the functions one module reads from another (cubin_safe.h)
+// cubin_safe_internal.h: what the modules of the gate share: its includes, the stall and wait shifts, the bounds of the
+// sections and the register fields, the gated and admitted encodings, and the functions one module reads from another
+// (cubin_safe.h)
 #ifndef CUBIN_SAFE_INTERNAL_H
 #define CUBIN_SAFE_INTERNAL_H
 
@@ -23,22 +25,22 @@
 
 // where a register sits in an instruction, read whole however much of it a run covered: the first bit of each of the
 // four fixed eight-bit register fields (sass_assemble.h), the width of one, and RZ, the zero register every kernel
-// holds whatever count it allots
+// allots whatever count it allots
 #define CUBIN_REGISTER_FIELDS 4u
 
 #define CUBIN_REGISTER_WIDTH 8u
 
 #define CUBIN_REGISTER_ZERO 255u
 
-// the vendor's verdict, the held list the cross writes: the longest line read, the room a first grow gives, and the
-// bits kept of the high word, the scheduler's own left out since whatever reaches the part sets them. The list holds
-// as many encodings as the file names: it is sized to its input, with no ceiling of its own, since a ceiling short of
-// the file would hold the rest off nothing and let it reach the part
-#define CUBIN_SAFE_HELD_LINE 1024u
+// the vendor's verdict, the gated list the cross writes: the longest line read, the room a first grow gives, and the
+// bits retained of the high word, the scheduler's own left out since whatever reaches the part sets them. The list
+// contains as many encodings as the file names: it is sized to its input, with no ceiling of its own, since a ceiling
+// short of the file would block nothing of the rest and let it reach the part
+#define CUBIN_SAFE_GATED_LINE 1024u
 
-#define CUBIN_SAFE_HELD_FIRST 1024u
+#define CUBIN_SAFE_GATED_FIRST 1024u
 
-#define CUBIN_SAFE_SCHED_KEPT_HIGH 0x000001ffffffffffull
+#define CUBIN_SAFE_SCHED_MASK_HIGH 0x000001ffffffffffull
 
 // the vendor's instruction set rule 13 reads, read by cubin_safe_tables_read (constant.c)
 const struct TablesSetTag *cubin_safe_tables(void);

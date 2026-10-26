@@ -31,18 +31,18 @@ void query_words_text(QueryWords *words, const char *text)
 // `root`/`folder`/`stem` and `.extension` where one is given, into `path`
 static void query_joined(const char *root, const char *folder, const char *stem, const char *extension, char *path)
 {
-    CliLine line = {path, QUERY_PATH_LONGEST, 0ull};
-    cli_line_text(&line, root);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, stem);
+    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, root);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, stem);
     if (extension != NULL)
     {
-        cli_line_character(&line, '.');
-        cli_line_text(&line, extension);
+        mmgr_line_ch(&line, '.');
+        mmgr_line_put(&line, extension);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 void query_files_of(const char *root, const char *part, QueryFiles *files)
@@ -59,8 +59,8 @@ void query_carrier_words(QueryWords *words, const char *carrier, const char *cro
                          const char *machine, const char *layout, int lessons)
 {
     query_words_add(words, carrier);
-    query_words_add(words, "--held");
-    query_words_add(words, "held.txt");
+    query_words_add(words, "--gated");
+    query_words_add(words, "gated.txt");
     if (lessons)
     {
         query_words_add(words, "--lessons");
@@ -84,28 +84,28 @@ void query_carrier_words(QueryWords *words, const char *carrier, const char *cro
     query_words_add(words, nvdisasm);
     query_words_add(words, "SM86");
     query_words_add(words, "airlock.md");
-    query_words_add(words, "held.txt");
+    query_words_add(words, "gated.txt");
 }
 
-int query_base_compiled(QueryContext *context, const QueryRun *run, const char *base, CliLine *said)
+int query_base_compiled(QueryContext *context, const QueryRun *run, const char *base, VerbaLinea *err_msg)
 {
     if (!query_is_file(base))
     {
         return 1;
     }
-    static char s_nvcc[QUERY_PATH_LONGEST];
-    static char s_cuobjdump[QUERY_PATH_LONGEST];
-    if (!context->programs->program(context->programs->context, QUERY_ROLE_NVCC, s_nvcc, sizeof(s_nvcc), said) ||
+    static char s_nvcc[QUERY_PATH_MAX_LEN];
+    static char s_cuobjdump[QUERY_PATH_MAX_LEN];
+    if (!context->programs->program(context->programs->context, QUERY_ROLE_NVCC, s_nvcc, sizeof(s_nvcc), err_msg) ||
         !context->programs->program(context->programs->context, QUERY_ROLE_CUOBJDUMP, s_cuobjdump, sizeof(s_cuobjdump),
-                                    said))
+                                    err_msg))
     {
         return 0;
     }
-    char cubin[QUERY_PATH_LONGEST];
+    char cubin[QUERY_PATH_MAX_LEN];
     query_joined(context->root, QUERY_LEARN_WORK, "base_nvcc.cubin", NULL, cubin);
     const char *const compile[8] = {s_nvcc, "-cubin", "-arch=sm_86", "-O3", "-o", cubin, base, NULL};
     long long code = -1ll;
-    if (!query_context_handed(context, run, "nvcc.txt", compile, &code, said))
+    if (!query_context_handed(context, run, "nvcc.txt", compile, &code, err_msg))
     {
         return 0;
     }
@@ -116,7 +116,8 @@ int query_base_compiled(QueryContext *context, const QueryRun *run, const char *
         const unsigned char *const bytes = qry_member_file_mapped(cubin, &size);
         if (bytes != NULL)
         {
-            const int appended = query_writer_append(&run->writer, "base_nvcc.cubin", bytes, size, QRY_ORDINARY, said);
+            const int appended =
+                query_writer_append(&run->writer, "base_nvcc.cubin", bytes, size, QRY_ORDINARY, err_msg);
             qry_member_file_unmapped(bytes, size);
             if (!appended)
             {
@@ -125,7 +126,7 @@ int query_base_compiled(QueryContext *context, const QueryRun *run, const char *
         }
         const char *const listing[4] = {s_cuobjdump, "-sass", cubin, NULL};
         long long listing_code = -1ll;
-        if (!query_context_handed(context, run, "base_nvcc.sass", listing, &listing_code, said))
+        if (!query_context_handed(context, run, "base_nvcc.sass", listing, &listing_code, err_msg))
         {
             return 0;
         }
@@ -136,27 +137,27 @@ int query_base_compiled(QueryContext *context, const QueryRun *run, const char *
     {
         name = ((*at == '/') || (*at == '\\')) ? (at + 1) : name;
     }
-    char line[QUERY_SAID_LONGEST];
-    CliLine said_line = {line, sizeof(line), 0ull};
-    cli_line_text(&said_line, listed ? "  the vendor's compiler read " : "  the vendor's compiler did not read ");
-    cli_line_text(&said_line, name);
-    cli_line_text(&said_line, listed ? "; its listing is the blob base_nvcc.sass" : "");
-    if (cli_line_closed(&said_line) != 0ull)
+    char line[QUERY_LINE_MAX_LEN];
+    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    mmgr_line_put(&print_line, listed ? "  the vendor's compiler read " : "  the vendor's compiler did not read ");
+    mmgr_line_put(&print_line, name);
+    mmgr_line_put(&print_line, listed ? "; its listing is the blob base_nvcc.sass" : "");
+    if (mmgr_line_finish(&print_line) != 0ull)
     {
-        query_said(context, line);
+        query_print(context, line);
     }
     query_removed(cubin);
     return 1;
 }
 
-int query_nvdisasm(const QueryContext *context, char *path, CliLine *said)
+int query_nvdisasm(const QueryContext *context, char *path, VerbaLinea *err_msg)
 {
-    char why[QUERY_SAID_LONGEST];
-    CliLine ignored = {why, sizeof(why), 0ull};
-    if (!context->programs->program(context->programs->context, QUERY_ROLE_NVDISASM, path, QUERY_PATH_LONGEST,
+    char why[QUERY_LINE_MAX_LEN];
+    VerbaLinea ignored = {why, sizeof(why), 0ull};
+    if (!context->programs->program(context->programs->context, QUERY_ROLE_NVDISASM, path, QUERY_PATH_MAX_LEN,
                                     &ignored))
     {
-        cli_line_text(said, "no nvdisasm beside nvcc: the airlock has no reader, and nothing goes to the part");
+        mmgr_line_put(err_msg, "no nvdisasm beside nvcc: the airlock has no reader, and nothing goes to the part");
         return 0;
     }
     return 1;

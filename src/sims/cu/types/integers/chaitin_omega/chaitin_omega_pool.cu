@@ -83,7 +83,7 @@ void omega_program_free(OmegaProgram *program)
     for (unsigned long long at_ = ((unsigned long long)blockIdx.x * blockDim.x) + threadIdx.x; at_ < (count_);         \
          at_ += (unsigned long long)gridDim.x * blockDim.x)
 
-// phase one of a round, a thread a term: the redex, what the reduct holds, and the widths its values need; a normal
+// phase one of a round, a thread a term: the redex, what the reduct contains, and the widths its values need; a normal
 // form settles. A settled term reduces to nothing. Its out size is 0.
 __global__ void omega_pool_survey(OmegaTerm *terms, unsigned long long live, const OmegaToken *tokens,
                                   unsigned char *frames, unsigned long long *out_sizes, OmegaRoundTotals *totals)
@@ -316,41 +316,41 @@ __global__ void omega_pool_settled(const OmegaTerm *terms, unsigned long long li
         {
             continue;
         }
-        const unsigned long long slot = atomicAdd(&totals->settled, 1ull);
-        settled[slot].length = term->length;
-        settled[slot].job = term->job;
-        settled[slot].index = term->index;
-        settled[slot].fate = term->fate;
-        settled[slot].steps = term->steps;
-        settled[slot].bits = term->bits;
+        const unsigned long long index = atomicAdd(&totals->settled, 1ull);
+        settled[index].length = term->length;
+        settled[index].job = term->job;
+        settled[index].index = term->index;
+        settled[index].fate = term->fate;
+        settled[index].steps = term->steps;
+        settled[index].bits = term->bits;
     }
 }
 
-// the sizes each kept term takes in the next round's buffers: its place, its tokens, its watcher's copy and that
+// the sizes each retained term takes in the next round's buffers: its place, its tokens, its watcher's copy and that
 // copy's spine ends; a settled term takes none
-__global__ void omega_pool_kept_sizes(const OmegaTerm *terms, unsigned long long live, unsigned long long *places,
-                                      unsigned long long *token_sizes, unsigned long long *stored_sizes,
-                                      unsigned long long *end_sizes)
+__global__ void omega_pool_retained_sizes(const OmegaTerm *terms, unsigned long long live, unsigned long long *places,
+                                          unsigned long long *token_sizes, unsigned long long *stored_sizes,
+                                          unsigned long long *end_sizes)
 {
     OMEGA_POOL_EACH(at, live)
     {
         const OmegaTerm *const term = &terms[at];
-        const unsigned long long kept = (term->fate < 0) ? 1ull : 0ull;
+        const unsigned long long retained = (term->fate < 0) ? 1ull : 0ull;
         const unsigned long long stored_count = (term->stored_again != 0u) ? term->out_size : term->stored_size;
-        places[at] = kept;
-        token_sizes[at] = kept * term->out_size;
-        stored_sizes[at] = kept * stored_count;
-        end_sizes[at] = kept * (stored_count + 1ull);
+        places[at] = retained;
+        token_sizes[at] = retained * term->out_size;
+        stored_sizes[at] = retained * stored_count;
+        end_sizes[at] = retained * (stored_count + 1ull);
     }
 }
 
-// a block a kept term moves its reduct, its watcher's copy and that copy's spine ends into the next round's buffers
-__global__ void omega_pool_keep(const OmegaTerm *terms, unsigned long long live, const OmegaToken *reducts,
-                                const OmegaToken *stored, const unsigned long long *stored_ends,
-                                const unsigned long long *places, const unsigned long long *token_bases,
-                                const unsigned long long *stored_bases, const unsigned long long *end_bases,
-                                OmegaTerm *kept, OmegaToken *kept_tokens, OmegaToken *kept_stored,
-                                unsigned long long *kept_ends)
+// a block a retained term moves its reduct, its watcher's copy and that copy's spine ends into the next round's buffers
+__global__ void omega_pool_retain(const OmegaTerm *terms, unsigned long long live, const OmegaToken *reducts,
+                                  const OmegaToken *stored, const unsigned long long *stored_ends,
+                                  const unsigned long long *places, const unsigned long long *token_bases,
+                                  const unsigned long long *stored_bases, const unsigned long long *end_bases,
+                                  OmegaTerm *retained, OmegaToken *retained_tokens, OmegaToken *retained_stored,
+                                  unsigned long long *retained_ends)
 {
     for (unsigned long long at = blockIdx.x; at < live; at += gridDim.x)
     {
@@ -364,17 +364,17 @@ __global__ void omega_pool_keep(const OmegaTerm *terms, unsigned long long live,
         const unsigned long long copy_size = (term->stored_again != 0u) ? term->out_size : term->stored_size;
         for (unsigned long long token = threadIdx.x; token < term->out_size; token += blockDim.x)
         {
-            kept_tokens[token_bases[at] + token] = reduct[token];
+            retained_tokens[token_bases[at] + token] = reduct[token];
         }
         for (unsigned long long token = threadIdx.x; token < copy_size; token += blockDim.x)
         {
-            kept_stored[stored_bases[at] + token] = copy[token];
+            retained_stored[stored_bases[at] + token] = copy[token];
         }
         if (term->stored_again == 0u)
         {
             for (unsigned long long end = threadIdx.x; end <= term->stored_range; end += blockDim.x)
             {
-                kept_ends[end_bases[at] + end] = stored_ends[term->ends_base + end];
+                retained_ends[end_bases[at] + end] = stored_ends[term->ends_base + end];
             }
         }
         if (threadIdx.x == 0u)
@@ -388,9 +388,9 @@ __global__ void omega_pool_keep(const OmegaTerm *terms, unsigned long long live,
             if (term->stored_again != 0u)
             {
                 // read from the reduct, which the block's other threads are still copying out of, not into
-                moved.stored_range = omega_pool_spine(reduct, term->out_size, &kept_ends[end_bases[at]]);
+                moved.stored_range = omega_pool_spine(reduct, term->out_size, &retained_ends[end_bases[at]]);
             }
-            kept[places[at]] = moved;
+            retained[places[at]] = moved;
         }
     }
 }

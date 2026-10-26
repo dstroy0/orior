@@ -73,7 +73,7 @@ MODULES=(cu/includes/formats/stack cu/includes/file_defs/krep
          cu/engine/runtime/obsignatio
          cu/engine/analysis/residual cu/engine/nbody/max_tree
          cu/engine/nbody/flatten cu/engine/nbody/grow
-         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura
+         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double
          cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching
          cu/engine/analysis/shift_agreement cu/engine/analysis/period
          )
@@ -91,32 +91,38 @@ for module in "${MODULES[@]}"; do
         [ -f "$source" ] && MODULE_SOURCES+=("$source")
     done
 done
-PORTABLE_OBJECTS=()
+# MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
+source "$ENGINE/../includes/file_defs/file_defs.sh"
+MODULE_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
+PORTABLE_SOURCES=()
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/includes/types/integerfloats/double_fields \
-                cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura cu/includes/types/integers/exact_record \
+                cu/includes/types/integerfloats/decimal_double cu/includes/types/integers/exact_record \
                 "${INGEST[@]}"; do
-    for source in "$(build_path "$portable")"/*.c; do
-        name="$(basename "$source" .c)"
-        OBJECT="$OUT/${name}_portable.o"
-        case "$(uname -s)" in
-            MINGW*|MSYS*|CYGWIN*)
-                OBJECT="$OUT/${name}_portable.obj"
-                rm -f "$OBJECT"
-                nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" \
-                    "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
-                ;;
-            *)
-                rm -f "$OBJECT"
-                cc -std=c11 -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
-                ;;
-        esac
-        if [ ! -f "$OBJECT" ]; then
-            echo "  build failed: $portable/$name.c did not compile"
-            exit 1
-        fi
-        PORTABLE_OBJECTS+=("$OBJECT")
-    done
+    PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
+done
+PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}")
+PORTABLE_OBJECTS=()
+for source in "${PORTABLE_SOURCES[@]}"; do
+    name="$(basename "$source" .c)"
+    OBJECT="$OUT/${name}_portable.o"
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            OBJECT="$OUT/${name}_portable.obj"
+            rm -f "$OBJECT"
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${DEFINES[@]}" \
+                "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
+            ;;
+        *)
+            rm -f "$OBJECT"
+            cc -std=c11 -O2 -g -fPIC "${MODULE_INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$OBJECT"
+            ;;
+    esac
+    if [ ! -f "$OBJECT" ]; then
+        echo "  build failed: $source did not compile"
+        exit 1
+    fi
+    PORTABLE_OBJECTS+=("$OBJECT")
 done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     case "$(uname -s)" in

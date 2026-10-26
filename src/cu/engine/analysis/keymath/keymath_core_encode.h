@@ -53,7 +53,7 @@ KEYMATH_CORE int keymath_core_error(KeymathCoreEncode *encoding, unsigned int en
 }
 
 // Each step's term, width, never-negative mark and linear form, in step order, as keymath_record_encode lays them out:
-// 1 where every step and output holds, else 0 with where it ended in `end` and `at`
+// 1 where every step and output succeeds, else 0 with where it ended in `end` and `at`
 KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
 {
     encoding->end = KEYMATH_CORE_OK;
@@ -147,18 +147,18 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
             const unsigned int right_bits = terms[doing->right].bits;
             const unsigned int wider = (left_bits > right_bits) ? left_bits : right_bits;
             const unsigned int narrower = (left_bits < right_bits) ? left_bits : right_bits;
-            const int left_kept = (encoding->never_negative[doing->left] != 0u) ? 1 : 0;
-            const int right_kept = (encoding->never_negative[doing->right] != 0u) ? 1 : 0;
+            const int left_nonneg = (encoding->never_negative[doing->left] != 0u) ? 1 : 0;
+            const int right_nonneg = (encoding->never_negative[doing->right] != 0u) ? 1 : 0;
             term->bits = wider + 1u;
-            if ((doing->operation == ENGINE_RECORD_AND) && (left_kept != 0) && (right_kept != 0))
+            if ((doing->operation == ENGINE_RECORD_AND) && (left_nonneg != 0) && (right_nonneg != 0))
             {
                 term->bits = narrower;
             }
-            else if ((doing->operation == ENGINE_RECORD_AND) && ((left_kept != 0) || (right_kept != 0)))
+            else if ((doing->operation == ENGINE_RECORD_AND) && ((left_nonneg != 0) || (right_nonneg != 0)))
             {
-                term->bits = (left_kept != 0) ? left_bits : right_bits;
+                term->bits = (left_nonneg != 0) ? left_bits : right_bits;
             }
-            else if ((left_kept != 0) && (right_kept != 0))
+            else if ((left_nonneg != 0) && (right_nonneg != 0))
             {
                 term->bits = wider;
             }
@@ -192,8 +192,8 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         }
         else if (doing->operation == ENGINE_RECORD_LANE)
         {
-            // the lane's number is known only at the sweep, and its register holds any lane a sweep can count; it reads
-            // nothing, and the step's left and right name nothing
+            // the lane's number is known only at the sweep, and its register represents any lane a sweep can count; it
+            // reads nothing, and the step's left and right name nothing
             term->bits = ENGINE_RECORD_LANE_BITS;
             term->left = 0u;
             term->right = 0u;
@@ -204,7 +204,7 @@ KEYMATH_CORE int keymath_core_record_encode(KeymathCoreEncode *encoding)
         }
         const int wrap_passes = (doing->operation == ENGINE_RECORD_WRAP) && (terms[doing->left].bits < doing->right);
         // the register's form: a sum or difference adds its operands', a product by a constant scales the other's, a
-        // constant is its value, and a wrap that passes its register through keeps that register's form. The form's
+        // constant is its value, and a wrap that passes its register through preserves that register's form. The form's
         // bound narrows the width the operation's own rule gave where it is tighter; where a form would outgrow its
         // words, or for any other register, the register is an atom. A form found no room for leaves the arena full
         KeymathCoreAffine *const form = &encoding->forms[step];

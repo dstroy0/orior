@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // jupyter_readers.c: a kernel's readers, each on a thread of its own: its sockets' messages, each a reply handed to
-// the request waiting on it or heard by whoever started the kernel, and the lines its process writes of itself
+// the request waiting on it or received by whoever started the kernel, and the lines its process writes of itself
 #include "jupyter_internal.h"
 
-// a reader's end told, the kernel's waiters woken
+// a reader's end notified, the kernel's waiters woken
 static void jupyter_reader_ended(CliKernel *kernel)
 {
     cli_lock_take(&kernel->lock);
@@ -13,12 +13,16 @@ static void jupyter_reader_ended(CliKernel *kernel)
     cli_lock_give(&kernel->lock);
 }
 
-// a message heard: a reply handed to the request waiting on it where one waits, and any other to whoever started the
-// kernel
-static void jupyter_heard(const CliKernelReader *reader, const char *message, unsigned long long size,
-                          const char *parent)
+// a message received: a reply on the shell ending the request in flight there, a reply handed to the request waiting on
+// it where one waits, and any other to whoever started the kernel
+static void jupyter_recv(const CliKernelReader *reader, const char *message, unsigned long long size,
+                         const char *parent)
 {
     CliKernel *const kernel = reader->kernel;
+    if ((reader->socket == &kernel->shell) && (parent[0] != '\0'))
+    {
+        cli_kernel_shell_answered(kernel, parent);
+    }
     if (reader->replies && (parent[0] != '\0'))
     {
         cli_lock_take(&kernel->lock);
@@ -28,7 +32,7 @@ static void jupyter_heard(const CliKernelReader *reader, const char *message, un
             if (waiter->waiting &&
                 (cellul.eq(&(CatenaFinitaCfg){.src = waiter->id, .other = parent, .cap = CLI_CELLS_POOL})))
             {
-                cli_line_counted(waiter->reply, message, size);
+                mmgr_line_put_n(waiter->reply, message, size);
                 waiter->answered = 1;
                 waiter->waiting = 0;
                 cli_wake_all(&kernel->wake);
@@ -38,10 +42,10 @@ static void jupyter_heard(const CliKernelReader *reader, const char *message, un
         }
         cli_lock_give(&kernel->lock);
     }
-    kernel->heard(kernel->context, message, size);
+    kernel->recv(kernel->context, message, size);
 }
 
-// a socket's messages read until it closes, each heard; half the reader's room holds the frames read and half the
+// a socket's messages read until it closes, each received; half the reader's room stores the frames read and half the
 // message written
 static void jupyter_socket_read(void *context)
 {
@@ -55,37 +59,37 @@ static void jupyter_socket_read(void *context)
         {
             break;
         }
-        CliLine out = {(char *)reader->room + half, half, 0ull};
+        VerbaLinea out = {(char *)reader->room + half, half, 0ull};
         char parent[CLI_KERNEL_ID];
         parent[0] = '\0';
         if (cli_kernel_message_written(reader, frames, count, &out, parent))
         {
-            jupyter_heard(reader, out.out, out.at, parent);
+            jupyter_recv(reader, out.out, out.at, parent);
         }
     }
     jupyter_reader_ended(reader->kernel);
 }
 
-// a line the kernel's process wrote of itself heard as a message of the log channel, read as cli_lossy reads it
-static void jupyter_line_heard(const CliKernelReader *reader, const unsigned char *line, unsigned long long size)
+// a line the kernel's process wrote of itself received as a message of the log channel, read as cli_lossy reads it
+static void jupyter_line_recv(const CliKernelReader *reader, const unsigned char *line, unsigned long long size)
 {
-    CliLine out = {(char *)reader->room + CLI_KERNEL_LINE, reader->room_size - CLI_KERNEL_LINE, 0ull};
-    cli_line_text(&out, "{\"channel\":\"log\",\"msg_type\":\"log\",\"msg_id\":\"\",\"parent\":\"\",\"content\":");
+    VerbaLinea out = {(char *)reader->room + CLI_KERNEL_LINE, reader->room_size - CLI_KERNEL_LINE, 0ull};
+    mmgr_line_put(&out, "{\"channel\":\"log\",\"msg_type\":\"log\",\"msg_id\":\"\",\"parent\":\"\",\"content\":");
     cli_json_quoted_lossy(&out, line, size);
-    cli_line_character(&out, '}');
-    if (cli_line_fits(&out))
+    mmgr_line_ch(&out, '}');
+    if (mmgr_line_ok(&out))
     {
-        reader->kernel->heard(reader->kernel->context, out.out, out.at);
+        reader->kernel->recv(reader->kernel->context, out.out, out.at);
     }
 }
 
-// what the kernel's process writes of itself read until the pipe closes, each line heard; a line longer than
-// CLI_KERNEL_LINE is heard in pieces of that length
+// what the kernel's process writes of itself read until the pipe closes, each line received; a line longer than
+// CLI_KERNEL_LINE is received in pieces of that length
 static void jupyter_log_read(void *context)
 {
     CliKernelReader *const reader = (CliKernelReader *)context;
     unsigned char *const line = reader->room;
-    unsigned long long held = 0ull;
+    unsigned long long line_start = 0ull;
     char piece[4096];
     for (;;)
     {
@@ -98,23 +102,24 @@ static void jupyter_log_read(void *context)
         {
             if (piece[at] == '\n')
             {
-                const unsigned long long size = ((held > 0ull) && (line[held - 1ull] == '\r')) ? held - 1ull : held;
-                jupyter_line_heard(reader, line, size);
-                held = 0ull;
+                const unsigned long long size =
+                    ((line_start > 0ull) && (line[line_start - 1ull] == '\r')) ? line_start - 1ull : line_start;
+                jupyter_line_recv(reader, line, size);
+                line_start = 0ull;
                 continue;
             }
-            if (held == CLI_KERNEL_LINE)
+            if (line_start == CLI_KERNEL_LINE)
             {
-                jupyter_line_heard(reader, line, held);
-                held = 0ull;
+                jupyter_line_recv(reader, line, line_start);
+                line_start = 0ull;
             }
-            line[held] = (unsigned char)piece[at];
-            held += 1ull;
+            line[line_start] = (unsigned char)piece[at];
+            line_start += 1ull;
         }
     }
-    if (held > 0ull)
+    if (line_start > 0ull)
     {
-        jupyter_line_heard(reader, line, held);
+        jupyter_line_recv(reader, line, line_start);
     }
     jupyter_reader_ended(reader->kernel);
 }

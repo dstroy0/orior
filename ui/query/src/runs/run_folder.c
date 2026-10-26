@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run_folder.c: a folder's runs: each numbered newest first, the next one's name stamped by the clock, a path named
-// under the top of the tree, a run read back out of its crystal, and only the newest QRY_KEPT kept
+// under the top of the tree, a run read back out of its crystal, and only the newest QRY_RETAINED retained
 #include "../query_loops.h"
 
 #include "../../../cli/src/text/text.h"
 #include <stdlib.h>
 
-// What the walk over a folder's runs keeps: the folder, the numbers and paths found, their count and room, and the
+// What the walk over a folder's runs records: the folder, the numbers and paths found, their count and room, and the
 // highest number found
 typedef struct
 {
     const char *folder;
     unsigned long long *number;
-    char (*path)[QUERY_PATH_LONGEST];
+    char (*path)[QUERY_PATH_MAX_LEN];
     unsigned int count;
     unsigned int room;
     unsigned long long highest;
@@ -62,30 +62,30 @@ static void query_run_walked(void *context, const char *name, int is_folder)
     {
         return;
     }
-    CliLine line = {walk->path[walk->count], QUERY_PATH_LONGEST, 0ull};
-    cli_line_text(&line, walk->folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    if (cli_line_closed(&line) == 0ull)
+    VerbaLinea line = {walk->path[walk->count], QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, walk->folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return;
     }
-    // kept newest first: the highest number at the front
-    char held[QUERY_PATH_LONGEST];
-    memor.cpy(&(MemoriaCfg){.dst = held, .src = walk->path[walk->count], .bytes = QUERY_PATH_LONGEST});
+    // sorted newest first: the highest number at the front
+    char saved_path[QUERY_PATH_MAX_LEN];
+    memor.cpy(&(MemoriaCfg){.dst = saved_path, .src = walk->path[walk->count], .bytes = QUERY_PATH_MAX_LEN});
     unsigned int at = walk->count;
     while ((at > 0u) && (walk->number[at - 1u] < number))
     {
         walk->number[at] = walk->number[at - 1u];
-        memor.cpy(&(MemoriaCfg){.dst = walk->path[at], .src = walk->path[at - 1u], .bytes = QUERY_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = walk->path[at], .src = walk->path[at - 1u], .bytes = QUERY_PATH_MAX_LEN});
         at -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = walk->path[at], .src = held, .bytes = QUERY_PATH_LONGEST});
+    memor.cpy(&(MemoriaCfg){.dst = walk->path[at], .src = saved_path, .bytes = QUERY_PATH_MAX_LEN});
     walk->number[at] = number;
     walk->count += 1u;
 }
 
-unsigned int query_runs_each(const char *folder, unsigned long long *number, char (*path)[QUERY_PATH_LONGEST],
+unsigned int query_runs_each(const char *folder, unsigned long long *number, char (*path)[QUERY_PATH_MAX_LEN],
                              unsigned int room)
 {
     QueryRunsWalk walk = {folder, number, path, 0u, room, 0ull};
@@ -109,12 +109,12 @@ int query_runs_taken(const char *folder, QueryRuns *runs)
     {
         return 1;
     }
-    runs->number = cli_cell_taken_by(&g_query_cells, (unsigned long long)counting.count * sizeof(unsigned long long),
-                                     "a folder's runs");
-    runs->path = (runs->number != NULL)
-                     ? cli_cell_taken_by(&g_query_cells, (unsigned long long)counting.count * QUERY_PATH_LONGEST,
-                                         "the paths of a folder's runs")
-                     : NULL;
+    runs->number = g_cli_cells->persistent_buf_alloc((unsigned long long)counting.count * sizeof(unsigned long long),
+                                                     &g_query_cells);
+    runs->path =
+        (runs->number != NULL)
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)counting.count * QUERY_PATH_MAX_LEN, &g_query_cells)
+            : NULL;
     if (runs->path == NULL)
     {
         query_runs_given(runs);
@@ -126,8 +126,8 @@ int query_runs_taken(const char *folder, QueryRuns *runs)
 
 void query_runs_given(QueryRuns *runs)
 {
-    cli_cell_given_by(&g_query_cells, runs->number);
-    cli_cell_given_by(&g_query_cells, runs->path);
+    g_cli_cells->persistent_buf_release(runs->number, &g_query_cells);
+    g_cli_cells->persistent_buf_release(runs->path, &g_query_cells);
     *runs = (QueryRuns){NULL, NULL, 0u};
 }
 
@@ -158,37 +158,37 @@ void query_next_name(const char *folder, char *name, size_t room)
     unsigned long long day = 0ull;
     query_civil(seconds / 86400ull, &year, &month, &day);
     const unsigned long long time = seconds % 86400ull;
-    CliLine line = {name, room, 0ull};
-    cli_line_text(&line, "query");
-    cli_line_decimal(&line, highest + 1ull, 0u);
-    cli_line_character(&line, '-');
-    cli_line_decimal(&line, year, 4u);
-    cli_line_decimal(&line, month, 2u);
-    cli_line_decimal(&line, day, 2u);
-    cli_line_character(&line, 'T');
-    cli_line_decimal(&line, time / 3600ull, 2u);
-    cli_line_decimal(&line, (time % 3600ull) / 60ull, 2u);
-    cli_line_decimal(&line, time % 60ull, 2u);
-    cli_line_text(&line, ".qry");
-    cli_line_closed(&line);
+    VerbaLinea line = {name, room, 0ull};
+    mmgr_line_put(&line, "query");
+    mmgr_line_decimal(&line, highest + 1ull, 0u);
+    mmgr_line_ch(&line, '-');
+    mmgr_line_decimal(&line, year, 4u);
+    mmgr_line_decimal(&line, month, 2u);
+    mmgr_line_decimal(&line, day, 2u);
+    mmgr_line_ch(&line, 'T');
+    mmgr_line_decimal(&line, time / 3600ull, 2u);
+    mmgr_line_decimal(&line, (time % 3600ull) / 60ull, 2u);
+    mmgr_line_decimal(&line, time % 60ull, 2u);
+    mmgr_line_put(&line, ".qry");
+    mmgr_line_finish(&line);
 }
 
 void query_named(const char *top, const char *path, char *name, size_t room)
 {
-    char full_top[QUERY_PATH_LONGEST];
-    char full_path[QUERY_PATH_LONGEST];
+    char full_top[QUERY_PATH_MAX_LEN];
+    char full_path[QUERY_PATH_MAX_LEN];
     const int both =
         query_path_full(top, full_top, sizeof(full_top)) && query_path_full(path, full_path, sizeof(full_path));
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = full_top, .cap = CLI_CELLS_POOL});
     if (both && cli_text_same(full_path, full_top, length) &&
         ((full_path[length] == '/') || (full_path[length] == '\\')))
     {
-        CliLine line = {name, room, 0ull};
+        VerbaLinea line = {name, room, 0ull};
         for (const char *at = full_path + length + 1u; *at != '\0'; at += 1)
         {
-            cli_line_character(&line, (*at == '\\') ? '/' : *at);
+            mmgr_line_ch(&line, (*at == '\\') ? '/' : *at);
         }
-        cli_line_closed(&line);
+        mmgr_line_finish(&line);
         return;
     }
     const char *base = path;
@@ -200,15 +200,15 @@ void query_named(const char *top, const char *path, char *name, size_t room)
         .dst = name, .src = base, .bytes = cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) + 1u});
 }
 
-int query_opened(const char *held, const char *crystal, char *named, size_t room)
+int query_opened(const char *qry_path, const char *crystal, char *named, size_t room)
 {
-    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL});
+    const size_t length = cellul.len(&(CatenaFinitaCfg){.src = qry_path, .cap = CLI_CELLS_POOL});
     if ((length > 4u) &&
-        (cellul.eq(&(CatenaFinitaCfg){.src = held + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
+        (cellul.eq(&(CatenaFinitaCfg){.src = qry_path + length - 4u, .other = ".qry", .cap = CLI_CELLS_POOL})))
     {
         memor.cpy(&(MemoriaCfg){.dst = named,
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
+                                .src = qry_path,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = qry_path, .cap = CLI_CELLS_POOL}) + 1u});
         return named[0] != '\0';
     }
     if (crystal == NULL)
@@ -216,21 +216,21 @@ int query_opened(const char *held, const char *crystal, char *named, size_t room
         return 0;
     }
     // the crystal read back into `restored/` beside it, as `<name>.qry`
-    const char *base = held;
-    for (const char *at = held; *at != '\0'; at += 1)
+    const char *base = qry_path;
+    for (const char *at = qry_path; *at != '\0'; at += 1)
     {
         base = ((*at == '/') || (*at == '\\')) ? (at + 1) : base;
     }
-    char restored[QUERY_PATH_LONGEST];
-    CliLine restored_line = {restored, sizeof(restored), 0ull};
-    cli_line_counted(&restored_line, held, (unsigned long long)(base - held));
-    cli_line_text(&restored_line, "restored");
-    CliLine named_line = {named, room, 0ull};
-    cli_line_text(&named_line, restored);
-    cli_line_character(&named_line, '/');
-    cli_line_text(&named_line, base);
-    cli_line_text(&named_line, ".qry");
-    if ((cli_line_closed(&restored_line) == 0ull) || (cli_line_closed(&named_line) == 0ull) ||
+    char restored[QUERY_PATH_MAX_LEN];
+    VerbaLinea restored_line = {restored, sizeof(restored), 0ull};
+    mmgr_line_put_n(&restored_line, qry_path, (unsigned long long)(base - qry_path));
+    mmgr_line_put(&restored_line, "restored");
+    VerbaLinea named_line = {named, room, 0ull};
+    mmgr_line_put(&named_line, restored);
+    mmgr_line_ch(&named_line, '/');
+    mmgr_line_put(&named_line, base);
+    mmgr_line_put(&named_line, ".qry");
+    if ((mmgr_line_finish(&restored_line) == 0ull) || (mmgr_line_finish(&named_line) == 0ull) ||
         !query_folder_made(restored))
     {
         return 0;
@@ -239,7 +239,7 @@ int query_opened(const char *held, const char *crystal, char *named, size_t room
     {
         return 1;
     }
-    const char *const words[5] = {crystal, "read", held, named, NULL};
+    const char *const words[5] = {crystal, "read", qry_path, named, NULL};
     QueryProcess read;
     return query_process_start(&read, words, NULL, QUERY_OUTPUT_NONE) && (query_process_wait(&read) == 0ll);
 }
@@ -248,33 +248,33 @@ int query_crystal(const char *root, char *program, size_t room)
 {
     char base[64];
     query_binary_name("qry_crystal", base, sizeof(base));
-    CliLine line = {program, room, 0ull};
-    cli_line_text(&line, root);
-    cli_line_text(&line, "/build/qry_crystal/engine/");
-    cli_line_text(&line, base);
-    return (cli_line_closed(&line) != 0ull) && query_is_file(program);
+    VerbaLinea line = {program, room, 0ull};
+    mmgr_line_put(&line, root);
+    mmgr_line_put(&line, "/build/qry_crystal/engine/");
+    mmgr_line_put(&line, base);
+    return (mmgr_line_finish(&line) != 0ull) && query_is_file(program);
 }
 
-unsigned int query_kept_most(void)
+unsigned int query_retain_max(void)
 {
-    char kept[32];
-    if (!query_environment_read("QRY_KEPT", kept, sizeof(kept)))
+    char retain_text[32];
+    if (!query_environment_read("QRY_RETAINED", retain_text, sizeof(retain_text)))
     {
-        return QUERY_KEPT_MOST;
+        return QUERY_RETAIN_MAX;
     }
     char *end = NULL;
-    const unsigned long most = strtoul(kept, &end, 10);
-    // a count kept is far below what an unsigned int holds
-    return ((end != kept) && (*end == '\0')) ? (unsigned int)most : QUERY_KEPT_MOST;
+    const unsigned long most = strtoul(retain_text, &end, 10);
+    // a count recorded is far below what an unsigned int represents
+    return ((end != retain_text) && (*end == '\0')) ? (unsigned int)most : QUERY_RETAIN_MAX;
 }
 
-void query_kept(const char *folder, unsigned int most)
+void query_runs_pruned(const char *folder, unsigned int most)
 {
-    char restored[QUERY_PATH_LONGEST];
-    CliLine line = {restored, sizeof(restored), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_text(&line, "/restored");
-    if (cli_line_closed(&line) != 0ull)
+    char restored[QUERY_PATH_MAX_LEN];
+    VerbaLinea line = {restored, sizeof(restored), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_put(&line, "/restored");
+    if (mmgr_line_finish(&line) != 0ull)
     {
         query_removed(restored);
     }
@@ -290,7 +290,7 @@ void query_kept(const char *folder, unsigned int most)
 int query_latest_run(const char *folder, const char *name, const char *own, const QueryWriter *writer,
                      const char *crystal, char *found, size_t room)
 {
-    char own_full[QUERY_PATH_LONGEST] = "";
+    char own_full[QUERY_PATH_MAX_LEN] = "";
     if (own != NULL)
     {
         query_path_full(own, own_full, sizeof(own_full));
@@ -300,8 +300,8 @@ int query_latest_run(const char *folder, const char *name, const char *own, cons
     int latest = 0;
     for (unsigned int at = 0u; !latest && (at < runs.count); at += 1u)
     {
-        char named[QUERY_PATH_LONGEST];
-        char named_full[QUERY_PATH_LONGEST];
+        char named[QUERY_PATH_MAX_LEN];
+        char named_full[QUERY_PATH_MAX_LEN];
         if (!query_opened(runs.path[at], crystal, named, sizeof(named)) ||
             ((own != NULL) && query_path_full(named, named_full, sizeof(named_full)) &&
              (cellul.eq(&(CatenaFinitaCfg){.src = named_full, .other = own_full, .cap = CLI_CELLS_POOL}))))

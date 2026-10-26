@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pg_test.c: PostgreSQL's check: SCRAM gives RFC 7677's proof and signature; a query's rows come a page at a time and a
-// cancel stops it; and md5 and cleartext passwords sign in where the server asks for them. The last two run on the
+// cancel stops it; and md5 and cleartext passwords sign in where the server requests them. The last two run on the
 // server orior's tests sign in to, where one runs: PostgreSQL at ORIOR_PG_ADDRESS, else on 127.0.0.1:5432, with the
 // password ORIOR_PG_PASSWORD names for the user postgres
 #include "../../../../../ui/cli/src/databases/pg.h"
 #include "../../../../../ui/cli/src/databases/pg_internal.h"
 #include "cli_check.h"
 
-// the rows of a page kept, the first values of each, and the bytes they take
+// the rows of a page recorded, the first values of each, and the bytes they take
 #define PG_ROWS 1000u
 #define PG_VALUES 4u
 #define PG_VALUE 64u
 
-static char s_host[CLI_NAME_LONGEST];
+static char s_host[CLI_NAME_MAX_LEN];
 static unsigned int s_port;
 static char s_password[256];
 static CliDbFailure s_failure;
@@ -41,18 +41,18 @@ static void pg_scram(void)
               "and its signature");
 }
 
-// a row kept, its first PG_VALUES values
-static int pg_kept(void *context, const CliDbValue *values, unsigned int count)
+// a row recorded, its first PG_VALUES values
+static int pg_row_capture(void *context, const CliDbValue *values, unsigned int count)
 {
     (void)context;
     for (unsigned int at = 0u; (s_rows < PG_ROWS) && (at < count) && (at < PG_VALUES); at += 1u)
     {
         s_null[s_rows][at] = values[at].null;
         const unsigned long long size = values[at].null ? 0ull : values[at].size;
-        const unsigned long long kept = (size < PG_VALUE - 1u) ? size : PG_VALUE - 1u;
-        memor.cpy(
-            &(MemoriaCfg){.dst = s_value[s_rows][at], .src = values[at].null ? "" : values[at].text, .bytes = kept});
-        s_value[s_rows][at][kept] = '\0';
+        const unsigned long long copy_len = (size < PG_VALUE - 1u) ? size : PG_VALUE - 1u;
+        memor.cpy(&(MemoriaCfg){
+            .dst = s_value[s_rows][at], .src = values[at].null ? "" : values[at].text, .bytes = copy_len});
+        s_value[s_rows][at][copy_len] = '\0';
     }
     s_rows += (s_rows < PG_ROWS) ? 1u : 0u;
     return 1;
@@ -87,8 +87,8 @@ static void pg_stop(void *context)
     PgStopper *const stopper = context;
     query_paused(400u);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int sent = cli_pg_cancel_sent(&stopper->cancel, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int sent = cli_pg_cancel_sent(&stopper->cancel, &err_msg);
     cli_lock_take(&stopper->lock);
     stopper->sent = sent ? 1 : -1;
     cli_lock_give(&stopper->lock);
@@ -103,7 +103,7 @@ static void pg_pages(void)
         cli_check(1, "no PostgreSQL answers, and no rows are read");
         return;
     }
-    cli_check(cli_pg_parameter(pg, "server_version") != NULL, "the server says its version");
+    cli_check(cli_pg_parameter(pg, "server_version") != NULL, "the server reports its version");
     static const char s_query[] = "select n, n::text as t, null::int as z, now() as at from generate_series(1, 2500) n";
     cli_check(cli_pg_start(pg, s_query, sizeof(s_query) - 1u, &s_failure) && cli_pg_head(pg)->rows,
               "the query gives rows");
@@ -115,7 +115,7 @@ static void pg_pages(void)
     int done = 0;
     char tag[CLI_DB_TAG];
     s_rows = 0u;
-    (void)cli_pg_rows(pg, 1000ull, pg_kept, NULL, &done, tag, &s_failure);
+    (void)cli_pg_rows(pg, 1000ull, pg_row_capture, NULL, &done, tag, &s_failure);
     cli_check((s_rows == 1000u) && !done, "a page of rows comes, and the rest wait");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = s_value[999][0], .other = "1000", .cap = CLI_CELLS_POOL}),
               "each in its order");
@@ -124,18 +124,18 @@ static void pg_pages(void)
                   (cellul.chr(&(CatenaFinitaCfg){.src = s_value[0][3], .cap = CLI_CELLS_POOL, .byte = '-'}) != NULL),
               "a time with a zone has its offset");
     s_rows = 0u;
-    (void)cli_pg_rows(pg, 1000ull, pg_kept, NULL, &done, tag, &s_failure);
+    (void)cli_pg_rows(pg, 1000ull, pg_row_capture, NULL, &done, tag, &s_failure);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = s_value[0][0], .other = "1001", .cap = CLI_CELLS_POOL}),
               "the next page follows on");
     s_rows = 0u;
-    (void)cli_pg_rows(pg, 1000ull, pg_kept, NULL, &done, tag, &s_failure);
+    (void)cli_pg_rows(pg, 1000ull, pg_row_capture, NULL, &done, tag, &s_failure);
     cli_check(done && (cellul.eq(&(CatenaFinitaCfg){.src = tag, .other = "SELECT 2500", .cap = CLI_CELLS_POOL})),
               "the last page ends with the statement's tag");
     cli_check(!cli_pg_start(pg, "select 1/0", 10ull, &s_failure) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_failure.code, .other = "22012", .cap = CLI_CELLS_POOL})),
               "a failure gives the server's code");
     cli_check(cli_pg_start(pg, "begin", 5ull, &s_failure) && !cli_pg_head(pg)->rows && (cli_pg_status(pg) == 'T'),
-              "a transaction opened is told");
+              "a transaction opened is reported");
     (void)cli_pg_start(pg, "rollback", 8ull, &s_failure);
     cli_check(cli_pg_status(pg) == 'I', "and closed");
     cli_check(cli_pg_canceller(pg, &s_stopper.cancel), "the server gives the key that stops a statement");
@@ -143,7 +143,7 @@ static void pg_pages(void)
     cli_check(cli_thread_started(&s_thread), "the stop is sent from a thread of its own");
     (void)cli_pg_start(pg, "select pg_sleep(30)", 19ull, &s_failure);
     const int rows = cli_pg_head(pg)->rows;
-    cli_check(rows && !cli_pg_rows(pg, 10ull, pg_kept, NULL, &done, tag, &s_failure), "the sleep was stopped");
+    cli_check(rows && !cli_pg_rows(pg, 10ull, pg_row_capture, NULL, &done, tag, &s_failure), "the sleep was stopped");
     const unsigned long long until = cli_clock_milliseconds() + 10000ull;
     int sent = 0;
     while ((sent == 0) && (cli_clock_milliseconds() < until))
@@ -157,13 +157,13 @@ static void pg_pages(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_failure.code, .other = "57014", .cap = CLI_CELLS_POOL})),
               "by the cancel");
     s_rows = 0u;
-    cli_check(cli_pg_all(pg, "select 'it''s'", 14ull, pg_kept, NULL, &s_failure) && (s_rows == 1u) &&
+    cli_check(cli_pg_all(pg, "select 'it''s'", 14ull, pg_row_capture, NULL, &s_failure) && (s_rows == 1u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_value[0][0], .other = "it's", .cap = CLI_CELLS_POOL})),
               "the connection answers after it");
     cli_pg_closed(pg);
 }
 
-// md5 and cleartext passwords sign in where the server asks for them
+// md5 and cleartext passwords sign in where the server requests them
 static void pg_passwords(void)
 {
     static const char *const s_setup[6] = {
@@ -179,7 +179,7 @@ static void pg_passwords(void)
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
         (void)cli_pg_all(pg, s_setup[at], cellul.len(&(CatenaFinitaCfg){.src = s_setup[at], .cap = CLI_CELLS_POOL}),
-                         pg_kept, NULL, &s_failure);
+                         pg_row_capture, NULL, &s_failure);
     }
     cli_pg_closed(pg);
     static const char *const s_users[2][2] = {{"orior_md5", "md5 secret"}, {"orior_plain", "plain secret"}};
@@ -204,6 +204,7 @@ static void pg_passwords(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     pg_scram();
     cli_check_server("PG", 5432u, s_host, &s_port);
     if (!query_environment_read("ORIOR_PG_PASSWORD", s_password, sizeof(s_password)))

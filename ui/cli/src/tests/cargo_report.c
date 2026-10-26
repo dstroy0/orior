@@ -79,18 +79,19 @@ int cli_cargo_result_line(const char *line, unsigned long long size, unsigned lo
     {
         length -= sizeof(s_panic) - 1ull;
     }
-    unsigned long long said = split + 5ull;
-    unsigned long long said_size = size - said;
-    report_trimmed(line, &said, &said_size);
-    if ((said_size == 2ull) && (memor.cmp(&(MemoriaCfg){.src = line + said, .other = "ok", .bytes = 2u}) == 0))
+    unsigned long long message_at = split + 5ull;
+    unsigned long long message_size = size - message_at;
+    report_trimmed(line, &message_at, &message_size);
+    if ((message_size == 2ull) && (memor.cmp(&(MemoriaCfg){.src = line + message_at, .other = "ok", .bytes = 2u}) == 0))
     {
         *outcome = "passed";
     }
-    else if ((said_size == 6ull) && (memor.cmp(&(MemoriaCfg){.src = line + said, .other = "FAILED", .bytes = 6u}) == 0))
+    else if ((message_size == 6ull) &&
+             (memor.cmp(&(MemoriaCfg){.src = line + message_at, .other = "FAILED", .bytes = 6u}) == 0))
     {
         *outcome = "failed";
     }
-    else if (report_starts(line, said, said_size, "ignored"))
+    else if (report_starts(line, message_at, message_size, "ignored"))
     {
         *outcome = "skipped";
     }
@@ -147,12 +148,12 @@ int cli_cargo_place_of(const char *text, unsigned long long size, char *path, lo
     {
         return 0;
     }
-    CliLine out = {path, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea out = {path, CLI_PATH_MAX_LEN, 0ull};
     for (unsigned long long at = 0ull; at + 1ull < number; at += 1ull)
     {
-        cli_line_character(&out, (base[at] == '\\') ? '/' : base[at]);
+        mmgr_line_ch(&out, (base[at] == '\\') ? '/' : base[at]);
     }
-    cli_line_closed(&out);
+    mmgr_line_finish(&out);
     *line = (long long)value;
     return 1;
 }
@@ -165,7 +166,7 @@ typedef struct
     unsigned long long name_size;
     unsigned long long message;
     unsigned long long message_size;
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     int placed;
     long long line;
 } CliCargoFailure;
@@ -181,7 +182,7 @@ static int report_failure_named(const char *out, unsigned long long start, unsig
 
 // the failure the lines after a test's `---- name stdout ----` give: its message and place, the lines read past
 static void report_failure_read(const char *out, unsigned long long size, unsigned long long *at,
-                                CliCargoFailure *failure, CliLine *text)
+                                CliCargoFailure *failure, VerbaLinea *text)
 {
     failure->message = text->at;
     failure->message_size = 0ull;
@@ -222,7 +223,7 @@ static void report_failure_read(const char *out, unsigned long long size, unsign
             }
             if (split >= 4ull)
             {
-                cli_line_counted(text, out + after + 1ull, split - 4ull);
+                mmgr_line_put_n(text, out + after + 1ull, split - 4ull);
                 failure->message_size = split - 4ull;
                 failure->placed = cli_cargo_place_of(out + after + split, rest - split, failure->path, &failure->line);
             }
@@ -247,8 +248,8 @@ static void report_failure_read(const char *out, unsigned long long size, unsign
                 break;
             }
             *at = peek;
-            cli_line_text(text, (failure->message_size > 0ull) ? "\n" : "");
-            cli_line_counted(text, out + start, length);
+            mmgr_line_put(text, (failure->message_size > 0ull) ? "\n" : "");
+            mmgr_line_put_n(text, out + start, length);
             failure->message_size = text->at - failure->message;
         }
         peek = *at;
@@ -272,9 +273,9 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
         named += report_failure_named(out, start, length) ? 1u : 0u;
     }
     CliCargoFailure *const failures =
-        cli_cell_taken(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), "the failures a report names");
-    char *const texts = cli_cell_taken(size + 1ull, "the failures' messages");
-    CliLine text = {texts, (texts != NULL) ? (size + 1ull) : 0ull, 0ull};
+        g_cli_cells->persistent_buf_alloc(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), NULL);
+    char *const texts = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
+    VerbaLinea text = {texts, (texts != NULL) ? (size + 1ull) : 0ull, 0ull};
     unsigned int count = 0u;
     at = 0ull;
     while ((failures != NULL) && (texts != NULL) && report_line(out, size, &at, &start, &length) && (count < named))
@@ -308,40 +309,40 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
                  failure->placed ? failure->path : NULL, failure->line);
         }
     }
-    cli_cell_given(texts);
-    cli_cell_given(failures);
+    g_cli_cells->persistent_buf_release(texts, NULL);
+    g_cli_cells->persistent_buf_release(failures, NULL);
 }
 
-int cli_cargo_build_error(const char *said, unsigned long long size, char *error, unsigned long long room,
+int cli_cargo_build_error(const char *output, unsigned long long size, char *error, unsigned long long room,
                           unsigned long long *length, char *path, long long *line)
 {
     unsigned long long at = 0ull;
     unsigned long long start = 0ull;
     unsigned long long size_of = 0ull;
     int found = 0;
-    while (!found && report_line(said, size, &at, &start, &size_of))
+    while (!found && report_line(output, size, &at, &start, &size_of))
     {
-        found = report_starts(said, start, size_of, "error");
+        found = report_starts(output, start, size_of, "error");
     }
     if (!found)
     {
         return 0;
     }
-    CliLine out = {error, room, 0ull};
-    cli_line_counted(&out, said + start, size_of);
-    *length = cli_line_fits(&out) ? out.at : room;
+    VerbaLinea out = {error, room, 0ull};
+    mmgr_line_put_n(&out, output + start, size_of);
+    *length = mmgr_line_ok(&out) ? out.at : room;
     path[0] = '\0';
-    for (unsigned int taken = 0u; (taken < 4u) && report_line(said, size, &at, &start, &size_of); taken += 1u)
+    for (unsigned int taken = 0u; (taken < 4u) && report_line(output, size, &at, &start, &size_of); taken += 1u)
     {
         while ((size_of > 0ull) &&
-               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = said[start]}) != NULL))
+               (cellul.chr(&(CatenaFinitaCfg){.src = " \t", .cap = CLI_CELLS_POOL, .byte = output[start]}) != NULL))
         {
             start += 1ull;
             size_of -= 1ull;
         }
-        if (report_starts(said, start, size_of, "--> "))
+        if (report_starts(output, start, size_of, "--> "))
         {
-            if (!cli_cargo_place_of(said + start + 4ull, size_of - 4ull, path, line))
+            if (!cli_cargo_place_of(output + start + 4ull, size_of - 4ull, path, line))
             {
                 path[0] = '\0';
             }
@@ -370,16 +371,16 @@ void cli_cargo_last_line(const char *text, unsigned long long size, const char *
             found = 1;
         }
     }
-    CliLine line = {out, room, 0ull};
-    cli_line_counted(&line, found ? text + last : none,
-                     found ? last_size : cellul.len(&(CatenaFinitaCfg){.src = none, .cap = CLI_CELLS_POOL}));
+    VerbaLinea line = {out, room, 0ull};
+    mmgr_line_put_n(&line, found ? text + last : none,
+                    found ? last_size : cellul.len(&(CatenaFinitaCfg){.src = none, .cap = CLI_CELLS_POOL}));
     *length = line.at;
 }
 
 void cli_cargo_workspace_of(const char *root, const char *package, char *workspace)
 {
-    char folder[CLI_PATH_LONGEST];
-    char above[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char above[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = workspace,
                             .src = package,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}) + 1u});
@@ -396,10 +397,10 @@ void cli_cargo_workspace_of(const char *root, const char *package, char *workspa
         {
             break;
         }
-        char manifest[CLI_PATH_LONGEST];
+        char manifest[CLI_PATH_MAX_LEN];
         cli_full(folder, "Cargo.toml", manifest);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_held(manifest, &size);
+        const unsigned char *const bytes = cli_file_read(manifest, &size);
         unsigned long long at = 0ull;
         unsigned long long start = 0ull;
         unsigned long long length = 0ull;

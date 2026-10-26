@@ -1,19 +1,20 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// forms.c: the forms: a question asked, an operand, a form's text, lines and addresses, a memory form's text and lines, the tally and the value, a form run and every form asked
+// forms.c: the forms: a question probed, an operand, a form's text, lines and addresses, a memory form's text and
+// lines, the tally and the value, a form run and every form probed
 #include "unprinted_internal.h"
 
 // how a form's unprinted run answered, value by value
 typedef struct
 {
     unsigned int alike;
-    unsigned int asked;
+    unsigned int queried;
     char otherwise[512];
 } UnprintedTally;
 
-// question `number` asked at every value of its field, each value's answer printed and written into `record`: how many
+// question `number` probed at every value of its field, each value's answer printed and written into `record`: how many
 // values answered as printed, or -1 where the question was not put
-int unprinted_ask(const UnprintedQuestion *question, unsigned int number, FILE *record)
+int unprinted_query(const UnprintedQuestion *question, unsigned int number, FILE *record)
 {
     // the field's bits as the record names them, none where the question turns no bit and runs its instruction as
     // the assembler wrote it
@@ -28,10 +29,10 @@ int unprinted_ask(const UnprintedQuestion *question, unsigned int number, FILE *
     }
     unsigned long long low = 0ull;
     unsigned long long high = 0ull;
-    const unsigned int count = unprinted_text(s_kernel_text, question->lines, s_asking, sizeof(s_asking))
-                                   ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code,
-                                                         sizeof(s_code))
-                                   : 0u;
+    const unsigned int count =
+        unprinted_text(s_kernel_text, question->lines, s_query_text, sizeof(s_query_text))
+            ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
+            : 0u;
     const int alone = (count != 0u) && sass_assemble(&s_machine, question->turned, 0ull, 0ull, SASS_CONTROL_SAFE,
                                                      &low, &high);
     unsigned int place = 0u;
@@ -42,15 +43,15 @@ int unprinted_ask(const UnprintedQuestion *question, unsigned int number, FILE *
         fprintf(record, "| %u | `%s` | %s | not put | | |\n", number, question->turned, span);
         return -1;
     }
-    // the instruction read back through the machine file, which gives its text where the reader holds its field
+    // the instruction read back through the machine file, which gives its text where the reader defines its field
     char read[SASS_MACHINE_TEXT];
     if (!sass_encoding_read(&s_machine, low, high, 0ull, read, sizeof(read)) || (strcmp(read, question->turned) != 0))
     {
         printf("  %s reads back as %s\n", question->turned, read);
     }
     const unsigned long long code_size = 16ull * count;
-    char held[64];
-    unprinted_binary(unprinted_bits_read(low, high, question->first, question->bits), question->bits, held);
+    char value_text[64];
+    unprinted_binary(unprinted_bits_read(low, high, question->first, question->bits), question->bits, value_text);
     char fixed[64] = "";
     for (unsigned int at = 0u; at < UNPRINTED_FIXED; at += 1u)
     {
@@ -58,10 +59,10 @@ int unprinted_ask(const UnprintedQuestion *question, unsigned int number, FILE *
         if (one->bits != 0u)
         {
             const size_t written = strlen(fixed);
-            snprintf(&fixed[written], sizeof(fixed) - written, ", bit %u held at %llu", one->first, one->value);
+            snprintf(&fixed[written], sizeof(fixed) - written, ", bit %u fixed at %llu", one->first, one->value);
         }
     }
-    printf("  %s, bits %s%s, the form holds %s, as printed %08x\n", question->turned, span, fixed, held,
+    printf("  %s, bits %s%s, the form contains %s, as printed %08x\n", question->turned, span, fixed, value_text,
            question->answer);
     int printed = 0;
     const unsigned long long values = 1ull << question->bits;
@@ -87,19 +88,19 @@ int unprinted_ask(const UnprintedQuestion *question, unsigned int number, FILE *
             snprintf(reading, sizeof(reading), "did not run: %s", ended);
         }
         printf("    %s %s\n", digits, reading);
-        fprintf(record, "| %u | `%s` | %s%s | %s | %s | %s |\n", number, question->turned, span, fixed, held, digits,
-                reading);
+        fprintf(record, "| %u | `%s` | %s%s | %s | %s | %s |\n", number, question->turned, span, fixed, value_text,
+                digits, reading);
     }
     printf("    %d of %llu values answer as printed\n", printed, values);
     return printed;
 }
 
 // One operand of a form filled for the forms question, from its form's own operand `base` of `kind` at `place`, into
-// `operand`. The first operand is the result: R8, P0 or UR6. A register read is R0 and R6 in turn, which hold 0xb and
-// 0x7, a predicate read P1, which is true, and a uniform register read UR4, which holds the memory descriptor. RZ, PT,
-// URZ, a number and a constant past bank 0 are kept, and a constant in bank 0 reads c[0x0][0x0], which every run
-// holds alike. A register keeps what follows its name, a half or a width. 1, or 0 where the kind is one this question
-// does not fill
+// `operand`. The first operand is the result: R8, P0 or UR6. A register read is R0 and R6 in turn, which contain 0xb
+// and 0x7, a predicate read P1, which is true, and a uniform register read UR4, which contains the memory descriptor.
+// RZ, PT, URZ, a number and a constant past bank 0 are retained, and a constant in bank 0 reads c[0x0][0x0], which
+// every run contains alike. A register retains what follows its name, a half or a width. 1, or 0 where the kind is one
+// this question does not fill
 static int unprinted_operand(const char *base, unsigned int kind, unsigned int mark, unsigned int place,
                              unsigned int *reads, char *operand, size_t room)
 {
@@ -175,17 +176,17 @@ static int unprinted_form_lines(const char *instruction, unsigned int result, ch
         const char *const moved = (result == SASS_OPERAND_PREDICATE) ? "SEL R8, R0, RZ, P0\n"
                                   : (result == SASS_OPERAND_UNIFORM) ? "MOV R8, UR6\n"
                                                                      : "";
-        char kept[64];
+        char field_text[64];
         if (copy == 0u)
         {
-            snprintf(kept, sizeof(kept), "IMAD.MOV.U32 R7, RZ, RZ, R8");
+            snprintf(field_text, sizeof(field_text), "IMAD.MOV.U32 R7, RZ, RZ, R8");
         }
         else
         {
-            snprintf(kept, sizeof(kept), "STG.E term[UR4][R4.64+0x%x], R8", 4u * copy);
+            snprintf(field_text, sizeof(field_text), "STG.E term[UR4][R4.64+0x%x], R8", 4u * copy);
         }
-        at += (size_t)snprintf(lines + at, room - at, "%s%s\n%s%s%s", UNPRINTED_PREDICATES, instruction, moved, kept,
-                               (copy + 1u < UNPRINTED_COPIES) ? "\n" : "");
+        at += (size_t)snprintf(lines + at, room - at, "%s%s\n%s%s%s", UNPRINTED_PREDICATES, instruction, moved,
+                               field_text, (copy + 1u < UNPRINTED_COPIES) ? "\n" : "");
     }
     return at < room;
 }
@@ -201,10 +202,10 @@ static int unprinted_form_addresses(const SassForm *form)
     return addresses;
 }
 
-// `form`, which takes an address, written for the memory question into `text`: a predicate P0, or PT where it holds
+// `form`, which takes an address, written for the memory question into `text`: a predicate P0, or PT where it contains
 // PT; a register before the address R10, the one an atomic writes the word it found into; the address the answer's
 // third word, R4 with 0x8 added, 64 bits wide where the form's own is; and a register after it R0 and R6 in turn,
-// which hold 0xb and 0x7. 1, or 0 with the reason in `why` where an operand is a kind the question does not fill
+// which contain 0xb and 0x7. 1, or 0 with the reason in `why` where an operand is a kind the question does not fill
 static int unprinted_memory_text(const SassForm *form, char *text, size_t room, const char **why)
 {
     SassInstructionParts base;
@@ -259,7 +260,7 @@ static void unprinted_tally_otherwise(UnprintedTally *tally, unsigned long long 
     snprintf(&tally->otherwise[at], sizeof(tally->otherwise) - at, "%s%s %s", (at == 0u) ? "" : "; ", digits, reading);
 }
 
-// The values asked of one run: every one where the run is UNPRINTED_FIELD_MOST bits or fewer, else the form's own
+// The values probed in one run: every one where the run is UNPRINTED_FIELD_MOST bits or fewer, else the form's own
 // value with each bit turned in turn. Value `index` of them, or the count where `index` is past them
 static unsigned long long unprinted_value(unsigned int bits, unsigned long long own, unsigned long long index,
                                           unsigned long long *count)
@@ -268,31 +269,31 @@ static unsigned long long unprinted_value(unsigned int bits, unsigned long long 
     return (bits <= UNPRINTED_FIELD_MOST) ? index : (own ^ (1ull << index));
 }
 
-// One unprinted run of a form asked at its values, `copies` at a run, against `own`, what the form's own bits
-// answered. With several copies each answers one word, held against own[0]; with one, all four words are its and are
-// held against own's four. A run that did not run asks each of its values again alone, the other copies at the form's
-// own bits
+// One unprinted run of a form probed at its values, `copies` at a run, against `own`, what the form's own bits
+// answered. With several copies each answers one word, compared against own[0]; with one, all four words are its and
+// are compared against own's four. A run that did not run probes each of its values again alone, the other copies at
+// the form's own bits
 static void unprinted_form_run(const unsigned int *places, unsigned int copies, unsigned long long code_size,
-                               const SassRun *run, unsigned long long held, const unsigned int *own,
+                               const SassRun *run, unsigned long long field_value, const unsigned int *own,
                                UnprintedTally *tally)
 {
     const unsigned int bits = (run->last - run->first) + 1u;
     unsigned long long count = 0ull;
-    unprinted_value(bits, held, 0ull, &count);
+    unprinted_value(bits, field_value, 0ull, &count);
     for (unsigned long long start = 0ull; start < count; start += copies)
     {
         memcpy(s_turned, s_code, (size_t)code_size);
         for (unsigned int copy = 0u; (copy < copies) && ((start + copy) < count); copy += 1u)
         {
             unprinted_place_write(s_turned, places[copy], NULL, 0u, run->first, bits,
-                                  unprinted_value(bits, held, start + copy, &count));
+                                  unprinted_value(bits, field_value, start + copy, &count));
         }
         unsigned int answered[UNPRINTED_COPIES] = {0u, 0u, 0u, 0u};
         char ended[96] = "";
         const int ran = unprinted_run(s_turned, code_size, answered, ended, sizeof(ended));
         for (unsigned int copy = 0u; (copy < copies) && ((start + copy) < count); copy += 1u)
         {
-            const unsigned long long value = unprinted_value(bits, held, start + copy, &count);
+            const unsigned long long value = unprinted_value(bits, field_value, start + copy, &count);
             unsigned int word = answered[copy];
             int alone = ran;
             if (!ran && (copies > 1u))
@@ -302,7 +303,7 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
                 alone = unprinted_run(s_turned, code_size, answered, ended, sizeof(ended));
                 word = answered[0];
             }
-            tally->asked += 1u;
+            tally->queried += 1u;
             char reading[128];
             if (!alone)
             {
@@ -330,38 +331,39 @@ static void unprinted_form_run(const unsigned int *places, unsigned int copies, 
     }
 }
 
-// Every form the machine file holds with an operand it does not print, each written with its operands filled
-// (unprinted_form_text), UNPRINTED_COPIES copies to a cubin, and each unprinted run asked at its values against what
-// the form's own bits answer. A row of `record` for each run asked and each form not asked
+// Every form the machine file contains with an operand it does not print, each written with its operands filled
+// (unprinted_form_text), UNPRINTED_COPIES copies to a cubin, and each unprinted run probed at its values against what
+// the form's own bits answer. A row of `record` for each run probed and each form not probed
 void unprinted_forms(FILE *record)
 {
-    fprintf(record, "# Every form's unprinted operands, asked of the part\n\n"
-                    "Written by `interface_sass_probe_unprinted` (`interface_sass_unprinted.sh --forms`) whole on "
-                    "every run. Each form holding a run of an operand it does not print is written with its operands "
-                    "filled: its result R8, P0 or UR6, registers it reads R0 and R6 (0xb and 0x7), predicates it "
-                    "reads P1 (true), uniform registers UR4, a constant in bank 0 c[0x0][0x0], four copies to a "
-                    "run, each answering one word. A form that takes an address is written once a run with its address "
-                    "the answer's third word, R4 with 0x8 added, a register before the address R10 and one after it R0 "
-                    "and R6, and answers four words: the third word loaded back, the word it found, the third word, "
-                    "and 0. Every cubin declares %u registers a thread. Each run is asked at every value where it is "
-                    "%u bits or fewer, else at the form's own value with each bit turned, against what the form's own "
-                    "bits answer. A run every value of which answers alike is one the part does not read on that "
-                    "question.\n\n"
-                    "| form | asked as | bits | the form holds | its own bits answer | values alike | values "
-                    "otherwise |\n|---|---|---|---|---|---|---|\n",
+    fprintf(record,
+            "# Every form's unprinted operands, probed on the part\n\n"
+            "Written by `interface_sass_probe_unprinted` (`interface_sass_unprinted.sh --forms`) whole on "
+            "every run. Each form containing a run of an operand it does not print is written with its operands "
+            "filled: its result R8, P0 or UR6, registers it reads R0 and R6 (0xb and 0x7), predicates it "
+            "reads P1 (true), uniform registers UR4, a constant in bank 0 c[0x0][0x0], four copies to a "
+            "run, each answering one word. A form that takes an address is written once a run with its address "
+            "the answer's third word, R4 with 0x8 added, a register before the address R10 and one after it R0 "
+            "and R6, and answers four words: the third word loaded back, the word it found, the third word, "
+            "and 0. Every cubin declares %u registers a thread. Each run is probed at every value where it is "
+            "%u bits or fewer, else at the form's own value with each bit turned, against what the form's own "
+            "bits answer. A run every value of which answers alike is one the part does not read on that "
+            "question.\n\n"
+            "| form | probed as | bits | the form contains | its own bits answer | values alike | values "
+            "otherwise |\n|---|---|---|---|---|---|---|\n",
             UNPRINTED_REGISTERS, UNPRINTED_FIELD_MOST);
     unsigned int forms = 0u;
-    unsigned int asked = 0u;
+    unsigned int queried = 0u;
     unsigned int unread = 0u;
     for (unsigned int number = 0u; number < s_machine.forms; number += 1u)
     {
         const SassForm *const form = &s_machine.form[number];
-        int holds = 0;
+        int matches = 0;
         for (unsigned int at = 0u; at < form->runs; at += 1u)
         {
-            holds = holds || (form->run[at].operand >= form->operands);
+            matches = matches || (form->run[at].operand >= form->operands);
         }
-        if (!holds)
+        if (!matches)
         {
             continue;
         }
@@ -372,7 +374,7 @@ void unprinted_forms(FILE *record)
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
         unsigned int places[UNPRINTED_COPIES] = {0u, 0u, 0u, 0u};
-        // a form that takes an address is asked once a run through the word it writes, and every other through the
+        // a form that takes an address is probed once a run through the word it writes, and every other through the
         // copies of its result
         const int memory = unprinted_form_addresses(form);
         const unsigned int copies = memory ? 1u : UNPRINTED_COPIES;
@@ -381,10 +383,10 @@ void unprinted_forms(FILE *record)
         const int lined = written && (memory ? unprinted_memory_lines(instruction, s_lines, sizeof(s_lines))
                                              : unprinted_form_lines(instruction, form->kind[0], s_lines,
                                                                     sizeof(s_lines)));
-        const unsigned int count = (lined && unprinted_text(s_kernel_text, s_lines, s_asking, sizeof(s_asking)))
-                                       ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code,
-                                                             sizeof(s_code))
-                                       : 0u;
+        const unsigned int count =
+            (lined && unprinted_text(s_kernel_text, s_lines, s_query_text, sizeof(s_query_text)))
+                ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
+                : 0u;
         const int alone =
             (count != 0u) && sass_assemble(&s_machine, instruction, 0ull, 0ull, SASS_CONTROL_SAFE, &low, &high);
         const int found = alone && (unprinted_find(s_code, count, low, high, places, UNPRINTED_COPIES) == copies);
@@ -403,13 +405,12 @@ void unprinted_forms(FILE *record)
         }
         if (!steady)
         {
-            printf("  %s: not asked, %s%s%s\n", form->text, why, (found && !ran) ? ": " : "",
+            printf("  %s: not probed, %s%s%s\n", form->text, why, (found && !ran) ? ": " : "",
                    (found && !ran) ? ended : "");
-            fprintf(record, "| `%s` | %s | | | not asked: %s | | |\n", form->text,
-                    written ? instruction : "", why);
+            fprintf(record, "| `%s` | %s | | | not probed: %s | | |\n", form->text, written ? instruction : "", why);
             continue;
         }
-        asked += 1u;
+        queried += 1u;
         for (unsigned int at = 0u; at < form->runs; at += 1u)
         {
             const SassRun *const run = &form->run[at];
@@ -418,21 +419,21 @@ void unprinted_forms(FILE *record)
                 continue;
             }
             const unsigned int bits = (run->last - run->first) + 1u;
-            const unsigned long long held = unprinted_bits_read(low, high, run->first, bits);
+            const unsigned long long field_value = unprinted_bits_read(low, high, run->first, bits);
             UnprintedTally tally;
             memset(&tally, 0, sizeof(tally));
-            unprinted_form_run(places, copies, 16ull * count, run, held, own, &tally);
-            unread += (tally.alike == tally.asked) ? 1u : 0u;
+            unprinted_form_run(places, copies, 16ull * count, run, field_value, own, &tally);
+            unread += (tally.alike == tally.queried) ? 1u : 0u;
             char digits[64];
-            unprinted_binary(held, (bits < 63u) ? bits : 63u, digits);
+            unprinted_binary(field_value, (bits < 63u) ? bits : 63u, digits);
             printf("  %s, bits %u-%u, %u of %u values alike%s%s\n", instruction, run->first, run->last, tally.alike,
-                   tally.asked, (tally.otherwise[0] != '\0') ? ": " : "", tally.otherwise);
+                   tally.queried, (tally.otherwise[0] != '\0') ? ": " : "", tally.otherwise);
             fprintf(record, "| `%s` | `%s` | %u-%u | %s | %08x | %u of %u | %s |\n", form->text, instruction,
-                    run->first, run->last, digits, own[0], tally.alike, tally.asked, tally.otherwise);
+                    run->first, run->last, digits, own[0], tally.alike, tally.queried, tally.otherwise);
         }
     }
-    fprintf(record, "\n%u forms hold an unprinted run, %u asked, %u runs answering alike at every value asked.\n",
-            forms, asked, unread);
-    printf("interface sass unprinted: %u forms hold an unprinted run, %u asked, %u runs answering alike\n", forms,
-           asked, unread);
+    fprintf(record, "\n%u forms contain an unprinted run, %u probed, %u runs answering alike at every value probed.\n",
+            forms, queried, unread);
+    printf("interface sass unprinted: %u forms contain an unprinted run, %u probed, %u runs answering alike\n", forms,
+           queried, unread);
 }

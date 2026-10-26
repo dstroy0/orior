@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // posix_door.c: the door on Linux and macOS: a socket in a folder only the reader can open, the process at the other
-// end of each connection as the system says it, and each descriptor that comes with the bytes read kept for the frame
-// that names it
+// end of each connection as the system reports it, and each descriptor that comes with the bytes read queued for the
+// frame that names it
 #if !defined(_WIN32)
 // the peer's credentials and the socket's calls are POSIX and the systems' own, outside strict C11
 #if defined(__linux__)
@@ -22,16 +22,16 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-// what the system said of the last call that failed, after `what`
-static void door_failed(CliLine *said, const char *what)
+// what the system reported of the last call that failed, after `what`
+static void door_failed(VerbaLinea *err_msg, const char *what)
 {
     const int error = errno;
-    cli_line_text(said, what);
-    cli_line_text(said, ": the system said ");
-    cli_line_decimal(said, (unsigned long long)error, 1u);
+    mmgr_line_put(err_msg, what);
+    mmgr_line_put(err_msg, ": the system reported ");
+    mmgr_line_decimal(err_msg, (unsigned long long)error, 1u);
 }
 
-// the socket address of the path `path` into `address`: 1, or 0 where the path is longer than a socket's name holds
+// the socket address of the path `path` into `address`: 1, or 0 where the path is longer than a socket's name fits
 static int door_address(const char *path, struct sockaddr_un *address)
 {
     memor.set(&(MemoriaCfg){.dst = address, .val = 0, .bytes = sizeof(*address)});
@@ -58,55 +58,55 @@ static void door_end_made(CliDoorEnd *end, int fd)
     memor.set(&(MemoriaCfg){.dst = end, .val = 0, .bytes = sizeof(*end)});
     end->handle = (unsigned long long)fd;
     end->open = 1;
-    end->kept.lock = (CliLock)CLI_LOCK_INIT;
+    end->pending.lock = (CliLock)CLI_LOCK_INIT;
 }
 
-int cli_door_listening(CliDoorListener *listener, char *address, CliLine *said)
+int cli_door_listening(CliDoorListener *listener, char *address, VerbaLinea *err_msg)
 {
     unsigned char secret[8];
-    char temporary[CLI_PATH_LONGEST];
+    char temporary[CLI_PATH_MAX_LEN];
     char name[96];
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_random_bytes(secret, sizeof(secret)))
     {
-        cli_line_text(said, "the system gave no secret");
+        mmgr_line_put(err_msg, "the system gave no secret");
         return 0;
     }
-    CliLine named = {name, sizeof(name), 0ull};
-    cli_line_text(&named, "orior-comms-");
-    cli_line_decimal(&named, cli_process_own(), 1u);
-    cli_line_character(&named, '-');
+    VerbaLinea named = {name, sizeof(name), 0ull};
+    mmgr_line_put(&named, "orior-comms-");
+    mmgr_line_decimal(&named, cli_process_own(), 1u);
+    mmgr_line_ch(&named, '-');
     for (unsigned int at = 0u; at < sizeof(secret); at += 1u)
     {
-        cli_line_character(&named, "0123456789abcdef"[secret[at] >> 4u]);
-        cli_line_character(&named, "0123456789abcdef"[secret[at] & 15u]);
+        mmgr_line_ch(&named, "0123456789abcdef"[secret[at] >> 4u]);
+        mmgr_line_ch(&named, "0123456789abcdef"[secret[at] & 15u]);
     }
-    cli_line_closed(&named);
+    mmgr_line_finish(&named);
     cli_temp_folder(temporary);
     cli_full(temporary, name, folder);
     if (mkdir(folder, 0700) != 0)
     {
-        door_failed(said, folder);
+        door_failed(err_msg, folder);
         return 0;
     }
     cli_full(folder, "door", address);
     struct sockaddr_un bound;
     if (!door_address(address, &bound))
     {
-        cli_line_text(said, address);
-        cli_line_text(said, ": the path is longer than a socket's name holds");
+        mmgr_line_put(err_msg, address);
+        mmgr_line_put(err_msg, ": the path is longer than a socket's name fits");
         return 0;
     }
     const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        door_failed(said, address);
+        door_failed(err_msg, address);
         return 0;
     }
     (void)fcntl(fd, F_SETFD, FD_CLOEXEC);
     if ((bind(fd, (const struct sockaddr *)&bound, sizeof(bound)) != 0) || (listen(fd, 128) != 0))
     {
-        door_failed(said, address);
+        door_failed(err_msg, address);
         close(fd);
         return 0;
     }
@@ -116,7 +116,7 @@ int cli_door_listening(CliDoorListener *listener, char *address, CliLine *said)
     return 1;
 }
 
-// the process at the other end of the socket `fd`, as the system says: 1 with it into `peer`, or 0 where it does not
+// the process at the other end of the socket `fd`, as the system reports: 1 with it into `peer`, or 0 where it does not
 static int door_peer(int fd, unsigned int *peer)
 {
 #if defined(__linux__)
@@ -139,10 +139,11 @@ static int door_peer(int fd, unsigned int *peer)
 #endif
 }
 
-int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer, CliLine *said)
+int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer,
+                      VerbaLinea *err_msg)
 {
     cli_lock_take(&listener->lock);
-    // the socket was a descriptor when it was kept
+    // the socket was a descriptor when it was stored
     const int socket_fd = (int)listener->waiting;
     cli_lock_give(&listener->lock);
     int fd = -1;
@@ -152,7 +153,7 @@ int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer,
     } while ((fd < 0) && (errno == EINTR));
     if (fd < 0)
     {
-        door_failed(said, "no process joined");
+        door_failed(err_msg, "no process joined");
         return 0;
     }
     door_end_made(end, fd);
@@ -160,24 +161,24 @@ int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer,
     return 1;
 }
 
-int cli_door_connected(const char *address, CliDoorEnd *end, CliLine *said)
+int cli_door_connected(const char *address, CliDoorEnd *end, VerbaLinea *err_msg)
 {
     struct sockaddr_un joined;
     if (!door_address(address, &joined))
     {
-        cli_line_text(said, address);
-        cli_line_text(said, ": the path is longer than a socket's name holds");
+        mmgr_line_put(err_msg, address);
+        mmgr_line_put(err_msg, ": the path is longer than a socket's name fits");
         return 0;
     }
     const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (fd < 0)
     {
-        door_failed(said, address);
+        door_failed(err_msg, address);
         return 0;
     }
     if (connect(fd, (const struct sockaddr *)&joined, sizeof(joined)) != 0)
     {
-        door_failed(said, address);
+        door_failed(err_msg, address);
         close(fd);
         return 0;
     }
@@ -190,7 +191,7 @@ int cli_door_read(CliDoorEnd *end, void *bytes, unsigned long long size)
     unsigned char *const into = (unsigned char *)bytes;
     for (unsigned long long at = 0ull; at < size;)
     {
-        const long long got = cli_socket_received((int)end->handle, into + at, size - at, &end->kept);
+        const long long got = cli_socket_received((int)end->handle, into + at, size - at, &end->pending);
         if (got <= 0ll)
         {
             return 0;
@@ -230,7 +231,7 @@ int cli_door_written(CliDoorEnd *end, const void *bytes, unsigned long long size
 
 int cli_door_descriptor(CliDoorEnd *end)
 {
-    return cli_descriptor_taken(&end->kept);
+    return cli_descriptor_taken(&end->pending);
 }
 
 void cli_door_shut(CliDoorEnd *end)
@@ -246,7 +247,7 @@ void cli_door_closed(CliDoorEnd *end)
     if (end->open)
     {
         close((int)end->handle);
-        cli_descriptors_closed(&end->kept);
+        cli_descriptors_closed(&end->pending);
     }
     end->open = 0;
     end->handle = 0ull;

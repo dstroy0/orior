@@ -14,15 +14,15 @@
 //
 // A text's split-half distance is D between its two halves, cut at the midpoint (lines [0, n/2) and [n/2, n)) and,
 // for a corpus, alternating as well (the even lines and the odd). A text of fewer than two lines, or with a half
-// holding no pair, has split-half distance 1, as self_distance gives it.
+// containing no pair, has split-half distance 1, as self_distance gives it.
 //
 // What is read:
 //   a pair of corpora reads where D clears the larger split-half distance of the two by the input's margin m;
-//   a paper is read only where it holds at least the input's least count of pairs. Its distances to the language
+//   a paper is read only where it contains at least the input's least count of pairs. Its distances to the language
 //     corpora, English left out, are ordered with ties broken by name. The gap is the runner-up's distance less the
 //     nearest's, and the paper reads where the gap clears m times its own midpoint split-half distance, as
-//     language_check.py asks it;
-//   the medians of the gaps and of the split-half distances over the papers held and not read, each the middle
+//     language_check.py requests it;
+//   the medians of the gaps and of the split-half distances over the papers reserved and not read, each the middle
 //     value, or the mean of the middle two where the count is even.
 //
 // Eight programs of the record machine, each built by a request that carries only its field widths:
@@ -39,7 +39,8 @@
 // The input is what gold_readings.py writes: "margin <numerator> <denominator>", "least <pairs>", each corpus as
 // "corpus <name> <lines>" and that many lines, then each paper as "paper <stem> <language> <lines>" and its lines.
 //
-// The output holds the records whole. The figures, where named, are the TeX macros the Salishan research paper reads.
+// The output contains the records whole. The figures, where named, are the TeX macros the Salishan research paper
+// reads.
 //
 // Checks:
 //   1. each program imprints and lays out;
@@ -52,7 +53,9 @@
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include "record_stages.h"
@@ -69,7 +72,7 @@
 
 #define GOLD_CELLS 65536u
 
-// the widest total a field holds, so that 2 A B fits 64 bits
+// the widest total a field stores, so that 2 A B fits 64 bits
 #define GOLD_TOTAL_BITS_MOST 31u
 
 
@@ -102,7 +105,7 @@ typedef struct
 {
     size_t text;
     size_t whole;
-    int held;
+    int qualified;
     std::vector<size_t> against;
     size_t own;
     std::vector<size_t> order;
@@ -328,8 +331,8 @@ int main(int count, char **arguments)
         paper.reads = 0;
         const size_t lines = texts[at].lines.size();
         tables.push_back(gold_squash(texts[at].lines, stage_run(0u, lines, 1u)));
-        paper.held = tables.back().total >= least;
-        if (paper.held)
+        paper.qualified = tables.back().total >= least;
+        if (paper.qualified)
         {
             for (size_t one = 0u; one < anchors.size(); one += 1u)
             {
@@ -374,7 +377,7 @@ int main(int count, char **arguments)
     const unsigned int total_bits = stage_bits(stage_whole(most_total));
     if (!whole || (total_bits > GOLD_TOTAL_BITS_MOST))
     {
-        fprintf(stderr, "  gold_readings: a table is empty or holds more than 2^%u pairs\n", GOLD_TOTAL_BITS_MOST);
+        fprintf(stderr, "  gold_readings: a table is empty or contains more than 2^%u pairs\n", GOLD_TOTAL_BITS_MOST);
         return 2;
     }
 
@@ -408,7 +411,7 @@ int main(int count, char **arguments)
     }
 
     int ok = stage_lay(&job, &distance_stage, &error);
-    // the buffers the program names for itself: the distance stage's records in and out, the most it holds at once
+    // the buffers the program names for itself: the distance stage's records in and out, the most it stores at once
     const unsigned long long declared =
         lanes * ((unsigned long long)in_limbs + distance_stage.layout.out_limbs) * sizeof(unsigned int);
     ok = ok && sim_job_submit(&job, "gold_readings", count, arguments, declared);
@@ -519,7 +522,7 @@ int main(int count, char **arguments)
     std::vector<StageOrder> paper_orders(papers.size());
     for (size_t at = 0u; at < papers.size(); at += 1u)
     {
-        if (!papers[at].held)
+        if (!papers[at].qualified)
         {
             continue;
         }
@@ -541,7 +544,7 @@ int main(int count, char **arguments)
     }
     for (size_t at = 0u; ok && (at < papers.size()); at += 1u)
     {
-        if (papers[at].held)
+        if (papers[at].qualified)
         {
             stage_order_read(&paper_orders[at], first_signs);
             for (size_t one = 0u; one < paper_orders[at].sorted.size(); one += 1u)
@@ -551,7 +554,7 @@ int main(int count, char **arguments)
         }
     }
 
-    // each held paper's gap between its nearest corpus and the runner-up
+    // each reserved paper's gap between its nearest corpus and the runner-up
     Stage gap_stage;
     memset(&gap_stage, 0, sizeof(gap_stage));
     gap_stage.name = "gap";
@@ -560,7 +563,7 @@ int main(int count, char **arguments)
     std::vector<size_t> gapped;
     for (size_t at = 0u; ok && (at < papers.size()); at += 1u)
     {
-        if (papers[at].held && (papers[at].order.size() >= 2u))
+        if (papers[at].qualified && (papers[at].order.size() >= 2u))
         {
             const StageRational &one = comparisons[papers[at].against[paper_orders[at].sorted[0]]].distance;
             const StageRational &two = comparisons[papers[at].against[paper_orders[at].sorted[1]]].distance;
@@ -598,7 +601,7 @@ int main(int count, char **arguments)
         papers[gapped[at]].reads = second_signs[at] == 1;
     }
 
-    // the third compare: the orders of the gaps and of the split-half distances over the papers held and not read
+    // the third compare: the orders of the gaps and of the split-half distances over the papers reserved and not read
     StageOrder gap_order;
     StageOrder floor_order;
     for (size_t at = 0u; at < gapped.size(); at += 1u)
@@ -630,25 +633,25 @@ int main(int count, char **arguments)
     mean_stage.name = "mean";
     StageOrder *medians_of[2] = {&gap_order, &floor_order};
     StageRational medians[2] = {stage_unit(), stage_unit()};
-    int median_held[2] = {0, 0};
+    int median_qualified[2] = {0, 0};
     StageRows mean_rows;
     std::vector<size_t> mean_for;
     std::vector<StageRational> mean_values;
     for (size_t at = 0u; ok && (at < 2u); at += 1u)
     {
-        const size_t held = medians_of[at]->sorted.size();
-        if (held == 0u)
+        const size_t sorted_size = medians_of[at]->sorted.size();
+        if (sorted_size == 0u)
         {
             continue;
         }
-        median_held[at] = 1;
-        const StageRational &upper = medians_of[at]->values[medians_of[at]->sorted[held / 2u]];
-        if ((held % 2u) == 1u)
+        median_qualified[at] = 1;
+        const StageRational &upper = medians_of[at]->values[medians_of[at]->sorted[sorted_size / 2u]];
+        if ((sorted_size % 2u) == 1u)
         {
             medians[at] = upper;
             continue;
         }
-        const StageRational &lower = medians_of[at]->values[medians_of[at]->sorted[(held / 2u) - 1u]];
+        const StageRational &lower = medians_of[at]->values[medians_of[at]->sorted[(sorted_size / 2u) - 1u]];
         mean_rows.push_back({lower.num, lower.den, upper.num, upper.den});
         mean_values.push_back(lower);
         mean_values.push_back(upper);
@@ -687,7 +690,8 @@ int main(int count, char **arguments)
     std::vector<StageRational> noise_values = {medians[0], medians[1]};
     stage_ratio_program(stage_widest(noise_values), &noise_stage.program);
     StageRows noise_rows;
-    if (median_held[0] && median_held[1] && (stage_sign(medians[0].num, 32u * (unsigned int)medians[0].num.size()) > 0))
+    if (median_qualified[0] && median_qualified[1] &&
+        (stage_sign(medians[0].num, 32u * (unsigned int)medians[0].num.size()) > 0))
     {
         noise_rows.push_back({medians[1].num, medians[1].den, medians[0].num, medians[0].den});
     }
@@ -712,7 +716,7 @@ int main(int count, char **arguments)
     std::vector<std::string> decimal(printed.size());
     for (size_t at = 0u; ok && (at < printed.size()); at += 1u)
     {
-        // the six digits are below 10^6, which the first limb holds
+        // the six digits are below 10^6, which the first limb stores
         char fraction[32];
         snprintf(fraction, sizeof(fraction), "%06u", digit_out[at][1][0]);
         decimal[at] = stage_text_of(digit_out[at][0]) + "." + fraction;
@@ -736,7 +740,7 @@ int main(int count, char **arguments)
     unsigned int agreed = 0u;
     for (size_t at = 0u; at < papers.size(); at += 1u)
     {
-        small += (unsigned int)!papers[at].held;
+        small += (unsigned int)!papers[at].qualified;
         if (papers[at].reads)
         {
             read += 1u;
@@ -776,15 +780,16 @@ int main(int count, char **arguments)
         {
             const GoldPaper &paper = papers[at];
             const GoldText &text = texts[paper.text];
-            if (!paper.held)
+            if (!paper.qualified)
             {
-                fprintf(out, "paper %s says %s pairs %llu held 0\n", text.name.c_str(), text.language.c_str(),
+                fprintf(out, "paper %s attributes %s pairs %llu reserved 0\n", text.name.c_str(), text.language.c_str(),
                         tables[paper.whole].total);
                 continue;
             }
             const int gapped_here = (gap_place < gapped.size()) && (gapped[gap_place] == at);
-            fprintf(out, "paper %s says %s pairs %llu held 1 nearest %s", text.name.c_str(), text.language.c_str(),
-                    tables[paper.whole].total, paper.order.empty() ? "-" : corpora[paper.order[0]].name.c_str());
+            fprintf(out, "paper %s attributes %s pairs %llu reserved 1 nearest %s", text.name.c_str(),
+                    text.language.c_str(), tables[paper.whole].total,
+                    paper.order.empty() ? "-" : corpora[paper.order[0]].name.c_str());
             if (gapped_here)
             {
                 fprintf(out, " gap %s / %s split %s / %s reads %d", stage_text_of(paper.gap.num).c_str(),
@@ -796,7 +801,7 @@ int main(int count, char **arguments)
         }
         for (size_t at = 0u; at < 2u; at += 1u)
         {
-            if (median_held[at])
+            if (median_qualified[at])
             {
                 fprintf(out, "median %s = %s / %s\n", (at == 0u) ? "gap" : "split", stage_text_of(medians[at].num).c_str(),
                         stage_text_of(medians[at].den).c_str());
@@ -823,10 +828,11 @@ int main(int count, char **arguments)
         }
         printf("\n  %u of %zu pairs read against the midpoint split-half distances, %u against the alternating\n",
                pairs_read[0], pairs, pairs_read[1]);
-        printf("  %zu papers name a language the corpora cover: %u hold fewer than %llu pairs, %u read and agree with"
-               " their prose on %u, %u do not read\n",
-               papers.size(), small, least, read, agreed, unread);
-        if (median_held[0])
+        printf(
+            "  %zu papers name a language the corpora cover: %u contain fewer than %llu pairs, %u read and agree with"
+            " their prose on %u, %u do not read\n",
+            papers.size(), small, least, read, agreed, unread);
+        if (median_qualified[0])
         {
             printf("  over the %u that do not read, the median gap is %s and the median split-half distance %s\n",
                    unread, decimal[median_at].c_str(), decimal[median_at + 1u].c_str());
@@ -885,9 +891,10 @@ int main(int count, char **arguments)
             fprintf(figures, "\\newcommand{\\GoldPapersAgreed}{%u}\n", agreed);
             fprintf(figures, "\\newcommand{\\GoldPapersUnread}{%u}\n", unread);
             fprintf(figures, "\\newcommand{\\GoldPapersNotRead}{%u}\n", unread + small);
-            fprintf(figures, "\\newcommand{\\GoldMedianGap}{%.6s}\n", median_held[0] ? decimal[median_at].c_str() : "--");
+            fprintf(figures, "\\newcommand{\\GoldMedianGap}{%.6s}\n",
+                    median_qualified[0] ? decimal[median_at].c_str() : "--");
             fprintf(figures, "\\newcommand{\\GoldMedianSplit}{%.6s}\n",
-                    median_held[1] ? decimal[median_at + 1u].c_str() : "--");
+                    median_qualified[1] ? decimal[median_at + 1u].c_str() : "--");
             const std::string noise = (noise_at < decimal.size()) ? decimal[noise_at] : std::string("--");
             fprintf(figures, "\\newcommand{\\GoldNoiseTimes}{%s}\n", noise.substr(0u, noise.find('.')).c_str());
             // the pairs of languages alone, English left out: how many, how many read alternating, and how many

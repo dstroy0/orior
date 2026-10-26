@@ -3,11 +3,11 @@
 //
 // The checkers (cell_tracking/src/check) shown to fire. Under the directory named this writes, by hand, a good set for
 // each checker and one broken copy for each fault the checker names; check_test.sh runs the checkers on every copy and
-// holds each exit and each fault's count against the case's.
+// checks each exit and each fault's count against the case's.
 //
 // points_check's set: two samples, a and b, of two frames in a 2 x 3 x 4 view (24 voxels), two limbs a level. a's
 // readings are 20 of value 10 and 28 of 11, b's 8 of 10 and 40 of 12: 48 each, one a voxel of each frame, 96 in all.
-// The contrast is 7 bits and C is 0 below 10, 28 at 10, 56 at 11 and 96 from 12. a's frame 0 holds voxels 3 and 17,
+// The contrast is 7 bits and C is 0 below 10, 28 at 10, 56 at 11 and 96 from 12. a's frame 0 contains voxels 3 and 17,
 // its frame 1 voxel 23; b's frame 0 nothing, its frame 1 voxels 0, 1 and 2. Every level is positive.
 //
 // output_check's set: output_test's, restated. chain is 4 frames in a 4 x 5 x 6 view: frame 0 A (voxel 7), B (50) and
@@ -180,7 +180,8 @@ static const char *const FACES_CASE_NAMES[FACES_CASES] = {
 #define CHECK_TEST_NONE 0xFFFFFFFFu
 
 #define CHECK_TEST_NODES_HEADER                                                                                        \
-    "sample\ttime\tleaf\tz\ty\tx\tvoxels\tobject\tobject_members\tforward\tdeparture\theld\tobject_link\tobject_links" \
+    "sample\ttime\tleaf\tz\ty\tx\tvoxels\tobject\tobject_members\tforward\tdeparture\tretained\tobject_link\tobject_"  \
+    "links"                                                                                                            \
     "\tnull_draws\tnull_at_least\tnull_best\ttower_target\ttower_rounds\tbackward\tbody\tstate\tparent\ttouches"       \
     "\tsplit_from\n"
 
@@ -314,8 +315,8 @@ static int check_test_sample_path(char *path, size_t capacity, const char *set, 
 static int check_test_file(const char *path, const void *bytes, size_t length, size_t short_by)
 {
     FILE *const file = fopen(path, "wb");
-    const size_t kept = (short_by < length) ? (length - short_by) : 0u;
-    const int written = (file != NULL) && ((kept == 0u) || (fwrite(bytes, 1u, kept, file) == kept));
+    const size_t remaining = (short_by < length) ? (length - short_by) : 0u;
+    const int written = (file != NULL) && ((remaining == 0u) || (fwrite(bytes, 1u, remaining, file) == remaining));
     const int closed = (file != NULL) && (fclose(file) == 0);
     return written && closed;
 }
@@ -362,7 +363,7 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
         words[10] = points->counts[0];
         words[11] = points->counts[1];
         words[12] = points->counts[2];
-        // a footing held, lo 10, hi 12, a step each
+        // a footing found, lo 10, hi 12, a step each
         words[CHECK_TEST_READINGS + 0u] = 1ull;
         words[CHECK_TEST_READINGS + 1u] = 10ull;
         words[CHECK_TEST_READINGS + 2u] = 12ull;
@@ -397,7 +398,7 @@ static int check_test_points_write(const char *set, const char *sample, const Ch
         const unsigned int count = points->frame_counts[frame];
         memcpy(&bytes[used], &count, sizeof(count));
         used += sizeof(count);
-        // a count past the voxels and levels the sample holds (count_past_view's 25) is written alone, and the file
+        // a count past the voxels and levels the sample contains (count_past_view's 25) is written alone, and the file
         // ends at it: points_check stops at the count
         if (((taken + count) > (sizeof(points->voxels) / sizeof(points->voxels[0]))) ||
             (((taken + count) * points->head[4]) > (sizeof(points->levels) / sizeof(points->levels[0]))))
@@ -512,7 +513,7 @@ static int check_test_points_case(const char *root, PointsCase which)
     default:
         break;
     }
-    // the set's C and readings from the counts the samples hold (at values 10, 11 and 12), as the scan sums them; in
+    // the set's C and readings from the counts the samples contain (at values 10, 11 and 12), as the scan sums them; in
     // sum_past_64 the sum wraps.
     unsigned long long *const contrast = (unsigned long long *)calloc(CHECK_TEST_READINGS, sizeof(unsigned long long));
     if (contrast == NULL)
@@ -931,7 +932,7 @@ static int check_test_faces_files(const char *set, FacesCase which)
 {
     unsigned int view[4] = {4u, 4u, 5u, 6u};
     const unsigned int counts[4] = {3u, 2u, 0u, 2u};
-    // the lags onto frames 1, 2 and 3, three words a frame from frame 0's, which the .drift does not hold
+    // the lags onto frames 1, 2 and 3, three words a frame from frame 0's, which the .drift does not contain
     unsigned int lags[12] = {0u, 0u, 0u, 0xFFFFFFFFu, 0u, 3u, 0u, 0u, 0u, 1u, 0u, 0u};
     lags[9] = (which == FACES_CASE_PAST_32) ? 0x80000000u : lags[9];
     unsigned int drift_view[4] = {4u, 4u, 5u, 6u};
@@ -1043,12 +1044,12 @@ static int check_test_divide_case(const char *root, DivideCase which)
     const unsigned int chain_view[4] = {4u, 4u, 5u, 6u};
     const unsigned int pair_view[4] = {2u, 1u, 2u, 3u};
     const unsigned int none[3] = {0u, 0u, 0u};
-    // chain: A divides, keeping its link to A and taking D, which starts
+    // chain: A divides, retaining its link to A and taking D, which starts
     const unsigned int chain_counts[3] = {1u, 0u, 0u};
     const unsigned int chain_divisions[4] = {0u, 0u, 1u, CHECK_TEST_NONE};
     ok = ok && check_test_divide(set, "chain", chain_view, 0ull, (which == DIVIDE_CASE_NONE) ? none : chain_counts,
                                  chain_divisions, 0u, 6u, 0u);
-    // second: P divides, keeping its link to S and taking R from Q; broken one way by the case
+    // second: P divides, retaining its link to S and taking R from Q; broken one way by the case
     unsigned int view[4] = {2u, 1u, 2u, 3u};
     view[0] = (which == DIVIDE_CASE_FRAMES) ? 3u : view[0];
     view[3] = (which == DIVIDE_CASE_VIEW) ? 4u : view[3];
@@ -1089,7 +1090,7 @@ static int check_test_divide_case(const char *root, DivideCase which)
                                  (which == DIVIDE_CASE_TRAILING) ? 1u : 0u, (which == DIVIDE_CASE_HEAD) ? 3u : 6u,
                                  (which == DIVIDE_CASE_SHORT) ? 4u : 0u);
     // fork: no .divide, but one of no divisions beside each sample, and for a division taking from a point that
-    // divides: P takes T, which starts, and then Q, keeping its link to R, takes S from P
+    // divides: P takes T, which starts, and then Q, retaining its link to R, takes S from P
     const unsigned int fork_counts[1] = {2u};
     const unsigned int fork_divisions[8] = {0u, 1u, 2u, CHECK_TEST_NONE, 1u, 0u, 1u, 0u};
     if ((which == DIVIDE_CASE_NONE) || (which == DIVIDE_CASE_DIVIDES))

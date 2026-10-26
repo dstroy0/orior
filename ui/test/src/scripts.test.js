@@ -7,11 +7,11 @@
 // told to the plugin after the reader is asked, and a part of a
 // file held as pages read where its whole text is refused.
 
+import { allowPlugin, running, stopPlugin, syncPlugins } from "../../gui/src-js/scripts.js";
 import { invoke, watchCalls } from "../../gui/src-js/bridge.js";
 import { setReduceMotion } from "../../gui/src-js/motion.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
-import { loadPlugins, pluginReadings, pluginsOff } from "../../gui/src-js/plugins.js";
-import { allowPlugin, findSlowPlugin, finding, running, stopPlugin, syncPlugins } from "../../gui/src-js/scripts.js";
+import { loadPlugins } from "../../gui/src-js/plugins.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui, calls } = window.__harness;
@@ -32,6 +32,7 @@ const DRAWS = `orior.on("open", async ({ path }) => {
     await orior.tabs.label(path, error.refused ? "refused" : "failed");
   }
 });
+
 `;
 
 const STUCK = `orior.on("open", ({ path }) => {
@@ -40,6 +41,7 @@ const STUCK = `orior.on("open", ({ path }) => {
     while (Date.now() < until) {}
   }
 });
+
 `;
 
 // Writes a script plugin of the reader's, asking for what `asks` names: reads, writes and reaches.
@@ -97,21 +99,6 @@ test("a plugin that stops answering is named with how long and stopped, and the 
   assert.ok(running().has("draws"), "the others run on");
 });
 
-test("Find the Slow Plugin halves the plugins on until one is left, and sets each back as it was", async () => {
-  const before = [...pluginsOff()].sort();
-  const culprit = "stuck";
-  findSlowPlugin();
-  for (let step = 0; step < 12 && finding(); step += 1) {
-    await ui.waitFor(() => !document.getElementById("slow-finder").hidden, 2000);
-    const off = finding().half.includes(culprit);
-    await ui.click([...document.querySelectorAll(".slow-finder-button")].find((one) => one.textContent === (off ? "No Longer Slow" : "Still Slow")));
-  }
-  assert.equal(finding(), null, "it ended");
-  assert.match(document.getElementById("status-said").textContent, /^Stuck is the plugin that slows the window/);
-  assert.deepEqual([...pluginsOff()].sort(), before, "each set back as it was");
-  assert.ok(pluginReadings().length > 2);
-});
-
 const PAGES = `orior.on("open", async ({ path }) => {
   if (!path.endsWith("huge.log")) {
     return;
@@ -125,6 +112,7 @@ const PAGES = `orior.on("open", async ({ path }) => {
   }
   await orior.tabs.label(path, lines.length + " " + lines[0].slice(0, 9) + " " + lines[1].slice(0, 9) + " whole " + whole);
 });
+
 `;
 
 test("a plugin reads a part of a file held as pages, and is refused the whole of it", async () => {
@@ -168,6 +156,7 @@ test("a plugin's panel is drawn still where less motion is asked for", async () 
     await orior.panels.show("moving", { title: "Moving", html: "<p style='animation: 1s infinite spin'>turns</p>" });
   }
 });
+
 `;
   await plugin("still_panel", "Still Panel", code);
   await loadPlugins();

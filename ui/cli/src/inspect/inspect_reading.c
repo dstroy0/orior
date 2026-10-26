@@ -8,7 +8,7 @@
 
 CliInspectMost g_cli_inspect_most;
 
-// the cell of the reading held, NULL where none is
+// the cell of the reading in use, NULL where none is
 static void *s_reading;
 
 void *cli_inspect_carved(CliInspectCarve *carve, unsigned long long bytes)
@@ -84,12 +84,12 @@ static void reading_laid(const char *language, CliInspectCarve *carve)
     }
 }
 
-int cli_inspect_reading_held(const char *language, const char *text, unsigned long long size)
+int cli_inspect_reading_reserved(const char *language, const char *text, unsigned long long size)
 {
     reading_counted(text, size);
     CliInspectCarve measured = {NULL, 0ull};
     reading_laid(language, &measured);
-    s_reading = cli_cell_taken(measured.bytes + 8ull, "a reading of a text");
+    s_reading = g_cli_cells->persistent_buf_alloc(measured.bytes + 8ull, NULL);
     if (s_reading == NULL)
     {
         return 0;
@@ -101,6 +101,6 @@ int cli_inspect_reading_held(const char *language, const char *text, unsigned lo
 
 void cli_inspect_reading_given(void)
 {
-    cli_cell_given(s_reading);
+    g_cli_cells->persistent_buf_release(s_reading, NULL);
     s_reading = NULL;
 }

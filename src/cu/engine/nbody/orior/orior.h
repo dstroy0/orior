@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -12,7 +12,7 @@
  *
  * @note This is the kernel. Everything here is the thing being measured, and nothing here reads a
  *       clock, builds a corpus or prints a row. Those belong to the driver.
- * @note ONE PRIMITIVE, WRITTEN ONCE. Every loop below asks whether `corpus[at + offset]` equals
+ * @note ONE PRIMITIVE, WRITTEN ONCE. Every loop below tests whether `corpus[at + offset]` equals
  *       `needle[offset]` and counts the positions where it does. The search counts matches, the
  *       steering counts survivors, and the scan counts the same survivors wider. All three are in
  *       this file, and a reader looking for the engine opens one file and not a directory.

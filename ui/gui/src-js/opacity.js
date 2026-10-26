@@ -12,7 +12,7 @@ export const OPACITY_SETTINGS = [
   { name: "--menu-opacity", label: "Menu opacity", key: "orior.opacity.menu", fallback: 100 },
   { name: "--pane-opacity", label: "Pane opacity", key: "orior.opacity.pane", fallback: 100 },
   { name: "--tab-opacity", label: "Tab opacity", key: "orior.opacity.tab", fallback: 100 },
-  { name: "--editor-opacity", label: "Editor opacity", key: "orior.opacity.editor", fallback: 100 },
+  { name: "--editor-opacity", label: "Editor opacity", key: "orior.opacity.editor", fallback: 80 },
   { name: "--panel-opacity", label: "Panel opacity", key: "orior.opacity.panel", fallback: 100 },
   { name: "--sheet-opacity", label: "Sheet opacity", key: "orior.opacity.sheet", fallback: 100 },
 ];

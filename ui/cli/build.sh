@@ -41,9 +41,13 @@ if [ "$LTO" = 1 ]; then
     case "$CC" in
         *gcc*) LTO_WORDS=(-flto); LINK_WORDS=(-flto) ;;
         *) LTO_WORDS=(-flto=thin); LINK_WORDS=(-flto=thin)
-           # lld where the machine has it, on PATH or beside the compiler, under its plain name or a versioned one,
-           # the newest first; else the system's linker, which links thin LTO through the compiler's plugin
-           if [ "$(uname -s)" != "Darwin" ]; then
+           # on Windows lld by its name, which clang's MSVC driver runs as lld-link; elsewhere lld where the machine
+           # has it, on PATH or beside the compiler, under its plain name or a versioned one, the newest first; else
+           # the system's linker, which links thin LTO through the compiler's plugin
+           case "$(uname -s)" in
+               MINGW*|MSYS*|CYGWIN*) LINK_WORDS+=(-fuse-ld=lld) ;;
+           esac
+           if [ "$(uname -s)" != "Darwin" ] && [ "${LINK_WORDS[*]}" = "-flto=thin" ]; then
                lld=""
                for name in ld.lld ld.lld-21 ld.lld-20 ld.lld-19 ld.lld-18 ld.lld-17; do
                    found="$(command -v "$name" 2>/dev/null || true)"
@@ -71,12 +75,14 @@ fi
 
 # MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with, so a CLI source
 # reaching a module header sees the layouts the module was compiled to; each cellblock keeps its high-water mark, in
-# the CLI's objects and in MMgr's alike, since the mark is a member of every cellblock's state
+# the CLI's objects and in MMgr's alike, since the mark is a member of every cellblock's state, and each takes its
+# spinlock and lists its owners, as src/cu/CMakeLists.txt builds MMgr
 MMGR="$TOP/src/cu/includes/mmgr"
 EMBEDDED_TYPES="$TOP/src/cu/includes/embedded_types"
 MMGR_HIGH_WATER=-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$EMBEDDED_TYPES/include" -DMMGR_ENABLE_DMA=0
-    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER")
+    -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER" -DMMGR_ENABLE_LOCK=1
+    -DMMGR_ENABLE_OWNERS=1)
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc" ;;
@@ -123,7 +129,7 @@ vector_words_of() {
 words_of() {
     local target="$1"
     case "$target" in
-        *windows*) SUFFIX=".exe"; LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32) ;;
+        *windows*) SUFFIX=".exe"; LIBRARIES=(-lws2_32 -lsecur32 -lcrypt32 -lshell32 -ladvapi32 -luser32 -lole32 -luuid) ;;
         *darwin*) SUFFIX=""; LIBRARIES=(-lpthread -lm) ;;
         *musl*) SUFFIX=""; LIBRARIES=(-static -lpthread -lm) ;;
         *) SUFFIX=""; LIBRARIES=(-lpthread -ldl -lm -lrt) ;;
@@ -149,7 +155,7 @@ mmgr_built() {
     fi
     { cmake -S "$TOP/src/cu" -B "$into" -G Ninja -DCMAKE_C_COMPILER="$CC" -DCMAKE_C_COMPILER_TARGET="$target" \
         -DCMAKE_BUILD_TYPE=Release -DORIOR_SKIP_CUDA=ON -DORIOR_MMGR_ONLY=ON \
-        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]} ${SANITIZE_WORDS[*]}" \
+        -DCMAKE_C_FLAGS="$MMGR_HIGH_WATER -DMMGR_ENABLE_HOST=1 ${VECTOR_WORDS[*]} ${LTO_WORDS[*]} ${SANITIZE_WORDS[*]}" \
         && cmake --build "$into" --target orior_mmgr; } > "$into.log" 2>&1 || {
         echo "  build failed: MMgr did not build for $target"
         tail -20 "$into.log"

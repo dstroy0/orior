@@ -12,6 +12,7 @@
     "tokenizer": {
       "root": [
         ["^\\s*(?:```|~~~).*$","string","@fence"],
+        ["^(#{1,6})(\\s+)(.*?[^\\s#].*?)(\\s*#*\\s*)$",["keyword","keyword","keyword.declaration.heading","keyword"]],
         ["^\\s{0,3}#{1,6}\\s.*$","keyword"],
         ["^\\s*>","comment"],
         ["^\\s*(?:[-*+]|\\d+[.)])(?=\\s)","operator"],

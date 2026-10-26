@@ -36,14 +36,14 @@ static size_t raster_death_level(const uint8_t *corpus, const uint8_t *needle, s
 {
     *matched = 0;
 
-    for (size_t slot = 0u; slot < probe_count; slot += 1u)
+    for (size_t index = 0u; index < probe_count; index += 1u)
     {
-        for (size_t step = 0u; step < probes[slot].length; step += 1u)
+        for (size_t step = 0u; step < probes[index].length; step += 1u)
         {
-            const size_t offset = probes[slot].origin + (step * probes[slot].step);
+            const size_t offset = probes[index].origin + (step * probes[index].step);
             if (corpus[at + offset] != needle[offset])
             {
-                return slot;
+                return index;
             }
         }
     }
@@ -81,7 +81,7 @@ size_t orior_raster_cell(const OriorRasterConfig *config, size_t at, size_t alig
     const size_t cells = config->width * config->height;
 
     /* Corpus order maps onto a linear cell index by integer division first. Every layout below is
-     * then a permutation of that index, which keeps each transform a bijection and keeps the count
+     * then a permutation of that index, which retains each transform a bijection and retains the count
      * of alignments reaching a cell independent of which layout was chosen. */
     const size_t linear = (at * cells) / alignments;
     const size_t row = linear / config->width;
@@ -138,7 +138,7 @@ uint8_t orior_raster_sample(const OriorRasterConfig *config, const uint8_t *corp
         return (uint8_t)(1u + scaled);
     }
     case ORIOR_CHANNEL_PROVEN: {
-        /* A refuted alignment is proven to hold no occurrence. A survivor is undetermined: the
+        /* A refuted alignment is proven to contain no occurrence. A survivor is undetermined: the
          * probes could not refute it and only the full compare decides. Proven takes the higher
          * value, a minimum reduction behaves as the conjunction this channel needs, a cell
          * staying proven only while every alignment under it was refuted. */
@@ -162,8 +162,9 @@ uint8_t orior_raster_sample(const OriorRasterConfig *config, const uint8_t *corp
 
 void raster_reduce(uint8_t *values, uint8_t *filled, size_t cell, uint8_t value, OriorRasterReduce reduce)
 {
-    // A cell's first arrival fills it and every later arrival meets the reduction. Zero is a value a cell holds and
-    // not the mark of an empty one: a zero byte under ORIOR_REDUCE_MIN stays, as the device's identity seed keeps it
+    // A cell's first arrival fills it and every later arrival meets the reduction. Zero is a value a cell contains and
+    // not the mark of an empty one: a zero byte under ORIOR_REDUCE_MIN stays, as the device's identity seed preserves
+    // it
     if (filled[cell] == 0u)
     {
         filled[cell] = 1u;
@@ -274,7 +275,7 @@ int orior_raster_render(uint8_t *pixels, const OriorRasterConfig *config, const 
 {
     /* DEVICE FIRST WHERE THERE IS ONE. Both arms produce the same bytes. This is a performance
      * choice and never a correctness one, and a machine carrying a device should use it without the
-     * caller asking for it. */
+     * caller requesting for it. */
     if (orior_raster_device_available() != 0)
     {
         if (orior_raster_device(pixels, config, corpus, corpus_len, needle, needle_len, probes, probe_count) != 0)

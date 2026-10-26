@@ -105,16 +105,16 @@ __global__ void omega_pool_watch(OmegaTerm *terms, unsigned long long live, cons
 __global__ void omega_pool_settled(const OmegaTerm *terms, unsigned long long live, OmegaSettled *settled,
                                    OmegaRoundTotals *totals);
 
-__global__ void omega_pool_kept_sizes(const OmegaTerm *terms, unsigned long long live, unsigned long long *places,
-                                      unsigned long long *token_sizes, unsigned long long *stored_sizes,
-                                      unsigned long long *end_sizes);
+__global__ void omega_pool_retained_sizes(const OmegaTerm *terms, unsigned long long live, unsigned long long *places,
+                                          unsigned long long *token_sizes, unsigned long long *stored_sizes,
+                                          unsigned long long *end_sizes);
 
-__global__ void omega_pool_keep(const OmegaTerm *terms, unsigned long long live, const OmegaToken *reducts,
-                                const OmegaToken *stored, const unsigned long long *stored_ends,
-                                const unsigned long long *places, const unsigned long long *token_bases,
-                                const unsigned long long *stored_bases, const unsigned long long *end_bases,
-                                OmegaTerm *kept, OmegaToken *kept_tokens, OmegaToken *kept_stored,
-                                unsigned long long *kept_ends);
+__global__ void omega_pool_retain(const OmegaTerm *terms, unsigned long long live, const OmegaToken *reducts,
+                                  const OmegaToken *stored, const unsigned long long *stored_ends,
+                                  const unsigned long long *places, const unsigned long long *token_bases,
+                                  const unsigned long long *stored_bases, const unsigned long long *end_bases,
+                                  OmegaTerm *retained, OmegaToken *retained_tokens, OmegaToken *retained_stored,
+                                  unsigned long long *retained_ends);
 
 __global__ void omega_pool_insert_sizes(const unsigned long long *counts, unsigned int length, unsigned long long from,
                                         unsigned long long count, unsigned long long *sizes);
@@ -168,15 +168,15 @@ typedef struct
     unsigned long long max_steps;
     size_t max_tokens;
     unsigned long long jobs_run;
-    unsigned long long jobs_kept;
+    unsigned long long jobs_retained;
     unsigned long long parked;
 } OmegaEngineReport;
 
 void omega_engine_settle(const OmegaCounts *counts, OmegaEngineJob *job, const OmegaSettled *settled,
                          std::vector<int> &scratch, std::vector<OmegaSettled> *crossed);
 
-// A device buffer that only grows. 0 where the device cannot hold `bytes`: the failed allocation's error is cleared
-// and the buffer is left as it was. -1 where a copy into the larger buffer fails. `keep` carries the buffer's bytes
+// A device buffer that only grows. 0 where the device cannot allocate `bytes`: the failed allocation's error is cleared
+// and the buffer is left as it was. -1 where a copy into the larger buffer fails. `preserve` carries the buffer's bytes
 // over.
 typedef struct
 {
@@ -184,7 +184,7 @@ typedef struct
     size_t bytes;
 } OmegaBuffer;
 
-int omega_buffer_reserve(OmegaBuffer *buffer, size_t bytes, int keep);
+int omega_buffer_reserve(OmegaBuffer *buffer, size_t bytes, int preserve);
 
 void omega_buffer_release(OmegaBuffer *buffer);
 
@@ -193,17 +193,17 @@ void omega_buffer_swap(OmegaBuffer *one, OmegaBuffer *other);
 int omega_buffer_scan(SimResults *results, OmegaBuffer *scratch, const unsigned long long *values,
                       unsigned long long *sums, unsigned long long count, unsigned long long *total);
 
-// the pool's buffers; each round moves its kept terms from the one of a pair into the other
+// the pool's buffers; each round moves its retained terms from the one of a pair into the other
 typedef enum
 {
     OMEGA_BUFFER_TERMS = 0,
-    OMEGA_BUFFER_KEPT_TERMS,
+    OMEGA_BUFFER_RETAINED_TERMS,
     OMEGA_BUFFER_TOKENS,
-    OMEGA_BUFFER_KEPT_TOKENS,
+    OMEGA_BUFFER_RETAINED_TOKENS,
     OMEGA_BUFFER_STORED,
-    OMEGA_BUFFER_KEPT_STORED,
+    OMEGA_BUFFER_RETAINED_STORED,
     OMEGA_BUFFER_ENDS,
-    OMEGA_BUFFER_KEPT_ENDS,
+    OMEGA_BUFFER_RETAINED_ENDS,
     OMEGA_BUFFER_FRAMES,
     OMEGA_BUFFER_INNER_FRAMES,
     OMEGA_BUFFER_OUT_SIZES,

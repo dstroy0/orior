@@ -89,7 +89,7 @@ int cli_schema_u64(const CliJson *json, unsigned int node, unsigned long long *v
     return one->length > 0u;
 }
 
-// the last member of the file's object `object` keyed as `key` that holds a value, CLI_SCHEMA_NONE where none does
+// the last member of the file's object `object` keyed as `key` that contains a value, CLI_SCHEMA_NONE where none does
 static unsigned int values_member(const CliSchemaRead *read, unsigned int object, const char *key,
                                   unsigned long long size)
 {
@@ -107,7 +107,7 @@ static unsigned int values_member(const CliSchemaRead *read, unsigned int object
     return found;
 }
 
-// how many keys of the file's object `object` hold values, each counted once
+// how many keys of the file's object `object` contain values, each counted once
 static unsigned int values_keys(const CliSchemaRead *read, unsigned int object)
 {
     unsigned int count = 0u;
@@ -255,9 +255,9 @@ int cli_schema_same_values(const CliSchemaRead *read, unsigned int one, unsigned
 }
 
 // `size` bytes of a value written between backticks, cut short past forty letters
-static void values_cut(const char *text, unsigned long long size, CliLine *out)
+static void values_cut(const char *text, unsigned long long size, VerbaLinea *out)
 {
-    cli_line_character(out, '`');
+    mmgr_line_ch(out, '`');
     unsigned long long letters = 0ull;
     unsigned long long at = 0ull;
     while ((at < size) && (letters < 40u))
@@ -267,21 +267,21 @@ static void values_cut(const char *text, unsigned long long size, CliLine *out)
         at += length;
         letters += 1u;
     }
-    cli_line_counted(out, text, at);
-    cli_line_text(out, (at < size) ? "\xe2\x80\xa6`" : "`");
+    mmgr_line_put_n(out, text, at);
+    mmgr_line_put(out, (at < size) ? "\xe2\x80\xa6`" : "`");
 }
 
-void cli_schema_shown(const CliJson *json, unsigned int value, CliLine *out)
+void cli_schema_shown(const CliJson *json, unsigned int value, VerbaLinea *out)
 {
-    CliLine written;
-    (void)cli_line_growing(&written, CLI_SCHEMA_SHOWN_FIRST, "a value written to be shown");
+    VerbaLinea written;
+    (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST);
     cli_json_write(json, value, &written, 0u, 1);
-    values_cut(written.out, cli_line_fits(&written) ? written.at : 0u, out);
-    cli_cell_given(written.out);
+    values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
+    g_cli_cells->persistent_buf_release(written.out, NULL);
 }
 
 // a file's value written as serde_json writes the value it reads it as, an object's keys in order, the last of a key
-static void values_written(const CliSchemaRead *read, unsigned int node, CliLine *out)
+static void values_written(const CliSchemaRead *read, unsigned int node, VerbaLinea *out)
 {
     const CliSchemaNode *const one = &read->node[node];
     const unsigned char kind = values_kind(one);
@@ -295,25 +295,25 @@ static void values_written(const CliSchemaRead *read, unsigned int node, CliLine
     }
     else if (kind == CLI_SCHEMA_BOOL)
     {
-        cli_line_text(out, one->truth ? "true" : "false");
+        mmgr_line_put(out, one->truth ? "true" : "false");
     }
     else if (kind == CLI_SCHEMA_NULL)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
     else if (kind == CLI_SCHEMA_ARRAY)
     {
-        cli_line_character(out, '[');
+        mmgr_line_ch(out, '[');
         for (unsigned int at = one->first; at != CLI_SCHEMA_NONE; at = read->node[at].next)
         {
-            cli_line_text(out, (at != one->first) ? "," : "");
+            mmgr_line_put(out, (at != one->first) ? "," : "");
             values_written(read, at, out);
         }
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
     else
     {
-        cli_line_character(out, '{');
+        mmgr_line_ch(out, '{');
         const char *previous = NULL;
         unsigned int previous_size = 0u;
         for (int first = 1;; first = 0)
@@ -339,49 +339,49 @@ static void values_written(const CliSchemaRead *read, unsigned int node, CliLine
             const CliSchemaMember *const member = &read->member[next];
             previous = cli_schema_text(read, member->key_at);
             previous_size = member->key_size;
-            cli_line_text(out, first ? "" : ",");
+            mmgr_line_put(out, first ? "" : ",");
             cli_json_quoted(out, previous, previous_size);
-            cli_line_character(out, ':');
+            mmgr_line_ch(out, ':');
             values_written(read, member->value, out);
         }
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
 }
 
-void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, CliLine *out)
+void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, VerbaLinea *out)
 {
-    CliLine written;
-    (void)cli_line_growing(&written, CLI_SCHEMA_SHOWN_FIRST, "a value written to be shown");
+    VerbaLinea written;
+    (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST);
     values_written(read, node, &written);
-    values_cut(written.out, cli_line_fits(&written) ? written.at : 0u, out);
-    cli_cell_given(written.out);
+    values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
+    g_cli_cells->persistent_buf_release(written.out, NULL);
 }
 
-void cli_schema_number_shown(double value, CliLine *out)
+void cli_schema_number_shown(double value, VerbaLinea *out)
 {
     char raw[64];
-    CliLine line = {raw, sizeof(raw), 0ull};
+    VerbaLinea line = {raw, sizeof(raw), 0ull};
     cli_json_double(&line, value);
     unsigned long long size = line.at;
     while ((size >= 2u) && (memor.cmp(&(MemoriaCfg){.src = raw + size - 2u, .other = ".0", .bytes = 2u}) == 0))
     {
         size -= 2u;
     }
-    cli_line_counted(out, raw, size);
+    mmgr_line_put_n(out, raw, size);
 }
 
-void cli_schema_kind_said(const char *kind, unsigned long long size, CliLine *out)
+void cli_schema_kind_written(const char *kind, unsigned long long size, VerbaLinea *out)
 {
     const int an = ((size == 6u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "object", .bytes = 6u}) == 0)) ||
                    ((size == 5u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "array", .bytes = 5u}) == 0)) ||
                    ((size == 7u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "integer", .bytes = 7u}) == 0));
     if ((size == 4u) && (memor.cmp(&(MemoriaCfg){.src = kind, .other = "null", .bytes = 4u}) == 0))
     {
-        cli_line_text(out, "`null`");
+        mmgr_line_put(out, "`null`");
         return;
     }
-    cli_line_text(out, an ? "an " : "a ");
-    cli_line_counted(out, kind, size);
+    mmgr_line_put(out, an ? "an " : "a ");
+    mmgr_line_put_n(out, kind, size);
 }
 
 int cli_schema_matches(const char *pattern, unsigned long long pattern_size, const char *text, unsigned long long size)
@@ -389,7 +389,7 @@ int cli_schema_matches(const char *pattern, unsigned long long pattern_size, con
     static CliRegexp s_regexp;
     static CliRegexpRoom s_room;
     static CliRegexpSpan s_groups[CLI_REGEXP_GROUPS + 1u];
-    static char s_said[512];
+    static char s_err_buf[512];
     static CliLock s_matches_lock = CLI_LOCK_INIT;
     if (pattern_size >= CLI_SCHEMA_PATTERN)
     {
@@ -398,8 +398,8 @@ int cli_schema_matches(const char *pattern, unsigned long long pattern_size, con
     // the string's letters, each at least one of its bytes, and the pattern with a terminator after it
     const unsigned long long room = (size < CLI_SCHEMA_MATCHED) ? size : CLI_SCHEMA_MATCHED;
     unsigned int *const letters =
-        cli_cell_taken_by(&g_cli_schema_cells, (room + 1ull) * sizeof(*letters), "the letters a pattern is matched");
-    char *const source = cli_cell_taken_by(&g_cli_schema_cells, pattern_size + 1ull, "a pattern of a schema");
+        g_cli_cells->persistent_buf_alloc((room + 1ull) * sizeof(*letters), &g_cli_schema_cells);
+    char *const source = g_cli_cells->persistent_buf_alloc(pattern_size + 1ull, &g_cli_schema_cells);
     int found = -1;
     if ((letters != NULL) && (source != NULL))
     {
@@ -407,8 +407,8 @@ int cli_schema_matches(const char *pattern, unsigned long long pattern_size, con
         memor.cpy(&(MemoriaCfg){.dst = source, .src = pattern, .bytes = (size_t)pattern_size});
         source[pattern_size] = '\0';
         cli_regexp_roomed(&s_regexp, &s_room);
-        CliLine said = {s_said, sizeof(s_said), 0ull};
-        if (cli_regexp_read(&s_regexp, source, "u", &said))
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        if (cli_regexp_read(&s_regexp, source, "u", &err_msg))
         {
             const unsigned long long length = cli_regexp_letters(text, size, letters, room);
             found = 0;
@@ -419,7 +419,7 @@ int cli_schema_matches(const char *pattern, unsigned long long pattern_size, con
         }
         cli_lock_give(&s_matches_lock);
     }
-    cli_cell_given_by(&g_cli_schema_cells, source);
-    cli_cell_given_by(&g_cli_schema_cells, letters);
+    g_cli_cells->persistent_buf_release(source, &g_cli_schema_cells);
+    g_cli_cells->persistent_buf_release(letters, &g_cli_schema_cells);
     return found;
 }

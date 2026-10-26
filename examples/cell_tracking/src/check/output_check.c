@@ -4,26 +4,26 @@
 // output_check: S11's nodes file and submission, read apart from the output by a reader of their own. From each named
 // sample's .points, .links, and its .faces and .divide when it has them, it rebuilds the sample's graph (each point's
 // voxel, the chosen link out of it with that link's cost, a division's second link, the link into it, and the faces
-// its back-prediction and its prediction cross) and from the graph every row both files should hold, then holds each
-// row of each file against its rebuilt row, byte for byte. It also checks the graph as it reads it: the .links' frames
-// and view are the .points', each pair record's sources and targets are its frames' points, each chosen link lies
-// within them, no point has two chosen links out or two in, each pair's chosen links are its record's count, and both
-// files end at their last frame. A .faces must hold the .points' frames and view and the CRC-64 of the .links beside
-// it, and each point's back-prediction and flags as this reader rebuilds them from the .points, the .drift's lags, the
-// .shape's faces and the sort's links and predictions, before any .divide; each .links outside flag must be its
-// prediction's, and the .faces, the .drift and the .shape end at their last frame. A .divide must hold the .points'
-// frames and view and the CRC-64 of the .links beside it, and each division, in its parents' order, a parent within
-// the frame whose chosen link goes to daughter one, a daughter two within the next frame other than daughter one whose
-// link in comes from the point the division names (none for a start), and that point not a parent; the .divide ends
-// at its last pair. It counts every file's bytes, line feeds and carriage returns. Reads only.
+// its back-prediction and its prediction cross) and from the graph every row both files should contain, then checks
+// each row of each file against its rebuilt row, byte for byte. It also checks the graph as it reads it: the .links'
+// frames and view are the .points', each pair record's sources and targets are its frames' points, each chosen link
+// lies within them, no point has two chosen links out or two in, each pair's chosen links are its record's count, and
+// both files end at their last frame. A .faces must contain the .points' frames and view and the CRC-64 of the .links
+// beside it, and each point's back-prediction and flags as this reader rebuilds them from the .points, the .drift's
+// lags, the .shape's faces and the sort's links and predictions, before any .divide; each .links outside flag must be
+// its prediction's, and the .faces, the .drift and the .shape end at their last frame. A .divide must contain the
+// .points' frames and view and the CRC-64 of the .links beside it, and each division, in its parents' order, a parent
+// within the frame whose chosen link goes to daughter one, a daughter two within the next frame other than daughter one
+// whose link in comes from the point the division names (none for a start), and that point not a parent; the .divide
+// ends at its last pair. It counts every file's bytes, line feeds and carriage returns. Reads only.
 //   output_check <set> <nodes.tsv> <submission.csv> <sample> [<sample> ...]
 //
-// The formats, restated here from what the scan, the sort and the output write instead of read from their code: a change to
-// them must be made here too. Every word is little-endian.
+// The formats, restated here from what the scan, the sort and the output write instead of read from their code: a
+// change to them must be made here too. Every word is little-endian.
 //   .points     six 32-bit words (frames, depth, height, width, limbs, bits), the readings (64 bits), C (65536 64-bit
 //               words), then a frame after another: its count, each point's voxel, each point's levels (limbs words)
 //   .links      eight 32-bit words (frames, depth, height, width, three weights, the cost's terms), then for each frame
-//               pair a record of 11 words (sources, targets, gate pairs, components, chosen, then kept, level and
+//               pair a record of 11 words (sources, targets, gate pairs, components, chosen, then retained, level and
 //               crossed at 64 bits), each source's 4 words (a prediction z, y, x and flags), and each gate pair's 7
 //               words (source, target, the cost's low word and high word, weight, component, flags; flag 1 chosen)
 //   .drift      seven 32-bit words (frames, depth, height, width, three weights), then a frame after another: its
@@ -51,7 +51,7 @@
 //               ends
 //   nodes       the header below; then a row a point, sample by sample in the order named, frame by frame, point by
 //               point: sample, time, leaf (its index in the frame), z, y, x, then voxels 0, object (the leaf), members
-//               1, forward (the target's leaf, or -1), departure (the link's cost, or 0), held 0, object_link (the
+//               1, forward (the target's leaf, or -1), departure (the link's cost, or 0), retained 0, object_link (the
 //               forward), object_links (its links out: 0, 1, or 2 for a division's parent), the null's three 0,
 //               tower_target -1, tower_rounds 0, backward (the source's leaf, or -1), body (the point's node id),
 //               state, parent -1, touches 0, split_from (daughter two's parent's leaf, else -1). The state is the sum
@@ -144,7 +144,8 @@
 #define OUTPUT_CHECK_SHOWN 5u
 
 static const char OUTPUT_CHECK_NODES_HEADER[] =
-    "sample\ttime\tleaf\tz\ty\tx\tvoxels\tobject\tobject_members\tforward\tdeparture\theld\tobject_link\tobject_links"
+    "sample\ttime\tleaf\tz\ty\tx\tvoxels\tobject\tobject_members\tforward\tdeparture\tretained\tobject_link\tobject_"
+    "links"
     "\tnull_draws\tnull_at_least\tnull_best\ttower_target\ttower_rounds\tbackward\tbody\tstate\tparent\ttouches"
     "\tsplit_from";
 
@@ -568,7 +569,7 @@ static int output_check_links_crc(const char *set, const char *sample, OutputChe
     return graph->summed == 1;
 }
 
-// `bytes` of the file read and passed over through `chunk`, which holds OUTPUT_CHECK_CHUNK bytes
+// `bytes` of the file read and passed over through `chunk`, which contains OUTPUT_CHECK_CHUNK bytes
 static int output_check_pass(FILE *file, unsigned long long bytes, unsigned char *chunk)
 {
     while (bytes > 0ull)
@@ -676,7 +677,7 @@ static int output_check_hessian(const char *set, const char *sample, OutputCheck
 
 // each point's .faces words as this reader makes them from the graph as the .links gave it, before any .divide, the
 // lags and the .shape's faces in graph->faces; the flags go back into graph->faces. Each .links outside flag must be
-// its prediction's. `words` holds OUTPUT_CHECK_FACES_WORDS a point
+// its prediction's. `words` contains OUTPUT_CHECK_FACES_WORDS a point
 static int output_check_rebuild(const char *sample, OutputCheckGraph *graph, const int *lags, unsigned int *words)
 {
     const unsigned long long plane = (unsigned long long)graph->head[2] * graph->head[3];
@@ -719,7 +720,7 @@ static int output_check_rebuild(const char *sample, OutputCheckGraph *graph, con
                     output_check_fault(graph, sample, "a point's back-prediction passes 32 bits", frame);
                     return 0;
                 }
-                // a back-prediction held in [-2^31, 2^31) is written as its two's complement word
+                // a back-prediction represented in [-2^31, 2^31) is written as its two's complement word
                 word[axis] = (unsigned int)(int)backward;
                 back |= output_check_crossed(axis, backward, extent[axis]);
             }
@@ -1101,7 +1102,7 @@ int main(int count, char **arguments)
         output_check_rows(sample, &graph, &nodes, &submission, &row);
     }
     printf("  rebuilt %u of %d samples: %llu frames, %llu nodes, %llu edges, %llu divisions (%llu moving a link); %llu"
-           " faults in the graphs; the nodes should hold %llu rows after the header, the submission %llu\n",
+           " faults in the graphs; the nodes should contain %llu rows after the header, the submission %llu\n",
            read, count - 4, frames, points, edges, divisions, moved, faults, points, row);
     if (faced != 0u)
     {

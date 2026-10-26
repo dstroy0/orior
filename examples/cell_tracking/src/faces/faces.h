@@ -26,7 +26,7 @@ extern "C"
 // q -> q' brought, less the drift then, reversed:
 //   b = x_q - lag(f) - (x_q' - x_q - lag(f + 1)).
 // With no chosen link out, or at the last frame, b = x_q - lag(f). A point of frame 0 has no frame before it, and its
-// back-prediction is its place. The links are the sort's, as the .links holds them: a .divide the output makes after
+// back-prediction is its place. The links are the sort's, as the .links stores them: a .divide the output makes after
 // changes no word here
 #define FACES_HEADER_WORDS 6u
 

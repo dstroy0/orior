@@ -5,16 +5,16 @@
 #include "../../../../../ui/cli/src/builds/scons_internal.h"
 #include "cli_check.h"
 
-static char s_dir[CLI_PATH_LONGEST];
+static char s_dir[CLI_PATH_MAX_LEN];
 static char s_out[1u << 18u];
 static const CliCompletions *s_items;
 
 // the findings of the file `name` of the folder, `text` its text, read into the shared tree: its node
 static unsigned int scons_checked(const char *name, const char *text, const CliJson **json)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_dir, name, path);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_build_check(s_dir, path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &out);
     unsigned int found = CLI_JSON_NONE;
     *json = cli_check_parsed(s_out, out.at, &found);
@@ -55,10 +55,10 @@ static void scons_given(void *context, const char *name, unsigned long long size
                     (memor.cmp(&(MemoriaCfg){.src = name, .other = given->wanted, .bytes = size}) == 0);
 }
 
-// whether what completes `text` at its end holds the label `label`, the items kept in s_items
+// whether what completes `text` at its end contains the label `label`, the items recorded in s_items
 static int scons_completes(const char *text, const char *label)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_dir, "SConstruct", path);
     s_items = cli_check_build_completed(s_dir, path, text);
     return cli_check_completes(s_items, label);
@@ -66,11 +66,12 @@ static int scons_completes(const char *text, const char *label)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     static const char s_top[] = "env = Environment(CPPPATH=['include'])\nExport('env')\nSConscript('src/SConscript')\n"
                                 "SConscript(['lib/SConscript'], exports='libs')\nSConscript(dirs=['gone'])\n"
                                 "# SConscript('commented')\n";
     static const char s_sub[] = "Import('env libs tools')\nenv.Program('hello', ['hello.c'])\n";
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("scons", s_dir);
     cli_full(s_dir, "src", path);
     (void)query_folder_made(path);
@@ -115,13 +116,13 @@ int main(void)
     cli_check(!scons_completes("x = Environment(tools=foo(CPP", "CPPPATH"), "and not in a call within the call");
     (void)scons_completes("x = 'Envi", "Environment");
     cli_check(s_items->count == 0u, "nothing completes in a string");
-    // the scons checks report their own mark: the most a call's rooms held of the cellblock at once
+    // the scons checks report their own mark: the most a call's rooms used of the cellblock at once
     char report[160];
-    CliLine said = {report, sizeof(report), 0ull};
-    cli_line_text(&said, "the scons checks count each call's rooms in the cellblock, their report ");
-    const unsigned long long numbers = said.at;
-    cli_scons_cells_said(&said);
-    (void)cli_line_closed(&said);
+    VerbaLinea report_line = {report, sizeof(report), 0ull};
+    mmgr_line_put(&report_line, "the scons checks count each call's rooms in the cellblock, their report ");
+    const unsigned long long numbers = report_line.at;
+    cli_scons_cells_usage_written(&report_line);
+    (void)mmgr_line_finish(&report_line);
     const char *const mark =
         cellul.chr(&(CatenaFinitaCfg){.src = report + numbers, .cap = CLI_CELLS_POOL, .byte = ' '});
     cli_check((mark != NULL) && (mark[1] != '0'), report);

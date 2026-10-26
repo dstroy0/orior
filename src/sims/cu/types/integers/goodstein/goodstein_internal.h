@@ -4,15 +4,15 @@
 #ifndef GOODSTEIN_INTERNAL_H
 #define GOODSTEIN_INTERNAL_H
 
-// Goodstein's sequences, held exactly and never expanded (R. L. Goodstein, "On the restricted ordinal theorem",
+// Goodstein's sequences, represented exactly and never expanded (R. L. Goodstein, "On the restricted ordinal theorem",
 // J. Symbolic Logic 9, 1944; L. Kirby and J. Paris, "Accessible independence results for Peano arithmetic", Bull.
 // London Math. Soc. 14, 1982). n is written in hereditary base b, every exponent written in base b again; a step writes
 // every b as b + 1 and subtracts one. With b read as omega the same tree is an ordinal below epsilon_0 in Cantor normal
 // form: the bump leaves the tree as it is, and the subtraction lowers it. Every sequence reaches 0. The start 2^^k
 // is omega^^k. 16 is omega^omega^omega. The values grow as towers and are never formed: a form is the tree itself,
-// with the base a separate number, and b^L - 1 at a large L is held as one run of coefficient b - 1 over the exponents
-// 0 .. L - 1 of the base the run was made at.
-// 1. The bump keeps the tree: for every n below GOODSTEIN_LEMMA_BELOW at bases 2 to 6, n bumped numerically and
+// with the base a separate number, and b^L - 1 at a large L is represented as one run of coefficient b - 1 over the
+// exponents 0 .. L - 1 of the base the run was made at.
+// 1. The bump preserves the tree: for every n below GOODSTEIN_LEMMA_BELOW at bases 2 to 6, n bumped numerically and
 //    written in base b + 1 is the tree of n in base b.
 // 2. 2^^k in hereditary base 2 is omega^^k for k = 1 to 4, and the towers climb.
 // 3. The starts 1, 2 and 3 reach 0 in 1, 3 and 5 steps, every value the numeric sequence's.

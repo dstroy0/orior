@@ -4,7 +4,7 @@
 // a group stops at its first `=`
 #include "base64.h"
 
-void cli_base64(CliLine *out, const unsigned char *bytes, unsigned long long size)
+void cli_base64(VerbaLinea *out, const unsigned char *bytes, unsigned long long size)
 {
     static const char s_letters[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     for (unsigned long long at = 0ull; at < size; at += 3ull)
@@ -16,7 +16,7 @@ void cli_base64(CliLine *out, const unsigned char *bytes, unsigned long long siz
         for (unsigned int place = 0u; place < 4u; place += 1u)
         {
             const char letter = s_letters[(group >> (18u - (6u * place))) & 63u];
-            cli_line_character(out, (place <= length) ? letter : '=');
+            mmgr_line_ch(out, (place <= length) ? letter : '=');
         }
     }
 }
@@ -44,7 +44,7 @@ int cli_unbase64(const char *text, unsigned long long length, unsigned char *out
 {
     *size = 0ull;
     unsigned int group = 0u;
-    unsigned int held = 0u;
+    unsigned int bits = 0u;
     unsigned int taken = 0u;
     int padded = 0;
     for (unsigned long long at = 0ull; at <= length; at += 1ull)
@@ -69,14 +69,14 @@ int cli_unbase64(const char *text, unsigned long long length, unsigned char *out
             if (!padded)
             {
                 group = (group << 6u) | sextet;
-                held += 1u;
+                bits += 1u;
             }
             taken += 1u;
         }
         if ((taken == 4u) || (ended && (taken > 0u)))
         {
-            group <<= 6u * (4u - held);
-            const unsigned int bytes = (held > 1u) ? (held - 1u) : 0u;
+            group <<= 6u * (4u - bits);
+            const unsigned int bytes = (bits > 1u) ? (bits - 1u) : 0u;
             if ((*size + bytes) > room)
             {
                 return 0;
@@ -88,7 +88,7 @@ int cli_unbase64(const char *text, unsigned long long length, unsigned char *out
                 *size += 1ull;
             }
             group = 0u;
-            held = 0u;
+            bits = 0u;
             taken = 0u;
             padded = 0;
         }

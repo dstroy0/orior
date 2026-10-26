@@ -51,10 +51,10 @@ unsigned int cli_json_tokens_counted(const char *text, unsigned long long size)
     return count;
 }
 
-int cli_json_held(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what)
+int cli_json_reserved(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what)
 {
     const unsigned long long nodes_bytes = (unsigned long long)nodes_most * sizeof(CliJsonNode);
-    unsigned char *const cell = cli_cell_taken(nodes_bytes + text_most + 1ull, what);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(nodes_bytes + text_most + 1ull, NULL);
     cli_json_begun(json, (CliJsonNode *)cell, (cell != NULL) ? nodes_most : 0u,
                    (cell != NULL) ? (char *)(cell + nodes_bytes) : NULL, (cell != NULL) ? text_most + 1ull : 0ull);
     json->what = what;
@@ -63,9 +63,9 @@ int cli_json_held(CliJson *json, unsigned int nodes_most, unsigned long long tex
 
 int cli_json_growing(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what)
 {
-    const int held = cli_json_held(json, nodes_first, text_first, what);
-    json->grows = held;
-    return held;
+    const int reserved = cli_json_reserved(json, nodes_first, text_first, what);
+    json->grows = reserved;
+    return reserved;
 }
 
 int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
@@ -87,7 +87,7 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
     const unsigned int nodes_most = (unsigned int)((nodes_twice > nodes_wanted) ? nodes_twice : nodes_wanted);
     const unsigned long long text_most = (text_twice > text_wanted) ? text_twice : text_wanted;
     const unsigned long long nodes_bytes = (unsigned long long)nodes_most * sizeof(CliJsonNode);
-    unsigned char *const cell = cli_cell_taken(nodes_bytes + text_most, json->what);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(nodes_bytes + text_most, NULL);
     if (cell == NULL)
     {
         json->full = 1;
@@ -95,7 +95,7 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = json->node, .bytes = (size_t)json->nodes * sizeof(CliJsonNode)});
     memor.cpy(&(MemoriaCfg){.dst = cell + nodes_bytes, .src = json->text, .bytes = (size_t)json->used});
-    cli_cell_given(json->node);
+    g_cli_cells->persistent_buf_release(json->node, NULL);
     json->node = (CliJsonNode *)cell;
     json->nodes_most = nodes_most;
     json->text = (char *)(cell + nodes_bytes);
@@ -111,20 +111,20 @@ void cli_json_emptied(CliJson *json)
 }
 
 unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,
-                            unsigned long long text_more, CliLine *said)
+                            unsigned long long text_more, VerbaLinea *err_msg)
 {
     const unsigned int tokens_most = cli_json_tokens_counted(text, size) + 1u;
     CfgJsonToken *const tokens =
-        cli_cell_taken((unsigned long long)tokens_most * sizeof(CfgJsonToken), "a tree's tokens");
+        g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
     if ((tokens == NULL) ||
-        !cli_json_held(json, tokens_most + nodes_more, size + text_more, "a tree's nodes and texts"))
+        !cli_json_reserved(json, tokens_most + nodes_more, size + text_more, "a tree's nodes and texts"))
     {
-        cli_cell_given(tokens);
-        cli_line_text(said, "the cells a tree is read into could not be taken");
+        g_cli_cells->persistent_buf_release(tokens, NULL);
+        mmgr_line_put(err_msg, "the cells a tree is read into could not be taken");
         return CLI_JSON_NONE;
     }
-    const unsigned int root = cli_json_read(json, text, size, tokens, tokens_most, said);
-    cli_cell_given(tokens);
+    const unsigned int root = cli_json_read(json, text, size, tokens, tokens_most, err_msg);
+    g_cli_cells->persistent_buf_release(tokens, NULL);
     return root;
 }
 
@@ -140,7 +140,7 @@ void cli_json_extent(const CliJson *json, unsigned int node, unsigned int *nodes
     for (unsigned int child = one->first; (child != CLI_JSON_NONE) && (child < json->nodes);
          child = json->node[child].next)
     {
-        // a member's key is kept again where the member is copied
+        // a member's key is stored again where the member is copied
         *text +=
             (one->kind == CFG_JSON_OBJECT)
                 ? (cellul.len(&(CatenaFinitaCfg){.src = json->text + json->node[child].key, .cap = CLI_CELLS_POOL}) +
@@ -151,25 +151,25 @@ void cli_json_extent(const CliJson *json, unsigned int node, unsigned int *nodes
 }
 
 unsigned int cli_json_file_taken(CliJson *json, const char *path, unsigned int nodes_more, unsigned long long text_more,
-                                 CliLine *said)
+                                 VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     if (bytes == NULL)
     {
         cli_json_begun(json, NULL, 0u, NULL, 0ull);
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be read");
         return CLI_JSON_NONE;
     }
-    // the tree keeps its texts of its own, so the file is let go as the read ends
-    const unsigned int root = cli_json_taken(json, (const char *)bytes, size, nodes_more, text_more, said);
+    // the tree stores its texts of its own, so the file is let go as the read ends
+    const unsigned int root = cli_json_taken(json, (const char *)bytes, size, nodes_more, text_more, err_msg);
     cli_file_let_go(bytes, size);
     return root;
 }
 
 void cli_json_given(CliJson *json)
 {
-    cli_cell_given(json->node);
+    g_cli_cells->persistent_buf_release(json->node, NULL);
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
 }

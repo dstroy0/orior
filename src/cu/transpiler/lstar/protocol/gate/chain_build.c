@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // chain_build.c: every arrangement of primitives that produces a relation
 #include "chain_build.h"
-#include "../../../../engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 
 #include <string.h>
 
-// The precepts a chain is built from: the ones that carry a word and take a child. NOP carries no child, ERR says a
+// The precepts a chain is built from: the ones that carry a word and take a child. NOP carries no child, ERR reports a
 // thing cannot be done, and the two branches go nowhere a word comes back from
 static const unsigned char s_chain_precepts[] = {
     PRECEPT_NOT, PRECEPT_BITAND, PRECEPT_BITOR, PRECEPT_BITXOR, PRECEPT_NAND, PRECEPT_NOR, PRECEPT_MOV, PRECEPT_SHL,
@@ -75,14 +77,14 @@ static int chain_node_idle(const ChainWork *work, unsigned int at)
         unsigned int idle = 1u;
         for (unsigned int at_case = 0u; (at_case < work->count) && (idle != 0u); at_case += 1u)
         {
-            unsigned int held = 0u;
+            unsigned int node_value = 0u;
             unsigned int stood = 0u;
-            if ((chain_node_value(work, at, at_case, &held) == 0) ||
+            if ((chain_node_value(work, at, at_case, &node_value) == 0) ||
                 (chain_child_value(work, child[which], at_case, &stood) == 0))
             {
                 return 1;
             }
-            idle = (held == stood) ? 1u : 0u;
+            idle = (node_value == stood) ? 1u : 0u;
         }
         if (idle != 0u)
         {
@@ -133,7 +135,7 @@ static int chain_answers(const ChainWork *work)
 
 // Whether the chain answers the relation on words the cases do not carry. A ladder's cases are its climbing order
 // and are few and small; an arrangement right about those words and wrong about the rest passes them and comes back
-// looking like a finding. The relation holds for every word there is and is asked for words the arrangement was
+// looking like a finding. The relation is true for every word there is and is queried for words the arrangement was
 // never fitted to
 static int chain_swept(const ChainWork *work)
 {
@@ -163,8 +165,8 @@ static int chain_swept(const ChainWork *work)
     return 1;
 }
 
-// the chain as it stands put into the set, where it holds together and answers and there is room
-static void chain_keep(ChainWork *work)
+// the chain as it stands put into the set, where it fits together and answers and there is room
+static void chain_retain(ChainWork *work)
 {
     work->set->tried += 1u;
     if (chain_whole(&work->building) == 0)
@@ -201,7 +203,7 @@ static void chain_walk(ChainWork *work, unsigned int nodes, unsigned int at)
 {
     if (at == nodes)
     {
-        chain_keep(work);
+        chain_retain(work);
         return;
     }
     // the nodes before this one join the leaves as things it may read
@@ -273,7 +275,7 @@ unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsig
     work.leaves += 1u;
     work.source[work.leaves] = PRECEPT_ONES;
     work.leaves += 1u;
-    // shortest first: a set that fills holds the shortest arrangements there are
+    // shortest first: a set that fills contains the shortest arrangements there are
     for (unsigned int nodes = 1u; nodes <= CHAIN_NODES; nodes += 1u)
     {
         work.building.nodes = nodes;
@@ -289,41 +291,41 @@ void chain_shuffle(ChainSet *set, unsigned int seed)
     for (unsigned int at = set->chains; at > 1u; at -= 1u)
     {
         const unsigned int with = ladder_swept(&state) % at;
-        const Chain held = set->chain[at - 1u];
+        const Chain swapped = set->chain[at - 1u];
         set->chain[at - 1u] = set->chain[with];
-        set->chain[with] = held;
+        set->chain[with] = swapped;
     }
 }
 
 // the subtree rooted at `child` written into `line`
-static void chain_child_text(const Chain *chain, unsigned char child, ScripturaLine *line)
+static void chain_child_text(const Chain *chain, unsigned char child, VerbaLinea *line)
 {
     if (child == PRECEPT_ZERO)
     {
-        scriptura_text(line, "zero");
+        mmgr_line_put(line, "zero");
         return;
     }
     if (child == PRECEPT_ONES)
     {
-        scriptura_text(line, "ones");
+        mmgr_line_put(line, "ones");
         return;
     }
     if (child >= PRECEPT_ARG)
     {
-        scriptura_character(line, 'w');
-        scriptura_decimal(line, (unsigned int)(child - PRECEPT_ARG), 0u);
+        mmgr_line_ch(line, 'w');
+        mmgr_line_decimal(line, (unsigned int)(child - PRECEPT_ARG), 0u);
         return;
     }
     const PreceptNode *const node = &chain->node[child];
-    scriptura_text(line, s_precept_text[node->precept]);
-    scriptura_character(line, '(');
+    mmgr_line_put(line, s_precept_text[node->precept]);
+    mmgr_line_ch(line, '(');
     chain_child_text(chain, node->left, line);
     if (node->right != PRECEPT_NONE)
     {
-        scriptura_text(line, ", ");
+        mmgr_line_put(line, ", ");
         chain_child_text(chain, node->right, line);
     }
-    scriptura_character(line, ')');
+    mmgr_line_ch(line, ')');
 }
 
 unsigned int chain_text(const Chain *chain, char *text, unsigned int room)
@@ -333,8 +335,8 @@ unsigned int chain_text(const Chain *chain, char *text, unsigned int room)
     {
         return 0u;
     }
-    ScripturaLine line = {text, room, 0ull};
+    VerbaLinea line = {text, room, 0ull};
     chain_child_text(chain, (unsigned char)(chain->nodes - 1u), &line);
-    // a text is at most its room, which an unsigned int holds
-    return (unsigned int)scriptura_closed(&line);
+    // a text is at most its room, which an unsigned int represents
+    return (unsigned int)mmgr_line_finish(&line);
 }

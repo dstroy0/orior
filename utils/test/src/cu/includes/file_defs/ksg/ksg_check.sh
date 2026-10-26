@@ -13,6 +13,8 @@ TOP="$(cd "$HERE/../../../../../../.." && pwd)"
 OUT="$TOP/build/ksg"
 mkdir -p "$OUT"
 source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+# a program built before under the other name, with or without .exe, would be run in place of the one built here
+rm -f "$OUT/ksg_check" "$OUT/ksg_check.exe" "$OUT/ksg" "$OUT/ksg.exe"
 
 "${CC:-cc}" -std=c11 -O2 -Wall -Wextra -o "$OUT/ksg_check" "$HERE/ksg_check.c" \
     "$TOP/src/cu/includes/file_defs/ksg/ksg_seal.c" "${FILE_DEFS_MMGR[@]}" || exit 1
@@ -60,25 +62,26 @@ mkdir -p "$KEYS"
 "$OUT/ksg" keys rsa "$KEYS/no.ksk" "$KEYS/no.kpk" > "$TRIAL/said.txt" && approved=1
 "$OUT/ksg" approve "$KEYS/approver.ksk" "$TRIAL/sample.gsm" > "$TRIAL/said.txt" || approved=1
 "$OUT/ksg" check --approver "$KEYS/approver.kpk" "$TRIAL/sample.gsm" > "$TRIAL/said.txt" || approved=1
-grep -q ": holds" "$TRIAL/said.txt" || approved=1
+grep -q ": valid" "$TRIAL/said.txt" || approved=1
 "$OUT/ksg" check --approver "$KEYS/other.kpk" "$TRIAL/sample.gsm" > "$TRIAL/said.txt" && approved=1
-grep -q "no approval holds by the approver" "$TRIAL/said.txt" || approved=1
+grep -q "no approval is valid by the approver" "$TRIAL/said.txt" || approved=1
 cp "$TRIAL/sample.gsm" "$TRIAL/approved.gsm"
 sed -i '5s/->/->1/' "$TRIAL/sample.gsm"
 "$OUT/ksg" seal "$TRIAL/sample.gsm" > "$TRIAL/said.txt" || approved=1
 "$OUT/ksg" check --approver "$KEYS/approver.kpk" "$TRIAL/sample.gsm" > "$TRIAL/said.txt" && approved=1
-grep -q ": does not hold" "$TRIAL/said.txt" || approved=1
+grep -q ": not valid" "$TRIAL/said.txt" || approved=1
 cp "$TRIAL/approved.gsm" "$TRIAL/sample.gsm"
 "$OUT/ksg" seal "$TRIAL/sample.gsm" > "$TRIAL/said.txt" || approved=1
 "$OUT/ksg" approve "$KEYS/approver.ksk" "$TRIAL/sample.gsm" > "$TRIAL/said.txt" || approved=1
 "$OUT/ksg" approve "$KEYS/other.ksk" "$TRIAL/sample.gsm" > "$TRIAL/said.txt" || approved=1
 "$OUT/ksg" check --approver "$KEYS/approver.kpk" --approver "$KEYS/other.kpk" "$TRIAL/sample.gsm" \
     > "$TRIAL/said.txt" || approved=1
-[ "$(grep -c ": holds" "$TRIAL/said.txt")" = 2 ] || approved=1
+[ "$(grep -c ": valid" "$TRIAL/said.txt")" = 2 ] || approved=1
 if [ "$approved" = 0 ]; then
     echo "  ok   approved, held for its approver, refused for one that did not approve, refused once the file changed" \
          "and was sealed again, and held for two approvers"
 else
     echo "  FAIL the approvals held and were refused as they should be"
 fi
+echo "ksg trial: 2 checks, $((failed + approved)) failed"
 [ "$failed" = 0 ] && [ "$approved" = 0 ]

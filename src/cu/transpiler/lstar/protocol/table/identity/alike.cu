@@ -4,21 +4,21 @@
 #include "identity_internal.h"
 #include "../../../../../includes/parsers/who.h"
 
-// 1 where the part answers `code`, put as `question` says of its registers, shape and launches, alike with the host
-// on every case it computes, 0 where it answers apart, refuses it or the gate holds it, each counted in `asks`
+// 1 where the part answers `code`, put as `question` specifies of its registers, shape and launches, alike with the
+// host on every case it computes, 0 where it answers apart, refuses it or the gate blocks it, each counted in `queries`
 int question_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
-                          const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
+                   const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *queries)
 {
     static int s_opened = 0;
     if (s_opened == 0)
     {
-        ask_files_opened();
+        query_logs_opened();
     }
     s_opened = 1;
     question->code = code.data();
     question->code_size = code.size();
-    *asks += 1ull;
-    // the ask's key in the record, and what the record holds of it
+    *queries += 1ull;
+    // the query's key in the record, and what the record contains of it
     unsigned long long hosted = 0xcbf29ce484222325ull;
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
@@ -30,100 +30,100 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
              question->blocks, record_hash(question->word, sizeof(question->word[0]) * question->cases, 0xcbf29ce484222325ull),
              hosted);
     const std::string key = keyed;
-    // R holds an ask's verdict and its first case apart, and the query record and the log what came back of every
-    // case: with the log kept, an ask is read from the query record or put to the part, and R written as ever
+    // R stores a query's verdict and its first case apart, and the query record and the log what came back of every
+    // case: with the log retained, a query is read from the query record or put to the part, and R written as ever
     const int recordable = !s_record_ksc.empty() && (question->launches == 0u);
-    const auto recorded = (recordable && (s_ask_log == NULL)) ? s_record.find(key) : s_record.end();
+    const auto recorded = (recordable && (s_query_log == NULL)) ? s_record.find(key) : s_record.end();
     if (recorded != s_record.end())
     {
-        const AskRecorded &held = recorded->second;
-        // an ask the part answered illegal is censored, its answer kept in R as the part gave it
-        question->outcome = (held.answer == "answers")   ? RUN_ANSWERED
-                            : (held.answer == "illegal") ? RUN_HELD
-                                                         : RUN_NOTHING;
-        snprintf(question->refused, sizeof(question->refused), "%s", held.refusal.c_str());
-        const int alike = (held.answer == "answers") && (held.word == 0xffffffffu);
-        s_apart_at = (held.answer == "answers") ? held.word : 0xffffffffu;
-        if (s_ask_trace != NULL)
+        const QueryRecorded &stored = recorded->second;
+        // a query the part answered illegal is censored, its answer stored in R as the part gave it
+        question->outcome = (stored.answer == "answers")   ? RUN_ANSWERED
+                            : (stored.answer == "illegal") ? RUN_GATED
+                                                           : RUN_NOTHING;
+        snprintf(question->refused, sizeof(question->refused), "%s", stored.refusal.c_str());
+        const int alike = (stored.answer == "answers") && (stored.word == 0xffffffffu);
+        s_apart_at = (stored.answer == "answers") ? stored.word : 0xffffffffu;
+        if (s_trace_log != NULL)
         {
-            ask_written(s_ask_trace, "ask %llu: recorded %s %08x %s\n", *asks, held.answer.c_str(), held.word,
-                        key.c_str());
-            ask_flushed(s_ask_trace);
+            query_log_print(s_trace_log, "query %llu: recorded %s %08x %s\n", *queries, stored.answer.c_str(),
+                            stored.word, key.c_str());
+            query_log_flushed(s_trace_log);
         }
-        if (s_ask_log != NULL)
+        if (s_query_log != NULL)
         {
-            ask_written(s_ask_log, "ask %llu recorded\n", *asks);
+            query_log_print(s_query_log, "query %llu recorded\n", *queries);
         }
         return alike;
     }
-    if (s_ask_trace != NULL)
+    if (s_trace_log != NULL)
     {
-        ask_written(s_ask_trace,
-                    "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases: ", *asks,
-                    question->code_size, question->registers, question->threads, question->blocks, question->launches,
-                    question->cases);
+        query_log_print(s_trace_log,
+                        "query %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases: ",
+                        *queries, question->code_size, question->registers, question->threads, question->blocks,
+                        question->launches, question->cases);
     }
-    RunQuestion *const asked[1] = {question};
-    asks_carried(asked, &t_dangerous, 1u);
+    RunQuestion *const single[1] = {question};
+    queries_carried(single, &t_dangerous, 1u);
     if (question->outcome != RUN_ANSWERED)
     {
-        if (s_ask_trace != NULL)
+        if (s_trace_log != NULL)
         {
-            ask_written(s_ask_trace, "outcome %u, %s\n", question->outcome, question->refused);
-            ask_flushed(s_ask_trace);
+            query_log_print(s_trace_log, "outcome %u, %s\n", question->outcome, question->refused);
+            query_log_flushed(s_trace_log);
         }
-        if (s_ask_log != NULL)
+        if (s_query_log != NULL)
         {
-            ask_written(s_ask_log, "ask %llu refused\n", *asks);
+            query_log_print(s_query_log, "query %llu refused\n", *queries);
         }
         if (recordable && ((question->outcome == RUN_ILLEGAL) || (question->outcome == RUN_NOTHING)))
         {
-            s_record[key] = AskRecorded{(question->outcome == RUN_ILLEGAL) ? "illegal" : "nothing", 0u,
-                                        question->refused};
+            s_record[key] =
+                QueryRecorded{(question->outcome == RUN_ILLEGAL) ? "illegal" : "nothing", 0u, question->refused};
         }
         return 0;
     }
-    if (s_ask_log != NULL)
+    if (s_query_log != NULL)
     {
         // the places this thread's log last wrote as its cases, by a hash of them and their count, a count past every
         // question's where it wrote none
         static thread_local unsigned long long t_logged_hash = 0ull;
         static thread_local unsigned int t_logged_count = 0xffffffffu;
-        const unsigned long long asked_hash =
+        const unsigned long long query_hash =
             record_hash(places.data(), sizeof(places[0]) * question->cases, 0xcbf29ce484222325ull);
-        if ((asked_hash != t_logged_hash) || (question->cases != t_logged_count))
+        if ((query_hash != t_logged_hash) || (question->cases != t_logged_count))
         {
-            ask_written(s_ask_log, "cases");
+            query_log_print(s_query_log, "cases");
             for (unsigned int place = 0u; place < question->cases; place += 1u)
             {
-                ask_written(s_ask_log, " %s", case_text(places[place]).c_str());
+                query_log_print(s_query_log, " %s", case_text(places[place]).c_str());
             }
-            ask_written(s_ask_log, "\n");
-            t_logged_hash = asked_hash;
+            query_log_print(s_query_log, "\n");
+            t_logged_hash = query_hash;
             t_logged_count = question->cases;
         }
         std::string came_back;
         for (unsigned int place = 0u; place < question->cases; place += 1u)
         {
-            const int holds = bracket_holds(host[places[place]], question->answered[place]);
-            came_back += (holds < 0) ? '-' : (holds != 0) ? '=' : 'x';
+            const int in_bracket = bracket_contains(host[places[place]], question->answered[place]);
+            came_back += (in_bracket < 0) ? '-' : (in_bracket != 0) ? '=' : 'x';
         }
-        ask_written(s_ask_log, "ask %llu %s\n", *asks, came_back.c_str());
+        query_log_print(s_query_log, "query %llu %s\n", *queries, came_back.c_str());
     }
     for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         const std::string &expected = host[places[place]];
-        if (bracket_holds(expected, question->answered[place]) == 0)
+        if (bracket_contains(expected, question->answered[place]) == 0)
         {
-            if (s_ask_trace != NULL)
+            if (s_trace_log != NULL)
             {
-                ask_written(s_ask_trace, "apart at case %u, the host %s and the part %llx\n", places[place],
-                            expected.c_str(), question->answered[place]);
-                ask_flushed(s_ask_trace);
+                query_log_print(s_trace_log, "apart at case %u, the host %s and the part %llx\n", places[place],
+                                expected.c_str(), question->answered[place]);
+                query_log_flushed(s_trace_log);
             }
             if (recordable)
             {
-                s_record[key] = AskRecorded{"answers", places[place], ""};
+                s_record[key] = QueryRecorded{"answers", places[place], ""};
             }
             s_apart_at = places[place];
             return 0;
@@ -131,56 +131,57 @@ int question_alike(const std::vector<unsigned char> &code, const std::vector<std
     }
     if (recordable)
     {
-        s_record[key] = AskRecorded{"answers", 0xffffffffu, ""};
+        s_record[key] = QueryRecorded{"answers", 0xffffffffu, ""};
     }
-    if (s_ask_trace != NULL)
+    if (s_trace_log != NULL)
     {
-        ask_written(s_ask_trace, "alike%s\n",
-                    (question->launches != 0u) ? (", " + std::to_string(question->nanoseconds) + " ns").c_str() : "");
-        ask_flushed(s_ask_trace);
+        query_log_print(s_trace_log, "alike%s\n",
+                        (question->launches != 0u) ? (", " + std::to_string(question->nanoseconds) + " ns").c_str()
+                                                   : "");
+        query_log_flushed(s_trace_log);
     }
     return 1;
 }
 
-// `code` put to the part as `question` says, to read what it answers, not to hold it to the host. R holds a verdict
-// alone and cannot answer a reading: the record is neither read nor written. 1 where the part answers it, each case's
-// value in `question->answered`, 0 where it refuses it or the gate holds it, each counted in `asks`
-int question_read(const std::vector<unsigned char> &code, RunQuestion *question, unsigned long long *asks)
+// `code` put to the part as `question` specifies, to read what it answers, not to check it against the host. R stores a
+// verdict alone and cannot answer a reading: the record is neither read nor written. 1 where the part answers it, each
+// case's value in `question->answered`, 0 where it refuses it or the gate blocks it, each counted in `queries`
+int question_read(const std::vector<unsigned char> &code, RunQuestion *question, unsigned long long *queries)
 {
-    ask_files_opened();
+    query_logs_opened();
     question->code = code.data();
     question->code_size = code.size();
-    *asks += 1ull;
-    if (s_ask_trace != NULL)
+    *queries += 1ull;
+    if (s_trace_log != NULL)
     {
-        ask_written(s_ask_trace,
-                    "ask %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases, read: ", *asks,
-                    question->code_size, question->registers, question->threads, question->blocks, question->launches,
-                    question->cases);
+        query_log_print(s_trace_log,
+                        "query %llu: %llu bytes, %u registers, %u threads in %u blocks, %u launches, %u cases, read: ",
+                        *queries, question->code_size, question->registers, question->threads, question->blocks,
+                        question->launches, question->cases);
     }
-    RunQuestion *const asked[1] = {question};
-    asks_carried(asked, &t_dangerous, 1u);
+    RunQuestion *const single[1] = {question};
+    queries_carried(single, &t_dangerous, 1u);
     const int answered = question->outcome == RUN_ANSWERED;
-    if (s_ask_trace != NULL)
+    if (s_trace_log != NULL)
     {
-        ask_written(s_ask_trace, "%s\n", answered ? "answered" : question->refused);
-        ask_flushed(s_ask_trace);
+        query_log_print(s_trace_log, "%s\n", answered ? "answered" : question->refused);
+        query_log_flushed(s_trace_log);
     }
-    if (s_ask_log != NULL)
+    if (s_query_log != NULL)
     {
-        ask_written(s_ask_log, "ask %llu %s\n", *asks, answered ? "read" : "refused");
+        query_log_print(s_query_log, "query %llu %s\n", *queries, answered ? "read" : "refused");
     }
     return answered;
 }
 
 // 1 where the part answers `code` alike with the host on every case it computes, in a container declaring every
-// register its file holds (sm_86.kdm), 0 where it answers apart, refuses it or the gate holds it, each counted in
-// `asks`
+// register its file uses (sm_86.kdm), 0 where it answers apart, refuses it or the gate blocks it, each counted in
+// `queries`
 int stall_alike(const std::vector<unsigned char> &code, const std::vector<std::string> &host,
-                       const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *asks)
+                const std::vector<unsigned int> &places, RunQuestion *question, unsigned long long *queries)
 {
     question->registers = 255u;
-    return question_alike(code, host, places, question, asks);
+    return question_alike(code, host, places, question, queries);
 }
 
 // each chain's answers the host computes, one a case over every case, by the chain's number, read from the latest blob
@@ -210,7 +211,7 @@ std::map<std::string, std::vector<std::string>> host_answers_read(const char *an
 }
 
 // chain `number` of ours, read from `engine`: its code, sixteen bytes an instruction, and the links its listing gives.
-// 0 where either is missing or the listing gives more links than the code holds instructions
+// 0 where either is missing or the listing gives more links than the code contains instructions
 int chain_code_read(const char *engine, const std::string &number, std::vector<unsigned char> *code,
                            std::vector<Link> *links)
 {
@@ -250,12 +251,11 @@ unsigned int chain_registers(const char *engine, const std::string &number)
     return (file >> registers) ? registers : 0u;
 }
 
-// The .ksc rewritten by `who` with `rows` in place of every row of the run channel it held to a question beginning
-// with the words `asked`, whatever came back, the rows put after its last row of the run channel and its counts of the
-// run channel taken again (ksc_rows_replaced_traced_by); every row let go that no row put gives again is kept in the
-// part's .krf beside it (krf.h). 1, or 0 where the .ksc could not be written
-int ksc_answers_written(const char *ksc, const std::string &asked, const std::vector<std::string> &rows,
-                               Who who)
+// The .ksc rewritten by `who` with `rows` in place of every row of the run channel it recorded for a question beginning
+// with the words `queried`, whatever came back, the rows put after its last row of the run channel and its counts of
+// the run channel taken again (ksc_rows_replaced_traced_by); every row let go that no row put gives again is recorded
+// in the part's .krf beside it (krf.h). 1, or 0 where the .ksc could not be written
+int ksc_answers_written(const char *ksc, const std::string &queried, const std::vector<std::string> &rows, Who who)
 {
     KscFile file = {};
     KfileLines removed = {};
@@ -265,7 +265,7 @@ int ksc_answers_written(const char *ksc, const std::string &asked, const std::ve
         texts.push_back(row.c_str());
     }
     const int written = ksc_read(&file, ksc) &&
-                        ksc_rows_replaced_traced_by(&file, "run", asked.c_str(), texts.data(),
+                        ksc_rows_replaced_traced_by(&file, "run", queried.c_str(), texts.data(),
                                                     (unsigned int)texts.size(), who, &removed) &&
                         ksc_write_by(&file, ksc, who);
     ksc_free(&file);
@@ -275,7 +275,7 @@ int ksc_answers_written(const char *ksc, const std::string &asked, const std::ve
         krf_path_beside(ksc, krf, sizeof(krf));
         if (!krf_removed_by(krf, "ksc", "replaced", removed.line, removed.lines, who))
         {
-            printf("  %u rows let go from %s could not be kept in %s\n", removed.lines, ksc, krf);
+            printf("  %u rows let go from %s could not be recorded in %s\n", removed.lines, ksc, krf);
         }
     }
     kfile_lines_free(&removed);

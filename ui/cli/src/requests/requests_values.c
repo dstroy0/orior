@@ -12,7 +12,7 @@
 // the bytes a values' pool is begun with before it doubles, and a value written as JSON is begun in before it grows
 #define CLI_REQUESTS_POOL_FIRST (1u << 10u)
 
-CliCellsTally g_cli_requests_cells = CLI_CELLS_TALLY("cli_requests");
+CellOwner g_cli_requests_cells = MMGR_CELL_OWNER("cli_requests");
 
 // the environment file read, a tree in a cell sized to it, and the names of the environments, under the lock and
 // given back before it is
@@ -33,25 +33,25 @@ static int values_under(const char *path, const char *base)
 
 int cli_requests_nearest(const char *root, const char *path, const char *name, char *found)
 {
-    char file[CLI_PATH_LONGEST];
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    char folder[CLI_PATH_LONGEST];
-    if (!cli_inside(root, path, file, &said) || !cli_path_parent(file, folder))
+    char file[CLI_PATH_MAX_LEN];
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char folder[CLI_PATH_MAX_LEN];
+    if (!cli_inside(root, path, file, &err_msg) || !cli_path_parent(file, folder))
     {
         return 0;
     }
     while (values_under(folder, root))
     {
-        CliLine line = {found, CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&line, folder);
-        cli_line_character(&line, '/');
-        cli_line_text(&line, name);
-        if ((cli_line_closed(&line) != 0ull) && query_is_file(found))
+        VerbaLinea line = {found, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, folder);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, name);
+        if ((mmgr_line_finish(&line) != 0ull) && query_is_file(found))
         {
             return 1;
         }
-        char above[CLI_PATH_LONGEST];
+        char above[CLI_PATH_MAX_LEN];
         if (!cli_path_parent(folder, above))
         {
             return 0;
@@ -61,37 +61,37 @@ int cli_requests_nearest(const char *root, const char *path, const char *name, c
     return 0;
 }
 
-// the environment file at `file` read into the tree, the lock held: its object, or CLI_JSON_NONE with why said
-static unsigned int values_read(const char *file, CliLine *said)
+// the environment file at `file` read into the tree, the lock acquired: its object, or CLI_JSON_NONE with why given
+static unsigned int values_read(const char *file, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(file, &size);
+    const unsigned char *const bytes = cli_file_read(file, &size);
     if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
     {
         if (bytes != NULL)
         {
             cli_file_let_go(bytes, size);
         }
-        cli_line_text(said, file);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, ": it could not be read");
         return CLI_JSON_NONE;
     }
-    char why[CLI_SAID_LONGEST];
-    CliLine read_said = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
     cli_json_given(&s_json);
-    const unsigned int object = cli_json_taken(&s_json, (const char *)bytes, size, 0u, 0ull, &read_said);
+    const unsigned int object = cli_json_taken(&s_json, (const char *)bytes, size, 0u, 0ull, &read_err_msg);
     cli_file_let_go(bytes, size);
     if (object == CLI_JSON_NONE)
     {
-        cli_line_text(said, file);
-        cli_line_text(said, ": ");
-        cli_line_counted(said, why, read_said.at);
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, why, read_err_msg.at);
         return CLI_JSON_NONE;
     }
     if (!cli_json_is(&s_json, object, CFG_JSON_OBJECT))
     {
-        cli_line_text(said, file);
-        cli_line_text(said, " holds no object of environments");
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, " contains no object of environments");
         return CLI_JSON_NONE;
     }
     return object;
@@ -122,13 +122,13 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
             room *= 2ull;
         }
         room = (room < CLI_REQUESTS_TEXT) ? room : CLI_REQUESTS_TEXT;
-        char *const pool = cli_cell_taken_by(&g_cli_requests_cells, room, "the values' texts");
+        char *const pool = g_cli_cells->persistent_buf_alloc(room, &g_cli_requests_cells);
         if (pool == NULL)
         {
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = pool, .src = values->text, .bytes = (size_t)values->used});
-        cli_cell_given_by(&g_cli_requests_cells, values->text);
+        g_cli_cells->persistent_buf_release(values->text, &g_cli_requests_cells);
         values->text = pool;
         values->room = room;
     }
@@ -151,7 +151,7 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
 
 void cli_requests_values_given(CliRequestsValues *values)
 {
-    cli_cell_given_by(&g_cli_requests_cells, values->text);
+    g_cli_cells->persistent_buf_release(values->text, &g_cli_requests_cells);
     values->text = NULL;
     values->room = 0ull;
     values->used = 0ull;
@@ -173,28 +173,28 @@ const CliRequestsText *cli_requests_value(const CliRequestsValues *values, const
 }
 
 // the reason the values of an environment did not fit
-static void values_full_said(CliLine *said)
+static void values_full_err(VerbaLinea *err_msg)
 {
-    cli_line_text(said, "the values of the environment are larger than orior_cli holds");
+    mmgr_line_put(err_msg, "the values of the environment are larger than orior_cli supports");
 }
 
-// the names of the environments of the file at `path` put in s_names, the lock held, and the tree's paths of the
-// shared file and the private one into `relative` where `has` says it is there: 1, or 0 with why said
-static int values_listed(const char *root, const char *path, char (*relative)[CLI_PATH_LONGEST], int *has,
-                         CliLine *said)
+// the names of the environments of the file at `path` put in s_names, the lock acquired, and the tree's paths of the
+// shared file and the private one into `relative` where `has` shows it is there: 1, or 0 with why given
+static int values_listed(const char *root, const char *path, char (*relative)[CLI_PATH_MAX_LEN], int *has,
+                         VerbaLinea *err_msg)
 {
     int read = 1;
     int fits = 1;
     cli_requests_values_given(&s_names);
-    for (unsigned int slot = 0u; read && fits && (slot < 2u); slot += 1u)
+    for (unsigned int at = 0u; read && fits && (at < 2u); at += 1u)
     {
-        char file[CLI_PATH_LONGEST];
-        has[slot] = cli_requests_nearest(root, path, s_files[slot], file);
-        if (!has[slot])
+        char file[CLI_PATH_MAX_LEN];
+        has[at] = cli_requests_nearest(root, path, s_files[at], file);
+        if (!has[at])
         {
             continue;
         }
-        const unsigned int object = values_read(file, said);
+        const unsigned int object = values_read(file, err_msg);
         read = (object != CLI_JSON_NONE);
         for (unsigned int member = read ? s_json.node[object].first : CLI_JSON_NONE; fits && (member != CLI_JSON_NONE);
              member = s_json.node[member].next)
@@ -204,44 +204,44 @@ static int values_listed(const char *root, const char *path, char (*relative)[CL
                    cli_requests_value_put(&s_names, key,
                                           cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}), "", 0ull);
         }
-        cli_relative(root, file, relative[slot]);
+        cli_relative(root, file, relative[at]);
     }
     if (!fits)
     {
-        values_full_said(said);
+        values_full_err(err_msg);
     }
     return read && fits;
 }
 
-int cli_requests_environments(const char *root, const char *path, CliLine *out, CliLine *said)
+int cli_requests_environments(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char relative[2][CLI_PATH_LONGEST];
+    char relative[2][CLI_PATH_MAX_LEN];
     int has[2] = {0, 0};
     cli_lock_take(&s_lock);
-    const int listed = values_listed(root, path, relative, has, said);
+    const int listed = values_listed(root, path, relative, has, err_msg);
     if (listed)
     {
-        cli_line_text(out, "{\"names\":[");
+        mmgr_line_put(out, "{\"names\":[");
         for (unsigned int at = 0u; at < s_names.count; at += 1u)
         {
-            cli_line_text(out, (at > 0u) ? "," : "");
+            mmgr_line_put(out, (at > 0u) ? "," : "");
             cli_json_quoted(out, s_names.text + s_names.name[at].at, s_names.name[at].size);
         }
         static const char *const keys[2] = {"],\"shared\":", ",\"private\":"};
-        for (unsigned int slot = 0u; slot < 2u; slot += 1u)
+        for (unsigned int index = 0u; index < 2u; index += 1u)
         {
-            cli_line_text(out, keys[slot]);
-            if (has[slot])
+            mmgr_line_put(out, keys[index]);
+            if (has[index])
             {
-                cli_json_quoted(out, relative[slot],
-                                cellul.len(&(CatenaFinitaCfg){.src = relative[slot], .cap = CLI_CELLS_POOL}));
+                cli_json_quoted(out, relative[index],
+                                cellul.len(&(CatenaFinitaCfg){.src = relative[index], .cap = CLI_CELLS_POOL}));
             }
             else
             {
-                cli_line_text(out, "null");
+                mmgr_line_put(out, "null");
             }
         }
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
     cli_requests_values_given(&s_names);
     cli_json_given(&s_json);
@@ -261,34 +261,35 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
         return cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
                                       text, length);
     }
-    CliLine written;
-    if (!cli_line_growing(&written, CLI_REQUESTS_POOL_FIRST, "a value written as JSON"))
+    VerbaLinea written;
+    if (!cli_growing_line_made(&written, CLI_REQUESTS_POOL_FIRST))
     {
         return 0;
     }
     cli_json_write(&s_json, member, &written, 0u, 0);
     const int put =
-        cli_line_fits(&written) &&
+        mmgr_line_ok(&written) &&
         cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
                                written.out, written.at);
-    cli_cell_given(written.out);
+    g_cli_cells->persistent_buf_release(written.out, NULL);
     return put;
 }
 
-int cli_requests_values(const char *root, const char *path, const char *env, CliRequestsValues *values, CliLine *said)
+int cli_requests_values(const char *root, const char *path, const char *env, CliRequestsValues *values,
+                        VerbaLinea *err_msg)
 {
     cli_requests_values_given(values);
     int read = 1;
     int fits = 1;
     cli_lock_take(&s_lock);
-    for (unsigned int slot = 0u; read && fits && (slot < 2u); slot += 1u)
+    for (unsigned int at = 0u; read && fits && (at < 2u); at += 1u)
     {
-        char file[CLI_PATH_LONGEST];
-        if (!cli_requests_nearest(root, path, s_files[slot], file))
+        char file[CLI_PATH_MAX_LEN];
+        if (!cli_requests_nearest(root, path, s_files[at], file))
         {
             continue;
         }
-        const unsigned int object = values_read(file, said);
+        const unsigned int object = values_read(file, err_msg);
         read = (object != CLI_JSON_NONE);
         for (unsigned int group = 0u; read && fits && (group < ((env != NULL) ? 2u : 1u)); group += 1u)
         {
@@ -305,7 +306,7 @@ int cli_requests_values(const char *root, const char *path, const char *env, Cli
     cli_lock_give(&s_lock);
     if (!fits)
     {
-        values_full_said(said);
+        values_full_err(err_msg);
     }
     return read && fits;
 }
@@ -318,13 +319,13 @@ int cli_requests_verifies(const char *root, const char *path, const char *env)
     }
     int verifies = 1;
     cli_lock_take(&s_lock);
-    for (unsigned int slot = 0u; verifies && (slot < 2u); slot += 1u)
+    for (unsigned int at = 0u; verifies && (at < 2u); at += 1u)
     {
-        char file[CLI_PATH_LONGEST];
-        char why[CLI_SAID_LONGEST];
-        CliLine said = {why, sizeof(why), 0ull};
+        char file[CLI_PATH_MAX_LEN];
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
         const unsigned int object =
-            cli_requests_nearest(root, path, s_files[slot], file) ? values_read(file, &said) : CLI_JSON_NONE;
+            cli_requests_nearest(root, path, s_files[at], file) ? values_read(file, &err_msg) : CLI_JSON_NONE;
         const unsigned int set = cli_json_member(&s_json, object, env);
         const unsigned int ssl = cli_json_member(&s_json, set, "SSLConfiguration");
         verifies = !cli_json_is(&s_json, cli_json_member(&s_json, ssl, "verifyHostCertificate"), CFG_JSON_FALSE);
@@ -339,7 +340,7 @@ int cli_requests_verifies(const char *root, const char *path, const char *env)
 static int values_ignored(const char *ignore, int *joined)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(ignore, &size);
+    const unsigned char *const bytes = cli_file_read(ignore, &size);
     const char *const listed = (const char *)bytes;
     const unsigned long long length = (bytes != NULL) ? size : 0ull;
     *joined = (length == 0ull) || (listed[length - 1u] == '\n');
@@ -372,65 +373,65 @@ static int values_ignored(const char *ignore, int *joined)
 // where none is, as serde_json's pretty writer lays the object out: 1, or 0 where it could not be written
 static int values_private_written(const char *file)
 {
-    CliLine object;
-    if (!cli_line_growing(&object, CLI_REQUESTS_POOL_FIRST, "the reader's private file written"))
+    VerbaLinea object;
+    if (!cli_growing_line_made(&object, CLI_REQUESTS_POOL_FIRST))
     {
         return 0;
     }
-    cli_line_character(&object, '{');
+    mmgr_line_ch(&object, '{');
     for (unsigned int at = 0u; at < s_names.count; at += 1u)
     {
-        cli_line_text(&object, (at > 0u) ? ",\n  " : "\n  ");
+        mmgr_line_put(&object, (at > 0u) ? ",\n  " : "\n  ");
         cli_json_quoted(&object, s_names.text + s_names.name[at].at, s_names.name[at].size);
-        cli_line_text(&object, ": {}");
+        mmgr_line_put(&object, ": {}");
     }
     if (s_names.count == 0u)
     {
-        cli_line_text(&object, "\n  \"dev\": {}");
+        mmgr_line_put(&object, "\n  \"dev\": {}");
     }
-    cli_line_text(&object, "\n}\n");
-    const int written = cli_line_fits(&object) && query_file_written(file, object.out, object.at);
-    cli_cell_given(object.out);
+    mmgr_line_put(&object, "\n}\n");
+    const int written = mmgr_line_ok(&object) && query_file_written(file, object.out, object.at);
+    g_cli_cells->persistent_buf_release(object.out, NULL);
     return written;
 }
 
-int cli_requests_private_made(const char *root, const char *path, CliLine *out, CliLine *said)
+int cli_requests_private_made(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char file[CLI_PATH_LONGEST];
-    char relative[2][CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
+    char relative[2][CLI_PATH_MAX_LEN];
     if (cli_requests_nearest(root, path, CLI_REQUESTS_PRIVATE, file))
     {
         cli_relative(root, file, relative[0]);
         cli_json_quoted(out, relative[0], cellul.len(&(CatenaFinitaCfg){.src = relative[0], .cap = CLI_CELLS_POOL}));
         return 1;
     }
-    char inside[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
-    if (!cli_inside(root, path, inside, said))
+    char inside[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    if (!cli_inside(root, path, inside, err_msg))
     {
         return 0;
     }
     if (!cli_path_parent(inside, folder))
     {
-        cli_line_text(said, "the file has no folder");
+        mmgr_line_put(err_msg, "the file has no folder");
         return 0;
     }
-    CliLine made = {file, sizeof(file), 0ull};
-    cli_line_text(&made, folder);
-    cli_line_text(&made, "/" CLI_REQUESTS_PRIVATE);
-    char ignore[CLI_PATH_LONGEST];
-    CliLine ignore_line = {ignore, sizeof(ignore), 0ull};
-    cli_line_text(&ignore_line, root);
-    cli_line_text(&ignore_line, "/.gitignore");
-    if ((cli_line_closed(&made) == 0ull) || (cli_line_closed(&ignore_line) == 0ull))
+    VerbaLinea made = {file, sizeof(file), 0ull};
+    mmgr_line_put(&made, folder);
+    mmgr_line_put(&made, "/" CLI_REQUESTS_PRIVATE);
+    char ignore[CLI_PATH_MAX_LEN];
+    VerbaLinea ignore_line = {ignore, sizeof(ignore), 0ull};
+    mmgr_line_put(&ignore_line, root);
+    mmgr_line_put(&ignore_line, "/.gitignore");
+    if ((mmgr_line_finish(&made) == 0ull) || (mmgr_line_finish(&ignore_line) == 0ull))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": its path is too long");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": its path is too long");
         return 0;
     }
     int has[2] = {0, 0};
     cli_lock_take(&s_lock);
-    int done = values_listed(root, path, relative, has, said);
+    int done = values_listed(root, path, relative, has, err_msg);
     int joined = 1;
     const char *failed = NULL;
     if (done && !values_ignored(ignore, &joined))
@@ -451,8 +452,8 @@ int cli_requests_private_made(const char *root, const char *path, CliLine *out, 
     cli_lock_give(&s_lock);
     if (failed != NULL)
     {
-        cli_line_text(said, failed);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, failed);
+        mmgr_line_put(err_msg, ": it could not be written");
     }
     if (done)
     {

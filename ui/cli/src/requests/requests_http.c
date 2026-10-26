@@ -32,8 +32,8 @@ static double http_millis(unsigned long long microseconds)
     return (double)((microseconds + 50u) / 100u) / 10.0;
 }
 
-// more read from the connection after what is held: 1 where some came, 0 at its end, -1 with why said
-static int http_fill(HttpConnection *connection, CliLine *said)
+// more read from the connection after what is buffered: 1 where some came, 0 at its end, -1 with why given
+static int http_fill(HttpConnection *connection, VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = connection->room;
     if (room->start > 0u)
@@ -44,16 +44,16 @@ static int http_fill(HttpConnection *connection, CliLine *said)
         room->start = 0ull;
     }
     const long long read = (connection->tls != NULL)
-                               ? cli_tls_read(connection->tls, room->reading + room->end, CLI_REQUESTS_CHUNK, said)
+                               ? cli_tls_read(connection->tls, room->reading + room->end, CLI_REQUESTS_CHUNK, err_msg)
                                : cli_socket_some(&connection->socket, room->reading + room->end, CLI_REQUESTS_CHUNK);
     if (read == CLI_SOCKET_WAITED)
     {
-        cli_line_text(said, "no answer came within 60 s");
+        mmgr_line_put(err_msg, "no answer came within 60 s");
         return -1;
     }
     if ((read == CLI_SOCKET_FAILED) && (connection->tls == NULL))
     {
-        cli_line_text(said, "the connection failed as it was read");
+        mmgr_line_put(err_msg, "the connection failed as it was read");
     }
     if (read < 0)
     {
@@ -65,8 +65,9 @@ static int http_fill(HttpConnection *connection, CliLine *said)
 }
 
 // the next line of the head, its CRLF taken off, `*size` bytes at `*line` of the reading, taken: 1, or 0 with why
-// said. The line stands until the next read
-static int http_line(HttpConnection *connection, unsigned long long *line, unsigned long long *size, CliLine *said)
+// given. The line stands until the next read
+static int http_line(HttpConnection *connection, unsigned long long *line, unsigned long long *size,
+                     VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = connection->room;
     unsigned long long looked = room->start;
@@ -84,12 +85,12 @@ static int http_line(HttpConnection *connection, unsigned long long *line, unsig
             return 1;
         }
         const unsigned long long seen = looked - room->start;
-        const int filled = (room->end - room->start <= CLI_REQUESTS_LINE) ? http_fill(connection, said) : 0;
+        const int filled = (room->end - room->start <= CLI_REQUESTS_LINE) ? http_fill(connection, err_msg) : 0;
         if (filled <= 0)
         {
             if (filled == 0)
             {
-                cli_line_text(said, "the answer ended in its headers");
+                mmgr_line_put(err_msg, "the answer ended in its headers");
             }
             return 0;
         }
@@ -98,13 +99,13 @@ static int http_line(HttpConnection *connection, unsigned long long *line, unsig
 }
 
 // `put` bytes of the body from the reading put after the `*size` in `raw`, a growing line, and `*size` raised: 1, or
-// 0 with why said where the line could not grow
-static int http_put(CliRequestsRoom *room, unsigned long long put, unsigned long long *size, CliLine *said)
+// 0 with why given where the line could not grow
+static int http_put(CliRequestsRoom *room, unsigned long long put, unsigned long long *size, VerbaLinea *err_msg)
 {
-    cli_line_counted(&room->raw, (const char *)room->reading + room->start, put);
-    if (!cli_line_fits(&room->raw))
+    mmgr_line_put_n(&room->raw, (const char *)room->reading + room->start, put);
+    if (!mmgr_line_ok(&room->raw))
     {
-        cli_line_text(said, "the answer's body could not be held");
+        mmgr_line_put(err_msg, "the answer's body could not be stored");
         return 0;
     }
     *size += put;
@@ -112,34 +113,34 @@ static int http_put(CliRequestsRoom *room, unsigned long long put, unsigned long
 }
 
 // `length` bytes of the body read, those that fit in CLI_REQUESTS_BODY put after the `*size` in `raw`, its room made
-// for them all at once, `*cut` set where any did not: 1, or 0 with why said
+// for them all at once, `*cut` set where any did not: 1, or 0 with why given
 static int http_exactly(HttpConnection *connection, unsigned long long length, unsigned long long *size, int *cut,
-                        CliLine *said)
+                        VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = connection->room;
     const unsigned long long fits_all = CLI_REQUESTS_BODY - *size;
-    if (!cli_line_room(&room->raw, (length < fits_all) ? length : fits_all))
+    if (!cli_growing_line_room(&room->raw, (length < fits_all) ? length : fits_all))
     {
-        cli_line_text(said, "the answer's body could not be held");
+        mmgr_line_put(err_msg, "the answer's body could not be stored");
         return 0;
     }
     unsigned long long left = length;
     while (left > 0u)
     {
-        const int filled = (room->start == room->end) ? http_fill(connection, said) : 1;
+        const int filled = (room->start == room->end) ? http_fill(connection, err_msg) : 1;
         if (filled <= 0)
         {
             if (filled == 0)
             {
-                cli_line_text(said, "the answer ended before its length");
+                mmgr_line_put(err_msg, "the answer ended before its length");
             }
             return 0;
         }
-        const unsigned long long held = room->end - room->start;
-        const unsigned long long take = (left < held) ? left : held;
+        const unsigned long long buffered = room->end - room->start;
+        const unsigned long long take = (left < buffered) ? left : buffered;
         const unsigned long long fits = CLI_REQUESTS_BODY - *size;
         const unsigned long long put = (take < fits) ? take : fits;
-        if (!http_put(room, put, size, said))
+        if (!http_put(room, put, size, err_msg))
         {
             return 0;
         }
@@ -150,26 +151,26 @@ static int http_exactly(HttpConnection *connection, unsigned long long length, u
     return 1;
 }
 
-// the body read to the connection's end, cut once it passes CLI_REQUESTS_BODY: 1, or 0 with why said
-static int http_to_end(HttpConnection *connection, unsigned long long *size, int *cut, CliLine *said)
+// the body read to the connection's end, cut once it passes CLI_REQUESTS_BODY: 1, or 0 with why given
+static int http_to_end(HttpConnection *connection, unsigned long long *size, int *cut, VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = connection->room;
     for (;;)
     {
-        const unsigned long long held = room->end - room->start;
+        const unsigned long long buffered = room->end - room->start;
         const unsigned long long fits = CLI_REQUESTS_BODY - *size;
-        const unsigned long long put = (held < fits) ? held : fits;
-        if (!http_put(room, put, size, said))
+        const unsigned long long put = (buffered < fits) ? buffered : fits;
+        if (!http_put(room, put, size, err_msg))
         {
             return 0;
         }
         room->start = room->end;
-        if (held > fits)
+        if (buffered > fits)
         {
             *cut = 1;
             return 1;
         }
-        const int filled = http_fill(connection, said);
+        const int filled = http_fill(connection, err_msg);
         if (filled <= 0)
         {
             return filled == 0;
@@ -177,15 +178,15 @@ static int http_to_end(HttpConnection *connection, unsigned long long *size, int
     }
 }
 
-// a chunked body read, its trailer passed over: 1, or 0 with why said
-static int http_chunked(HttpConnection *connection, unsigned long long *size, int *cut, CliLine *said)
+// a chunked body read, its trailer passed over: 1, or 0 with why given
+static int http_chunked(HttpConnection *connection, unsigned long long *size, int *cut, VerbaLinea *err_msg)
 {
     const unsigned char *const reading = connection->room->reading;
     for (;;)
     {
         unsigned long long line = 0ull;
         unsigned long long length = 0ull;
-        if (!http_line(connection, &line, &length, said))
+        if (!http_line(connection, &line, &length, err_msg))
         {
             return 0;
         }
@@ -198,22 +199,22 @@ static int http_chunked(HttpConnection *connection, unsigned long long *size, in
         unsigned long long chunk = 0ull;
         if (!cli_requests_number(text + start, end - start, 16u, 0xffffffffffffffffull, &chunk))
         {
-            cli_line_text(said, "a chunk's size reads ");
-            cli_json_quoted_lossy(said, reading + line, length);
+            mmgr_line_put(err_msg, "a chunk's size reads ");
+            cli_json_quoted_lossy(err_msg, reading + line, length);
             return 0;
         }
         if (chunk == 0u)
         {
             do
             {
-                if (!http_line(connection, &line, &length, said))
+                if (!http_line(connection, &line, &length, err_msg))
                 {
                     return 0;
                 }
             } while (length > 0u);
             return 1;
         }
-        if (!http_exactly(connection, chunk, size, cut, said) || !http_line(connection, &line, &length, said))
+        if (!http_exactly(connection, chunk, size, cut, err_msg) || !http_line(connection, &line, &length, err_msg))
         {
             return 0;
         }
@@ -221,8 +222,8 @@ static int http_chunked(HttpConnection *connection, unsigned long long *size, in
 }
 
 // the head of the answer read, an answer of 1xx but 101 passed over, the wait for its first line timed from `step`:
-// 1, or 0 with why said
-static int http_head(HttpConnection *connection, unsigned long long step, CliLine *said)
+// 1, or 0 with why given
+static int http_head(HttpConnection *connection, unsigned long long step, VerbaLinea *err_msg)
 {
     CliRequestsAnswer *const answer = &connection->room->answer;
     const unsigned char *const reading = connection->room->reading;
@@ -230,7 +231,7 @@ static int http_head(HttpConnection *connection, unsigned long long step, CliLin
     {
         unsigned long long line = 0ull;
         unsigned long long length = 0ull;
-        if (!http_line(connection, &line, &length, said))
+        if (!http_line(connection, &line, &length, err_msg))
         {
             return 0;
         }
@@ -247,9 +248,9 @@ static int http_head(HttpConnection *connection, unsigned long long step, CliLin
         unsigned long long status = 0ull;
         if ((code == NULL) || !cli_requests_number(code, code_size, 10u, 65535u, &status))
         {
-            cli_line_text(said, "the answer began ");
-            cli_json_quoted_lossy(said, reading + line, length);
-            cli_line_text(said, ", which is no status line");
+            mmgr_line_put(err_msg, "the answer began ");
+            cli_json_quoted_lossy(err_msg, reading + line, length);
+            mmgr_line_put(err_msg, ", which is no status line");
             return 0;
         }
         // a status read is at most 65535
@@ -257,11 +258,11 @@ static int http_head(HttpConnection *connection, unsigned long long step, CliLin
         answer->headers = 0u;
         answer->head_used = 0ull;
         const unsigned long long reason = (after != NULL) ? (unsigned long long)(after + 1 - text) : length;
-        int kept = cli_requests_head_kept(answer, text, version, &answer->version) &&
-                   cli_requests_head_kept(answer, text + reason, length - reason, &answer->reason);
-        while (kept)
+        int read_ok = cli_requests_head_stored(answer, text, version, &answer->version) &&
+                      cli_requests_head_stored(answer, text + reason, length - reason, &answer->reason);
+        while (read_ok)
         {
-            if (!http_line(connection, &line, &length, said))
+            if (!http_line(connection, &line, &length, err_msg))
             {
                 return 0;
             }
@@ -269,52 +270,52 @@ static int http_head(HttpConnection *connection, unsigned long long step, CliLin
             {
                 break;
             }
-            kept = cli_requests_head_line(answer, (const char *)reading + line, length);
+            read_ok = cli_requests_head_line(answer, (const char *)reading + line, length);
         }
-        if (!kept)
+        if (!read_ok)
         {
-            cli_line_text(said, "the answer's head is larger than orior_cli holds");
+            mmgr_line_put(err_msg, "the answer's head is larger than orior_cli supports");
             return 0;
         }
     } while ((answer->status >= 100u) && (answer->status < 200u) && (answer->status != 101u));
     return 1;
 }
 
-// the request written whole, its head and then its body: 1, or 0 with why said
-static int http_written(HttpConnection *connection, const char *host, CliLine *said)
+// the request written whole, its head and then its body: 1, or 0 with why given
+static int http_written(HttpConnection *connection, const char *host, VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = connection->room;
-    CliLine head = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_line_growing(&head, CLI_REQUESTS_BODY_FIRST, "a request's head written"))
+    VerbaLinea head = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    if (!cli_growing_line_made(&head, CLI_REQUESTS_BODY_FIRST))
     {
-        cli_line_text(said, "the request's head could not be held");
+        mmgr_line_put(err_msg, "the request's head could not be stored");
         return 0;
     }
     cli_requests_head_written(&room->hop, &room->address, &head);
-    int written = cli_line_fits(&head);
+    int written = mmgr_line_ok(&head);
     if (!written)
     {
-        cli_line_text(said, "the request is larger than orior_cli holds");
+        mmgr_line_put(err_msg, "the request is larger than orior_cli supports");
     }
     else if (connection->tls != NULL)
     {
-        written = cli_tls_written(connection->tls, head.out, head.at, said) &&
-                  cli_tls_written(connection->tls, room->hop.body, room->hop.body_size, said);
+        written = cli_tls_written(connection->tls, head.out, head.at, err_msg) &&
+                  cli_tls_written(connection->tls, room->hop.body, room->hop.body_size, err_msg);
     }
     else if (!cli_socket_written(&connection->socket, head.out, head.at) ||
              !cli_socket_written(&connection->socket, room->hop.body, room->hop.body_size))
     {
-        cli_line_text(said, host);
-        cli_line_text(said, ": the request could not be sent");
+        mmgr_line_put(err_msg, host);
+        mmgr_line_put(err_msg, ": the request could not be sent");
         written = 0;
     }
-    cli_cell_given(head.out);
+    g_cli_cells->persistent_buf_release(head.out, NULL);
     return written;
 }
 
-// the answer's body read as its head says it comes, its bytes as they came into `raw`, `*size` of them: 1, or 0 with
-// why said
-static int http_body(HttpConnection *connection, unsigned long long *size, CliLine *said)
+// the answer's body read as its head specifies it comes, its bytes as they came into `raw`, `*size` of them: 1, or 0
+// with why given
+static int http_body(HttpConnection *connection, unsigned long long *size, VerbaLinea *err_msg)
 {
     CliRequestsAnswer *const answer = &connection->room->answer;
     const unsigned int status = answer->status;
@@ -331,18 +332,18 @@ static int http_body(HttpConnection *connection, unsigned long long *size, CliLi
     if (empty)
     {
     }
-    else if ((encoding != NULL) && cli_requests_holds(answer->head + encoding->at, encoding->size, "chunked"))
+    else if ((encoding != NULL) && cli_requests_contains(answer->head + encoding->at, encoding->size, "chunked"))
     {
-        read = http_chunked(connection, size, &cut, said);
+        read = http_chunked(connection, size, &cut, err_msg);
     }
     else if ((length != NULL) &&
              cli_requests_number(answer->head + length->at, length->size, 10u, 0xffffffffffffffffull, &count))
     {
-        read = http_exactly(connection, count, size, &cut, said);
+        read = http_exactly(connection, count, size, &cut, err_msg);
     }
     else
     {
-        read = http_to_end(connection, size, &cut, said);
+        read = http_to_end(connection, size, &cut, err_msg);
     }
     answer->cut = cut;
     // the body's cell is the one it ended in: a growing line moves as it fills
@@ -351,21 +352,21 @@ static int http_body(HttpConnection *connection, unsigned long long *size, CliLi
     return read;
 }
 
-int cli_requests_once(CliRequestsRoom *room, int verify, CliLine *said)
+int cli_requests_once(CliRequestsRoom *room, int verify, VerbaLinea *err_msg)
 {
     const unsigned long long began = cli_clock_microseconds();
     CliRequestsSent *const hop = &room->hop;
     CliRequestsAnswer *const answer = &room->answer;
-    const int taken = cli_requests_address(hop->url, &room->address, said);
+    const int taken = cli_requests_address(hop->url, &room->address, err_msg);
     const char *const host = room->address.host;
     const int secure = room->address.secure;
     char purpose[CLI_REQUESTS_NAME + 16u];
-    CliLine purpose_line = {purpose, sizeof(purpose), 0ull};
-    cli_line_text(&purpose_line, "a ");
-    cli_line_text(&purpose_line, hop->method);
-    cli_line_text(&purpose_line, " request");
-    cli_line_closed(&purpose_line);
-    if (!taken || !cli_net_reach(hop->url, purpose, said))
+    VerbaLinea purpose_line = {purpose, sizeof(purpose), 0ull};
+    mmgr_line_put(&purpose_line, "a ");
+    mmgr_line_put(&purpose_line, hop->method);
+    mmgr_line_put(&purpose_line, " request");
+    mmgr_line_finish(&purpose_line);
+    if (!taken || !cli_net_reach(hop->url, purpose, err_msg))
     {
         return 0;
     }
@@ -384,7 +385,7 @@ int cli_requests_once(CliRequestsRoom *room, int verify, CliLine *said)
     unsigned long long resolved = 0ull;
     unsigned long long step = cli_clock_microseconds();
     if (!cli_socket_connected_timed(&connection.socket, host, room->address.port, CLI_REQUESTS_CONNECTING, &resolved,
-                                    said))
+                                    err_msg))
     {
         return 0;
     }
@@ -393,21 +394,21 @@ int cli_requests_once(CliRequestsRoom *room, int verify, CliLine *said)
     cli_socket_waited(&connection.socket, CLI_REQUESTS_ANSWERING);
     cli_socket_write_waited(&connection.socket, CLI_REQUESTS_ANSWERING);
     step = cli_clock_microseconds();
-    connection.tls = secure ? cli_tls_connect(&connection.socket, host, verify, said) : NULL;
+    connection.tls = secure ? cli_tls_connect(&connection.socket, host, verify, err_msg) : NULL;
     int done = !secure || (connection.tls != NULL);
     answer->times.tls = secure ? http_millis(cli_clock_microseconds() - step) : 0.0;
     step = cli_clock_microseconds();
-    done = done && http_written(&connection, host, said) && http_head(&connection, step, said);
+    done = done && http_written(&connection, host, err_msg) && http_head(&connection, step, err_msg);
     step = cli_clock_microseconds();
     unsigned long long size = 0ull;
-    done = done && http_body(&connection, &size, said);
+    done = done && http_body(&connection, &size, err_msg);
     answer->times.read = http_millis(cli_clock_microseconds() - step);
     if (connection.tls != NULL)
     {
         cli_tls_closed(connection.tls);
     }
     cli_socket_closed(&connection.socket);
-    if (!done || (!answer->cut && !cli_requests_decoded(room, size, said)))
+    if (!done || (!answer->cut && !cli_requests_decoded(room, size, err_msg)))
     {
         return 0;
     }

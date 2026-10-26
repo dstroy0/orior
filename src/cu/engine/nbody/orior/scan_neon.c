@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -10,7 +10,7 @@
  * @brief The steering scan under NEON, sixteen alignments per compare.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION AVX2 ANSWERS, ONE ARM OVER. Held at one needle offset, does
+ * THE SAME QUESTION AVX2 ANSWERS, ONE ARM OVER. Fixed at one needle offset, does
  * `corpus[at + offset]` equal `needle[offset]` for consecutive `at`. The needle byte broadcasts
  * once, the corpus side is a sliding window at unit stride, and the survivor mask enters as the
  * alignments still standing. A NEON register is 128 bits and answers sixteen of those in one compare.
@@ -40,7 +40,7 @@ size_t orior_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, c
                                       size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
+     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -62,7 +62,7 @@ size_t orior_steer_truthy_after_neon(const uint8_t *corpus, size_t alignments, c
         const uint8x16_t agrees = vceqq_u8(window, broadcast);
 
         /* An alive flag is zero or non-zero. vceqq against zero marks the refuted lanes, and the
-         * complement marks the standing ones. Complementing instead of comparing against one keeps
+         * complement marks the standing ones. Complementing instead of comparing against one retains
          * this correct if a caller ever stores a flag other than one. */
         const uint8x16_t alive_mask = vmvnq_u8(vceqq_u8(standing_bytes, zero));
 

@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// plugins_draft.c: the plugin a few answers ask for: made from nothing, or from a plugin to start from with what the
+// plugins_draft.c: the plugin a few answers request: made from nothing, or from a plugin to start from with what the
 // answers name changed
 #include "plugins.h"
 
 // the most bytes of a pattern made; and the nodes and bytes of texts a draft makes besides the copies of its answers
 // and the plugin it starts from, the members of a plugin and a grammar made from nothing among them
-#define CLI_PATTERN_LONGEST 1024u
+#define CLI_PATTERN_MAX_LEN 1024u
 #define CLI_DRAFT_NODES_MORE 512u
 #define CLI_DRAFT_TEXT_MORE (1ull << 14u)
 
 // the number's pattern a grammar made from nothing reads
 static const char s_number[] = "0[xX][\\da-fA-F_]+|0[bB][01_]+|(?:\\d[\\d_]*)?\\.?\\d[\\d_]*(?:[eE][+-]?\\d+)?";
 
-// the answer `name` of the spec as text, trimmed, into `out`, which holds `room`: its length
+// the answer `name` of the spec as text, trimmed, into `out`, sized for `room`: its length
 static unsigned long long cli_answer(const CliJson *json, unsigned int spec, const char *name, char *out,
                                      unsigned long long room)
 {
@@ -29,9 +29,9 @@ static unsigned long long cli_answer(const CliJson *json, unsigned int spec, con
     {
         to -= 1;
     }
-    CliLine line = {out, room, 0ull};
-    cli_line_counted(&line, from, (unsigned long long)(to - from));
-    return cli_line_closed(&line);
+    VerbaLinea line = {out, room, 0ull};
+    mmgr_line_put_n(&line, from, (unsigned long long)(to - from));
+    return mmgr_line_finish(&line);
 }
 
 // the words of a list of the answers, trimmed, each once, in the order first given, made an array node
@@ -55,12 +55,12 @@ static unsigned int cli_words(CliJson *json, unsigned int list)
         }
         const unsigned long long size = (unsigned long long)(to - from);
         int seen = size == 0ull;
-        for (unsigned int kept = json->node[words].first; !seen && (kept != CLI_JSON_NONE);
-             kept = json->node[kept].next)
+        for (unsigned int word_node = json->node[words].first; !seen && (word_node != CLI_JSON_NONE);
+             word_node = json->node[word_node].next)
         {
-            unsigned long long held_length = 0ull;
-            const char *const held = cli_json_string(json, kept, &held_length);
-            seen = (held_length == size) && (memor.cmp(&(MemoriaCfg){.src = held, .other = from, .bytes = size}) == 0);
+            unsigned long long word_length = 0ull;
+            const char *const word = cli_json_string(json, word_node, &word_length);
+            seen = (word_length == size) && (memor.cmp(&(MemoriaCfg){.src = word, .other = from, .bytes = size}) == 0);
         }
         if (!seen)
         {
@@ -71,22 +71,22 @@ static unsigned int cli_words(CliJson *json, unsigned int list)
 }
 
 // `text` as a pattern that matches only `text`, put after the line
-static void cli_escaped(CliLine *line, const char *text)
+static void cli_escaped(VerbaLinea *line, const char *text)
 {
     for (const char *at = text; at[0] != '\0'; at += 1)
     {
         if (cellul.chr(&(CatenaFinitaCfg){.src = "\\^$.|?*+()[]{}/", .cap = CLI_CELLS_POOL, .byte = at[0]}) != NULL)
         {
-            cli_line_character(line, '\\');
+            mmgr_line_ch(line, '\\');
         }
-        cli_line_character(line, at[0]);
+        mmgr_line_ch(line, at[0]);
     }
 }
 
 // a string node of the line's text, the line let go
-static unsigned int cli_line_made(CliJson *json, CliLine *line)
+static unsigned int cli_line_made(CliJson *json, VerbaLinea *line)
 {
-    const unsigned long long length = cli_line_fits(line) ? line->at : 0ull;
+    const unsigned long long length = mmgr_line_ok(line) ? line->at : 0ull;
     return cli_json_string_made(json, line->out, length);
 }
 
@@ -123,13 +123,13 @@ static unsigned int cli_rule(CliJson *json, unsigned int pattern, const char *to
     return rule;
 }
 
-// The grammar the answers ask for, made from nothing
+// The grammar the answers request, made from nothing
 static unsigned int cli_grammar_of(CliJson *json, unsigned int spec, unsigned int quotes)
 {
     static const char *const s_lists[3][3] = {
         {"keywords", "@keywords", "keyword"}, {"types", "@types", "type"}, {"constants", "@constants", "predefined"}};
-    char pattern[CLI_PATTERN_LONGEST];
-    char state[CLI_NAME_LONGEST];
+    char pattern[CLI_PATTERN_MAX_LEN];
+    char state[CLI_NAME_MAX_LEN];
     const unsigned int grammar = cli_json_made(json, CFG_JSON_OBJECT);
     const unsigned int cases = cli_json_made(json, CFG_JSON_OBJECT);
     for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -158,26 +158,26 @@ static unsigned int cli_grammar_of(CliJson *json, unsigned int spec, unsigned in
     for (unsigned int quote = json->node[quotes].first; quote != CLI_JSON_NONE; quote = json->node[quote].next)
     {
         const char *const text = cli_json_string(json, quote, NULL);
-        CliLine named_state = {state, sizeof(state), 0ull};
-        cli_line_text(&named_state, "string");
-        cli_line_decimal(&named_state, index, 1u);
-        cli_line_closed(&named_state);
-        char next[CLI_NAME_LONGEST];
-        CliLine next_line = {next, sizeof(next), 0ull};
-        cli_line_character(&next_line, '@');
-        cli_line_text(&next_line, state);
-        cli_line_closed(&next_line);
-        CliLine escaped = {pattern, sizeof(pattern), 0ull};
+        VerbaLinea named_state = {state, sizeof(state), 0ull};
+        mmgr_line_put(&named_state, "string");
+        mmgr_line_decimal(&named_state, index, 1u);
+        mmgr_line_finish(&named_state);
+        char next[CLI_NAME_MAX_LEN];
+        VerbaLinea next_line = {next, sizeof(next), 0ull};
+        mmgr_line_ch(&next_line, '@');
+        mmgr_line_put(&next_line, state);
+        mmgr_line_finish(&next_line);
+        VerbaLinea escaped = {pattern, sizeof(pattern), 0ull};
         cli_escaped(&escaped, text);
         cli_json_append(json, root, cli_rule(json, cli_line_made(json, &escaped), "string", next));
         const unsigned int rules = cli_json_made(json, CFG_JSON_ARRAY);
-        CliLine inner = {pattern, sizeof(pattern), 0ull};
-        cli_line_text(&inner, "(?:(?!");
+        VerbaLinea inner = {pattern, sizeof(pattern), 0ull};
+        mmgr_line_put(&inner, "(?:(?!");
         cli_escaped(&inner, text);
-        cli_line_text(&inner, "|\\\\).)+");
+        mmgr_line_put(&inner, "|\\\\).)+");
         cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &inner), "string", NULL));
         cli_json_append(json, rules, cli_rule(json, cli_text_made(json, "\\\\."), "string.escape", NULL));
-        CliLine closing = {pattern, sizeof(pattern), 0ull};
+        VerbaLinea closing = {pattern, sizeof(pattern), 0ull};
         cli_escaped(&closing, text);
         cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &closing), "string", "@pop"));
         cli_json_set(json, tokenizer, state, rules);
@@ -194,26 +194,26 @@ static unsigned int cli_grammar_of(CliJson *json, unsigned int spec, unsigned in
     if (cli_json_is(json, block, CFG_JSON_ARRAY) && (json->node[block].count == 2u) && (open != NULL) &&
         (close != NULL))
     {
-        CliLine opening = {pattern, sizeof(pattern), 0ull};
+        VerbaLinea opening = {pattern, sizeof(pattern), 0ull};
         cli_escaped(&opening, open);
         cli_json_append(json, whitespace, cli_rule(json, cli_line_made(json, &opening), "comment", "@comment"));
         const unsigned int rules = cli_json_made(json, CFG_JSON_ARRAY);
-        CliLine inner = {pattern, sizeof(pattern), 0ull};
-        cli_line_text(&inner, "(?:(?!");
+        VerbaLinea inner = {pattern, sizeof(pattern), 0ull};
+        mmgr_line_put(&inner, "(?:(?!");
         cli_escaped(&inner, close);
-        cli_line_text(&inner, ").)+");
+        mmgr_line_put(&inner, ").)+");
         cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &inner), "comment", NULL));
-        CliLine closing = {pattern, sizeof(pattern), 0ull};
+        VerbaLinea closing = {pattern, sizeof(pattern), 0ull};
         cli_escaped(&closing, close);
         cli_json_append(json, rules, cli_rule(json, cli_line_made(json, &closing), "comment", "@pop"));
         cli_json_set(json, tokenizer, "comment", rules);
     }
-    char line_comment[CLI_NAME_LONGEST];
+    char line_comment[CLI_NAME_MAX_LEN];
     if (cli_answer(json, spec, "lineComment", line_comment, sizeof(line_comment)) != 0ull)
     {
-        CliLine commented = {pattern, sizeof(pattern), 0ull};
+        VerbaLinea commented = {pattern, sizeof(pattern), 0ull};
         cli_escaped(&commented, line_comment);
-        cli_line_text(&commented, ".*$");
+        mmgr_line_put(&commented, ".*$");
         cli_json_append(json, whitespace, cli_rule(json, cli_line_made(json, &commented), "comment", NULL));
     }
     const unsigned int ordered = cli_json_made(json, CFG_JSON_OBJECT);
@@ -233,7 +233,7 @@ static unsigned int cli_grammar_of(CliJson *json, unsigned int spec, unsigned in
 static unsigned int cli_comments_of(CliJson *json, unsigned int spec)
 {
     const unsigned int comments = cli_json_made(json, CFG_JSON_OBJECT);
-    char line[CLI_NAME_LONGEST];
+    char line[CLI_NAME_MAX_LEN];
     if (cli_answer(json, spec, "lineComment", line, sizeof(line)) != 0ull)
     {
         cli_json_set(json, comments, "line", cli_text_made(json, line));
@@ -263,16 +263,16 @@ static void cli_template_each(void *context, const CliPlugin *plugin)
         return;
     }
     template_of->seen = 1;
-    char why[CLI_PATH_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the plugin's tokens in a cell of their count, given back once they are read into the tree
     const unsigned int count = cli_json_tokens_counted(plugin->text, plugin->size) + 1u;
     CfgJsonToken *const tokens =
-        cli_cell_taken_by(&g_cli_plugins_cells, (unsigned long long)count * sizeof(*tokens), "a plugin's tokens");
+        g_cli_cells->persistent_buf_alloc((unsigned long long)count * sizeof(*tokens), &g_cli_plugins_cells);
     template_of->found = (tokens != NULL)
-                             ? cli_json_read(template_of->json, plugin->text, plugin->size, tokens, count, &said)
+                             ? cli_json_read(template_of->json, plugin->text, plugin->size, tokens, count, &err_msg)
                              : CLI_JSON_NONE;
-    cli_cell_given_by(&g_cli_plugins_cells, tokens);
+    g_cli_cells->persistent_buf_release(tokens, &g_cli_plugins_cells);
 }
 
 // The room the plugin of `id` takes, the last found of that id: its tokens and its bytes
@@ -293,12 +293,12 @@ static void cli_template_room_each(void *context, const CliPlugin *plugin)
     }
 }
 
-unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigned int spec, CliLine *said)
+unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigned int spec, VerbaLinea *err_msg)
 {
     unsigned int nodes = 0u;
     unsigned long long text = 0ull;
     cli_json_extent(json, spec, &nodes, &text);
-    char from[CLI_NAME_LONGEST];
+    char from[CLI_NAME_MAX_LEN];
     CliTemplateRoom room = {from, 0u, 0ull};
     if (cli_answer(json, spec, "from", from, sizeof(from)) != 0ull)
     {
@@ -306,21 +306,21 @@ unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigne
     }
     // the answers twice over, as the draft copies their words, the plugin started from, and the members, patterns and
     // lists the draft makes besides
-    if (!cli_json_held(draft, (2u * nodes) + room.nodes + CLI_DRAFT_NODES_MORE,
-                       (2ull * text) + room.text + CLI_DRAFT_TEXT_MORE, "a plugin's draft"))
+    if (!cli_json_reserved(draft, (2u * nodes) + room.nodes + CLI_DRAFT_NODES_MORE,
+                           (2ull * text) + room.text + CLI_DRAFT_TEXT_MORE, "a plugin's draft"))
     {
-        cli_line_text(said, "the cells cannot meet a plugin's draft");
+        mmgr_line_put(err_msg, "the cells cannot meet a plugin's draft");
         return CLI_JSON_NONE;
     }
     return cli_json_copy_from(draft, json, spec);
 }
 
-unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, CliLine *said)
+unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, VerbaLinea *err_msg)
 {
-    char name[CLI_NAME_LONGEST];
-    char given[CLI_NAME_LONGEST];
-    char id[CLI_NAME_LONGEST];
-    char from[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
+    char given[CLI_NAME_MAX_LEN];
+    char id[CLI_NAME_MAX_LEN];
+    char from[CLI_NAME_MAX_LEN];
     cli_answer(json, spec, "name", name, sizeof(name));
     cli_answer(json, spec, "id", given, sizeof(given));
     const char *const raw_name = cli_json_string(json, cli_json_member(json, spec, "name"), NULL);
@@ -328,12 +328,13 @@ unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, CliLine *said)
     cli_plugins_slug((given[0] == '\0') ? ((raw_name != NULL) ? raw_name : "") : ((raw_id != NULL) ? raw_id : ""), id);
     if (id[0] == '\0')
     {
-        cli_line_text(said, "a plugin needs a name made of letters or digits");
+        mmgr_line_put(err_msg, "a plugin needs a name made of letters or digits");
         return CLI_JSON_NONE;
     }
     const unsigned int extensions = cli_json_made(json, CFG_JSON_ARRAY);
-    const unsigned int asked = cli_json_member(json, spec, "extensions");
-    for (unsigned int item = cli_json_is(json, asked, CFG_JSON_ARRAY) ? json->node[asked].first : CLI_JSON_NONE;
+    const unsigned int extensions_node = cli_json_member(json, spec, "extensions");
+    for (unsigned int item = cli_json_is(json, extensions_node, CFG_JSON_ARRAY) ? json->node[extensions_node].first
+                                                                                : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json->node[item].next)
     {
         unsigned long long size = 0ull;
@@ -352,27 +353,27 @@ unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, CliLine *said)
         {
             at += 1;
         }
-        char lower[CLI_NAME_LONGEST];
-        CliLine line = {lower, sizeof(lower), 0ull};
+        char lower[CLI_NAME_MAX_LEN];
+        VerbaLinea line = {lower, sizeof(lower), 0ull};
         for (const char *letter = at; letter < end; letter += 1)
         {
-            cli_line_character(&line, ((letter[0] >= 'A') && (letter[0] <= 'Z')) ? (char)(letter[0] + 32) : letter[0]);
+            mmgr_line_ch(&line, ((letter[0] >= 'A') && (letter[0] <= 'Z')) ? (char)(letter[0] + 32) : letter[0]);
         }
-        if (cli_line_closed(&line) != 0ull)
+        if (mmgr_line_finish(&line) != 0ull)
         {
             cli_json_append(json, extensions, cli_text_made(json, lower));
         }
     }
     if (json->node[extensions].count == 0u)
     {
-        cli_line_text(said, "a plugin needs an extension to open, such as --ext foo");
+        mmgr_line_put(err_msg, "a plugin needs an extension to open, such as --ext foo");
         return CLI_JSON_NONE;
     }
-    const unsigned int asked_quotes = cli_json_member(json, spec, "quotes");
-    const int quoted = cli_json_is(json, asked_quotes, CFG_JSON_ARRAY) && (json->node[asked_quotes].count != 0u);
+    const unsigned int quotes_node = cli_json_member(json, spec, "quotes");
+    const int quoted = cli_json_is(json, quotes_node, CFG_JSON_ARRAY) && (json->node[quotes_node].count != 0u);
     static const char *const s_default_quotes[3] = {"\"", "'", NULL};
     const unsigned int quotes =
-        quoted ? cli_words(json, asked_quotes) : cli_array(json, s_default_quotes, CLI_JSON_NONE);
+        quoted ? cli_words(json, quotes_node) : cli_array(json, s_default_quotes, CLI_JSON_NONE);
     const unsigned int plugin = cli_json_made(json, CFG_JSON_OBJECT);
     cli_json_set(json, plugin, "id", cli_text_made(json, id));
     cli_json_set(json, plugin, "name", cli_text_made(json, (name[0] != '\0') ? name : id));
@@ -395,16 +396,16 @@ unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, CliLine *said)
     cli_plugins_each(cli_template_each, &template_of);
     if (!template_of.seen || (template_of.found == CLI_JSON_NONE))
     {
-        cli_line_text(said, template_of.seen ? "plugin " : "no plugin ");
-        cli_line_text(said, from);
-        cli_line_text(said, template_of.seen ? " does not read" : " to start from");
+        mmgr_line_put(err_msg, template_of.seen ? "plugin " : "no plugin ");
+        mmgr_line_put(err_msg, from);
+        mmgr_line_put(err_msg, template_of.seen ? " does not read" : " to start from");
         return CLI_JSON_NONE;
     }
     if (!cli_json_is(json, template_of.found, CFG_JSON_OBJECT))
     {
-        cli_line_text(said, "plugin ");
-        cli_line_text(said, from);
-        cli_line_text(said, " is not an object");
+        mmgr_line_put(err_msg, "plugin ");
+        mmgr_line_put(err_msg, from);
+        mmgr_line_put(err_msg, " is not an object");
         return CLI_JSON_NONE;
     }
     for (unsigned int member = json->node[template_of.found].first; member != CLI_JSON_NONE;)
@@ -417,7 +418,7 @@ unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, CliLine *said)
         }
         member = next;
     }
-    char line_comment[CLI_NAME_LONGEST];
+    char line_comment[CLI_NAME_MAX_LEN];
     const unsigned int block = cli_json_member(json, spec, "blockComment");
     if ((cli_answer(json, spec, "lineComment", line_comment, sizeof(line_comment)) != 0ull) ||
         (cli_json_is(json, block, CFG_JSON_ARRAY) && (json->node[block].count == 2u)))

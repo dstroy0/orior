@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -27,7 +27,7 @@
 #ifndef ORIOR_EMISSION_SYS_AUXV_H
 #define ORIOR_EMISSION_SYS_AUXV_H
 
-/** @brief The auxiliary vector entry holding hardware capability bits, as the Linux ABI numbers it. */
+/** @brief The auxiliary vector entry containing hardware capability bits, as the Linux ABI numbers it. */
 #define AT_HWCAP 16ul
 
 /**

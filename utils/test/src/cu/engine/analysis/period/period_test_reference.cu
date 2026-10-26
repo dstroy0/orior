@@ -236,7 +236,7 @@ int test_draws_and_given_top(const unsigned short *volume, unsigned int rank, co
     request.content = test_content(volume, voxels);
     request.error = &error;
     PeriodMargin drawn[TEST_DRAWS * ENGINE_ARRAY_RANK];
-    unsigned long long kept[ENGINE_ARRAY_RANK] = {0ull};
+    unsigned long long drawn_counts[ENGINE_ARRAY_RANK] = {0ull};
     for (unsigned long long draw = 0ull; ok && (draw < TEST_DRAWS); draw += 1ull)
     {
         PeriodMargin heights[ENGINE_ARRAY_RANK];
@@ -245,20 +245,20 @@ int test_draws_and_given_top(const unsigned short *volume, unsigned int rank, co
         {
             if (heights[axis].numerator != 0ull)
             {
-                drawn[(axis * TEST_DRAWS) + kept[axis]] = heights[axis];
-                kept[axis] += 1ull;
+                drawn[(axis * TEST_DRAWS) + drawn_counts[axis]] = heights[axis];
+                drawn_counts[axis] += 1ull;
             }
         }
     }
     PeriodMargin tops[ENGINE_ARRAY_RANK];
     for (unsigned int axis = 0u; ok && (axis < rank); axis += 1u)
     {
-        qsort(&drawn[axis * TEST_DRAWS], (size_t)kept[axis], sizeof(PeriodMargin), test_margin_before);
-        ok = (kept[axis] == measurement->axis[axis].band_count) &&
-             ((kept[axis] == 0ull) || (memcmp(&drawn[axis * TEST_DRAWS], &band[axis * TEST_DRAWS],
-                                              (size_t)kept[axis] * sizeof(PeriodMargin)) == 0));
-        tops[axis] = (kept[axis] != 0ull) ? measurement->axis[axis].band_top : drawn[axis * TEST_DRAWS];
-        tops[axis].numerator = (kept[axis] != 0ull) ? tops[axis].numerator : 0ull;
+        qsort(&drawn[axis * TEST_DRAWS], (size_t)drawn_counts[axis], sizeof(PeriodMargin), test_margin_before);
+        ok = (drawn_counts[axis] == measurement->axis[axis].band_count) &&
+             ((drawn_counts[axis] == 0ull) || (memcmp(&drawn[axis * TEST_DRAWS], &band[axis * TEST_DRAWS],
+                                                      (size_t)drawn_counts[axis] * sizeof(PeriodMargin)) == 0));
+        tops[axis] = (drawn_counts[axis] != 0ull) ? measurement->axis[axis].band_top : drawn[axis * TEST_DRAWS];
+        tops[axis].numerator = (drawn_counts[axis] != 0ull) ? tops[axis].numerator : 0ull;
         tops[axis].denominator = measurement->axis[axis].pairs_per_lag;
     }
     PeriodMeasurement judged;

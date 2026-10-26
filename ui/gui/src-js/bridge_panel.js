@@ -160,7 +160,7 @@ function keyDetail(key, openAt) {
   return parts;
 }
 
-function tally(key) {
+function pairCounts(key) {
   const pairs = key.pairs;
   const open = pairs.filter((pair) => pair.verdict?.word === "open").length;
   const closed = pairs.filter((pair) => pair.verdict?.word === "closed").length;
@@ -172,7 +172,7 @@ function keyList(openAt, choose) {
   const query = state.query.toLowerCase();
   const names = Object.keys(klq?.keys ?? {}).filter((name) => !query || name.toLowerCase().includes(query));
   return names.slice(0, LISTED).map((name) => {
-    const row = element("button", { type: "button", className: "bridge-item" }, element("code", { textContent: name }), element("small", { textContent: tally(klq.keys[name]) }));
+    const row = element("button", { type: "button", className: "bridge-item" }, element("code", { textContent: name }), element("small", { textContent: pairCounts(klq.keys[name]) }));
     row.addEventListener("click", () => choose(name));
     return row;
   });

@@ -6,9 +6,9 @@
 
 #include "../text/text.h"
 
-// `length` bytes of a path, trimmed, written with forward slashes and `/./` as `/` into `out`, which holds
-// CLI_PATH_LONGEST; and, where `plain`, with no `./` before it and in lower case on Windows, where case does not tell
-// two files apart
+// `length` bytes of a path, trimmed, written with forward slashes and `/./` as `/` into `out`, sized for
+// CLI_PATH_MAX_LEN; and, where `plain`, with no `./` before it and in lower case on Windows, where case does not
+// distinguish two files apart
 static void latex_slashed(const char *text, unsigned long long length, int plain, char *out)
 {
     unsigned long long start = 0ull;
@@ -21,7 +21,7 @@ static void latex_slashed(const char *text, unsigned long long length, int plain
     {
         end -= 1ull;
     }
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     unsigned long long at = start;
     while (at < end)
     {
@@ -29,15 +29,15 @@ static void latex_slashed(const char *text, unsigned long long length, int plain
         if (slash && (at + 2ull < end) && (text[at + 1ull] == '.') &&
             ((text[at + 2ull] == '/') || (text[at + 2ull] == '\\')))
         {
-            cli_line_character(&line, '/');
+            mmgr_line_ch(&line, '/');
             at += 3ull;
             continue;
         }
-        cli_line_character(&line, slash ? '/' : text[at]);
+        mmgr_line_ch(&line, slash ? '/' : text[at]);
         at += 1ull;
     }
-    cli_line_closed(&line);
-    out[CLI_PATH_LONGEST - 1u] = '\0';
+    mmgr_line_finish(&line);
+    out[CLI_PATH_MAX_LEN - 1u] = '\0';
     if (!plain)
     {
         return;
@@ -62,18 +62,18 @@ static void latex_slashed(const char *text, unsigned long long length, int plain
 
 void cli_tex_names_made(CliTexNames *names, const char *root, const char *dir, const char *job, const char *path)
 {
-    char named[CLI_PATH_LONGEST];
-    CliLine line = {named, sizeof(named), 0ull};
-    cli_line_text(&line, job);
-    cli_line_text(&line, ".tex");
-    cli_line_closed(&line);
+    char named[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {named, sizeof(named), 0ull};
+    mmgr_line_put(&line, job);
+    mmgr_line_put(&line, ".tex");
+    mmgr_line_finish(&line);
     latex_slashed(named, cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}), 1, names->job);
-    char made[CLI_PATH_LONGEST];
+    char made[CLI_PATH_MAX_LEN];
     cli_full(dir, named, made);
     latex_slashed(made, cellul.len(&(CatenaFinitaCfg){.src = made, .cap = CLI_CELLS_POOL}), 1, names->made);
     latex_slashed(root, cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}), 1, names->root);
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = names->root, .cap = CLI_CELLS_POOL});
-    if (((size == 0u) || (names->root[size - 1u] != '/')) && (size + 1u < CLI_PATH_LONGEST))
+    if (((size == 0u) || (names->root[size - 1u] != '/')) && (size + 1u < CLI_PATH_MAX_LEN))
     {
         names->root[size] = '/';
         names->root[size + 1u] = '\0';
@@ -83,14 +83,14 @@ void cli_tex_names_made(CliTexNames *names, const char *root, const char *dir, c
 
 int cli_tex_names_of(const CliTexNames *names, const char *name, unsigned long long length, char *file)
 {
-    char given[CLI_PATH_LONGEST];
+    char given[CLI_PATH_MAX_LEN];
     latex_slashed(name, length, 1, given);
     if ((cellul.eq(&(CatenaFinitaCfg){.src = given, .other = names->job, .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = names->made, .cap = CLI_CELLS_POOL})))
     {
-        CliLine line = {file, CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&line, names->path);
-        cli_line_closed(&line);
+        VerbaLinea line = {file, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, names->path);
+        mmgr_line_finish(&line);
         return 1;
     }
     const size_t root = cellul.len(&(CatenaFinitaCfg){.src = names->root, .cap = CLI_CELLS_POOL});
@@ -98,7 +98,7 @@ int cli_tex_names_of(const CliTexNames *names, const char *name, unsigned long l
     {
         return 0;
     }
-    char start[CLI_PATH_LONGEST];
+    char start[CLI_PATH_MAX_LEN];
     latex_slashed(name, length, 0, start);
     // the rest is none where the root's length falls past the name or inside one of its letters
     if ((cellul.len(&(CatenaFinitaCfg){.src = start, .cap = CLI_CELLS_POOL}) < root) ||
@@ -114,9 +114,9 @@ int cli_tex_names_of(const CliTexNames *names, const char *name, unsigned long l
 
 // `length` bytes of a name the log gives written as a JSON string with forward slashes, where it stands for no file
 // of the tree
-static void latex_name_written(const char *name, unsigned long long length, CliLine *out)
+static void latex_name_written(const char *name, unsigned long long length, VerbaLinea *out)
 {
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
     unsigned long long from = 0ull;
     for (unsigned long long at = 0ull; at <= length; at += 1ull)
     {
@@ -125,15 +125,15 @@ static void latex_name_written(const char *name, unsigned long long length, CliL
             cli_json_escaped_lossy(out, (const unsigned char *)name + from, at - from);
             if (at < length)
             {
-                cli_line_character(out, '/');
+                mmgr_line_ch(out, '/');
             }
             from = at + 1ull;
         }
     }
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
 }
 
-unsigned int cli_tex_errors_written(const char *log, unsigned long long size, const CliTexNames *names, CliLine *out)
+unsigned int cli_tex_errors_written(const char *log, unsigned long long size, const CliTexNames *names, VerbaLinea *out)
 {
     unsigned int count = 0u;
     unsigned long long at = 0ull;
@@ -181,10 +181,10 @@ unsigned int cli_tex_errors_written(const char *log, unsigned long long size, co
         }
         if (count > 0u)
         {
-            cli_line_character(out, ',');
+            mmgr_line_ch(out, ',');
         }
-        cli_line_text(out, "{\"file\":");
-        char file[CLI_PATH_LONGEST];
+        mmgr_line_put(out, "{\"file\":");
+        char file[CLI_PATH_MAX_LEN];
         if (cli_tex_names_of(names, line, colon, file))
         {
             cli_json_quoted_lossy(out, (const unsigned char *)file,
@@ -194,19 +194,19 @@ unsigned int cli_tex_errors_written(const char *log, unsigned long long size, co
         {
             latex_name_written(line, colon, out);
         }
-        cli_line_text(out, ",\"line\":");
+        mmgr_line_put(out, ",\"line\":");
         unsigned long long number = 0ull;
         if (cli_tex_count(line + colon + 1ull, end - colon - 1ull, ~0ull, &number))
         {
-            cli_line_decimal(out, number, 1u);
+            mmgr_line_decimal(out, number, 1u);
         }
         else
         {
-            cli_line_text(out, "null");
+            mmgr_line_put(out, "null");
         }
-        cli_line_text(out, ",\"text\":");
+        mmgr_line_put(out, ",\"text\":");
         cli_json_quoted_lossy(out, (const unsigned char *)line + first, text);
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
         count += 1u;
     }
     return count;
@@ -231,11 +231,11 @@ static unsigned long long latex_found(const char *text, unsigned long long lengt
 static double latex_number_of(const char *tag, unsigned long long length, const char *name)
 {
     char sought[64];
-    CliLine line = {sought, sizeof(sought), 0ull};
-    cli_line_character(&line, ' ');
-    cli_line_text(&line, name);
-    cli_line_text(&line, "=\"");
-    cli_line_closed(&line);
+    VerbaLinea line = {sought, sizeof(sought), 0ull};
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, "=\"");
+    mmgr_line_finish(&line);
     const unsigned long long at = latex_found(tag, length, 0ull, sought);
     if (at == length)
     {
@@ -255,7 +255,7 @@ static double latex_number_of(const char *tag, unsigned long long length, const 
 }
 
 // the SVG with ` id="`, `href="#` and `url(#` each written with `tex-` after it into the room: its size, or more than
-// the room holds where it does not fit
+// the room fits where it does not fit
 static unsigned long long latex_ids_made_own(const char *svg, unsigned long long size)
 {
     static const char *const marks[3] = {" id=\"", "href=\"#", "url(#"};
@@ -295,18 +295,18 @@ static unsigned long long latex_ids_made_own(const char *svg, unsigned long long
 
 // a page written as `{"width", "height", "svg"}`, a comma before it where it is not the first
 static void latex_page_written(double width, double height, const char *svg, unsigned long long size, int first,
-                               CliLine *out)
+                               VerbaLinea *out)
 {
-    cli_line_text(out, first ? "{\"width\":" : ",{\"width\":");
+    mmgr_line_put(out, first ? "{\"width\":" : ",{\"width\":");
     cli_json_double(out, width);
-    cli_line_text(out, ",\"height\":");
+    mmgr_line_put(out, ",\"height\":");
     cli_json_double(out, height);
-    cli_line_text(out, ",\"svg\":");
+    mmgr_line_put(out, ",\"svg\":");
     cli_json_quoted(out, svg, size);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
-int cli_tex_pages_written(const char *svg, unsigned long long size, CliLine *out)
+int cli_tex_pages_written(const char *svg, unsigned long long size, VerbaLinea *out)
 {
     const unsigned long long length = latex_ids_made_own(svg, size);
     if (length > CLI_LATEX_SVG)
@@ -317,7 +317,7 @@ int cli_tex_pages_written(const char *svg, unsigned long long size, CliLine *out
     const unsigned long long start = latex_found(text, length, 0ull, "<svg");
     if (start == length)
     {
-        cli_line_text(out, "\"defs\":\"\",\"pages\":[]");
+        mmgr_line_put(out, "\"defs\":\"\",\"pages\":[]");
         return 1;
     }
     const char *const closed = memor.chr(&(MemoriaCfg){.src = text + start, .val = '>', .bytes = length - start});
@@ -338,7 +338,7 @@ int cli_tex_pages_written(const char *svg, unsigned long long size, CliLine *out
     unsigned long long body_size = body_end - open_end;
     const unsigned long long from = latex_found(body, body_size, 0ull, "<defs>");
     const unsigned long long to = latex_found(body, body_size, 0ull, "</defs>");
-    cli_line_text(out, "\"defs\":");
+    mmgr_line_put(out, "\"defs\":");
     if ((from < body_size) && (to < body_size) && (from < to))
     {
         cli_json_quoted(out, body + from + 6ull, to - from - 6ull);
@@ -348,9 +348,9 @@ int cli_tex_pages_written(const char *svg, unsigned long long size, CliLine *out
     }
     else
     {
-        cli_line_text(out, "\"\"");
+        mmgr_line_put(out, "\"\"");
     }
-    cli_line_text(out, ",\"pages\":[");
+    mmgr_line_put(out, ",\"pages\":[");
     if (latex_found(body, body_size, 0ull, "<pageSet>") == body_size)
     {
         unsigned long long first = 0ull;
@@ -364,7 +364,7 @@ int cli_tex_pages_written(const char *svg, unsigned long long size, CliLine *out
             last -= 1ull;
         }
         latex_page_written(width, height, body + first, last - first, 1, out);
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
         return 1;
     }
     int first = 1;
@@ -378,6 +378,6 @@ int cli_tex_pages_written(const char *svg, unsigned long long size, CliLine *out
         first = 0;
         at = next;
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     return 1;
 }

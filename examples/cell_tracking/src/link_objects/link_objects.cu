@@ -15,7 +15,7 @@
 
 static unsigned long long s_forest_placed = 0ull;
 
-static unsigned long long s_forest_kept = 0ull;
+static unsigned long long s_forest_retained = 0ull;
 
 unsigned long long g_mutual_alone = 0ull;
 
@@ -40,7 +40,7 @@ unsigned long long web_count(const TreeFrame *earlier, unsigned int object, cons
                              const unsigned int *later_near_start, const unsigned int *later_nearby, unsigned int *seen,
                              unsigned int mark)
 {
-    unsigned long long kept = 0ull;
+    unsigned long long count_found = 0ull;
     for (unsigned int member = earlier->member_start[object]; member < earlier->member_start[object + 1u]; member += 1u)
     {
         const unsigned int leaf = earlier->members[member];
@@ -62,13 +62,13 @@ unsigned long long web_count(const TreeFrame *earlier, unsigned int object, cons
                 const unsigned int other = (step < later_near_start[landed + 1u]) ? later_nearby[step] : landed;
                 beside |= (unsigned int)(later->object_of[other] == candidate);
             }
-            kept += (unsigned long long)(beside != 0u);
+            count_found += (unsigned long long)(beside != 0u);
         }
     }
-    return kept;
+    return count_found;
 }
 
-unsigned long long g_web_asked = 0ull;
+unsigned long long g_web_queried = 0ull;
 
 unsigned long long g_web_moved = 0ull;
 
@@ -135,20 +135,20 @@ unsigned int focus_links(TreeFrame *frames, unsigned int frame_count, unsigned i
                     continue;
                 }
                 unsigned int target_weight = 0u;
-                for (unsigned int slot = tree->pool_start[object]; slot < tree->pool_start[object + 1u]; slot += 1u)
+                for (unsigned int entry = tree->pool_start[object]; entry < tree->pool_start[object + 1u]; entry += 1u)
                 {
-                    target_weight = (tree->pool_target[slot] == taken) ? tree->pool_weight[slot] : target_weight;
+                    target_weight = (tree->pool_target[entry] == taken) ? tree->pool_weight[entry] : target_weight;
                 }
                 unsigned int found = 0xFFFFFFFFu;
                 unsigned int maximum = 0u;
-                for (unsigned int slot = tree->pool_start[object]; slot < tree->pool_start[object + 1u]; slot += 1u)
+                for (unsigned int entry = tree->pool_start[object]; entry < tree->pool_start[object + 1u]; entry += 1u)
                 {
-                    const unsigned int candidate = tree->pool_target[slot];
+                    const unsigned int candidate = tree->pool_target[entry];
                     const unsigned int agrees = (unsigned int)(onward_of(later, candidate) == reached);
-                    const unsigned int level = (unsigned int)((tree->pool_weight[slot] * 2u) >= target_weight);
+                    const unsigned int level = (unsigned int)((tree->pool_weight[entry] * 2u) >= target_weight);
                     const int ahead = (agrees != 0u) && (level != 0u) &&
-                                      ((tree->pool_weight[slot] > maximum) || (found == 0xFFFFFFFFu));
-                    maximum = (ahead != 0) ? tree->pool_weight[slot] : maximum;
+                                      ((tree->pool_weight[entry] > maximum) || (found == 0xFFFFFFFFu));
+                    maximum = (ahead != 0) ? tree->pool_weight[entry] : maximum;
                     found = (ahead != 0) ? candidate : found;
                 }
                 if ((found == 0xFFFFFFFFu) || (found == taken))
@@ -175,14 +175,14 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
     {
         return 1;
     }
-    unsigned int *const object_slot = (unsigned int *)malloc(((size_t)objects + 1u) * sizeof(unsigned int));
+    unsigned int *const object_entry = (unsigned int *)malloc(((size_t)objects + 1u) * sizeof(unsigned int));
     unsigned char *const turned = (unsigned char *)calloc((size_t)earlier->pool_start[objects] + 1u, 1u);
     unsigned int *const survivor = (unsigned int *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned int));
     unsigned long long *const standing =
         (unsigned long long *)malloc(((size_t)later->object_count + 1u) * sizeof(unsigned long long));
-    if ((object_slot == NULL) || (turned == NULL) || (survivor == NULL) || (standing == NULL))
+    if ((object_entry == NULL) || (turned == NULL) || (survivor == NULL) || (standing == NULL))
     {
-        free(object_slot);
+        free(object_entry);
         free(turned);
         free(survivor);
         free(standing);
@@ -193,10 +193,10 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
         const unsigned int linked = (earlier->link_start[object + 1u] > earlier->link_start[object])
                                         ? earlier->link_target[earlier->link_start[object]]
                                         : 0xFFFFFFFFu;
-        object_slot[object] = 0xFFFFFFFFu;
-        for (unsigned int slot = earlier->pool_start[object]; slot < earlier->pool_start[object + 1u]; slot += 1u)
+        object_entry[object] = 0xFFFFFFFFu;
+        for (unsigned int entry = earlier->pool_start[object]; entry < earlier->pool_start[object + 1u]; entry += 1u)
         {
-            object_slot[object] = (earlier->pool_target[slot] == linked) ? slot : object_slot[object];
+            object_entry[object] = (earlier->pool_target[entry] == linked) ? entry : object_entry[object];
         }
     }
     unsigned int moving = 1u;
@@ -209,8 +209,8 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
         }
         for (unsigned int object = 0u; object < objects; object += 1u)
         {
-            const unsigned int slot = object_slot[object];
-            if (slot == 0xFFFFFFFFu)
+            const unsigned int entry = object_entry[object];
+            if (entry == 0xFFFFFFFFu)
             {
                 continue;
             }
@@ -218,14 +218,14 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
             for (unsigned int other = earlier->pool_start[object]; other < earlier->pool_start[object + 1u];
                  other += 1u)
             {
-                const int open = (turned[other] == 0u) && (other != slot);
+                const int open = (turned[other] == 0u) && (other != entry);
                 second = ((open != 0) && ((unsigned long long)earlier->pool_weight[other] > second))
                              ? (unsigned long long)earlier->pool_weight[other]
                              : second;
             }
-            const unsigned long long mine = (unsigned long long)earlier->pool_weight[slot];
+            const unsigned long long mine = (unsigned long long)earlier->pool_weight[entry];
             const unsigned long long delta = (mine > second) ? (mine - second) : 0ull;
-            const unsigned int target = earlier->pool_target[slot];
+            const unsigned int target = earlier->pool_target[entry];
             const int ahead =
                 (delta > standing[target]) || ((delta == standing[target]) && (survivor[target] == 0xFFFFFFFFu));
             standing[target] = (ahead != 0) ? delta : standing[target];
@@ -234,17 +234,17 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
         moving = 0u;
         for (unsigned int object = 0u; object < objects; object += 1u)
         {
-            const unsigned int slot = object_slot[object];
-            if (slot == 0xFFFFFFFFu)
+            const unsigned int entry = object_entry[object];
+            if (entry == 0xFFFFFFFFu)
             {
                 continue;
             }
-            const unsigned int target = earlier->pool_target[slot];
+            const unsigned int target = earlier->pool_target[entry];
             if (survivor[target] == object)
             {
                 continue;
             }
-            turned[slot] = 1u;
+            turned[entry] = 1u;
             unsigned int next = 0xFFFFFFFFu;
             unsigned long long maximum = 0ull;
             for (unsigned int other = earlier->pool_start[object]; other < earlier->pool_start[object + 1u];
@@ -256,20 +256,20 @@ static int settle_links(TreeFrame *earlier, const TreeFrame *later)
                 maximum = (better != 0) ? (unsigned long long)earlier->pool_weight[other] : maximum;
                 next = (better != 0) ? other : next;
             }
-            object_slot[object] = (next != 0xFFFFFFFFu) ? next : slot;
-            turned[slot] = (next != 0xFFFFFFFFu) ? 1u : 0u;
+            object_entry[object] = (next != 0xFFFFFFFFu) ? next : entry;
+            turned[entry] = (next != 0xFFFFFFFFu) ? 1u : 0u;
             moving += (unsigned int)(next != 0xFFFFFFFFu);
         }
     }
     unsigned int written = 0u;
     for (unsigned int object = 0u; object < objects; object += 1u)
     {
-        const unsigned int slot = object_slot[object];
-        earlier->link_target[written] = (slot != 0xFFFFFFFFu) ? earlier->pool_target[slot] : 0u;
-        written += (unsigned int)(slot != 0xFFFFFFFFu);
+        const unsigned int entry = object_entry[object];
+        earlier->link_target[written] = (entry != 0xFFFFFFFFu) ? earlier->pool_target[entry] : 0u;
+        written += (unsigned int)(entry != 0xFFFFFFFFu);
         earlier->link_start[object + 1u] = written;
     }
-    free(object_slot);
+    free(object_entry);
     free(turned);
     free(survivor);
     free(standing);
@@ -449,13 +449,13 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
         {
             source_voxels += (unsigned long long)earlier->sizes[earlier->members[member]];
         }
-        for (unsigned int slot = 0u; (rules->share != 0) && (slot < filled); slot += 1u)
+        for (unsigned int entry = 0u; (rules->share != 0) && (entry < filled); entry += 1u)
         {
-            under[slot] = (source_voxels + target_voxels[pool[slot]]) - weight[slot];
+            under[entry] = (source_voxels + target_voxels[pool[entry]]) - weight[entry];
         }
-        for (unsigned int slot = 0u; (votes != NULL) && (slot < filled); slot += 1u)
+        for (unsigned int entry = 0u; (votes != NULL) && (entry < filled); entry += 1u)
         {
-            votes[slot] = 0ull;
+            votes[entry] = 0ull;
         }
         for (unsigned int member = earlier->member_start[object];
              (votes != NULL) && (member < earlier->member_start[object + 1u]); member += 1u)
@@ -467,74 +467,75 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
             votes[place[target]] += (known != 0u) ? 1ull : 0ull;
         }
         unsigned int leader = 0u;
-        for (unsigned int slot = 1u; slot < filled; slot += 1u)
+        for (unsigned int entry = 1u; entry < filled; entry += 1u)
         {
-            const int carried = (rules->share != 0) ? ((weight[slot] * under[leader]) > (weight[leader] * under[slot]))
-                                                    : (weight[slot] > weight[leader]);
-            const int ahead =
-                (votes != NULL) ? ((votes[slot] > votes[leader]) || ((votes[slot] == votes[leader]) && (carried != 0)))
-                                : carried;
-            leader = (ahead != 0) ? slot : leader;
+            const int carried = (rules->share != 0)
+                                    ? ((weight[entry] * under[leader]) > (weight[leader] * under[entry]))
+                                    : (weight[entry] > weight[leader]);
+            const int ahead = (votes != NULL) ? ((votes[entry] > votes[leader]) ||
+                                                 ((votes[entry] == votes[leader]) && (carried != 0)))
+                                              : carried;
+            leader = (ahead != 0) ? entry : leader;
         }
         unsigned int company = 0u;
-        for (unsigned int slot = 0u; (near_start != NULL) && (slot < filled); slot += 1u)
+        for (unsigned int entry = 0u; (near_start != NULL) && (entry < filled); entry += 1u)
         {
-            const int same = ((cost[slot] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
-            const int close = ((weight[slot] * 2ull) >= weight[leader]);
-            company += (unsigned int)((same != 0) && (close != 0) && (slot != leader));
+            const int same = ((cost[entry] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
+            const int close = ((weight[entry] * 2ull) >= weight[leader]);
+            company += (unsigned int)((same != 0) && (close != 0) && (entry != leader));
         }
         const unsigned int members = earlier->member_start[object + 1u] - earlier->member_start[object];
-        const int asks_web = (near_start != NULL) && (company != 0u) && (members <= WEB_MEMBERS);
-        g_web_asked += (unsigned long long)(asks_web != 0);
+        const int queries_web = (near_start != NULL) && (company != 0u) && (members <= WEB_MEMBERS);
+        g_web_queried += (unsigned long long)(queries_web != 0);
         g_web_capped += (unsigned long long)((near_start != NULL) && (company != 0u) && (members > WEB_MEMBERS));
         unsigned int followed = leader;
         unsigned long long maximum = 0ull;
-        if (asks_web != 0)
+        if (queries_web != 0)
         {
             mark += 1u;
             maximum = web_count(earlier, object, later, pool[leader], near_start, nearby, later_near_start,
                                 later_nearby, seen, mark);
         }
-        for (unsigned int slot = 0u; (asks_web != 0) && (slot < filled); slot += 1u)
+        for (unsigned int entry = 0u; (queries_web != 0) && (entry < filled); entry += 1u)
         {
-            const int same = ((cost[slot] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
-            const int close = ((weight[slot] * 2ull) >= weight[leader]);
-            if ((same == 0) || (close == 0) || (slot == leader))
+            const int same = ((cost[entry] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
+            const int close = ((weight[entry] * 2ull) >= weight[leader]);
+            if ((same == 0) || (close == 0) || (entry == leader))
             {
                 continue;
             }
             mark += 1u;
-            const unsigned long long kept = web_count(earlier, object, later, pool[slot], near_start, nearby,
-                                                      later_near_start, later_nearby, seen, mark);
-            followed = (kept > maximum) ? slot : followed;
-            maximum = (kept > maximum) ? kept : maximum;
+            const unsigned long long web_found = web_count(earlier, object, later, pool[entry], near_start, nearby,
+                                                           later_near_start, later_nearby, seen, mark);
+            followed = (web_found > maximum) ? entry : followed;
+            maximum = (web_found > maximum) ? web_found : maximum;
         }
-        g_web_moved += (unsigned long long)((asks_web != 0) && (followed != leader));
-        leader = (asks_web != 0) ? followed : leader;
+        g_web_moved += (unsigned long long)((queries_web != 0) && (followed != leader));
+        leader = (queries_web != 0) ? followed : leader;
         unsigned int contested = 0u;
-        for (unsigned int slot = 0u; (rules->arc != 0) && (slot < filled); slot += 1u)
+        for (unsigned int entry = 0u; (rules->arc != 0) && (entry < filled); entry += 1u)
         {
-            const int same = ((cost[slot] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
-            const int level = ((weight[slot] * 2ull) >= weight[leader]);
-            contested += (unsigned int)((same != 0) && (level != 0) && (slot != leader));
+            const int same = ((cost[entry] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
+            const int level = ((weight[entry] * 2ull) >= weight[leader]);
+            contested += (unsigned int)((same != 0) && (level != 0) && (entry != leader));
         }
         unsigned int champion = leader;
         unsigned int inside = 0u;
-        for (unsigned int slot = 0u; (contested != 0u) && (slot < filled); slot += 1u)
+        for (unsigned int entry = 0u; (contested != 0u) && (entry < filled); entry += 1u)
         {
-            const int same = ((cost[slot] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
-            const unsigned long long bend = (same != 0) ? track_bend(before, earlier, object, later, pool[slot], after,
+            const int same = ((cost[entry] >> LINK_MAGNITUDE_BITS) == (cost[leader] >> LINK_MAGNITUDE_BITS));
+            const unsigned long long bend = (same != 0) ? track_bend(before, earlier, object, later, pool[entry], after,
                                                                      (unsigned int)rules->mass_band)
                                                         : 0xFFFFFFFFFFFFFFFFull;
             const unsigned int walled = (unsigned int)(bend > 0xFFFFFull);
             const unsigned long long capacity = source_voxels * source_voxels * 64ull;
             const int bend_fits = (walled == 0u) && ((bend * bend * bend) <= capacity);
             const int ahead = (same != 0) && (bend_fits != 0) && (inside == 0u);
-            champion = (ahead != 0) ? slot : champion;
+            champion = (ahead != 0) ? entry : champion;
             inside += (unsigned int)((same != 0) && (bend_fits != 0));
-            cost[slot] = ((same != 0) && (bend_fits != 0))
-                             ? ((cost[slot] & ~LINK_MAGNITUDE_MASK) | (bend & LINK_MAGNITUDE_MASK))
-                             : cost[slot];
+            cost[entry] = ((same != 0) && (bend_fits != 0))
+                              ? ((cost[entry] & ~LINK_MAGNITUDE_MASK) | (bend & LINK_MAGNITUDE_MASK))
+                              : cost[entry];
         }
         const unsigned long long leader_bend =
             (contested != 0u)
@@ -544,43 +545,43 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
                                 ((leader_bend * leader_bend * leader_bend) <= (source_voxels * source_voxels * 64ull));
         const unsigned int winner = ((contested != 0u) && (leader_fits == 0) && (inside != 0u)) ? champion : leader;
         unsigned long long best = 0xFFFFFFFFFFFFFFFFull;
-        for (unsigned int slot = 0u; slot < filled; slot += 1u)
+        for (unsigned int entry = 0u; entry < filled; entry += 1u)
         {
             const int level =
                 (contested != 0u)
-                    ? ((cost[slot] >> LINK_MAGNITUDE_BITS) == (cost[winner] >> LINK_MAGNITUDE_BITS))
-                    : ((rules->share != 0) ? ((weight[slot] * under[winner]) == (weight[winner] * under[slot]))
-                                           : (weight[slot] == weight[winner]));
-            best = ((level != 0) && (cost[slot] < best)) ? cost[slot] : best;
+                    ? ((cost[entry] >> LINK_MAGNITUDE_BITS) == (cost[winner] >> LINK_MAGNITUDE_BITS))
+                    : ((rules->share != 0) ? ((weight[entry] * under[winner]) == (weight[winner] * under[entry]))
+                                           : (weight[entry] == weight[winner]));
+            best = ((level != 0) && (cost[entry] < best)) ? cost[entry] : best;
         }
         unsigned long long crowned = 0ull;
-        for (unsigned int slot = 0u; slot < filled; slot += 1u)
+        for (unsigned int entry = 0u; entry < filled; entry += 1u)
         {
             const int level =
                 (contested != 0u)
-                    ? ((cost[slot] >> LINK_MAGNITUDE_BITS) == (cost[winner] >> LINK_MAGNITUDE_BITS))
-                    : ((rules->share != 0) ? ((weight[slot] * under[winner]) == (weight[winner] * under[slot]))
-                                           : (weight[slot] == weight[winner]));
-            crowned = ((level != 0) && (cost[slot] == best) && (weight[slot] > crowned)) ? weight[slot] : crowned;
+                    ? ((cost[entry] >> LINK_MAGNITUDE_BITS) == (cost[winner] >> LINK_MAGNITUDE_BITS))
+                    : ((rules->share != 0) ? ((weight[entry] * under[winner]) == (weight[winner] * under[entry]))
+                                           : (weight[entry] == weight[winner]));
+            crowned = ((level != 0) && (cost[entry] == best) && (weight[entry] > crowned)) ? weight[entry] : crowned;
         }
-        unsigned int kept = 0u;
-        for (unsigned int slot = 0u; slot < filled; slot += 1u)
+        unsigned int web_found = 0u;
+        for (unsigned int entry = 0u; entry < filled; entry += 1u)
         {
             const int level =
                 (contested != 0u)
-                    ? ((cost[slot] >> LINK_MAGNITUDE_BITS) == (cost[winner] >> LINK_MAGNITUDE_BITS))
-                    : ((rules->share != 0) ? ((weight[slot] * under[winner]) == (weight[winner] * under[slot]))
-                                           : (weight[slot] == weight[winner]));
-            earlier->link_target[written + kept] = pool[slot];
-            kept += (unsigned int)((level != 0) && (cost[slot] == best) && (weight[slot] == crowned));
+                    ? ((cost[entry] >> LINK_MAGNITUDE_BITS) == (cost[winner] >> LINK_MAGNITUDE_BITS))
+                    : ((rules->share != 0) ? ((weight[entry] * under[winner]) == (weight[winner] * under[entry]))
+                                           : (weight[entry] == weight[winner]));
+            earlier->link_target[written + web_found] = pool[entry];
+            web_found += (unsigned int)((level != 0) && (cost[entry] == best) && (weight[entry] == crowned));
         }
-        earlier->link_start[object + 1u] = kept;
-        written += kept;
-        for (unsigned int slot = 0u; (earlier->pool_target != NULL) && (slot < filled); slot += 1u)
+        earlier->link_start[object + 1u] = web_found;
+        written += web_found;
+        for (unsigned int entry = 0u; (earlier->pool_target != NULL) && (entry < filled); entry += 1u)
         {
-            earlier->pool_target[gathered + slot] = pool[slot];
-            earlier->pool_weight[gathered + slot] = (unsigned int)weight[slot];
-            earlier->pool_cost[gathered + slot] = cost[slot];
+            earlier->pool_target[gathered + entry] = pool[entry];
+            earlier->pool_weight[gathered + entry] = (unsigned int)weight[entry];
+            earlier->pool_cost[gathered + entry] = cost[entry];
         }
         gathered += (earlier->pool_target != NULL) ? filled : 0u;
         earlier->pool_start[object + 1u] = gathered;
@@ -628,9 +629,9 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
             for (unsigned int own = 0u; own < objects; own += 1u)
             {
                 unsigned int survivors = 0u;
-                for (unsigned int slot = earlier->pool_start[own]; slot < earlier->pool_start[own + 1u]; slot += 1u)
+                for (unsigned int entry = earlier->pool_start[own]; entry < earlier->pool_start[own + 1u]; entry += 1u)
                 {
-                    survivors += (unsigned int)(chooses[earlier->pool_target[slot]] == own);
+                    survivors += (unsigned int)(chooses[earlier->pool_target[entry]] == own);
                 }
                 g_mutual_alone += (unsigned long long)(survivors == 1u);
                 g_mutual_split += (unsigned long long)(survivors > 1u);
@@ -645,10 +646,10 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
                     const unsigned int links = earlier->link_start[own + 1u] - earlier->link_start[own];
                     unsigned int survivors = 0u;
                     unsigned int only = 0xFFFFFFFFu;
-                    for (unsigned int slot = earlier->pool_start[own];
-                         (links == 1u) && (slot < earlier->pool_start[own + 1u]); slot += 1u)
+                    for (unsigned int entry = earlier->pool_start[own];
+                         (links == 1u) && (entry < earlier->pool_start[own + 1u]); entry += 1u)
                     {
-                        const unsigned int candidate = earlier->pool_target[slot];
+                        const unsigned int candidate = earlier->pool_target[entry];
                         const unsigned int lives =
                             (unsigned int)((chooses[candidate] == own) && (claimed[candidate] == 0u));
                         survivors += lives;
@@ -683,26 +684,26 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
             unsigned int order_count = 0u;
             for (unsigned int own = 0u; own < objects; own += 1u)
             {
-                for (unsigned int slot = earlier->pool_start[own]; slot < earlier->pool_start[own + 1u]; slot += 1u)
+                for (unsigned int entry = earlier->pool_start[own]; entry < earlier->pool_start[own + 1u]; entry += 1u)
                 {
-                    const unsigned long long strength = (unsigned long long)earlier->pool_weight[slot];
-                    order[order_count] = (strength << 32u) | (unsigned long long)slot;
+                    const unsigned long long strength = (unsigned long long)earlier->pool_weight[entry];
+                    order[order_count] = (strength << 32u) | (unsigned long long)entry;
                     order_count += 1u;
                 }
             }
             radix_sort_keys(order, order_count);
             for (unsigned int at = order_count; at > 0u; at -= 1u)
             {
-                const unsigned int slot = (unsigned int)(order[at - 1u] & 0xFFFFFFFFull);
-                const unsigned int candidate = earlier->pool_target[slot];
+                const unsigned int entry = (unsigned int)(order[at - 1u] & 0xFFFFFFFFull);
+                const unsigned int candidate = earlier->pool_target[entry];
                 unsigned int own = 0u;
                 unsigned int low = 0u;
                 unsigned int high = objects;
                 while ((high - low) > 1u)
                 {
                     const unsigned int middle = low + ((high - low) / 2u);
-                    low = (earlier->pool_start[middle] <= slot) ? middle : low;
-                    high = (earlier->pool_start[middle] <= slot) ? high : middle;
+                    low = (earlier->pool_start[middle] <= entry) ? middle : low;
+                    high = (earlier->pool_start[middle] <= entry) ? high : middle;
                 }
                 own = low;
                 const unsigned int links = earlier->link_start[own + 1u] - earlier->link_start[own];
@@ -717,7 +718,7 @@ int link_objects_unbound(TreeFrame *earlier, const TreeFrame *later, const TreeF
             for (unsigned int own = 0u; own < objects; own += 1u)
             {
                 const unsigned int links = earlier->link_start[own + 1u] - earlier->link_start[own];
-                s_forest_kept += (unsigned long long)((links == 1u) && (settled[own] == 0u));
+                s_forest_retained += (unsigned long long)((links == 1u) && (settled[own] == 0u));
             }
         }
         free(order);
@@ -807,22 +808,22 @@ int link_objects(TreeFrame *earlier, const TreeFrame *later, const TreeRules *ru
             end += 1u;
         }
         unsigned int mutual_count = 0u;
-        for (unsigned int slot = position; slot < end; slot += 1u)
+        for (unsigned int entry = position; entry < end; entry += 1u)
         {
-            const unsigned int target = (unsigned int)(candidate[slot] & 0xFFFFFFFFULL);
-            int keep = (rules->forward_only != 0);
-            if (keep == 0)
+            const unsigned int target = (unsigned int)(candidate[entry] & 0xFFFFFFFFULL);
+            int retain = (rules->forward_only != 0);
+            if (retain == 0)
             {
                 const unsigned long long sought = ((unsigned long long)target << 32u) | source;
                 const void *const found =
                     bsearch(&sought, confirmed, confirmations, sizeof(unsigned long long), engine_order_keys);
-                keep = (found != NULL);
-                if ((keep == 0) && (rules->merge_target != 0))
+                retain = (found != NULL);
+                if ((retain == 0) && (rules->merge_target != 0))
                 {
-                    keep = (incoming[target] >= 2u);
+                    retain = (incoming[target] >= 2u);
                 }
             }
-            if (keep != 0)
+            if (retain != 0)
             {
                 mutual[mutual_count] = target;
                 mutual_count += 1u;
@@ -830,9 +831,9 @@ int link_objects(TreeFrame *earlier, const TreeFrame *later, const TreeRules *ru
         }
         if ((rules->pick != 0) && (mutual_count >= 2u))
         {
-            for (unsigned int slot = 0u; slot < mutual_count; slot += 1u)
+            for (unsigned int entry = 0u; entry < mutual_count; entry += 1u)
             {
-                weight[slot] = 0ULL;
+                weight[entry] = 0ULL;
             }
             unsigned long long source_voxels = 0ULL;
             for (unsigned int member = earlier->member_start[source]; member < earlier->member_start[source + 1u];
@@ -848,51 +849,51 @@ int link_objects(TreeFrame *earlier, const TreeFrame *later, const TreeRules *ru
                      pair += 1u)
                 {
                     const unsigned int after_object = later->object_of[earlier->triple_after[pair]];
-                    for (unsigned int slot = 0u; slot < mutual_count; slot += 1u)
+                    for (unsigned int entry = 0u; entry < mutual_count; entry += 1u)
                     {
-                        if (mutual[slot] == after_object)
+                        if (mutual[entry] == after_object)
                         {
-                            weight[slot] += earlier->triple_shared[pair];
+                            weight[entry] += earlier->triple_shared[pair];
                             break;
                         }
                     }
                 }
             }
-            for (unsigned int slot = 0u; (rules->share != 0) && (slot < mutual_count); slot += 1u)
+            for (unsigned int entry = 0u; (rules->share != 0) && (entry < mutual_count); entry += 1u)
             {
                 unsigned long long target_voxels = 0ULL;
-                for (unsigned int member = later->member_start[mutual[slot]];
-                     member < later->member_start[mutual[slot] + 1u]; member += 1u)
+                for (unsigned int member = later->member_start[mutual[entry]];
+                     member < later->member_start[mutual[entry] + 1u]; member += 1u)
                 {
                     target_voxels += (unsigned long long)later->sizes[later->members[member]];
                 }
-                under[slot] = (source_voxels + target_voxels) - weight[slot];
+                under[entry] = (source_voxels + target_voxels) - weight[entry];
             }
             unsigned int leader = 0u;
-            for (unsigned int slot = 1u; slot < mutual_count; slot += 1u)
+            for (unsigned int entry = 1u; entry < mutual_count; entry += 1u)
             {
                 const int ahead = (rules->share != 0)
-                                      ? ((weight[slot] * under[leader]) > (weight[leader] * under[slot]))
-                                      : (weight[slot] > weight[leader]);
-                leader = (ahead != 0) ? slot : leader;
+                                      ? ((weight[entry] * under[leader]) > (weight[leader] * under[entry]))
+                                      : (weight[entry] > weight[leader]);
+                leader = (ahead != 0) ? entry : leader;
             }
             if (weight[leader] > 0ULL)
             {
                 unsigned int narrowed = 0u;
-                for (unsigned int slot = 0u; slot < mutual_count; slot += 1u)
+                for (unsigned int entry = 0u; entry < mutual_count; entry += 1u)
                 {
                     const int level = (rules->share != 0)
-                                          ? ((weight[slot] * under[leader]) == (weight[leader] * under[slot]))
-                                          : (weight[slot] == weight[leader]);
-                    mutual[narrowed] = mutual[slot];
+                                          ? ((weight[entry] * under[leader]) == (weight[leader] * under[entry]))
+                                          : (weight[entry] == weight[leader]);
+                    mutual[narrowed] = mutual[entry];
                     narrowed += (unsigned int)(level != 0);
                 }
                 mutual_count = narrowed;
             }
         }
-        for (unsigned int slot = 0u; slot < mutual_count; slot += 1u)
+        for (unsigned int entry = 0u; entry < mutual_count; entry += 1u)
         {
-            earlier->link_target[written] = mutual[slot];
+            earlier->link_target[written] = mutual[entry];
             written += 1u;
         }
         earlier->link_start[source + 1u] = mutual_count;

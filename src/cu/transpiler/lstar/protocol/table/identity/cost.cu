@@ -98,30 +98,29 @@ static std::string placed_filled(const std::string &placed, const std::string &t
 }
 
 // The arrangements of a part's .kdm costed on the part (P6, the rank). An operator's arrangements are put at one link
-// of a carrier of ours that holds the word they produce (word_web.h): the first link, in the order the pair puts
+// of a carrier of ours that stores the word they produce (word_web.h): the first link, in the order the pair puts
 // links, whose result a later link reads, that carries the cases, and whose operands and result are registers. The
 // link's operands are the arrangement's and its result the arrangement's root's. An arrangement each of whose nodes is
 // the precept of a word the ruleset writes is written node by node through it, and one with a node no such word
-// writes is left. Each is asked two questions over every case the host computes the carrier on: the carrier with the
-// arrangement in the link's place, held against the host's answers; and the part's clock read before and after the
+// writes is left. Each is queried two questions over every case the host computes the carrier on: the carrier with the
+// arrangement in the link's place, checked against the host's answers; and the part's clock read before and after the
 // arrangement written COST_REPEATS times, each time over the last time's result, the difference stored in place of
-// the carrier's answer. Each link is asked its clock read twice with nothing between, the clock's own. No question
+// the carrier's answer. Each link is queried its clock read twice with nothing between, the clock's own. No question
 // waits on another's answer, and every one is written before any is put: all are put in one round, in an order drawn
-// from the run's IDENTITY_SEED, and the round after puts again only those the part refused, declaring every register its file holds
-// (cuts_asked). The clock's reading is the words the part stores and no launch's time: each is an ask the query
-// record answers once it is asked, and a question the record holds is never put again. An arrangement the part
-// answers apart or refuses keeps no cost. Its cost is the least difference any case read, less the least its link's
-// clock read alone, over COST_REPEATS, in the part's clock count: written in its row of the .kdm with 1 run, the one
-// reading.
-// the run's blob cost.txt holds every arrangement with its link and what came of it.
-// The machine file's forms are costed the same way where `forms` names the blob the vendor's writer placed them in
+// from the run's IDENTITY_SEED, and the round after puts again only those the part refused, declaring every register
+// its file uses (cuts_queried). The clock's reading is the words the part stores and no launch's time: each is an query
+// the query record answers once it is queried, and a question the record contains is never put again. An arrangement
+// the part answers apart or refuses records no cost. Its cost is the least difference any case read, less the least its
+// link's clock read alone, over COST_REPEATS, in the part's clock count: written in its row of the .kdm with 1 run, the
+// one reading. the run's blob cost.txt contains every arrangement with its link and what came of it. The machine file's
+// forms are costed the same way where `forms` names the blob the vendor's writer placed them in
 // (orior_khw_machine_write, krs): a line `<relation> <signed> <low> <high> <text>`, the text with each operand of the
 // relation's tuple as its place. A form with the three places of a two-word relation is written at the first link any
-// operator's arrangements are put at, COST_REPEATS times over its own result between the clock reads, and asked its
-// clock alone; no host holds it, since the protocol classified it. Its cost is the least difference any case read less
-// the link's clock read alone, and its spread the most difference less the least, both in the part's clock count over
-// COST_REPEATS: written as the part's .ksc keeps a cost, `run answers <least> cost <low> <high> <spread>`, every cost
-// row the file held before let go, since one reading stands for every form
+// operator's arrangements are put at, COST_REPEATS times over its own result between the clock reads, and queried its
+// clock alone; no host computes it, since the protocol classified it. Its cost is the least difference any case read
+// less the link's clock read alone, and its spread the most difference less the least, both in the part's clock count
+// over COST_REPEATS: written as the part's .ksc stores a cost, `run answers <least> cost <low> <high> <spread>`, every
+// cost row the file contained before let go, since one reading stands for every form
 int identity_cost(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                          const char *kdm, const char *machine_path, const char *forms, const char *const *carrier)
 {
@@ -140,7 +139,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     std::vector<CostRow> rows;
     std::map<std::string, std::vector<size_t>> operators;
     kdm_rows_read(kdm, &lines, &rows, &operators);
-    // the machine file's forms a cost is asked of, as the vendor's writer placed them
+    // the machine file's forms a cost is queried of, as the vendor's writer placed them
     struct CostForm
     {
         std::string relation;
@@ -154,7 +153,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     std::vector<CostForm> costed_forms;
     if (forms != NULL)
     {
-        // the latest blob of `forms` read where the run holds it, one row a form (forms_blob.h)
+        // the latest blob of `forms` read where the run stores it, one row a form (forms_blob.h)
         const unsigned char *rows = NULL;
         unsigned long long rows_size = 0ull;
         if (!qry_member_blob(forms, &rows, &rows_size, NULL))
@@ -184,24 +183,24 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     record_open(ksc, "cost");
     kqr_mark(&s_query_record, KQR_SEED_RECORD, std::to_string(seed).c_str());
     RunWritten table = {(folder + "/cost.txt"), 0, std::string()};
-    // an arrangement's chain holds no slot, and the cross reads it whole (measuring_stick_query.c)
+    // an arrangement's chain contains no probe place, and the cross reads it whole (measuring_stick_query.c)
     const std::unique_ptr<RunQuestion> question(new RunQuestion());
-    question->slot = RUN_SLOT_NONE;
+    question->place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(question.get(), &places);
-    unsigned long long asks = 0ull;
+    unsigned long long queries = 0ull;
     const auto assembled = [machine_path](const std::string &text) -> std::vector<unsigned char> {
         return text.empty() ? std::vector<unsigned char>() : vendor_assembled(machine_path, text);
     };
-    // every question of the job, written before any is put: its code, the registers it declares, the row it asks of,
-    // or the link whose clock it reads alone where it is past every row, and whether it holds the row against the host
+    // every question of the job, written before any is put: its code, the registers it declares, the row it queries of,
+    // or the link whose clock it reads alone where it is past every row, and whether it checks the row against the host
     // or reads its clock
     struct Planned
     {
         std::vector<unsigned char> code;
         unsigned int mark;
         size_t row;
-        int held_to_host;
+        int host_checked;
         std::string chain;
         // the machine file's form the question reads the clock over, -1 where it is an arrangement's or a link's own
         long form;
@@ -372,14 +371,14 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     }
     printf("  plan: cost %zu\n", round.size());
     printf("  %zu questions written, put in one round\n", round.size());
-    std::vector<RunQuestion> asked;
-    cuts_asked(round, std::vector<int>(round.size(), 0), std::vector<unsigned int>(round.size(), RUN_SLOT_NONE),
-               question.get(), &asks, mark, &asked);
+    std::vector<RunQuestion> questions;
+    cuts_queried(round, std::vector<int>(round.size(), 0), std::vector<unsigned int>(round.size(), RUN_PLACE_NONE),
+                 question.get(), &queries, mark, &questions);
     // a row alike where the part answers it as the host does on every case, and the least each clock read
     for (size_t at = 0u; at < planned.size(); at += 1u)
     {
         const Planned &each = planned[at];
-        const RunQuestion &answer = asked[at];
+        const RunQuestion &answer = questions[at];
         if (each.form >= 0)
         {
             CostForm &form = costed_forms[(size_t)each.form];
@@ -396,7 +395,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             }
             continue;
         }
-        if (each.held_to_host)
+        if (each.host_checked)
         {
             CostRow &row = rows[each.row];
             if (answer.outcome != RUN_ANSWERED)
@@ -406,7 +405,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
             }
             for (unsigned int place = 0u; row.verdict.empty() && (place < question->cases); place += 1u)
             {
-                if (bracket_holds(host[each.chain][places[place]], answer.answered[place]) == 0)
+                if (bracket_contains(host[each.chain][places[place]], answer.answered[place]) == 0)
                 {
                     row.verdict = "apart at case " + std::to_string(places[place]);
                 }
@@ -423,9 +422,9 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
         {
             least = std::min(least, answer.answered[place] & 0xffffffffull);
         }
-        unsigned long long &kept =
+        unsigned long long &smallest =
             (each.row < rows.size()) ? rows[each.row].least : clock_least[each.row - rows.size()];
-        kept = std::min(kept, least);
+        smallest = std::min(smallest, least);
     }
     run_channel_close();
     // each cost an exact rational in the part's clock count
@@ -456,7 +455,7 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
                   row.least, COST_REPEATS, clock, row.fields[3].c_str());
         costed += 1u;
     }
-    // each form's cost and spread in the part's clock count, every cost row the .ksc held let go for them
+    // each form's cost and spread in the part's clock count, every cost row the .ksc contained let go for them
     unsigned int forms_costed = 0u;
     std::vector<std::string> cost_rows;
     const unsigned long long clock_alone = forms_linked ? clock_least[forms_clock_at] : ULLONG_MAX;
@@ -490,34 +489,36 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     // the .kdm's section, every line after its first to its tail with each row costed now in place of the one before,
     // written by the cost pass; its tail as it was (kdm.h)
     KdmFile written = {};
-    int held = 1;
+    int written_ok = 1;
     for (const std::string &each : lines)
     {
-        held = held && kfile_lines_line_add(&written, each.c_str());
+        written_ok = written_ok && kfile_lines_line_add(&written, each.c_str());
     }
     const unsigned int tail = kdm_tail_at(&written);
     std::vector<const char *> section;
     Who who;
-    int who_held = 0;
+    int who_present = 0;
     for (unsigned int at = 1u; at < tail; at += 1u)
     {
-        if (!kfile_lines_who_line(written.line[at], &who, &who_held))
+        if (!kfile_lines_who_line(written.line[at], &who, &who_present))
         {
             section.push_back(written.line[at]);
         }
     }
     const std::string part = (!lines.empty() && (lines[0].compare(0u, 4u, "kdm ") == 0)) ? lines[0].substr(4u) : "-";
-    held = held && kdm_section_written(&written, part.c_str(), section.data(), (unsigned int)section.size()) &&
-           kdm_write(&written, kdm);
+    written_ok = written_ok &&
+                 kdm_section_written(&written, part.c_str(), section.data(), (unsigned int)section.size()) &&
+                 kdm_write(&written, kdm);
     kdm_free(&written);
-    if (!held)
+    if (!written_ok)
     {
         printf("orior_klq_identity cost: %s could not be written\n", kdm);
         return 1;
     }
-    printf("orior_klq_identity cost: %zu arrangements, %u costed over %llu asks and written to %s; %zu forms, %u costed in "
+    printf("orior_klq_identity cost: %zu arrangements, %u costed over %llu queries and written to %s; %zu forms, %u "
+           "costed in "
            "the part's clock and written to %s",
-           rows.size(), costed, asks, kdm, costed_forms.size(), forms_costed, ksc);
+           rows.size(), costed, queries, kdm, costed_forms.size(), forms_costed, ksc);
     for (const auto &each : left)
     {
         printf(", %u %s", each.second, each.first.c_str());
@@ -526,16 +527,15 @@ int identity_cost(const char *engine, const char *answers, const char *ksc, cons
     return 0;
 }
 
-// The pairs the arrangements of the .kdm at `kdm` hold and no chain of ours does, those of `held` left: each
-// arrangement whose nodes the ruleset writes is written at its operator's link as the cost puts it (operator_link), and
-// where a node's result is read by the very next node, the pair of their operations is probed there. At most `most`
-// arrangements are a pair's probes, and each is written with every stall the longest and asked at every stall of its
-// writer, each ask into `asks` and its code into `codes`
+// The pairs the arrangements of the .kdm at `kdm` contain and no chain of ours does, those of `excluded_pairs` left:
+// each arrangement whose nodes the ruleset writes is written at its operator's link as the cost puts it
+// (operator_link), and where a node's result is read by the very next node, the pair of their operations is probed
+// there. At most `most` arrangements are a pair's probes, and each is written with every stall the longest and queried
+// at every stall of its writer, each query into `queries` and its code into `codes`
 void arrangement_probes(const char *engine, const std::map<std::string, std::vector<std::string>> &host,
-                               const std::string &kdm, const Ruleset *sass, const char *machine_path,
-                               const StallField &stall, unsigned long long longest,
-                               const std::set<std::pair<std::string, std::string>> &held, size_t most,
-                               std::vector<StallAsk> *asks, std::vector<std::vector<unsigned char>> *codes)
+                        const std::string &kdm, const Ruleset *sass, const char *machine_path, const StallField &stall,
+                        unsigned long long longest, const std::set<std::pair<std::string, std::string>> &excluded_pairs,
+                        size_t most, std::vector<StallQuery> *queries, std::vector<std::vector<unsigned char>> *codes)
 {
     Carriers carriers;
     carriers_read(engine, host, &carriers);
@@ -592,7 +592,7 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
                     continue;
                 }
                 const std::pair<std::string, std::string> pair(writer_word[1].str(), reader_word[1].str());
-                if ((held.count(pair) != 0u) || (probed[pair] >= most))
+                if ((excluded_pairs.count(pair) != 0u) || (probed[pair] >= most))
                 {
                     continue;
                 }
@@ -612,7 +612,7 @@ void arrangement_probes(const char *engine, const std::map<std::string, std::vec
                     std::vector<unsigned char> turned = written;
                     stall_bits_write(&turned, ahead + node - 1u, stall, step);
                     codes->push_back(turned);
-                    asks->push_back(StallAsk{pair, chain.first, step});
+                    queries->push_back(StallQuery{pair, chain.first, step});
                 }
                 probed[pair] += 1u;
             }

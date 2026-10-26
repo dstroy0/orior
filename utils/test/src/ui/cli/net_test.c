@@ -8,19 +8,20 @@
 // the host of `address` checked against `wanted`
 static void net_host_checked(const char *address, const char *wanted)
 {
-    char host[CLI_PATH_LONGEST];
+    char host[CLI_PATH_MAX_LEN];
     cli_net_host_of(address, host);
     char what[256];
-    CliLine line = {what, sizeof(what), 0ull};
-    cli_line_text(&line, address);
-    cli_line_text(&line, " is on ");
-    cli_line_text(&line, wanted);
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {what, sizeof(what), 0ull};
+    mmgr_line_put(&line, address);
+    mmgr_line_put(&line, " is on ");
+    mmgr_line_put(&line, wanted);
+    (void)mmgr_line_finish(&line);
     cli_check_text(host, cellul.len(&(CatenaFinitaCfg){.src = host, .cap = CLI_CELLS_POOL}), wanted, what);
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     net_host_checked("https://api.example.com:8443/v1/items?x=1", "api.example.com");
     net_host_checked("git@github.com:dstroy0/orior.git", "github.com");
     net_host_checked("ssh://me@build.example.org:2222/srv", "build.example.org");

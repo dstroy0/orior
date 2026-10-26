@@ -1,6 +1,6 @@
 # The descent's cases put to the part
 
-Written by `interface_sass_writings.sh` whole on every run. For each relation `gate_descent` writes every arrangement it descends over, its verdict on each and the cases it placed. Each arrangement is written node by node from the writings `interface_sass_writings.md` found and run on the part over the placed cases alone, and stands where it gives every one its word. The part's verdict is held to the descent's.
+Written by `interface_sass_writings.sh` whole on every run. For each relation `gate_descent` writes every arrangement it descends over, its verdict on each and the cases it placed. Each arrangement is written node by node from the writings `interface_sass_writings.md` found and run on the part over the placed cases alone, and stands where it gives every one its word. The part's verdict is checked against the descent's.
 
 | relation | cases placed | arrangements | run | standing on the part | standing on the host | verdicts that differ |
 |---|---|---|---|---|---|---|

@@ -7,18 +7,18 @@
 //
 //     monolith_scheduler <machine file> <record> <cubin>...
 //
-// For each operation the record holds how often NVIDIA wrote it, the stalls it gave it, how often it set a write or a
-// read barrier and how often it waited, and two readings of what the scheduler's bits are for:
+// For each operation the record contains how often NVIDIA wrote it, the stalls it gave it, how often it set a write or
+// a read barrier and how often it waited, and two readings of what the scheduler's bits are for:
 //
 // - where the operation sets no write barrier, the fewest cycles NVIDIA leaves between it and the first instruction
 //   that reads the register it writes, the stalls between them summed. That count is the soonest NVIDIA lets the result
-//   be read, and holds for the operation wherever it is written
+//   be read, and applies to the operation wherever it is written
 // - where the operation sets a write barrier, how often a wait on that barrier stands between it and the first
 //   instruction that reads its register, against how often none does. A barrier counts its producers, and a wait on it
-//   holds until every one of them is back: the wait may stand at the reader or at any instruction before it
+//   blocks until every one of them is back: the wait may stand at the reader or at any instruction before it
 // - where the operation sets none and a later instruction of the same operation sets one, waited on before the read:
-//   the earlier result is held behind the later one's barrier, the two coming back in the order they were put
-// - where the operation sets none, no later one holds it, and an earlier instruction of the same operation sets one,
+//   the earlier result is blocked behind the later one's barrier, the two coming back in the order they were put
+// - where the operation sets none, no later one blocks it, and an earlier instruction of the same operation sets one,
 //   waited on before the read: the result follows the earlier one's out of the same unit, and the fewest cycles NVIDIA
 //   leaves between that wait and the read
 //

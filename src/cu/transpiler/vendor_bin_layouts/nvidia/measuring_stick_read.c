@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // measuring_stick_read.c: nvcc's listing of the measuring stick read kernel by kernel, the answer key what the engine
-// builds for each function of the language is held against. A kernel's operations are its instructions' operations,
+// builds for each function of the language is compared against. A kernel's operations are its instructions' operations,
 // the guard cut and NOP left out, each as many times as it is written. Every operation nvcc writes that no form of
 // sass.krs writes is where sass.krs falls short, and the record counts the kernels each is in.
 //
-// Given the run of `orior protocol stick engine`, each kernel it writes through cu.krs and sass.krs is held against
+// Given the run of `orior protocol stick engine`, each kernel it writes through cu.krs and sass.krs is compared against
 // nvcc's: the operations nvdisasm reads back from the kernel's encodings, against the operations of nvcc's listing. A
 // kernel is at parity where the two are the same multiset. The read back is checked against the kernel's own text,
 // instruction by instruction: the assembler and the disassembler agree on every operation the comparison counts.
 //
-// Each operation is held as a number, the place of its name in the run's table of names, and compared as one. Every
-// file is read as the run holds it (kfile_lines.h), and the record is handed to the run's writer, which writes it.
+// Each operation is stored as a number, the place of its name in the run's table of names, and compared as one. Every
+// file is read as the run stores it (kfile_lines.h), and the record is handed to the run's writer, which writes it.
 //
 //     orior_measuring_stick_read <nvcc listing> <manifest> <sass.krs> <record> [<engine.tsv> <engine directory>]
 #include "measuring_stick_read/stick_internal.h"
@@ -22,14 +22,14 @@
 static char s_record_bytes[QRY_WRITER_RING_BYTES / 2ull];
 static size_t s_record_at;
 
-// `text` written after what the record holds
+// `text` written after what the record contains
 static void record_text(const char *text)
 {
     s_record_at = verba_textus.put(
         &(VerbaTextusCfg){.out = s_record_bytes, .cap = sizeof(s_record_bytes), .at = s_record_at, .text = text});
 }
 
-// `value` written in base ten after what the record holds
+// `value` written in base ten after what the record contains
 static void record_number(unsigned long long value)
 {
     s_record_at = verba_numerus.u64(
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     }
     stick_nvcc_read(argv[1]);
     stick_read(argv[2]);
-    StickManifest *const manifest = (StickManifest *)stick_held(calloc(s_file.lines + 1u, sizeof(StickManifest)));
+    StickManifest *const manifest = (StickManifest *)stick_allocated(calloc(s_file.lines + 1u, sizeof(StickManifest)));
     unsigned int manifests = 0u;
     for (unsigned int line = 0u; line < s_file.lines; line += 1u)
     {
@@ -90,12 +90,12 @@ int main(int argc, char **argv)
             free(cell[one]);
         }
     }
-    unsigned char *held = NULL;
-    unsigned int held_room = 0u;
-    stick_ruleset_operations(argv[3], &held, &held_room);
+    unsigned char *operations = NULL;
+    unsigned int operations_room = 0u;
+    stick_ruleset_operations(argv[3], &operations, &operations_room);
 
     // the stick: every kernel of nvcc's listing the manifest names, in the order of their names
-    StickKernel *const stick = (StickKernel *)stick_held(calloc(s_kernels + 1u, sizeof(StickKernel)));
+    StickKernel *const stick = (StickKernel *)stick_allocated(calloc(s_kernels + 1u, sizeof(StickKernel)));
     unsigned int sticks = 0u;
     for (unsigned int at = 0u; at < s_kernels; at += 1u)
     {
@@ -112,30 +112,31 @@ int main(int argc, char **argv)
         }
     }
     qsort(stick, sticks, sizeof(StickKernel), stick_kernel_order);
-    // every name the table holds, in the order of the names, and each operation held where it is past the room
-    unsigned int *const order = (unsigned int *)stick_held(calloc(s_names + 1u, sizeof(unsigned int)));
+    // every name the table contains, in the order of the names, and each operation stored where it is past the room
+    unsigned int *const order = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
     for (unsigned int at = 0u; at < s_names; at += 1u)
     {
         order[at] = at;
     }
     qsort(order, s_names, sizeof(unsigned int), stick_name_order);
-    if (held_room < s_names)
+    if (operations_room < s_names)
     {
-        held = (unsigned char *)stick_held(realloc(held, s_names + 1u));
-        memset(&held[held_room], 0, (s_names + 1u) - held_room);
-        held_room = s_names + 1u;
+        operations = (unsigned char *)stick_allocated(realloc(operations, s_names + 1u));
+        memset(&operations[operations_room], 0, (s_names + 1u) - operations_room);
+        operations_room = s_names + 1u;
     }
 
     // by category, in the order each first stands; and each operation no form writes, the kernels it is in
-    const char **const category = (const char **)stick_held(calloc(sticks + 1u, sizeof(char *)));
-    unsigned int *const category_kernels = (unsigned int *)stick_held(calloc(sticks + 1u, sizeof(unsigned int)));
-    unsigned int *const category_instructions = (unsigned int *)stick_held(calloc(sticks + 1u, sizeof(unsigned int)));
+    const char **const category = (const char **)stick_allocated(calloc(sticks + 1u, sizeof(char *)));
+    unsigned int *const category_kernels = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
+    unsigned int *const category_instructions =
+        (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
     unsigned int categories = 0u;
-    unsigned int *const missing = (unsigned int *)stick_held(calloc(s_names + 1u, sizeof(unsigned int)));
-    unsigned int *const missing_first = (unsigned int *)stick_held(calloc(s_names + 1u, sizeof(unsigned int)));
-    unsigned char *const written = (unsigned char *)stick_held(calloc(s_names + 1u, 1u));
-    unsigned int *const count = (unsigned int *)stick_held(calloc(s_names + 1u, sizeof(unsigned int)));
-    unsigned int *const other = (unsigned int *)stick_held(calloc(s_names + 1u, sizeof(unsigned int)));
+    unsigned int *const missing = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
+    unsigned int *const missing_first = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
+    unsigned char *const written = (unsigned char *)stick_allocated(calloc(s_names + 1u, 1u));
+    unsigned int *const count = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
+    unsigned int *const other = (unsigned int *)stick_allocated(calloc(s_names + 1u, sizeof(unsigned int)));
     unsigned int instructions = 0u;
     for (unsigned int at = 0u; at < sticks; at += 1u)
     {
@@ -157,7 +158,7 @@ int main(int argc, char **argv)
                 continue;
             }
             written[operation] = 1u;
-            if (!held[operation])
+            if (!operations[operation])
             {
                 missing_first[operation] = (missing[operation] == 0u) ? at : missing_first[operation];
                 missing[operation] += 1u;
@@ -165,16 +166,19 @@ int main(int argc, char **argv)
         }
     }
     unsigned int writings = 0u;
-    unsigned int held_writings = 0u;
+    unsigned int writing_count = 0u;
     for (unsigned int operation = 0u; operation < s_names; operation += 1u)
     {
         writings += written[operation];
-        held_writings += (written[operation] && held[operation]) ? 1u : 0u;
+        writing_count += (written[operation] && operations[operation]) ? 1u : 0u;
     }
 
     const size_t prefix = sizeof(s_prefix) - 1u;
     record_text("# The measuring stick: nvcc's listing, the answer key\n\n");
-    record_text("Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick (measuring_stick.py), every function of the CUDA language in a kernel of its own, is compiled by nvcc for sm_86 and read here. What the engine builds for each function is held against it, a kernel at parity where the engine's code uses the same operations as nvcc's, each as many times.\n\n");
+    record_text("Written by `orior protocol stick` whole on every run. Each kernel of the measuring stick "
+                "(measuring_stick.py), every function of the CUDA language in a kernel of its own, is compiled by nvcc "
+                "for sm_86 and read here. What the engine builds for each function is compared against it, a kernel at "
+                "parity where the engine's code uses the same operations as nvcc's, each as many times.\n\n");
     record_text("- kernels: ");
     record_number(sticks);
     record_text("\n- instructions: ");
@@ -182,7 +186,7 @@ int main(int argc, char **argv)
     record_text("\n- operations nvcc writes over the stick: ");
     record_number(writings);
     record_text(", of which sass.krs writes ");
-    record_number(held_writings);
+    record_number(writing_count);
     record_text("\n\n");
     if (argc == 7)
     {
@@ -219,7 +223,7 @@ int main(int argc, char **argv)
         record_text(" read back by nvdisasm, ");
         record_number(agree);
         record_text(" of them the operation the text wrote\n\n");
-        // a table is written with its rows, and a table with none is one line saying so
+        // a table is written with its rows, and a table with none is one line stating so
         record_text("## The engine against nvcc\n\nEach kernel the engine answers: its record steps, nvcc's instructions and the engine's as nvdisasm reads them back, and the operations only one of the two writes, each by how many more times it writes it.\n\n");
         record_text((answered != 0u) ? "| kernel | function | steps | nvcc | engine | only nvcc | only "
                                        "the engine |\n|---|---|---|---|---|---|---|\n"
@@ -250,9 +254,9 @@ int main(int argc, char **argv)
             record_text(" |\n");
         }
         // the questions the engine puts: each note, the kernels that put it and the first of them, the most first
-        char **const note = (char **)stick_held(calloc(sticks + 1u, sizeof(char *)));
-        unsigned int *const note_kernels = (unsigned int *)stick_held(calloc(sticks + 1u, sizeof(unsigned int)));
-        unsigned int *const note_first = (unsigned int *)stick_held(calloc(sticks + 1u, sizeof(unsigned int)));
+        char **const note = (char **)stick_allocated(calloc(sticks + 1u, sizeof(char *)));
+        unsigned int *const note_kernels = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
+        unsigned int *const note_first = (unsigned int *)stick_allocated(calloc(sticks + 1u, sizeof(unsigned int)));
         unsigned int notes = 0u;
         for (unsigned int at = 0u; at < sticks; at += 1u)
         {
@@ -372,6 +376,6 @@ int main(int argc, char **argv)
     }
     printf("measuring stick: %u kernels, %u instructions in nvcc's listing, %u operations, %u of them written by "
            "sass.krs\n",
-           sticks, instructions, writings, held_writings);
+           sticks, instructions, writings, writing_count);
     return 0;
 }

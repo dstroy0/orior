@@ -15,7 +15,7 @@ typedef struct
     long long depth;
 } CliSqlWord;
 
-// the words of a statement and its tokens past spaces and comments, held under the lock while one is read
+// the words of a statement and its tokens past spaces and comments, guarded by the lock while one is read
 static CliSqlWord s_words[CLI_SQL_WORDS];
 static CliSqlToken s_tokens[CLI_SQL_WORDS];
 static CliLock s_lock = CLI_LOCK_INIT;
@@ -95,7 +95,7 @@ static int cli_writes(const char *statement, unsigned int count)
     return 0;
 }
 
-static unsigned int cli_does_held(const char *statement, unsigned long long length, unsigned int dialect)
+static unsigned int cli_does_locked(const char *statement, unsigned long long length, unsigned int dialect)
 {
     static const char *const s_reads[6] = {"show", "describe", "desc", "values", "table", "help"};
     static const char *const s_changes[12] = {"insert", "update", "delete", "merge", "replace", "upsert",
@@ -160,7 +160,7 @@ static unsigned int cli_does_held(const char *statement, unsigned long long leng
 unsigned int cli_sql_does(const char *statement, unsigned long long length, unsigned int dialect)
 {
     cli_lock_take(&s_lock);
-    const unsigned int does = cli_does_held(statement, length, dialect);
+    const unsigned int does = cli_does_locked(statement, length, dialect);
     cli_lock_give(&s_lock);
     return does;
 }
@@ -216,7 +216,7 @@ static unsigned long long cli_ends(const char *statement, unsigned long long len
 }
 
 // the bytes from `from` to `to` of the statement put, trimmed
-static void cli_trimmed_put(CliLine *out, const char *statement, unsigned long long from, unsigned long long to)
+static void cli_trimmed_put(VerbaLinea *out, const char *statement, unsigned long long from, unsigned long long to)
 {
     while ((from < to) && ((statement[from] == ' ') || ((statement[from] >= '\t') && (statement[from] <= '\r'))))
     {
@@ -227,12 +227,12 @@ static void cli_trimmed_put(CliLine *out, const char *statement, unsigned long l
     {
         to -= 1ull;
     }
-    cli_line_counted(out, statement + from, (to > from) ? (to - from) : 0ull);
+    mmgr_line_put_n(out, statement + from, (to > from) ? (to - from) : 0ull);
 }
 
 // The table an UPDATE or a DELETE with no WHERE at its own level reaches every row of, or each a TRUNCATE names, put
 // after `SELECT count(*) FROM`; or the sum of each table's count where a TRUNCATE names more than one
-static int cli_unbounded_held(const char *statement, unsigned long long length, unsigned int dialect, CliLine *out)
+static int cli_unbounded_locked(const char *statement, unsigned long long length, unsigned int dialect, VerbaLinea *out)
 {
     static const char *const s_delete_stops[4] = {"using", "returning", "order", "limit"};
     static const char *const s_using_stops[1] = {"returning"};
@@ -244,7 +244,7 @@ static int cli_unbounded_held(const char *statement, unsigned long long length, 
         return 0;
     }
     const int bounded = cli_find(statement, level, "where") != CLI_SQL_WORDS;
-    CliLine source = {s_source, sizeof(s_source), 0ull};
+    VerbaLinea source = {s_source, sizeof(s_source), 0ull};
     if (cli_word_is(statement, 0u, "update") && !bounded)
     {
         const unsigned int set = cli_find(statement, level, "set");
@@ -266,7 +266,7 @@ static int cli_unbounded_held(const char *statement, unsigned long long length, 
         const unsigned int using = cli_find(statement, level, "using");
         if (using != CLI_SQL_WORDS)
         {
-            cli_line_text(&source, ", ");
+            mmgr_line_put(&source, ", ");
             cli_trimmed_put(&source, statement, s_words[using].end,
                             cli_ends(statement, length, level, s_words[using].end, s_using_stops, 1u));
         }
@@ -277,7 +277,7 @@ static int cli_unbounded_held(const char *statement, unsigned long long length, 
             ((level > 1u) && cli_word_is(statement, 1u, "table")) ? s_words[1].end : s_words[0].end;
         const unsigned long long end = cli_ends(statement, length, level, start, s_truncate_stops, 4u);
         cli_trimmed_put(&source, statement, start, end);
-        const unsigned long long names = cli_line_fits(&source) ? source.at : 0ull;
+        const unsigned long long names = mmgr_line_ok(&source) ? source.at : 0ull;
         int listed = 0;
         for (unsigned long long at = 0ull; at < names; at += 1ull)
         {
@@ -286,15 +286,15 @@ static int cli_unbounded_held(const char *statement, unsigned long long length, 
         if (listed)
         {
             // Each table a TRUNCATE names is counted alone and the counts added
-            cli_line_text(out, "SELECT ");
+            mmgr_line_put(out, "SELECT ");
             unsigned long long piece = 0ull;
             for (unsigned long long at = 0ull; at <= names; at += 1ull)
             {
                 if ((at == names) || (s_source[at] == ','))
                 {
-                    cli_line_text(out, (piece != 0ull) ? " + (SELECT count(*) FROM " : "(SELECT count(*) FROM ");
+                    mmgr_line_put(out, (piece != 0ull) ? " + (SELECT count(*) FROM " : "(SELECT count(*) FROM ");
                     cli_trimmed_put(out, s_source, piece, at);
-                    cli_line_character(out, ')');
+                    mmgr_line_ch(out, ')');
                     piece = at + 1ull;
                 }
             }
@@ -305,20 +305,20 @@ static int cli_unbounded_held(const char *statement, unsigned long long length, 
     {
         return 0;
     }
-    const unsigned long long size = cli_line_fits(&source) ? source.at : 0ull;
+    const unsigned long long size = mmgr_line_ok(&source) ? source.at : 0ull;
     if (size == 0ull)
     {
         return 0;
     }
-    cli_line_text(out, "SELECT count(*) FROM ");
-    cli_line_counted(out, s_source, size);
+    mmgr_line_put(out, "SELECT count(*) FROM ");
+    mmgr_line_put_n(out, s_source, size);
     return 1;
 }
 
-int cli_sql_unbounded(const char *statement, unsigned long long length, unsigned int dialect, CliLine *out)
+int cli_sql_unbounded(const char *statement, unsigned long long length, unsigned int dialect, VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    const int found = cli_unbounded_held(statement, length, dialect, out);
+    const int found = cli_unbounded_locked(statement, length, dialect, out);
     cli_lock_give(&s_lock);
     return found;
 }
@@ -331,11 +331,11 @@ static int cli_lower_is(const char *statement, unsigned int count, unsigned int 
                : (word[0] == '\0');
 }
 
-// a name of names and dots from token `*at` on, each name after a dot, put into `out`, which holds `room`; `*at` moved
+// a name of names and dots from token `*at` on, each name after a dot, put into `out`, sized for `room`; `*at` moved
 // past it
 static void cli_dotted(const char *statement, unsigned int count, unsigned int *at, char *out, unsigned long long room)
 {
-    CliLine line = {out, room, 0ull};
+    VerbaLinea line = {out, room, 0ull};
     while (*at < count)
     {
         const CliSqlToken *const token = &s_tokens[*at];
@@ -348,27 +348,27 @@ static void cli_dotted(const char *statement, unsigned int count, unsigned int *
         {
             break;
         }
-        cli_line_counted(&line, word, size);
+        mmgr_line_put_n(&line, word, size);
         *at += 1u;
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
-// the `index`th token past spaces and comments in lower case into `out`, which holds CLI_NAME_LONGEST, empty past the
+// the `index`th token past spaces and comments in lower case into `out`, sized for CLI_NAME_MAX_LEN, empty past the
 // last
 static void cli_lower_into(const char *statement, unsigned int count, unsigned int index, char *out)
 {
-    CliLine line = {out, CLI_NAME_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
     for (unsigned long long at = (index < count) ? s_tokens[index].start : 0ull;
          (index < count) && (at < s_tokens[index].end); at += 1ull)
     {
         const char letter = statement[at];
-        cli_line_character(&line, ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter);
+        mmgr_line_ch(&line, ((letter >= 'A') && (letter <= 'Z')) ? (char)(letter + 32) : letter);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
-static int cli_shaped_held(const char *statement, unsigned long long length, unsigned int dialect, CliShaped *shaped)
+static int cli_shaped_locked(const char *statement, unsigned long long length, unsigned int dialect, CliShaped *shaped)
 {
     static const char *const s_verbs[6] = {"create", "alter", "drop", "truncate", "rename", "comment"};
     static const char *const s_skips[14] = {"temp",    "temporary", "unique",  "materialized", "unlogged",
@@ -450,7 +450,7 @@ static int cli_shaped_held(const char *statement, unsigned long long length, uns
 int cli_sql_shaped(const char *statement, unsigned long long length, unsigned int dialect, CliShaped *shaped)
 {
     cli_lock_take(&s_lock);
-    const int found = cli_shaped_held(statement, length, dialect, shaped);
+    const int found = cli_shaped_locked(statement, length, dialect, shaped);
     cli_lock_give(&s_lock);
     return found;
 }

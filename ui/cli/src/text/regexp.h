@@ -3,24 +3,24 @@
 // regexp.h: regular expressions as the page's grammars write them, in JavaScript's syntax, matched at one place of a
 // line as a sticky pattern is. What is read: characters and escapes (`\d \w \s` and their opposites, `\b \B`,
 // `\t \n \r \f \v \0`, `\xHH`, `\uHHHH`, `\u{H...}`, an escaped sign), `.`, classes with ranges and escapes, `^` and
-// `$` at the line's ends, groups that capture and groups that do not, lookahead that holds and that does not,
+// `$` at the line's ends, groups that capture and groups that do not, lookahead that matches and that does not,
 // alternation, the quantifiers `* + ? {n} {n,} {n,m}` greedy and lazy, and backreferences. The flags read are `i`,
 // which compares letters without case, and `u`, under which `\p{...}` and `\P{...}` read letters, numbers, and upper
 // and lower case; any other flag is no matter for a single line. Lookbehind and named groups are refused, and a
-// grammar that holds one is colored by the page instead.
+// grammar that contains one is colored by the page instead.
 //
 // Matching backtracks. A quantifier over what takes the text one way at a place or not at all, one character, a
 // sequence of them, or alternatives of those no two of which start with the same character, steps along without going
 // deeper for each pass it takes, and a long run costs no stack; a string's `"(?:[^"\\]|\\.)*"` is one. Any other
 // repeats by going one level deeper a pass. A match that takes more than CLI_REGEXP_STEPS steps, or whose passes take
 // more than CLI_REGEXP_STACK_MOST bytes of the stack below where it began, is given up as no match. A pattern is read
-// into a CliRegexp the caller holds; the text is its letters, each a code point (regexp_read.c, regexp_match.c)
+// into a CliRegexp the caller owns; the text is its letters, each a code point (regexp_read.c, regexp_match.c)
 #ifndef REGEXP_H
 #define REGEXP_H
 
 #include "../command_line/cli_internal.h"
 
-// the most nodes, class items, child places and groups one pattern holds, and the most letters it is read from
+// the most nodes, class items, child places and groups one pattern contains, and the most letters it is read from
 #define CLI_REGEXP_NODES 1024u
 
 #define CLI_REGEXP_ITEMS 1024u
@@ -84,8 +84,8 @@ typedef struct
 
 // A pattern read and ready to match: its nodes, items and parts, the first characters of each alternative of an
 // alternation at its part's place, its root, its count of groups, `fold` under the `i` flag, and its first characters
-// The arrays are where a room or a keeper of patterns holds them: a pattern is read into a room, which holds the most
-// any pattern takes, and a keeper copies what it took, so many patterns are kept in the room of one
+// The arrays are where a room or a store of patterns places them: a pattern is read into a room, which contains the
+// most any pattern takes, and a keeper copies what it took, so many patterns are stored in the room of one
 typedef struct
 {
     CliRegexpNode *node;
@@ -103,7 +103,7 @@ typedef struct
     int anchored;
 } CliRegexp;
 
-// The room one pattern is read into: the most nodes, class items and child places a pattern holds
+// The room one pattern is read into: the most nodes, class items and child places a pattern contains
 typedef struct
 {
     CliRegexpNode node[CLI_REGEXP_NODES];
@@ -158,15 +158,15 @@ enum
     CLI_REGEXP_LOWER
 };
 
-// `size` bytes of UTF-8 decoded into code points in `letters`, which holds `room`: their count
+// `size` bytes of UTF-8 decoded into code points in `letters`, sized for `room`: their count
 unsigned long long cli_regexp_letters(const char *text, unsigned long long size, unsigned int *letters,
                                       unsigned long long room);
-// the pattern `source` with `flags` read into `regexp`, its arrays pointed at a room: 1, or 0 with why said,
+// the pattern `source` with `flags` read into `regexp`, its arrays pointed at a room: 1, or 0 with why given,
 // `/<source>/: <why> at <place>`
-int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, CliLine *said);
+int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, VerbaLinea *err_msg);
 // whether a first set allows a match to start at `letter`: its ASCII bits, or `other` past them
 int cli_regexp_allows(const CliRegexpFirst *first, unsigned int letter);
-// whether a match starts at `at` in the text, `length` letters, each group's span written into `groups`, which holds
+// whether a match starts at `at` in the text, `length` letters, each group's span written into `groups`, sized for
 // the regexp's groups and one, the whole match first: 1, or 0
 int cli_regexp_match_into(const CliRegexp *regexp, const unsigned int *text, unsigned long long length,
                           unsigned long long at, CliRegexpSpan *groups);

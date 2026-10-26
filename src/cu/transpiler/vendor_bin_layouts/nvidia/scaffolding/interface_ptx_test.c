@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// The interface's PTX test (engine_table.md item 11(f) 4). The interface runs interface_ptx_probe, one question a process: the
-// membership queries, every arithmetic, test and conversion form of ptx.krs checked against the host's integers; then
-// the illegal operations, each asked from a fresh process, since a fault on the device leaves its context unusable; and
-// after each, a fresh process whose device answers. The first argument is interface_ptx_probe's path, the second a folder
-// for the probes' output
+// The interface's PTX test (engine_table.md item 11(f) 4). The interface runs interface_ptx_probe, one question a
+// process: the membership queries, every arithmetic, test and conversion form of ptx.krs checked against the host's
+// integers; then the illegal operations, each queried from a fresh process, since a fault on the device leaves its
+// context unusable; and after each, a fresh process whose device answers. The first argument is interface_ptx_probe's
+// path, the second a folder for the probes' output
 #include "../../../lstar/interface/interface.h"
 
 #include <stdio.h>
@@ -31,9 +31,9 @@ static void interface_ptx_check(InterfacePtxTest *test, int passed, const char *
     printf("  %s %s\n", passed ? "ok  " : "FAIL", what);
 }
 
-// one question asked of the probe in a process of its own, its answer and its output printed whole; 0 where the interface
-// itself failed
-static int interface_ptx_ask(InterfacePtxTest *test, const char *question, InterfaceAnswer *answer)
+// one question queried of the probe in a process of its own, its answer and its output printed whole; 0 where the
+// interface itself failed
+static int interface_ptx_probe(InterfacePtxTest *test, const char *question, InterfaceAnswer *answer)
 {
     char path[1024];
     snprintf(path, sizeof(path), "%s/%s.out", test->folder, question);
@@ -62,12 +62,12 @@ static void interface_ptx_alive(InterfacePtxTest *test, const char *after)
 {
     InterfaceAnswer answer;
     char what[256];
-    const int asked = interface_ptx_ask(test, "alive", &answer);
+    const int result = interface_ptx_probe(test, "alive", &answer);
     snprintf(what, sizeof(what), "a fresh probe after %s: the device answers 6 + 7 = 0x0000000d", after);
     interface_ptx_check(test,
-                   asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
-                       (strstr(s_interface_ptx_output, "answered 0000000d") != NULL),
-                   what);
+                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
+                            (strstr(s_interface_ptx_output, "answered 0000000d") != NULL),
+                        what);
 }
 
 // an illegal operation the device errors: the probe exits 3 having printed the CUDA error, which `error` names where
@@ -75,10 +75,11 @@ static void interface_ptx_alive(InterfacePtxTest *test, const char *after)
 static void interface_ptx_error(InterfacePtxTest *test, const char *question, const char *error, const char *what)
 {
     InterfaceAnswer answer;
-    const int asked = interface_ptx_ask(test, question, &answer);
+    const int result = interface_ptx_probe(test, question, &answer);
     const int named =
         (error == NULL) ? (strstr(s_interface_ptx_output, "error ") != NULL) : (strstr(s_interface_ptx_output, error) != NULL);
-    interface_ptx_check(test, asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ull) && named, what);
+    interface_ptx_check(test, result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 3ull) && named,
+                        what);
 }
 
 int main(int count, char **arguments)
@@ -93,11 +94,11 @@ int main(int count, char **arguments)
 
     interface_ptx_alive(&test, "nothing");
 
-    int asked = interface_ptx_ask(&test, "membership", &answer);
+    int result = interface_ptx_probe(&test, "membership", &answer);
     interface_ptx_check(&test,
-                   asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
-                       (strstr(s_interface_ptx_output, " questions, 0 with a case that differs") != NULL),
-                   "membership: every defined answer of every form agrees with the host's integers");
+                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull) &&
+                            (strstr(s_interface_ptx_output, " questions, 0 with a case that differs") != NULL),
+                        "membership: every defined answer of every form agrees with the host's integers");
 
     interface_ptx_error(&test, "address", "error 700 cudaErrorIllegalAddress",
                    "a load from address 16 errors as an illegal address (700)");
@@ -108,11 +109,11 @@ int main(int count, char **arguments)
     interface_ptx_error(&test, "trap", NULL, "trap errors with a CUDA error");
     interface_ptx_alive(&test, "a trap");
 
-    asked = interface_ptx_ask(&test, "lacking", &answer);
+    result = interface_ptx_probe(&test, "lacking", &answer);
     interface_ptx_check(&test,
-                   asked && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 4ull) &&
-                       (strstr(s_interface_ptx_output, "errored") != NULL),
-                   "elect.sync, which PTX gives sm_90 and later, errors in the toolchain for this device");
+                        result && (answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 4ull) &&
+                            (strstr(s_interface_ptx_output, "errored") != NULL),
+                        "elect.sync, which PTX gives sm_90 and later, errors in the toolchain for this device");
     interface_ptx_alive(&test, "an instruction the part lacks");
 
     printf("  interface ptx test: %u checks, %u failed\n", test.checks, test.failed);

@@ -331,19 +331,18 @@ class Walker:
 
     def processes(self):
         """Each process of the app by its name and id, and the bytes it has committed."""
-        read = self.js("window.__TAURI_INTERNALS__.invoke('memory_use').catch(() => null)")
+        read = self.js("import('/bridge.js').then((bridge) => bridge.invoke('memory_usage')).catch(() => null)")
         return {f"{part['name']} {part['pid']}": part["commit"] for part in (read or {}).get("parts", [])}
 
     def weigh(self, item):
         """Presses a command under the sampling heap profiler and gives what it left: the page's bytes
         still held once it was closed, put back and the heap collected, by module and function; the
-        heap's growth; each process's; and what each call of the tree's side took and kept."""
+        heap's growth; and each process's."""
         self.baseline()
         self.settle(2)
         self.collect()
         before = self.conn.call("Runtime.getHeapUsage")["usedSize"]
         processes = self.processes()
-        self.js("window.__TAURI_INTERNALS__.invoke('memory_calls', { reset: true })")
         self.conn.call("HeapProfiler.startSampling", samplingInterval=self.options.sampling, includeObjectsCollectedByMajorGC=False, includeObjectsCollectedByMinorGC=False)
         try:
             ran, report, _ = self.press(item["command"], self.options.wait)
@@ -354,7 +353,6 @@ class Walker:
             profile = self.conn.call("HeapProfiler.stopSampling")["profile"]
         after = self.conn.call("Runtime.getHeapUsage")["usedSize"]
         grown = self.processes()
-        calls = self.js("window.__TAURI_INTERNALS__.invoke('memory_calls', { reset: true })") or {}
         modules, functions = kept_by(profile)
         return ran, report, left, {
             "heapBefore": before,
@@ -363,19 +361,15 @@ class Walker:
             "modules": dict(modules.most_common(20)),
             "functions": dict(functions.most_common(30)),
             "processes": {name: grown.get(name, 0) - processes.get(name, 0) for name in sorted(set(processes) | set(grown))},
-            "calls": calls,
         }
 
     def judge_memory(self, memory):
-        """What a command's memory says needs a look: the page's bytes it left held, a call that kept
-        what it took, and a process that grew."""
+        """What a command's memory says needs a look: the page's bytes it left held, and a process that
+        grew."""
         flags = []
         if memory["kept"] > 1 << 20:
             top = ", ".join(f"{name} {size / 1024:.0f} KiB" for name, size in list(memory["functions"].items())[:3])
             flags.append((48, "kept memory", f"the page holds {memory['kept'] / 1024:.0f} KiB more once it is closed: {top}"))
-        for name, calls in memory["calls"].items():
-            if calls["kept"] > 1 << 20:
-                flags.append((46, "call kept memory", f"{name} kept {calls['kept'] / 1024:.0f} KiB of the {calls['taken'] / 1024:.0f} KiB its {calls['count']} calls took"))
         for name, grown in memory["processes"].items():
             if grown > 32 << 20:
                 flags.append((44, "process grew", f"{name} committed {grown / (1 << 20):.0f} MiB more"))
@@ -460,7 +454,7 @@ class Walker:
             make_tree(self.tree)
             self.watch()
             watched = True
-            clip = self.js("window.__TAURI_INTERNALS__.invoke('clip_read').catch(() => null)")
+            clip = self.js("import('/bridge.js').then((bridge) => bridge.invoke('clip_read')).catch(() => null)")
             self.js(f"(async () => {{ await (await import('/menubar.js')).runCommand('open-folder', [{json.dumps(str(self.tree))}]); return 1; }})()")
             time.sleep(1.5)
             self.baseline()
@@ -472,7 +466,6 @@ class Walker:
                 self.interval = statistics.median(idle)
             if self.memory:
                 self.conn.call("HeapProfiler.enable")
-                self.js("window.__TAURI_INTERNALS__.invoke('memory_calls', { on: true, reset: true })")
             passes = " and ".join(name for name, on in (("motion", self.motion), ("memory", self.memory)) if on)
             print(f"walking {len(commands)} commands for {passes}; a frame every {self.interval:.1f} ms; the tree is {self.tree}")
             for index, item in enumerate(commands, 1):
@@ -528,10 +521,8 @@ class Walker:
             # one that fails leaves the others to be done.
             self.write()
             steps = [(f"stop {closing}", f"window.__walk ? window.__walk.run({json.dumps(closing)}, [], 3000) : null") for closing in ("stop-debug", "stop-profile", "stop-tests", "zoom-reset")]
-            if self.memory:
-                steps.append(("the call count off", "window.__TAURI_INTERNALS__.invoke('memory_calls', { on: false, reset: true })"))
             if clip is not None:
-                steps.append(("the clipboard", f"window.__TAURI_INTERNALS__.invoke('clip_write', {{ text: {json.dumps(clip)} }}).catch(() => null)"))
+                steps.append(("the clipboard", f"import('/bridge.js').then((bridge) => bridge.invoke('clip_write', {{ text: {json.dumps(clip)} }})).catch(() => null)"))
             steps.append(("the page's kept entries", f"(() => {{ localStorage.clear(); for (const [key, value] of JSON.parse({json.dumps(storage)})) localStorage.setItem(key, value); return 1; }})()"))
             if original:
                 steps.append(("the tree open", f"(async () => {{ document.querySelectorAll('dialog[open]').forEach((one) => one.close()); await (await import('/menubar.js')).runCommand('open-folder', [{json.dumps(original)}]); return 1; }})()"))
@@ -552,19 +543,13 @@ class Walker:
 
     def write_memory(self):
         weighed = [record for record in self.records if record.get("memory")]
-        modules, functions, calls = collections.Counter(), collections.Counter(), {}
+        modules, functions = collections.Counter(), collections.Counter()
         for record in weighed:
             memory = record["memory"]
             modules.update(memory["modules"])
             functions.update(memory["functions"])
-            for name, one in memory["calls"].items():
-                total = calls.setdefault(name, {"count": 0, "taken": 0, "kept": 0, "most": 0})
-                total["count"] += one["count"]
-                total["taken"] += one["taken"]
-                total["kept"] += one["kept"]
-                total["most"] = max(total["most"], one["most"])
         commands = [{key: record[key] for key in ("index", "command", "path", "memory")} for record in weighed]
-        (self.out / "memory.json").write_text(json.dumps({"sampling": self.options.sampling, "commands": commands, "modules": modules, "functions": functions, "calls": calls}, indent=1), encoding="utf-8")
+        (self.out / "memory.json").write_text(json.dumps({"sampling": self.options.sampling, "commands": commands, "modules": modules, "functions": functions}, indent=1), encoding="utf-8")
 
         def kib(size):
             return f"{size / 1024:,.1f}"
@@ -573,31 +558,25 @@ class Walker:
             f"# Memory of the walk of {self.stamp}",
             "",
             f"{len(weighed)} commands, each pressed under V8's sampling heap profiler, one sample each {self.options.sampling} bytes. "
-            "What the page holds is what it still held once the command was closed, put back and its heap collected. "
-            "A call of the tree's side is counted on the thread that answered it, as the window's allocator gave and took back its bytes.",
+            "What the page holds is what it still held once the command was closed, put back and its heap collected.",
             "",
             "## What each command left held",
             "",
-            "| # | command | menu | page KiB kept | heap after KiB | held the most | processes that grew | calls KiB taken | calls KiB kept |",
-            "| ---: | --- | --- | ---: | ---: | --- | --- | ---: | ---: |",
+            "| # | command | menu | page KiB kept | heap after KiB | held the most | processes that grew |",
+            "| ---: | --- | --- | ---: | ---: | --- | --- |",
         ]
         for record in sorted(weighed, key=lambda one: -one["memory"]["kept"]):
             memory = record["memory"]
             top = next(iter(memory["functions"].items()), None)
             grew = ", ".join(f"{name} {delta / (1 << 20):+.1f} MiB" for name, delta in memory["processes"].items() if abs(delta) >= 1 << 20)
-            taken = sum(one["taken"] for one in memory["calls"].values())
-            kept = sum(one["kept"] for one in memory["calls"].values())
             lines.append(
                 f"| {record['index']} | `{record['command']}` | {record['path']} | {kib(memory['kept'])} | {kib(memory['heapAfter'])} | "
-                f"{(top[0] + ' ' + kib(top[1])) if top else ''} | {grew} | {kib(taken)} | {kib(kept)} |"
+                f"{(top[0] + ' ' + kib(top[1])) if top else ''} | {grew} |"
             )
         lines += ["", "## Held by module, over the walk", "", "| module | KiB |", "| --- | ---: |"]
         lines += [f"| {name} | {kib(size)} |" for name, size in modules.most_common(40)]
         lines += ["", "## Held by function, over the walk", "", "| function | KiB |", "| --- | ---: |"]
         lines += [f"| `{name}` | {kib(size)} |" for name, size in functions.most_common(80)]
-        lines += ["", "## The tree's side, by call", "", "| call | calls | KiB taken | KiB kept | KiB the most one took |", "| --- | ---: | ---: | ---: | ---: |"]
-        for name, one in sorted(calls.items(), key=lambda item: -item[1]["taken"]):
-            lines.append(f"| `{name}` | {one['count']} | {kib(one['taken'])} | {kib(one['kept'])} | {kib(one['most'])} |")
         (self.out / "memory.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"memory: {self.out / 'memory.md'}")
 

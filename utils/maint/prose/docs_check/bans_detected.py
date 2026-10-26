@@ -94,7 +94,7 @@ DETECTED = (
     # The summarizing sentence at the end of a paragraph, restating what the paragraph said. The
     # paragraph is the statement.
     r"(?m)^A \w+ therefore\b",
-    # NO BARE WORD BAN FOR carry, hold, slot, book, construction, cost, buy, pay, spend, earn,
+    # NO BARE WORD BAN FOR carry, hold, book, construction, cost, buy, pay, spend, earn,
     # afford, win, price OR read. Every one of them is ordinary technical English. The shape worth
     # catching is the is-what-VERB construction above, and the narrow phrases each group already
     # carries. WITHDRAWN in bans.py names each one and the sentence that excludes it.
@@ -138,8 +138,7 @@ DETECTED = (
     #
     # The weight of this one sits in the chain chapters, where a field has a name already.
     #
-    # NO BARE BAN on slot in any form. See WITHDRAWN in bans.py. The narrow phrases stay: the slot
-    # stays empty, the record slot is empty.
+    # The bare ban on slot is in bans_words.py. The phrase below gives the slot a verb.
     r"\bthe slot (?:holds|carries|gives|takes|decides)\b",
     # A copy given a job. The value is the same at both ends and nothing moved it.
     r"\ba copy that transports\b",

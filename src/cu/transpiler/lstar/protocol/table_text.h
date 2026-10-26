@@ -15,14 +15,14 @@ extern "C"
 // the table of the files the run's programs wrote (files.oracle.tsv)
 #define TABLE_FILES "files"
 
-// the table of links, each a relation between rows that one column of a row cannot hold (links.oracle.tsv)
+// the table of links, each a relation between rows that one column of a row cannot contain (links.oracle.tsv)
 #define TABLE_LINKS "links"
 
 // a file's bytes, the record of a file written whole, written from the rows of a table keyed to the head row of the
 // file's records
 #define TABLE_LINK_WRITTEN_FROM 0x1u
 
-// the most columns a row holds
+// the most columns a row contains
 #define TABLE_ROW_COLUMNS 32u
 
 // the folder of the oracles of the run's own tables, from the top of the tree
@@ -36,7 +36,7 @@ extern "C"
 
     // the number of the `length` bytes at `bytes` in the table of texts: their 64-bit FNV-1a hash, 1 for a hash of
     // 0; the text appended as a row of the table the first time this process numbers it. An empty text has no
-    // number: 0, the number a row gives where it holds no text, and no row
+    // number: 0, the number a row gives where it contains no text, and no row
     unsigned long long table_text(const void *bytes, unsigned long long length);
 
 #ifdef __cplusplus

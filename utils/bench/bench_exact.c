@@ -22,16 +22,16 @@ static const char *const SUBJECTS[] = {
 
 #define SUBJECT_COUNT (sizeof(SUBJECTS) / sizeof(SUBJECTS[0]))
 
-#define PLACES_HELD ((((unsigned long long)ORIOR_EXACT_BITS - 5ull) * 30102ull) / 100000ull)
+#define PLACES_EXACT ((((unsigned long long)ORIOR_EXACT_BITS - 5ull) * 30102ull) / 100000ull)
 
-#define PLACES ((PLACES_HELD < 24ull) ? (uint32_t)PLACES_HELD : 24u)
+#define PLACES ((PLACES_EXACT < 24ull) ? (uint32_t)PLACES_EXACT : 24u)
 
 #if defined(__cplusplus)
-static_assert(PLACES_HELD >= 2ull, "the narrowest width must hold the two places a quarter step takes");
+static_assert(PLACES_EXACT >= 2ull, "the narrowest width must fit the two places a quarter step takes");
 #elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-_Static_assert(PLACES_HELD >= 2ull, "the narrowest width must hold the two places a quarter step takes");
+_Static_assert(PLACES_EXACT >= 2ull, "the narrowest width must fit the two places a quarter step takes");
 #else
-typedef char bench_exact_places_hold_a_quarter[(PLACES_HELD >= 2ull) ? 1 : -1];
+typedef char bench_exact_places_fit_a_quarter[(PLACES_EXACT >= 2ull) ? 1 : -1];
 #endif
 
 #define WIDE_DIGITS ((((unsigned long long)ORIOR_EXACT_BITS * 30103ull) / 100000ull) + 2ull)
@@ -83,7 +83,7 @@ static void set_sentinel(OriorExactInteger *value)
     value->sign = -1;
 }
 
-static void read_subject(size_t index, const char *text, OriorExactInteger *held)
+static void read_subject(size_t index, const char *text, OriorExactInteger *subject)
 {
     const size_t length = strlen(text);
 
@@ -97,15 +97,14 @@ static void read_subject(size_t index, const char *text, OriorExactInteger *held
     if (status != ORIOR_EXACT_OK)
     {
         printf(" errored %d\n", (int)status);
-        printf("keep read %u %d\n", (unsigned)index,
-               (memcmp(&value, &sentinel, sizeof(value)) == 0) ? 1 : 0);
-        orior_exact_zero(held);
+        printf("same read %u %d\n", (unsigned)index, (memcmp(&value, &sentinel, sizeof(value)) == 0) ? 1 : 0);
+        orior_exact_zero(subject);
     }
     else
     {
         emit_limbs(&value);
         printf("\n");
-        *held = value;
+        *subject = value;
     }
 
     static OriorExactInteger measured;
@@ -123,7 +122,7 @@ static void read_subject(size_t index, const char *text, OriorExactInteger *held
         const int unchanged = (memcmp(&measured, &sentinel, sizeof(measured)) == 0)
                               && (memcmp(&uncertainty, &sentinel, sizeof(uncertainty)) == 0)
                               && (carried == 7);
-        printf("keep meas %u %d\n", (unsigned)index, unchanged ? 1 : 0);
+        printf("same meas %u %d\n", (unsigned)index, unchanged ? 1 : 0);
     }
     else
     {
@@ -141,14 +140,14 @@ static void run_arithmetic(void)
     wide[WIDE_DIGITS] = '\0';
 
     const size_t total = SUBJECT_COUNT + 1u;
-    static OriorExactInteger held[SUBJECT_COUNT + 1u];
+    static OriorExactInteger subjects[SUBJECT_COUNT + 1u];
     char label[128];
 
     for (size_t at = 0u; at < SUBJECT_COUNT; at++)
     {
-        read_subject(at, SUBJECTS[at], &held[at]);
+        read_subject(at, SUBJECTS[at], &subjects[at]);
     }
-    read_subject(SUBJECT_COUNT, wide, &held[SUBJECT_COUNT]);
+    read_subject(SUBJECT_COUNT, wide, &subjects[SUBJECT_COUNT]);
 
     for (size_t low = 0u; low < total; low++)
     {
@@ -157,23 +156,23 @@ static void run_arithmetic(void)
             static OriorExactInteger result;
 
             (void)snprintf(label, sizeof(label), "add %u %u", (unsigned)low, (unsigned)high);
-            OriorExactStatus status = orior_exact_add(&held[low], &held[high], &result);
+            OriorExactStatus status = orior_exact_add(&subjects[low], &subjects[high], &result);
             if (status == ORIOR_EXACT_OK) { emit(label, &result); }
             else { emit_status(label, status); }
 
             (void)snprintf(label, sizeof(label), "sub %u %u", (unsigned)low, (unsigned)high);
-            status = orior_exact_subtract(&held[low], &held[high], &result);
+            status = orior_exact_subtract(&subjects[low], &subjects[high], &result);
             if (status == ORIOR_EXACT_OK) { emit(label, &result); }
             else { emit_status(label, status); }
 
             (void)snprintf(label, sizeof(label), "mul %u %u", (unsigned)low, (unsigned)high);
-            status = orior_exact_multiply(&held[low], &held[high], &result);
+            status = orior_exact_multiply(&subjects[low], &subjects[high], &result);
             if (status == ORIOR_EXACT_OK) { emit(label, &result); }
             else { emit_status(label, status); }
 
             (void)snprintf(label, sizeof(label), "cmp %u %u", (unsigned)low, (unsigned)high);
-            printf("%s %d %d\n", label, orior_exact_compare(&held[low], &held[high]),
-                   orior_exact_equal(&held[low], &held[high]));
+            printf("%s %d %d\n", label, orior_exact_compare(&subjects[low], &subjects[high]),
+                   orior_exact_equal(&subjects[low], &subjects[high]));
         }
     }
 }
@@ -185,9 +184,8 @@ static void run_errors(void)
     static OriorExactInteger scaled;
     scaled = seven;
     const OriorExactStatus scale_status = orior_exact_scale_by_ten(&scaled, SCALE_PAST_WIDTH);
-    printf("keep scale %d %d\n", (int)scale_status,
-           ((scale_status != ORIOR_EXACT_OK) && (memcmp(&scaled, &seven, sizeof(scaled)) == 0))
-               ? 1 : 0);
+    printf("same scale %d %d\n", (int)scale_status,
+           ((scale_status != ORIOR_EXACT_OK) && (memcmp(&scaled, &seven, sizeof(scaled)) == 0)) ? 1 : 0);
 
     static OriorExactInteger largest;
     memset(largest.limb, 0xFF, sizeof(largest.limb));
@@ -198,15 +196,13 @@ static void run_errors(void)
     static OriorExactInteger result;
     set_sentinel(&result);
     const OriorExactStatus add_status = orior_exact_add(&largest, &largest, &result);
-    printf("keep add %d %d\n", (int)add_status,
-           ((add_status != ORIOR_EXACT_OK) && (memcmp(&result, &sentinel, sizeof(result)) == 0))
-               ? 1 : 0);
+    printf("same add %d %d\n", (int)add_status,
+           ((add_status != ORIOR_EXACT_OK) && (memcmp(&result, &sentinel, sizeof(result)) == 0)) ? 1 : 0);
 
     set_sentinel(&result);
     const OriorExactStatus multiply_status = orior_exact_multiply(&largest, &largest, &result);
-    printf("keep mul %d %d\n", (int)multiply_status,
-           ((multiply_status != ORIOR_EXACT_OK)
-            && (memcmp(&result, &sentinel, sizeof(result)) == 0)) ? 1 : 0);
+    printf("same mul %d %d\n", (int)multiply_status,
+           ((multiply_status != ORIOR_EXACT_OK) && (memcmp(&result, &sentinel, sizeof(result)) == 0)) ? 1 : 0);
 }
 
 static void run_agreement(void)

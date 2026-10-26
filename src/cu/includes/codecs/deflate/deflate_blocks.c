@@ -3,7 +3,7 @@
 // deflate_blocks.c: runs, trees and writing the blocks
 #include "deflate_internal.h"
 
-static const unsigned char deflate_length_extra[DEFLATE_LENGTH_SLOTS] = {
+static const unsigned char deflate_length_extra[DEFLATE_LENGTH_CODES] = {
     0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 1u, 1u, 1u, 1u, 2u, 2u, 2u, 2u, 3u, 3u, 3u, 3u, 4u, 4u, 4u, 4u, 5u, 5u, 5u, 5u, 0u};
 
 static const unsigned char deflate_distance_extra[DEFLATE_DISTANCE_CODES] = {
@@ -93,8 +93,8 @@ static int deflate_trees(const DeflateToken *tokens, unsigned long long count, D
             literal_frequency[tokens[token].value] += 1ull;
             continue;
         }
-        literal_frequency[DEFLATE_END_OF_BLOCK + 1u + deflate_length_slot(tokens[token].length)] += 1ull;
-        distance_frequency[deflate_distance_slot(tokens[token].value)] += 1ull;
+        literal_frequency[DEFLATE_END_OF_BLOCK + 1u + deflate_length_code(tokens[token].length)] += 1ull;
+        distance_frequency[deflate_distance_code(tokens[token].value)] += 1ull;
     }
     literal_frequency[DEFLATE_END_OF_BLOCK] += 1ull;
     if (!deflate_lengths(literal_frequency, DEFLATE_LITERAL_CODES, DEFLATE_CODE_BITS, trees->lengths) ||
@@ -146,10 +146,10 @@ static unsigned long long deflate_symbol_bits(const DeflateToken *tokens, unsign
             bits += trees->lengths[tokens[token].value];
             continue;
         }
-        const unsigned int length_slot = deflate_length_slot(tokens[token].length);
-        const unsigned int distance_slot = deflate_distance_slot(tokens[token].value);
-        bits += trees->lengths[DEFLATE_END_OF_BLOCK + 1u + length_slot] + deflate_length_extra[length_slot] +
-                trees->lengths[DEFLATE_LITERAL_CODES + distance_slot] + deflate_distance_extra[distance_slot];
+        const unsigned int length_code = deflate_length_code(tokens[token].length);
+        const unsigned int distance_code = deflate_distance_code(tokens[token].value);
+        bits += trees->lengths[DEFLATE_END_OF_BLOCK + 1u + length_code] + deflate_length_extra[length_code] +
+                trees->lengths[DEFLATE_LITERAL_CODES + distance_code] + deflate_distance_extra[distance_code];
     }
     return bits;
 }
@@ -219,15 +219,15 @@ static void deflate_write_symbols(DeflateWriter *writer, const DeflateToken *tok
             deflate_put(writer, trees->codes[tokens[token].value], trees->lengths[tokens[token].value]);
             continue;
         }
-        const unsigned int length_slot = deflate_length_slot(tokens[token].length);
-        const unsigned int distance_slot = deflate_distance_slot(tokens[token].value);
-        const unsigned int length_symbol = DEFLATE_END_OF_BLOCK + 1u + length_slot;
-        const unsigned int distance_symbol = DEFLATE_LITERAL_CODES + distance_slot;
+        const unsigned int length_code = deflate_length_code(tokens[token].length);
+        const unsigned int distance_code = deflate_distance_code(tokens[token].value);
+        const unsigned int length_symbol = DEFLATE_END_OF_BLOCK + 1u + length_code;
+        const unsigned int distance_symbol = DEFLATE_LITERAL_CODES + distance_code;
         deflate_put(writer, trees->codes[length_symbol], trees->lengths[length_symbol]);
-        deflate_put(writer, tokens[token].length - deflate_length_base[length_slot], deflate_length_extra[length_slot]);
+        deflate_put(writer, tokens[token].length - deflate_length_base[length_code], deflate_length_extra[length_code]);
         deflate_put(writer, trees->codes[distance_symbol], trees->lengths[distance_symbol]);
-        deflate_put(writer, tokens[token].value - deflate_distance_base[distance_slot],
-                    deflate_distance_extra[distance_slot]);
+        deflate_put(writer, tokens[token].value - deflate_distance_base[distance_code],
+                    deflate_distance_extra[distance_code]);
     }
     deflate_put(writer, trees->codes[DEFLATE_END_OF_BLOCK], trees->lengths[DEFLATE_END_OF_BLOCK]);
     deflate_align(writer);
@@ -241,9 +241,9 @@ static void deflate_write_dynamic(DeflateWriter *writer, const DeflateToken *tok
     deflate_put(writer, trees->literal_count - 257u, 5u);
     deflate_put(writer, trees->distance_count - 1u, 5u);
     deflate_put(writer, trees->code_length_count - 4u, 4u);
-    for (unsigned int slot = 0u; slot < trees->code_length_count; slot += 1u)
+    for (unsigned int at = 0u; at < trees->code_length_count; at += 1u)
     {
-        deflate_put(writer, trees->code_length_lengths[deflate_code_length_order[slot]], 3u);
+        deflate_put(writer, trees->code_length_lengths[deflate_code_length_order[at]], 3u);
     }
     for (unsigned int run = 0u; run < trees->run_count; run += 1u)
     {

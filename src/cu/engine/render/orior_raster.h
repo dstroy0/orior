@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -26,8 +26,8 @@
  *
  * HOST AND DEVICE PRODUCE THE SAME BYTES. That is the contract, and it is gradeable and not
  * aspirational: the raster is integer valued throughout. Agreement is exact and a difference of
- * one in one pixel is a defect. This is the same contract src/cu/includes/types/integers/arm.h states for the arms, kept for
- * the same reason.
+ * one in one pixel is a defect. This is the same contract src/cu/includes/types/integers/arm.h states for the arms,
+ * applied for the same reason.
  *
  * @note Downsampling takes the MINIMUM death level over the alignments mapping to a pixel. Minimum
  *       is associative and commutative. A sequential host reduction and a parallel device one
@@ -87,13 +87,13 @@ extern "C"
         ORIOR_CHANNEL_RARITY = 2,      /**< Rarity rank of the corpus byte at the alignment, from the
                                          *   census the engine steers by. */
         ORIOR_CHANNEL_BYTE = 3,        /**< The corpus byte itself, which renders the object raw. */
-        ORIOR_CHANNEL_PROVEN = 4       /**< Two valued. Proven to hold no occurrence, or undetermined. */
+        ORIOR_CHANNEL_PROVEN = 4       /**< Two valued. Proven to contain no occurrence, or undetermined. */
     } OriorRasterChannel;
 
 /** @brief Pixel value for a cell proven to contain no occurrence. */
 #define ORIOR_RASTER_PROVEN 200u
 
-/** @brief Pixel value for a cell holding at least one alignment the probes could not refute. */
+/** @brief Pixel value for a cell containing at least one alignment the probes could not refute. */
 #define ORIOR_RASTER_UNDETERMINED 60u
 
     /**
@@ -162,7 +162,7 @@ extern "C"
      *       compiles without pulling in the limb library it does not use. The two layouts are identical
      *       and orior_raster_*.c asserts that at compile time.
      * @note Declared above the volume surface below, which names this type in a signature. A structure
-     *       cannot name a type the compiler has not seen, and the order of this header holds that.
+     *       cannot name a type the compiler has not seen, and the order of this header enforces that.
      */
     typedef struct
     {
@@ -254,7 +254,7 @@ extern "C"
      *                        from `corpus` and uses that for ORIOR_CHANNEL_RARITY whatever is passed
      *                        here. The parameter is the integration point for a caller supplied rarity
      *                        source, a reference distribution or a census taken over a sampled slice,
-     *                        and it is kept and not removed for that reason. Passing NULL is
+     *                        and it is retained and not removed for that reason. Passing NULL is
      *                        correct and is what every caller in this tree does. Passing a census
      *                        built over something else is silently ignored, which has no symptom: the
      *                        render succeeds and carries rarity computed from the corpus in front of
@@ -286,7 +286,7 @@ extern "C"
      *
      * THE ENTRY A CALLER SHOULD USE, matching orior_raster_render for the sheet. Both arms produce the
      * same bytes. Choosing between them is a performance decision and never a correctness one. This
-     * asks the device first and falls back to the host. A render happens if either arm can do it.
+     * queries the device first and falls back to the host. A render happens if either arm can do it.
      */
     int orior_volume_render(uint8_t *voxels, const OriorVolumeConfig *config, const uint8_t *corpus,
                              size_t corpus_len, const uint8_t *needle, size_t needle_len,
@@ -311,7 +311,7 @@ extern "C"
      *
      * @return 1 where a device is present and this build carries the device volume renderer, 0
      *         otherwise. Always 0 in a build compiled without it. A caller written against both arms
-     *         links and runs either way, and asks this before calling orior_volume_device.
+     *         links and runs either way, and queries this before calling orior_volume_device.
      */
     int orior_volume_device_available(void);
 
@@ -324,7 +324,7 @@ extern "C"
      * @return           1 on success, 0 where the file could not be written.
      *
      * @note Netpbm has no volume format. This writes the block raw and states its extent in a sidecar
-     *       instead of inventing a container. A generated file says it is generated and names its
+     *       instead of inventing a container. A generated file states it is generated and names its
      *       generator, which the sidecar does.
      */
     int orior_volume_write_raw(const char *path, const uint8_t *voxels, const OriorVolumeConfig *config);
@@ -362,7 +362,7 @@ extern "C"
      * @param[in] at         Alignment index.
      * @param[in] alignments How many alignments the object has.
      * @return               Cell index inside `width * height`.
-     * @note Exposed because the device rasterizer calls the same function. That keeps one
+     * @note Exposed because the device rasterizer calls the same function. That retains one
      *       transform and not two that agree until somebody edits one.
      */
     size_t orior_raster_cell(const OriorRasterConfig *config, size_t at, size_t alignments);
@@ -413,8 +413,8 @@ extern "C"
      * @return                1 on success, 0 where both arms errored.
      *
      * THE ENTRY A CALLER SHOULD USE. A machine carrying a device should render on it without the caller
-     * asking, and the two arms produce the same bytes. Choosing between them is a performance
-     * decision and never a correctness one. This asks the device first and falls back to the host.
+     * requesting, and the two arms produce the same bytes. Choosing between them is a performance
+     * decision and never a correctness one. This queries the device first and falls back to the host.
      *
      * @note Falls back instead of failing where the device errors. A render always happens if
      *       either arm can do it.

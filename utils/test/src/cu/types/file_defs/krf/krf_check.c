@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// krf_check.c: the .krf's reader and writer (krf.h, kfile_lines.h) held to what its users read of it, on a file of
-// removals this check writes
+// krf_check.c: the .krf's reader and writer (krf.h, kfile_lines.h) checked against what its users read of it, on a file
+// of removals this check writes
 //
 //   query      the run's name, query<n>-<datetime>, is read from the run's own .qry
 //   beside     the .krf beside a k-file is the same path with its extension .krf, whichever way the path is written
@@ -23,10 +23,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -77,12 +77,12 @@ int main(int count, char **words)
     krf_path_beside("sm_86", beside, sizeof(beside));
     check_that(strcmp(beside, "sm_86.krf") == 0, "and added where the path has none");
 
-    // a file of this run's own, named by the run, fresh where the folder holds the files of earlier runs
+    // a file of this run's own, named by the run, fresh where the folder contains the files of earlier runs
     char path[1024];
     snprintf(path, sizeof(path), "%s/krf_check_%s.krf", words[1], query);
-    const char *const first[1] = {"run answers 00000010 slot place"};
+    const char *const first[1] = {"run answers 00000010 probe place"};
     const Who put = WHO_HERE;
-    check_that(krf_removed_by(path, "ksc", "replaced", first, 1u, put), "a removal is kept in a .krf of the part");
+    check_that(krf_removed_by(path, "ksc", "replaced", first, 1u, put), "a removal is stored in a .krf of the part");
     check_that(krf_read(&s_file, path) && (s_file.lines == 3u),
                "the file starts with its head, a who line and the row");
     char code[WHO_CODE_LETTERS + 1u];
@@ -91,7 +91,7 @@ int main(int count, char **words)
     snprintf(expected, sizeof(expected),
              "krf krf_check_%s\n"
              "who %s\n"
-             "removed ksc %s replaced run answers 00000010 slot place\n",
+             "removed ksc %s replaced run answers 00000010 probe place\n",
              query, code, query);
     const char *text = joined(&s_file);
     check_that((text != NULL) && (strcmp(text, expected) == 0),
@@ -99,7 +99,7 @@ int main(int count, char **words)
     static KrfRow s_row;
     check_that(krf_row_read(s_file.line[2], &s_row) && (strcmp(s_row.type, "ksc") == 0) &&
                    (strcmp(s_row.query, query) == 0) && (strcmp(s_row.reason, "replaced") == 0) &&
-                   (strcmp(s_row.row, "run answers 00000010 slot place") == 0),
+                   (strcmp(s_row.row, "run answers 00000010 probe place") == 0),
                "a removed row is read with its four parts");
     check_that(!krf_row_read(s_file.line[0], &s_row) && !krf_row_read(s_file.line[1], &s_row),
                "the head and a who line are no rows");
@@ -108,14 +108,14 @@ int main(int count, char **words)
     const char *const later_rows[2] = {"fixed record = R1",
                                        "form word_add to left right = IADD {to}, {left}, {right}\\n"};
     const Who later = WHO_HERE;
-    check_that(krf_removed_by(path, "krs", "refused", later_rows, 2u, later), "a later removal is kept after it");
+    check_that(krf_removed_by(path, "krs", "refused", later_rows, 2u, later), "a later removal is stored after it");
     check_that(krf_read(&s_file, path) && (s_file.lines == 6u), "under a who line of its own");
     char later_code[WHO_CODE_LETTERS + 1u];
     who_code(later, later_code, sizeof(later_code));
     snprintf(expected, sizeof(expected),
              "krf krf_check_%s\n"
              "who %s\n"
-             "removed ksc %s replaced run answers 00000010 slot place\n"
+             "removed ksc %s replaced run answers 00000010 probe place\n"
              "who %s\n"
              "removed krs %s refused fixed record = R1\n"
              "removed krs %s refused form word_add to left right = IADD {to}, {left}, {right}\\n\n",

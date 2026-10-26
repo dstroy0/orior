@@ -213,8 +213,9 @@ static unsigned int compression_blocks(unsigned long long count)
     return (unsigned int)((needed < 65536ull) ? ((needed == 0ull) ? 1ull : needed) : 65536ull);
 }
 
-// each chunk's bits, each chunk's offset and the scan's scratch are slices of one pool, sized for the most chunks asked
-// so far; the stream is sized by the values themselves, known only once they are measured, and is a pool of its own
+// each chunk's bits, each chunk's offset and the scan's scratch are slices of one pool, sized for the most chunks
+// requested so far; the stream is sized by the values themselves, known only once they are measured, and is a pool of
+// its own
 struct CompressionResident
 {
     DevicePool chunk_pool;
@@ -282,7 +283,7 @@ static int compression_reserve_chunks(size_t chunks, EngineError *error)
     resident->chunk_capacity = 0u;
     resident->scan_bytes = 0u;
     size_t scan_bytes = 0u;
-    // cub sizes the scan's scratch when asked with none, and allocates nothing; compression_chunks holds the count
+    // cub sizes the scan's scratch when called with none, and allocates nothing; compression_chunks contains the count
     // below 2^31 - 1: it narrows to cub's int exactly
     int ok = COMPRESSION_STATUS_CHECK(
         cub::DeviceScan::ExclusiveSum(NULL, scan_bytes, resident->chunk_bits, resident->chunk_offsets, (int)chunks),
@@ -331,7 +332,7 @@ extern "C" unsigned long long compression_reserve_bytes(unsigned long long count
 {
     const unsigned long long chunks = compression_chunks(count);
     size_t scan_bytes = 0u;
-    // cub sizes the scan's scratch when asked with none, and allocates nothing; compression_chunks holds the count
+    // cub sizes the scan's scratch when called with none, and allocates nothing; compression_chunks contains the count
     // below 2^31 - 1: it narrows to cub's int exactly
     if ((chunks == 0ull) || (cub::DeviceScan::ExclusiveSum(NULL, scan_bytes, (const unsigned long long *)NULL,
                                                            (unsigned long long *)NULL, (int)chunks) != cudaSuccess))
@@ -339,7 +340,7 @@ extern "C" unsigned long long compression_reserve_bytes(unsigned long long count
         return 0ull;
     }
     DevicePoolTakeRequest takes[COMPRESSION_CHUNK_SLICES];
-    // a size_t holds 64 bits, which device_pool asserts: the chunk count converts exactly
+    // a size_t represents 64 bits, which device_pool asserts: the chunk count converts exactly
     const DevicePoolPlan plan = compression_chunk_plan((size_t)chunks, scan_bytes, NULL, takes);
     return device_pool_plan_bytes(&plan);
 }

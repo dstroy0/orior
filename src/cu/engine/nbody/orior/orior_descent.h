@@ -14,7 +14,7 @@ extern "C"
     /**
      * @brief Everything a descent reads, as one argument.
      *
-     * ONE STRUCT FOR THE WHOLE FAMILY. The reordering descent and the spawning descent ask the same
+     * ONE STRUCT FOR THE WHOLE FAMILY. The reordering descent and the spawning descent test the same
      * question of the same field and differ only in where their candidates come from. Nine or ten
      * positional parameters, four of them `size_t` in a row, would be a call a reader cannot check and
      * a caller can transpose silently.
@@ -39,7 +39,7 @@ extern "C"
      * IDENTICAL while the placed probe count MAY be larger. A test comparing the two runs gets two
      * separable failures: if the counts ever differ the necessary-condition guarantee broke, and if the
      * probes placed before the stop point ever differ the induction broke. One member, two meanings a
-     * reader can tell apart.
+     * reader can distinguish apart.
      *
      * @note A member an omitted initializer leaves zero does this work, and a second entry sharing one
      *       descent would be the drift this structure exists to remove.
@@ -63,14 +63,14 @@ extern "C"
         size_t sample_stride;    /**< Plan on every Nth alignment. Zero is read as one. */
         int force_full_depth;    /**< Non-zero descends every level, ignoring the destroy rule. */
         const OriorField *any;  /**< A field of any symbol type [BORROWS]. Null takes the byte path. */
-        int resume;              /**< Non-zero starts the descent from the survivors already in the buffer
-                                  *   instead of resetting them to all standing. A caller uses it to
-                                  *   compose a recursive spawn: descend, then descend again over the
-                                  *   survivors the last descent left. Each child reads only what its
-                                  *   parent kept standing. Zero, the default, resets the buffer and is what
-                                  *   every existing caller gets. The engine does not check the incoming set
-                                  *   is a valid superset; that is the caller's, and a lone survivor is
-                                  *   verified against the conditions not yet asked before it is found. */
+        int resume;             /**< Non-zero starts the descent from the survivors already in the buffer
+                                 *   instead of resetting them to all standing. A caller uses it to
+                                 *   compose a recursive spawn: descend, then descend again over the
+                                 *   survivors the last descent left. Each child reads only what its
+                                 *   parent left standing. Zero, the default, resets the buffer and is what
+                                 *   every existing caller gets. The engine does not check the incoming set
+                                 *   is a valid superset; that is the caller's, and a lone survivor is
+                                 *   verified against the conditions not yet tested before it is found. */
     } OriorSteerDescent;
 
 /**
@@ -91,10 +91,10 @@ extern "C"
      *          is read on the way in. A caller who leaves the array uninitialized expecting the
      *          descent to fill it gets whatever was in that memory ranked, and gets it silently.
      *          orior_steer_spawn_coarms is the entry that chooses the positions itself.
-     * @warning `count` ABOVE ORIOR_STEER_ANCHORS RETURNS ZERO AND SAYS NOTHING. The zero is the
+     * @warning `count` ABOVE ORIOR_STEER_ANCHORS RETURNS ZERO AND REPORTS NOTHING. The zero is the
      *          only report: zero is also what a null pointer and a zero needle length return. A caller
-     *          reading the return value alone cannot tell which guard errored. Check the bound before
-     *          the call, because the call will not tell you.
+     *          reading the return value alone cannot determine which guard errored. Check the bound before
+     *          the call, because the call will not inform you.
      *
      * @param[in,out] args          The descent [BORROWS], each member as OriorSteerDescent gives it:
      *                              `offsets` reordered in place into evaluation order.
@@ -109,7 +109,7 @@ extern "C"
      * standing are no longer a sample of the field. They are the subset that agreed with one specific
      * symbol, and within that subset the remaining anchors have different pruning power than they had
      * over the field. Ranking the second anchor by its marginal rarity ignores what the first one just
-     * told you.
+     * informed you.
      *
      * This ranks each level against the alignments that actually survived the levels above it: the
      * CONDITIONAL distribution and not the marginal one. It also measures survivors directly
@@ -122,7 +122,7 @@ extern "C"
      *   - exactly one anchor is placed per level, and a placed anchor is never reconsidered
      *   - the unplaced set therefore shrinks by exactly one each level and never grows
      *   - the depth is AT MOST `count`, which is bounded by ORIOR_STEER_ANCHORS, a compile-time
-     *     constant, and the loop cannot run past it whatever the corpus holds
+     *     constant, and the loop cannot run past it whatever the corpus contains
      *
      * So the depth is bounded from ABOVE before the program runs, and that bound is what terminates it:
      * a strictly shrinking unplaced set under a constant ceiling, the way a `for` loop over a fixed
@@ -157,10 +157,10 @@ extern "C"
      *                              were placed, and size any read of `offsets` by the return itself.
      *
      * SPAWNING. orior_steer_plan_recursive takes anchors somebody else placed
-     * and decides the order to test them in. This decides WHERE THEY GO. At each level it asks every
+     * and decides the order to test them in. This decides WHERE THEY GO. At each level it tests every
      * position in the needle how many of the currently surviving alignments would still stand if a
      * coarm were placed there, and puts one at the position that leaves fewest. The arm is spawned at
-     * the place the field says is worth reading, and not at a place a spread rule chose before the
+     * the place the field shows is worth reading, and not at a place a spread rule chose before the
      * field was looked at.
      *
      * That is the same steering the rest of this file applies, moved from the order to the placement.
@@ -179,12 +179,12 @@ extern "C"
      * @warning THE GUARANTEE IS ON ALIGNMENTS REJECTED AND NOT ON READS. Rejecting an alignment early
      *          saves the reads a later probe would spend on it. Two probe sets covering the same
      *          alignments can cost different numbers of reads. It assumes marginal gains are
-     *          scored exactly, which holds only at `sample_stride` of one. Above one the scoring is
-     *          taken on a sample, the oracle is approximate, and the ratio no longer holds as stated.
+     *          scored exactly, which is valid only at `sample_stride` of one. Above one the scoring is
+     *          taken on a sample, the oracle is approximate, and the ratio no longer is valid as stated.
      *
      * TERMINATION IS A BOUND FROM ABOVE AND NOT A FIXED DEPTH. One coarm per level, a placed position
-     * never reconsidered, and depth AT MOST `wanted`, which the guard holds at or under
-     * ORIOR_STEER_ANCHORS. The loop cannot run longer than that whatever the corpus holds, and
+     * never reconsidered, and depth AT MOST `wanted`, which the guard bounds at or under
+     * ORIOR_STEER_ANCHORS. The loop cannot run longer than that whatever the corpus contains, and
      * it therefore terminates.
      *
      * IT CAN RUN SHORTER, AND CORPUS CONTENT DECIDES WHEN. The destroy test compares the best
@@ -242,7 +242,7 @@ extern "C"
      * @note Separate from OriorSteerDescent because it writes probes and not offsets, and carries a
      *       length ceiling the offset descents have no use for. Sharing one struct would put a member
      *       in it that half the callers must leave zero and the other half must set.
-     * @note Declared here and not beside OriorSteerDescent because it holds an OriorProbe, which is
+     * @note Declared here and not beside OriorSteerDescent because it contains an OriorProbe, which is
      *       declared just above. A structure cannot name a type the compiler has not seen.
      * @note An omitted member is zero, as it is for OriorSteerDescent. `sample_stride` of zero is read
      *       as one, and `max_length` of zero errors and not read as one, because a sweep that
@@ -285,7 +285,7 @@ extern "C"
      * @return                      Probes actually placed.
      *
      * THE SWEEP TOUCHES EVERYTHING IT IS ALLOWED TO REACH. At each level it considers every origin in
-     * the needle, every step that keeps the probe inside it, and every length up to `max_length`, scores
+     * the needle, every step that retains the probe inside it, and every length up to `max_length`, scores
      * each shape by how many currently truthy alignments would still stand, and spawns the one that
      * leaves fewest. Nothing about the placement is inherited from a spread rule and nothing about the
      * shape is assumed; a point probe wins where a point probe is best, and a line wins where a line is.

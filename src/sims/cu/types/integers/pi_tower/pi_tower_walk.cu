@@ -204,7 +204,7 @@ static PiTowerVector pi_tower_helix_derivative(const PiTowerFraction &radius, co
 }
 
 // value . 10^places as a whole number and its places
-static void pi_tower_print_places(ScripturaLine *line, const PiWide &scaled, unsigned int places)
+static void pi_tower_print_places(VerbaLinea *line, const PiWide &scaled, unsigned int places)
 {
     PiWide unit = pi_tower_unsigned(1ull);
     for (unsigned int place = 0u; place < places; place += 1u)
@@ -212,12 +212,12 @@ static void pi_tower_print_places(ScripturaLine *line, const PiWide &scaled, uns
         unit = pi_tower_product(unit, pi_tower_unsigned(10ull));
     }
     pi_tower_print_decimal(line, pi_tower_quotient(scaled, unit));
-    scriptura_character(line, '.');
-    scriptura_decimal(line, pi_tower_word(pi_tower_remainder(scaled, unit)), places);
+    mmgr_line_ch(line, '.');
+    mmgr_line_decimal(line, pi_tower_word(pi_tower_remainder(scaled, unit)), places);
 }
 
 // 2^bits . arctan(scaled / 2^bits) within 3 terms + 2, for scaled / 2^bits below 1 / 2: each power floored, its error
-// held below 1 / (1 - x^2) < 1.34, each term's below 2.34, and the tail below the first term dropped
+// bounded below 1 / (1 - x^2) < 1.34, each term's below 2.34, and the tail below the first term dropped
 static PiWide pi_tower_arctan_fixed(const PiWide &scaled, unsigned int bits, unsigned long long *terms)
 {
     const PiWide square = pi_tower_product(scaled, scaled);
@@ -330,7 +330,7 @@ void pi_tower_arc(SimResults *results, const PiWide &low, const PiWide &high, un
                                pi_tower_fraction_quotient(pi_tower_fraction_product(momentum, momentum), speed_squared),
                                momentum_expected);
     }
-    scriptura_text(&results->line, "  the arc: the helix of radius 1/(2 pi) rising 1/pi a turn, over our disk\n");
+    mmgr_line_put(&results->line, "  the arc: the helix of radius 1/(2 pi) rising 1/pi a turn, over our disk\n");
     sim_check(results, bending, "in Q(pi), the helix's curvature is 2 pi^3 / (pi^2 + 1) at all four quarter turns");
     sim_check(results, twisting, "in Q(pi), its torsion is 2 pi^2 / (pi^2 + 1) at all four");
     sim_check(results, balanced && tilted,
@@ -388,21 +388,21 @@ void pi_tower_arc(SimResults *results, const PiWide &low, const PiWide &high, un
     }
     const int agree = (pi_tower_compare(kappa[0], kappa[1]) == 0) && (pi_tower_compare(tau[0], tau[1]) == 0) &&
                       (pi_tower_compare(tilt_low, tilt_high) == 0) && (pi_tower_compare(momentum[0], momentum[1]) == 0);
-    scriptura_text(&results->line, "    curvature ");
+    mmgr_line_put(&results->line, "    curvature ");
     pi_tower_print_places(&results->line, kappa[0], places);
-    scriptura_text(&results->line, ", torsion ");
+    mmgr_line_put(&results->line, ", torsion ");
     pi_tower_print_places(&results->line, tau[0], places);
-    scriptura_text(&results->line, ", the tilt of its plane against our disk ");
+    mmgr_line_put(&results->line, ", the tilt of its plane against our disk ");
     pi_tower_print_places(&results->line, tilt_low, places);
-    scriptura_text(&results->line, " degrees, and against our axis ");
+    mmgr_line_put(&results->line, " degrees, and against our axis ");
     // the tilt is irrational. The floor of 90 less it is 90 less its floor, less one
     pi_tower_print_places(&results->line,
                           pi_tower_difference(pi_tower_product(unit, pi_tower_unsigned(90ull)),
                                               pi_tower_sum(tilt_low, pi_tower_unsigned(1ull))),
                           places);
-    scriptura_text(&results->line, " degrees\n    angular momentum about our axis at unit speed ");
+    mmgr_line_put(&results->line, " degrees\n    angular momentum about our axis at unit speed ");
     pi_tower_print_places(&results->line, momentum[0], places);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_check(results, agree, "curvature, torsion, tilt and L_z agree at both ends of pi's bracket to 12 places");
     sim_flush(results);
 }

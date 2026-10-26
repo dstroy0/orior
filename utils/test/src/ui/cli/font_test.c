@@ -32,6 +32,7 @@ static float font_off(float one, float other)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     CliMask mask;
     font_square(0.0f, 0.0f, 4.0f, 4.0f);
     cli_font_rasterize(&s_contours, &mask, s_cover, sizeof(s_cover) / sizeof(s_cover[0]));
@@ -41,7 +42,7 @@ int main(void)
     font_square(0.5f, 0.0f, 2.0f, 2.0f);
     cli_font_rasterize(&s_contours, &mask, s_cover, sizeof(s_cover) / sizeof(s_cover[0]));
     cli_check(font_off(mask.cover[0], 0.5f) < 1e-3f, "a pixel the edge halves is half covered");
-    static char s_paths[4][CLI_PATH_LONGEST];
+    static char s_paths[4][CLI_PATH_MAX_LEN];
     cli_font_monospace(s_paths);
     if (s_paths[0][0] == '\0')
     {

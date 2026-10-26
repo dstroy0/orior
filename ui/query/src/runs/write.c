@@ -14,30 +14,30 @@
 // `name` under the bridge's folder into `path`
 static void query_table_named(const QueryContext *context, const char *name, char *path)
 {
-    char table[QUERY_PATH_LONGEST];
+    char table[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_TABLE, table);
-    CliLine line = {path, QUERY_PATH_LONGEST, 0ull};
-    cli_line_text(&line, table);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    cli_line_closed(&line);
+    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, table);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
+    mmgr_line_finish(&line);
 }
 
-// `Lstar.klq` and each given language's `.klm` written beside the rulesets (`orior_klq_write`), teed as `orior_klq_write.console`:
-// the writer's exit code
-int query_bridge(QueryContext *context, const char *const *rulesets, unsigned int count, CliLine *said)
+// `Lstar.klq` and each given language's `.klm` written beside the rulesets (`orior_klq_write`), teed as
+// `orior_klq_write.console`: the writer's exit code
+int query_bridge(QueryContext *context, const char *const *rulesets, unsigned int count, VerbaLinea *err_msg)
 {
     static const char *const s_default[3] = {"cu.krs", "sass.krs", "openqasm2_0.krs"};
     const char *const *given = (count == 0u) ? s_default : rulesets;
     const unsigned int given_count = (count == 0u) ? 3u : ((count < QUERY_RULESETS_MOST) ? count : QUERY_RULESETS_MOST);
-    static char s_klq_write[QUERY_PATH_LONGEST];
+    static char s_klq_write[QUERY_PATH_MAX_LEN];
     static QueryRun s_run;
-    if (!query_context_tool(context, "orior_klq_write", s_klq_write, said) ||
-        !query_context_started(context, &s_run, "build/engine/klq/qry", said))
+    if (!query_context_tool(context, "orior_klq_write", s_klq_write, err_msg) ||
+        !query_context_started(context, &s_run, "build/engine/klq/qry", err_msg))
     {
         return -1;
     }
-    static char s_read[QUERY_RULESETS_MOST + 1u][QUERY_PATH_LONGEST];
+    static char s_read[QUERY_RULESETS_MOST + 1u][QUERY_PATH_MAX_LEN];
     static const char *s_reads[QUERY_RULESETS_MOST + 1u];
     for (unsigned int at = 0u; at < given_count; at += 1u)
     {
@@ -46,7 +46,7 @@ int query_bridge(QueryContext *context, const char *const *rulesets, unsigned in
     }
     query_table_named(context, "Lstar.klq", s_read[given_count]);
     s_reads[given_count] = s_read[given_count];
-    char table[QUERY_PATH_LONGEST];
+    char table[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_TABLE, table);
     static QueryWords s_words;
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
@@ -57,35 +57,35 @@ int query_bridge(QueryContext *context, const char *const *rulesets, unsigned in
         query_words_add(&s_words, given[at]);
     }
     long long code = -1ll;
-    const int whole = query_run_read(&s_run, s_reads, given_count + 1u, said) &&
-                      query_context_teed(context, &s_run, "orior_klq_write", s_words.word, &code, said);
-    if (!query_context_ended(context, &s_run, said) || !whole)
+    const int whole = query_run_read(&s_run, s_reads, given_count + 1u, err_msg) &&
+                      query_context_teed(context, &s_run, "orior_klq_write", s_words.word, &code, err_msg);
+    if (!query_context_ended(context, &s_run, err_msg) || !whole)
     {
         return -1;
     }
-    // an exit code is far below what an int holds
+    // an exit code is far below what an int represents
     return (int)code;
 }
 
-// `sass.krs` and `sm_86.krs` written beside `sm_86.khw` from the forms the part answered for (`orior_krs_write`), teed as
-// `orior_krs_write.console`; or `sm_86.gsm`, each relation the part answered as the cases it answered it on (`orior_gsm_write`).
-// The writer's exit code
-static int query_part_written(QueryContext *context, int krs, CliLine *said)
+// `sass.krs` and `sm_86.krs` written beside `sm_86.khw` from the forms the part answered for (`orior_krs_write`), teed
+// as `orior_krs_write.console`; or `sm_86.gsm`, each relation the part answered as the cases it answered it on
+// (`orior_gsm_write`). The writer's exit code
+static int query_part_written(QueryContext *context, int krs, VerbaLinea *err_msg)
 {
-    static char s_tool[QUERY_PATH_LONGEST];
-    static char s_writer[QUERY_PATH_LONGEST];
+    static char s_tool[QUERY_PATH_MAX_LEN];
+    static char s_writer[QUERY_PATH_MAX_LEN];
     static QueryFiles s_files;
     static QueryRun s_run;
     query_files_of(context->root, "sm_86", &s_files);
-    if (!query_context_tool(context, krs ? "orior_krs_write" : "orior_gsm_write", s_tool, said) ||
-        !query_context_tool(context, "orior_khw_machine_write", s_writer, said) ||
-        !query_context_started(context, &s_run, krs ? "build/engine/krs/qry" : "build/engine/gsm/qry", said))
+    if (!query_context_tool(context, krs ? "orior_krs_write" : "orior_gsm_write", s_tool, err_msg) ||
+        !query_context_tool(context, "orior_khw_machine_write", s_writer, err_msg) ||
+        !query_context_started(context, &s_run, krs ? "build/engine/krs/qry" : "build/engine/gsm/qry", err_msg))
     {
         return -1;
     }
-    char part_krs[QUERY_PATH_LONGEST];
-    char sass_krs[QUERY_PATH_LONGEST];
-    char cu_krs[QUERY_PATH_LONGEST];
+    char part_krs[QUERY_PATH_MAX_LEN];
+    char sass_krs[QUERY_PATH_MAX_LEN];
+    char cu_krs[QUERY_PATH_MAX_LEN];
     query_table_named(context, "sm_86.krs", part_krs);
     query_table_named(context, "sass.krs", sass_krs);
     query_table_named(context, "cu.krs", cu_krs);
@@ -97,18 +97,18 @@ static int query_part_written(QueryContext *context, int krs, CliLine *said)
     const char *const gsm_words[7] = {s_tool,   "sm_86", s_files.machine, s_files.layout, s_files.mnemonics,
                                       s_writer, NULL};
     long long code = -1ll;
-    const int whole =
-        query_run_read(&s_run, krs ? krs_read : gsm_read, krs ? 7u : 3u, said) &&
-        query_context_teed(context, &s_run, krs ? "orior_krs_write" : "orior_gsm_write", krs ? krs_words : gsm_words, &code, said);
-    if (!query_context_ended(context, &s_run, said) || !whole)
+    const int whole = query_run_read(&s_run, krs ? krs_read : gsm_read, krs ? 7u : 3u, err_msg) &&
+                      query_context_teed(context, &s_run, krs ? "orior_krs_write" : "orior_gsm_write",
+                                         krs ? krs_words : gsm_words, &code, err_msg);
+    if (!query_context_ended(context, &s_run, err_msg) || !whole)
     {
         return -1;
     }
-    // an exit code is far below what an int holds
+    // an exit code is far below what an int represents
     return (int)code;
 }
 
-int query_write_words(const char *const *words, unsigned int count, CliLine *said)
+int query_write_words(const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
     if ((count >= 1u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "bridge", .cap = CLI_CELLS_POOL})))
     {
@@ -119,51 +119,51 @@ int query_write_words(const char *const *words, unsigned int count, CliLine *sai
     {
         return (words[0][0] == 'k') ? QUERY_WRITE_KRS : QUERY_WRITE_GSM;
     }
-    cli_line_text(said, "write takes bridge [<ruleset>...], krs or gsm");
+    mmgr_line_put(err_msg, "write takes bridge [<ruleset>...], krs or gsm");
     return -1;
 }
 
-int query_write_run(QueryContext *context, const char *const *words, unsigned int count, CliLine *said)
+int query_write_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
-    const int writer = query_write_words(words, count, said);
+    const int writer = query_write_words(words, count, err_msg);
     if (writer == QUERY_WRITE_BRIDGE)
     {
-        return query_bridge(context, &words[1], count - 1u, said);
+        return query_bridge(context, &words[1], count - 1u, err_msg);
     }
-    return (writer < 0) ? -1 : query_part_written(context, writer == QUERY_WRITE_KRS, said);
+    return (writer < 0) ? -1 : query_part_written(context, writer == QUERY_WRITE_KRS, err_msg);
 }
 
-// a name the table holds a whole set of files of: the language's `.klm` and `.krs` where `language`, else the part's
-// `.khw`, `.kqr` and `.ksc`, each missing one said after `missing`'s others
-static void query_missing_files(const QueryContext *context, const char *name, int language, CliLine *missing)
+// a name the table contains a whole set of files of: the language's `.klm` and `.krs` where `language`, else the part's
+// `.khw`, `.kqr` and `.ksc`, each missing one listed after `missing`'s others
+static void query_missing_files(const QueryContext *context, const char *name, int language, VerbaLinea *missing)
 {
     static const char *const s_language[2] = {"klm", "krs"};
     static const char *const s_part[3] = {"khw", "kqr", "ksc"};
     const char *const *const kinds = language ? s_language : s_part;
     for (unsigned int at = 0u; at < (language ? 2u : 3u); at += 1u)
     {
-        char file[QUERY_PATH_LONGEST];
-        char path[QUERY_PATH_LONGEST];
-        CliLine line = {file, sizeof(file), 0ull};
-        cli_line_text(&line, name);
-        cli_line_character(&line, '.');
-        cli_line_text(&line, kinds[at]);
-        cli_line_closed(&line);
+        char file[QUERY_PATH_MAX_LEN];
+        char path[QUERY_PATH_MAX_LEN];
+        VerbaLinea line = {file, sizeof(file), 0ull};
+        mmgr_line_put(&line, name);
+        mmgr_line_ch(&line, '.');
+        mmgr_line_put(&line, kinds[at]);
+        mmgr_line_finish(&line);
         query_table_named(context, file, path);
         if (!query_is_file(path))
         {
-            cli_line_text(missing, (missing->at == 0ull) ? "" : ", ");
-            cli_line_text(missing, QUERY_TABLE "/");
-            cli_line_text(missing, file);
+            mmgr_line_put(missing, (missing->at == 0ull) ? "" : ", ");
+            mmgr_line_put(missing, QUERY_TABLE "/");
+            mmgr_line_put(missing, file);
         }
     }
 }
 
-// The query the words name, each held to the files that make it whole: `--<from> --<to> [--<part>] [--dry]`, or
-// `--from <from> --to <to> [--part <part>] [--dry]` as the window's job says it. A name the table does not hold whole
-// is answered with each file missing. 1, or 0 with why said
+// The query the words name, each checked against the files that make it whole: `--<from> --<to> [--<part>] [--dry]`, or
+// `--from <from> --to <to> [--part <part>] [--dry]` as the window's job specifies it. A name the table does not contain
+// whole is answered with each file missing. 1, or 0 with why given
 int query_query_words(const QueryContext *context, const char *const *words, unsigned int count, const char **names,
-                      unsigned int *named, int *dry, CliLine *said)
+                      unsigned int *named, int *dry, VerbaLinea *err_msg)
 {
     static const char *const s_usage = "query takes --<from> --<to> [--<part>] [--dry]: two languages, the part to run "
                                        "on, and dry to launch nothing";
@@ -196,20 +196,20 @@ int query_query_words(const QueryContext *context, const char *const *words, uns
         {
             if ((at + 1u) >= plains)
             {
-                cli_line_text(said, s_usage);
+                mmgr_line_put(err_msg, s_usage);
                 return 0;
             }
-            const char **const slot =
+            const char **const field =
                 (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--from", .cap = CLI_CELLS_POOL}))   ? &from
                 : (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--to", .cap = CLI_CELLS_POOL}))   ? &to
                 : (cellul.eq(&(CatenaFinitaCfg){.src = plain[at], .other = "--part", .cap = CLI_CELLS_POOL})) ? &part
                                                                                                               : NULL;
-            if (slot == NULL)
+            if (field == NULL)
             {
-                cli_line_text(said, s_usage);
+                mmgr_line_put(err_msg, s_usage);
                 return 0;
             }
-            *slot = plain[at + 1u];
+            *field = plain[at + 1u];
         }
         const char *const given[3] = {from, to, part};
         for (unsigned int at = 0u; at < 3u; at += 1u)
@@ -228,7 +228,7 @@ int query_query_words(const QueryContext *context, const char *const *words, uns
             if ((!cellul.starts(&(CatenaFinitaCfg){.src = plain[at], .other = "--", .cap = CLI_CELLS_POOL})) ||
                 (*named >= 3u))
             {
-                cli_line_text(said, s_usage);
+                mmgr_line_put(err_msg, s_usage);
                 return 0;
             }
             names[*named] = plain[at] + 2;
@@ -239,67 +239,67 @@ int query_query_words(const QueryContext *context, const char *const *words, uns
     {
         if ((names[at][0] == '\0') || (names[at][cli_text_upto(names[at], "/\\.")] != '\0'))
         {
-            cli_line_text(said, s_usage);
+            mmgr_line_put(err_msg, s_usage);
             return 0;
         }
     }
     if ((*named < 2u) || (*named > 3u) || (*dry && (*named != 3u)))
     {
-        cli_line_text(said, s_usage);
+        mmgr_line_put(err_msg, s_usage);
         return 0;
     }
-    char missing_text[QUERY_SAID_LONGEST];
-    CliLine missing = {missing_text, sizeof(missing_text), 0ull};
+    char missing_text[QUERY_LINE_MAX_LEN];
+    VerbaLinea missing = {missing_text, sizeof(missing_text), 0ull};
     for (unsigned int at = 0u; at < *named; at += 1u)
     {
         query_missing_files(context, names[at], at < 2u, &missing);
     }
-    char klq[QUERY_PATH_LONGEST];
+    char klq[QUERY_PATH_MAX_LEN];
     query_table_named(context, "Lstar.klq", klq);
     if (!query_is_file(klq))
     {
-        cli_line_text(&missing, (missing.at == 0ull) ? "" : ", ");
-        cli_line_text(&missing, QUERY_TABLE "/Lstar.klq");
+        mmgr_line_put(&missing, (missing.at == 0ull) ? "" : ", ");
+        mmgr_line_put(&missing, QUERY_TABLE "/Lstar.klq");
     }
     if (missing.at != 0ull)
     {
-        cli_line_text(said, "query ");
+        mmgr_line_put(err_msg, "query ");
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            cli_line_text(said, (at == 0u) ? "" : " ");
-            cli_line_text(said, words[at]);
+            mmgr_line_put(err_msg, (at == 0u) ? "" : " ");
+            mmgr_line_put(err_msg, words[at]);
         }
-        cli_line_text(said, ": not in the tree: ");
-        cli_line_text_most(said, missing_text, missing.at);
+        mmgr_line_put(err_msg, ": not in the tree: ");
+        mmgr_line_put_most(err_msg, missing_text, missing.at);
         return 0;
     }
     return 1;
 }
 
-int query_query_run(QueryContext *context, const char *const *words, unsigned int count, CliLine *said)
+int query_query_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
     const char *names[3] = {NULL, NULL, NULL};
     unsigned int named = 0u;
     int dry = 0;
-    if (!query_query_words(context, words, count, names, &named, &dry, said))
+    if (!query_query_words(context, words, count, names, &named, &dry, err_msg))
     {
         return -1;
     }
-    char from[QUERY_PATH_LONGEST];
-    char to[QUERY_PATH_LONGEST];
-    CliLine from_line = {from, sizeof(from), 0ull};
-    cli_line_text(&from_line, names[0]);
-    cli_line_text(&from_line, ".krs");
-    cli_line_closed(&from_line);
-    CliLine to_line = {to, sizeof(to), 0ull};
-    cli_line_text(&to_line, names[1]);
-    cli_line_text(&to_line, ".krs");
-    cli_line_closed(&to_line);
+    char from[QUERY_PATH_MAX_LEN];
+    char to[QUERY_PATH_MAX_LEN];
+    VerbaLinea from_line = {from, sizeof(from), 0ull};
+    mmgr_line_put(&from_line, names[0]);
+    mmgr_line_put(&from_line, ".krs");
+    mmgr_line_finish(&from_line);
+    VerbaLinea to_line = {to, sizeof(to), 0ull};
+    mmgr_line_put(&to_line, names[1]);
+    mmgr_line_put(&to_line, ".krs");
+    mmgr_line_finish(&to_line);
     const char *const rulesets[2] = {from, to};
-    const int code = query_bridge(context, rulesets, 2u, said);
+    const int code = query_bridge(context, rulesets, 2u, err_msg);
     if ((code != 0) || (named < 3u))
     {
         return code;
     }
-    return query_pairs_pair(context, names[2], names[1], dry, NULL, NULL, said);
+    return query_pairs_pair(context, names[2], names[1], dry, NULL, NULL, err_msg);
 }

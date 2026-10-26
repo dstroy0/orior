@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// reply.c: a JSON reply read off its bytes in one pass with no tree made, as reply.h says
+// reply.c: a JSON reply read off its bytes in one pass with no tree made, as reply.h describes
 #include "reply.h"
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
 
-int cli_reply_held(const char *path, CliReply *reply)
+int cli_reply_read(const char *path, CliReply *reply)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     reply->text = (const char *)bytes;
     reply->size = (bytes != NULL) ? size : 0ull;
     return bytes != NULL;
@@ -238,7 +238,7 @@ int cli_reply_true(const CliReply *reply, unsigned long long at)
 
 int cli_reply_string_is(const CliReply *reply, unsigned long long at, const char *word)
 {
-    char text[CLI_NAME_LONGEST];
+    char text[CLI_NAME_MAX_LEN];
     return cli_reply_string(reply, at, text, sizeof(text)) &&
            (cellul.eq(&(CatenaFinitaCfg){.src = text, .other = word, .cap = CLI_CELLS_POOL}));
 }

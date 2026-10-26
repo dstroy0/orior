@@ -1,9 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ed25519_check.c: SHA-512 held to FIPS 180-4's examples, and Ed25519 to RFC 8032's test vectors (section 7.1): each
-// seed's public key, each signature made byte for byte, and each held; a message changed, a signature changed, and a
-// signature with the group's order added to its S each refused. Exit 0 where every one held
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+// ed25519_check.c: SHA-512 checked against FIPS 180-4's examples, and Ed25519 against RFC 8032's test vectors
+// (section 7.1): each seed's public key, each signature made byte for byte, and each verified; a message changed, a
+// signature changed, and a signature with the group's order added to its S each refused. Exit 0 where every one passed
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "../../../../../../../src/cu/includes/codecs/ed25519/ed25519.h"
 #include "../../../../../../../src/cu/includes/codecs/sha512/sha512.h"
 
@@ -36,20 +38,20 @@ static const Ed25519Vector s_vectors[] = {
      "27beceea1ec40a"},
 };
 
-static char s_said[512];
-static unsigned int s_held;
+static char s_line_bytes[512];
+static unsigned int s_passed;
 static unsigned int s_failed;
 
-// one check said: held, or failed, by `what`
-static void ed25519_check(int held, const char *what)
+// one check reported: passed, or failed, by `what`
+static void ed25519_check(int passed, const char *what)
 {
-    ScripturaLine line = {s_said, sizeof(s_said), 0ull, NULL, NULL, 0ull};
-    scriptura_text(&line, held ? "  ok   " : "  FAIL ");
-    scriptura_text(&line, what);
-    scriptura_character(&line, '\n');
-    (void)scriptura_write(&line, stdout);
-    s_held += held ? 1u : 0u;
-    s_failed += held ? 0u : 1u;
+    VerbaLinea line = {s_line_bytes, sizeof(s_line_bytes), 0ull, NULL, NULL, 0ull};
+    mmgr_line_put(&line, passed ? "  ok   " : "  FAIL ");
+    mmgr_line_put(&line, what);
+    mmgr_line_ch(&line, '\n');
+    (void)(mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), stdout) == line.at));
+    s_passed += passed ? 1u : 0u;
+    s_failed += passed ? 0u : 1u;
 }
 
 // one hex digit's value
@@ -71,7 +73,7 @@ static size_t ed25519_bytes_of(const char *text, unsigned char *bytes)
 }
 
 // whether the digest of `text` is the hex `wanted`
-static int ed25519_sha_holds(const char *text, const char *wanted)
+static int ed25519_sha_matches(const char *text, const char *wanted)
 {
     unsigned char digest[SHA512_BYTES];
     unsigned char expected[SHA512_BYTES];
@@ -82,18 +84,19 @@ static int ed25519_sha_holds(const char *text, const char *wanted)
 
 int main(void)
 {
-    ed25519_check(ed25519_sha_holds("",
-                                    "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0"
-                                    "ff8318d2877eec2f63b931bd47417a81a538327af927da3e"),
+    ed25519_check(ed25519_sha_matches("",
+                                      "cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0"
+                                      "ff8318d2877eec2f63b931bd47417a81a538327af927da3e"),
                   "SHA-512 of no bytes");
-    ed25519_check(ed25519_sha_holds("abc", "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a27"
-                                           "4fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"),
+    ed25519_check(ed25519_sha_matches("abc",
+                                      "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a27"
+                                      "4fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"),
                   "SHA-512 of abc, FIPS 180-4's one block");
     ed25519_check(
-        ed25519_sha_holds("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqkl"
-                          "mnopqrlmnopqrsmnopqrstnopqrstu",
-                          "8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018501d289e4900f7e4331b"
-                          "99dec4b5433ac7d329eeb6dd26545e96e55b874be909"),
+        ed25519_sha_matches("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqkl"
+                            "mnopqrlmnopqrsmnopqrstnopqrstu",
+                            "8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018501d289e4900f7e4331b"
+                            "99dec4b5433ac7d329eeb6dd26545e96e55b874be909"),
         "SHA-512 of FIPS 180-4's two blocks");
     unsigned char seed[ED25519_SEED_BYTES];
     unsigned char public_key[ED25519_PUBLIC_BYTES];
@@ -112,13 +115,13 @@ int main(void)
         ed25519_signed(seed, public_key, message, length, signed_now);
         ed25519_check(memcmp(signed_now, signature, sizeof(signature)) == 0,
                       "the signature is RFC 8032's byte for byte");
-        ed25519_check(ed25519_holds(public_key, message, length, signature), "and it holds");
+        ed25519_check(ed25519_verify(public_key, message, length, signature), "and it verifies");
         message[0] ^= 1u;
-        ed25519_check(!ed25519_holds(public_key, message, (length > 0u) ? length : 1u, signature),
+        ed25519_check(!ed25519_verify(public_key, message, (length > 0u) ? length : 1u, signature),
                       "a message changed is refused");
         message[0] ^= 1u;
         signature[10] ^= 4u;
-        ed25519_check(!ed25519_holds(public_key, message, length, signature), "a signature changed is refused");
+        ed25519_check(!ed25519_verify(public_key, message, length, signature), "a signature changed is refused");
         signature[10] ^= 4u;
     }
     // S with the group's order L added, the same signature in a second form, is refused
@@ -129,19 +132,19 @@ int main(void)
     for (unsigned int at = 0u; at < 32u; at += 1u)
     {
         const unsigned int sum = signature[32u + at] + s_order[at] + carry;
-        // the sum's low byte is kept, its high bit carried
+        // the sum's low byte is retained, its high bit carried
         signature[32u + at] = (unsigned char)(sum & 0xffu);
         carry = sum >> 8u;
     }
     const size_t length = ed25519_bytes_of(s_vectors[2].message, message);
-    ed25519_check(!ed25519_holds(public_key, message, length, signature),
-                  "a signature with L added to its S is refused, no second form of it holding");
-    ScripturaLine line = {s_said, sizeof(s_said), 0ull, NULL, NULL, 0ull};
-    scriptura_text(&line, "ed25519 check: ");
-    scriptura_decimal(&line, s_held, 1u);
-    scriptura_text(&line, " held, ");
-    scriptura_decimal(&line, s_failed, 1u);
-    scriptura_text(&line, " failed\n");
-    (void)scriptura_write(&line, stdout);
+    ed25519_check(!ed25519_verify(public_key, message, length, signature),
+                  "a signature with L added to its S is refused, no second form of it verifying");
+    VerbaLinea line = {s_line_bytes, sizeof(s_line_bytes), 0ull, NULL, NULL, 0ull};
+    mmgr_line_put(&line, "ed25519 check: ");
+    mmgr_line_decimal(&line, s_passed + s_failed, 1u);
+    mmgr_line_put(&line, " checks, ");
+    mmgr_line_decimal(&line, s_failed, 1u);
+    mmgr_line_put(&line, " failed\n");
+    (void)(mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), stdout) == line.at));
     return (s_failed == 0u) ? 0 : 1;
 }

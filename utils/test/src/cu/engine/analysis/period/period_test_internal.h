@@ -7,7 +7,9 @@
 #include "../../../../../../../src/cu/engine/analysis/period/period.h"
 
 #include "../../../../../../../src/cu/engine/runtime/device_pool/device_pool.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>

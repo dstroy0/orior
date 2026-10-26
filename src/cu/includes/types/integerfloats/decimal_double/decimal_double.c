@@ -18,7 +18,7 @@
 
 #define DECIMAL_DOUBLE_SLACK_LIMBS 3ull
 
-_Static_assert(sizeof(uint32_t) * 8u == DECIMAL_DOUBLE_LIMB_BITS, "a work limb is the 32 bits an exact limb holds");
+_Static_assert(sizeof(uint32_t) * 8u == DECIMAL_DOUBLE_LIMB_BITS, "a work limb is the 32 bits an exact limb contains");
 _Static_assert(10ull <= (1ull << DECIMAL_DOUBLE_DIGIT_BITS), "a decimal digit multiplies a value by at most 2^4");
 _Static_assert(5ull < (1ull << DECIMAL_DOUBLE_FIVE_BITS), "a five multiplies a value by less than 2^3");
 
@@ -120,7 +120,7 @@ static inline unsigned long long decimal_double_bits(const DecimalDoubleWork *wo
         return 0ull;
     }
     uint32_t top = work->limb[work->used - 1u];
-    // the used limb count widens to the unsigned long long the bit count is kept in
+    // the used limb count widens to the unsigned long long the bit count is stored in
     unsigned long long bits = (unsigned long long)(work->used - 1u) * DECIMAL_DOUBLE_LIMB_BITS;
     while (top != 0u)
     {
@@ -138,7 +138,7 @@ static inline unsigned long long decimal_double_trailing_zeros(const DecimalDoub
         index += 1u;
     }
     uint32_t low = work->limb[index];
-    // the limb index widens to the unsigned long long the bit count is kept in
+    // the limb index widens to the unsigned long long the bit count is stored in
     unsigned long long zeros = (unsigned long long)index * DECIMAL_DOUBLE_LIMB_BITS;
     while ((low & 1u) == 0u)
     {
@@ -150,7 +150,7 @@ static inline unsigned long long decimal_double_trailing_zeros(const DecimalDoub
 
 static inline void decimal_double_shift_right(DecimalDoubleWork *work, unsigned long long bits)
 {
-    // the shift is at most the bits the work holds, whose limb count is a size_t. The quotient narrows exactly
+    // the shift is at most the bits the work contains, whose limb count is a size_t. The quotient narrows exactly
     const size_t limbs = (size_t)(bits / DECIMAL_DOUBLE_LIMB_BITS);
     // the remainder is below 32. It narrows to unsigned int exactly
     const unsigned int part = (unsigned int)(bits % DECIMAL_DOUBLE_LIMB_BITS);
@@ -167,7 +167,7 @@ static inline void decimal_double_shift_right(DecimalDoubleWork *work, unsigned 
             // the next limb widens to 64 bits so it can sit above this one in the window
             window |= (uint64_t)work->limb[index + limbs + 1u] << DECIMAL_DOUBLE_LIMB_BITS;
         }
-        // the window shifted by less than 32 keeps this limb in its low 32 bits
+        // the window shifted by less than 32 retains this limb in its low 32 bits
         work->limb[index] = (uint32_t)(window >> part);
     }
     work->used -= limbs;
@@ -282,7 +282,7 @@ static int decimal_double_expand_work(const DecimalDoubleRequest *request, Decim
         }
         else
         {
-            // ex is negative here, and its negation in long long holds INT_MIN's. It widens exactly
+            // ex is negative here, and its negation in long long represents INT_MIN's. It widens exactly
             const unsigned long long places = (unsigned long long)(-(long long)request->ex);
             const unsigned long long left = places - decimal_double_strip_five(work, &five, places);
             conversion.e2 = request->ex;
@@ -344,7 +344,7 @@ int decimal_double_expand(const DecimalDoubleRequest *request)
     {
         return 0;
     }
-    // the exponent's magnitude in long long holds INT_MIN's. It widens to unsigned long long exactly
+    // the exponent's magnitude in long long represents INT_MIN's. It widens to unsigned long long exactly
     const unsigned long long places = (unsigned long long)((request->ex < 0) ? -(long long)request->ex : request->ex);
     const unsigned long long tail_bits = (DECIMAL_DOUBLE_FIVE_BITS * places) + ORIOR_EXACT_BITS + 1ull +
                                          (DECIMAL_DOUBLE_SLACK_LIMBS * DECIMAL_DOUBLE_LIMB_BITS);
@@ -353,7 +353,7 @@ int decimal_double_expand(const DecimalDoubleRequest *request)
     {
         return 0;
     }
-    // the digit count widens to the unsigned long long the bound is kept in
+    // the digit count widens to the unsigned long long the bound is stored in
     const unsigned long long capacity_bits =
         (DECIMAL_DOUBLE_DIGIT_BITS * (unsigned long long)request->digit_count) + tail_bits;
     const unsigned long long capacity_limbs = capacity_bits / DECIMAL_DOUBLE_LIMB_BITS;
@@ -361,7 +361,7 @@ int decimal_double_expand(const DecimalDoubleRequest *request)
     {
         return 0;
     }
-    // the capacity was held below SIZE_MAX over the limb size above. It narrows to size_t exactly
+    // the capacity was bounded below SIZE_MAX over the limb size above. It narrows to size_t exactly
     DecimalDoubleWork work = {.limb = (uint32_t *)malloc((size_t)capacity_limbs * sizeof(uint32_t)),
                               .capacity = (size_t)capacity_limbs,
                               .used = 0u};

@@ -14,6 +14,7 @@ CODEGEN="$TOP/src/cu/engine/rmc"
 CODEGEN_CU="$TOP/src/cu/engine/rmc"
 CODEGEN_CU_2="$TOP/src/cu/includes/parsers"
 source "$TOP/utils/maint/engine/build_stamp.sh"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 build_stamp interface_ptx_test
 
 HOST_FLAGS=()
@@ -76,9 +77,24 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
         *) CODEGEN_SOURCES+=("$source") ;;
     esac
 done
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$PROBE" \
-    "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu \
-    "${CODEGEN_SOURCES[@]}" -lnvrtc -lnvJitLink
+# the formats and MMgr's line, as C: the ruleset reader reads a ruleset's .ksc as the run stores it (qry_member.h)
+FORMAT_OBJECTS=()
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}"; do
+    object="$OUT/$(basename "$source" .c)_probe.$EXTENSION"
+    rm -f "$object"
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" \
+                -o "$object" ;;
+        *)
+            cc -std=c11 -O2 "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" ;;
+    esac
+    [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
+    FORMAT_OBJECTS+=("$object")
+done
+nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
+    -o "$PROBE" "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu "$TEST_CU/ptx_target.cu" \
+    "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
 
 mkdir -p "$OUT/probes" "$OUT/probes_flagless"

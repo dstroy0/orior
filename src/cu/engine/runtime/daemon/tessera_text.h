@@ -3,7 +3,9 @@
 #ifndef TESSERA_TEXT_H
 #define TESSERA_TEXT_H
 
-#include "../scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "tessera.h"
 
 #ifdef __cplusplus
@@ -11,9 +13,9 @@ extern "C"
 {
 #endif
 
-    int tessera_text_staged(ScripturaLine *line, const char *text);
+    int tessera_text_staged(VerbaLinea *line, const char *text);
 
-    void tessera_bytes_hex(ScripturaLine *line, const unsigned char *bytes, unsigned int count);
+    void tessera_bytes_hex(VerbaLinea *line, const unsigned char *bytes, unsigned int count);
 
 #ifdef __cplusplus
 }

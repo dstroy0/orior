@@ -9,7 +9,8 @@
 // Animation keeps its time on `clock()`, which stands still while motion is stopped: an animation
 // that comes back takes up where it stood, and none of the stopped time passes in it.
 //
-// The lowest work, the lattices' motion, runs only in a frame nothing else wants: `idle()` says so
+// The lowest work, a lattice placed on the page's own thread for a 2D canvas, runs only in a frame
+// nothing else wants: `idle()` says so
 // once no key, press, pointer move, wheel or scroll has come for YIELD, no animation that ends is
 // running, the last frame came within its time, and nothing has asked for the frames by `preempt`.
 // Anything else the window does goes first, and the lowest work skips its frames until it is done.
@@ -63,6 +64,7 @@ export const motionReduced = () => localStorage.getItem(REDUCE_KEY) === "true" |
 
 function markReduced() {
   document.documentElement.toggleAttribute("data-reduced-motion", motionReduced());
+  released();
 }
 
 export function setReduceMotion(on) {
@@ -178,9 +180,19 @@ function judgeTransitions(event) {
 // stood still, and while it stands still, the moment it stopped.
 export const clock = (now = performance.now()) => (state.stoppedAt ?? now) - state.lost;
 
-// Runs `start` once, as soon as motion comes back.
+// Runs `start` once, as soon as motion may have come back: the page shown again, or less motion asked for or
+// no longer asked for. A start that finds motion still held waits again.
 export function whenMoving(start) {
   state.waiting.add(start);
+}
+
+// Every start waiting on motion run, where the page is shown.
+function released() {
+  if (!still()) {
+    const starts = [...state.waiting];
+    state.waiting.clear();
+    starts.forEach((start) => start());
+  }
 }
 
 function settle() {
@@ -191,11 +203,7 @@ function settle() {
     state.lost += performance.now() - state.stoppedAt;
     state.stoppedAt = null;
   }
-  if (!still()) {
-    const starts = [...state.waiting];
-    state.waiting.clear();
-    starts.forEach((start) => start());
-  }
+  released();
 }
 
 export async function startMotion() {

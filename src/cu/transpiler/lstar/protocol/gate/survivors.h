@@ -3,20 +3,20 @@
 #ifndef SURVIVORS_H
 #define SURVIVORS_H
 
-// The gate (P2). A relation is held on cases K = {k_1, ..., k_m}, and a candidate c survives where it fails no case:
+// The gate (P2). A relation is checked on cases K = {k_1, ..., k_m}, and a candidate c survives where it fails no case:
 //
 //   S = {c : c(k) = r(k) for every k in K}
 //
 // The survivors are a conjunction: S does not depend on the order of K, and no order of the cases changes which
 // candidates survive. The order is the price: putting K in order π costs Σ_c f_π(c) evaluations, f_π(c) the place of
 // the first case c fails, counted from 1, and m for a survivor. The descent puts first the case the most remaining
-// candidates fail. No cost enters S: a candidate that fails a case is wrong on every part, and no part is asked about
+// candidates fail. No cost enters S: a candidate that fails a case is wrong on every part, and no part is queried about
 // it.
 //
-// What a candidate fails is the caller's to say, a row a candidate of `fails`, 1 at each case it fails. The gate reads
-// those rows alone.
+// What a candidate fails is the caller's to determine, a row a candidate of `fails`, 1 at each case it fails. The gate
+// reads those rows alone.
 
-// the most candidates and the most cases the gate holds
+// the most candidates and the most cases the gate supports
 #define GATE_CANDIDATES 64u
 #define GATE_CASES 256u
 

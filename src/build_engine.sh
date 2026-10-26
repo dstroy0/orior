@@ -84,7 +84,7 @@ MODULES=(engine/formats/stack cu/includes/formats/stack cu/includes/file_defs/kr
          cu/engine/nbody/division engine/nbody/marginal cu/engine/nbody/marginal engine/nbody/contact_side
          cu/engine/nbody/contact_side engine/nbody/box_history cu/engine/nbody/box_history
          engine/nbody/heaviest_matching engine/arithmetic/double_fields cu/includes/types/integerfloats/double_fields engine/arithmetic/decimal_double
-         engine/runtime/scriptura engine/analysis/period cu/engine/analysis/period)
+         engine/analysis/period cu/engine/analysis/period)
 INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate
         cu/includes/codecs/deflate cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc
         cu/includes/formats/tiff cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom
@@ -92,6 +92,9 @@ INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs
         cu/includes/formats/parquet)
 MODULES+=("${INGEST[@]}")
 MODULE_INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc")
+# MMgr's line, which the engine writes its text through: its flags for every source, its sources built with the C ones
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+MODULE_INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 MODULE_SOURCES=("$TOP/src/cu/engine"/engine_{record,residual,files,zarr,source,listing,seal,report,history}.cu)
 for module in "${MODULES[@]}"; do
     MODULE_INCLUDES+=(-I "$TOP/src/$module")
@@ -180,12 +183,15 @@ for source in "${MODULE_SOURCES[@]}"; do
 done
 for portable in cu/engine/nbody/body_overlap cu/engine/nbody/heaviest_matching cu/engine/analysis/shift_agreement \
                 cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/marginal \
-                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
+                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double \
                 cu/includes/types/integers/exact_record "${INGEST[@]}"; do
     # A folder with no C file leaves the pattern unexpanded, and it names no file to build.
     for source in "$TOP/src/$portable"/*.c; do
         [ -f "$source" ] && listed "$source" "${C_WORDS[@]}"
     done
+done
+for source in "${FILE_DEFS_LINEA[@]}"; do
+    listed "$source" "${C_WORDS[@]}"
 done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     listed "$EXACT_ROOT/$name.c" "${EXACT_WORDS[@]}"

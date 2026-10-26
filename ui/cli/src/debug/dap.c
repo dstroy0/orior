@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// dap.c: a debug adapter spoken to: what it says read on a thread of its own, each response handed to the request
-// waiting on it, each event heard and each request of its refused; requests sent and waited on; and the adapter ended
+// dap.c: a debug adapter connected to: what it writes read on a thread of its own, each response handed to the request
+// waiting on it, each event received and each request of its refused; requests sent and waited on; and the adapter
+// ended
 #include "../command_line/cells.h"
 #include "dap_internal.h"
 
@@ -21,7 +22,7 @@ CliDap *cli_dap_place_taken(void)
         {
             dap = &g_cli_daps[at];
             dap->taken = 1;
-            dap->holds = 1u;
+            dap->refs = 1u;
         }
     }
     cli_lock_give(&g_cli_daps_lock);
@@ -41,7 +42,7 @@ CliDap *cli_dap_place_taken(void)
     return dap;
 }
 
-// the string of a member of a JSON object of `length` bytes into `out`, which holds `room`: 1, or 0 where it has none
+// the string of a member of a JSON object of `length` bytes into `out`, sized for `room`: 1, or 0 where it has none
 static int dap_member_string(const char *object, unsigned long long length, const char *name, char *out,
                              unsigned long long room)
 {
@@ -69,8 +70,8 @@ static void dap_answered(CliDap *dap, unsigned long long seq, const char *body, 
             }
             else
             {
-                // the body kept in a cell of its size until the request takes it
-                waiter->body = cli_cell_taken(length + 1ull, "an adapter's answer");
+                // the body stored in a cell of its size until the request takes it
+                waiter->body = g_cli_cells->persistent_buf_alloc(length + 1ull, NULL);
                 if (waiter->body != NULL)
                 {
                     // a member of a message read whole, which a size_t counts
@@ -81,8 +82,8 @@ static void dap_answered(CliDap *dap, unsigned long long seq, const char *body, 
                 {
                     memor.cpy(
                         &(MemoriaCfg){.dst = waiter->error,
-                                      .src = "the answer could not be held",
-                                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the answer could not be held",
+                                      .src = "the answer could not be stored",
+                                      .bytes = cellul.len(&(CatenaFinitaCfg){.src = "the answer could not be stored",
                                                                              .cap = CLI_CELLS_POOL}) +
                                                1u});
                 }
@@ -144,8 +145,8 @@ static void dap_refused(CliDap *dap, const char *message, unsigned long long siz
     unsigned long long at = 0ull;
     unsigned long long length = 0ull;
     char number[24];
-    CliLine number_line = {number, sizeof(number), 0ull};
-    cli_line_decimal(&number_line, seq, 1u);
+    VerbaLinea number_line = {number, sizeof(number), 0ull};
+    mmgr_line_decimal(&number_line, seq, 1u);
     const int has_seq = cli_lsp_member(message, size, "seq", &at, &length);
     unsigned long long command = 0ull;
     unsigned long long command_size = 0ull;
@@ -159,13 +160,13 @@ static void dap_refused(CliDap *dap, const char *message, unsigned long long siz
         {has_command ? message + command : "null", has_command ? command_size : 4ull, 0},
         CLI_LSP_RAW(",\"message\":\"orior_cli runs the program through the adapter\"}"),
     };
-    char why[CLI_SAID_LONGEST];
-    CliLine unsent = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unsent = {why, sizeof(why), 0ull};
     (void)cli_lsp_send_parts(&dap->input, &dap->input_lock, sent, 7u, &unsent);
 }
 
-// what the adapter says read until it ends: each event heard, each response handed to its request, each request of
-// its refused; then every request still waiting told the adapter stopped, and its stop heard
+// what the adapter writes read until it ends: each event received, each response handed to its request, each request of
+// its refused; then every request still waiting notified the adapter stopped, and its stop received
 static void dap_read(void *context)
 {
     CliDap *const dap = (CliDap *)context;
@@ -190,7 +191,7 @@ static void dap_read(void *context)
             unsigned long long body = 0ull;
             unsigned long long body_size = 0ull;
             const int has_body = cli_lsp_member(message, size, "body", &body, &body_size);
-            dap->heard(dap->context, event, has_body ? message + body : "null", has_body ? body_size : 4ull);
+            dap->emit(dap->context, event, has_body ? message + body : "null", has_body ? body_size : 4ull);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "response", .cap = CLI_CELLS_POOL}))
         {
@@ -201,7 +202,7 @@ static void dap_read(void *context)
             refused += 1ull;
             dap_refused(dap, message, size, refused);
         }
-        cli_cell_given(message);
+        g_cli_cells->persistent_buf_release(message, NULL);
     }
     cli_lock_take(&dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
@@ -217,16 +218,16 @@ static void dap_read(void *context)
     }
     cli_wake_all(&dap->wake);
     cli_lock_give(&dap->lock);
-    dap->heard(dap->context, "adapterStopped", "null", 4ull);
+    dap->emit(dap->context, "adapterStopped", "null", 4ull);
     cli_lock_take(&dap->lock);
     dap->reading -= 1u;
     cli_wake_all(&dap->wake);
     cli_lock_give(&dap->lock);
 }
 
-// a line the program adapter wrote to its errors kept, trimmed with "\n" after it, the kept text cut to its last
+// a line the program adapter wrote to its errors stored, trimmed with "\n" after it, the stored text cut to its last
 // CLI_DAP_COMPLAINT bytes at a letter's start
-static void dap_complaint_kept(CliDap *dap, const char *line, unsigned long long used)
+static void dap_complaint_stored(CliDap *dap, const char *line, unsigned long long used)
 {
     unsigned long long start = 0ull;
     unsigned long long end = used;
@@ -259,7 +260,7 @@ static void dap_complaint_kept(CliDap *dap, const char *line, unsigned long long
     cli_lock_give(&dap->lock);
 }
 
-// what the program adapter writes to its errors read until it ends, line by line, a line longer than the room kept in
+// what the program adapter writes to its errors read until it ends, line by line, a line longer than the room stored in
 // pieces of the room's length
 static void dap_complaints_read(void *context)
 {
@@ -278,7 +279,7 @@ static void dap_complaints_read(void *context)
         {
             if ((piece[at] == '\n') || (used == sizeof(line)))
             {
-                dap_complaint_kept(dap, line, used);
+                dap_complaint_stored(dap, line, used);
                 used = 0ull;
             }
             if (piece[at] != '\n')
@@ -290,7 +291,7 @@ static void dap_complaints_read(void *context)
     }
     if (used > 0ull)
     {
-        dap_complaint_kept(dap, line, used);
+        dap_complaint_stored(dap, line, used);
     }
     cli_lock_take(&dap->lock);
     dap->reading -= 1u;
@@ -316,7 +317,7 @@ void cli_dap_readers_started(CliDap *dap, int complaints)
 }
 
 int cli_dap_sent(CliDap *dap, const char *command, const char *arguments, unsigned long long length,
-                 unsigned long long *seq, CliLine *said)
+                 unsigned long long *seq, VerbaLinea *err_msg)
 {
     // a request with no arguments sends an empty object, which every adapter takes
     const int none =
@@ -336,19 +337,19 @@ int cli_dap_sent(CliDap *dap, const char *command, const char *arguments, unsign
         waiter->seq = *seq;
         waiter->answered = 0;
         waiter->error[0] = '\0';
-        cli_cell_given(waiter->body);
+        g_cli_cells->persistent_buf_release(waiter->body, NULL);
         waiter->body = NULL;
         waiter->body_size = 0ull;
     }
     cli_lock_give(&dap->lock);
     if (waiter == NULL)
     {
-        cli_line_text(said, "no more requests wait on the adapter at once");
+        mmgr_line_put(err_msg, "no more requests wait on the adapter at once");
         return 0;
     }
     char number[24];
-    CliLine number_line = {number, sizeof(number), 0ull};
-    cli_line_decimal(&number_line, *seq, 1u);
+    VerbaLinea number_line = {number, sizeof(number), 0ull};
+    mmgr_line_decimal(&number_line, *seq, 1u);
     const CliLspPart parts[7] = {CLI_LSP_RAW("{\"seq\":"),
                                  {number, number_line.at, 0},
                                  CLI_LSP_RAW(",\"type\":\"request\",\"command\":\""),
@@ -356,7 +357,7 @@ int cli_dap_sent(CliDap *dap, const char *command, const char *arguments, unsign
                                  CLI_LSP_RAW("\",\"arguments\":"),
                                  {none ? "{}" : arguments, none ? 2ull : length, 0},
                                  CLI_LSP_RAW("}")};
-    if (!cli_lsp_send_parts(&dap->input, &dap->input_lock, parts, 7u, said))
+    if (!cli_lsp_send_parts(&dap->input, &dap->input_lock, parts, 7u, err_msg))
     {
         cli_lock_take(&dap->lock);
         waiter->waiting = 0;
@@ -366,8 +367,8 @@ int cli_dap_sent(CliDap *dap, const char *command, const char *arguments, unsign
     return 1;
 }
 
-int cli_dap_waited(CliDap *dap, const char *command, unsigned long long seq, unsigned long long wait, CliLine *body,
-                   CliLine *said)
+int cli_dap_waited(CliDap *dap, const char *command, unsigned long long seq, unsigned long long wait, VerbaLinea *body,
+                   VerbaLinea *err_msg)
 {
     const unsigned long long until = cli_clock_milliseconds() + wait;
     cli_lock_take(&dap->lock);
@@ -384,39 +385,39 @@ int cli_dap_waited(CliDap *dap, const char *command, unsigned long long seq, uns
     const int failed = answered && (waiter->error[0] != '\0');
     if (failed)
     {
-        cli_line_text(said, waiter->error);
+        mmgr_line_put(err_msg, waiter->error);
     }
     else if (answered)
     {
-        cli_line_counted(body, waiter->body, waiter->body_size);
+        mmgr_line_put_n(body, waiter->body, waiter->body_size);
     }
     if (waiter != NULL)
     {
         waiter->waiting = 0;
-        cli_cell_given(waiter->body);
+        g_cli_cells->persistent_buf_release(waiter->body, NULL);
         waiter->body = NULL;
         waiter->body_size = 0ull;
     }
     cli_lock_give(&dap->lock);
     if (!answered)
     {
-        cli_line_text(said, command);
-        cli_line_text(said, " had no answer in ");
-        cli_line_decimal(said, wait / 1000ull, 1u);
-        cli_line_text(said, " s");
+        mmgr_line_put(err_msg, command);
+        mmgr_line_put(err_msg, " had no answer in ");
+        mmgr_line_decimal(err_msg, wait / 1000ull, 1u);
+        mmgr_line_put(err_msg, " s");
     }
     return answered && !failed;
 }
 
 int cli_dap_requested(CliDap *dap, const char *command, const char *arguments, unsigned long long length,
-                      unsigned long long wait, CliLine *body, CliLine *said)
+                      unsigned long long wait, VerbaLinea *body, VerbaLinea *err_msg)
 {
     unsigned long long seq = 0ull;
-    return cli_dap_sent(dap, command, arguments, length, &seq, said) &&
-           cli_dap_waited(dap, command, seq, wait, body, said);
+    return cli_dap_sent(dap, command, arguments, length, &seq, err_msg) &&
+           cli_dap_waited(dap, command, seq, wait, body, err_msg);
 }
 
-void cli_dap_complaint(CliDap *dap, CliLine *out)
+void cli_dap_complaint(CliDap *dap, VerbaLinea *out)
 {
     cli_lock_take(&dap->lock);
     unsigned long long end = dap->complaint_size;
@@ -431,7 +432,7 @@ void cli_dap_complaint(CliDap *dap, CliLine *out)
     {
         start -= 1ull;
     }
-    cli_line_counted(out, dap->complaint + start, end - start);
+    mmgr_line_put_n(out, dap->complaint + start, end - start);
     cli_lock_give(&dap->lock);
 }
 
@@ -458,29 +459,29 @@ void cli_dap_ended(CliDap *dap)
 void cli_dap_stopped(CliDap *dap)
 {
     char body[1024];
-    CliLine answer = {body, sizeof(body), 0ull};
-    char why[CLI_SAID_LONGEST];
-    CliLine unsaid = {why, sizeof(why), 0ull};
+    VerbaLinea answer = {body, sizeof(body), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_buf = {why, sizeof(why), 0ull};
     const char *const arguments = dap->ends_program ? "{\"terminateDebuggee\":true}" : "{\"terminateDebuggee\":false}";
     (void)cli_dap_requested(dap, "disconnect", arguments,
                             cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_CELLS_POOL}), 3000ull, &answer,
-                            &unsaid);
+                            &err_buf);
     query_paused(100u);
     cli_dap_ended(dap);
 }
 
-void cli_dap_held(CliDap *dap)
+void cli_dap_ref(CliDap *dap)
 {
     cli_lock_take(&g_cli_daps_lock);
-    dap->holds += 1u;
+    dap->refs += 1u;
     cli_lock_give(&g_cli_daps_lock);
 }
 
-void cli_dap_given(CliDap *dap)
+void cli_dap_unref(CliDap *dap)
 {
     cli_lock_take(&g_cli_daps_lock);
-    dap->holds -= 1u;
-    const int last = (dap->holds == 0u);
+    dap->refs -= 1u;
+    const int last = (dap->refs == 0u);
     cli_lock_give(&g_cli_daps_lock);
     if (!last)
     {

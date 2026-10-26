@@ -26,28 +26,156 @@
       "uint8_t", "uint16_t", "uint32_t", "uint64_t", "wchar_t", "char16_t", "char32_t", "half", "dim3",
       "float2", "float3", "float4", "double2", "int2", "int3", "int4", "uint2", "uint3", "uint4", "FILE"
     ],
+    "numbers": [
+      "char", "short", "int", "long", "float", "double", "signed", "unsigned", "bool", "_Bool", "_Complex",
+      "size_t", "ptrdiff_t", "intptr_t", "uintptr_t", "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t",
+      "uint16_t", "uint32_t", "uint64_t", "wchar_t", "char16_t", "char32_t", "half"
+    ],
     "tokenizer": {
       "root": [
-        ["(^\\s*#\\s*)(include|import)\\b",["keyword.directive","keyword.directive.include"],"@directive"],
-        ["(^\\s*#\\s*)(\\w+)",["keyword.directive",{"cases":{"define":"keyword.directive.define","undef":"keyword.directive.define","if":"keyword.directive.condition","ifdef":"keyword.directive.condition","ifndef":"keyword.directive.condition","elif":"keyword.directive.condition","else":"keyword.directive.condition","endif":"keyword.directive.condition","@default":"keyword.directive"}}]],
-        {"include":"@whitespace"},
-        ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
         [
-          "(0[xX][\\da-fA-F_']+|0[bB][01_']+|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?)([fFuUlLjJzZ]*)",
-          ["number", "number.suffix"]
+          "^((?:typedef\\s+)?)(struct|enum|union|class)(\\s+)([A-Za-z_]\\w*)(?=\\s*\\{?\\s*$)",
+          ["keyword","keyword","","identifier.declaration.class"]
         ],
+        [
+          "^(?!(?:if|for|while|switch|return|else|do|typedef|struct|enum|union|sizeof)\\b)(?=[A-Za-z_][^=;\"(]*[^\\w=;\"(][A-Za-z_]\\w*\\s*\\((?:.*\\{\\s*$|[^;]*$|[^;]*\\)\\s*;\\s*$))[A-Za-z_]\\w*",
+          {"cases":{"@types":"type","@words":"keyword","@default":"identifier"}},
+          "@head"
+        ],
+        [
+          "^(\\s+)(?=(?!(?:return|goto|else|case|do|sizeof|typedef|break|continue|default|if|for|while|switch)\\b)[A-Za-z_]\\w*(?:\\s+|\\s*\\*+\\s*)(?:[A-Za-z_]\\w*(?:\\s+|\\s*\\*+\\s*))*[A-Za-z_]\\w*\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|;|,))",
+          "",
+          "@local"
+        ],
+        [
+          "(^\\s*#\\s*)(define)(\\s+)([A-Za-z_]\\w*)(\\()",
+          ["keyword.directive","keyword.directive.define","","identifier.declaration.constant","delimiter.bracket.parameter.open"],
+          "@macro"
+        ],
+        ["(^\\s*#\\s*)(define)(\\s+)([A-Za-z_]\\w*)",["keyword.directive","keyword.directive.define","","identifier.declaration.constant"],"@body"],
+        ["(^\\s*#\\s*)(undef)(\\s+)([A-Za-z_]\\w*)",["keyword.directive","keyword.directive.undef","","identifier"]],
+        ["(^\\s*#\\s*)(include|import)\\b",["keyword.directive","keyword.directive.include"],"@directive"],
+        ["(^\\s*#\\s*)(if|elif)\\b",["keyword.directive",{"cases":{"if":"keyword.directive.condition.if","elif":"keyword.directive.condition.elif"}}],"@condition"],
+        ["(^\\s*#\\s*)(\\w+)",["keyword.directive",{"cases":{"define":"keyword.directive.define","undef":"keyword.directive.undef","ifdef":"keyword.directive.condition.ifdef","ifndef":"keyword.directive.condition.ifndef","else":"keyword.directive.condition.else","endif":"keyword.directive.condition.endif","@default":"keyword.directive"}}]],
+        {"include":"@code"}
+      ],
+      "code": [
+        {"include":"@whitespace"},
+        ["[A-Za-z_]\\w*(?=\\s*\\()",{"cases":{"@types":"type","@words":"keyword","@default":"identifier.call"}}],
+        ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
+        {"include":"@numeral"},
         ["[uUL]?\"","string","@string"],
         ["'(?:[^'\\\\]|\\\\.)*'","string"],
-        ["[{}()[\\]]","@brackets"],
-        ["->|\\*(?!=)|&(?![&=])|\\.","operator.memory"],
-        ["&&|\\|\\||<<=?|>>=?|[<>=!*&]=|\\+\\+|--|[-+/%^|!~?:<>=]=?","operator"],
-        ["[;,]","delimiter"]
+        ["\\{","delimiter.bracket.region.open"],
+        ["\\}","delimiter.bracket.region.close"],
+        ["[(\\[]","delimiter.bracket.open"],
+        ["[)\\]]","delimiter.bracket.close"],
+        {"include":"@operators"},
+        [";","delimiter.statement"],
+        [",","delimiter.separator"]
+      ],
+      "operators": [
+        ["->","operator.memory"],
+        ["\\+\\+|--|<<=|>>=|[-+*/%&|^]=","operator"],
+        ["\\|\\|","operator.binds.1.or"],
+        ["&&","operator.binds.2.and"],
+        ["==","operator.binds.6.equal"],
+        ["!=","operator.binds.6.unequal"],
+        ["<<","operator.binds.8.shiftleft"],
+        [">>","operator.binds.8.shiftright"],
+        ["<=","operator.binds.7.atmost"],
+        [">=","operator.binds.7.atleast"],
+        ["<","operator.binds.7.less"],
+        [">","operator.binds.7.greater"],
+        ["\\|","operator.binds.3.bitor"],
+        ["\\^","operator.binds.4.bitxor"],
+        ["&","operator.memory.binds.5.bitand"],
+        ["\\+","operator.binds.9.add"],
+        ["-","operator.binds.9.subtract"],
+        ["\\*","operator.memory.binds.10.multiply"],
+        ["/","operator.binds.10.divide"],
+        ["%","operator.binds.10.remainder"],
+        ["!","operator.unary.not"],
+        ["~","operator.unary.complement"],
+        ["\\?","operator.choice"],
+        [":","operator.choice.otherwise"],
+        ["\\.","operator.memory"],
+        ["=","operator.assign"]
+      ],
+      "head": [
+        ["[A-Za-z_]\\w*(?=\\s*\\()","identifier.declaration.function","@params"],
+        ["$","","@pop"],
+        {"include":"@root"}
+      ],
+      "params": [
+        {"include":"@whitespace"},
+        ["\\(","delimiter.bracket.parameter.open"],
+        ["\\)","delimiter.bracket.parameter.close","@popall"],
+        ["char\\b(?=\\s*\\*)","type.string"],
+        ["void(?=\\s*\\))","keyword"],
+        [
+          "[A-Za-z_]\\w*(?=\\s*(?:\\[[^\\]]*\\]\\s*)*[,)])",
+          {"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"identifier.parameter"}}
+        ],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"type"}}],
+        ["\\*|&","operator.memory"],
+        ["\\.\\.\\.","delimiter.rest"],
+        [",","delimiter.separator"],
+        ["\\[","delimiter.bracket.open"],
+        ["\\]","delimiter.bracket.close"],
+        ["\\d+","number"]
+      ],
+      "numeral": [
+        ["(0[xX])([\\da-fA-F_']+)([fFuUlLjJzZ]*)",["number.prefix","number.base.16","number.suffix"]],
+        ["(0[bB])([01_']+)([uUlLzZ]*)",["number.prefix","number.base.2","number.suffix"]],
+        ["(0)([0-7_']+)([uUlLzZ]*)(?![\\w.])",["number.prefix","number.base.8","number.suffix"]],
+        ["((?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?)([fFuUlLjJzZ]*)",["number","number.suffix"]]
+      ],
+      "macro": [
+        ["^","","@pop"],
+        ["\\s+",""],
+        ["[A-Za-z_]\\w*","identifier.parameter"],
+        ["\\.\\.\\.","delimiter.rest"],
+        [",","delimiter.separator"],
+        ["\\)","delimiter.bracket.parameter.close","@body"]
+      ],
+      "body": [
+        ["\\\\$","keyword.directive.continued","@body"],
+        ["$","","@pop"],
+        ["__VA_ARGS__\\b","identifier.parameter.rest"],
+        ["##","operator.join"],
+        ["#","operator.quote"],
+        {"include":"@code"}
+      ],
+      "local": [
+        ["\\s+",""],
+        ["char\\b(?=\\s*\\*)","type.string"],
+        [
+          "[A-Za-z_]\\w*(?=\\s*(?:\\[[^\\]]*\\]\\s*)*(?:=(?!=)|;|,))",
+          {"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"identifier.local"}},
+          "@pop"
+        ],
+        ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@numbers":"type.number","@types":"type","@default":"type"}}],
+        ["\\*","operator.memory"],
+        ["$","","@pop"]
+      ],
+      "condition": [
+        ["\\\\$","keyword.directive.continued","@condition"],
+        ["$","","@pop"],
+        ["defined\\b","keyword.directive.defined"],
+        {"include":"@whitespace"},
+        ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
+        {"include":"@numeral"},
+        ["\\(","delimiter.bracket.open"],
+        ["\\)","delimiter.bracket.close"],
+        {"include":"@operators"},
+        [",","delimiter.separator"]
       ],
       "directive": [
-        ["<[^>]*>","string"],
-        ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
+        ["(<)([^>]*)(>)",["string","string.include","string"]],
+        ["(\")((?:[^\"\\\\]|\\\\.)*)(\")",["string","string.include.beside","string"]],
         ["\\/\\/.*$","comment"],
-        ["\\\\$","keyword.directive","@directive"],
+        ["\\\\$","keyword.directive.continued","@directive"],
         ["$","","@pop"],
         ["[^\"<\\\\/]+|.","keyword.directive"]
       ],

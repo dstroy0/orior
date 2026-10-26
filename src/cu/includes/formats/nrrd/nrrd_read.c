@@ -302,7 +302,7 @@ static unsigned int nrrd_layout(const char *path, const char *member, const Engi
 {
     if (member != NULL)
     {
-        fprintf(stderr, "nrrd: %s holds one array; a member was named\n", path);
+        fprintf(stderr, "nrrd: %s contains one array; a member was named\n", path);
         return 0u;
     }
     const long long size = tools->size(path);

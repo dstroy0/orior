@@ -9,7 +9,7 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
     memset(&s_channel, 0, sizeof(s_channel));
     // the carrier's words, then the pop's after `--pop` and the cross's after `--cross`, each from 1 to
     // RUN_CARRIER_WORDS
-    char (*part)[RUN_PATH_LONGEST] = s_channel.word;
+    char (*part)[RUN_PATH_MAX_LEN] = s_channel.word;
     unsigned int *count = &s_channel.words;
     for (unsigned int at = 0u; carrier[at] != NULL; at += 1u)
     {
@@ -22,47 +22,47 @@ int run_channel_open(const char *const *carrier, unsigned long long limit_micros
         }
         if (*count >= RUN_CARRIER_WORDS)
         {
-            char said[128];
-            ScripturaLine line = {said, sizeof(said), 0ull};
-            scriptura_text(&line, "run_channel: a carrier, its pop and its cross are each from 1 to ");
-            scriptura_decimal(&line, RUN_CARRIER_WORDS, 0u);
-            scriptura_text(&line, " words\n");
-            scriptura_closed(&line);
-            run_channel_said(said);
+            char message[128];
+            VerbaLinea line = {message, sizeof(message), 0ull};
+            mmgr_line_put(&line, "run_channel: a carrier, its pop and its cross are each from 1 to ");
+            mmgr_line_decimal(&line, RUN_CARRIER_WORDS, 0u);
+            mmgr_line_put(&line, " words\n");
+            mmgr_line_finish(&line);
+            run_channel_trace_line(message);
             return 0;
         }
-        ScripturaLine word = {part[*count], RUN_PATH_LONGEST, 0ull};
-        scriptura_text_most(&word, carrier[at], RUN_PATH_LONGEST - 1u);
-        scriptura_closed(&word);
+        VerbaLinea word = {part[*count], RUN_PATH_MAX_LEN, 0ull};
+        mmgr_line_put_most(&word, carrier[at], RUN_PATH_MAX_LEN - 1u);
+        mmgr_line_finish(&word);
         *count += 1u;
     }
     const unsigned int words = s_channel.words;
     if ((words == 0u) || ((s_channel.pop_words == 0u) != (s_channel.cross_words == 0u)))
     {
-        char said[128];
-        ScripturaLine line = {said, sizeof(said), 0ull};
-        scriptura_text(&line, "run_channel: a carrier is from 1 to ");
-        scriptura_decimal(&line, RUN_CARRIER_WORDS, 0u);
-        scriptura_text(&line, " words, and an airlock both a pop and a cross\n");
-        scriptura_closed(&line);
-        run_channel_said(said);
+        char message[128];
+        VerbaLinea line = {message, sizeof(message), 0ull};
+        mmgr_line_put(&line, "run_channel: a carrier is from 1 to ");
+        mmgr_line_decimal(&line, RUN_CARRIER_WORDS, 0u);
+        mmgr_line_put(&line, " words, and an airlock both a pop and a cross\n");
+        mmgr_line_finish(&line);
+        run_channel_trace_line(message);
         return 0;
     }
-    // the held list the carrier reads, named after its `--held`
+    // the gated list the carrier reads, named after its `--gated`
     for (unsigned int at = 0u; (at + 1u) < words; at += 1u)
     {
-        if (strcmp(s_channel.word[at], "--held") == 0)
+        if (strcmp(s_channel.word[at], "--gated") == 0)
         {
-            ScripturaLine held = {s_channel.held, sizeof(s_channel.held), 0ull};
-            scriptura_text_most(&held, s_channel.word[at + 1u], sizeof(s_channel.held) - 1u);
-            scriptura_closed(&held);
-            s_channel.held_given = 1;
+            VerbaLinea gated_line = {s_channel.gated_list, sizeof(s_channel.gated_list), 0ull};
+            mmgr_line_put_most(&gated_line, s_channel.word[at + 1u], sizeof(s_channel.gated_list) - 1u);
+            mmgr_line_finish(&gated_line);
+            s_channel.gated_given = 1;
         }
     }
-    if ((s_channel.pop_words != 0u) && !s_channel.held_given)
+    if ((s_channel.pop_words != 0u) && !s_channel.gated_given)
     {
-        run_channel_said(
-            "run_channel: an airlock's carrier reads the cross's held list, and this one is handed none (--held)\n");
+        run_channel_trace_line(
+            "run_channel: an airlock's carrier reads the cross's gated list, and this one is handed none (--gated)\n");
         return 0;
     }
     s_channel.buffer = qry_member_run();
@@ -96,60 +96,60 @@ int run_channel_listed(const char *line, size_t length)
 
 // the question's code and cases handed as the blobs `code_name` and `cases_name`, the cases a line each as the
 // carrier reads them: 1, or 0 where either was dumped
-int run_channel_write(const RunQuestion *asked, const char *code_name, const char *cases_name)
+int run_channel_write(const RunQuestion *question, const char *code_name, const char *cases_name)
 {
-    if (qry_member_append(code_name, asked->code, asked->code_size, QRY_ORDINARY) == 0)
+    if (qry_member_append(code_name, question->code, question->code_size, QRY_ORDINARY) == 0)
     {
         return 0;
     }
     // the text is sized for every case at its longest
-    ScripturaLine cases = {s_cases_text, sizeof(s_cases_text), 0ull};
-    for (unsigned int place = 0u; place < asked->cases; place += 1u)
+    VerbaLinea cases = {s_cases_text, sizeof(s_cases_text), 0ull};
+    for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         for (unsigned int at = 0u; at < RUN_IN_WORDS; at += 1u)
         {
             if (at != 0u)
             {
-                scriptura_character(&cases, ' ');
+                mmgr_line_ch(&cases, ' ');
             }
-            scriptura_hex(&cases, asked->word[place][at], 0u);
+            mmgr_line_hex(&cases, question->word[place][at], 0u);
         }
-        scriptura_character(&cases, '\n');
+        mmgr_line_ch(&cases, '\n');
     }
-    return scriptura_fits(&cases) && (qry_member_append(cases_name, s_cases_text, cases.at, QRY_ORDINARY) != 0);
+    return mmgr_line_ok(&cases) && (qry_member_append(cases_name, s_cases_text, cases.at, QRY_ORDINARY) != 0);
 }
 
-// The blob the carrier handed for `answers_name` after the round handed as `after`, read into `asked`: the outcome
+// The blob the carrier handed for `answers_name` after the round handed as `after`, read into `question`: the outcome
 // its first line names, each case's answer where it answered, and where the question is timed, the time the second
 // gives, its launches together and the least and the most one took. A blob of the name from before the round is an
 // older question's, and is none. A timed question the carrier gives no time for answered nothing worth reading
-void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned long long after)
+void run_channel_read(RunQuestion *question, const char *answers_name, unsigned long long after)
 {
-    asked->outcome = RUN_NOTHING;
-    asked->nanoseconds = 0ull;
-    asked->least = 0ull;
-    asked->most = 0ull;
-    asked->clock_address = 0u;
+    question->outcome = RUN_NOTHING;
+    question->nanoseconds = 0ull;
+    question->least = 0ull;
+    question->most = 0ull;
+    question->clock_address = 0u;
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long sequence = 0ull;
     if (!qry_member_blob(answers_name, &bytes, &size, &sequence) || (sequence < after) || (size == 0ull))
     {
         // a question the carrier ended the round before, after a launch that faulted the part or hung: carried by no
-        // one, kept nowhere, and put again once the conference has ruled
-        asked->outcome = RUN_NO_CHANNEL;
-        ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
-        scriptura_text(&refused, "the carrier wrote no answer: it ended the round before it");
-        scriptura_closed(&refused);
+        // one, stored nowhere, and put again once the conference has ruled
+        question->outcome = RUN_NO_CHANNEL;
+        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+        mmgr_line_put(&refused, "the carrier wrote no answer: it ended the round before it");
+        mmgr_line_finish(&refused);
         return;
     }
     // the first line, the answer; and after it, in any order, the lines the carrier adds: the registers it read off
     // the part, and the time its launches took, which is read wherever it stands
     const unsigned char *const first_end = (const unsigned char *)memchr(bytes, '\n', (size_t)size);
     const size_t first_length = (first_end != NULL) ? (size_t)(first_end - bytes) : (size_t)size;
-    const size_t kept = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
-    memcpy(s_answer_line, bytes, kept);
-    s_answer_line[kept] = '\0';
+    const size_t copied = (first_length < (sizeof(s_answer_line) - 1u)) ? first_length : (sizeof(s_answer_line) - 1u);
+    memcpy(s_answer_line, bytes, copied);
+    s_answer_line[copied] = '\0';
     char timed_line[128] = "";
     unsigned long long line_at = (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
     while (line_at < size)
@@ -161,96 +161,97 @@ void run_channel_read(RunQuestion *asked, const char *answers_name, unsigned lon
         }
         if (strncmp(line, "timed ", 6u) == 0)
         {
-            ScripturaLine timed_text = {timed_line, sizeof(timed_line), 0ull};
-            scriptura_text_most(&timed_text, line, sizeof(timed_line) - 1u);
-            scriptura_closed(&timed_text);
+            VerbaLinea timed_text = {timed_line, sizeof(timed_line), 0ull};
+            mmgr_line_put_most(&timed_text, line, sizeof(timed_line) - 1u);
+            mmgr_line_finish(&timed_text);
         }
         if (strncmp(line, "clock address ", 14u) == 0)
         {
             // the timer register's address, in hex as the carrier writes it
-            asked->clock_address = (unsigned int)strtoul(line + 14, NULL, 16);
+            question->clock_address = (unsigned int)strtoul(line + 14, NULL, 16);
         }
     }
     unsigned int launches = 0u;
     const char *timed_at = timed_line;
     int timed = line_letters(&timed_at, "timed ") && line_unsigned(&timed_at, &launches) &&
-                line_number(&timed_at, 0, &asked->nanoseconds);
+                line_number(&timed_at, 0, &question->nanoseconds);
     // the least launch and the most follow where the carrier timed them
-    if (timed && line_number(&timed_at, 0, &asked->least))
+    if (timed && line_number(&timed_at, 0, &question->least))
     {
-        line_number(&timed_at, 0, &asked->most);
+        line_number(&timed_at, 0, &question->most);
     }
-    timed = timed && (launches == asked->launches);
+    timed = timed && (launches == question->launches);
     s_answer_line[strcspn(s_answer_line, "\r\n")] = '\0';
     if (strncmp(s_answer_line, "answered", 8u) != 0)
     {
-        asked->outcome = (strncmp(s_answer_line, "skipped", 7u) == 0) ? (unsigned int)RUN_HELD : (unsigned int)RUN_ILLEGAL;
-        ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
-        scriptura_text_most(&refused, s_answer_line, 120ull);
-        scriptura_closed(&refused);
+        question->outcome =
+            (strncmp(s_answer_line, "skipped", 7u) == 0) ? (unsigned int)RUN_GATED : (unsigned int)RUN_ILLEGAL;
+        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+        mmgr_line_put_most(&refused, s_answer_line, 120ull);
+        mmgr_line_finish(&refused);
         // a refusal calls a conference, the carrier's accounts after the refusal's line handed with the teacher's
-        if (asked->outcome == RUN_ILLEGAL)
+        if (question->outcome == RUN_ILLEGAL)
         {
             char how[160];
-            ScripturaLine how_line = {how, sizeof(how), 0ull};
-            scriptura_text(&how_line, "the part refused it, ");
-            scriptura_text_most(&how_line, s_answer_line, 120ull);
-            scriptura_closed(&how_line);
-            const unsigned long long said_at =
+            VerbaLinea how_line = {how, sizeof(how), 0ull};
+            mmgr_line_put(&how_line, "the part refused it, ");
+            mmgr_line_put_most(&how_line, s_answer_line, 120ull);
+            mmgr_line_finish(&how_line);
+            const unsigned long long output_at =
                 (first_end != NULL) ? (unsigned long long)(first_end - bytes) + 1ull : size;
-            run_channel_conference_called(asked, how, bytes + said_at, size - said_at);
-            run_channel_line_ruled(asked);
+            run_channel_conference_called(question, how, bytes + output_at, size - output_at);
+            run_channel_line_ruled(question);
         }
         return;
     }
     const char *at = s_answer_line + 8u;
-    for (unsigned int place = 0u; place < asked->cases; place += 1u)
+    for (unsigned int place = 0u; place < question->cases; place += 1u)
     {
         char *after_word = NULL;
-        asked->answered[place] = strtoull(at, &after_word, 16);
+        question->answered[place] = strtoull(at, &after_word, 16);
         if (after_word == at)
         {
-            ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
-            scriptura_text(&refused, "the carrier answered ");
-            scriptura_decimal(&refused, place, 0u);
-            scriptura_text(&refused, " of ");
-            scriptura_decimal(&refused, asked->cases, 0u);
-            scriptura_text(&refused, " cases");
-            scriptura_closed(&refused);
+            VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+            mmgr_line_put(&refused, "the carrier answered ");
+            mmgr_line_decimal(&refused, place, 0u);
+            mmgr_line_put(&refused, " of ");
+            mmgr_line_decimal(&refused, question->cases, 0u);
+            mmgr_line_put(&refused, " cases");
+            mmgr_line_finish(&refused);
             return;
         }
         at = after_word;
     }
-    if ((asked->launches != 0u) && !timed)
+    if ((question->launches != 0u) && !timed)
     {
-        ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
-        scriptura_text(&refused, "the carrier gave no time for ");
-        scriptura_decimal(&refused, asked->launches, 0u);
-        scriptura_text(&refused, " launches");
-        scriptura_closed(&refused);
+        VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+        mmgr_line_put(&refused, "the carrier gave no time for ");
+        mmgr_line_decimal(&refused, question->launches, 0u);
+        mmgr_line_put(&refused, " launches");
+        mmgr_line_finish(&refused);
         return;
     }
-    asked->outcome = RUN_ANSWERED;
+    question->outcome = RUN_ANSWERED;
 }
 
-// `asked` handed as the next question of a dry run, its line added to the run's list, and read as held: nothing
+// `question` handed as the next question of a dry run, its line added to the run's list, and read as gated: nothing
 // carries it and nothing answers it
-void run_channel_dry_written(RunQuestion *asked)
+void run_channel_dry_written(RunQuestion *question)
 {
-    char code_name[RUN_NAME_LONGEST];
-    char cases_name[RUN_NAME_LONGEST];
-    char answers_name[RUN_NAME_LONGEST];
-    char line[RUN_LINE_LONGEST];
+    char code_name[RUN_NAME_MAX_LEN];
+    char cases_name[RUN_NAME_MAX_LEN];
+    char answers_name[RUN_NAME_MAX_LEN];
+    char line[RUN_LINE_MAX_LEN];
     s_channel.dry_written += 1u;
     run_channel_named(s_channel.dry_written, 0, code_name, cases_name, answers_name);
     const size_t line_length =
-        run_channel_list_line_written(line, sizeof(line), code_name, cases_name, answers_name, asked);
-    const int written = run_channel_write(asked, code_name, cases_name) && (line_length != 0u) &&
+        run_channel_list_line_written(line, sizeof(line), code_name, cases_name, answers_name, question);
+    const int written = run_channel_write(question, code_name, cases_name) && (line_length != 0u) &&
                         run_channel_listed(line, line_length);
-    asked->outcome = written ? (unsigned int)RUN_HELD : (unsigned int)RUN_NO_CHANNEL;
-    ScripturaLine refused = {asked->refused, sizeof(asked->refused), 0ull};
-    scriptura_text(&refused, written ? "dry: written, carried by nothing" : "dry: the question could not be written");
-    scriptura_closed(&refused);
+    question->outcome = written ? (unsigned int)RUN_GATED : (unsigned int)RUN_NO_CHANNEL;
+    VerbaLinea refused = {question->refused, sizeof(question->refused), 0ull};
+    mmgr_line_put(&refused, written ? "dry: written, carried by nothing" : "dry: the question could not be written");
+    mmgr_line_finish(&refused);
 }
 
 void run_channel_close(void)
@@ -259,18 +260,18 @@ void run_channel_close(void)
     if (s_channel.open && s_channel.dry && (s_channel.list_size != 0u) &&
         (qry_member_append("questions.txt", s_channel_list, s_channel.list_size, QRY_ORDINARY) == 0))
     {
-        run_channel_said("run_channel: the dry run's list could not be handed to the run\n");
+        run_channel_trace_line("run_channel: the dry run's list could not be handed to the run\n");
     }
     // R written back where it changed and was read whole
     if (s_record.changed && (s_record_path[0] != '\0') && !kqr_write(&s_record, s_record_path))
     {
-        char said[RUN_PATH_LONGEST + 64u];
-        ScripturaLine line = {said, sizeof(said), 0ull};
-        scriptura_text(&line, "record: ");
-        scriptura_text(&line, s_record_path);
-        scriptura_text(&line, " could not be written\n");
-        scriptura_closed(&line);
-        run_channel_said(said);
+        char message[RUN_PATH_MAX_LEN + 64u];
+        VerbaLinea line = {message, sizeof(message), 0ull};
+        mmgr_line_put(&line, "record: ");
+        mmgr_line_put(&line, s_record_path);
+        mmgr_line_put(&line, " could not be written\n");
+        mmgr_line_finish(&line);
+        run_channel_trace_line(message);
     }
     kqr_free(&s_record);
     s_record_path[0] = '\0';

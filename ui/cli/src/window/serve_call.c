@@ -46,34 +46,35 @@ static CliServeAnswer call_answer_of(const char *name)
     return NULL;
 }
 
-int cli_serve_call(const char *name, const char *args, unsigned long long size, CliLine *out, CliLine *said)
+int cli_serve_call(const char *name, const char *args, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const CliServeAnswer answer = call_answer_of(name);
     if (answer == NULL)
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " is not a command of the tree's");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " is not a command of the tree's");
         return 0;
     }
-    return cli_serve_answered(answer, args, size, out, said);
+    return cli_serve_answered(answer, args, size, out, err_msg);
 }
 
-int cli_serve_answered(CliServeAnswer answer, const char *args, unsigned long long size, CliLine *out, CliLine *said)
+int cli_serve_answered(CliServeAnswer answer, const char *args, unsigned long long size, VerbaLinea *out,
+                       VerbaLinea *err_msg)
 {
     CliJson json;
     char quiet[256];
-    CliLine ignored = {quiet, sizeof(quiet), 0ull};
+    VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
     unsigned int object = cli_json_taken(&json, args, size, 1u, 0ull, &ignored);
     object = cli_json_is(&json, object, CFG_JSON_OBJECT) ? object : cli_json_made(&json, CFG_JSON_OBJECT);
     int answered = 0;
     if (object == CLI_JSON_NONE)
     {
-        cli_line_text(said, "the call's arguments could not be given cells");
+        mmgr_line_put(err_msg, "the call's arguments could not be given cells");
     }
     else
     {
         const CliServeArgs read = {&json, object};
-        answered = answer(&read, out, said);
+        answered = answer(&read, out, err_msg);
     }
     cli_json_given(&json);
     return answered;

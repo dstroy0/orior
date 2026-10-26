@@ -34,7 +34,7 @@ extern "C"
      *       `uint8_t *` would be narrower than the proof it implements and than the python engine it is
      *       checked against.
      * @note The two are not equivalent, and the difference runs this way. A dict key must be hashable;
-     *       this oracle asks only whether two positions are equal. A value that cannot be hashed, or
+     *       this oracle tests only whether two positions are equal. A value that cannot be hashed, or
      *       whose equality is expensive and whose hash would be a lie, can be searched here and cannot
      *       be searched there. Anyone grading the two engines against each other should know
      *       which fields only one of them can accept.
@@ -46,7 +46,7 @@ extern "C"
     /**
      * @brief A field of any symbol type, reached only through equality.
      *
-     * @note Carries no element size and no element pointer. The engine indexes positions and asks the
+     * @note Carries no element size and no element pointer. The engine indexes positions and queries the
      *       oracle about them. Where the symbols live and how wide they are belong to the caller.
      * @warning `alignments` is the number of positions that can host a pattern, which for a linear field
      *          of `n` symbols is `n - needle_len + 1`. The engine cannot compute it, because it does not
@@ -63,7 +63,7 @@ extern "C"
                             *   is on the oracle. Passing null to an oracle that reads it faults inside
                             *   the oracle, where the engine cannot see it coming. */
         size_t alignments; /**< Positions that can host the pattern. Non-zero. */
-        size_t needle_len; /**< Positions the pattern holds. Non-zero. */
+        size_t needle_len; /**< Positions the pattern contains. Non-zero. */
     } OriorField;
 
     /**
@@ -86,10 +86,10 @@ extern "C"
      *          THE FAILURE IS SILENT AND IT IS IN THE UNSAFE DIRECTION. Take symbols where A occurs
      *          once, B ten times and C a hundred times, and search for the needle C C B A. Projected
      *          alone, the corpus ranks A below B because one is rarer than ten. Projected alone, the
-     *          needle holds one A and one B, they TIE, and the tie breaks on class index the other way
+     *          needle contains one A and one B, they TIE, and the tie breaks on class index the other way
      *          round. Rank disagreement then reports symbol disagreement where the symbols agree, a
      *          probe refutes an alignment that truly matches, and the count comes back one short with
-     *          nothing in the return value to say so.
+     *          nothing in the return value to report so.
      *
      *          That inverts the necessary condition this construction rests on. Everywhere else in this
      *          file an ordering decision is a null: a wrong order costs reads and leaves the count
@@ -102,7 +102,7 @@ extern "C"
      *
      * @note THE COMPONENT COUNT IS UNBOUNDED AND ONLY THE OUTPUT IS CLAMPED. Classes are discovered
      *       with no ceiling, ordered by rarity across every one of them, and the byte rank is clamped
-     *       at relabel time. A field with a thousand classes keeps its 255 rarest apart and merges
+     *       at relabel time. A field with a thousand classes retains its 255 rarest apart and merges
      *       the commonest into rank 255. That is the direction the steering needs, because a probe's
      *       survivor count is its class frequency and the rarest class is the best probe available.
      *       The class buffers exist to carry those components; the kernel allocates nothing.
@@ -130,7 +130,7 @@ extern "C"
      *          OriorSameAt as used by a descent answers about a CORPUS position against a NEEDLE
      *          position, which are two index spaces. Grouping a field into classes compares two
      *          positions of the FIELD. Passing a descent's oracle here indexes the needle with a field
-     *          position and reads off the end of it. This signature keeps the two apart.
+     *          position and reads off the end of it. This signature retains the two apart.
      *
      * WHY PROJECT AT ALL. A probe only has to be a necessary condition of an occurrence. Within one
      * projection, two positions in one class carry one rank. Rank disagreement proves symbol
@@ -185,11 +185,11 @@ extern "C"
         uint8_t *ranks;                  /**< One rarity rank per position, written whole [BORROWS]. */
         uint32_t *class_of_position;     /**< Which class each position fell in, one entry per position,
                                           *   written during the call [BORROWS]. */
-        uint32_t *members_in_class;      /**< How many positions each class holds, indexed by the class,
+        uint32_t *members_in_class;      /**< How many positions each class contains, indexed by the class,
                                           *   written during the call [BORROWS]. */
         uint32_t *rarity_place_of_class; /**< Where each class sits in the rarity order, indexed by the
                                           *   class, written during the call [BORROWS]. */
-        size_t classes_length;           /**< Entries each of the three above holds. Must reach
+        size_t classes_length;           /**< Entries each of the three above contains. Must reach
                                           *   `length`, since every position can be its own class. */
         size_t *distinct;                /**< Where the class count is written, or NULL [BORROWS]. */
     } OriorFieldProjection;
@@ -208,9 +208,9 @@ extern "C"
      *
      * @note THE JOINT INDEX SPACE, which the caller's oracle must answer over. Positions `0` through
      *       `corpus_length - 1` are the corpus. Positions `corpus_length` through
-     *       `corpus_length + needle_length - 1` are the needle. `same_in_field` is asked about two
+     *       `corpus_length + needle_length - 1` are the needle. `same_in_field` is queried about two
      *       JOINT positions and has to reach whichever side each one names. Concatenation is the
-     *       obvious way to hold that and it is not the only one; the engine never dereferences the
+     *       obvious way to represent that and it is not the only one; the engine never dereferences the
      *       field and does not care.
      *
      * @note THE ORACLE HERE IS FIELD AGAINST FIELD INSTEAD OF CORPUS AGAINST NEEDLE. It takes two joint
@@ -221,8 +221,8 @@ extern "C"
      */
     typedef struct
     {
-        OriorSameAt same_in_field;      /**< Equality between two positions of the JOINT field. Never
-                                          *   null. Asked about joint positions, never about a corpus
+        OriorSameAt same_in_field;       /**< Equality between two positions of the JOINT field. Never
+                                          *   null. Queried about joint positions, never about a corpus
                                           *   position paired with a needle position. */
         const void *field;               /**< Passed to the oracle untouched, never dereferenced here
                                           *   [BORROWS]. May be null ONLY where the oracle reaches its
@@ -234,11 +234,11 @@ extern "C"
         uint8_t *needle_ranks;           /**< `needle_length` ranks for the needle side [BORROWS]. */
         uint32_t *class_of_position;     /**< Which class each joint position fell in, one entry per
                                           *   joint position, written during the call [BORROWS]. */
-        uint32_t *members_in_class;      /**< How many joint positions each class holds, indexed by the
+        uint32_t *members_in_class;      /**< How many joint positions each class contains, indexed by the
                                           *   class, written during the call [BORROWS]. */
         uint32_t *rarity_place_of_class; /**< Where each class sits in the one rarity order, indexed by
                                           *   the class, written during the call [BORROWS]. */
-        size_t classes_length;           /**< Entries each of the three above holds. Must reach
+        size_t classes_length;           /**< Entries each of the three above contains. Must reach
                                           *   `corpus_length + needle_length`, since every joint
                                           *   position can be its own class. */
         size_t *distinct;                /**< Where the class count over the JOINT field is written, or
@@ -253,8 +253,8 @@ extern "C"
      *
      * @note WHAT THE CALLER DOES WITH THE RESULT. `corpus_ranks` and `needle_ranks` are byte fields
      *       numbered by one rule. They can go to orior_steer_count or to any entry here that takes
-     *       bytes. What the count means depends on how many classes the joint field holds, and
-     *       `distinct` tells the caller which case applies.
+     *       bytes. What the count means depends on how many classes the joint field contains, and
+     *       `distinct` informs the caller which case applies.
      *
      * @note AT 256 CLASSES OR FEWER THE RANK COUNT IS THE EXACT COUNT. Places run from 0 to 255 and
      *       none is clamped. One rank names one class, rank agreement is class agreement, and a
@@ -264,7 +264,7 @@ extern "C"
      *       place 255 or later takes rank 255. Two different classes can agree on rank. A search
      *       over the rank fields counts those alignments too, and its full compare cannot remove them,
      *       because on rank fields the full compare compares ranks. The direction the filter needs
-     *       still holds: one class takes one rank across the whole joint field. Symbol agreement
+     *       still is valid: one class takes one rank across the whole joint field. Symbol agreement
      *       implies rank agreement and no true occurrence is lost. For an exact count past 256 classes,
      *       check the rank survivors against the symbols through the oracle, or run the descent on the
      *       oracle directly.

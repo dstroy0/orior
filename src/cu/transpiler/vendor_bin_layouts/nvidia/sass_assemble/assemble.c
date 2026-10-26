@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// assemble.c: the assembly: one instruction assembled from its text, a line taken, a label and an instruction told apart, a label's address, and the lines of a listing assembled
+// assemble.c: the assembly: one instruction assembled from its text, a line taken, a label and an instruction
+// distinguished, a label's address, and the lines of a listing assembled
 #include "sass_assemble_internal.h"
 
 typedef struct
@@ -22,7 +23,7 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         return 0;
     }
     // a register past the last the part answers a question's code can name is refused, the high half of a pair
-    // counted as its own register; RZ is no register a thread holds, and is named past every one
+    // counted as its own register; RZ is no register a thread uses, and is named past every one
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
         const char *const operand = parts.operand[place];
@@ -70,16 +71,16 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
     sass_instruction_read(form->text, &base);
     *low = form->low;
     *high = form->high;
-    // An operand the form holds and does not print keeps the bits the form was seen with. NVIDIA writes !PT into the
-    // carry-in IMAD reads as IMAD.X and PT into the predicate ISETP reads as .EX, and the part answers alike at every
-    // value of either without its modifier (interface_sass_unprinted.md)
+    // An operand the form carries and does not print retains the bits the form was seen with. NVIDIA writes !PT into
+    // the carry-in IMAD reads as IMAD.X and PT into the predicate ISETP reads as .EX, and the part answers alike at
+    // every value of either without its modifier (interface_sass_unprinted.md)
     for (unsigned int place = 0u; place < parts.operands; place += 1u)
     {
         if (places[place].by_text != 0)
         {
             if (strcmp(parts.operand[place], base.operand[place]) != 0)
             {
-                printf("  sass_assemble: %s takes %s where its form holds %s\n", text, parts.operand[place],
+                printf("  sass_assemble: %s takes %s where its form carries %s\n", text, parts.operand[place],
                        base.operand[place]);
                 return 0;
             }
@@ -95,9 +96,9 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
         {
             sass_bits_write(low, high, places[place].offset.first, places[place].offset.bits, offset);
         }
-        // A memory operand that names its descriptor writes the uniform register into the descriptor field and says
-        // whether it is shown: desc[URn] sets bit 101 and term[URn] clears it. One that names none keeps both as its
-        // form holds them
+        // A memory operand that names its descriptor writes the uniform register into the descriptor field and
+        // specifies whether it is shown: desc[URn] sets bit 101 and term[URn] clears it. One that names none retains
+        // both as its form carries them
         const int named = (strncmp(parts.operand[place], "desc[", 5u) == 0) ||
                           (strncmp(parts.operand[place], "term[", 5u) == 0);
         if ((places[place].has_descriptor != 0) && named)
@@ -108,7 +109,8 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             sass_bits_write(low, high, places[place].descriptor.first, places[place].descriptor.bits, descriptor);
             sass_bits_write(low, high, SASS_DESCRIPTOR_SHOWN, 1u, (parts.operand[place][0] == 'd') ? 1ull : 0ull);
         }
-        // a constant's bank must be the one the form holds, since the bank's own bits were not found by probing
+        // a constant's bank must be the one the form carries, since the bank's own bits were not found by probing; and
+        // its offset a whole word the field holds, refused and not cut where it is part of a word or past the bank
         if (parts.kind[place] == SASS_OPERAND_CONSTANT)
         {
             unsigned long long bank = 0ull;
@@ -118,6 +120,12 @@ int sass_assemble(const SassMachine *machine, const char *text, unsigned long lo
             if (bank != base_bank)
             {
                 printf("  sass_assemble: %s reads bank %llu where its form reads %llu\n", text, bank, base_bank);
+                return 0;
+            }
+            if (((value % places[place].value.scale) != 0ull) || ((counted >> places[place].value.bits) != 0ull))
+            {
+                printf("  sass_assemble: %s reads offset 0x%llx, which is no word its %u-bit field holds\n", text, value,
+                       places[place].value.bits);
                 return 0;
             }
         }
@@ -143,19 +151,19 @@ static const char *sass_line_take(const char *text, char *line, size_t room)
         return NULL;
     }
     const size_t length = strcspn(text, "\n");
-    size_t kept = length;
+    size_t line_length = length;
     // a listing indents with spaces and a ruleset with tabs, and both end an instruction with a semicolon
-    while ((kept != 0u) && ((text[kept - 1u] == ' ') || (text[kept - 1u] == '\t') || (text[kept - 1u] == '\r') ||
-                            (text[kept - 1u] == ';')))
+    while ((line_length != 0u) && ((text[line_length - 1u] == ' ') || (text[line_length - 1u] == '\t') ||
+                                   (text[line_length - 1u] == '\r') || (text[line_length - 1u] == ';')))
     {
-        kept -= 1u;
+        line_length -= 1u;
     }
     size_t first = 0u;
-    while ((first < kept) && ((text[first] == ' ') || (text[first] == '\t')))
+    while ((first < line_length) && ((text[first] == ' ') || (text[first] == '\t')))
     {
         first += 1u;
     }
-    const size_t taken = ((kept - first) < (room - 1u)) ? (kept - first) : (room - 1u);
+    const size_t taken = ((line_length - first) < (room - 1u)) ? (line_length - first) : (room - 1u);
     memcpy(line, text + first, taken);
     line[taken] = '\0';
     return text + length + ((text[length] == '\n') ? 1u : 0u);
@@ -173,7 +181,7 @@ static int sass_line_is_instruction(const char *line)
     return (line[0] != '\0') && (line[0] != '.') && (line[0] != '/') && (line[0] != '#') && !sass_line_is_label(line);
 }
 
-// the address the labels hold for `operand`, which a listing writes `(.L_x_0); the count where they hold none
+// the address the labels give for `operand`, which a listing writes `(.L_x_0); the count where they give none
 static unsigned long long sass_label_address(const SassLabels *labels, const char *operand, int *known)
 {
     const char *const open = strchr(operand, '(');
@@ -203,11 +211,12 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
     {
         if (sass_line_is_label(line))
         {
-            // a label past the most one text names, or longer than a name is kept, is refused and not dropped
+            // a label past the most one text names, or longer than a name is stored, is refused and not dropped
             if ((s_labels.count == SASS_LABELS) || (strlen(line) > SASS_LABEL_TOKEN))
             {
-                printf("  sass_assemble: %s is past the %u labels a text names or the %u letters a name is kept to\n",
-                       line, SASS_LABELS, SASS_LABEL_TOKEN - 1u);
+                printf(
+                    "  sass_assemble: %s is past the %u labels a text names or the %u letters a name is limited to\n",
+                    line, SASS_LABELS, SASS_LABEL_TOKEN - 1u);
                 return 0u;
             }
             snprintf(s_labels.name[s_labels.count], SASS_LABEL_TOKEN, "%.*s", (int)(strlen(line) - 1u), line);
@@ -238,7 +247,7 @@ unsigned int sass_assemble_lines(const SassMachine *machine, const char *text, u
         {
             const char *const open = strchr(parts.operand[place], '(');
             // a label of the text names where it stands; a symbol is a relocation the loader fills, and the text
-            // says nothing about where it will be
+            // specifies nothing about where it will be
             if ((parts.kind[place] == SASS_OPERAND_LABEL) && (open != NULL) && (open[1] == '.'))
             {
                 target = sass_label_address(&s_labels, parts.operand[place], &known);

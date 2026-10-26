@@ -30,10 +30,10 @@ static int entry_zip_names(const char *path, const char *member)
     }
     const size_t length = strlen(member);
     int named = 0;
-    for (unsigned long long slot = 0ull; (named == 0) && (slot < archive->entries); slot += 1ull)
+    for (unsigned long long at = 0ull; (named == 0) && (at < archive->entries); at += 1ull)
     {
         ZipEntry entry;
-        if (!zip_entry_at(archive, slot, &entry, &probe))
+        if (!zip_entry_at(archive, at, &entry, &probe))
         {
             return 0;
         }
@@ -59,18 +59,18 @@ static EntrySourceKind entry_source_kind(const char *path, const char *member)
     {
         return ENTRY_SOURCE_STACK;
     }
-    // a file's first bytes are read once and kept with its path: a run that describes many samples of one archive
+    // a file's first bytes are read once and cached with its path: a run that describes many samples of one archive
     // reads its head once
-    static char held_path[ENTRY_PATH_CAPACITY];
-    static unsigned char held_head[352];
-    static long long held_read = -1ll;
+    static char cached_path[ENTRY_PATH_CAPACITY];
+    static unsigned char cached_head[352];
+    static long long cached_read = -1ll;
     unsigned char head[352];
     memset(head, 0, sizeof(head));
     long long bytes_read = -1ll;
-    if ((held_read >= 0ll) && (strcmp(held_path, path) == 0))
+    if ((cached_read >= 0ll) && (strcmp(cached_path, path) == 0))
     {
-        memcpy(head, held_head, sizeof(head));
-        bytes_read = held_read;
+        memcpy(head, cached_head, sizeof(head));
+        bytes_read = cached_read;
     }
     else
     {
@@ -80,12 +80,12 @@ static EntrySourceKind entry_source_kind(const char *path, const char *member)
         range.bytes = sizeof(head);
         range.out = head;
         bytes_read = stack_file_read(&range);
-        const int keep = (bytes_read >= 0ll) && (strlen(path) < sizeof(held_path));
-        held_read = keep ? bytes_read : -1ll;
-        if (keep)
+        const int cacheable = (bytes_read >= 0ll) && (strlen(path) < sizeof(cached_path));
+        cached_read = cacheable ? bytes_read : -1ll;
+        if (cacheable)
         {
-            memcpy(held_path, path, strlen(path) + 1u);
-            memcpy(held_head, head, sizeof(head));
+            memcpy(cached_path, path, strlen(path) + 1u);
+            memcpy(cached_head, head, sizeof(head));
         }
     }
     if (bytes_read < 8ll)
@@ -187,7 +187,7 @@ static int entry_source_describe(const char *path, const char *member, EntrySour
         return 1;
     }
     case ENTRY_SOURCE_NO_MEMBER:
-        fprintf(stderr, "  %s: the archive holds no member named %s\n", path, member);
+        fprintf(stderr, "  %s: the archive contains no member named %s\n", path, member);
         return ENGINE_CHECK(0, member, error, ENGINE_ERROR_REQUEST);
     default:
         fprintf(stderr, "  %s: not a dataset format the engine reads\n", path);
@@ -265,7 +265,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     char axes[ENGINE_ARRAY_RANK];
     const size_t stated = (request->axes != NULL) ? strlen(request->axes) : 0u;
     int ok = (rank != 0u) && ((request->axes == NULL) || (stated == rank));
-    // a c axis, at most one, gives its lanes at the channel asked; every other axis is one of t z y x
+    // a c axis, at most one, gives its lanes at the channel requested; every other axis is one of t z y x
     int channel_axis = -1;
     for (unsigned int axis = 0u; ok && (axis < rank); axis += 1u)
     {
@@ -278,7 +278,7 @@ extern "C" long engine_source_read(const EngineSourceRequest *request, unsigned 
     if (ok == 0)
     {
         fprintf(stderr,
-                "  %s: the source's %u axes are not all named t z y x and one c holding channel %u; name them in "
+                "  %s: the source's %u axes are not all named t z y x and one c containing channel %u; name them in "
                 "the .cfg's input axes and the channel in its input channel\n",
                 request->path, rank, request->channel);
         free(source);

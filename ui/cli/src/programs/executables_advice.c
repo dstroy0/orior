@@ -1,19 +1,19 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_advice.c: what a build that failed can be told of its cause, where its lines show one orior_cli knows,
-// and what a run of the program a build made can be told of how it ended: on Windows, the codes the system ends a
-// program with that cannot load its DLLs; and a frozen Python program's module that is not in it, as one PyInstaller
-// found nowhere or as one the program imports by its name as it runs, which PyInstaller cannot see
+// executables_advice.c: what a build that failed can be reported of its cause, where its lines show one orior_cli
+// knows, and what a run of the program a build made can be reported of how it ended: on Windows, the codes the system
+// ends a program with that cannot load its DLLs; and a frozen Python program's module that is not in it, as one
+// PyInstaller found nowhere or as one the program imports by its name as it runs, which PyInstaller cannot see
 #include "../text/text.h"
 #include "executables_internal.h"
 
-// a line said through `say`
-static void cli_say(QuerySink say, const char *text)
+// a line printed through `sink`
+static void cli_print(QuerySink sink, const char *text)
 {
-    say.said(say.context, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+    sink.print(sink.context, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-// whether a line of the build holds `mark`
+// whether a line of the build contains `mark`
 static int cli_has(const CliLines *lines, const char *mark)
 {
     for (unsigned int at = 0u; at < lines->count; at += 1u)
@@ -28,7 +28,7 @@ static int cli_has(const CliLines *lines, const char *mark)
     return 0;
 }
 
-// the script of an executable's job id into `script`, which holds CLI_PATH_LONGEST, and its name: NULL where the id
+// the script of an executable's job id into `script`, sized for CLI_PATH_MAX_LEN, and its name: NULL where the id
 // is no executable's job's
 static const char *cli_id_parts(const char *id, char *script)
 {
@@ -38,15 +38,15 @@ static const char *cli_id_parts(const char *id, char *script)
     {
         return NULL;
     }
-    CliLine line = {script, CLI_PATH_LONGEST, 0ull};
-    cli_line_counted(&line, id + 11, (unsigned long long)(colon - (id + 11)));
-    cli_line_closed(&line);
+    VerbaLinea line = {script, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put_n(&line, id + 11, (unsigned long long)(colon - (id + 11)));
+    mmgr_line_finish(&line);
     return colon + 1;
 }
 
-void cli_executables_advice(const char *id, const CliLines *lines, QuerySink say)
+void cli_executables_advice(const char *id, const CliLines *lines, QuerySink sink)
 {
-    char script[CLI_PATH_LONGEST];
+    char script[CLI_PATH_MAX_LEN];
     if (cli_id_parts(id, script) == NULL)
     {
         return;
@@ -56,13 +56,13 @@ void cli_executables_advice(const char *id, const CliLines *lines, QuerySink say
             ? (cli_text_last(script, cellul.len(&(CatenaFinitaCfg){.src = script, .cap = CLI_CELLS_POOL}), '/') + 1)
             : script;
     const unsigned int kind = cli_executables_kind_of(base);
-    char said[CLI_PATH_LONGEST * 2u];
+    char print_buf[CLI_PATH_MAX_LEN * 2u];
     if ((kind == CLI_KIND_DOTNET) && (cli_has(lines, "NU1100") || cli_has(lines, "NU1101")))
     {
         const char *const args[5] = {"nuget", "list", "source", "--format", "short"};
         CliRan *const ran = cli_ran_taken();
-        char why[CLI_PATH_LONGEST];
-        CliLine failed = {why, sizeof(why), 0ull};
+        char why[CLI_PATH_MAX_LEN];
+        VerbaLinea failed = {why, sizeof(why), 0ull};
         const int listed = cli_executables_output("dotnet", "dotnet", args, 5u, NULL, ran, &failed);
         const char *from = ran->out;
         unsigned long long length = ran->out_size;
@@ -72,14 +72,14 @@ void cli_executables_advice(const char *id, const CliLines *lines, QuerySink say
                                                                            .other = "No sources found",
                                                                            .other_cap = CLI_CELLS_POOL}) != NULL)))
         {
-            cli_say(say, "NuGet has no package source to fetch the build's packages from; `dotnet nuget add source "
-                         "https://api.nuget.org/v3/index.json -n nuget.org` adds nuget.org");
+            cli_print(sink, "NuGet has no package source to fetch the build's packages from; `dotnet nuget add source "
+                            "https://api.nuget.org/v3/index.json -n nuget.org` adds nuget.org");
         }
         cli_ran_given(ran);
     }
     if (kind == CLI_KIND_CARGO)
     {
-        // the target Rust's standard library is missing for, as the line that says so names it
+        // the target Rust's standard library is missing for, as the line that reports so names it
         const char *target = NULL;
         unsigned long long target_length = 0ull;
         for (unsigned int at = 0u; (target == NULL) && (at < lines->count); at += 1u)
@@ -100,29 +100,30 @@ void cli_executables_advice(const char *id, const CliLines *lines, QuerySink say
             target_length = (closed != NULL) ? (unsigned long long)(closed - target)
                                              : cellul.len(&(CatenaFinitaCfg){.src = target, .cap = CLI_CELLS_POOL});
         }
-        CliLine line = {said, sizeof(said), 0ull};
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
         if (target != NULL)
         {
-            cli_line_text(&line, "Rust's standard library for ");
-            cli_line_counted(&line, target, target_length);
-            cli_line_text(&line, " is not installed: `rustup target add ");
-            cli_line_counted(&line, target, target_length);
-            cli_line_text(&line, "` installs it");
-            cli_line_closed(&line);
-            cli_say(say, said);
+            mmgr_line_put(&line, "Rust's standard library for ");
+            mmgr_line_put_n(&line, target, target_length);
+            mmgr_line_put(&line, " is not installed: `rustup target add ");
+            mmgr_line_put_n(&line, target, target_length);
+            mmgr_line_put(&line, "` installs it");
+            mmgr_line_finish(&line);
+            cli_print(sink, print_buf);
         }
         else if ((cli_has(lines, "linker `") && (cli_has(lines, "not found") || cli_has(lines, "failed"))) ||
                  cli_has(lines, "linking with `"))
         {
-            cli_say(say, "linking for the target chosen needs that system's linker: the musl targets link here with "
-                         "rust-lld, and a Linux GNU or macOS target links with cargo-zigbuild where it is installed");
+            cli_print(sink,
+                      "linking for the target chosen needs that system's linker: the musl targets link here with "
+                      "rust-lld, and a Linux GNU or macOS target links with cargo-zigbuild where it is installed");
         }
     }
     if ((kind == CLI_KIND_PYINSTALLER) && cli_has(lines, "No module named PyInstaller"))
     {
-        char python[CLI_PATH_LONGEST];
-        char why[CLI_NAME_LONGEST];
-        CliLine failed = {why, sizeof(why), 0ull};
+        char python[CLI_PATH_MAX_LEN];
+        char why[CLI_NAME_MAX_LEN];
+        VerbaLinea failed = {why, sizeof(why), 0ull};
         if (!cli_executables_program("python", "python", python, &failed))
         {
             memor.cpy(
@@ -130,14 +131,14 @@ void cli_executables_advice(const char *id, const CliLines *lines, QuerySink say
                               .src = "python",
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = "python", .cap = CLI_CELLS_POOL}) + 1u});
         }
-        CliLine line = {said, sizeof(said), 0ull};
-        cli_line_text(&line, "PyInstaller is not in the Python that runs it, ");
-        cli_line_text(&line, python);
-        cli_line_text(&line, "; `\"");
-        cli_line_text(&line, python);
-        cli_line_text(&line, "\" -m pip install pyinstaller` installs it there");
-        cli_line_closed(&line);
-        cli_say(say, said);
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        mmgr_line_put(&line, "PyInstaller is not in the Python that runs it, ");
+        mmgr_line_put(&line, python);
+        mmgr_line_put(&line, "; `\"");
+        mmgr_line_put(&line, python);
+        mmgr_line_put(&line, "\" -m pip install pyinstaller` installs it there");
+        mmgr_line_finish(&line);
+        cli_print(sink, print_buf);
     }
 }
 
@@ -160,21 +161,21 @@ char *cli_pyinstaller_warn(const char *spec, char *folder)
     {
         dot = (at[0] == '.') ? at : dot;
     }
-    char stem[CLI_NAME_LONGEST];
-    CliLine stemmed = {stem, sizeof(stem), 0ull};
-    cli_line_counted(&stemmed, base,
-                     (dot != NULL) ? (unsigned long long)(dot - base)
-                                   : cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}));
-    cli_line_closed(&stemmed);
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_text(&line, "/build/");
-    cli_line_text(&line, stem);
-    cli_line_text(&line, "/warn-");
-    cli_line_text(&line, stem);
-    cli_line_text(&line, ".txt");
-    return (cli_line_closed(&line) != 0ull) ? cli_text_taken(path) : NULL;
+    char stem[CLI_NAME_MAX_LEN];
+    VerbaLinea stemmed = {stem, sizeof(stem), 0ull};
+    mmgr_line_put_n(&stemmed, base,
+                    (dot != NULL) ? (unsigned long long)(dot - base)
+                                  : cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}));
+    mmgr_line_finish(&stemmed);
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_put(&line, "/build/");
+    mmgr_line_put(&line, stem);
+    mmgr_line_put(&line, "/warn-");
+    mmgr_line_put(&line, stem);
+    mmgr_line_put(&line, ".txt");
+    return (mmgr_line_finish(&line) != 0ull) ? cli_text_taken(path) : NULL;
 }
 
 void cli_pyinstaller_missing(const char *text,
@@ -256,14 +257,14 @@ typedef struct
     const char *folder;
     const char *module;
     unsigned long long length;
-    char best[CLI_NAME_LONGEST];
+    char best[CLI_NAME_MAX_LEN];
 } CliFullest;
 
 static void cli_fullest_each(void *context, const char *name, int is_folder)
 {
     CliFullest *const fullest = (CliFullest *)context;
     const unsigned long long name_length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (is_folder || (name_length < 3ull) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = name + name_length - 3ull, .other = ".py", .cap = CLI_CELLS_POOL})) ||
         !cli_executables_joined(fullest->folder, name, path))
@@ -302,24 +303,24 @@ static void cli_fullest_each(void *context, const char *name, int is_folder)
             if (named && starts &&
                 (length > cellul.len(&(CatenaFinitaCfg){.src = fullest->best, .cap = CLI_CELLS_POOL})))
             {
-                CliLine line = {fullest->best, sizeof(fullest->best), 0ull};
-                cli_line_counted(&line, piece, length);
-                cli_line_closed(&line);
+                VerbaLinea line = {fullest->best, sizeof(fullest->best), 0ull};
+                mmgr_line_put_n(&line, piece, length);
+                mmgr_line_finish(&line);
             }
             at = (end != NULL)
                      ? cellul.chr(&(CatenaFinitaCfg){.src = end + 1, .cap = CLI_CELLS_POOL, .byte = s_quotes[quote]})
                      : NULL;
         }
     }
-    cli_cell_given_by(&g_cli_executables_cells, text);
+    g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
 }
 
 void cli_executables_ran_advice(const char *root, const char *id, int has_code, long long code, const CliLines *lines,
-                                QuerySink say)
+                                QuerySink sink)
 {
     static CliFullest s_fullest;
     static CliLock s_lock = CLI_LOCK_INIT;
-    char said[CLI_PATH_LONGEST * 2u];
+    char print_buf[CLI_PATH_MAX_LEN * 2u];
 #if defined(_WIN32)
     // the exit code read as the unsigned number Windows writes it as
     const unsigned int status = has_code ? (unsigned int)code : 0u;
@@ -331,18 +332,18 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
                                   : NULL;
     if (reason != NULL)
     {
-        CliLine line = {said, sizeof(said), 0ull};
-        cli_line_text(&line, "the program did not start: ");
-        cli_line_text(&line, reason);
-        cli_line_text(&line, "; the build's end says which DLLs it loads from where");
-        cli_line_closed(&line);
-        cli_say(say, said);
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
+        mmgr_line_put(&line, "the program did not start: ");
+        mmgr_line_put(&line, reason);
+        mmgr_line_put(&line, "; the build's end shows which DLLs it loads from where");
+        mmgr_line_finish(&line);
+        cli_print(sink, print_buf);
     }
 #else
     (void)has_code;
     (void)code;
 #endif
-    char spec[CLI_PATH_LONGEST];
+    char spec[CLI_PATH_MAX_LEN];
     const unsigned long long spec_length =
         (cli_id_parts(id, spec) != NULL) ? cellul.len(&(CatenaFinitaCfg){.src = spec, .cap = CLI_CELLS_POOL}) : 0ull;
     if ((spec_length < 5ull) ||
@@ -350,8 +351,8 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
     {
         return;
     }
-    char path[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_executables_joined(root, spec, path);
     cli_lock_take(&s_lock);
     char *const warned = cli_pyinstaller_warn(path, folder);
@@ -398,11 +399,11 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
         }
         CliUnfound unfound = {module, length, module, top, 0};
         cli_pyinstaller_missing(warn, cli_unfound_each, &unfound);
-        CliLine line = {said, sizeof(said), 0ull};
+        VerbaLinea line = {print_buf, sizeof(print_buf), 0ull};
         if (unfound.found)
         {
-            cli_line_counted(&line, module, length);
-            cli_line_text(&line,
+            mmgr_line_put_n(&line, module, length);
+            mmgr_line_put(&line,
                           " is not in the frozen program: PyInstaller found it nowhere in the Python that ran it; "
                           "install it there and build again");
         }
@@ -411,20 +412,20 @@ void cli_executables_ran_advice(const char *root, const char *id, int has_code, 
             s_fullest.folder = folder;
             s_fullest.module = module;
             s_fullest.length = length;
-            CliLine best = {s_fullest.best, sizeof(s_fullest.best), 0ull};
-            cli_line_counted(&best, module, length);
-            cli_line_closed(&best);
+            VerbaLinea best = {s_fullest.best, sizeof(s_fullest.best), 0ull};
+            mmgr_line_put_n(&best, module, length);
+            mmgr_line_finish(&best);
             query_folder_each(folder, cli_fullest_each, &s_fullest);
-            cli_line_text(&line, s_fullest.best);
-            cli_line_text(&line, " is a module the frozen program imports by its name as it runs, which PyInstaller "
+            mmgr_line_put(&line, s_fullest.best);
+            mmgr_line_put(&line, " is a module the frozen program imports by its name as it runs, which PyInstaller "
                                  "cannot see: add '");
-            cli_line_text(&line, s_fullest.best);
-            cli_line_text(&line, "' to hiddenimports in ");
-            cli_line_text(&line, spec);
+            mmgr_line_put(&line, s_fullest.best);
+            mmgr_line_put(&line, "' to hiddenimports in ");
+            mmgr_line_put(&line, spec);
         }
-        cli_line_closed(&line);
-        cli_say(say, said);
+        mmgr_line_finish(&line);
+        cli_print(sink, print_buf);
     }
-    cli_cell_given_by(&g_cli_executables_cells, warned);
+    g_cli_cells->persistent_buf_release(warned, &g_cli_executables_cells);
     cli_lock_give(&s_lock);
 }

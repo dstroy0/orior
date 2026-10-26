@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// pages_lines.c: the lines a reading of a paged text gives, in one cell sized to the lines asked and the bytes read,
-// moved into a cell of twice the room as either fills
+// pages_lines.c: the lines a reading of a paged text gives, in one cell sized to the lines requested and the bytes
+// read, moved into a cell of twice the room as either fills
 #include "../command_line/cells.h"
 #include "pages_internal.h"
 
-// the bytes the starts and the lengths of `lines_most` lines take ahead of the text; and `wanted` held within `most`
+// the bytes the starts and the lengths of `lines_most` lines take ahead of the text; and `wanted` bounded by `most`
 static unsigned long long lines_heads(unsigned long long lines_most)
 {
     return 2ull * lines_most * sizeof(unsigned long long);
@@ -16,7 +16,7 @@ static unsigned long long lines_bounded(unsigned long long wanted, unsigned long
     return (wanted < most) ? wanted : most;
 }
 
-// `lines` laid over `cell`, which holds `lines_most` lines' starts and lengths and `text_most` bytes of text
+// `lines` laid over `cell`, sized for `lines_most` lines' starts and lengths and `text_most` bytes of text
 static void lines_laid(CliPageLines *lines, unsigned char *cell, unsigned long long lines_most,
                        unsigned long long text_most)
 {
@@ -28,15 +28,15 @@ static void lines_laid(CliPageLines *lines, unsigned char *cell, unsigned long l
     lines->text_most = text_most;
 }
 
-int cli_page_lines_held(CliPageLines *lines, unsigned long long lines_first, unsigned long long text_first,
-                        CliLine *said)
+int cli_page_lines_reserved(CliPageLines *lines, unsigned long long lines_first, unsigned long long text_first,
+                            VerbaLinea *err_msg)
 {
     const unsigned long long lines_most = (lines_first < 1ull) ? 1ull : lines_bounded(lines_first, CLI_PAGE_READ_LINES);
     const unsigned long long text_most = (text_first < 1ull) ? 1ull : lines_bounded(text_first, CLI_PAGE_READ_TEXT);
-    unsigned char *const cell = cli_cell_taken(lines_heads(lines_most) + text_most, "the lines a reading gives");
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(lines_heads(lines_most) + text_most, NULL);
     if (cell == NULL)
     {
-        cli_line_text(said, "the lines a reading gives could not be taken");
+        mmgr_line_put(err_msg, "the lines a reading gives could not be taken");
         return 0;
     }
     lines_laid(lines, cell, lines_most, text_most);
@@ -70,7 +70,7 @@ int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsi
         lines_bounded((lines_twice > lines_wanted) ? lines_twice : lines_wanted, CLI_PAGE_READ_LINES);
     const unsigned long long text_most =
         lines_bounded((text_twice > text_wanted) ? text_twice : text_wanted, CLI_PAGE_READ_TEXT);
-    unsigned char *const cell = cli_cell_taken(lines_heads(lines_most) + text_most, "the lines a reading gives");
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(lines_heads(lines_most) + text_most, NULL);
     if (cell == NULL)
     {
         lines->full = 1;
@@ -81,7 +81,7 @@ int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsi
     memor.cpy(&(MemoriaCfg){.dst = moved.start, .src = lines->start, .bytes = lines->count * sizeof(*moved.start)});
     memor.cpy(&(MemoriaCfg){.dst = moved.length, .src = lines->length, .bytes = lines->count * sizeof(*moved.length)});
     memor.cpy(&(MemoriaCfg){.dst = moved.text, .src = lines->text, .bytes = lines->used});
-    cli_cell_given(lines->cell);
+    g_cli_cells->persistent_buf_release(lines->cell, NULL);
     lines_laid(lines, cell, lines_most, text_most);
     return 1;
 }
@@ -99,13 +99,14 @@ void cli_page_lines_put(CliPageLines *lines, const char *bytes, unsigned long lo
     lines->count += 1ull;
 }
 
-int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long long total, unsigned long long *block_most,
-                        unsigned long long *to, CliPageLines *lines, CliLine *said)
+int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long long total,
+                        unsigned long long *block_most, unsigned long long *to, CliPageLines *lines,
+                        VerbaLinea *err_msg)
 {
     for (;;)
     {
         *to = ((from + *block_most) < total) ? (from + *block_most) : total;
-        if (!cli_page_lines_of(one, from, *to, lines, said))
+        if (!cli_page_lines_of(one, from, *to, lines, err_msg))
         {
             return 0;
         }
@@ -115,9 +116,9 @@ int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long lo
         }
         if (*block_most == 1ull)
         {
-            cli_line_text(said, "line ");
-            cli_line_decimal(said, from + 1ull, 1u);
-            cli_line_text(said, " is longer than a reading of the text holds");
+            mmgr_line_put(err_msg, "line ");
+            mmgr_line_decimal(err_msg, from + 1ull, 1u);
+            mmgr_line_put(err_msg, " is longer than a reading of the text contains");
             return 0;
         }
         *block_most /= 2ull;
@@ -126,7 +127,7 @@ int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long lo
 
 void cli_page_lines_given(CliPageLines *lines)
 {
-    cli_cell_given(lines->cell);
+    g_cli_cells->persistent_buf_release(lines->cell, NULL);
     lines->cell = NULL;
     lines->start = NULL;
     lines->length = NULL;

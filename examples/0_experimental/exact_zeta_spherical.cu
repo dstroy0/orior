@@ -35,7 +35,9 @@
 #include "../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -47,11 +49,11 @@
 #include <string>
 #include <vector>
 
-// the scale every value is held at, and the half of it one division takes
+// the scale every value is stored at, and the half of it one division takes
 #define SPHERICAL_SCALE_BITS 62u
 #define SPHERICAL_HALF_BITS 31u
 // every value taken back is below 2^95 in size at the scale, the wrap to this width passes it unchanged
-#define SPHERICAL_HELD_BITS 96u
+#define SPHERICAL_SCALED_BITS 96u
 // the lanes, below 2^24
 #define SPHERICAL_LANE_BITS 24u
 
@@ -137,7 +139,7 @@ static unsigned int spherical_scaled(SphericalProgram *program, unsigned int a, 
     const unsigned int half = spherical_constant(program, 1ull << SPHERICAL_HALF_BITS);
     const unsigned int product = spherical_step(program, ENGINE_RECORD_PRODUCT, a, b);
     const unsigned int once = spherical_step(program, ENGINE_RECORD_QUOTIENT, product, half);
-    return spherical_wrap(program, spherical_step(program, ENGINE_RECORD_QUOTIENT, once, half), SPHERICAL_HELD_BITS);
+    return spherical_wrap(program, spherical_step(program, ENGINE_RECORD_QUOTIENT, once, half), SPHERICAL_SCALED_BITS);
 }
 
 // a value divided by an integer, toward zero
@@ -146,7 +148,7 @@ static unsigned int spherical_divided(SphericalProgram *program, unsigned int va
     return spherical_step(program, ENGINE_RECORD_QUOTIENT, value, spherical_constant(program, by));
 }
 
-// (2n + 1)^2 / 4 at the scale, (2n + 1)^2 times 2^60, a product of two constants that keeps every n's value whole
+// (2n + 1)^2 / 4 at the scale, (2n + 1)^2 times 2^60, a product of two constants that preserves every n's value whole
 static unsigned int spherical_quarter(SphericalProgram *program, unsigned long long odd_square)
 {
     return spherical_step(program, ENGINE_RECORD_PRODUCT, spherical_constant(program, odd_square),
@@ -156,10 +158,13 @@ static unsigned int spherical_quarter(SphericalProgram *program, unsigned long l
 static SphericalComplex spherical_cmul(SphericalProgram *program, SphericalComplex a, SphericalComplex b)
 {
     SphericalComplex out;
-    out.re = spherical_wrap(program, spherical_difference(program, spherical_scaled(program, a.re, b.re), spherical_scaled(program, a.im, b.im)),
-                            SPHERICAL_HELD_BITS);
-    out.im = spherical_wrap(program, spherical_sum(program, spherical_scaled(program, a.re, b.im), spherical_scaled(program, a.im, b.re)),
-                            SPHERICAL_HELD_BITS);
+    out.re = spherical_wrap(
+        program,
+        spherical_difference(program, spherical_scaled(program, a.re, b.re), spherical_scaled(program, a.im, b.im)),
+        SPHERICAL_SCALED_BITS);
+    out.im = spherical_wrap(
+        program, spherical_sum(program, spherical_scaled(program, a.re, b.im), spherical_scaled(program, a.im, b.re)),
+        SPHERICAL_SCALED_BITS);
     return out;
 }
 
@@ -266,7 +271,7 @@ static void spherical_build(SphericalStage *stage, unsigned int artanh_terms, un
         SPHERICAL_SCALE_BITS + 1u);
     const SphericalComplex around = spherical_cis(program, turn, cosine);
     const SphericalComplex turned = spherical_cmul(program, around, second);
-    stage->outputs.push_back(spherical_wrap(program, first, SPHERICAL_HELD_BITS));
+    stage->outputs.push_back(spherical_wrap(program, first, SPHERICAL_SCALED_BITS));
     stage->names.push_back("first");
     stage->outputs.push_back(spherical_scaled(program, turned.re, root));
     stage->names.push_back("second_re");
@@ -323,7 +328,7 @@ static void spherical_put(unsigned int *record, unsigned int offset, unsigned in
     }
 }
 
-// imprints, lays out and loads the program, runs every lane, and holds the host's first `checked` records against the
+// imprints, lays out and loads the program, runs every lane, and checks the host's first `checked` records against the
 // device's
 static int spherical_sweep(SimResults *job, SphericalStage *stage, unsigned long long lanes, unsigned long long checked,
                            EngineError *error, int count, char **arguments)

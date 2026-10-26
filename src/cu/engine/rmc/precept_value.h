@@ -3,16 +3,16 @@
 #ifndef PRECEPT_VALUE_H
 #define PRECEPT_VALUE_H
 
-// A tree over the alphabet applied to words. This is a tree saying what a target should answer.
+// A tree over the alphabet applied to words. This is a tree specifying what a target should answer.
 //
 // Nothing here knows a language. A word of the web is a tree of precepts (word_web.h), and a precept is a gate, a
 // wire or a shift whose meaning is fixed everywhere. Walking the tree over a case of operands gives the word the
-// target must produce if it holds that word at all. The target is then asked and the two are compared. Where they
+// target must produce if it supports that word at all. The target is then queried and the two are compared. Where they
 // agree the target has a word for that tree, and where they differ it does not. No person states the answer.
 //
 // This is the half of the derivation that needs no target. A form carries an operation's name and the kind of each
-// operand and says nothing about what the operation means. A name therefore cannot be matched to a word. Running
-// can: where an operand of a form is a truth table of eight bits, sweep its 256 values and keep whichever answers
+// operand and states nothing about what the operation means. A name therefore cannot be matched to a word. Running
+// can: where an operand of a form is a truth table of eight bits, sweep its 256 values and retain whichever answers
 // as the tree does, and the target's word for that tree is found with nobody naming the value.
 
 #include "precepts.h"
@@ -46,7 +46,7 @@ static unsigned int precept_leaf(unsigned char leaf, const PreceptCase *given)
 }
 
 // `precept` applied to two words. A shift takes its count from the low five bits of the right word, as every part
-// this has been asked of does: the count wraps at the width, and a count of 32 answers the word unshifted
+// this has been requested of does: the count wraps at the width, and a count of 32 answers the word unshifted
 static unsigned int precept_applied(unsigned char precept, unsigned int left, unsigned int right)
 {
     const unsigned int count = right & (PRECEPT_WORD_BITS - 1u);
@@ -90,7 +90,7 @@ static unsigned int precept_applied(unsigned char precept, unsigned int left, un
     case PRECEPT_MUL:
         return (left * right) & PRECEPT_WORD_MASK;
     default:
-        // ERR, BRA and JCC carry no word: a tree holding one answers nothing and is never matched by running
+        // ERR, BRA and JCC carry no word: a tree containing one answers nothing and is never matched by running
         return 0u;
     }
 }
@@ -99,7 +99,7 @@ static unsigned int precept_applied(unsigned char precept, unsigned int left, un
 // node names a child past the nodes before it or a precept that carries no word
 static int precept_value(const PreceptNode *node, unsigned int nodes, const PreceptCase *given, unsigned int *answered)
 {
-    unsigned int held[PRECEPT_NODES];
+    unsigned int values[PRECEPT_NODES];
     if ((nodes == 0u) || (nodes > PRECEPT_NODES))
     {
         return 0;
@@ -125,11 +125,11 @@ static int precept_value(const PreceptNode *node, unsigned int nodes, const Prec
             {
                 return 0;
             }
-            side[which] = held[child[which]];
+            side[which] = values[child[which]];
         }
-        held[at] = precept_applied(precept, side[0], side[1]);
+        values[at] = precept_applied(precept, side[0], side[1]);
     }
-    *answered = held[nodes - 1u];
+    *answered = values[nodes - 1u];
     return 1;
 }
 

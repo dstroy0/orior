@@ -19,9 +19,9 @@ void divide_check(DivideResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -261,7 +261,7 @@ void divide_narrow(DivideResults *results)
     unsigned int *const device_out = (unsigned int *)calloc((size_t)lanes * out_limbs, sizeof(unsigned int));
     if ((atoms == NULL) || (operand == NULL) || (host_out == NULL) || (device_out == NULL))
     {
-        divide_check(results, 0, "the narrow lanes are held");
+        divide_check(results, 0, "the narrow lanes are allocated");
         free(atoms);
         free(operand);
         free(host_out);
@@ -397,13 +397,13 @@ void divide_narrow(DivideResults *results)
                                           {0x291FE821u, 0xA8B8B452u, 0xCFD41B91u, 0u},
                                           {40u, 0u, 24u, 0u}};
         int error = 1;
-        int kept = 1;
+        int fits = 1;
         for (unsigned int at = 0u; at < 3u; at += 1u)
         {
             divide_run(&loaded, cases[at], 1u, host_out, device_out, &host_ran, &device_ran);
             if (at == 1u)
             {
-                kept = (host_ran != 0) && (device_ran != 0) && (host_out[0] == 0xCFD41B91u) &&
+                fits = (host_ran != 0) && (device_ran != 0) && (host_out[0] == 0xCFD41B91u) &&
                        (device_out[0] == 0xCFD41B91u) && (host_out[1] == 0u) && (device_out[1] == 0u);
             }
             else
@@ -412,7 +412,7 @@ void divide_narrow(DivideResults *results)
             }
         }
         divide_check(results, error, "an inexact division errors on the lane, host and device");
-        divide_check(results, kept, "3^40 divides exactly by 3^20 to 3^20, host and device");
+        divide_check(results, fits, "3^40 divides exactly by 3^20 to 3^20, host and device");
         divide_free(&loaded);
     }
 

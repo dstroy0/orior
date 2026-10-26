@@ -15,8 +15,8 @@
 //     T_b f = L^-1 (-b f + D eta f_eta + X f_X),   Z_b f = L^-1 (2 b eta f + d f_eta - 2 eta X f_X),
 // its eqs. (3) and (4), and the rule they give at order k, the paper's eqs. (17) and (18) with the sign of the b term
 // as (3) has it:
-//     2 (k+1)(k+2) F_(k+1) = L^-1 ((k + 1 + h) F_k + D eta F_k') + sum v_i (k-i+1) F_(k-i) + sum U_i (Z_{-(A+1/2)} F)_(k-i),
-//     2 (k+1)^2 U_(k+1) = L^-1 ((k + A) U_k + D eta U_k') + sum v_i (k-i) U_(k-i) + sum U_i (Z_{-A} U)_(k-i)
+//     2 (k+1)(k+2) F_(k+1) = L^-1 ((k + 1 + h) F_k + D eta F_k') + sum v_i (k-i+1) F_(k-i) + sum U_i (Z_{-(A+1/2)}
+//     F)_(k-i), 2 (k+1)^2 U_(k+1) = L^-1 ((k + A) U_k + D eta U_k') + sum v_i (k-i) U_(k-i) + sum U_i (Z_{-A} U)_(k-i)
 //                         + (Z_{-2A} Pi)_k,
 //     (k+1) v_k = L^-1 (2 A eta U_k - d U_k' + 2 k eta U_k),   k P_k = sum_(i+j=k-1) F_i F_j,
 // with (Z_b f)_j = L^-1 (2 b eta f_j + d f_j' - 2 j eta f_j). The system's side is taken by the operations of
@@ -28,11 +28,11 @@
 //    rule changed, a single entry or a Cauchy product, it does not.
 // 3. With F, v0 and Pi even in eta and U odd at every order to k, the rule's F_(k+1), v_(k+1) and P_(k+1) are even and
 //    U_(k+1) odd: data F_0 and Pi_0 even and U_0 odd give the parities at every order.
-// 4. The paper's eqs. (17) and (18) as printed hold L^-1 (-(A + 1/2) F_k + D eta F_k' + k F_k) and
+// 4. The paper's eqs. (17) and (18) as printed satisfy L^-1 (-(A + 1/2) F_k + D eta F_k' + k F_k) and
 //    L^-1 (-A U_k + D eta U_k' + k U_k), and its own T_b of (3) gives -b = +(A + 1/2) and +A: the printed parts differ
 //    from T_{-(A+1/2)} F and T_{-A} U at order k by exactly 2 (A + 1/2) L^-1 F_k and 2 A L^-1 U_k. The rule of 2 is
 //    what (3) and (4) give.
-// 5. Every exact value is held in the build's width.
+// 5. Every exact value is stored in the build's width.
 // 6. Every expression is written whole to the cfg's record.
 // The request: core_rule <cfg>.
 //     bash examples/navier_stokes/run.sh core_rule examples/navier_stokes/cfg/core_rule.cfg
@@ -128,8 +128,8 @@ static SeriesRule core_rule_z_sum(unsigned int field, const SeriesRulePolynomial
 // one check's line and its result
 static int core_rule_report(SimResults *results, int passed, const char *pass, const char *fail, const char *what)
 {
-    scriptura_text(&results->line, passed ? pass : fail);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, passed ? pass : fail);
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
     sim_check(results, passed, what);
     return passed;
@@ -170,7 +170,8 @@ int main(int count, char **arguments)
     rule = series_rule_difference(series_rule_slope_eta(core_rule_over_l(first)), core_rule_over_l(series_rule_slope_eta(first)));
     rule = series_rule_difference(rule, series_rule_scaled(first, core_rule_times(core_rule_number(4ll, 1ll), core_rule_times(h, core_rule_eta())), 2u));
     operations = operations && series_rule_zero(rule);
-    core_rule_report(&results, operations, "  the product rules in X and in eta and d/deta of L^-1 hold at a general k",
+    core_rule_report(&results, operations,
+                     "  the product rules in X and in eta and d/deta of L^-1 are valid at a general k",
                      "  an operation fails its rule at a general k", "the operations");
 
     // 2. the four equations, the system's side
@@ -234,15 +235,15 @@ int main(int count, char **arguments)
     const int along_equal = series_rule_zero(series_rule_sum(along, along_rule));
     const int flow_equal = series_rule_zero(series_rule_difference(flow, flow_rule));
     const int rise_equal = series_rule_zero(series_rule_difference(series_rule_shift(rise, -1), rise_rule));
-    scriptura_text(&results.line, "  the coefficient of X^k against the rule at a general k: theta ");
-    scriptura_text(&results.line, theta_equal ? "equal" : "differs");
-    scriptura_text(&results.line, ", z ");
-    scriptura_text(&results.line, along_equal ? "equal" : "differs");
-    scriptura_text(&results.line, ", v0 ");
-    scriptura_text(&results.line, flow_equal ? "equal" : "differs");
-    scriptura_text(&results.line, ", Pi ");
-    scriptura_text(&results.line, rise_equal ? "equal" : "differs");
-    scriptura_character(&results.line, '\n');
+    mmgr_line_put(&results.line, "  the coefficient of X^k against the rule at a general k: theta ");
+    mmgr_line_put(&results.line, theta_equal ? "equal" : "differs");
+    mmgr_line_put(&results.line, ", z ");
+    mmgr_line_put(&results.line, along_equal ? "equal" : "differs");
+    mmgr_line_put(&results.line, ", v0 ");
+    mmgr_line_put(&results.line, flow_equal ? "equal" : "differs");
+    mmgr_line_put(&results.line, ", Pi ");
+    mmgr_line_put(&results.line, rise_equal ? "equal" : "differs");
+    mmgr_line_ch(&results.line, '\n');
     sim_flush(&results);
     sim_check(&results, theta_equal && along_equal && flow_equal && rise_equal, "the system against the rule at a general k");
     // the same comparison with one part of the rule changed, a single entry and a Cauchy product, is not 0
@@ -277,9 +278,10 @@ int main(int count, char **arguments)
                      "  the rule does not carry the parities one order", "the parities at every order");
 
     // 4. and 5.
-    const int held = !series_rule_short() && !run_cfg_short() && !record_short();
-    core_rule_report(&results, held, "  every exact value is held in the build's width",
-                     "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS", "every exact value held");
+    const int fits = !series_rule_short() && !run_cfg_short() && !record_short();
+    core_rule_report(&results, fits, "  every exact value is stored in the build's width",
+                     "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS",
+                     "every exact value stored");
     FILE *const record = record_open(arguments[1], &cfg, "report.record");
     int recorded = 0;
     if (record != NULL)

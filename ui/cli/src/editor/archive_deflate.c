@@ -51,7 +51,7 @@ typedef struct
     const unsigned char *data;
     unsigned long long size;
     unsigned long long at;
-    unsigned int held;
+    unsigned int bit_buf;
     unsigned int count;
 } CliBits;
 
@@ -64,12 +64,12 @@ static int cli_take(CliBits *bits, unsigned int count, unsigned int *value)
         {
             return 0;
         }
-        bits->held |= (unsigned int)bits->data[bits->at] << bits->count;
+        bits->bit_buf |= (unsigned int)bits->data[bits->at] << bits->count;
         bits->at += 1ull;
         bits->count += 8u;
     }
-    *value = bits->held & ((count == 32u) ? 0xffffffffu : ((1u << count) - 1u));
-    bits->held = (count == 32u) ? 0u : (bits->held >> count);
+    *value = bits->bit_buf & ((count == 32u) ? 0xffffffffu : ((1u << count) - 1u));
+    bits->bit_buf = (count == 32u) ? 0u : (bits->bit_buf >> count);
     bits->count -= count;
     return 1;
 }
@@ -106,8 +106,8 @@ static void cli_huffman_of(const unsigned char *lengths, unsigned int count, Cli
     }
 }
 
-// a symbol decoded: 1 with it into `symbol`, or 0 with why said
-static int cli_decode(const CliHuffman *huffman, CliBits *bits, unsigned int *symbol, CliLine *said)
+// a symbol decoded: 1 with it into `symbol`, or 0 with why given
+static int cli_decode(const CliHuffman *huffman, CliBits *bits, unsigned int *symbol, VerbaLinea *err_msg)
 {
     int code = 0;
     int first = 0;
@@ -117,10 +117,10 @@ static int cli_decode(const CliHuffman *huffman, CliBits *bits, unsigned int *sy
         unsigned int bit = 0u;
         if (!cli_take(bits, 1u, &bit))
         {
-            cli_line_text(said, "the deflated data ends early");
+            mmgr_line_put(err_msg, "the deflated data ends early");
             return 0;
         }
-        // a bit and a count are small, which an int holds
+        // a bit and a count are small, which an int stores
         code |= (int)bit;
         const int count = (int)huffman->counts[length];
         if ((code - count) < first)
@@ -128,7 +128,7 @@ static int cli_decode(const CliHuffman *huffman, CliBits *bits, unsigned int *sy
             const int place = index + code - first;
             if ((place < 0) || (place >= 320))
             {
-                cli_line_text(said, "a code past the table");
+                mmgr_line_put(err_msg, "a code past the table");
                 return 0;
             }
             // a place in the table, not negative as checked above
@@ -139,18 +139,18 @@ static int cli_decode(const CliHuffman *huffman, CliBits *bits, unsigned int *sy
         first = (first + count) << 1;
         code <<= 1;
     }
-    cli_line_text(said, "a code no table holds");
+    mmgr_line_put(err_msg, "a code no table contains");
     return 0;
 }
 
 // a block's codes read until its end, each literal and each run put after the output
 static int cli_codes(CliBits *bits, unsigned char *out, unsigned long long room, unsigned long long *size,
-                     const CliHuffman *literals, const CliHuffman *distances, CliLine *said)
+                     const CliHuffman *literals, const CliHuffman *distances, VerbaLinea *err_msg)
 {
     for (;;)
     {
         unsigned int symbol = 0u;
-        if (!cli_decode(literals, bits, &symbol, said))
+        if (!cli_decode(literals, bits, &symbol, err_msg))
         {
             return 0;
         }
@@ -158,7 +158,7 @@ static int cli_codes(CliBits *bits, unsigned char *out, unsigned long long room,
         {
             if (*size >= room)
             {
-                cli_line_text(said, "the inflated data is larger than orior_cli holds");
+                mmgr_line_put(err_msg, "the inflated data is larger than orior_cli supports");
                 return 0;
             }
             // a literal is below 256, a byte
@@ -176,28 +176,28 @@ static int cli_codes(CliBits *bits, unsigned char *out, unsigned long long room,
         unsigned int distance_extra = 0u;
         if ((at >= 29u) || !cli_take(bits, g_cli_length_extra[at], &extra))
         {
-            cli_line_text(said, (at >= 29u) ? "a length past the table" : "the deflated data ends early");
+            mmgr_line_put(err_msg, (at >= 29u) ? "a length past the table" : "the deflated data ends early");
             return 0;
         }
         const unsigned long long length = g_cli_length_base[at] + extra;
-        if (!cli_decode(distances, bits, &code, said))
+        if (!cli_decode(distances, bits, &code, err_msg))
         {
             return 0;
         }
         if ((code >= 30u) || !cli_take(bits, g_cli_distance_extra[code], &distance_extra))
         {
-            cli_line_text(said, (code >= 30u) ? "a distance past the table" : "the deflated data ends early");
+            mmgr_line_put(err_msg, (code >= 30u) ? "a distance past the table" : "the deflated data ends early");
             return 0;
         }
         const unsigned long long distance = g_cli_distance_base[code] + distance_extra;
         if (distance > *size)
         {
-            cli_line_text(said, "a distance back past the start");
+            mmgr_line_put(err_msg, "a distance back past the start");
             return 0;
         }
         if ((*size + length) > room)
         {
-            cli_line_text(said, "the inflated data is larger than orior_cli holds");
+            mmgr_line_put(err_msg, "the inflated data is larger than orior_cli supports");
             return 0;
         }
         const unsigned long long from = *size - distance;
@@ -210,7 +210,7 @@ static int cli_codes(CliBits *bits, unsigned char *out, unsigned long long room,
 }
 
 int cli_inflate(const unsigned char *data, unsigned long long size, unsigned char *out, unsigned long long room,
-                unsigned long long *out_size, unsigned long long *used, CliLine *said)
+                unsigned long long *out_size, unsigned long long *used, VerbaLinea *err_msg)
 {
     static CliHuffman s_literals;
     static CliHuffman s_distances;
@@ -228,31 +228,32 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
         if (!cli_take(&bits, 1u, &last) || !cli_take(&bits, 2u, &kind))
         {
             cli_lock_give(&s_lock);
-            cli_line_text(said, "the deflated data ends early");
+            mmgr_line_put(err_msg, "the deflated data ends early");
             return 0;
         }
         int done = 1;
         if (kind == 0u)
         {
-            bits.held = 0u;
+            bits.bit_buf = 0u;
             bits.count = 0u;
             const unsigned long long at = bits.at;
             if ((at + 4ull) > size)
             {
-                cli_line_text(said, "a stored block's header is cut");
+                mmgr_line_put(err_msg, "a stored block's header is cut");
                 done = 0;
             }
             const unsigned int length = done ? (data[at] | ((unsigned int)data[at + 1ull] << 8u)) : 0u;
             const unsigned int check = done ? (data[at + 2ull] | ((unsigned int)data[at + 3ull] << 8u)) : 0u;
             if (done && (length != ((~check) & 0xffffu)))
             {
-                cli_line_text(said, "a stored block's length does not check");
+                mmgr_line_put(err_msg, "a stored block's length does not check");
                 done = 0;
             }
             if (done && (((at + 4ull + length) > size) || ((*out_size + length) > room)))
             {
-                cli_line_text(said, ((at + 4ull + length) > size) ? "a stored block is cut"
-                                                                  : "the inflated data is larger than orior_cli holds");
+                mmgr_line_put(err_msg, ((at + 4ull + length) > size)
+                                           ? "a stored block is cut"
+                                           : "the inflated data is larger than orior_cli supports");
                 done = 0;
             }
             if (done)
@@ -273,7 +274,7 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
             memor.set(&(MemoriaCfg){.dst = fives, .val = 5, .bytes = sizeof(fives)});
             cli_huffman_of(lengths, 288u, &s_literals);
             cli_huffman_of(fives, 30u, &s_distances);
-            done = cli_codes(&bits, out, room, out_size, &s_literals, &s_distances, said);
+            done = cli_codes(&bits, out, room, out_size, &s_literals, &s_distances, err_msg);
         }
         else if (kind == 2u)
         {
@@ -296,7 +297,7 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
             }
             if (!done)
             {
-                cli_line_text(said, "the deflated data ends early");
+                mmgr_line_put(err_msg, "the deflated data ends early");
             }
             cli_huffman_of(lengths, 19u, &s_lengths_code);
             unsigned char all[320];
@@ -305,7 +306,7 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
             {
                 unsigned int symbol = 0u;
                 unsigned int extra = 0u;
-                done = cli_decode(&s_lengths_code, &bits, &symbol, said);
+                done = cli_decode(&s_lengths_code, &bits, &symbol, err_msg);
                 unsigned int value = symbol;
                 unsigned int times = 1u;
                 if (done && (symbol == 16u))
@@ -315,8 +316,8 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
                     times = 3u + extra;
                     if (!done)
                     {
-                        cli_line_text(said, (count > 0u) ? "the deflated data ends early"
-                                                         : "a repeat with nothing before it");
+                        mmgr_line_put(err_msg, (count > 0u) ? "the deflated data ends early"
+                                                            : "a repeat with nothing before it");
                     }
                 }
                 else if (done && (symbol >= 17u))
@@ -326,7 +327,7 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
                     times = ((symbol == 17u) ? 3u : 11u) + extra;
                     if (!done)
                     {
-                        cli_line_text(said, "the deflated data ends early");
+                        mmgr_line_put(err_msg, "the deflated data ends early");
                     }
                 }
                 for (unsigned int time = 0u; done && (time < times); time += 1u)
@@ -341,25 +342,25 @@ int cli_inflate(const unsigned char *data, unsigned long long size, unsigned cha
                 }
                 if (done && (count > (literals + distances)))
                 {
-                    cli_line_text(said, "the code lengths overrun");
+                    mmgr_line_put(err_msg, "the code lengths overrun");
                     done = 0;
                 }
             }
             if (done && ((literals > 288u) || (distances > 32u)))
             {
-                cli_line_text(said, "the code lengths overrun");
+                mmgr_line_put(err_msg, "the code lengths overrun");
                 done = 0;
             }
             if (done)
             {
                 cli_huffman_of(all, literals, &s_literals);
                 cli_huffman_of(all + literals, distances, &s_distances);
-                done = cli_codes(&bits, out, room, out_size, &s_literals, &s_distances, said);
+                done = cli_codes(&bits, out, room, out_size, &s_literals, &s_distances, err_msg);
             }
         }
         else
         {
-            cli_line_text(said, "a block of a kind deflate has none of");
+            mmgr_line_put(err_msg, "a block of a kind deflate has none of");
             done = 0;
         }
         if (!done)

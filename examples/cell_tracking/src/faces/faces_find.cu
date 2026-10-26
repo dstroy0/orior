@@ -13,10 +13,10 @@
 
 #if defined(_WIN32)
 #define FACES_SEEK _fseeki64
-#define FACES_TELL _ftelli64
+#define FACES_FTELL _ftelli64
 #else
 #define FACES_SEEK fseeko
-#define FACES_TELL ftello
+#define FACES_FTELL ftello
 #endif
 
 // .points and .shape each open with frames, depth, height, width, the residual's limbs and a sixth word: the contrast's
@@ -25,8 +25,8 @@
 // differences
 #define FACES_SCAN_HEADER_WORDS 6u
 
-// .drift opens with frames, depth, height, width and the three weights; each frame then holds its positive voxels, and
-// every frame after the first the lag (z, y, x) carrying the frame before onto it and the agreement at that lag
+// .drift opens with frames, depth, height, width and the three weights; each frame then contains its positive voxels,
+// and every frame after the first the lag (z, y, x) carrying the frame before onto it and the agreement at that lag
 #define FACES_DRIFT_HEADER_WORDS 7u
 
 // a pair's source records and gate records, and the .links' bytes for its CRC-64, are read this many at a time
@@ -34,7 +34,7 @@
 
 #define FACES_NONE 0xFFFFFFFFu
 
-// one frame as the part holds it: its lag from the frame before (0 at frame 0), and for each point its place, its own
+// one frame as the part stores it: its lag from the frame before (0 at frame 0), and for each point its place, its own
 // faces from the .shape, its chosen link in (the source's index in the frame before) and out (the target's index in
 // the next), and the faces its prediction crosses
 typedef struct
@@ -99,9 +99,9 @@ static unsigned long long faces_frame_bytes(unsigned long long count, unsigned l
 // the file's place is its end: every frame read whole, and nothing past the last
 static int faces_at_end(FILE *file)
 {
-    const long long place = FACES_TELL(file);
+    const long long place = FACES_FTELL(file);
     const int ended = (place >= 0ll) && (FACES_SEEK(file, 0ll, SEEK_END) == 0);
-    return ended && (FACES_TELL(file) == place);
+    return ended && (FACES_FTELL(file) == place);
 }
 
 // the faces `place` crosses on `axis` of `extent`: below 0 its low face, at or past the extent its high, as the shape's
@@ -159,7 +159,8 @@ static int faces_words_reserve(FacesWalk *walk, size_t words)
     return grown != NULL;
 }
 
-// the CRC-64 of the whole file (cu/includes/codecs/crc/crc.h's key), read through `chunk`, which holds FACES_CHUNK * 4 bytes
+// the CRC-64 of the whole file (cu/includes/codecs/crc/crc.h's key), read through `chunk`, which contains FACES_CHUNK *
+// 4 bytes
 static int faces_file_crc(const char *path, unsigned int *chunk, unsigned long long *crc)
 {
     FILE *const file = fopen(path, "rb");
@@ -369,7 +370,7 @@ static int faces_frame_write(const char *sample, FILE *faces, const unsigned int
                         sample, frame, point, axis, backward);
                 return 0;
             }
-            // a back-prediction held in [-2^31, 2^31) is written as its two's complement word
+            // a back-prediction represented in [-2^31, 2^31) is written as its two's complement word
             word[axis] = (unsigned int)(int)backward;
             back |= faces_crossed(axis, backward, extent[axis]);
         }

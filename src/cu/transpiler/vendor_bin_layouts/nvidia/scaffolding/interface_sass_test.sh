@@ -57,14 +57,22 @@ for one in $ARCHES; do
     GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
-INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$CUBIN")
+INCLUDES=(-I "$TOP/src/cu/engine" -I "$INTERFACE" -I "$CUBIN" "${FILE_DEFS_MMGR_FLAGS[@]}")
 rm -f "$BINARY" "$PROBE"
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
-              "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TEST/interface_sass_probe_main.c" "$TEST"/interface_sass_probe_main/*.c "$TEST"/interface_sass_probe_machine/*.c \
-              "$TEST"/interface_sass_probe_ask/*.c "$TEST/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
+# the formats' and the line's objects, which the PTX probe links too: its ruleset reader reads a ruleset's .ksc as the
+# run stores it (qry_member.h)
+declare -A FORMAT_SOURCE=()
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}"; do
+    FORMAT_SOURCE["$source"]=1
+done
+FORMAT_OBJECTS=()
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" \
+              "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TEST/interface_sass_probe_main.c" "$TEST"/interface_sass_probe_main/*.c "$TEST"/interface_sass_probe_machine/*.c \
+              "$TEST"/interface_sass_probe_query/*.c "$TEST/interface_sass_probe_class.c" "$TEST/interface_sass_probe_cubin.c" \
               "$TEST/interface_sass_probe_read.c" "$TEST/interface_sass_probe_check.c"; do
-    object="$OUT/$(basename "$source" .c).$EXTENSION"
+    object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_')"
+    object="${object%.c}.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
@@ -74,6 +82,7 @@ for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/int
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
+    [ -n "${FORMAT_SOURCE[$source]:-}" ] && FORMAT_OBJECTS+=("$object")
 done
 nvcc "${HOST_FLAGS[@]}" -o "$BINARY" "${OBJECTS[@]}"
 [ -f "$BINARY" ] || { echo "  build failed: the interface's SASS probe did not link"; exit 1; }
@@ -86,9 +95,9 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
         *) CODEGEN_SOURCES+=("$source") ;;
     esac
 done
-nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -o "$PROBE" \
-    "$TEST_CU"/interface_ptx_probe_{questions,main}.cu \
-    "${CODEGEN_SOURCES[@]}" -lnvrtc -lnvJitLink
+nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" "${FILE_DEFS_MMGR_FLAGS[@]}" \
+    -o "$PROBE" "$TEST_CU"/interface_ptx_probe_{questions,runs,main}.cu "$TEST_CU/ptx_target.cu" \
+    "${CODEGEN_SOURCES[@]}" "${FORMAT_OBJECTS[@]}" -lnvrtc -lnvJitLink
 [ -f "$PROBE" ] || { echo "  build failed: the PTX probe did not build"; exit 1; }
 source "$TOP/src/cu/transpiler/lstar/protocol/qry_run.sh"
 qry_writer_built "$OUT"
@@ -99,19 +108,19 @@ run_started "$OUT/qry"
 if [ -n "${SASS_PATTERN:-}" ]; then
     [ -f "$SASS_PATTERN/form_0.cubin" ] || { echo "  no form_0.cubin in $SASS_PATTERN"; exit 1; }
     FIRST="${ARCHES%% *}"
-    "$BINARY" "$PROBE" "$SASS_PATTERN" loop "$TOP/src/cu/transpiler/lstar/protocol/table/$FIRST"
+    "$BINARY" "$PROBE" "$SASS_PATTERN" loop "$TOP/src/cu/transpiler/lstar/protocol/table/$FIRST.khw"
     STATUS=$?
     echo "  interface sass loop exit $STATUS"
     exit "$STATUS"
 fi
 mkdir -p "$OUT/sass"
 # SASS_LEARN set learns the machine again through the disassembler, bit by bit, which runs past half an hour; unset,
-# the asks are put against the machine file the tree holds for the first architecture
+# the queries are put against the machine file the tree holds for the first architecture
 if [ -z "${SASS_LEARN:-}" ]; then
     FIRST="${ARCHES%% *}"
-    "$BINARY" "$PROBE" "$OUT/sass" asks "$TOP/src/cu/transpiler/lstar/protocol/table/$FIRST"
+    "$BINARY" "$PROBE" "$OUT/sass" queries "$TOP/src/cu/transpiler/lstar/protocol/table/$FIRST.khw"
     STATUS=$?
-    echo "  interface sass asks exit $STATUS"
+    echo "  interface sass queries exit $STATUS"
     exit "$STATUS"
 fi
 "$BINARY" "$PROBE" "$OUT/sass" "$TOP/src/cu/transpiler/lstar/protocol/table"

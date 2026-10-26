@@ -57,20 +57,20 @@ static void order_worst_first(size_t *offsets, size_t count, const OriorFieldCen
         }
         const uint64_t moving = orior_steer_magnitude(census, needle[moving_offset]);
 
-        size_t slot = placed;
-        while (slot > 0u)
+        size_t at = placed;
+        while (at > 0u)
         {
-            const size_t settled_offset = offsets[slot - 1u];
+            const size_t settled_offset = offsets[at - 1u];
             const uint64_t settled =
                 (settled_offset < needle_len) ? orior_steer_magnitude(census, needle[settled_offset]) : 0u;
             if (settled <= moving)
             {
                 break;
             }
-            offsets[slot] = offsets[slot - 1u];
-            slot -= 1u;
+            offsets[at] = offsets[at - 1u];
+            at -= 1u;
         }
-        offsets[slot] = moving_offset;
+        offsets[at] = moving_offset;
     }
 }
 
@@ -143,24 +143,24 @@ int check_ordering_pays(const uint8_t *corpus, size_t corpus_len, const uint8_t 
      * the reduction reported above means nothing. */
     size_t offsets[4] = {0u, 0u, 0u, 0u};
     const size_t cell = needle_len / 4u;
-    for (size_t slot = 0u; slot < 4u; slot += 1u)
+    for (size_t index = 0u; index < 4u; index += 1u)
     {
-        offsets[slot] = (slot * cell) + ((cell > 1u) ? ((slot * 7u) % cell) : 0u);
+        offsets[index] = (index * cell) + ((cell > 1u) ? ((index * 7u) % cell) : 0u);
     }
     order_worst_first(offsets, 4u, &census, needle, needle_len);
 
     uint64_t worst_probes = 0u;
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
-        size_t slot = 0u;
-        while (slot < 4u)
+        size_t index = 0u;
+        while (index < 4u)
         {
             worst_probes += 1u;
-            if (corpus[at + offsets[slot]] != needle[offsets[slot]])
+            if (corpus[at + offsets[index]] != needle[offsets[index]])
             {
                 break;
             }
-            slot += 1u;
+            index += 1u;
         }
     }
 
@@ -246,7 +246,7 @@ int check_dispatch_exact(void)
  *       compared against 0.85 * distinct. It is not a transcription of the old two_to_the path,
  *       which reached the same quantity by taking a logarithm and then approximating a power of two
  *       with three terms of a series. Comparing against the intended value, and not against that
- *       approximation, is the stronger test: it asks whether the integer rule is right, not whether
+ *       approximation, is the stronger test: it tests whether the integer rule is right, not whether
  *       it reproduces an old rounding.
  * @note A double appears in this function and nowhere in the engine. A bench may carry one to
  *       describe what the engine decided; the engine may not carry one to decide it.

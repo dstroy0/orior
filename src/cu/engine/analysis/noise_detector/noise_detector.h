@@ -17,12 +17,12 @@ extern "C"
 #define NOISE_FLICKER_LAGS 7u
 
 // a pair's level bin is the sum of its two values shifted down 4, its mean in bins of 8 lane units; the last bin
-// holds every mean from 1024 up
+// contains every mean from 1024 up
 #define NOISE_LEVEL_BIN_SHIFT 4u
 
 #define NOISE_LEVEL_BINS 129u
 
-// the four sums each lag and level bin holds
+// the four sums each lag and level bin contains
 #define NOISE_FLICKER_PAIRS 0u
 
 #define NOISE_FLICKER_SQUARES 1u
@@ -65,7 +65,7 @@ extern "C"
     // column sums squared, written to <set>/noise_planes.tsv; both summarized on stdout
     long noise_lines_set(const NoiseSetRequest *request);
 
-// the five sums each axis and level bin of the neighbor pass holds (noise_vector_integration_table.md, rows 17 and
+// the five sums each axis and level bin of the neighbor pass contains (noise_vector_integration_table.md, rows 17 and
 // 25): the pairs, the squared frame difference, the next voxel's, and their products raised and lowered apart
 #define NOISE_NEIGHBORS_PAIRS 0u
 
@@ -81,7 +81,7 @@ extern "C"
 
 // the neighbor pass's radii: the next voxel along z, y and x, then the voxel 2, 4, 8, 16 and 32 planes on along z.
 // An interpolation between neighboring planes leaves every radius past the first uncorrelated; a blur along z fades
-// over its radius; a term every plane of a pixel shares holds at every radius.
+// over its radius; a term every plane of a pixel shares is valid at every radius.
 #define NOISE_NEIGHBOR_RADII 8u
 
     // every sample's neighbor correlation at each radius, written to <set>/noise_neighbors.tsv and summarized
@@ -93,13 +93,13 @@ extern "C"
 
 #define NOISE_SPIKE_LEAST 16u
 
-// each level bin holds the triples, then the spikes and the dips at each threshold
+// each level bin contains the triples, then the spikes and the dips at each threshold
 #define NOISE_SPIKE_TRIPLES 0u
 
 #define NOISE_SPIKE_SUMS (1u + (2u * NOISE_SPIKE_THRESHOLDS))
 
-// the counts a sample's clip pass keeps: voxel-frames at 0 and at the top, voxels whose every frame holds one value,
-// and those held at 0 or at the top
+// the counts a sample's clip pass counts: voxel-frames at 0 and at the top, voxels whose every frame is one value,
+// and those stuck at 0 or at the top
 #define NOISE_CLIPS_AT_ZERO 0u
 
 #define NOISE_CLIPS_AT_TOP 1u
@@ -177,14 +177,14 @@ extern "C"
                             unsigned long long spikes[NOISE_SPIKE_SUMS], EngineError *error);
 
 // the moment pass's second, third and fourth k-statistics pooled over every level bin, each in signed thousandths of
-// a lane unit to its power, rounded toward zero; each 0 where no block was kept
+// a lane unit to its power, rounded toward zero; each 0 where no block was retained
 #define NOISE_MOMENT_CUMULANTS 3u
 
     long noise_moments_volume(const unsigned short *volume, const unsigned long long extent[4],
                               long long cumulants[NOISE_MOMENT_CUMULANTS], EngineError *error);
 
     // The line over the level (build plan item 38): the least-squares line through points each weighted by a count,
-    // held as three exact integers over one denominator. count points sit at an integer place, and their measurements
+    // stored as three exact integers over one denominator. count points sit at an integer place, and their measurements
     // sum to total. A level is a place over level_scale and a measurement a total's share over measurement_scale. With
     // N = sum of counts, A = sum of count place, B = sum of count place^2, T = sum of totals and C = sum of place
     // total, the line is
@@ -232,7 +232,7 @@ extern "C"
         int rising;
         int convex;
         // C19 from the k2 and k3 lines, set where s3 is not 0: O = -c3 / s3 and R^2 = (c2 s3 - c3 s2) / s3, each a
-        // numerator over a positive denominator. O is the offset only where rising and convex both hold.
+        // numerator over a positive denominator. O is the offset only where rising and convex both are true.
         int tail;
         OriorExactInteger offset;
         OriorExactInteger offset_denominator;
@@ -299,7 +299,7 @@ extern "C"
     // I_x: per lag and level bin of 8, the pairs N and the sums of M, M^2, q, q^2, M q, y, M y and q y. A scale 1 +
     // eps_t shared by the whole volume moves d_k - d_{k,x} by (eps_{t+k} - eps_t) times the pair's light apart. Y rises
     // over (L - L_x)^2 with slope D_a(k) = E[(eps_{t+k} - eps_t)^2], the scale's structure function, above 2 D(k), the
-    // pair's own noise. The own noise grows with the level, and a bin of 8 still holds a spread of it. Y is fitted
+    // pair's own noise. The own noise grows with the level, and a bin of 8 still contains a spread of it. Y is fitted
     // against M and q together within each bin, the least squares of the line above over two places, pooled over the
     // bins: with each bin's centerd sums N sum u v - sum u sum v summed over the bins as MM, QQ, MQ, MY and QY, D_a(k)
     // = T^2 (MM QY - MQ MY) / (MM QQ - MQ^2), and the intercept is the pairs' mean y less D_a(k) times their mean (L -
@@ -320,7 +320,7 @@ extern "C"
     long noise_structure_volume(const unsigned short *volume, const unsigned long long extent[4],
                                 NoiseStructureMeasurement *measurement, EngineError *error);
 
-    // Rows 18 and 19, what a camera pixel holds in every plane. Over each pixel (y, x), its values in the z planes
+    // Rows 18 and 19, what a camera pixel records in every plane. Over each pixel (y, x), its values in the z planes
     // below the middle and in those from the middle up, each summed over the frames: lo and hi, over n_lo and n_hi
     // values. An offset o or a gain g (1 + p) fixed at a pixel puts the same amount into both halves' means, and the
     // draws, independent between planes, share nothing. The halves' covariance across the P pixels, C = (P sum lo hi -
@@ -341,11 +341,11 @@ extern "C"
 
 // The root noise of a box: a span of frames and a place the caller names, an object's in the cell workbook. Each term
 // the noise vector table names as shared is a pattern in fewer dimensions than the box, one value for every place along
-// the axes it is kept on and the same along the axes it is shared along. A term's pattern over a box is the box's mean
-// along its shared axes, rounded down, exactly; its residual is the box less the pattern spread back along them. The
-// crystal's own coder prices the box, each residual and each pattern in bits (NoiseCost), and a term saves what the
+// the axes it is retained on and the same along the axes it is shared along. A term's pattern over a box is the box's
+// mean along its shared axes, rounded down, exactly; its residual is the box less the pattern spread back along them.
+// The crystal's own coder prices the box, each residual and each pattern in bits (NoiseCost), and a term saves what the
 // box costs less what its residual and its pattern cost together. The root noise is the term that saves the most, the
-// first of them where two save alike, and none where no term saves. Yanking it keeps its residual and its pattern,
+// first of them where two save alike, and none where no term saves. Yanking it retains its residual and its pattern,
 // from which the box returns exactly (noise_root_return).
 // rows (table row 8): shared along x, a value for each frame, z and y
 #define NOISE_ROOT_ROWS 0u
@@ -381,11 +381,11 @@ extern "C"
         unsigned int root;
     } NoiseRootMeasurement;
 
-    // The box runs from `low` to below `high` on every axis, frames, z, y and x, inside the volume's extent, and holds
-    // at most 2^31 voxels. Where `residual` is set, the root's residual is left in it, the box's voxels as ints, or the
-    // box itself where there is no root; where `pattern` is set, the root's pattern is left in it (noise_root_extent
-    // sizes it, never more than the box's voxels), and nothing where there is no root. A price the cost gives past 2^61
-    // bits errors.
+    // The box runs from `low` to below `high` on every axis, frames, z, y and x, inside the volume's extent, and
+    // contains at most 2^31 voxels. Where `residual` is set, the root's residual is left in it, the box's voxels as
+    // ints, or the box itself where there is no root; where `pattern` is set, the root's pattern is left in it
+    // (noise_root_extent sizes it, never more than the box's voxels), and nothing where there is no root. A price the
+    // cost gives past 2^61 bits errors.
     typedef struct
     {
         const unsigned short *volume;
@@ -401,12 +401,12 @@ extern "C"
 
     long noise_root_box(const NoiseRootRequest *request);
 
-    // a term's pattern extent over a box's: the box's own along the term's kept axes, 1 along its shared axes and for a
-    // term past the last
+    // a term's pattern extent over a box's: the box's own along the term's retained axes, 1 along its shared axes and
+    // for a term past the last
     void noise_root_extent(unsigned int term, const unsigned long long box[4], unsigned long long pattern[4]);
 
     // The box's values back from a term's residual and pattern, each residual plus its pattern value. For the residual
-    // and pattern noise_root_box leaves, the sum is the box's value exactly; any other pair must keep every sum within
+    // and pattern noise_root_box leaves, the sum is the box's value exactly; any other pair must bound every sum within
     // an int, which is not checked.
     typedef struct
     {

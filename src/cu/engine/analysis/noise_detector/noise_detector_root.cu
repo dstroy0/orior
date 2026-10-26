@@ -33,7 +33,7 @@ static void noise_root_next(unsigned long long place[4], const unsigned long lon
     }
 }
 
-// a box voxel's place in a term's pattern: its own along the axes the term keeps, 0 along those it shares
+// a box voxel's place in a term's pattern: its own along the axes the term retains, 0 along those it shares
 static unsigned long long noise_root_pattern_place(const unsigned long long place[4],
                                                    const unsigned long long pattern[4])
 {
@@ -57,7 +57,7 @@ static void noise_root_take(const NoiseRootRequest *request, const unsigned long
         {
             for (unsigned long long y = 0ull; y < box[2]; y += 1ull)
             {
-                // the volume is held. Its voxel count, and every place inside it, fits a word
+                // the volume is bounded. Its voxel count, and every place inside it, fits a word
                 const unsigned long long plane = (((low[0] + frame) * extent[1]) + low[1] + z) * extent[2];
                 const unsigned short *const row = &request->volume[((plane + low[2] + y) * extent[3]) + low[3]];
                 for (unsigned long long x = 0ull; x < box[3]; x += 1ull)
@@ -89,7 +89,7 @@ static void noise_root_pattern(const int *values, const unsigned long long box[4
     const unsigned long long shared = voxels / cells;
     for (unsigned long long cell = 0ull; cell < cells; cell += 1ull)
     {
-        // a mean of lanes, rounded down, is a lane, which an int holds
+        // a mean of lanes, rounded down, is a lane, which an int represents
         pattern[cell] = (int)(sums[cell] / shared);
     }
 }

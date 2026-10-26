@@ -10,7 +10,7 @@
  * Isotopic Compositions (physics.nist.gov/cgi-bin/Compositions/stand_alone.pl, ascii2, isotype=all).
  * Every isotope NIST lists is written, with no element left out. A relative atomic mass enters as
  * an exact integer count of femtodaltons, 10^-15 Da. Its parenthesized uncertainty enters in the
- * same unit, and a '#' after it, NIST's mark for an estimated value, is kept as a flag. An isotopic
+ * same unit, and a '#' after it, NIST's mark for an estimated value, is retained as a flag. An isotopic
  * composition enters as an exact count of 10^-10 parts with its parenthesized uncertainty at the same
  * unit, or -1 for both where NIST gives none. A standard atomic weight written as an interval
  * [low,high], IUPAC's range over normal terrestrial materials, enters as its two ends in femtodaltons;
@@ -21,16 +21,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-/** Decimal places a mass is held at: femtodaltons. */
+/** Decimal places a mass is stored at: femtodaltons. */
 #define TABLE_MASS_PLACES 15u
 
-/** Decimal places a composition is held at. */
+/** Decimal places a composition is stored at. */
 #define TABLE_COMPOSITION_PLACES 10u
 
 /** Longest line of NIST's text this reads. */
 #define TABLE_LINE_BYTES 512u
 
-/** Most isotopes the table holds; NIST lists about 3,400. */
+/** Most isotopes the table contains; NIST lists about 3,400. */
 #define TABLE_ISOTOPES_MOST 8192u
 
 typedef struct
@@ -52,7 +52,7 @@ static TableIsotope s_isotope[TABLE_ISOTOPES_MOST];
 /**
  * Reads a decimal "digits.digits(uncertainty)" or "digits.digits" as an exact integer at places.
  *
- * @return 1 where it was read exactly, 0 where the text is malformed or holds more places
+ * @return 1 where it was read exactly, 0 where the text is malformed or contains more places
  */
 static int table_decimal_read(const char *text, unsigned int places, long long *value, long long *uncertainty,
                               int *estimated)
@@ -149,7 +149,7 @@ static int table_decimal_read(const char *text, unsigned int places, long long *
  * mass number such as "[227]", or a "value(uncertainty)", is not an interval and leaves both -1.
  *
  * @return 1 where the text was read, as an interval or as no interval; 0 where an interval's end is
- *         malformed or holds more places
+ *         malformed or contains more places
  */
 static int table_interval_read(const char *text, long long *low, long long *high)
 {
@@ -303,7 +303,8 @@ int main(int argument_count, char **arguments)
     fprintf(output, " * Source: NIST, Atomic Weights and Isotopic Compositions for All Elements (ascii2, isotype=all),\n");
     fprintf(output, " * data/nist_isotopes.txt. Masses in femtodaltons, 10^-15 Da; compositions and their uncertainties\n");
     fprintf(output, " * in 10^-10 parts, -1 where NIST gives none; the standard atomic weight interval's ends in\n");
-    fprintf(output, " * femtodaltons, -1 where NIST writes no interval. Every value is the decimal NIST wrote, held exactly.\n */\n");
+    fprintf(output, " * femtodaltons, -1 where NIST writes no interval. Every value is the decimal NIST wrote, stored "
+                    "exactly.\n */\n");
     fprintf(output, "#ifndef ISOTOPE_TABLE_H\n#define ISOTOPE_TABLE_H\n\n");
     fprintf(output, "#define CASMI_ISOTOPE_COUNT %uu\n\n", count);
     fprintf(output, "static const CasmiIsotope casmi_isotope[CASMI_ISOTOPE_COUNT] = {\n");

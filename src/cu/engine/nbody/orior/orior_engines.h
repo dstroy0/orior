@@ -18,7 +18,7 @@ extern "C"
      *
      * @note `count` takes the corpus, the alignment count, the survivor flags, the needle byte being
      *       tested and the offset it sits at, and returns how many still-standing alignments agree.
-     *       A planner asks a scan engine for this operation alone.
+     *       A planner queries a scan engine for this operation alone.
      */
     typedef struct
     {
@@ -30,9 +30,9 @@ extern "C"
      * @brief Scans served by any engine since the last reset.
      *
      * A CORRECTNESS SUITE CANNOT DETECT AN UNUSED IMPLEMENTATION. An engine that is compiled, graded
-     * and never called produces no wrong answer. Every count stays identical and every test keeps
+     * and never called produces no wrong answer. Every count stays identical and every test retains
      * passing. An engine graded against portable and benched fast can sit beside a planner that runs
-     * its own scalar loop, and nothing in the suite says so.
+     * its own scalar loop, and nothing in the suite reports so.
      *
      * These two counters make the wiring assertable. The claim is not that the engines agree, which the
      * differential already covers, but that the engine the machine carries actually RAN. A test reads
@@ -51,7 +51,7 @@ extern "C"
      * @brief The widest engine this machine carries, the one the planner calls.
      *
      * @return The engine. Never null, since the portable one is always present.
-     * @note Resolved on every call. A caller in a hot path holds the result instead of asking again,
+     * @note Resolved on every call. A caller in a hot path caches the result instead of querying again,
      *       because the processor query costs more than a scan does.
      */
     const OriorSteerEngine *orior_steer_best_engine(void);
@@ -82,7 +82,7 @@ extern "C"
      * @brief The AVX2 engine, answering thirty-two alignments per compare.
      *
      * @return A pointer to the engine, or NULL where this processor does not carry AVX2.
-     * @note Asks the processor instead of trusting the build.
+     * @note Queries the processor instead of trusting the build.
      */
     const OriorSteerEngine *orior_steer_avx2_engine(void);
 
@@ -98,7 +98,7 @@ extern "C"
      * @brief The AVX-512 engine, answering sixty-four alignments per compare.
      *
      * @return A pointer to the engine, or NULL where this processor does not carry AVX-512.
-     * @note Asks the processor instead of trusting the build. No machine here runs it. The name it
+     * @note Queries the processor instead of trusting the build. No machine here runs it. The name it
      *       carries reads avx512-unrun.
      */
     const OriorSteerEngine *orior_steer_avx512_engine(void);
@@ -148,7 +148,7 @@ extern "C"
      * @brief Whether a usable CUDA device is present.
      *
      * @return 1 where at least one device answered, 0 otherwise.
-     * @note Asked at run time. A binary built with CUDA still runs on a machine with no device, and the
+     * @note Queried at run time. A binary built with CUDA still runs on a machine with no device, and the
      *       arm reports itself absent there instead of failing inside a launch.
      */
     int orior_steer_cuda_available(void);
@@ -157,7 +157,7 @@ extern "C"
      * @brief The name and compute capability of the device this arm would use.
      *
      * @param[out] text Where the description is written [BORROWS].
-     * @param[in]  capacity How many bytes `text` holds.
+     * @param[in]  capacity How many bytes `text` contains.
      * @return          1 where a description was written, 0 where no device answered.
      */
     int orior_steer_cuda_describe(char *text, size_t capacity);

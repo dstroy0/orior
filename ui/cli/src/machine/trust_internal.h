@@ -6,7 +6,7 @@
 
 #include "trust.h"
 
-// the code found in every tree let go, to be looked for again as the answers kept change
+// the code found in every tree let go, to be looked for again as the answers stored change
 void cli_trust_forget(void);
 
 #endif

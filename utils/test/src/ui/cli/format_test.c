@@ -22,7 +22,7 @@ static void format_formatters(void)
     }
     cli_json_given(&s_json);
     cli_check(named, "each formatter names a language");
-    char program[CLI_NAME_LONGEST];
+    char program[CLI_NAME_MAX_LEN];
     cli_check(cli_format_program_of("python", program) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = program, .other = "black", .cap = CLI_CELLS_POOL})),
               "Python is Black's");
@@ -39,10 +39,10 @@ static long long format_number(const char *text, const char *table, const char *
     return cli_format_number_in(text, table, key, &number) ? (long long)number : -1ll;
 }
 
-// the width the formatter of `language` keeps the file `name` of the folder to, -1 where it gives none
+// the width the formatter of `language` limits the file `name` of the folder to, -1 where it gives none
 static long long format_width(const char *folder, const char *name, const char *language)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(folder, name, path);
     unsigned int width = 0u;
     return cli_format_width(path, language, &width) ? (long long)width : -1ll;
@@ -51,7 +51,7 @@ static long long format_width(const char *folder, const char *name, const char *
 // `text` written to the file `name` of the folder
 static void format_file(const char *folder, const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(folder, name, path);
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
@@ -70,16 +70,16 @@ static void format_widths(void)
               "clang-format's in its YAML");
     cli_check(format_number("{ \"semi\": false, \"printWidth\": 100 }", NULL, "printWidth") == 100ll,
               "Prettier's in its JSON");
-    char dir[CLI_PATH_LONGEST];
-    char pkg[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char pkg[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("format_width", dir);
     cli_full(dir, "pkg", pkg);
     (void)query_folder_made(pkg);
     format_file(dir, "pyproject.toml", "[tool.black]\nline-length = 100\n");
     format_file(dir, "Cargo.toml", "[package]\nname = \"x\"\nedition = \"2024\"\n");
     cli_check(format_width(pkg, "a.py", "python") == 100ll, "a width is read from the nearest folder above");
-    char edition[CLI_NAME_LONGEST];
+    char edition[CLI_NAME_MAX_LEN];
     cli_full(pkg, "a.rs", path);
     cli_lock_take(&g_cli_format_lock);
     cli_format_edition_of(path, edition);
@@ -89,23 +89,24 @@ static void format_widths(void)
     cli_check(format_width(pkg, "a.tex", "tex") == -1ll, "a language no formatter formats has no width");
     format_file(dir, ".prettierrc", "{ \"printWidth\": 100 }");
     cli_check(format_width(pkg, "a.md", "markdown") == -1ll, "Markdown's prose is left as it is");
-    char by[CLI_NAME_LONGEST];
+    char by[CLI_NAME_MAX_LEN];
     unsigned int width = 0u;
     cli_full(pkg, "a.js", path);
     cli_check(cli_format_margin(path, "javascript", &width, by) && (width == 100u), "Prettier's width is read");
     format_file(dir, ".prettierrc", "{ \"printWidth\": 100, \"proseWrap\": \"always\" }");
-    cli_check(format_width(pkg, "a.md", "markdown") == 100ll, "and kept by Markdown where its prose wraps");
+    cli_check(format_width(pkg, "a.md", "markdown") == 100ll, "and applied by Markdown where its prose wraps");
 }
 
 // the language `path` opens in, the empty text where none takes it
 static const char *format_language(const char *path)
 {
-    static char s_id[CLI_NAME_LONGEST];
+    static char s_id[CLI_NAME_MAX_LEN];
     return cli_format_language_of(path, s_id) ? s_id : "";
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     format_formatters();
     format_widths();
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = format_language("a/b.py"), .other = "python", .cap = CLI_CELLS_POOL}),

@@ -7,17 +7,17 @@
 #include "../text/text.h"
 #include "envs_internal.h"
 
-CliCellsTally g_cli_envs_cells = CLI_CELLS_TALLY("cli_envs");
+CellOwner g_cli_envs_cells = MMGR_CELL_OWNER("cli_envs");
 
 void *cli_envs_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
 {
-    void *const moved = cli_cell_taken_by(&g_cli_envs_cells, room, what);
+    void *const moved = g_cli_cells->persistent_buf_alloc(room, &g_cli_envs_cells);
     if (moved == NULL)
     {
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (size_t)used});
-    cli_cell_given_by(&g_cli_envs_cells, cell);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_envs_cells);
     return moved;
 }
 
@@ -61,7 +61,7 @@ static int cli_is(CliSpan span, const char *text)
            cli_starts(span, text);
 }
 
-// room made in `required` for one name more of `length` bytes, the text's room doubled to hold it: 1, or 0 where a
+// room made in `required` for one name more of `length` bytes, the text's room doubled to fit it: 1, or 0 where a
 // larger cell is refused
 static int cli_required_room(CliRequired *required, unsigned long long length)
 {
@@ -93,7 +93,7 @@ static int cli_required_room(CliRequired *required, unsigned long long length)
             return 0;
         }
         required->text = moved;
-        // a text's room is CLI_ENVS_TEXT at the most, which an unsigned int holds
+        // a text's room is CLI_ENVS_TEXT at the most, which an unsigned int represents
         required->text_room = (unsigned int)text_room;
     }
     return 1;
@@ -148,7 +148,7 @@ static void cli_added(CliRequired *required, CliSpan name)
     }
     memor.cpy(&(MemoriaCfg){.dst = required->text + required->used, .src = name.at, .bytes = length});
     required->name[required->count].start = required->used;
-    // a name is below CLI_ENVS_TEXT bytes, which an unsigned int holds
+    // a name is below CLI_ENVS_TEXT bytes, which an unsigned int represents
     required->name[required->count].length = (unsigned int)length;
     required->used += (unsigned int)length;
     required->count += 1u;
@@ -157,9 +157,9 @@ static void cli_added(CliRequired *required, CliSpan name)
 // the file `name` in `folder` mapped, where it is UTF-8 whole: its bytes, or NULL
 static const unsigned char *cli_text_mapped(const char *folder, const char *name, unsigned long long *size)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(folder, name, path);
-    return cli_file_held_utf8(path, size);
+    return cli_file_read_utf8(path, size);
 }
 
 // the next line of `size` bytes from `*at`, `*at` moved past it: 1, or 0 where the text has ended
@@ -311,25 +311,25 @@ void cli_required_in(const char *folder, CliRequired *required)
     }
 }
 
-void cli_required_written(const CliRequired *required, CliLine *out)
+void cli_required_written(const CliRequired *required, VerbaLinea *out)
 {
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < required->count; at += 1u)
     {
-        cli_line_text(out, (at != 0u) ? "," : "");
+        mmgr_line_put(out, (at != 0u) ? "," : "");
         cli_json_quoted(out, required->text + required->name[at].start, required->name[at].length);
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }
 
 void cli_required_given(CliRequired *required)
 {
-    cli_cell_given_by(&g_cli_envs_cells, required->name);
-    cli_cell_given_by(&g_cli_envs_cells, required->text);
+    g_cli_cells->persistent_buf_release(required->name, &g_cli_envs_cells);
+    g_cli_cells->persistent_buf_release(required->text, &g_cli_envs_cells);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
 }
 
-void cli_envs_requires_in(const char *folder, CliLine *out)
+void cli_envs_requires_in(const char *folder, VerbaLinea *out)
 {
     CliRequired required = {NULL, 0u, 0u, NULL, 0u, 0u};
     cli_required_in(folder, &required);

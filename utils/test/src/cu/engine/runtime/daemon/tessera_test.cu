@@ -5,8 +5,8 @@
 // decisions (tessera_ledger.c), one source for both (tessera_ledger_core.h). Each round draws a stream of calls,
 // every kind of call with its times, bytes and jobs drawn from a seeded stream, and makes them of a host ledger and
 // of a ledger on the device, laid out with arrays of one to make it grow. Every answer must be the host's field for
-// field, and the ledger each is left with the host's job for job, kept peak for kept peak and deadline for deadline.
-// The test is one job on the device's tessera daemon, submitted before its first device work.
+// field, and the ledger each is left with the host's job for job, recorded peak for recorded peak and deadline for
+// deadline. The test is one job on the device's tessera daemon, submitted before its first device work.
 #include "sim.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_device.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera_ledger.h"
@@ -24,7 +24,7 @@
 #define DEVICE_TEST_ROUNDS 200u
 #define DEVICE_TEST_CALLS 400u
 
-// the signums a round's jobs are drawn from, few enough that a signum's kept peak judges later jobs
+// the signums a round's jobs are drawn from, few enough that a signum's recorded peak judges later jobs
 #define DEVICE_TEST_SIGNUMS 6u
 
 // the device's capacity in each round
@@ -92,14 +92,14 @@ static TesseraCall device_test_call(unsigned long long now, unsigned long long s
     call.idle_microseconds = 1000ull + device_test_below(5000ull);
     call.request.signum = device_test_signum(device_test_below(DEVICE_TEST_SIGNUMS));
     call.request.declared = 1ull + device_test_below(600ull);
-    call.request.holding_microseconds = 1000ull;
+    call.request.grace_microseconds = 1000ull;
     call.request.sweep_microseconds = 100ull + device_test_below(400ull);
     call.request.idle_microseconds = 5000ull;
     call.request.override_budget = (device_test_below(4ull) == 0ull) ? 1u : 0u;
     call.request.standing = device_test_below(300ull);
-    call.kept.signum = device_test_signum(device_test_below(DEVICE_TEST_SIGNUMS));
-    call.kept.peak = device_test_below(900ull);
-    call.kept.duration = device_test_below(3000ull);
+    call.history.signum = device_test_signum(device_test_below(DEVICE_TEST_SIGNUMS));
+    call.history.peak = device_test_below(900ull);
+    call.history.duration = device_test_below(3000ull);
     return call;
 }
 
@@ -128,21 +128,21 @@ static int device_test_signum_same(const EngineSignum *left, const EngineSignum 
 
 static int device_test_job_same(const TesseraJob *left, const TesseraJob *right)
 {
-    const TesseraJobRequest *const asked = &left->request;
+    const TesseraJobRequest *const request = &left->request;
     const TesseraJobRequest *const other = &right->request;
-    return (left->identity == right->identity) && device_test_signum_same(&asked->signum, &other->signum) &&
-           (asked->declared == other->declared) && (asked->holding_microseconds == other->holding_microseconds) &&
-           (asked->sweep_microseconds == other->sweep_microseconds) &&
-           (asked->idle_microseconds == other->idle_microseconds) &&
-           (asked->override_budget == other->override_budget) && (asked->standing == other->standing) &&
+    return (left->identity == right->identity) && device_test_signum_same(&request->signum, &other->signum) &&
+           (request->declared == other->declared) && (request->grace_microseconds == other->grace_microseconds) &&
+           (request->sweep_microseconds == other->sweep_microseconds) &&
+           (request->idle_microseconds == other->idle_microseconds) &&
+           (request->override_budget == other->override_budget) && (request->standing == other->standing) &&
            (left->state == right->state) && (left->reservation == right->reservation) && (left->used == right->used) &&
            (left->peak == right->peak) && (left->measures == right->measures) &&
            (left->submitted == right->submitted) && (left->started == right->started) &&
-           (left->expected_end == right->expected_end) && (left->hold_until == right->hold_until) &&
+           (left->expected_end == right->expected_end) && (left->grace_until == right->grace_until) &&
            (left->next_sweep == right->next_sweep);
 }
 
-// 1 where two ledgers hold the same device, jobs, kept peaks, deadlines and idle time
+// 1 where two ledgers contain the same device, jobs, recorded peaks, deadlines and idle time
 static int device_test_ledger_same(const TesseraLedger *left, const TesseraLedger *right)
 {
     int same = (left->capacity == right->capacity) && (left->in_use == right->in_use) &&
@@ -167,7 +167,7 @@ static int device_test_ledger_same(const TesseraLedger *left, const TesseraLedge
     return same;
 }
 
-// one round: a stream of calls made of the host's ledger and the device's, the answers and the ledgers held equal
+// one round: a stream of calls made of the host's ledger and the device's, the answers and the ledgers compared equal
 static void device_test_round(DeviceTestResults *results, unsigned int round, unsigned long long *grown)
 {
     std::vector<TesseraCall> calls(DEVICE_TEST_CALLS);

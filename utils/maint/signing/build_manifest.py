@@ -6,14 +6,11 @@
 #
 #   Usage:  python utils/maint/signing/build_manifest.py [--root DIR] [--also DIR] [--out FILE]
 #
-# WHY THIS EXISTS NOW
+# WHY THIS EXISTS
 #
-# docs/provenance.md section 3 argues for a priority anchor and section 8 lists the apparatus as specified and
-# not built. The gap matters more than it reads: this corpus is seven days old, it is unpublished, and
-# its only evidence of date is the commit timestamps, which section 3 rules out by name because a
-# commit date is written by the committer's own clock exactly as a signature's date field is.
-#
-# So today the priority position is nothing. Not weak, nothing.
+# docs/provenance.md section 3 argues for a priority anchor. A commit timestamp is no evidence of
+# date: section 3 rules it out by name, because a commit date is written by the committer's own clock
+# exactly as a signature's date field is.
 #
 # THE PROPERTY THAT MAKES THIS SAFE TO DO WHILE THE WORK IS STILL HELD
 #
@@ -38,22 +35,17 @@ import hashlib
 import os
 import sys
 
-# Directories holding nothing that needs a date. Build output is derived, .git is its own record.
-#
-# "audit" WAS IN THIS SET AND IT SHOULD NOT HAVE BEEN. It excluded tools/audit, which is twenty-five
-# authored Python instruments - the compressibility control that proved the compressor blind, the
-# complete Walsh sweep, the sniffer, the anisotropy detector - and orior/audit alongside it.
-# None of that is build output. The manifest had 342 rows and zero of them were from tools/audit.
+# Directories holding nothing that needs a date. Build output is derived.
 #
 # This is the failure mode the skip list has to be audited FOR: a file wrongly skipped is undated
 # forever and nothing downstream ever reports it, because the manifest cannot miss what it was told
 # not to look at. An over-broad skip is silent in exactly the direction that costs the claim.
-#
-# The name was presumably meant to catch an audit BUILD directory. There is none in either tree.
-SKIP = {
-    ".git", "build", "__pycache__", "node_modules", "logs",
-    ".vs", ".vscode", ".idea", "obj", "bin",
-}
+SKIP = {"build", "__pycache__", "node_modules", "logs", "obj", "bin"}
+
+# A directory whose name opens with a dot holds a tool's own state: version control, an editor's
+# settings, a linter's cache. Each is skipped except these, which hold authored files, and every
+# one skipped is printed so that a wrong skip is never silent.
+KEPT_DOT = {".github", ".githooks", ".cargo"}
 
 # Artifacts that are regenerated, never authored. A digest over one of these dates a build and
 # not the work, and it changes on every run, which would make the manifest churn for no gain.
@@ -75,18 +67,28 @@ def digest_of(path):
     return accumulator.hexdigest()
 
 
-def walk(root, label, exclude=()):
+def walk(root, label, exclude=(), passed_over=None):
     """Every authored file under one root, as (label, relative path, size, digest).
 
     `exclude` holds absolute paths left out. The manifest and its signature belong there: a manifest
-    cannot contain its own digest. Listing itself makes it report CHANGED on every run forever.
-    The first version did exactly that, and it is the kind of defect that trains a reader to ignore
-    the one line the check exists to print.
+    cannot contain its own digest. Listing itself makes it report CHANGED on every run forever, the
+    kind of defect that trains a reader to ignore the one line the check exists to print.
+
+    `passed_over`, where given, takes the path of each dot-directory skipped.
     """
     rows = []
     excluded = {os.path.normcase(os.path.abspath(p)) for p in exclude}
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in SKIP]
+        kept = []
+        for one in dirnames:
+            if one in SKIP:
+                continue
+            if one.startswith(".") and one not in KEPT_DOT:
+                if passed_over is not None:
+                    passed_over.append(os.path.relpath(os.path.join(dirpath, one), root).replace("\\", "/"))
+                continue
+            kept.append(one)
+        dirnames[:] = kept
         for name in sorted(filenames):
             if name.endswith(SKIP_SUFFIX):
                 continue
@@ -94,7 +96,7 @@ def walk(root, label, exclude=()):
             if os.path.normcase(os.path.abspath(full)) in excluded:
                 continue
             # A dangling symlink is listed in a directory and cannot be read. Record it as such
-            # instead of dying, since the tree has had one of those today.
+            # instead of dying.
             if not os.path.isfile(full):
                 rows.append((label, os.path.relpath(full, root).replace("\\", "/"), -1, "UNREADABLE"))
                 continue
@@ -109,10 +111,6 @@ def walk(root, label, exclude=()):
 
 def label_for(root):
     """What to call a tree in the manifest, TAKEN FROM ITS CONFIG AND NOT FROM ITS DIRECTORY NAME.
-
-    This used to be os.path.basename(root), which defined the directory the tree happens to sit in.
-    One of those directory names is the product name the commit guard errors. Every rebuild wrote
-    it into 372 rows and the next commit was blocked by a file this script had just generated.
 
     A name taken from the filesystem is not the project's name, it is where somebody put it. Reading
     it from repotools.toml means the manifest carries what the project calls itself, and a directory
@@ -139,19 +137,14 @@ def main(argv):
     out = argv[argv.index("--out") + 1] if "--out" in argv else os.path.join("utils", "maint", "signing", "manifest.tsv")
 
     # The manifest, its signature and BOTH proofs carry the claim and are not part of what it covers.
-    #
-    # `out + ".ots"` was missing from this tuple. Two anchors get taken - one over the manifest and
-    # one over the signature - and only the second was excluded. The proof over the manifest sat
-    # inside the manifest's own coverage and verify reported CHANGED on it on every run, forever.
-    #
-    # This is the same defect `walk` already documents one function down, one filename over. It
-    # survived the first fix because that fix was written from the `.asc.ots` path and nobody asked
-    # what the other proof was called.
+    # Two anchors are taken, one over the manifest and one over the signature. A proof inside the
+    # manifest's own coverage makes verify report CHANGED on it on every run.
     itself = (out, out + ".ots", out + ".asc", out + ".asc.ots")
 
-    rows = walk(root, label_for(root), exclude=itself)
+    passed_over = []
+    rows = walk(root, label_for(root), exclude=itself, passed_over=passed_over)
     if also:
-        rows += walk(also, label_for(also), exclude=itself)
+        rows += walk(also, label_for(also), exclude=itself, passed_over=passed_over)
 
     unreadable = [r for r in rows if r[3].startswith("UNREADABLE")]
     total = sum(r[2] for r in rows if r[2] >= 0)
@@ -177,6 +170,9 @@ def main(argv):
 
     print("  %d files, %.1f MB" % (len(rows), total / 1048576.0))
     print("  written to %s" % out)
+    print("  %d dot-directories passed over as a tool's own state:" % len(passed_over))
+    for one in sorted(passed_over):
+        print("      %s" % one)
     if unreadable:
         print("  %d UNREADABLE, listed in the manifest so they cannot pass silently:" % len(unreadable))
         for label, path, _, why in unreadable:

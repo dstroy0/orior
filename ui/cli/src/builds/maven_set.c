@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // maven_set.c: a setting set. A compiler setting is written to the property that sets it where the POM's properties
-// hold it or the plugin's configuration does not, and to the configuration where only it holds it; a POM with no
+// contain it or the plugin's configuration does not, and to the configuration where only it contains it; a POM with no
 // properties is given them after its coordinates, a step deeper than its root. The compiler plugin's version is
 // written over its own. Maven's own settings are written to the user's `settings.xml`, made where there is none. An
 // element added under another goes on a line of its own, at the depth of the other's first child
@@ -10,15 +10,15 @@
 #include "maven.h"
 #include "maven_internal.h"
 
-// the bytes the user's settings written are begun with beyond what they held, the line growing past them
+// the bytes the user's settings written are begun with beyond what they contained, the line growing past them
 #define CLI_MAVEN_SET_MORE 4096ull
 
 static CliLock s_set_lock = CLI_LOCK_INIT;
 static CliXml s_xml;
 static char s_edit[1u << 14u];
 
-// the indent the line of the text that holds byte `at` starts with, into `out`
-static void set_indent_at(const char *text, unsigned long long at, CliLine *out)
+// the indent the line of the text that contains byte `at` starts with, into `out`
+static void set_indent_at(const char *text, unsigned long long at, VerbaLinea *out)
 {
     unsigned long long start = at;
     while ((start > 0u) && (text[start - 1u] != '\n'))
@@ -27,14 +27,14 @@ static void set_indent_at(const char *text, unsigned long long at, CliLine *out)
     }
     while ((text[start] == ' ') || (text[start] == '\t'))
     {
-        cli_line_character(out, text[start]);
+        mmgr_line_ch(out, text[start]);
         start += 1u;
     }
 }
 
 // the indent one step deeper takes in the text, the indent of the first child of its root, two spaces where it has
 // none, into `out`
-static void set_step(const CliXml *xml, CliLine *out)
+static void set_step(const CliXml *xml, VerbaLinea *out)
 {
     const unsigned int root = cli_xml_root(xml);
     const unsigned int first = (root != CLI_XML_NONE) ? xml->element[root].first : CLI_XML_NONE;
@@ -45,7 +45,7 @@ static void set_step(const CliXml *xml, CliLine *out)
     }
     if (out->at == before)
     {
-        cli_line_text(out, "  ");
+        mmgr_line_put(out, "  ");
     }
 }
 
@@ -69,40 +69,40 @@ static CliTextEdit set_element(const CliXml *xml, unsigned int holder, const cha
     }
     const int blank = (cli_text_lead(xml->text + line_start, end - line_start) == end - line_start);
     const unsigned long long place = blank ? line_start : end;
-    CliLine edit = {s_edit, sizeof(s_edit), 0ull};
-    cli_line_text(&edit, (place == line_start) ? "" : "\n");
+    VerbaLinea edit = {s_edit, sizeof(s_edit), 0ull};
+    mmgr_line_put(&edit, (place == line_start) ? "" : "\n");
     set_indent_at(xml->text, end, &edit);
     set_step(xml, &edit);
-    cli_line_character(&edit, '<');
-    cli_line_text(&edit, name);
-    cli_line_character(&edit, '>');
-    cli_line_text(&edit, value);
-    cli_line_text(&edit, "</");
-    cli_line_text(&edit, name);
-    cli_line_text(&edit, ">\n");
+    mmgr_line_ch(&edit, '<');
+    mmgr_line_put(&edit, name);
+    mmgr_line_ch(&edit, '>');
+    mmgr_line_put(&edit, value);
+    mmgr_line_put(&edit, "</");
+    mmgr_line_put(&edit, name);
+    mmgr_line_put(&edit, ">\n");
     const CliTextPlace there = cli_build_place(lines, place);
     return (CliTextEdit){there, there, s_edit, edit.at};
 }
 
 // the edit of the POM `pom` written as the one file's edits
-static void set_file_edit(const char *pom, const CliTextEdit *edit, CliLine *out)
+static void set_file_edit(const char *pom, const CliTextEdit *edit, VerbaLinea *out)
 {
-    cli_line_text(out, "[{\"path\":");
+    mmgr_line_put(out, "[{\"path\":");
     cli_json_quoted_lossy(out, (const unsigned char *)pom,
                           cellul.len(&(CatenaFinitaCfg){.src = pom, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"edits\":[");
+    mmgr_line_put(out, ",\"edits\":[");
     cli_text_edit_written(edit, out);
-    cli_line_text(out, "]}]");
+    mmgr_line_put(out, "]}]");
 }
 
 // a compiler setting, at `setting` among them, set in the POM
 static int set_compiler(const char *pom, unsigned int setting, const char *value, const CliBuildLines *lines,
-                        CliLine *out, CliLine *said)
+                        VerbaLinea *out, VerbaLinea *err_msg)
 {
     const unsigned int project = cli_xml_root(&s_xml);
     if ((project == CLI_XML_NONE) || !cli_xml_named(&s_xml, project, "project"))
     {
-        cli_line_text(said, "This is no POM");
+        mmgr_line_put(err_msg, "This is no POM");
         return 0;
     }
     const char *const property = g_cli_maven_compiler[setting][2];
@@ -140,23 +140,23 @@ static int set_compiler(const char *pom, unsigned int setting, const char *value
             }
         }
         char unit[256];
-        CliLine step = {unit, sizeof(unit), 0ull};
+        VerbaLinea step = {unit, sizeof(unit), 0ull};
         set_step(&s_xml, &step);
-        CliLine text = {s_edit, sizeof(s_edit), 0ull};
-        cli_line_text(&text, "\n\n");
-        cli_line_counted(&text, unit, step.at);
-        cli_line_text(&text, "<properties>\n");
-        cli_line_counted(&text, unit, step.at);
-        cli_line_counted(&text, unit, step.at);
-        cli_line_character(&text, '<');
-        cli_line_text(&text, property);
-        cli_line_character(&text, '>');
-        cli_line_text(&text, value);
-        cli_line_text(&text, "</");
-        cli_line_text(&text, property);
-        cli_line_text(&text, ">\n");
-        cli_line_counted(&text, unit, step.at);
-        cli_line_text(&text, "</properties>");
+        VerbaLinea text = {s_edit, sizeof(s_edit), 0ull};
+        mmgr_line_put(&text, "\n\n");
+        mmgr_line_put_n(&text, unit, step.at);
+        mmgr_line_put(&text, "<properties>\n");
+        mmgr_line_put_n(&text, unit, step.at);
+        mmgr_line_put_n(&text, unit, step.at);
+        mmgr_line_ch(&text, '<');
+        mmgr_line_put(&text, property);
+        mmgr_line_ch(&text, '>');
+        mmgr_line_put(&text, value);
+        mmgr_line_put(&text, "</");
+        mmgr_line_put(&text, property);
+        mmgr_line_put(&text, ">\n");
+        mmgr_line_put_n(&text, unit, step.at);
+        mmgr_line_put(&text, "</properties>");
         const CliTextPlace there = cli_build_place(lines, at);
         edit = (CliTextEdit){there, there, s_edit, text.at};
     }
@@ -165,25 +165,25 @@ static int set_compiler(const char *pom, unsigned int setting, const char *value
 }
 
 // the compiler plugin's version set in the POM
-static int set_plugin_version(const char *pom, const char *value, const CliBuildLines *lines, CliLine *out,
-                              CliLine *said)
+static int set_plugin_version(const char *pom, const char *value, const CliBuildLines *lines, VerbaLinea *out,
+                              VerbaLinea *err_msg)
 {
     const unsigned int project = cli_xml_root(&s_xml);
     if ((project == CLI_XML_NONE) || !cli_xml_named(&s_xml, project, "project"))
     {
-        cli_line_text(said, "This is no POM");
+        mmgr_line_put(err_msg, "This is no POM");
         return 0;
     }
     const unsigned int plugin = cli_maven_compiler_plugin(&s_xml, project);
     if (plugin == CLI_XML_NONE)
     {
-        cli_line_text(said, "The POM names no maven-compiler-plugin");
+        mmgr_line_put(err_msg, "The POM names no maven-compiler-plugin");
         return 0;
     }
     const unsigned int version = cli_xml_child(&s_xml, plugin, "version");
     if (version == CLI_XML_NONE)
     {
-        cli_line_text(said, "The POM's maven-compiler-plugin names no version to set");
+        mmgr_line_put(err_msg, "The POM's maven-compiler-plugin names no version to set");
         return 0;
     }
     const CliXmlElement *const element = &s_xml.element[version];
@@ -194,32 +194,32 @@ static int set_plugin_version(const char *pom, const char *value, const CliBuild
 }
 
 // one of Maven's own settings, the element `name`, set to `value` in the user's `settings.xml`, written to it
-static int set_user(const char *name, const char *value, CliLine *out, CliLine *said)
+static int set_user(const char *name, const char *value, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_maven_user_settings(path))
     {
-        cli_line_text(said, "No home folder holds the user's settings");
+        mmgr_line_put(err_msg, "No home folder contains the user's settings");
         return 0;
     }
     unsigned long long mapped_size = 0ull;
-    const unsigned char *const mapped = cli_file_held(path, &mapped_size);
+    const unsigned char *const mapped = cli_file_read(path, &mapped_size);
     // the file's bytes are read as its text; a file not there is read as empty
     const char *const text = (mapped != NULL) ? (const char *)mapped : "";
     const unsigned long long size = (mapped != NULL) ? mapped_size : 0ull;
-    CliLine written;
-    (void)cli_line_growing(&written, size + CLI_MAVEN_SET_MORE, "the user's Maven settings written");
+    VerbaLinea written;
+    (void)cli_growing_line_made(&written, size + CLI_MAVEN_SET_MORE);
     unsigned int *starts = NULL;
     int settings = 1;
     if (cli_text_lead(text, size) == size)
     {
-        cli_line_text(&written, "<settings xmlns=\"http://maven.apache.org/SETTINGS/1.0.0\">\n  <");
-        cli_line_text(&written, name);
-        cli_line_character(&written, '>');
-        cli_line_text(&written, value);
-        cli_line_text(&written, "</");
-        cli_line_text(&written, name);
-        cli_line_text(&written, ">\n</settings>\n");
+        mmgr_line_put(&written, "<settings xmlns=\"http://maven.apache.org/SETTINGS/1.0.0\">\n  <");
+        mmgr_line_put(&written, name);
+        mmgr_line_ch(&written, '>');
+        mmgr_line_put(&written, value);
+        mmgr_line_put(&written, "</");
+        mmgr_line_put(&written, name);
+        mmgr_line_put(&written, ">\n</settings>\n");
     }
     else
     {
@@ -234,30 +234,30 @@ static int set_user(const char *name, const char *value, CliLine *out, CliLine *
             (void)cli_text_applied(text, size, &edit, 1u, &written);
         }
     }
-    char parent[CLI_PATH_LONGEST];
-    const int done = settings && cli_line_fits(&written) &&
+    char parent[CLI_PATH_MAX_LEN];
+    const int done = settings && mmgr_line_ok(&written) &&
                      !(cli_path_parent(path, parent) && !query_folder_made(parent)) &&
                      query_file_written(path, written.out, written.at);
-    cli_cell_given_by(&g_cli_build_cells, starts);
-    cli_cell_given(written.out);
+    g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
+    g_cli_cells->persistent_buf_release(written.out, NULL);
     if (mapped != NULL)
     {
         cli_file_let_go(mapped, mapped_size);
     }
     if (done)
     {
-        cli_line_text(out, "[]");
+        mmgr_line_put(out, "[]");
     }
     else
     {
-        cli_line_text(said, path);
-        cli_line_text(said, settings ? ": it could not be written" : " holds no <settings>");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, settings ? ": it could not be written" : " contains no <settings>");
     }
     return done;
 }
 
 int cli_maven_set(const char *pom, const char *text, unsigned long long size, const char *key, const char *value,
-                  CliLine *out, CliLine *said)
+                  VerbaLinea *out, VerbaLinea *err_msg)
 {
     static char s_value[1u << 13u];
     unsigned long long from = 0ull;
@@ -285,31 +285,31 @@ int cli_maven_set(const char *pom, const char *text, unsigned long long size, co
         cli_xml_parse(text, size, &s_xml);
         CliBuildLines lines;
         unsigned int *const starts = cli_build_lines_taken(text, size, &lines);
-        done = (setting < 4u) ? set_compiler(pom, setting, s_value, &lines, out, said)
-                              : set_plugin_version(pom, s_value, &lines, out, said);
-        cli_cell_given_by(&g_cli_build_cells, starts);
+        done = (setting < 4u) ? set_compiler(pom, setting, s_value, &lines, out, err_msg)
+                              : set_plugin_version(pom, s_value, &lines, out, err_msg);
+        g_cli_cells->persistent_buf_release(starts, &g_cli_build_cells);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "local-repository", .cap = CLI_CELLS_POOL}))
     {
-        done = set_user("localRepository", s_value, out, said);
+        done = set_user("localRepository", s_value, out, err_msg);
     }
     else if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "offline", .cap = CLI_CELLS_POOL})) &&
              ((cellul.eq(&(CatenaFinitaCfg){.src = s_value, .other = "true", .cap = CLI_CELLS_POOL})) ||
               (cellul.eq(&(CatenaFinitaCfg){.src = s_value, .other = "false", .cap = CLI_CELLS_POOL}))))
     {
-        done = set_user("offline", s_value, out, said);
+        done = set_user("offline", s_value, out, err_msg);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "offline", .cap = CLI_CELLS_POOL}))
     {
-        cli_line_character(said, '`');
-        cli_line_text(said, s_value);
-        cli_line_text(said, "` is no answer: true or false");
+        mmgr_line_ch(err_msg, '`');
+        mmgr_line_put(err_msg, s_value);
+        mmgr_line_put(err_msg, "` is no answer: true or false");
     }
     else
     {
-        cli_line_character(said, '`');
-        cli_line_text(said, key);
-        cli_line_text(said, "` is no setting that can be set");
+        mmgr_line_ch(err_msg, '`');
+        mmgr_line_put(err_msg, key);
+        mmgr_line_put(err_msg, "` is no setting that can be set");
     }
     cli_xml_given(&s_xml);
     cli_lock_give(&s_set_lock);

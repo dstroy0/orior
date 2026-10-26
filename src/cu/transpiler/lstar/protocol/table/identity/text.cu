@@ -6,13 +6,13 @@
 // The queue over the stick's questions (P13, the scheduler). Every question of the manifest is an entry of its
 // category, and R gives each what it reads: 1 where the part answers it as the host does on every case the host
 // computes it on, 0 where it answers one case otherwise or refuses it, and gray where nothing has settled it. A
-// gray entry carries what keeps it gray: the engine's note where the engine writes no chain for it, that the host
-// computes no answer to it, or that the gate holds it off the part. A gray entry with a chain and a host answer is
-// put through the run channel, every case at once in a container declaring every register its file holds, and its
-// answer is written to R. A question R has settled is never put again. Each ask settles one entry and no other:
+// gray entry carries what retains it gray: the engine's note where the engine writes no chain for it, that the host
+// computes no answer to it, or that the gate blocks it from the part. A gray entry with a chain and a host answer is
+// put through the run channel, every case at once in a container declaring every register its file uses, and its
+// answer is written to R. A question R has settled is never put again. Each query settles one entry and no other:
 // the questions of the stick share no case, and the order the entries are put in settles no more of them than another
-// order would. The run's blob queue.txt holds every entry with its category, what it reads and what keeps it gray, and
-// each category's entries are counted on the standard output as a row of P12's table
+// order would. The run's blob queue.txt contains every entry with its category, what it reads and what retains it gray,
+// and each category's entries are counted on the standard output as a row of P12's table
 int identity_queue(const char *engine, const char *answers, const char *ksc, const std::string &folder,
                           const char *manifest, const char *const *carrier)
 {
@@ -60,12 +60,12 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
     }
     record_open(ksc, "queue");
     RunWritten table = {(folder + "/queue.txt"), 0, std::string()};
-    // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
+    // a chain of ours contains no probe place, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
-    s_question.slot = RUN_SLOT_NONE;
+    s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long asks = 0ull;
+    unsigned long long queries = 0ull;
     // each category's entries counted by what came of them, in the order the manifest first names the category
     std::vector<std::string> categories;
     std::map<std::string, std::map<std::string, unsigned int>> counted;
@@ -94,12 +94,12 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
         else
         {
             counted[category]["written"] += 1u;
-            counted[category]["held"] += 1u;
-            const int alike = stall_alike(code, host[number], places, &s_question, &asks);
-            reads = alike ? "1" : (s_question.outcome == RUN_HELD) ? "gray" : "0";
-            reason = alike ? "alike"
+            counted[category]["gated"] += 1u;
+            const int alike = stall_alike(code, host[number], places, &s_question, &queries);
+            reads = alike ? "1" : (s_question.outcome == RUN_GATED) ? "gray" : "0";
+            reason = alike                                  ? "alike"
                      : (s_question.outcome == RUN_ANSWERED) ? "apart"
-                     : (s_question.outcome == RUN_HELD)     ? std::string("the gate holds it: ") + s_question.refused
+                     : (s_question.outcome == RUN_GATED)    ? std::string("the gate blocks it: ") + s_question.refused
                                                             : std::string("refused: ") + s_question.refused;
             counted[category]["alike"] += alike ? 1u : 0u;
         }
@@ -113,21 +113,22 @@ int identity_queue(const char *engine, const char *answers, const char *ksc, con
         return 1;
     }
     run_channel_close();
-    printf("| category | questions | written | held | alike | 1 | 0 | gray |\n");
+    printf("| category | questions | written | gated | alike | 1 | 0 | gray |\n");
     std::map<std::string, unsigned int> all;
     for (const std::string &category : categories)
     {
         std::map<std::string, unsigned int> &row = counted[category];
         printf("| %s | %u | %u | %u | %u | %u | %u | %u |\n", category.c_str(), row["questions"], row["written"],
-               row["held"], row["alike"], row["1"], row["0"], row["gray"]);
-        for (const char *const column : {"questions", "written", "held", "alike", "1", "0", "gray"})
+               row["gated"], row["alike"], row["1"], row["0"], row["gray"]);
+        for (const char *const column : {"questions", "written", "gated", "alike", "1", "0", "gray"})
         {
             all[column] += row[column];
         }
     }
-    printf("| all | %u | %u | %u | %u | %u | %u | %u |\n", all["questions"], all["written"], all["held"], all["alike"],
+    printf("| all | %u | %u | %u | %u | %u | %u | %u |\n", all["questions"], all["written"], all["gated"], all["alike"],
            all["1"], all["0"], all["gray"]);
-    printf("orior_klq_identity queue: %llu asks, %u read 1, %u read 0, %u gray\n", asks, all["1"], all["0"], all["gray"]);
+    printf("orior_klq_identity queue: %llu queries, %u read 1, %u read 0, %u gray\n", queries, all["1"], all["0"],
+           all["gray"]);
     return (all["0"] == 0u) ? 0 : 1;
 }
 
@@ -142,14 +143,15 @@ std::string case_text(unsigned int at)
     return written;
 }
 
-// The bridge's identities between texts held on the part (P13, the identities). Each side of
+// The bridge's identities between texts checked on the part (P13, the identities). Each side of
 // `text_identity <text> = <text>` is a question of the sides' stick, its chain the engine's and its answers the host's,
 // found by its text in the sides' manifest. An identity closes at the first case the host answers its two sides apart
 // on, the texts then two meanings, and at the first case the part answers a side apart from the host on, the sides
-// then not held to each other there. Where the host answers the two sides alike on every case it computes them on and
-// the part answers each as the host does, the identity is open with its count of cases, every case both sides are
-// computed on. A side with no chain, no host answer, or that the part refuses or the gate holds is not asked, and its
-// identity is open with 0. Each identity's verdict is written beneath it in the bridge in place of the one it held
+// then not checked against each other there. Where the host answers the two sides alike on every case it computes them
+// on and the part answers each as the host does, the identity is open with its count of cases, every case both sides
+// are computed on. A side with no chain, no host answer, or that the part refuses or the gate blocks is not queried,
+// and its identity is open with 0. Each identity's verdict is written beneath it in the bridge in place of the one it
+// recorded
 int identity_text(const char *engine, const char *answers, const char *ksc, const char *klq,
                          const char *manifest, const char *const *carrier)
 {
@@ -168,8 +170,8 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
         }
     }
     std::vector<std::string> bridge;
-    std::istringstream held(run_file_text(klq));
-    while (std::getline(held, line))
+    std::istringstream stream(run_file_text(klq));
+    while (std::getline(stream, line))
     {
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
@@ -178,14 +180,14 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
         return 1;
     }
     record_open(ksc, "text_identity");
-    // a chain of ours holds no slot, and the cross reads it whole (measuring_stick_query.c)
+    // a chain of ours contains no probe place, and the cross reads it whole (measuring_stick_query.c)
     static RunQuestion s_question;
-    s_question.slot = RUN_SLOT_NONE;
+    s_question.place = RUN_PLACE_NONE;
     std::vector<unsigned int> places;
     stall_cases(&s_question, &places);
-    unsigned long long asks = 0ull;
+    unsigned long long queries = 0ull;
     // a side put to the part: 1 where it answers as the host does on every case, 0 where it answers one apart, its
-    // place in s_apart_at, and -1 where it is not asked
+    // place in s_apart_at, and -1 where it is not queried
     const auto side_alike = [&](const std::string &number) -> int {
         std::vector<unsigned char> code;
         std::vector<Link> links;
@@ -193,14 +195,15 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
         {
             return -1;
         }
-        const int alike = stall_alike(code, host[number], places, &s_question, &asks);
+        const int alike = stall_alike(code, host[number], places, &s_question, &queries);
         return alike ? 1 : (s_question.outcome == RUN_ANSWERED) ? 0 : -1;
     };
     std::vector<std::string> written;
     unsigned int open = 0u;
     unsigned int closed = 0u;
-    unsigned int unasked = 0u;
-    // every verdict line the bridge held beneath an identity between texts, however many, gives way to the one written
+    unsigned int unqueried = 0u;
+    // every verdict line the bridge recorded beneath an identity between texts, however many, gives way to the one
+    // written
     int beneath = 0;
     for (size_t at = 0u; at < bridge.size(); at += 1u)
     {
@@ -263,27 +266,27 @@ int identity_text(const char *engine, const char *answers, const char *ksc, cons
         }
         open += (verdict.rfind("open ", 0u) == 0u) && (verdict != "open 0") ? 1u : 0u;
         closed += (verdict.rfind("closed ", 0u) == 0u) ? 1u : 0u;
-        unasked += (verdict == "open 0") ? 1u : 0u;
-        if (s_ask_trace != NULL)
+        unqueried += (verdict == "open 0") ? 1u : 0u;
+        if (s_trace_log != NULL)
         {
-            ask_written(s_ask_trace, "text_identity %s [%s %s]: %s\n", sides.c_str(), first.c_str(), second.c_str(),
-                        verdict.c_str());
-            ask_flushed(s_ask_trace);
+            query_log_print(s_trace_log, "text_identity %s [%s %s]: %s\n", sides.c_str(), first.c_str(), second.c_str(),
+                            verdict.c_str());
+            query_log_flushed(s_trace_log);
         }
         written.push_back(verdict);
     }
     run_channel_close();
     RunWritten file = {klq, 1, std::string()};
-    for (const std::string &kept : written)
+    for (const std::string &written_line : written)
     {
-        run_print(&file, "%s\n", kept.c_str());
+        run_print(&file, "%s\n", written_line.c_str());
     }
     if (!run_closed(&file))
     {
         printf("orior_klq_identity text_identity: %s could not be written\n", klq);
         return 1;
     }
-    printf("orior_klq_identity text_identity: %llu asks, %u open, %u closed, %u not asked, written to %s\n", asks, open,
-           closed, unasked, klq);
+    printf("orior_klq_identity text_identity: %llu queries, %u open, %u closed, %u not queried, written to %s\n",
+           queries, open, closed, unqueried, klq);
     return 0;
 }

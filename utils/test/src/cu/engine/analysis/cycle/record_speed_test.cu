@@ -3,7 +3,7 @@
 //
 // The record programs' speed. Three programs of the kinds the engine runs, each over 2^22 lanes, each timed on the
 // host around cycle_record_run, which launches the program and waits for it: the best of five runs. The same binary
-// run with CYCLE_RECORD_INTERPRET=1 times the interpreter, and each program says which ran. Every program's first
+// run with CYCLE_RECORD_INTERPRET=1 times the interpreter, and each program reports which ran. Every program's first
 // 65,536 lanes are checked word for word against the host's records.
 // - chain: the Gaussian step's eight floors, a DIFFERENCE and a SUM a floor, over two 24-bit signed fields
 // - powers: x to x^8 by products, then their sum, over one 32-bit field: the products reach 8 limbs
@@ -251,23 +251,23 @@ int main(int count, char **arguments)
         sim_check(&results, same, "the device's first 65,536 records equal the host's word for word");
         if ((ran != 0) && (best != 0ull))
         {
-            scriptura_text(&results.line, "  ");
-            scriptura_text(&results.line, program->name);
-            scriptura_text(&results.line, ": ");
-            scriptura_decimal(&results.line, program->step_count, 1u);
-            scriptura_text(&results.line, " steps, ");
-            scriptura_decimal(&results.line, layout->file_limbs, 1u);
-            scriptura_text(&results.line, " file limbs, ");
-            scriptura_decimal(&results.line, layout->out_limbs, 1u);
-            scriptura_text(&results.line, " record limbs; ");
-            scriptura_text(&results.line, (cycle_record_compiled(record) != 0) ? "compiled" : "interpreted");
-            scriptura_text(&results.line, ", the best of 5 runs over ");
-            scriptura_decimal(&results.line, SPEED_TEST_LANES, 1u);
-            scriptura_text(&results.line, " lanes: ");
+            mmgr_line_put(&results.line, "  ");
+            mmgr_line_put(&results.line, program->name);
+            mmgr_line_put(&results.line, ": ");
+            mmgr_line_decimal(&results.line, program->step_count, 1u);
+            mmgr_line_put(&results.line, " steps, ");
+            mmgr_line_decimal(&results.line, layout->file_limbs, 1u);
+            mmgr_line_put(&results.line, " file limbs, ");
+            mmgr_line_decimal(&results.line, layout->out_limbs, 1u);
+            mmgr_line_put(&results.line, " record limbs; ");
+            mmgr_line_put(&results.line, (cycle_record_compiled(record) != 0) ? "compiled" : "interpreted");
+            mmgr_line_put(&results.line, ", the best of 5 runs over ");
+            mmgr_line_decimal(&results.line, SPEED_TEST_LANES, 1u);
+            mmgr_line_put(&results.line, " lanes: ");
             sim_fraction_print(&results.line, best, 1000ull, 3u);
-            scriptura_text(&results.line, " ms, ");
+            mmgr_line_put(&results.line, " ms, ");
             sim_fraction_print(&results.line, SPEED_TEST_LANES, best, 1u);
-            scriptura_text(&results.line, " million lanes a second\n");
+            mmgr_line_put(&results.line, " million lanes a second\n");
         }
         if (record != NULL)
         {

@@ -20,14 +20,14 @@ uint64_t orior_exact_hash(const OriorExactInteger *value)
 /**
  * @brief The agreement count without a table, for when the table cannot be allocated.
  *
- * @param[in] equal     Whether two integers hold the same value [BORROWS].
+ * @param[in] equal     Whether two integers have the same value [BORROWS].
  * @param[in] positions Positions carrying values, in any order [BORROWS].
  * @param[in] values    The value standing at each position [BORROWS].
  * @param[in] count     How many positions.
  * @param[in] lag       The offset to test [BORROWS].
  * @return              The count orior_exact_agreement_using returns with a table.
  * @note Quadratic in `count` and needs no memory. A position is counted at its last entry only, and
- *       a displaced position is matched to the last entry equal to it, which keeps the last value
+ *       a displaced position is matched to the last entry equal to it, which retains the last value
  *       at a repeated position.
  */
 static size_t agreement_without_table(int (*equal)(const OriorExactInteger *left, const OriorExactInteger *right),
@@ -87,7 +87,7 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
                                     const OriorExactInteger *positions, const uint64_t *values, size_t count,
                                     const OriorExactInteger *lag)
 {
-    // What the measure asks of the set is membership: is there a point exactly one lag away, and
+    // What the measure requires of the set is membership: is there a point exactly one lag away, and
     // does it carry the same value. A set has no ordering, and a search that walks one imposes a
     // structure the domain never had and pays a full limb comparison at every step of it.
     //
@@ -96,8 +96,8 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
     // distinct coordinates reading as equal is the error this whole path exists to prevent.
     //
     // This is what the python side has always done. Its `placed` is a dict built by overwriting,
-    // which keeps the last value at a repeated position and holds each position once. The table
-    // below keeps the last entry and the count walks the table, which gives the same count.
+    // which retains the last value at a repeated position and stores each position once. The table
+    // below retains the last entry and the count walks the table, which gives the same count.
     if (count == 0u)
     {
         return 0u;
@@ -138,8 +138,8 @@ size_t orior_exact_agreement_using(int (*equal)(const OriorExactInteger *left, c
         {
             slot = (slot + 1u) & mask;
         }
-        // An empty slot takes the entry. A slot already holding this position takes it too. The
-        // table ends up holding the last entry for every position.
+        // An empty slot takes the entry. A slot already containing this position takes it too. The
+        // table ends up containing the last entry for every position.
         table[slot] = at;
     }
 

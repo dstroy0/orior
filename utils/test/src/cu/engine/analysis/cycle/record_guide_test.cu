@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // The worked example of engine/prg_sch/README.md, run as written: a two-member program that moves each body by its
-// velocity over a shared time step, x' = x + v . dt, and says which side of the origin it lands on. The program is
+// velocity over a shared time step, x' = x + v . dt, and reports which side of the origin it lands on. The program is
 // encoded, laid out on the host and on the device and loaded by the calls engine_record_encode makes, swept on the
 // device with an index that pairs every body with the one time-step record, run again on the host, and each record
 // decoded and checked against the arithmetic done directly. The test is one job on the device's tessera daemon,
@@ -12,7 +12,9 @@
 #include "../../../../../../../src/cu/includes/types/integers/exact_integer.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -28,7 +30,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } GuideResults;
 
 static void guide_check(GuideResults *results, int passed, const char *what)
@@ -37,9 +39,9 @@ static void guide_check(GuideResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -133,10 +135,10 @@ int main(int count, char **arguments)
     const KeyScheduleRecordRequest layout_request = {&key, field_offset, 3u, in_limbs, 1, &layout, &error};
     ok = ok && (key_schedule_record_layout(&layout_request) != KEY_SCHEDULE_ERROR);
     guide_check(&results, ok, "the example program lays out");
-    // the program laid out on the device as well, held to the host's layout, and the device's loaded
+    // the program laid out on the device as well, checked against the host's layout, and the device's loaded
     const LayoutRequest device_request = {full,     7u,           field_bits, field_offset, 3u, 2u,
                                           in_limbs, full_outputs, 2u,         NULL,         0u, 1};
-    ok = ok && (layout_device_held(&device_request, &layout, 1) != 0);
+    ok = ok && (layout_device_agrees(&device_request, &layout, 1) != 0);
     guide_check(&results, ok, "the device lays out the example program word for word the host's");
     // outputs are packed in the order named, each one bit wider than its register for the sign
     guide_check(&results,
@@ -218,7 +220,7 @@ int main(int count, char **arguments)
     guide_check(&results, right, "every body's x + v . dt and its side of the origin decode exactly");
 
     // a lane whose index names a record past its member errors on the sweep, and the record machine names it a request
-    // error in an error of its own, since `error` already holds the encoding's error above
+    // error in an error of its own, since `error` already contains the encoding's error above
     index[0] = GUIDE_TEST_BODIES;
     EngineError over_limit_error;
     memset(&over_limit_error, 0, sizeof(over_limit_error));
@@ -252,12 +254,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     guide_check(&results, (job.checks == 2ull) && (job.failures == 0ull),
                 "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record guide test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record guide test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

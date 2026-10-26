@@ -6,7 +6,7 @@
 #include "../text/text.h"
 #include "compile_db_internal.h"
 
-// the most folders a search below a build holds to look in
+// the most folders a search below a build tracks to look in
 #define CLI_COMPILE_PENDING 4096u
 
 int cli_compile_stamped(const char *path, CliStamped *stamped)
@@ -22,7 +22,7 @@ int cli_compile_stamped(const char *path, CliStamped *stamped)
     return 1;
 }
 
-CliCellsTally g_cli_compile_cells = CLI_CELLS_TALLY("cli_compile_db");
+CellOwner g_cli_compile_cells = MMGR_CELL_OWNER("cli_compile_db");
 
 void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsigned long long each, unsigned int most,
                        const char *what)
@@ -33,34 +33,35 @@ void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsig
     }
     const unsigned int doubled = (*room == 0u) ? CLI_COMPILE_FIRST : (*room * 2u);
     const unsigned int grown = (doubled < most) ? doubled : most;
-    void *const larger =
-        (count < most) ? cli_cell_taken_by(&g_cli_compile_cells, (unsigned long long)grown * each, what) : NULL;
+    void *const larger = (count < most)
+                             ? g_cli_cells->persistent_buf_alloc((unsigned long long)grown * each, &g_cli_compile_cells)
+                             : NULL;
     if (larger == NULL)
     {
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    cli_cell_given_by(&g_cli_compile_cells, list);
+    g_cli_cells->persistent_buf_release(list, &g_cli_compile_cells);
     *room = grown;
     return larger;
 }
 
 void cli_compile_inputs_given(CliInputs *inputs)
 {
-    cli_cell_given_by(&g_cli_compile_cells, inputs->file);
+    g_cli_cells->persistent_buf_release(inputs->file, &g_cli_compile_cells);
     *inputs = (CliInputs){0, NULL, 0u, 0u};
 }
 
 void cli_compile_found_given(CliFoundFolders *found)
 {
-    cli_cell_given_by(&g_cli_compile_cells, found->path);
+    g_cli_cells->persistent_buf_release(found->path, &g_cli_compile_cells);
     *found = (CliFoundFolders){NULL, 0u, 0u};
 }
 
 // A folder still to look in below a build, and its depth
 typedef struct
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned int depth;
 } CliBelowFolder;
 
@@ -111,7 +112,7 @@ static void cli_walked_below(const char *top, int (*each)(void *context, const c
     while (below.count > 0u)
     {
         below.count -= 1u;
-        char folder[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = folder, .src = below.pending[below.count].path, .bytes = sizeof(folder)});
         const unsigned int depth = below.pending[below.count].depth;
         if (!each(context, folder, depth) || (depth >= CLI_COMPILE_DEPTH))
@@ -122,7 +123,7 @@ static void cli_walked_below(const char *top, int (*each)(void *context, const c
         below.folder_depth = depth;
         query_folder_each(folder, cli_below_each, &below);
     }
-    cli_cell_given_by(&g_cli_compile_cells, below.pending);
+    g_cli_cells->persistent_buf_release(below.pending, &g_cli_compile_cells);
 }
 
 // A search for folders ending in a tail, or for files of a name
@@ -136,8 +137,8 @@ typedef struct
 
 static void cli_found_put(CliFoundFolders *found, const char *path)
 {
-    char (*const paths)[CLI_PATH_LONGEST] =
-        cli_compile_room(found->path, found->count, &found->room, CLI_PATH_LONGEST, CLI_COMPILE_FOUND,
+    char (*const paths)[CLI_PATH_MAX_LEN] =
+        cli_compile_room(found->path, found->count, &found->room, CLI_PATH_MAX_LEN, CLI_COMPILE_FOUND,
                          "the folders a search below a build found");
     if (paths != NULL)
     {
@@ -153,8 +154,8 @@ static int cli_tail_each(void *context, const char *folder, unsigned int depth)
 {
     (void)depth;
     const CliNamedSearch *const search = (const CliNamedSearch *)context;
-    char below[CLI_PATH_LONGEST];
-    char next[CLI_PATH_LONGEST];
+    char below[CLI_PATH_MAX_LEN];
+    char next[CLI_PATH_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = below,
                             .src = folder,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
@@ -184,7 +185,7 @@ static int cli_name_each(void *context, const char *folder, unsigned int depth)
 {
     (void)depth;
     const CliNamedSearch *const search = (const CliNamedSearch *)context;
-    char file[CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
     cli_full(folder, search->name, file);
     if (query_is_file(file))
     {
@@ -211,7 +212,7 @@ typedef struct
 static void cli_index_each(void *context, const char *name, int is_folder)
 {
     CliNewest *const newest = (CliNewest *)context;
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(newest->reply, name, path);
     if (is_folder || (!cellul.starts(&(CatenaFinitaCfg){.src = name, .other = "index-", .cap = CLI_CELLS_POOL})) ||
         !query_is_file(path))
@@ -292,7 +293,7 @@ typedef struct
 static void cli_first_each(void *context, const char *word, unsigned long long size)
 {
     CliFirst *const first = (CliFirst *)context;
-    if (!first->found && (size < CLI_PATH_LONGEST))
+    if (!first->found && (size < CLI_PATH_MAX_LEN))
     {
         memor.cpy(&(MemoriaCfg){.dst = first->first, .src = word, .bytes = size});
         first->first[size] = '\0';
@@ -310,22 +311,22 @@ int cli_compile_first_word(const char *text, unsigned long long length, char *fi
 unsigned int cli_compile_json_read(CliJson *json, const char *path)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     if (bytes == NULL)
     {
         return CLI_JSON_NONE;
     }
     const unsigned int tokens_most = cli_json_tokens_counted((const char *)bytes, size) + 1u;
     CfgJsonToken *const tokens =
-        cli_cell_taken((unsigned long long)tokens_most * sizeof(CfgJsonToken), "a compile file's tokens");
+        g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
     unsigned int root = CLI_JSON_NONE;
     if ((tokens != NULL) && cli_json_room(json, tokens_most, size))
     {
-        char why[CLI_NAME_LONGEST];
-        CliLine unread = {why, sizeof(why), 0ull};
+        char why[CLI_NAME_MAX_LEN];
+        VerbaLinea unread = {why, sizeof(why), 0ull};
         root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
     }
-    cli_cell_given(tokens);
+    g_cli_cells->persistent_buf_release(tokens, NULL);
     cli_file_let_go(bytes, size);
     return root;
 }

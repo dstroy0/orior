@@ -8,7 +8,7 @@ static CycleTarget s_cycle_lane_targets[2];
 
 static const char s_cycle_cache_magic[] = "cycle image 2\n";
 
-// the image a cache file holds for this very source; empty where there is none
+// the image a cache file contains for this very source; empty where there is none
 std::vector<char> cycle_cache_read(const std::string &path, const std::string &source)
 {
     std::vector<char> image;
@@ -220,7 +220,8 @@ static std::string cycle_ptx_header_lines(const char *ptx)
 
 static CyclePtxHeader s_cycle_ptx_header;
 
-// the header's three lines; empty where NVRTC cannot be asked or does not answer, which leaves programs to the C source
+// the header's three lines; empty where NVRTC cannot be queried or does not answer, which leaves programs to the C
+// source
 const std::string &cycle_ptx_header(int major, int minor, int report)
 {
     CyclePtxHeader *const header = &s_cycle_ptx_header;
@@ -238,13 +239,13 @@ const std::string &cycle_ptx_header(int major, int minor, int report)
         return header->lines;
     }
     std::string question;
-    cycle_format(question, "// PTX's header, asked for sm_%d%d of NVRTC %d.%d\n", major, minor, compiler->major,
+    cycle_format(question, "// PTX's header, requested for sm_%d%d of NVRTC %d.%d\n", major, minor, compiler->major,
                  compiler->minor);
     question += "extern \"C\" __global__ void cycle_probe(void)\n{\n}\n";
     const std::string folder = cycle_cache_folder();
     const std::string path = folder.empty() ? std::string() : cycle_cache_path(folder, question);
-    const std::vector<char> kept = path.empty() ? std::vector<char>() : cycle_cache_read(path, question);
-    std::string answer(kept.begin(), kept.end());
+    const std::vector<char> cached = path.empty() ? std::vector<char>() : cycle_cache_read(path, question);
+    std::string answer(cached.begin(), cached.end());
     const int found = !answer.empty();
     nvrtcProgram program = NULL;
     if (!found && (compiler->create(&program, question.c_str(), "cycle_probe.cu", 0, NULL, NULL) == NVRTC_SUCCESS))
@@ -273,7 +274,7 @@ const std::string &cycle_ptx_header(int major, int minor, int report)
     if (report != 0)
     {
         fprintf(stderr, "  cycle: PTX's header for sm_%d%d %s: %s\n", major, minor,
-                found ? "read from the cache" : "asked of NVRTC", answer.empty() ? "none" : answer.c_str());
+                found ? "read from the cache" : "requested from NVRTC", answer.empty() ? "none" : answer.c_str());
     }
     return header->lines;
 }

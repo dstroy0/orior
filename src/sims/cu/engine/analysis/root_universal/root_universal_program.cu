@@ -104,7 +104,7 @@ int root_volume_open(SimResults *results, RootVolume *volume, const unsigned lon
     volume->host = (unsigned short *)malloc((size_t)volume->lanes * sizeof(unsigned short));
     volume->rebuilt = (unsigned short *)malloc((size_t)volume->lanes * sizeof(unsigned short));
     int ok = (volume->host != NULL) && (volume->rebuilt != NULL);
-    sim_check(results, ok, "the volume's host lanes were held");
+    sim_check(results, ok, "the volume's host lanes were allocated");
     ok = ok && sim_status_check(results, cudaMalloc((void **)&volume->device, volume->lanes * sizeof(unsigned short)),
                                 "device lanes");
     return ok;
@@ -161,7 +161,7 @@ int root_lift_crystal(SimResults *results, const RootVolume *volume, const Tower
     return ok;
 }
 
-// the full crystal path: lift with the edges, code, wipe the kept coefficients so only the stream carries
+// the full crystal path: lift with the edges, code, wipe the retained coefficients so only the stream carries
 // them, decode, lower with the same edges, and compare the rebuilt lanes with the rendered ones
 int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *edges, unsigned int edge_count,
                       int *crystal, unsigned long long *bits, int *exact)
@@ -213,7 +213,7 @@ int root_crystal_trip(SimResults *results, RootVolume *volume, const TowerEdge *
     {
         ok = (tower_capacity(volume->extent, &device_buffer, &error) == 0L) &&
              sim_status_check(results, cudaMemset(device_buffer, 0, volume->lanes * sizeof(int)), "crystal wipe");
-        sim_check(results, ok, "the held crystal was wiped before decoding");
+        sim_check(results, ok, "the stored crystal was wiped before decoding");
     }
     if (ok)
     {

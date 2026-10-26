@@ -17,7 +17,7 @@ struct CliTls
 static CliTls s_sessions[CLI_TLS_MOST];
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// what came read for Secure Transport, all it asked for where it came: closed where the peer closed, would-block where
+// what came read for Secure Transport, all it requested where it came: closed where the peer closed, would-block where
 // the wait ran out
 static OSStatus cli_read_from(SSLConnectionRef connection, void *data, size_t *length)
 {
@@ -30,7 +30,7 @@ static OSStatus cli_read_from(SSLConnectionRef connection, void *data, size_t *l
         const long long read = cli_socket_some(tls->socket, (unsigned char *)data + got, wanted - got);
         if (read > 0ll)
         {
-            // a count read is below what was asked
+            // a count read is below what was requested
             got += (size_t)read;
             continue;
         }
@@ -54,7 +54,7 @@ static OSStatus cli_write_to(SSLConnectionRef connection, const void *data, size
     return errSSLClosedAbort;
 }
 
-CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine *said)
+CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
     CliTls *tls = NULL;
@@ -69,7 +69,7 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     cli_lock_give(&s_lock);
     if (tls == NULL)
     {
-        cli_line_text(said, "TLS: more sessions are open than orior_cli holds");
+        mmgr_line_put(err_msg, "TLS: more sessions are open than orior_cli supports");
         return NULL;
     }
     tls->socket = socket;
@@ -77,7 +77,7 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
     if (tls->context == NULL)
     {
         tls->used = 0;
-        cli_line_text(said, "TLS: Secure Transport made no session");
+        mmgr_line_put(err_msg, "TLS: Secure Transport made no session");
         return NULL;
     }
     SSLSetIOFuncs(tls->context, cli_read_from, cli_write_to);
@@ -100,38 +100,38 @@ CliTls *cli_tls_connect(CliSocket *socket, const char *host, int verify, CliLine
         }
         if (status == errSSLWouldBlock)
         {
-            cli_line_text(said, "TLS: the server took too long in the handshake");
+            mmgr_line_put(err_msg, "TLS: the server took too long in the handshake");
         }
         else
         {
-            cli_line_text(said, "TLS: Secure Transport said ");
-            cli_line_signed(said, status);
+            mmgr_line_put(err_msg, "TLS: Secure Transport reported ");
+            mmgr_line_decimal_signed(err_msg, status);
         }
         cli_tls_closed(tls);
         return NULL;
     }
 }
 
-long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, CliLine *said)
+long long cli_tls_read(CliTls *tls, void *out, unsigned long long room, VerbaLinea *err_msg)
 {
     size_t processed = 0u;
     const OSStatus status = SSLRead(tls->context, out, (size_t)room, &processed);
     if ((status == noErr) || (status == errSSLClosedGraceful) || (status == errSSLClosedAbort) ||
         ((status == errSSLWouldBlock) && (processed > 0u)))
     {
-        // a count read is below the room asked
+        // a count read is below the room requested
         return (long long)processed;
     }
     if (status == errSSLWouldBlock)
     {
         return CLI_SOCKET_WAITED;
     }
-    cli_line_text(said, "TLS: Secure Transport said ");
-    cli_line_signed(said, status);
+    mmgr_line_put(err_msg, "TLS: Secure Transport reported ");
+    mmgr_line_decimal_signed(err_msg, status);
     return CLI_SOCKET_FAILED;
 }
 
-long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, CliLine *said)
+long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, VerbaLinea *err_msg)
 {
     size_t processed = 0u;
     const OSStatus status = SSLWrite(tls->context, data, (size_t)size, &processed);
@@ -139,8 +139,8 @@ long long cli_tls_write(CliTls *tls, const void *data, unsigned long long size, 
     {
         return (long long)processed;
     }
-    cli_line_text(said, "TLS: Secure Transport said ");
-    cli_line_signed(said, status);
+    mmgr_line_put(err_msg, "TLS: Secure Transport reported ");
+    mmgr_line_decimal_signed(err_msg, status);
     return CLI_SOCKET_FAILED;
 }
 

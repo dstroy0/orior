@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// recording_values.c: what the replay asks of a recording read: a frame's names' values at a step, the frames standing
-// at a step, and a name's history through the run, each from the line records the steps name
+// recording_values.c: what the replay requests of a recording read: a frame's names' values at a step, the frames
+// standing at a step, and a name's history through the run, each from the line records the steps name
 #include "recording_internal.h"
 
 #include "../text/text.h"
@@ -30,63 +30,64 @@ static void read_changes(unsigned int step, void (*each)(void *context, const ch
     }
 }
 
-// the values a frame's are begun to be held in, doubling as they come
+// the values a frame's are begun to be stored in, doubling as they come
 #define CLI_RECORDED_VALUES_FIRST 16u
 
-// The values held as the steps of a frame are read: a cell of `room` of them grown as they come, the most it holds,
-// and how many there are
+// The values stored as the steps of a frame are read: a cell of `room` of them grown as they come, the most it
+// contains, and how many there are
 typedef struct
 {
     CliRecordedValue *values;
     unsigned int room;
     unsigned int most;
     unsigned int count;
-} CliRecordedHeld;
+} CliRecordedValues;
 
-// room made among the values held for one more, below their most: the values moved into a cell of twice their room
-static void read_held_room(CliRecordedHeld *held)
+// room made among the values stored for one more, below their most: the values moved into a cell of twice their room
+static void read_value_room(CliRecordedValues *recorded)
 {
-    if ((held->count < held->room) || (held->room >= held->most))
+    if ((recorded->count < recorded->room) || (recorded->room >= recorded->most))
     {
         return;
     }
-    const unsigned int doubled = (held->room == 0u) ? CLI_RECORDED_VALUES_FIRST : (held->room * 2u);
-    const unsigned int room = (doubled < held->most) ? doubled : held->most;
-    CliRecordedValue *const grown = cli_cell_taken(room * sizeof(*grown), "the values a frame held");
+    const unsigned int doubled = (recorded->room == 0u) ? CLI_RECORDED_VALUES_FIRST : (recorded->room * 2u);
+    const unsigned int room = (doubled < recorded->most) ? doubled : recorded->most;
+    CliRecordedValue *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), NULL);
     if (grown == NULL)
     {
         return;
     }
-    if (held->count != 0u)
+    if (recorded->count != 0u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = held->values, .bytes = held->count * sizeof(*grown)});
+        memor.cpy(&(MemoriaCfg){.dst = grown, .src = recorded->values, .bytes = recorded->count * sizeof(*grown)});
     }
-    cli_cell_given(held->values);
-    held->values = grown;
-    held->room = room;
+    g_cli_cells->persistent_buf_release(recorded->values, NULL);
+    recorded->values = grown;
+    recorded->room = room;
 }
 
-// a change applied to the values held: the name's value taken out, and its new one put after the rest where it has one
-static void read_held(void *context, const char *name, const char *value)
+// a change applied to the values stored: the name's value taken out, and its new one put after the rest where it has
+// one
+static void read_value_put(void *context, const char *name, const char *value)
 {
-    CliRecordedHeld *const held = (CliRecordedHeld *)context;
-    unsigned int kept = 0u;
-    for (unsigned int at = 0u; at < held->count; at += 1u)
+    CliRecordedValues *const recorded = (CliRecordedValues *)context;
+    unsigned int count = 0u;
+    for (unsigned int at = 0u; at < recorded->count; at += 1u)
     {
-        if (!cellul.eq(&(CatenaFinitaCfg){.src = held->values[at].name, .other = name, .cap = CLI_CELLS_POOL}))
+        if (!cellul.eq(&(CatenaFinitaCfg){.src = recorded->values[at].name, .other = name, .cap = CLI_CELLS_POOL}))
         {
-            held->values[kept] = held->values[at];
-            kept += 1u;
+            recorded->values[count] = recorded->values[at];
+            count += 1u;
         }
     }
-    held->count = kept;
+    recorded->count = count;
     if (value != NULL)
     {
-        read_held_room(held);
+        read_value_room(recorded);
     }
-    if ((value != NULL) && (held->count < held->room))
+    if ((value != NULL) && (recorded->count < recorded->room))
     {
-        CliRecordedValue *const put = &held->values[held->count];
+        CliRecordedValue *const put = &recorded->values[recorded->count];
         memor.cpy(&(MemoriaCfg){.dst = put->name,
                                 .src = name,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) + 1u});
@@ -94,14 +95,14 @@ static void read_held(void *context, const char *name, const char *value)
                                 .src = value,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = value, .cap = CLI_CELLS_POOL}) + 1u});
         put->has = 1;
-        held->count += 1u;
+        recorded->count += 1u;
     }
 }
 
 unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue **taken, unsigned int most)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    CliRecordedHeld held = {NULL, 0u, most, 0u};
+    CliRecordedValues recorded = {NULL, 0u, most, 0u};
     *taken = NULL;
     if (serial >= recording->frame_most)
     {
@@ -111,12 +112,12 @@ unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecor
     for (unsigned int index = 0u; (index < frame->count) && (recording->by_frame[frame->first + index] <= at);
          index += 1u)
     {
-        read_changes(recording->by_frame[frame->first + index], read_held, &held);
+        read_changes(recording->by_frame[frame->first + index], read_value_put, &recorded);
     }
     // by name, as a stable sort leaves them
-    CliRecordedValue *const values = held.values;
+    CliRecordedValue *const values = recorded.values;
     *taken = values;
-    for (unsigned int one = 1u; one < held.count; one += 1u)
+    for (unsigned int one = 1u; one < recorded.count; one += 1u)
     {
         const CliRecordedValue moved = values[one];
         unsigned int place = one;
@@ -127,7 +128,7 @@ unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecor
         }
         values[place] = moved;
     }
-    return held.count;
+    return recorded.count;
 }
 
 unsigned int cli_recording_stack(unsigned int at, unsigned int (*frames)[2], unsigned int room)

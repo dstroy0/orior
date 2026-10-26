@@ -11,7 +11,7 @@
 typedef struct
 {
     const char *text;
-    CliLine line;
+    VerbaLinea line;
     unsigned int count;
 } SqlStatements;
 
@@ -19,8 +19,8 @@ typedef struct
 static void sql_statement(void *context, CliSqlSpan span)
 {
     SqlStatements *const statements = context;
-    cli_line_text(&statements->line, (statements->count > 0u) ? "|" : "");
-    cli_line_counted(&statements->line, statements->text + span.start, span.end - span.start);
+    mmgr_line_put(&statements->line, (statements->count > 0u) ? "|" : "");
+    mmgr_line_put_n(&statements->line, statements->text + span.start, span.end - span.start);
     statements->count += 1u;
 }
 
@@ -34,7 +34,7 @@ static void sql_texts(const char *text, unsigned int dialect, const char *wanted
     cli_check_text(out, statements.line.at, wanted, what);
 }
 
-// how many statements `text` holds in `dialect`
+// how many statements `text` contains in `dialect`
 static unsigned int sql_count(const char *text, unsigned int dialect)
 {
     char out[512];
@@ -44,17 +44,17 @@ static unsigned int sql_count(const char *text, unsigned int dialect)
     return statements.count;
 }
 
-// the statement at `at` of `text`, the empty text where none, into `out`, which holds 64
+// the statement at `at` of `text`, the empty text where none, into `out`, which is sized for 64
 static const char *sql_at(const char *text, unsigned long long at, char *out)
 {
     CliSqlSpan span;
-    CliLine line = {out, 64u, 0ull};
+    VerbaLinea line = {out, 64u, 0ull};
     if (cli_sql_statement_at(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), at,
                              CLI_SQL_POSTGRES, &span))
     {
-        cli_line_counted(&line, text + span.start, span.end - span.start);
+        mmgr_line_put_n(&line, text + span.start, span.end - span.start);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -67,11 +67,11 @@ static unsigned long long sql_place(const char *text, const char *needle)
                                 text);
 }
 
-// the count a write with no where asks for, checked against `wanted`, NULL for none
+// the count a write with no where prompts for, checked against `wanted`, NULL for none
 static void sql_unbounded(const char *statement, unsigned int dialect, const char *wanted, const char *what)
 {
     char out[256];
-    CliLine line = {out, sizeof(out), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ull};
     const int counted = cli_sql_unbounded(
         statement, cellul.len(&(CatenaFinitaCfg){.src = statement, .cap = CLI_CELLS_POOL}), dialect, &line);
     cli_check((wanted == NULL)
@@ -123,6 +123,7 @@ static void sql_shaped(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     sql_texts("select ';' -- a; comment\n; /* x; /* y; */ z; */ select $f$ a; b $f$ ; select E'it\\'s; ok'",
               CLI_SQL_POSTGRES, "select ';'|select $f$ a; b $f$|select E'it\\'s; ok'",
               "a semicolon in a string, a comment or a dollar quote ends no statement");
@@ -170,7 +171,7 @@ int main(void)
     cli_check(sql_does("select * into copy from t", CLI_SQL_POSTGRES) == CLI_DOES_SHAPES, "select into makes a table");
     cli_check(sql_does("drop table t", CLI_SQL_MYSQL) == CLI_DOES_SHAPES, "a drop shapes");
     cli_check(sql_does("begin", CLI_SQL_SQLITE) == CLI_DOES_TRANSACTION, "begin opens a transaction");
-    cli_check(sql_does("pragma table_info(t)", CLI_SQL_SQLITE) == CLI_DOES_READS, "a pragma that asks reads");
+    cli_check(sql_does("pragma table_info(t)", CLI_SQL_SQLITE) == CLI_DOES_READS, "a pragma that queries reads");
     cli_check(sql_does("set search_path = a", CLI_SQL_POSTGRES) == CLI_DOES_OTHER, "and a setting is other");
     sql_unbounded("update only t as x set n = 1", CLI_SQL_POSTGRES, "SELECT count(*) FROM only t as x",
                   "an update with no where is counted whole");

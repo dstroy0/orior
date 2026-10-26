@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// fields_internal.h: what the modules of the fields probe share: its includes, the bounds of a container, its code and text, the operation bits and the registers, the machine, pattern, container, code, kernel and keys held, and the functions one module reads from another
+// fields_internal.h: what the modules of the fields probe share: its includes, the bounds of a container, its code and
+// text, the operation bits and the registers, the machine, pattern, container, code, kernel and keys stored, and the
+// functions one module reads from another
 #ifndef FIELDS_INTERNAL_H
 #define FIELDS_INTERNAL_H
 
@@ -14,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin, its code and a text take, and the most exits a code holds
+// the most bytes a cubin, its code and a text take, and the most exits a code contains
 #define FIELDS_CUBIN_BYTES 262144u
 
 #define FIELDS_CODE_BYTES 65536u
@@ -30,12 +32,12 @@
 // the part gives a kernel's code
 #define FIELDS_REGISTERS 255u
 
-// the lines a form is run in: the instruction with its result moved to R8, the register the kernel stores as the answer,
-// and its source registers moved to R10 up. Each source register is set to a distinct value with a zero beside it:
-// turning a bit of a source's field reaches a register of another value and changes the answer. R6 keeps the case's
-// second word, which the kernel leaves in R7. P0 to P6 are each set true or false by whether their number holds an odd
-// count of one bits, as PT, P7, does: turning any one bit of a predicate field reaches a predicate of the other value,
-// and a predicate source or a guard changes the answer
+// the lines a form is run in: the instruction with its result moved to R8, the register the kernel stores as the
+// answer, and its source registers moved to R10 up. Each source register is set to a distinct value with a zero beside
+// it: turning a bit of a source's field reaches a register of another value and changes the answer. R6 stores the
+// case's second word, which the kernel leaves in R7. P0 to P6 are each set true or false by whether their number is an
+// odd count of one bits, as PT, P7, does: turning any one bit of a predicate field reaches a predicate of the other
+// value, and a predicate source or a guard changes the answer
 #define FIELDS_LINES_HEAD                                                                                              \
     "MOV R10, 0xb\nMOV R11, RZ\nMOV R12, 0x7\nMOV R13, RZ\nMOV R14, 0x3\nMOV R15, RZ\n"                                \
     "MOV R16, 0x5\nMOV R17, RZ\nMOV R18, 0x2\nMOV R19, RZ\nMOV R20, 0x9\nMOV R21, RZ\n"                                \
@@ -45,14 +47,14 @@
     "IMAD.MOV.U32 R6, RZ, RZ, R7\n"
 #define FIELDS_LINES_TAIL "\nIMAD.MOV.U32 R7, RZ, RZ, R8\nSTG.E term[UR4][R4.64], R7"
 
-// the line after a form that sets a predicate, its first operand moved to P0: R8 takes R12's 0x7 where P0 holds and
+// the line after a form that sets a predicate, its first operand moved to P0: R8 takes R12's 0x7 where P0 is true and
 // R10's 0xb where it does not, which carries the predicate to the answer as one of two values
 #define FIELDS_LINES_PREDICATE "\nSEL R8, R12, R10, P0"
 
 // the registers a form's source operands are moved onto, in order, each set in the head above
 #define FIELDS_SOURCES 6u
 
-// the register pair a global load's address is moved onto: the kernel leaves R2 and R3 holding the address of the
+// the register pair a global load's address is moved onto: the kernel leaves R2 and R3 containing the address of the
 // thread's case, which the head does not touch, and a load from it reads the case's words
 #define FIELDS_LOAD_ADDRESS "R2"
 
@@ -60,7 +62,7 @@ extern SassMachine s_machine;
 extern unsigned char s_pattern[FIELDS_CUBIN_BYTES];
 extern unsigned char s_code[FIELDS_CODE_BYTES];
 extern char s_kernel_text[FIELDS_TEXT_BYTES];
-extern char s_asking[FIELDS_TEXT_BYTES];
+extern char s_query_text[FIELDS_TEXT_BYTES];
 extern char s_kernel[128];
 extern unsigned long long s_pattern_size;
 

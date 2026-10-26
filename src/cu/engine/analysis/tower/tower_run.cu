@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tower_run.cu: holding, edges, lifting and lowering
+// tower_run.cu: allocation, edges, lifting and lowering
 #include "tower_internal.h"
 
 static int tower_reserve(size_t lanes, EngineError *error)
@@ -38,7 +38,7 @@ extern "C" unsigned long long tower_reserve_bytes(unsigned long long lanes)
         return 0ull;
     }
     DevicePoolTakeRequest takes[TOWER_SLICES];
-    // a size_t holds 64 bits, which device_pool asserts. The lane count converts exactly
+    // a size_t represents 64 bits, which device_pool asserts. The lane count converts exactly
     const DevicePoolPlan plan = tower_plan((size_t)lanes, NULL, takes);
     return device_pool_plan_bytes(&plan);
 }
@@ -97,7 +97,7 @@ static int tower_edge_check(const TowerEdge *edges, unsigned int edge_count, uns
 }
 
 static void tower_active_extent(const std::vector<TowerStep> &floors, const unsigned long long *extent,
-                                unsigned int slot, unsigned long long out[4])
+                                unsigned int floor_at, unsigned long long out[4])
 {
     if (floors.empty())
     {
@@ -107,11 +107,11 @@ static void tower_active_extent(const std::vector<TowerStep> &floors, const unsi
         }
         return;
     }
-    if (slot < floors.size())
+    if (floor_at < floors.size())
     {
         for (unsigned int axis = 0u; axis < 4u; axis += 1u)
         {
-            out[axis] = floors[slot].extent[axis];
+            out[axis] = floors[floor_at].extent[axis];
         }
     }
     else
@@ -124,18 +124,18 @@ static void tower_active_extent(const std::vector<TowerStep> &floors, const unsi
 }
 
 static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const std::vector<TowerStep> &floors,
-                          const unsigned long long *extent, unsigned int slot, int inverse, EngineError *error)
+                          const unsigned long long *extent, unsigned int floor_at, int inverse, EngineError *error)
 {
     TowerResident *const resident = &g_tower_resident;
     TowerStep region;
     memset(&region, 0, sizeof(region));
-    // the global strides are the full-extent strides, held constant across the in-place lifting levels
+    // the global strides are the full-extent strides, fixed constant across the in-place lifting levels
     region.stride[3] = 1ull;
     region.stride[2] = extent[3];
     region.stride[1] = extent[2] * extent[3];
     region.stride[0] = extent[1] * extent[2] * extent[3];
     unsigned long long active[4];
-    tower_active_extent(floors, extent, slot, active);
+    tower_active_extent(floors, extent, floor_at, active);
     region.count = 1ull;
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
@@ -143,12 +143,12 @@ static int tower_edge_run(const TowerEdge *edges, unsigned int edge_count, const
         region.count *= active[axis];
     }
     int ok = 1;
-    // a lift walks a slot's edges in array order, a lower walks them in reverse. A slot inverts as a stack
+    // a lift walks a floor's edges in array order, a lower walks them in reverse. A floor inverts as a stack
     for (unsigned int scan = 0u; (ok != 0) && (scan < edge_count); scan += 1u)
     {
         const unsigned int at = (inverse != 0) ? (edge_count - 1u - scan) : scan;
         const TowerEdge *const edge = &edges[at];
-        if (edge->floor != slot)
+        if (edge->floor != floor_at)
         {
             continue;
         }
@@ -337,7 +337,7 @@ extern "C" long tower_lower(const TowerLowerRequest *request)
     ok = ok && TOWER_STATUS_CHECK(cudaMemcpy(request->mismatches, resident->mismatches, sizeof(unsigned long long),
                                              cudaMemcpyDeviceToHost),
                                   request->mismatches, error);
-    // the scratch holds lanes ints. Its first half holds the lanes' 16-bit narrowing with room to spare
+    // the scratch contains lanes ints. Its first half contains the lanes' 16-bit narrowing with room to spare
     unsigned short *const narrowed = (unsigned short *)resident->scratch;
     unsigned int outside = 1u;
     ok = ok && TOWER_STATUS_CHECK(cudaMemset(resident->flag, 0, sizeof(unsigned int)), resident->flag, error);

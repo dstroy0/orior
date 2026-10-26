@@ -9,7 +9,7 @@
 #   raw      a table raw and decoded is the same rows, by the same keys in the same order
 #   range    --from and --count select the row of a key, and --from and --to the rows from one key through another
 #   texts    a text the run numbers stands in its table once, decoded to its bytes
-#   asks     a k-file's table opens with its head, the kind and the file's name, and a record put is named by its
+#   queries  a k-file's table opens with its head, the kind and the file's name, and a record put is named by its
 #            format's oracle
 #   links    a link a file's write makes is from the blob of the file's bytes
 #   bare     a table with no oracle and no head is given raw, decoded or not
@@ -43,9 +43,9 @@ lines()
 
 # files
 files="$(bash "$KDECODE" --table files "$RUN")"
-put="$(lines "$files" | grep -F 'build/engine/kdm_check_put.kdm]' | head -1)"
+put="$(lines "$files" | grep -F 'build/engine/kdm_check.kdm]' | head -1)"
 blob="$(lines "$put" | cut -d' ' -f3)"
-[ -n "$put" ] && [ "${blob#*:}" = "build/engine/kdm_check_put.kdm" ]
+[ -n "$put" ] && [ "${blob#*:}" = "build/engine/kdm_check.kdm" ]
 check_that $? "files: the row of kdm_check's file names its bytes' blob by the file's path, and its path the same"
 
 # raw
@@ -81,13 +81,13 @@ latest="$(bash "$KDECODE" --latest --blob texts "$RUN" | grep -c '^[0-9][0-9]* t
 [ "$heads" -ge 1 ] && [ "$latest" -eq 1 ] && lines "$blobs" | grep -qF 'a text the check numbers twice'
 check_that $? "blob: the texts blobs are printed whole, each after its head line, and --latest prints the last alone"
 
-# asks
-asks="$(bash "$KDECODE" --table asks "$RUN")"
-head_row="$(lines "$asks" | sed -n 1p)"
+# queries
+queries="$(bash "$KDECODE" --table queries "$RUN")"
+head_row="$(lines "$queries" | sed -n 1p)"
 [ "$(lines "$head_row" | cut -d' ' -f2-5)" = "head KQR 1 build/engine/kqr_check.kqr" ]
-check_that $? "asks: the table opens with the head of R's file, its kind, its version and its name"
-lines "$asks" | grep -qE '^[0-9]+ put [0-9]+ [0-9a-f]+ (kqr|cycle|ask|sample|pair|comment) '
-check_that $? "asks: a record put is named by its format's oracle"
+check_that $? "queries: the table opens with the head of R's file, its kind, its version and its name"
+lines "$queries" | grep -qE '^[0-9]+ put [0-9]+ [0-9a-f]+ (kqr|cycle|seed|round|query|sample|pair|comment) '
+check_that $? "queries: a record put is named by its format's oracle"
 
 # links
 link="$(bash "$KDECODE" --table links --count 1 "$RUN")"
@@ -104,10 +104,10 @@ check_that $? "bare: a table with no oracle and no head is given raw, decoded or
 NO_TREE="$TOP/build/engine/kdecode_no_tree"
 mkdir -p "$NO_TREE"
 held_links="$(QRY_TOP="$NO_TREE" bash "$KDECODE" --table links --count 1 "$RUN")"
-held_asks="$(QRY_TOP="$NO_TREE" bash "$KDECODE" --table asks "$RUN")"
+held_queries="$(QRY_TOP="$NO_TREE" bash "$KDECODE" --table queries "$RUN")"
 lines "$held_links" | grep -qF ' written_from ' &&
-    [ "$(lines "$held_asks" | sed -n 1p | cut -d' ' -f2)" = "head" ] &&
-    lines "$held_asks" | grep -qE '^[0-9]+ put [0-9]+ [0-9a-f]+ (kqr|cycle|ask|sample|pair|comment) '
+    [ "$(lines "$held_queries" | sed -n 1p | cut -d' ' -f2)" = "head" ] &&
+    lines "$held_queries" | grep -qE '^[0-9]+ put [0-9]+ [0-9a-f]+ (kqr|cycle|seed|round|query|sample|pair|comment) '
 check_that $? "oracles: the run holds the oracles of its tables and is decoded through them with no tree's oracle"
 
 # run

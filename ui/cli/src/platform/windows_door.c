@@ -11,7 +11,7 @@
 
 #include <stdint.h>
 
-// the bytes each instance of the pipe holds one way, and how long a process joining waits while every instance is
+// the bytes each instance of the pipe buffers one way, and how long a process joining waits while every instance is
 // taken, in milliseconds
 #define CLI_DOOR_PIPE_ROOM 65536u
 #define CLI_DOOR_BUSY_WAIT 5000ull
@@ -92,42 +92,43 @@ static int door_end_opened(CliDoorEnd *end, HANDLE handle)
     return 1;
 }
 
-int cli_door_listening(CliDoorListener *listener, char *address, CliLine *said)
+int cli_door_listening(CliDoorListener *listener, char *address, VerbaLinea *err_msg)
 {
     unsigned char secret[8];
     if (!cli_random_bytes(secret, sizeof(secret)))
     {
-        cli_line_text(said, "the system gave no secret");
+        mmgr_line_put(err_msg, "the system gave no secret");
         return 0;
     }
-    CliLine named = {address, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&named, "\\\\.\\pipe\\orior-comms-");
-    cli_line_decimal(&named, cli_process_own(), 1u);
-    cli_line_character(&named, '-');
+    VerbaLinea named = {address, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&named, "\\\\.\\pipe\\orior-comms-");
+    mmgr_line_decimal(&named, cli_process_own(), 1u);
+    mmgr_line_ch(&named, '-');
     for (unsigned int at = 0u; at < sizeof(secret); at += 1u)
     {
-        cli_line_character(&named, "0123456789abcdef"[secret[at] >> 4u]);
-        cli_line_character(&named, "0123456789abcdef"[secret[at] & 15u]);
+        mmgr_line_ch(&named, "0123456789abcdef"[secret[at] >> 4u]);
+        mmgr_line_ch(&named, "0123456789abcdef"[secret[at] & 15u]);
     }
-    cli_line_closed(&named);
+    mmgr_line_finish(&named);
     listener->lock = (CliLock)CLI_LOCK_INIT;
-    (void)MultiByteToWideChar(CP_UTF8, 0u, address, -1, listener->name, CLI_PATH_LONGEST);
+    (void)MultiByteToWideChar(CP_UTF8, 0u, address, -1, listener->name, CLI_PATH_MAX_LEN);
     const HANDLE waiting = door_instance(listener, 1);
     const DWORD error = GetLastError();
     listener->waiting = (unsigned long long)(uintptr_t)waiting;
     if (waiting == INVALID_HANDLE_VALUE)
     {
-        cli_line_text(said, "the door's pipe was not made: Windows said ");
-        cli_line_decimal(said, error, 1u);
+        mmgr_line_put(err_msg, "the door's pipe was not made: Windows reported ");
+        mmgr_line_decimal(err_msg, error, 1u);
         return 0;
     }
     return 1;
 }
 
-int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer, CliLine *said)
+int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer, unsigned int *peer,
+                      VerbaLinea *err_msg)
 {
     cli_lock_take(&listener->lock);
-    // the waiting instance's handle was a pointer's width when it was kept
+    // the waiting instance's handle was a pointer's width when it was stored
     const HANDLE joined = (HANDLE)(uintptr_t)listener->waiting;
     cli_lock_give(&listener->lock);
     DWORD moved = 0u;
@@ -140,8 +141,8 @@ int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer,
     if (!joining)
     {
         CloseHandle(joined);
-        cli_line_text(said, "no process joined: Windows said ");
-        cli_line_decimal(said, error, 1u);
+        mmgr_line_put(err_msg, "no process joined: Windows reported ");
+        mmgr_line_decimal(err_msg, error, 1u);
         return 0;
     }
     ULONG id = 0u;
@@ -149,16 +150,16 @@ int cli_door_accepted(CliDoorListener *listener, CliDoorEnd *end, int *has_peer,
     *peer = (unsigned int)id;
     if (!door_end_opened(end, joined))
     {
-        cli_line_text(said, "Windows gave no event for the end");
+        mmgr_line_put(err_msg, "Windows gave no event for the end");
         return 0;
     }
     return 1;
 }
 
-int cli_door_connected(const char *address, CliDoorEnd *end, CliLine *said)
+int cli_door_connected(const char *address, CliDoorEnd *end, VerbaLinea *err_msg)
 {
-    wchar_t name[CLI_PATH_LONGEST];
-    (void)MultiByteToWideChar(CP_UTF8, 0u, address, -1, name, CLI_PATH_LONGEST);
+    wchar_t name[CLI_PATH_MAX_LEN];
+    (void)MultiByteToWideChar(CP_UTF8, 0u, address, -1, name, CLI_PATH_MAX_LEN);
     const unsigned long long until = cli_clock_milliseconds() + CLI_DOOR_BUSY_WAIT;
     for (;;)
     {
@@ -168,7 +169,7 @@ int cli_door_connected(const char *address, CliDoorEnd *end, CliLine *said)
         {
             if (!door_end_opened(end, handle))
             {
-                cli_line_text(said, "Windows gave no event for the end");
+                mmgr_line_put(err_msg, "Windows gave no event for the end");
                 return 0;
             }
             return 1;
@@ -176,9 +177,9 @@ int cli_door_connected(const char *address, CliDoorEnd *end, CliLine *said)
         const DWORD error = GetLastError();
         if ((error != ERROR_PIPE_BUSY) || (cli_clock_milliseconds() >= until))
         {
-            cli_line_text(said, address);
-            cli_line_text(said, ": Windows said ");
-            cli_line_decimal(said, error, 1u);
+            mmgr_line_put(err_msg, address);
+            mmgr_line_put(err_msg, ": Windows reported ");
+            mmgr_line_decimal(err_msg, error, 1u);
             return 0;
         }
         (void)WaitNamedPipeW(name, 1000u);

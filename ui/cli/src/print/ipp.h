@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ipp.h: the Internet Printing Protocol, as RFC 8010 and 8011 set it out, spoken by orior_cli itself over HTTP/1.1
-// (ipp.c encodes, decodes and exchanges a message, ipp_jobs.c asks what printing needs): a printer's attributes asked
-// for, a job printed with its document, its state asked for and a job canceled, and the printers a CUPS server shares
-// listed. A printer is named by its ipp:// address; one that takes only ipps://, IPP over TLS, is said to be out of
-// reach
+// ipp.h: the Internet Printing Protocol, as RFC 8010 and 8011 set it out, implemented by orior_cli itself over HTTP/1.1
+// (ipp.c encodes, decodes and exchanges a message, ipp_jobs.c requests what printing needs): a printer's attributes
+// requested for, a job printed with its document, its state requested for and a job canceled, and the printers a CUPS
+// server shares listed. A printer is named by its ipp:// address; one that takes only ipps://, IPP over TLS, is
+// reported to be out of reach
 #ifndef PRINT_IPP_H
 #define PRINT_IPP_H
 
@@ -23,7 +23,7 @@
 #define CLI_IPP_LANGUAGE 0x48u
 #define CLI_IPP_MIME 0x49u
 
-// the most groups, attributes and values a message holds, and the bytes of their names and texts
+// the most groups, attributes and values a message contains, and the bytes of their names and texts
 #define CLI_IPP_GROUPS 256u
 
 #define CLI_IPP_ATTRIBUTES 8192u
@@ -71,7 +71,7 @@ typedef struct
     unsigned int count;
 } CliIppGroup;
 
-// A request or a response: the operation or status, its groups, attributes and values, the bytes they keep, and the
+// A request or a response: the operation or status, its groups, attributes and values, the bytes they occupy, and the
 // document after them; 1 in `full` where one did not fit
 typedef struct
 {
@@ -94,12 +94,13 @@ typedef struct
     int full;
 } CliIppMessage;
 
-// the cells the messages' groups, attributes, values and bytes are held in, each doubling as it is put, counted; and a
-// message's cells given back, the message left empty, a message given back once it is done with (ipp.c)
-extern CliCellsTally g_cli_ipp_cells;
+// the cells the messages' groups, attributes, values and bytes are stored in, each doubling as it is put, counted; and
+// a message's cells given back, the message left empty, a message given back once it is done with (ipp.c)
+extern CellOwner g_cli_ipp_cells;
 void cli_ipp_given(CliIppMessage *message);
-// a message begun with no groups, the cells it held kept for its puts; a group begun; an attribute of `name` begun in
-// the last group; and a value put after the last attribute's: a number or an enum, a truth, a range, a text by its tag
+// a message begun with no groups, the cells it occupied retained for its puts; a group begun; an attribute of `name`
+// begun in the last group; and a value put after the last attribute's: a number or an enum, a truth, a range, a text by
+// its tag
 void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int request_id);
 void cli_ipp_group(CliIppMessage *message, unsigned int tag);
 void cli_ipp_attribute(CliIppMessage *message, const char *name);
@@ -107,12 +108,12 @@ void cli_ipp_number(CliIppMessage *message, unsigned int kind, int value);
 void cli_ipp_truth(CliIppMessage *message, int value);
 void cli_ipp_range(CliIppMessage *message, int low, int high);
 void cli_ipp_text(CliIppMessage *message, unsigned int tag, const char *text);
-// `message` in IPP's encoding, version 2.0, its document left out; and the message `size` bytes hold read into
-// `message`: 1, or 0 with why said
-void cli_ipp_encode(const CliIppMessage *message, CliLine *out);
-int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMessage *message, CliLine *said);
+// `message` in IPP's encoding, version 2.0, its document left out; and the message `size` bytes contain read into
+// `message`: 1, or 0 with why given
+void cli_ipp_encode(const CliIppMessage *message, VerbaLinea *out);
+int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMessage *message, VerbaLinea *err_msg);
 // the first group of `tag`, NULL where none; the attribute `name` of a group, NULL where none; whether a value is a
-// text, written into `out`, which holds `room`; and the first text and the first number of an attribute: 1, or 0 where
+// text, written into `out`, sized for `room`; and the first text and the first number of an attribute: 1, or 0 where
 // it has none
 const CliIppGroup *cli_ipp_group_of(const CliIppMessage *message, unsigned int tag, unsigned int after);
 const CliIppAttribute *cli_ipp_get(const CliIppMessage *message, const CliIppGroup *group, const char *name);
@@ -120,27 +121,27 @@ int cli_ipp_value_text(const CliIppMessage *message, const CliIppValue *value, c
 int cli_ipp_first_text(const CliIppMessage *message, const CliIppGroup *group, const char *name, char *out,
                        unsigned long long room);
 int cli_ipp_first_number(const CliIppMessage *message, const CliIppGroup *group, const char *name, int *number);
-// where an ipp:// address reaches: its host, its port and its path, each host and path holding CLI_PATH_LONGEST: 1, or
-// 0 with why said
-int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path, CliLine *said);
+// where an ipp:// address reaches: its host, its port and its path, each host and path sized for CLI_PATH_MAX_LEN: 1,
+// or 0 with why given
+int cli_ipp_address(const char *uri, char *host, unsigned int *port, char *path, VerbaLinea *err_msg);
 // `request` sent to the printer at `uri`, `document` of `size` bytes after it, and its answer read into `answer`,
-// each read waited on 30 seconds at most: 1, or 0 with why said
+// each read waited on 30 seconds at most: 1, or 0 with why given
 int cli_ipp_exchange(const char *uri, const CliIppMessage *request, const unsigned char *document,
-                     unsigned long long size, CliIppMessage *answer, CliLine *said);
+                     unsigned long long size, CliIppMessage *answer, VerbaLinea *err_msg);
 
-// What a printer says of itself: its name, make, the formats it takes, whether it prints color, its state and why, and
-// whether it takes jobs
+// What a printer reports of itself: its name, make, the formats it takes, whether it prints color, its state and why,
+// and whether it takes jobs
 #define CLI_IPP_LISTED 64u
 
 typedef struct
 {
-    char name[CLI_PATH_LONGEST];
-    char make[CLI_PATH_LONGEST];
-    char formats[CLI_IPP_LISTED][CLI_NAME_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
+    char make[CLI_PATH_MAX_LEN];
+    char formats[CLI_IPP_LISTED][CLI_NAME_MAX_LEN];
     unsigned int format_count;
     int color;
     int state;
-    char reasons[CLI_IPP_LISTED][CLI_NAME_LONGEST];
+    char reasons[CLI_IPP_LISTED][CLI_NAME_MAX_LEN];
     unsigned int reason_count;
     int accepting;
 } CliIppPrinter;
@@ -159,22 +160,23 @@ typedef struct
 // A printer a CUPS server shares: its name, its ipp:// address and what it is
 typedef struct
 {
-    char name[CLI_PATH_LONGEST];
-    char uri[CLI_PATH_LONGEST];
-    char about[CLI_PATH_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
+    char uri[CLI_PATH_MAX_LEN];
+    char about[CLI_PATH_MAX_LEN];
 } CliIppShared;
 
-// what an IPP status says, in words into `said`, and whether it is success (ipp_jobs.c)
-int cli_ipp_status(unsigned int code, CliLine *said);
+// what an IPP status means, in words into `err_msg`, and whether it is success (ipp_jobs.c)
+int cli_ipp_status(unsigned int code, VerbaLinea *err_msg);
 // the attributes of the printer at `uri` that printing needs; `document`, `size` bytes, printed on it, the job's id
-// into `id`; a job's state, 3 pending, 4 held, 5 printing, 6 stopped, 7 canceled, 8 aborted, 9 done, and why, as the
-// printer words it, joined by `, `; and a job canceled. Each 1, or 0 with why said
-int cli_ipp_printer(const char *uri, CliIppPrinter *printer, CliLine *said);
+// into `id`; a job's state, its RFC 8011 `job-state` number, 3 to 9, and why, as the
+// printer words it, joined by `, `; and a job canceled. Each 1, or 0 with why given
+int cli_ipp_printer(const char *uri, CliIppPrinter *printer, VerbaLinea *err_msg);
 int cli_ipp_print(const char *uri, const CliIppJob *job, const unsigned char *document, unsigned long long size,
-                  int *id, CliLine *said);
-int cli_ipp_job_state(const char *uri, int id, int *state, CliLine *reasons, CliLine *said);
-int cli_ipp_cancel(const char *uri, int id, CliLine *said);
-// the printers the CUPS server at host:port shares, into `shared`, which holds `room`: their count, or -1 with why said
-int cli_ipp_cups_printers(const char *host, unsigned int port, CliIppShared *shared, unsigned int room, CliLine *said);
+                  int *id, VerbaLinea *err_msg);
+int cli_ipp_job_state(const char *uri, int id, int *state, VerbaLinea *reasons, VerbaLinea *err_msg);
+int cli_ipp_cancel(const char *uri, int id, VerbaLinea *err_msg);
+// the printers the CUPS server at host:port shares, into `shared`, sized for `room`: their count, or -1 with why given
+int cli_ipp_cups_printers(const char *host, unsigned int port, CliIppShared *shared, unsigned int room,
+                          VerbaLinea *err_msg);
 
 #endif

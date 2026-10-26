@@ -63,8 +63,8 @@ typedef struct
     unsigned int count;
 } RasterDrawn;
 
-// a page drawn kept, the first alone
-static void raster_kept(void *context, const CliPixels *page, unsigned int index, unsigned int count)
+// a page drawn recorded, the first alone
+static void raster_page_capture(void *context, const CliPixels *page, unsigned int index, unsigned int count)
 {
     RasterDrawn *const drawn = context;
     drawn->count = count;
@@ -87,7 +87,7 @@ static void raster_compression(void)
         s_page[(3u * 300u + x) * 3u] = (unsigned char)(x % 7u);
     }
     s_page[5u * 900u + 10u] = 0u;
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_print_compress(&page, &out);
     cli_check(out.at < 300ull * 7ull * 3ull, "the compression is smaller than the page");
     const unsigned long long back =
@@ -106,9 +106,9 @@ static const CliPrintListing *raster_listing(void)
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_text, sizeof(s_text) - 1u, &read);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     CliPrintListing *listing = NULL;
-    return cli_print_listing_read(json, read, &listing, &said) ? listing : NULL;
+    return cli_print_listing_read(json, read, &listing, &err_msg) ? listing : NULL;
 }
 
 // a big-endian 32-bit number at `at` of `bytes`
@@ -123,8 +123,8 @@ static unsigned long long raster_be32(const char *bytes, unsigned long long at)
 static void raster_listing_drawn(void)
 {
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_print_faces(&said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (!cli_print_faces(&err_msg))
     {
         cli_check(1, "the system has no monospace face, and nothing is drawn");
         return;
@@ -138,7 +138,7 @@ static void raster_listing_drawn(void)
     cli_print_take();
     const CliPrintListing *const listing = raster_listing();
     static RasterDrawn s_drawn;
-    cli_print_render(listing, &layout, 150.0f, raster_kept, &s_drawn);
+    cli_print_render(listing, &layout, 150.0f, raster_page_capture, &s_drawn);
     const CliPixels *const page = &s_drawn.page;
     cli_check(s_drawn.count == 1u, "one line draws one page");
     cli_check((page->width == 1240ull) && (page->height == 1754ull), "A4 at 150 dpi is 1240 by 1754");
@@ -161,7 +161,7 @@ static void raster_listing_drawn(void)
         }
     }
     cli_check(top, "the text stands within the margins, near the top");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_print_pwg_begin(&out);
     cli_print_pwg_page(&out, page, &layout, 150u, 1u);
     cli_check((out.at > 4u + 1796u) && (memor.cmp(&(MemoriaCfg){.src = s_out, .other = "RaS2", .bytes = 4u}) == 0) &&
@@ -172,7 +172,7 @@ static void raster_listing_drawn(void)
                                                   1240ull, 1754ull, 3ull, s_back);
     cli_check((back == RASTER_PAGE) &&
                   (memor.cmp(&(MemoriaCfg){.src = s_back, .other = s_page, .bytes = RASTER_PAGE}) == 0),
-              "the PWG raster holds the page");
+              "the PWG raster contains the page");
     out.at = 0ull;
     cli_print_urf_begin(&out, 1u);
     cli_print_urf_page(&out, page, 150u);
@@ -181,10 +181,10 @@ static void raster_listing_drawn(void)
     back = raster_decompressed((const unsigned char *)s_out + 12u + 32u, out.at - 44u, 1240ull, 1754ull, 3ull, s_back);
     cli_check((back == RASTER_PAGE) &&
                   (memor.cmp(&(MemoriaCfg){.src = s_back, .other = s_page, .bytes = RASTER_PAGE}) == 0),
-              "Apple's raster holds the page");
+              "Apple's raster contains the page");
     layout.landscape = 1;
     layout.gray = 1;
-    cli_print_render(listing, &layout, 100.0f, raster_kept, &s_drawn);
+    cli_print_render(listing, &layout, 100.0f, raster_page_capture, &s_drawn);
     const CliPixels side = s_drawn.page;
     cli_check(side.width > side.height, "a page on its side is wider than tall");
     CliPixels upright = {0ull, 0ull, side.channels, s_back};
@@ -195,6 +195,7 @@ static void raster_listing_drawn(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     raster_compression();
     raster_listing_drawn();
     return cli_checked();

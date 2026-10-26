@@ -19,7 +19,7 @@ TOWER_CU="$TOP/src/cu/engine/analysis/tower"
 DEVICE_POOL="$TOP/src/cu/engine/runtime/device_pool"
 DEVICE_POOL_CU="$TOP/src/cu/engine/runtime/device_pool"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"
 build_stamp record_tower_test
@@ -57,28 +57,28 @@ for one in $ARCHES; do
 done
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$CYCLE" -I "$CYCLE_CU" -I "$KEYMATH" -I "$KEYMATH_CU" -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$TOWER" -I "$TOWER_CU" -I "$DEVICE_POOL" -I "$NO_ROUNDING"
-          -I "$SCRIPTURA" "${TESSERA_INCLUDES[@]}")
+          "${FILE_DEFS_MMGR_FLAGS[@]}" "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+LINEA_OBJECTS=()
+for source in "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$CYCLE/cycle.c"; do
     object="$OUT/$(basename "$source" .c)_tower.$EXTENSION"
     rm -f "$object"
     case "$(uname -s)" in
         MINGW*|MSYS*|CYGWIN*)
-            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2 /experimental:c11atomics" "${INCLUDES[@]}" -c "$source" -o "$object" ;;
         *)
             cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" -c "$source" -o "$object" ;;
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
 # the test is a job on the device's tessera daemon, built beside it
-tessera_build tower "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build tower "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST"/record_tower_test_{oracle,ruleset}.cu "$TOP/src/sims/cu/sim_job.cu" "$CYCLE_CU"/cycle*.cu "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_defs/krs/ruleset_flat/*.cu \

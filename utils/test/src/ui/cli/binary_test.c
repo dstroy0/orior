@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // binary_test.c: the program reader's check: a Windows program gives its imports and delayed imports, a library only
-// orior_cli finds is told and copied beside, and a Linux program gives its needs, run paths and glibc
+// orior_cli finds is reported and copied beside, and a Linux program gives its needs, run paths and glibc
 #include "../../../../../ui/cli/src/programs/binary.h"
 #include "cli_check.h"
 
@@ -15,7 +15,7 @@ static void binary_put(unsigned char *bytes, unsigned int at, unsigned long long
 {
     for (unsigned int each = 0u; each < width; each += 1u)
     {
-        // a byte of the number, its low eight bits kept
+        // a byte of the number, its low eight bits retained
         bytes[at + each] = (unsigned char)((value >> (8u * each)) & 0xffu);
     }
 }
@@ -60,12 +60,12 @@ static void binary_pe_with(const char *const *names, unsigned int count)
 static void binary_windows_imports(void)
 {
     static const char *const s_names[3] = {"KERNEL32.dll", "libstdc++-6.dll", "late.dll"};
-    static char s_found[8][CLI_NAME_LONGEST];
+    static char s_found[8][CLI_NAME_MAX_LEN];
     binary_pe_with(s_names, 3u);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     unsigned int machine = 0u;
-    const int count = cli_pe_imports(s_bytes, sizeof(s_bytes), &machine, s_found, 0, 8u, &said);
+    const int count = cli_pe_imports(s_bytes, sizeof(s_bytes), &machine, s_found, 0, 8u, &err_msg);
     cli_check(
         (machine == 0x8664u) && (count == 3) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_found[0], .other = "KERNEL32.dll", .cap = CLI_CELLS_POOL})) &&
@@ -75,15 +75,15 @@ static void binary_windows_imports(void)
 }
 
 #if defined(_WIN32)
-// the lines a report says, each after the last
+// the lines a report contains, each after the last
 static char s_lines[1u << 14u];
-static CliLine s_said_lines = {s_lines, sizeof(s_lines), 0ull};
+static VerbaLinea s_report_lines = {s_lines, sizeof(s_lines), 0ull};
 
 static void binary_line(void *context, const char *text, unsigned long long length)
 {
     (void)context;
-    cli_line_counted(&s_said_lines, text, length);
-    cli_line_character(&s_said_lines, '\n');
+    mmgr_line_put_n(&s_report_lines, text, length);
+    mmgr_line_ch(&s_report_lines, '\n');
 }
 
 // the library `name` of the report, NULL where it has none
@@ -112,21 +112,21 @@ static char s_copied[256];
 
 static void binary_copied(void *context, const char *name)
 {
-    CliLine *const copied = context;
-    cli_line_text(copied, name);
-    cli_line_character(copied, '\n');
+    VerbaLinea *const copied = context;
+    mmgr_line_put(copied, name);
+    mmgr_line_ch(copied, '\n');
 }
 #endif
 
-// a library only orior_cli finds is told and copied beside
+// a library only orior_cli finds is reported and copied beside
 static void binary_orior_path(void)
 {
     static const char *const s_main[3] = {"kernel32.dll", "helper.dll", "nowhere.dll"};
     static const char *const s_helper[2] = {"kernel32.dll", "deeper.dll"};
-    static char s_dir[CLI_PATH_LONGEST];
-    static char s_tools[1][CLI_PATH_LONGEST];
-    char app[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    static char s_dir[CLI_PATH_MAX_LEN];
+    static char s_tools[1][CLI_PATH_MAX_LEN];
+    char app[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("binary", s_dir);
     cli_full(s_dir, "app", app);
     cli_full(s_dir, "tools", s_tools[0]);
@@ -141,8 +141,8 @@ static void binary_orior_path(void)
 #if defined(_WIN32)
     static CliBinaryReport s_report;
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_binary_read(path, (const char (*)[CLI_PATH_LONGEST])s_tools, 1u, &s_report, &said),
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_binary_read(path, (const char (*)[CLI_PATH_MAX_LEN])s_tools, 1u, &s_report, &err_msg),
               "the program reads");
     cli_check(binary_found(&s_report, "kernel32.dll", CLI_FOUND_SYSTEM, "main.exe"),
               "a system library is the system's");
@@ -153,16 +153,16 @@ static void binary_orior_path(void)
     cli_check(binary_found(&s_report, "nowhere.dll", CLI_FOUND_MISSING, NULL),
               "a delayed import found nowhere is missing");
     const QuerySink sink = {binary_line, NULL};
-    cli_binary_report_said(&s_report, sink);
-    (void)cli_line_closed(&s_said_lines);
+    cli_binary_report_print(&s_report, sink);
+    (void)mmgr_line_finish(&s_report_lines);
     cli_check(cellul.find(&(CatenaFinitaCfg){
                   .src = s_lines,
                   .cap = CLI_CELLS_POOL,
                   .other = "helper.dll, which main.exe loads, is found through the folders orior_cli puts on its PATH",
                   .other_cap = CLI_CELLS_POOL}) != NULL,
-              "the library only orior_cli finds is told");
-    CliLine copied = {s_copied, sizeof(s_copied), 0ull};
-    cli_check(cli_binary_copy_beside(path, &s_report, binary_copied, &copied, &said), "the library is copied");
+              "the library only orior_cli finds is reported");
+    VerbaLinea copied = {s_copied, sizeof(s_copied), 0ull};
+    cli_check(cli_binary_copy_beside(path, &s_report, binary_copied, &copied, &err_msg), "the library is copied");
     cli_check_text(s_copied, copied.at, "helper.dll\n", "only the library orior_cli finds is copied");
     cli_full(app, "helper.dll", path);
     cli_check(query_is_file(path), "it stands beside the program");
@@ -208,8 +208,8 @@ static void binary_linux_needs(void)
     binary_put(s_bytes, 0x390u + 12u, 16u, 4u);
     binary_put(s_bytes, 0x390u + 16u + 8u, 66u, 4u);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_elf_dynamic(s_bytes, 0x1000u, &s_dynamic, &said), "the dynamic section reads");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_elf_dynamic(s_bytes, 0x1000u, &s_dynamic, &err_msg), "the dynamic section reads");
     cli_check(
         (s_dynamic.count == 2u) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_dynamic.needed[0], .other = "libc.so.6", .cap = CLI_CELLS_POOL})) &&
@@ -220,10 +220,10 @@ static void binary_linux_needs(void)
               "and its run paths");
     cli_check(s_dynamic.has_glibc &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_dynamic.glibc, .other = "GLIBC_2.34", .cap = CLI_CELLS_POOL})),
-              "and the newest glibc it asks for");
+              "and the newest glibc it requires");
     static CliBinaryReport s_report;
-    said.at = 0ull;
-    cli_check(cli_binary_elf_read(s_bytes, 0x1000u, "/nowhere/program", &s_report, &said) &&
+    err_msg.at = 0ull;
+    cli_check(cli_binary_elf_read(s_bytes, 0x1000u, "/nowhere/program", &s_report, &err_msg) &&
                   (s_report.libraries == 2u) &&
                   (cellul.eq(&(CatenaFinitaCfg){
                       .src = s_report.library[1].name, .other = "libfoo.so", .cap = CLI_CELLS_POOL})) &&
@@ -235,6 +235,7 @@ static void binary_linux_needs(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     binary_windows_imports();
     binary_orior_path();
     binary_linux_needs();

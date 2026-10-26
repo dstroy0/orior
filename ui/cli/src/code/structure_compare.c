@@ -12,13 +12,13 @@ CliStructureState *g_cli_structure;
 
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// The changes: each run of lines taken out and put in between lines kept, with the row it starts at
+// The changes: each run of lines taken out and put in between lines unchanged, with the row it starts at
 static void cli_hunks_found(CliCompare *compare, unsigned int steps)
 {
     unsigned int at = 0u;
     while (at < steps)
     {
-        if (g_cli_structure->line_steps[at].kind == CLI_STEP_KEEP)
+        if (g_cli_structure->line_steps[at].kind == CLI_STEP_EQUAL)
         {
             g_cli_structure->row_left[compare->rows] = g_cli_structure->line_steps[at].x;
             g_cli_structure->row_right[compare->rows] = g_cli_structure->line_steps[at].y;
@@ -27,7 +27,7 @@ static void cli_hunks_found(CliCompare *compare, unsigned int steps)
             continue;
         }
         CliHunk hunk = {compare->outs, 0u, compare->ins, 0u};
-        while ((at < steps) && (g_cli_structure->line_steps[at].kind != CLI_STEP_KEEP))
+        while ((at < steps) && (g_cli_structure->line_steps[at].kind != CLI_STEP_EQUAL))
         {
             if (g_cli_structure->line_steps[at].kind == CLI_STEP_OUT)
             {
@@ -72,7 +72,7 @@ static int cli_beside_moved(const unsigned char *kinds, unsigned int count, unsi
 }
 
 // Moved: a line taken out and one put in elsewhere with the same tokens, matched in order; then a moved line takes
-// along a changed line beside it with tokens, where one beside a moved line on the other side holds the same tokens:
+// along a changed line beside it with tokens, where one beside a moved line on the other side contains the same tokens:
 // a block's closing sign moves with the block
 static void cli_moved_found(CliCompare *compare)
 {
@@ -132,7 +132,7 @@ static void cli_moved_found(CliCompare *compare)
     }
 }
 
-// a run of tokens taken out and put in ended: kept for its marks, and its tokens paired where they are as many and
+// a run of tokens taken out and put in ended: retained for its marks, and its tokens paired where they are as many and
 // all names
 static void cli_flushed(CliCompare *compare, unsigned int run_out, unsigned int run_in)
 {
@@ -239,13 +239,13 @@ static int cli_mark_order(const void *one, const void *other)
 }
 
 void cli_structure_compare(const char *then, unsigned long long then_size, const char *now, unsigned long long now_size,
-                           CliLine *out)
+                           VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    g_cli_structure = cli_cell_taken(sizeof(*g_cli_structure), "a compare by structure");
+    g_cli_structure = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_structure), NULL);
     if (g_cli_structure == NULL)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         cli_lock_give(&s_lock);
         return;
     }
@@ -270,8 +270,8 @@ void cli_structure_compare(const char *then, unsigned long long then_size, const
     }
     if (!near)
     {
-        cli_line_text(out, "null");
-        cli_cell_given(g_cli_structure);
+        mmgr_line_put(out, "null");
+        g_cli_cells->persistent_buf_release(g_cli_structure, NULL);
         g_cli_structure = NULL;
         cli_lock_give(&s_lock);
         return;
@@ -282,7 +282,7 @@ void cli_structure_compare(const char *then, unsigned long long then_size, const
     qsort(g_cli_structure->left_marks, compare.left_marks, sizeof(g_cli_structure->left_marks[0]), cli_mark_order);
     qsort(g_cli_structure->right_marks, compare.right_marks, sizeof(g_cli_structure->right_marks[0]), cli_mark_order);
     cli_structure_written(&compare, renames, out);
-    cli_cell_given(g_cli_structure);
+    g_cli_cells->persistent_buf_release(g_cli_structure, NULL);
     g_cli_structure = NULL;
     cli_lock_give(&s_lock);
 }

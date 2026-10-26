@@ -50,9 +50,9 @@ static int tables_class_head(const char *line, char *name, size_t room)
         return 0;
     }
     const size_t length = (size_t)(end - (line + 7));
-    const size_t kept = (length < room) ? length : (room - 1u);
-    memcpy(name, line + 7, kept);
-    name[kept] = '\0';
+    const size_t copied = (length < room) ? length : (room - 1u);
+    memcpy(name, line + 7, copied);
+    name[copied] = '\0';
     return 1;
 }
 
@@ -106,7 +106,7 @@ static int tables_field_line(const char *line, TablesField *field)
         }
         if (field->runs < TABLES_FIELD_RUNS)
         {
-            // the bits are below 128, which an unsigned int holds
+            // the bits are below 128, which an unsigned int stores
             field->run[field->runs].first = (unsigned int)low;
             field->run[field->runs].last = (unsigned int)high;
             field->width += (unsigned int)(high - low + 1ul);
@@ -129,9 +129,9 @@ static int tables_field_line(const char *line, TablesField *field)
     {
         length -= 1u;
     }
-    const size_t kept = (length < TABLES_NAME) ? length : (TABLES_NAME - 1u);
-    memcpy(field->name, at, kept);
-    field->name[kept] = '\0';
+    const size_t copied = (length < TABLES_NAME) ? length : (TABLES_NAME - 1u);
+    memcpy(field->name, at, copied);
+    field->name[copied] = '\0';
     const char *operand = tables_past_spaces(equals + 1);
     if (*operand == '*')
     {
@@ -143,9 +143,9 @@ static int tables_field_line(const char *line, TablesField *field)
     {
         operand_length -= 1u;
     }
-    const size_t operand_kept = (operand_length < TABLES_NAME) ? operand_length : (TABLES_NAME - 1u);
-    memcpy(field->operand, operand, operand_kept);
-    field->operand[operand_kept] = '\0';
+    const size_t operand_copied = (operand_length < TABLES_NAME) ? operand_length : (TABLES_NAME - 1u);
+    memcpy(field->operand, operand, operand_copied);
+    field->operand[operand_copied] = '\0';
     // the width the line counts is the runs' where the runs are whole; a count past them is a line cut short
     return (unsigned long)field->width == count;
 }
@@ -243,7 +243,7 @@ static void tables_name_before(const char *text, const char *end, char *name)
 }
 
 // the width of the immediate written before `end` inside a FORMAT bracket, `SImm(17/0)*:Ra_offset` or
-// `UImm(5/0*):Sa_bank`, read off the digits after `Imm(`; 0 where the bracket holds none
+// `UImm(5/0*):Sa_bank`, read off the digits after `Imm(`; 0 where the bracket contains none
 static unsigned int tables_immediate_bits(const char *open, const char *end)
 {
     for (const char *at = open; at + 4 < end; at += 1)
@@ -256,7 +256,7 @@ static unsigned int tables_immediate_bits(const char *open, const char *end)
     return 0u;
 }
 
-// a FORMAT line holding a size operand, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: the choices between `SZ_` and the
+// a FORMAT line containing a size operand, `/SZ_U8_S8_U16_S16_32_64("32"):sz`: the choices between `SZ_` and the
 // parenthesis, each a width in bits after any letters, in the order the field counts them, and the operand's name
 // after the colon
 static void tables_size_read(const char *line, TablesClass *class_)
@@ -271,9 +271,9 @@ static void tables_size_read(const char *line, TablesClass *class_)
     class_->sizes = 0u;
     // the list's name, from the slash to the parenthesis, which a condition's constant names a choice under
     const size_t list_length = (size_t)(open - (size + 1));
-    const size_t list_kept = (list_length < TABLES_NAME) ? list_length : (TABLES_NAME - 1u);
-    memcpy(class_->size_list, size + 1, list_kept);
-    class_->size_list[list_kept] = '\0';
+    const size_t list_copied = (list_length < TABLES_NAME) ? list_length : (TABLES_NAME - 1u);
+    memcpy(class_->size_list, size + 1, list_copied);
+    class_->size_list[list_copied] = '\0';
     for (const char *at = size + 4; (at < open) && (class_->sizes < TABLES_SIZES);)
     {
         const char *end = at;
@@ -345,7 +345,7 @@ unsigned int tables_class_bytes(const TablesClass *class_, unsigned long long lo
     return (choice < class_->sizes) ? class_->size_bytes[choice] : 4u;
 }
 
-// a FORMAT line holding a constant-bank operand, `C:<name>[...:<bank>]...[...:<offset>]`: the bank the name
+// a FORMAT line containing a constant-bank operand, `C:<name>[...:<bank>]...[...:<offset>]`: the bank the name
 // after the first bracket's last colon, the offset the name after the last bracket's last colon, and the offset
 // operand's width the immediate's inside that bracket
 static void tables_constant_read(const char *line, TablesClass *class_)
@@ -448,18 +448,18 @@ int tables_set_read(TablesSet *set, const unsigned char *text, size_t size)
         if (part == CONDITIONS)
         {
             // a condition is a line ending in a colon, under a kind on the registers; the line after it, in quotes, is
-            // its message, and a condition longer than its room is not kept
+            // its message, and a condition longer than its room is not stored
             const char *const text_at = tables_past_spaces(line);
-            size_t kept = strlen(text_at);
-            while ((kept != 0u) && ((text_at[kept - 1u] == ' ') || (text_at[kept - 1u] == ':')))
+            size_t copied = strlen(text_at);
+            while ((copied != 0u) && ((text_at[copied - 1u] == ' ') || (text_at[copied - 1u] == ':')))
             {
-                kept -= 1u;
+                copied -= 1u;
             }
-            if (register_kind && (kept != 0u) && (text_at[strlen(text_at) - 1u] == ':') &&
-                (kept + 1u < TABLES_CONDITION_TEXT) && (class_->conditions < TABLES_CONDITIONS))
+            if (register_kind && (copied != 0u) && (text_at[strlen(text_at) - 1u] == ':') &&
+                (copied + 1u < TABLES_CONDITION_TEXT) && (class_->conditions < TABLES_CONDITIONS))
             {
-                memcpy(class_->condition[class_->conditions], text_at, kept);
-                class_->condition[class_->conditions][kept] = '\0';
+                memcpy(class_->condition[class_->conditions], text_at, copied);
+                class_->condition[class_->conditions][copied] = '\0';
                 class_->conditions += 1u;
             }
             continue;
@@ -690,7 +690,7 @@ static long long tables_condition_constant(TablesCondition *condition)
     if ((condition->class_->size_list[0] != '\0') && (strcmp(list, condition->class_->size_list) == 0))
     {
         // the choice's place in the list, counted from the first underscore past the list's prefix: the size field
-        // holds that place
+        // stores that place
         const char *choice = strchr(list, '_');
         long long place = 0ll;
         while (choice != NULL)
@@ -779,7 +779,7 @@ static long long tables_condition_primary(TablesCondition *condition)
         condition->unjudged = 1;
         return 0ll;
     }
-    // a field holds at most 64 bits, read as the number it holds
+    // a field stores at most 64 bits, read as the number it stores
     return (long long)tables_field_read(field, condition->low, condition->high);
 }
 
@@ -909,7 +909,7 @@ static long long tables_condition_either(TablesCondition *condition)
     return value;
 }
 
-// `left -> right`: the right holds where the left does, and the whole holds where the left does not
+// `left -> right`: the right is true where the left is, and the whole is true where the left is not
 static long long tables_condition_implies(TablesCondition *condition)
 {
     const long long left = tables_condition_either(condition);
@@ -927,14 +927,14 @@ int tables_class_legal(const TablesClass *class_, unsigned long long low, unsign
     for (unsigned int at = 0u; at < class_->conditions; at += 1u)
     {
         TablesCondition condition = {class_->condition[at], class_, low, high, 0};
-        const long long held = tables_condition_implies(&condition);
+        const long long implied = tables_condition_implies(&condition);
         tables_condition_spaces(&condition);
         // text left over is a condition this reader did not read whole, and does not judge
         if (*condition.at != '\0')
         {
             condition.unjudged = 1;
         }
-        if (!condition.unjudged && (held == 0ll))
+        if (!condition.unjudged && (implied == 0ll))
         {
             if (failed != NULL)
             {

@@ -57,7 +57,7 @@ extern "C"
         unsigned int *option_sums;
     } MarginalRequest;
 
-    long marginal_arrangements(const MarginalRequest *request, const MarginalQuestion *asked);
+    long marginal_arrangements(const MarginalRequest *request, const MarginalQuestion *one);
 
     long marginal_run(const MarginalRequest *request);
 

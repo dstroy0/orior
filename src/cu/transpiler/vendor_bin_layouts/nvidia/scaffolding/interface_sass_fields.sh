@@ -53,7 +53,7 @@ cc -std=c11 -O1 -Wall "${INCLUDES[@]}" -o "$OUT/interface_sass_probe_fields" \
     "$HERE/interface_sass_probe_fields.c" "$HERE"/interface_sass_probe_fields/*.c || exit 1
 # the runner holds every cubin to cubin_safe on the host before the driver is handed it
 cc -std=c11 -O1 -Wall -I "$CUDA/include" -o "$OUT/interface_sass_run" "$HERE/interface_sass_run.c" \
-    "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
+    "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" \
     -L "$CUDA/lib/x64" -lcuda 2>/dev/null || { echo "  the runner did not link against the CUDA driver"; exit 1; }
 
 WIN="$(cygpath -m "$TOP")"
@@ -87,12 +87,12 @@ while IFS= read -r line; do
     rm -f "$ANSWERS"
     # the airlock: the vendor reads this form's cubins before any reaches the part, the runner handed the verdict always
     "$PYTHON" "$HERE/interface_sass_held.py" "$(cygpath -m "$OUT")/list.txt" "$CUDA/bin/nvdisasm" SM86 \
-        "$(cygpath -m "$OUT")/cross" "$(cygpath -m "$OUT")/held.txt"
+        "$(cygpath -m "$OUT")/cross" "$(cygpath -m "$OUT")/gated.txt"
     [ "$?" = 2 ] && { echo "  cross: the vendor's reader was not reached; this form is passed over"; continue; }
     first=0
     guard=0
     while :; do
-        timeout "$CAP" "$OUT/interface_sass_run" --held "$(cygpath -m "$OUT")/held.txt" "$(cygpath -m "$MACHINE")" \
+        timeout "$CAP" "$OUT/interface_sass_run" --gated "$(cygpath -m "$OUT")/gated.txt" "$(cygpath -m "$MACHINE")" \
             "$(cygpath -m "$OUT")/list.txt" "$first" "$ANSWERS"
         status=$?
         last="$(tail -1 "$ANSWERS" 2>/dev/null | cut -d' ' -f1)"

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // git_test.c: git's check: a clone is named as git names it; a file taken in part commits that part alone; a branch is
 // made, switched to, renamed, merged and deleted; a merged branch takes a column of its own and joins where it began;
-// a repository owns the deepest folder that holds a path; and each status has one letter
+// a repository owns the deepest folder that contains a path; and each status has one letter
 #include "../../../../../ui/cli/src/code/git_internal.h"
 #include "cli_check.h"
 
@@ -20,10 +20,10 @@ static int git_do(const char *root, const char *one, const char *two, const char
         count += 1u;
     }
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    const int ran = cli_git_run(root, words, count, &out, &said);
-    (void)cli_line_closed(&out);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    const int ran = cli_git_run(root, words, count, &out, &err_msg);
+    (void)mmgr_line_finish(&out);
     return ran;
 }
 
@@ -39,7 +39,7 @@ static void git_started(const char *name, char *root)
 // a file of the tree `root` written
 static void git_written(const char *root, const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
@@ -47,7 +47,7 @@ static void git_written(const char *root, const char *name, const char *text)
 // the file `name` of the tree `root` read into s_out
 static const char *git_read(const char *root, const char *name)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_out, sizeof(s_out) - 1u);
     s_out[(size != QRY_MEMBER_UNREAD) ? size : 0ull] = '\0';
@@ -57,10 +57,10 @@ static const char *git_read(const char *root, const char *name)
 // the folder a clone of `url` makes under work checked against work/orior, or none where `wanted` is 0
 static void git_clone_is(const char *url, int wanted)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int named = cli_git_clone_folder(url, "work", folder, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int named = cli_git_clone_folder(url, "work", folder, &err_msg);
     cli_check(
         wanted ? (named && (cellul.eq(&(CatenaFinitaCfg){.src = folder, .other = "work/orior", .cap = CLI_CELLS_POOL})))
                : !named,
@@ -70,11 +70,11 @@ static void git_clone_is(const char *url, int wanted)
 // a file taken in part commits that part alone
 static void git_parts(void)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     char why[1024];
     char out[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine line = {out, sizeof(out), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ull};
     git_started("git_parts", root);
     git_written(root, "a.txt", "one\ntwo\nthree\nfour\n");
     (void)git_do(root, "add", ".", NULL, NULL);
@@ -84,17 +84,17 @@ static void git_parts(void)
     (void)git_do(root, "add", "other.txt", NULL, NULL);
     static const char s_part[] = "one\nTWO\nthree\nfour\n";
     const CliGitPart part = {"a.txt", s_part, sizeof(s_part) - 1u};
-    const unsigned long long held = g_cli_git_cells.holds;
-    cli_check(!cli_git_commit_parts(root, "  \n", NULL, 0u, &part, 1u, &line, &said) &&
+    const unsigned long long in_use_before = g_cli_git_cells.in_use;
+    cli_check(!cli_git_commit_parts(root, "  \n", NULL, 0u, &part, 1u, &line, &err_msg) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = why, .other = "a commit needs a message", .cap = sizeof(why)}),
               "a commit with no message is refused");
-    said.at = 0ull;
-    cli_check(cli_git_commit_parts(root, "part of a", NULL, 0u, &part, 1u, &line, &said), "a part is committed");
-    cli_check(g_cli_git_cells.holds == held, "a commit gives its room back, made or refused");
+    err_msg.at = 0ull;
+    cli_check(cli_git_commit_parts(root, "part of a", NULL, 0u, &part, 1u, &line, &err_msg), "a part is committed");
+    cli_check(g_cli_git_cells.in_use == in_use_before, "a commit gives its room back, made or refused");
     cli_check(
         git_do(root, "show", "HEAD:a.txt", NULL, NULL) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "one\nTWO\nthree\nfour", .cap = CLI_CELLS_POOL})),
-        "the commit holds the part");
+        "the commit contains the part");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = git_read(root, "a.txt"), .other = "one\nTWO\nthree\nFOUR\n", .cap = CLI_CELLS_POOL}),
               "the file is as it was");
@@ -113,15 +113,15 @@ static int git_act(const char *root, const char *act, const char *name, const ch
 {
     char why[1024];
     char out[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine line = {out, sizeof(out), 0ull};
-    return cli_git_branch_act(root, act, name, to, &line, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ull};
+    return cli_git_branch_act(root, act, name, to, &line, &err_msg);
 }
 
 // a branch is made, switched to, renamed, merged and deleted
 static void git_branching(void)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     git_started("git_branches", root);
     git_written(root, "a.txt", "one");
     (void)git_do(root, "add", ".", NULL, NULL);
@@ -180,22 +180,22 @@ static void git_commit_put(const char *id, const char *first, const char *second
     s_graph.count += 1u;
 }
 
-// the strokes of row `index`, each `from to half color` joined by `|`, into `out`, which holds `room`
+// the strokes of row `index`, each `from to half color` joined by `|`, into `out`, which is sized for `room`
 static const char *git_strokes(unsigned int index, char *out, unsigned long long room)
 {
     const CliDrawn *const drawn = &s_graph.item[index];
-    CliLine line = {out, room, 0ull};
+    VerbaLinea line = {out, room, 0ull};
     for (unsigned int at = 0u; at < drawn->stroke_count; at += 1u)
     {
         const unsigned int *const stroke = s_graph.stroke[drawn->first_stroke + at];
-        cli_line_text(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
         for (unsigned int part = 0u; part < 4u; part += 1u)
         {
-            cli_line_text(&line, (part > 0u) ? " " : "");
-            cli_line_decimal(&line, stroke[part], 1u);
+            mmgr_line_put(&line, (part > 0u) ? " " : "");
+            mmgr_line_decimal(&line, stroke[part], 1u);
         }
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return out;
 }
 
@@ -256,6 +256,7 @@ static void git_owner_is(const char *const *repos, unsigned int count, const cha
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     git_clone_is("https://github.com/dstroy0/orior.git", 1);
     git_clone_is("https://github.com/dstroy0/orior/", 1);
     git_clone_is("git@github.com:dstroy0/orior.git", 1);
@@ -279,6 +280,6 @@ int main(void)
               "each status has one letter");
     cli_git_text_given(&s_branches.text);
     cli_git_text_given(&s_graph.text);
-    cli_check((g_cli_git_cells.holds == 0ull) && (g_cli_git_cells.hw != 0ull), "each list's texts are given back");
+    cli_check((g_cli_git_cells.in_use == 0ull) && (g_cli_git_cells.hw != 0ull), "each list's texts are given back");
     return cli_checked();
 }

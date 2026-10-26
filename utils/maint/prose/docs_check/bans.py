@@ -37,8 +37,8 @@ BANNED = OUTRIGHT + WORDS + LOCALE + REGISTER + SHAPES + PROBE + DETECTED + GRAM
 # construction only is bounded to that construction: paradigm shift is banned where paradigm is
 # not." And the escape immediately before it: "A term the field owns stays."
 #
-# THE TEST IS MECHANICAL. Neither standard bans any of these. Both standards USE eleven of them as
-# ordinary technical English, in the same documents that authorize this checker:
+# THE TEST IS MECHANICAL. Neither standard bans any of these. Both standards USE them as ordinary
+# technical English, in the same documents that authorize this checker:
 #
 #   carries      code-documentation:145  "carries this list as regexes"
 #   holds        code-comments:208       "holds the list as regexes"
@@ -49,8 +49,6 @@ BANNED = OUTRIGHT + WORDS + LOCALE + REGISTER + SHAPES + PROBE + DETECTED + GRAM
 #   costs        code-documentation:108  the register a rule applied wrongly costs a paragraph
 #   carry        code-documentation:104  "A documented pointer with no token is an unanswered
 #                                        question"; :161 "correct when carried by a real name"
-#   slot         code-comments:195       "Name a Handle by Its Slots" -- a handle slot is this
-#                                        tree's own term of art, named in a section heading
 #   earns        code-documentation:114  "each one earned its place by measurement"
 #   book         code-documentation:158  "A name already sitting in the tree is not evidence"
 #
@@ -70,30 +68,26 @@ BANNED = OUTRIGHT + WORDS + LOCALE + REGISTER + SHAPES + PROBE + DETECTED + GRAM
 # adding one: the weight sits on hold, carry and read, and a ban on those three alone can be the
 # majority of a whole report.
 #
-# Each entry is the word, what it was after, and the sentence that removed it.
+# Each entry is the word, what a bare ban of it is after, and the sentence that excludes it.
 WITHDRAWN = {
-    "carry": "the verb in every inflection, banned, a digest would be said to be listed in a "
-    "manifest instead. Both standards use it and code-documentation:145 uses it about "
-    "this file.",
-    "hold": "added when the repair pass for carry wrote hold everywhere instead. Chasing a "
-    "synonym is the sign that the rule is on a word and not on a shape.",
+    "carry": "the verb in every inflection, where a digest is said to be listed in a manifest. "
+    "Both standards use it and code-documentation:145 uses it about this file.",
+    "hold": "the synonym a rewrite of carry reaches for. Chasing a synonym is the sign that the "
+    "rule is on a word and not on a shape.",
     "read": "a fold does not read and a person does, which is true and is not what \\breads\\b "
-    'tests. code-comments:208 writes "reads .c and .h comments". 337 hits.',
-    "slot": "nothing in the theory research papers has slots, which is a house naming rule about one "
-    "directory. code-comments:195 makes a handle slot a term of art in a section "
-    "heading. 134 hits.",
+    'tests. code-comments:208 writes "reads .c and .h comments".',
     "cost": "say the number and its units. The instruction is right and the ban is not: a cost "
-    "is what a number measures. 66 hits.",
+    "is what a number measures.",
     "buy": 'the transaction metaphor. code-documentation:85 writes "buys nothing the reader '
-    'asked for" and code-comments:178 writes "The letter buys explicitness". 1 hit.',
-    "pay": "the same metaphor, one verb over. 2 hits.",
-    "spend": 'the same again. code-documentation:84 writes "it spends a reader\'s trust". 6 hits.',
+    'asked for" and code-comments:178 writes "The letter buys explicitness".',
+    "pay": "the same metaphor, one verb over, and the word has a plain use a bare ban cannot see.",
+    "spend": 'the same again. code-documentation:84 writes "it spends a reader\'s trust".',
     "earn": 'the same again. code-documentation:114 writes "each one earned its place by '
-    'measurement", the sentence that justifies half this table. 1 hit.',
-    "afford": "the same metaphor again, and the word has a plain use the ban could not see.",
-    "win": "an arm does not win. True, and the word has a plain use the ban could not see. 3 hits.",
-    "price": "added, a repair pass could not swap cost for it. A ban added to close the exit "
-    "from another ban is the shape of a rule that is chasing words. 0 hits.",
+    'measurement", the sentence that justifies half this table.',
+    "afford": "the same metaphor again, and the word has a plain use a bare ban cannot see.",
+    "win": "an arm does not win. True, and the word has a plain use a bare ban cannot see.",
+    "price": "the word a rewrite of cost reaches for. A ban added to close the exit from another "
+    "ban is the shape of a rule that is chasing words.",
     "book": "these are theories, which is a naming rule about this tree's own vocabulary and "
     "carries no claim about register at all.",
     "construction": 'it is a method. Same shape as book, and code-comments:199 writes "essay '

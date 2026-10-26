@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// windows_watch.c: the tree's changes as Windows tells of them, through ReadDirectoryChangesW over the whole tree, on a
+// windows_watch.c: the tree's changes as Windows reports them, through ReadDirectoryChangesW over the whole tree, on a
 // thread of the watch's own that waits on the system's answer and on its stop together
 #include "../command_line/cli_internal.h"
 
@@ -16,14 +16,14 @@
     (FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE |                            \
      FILE_NOTIFY_CHANGE_LAST_WRITE)
 
-// The watch: the tree's folder, the events of the system's answer and of the stop, who is told, the thread, whether
+// The watch: the tree's folder, the events of the system's answer and of the stop, who is notified, the thread, whether
 // it has ended, and the buffer
 typedef struct
 {
     HANDLE folder;
     HANDLE answered;
     HANDLE stopped;
-    CliChangeTold told;
+    CliChangeFn emit;
     void *context;
     CliThread thread;
     int running;
@@ -35,8 +35,8 @@ typedef struct
 
 static CliWatch s_watch = {.lock = CLI_LOCK_INIT, .wake = CLI_WAKE_INIT};
 
-// the records the system wrote, `written` bytes, each told by its path from the tree's top and what happened to it
-static void cli_records_told(DWORD written)
+// the records the system wrote, `written` bytes, each reported by its path from the tree's top and what happened to it
+static void cli_records_emitted(DWORD written)
 {
     unsigned long long at = 0ull;
     const unsigned char *const bytes = (const unsigned char *)s_watch.buffer;
@@ -53,7 +53,7 @@ static void cli_records_told(DWORD written)
         {
             break;
         }
-        char path[CLI_PATH_LONGEST * 3u];
+        char path[CLI_PATH_MAX_LEN * 3u];
         // the name lies within what the system wrote, on a two-byte boundary, half its bytes in units
         const int made =
             WideCharToMultiByte(CP_UTF8, 0u, (const wchar_t *)(const void *)(bytes + at + CLI_WATCH_NAME_AT),
@@ -67,7 +67,7 @@ static void cli_records_told(DWORD written)
             ((action == FILE_ACTION_ADDED) || (action == FILE_ACTION_RENAMED_NEW_NAME))     ? CLI_CHANGE_ADDED
             : ((action == FILE_ACTION_REMOVED) || (action == FILE_ACTION_RENAMED_OLD_NAME)) ? CLI_CHANGE_REMOVED
                                                                                             : CLI_CHANGE_MODIFIED;
-        s_watch.told(s_watch.context, path, kind);
+        s_watch.emit(s_watch.context, path, kind);
         if (next == 0u)
         {
             break;
@@ -76,7 +76,7 @@ static void cli_records_told(DWORD written)
     }
 }
 
-// the system asked for the tree's changes again and again, each answer told, until the stop is set
+// the system queried for the tree's changes again and again, each answer reported, until the stop is set
 static void cli_watch_read(void *context)
 {
     (void)context;
@@ -106,11 +106,11 @@ static void cli_watch_read(void *context)
         }
         if (written == 0u)
         {
-            s_watch.told(s_watch.context, "", CLI_CHANGE_LOST);
+            s_watch.emit(s_watch.context, "", CLI_CHANGE_LOST);
         }
         else
         {
-            cli_records_told(written);
+            cli_records_emitted(written);
         }
     }
     CloseHandle(s_watch.folder);
@@ -121,11 +121,11 @@ static void cli_watch_read(void *context)
     cli_lock_give(&s_watch.lock);
 }
 
-int cli_watch_system_start(const char *root, CliChangeTold told, void *context)
+int cli_watch_system_start(const char *root, CliChangeFn emit, void *context)
 {
     cli_watch_system_stop();
-    wchar_t wide[CLI_PATH_LONGEST];
-    if (MultiByteToWideChar(CP_UTF8, 0, root, -1, wide, CLI_PATH_LONGEST) == 0)
+    wchar_t wide[CLI_PATH_MAX_LEN];
+    if (MultiByteToWideChar(CP_UTF8, 0, root, -1, wide, CLI_PATH_MAX_LEN) == 0)
     {
         return 0;
     }
@@ -153,7 +153,7 @@ int cli_watch_system_start(const char *root, CliChangeTold told, void *context)
     s_watch.folder = folder;
     s_watch.answered = answered;
     s_watch.stopped = stopped;
-    s_watch.told = told;
+    s_watch.emit = emit;
     s_watch.context = context;
     s_watch.ended = 0;
     s_watch.thread = (CliThread){cli_watch_read, NULL};

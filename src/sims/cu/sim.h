@@ -6,7 +6,9 @@
 #include "../../cu/engine/engine_config.h"
 
 #include "../../cu/includes/types/integers/exact_integer.h"
-#include "../../cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 
 #include <cuda_runtime.h>
 
@@ -29,7 +31,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
     struct TesseraClient *job;
     unsigned long long job_declared;
 } SimResults;
@@ -61,7 +63,7 @@ static inline __host__ __device__ unsigned long long sim_draw_below(unsigned lon
 }
 
 // word `word` of a counter's draws: the first SIM_COUNTER_STRIDE lie in the counter's own stride of the key's counters,
-// and each word past them is drawn on a key made from the counter. A count of any size keeps to its own words
+// and each word past them is drawn on a key made from the counter. A count of any size stays within its own words
 static inline __host__ __device__ unsigned long long sim_counter_draw(unsigned long long key,
                                                                       unsigned long long counter,
                                                                       unsigned long long word)
@@ -91,8 +93,8 @@ static inline __host__ __device__ unsigned long long sim_binomial_half(unsigned 
     {
         const unsigned long long draw = sim_counter_draw(key, counter, word);
         const unsigned long long left = trials - done;
-        const unsigned long long kept = (left >= 64ull) ? draw : (draw & ((1ull << left) - 1ull));
-        heads += sim_bits_set(kept);
+        const unsigned long long masked = (left >= 64ull) ? draw : (draw & ((1ull << left) - 1ull));
+        heads += sim_bits_set(masked);
         word += 1ull;
     }
     return heads;
@@ -109,7 +111,7 @@ static inline __host__ __device__ unsigned long long sim_binomial_half(unsigned 
 // A count of mean S whose first four cumulants are each S, a Poisson count's: each of the S expected electrons adds
 // 0, 1, 2 or 4 with chances 9, 8, 6 and 1 in 24, a law whose factorial moments are 1 to the fourth, as Poisson(1)'s
 // are; it parts from Poisson at the fifth. A word's draw below 24^6 gives six electrons' chances. A counter's
-// SIM_COUNTER_STRIDE words hold 6 of them each.
+// SIM_COUNTER_STRIDE words contain 6 of them each.
 static inline __host__ __device__ unsigned long long sim_poisson_four_cumulants(unsigned long long key,
                                                                                 unsigned long long counter,
                                                                                 unsigned long long electrons)
@@ -141,7 +143,7 @@ static inline void sim_open(SimResults *results, char *capacity)
 
 static inline void sim_flush(SimResults *results)
 {
-    scriptura_write(&results->line, stdout);
+    (void)(mmgr_line_ok(&results->line) && (fwrite(results->line.out, 1u, mmgr_line_finish(&results->line), stdout) == results->line.at));
     results->line.at = 0ull;
     fflush(stdout);
 }
@@ -152,22 +154,22 @@ static inline void sim_check(SimResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
 static inline int sim_close(SimResults *results, const char *name)
 {
     sim_job_release(results);
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, name);
-    scriptura_text(&results->line, ": ");
-    scriptura_decimal(&results->line, results->checks, 1u);
-    scriptura_text(&results->line, " checks, ");
-    scriptura_decimal(&results->line, results->failures, 1u);
-    scriptura_text(&results->line, " failed\n");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, name);
+    mmgr_line_put(&results->line, ": ");
+    mmgr_line_decimal(&results->line, results->checks, 1u);
+    mmgr_line_put(&results->line, " checks, ");
+    mmgr_line_decimal(&results->line, results->failures, 1u);
+    mmgr_line_put(&results->line, " failed\n");
     sim_flush(results);
     return (results->failures == 0ull) ? 0 : 1;
 }
@@ -280,7 +282,7 @@ static inline unsigned long long sim_exact_limbs_used(const OriorExactInteger *v
 
 // the magnitude of `value` in decimal, every digit exact: each group of nine is the remainder of a short division of
 // the limbs by 10^9, taken from the top limb down
-static inline void sim_exact_decimal(ScripturaLine *line, const OriorExactInteger *value)
+static inline void sim_exact_decimal(VerbaLinea *line, const OriorExactInteger *value)
 {
     OriorExactInteger work = *value;
     unsigned int groups[SIM_DECIMAL_GROUPS];
@@ -301,21 +303,21 @@ static inline void sim_exact_decimal(ScripturaLine *line, const OriorExactIntege
         count += 1ull;
         used = sim_exact_limbs_used(&work);
     } while (used > 0ull);
-    scriptura_decimal(line, groups[count - 1ull], 1u);
+    mmgr_line_decimal(line, groups[count - 1ull], 1u);
     for (unsigned long long group = count - 1ull; group > 0ull; group -= 1ull)
     {
-        scriptura_decimal(line, groups[group - 1ull], SIM_DECIMAL_GROUP_DIGITS);
+        mmgr_line_decimal(line, groups[group - 1ull], SIM_DECIMAL_GROUP_DIGITS);
     }
 }
 
-// the ratio truncated, not rounded, to `places`, at any width the exact integer holds: the whole part is printed exact,
-// and the fraction is the floor of the remainder times 10^places over the denominator, which is below 10^places
-static inline void sim_ratio_print(ScripturaLine *line, const OriorExactInteger *numerator,
+// the ratio truncated, not rounded, to `places`, at any width the exact integer supports: the whole part is printed
+// exact, and the fraction is the floor of the remainder times 10^places over the denominator, which is below 10^places
+static inline void sim_ratio_print(VerbaLinea *line, const OriorExactInteger *numerator,
                                    const OriorExactInteger *denominator, unsigned int places)
 {
     if ((denominator->sign == 0) || (places > 18u))
     {
-        scriptura_text(line, "undefined");
+        mmgr_line_put(line, "undefined");
         return;
     }
     OriorExactInteger top = *numerator;
@@ -328,12 +330,12 @@ static inline void sim_ratio_print(ScripturaLine *line, const OriorExactInteger 
     if ((orior_exact_divide(&top, &bottom, &integer_part, &rest) != ORIOR_EXACT_OK) ||
         ((places > 0u) && (orior_exact_scale_by_ten(&rest, places) != ORIOR_EXACT_OK)))
     {
-        scriptura_text(line, "too wide");
+        mmgr_line_put(line, "too wide");
         return;
     }
     if (negative)
     {
-        scriptura_character(line, '-');
+        mmgr_line_ch(line, '-');
     }
     sim_exact_decimal(line, &integer_part);
     if (places > 0u)
@@ -343,12 +345,12 @@ static inline void sim_ratio_print(ScripturaLine *line, const OriorExactInteger 
         {
             unit *= 10ull;
         }
-        scriptura_character(line, '.');
-        scriptura_decimal(line, sim_ratio_floor(&rest, &bottom, unit), places);
+        mmgr_line_ch(line, '.');
+        mmgr_line_decimal(line, sim_ratio_floor(&rest, &bottom, unit), places);
     }
 }
 
-static inline void sim_fraction_print(ScripturaLine *line, unsigned long long numerator, unsigned long long denominator,
+static inline void sim_fraction_print(VerbaLinea *line, unsigned long long numerator, unsigned long long denominator,
                                       unsigned int places)
 {
     OriorExactInteger top;
@@ -365,9 +367,9 @@ static inline int sim_status_check(SimResults *results, cudaError_t status, cons
         // the runtime's last error is taken here, once reported. The next launch check does not read it again
         (void)cudaGetLastError();
         sim_check(results, 0, what);
-        scriptura_text(&results->line, "    cuda: ");
-        scriptura_text(&results->line, cudaGetErrorString(status));
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "    cuda: ");
+        mmgr_line_put(&results->line, cudaGetErrorString(status));
+        mmgr_line_ch(&results->line, '\n');
         return 0;
     }
     return 1;

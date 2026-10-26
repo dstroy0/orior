@@ -37,17 +37,17 @@ extern "C"
     // `who` as its two words, into `words`
     void who_words(Who who, unsigned long long *words);
 
-    // the who the two words `words` hold
+    // the who the two words `words` carry
     Who who_of_words(const unsigned long long *words);
 
-    // `who`'s code into `code`, which holds `room`, WHO_CODE_LETTERS hex digits and its end; empty where it does not
-    // fit
+    // `who`'s code into `code`, which has room for `room`, WHO_CODE_LETTERS hex digits and its end; empty where it does
+    // not fit
     void who_code(Who who, char *code, size_t room);
 
     // the code `code` read back into `who`: 1, or 0 where it is not WHO_CODE_LETTERS hex digits
     int who_read(const char *code, Who *who);
 
-    // `who` named into `text`, which holds `room`: the source's path from the top of the tree and the line, the
+    // `who` named into `text`, which has room for `room`: the source's path from the top of the tree and the line, the
     // program's source, and the time on the run's clock in nanoseconds, `-` for a number the table does not give: 1,
     // or 0 where it does not fit
     int who_named(Who who, char *text, size_t room);

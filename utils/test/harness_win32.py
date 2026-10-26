@@ -23,6 +23,9 @@ PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 SYNCHRONIZE = 0x00100000
 WAIT_TIMEOUT = 0x00000102
 TH32CS_SNAPPROCESS = 0x00000002
+TH32CS_SNAPTHREAD = 0x00000004
+THREAD_SUSPEND_RESUME = 0x0002
+CREATE_SUSPENDED = 0x00000004
 INVALID_HANDLE = wintypes.HANDLE(-1).value
 PAGE_BYTES = 4096
 WORKING_SET_SHARED = 0x100
@@ -34,6 +37,7 @@ GW_OWNER = 4
 SRCCOPY = 0x00CC0020
 BI_RGB = 0
 DIB_RGB_COLORS = 0
+JOB_BASIC_ACCOUNTING = 1
 
 
 class ProcessEntry(ctypes.Structure):
@@ -48,6 +52,18 @@ class ProcessEntry(ctypes.Structure):
         ("pcPriClassBase", wintypes.LONG),
         ("dwFlags", wintypes.DWORD),
         ("szExeFile", wintypes.WCHAR * 260),
+    ]
+
+
+class ThreadEntry(ctypes.Structure):
+    _fields_ = [
+        ("dwSize", wintypes.DWORD),
+        ("cntUsage", wintypes.DWORD),
+        ("th32ThreadID", wintypes.DWORD),
+        ("th32OwnerProcessID", wintypes.DWORD),
+        ("tpBasePri", wintypes.LONG),
+        ("tpDeltaPri", wintypes.LONG),
+        ("dwFlags", wintypes.DWORD),
     ]
 
 
@@ -93,8 +109,30 @@ class BitmapHeader(ctypes.Structure):
     ]
 
 
+class JobAccounting(ctypes.Structure):
+    _fields_ = [
+        ("TotalUserTime", ctypes.c_longlong),
+        ("TotalKernelTime", ctypes.c_longlong),
+        ("ThisPeriodTotalUserTime", ctypes.c_longlong),
+        ("ThisPeriodTotalKernelTime", ctypes.c_longlong),
+        ("TotalPageFaultCount", wintypes.DWORD),
+        ("TotalProcesses", wintypes.DWORD),
+        ("ActiveProcesses", wintypes.DWORD),
+        ("TotalTerminatedProcesses", wintypes.DWORD),
+    ]
+
+
 kernel32.OpenProcess.restype = wintypes.HANDLE
 kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+kernel32.OpenThread.restype = wintypes.HANDLE
+kernel32.OpenThread.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+kernel32.ResumeThread.restype = wintypes.DWORD
+kernel32.ResumeThread.argtypes = [wintypes.HANDLE]
+kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+kernel32.CreateJobObjectW.argtypes = [wintypes.LPVOID, wintypes.LPCWSTR]
+kernel32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+kernel32.QueryInformationJobObject.argtypes = [wintypes.HANDLE, ctypes.c_int, wintypes.LPVOID, wintypes.DWORD,
+                                               ctypes.POINTER(wintypes.DWORD)]
 kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
 kernel32.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
 user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
@@ -201,6 +239,21 @@ def regions(process_id):
     return found
 
 
+def mapped_names(process_id, addresses):
+    """{address: the device path of the file mapped there}, for each of `addresses` a file backs; an address the
+    paging file backs, or that cannot be asked, has none."""
+    handle = kernel32.OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, process_id)
+    if not handle:
+        return {}
+    named = {}
+    text = ctypes.create_unicode_buffer(1024)
+    for address in addresses:
+        if kernel32.K32GetMappedFileNameW(handle, ctypes.c_void_p(address), text, 1024):
+            named[address] = text.value
+    kernel32.CloseHandle(handle)
+    return named
+
+
 def memory(process_id):
     """(private working set bytes, working set bytes, commit bytes) of a process, as the system counts them; None
     where it cannot be asked."""
@@ -224,6 +277,23 @@ def memory(process_id):
     return private_pages * PAGE_BYTES, counters.WorkingSetSize, counters.PrivateUsage
 
 
+class FileTime(ctypes.Structure):
+    _fields_ = [("low", wintypes.DWORD), ("high", wintypes.DWORD)]
+
+
+def processor_seconds(process_id):
+    """The processor time a process has used, user and kernel, in seconds; None where it cannot be asked."""
+    handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, process_id)
+    if not handle:
+        return None
+    made, gone, kernel, user = FileTime(), FileTime(), FileTime(), FileTime()
+    asked = kernel32.GetProcessTimes(handle, ctypes.byref(made), ctypes.byref(gone), ctypes.byref(kernel), ctypes.byref(user))
+    kernel32.CloseHandle(handle)
+    if not asked:
+        return None
+    return sum((time.high << 32) | time.low for time in (kernel, user)) / 10_000_000
+
+
 def in_job(process_id):
     """(asked, in a job) for a process: whether the question was answered and its answer."""
     handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, process_id)
@@ -233,6 +303,49 @@ def in_job(process_id):
     asked = kernel32.IsProcessInJob(handle, None, ctypes.byref(answer))
     kernel32.CloseHandle(handle)
     return bool(asked), bool(answer.value)
+
+
+def threads_resumed(process_id):
+    """Every thread of a process started with CREATE_SUSPENDED let run: how many were."""
+    snapshot = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0)
+    if snapshot == INVALID_HANDLE:
+        return 0
+    entry = ThreadEntry()
+    entry.dwSize = ctypes.sizeof(ThreadEntry)
+    resumed = 0
+    more = kernel32.Thread32First(snapshot, ctypes.byref(entry))
+    while more:
+        if entry.th32OwnerProcessID == process_id:
+            thread = kernel32.OpenThread(THREAD_SUSPEND_RESUME, False, entry.th32ThreadID)
+            if thread:
+                resumed += 1 if kernel32.ResumeThread(thread) != 0xFFFFFFFF else 0
+                kernel32.CloseHandle(thread)
+        more = kernel32.Thread32Next(snapshot, ctypes.byref(entry))
+    kernel32.CloseHandle(snapshot)
+    return resumed
+
+
+def job_joined(process_handle):
+    """A job of the harness's own with the process in it, so that every process it starts is in it too: the job's
+    handle, or None where the system refused one. The process is started with CREATE_SUSPENDED and let run after it
+    joins (threads_resumed); a process already running may start a child before it joins, and that child stays out."""
+    job = kernel32.CreateJobObjectW(None, None)
+    if not job:
+        return None
+    if not kernel32.AssignProcessToJobObject(job, process_handle):
+        kernel32.CloseHandle(job)
+        return None
+    return job
+
+
+def job_processor_seconds(job):
+    """The processor time every process assigned to the job has used, the ended ones with the running, in seconds; None
+    where it cannot be read."""
+    accounting = JobAccounting()
+    if not kernel32.QueryInformationJobObject(job, JOB_BASIC_ACCOUNTING, ctypes.byref(accounting),
+                                              ctypes.sizeof(JobAccounting), None):
+        return None
+    return (accounting.TotalUserTime + accounting.TotalKernelTime) / 10_000_000
 
 
 def main_window(process_id):

@@ -1,36 +1,36 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// query_words_test.c: the words of `orior_cli protocol`: the list names every loop once; leave is taken off the words; a
-// loop missing a program says so and starts no run; an unknown command is refused with the list; the table's whole
+// query_words_test.c: the words of `orior_cli protocol`: the list names every loop once; leave is taken off the words;
+// a loop missing a program reports so and starts no run; an unknown command is refused with the list; the table's whole
 // names are those with every kind; the steps run the protocol in order and their names are offered to start from; the
-// base is the one word the cross takes; the readings of a table are told apart from a pull; the version and the
-// architectures are read off nvcc; the query's words are read and a file not there is said; and the writers take their
-// words
+// base is the one word the cross takes; the readings of a table are distinguished from a pull; the version and the
+// architectures are read off nvcc; the query's words are read and a file not there is reported; and the writers take
+// their words
 #include "../../../../../ui/query/src/learn/tables_internal.h"
 #include "../../../../../ui/query/src/query_loops.h"
 #include "cli_check.h"
 
-static char s_root[QUERY_PATH_LONGEST];
-static char s_said[QUERY_SAID_LONGEST];
-static unsigned long long s_said_size;
+static char s_root[QUERY_PATH_MAX_LEN];
+static char s_printed[QUERY_LINE_MAX_LEN];
+static unsigned long long s_printed_size;
 
-// a line said, kept
-static void words_said(void *context, const char *text, unsigned long long length)
+// a line printed, recorded
+static void words_print_capture(void *context, const char *text, unsigned long long length)
 {
     (void)context;
-    CliLine line = {s_said, sizeof(s_said), 0ull};
-    cli_line_counted(&line, text, length);
-    s_said_size = cli_line_closed(&line);
+    VerbaLinea line = {s_printed, sizeof(s_printed), 0ull};
+    mmgr_line_put_n(&line, text, length);
+    s_printed_size = mmgr_line_finish(&line);
 }
 
-// nothing is found, each said by its name
-static int words_nothing(void *context, QueryRole role, char *path, size_t room, CliLine *said)
+// nothing is found, each reported by its name
+static int words_nothing(void *context, QueryRole role, char *path, size_t room, VerbaLinea *err_msg)
 {
     (void)context;
     (void)room;
     path[0] = '\0';
-    cli_line_text(said, query_role_name(role));
-    cli_line_text(said, " is not found");
+    mmgr_line_put(err_msg, query_role_name(role));
+    mmgr_line_put(err_msg, " is not found");
     return 0;
 }
 
@@ -41,28 +41,28 @@ static const char *words_no_path(void *context)
     return "";
 }
 
-// the list names every loop once; leave is taken off the words; a loop missing a program says so and starts no run;
+// the list names every loop once; leave is taken off the words; a loop missing a program reports so and starts no run;
 // and an unknown command is refused with the list
 static void words_dispatch(void)
 {
     const QueryCommand *commands = NULL;
     const unsigned int count = query_commands(".", &commands);
     char ids[256];
-    CliLine line = {ids, sizeof(ids), 0ull};
+    VerbaLinea line = {ids, sizeof(ids), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "," : "");
-        cli_line_text(&line, commands[at].id);
+        mmgr_line_put(&line, (at > 0u) ? "," : "");
+        mmgr_line_put(&line, commands[at].id);
     }
-    cli_check_text(ids, line.at, "course,tables,decode,query,learn,cross,write,pairs,stick,kept,sweep",
+    cli_check_text(ids, line.at, "course,tables,decode,query,learn,cross,write,pairs,stick,retention,sweep",
                    "the list names every loop once");
     const char *words[5] = {"turns", "--leave", "none", "--base", "a.cu"};
     unsigned int left = 5u;
     int given = 0;
     QueryLeave leave = QUERY_LEAVE_ALL;
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(query_leave_taken(words, &left, &given, &leave, &said) && given && (leave == QUERY_LEAVE_NONE) &&
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(query_leave_taken(words, &left, &given, &leave, &err_msg) && given && (leave == QUERY_LEAVE_NONE) &&
                   (left == 3u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "turns", .cap = CLI_CELLS_POOL})) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = words[1], .other = "--base", .cap = CLI_CELLS_POOL})) &&
@@ -70,49 +70,52 @@ static void words_dispatch(void)
               "leave is taken off the words");
     const char *bad[2] = {"--leave", "maybe"};
     left = 2u;
-    cli_check(!query_leave_taken(bad, &left, &given, &leave, &said), "a leave no one knows is refused");
+    cli_check(!query_leave_taken(bad, &left, &given, &leave, &err_msg), "a leave no one knows is refused");
     const char *none[1] = {"turns"};
     left = 1u;
-    cli_check(query_leave_taken(none, &left, &given, &leave, &said) && !given, "and none given is none");
+    cli_check(query_leave_taken(none, &left, &given, &leave, &err_msg) && !given, "and none given is none");
     static unsigned long long s_numbers[QUERY_RUNS_MOST];
-    static char s_paths[QUERY_RUNS_MOST][QUERY_PATH_LONGEST];
-    char folder[QUERY_PATH_LONGEST];
+    static char s_paths[QUERY_RUNS_MOST][QUERY_PATH_MAX_LEN];
+    char folder[QUERY_PATH_MAX_LEN];
     cli_full(s_root, QUERY_LEARN_FOLDER, folder);
     const unsigned int before = query_runs_each(folder, s_numbers, s_paths, QUERY_RUNS_MOST);
     const QueryPrograms nothing = {words_nothing, words_no_path, NULL};
-    const QuerySink sink = {words_said, NULL};
+    const QuerySink sink = {words_print_capture, NULL};
     static const char *const s_learn[2] = {"learn", "turns"};
-    s_said_size = 0ull;
+    s_printed_size = 0ull;
     cli_check(
         (query_run(s_root, &nothing, s_learn, 2u, sink) < 0) &&
             ((cellul.find(&(CatenaFinitaCfg){
-                  .src = s_said, .cap = CLI_CELLS_POOL, .other = "is not found", .other_cap = CLI_CELLS_POOL}) !=
+                  .src = s_printed, .cap = CLI_CELLS_POOL, .other = "is not found", .other_cap = CLI_CELLS_POOL}) !=
               NULL) ||
              (cellul.find(&(CatenaFinitaCfg){
-                  .src = s_said, .cap = CLI_CELLS_POOL, .other = "no nvdisasm", .other_cap = CLI_CELLS_POOL}) != NULL)),
-        "a loop missing a program says so");
+                  .src = s_printed, .cap = CLI_CELLS_POOL, .other = "no nvdisasm", .other_cap = CLI_CELLS_POOL}) !=
+              NULL)),
+        "a loop missing a program reports so");
     cli_check(query_runs_each(folder, s_numbers, s_paths, QUERY_RUNS_MOST) == before, "and starts no run");
     const QueryPrograms on_path = query_on_path();
     static const char *const s_dance[1] = {"dance"};
-    s_said_size = 0ull;
-    cli_check((query_run(".", &on_path, s_dance, 1u, sink) < 0) &&
-                  (cellul.find(&(CatenaFinitaCfg){
-                       .src = s_said, .cap = CLI_CELLS_POOL, .other = "learn", .other_cap = CLI_CELLS_POOL}) != NULL) &&
-                  (cellul.find(&(CatenaFinitaCfg){
-                       .src = s_said, .cap = CLI_CELLS_POOL, .other = "sweep", .other_cap = CLI_CELLS_POOL}) != NULL),
-              "an unknown command is refused with the list");
-    s_said_size = 0ull;
-    cli_check((query_run(".", &on_path, NULL, 0u, sink) < 0) &&
-                  (cellul.find(&(CatenaFinitaCfg){
-                       .src = s_said, .cap = CLI_CELLS_POOL, .other = "learn", .other_cap = CLI_CELLS_POOL}) != NULL),
-              "and no command too");
+    s_printed_size = 0ull;
+    cli_check(
+        (query_run(".", &on_path, s_dance, 1u, sink) < 0) &&
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = s_printed, .cap = CLI_CELLS_POOL, .other = "learn", .other_cap = CLI_CELLS_POOL}) != NULL) &&
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = s_printed, .cap = CLI_CELLS_POOL, .other = "sweep", .other_cap = CLI_CELLS_POOL}) != NULL),
+        "an unknown command is refused with the list");
+    s_printed_size = 0ull;
+    cli_check(
+        (query_run(".", &on_path, NULL, 0u, sink) < 0) &&
+            (cellul.find(&(CatenaFinitaCfg){
+                 .src = s_printed, .cap = CLI_CELLS_POOL, .other = "learn", .other_cap = CLI_CELLS_POOL}) != NULL),
+        "and no command too");
 }
 
 // the files of the table at `root`, each empty
 static void words_table(const char *root, const char *const *files, unsigned int count)
 {
-    char table[QUERY_PATH_LONGEST];
-    char path[QUERY_PATH_LONGEST];
+    char table[QUERY_PATH_MAX_LEN];
+    char path[QUERY_PATH_MAX_LEN];
     cli_full(root, QUERY_TABLE, table);
     (void)query_removed(root);
     (void)query_folder_made(table);
@@ -123,27 +126,27 @@ static void words_table(const char *root, const char *const *files, unsigned int
     }
 }
 
-// the whole names the table holds of `kinds`, joined by `,`
+// the whole names the table contains of `kinds`, joined by `,`
 static const char *words_whole(const char *root, const char *const *kinds, unsigned int count)
 {
-    static char s_names[64][QUERY_WHOLE_LONGEST];
+    static char s_names[64][QUERY_WHOLE_MAX_LEN];
     static const char *s_named[64];
     static char s_joined[512];
     const unsigned int named = query_whole(root, kinds, count, s_names, s_named);
-    CliLine line = {s_joined, sizeof(s_joined), 0ull};
+    VerbaLinea line = {s_joined, sizeof(s_joined), 0ull};
     for (unsigned int at = 0u; at < named; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "," : "");
-        cli_line_text(&line, s_named[at]);
+        mmgr_line_put(&line, (at > 0u) ? "," : "");
+        mmgr_line_put(&line, s_named[at]);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return s_joined;
 }
 
 // the table's whole names are those with every kind
 static void words_whole_names(void)
 {
-    char root[QUERY_PATH_LONGEST];
+    char root[QUERY_PATH_MAX_LEN];
     cli_full(s_root, "build/query_test/whole", root);
     static const char *const s_files[9] = {"cu.klm",    "cu.krs",    "sass.klm",  "sass.krs", "c.krs",
                                            "sm_86.khw", "sm_86.kqr", "sm_86.ksc", "sm_89.khw"};
@@ -164,7 +167,7 @@ static void words_whole_names(void)
 static void words_course(void)
 {
     char names[512];
-    CliLine line = {names, sizeof(names), 0ull};
+    VerbaLinea line = {names, sizeof(names), 0ull};
     query_names_joined(&line);
     cli_check_text(
         names, line.at,
@@ -173,34 +176,35 @@ static void words_course(void)
         "the steps run the protocol in order");
     unsigned int first = 9u;
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(query_course_from(NULL, 0u, &first, &said) && (first == 0u), "the first where none is named");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(query_course_from(NULL, 0u, &first, &err_msg) && (first == 0u), "the first where none is named");
     static const char *const s_costs[2] = {"--from", "costs"};
-    cli_check(query_course_from(s_costs, 2u, &first, &said) && (first == 8u), "a step by its name");
+    cli_check(query_course_from(s_costs, 2u, &first, &err_msg) && (first == 8u), "a step by its name");
     static const char *const s_krs[2] = {"--from", "write krs"};
-    cli_check(query_course_from(s_krs, 2u, &first, &said) && (first == 4u), "a name two steps share names the first");
+    cli_check(query_course_from(s_krs, 2u, &first, &err_msg) && (first == 4u),
+              "a name two steps share names the first");
     static const char *const s_bare[1] = {"--from"};
-    cli_check(!query_course_from(s_bare, 1u, &first, &said), "a flag with no name is refused");
+    cli_check(!query_course_from(s_bare, 1u, &first, &err_msg), "a flag with no name is refused");
     static const char *const s_fly[2] = {"--from", "fly"};
-    said.at = 0ull;
-    cli_check(!query_course_from(s_fly, 2u, &first, &said) && (cli_line_closed(&said) != 0ull) &&
+    err_msg.at = 0ull;
+    cli_check(!query_course_from(s_fly, 2u, &first, &err_msg) && (mmgr_line_finish(&err_msg) != 0ull) &&
                   (cellul.find(&(CatenaFinitaCfg){.src = why,
                                                   .cap = CLI_CELLS_POOL,
                                                   .other = "no step of the course is fly",
                                                   .other_cap = CLI_CELLS_POOL}) != NULL),
               "and a name no step has");
     const char *base = "x";
-    cli_check(query_base_of(NULL, 0u, &base, &said) && (base == NULL), "the cross with no base");
+    cli_check(query_base_of(NULL, 0u, &base, &err_msg) && (base == NULL), "the cross with no base");
     static const char *const s_base[2] = {"--base", "a.cu"};
-    cli_check(query_base_of(s_base, 2u, &base, &said) &&
+    cli_check(query_base_of(s_base, 2u, &base, &err_msg) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = base, .other = "a.cu", .cap = CLI_CELLS_POOL})),
               "and with one");
     static const char *const s_word[1] = {"a.cu"};
-    cli_check(!query_base_of(s_word, 1u, &base, &said) && !query_base_of(s_base, 1u, &base, &said),
+    cli_check(!query_base_of(s_word, 1u, &base, &err_msg) && !query_base_of(s_base, 1u, &base, &err_msg),
               "a base not given as the cross takes it is refused");
 }
 
-// the reading `text`'s words ask for: 1 with its mode into `mode`, 0 for a pull, -1 refused
+// the reading `text`'s words request: 1 with its mode into `mode`, 0 for a pull, -1 refused
 static int words_reading(const char *text, const char **mode)
 {
     static char s_text[256];
@@ -227,16 +231,16 @@ static int words_reading(const char *text, const char **mode)
         }
     }
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     *mode = NULL;
-    return query_reading(s_words, count, mode, &said);
+    return query_reading(s_words, count, mode, &err_msg);
 }
 
-// the readings of a table are told apart from a pull; and the version and the architectures are read off nvcc
+// the readings of a table are distinguished from a pull; and the version and the architectures are read off nvcc
 static void words_tables(void)
 {
     const char *mode = NULL;
-    cli_check(words_reading("sm_86 sm_90", &mode) == 0, "architectures alone ask for a pull");
+    cli_check(words_reading("sm_86 sm_90", &mode) == 0, "architectures alone request a pull");
     cli_check(words_reading("", &mode) == 0, "and nothing too");
     cli_check((words_reading("fields sm_86", &mode) == 1) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = mode, .other = "spans", .cap = CLI_CELLS_POOL})),
@@ -269,7 +273,7 @@ static void words_tables(void)
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = archive, .other = "cuda_nvdisasm-linux-x86_64-13.3.73-archive", .cap = CLI_CELLS_POOL}),
               "the vendor's archive by version");
-    char inside[QUERY_PATH_LONGEST];
+    char inside[QUERY_PATH_MAX_LEN];
     query_in_container("D:\\tree", "D:\\tree\\build\\vendor\\nvidia\\cubins\\sm_86.cubin", inside);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = inside, .other = "/tree/build/vendor/nvidia/cubins/sm_86.cubin", .cap = CLI_CELLS_POOL}),
@@ -287,28 +291,28 @@ static int words_query(const char *root, const char *const *words, unsigned int 
     const char *names[3] = {NULL, NULL, NULL};
     unsigned int named = 0u;
     int dry = 0;
-    CliLine said = {out, room, 0ull};
-    const int read = query_query_words(&context, words, count, names, &named, &dry, &said);
+    VerbaLinea out_line = {out, room, 0ull};
+    const int read = query_query_words(&context, words, count, names, &named, &dry, &out_line);
     if (read)
     {
-        said.at = 0ull;
+        out_line.at = 0ull;
         for (unsigned int at = 0u; at < named; at += 1u)
         {
-            cli_line_text(&said, (at > 0u) ? "," : "");
-            cli_line_text(&said, names[at]);
+            mmgr_line_put(&out_line, (at > 0u) ? "," : "");
+            mmgr_line_put(&out_line, names[at]);
         }
-        cli_line_text(&said, dry ? "|dry" : "|");
+        mmgr_line_put(&out_line, dry ? "|dry" : "|");
     }
-    (void)cli_line_closed(&said);
+    (void)mmgr_line_finish(&out_line);
     return read;
 }
 
-// the query's words are read, and a file not there is said
+// the query's words are read, and a file not there is reported
 static void words_query_words(void)
 {
     static const char *const s_whole[9] = {"Lstar.klq", "cu.klm",    "cu.krs",    "sass.klm", "sass.krs",
                                            "sm_86.khw", "sm_86.kqr", "sm_86.ksc", "c.krs"};
-    char root[QUERY_PATH_LONGEST];
+    char root[QUERY_PATH_MAX_LEN];
     char out[1024];
     cli_full(s_root, "build/query_test/query_values", root);
     words_table(root, s_whole, 9u);
@@ -323,7 +327,7 @@ static void words_query_words(void)
     static const char *const s_flags[7] = {"--from", "cu", "--to", "sass", "--part", "sm_86", "--dry"};
     cli_check(words_query(root, s_flags, 7u, out, sizeof(out)) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = out, .other = "cu,sass,sm_86|dry", .cap = CLI_CELLS_POOL})),
-              "as the window's job says them, dry");
+              "as the window's job gives them, dry");
     static const char *const s_one[1] = {"--cu"};
     static const char *const s_plain[2] = {"cu", "--sass"};
     static const char *const s_more[4] = {"--cu", "--sass", "--sm_86", "--more"};
@@ -344,7 +348,7 @@ static void words_query_words(void)
                  .src = out, .cap = CLI_CELLS_POOL, .other = "sm_89.ksc", .other_cap = CLI_CELLS_POOL}) != NULL) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = out, .cap = CLI_CELLS_POOL, .other = "cu.klm", .other_cap = CLI_CELLS_POOL}) == NULL),
-        "a part's files not there are said");
+        "a part's files not there are reported");
     static const char *const s_host[3] = {"--c", "--rs", "--host"};
     cli_check(!words_query(root, s_host, 3u, out, sizeof(out)) &&
                   (cellul.find(&(CatenaFinitaCfg){
@@ -358,25 +362,26 @@ static void words_query_words(void)
               "and a language's");
     (void)query_removed(root);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     static const char *const s_bridge[3] = {"bridge", "cu.krs", "c.krs"};
     static const char *const s_krs[2] = {"krs", "more"};
     static const char *const s_gsm[1] = {"gsm"};
     static const char *const s_kdm[1] = {"kdm"};
-    cli_check((query_write_words(s_bridge, 1u, &said) == QUERY_WRITE_BRIDGE) &&
-                  (query_write_words(s_bridge, 3u, &said) == QUERY_WRITE_BRIDGE),
+    cli_check((query_write_words(s_bridge, 1u, &err_msg) == QUERY_WRITE_BRIDGE) &&
+                  (query_write_words(s_bridge, 3u, &err_msg) == QUERY_WRITE_BRIDGE),
               "the bridge's writer, over the rulesets named or all");
-    cli_check((query_write_words(s_krs, 1u, &said) == QUERY_WRITE_KRS) &&
-                  (query_write_words(s_gsm, 1u, &said) == QUERY_WRITE_GSM),
+    cli_check((query_write_words(s_krs, 1u, &err_msg) == QUERY_WRITE_KRS) &&
+                  (query_write_words(s_gsm, 1u, &err_msg) == QUERY_WRITE_GSM),
               "the ruleset's and the machine file's writers");
-    cli_check((query_write_words(s_krs, 2u, &said) < 0) && (query_write_words(s_kdm, 1u, &said) < 0) &&
-                  (query_write_words(NULL, 0u, &said) < 0),
+    cli_check((query_write_words(s_krs, 2u, &err_msg) < 0) && (query_write_words(s_kdm, 1u, &err_msg) < 0) &&
+                  (query_write_words(NULL, 0u, &err_msg) < 0),
               "and nothing else");
 }
 
 int main(void)
 {
-    char found[CLI_PATH_LONGEST];
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    char found[CLI_PATH_MAX_LEN];
     if (!cli_tree_found(found))
     {
         cli_check(1, "no tree is found, and the protocol's words are not read");

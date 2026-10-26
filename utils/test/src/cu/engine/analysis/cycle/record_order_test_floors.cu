@@ -19,9 +19,9 @@ void order_check(OrderResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -134,12 +134,13 @@ static long long order_wrap(long long value, unsigned int bits)
     const unsigned long long mask = (bits >= 64u) ? ~0ull : ((1ull << bits) - 1ull);
     const unsigned long long low = (unsigned long long)value & mask;
     const unsigned long long top = 1ull << (bits - 1u);
-    // a set top kept bit means 2^bits comes off: low - top - top, taken apart so neither half leaves the signed range
+    // a set top retained bit means 2^bits comes off: low - top - top, taken apart so neither half leaves the signed
+    // range
     return ((low & top) != 0ull) ? ((long long)(low - top) - (long long)top) : (long long)low;
 }
 
 // G on the CPU: a by b times d, b by the xor of a + n, d by a and b, and the counter by one, each wrapped to 32 bits.
-// Every word lies in [-2^31, 2^31). B times d is below 2^62 in magnitude and a long long holds each sum.
+// Every word lies in [-2^31, 2^31). B times d is below 2^62 in magnitude and a long long represents each sum.
 static void order_forward_cpu(OrderState *state)
 {
     long long *const word = state->word;
@@ -209,7 +210,7 @@ void order_both_ways(OrderResults *results)
     OrderState *const states = (OrderState *)malloc((size_t)span * sizeof(OrderState));
     if ((stack.steps == NULL) || (outputs == NULL) || (floor_order == NULL) || (states == NULL))
     {
-        order_check(results, 0, "the orders' program is held");
+        order_check(results, 0, "the orders' program is allocated");
         free(stack.steps);
         free(outputs);
         free(floor_order);
@@ -335,35 +336,35 @@ void order_both_ways(OrderResults *results)
         }
         returned += (back != 0) ? 1u : 0u;
     }
-    scriptura_text(&results->line, "  orders: G of four shears over 32-bit words, 0 -> ");
-    scriptura_decimal(&results->line, ORDER_TEST_DEPTH, 1u);
-    scriptura_text(&results->line, " -> -");
-    scriptura_decimal(&results->line, ORDER_TEST_DEPTH, 1u);
-    scriptura_text(&results->line, " -> 0 in ");
-    scriptura_decimal(&results->line, ORDER_TEST_FLOORS, 1u);
-    scriptura_text(&results->line, " floors, ");
-    scriptura_decimal(&results->line, stack.count, 1u);
-    scriptura_text(&results->line, " steps, file ");
-    scriptura_decimal(&results->line, loaded.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs\n    ");
-    scriptura_decimal(&results->line, visits_ok, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line,
-                   " lanes hold the CPU's G^k(x) at every visit to every order; the counter reads k on ");
-    scriptura_decimal(&results->line, counters_ok, 1u);
-    scriptura_text(&results->line, "; ");
-    scriptura_decimal(&results->line, returned, 1u);
-    scriptura_text(&results->line, " return to x exactly; G carries each order to the next on ");
-    scriptura_decimal(&results->line, steps_ok, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, "  orders: G of four shears over 32-bit words, 0 -> ");
+    mmgr_line_decimal(&results->line, ORDER_TEST_DEPTH, 1u);
+    mmgr_line_put(&results->line, " -> -");
+    mmgr_line_decimal(&results->line, ORDER_TEST_DEPTH, 1u);
+    mmgr_line_put(&results->line, " -> 0 in ");
+    mmgr_line_decimal(&results->line, ORDER_TEST_FLOORS, 1u);
+    mmgr_line_put(&results->line, " floors, ");
+    mmgr_line_decimal(&results->line, stack.count, 1u);
+    mmgr_line_put(&results->line, " steps, file ");
+    mmgr_line_decimal(&results->line, loaded.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs\n    ");
+    mmgr_line_decimal(&results->line, visits_ok, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line,
+                   " lanes contain the CPU's G^k(x) at every visit to every order; the counter reads k on ");
+    mmgr_line_decimal(&results->line, counters_ok, 1u);
+    mmgr_line_put(&results->line, "; ");
+    mmgr_line_decimal(&results->line, returned, 1u);
+    mmgr_line_put(&results->line, " return to x exactly; G carries each order to the next on ");
+    mmgr_line_decimal(&results->line, steps_ok, 1u);
+    mmgr_line_ch(&results->line, '\n');
     order_check(results, (host_ran != 0) && (device_ran != 0), "the orders run on the host and the device");
     order_check(results,
                 (host_ran != 0) && (device_ran != 0) &&
                     (memcmp(host_out, device_out, (size_t)lanes * out_limbs * sizeof(unsigned int)) == 0),
                 "the orders' device records equal the host's word for word");
     order_check(results, steps_ok == lanes, "G carries every order to the next from -K to K, so G^-1 inverts it");
-    order_check(results, visits_ok == lanes, "every visit to order k holds the CPU's G^k(x), whichever way it came");
+    order_check(results, visits_ok == lanes, "every visit to order k contains the CPU's G^k(x), whichever way it came");
     order_check(results, counters_ok == lanes, "the counter reads the order at every floor, below zero included");
     order_check(results, returned == lanes, "the run returns to order 0 and to x exactly");
     free(atoms);

@@ -1,3 +1,12 @@
 # Every crate of the tree builds under the top's build/, the one folder a build writes into.
 [build]
 target-dir = "build/cargo"
+[profile.release]
+lto = true        # Keeps the fat/thin LTO pipeline enabled across modules
+codegen-units = 1 # Guarantees a single translation graph for deep optimization
+panic = "abort"   # Drops allocation unwinding bloat to prevent symbol pollution
+# LLVM's linker, which reads the C side's bitcode a release build links and optimizes it whole at the link
+[target.x86_64-pc-windows-msvc]
+linker = "lld-link"
+[target.'cfg(target_os = "linux")']
+rustflags = ["-Clink-arg=-fuse-ld=lld"]

@@ -604,7 +604,7 @@ def serve(binary):
         # the multiple evaluation's longest programs hold frames past the device's stack limit, and are kept as PTX:
         # built again as C source, they go to NVRTC, which compiles a program of their length far slower than the run
         served = subprocess.Popen([binary, "serve"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
-                                  env=dict(os.environ, CYCLE_RECORD_KEEP_PTX="1"))
+                                  env=dict(os.environ, CYCLE_RECORD_RETAIN_PTX="1"))
         SERVED[binary] = served
     return served
 

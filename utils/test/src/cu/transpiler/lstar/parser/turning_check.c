@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// turning_check.c: the turning case of a ladder form held: the first case of its relation whose three readings in the
-// register pass stand apart, so that no run is placed by a coincidence
+// turning_check.c: the turning case of a ladder form checked: the first case of its relation whose three readings in
+// the register pass stand apart, so that no run is placed by a coincidence
 //
 //   apart    for every relation that has one, the case's words differ, the answer differs from both, and the relation
 //            over each word twice differs from the second word and from the answer
@@ -9,10 +9,10 @@
 //            read the amount's run as the destination; read swapped, (2, 1) stands
 //   none     a relation with no such case gives none
 //   predicate  a predicate form's turning cases are every case of its relation, in both orders, whose words differ
-//            and over which it holds in the form's reading, one of them with a first word above 0
+//            and over which it is true in the form's reading, one of them with a first word above 0
 //   whole    a form's runs are whole where they carry every place of its relation's tuple
 //   cut      the turned bits are gathered into runs cut where the fields the part names end: two adjacent turned bits
-//            are one run where one field holds both, the narrowest where fields nest, or none holds either
+//            are one run where one field contains both, the narrowest where fields nest, or none contains either
 //
 //     turning_check
 #include "../../../../../../../src/cu/transpiler/lstar/protocol/khw_learn/khw_learn_internal.h"
@@ -20,10 +20,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -67,9 +67,9 @@ int main(void)
                    (swapped[1] == 1u) && (shifted == 4u),
                "the shift up's turning case read swapped is (2, 1): 2 shifted by 2 and 1 by 1 are apart from 1 and 4");
     // a predicate form's turning cases: every case of its relation, in both orders, whose words differ and over
-    // which the relation holds in the form's reading; at most, read plain, holds over (0, 1), (1, 2), (3, 7) and
+    // which the relation is true in the form's reading; at most, read plain, is true over (0, 1), (1, 2), (3, 7) and
     // (0, 0xffffffff), and a case whose first word is above 0 is among them, so that the second word moved to a
-    // register holding 0 breaks the relation as the first word moved to one holding more than the second does
+    // register containing 0 breaks the relation as the first word moved to one containing more than the second does
     const unsigned int at_most[4][2] = {{0u, 1u}, {1u, 2u}, {3u, 7u}, {0u, 0xffffffffu}};
     unsigned int cases = 0u;
     int every = 1;
@@ -85,20 +85,20 @@ int main(void)
                "predicate: at most read plain turns over (0, 1), (1, 2), (3, 7) and (0, 0xffffffff), one first word "
                "above 0");
     unsigned int swapped_cases = 0u;
-    int swapped_hold = 1;
+    int swapped_matches = 1;
     while (khw_predicate_words((unsigned int)LADDER_AT_MOST, 1, 0, swapped_cases, pair))
     {
-        swapped_hold = swapped_hold && (pair[1] <= pair[0]) && (pair[0] != pair[1]);
+        swapped_matches = swapped_matches && (pair[1] <= pair[0]) && (pair[0] != pair[1]);
         swapped_cases += 1u;
     }
-    check_that((swapped_cases == 4u) && swapped_hold,
+    check_that((swapped_cases == 4u) && swapped_matches,
                "predicate: at most read swapped turns over the four cases with the words the other way round");
     unsigned int same_cases = 0u;
     while (khw_predicate_words((unsigned int)LADDER_SAME, 0, 0, same_cases, pair))
     {
         same_cases += 1u;
     }
-    check_that(same_cases == 0u, "predicate: the same relation holds over no case whose words differ");
+    check_that(same_cases == 0u, "predicate: the same relation is true over no case whose words differ");
     check_that(!khw_predicate_words((unsigned int)LADDER_ADD, 0, 0, 0u, pair),
                "predicate: a relation that is no predicate has no predicate turning case");
     // a form is whole where its runs carry every place of its relation's tuple, the words and the answer
@@ -112,7 +112,7 @@ int main(void)
     check_that(khw_places_whole(twice, 4u, 2u), "a run with no place beside the whole places leaves them whole");
     check_that(!khw_places_whole(whole, 0u, 2u), "no runs are not whole");
     // the turned bits 12 to 16 and 24 to 27 under a guard field at 12 of 3 bits and a destination field at 16 of 8:
-    // the guard's bits, the bit no field holds, the destination's one bit and the second field's run
+    // the guard's bits, the bit no field contains, the destination's one bit and the second field's run
     int turned[KHW_TURN_LAST + 1u];
     memset(turned, 0, sizeof(turned));
     for (unsigned int bit = 12u; bit <= 16u; bit += 1u)
@@ -133,13 +133,13 @@ int main(void)
                "cut: turned bits 12 to 16 under the guard and destination fields are three runs, and 24 to 27 one");
     check_that((cut.place[0] == KHW_PLACE_NONE) && (cut.kind[0] == KHW_KIND_REGISTER) &&
                    (cut.place[2] == KHW_PLACE_NONE) && (cut.kind[2] == KHW_KIND_REGISTER),
-               "cut: each run gathered holds no place yet and a register's kind");
+               "cut: each run gathered has no place yet and a register's kind");
     KhwAnswered uncut;
     memset(&uncut, 0, sizeof(uncut));
     check_that((khw_runs_gathered(turned, 0u, field_first, field_bits, &uncut) == 2u) && (uncut.first[0] == 12u) &&
                    (uncut.last[0] == 16u) && (uncut.first[1] == 24u) && (uncut.last[1] == 27u),
                "cut: with no fields named, adjacent turned bits are one run");
-    // the second word's field at 32 of 8 bits inside the immediate's at 32 of 32: the narrowest holds the bit, and
+    // the second word's field at 32 of 8 bits inside the immediate's at 32 of 32: the narrowest contains the bit, and
     // turned bits 36 to 42 are the second word's 36 to 39 and the immediate's 40 to 42
     memset(turned, 0, sizeof(turned));
     for (unsigned int bit = 36u; bit <= 42u; bit += 1u)
@@ -152,7 +152,7 @@ int main(void)
     memset(&nested, 0, sizeof(nested));
     check_that((khw_runs_gathered(turned, 2u, nested_first, nested_bits, &nested) == 2u) && (nested.first[0] == 36u) &&
                    (nested.last[0] == 39u) && (nested.first[1] == 40u) && (nested.last[1] == 42u),
-               "cut: where fields nest, the narrowest holding a bit is the bit's field");
+               "cut: where fields nest, the narrowest containing a bit is the bit's field");
     printf("turning_check: %u checks, %u failed\n", s_checks, s_failed);
     return (s_failed == 0u) ? 0 : 1;
 }

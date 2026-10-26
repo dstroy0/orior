@@ -6,15 +6,15 @@
 //   { "orior": "plugin catalog", "plugins": [ { "id", "name", "version", "about", "package",
 //     "sha256", "reads", "writes", "reaches" }, ... ] }
 //
-// and each plugin's package a JSON file, at `package`, an address of its own or one from the catalog's, holding the
+// and each plugin's package a JSON file, at `package`, an address of its own or one from the catalog's, containing the
 // plugin's files by name:
 //
 //   { "orior": "plugin", "files": { "plugin.json": "...", "plugin.js": "..." } }
 //
 // A package whose catalog gives its `sha256` is installed only where its bytes hash to it, and one whose plugin.json
 // names another id or version than its catalog's entry is not installed. What a plugin reads, writes and reaches on
-// the network is what its own plugin.json says (plugins.h); the window holds it to that. Nothing is read from a
-// catalog or installed but when the reader asks, and a plugin is updated only by installing it again
+// the network is what its own plugin.json declares (plugins.h); the window restricts it to that. Nothing is read from a
+// catalog or installed but when the reader requests it, and a plugin is updated only by installing it again
 #include "plugin_catalog_internal.h"
 
 #include "../machine/net.h"
@@ -24,7 +24,7 @@
 #include "../text/pieces.h"
 #include "../text/text.h"
 
-// the bytes of a piece a fetched body is written in before the piece is held in a cell of its own
+// the bytes of a piece a fetched body is written in before the piece is stored in a cell of its own
 #define CLI_PLUGIN_CATALOG_PIECE 4096u
 
 CliCatalogRoom *g_cli_catalog;
@@ -35,9 +35,9 @@ static CliLock s_catalog_lock = CLI_LOCK_INIT;
 static const char *const s_texts[6] = {"id", "name", "version", "about", "package", "sha256"};
 static const char *const s_lists[3] = {"reads", "writes", "reaches"};
 
-int cli_plugin_catalog_held(CliLine *said)
+int cli_plugin_catalog_locked(VerbaLinea *err_msg)
 {
-    (void)said;
+    (void)err_msg;
     cli_lock_take(&s_catalog_lock);
     g_cli_catalog = &s_catalog_room;
     g_cli_catalog->bytes = NULL;
@@ -48,16 +48,16 @@ int cli_plugin_catalog_held(CliLine *said)
 void cli_plugin_catalog_released(void)
 {
     cli_json_given(&g_cli_catalog->json);
-    cli_cell_given(g_cli_catalog->bytes);
+    g_cli_cells->persistent_buf_release(g_cli_catalog->bytes, NULL);
     g_cli_catalog->bytes = NULL;
     g_cli_catalog = NULL;
     cli_lock_give(&s_catalog_lock);
 }
 
-unsigned int cli_plugin_catalog_tree(const char *text, unsigned long long size, CliLine *said)
+unsigned int cli_plugin_catalog_tree(const char *text, unsigned long long size, VerbaLinea *err_msg)
 {
     cli_json_given(&g_cli_catalog->json);
-    return cli_json_taken(&g_cli_catalog->json, text, size, 0u, 0ull, said);
+    return cli_json_taken(&g_cli_catalog->json, text, size, 0u, 0ull, err_msg);
 }
 
 // whether `text` begins with `prefix`
@@ -66,56 +66,56 @@ static int catalog_begins(const char *text, const char *prefix)
     return cli_text_same(text, prefix, cellul.len(&(CatenaFinitaCfg){.src = prefix, .cap = CLI_CELLS_POOL}));
 }
 
-// the bytes at `address`, a web address or a file of this machine, asked for `purpose`, read into g_cli_catalog->bytes,
-// their count into `size`: 1, or 0 with why said
-int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned long long *size, CliLine *said)
+// the bytes at `address`, a web address or a file of this machine, requested for `purpose`, read into
+// g_cli_catalog->bytes, their count into `size`: 1, or 0 with why given
+int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned long long *size, VerbaLinea *err_msg)
 {
-    cli_cell_given(g_cli_catalog->bytes);
+    g_cli_cells->persistent_buf_release(g_cli_catalog->bytes, NULL);
     g_cli_catalog->bytes = NULL;
     if (catalog_begins(address, "http://") || catalog_begins(address, "https://"))
     {
-        if (!cli_net_reach(address, purpose, said))
+        if (!cli_net_reach(address, purpose, err_msg))
         {
             return 0;
         }
-        char why[CLI_SAID_LONGEST];
-        CliLine failed = {why, sizeof(why), 0ull};
-        char reason[CLI_SAID_LONGEST];
-        CliLine reason_line = {reason, sizeof(reason), 0ull};
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea failed = {why, sizeof(why), 0ull};
+        char reason[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea reason_line = {reason, sizeof(reason), 0ull};
         CliPieces pieces;
-        CliLine body;
+        VerbaLinea body;
         char piece[CLI_PLUGIN_CATALOG_PIECE];
         cli_pieces_begun(&pieces, &body, piece, sizeof(piece));
         unsigned int status = 0u;
         int cut = 0;
         const int got = cli_requests_get(address, &status, &reason_line, &cut, &body, &failed);
         unsigned long long joined_size = 0ull;
-        // a body's bytes are held as its text
+        // a body's bytes are stored as its text
         unsigned char *const joined =
             (unsigned char *)cli_pieces_joined(&pieces, &body, "the bytes a plugin catalog fetched", &joined_size);
         if (!got)
         {
-            cli_cell_given(joined);
-            cli_line_text(said, address);
-            cli_line_text(said, ": ");
-            cli_line_counted(said, why, failed.at);
+            g_cli_cells->persistent_buf_release(joined, NULL);
+            mmgr_line_put(err_msg, address);
+            mmgr_line_put(err_msg, ": ");
+            mmgr_line_put_n(err_msg, why, failed.at);
             return 0;
         }
         if ((status < 200u) || (status >= 300u))
         {
-            cli_cell_given(joined);
-            cli_line_text(said, address);
-            cli_line_text(said, ": ");
-            cli_line_decimal(said, status, 1u);
-            cli_line_character(said, ' ');
-            cli_line_counted(said, reason, reason_line.at);
+            g_cli_cells->persistent_buf_release(joined, NULL);
+            mmgr_line_put(err_msg, address);
+            mmgr_line_put(err_msg, ": ");
+            mmgr_line_decimal(err_msg, status, 1u);
+            mmgr_line_ch(err_msg, ' ');
+            mmgr_line_put_n(err_msg, reason, reason_line.at);
             return 0;
         }
         if (cut || (joined == NULL) || (joined_size > CLI_CATALOG_BYTES))
         {
-            cli_cell_given(joined);
-            cli_line_text(said, address);
-            cli_line_text(said, " is larger than orior_cli reads");
+            g_cli_cells->persistent_buf_release(joined, NULL);
+            mmgr_line_put(err_msg, address);
+            mmgr_line_put(err_msg, " is larger than orior_cli reads");
             return 0;
         }
         g_cli_catalog->bytes = joined;
@@ -124,11 +124,11 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
     }
     const char *const path = catalog_begins(address, "file://") ? (address + 7) : address;
     unsigned long long mapped_size = 0ull;
-    const unsigned char *const mapped = cli_file_held(path, &mapped_size);
-    // a file of no bytes is held in a cell of one, so every read has a cell
+    const unsigned char *const mapped = cli_file_read(path, &mapped_size);
+    // a file of no bytes is stored in a cell of one, so every read has a cell
     unsigned char *const bytes =
         ((mapped != NULL) && (mapped_size <= CLI_CATALOG_BYTES))
-            ? cli_cell_taken((mapped_size != 0ull) ? mapped_size : 1ull, "the bytes a plugin catalog read")
+            ? g_cli_cells->persistent_buf_alloc((mapped_size != 0ull) ? mapped_size : 1ull, NULL)
             : NULL;
     if (bytes != NULL)
     {
@@ -140,8 +140,8 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
     }
     if (bytes == NULL)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     g_cli_catalog->bytes = bytes;
@@ -162,13 +162,13 @@ static int catalog_absolute(const char *path)
 #endif
 }
 
-void cli_plugin_catalog_beside(const char *base, const char *address, CliLine *out)
+void cli_plugin_catalog_beside(const char *base, const char *address, VerbaLinea *out)
 {
     if ((cellul.find(&(CatenaFinitaCfg){
              .src = address, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL) ||
         catalog_absolute(address))
     {
-        cli_line_text(out, address);
+        mmgr_line_put(out, address);
         return;
     }
     if (cellul.find(&(CatenaFinitaCfg){
@@ -178,27 +178,27 @@ void cli_plugin_catalog_beside(const char *base, const char *address, CliLine *o
             cli_text_last(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), '/');
         if (cut != NULL)
         {
-            cli_line_counted(out, base, (unsigned long long)(cut - base));
-            cli_line_character(out, '/');
+            mmgr_line_put_n(out, base, (unsigned long long)(cut - base));
+            mmgr_line_ch(out, '/');
         }
-        cli_line_text(out, address);
+        mmgr_line_put(out, address);
         return;
     }
-    char parent[CLI_PATH_LONGEST];
+    char parent[CLI_PATH_MAX_LEN];
     if (cli_path_parent(base, parent))
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = parent, .cap = CLI_CELLS_POOL});
-        cli_line_text(out, parent);
+        mmgr_line_put(out, parent);
         if ((length > 0u) && (parent[length - 1u] != '/') && (parent[length - 1u] != '\\'))
         {
 #if defined(_WIN32)
-            cli_line_character(out, '\\');
+            mmgr_line_ch(out, '\\');
 #else
-            cli_line_character(out, '/');
+            mmgr_line_ch(out, '/');
 #endif
         }
     }
-    cli_line_text(out, address);
+    mmgr_line_put(out, address);
 }
 
 // the name serde gives a value's kind where it is not the kind wanted
@@ -209,20 +209,20 @@ static const char *catalog_kind(const CliJson *json, unsigned int node)
 }
 
 void cli_plugin_catalog_invalid(const char *where, const CliJson *json, unsigned int node, const char *wanted,
-                                CliLine *said)
+                                VerbaLinea *err_msg)
 {
-    cli_line_text(said, where);
-    cli_line_text(said, ": invalid type: ");
-    cli_line_text(said, catalog_kind(json, node));
-    cli_line_text(said, ", expected ");
-    cli_line_text(said, wanted);
+    mmgr_line_put(err_msg, where);
+    mmgr_line_put(err_msg, ": invalid type: ");
+    mmgr_line_put(err_msg, catalog_kind(json, node));
+    mmgr_line_put(err_msg, ", expected ");
+    mmgr_line_put(err_msg, wanted);
 }
 
-int cli_plugin_catalog_entry_read(const CliJson *json, unsigned int entry, const char *where, CliLine *said)
+int cli_plugin_catalog_entry_read(const CliJson *json, unsigned int entry, const char *where, VerbaLinea *err_msg)
 {
     if (!cli_json_is(json, entry, CFG_JSON_OBJECT))
     {
-        cli_plugin_catalog_invalid(where, json, entry, "struct Entry", said);
+        cli_plugin_catalog_invalid(where, json, entry, "struct Entry", err_msg);
         return 0;
     }
     for (unsigned int at = 0u; at < 6u; at += 1u)
@@ -230,7 +230,7 @@ int cli_plugin_catalog_entry_read(const CliJson *json, unsigned int entry, const
         const unsigned int field = cli_json_member(json, entry, s_texts[at]);
         if ((field != CLI_JSON_NONE) && !cli_json_is(json, field, CFG_JSON_STRING))
         {
-            cli_plugin_catalog_invalid(where, json, field, "a string", said);
+            cli_plugin_catalog_invalid(where, json, field, "a string", err_msg);
             return 0;
         }
     }
@@ -239,7 +239,7 @@ int cli_plugin_catalog_entry_read(const CliJson *json, unsigned int entry, const
         const unsigned int field = cli_json_member(json, entry, s_lists[at]);
         if ((field != CLI_JSON_NONE) && !cli_json_is(json, field, CFG_JSON_ARRAY))
         {
-            cli_plugin_catalog_invalid(where, json, field, "a sequence", said);
+            cli_plugin_catalog_invalid(where, json, field, "a sequence", err_msg);
             return 0;
         }
         for (unsigned int item = 0u; (field != CLI_JSON_NONE) && (cli_json_item(json, field, item) != CLI_JSON_NONE);
@@ -247,7 +247,7 @@ int cli_plugin_catalog_entry_read(const CliJson *json, unsigned int entry, const
         {
             if (!cli_json_is(json, cli_json_item(json, field, item), CFG_JSON_STRING))
             {
-                cli_plugin_catalog_invalid(where, json, cli_json_item(json, field, item), "a string", said);
+                cli_plugin_catalog_invalid(where, json, cli_json_item(json, field, item), "a string", err_msg);
                 return 0;
             }
         }
@@ -262,40 +262,40 @@ const char *cli_plugin_catalog_field(const CliJson *json, unsigned int entry, co
 }
 
 // an entry written as serde writes it, a field it does not give written empty
-static void catalog_entry_written(const CliJson *json, unsigned int entry, CliLine *out)
+static void catalog_entry_written(const CliJson *json, unsigned int entry, VerbaLinea *out)
 {
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        cli_line_text(out, (at == 0u) ? "{\"" : ",\"");
-        cli_line_text(out, s_texts[at]);
-        cli_line_text(out, "\":");
+        mmgr_line_put(out, (at == 0u) ? "{\"" : ",\"");
+        mmgr_line_put(out, s_texts[at]);
+        mmgr_line_put(out, "\":");
         unsigned long long length = 0ull;
         const char *const text = cli_json_string(json, cli_json_member(json, entry, s_texts[at]), &length);
         cli_json_quoted(out, (text != NULL) ? text : "", (text != NULL) ? length : 0ull);
     }
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        cli_line_text(out, ",\"");
-        cli_line_text(out, s_lists[at]);
-        cli_line_text(out, "\":");
+        mmgr_line_put(out, ",\"");
+        mmgr_line_put(out, s_lists[at]);
+        mmgr_line_put(out, "\":");
         const unsigned int field = cli_json_member(json, entry, s_lists[at]);
         if (field == CLI_JSON_NONE)
         {
-            cli_line_text(out, "[]");
+            mmgr_line_put(out, "[]");
         }
         else
         {
             cli_json_write(json, field, out, 0u, 0);
         }
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
 // whether an entry is one to list: an id that is its own slug, and a package
 static int catalog_listed(const CliJson *json, unsigned int entry)
 {
     const char *const id = cli_plugin_catalog_field(json, entry, "id");
-    char slug[CLI_NAME_LONGEST];
+    char slug[CLI_NAME_MAX_LEN];
     if ((id[0] == '\0') || (cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}) >= sizeof(slug)))
     {
         return 0;
@@ -305,26 +305,26 @@ static int catalog_listed(const CliJson *json, unsigned int entry)
            (cli_plugin_catalog_field(json, entry, "package")[0] != '\0');
 }
 
-int cli_plugin_catalog_read(const char *address, CliLine *out, CliLine *said)
+int cli_plugin_catalog_read(const char *address, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!cli_plugin_catalog_held(said))
+    if (!cli_plugin_catalog_locked(err_msg))
     {
         return 0;
     }
     unsigned long long size = 0ull;
-    int read = cli_plugin_catalog_fetch(address, "the plugin catalog", &size, said);
+    int read = cli_plugin_catalog_fetch(address, "the plugin catalog", &size, err_msg);
     unsigned int catalog = CLI_JSON_NONE;
     if (read)
     {
-        char why[CLI_SAID_LONGEST];
-        CliLine read_said = {why, sizeof(why), 0ull};
-        catalog = cli_plugin_catalog_tree((const char *)g_cli_catalog->bytes, size, &read_said);
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
+        catalog = cli_plugin_catalog_tree((const char *)g_cli_catalog->bytes, size, &read_err_msg);
         read = (catalog != CLI_JSON_NONE);
         if (!read)
         {
-            cli_line_text(said, address);
-            cli_line_text(said, ": ");
-            cli_line_counted(said, why, read_said.at);
+            mmgr_line_put(err_msg, address);
+            mmgr_line_put(err_msg, ": ");
+            mmgr_line_put_n(err_msg, why, read_err_msg.at);
         }
     }
     const char *const kind =
@@ -333,36 +333,36 @@ int cli_plugin_catalog_read(const char *address, CliLine *out, CliLine *said)
     if (read && ((kind == NULL) ||
                  (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = CLI_PLUGIN_CATALOG, .cap = CLI_CELLS_POOL}))))
     {
-        cli_line_text(said, address);
-        cli_line_text(said, " is no catalog of orior's plugins");
+        mmgr_line_put(err_msg, address);
+        mmgr_line_put(err_msg, " is no catalog of orior's plugins");
         read = 0;
     }
     const unsigned int plugins = read ? cli_json_member(&g_cli_catalog->json, catalog, "plugins") : CLI_JSON_NONE;
     if (read && !cli_json_is(&g_cli_catalog->json, plugins, CFG_JSON_ARRAY))
     {
-        cli_plugin_catalog_invalid(address, &g_cli_catalog->json, plugins, "a sequence", said);
+        cli_plugin_catalog_invalid(address, &g_cli_catalog->json, plugins, "a sequence", err_msg);
         read = 0;
     }
     for (unsigned int at = 0u; read && (cli_json_item(&g_cli_catalog->json, plugins, at) != CLI_JSON_NONE); at += 1u)
     {
         read = cli_plugin_catalog_entry_read(&g_cli_catalog->json, cli_json_item(&g_cli_catalog->json, plugins, at),
-                                             address, said);
+                                             address, err_msg);
     }
     if (read)
     {
-        cli_line_character(out, '[');
+        mmgr_line_ch(out, '[');
         int first = 1;
         for (unsigned int at = 0u; cli_json_item(&g_cli_catalog->json, plugins, at) != CLI_JSON_NONE; at += 1u)
         {
             const unsigned int entry = cli_json_item(&g_cli_catalog->json, plugins, at);
             if (catalog_listed(&g_cli_catalog->json, entry))
             {
-                cli_line_text(out, first ? "" : ",");
+                mmgr_line_put(out, first ? "" : ",");
                 catalog_entry_written(&g_cli_catalog->json, entry, out);
                 first = 0;
             }
         }
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
     cli_plugin_catalog_released();
     return read;

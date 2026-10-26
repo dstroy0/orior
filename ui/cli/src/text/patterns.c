@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// patterns.c: the patterns of a part read from their lines, held against a path, written as git's pathspecs, and kept
-// for each part of the window
+// patterns.c: the patterns of a part read from their lines, matched against a path, written as git's pathspecs, and
+// stored for each part of the window
 #include "patterns.h"
 #include "regexp.h"
 
-// the patterns of each part, 1 in `s_made` where they were set, and the lock that is held while one is read or set
+// the patterns of each part, 1 in `s_made` where they were set, and the lock that is acquired while one is read or set
 static CliPatterns s_set[CLI_PARTS];
 static int s_made[CLI_PARTS];
 static CliLock s_lock = CLI_LOCK_INIT;
@@ -100,9 +100,9 @@ static int cli_hits(const CliPatterns *patterns, const CliPattern *pattern, cons
     return (dir || !pattern->folders) && cli_glob(glob, pattern->length, path, length);
 }
 
-// One pattern's line read into the hiding or the keeping ones: trimmed, `./` before it left off, a trailing `/`
+// One pattern's line read into the hiding or the including ones: trimmed, `./` before it left off, a trailing `/`
 // naming folders only, and `**/` put before one that has no `/` of its own. An empty one names nothing
-static void cli_pattern_read(CliPatterns *patterns, const char *from, const char *to, int keep)
+static void cli_pattern_read(CliPatterns *patterns, const char *from, const char *to, int include)
 {
     while ((from < to) && cli_is_space(from[0]))
     {
@@ -131,8 +131,8 @@ static void cli_pattern_read(CliPatterns *patterns, const char *from, const char
     {
         from += 1;
     }
-    unsigned int *const count = keep ? &patterns->keeps : &patterns->hides;
-    CliPattern *const list = keep ? patterns->keep : patterns->hide;
+    unsigned int *const count = include ? &patterns->includes : &patterns->hides;
+    CliPattern *const list = include ? patterns->include : patterns->hide;
     const unsigned int first = patterns->used;
     const unsigned long long room = CLI_PATTERN_LETTERS - first;
     unsigned long long length = 0ull;
@@ -159,7 +159,7 @@ static void cli_pattern_read(CliPatterns *patterns, const char *from, const char
     patterns->used = first + (unsigned int)length;
 }
 
-// one line of the patterns read: trimmed, nothing where it is empty or starts with `#`, a keeping pattern where it
+// one line of the patterns read: trimmed, nothing where it is empty or starts with `#`, a including pattern where it
 // starts with `!`
 static void cli_line_read(CliPatterns *patterns, const char *line, unsigned long long size)
 {
@@ -177,14 +177,14 @@ static void cli_line_read(CliPatterns *patterns, const char *line, unsigned long
     {
         return;
     }
-    const int keep = from[0] == '!';
-    cli_pattern_read(patterns, from + (keep ? 1 : 0), to, keep);
+    const int include = from[0] == '!';
+    cli_pattern_read(patterns, from + (include ? 1 : 0), to, include);
 }
 
 void cli_patterns_read(const char *const *lines, unsigned int count, CliPatterns *patterns)
 {
     patterns->hides = 0u;
-    patterns->keeps = 0u;
+    patterns->includes = 0u;
     patterns->used = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -195,7 +195,7 @@ void cli_patterns_read(const char *const *lines, unsigned int count, CliPatterns
 void cli_patterns_read_set(const char *const *lines, unsigned int count, CliPatterns *patterns)
 {
     patterns->hides = 0u;
-    patterns->keeps = 0u;
+    patterns->includes = 0u;
     patterns->used = 0u;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -213,36 +213,36 @@ void cli_patterns_read_set(const char *const *lines, unsigned int count, CliPatt
         {
             continue;
         }
-        // each line turned about: one that takes out is a pattern that hides, and one that names keeps
-        char flipped[CLI_PATH_LONGEST];
-        CliLine line = {flipped, sizeof(flipped), 0ull};
+        // each line turned about: one that takes out is a pattern that hides, and one that names includes
+        char flipped[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {flipped, sizeof(flipped), 0ull};
         if (from[0] != '!')
         {
-            cli_line_character(&line, '!');
+            mmgr_line_ch(&line, '!');
         }
-        cli_line_counted(&line, from + ((from[0] == '!') ? 1 : 0),
-                         (unsigned long long)(to - from) - ((from[0] == '!') ? 1ull : 0ull));
-        const unsigned long long length = cli_line_fits(&line) ? line.at : 0ull;
-        cli_line_closed(&line);
+        mmgr_line_put_n(&line, from + ((from[0] == '!') ? 1 : 0),
+                        (unsigned long long)(to - from) - ((from[0] == '!') ? 1ull : 0ull));
+        const unsigned long long length = mmgr_line_ok(&line) ? line.at : 0ull;
+        mmgr_line_finish(&line);
         cli_line_read(patterns, flipped, length);
     }
 }
 
 int cli_patterns_empty(const CliPatterns *patterns)
 {
-    return (patterns->hides == 0u) && (patterns->keeps == 0u);
+    return (patterns->hides == 0u) && (patterns->includes == 0u);
 }
 
-int cli_patterns_keeps_only(const CliPatterns *patterns)
+int cli_patterns_include_only(const CliPatterns *patterns)
 {
-    return patterns->keeps != 0u;
+    return patterns->includes != 0u;
 }
 
-// the path's letters, each folded as a pattern compares it, into `letters`, which holds CLI_PATH_LONGEST: their count
+// the path's letters, each folded as a pattern compares it, into `letters`, sized for CLI_PATH_MAX_LEN: their count
 static unsigned long long cli_path_letters(const char *path, unsigned int *letters)
 {
     const unsigned long long length = cli_regexp_letters(
-        path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), letters, CLI_PATH_LONGEST);
+        path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), letters, CLI_PATH_MAX_LEN);
     for (unsigned long long at = 0ull; at < length; at += 1ull)
     {
         letters[at] = cli_fold(letters[at]);
@@ -252,7 +252,7 @@ static unsigned long long cli_path_letters(const char *path, unsigned int *lette
 
 int cli_patterns_hides(const CliPatterns *patterns, const char *path, int dir)
 {
-    unsigned int letters[CLI_PATH_LONGEST];
+    unsigned int letters[CLI_PATH_MAX_LEN];
     const unsigned long long length = cli_path_letters(path, letters);
     for (unsigned int at = 0u; at < patterns->hides; at += 1u)
     {
@@ -261,13 +261,13 @@ int cli_patterns_hides(const CliPatterns *patterns, const char *path, int dir)
             return 1;
         }
     }
-    if (dir || (patterns->keeps == 0u))
+    if (dir || (patterns->includes == 0u))
     {
         return 0;
     }
-    for (unsigned int at = 0u; at < patterns->keeps; at += 1u)
+    for (unsigned int at = 0u; at < patterns->includes; at += 1u)
     {
-        if (cli_hits(patterns, &patterns->keep[at], letters, length, 0))
+        if (cli_hits(patterns, &patterns->include[at], letters, length, 0))
         {
             return 0;
         }
@@ -275,13 +275,13 @@ int cli_patterns_hides(const CliPatterns *patterns, const char *path, int dir)
     return 1;
 }
 
-int cli_patterns_keeps_folder(const CliPatterns *patterns, const char *path)
+int cli_patterns_include_folder(const CliPatterns *patterns, const char *path)
 {
-    unsigned int letters[CLI_PATH_LONGEST];
+    unsigned int letters[CLI_PATH_MAX_LEN];
     const unsigned long long length = cli_path_letters(path, letters);
-    for (unsigned int at = 0u; at < patterns->keeps; at += 1u)
+    for (unsigned int at = 0u; at < patterns->includes; at += 1u)
     {
-        if (cli_hits(patterns, &patterns->keep[at], letters, length, 1))
+        if (cli_hits(patterns, &patterns->include[at], letters, length, 1))
         {
             return 1;
         }
@@ -298,34 +298,34 @@ static void cli_pattern_specs(const CliPatterns *patterns, const CliPattern *pat
 #else
     const char *const letter_case = "";
 #endif
-    char spec[CLI_PATH_LONGEST];
+    char spec[CLI_PATH_MAX_LEN];
     for (int inside = pattern->folders ? 1 : 0; inside < 2; inside += 1)
     {
-        CliLine line = {spec, sizeof(spec), 0ull};
-        cli_line_text(&line, ":(");
-        cli_line_text(&line, magic);
-        cli_line_text(&line, "glob");
-        cli_line_text(&line, letter_case);
-        cli_line_character(&line, ')');
+        VerbaLinea line = {spec, sizeof(spec), 0ull};
+        mmgr_line_put(&line, ":(");
+        mmgr_line_put(&line, magic);
+        mmgr_line_put(&line, "glob");
+        mmgr_line_put(&line, letter_case);
+        mmgr_line_ch(&line, ')');
         for (unsigned int at = 0u; at < pattern->length; at += 1u)
         {
             cli_utf8_put(&line, patterns->letters[pattern->first + at]);
         }
         if (inside)
         {
-            cli_line_text(&line, "/**");
+            mmgr_line_put(&line, "/**");
         }
-        words->full = words->full || !cli_line_fits(&line);
-        cli_line_closed(&line);
+        words->full = words->full || !mmgr_line_ok(&line);
+        mmgr_line_finish(&line);
         cli_words_put(words, spec);
     }
 }
 
-void cli_patterns_kept_specs(const CliPatterns *patterns, CliWords *words)
+void cli_patterns_include_specs(const CliPatterns *patterns, CliWords *words)
 {
-    for (unsigned int at = 0u; at < patterns->keeps; at += 1u)
+    for (unsigned int at = 0u; at < patterns->includes; at += 1u)
     {
-        cli_pattern_specs(patterns, &patterns->keep[at], "", words);
+        cli_pattern_specs(patterns, &patterns->include[at], "", words);
     }
 }
 
@@ -339,11 +339,11 @@ void cli_patterns_hidden_specs(const CliPatterns *patterns, CliWords *words)
 
 void cli_patterns_pathspecs(const CliPatterns *patterns, CliWords *words)
 {
-    if (patterns->keeps == 0u)
+    if (patterns->includes == 0u)
     {
         cli_words_put(words, ".");
     }
-    cli_patterns_kept_specs(patterns, words);
+    cli_patterns_include_specs(patterns, words);
     cli_patterns_hidden_specs(patterns, words);
 }
 
@@ -369,11 +369,11 @@ int cli_patterns_set(unsigned int part, const char *const *lines, unsigned int c
     static CliPatterns s_read;
     cli_lock_take(&s_lock);
     cli_patterns_read(lines, count, &s_read);
-    CliPatterns *const kept = &s_set[part];
-    const int same = s_made[part] && (kept->hides == s_read.hides) && (kept->keeps == s_read.keeps) &&
-                     cli_same_list(kept, kept->hide, &s_read, s_read.hide, s_read.hides) &&
-                     cli_same_list(kept, kept->keep, &s_read, s_read.keep, s_read.keeps);
-    memor.cpy(&(MemoriaCfg){.dst = kept, .src = &s_read, .bytes = sizeof(s_read)});
+    CliPatterns *const set_at = &s_set[part];
+    const int same = s_made[part] && (set_at->hides == s_read.hides) && (set_at->includes == s_read.includes) &&
+                     cli_same_list(set_at, set_at->hide, &s_read, s_read.hide, s_read.hides) &&
+                     cli_same_list(set_at, set_at->include, &s_read, s_read.include, s_read.includes);
+    memor.cpy(&(MemoriaCfg){.dst = set_at, .src = &s_read, .bytes = sizeof(s_read)});
     s_made[part] = 1;
     cli_lock_give(&s_lock);
     return !same;
@@ -389,7 +389,7 @@ void cli_patterns_of(unsigned int part, CliPatterns *patterns)
     else
     {
         patterns->hides = 0u;
-        patterns->keeps = 0u;
+        patterns->includes = 0u;
         patterns->used = 0u;
     }
     cli_lock_give(&s_lock);

@@ -15,31 +15,31 @@
 typedef struct
 {
     char kind[16];
-    char id[CLI_PATH_LONGEST];
-    char language[CLI_NAME_LONGEST];
+    char id[CLI_PATH_MAX_LEN];
+    char language[CLI_NAME_MAX_LEN];
     int recording;
     CliProgram made;
     int has_made;
     unsigned int spec;
-    char tool[CLI_NAME_LONGEST];
-    char tool_id[CLI_NAME_LONGEST];
-    char program[CLI_PATH_LONGEST];
+    char tool[CLI_NAME_MAX_LEN];
+    char tool_id[CLI_NAME_MAX_LEN];
+    char program[CLI_PATH_MAX_LEN];
     const char *request;
     unsigned int arguments;
-    char name[CLI_PATH_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
     int has_parent;
     unsigned long long parent;
     int listening;
-    char host[CLI_NAME_LONGEST];
+    char host[CLI_NAME_MAX_LEN];
     unsigned int port;
     int ends_program;
     int has_pid;
     unsigned int pid;
 } CliDebugPlan;
 
-// the start `start` of `json` planned in the session's place, with `options`, into `plan`: 1, or 0 with why said
+// the start `start` of `json` planned in the session's place, with `options`, into `plan`: 1, or 0 with why given
 // (debug_start.c)
 int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *json, unsigned int start,
-                      unsigned int options, CliDebugPlan *plan, CliLine *said);
+                      unsigned int options, CliDebugPlan *plan, VerbaLinea *err_msg);
 
 #endif

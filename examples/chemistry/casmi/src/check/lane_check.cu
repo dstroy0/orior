@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // A parquet file's double columns read as the bytes they are stored as, each byte pair one 16-bit lane: lifted by the
-// tower and coded by compression on the device, decoded and lowered, and the lowered lanes held against the stored
+// tower and coded by compression on the device, decoded and lowered, and the lowered lanes checked against the stored
 // bytes lane for lane. The lowered lanes are then the records a record program reads on the device, two limbs to a
 // double, with no host step between: the program reads the mantissa, exponent and sign fields in place and writes
-// x = M 2^(E - E_min) on the column's one unit, and the device's records are held word for word against the host
+// x = M 2^(E - E_min) on the column's one unit, and the device's records are checked word for word against the host
 // reference and against x worked out apart from the record machine. Each column is laid two ways, as one line of
 // lanes and as rows of a double's four lanes, and the coded bits of each are printed against the raw bits.
 // The run is one job on the device's tessera daemon.
@@ -14,7 +14,9 @@
 #include "../../../../../src/cu/engine/analysis/keymath/keymath.h"
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/runtime/radix_keys/radix_keys.h"
-#include "../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "../../../../../src/cu/includes/types/integers/exact_integer.h"
 #include "../../../../../src/cu/includes/types/integerfloats/edouble/edouble_record.h"
 #include "../../../../../src/cu/includes/types/integers/exact_record/exact_record.h"
@@ -68,7 +70,7 @@ static unsigned long long lane_ten(unsigned int power)
 #define LANE_CHECK_LANES_PER_VALUE 4ull
 #define LANE_CHECK_LIMBS_PER_VALUE 2u
 
-// the limbs Σx is held in: x is below 2^(53 + 2^11) at the very most, and the count of values is below 2^40
+// the limbs Σx is stored in: x is below 2^(53 + 2^11) at the very most, and the count of values is below 2^40
 #define LANE_CHECK_SUM_LIMBS 72u
 
 static const char *const LANE_CHECK_COLUMN_PATH[LANE_CHECK_COLUMNS] = {
@@ -78,7 +80,7 @@ static const char *const LANE_CHECK_LAYOUT_NAME[LANE_CHECK_LAYOUTS] = {"one line
 
 static CasmiParquetFooter s_footer;
 
-// the leading records the host reference runs and is held against, 0 for every one
+// the leading records the host reference runs and is checked against, 0 for every one
 static unsigned long long s_host_lanes = 0ull;
 
 // the column run, LANE_CHECK_COLUMNS for every one
@@ -102,20 +104,20 @@ typedef struct
 
 static void lane_line_decimal(SimResults *results, const char *before, unsigned long long value)
 {
-    scriptura_text(&results->line, before);
-    scriptura_decimal(&results->line, value, 1u);
+    mmgr_line_put(&results->line, before);
+    mmgr_line_decimal(&results->line, value, 1u);
 }
 
 static void lane_line_end(SimResults *results)
 {
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }
 
 static void lane_error_line(SimResults *results, const char *what, const EngineError *error)
 {
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, what);
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, what);
     lane_line_decimal(results, ": module ", (unsigned long long)error->module);
     lane_line_decimal(results, ", site ", (unsigned long long)error->site);
     lane_line_decimal(results, ", kind ", (unsigned long long)error->kind);
@@ -268,11 +270,11 @@ static int lane_round_trip(SimResults *results, const unsigned short *device_lan
     lane_line_decimal(results, ", coded bits ", stream.bits);
     lane_line_decimal(results, " of raw ", lanes * 16ull);
     lane_line_decimal(results, ", that is ", (stream.bits * 1000ull) / (lanes * 16ull));
-    scriptura_text(&results->line, " per mille, floored");
+    mmgr_line_put(&results->line, " per mille, floored");
     lane_line_decimal(results, "; lift and code ", coded - lift_start);
     lane_line_decimal(results, " us, decode and lower ", lowered - coded);
     lane_line_decimal(results, " us; lanes the device's lowering counts unlike the stored ", mismatches);
-    scriptura_text(&results->line, same ? "; the host copy equals the stored bytes" : "; the host copy DIFFERS");
+    mmgr_line_put(&results->line, same ? "; the host copy equals the stored bytes" : "; the host copy DIFFERS");
     lane_line_end(results);
     return 1;
 }
@@ -347,7 +349,7 @@ static void lane_exponents(const LaneColumn *column, unsigned long long *least, 
     }
 }
 
-// what the column holds, read and never summarized: its distinct values as 64-bit words, and for each of its four
+// what the column contains, read and never summarized: its distinct values as 64-bit words, and for each of its four
 // planes the distinct 16-bit lanes and how many times the most common one occurs
 static int lane_reading(SimResults *results, const LaneColumn *column)
 {
@@ -374,7 +376,7 @@ static int lane_reading(SimResults *results, const LaneColumn *column)
     lane_line_decimal(results, "    distinct values ", distinct);
     lane_line_decimal(results, " of ", values);
     lane_line_decimal(results, "; the most common value occurs ", longest);
-    scriptura_text(&results->line, " times");
+    mmgr_line_put(&results->line, " times");
     lane_line_end(results);
     const unsigned short *const lanes = (const unsigned short *)column->bytes;
     for (unsigned long long plane = 0ull; plane < LANE_CHECK_LANES_PER_VALUE; plane += 1ull)
@@ -384,17 +386,17 @@ static int lane_reading(SimResults *results, const LaneColumn *column)
         {
             tally[lanes[(value * LANE_CHECK_LANES_PER_VALUE) + plane]] += 1ull;
         }
-        unsigned long long held = 0ull;
+        unsigned long long reading_value = 0ull;
         unsigned long long most = 0ull;
         for (unsigned int lane = 0u; lane < 65536u; lane += 1u)
         {
-            held += (tally[lane] != 0ull) ? 1ull : 0ull;
+            reading_value += (tally[lane] != 0ull) ? 1ull : 0ull;
             most = (tally[lane] > most) ? tally[lane] : most;
         }
         lane_line_decimal(results, "    plane ", plane);
-        lane_line_decimal(results, ": distinct lanes ", held);
+        lane_line_decimal(results, ": distinct lanes ", reading_value);
         lane_line_decimal(results, " of 65536; the most common occurs ", most);
-        scriptura_text(&results->line, " times");
+        mmgr_line_put(&results->line, " times");
         lane_line_end(results);
     }
     free(words);
@@ -403,7 +405,7 @@ static int lane_reading(SimResults *results, const LaneColumn *column)
 }
 
 // a plane's lanes ranked by how often each occurs, the most common first and a tie in lane order: forward[lane] is its
-// rank, a permutation of the 2^16 lanes, every lane the plane never holds ranked after every one it does
+// rank, a permutation of the 2^16 lanes, every lane the plane never contains ranked after every one it does
 static int lane_rank_edge(const unsigned short *plane, unsigned long long values, unsigned int *forward)
 {
     unsigned long long *const keys = (unsigned long long *)calloc(LANE_CHECK_EDGE_ENTRIES, sizeof(unsigned long long));
@@ -446,9 +448,9 @@ static unsigned int lane_program(ExactRecordProgram *program, unsigned long long
     const unsigned int mantissa = exact_record_sum(
         program, fraction, exact_record_product(program, normal, exact_record_power_two(program, LANE_CHECK_MANTISSA_BITS)));
     const unsigned int placed = exact_record_sum(program, biased, exact_record_difference(program, one, normal));
-    const unsigned int held = exact_record_above(program, mantissa, zero);
+    const unsigned int above = exact_record_above(program, mantissa, zero);
     const unsigned int shift = exact_record_product(
-        program, held, exact_record_difference(program, placed, exact_record_constant(program, least)));
+        program, above, exact_record_difference(program, placed, exact_record_constant(program, least)));
     const unsigned int lifted = exact_record_product(program, mantissa, exact_record_two_to(program, shift, shift_bits));
     const unsigned int signed_one =
         exact_record_difference(program, one, exact_record_product(program, exact_record_constant(program, 2ull), sign));
@@ -529,7 +531,7 @@ static void lane_preimage(ExactRecordProgram *program, unsigned int fraction, un
 
 // the integers k with k / divisor inside the preimage scaled by `scale`: the least of them, and 1 where there is one
 static void lane_preimage_integer(ExactRecordProgram *program, const LanePreimage *preimage, unsigned int scale,
-                                  unsigned int *least, unsigned int *holds)
+                                  unsigned int *least, unsigned int *fit)
 {
     const unsigned int one = exact_record_constant(program, 1ull);
     unsigned int low_floor = 0u;
@@ -544,11 +546,11 @@ static void lane_preimage_integer(ExactRecordProgram *program, const LanePreimag
     *least = exact_record_select(program, preimage->odd_low, exact_record_sum(program, low_floor, one), low_ceiling);
     const unsigned int most =
         exact_record_select(program, preimage->odd_high, exact_record_difference(program, high_ceiling, one), high_floor);
-    *holds = exact_record_difference(program, one, exact_record_above(program, *least, most));
+    *fit = exact_record_difference(program, one, exact_record_above(program, *least, most));
 }
 
 // The least decimal places p at which an integer k has k 10^-p inside the preimage, and the least such k. Each p is one
-// floor; `least` counts the floors before the first that holds, LANE_CHECK_PLACES where none does
+// floor; `least` counts the floors before the first that contains one, LANE_CHECK_PLACES where none does
 static void lane_places_search(ExactRecordProgram *program, const LanePreimage *preimage, unsigned int *least,
                                unsigned int *chosen)
 {
@@ -567,11 +569,11 @@ static void lane_places_search(ExactRecordProgram *program, const LanePreimage *
                 : exact_record_product(program, exact_record_constant(program, LANE_CHECK_TEN_MOST),
                                        exact_record_constant(program, lane_ten(place - (LANE_CHECK_TENS - 1u))));
         unsigned int k_least = 0u;
-        unsigned int holds = 0u;
-        lane_preimage_integer(program, preimage, scale, &k_least, &holds);
-        const unsigned int first = exact_record_product(program, none, holds);
+        unsigned int fit_count = 0u;
+        lane_preimage_integer(program, preimage, scale, &k_least, &fit_count);
+        const unsigned int first = exact_record_product(program, none, fit_count);
         picked = exact_record_sum(program, picked, exact_record_product(program, first, k_least));
-        none = exact_record_product(program, none, exact_record_difference(program, one, holds));
+        none = exact_record_product(program, none, exact_record_difference(program, one, fit_count));
         counted = exact_record_sum(program, counted, none);
         power = (place + 1u < LANE_CHECK_TENS) ? (power * 10ull) : power;
     }
@@ -695,9 +697,9 @@ static void lane_divided_program(ExactRecordProgram *program, unsigned long long
     *chosen = exact_record_product(program, *exists, picked);
 }
 
-// each value's least places, LANE_CHECK_PLACES where none holds, and its k, into `places_of` and `k_of`: of the value
-// itself where `base` is 0, and of the decimal the value is that decimal over `base` where it is not. A k past 64 bits
-// reads as held by none
+// each value's least places, LANE_CHECK_PLACES where none contains one, and its k, into `places_of` and `k_of`: of the
+// value itself where `base` is 0, and of the decimal the value is that decimal over `base` where it is not. A k past 64
+// bits reads as contained by none
 static int lane_places(SimResults *results, const LaneColumn *column, const unsigned short *device_rebuilt,
                        unsigned long long base, unsigned char *places_of, unsigned long long *k_of)
 {
@@ -708,7 +710,7 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     lane_exponents(column, &least_placed, &most_placed, &zero, &unfinite);
     if ((unfinite != 0ull) || (zero != 0ull) || (most_placed >= LANE_CHECK_PLACES_LIFT))
     {
-        sim_check(results, 0, "the column holds no zero, no value past 2^53 and none that is not finite");
+        sim_check(results, 0, "the column contains no zero, no value past 2^53 and none that is not finite");
         return 0;
     }
     const unsigned int shift_bits = exact_record_bits_of(LANE_CHECK_PLACES_LIFT - least_placed) + 1u;
@@ -764,10 +766,11 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
         lane_error_line(results, "the places program's run errored", &error);
     }
     const int same = ok && (memcmp(device, host, (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
-    // the readings: the least places the column needs over every value, the values no p below LANE_CHECK_PLACES holds,
-    // the bits of k summed, and the bits of k at the column's most places, the place every value can be read at
+    // the readings: the least places the column needs over every value, the values no p below LANE_CHECK_PLACES
+    // represents, the bits of k summed, and the bits of k at the column's most places, the place every value can be
+    // read at
     unsigned long long most = 0ull;
-    unsigned long long unheld = 0ull;
+    unsigned long long unfit = 0ull;
     unsigned long long k_bits = 0ull;
     unsigned long long apart = 0ull;
     unsigned long long at_places[LANE_CHECK_PLACES + 1u];
@@ -783,7 +786,7 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
         lane_field(&device[value * out_limbs], least_place.out_offset, least_place.out_bits, &read);
         const unsigned long long places = narrow_k ? read.limb[0] : LANE_CHECK_PLACES;
         most = ((places < LANE_CHECK_PLACES) && (places > most)) ? places : most;
-        unheld += (places >= LANE_CHECK_PLACES) ? 1ull : 0ull;
+        unfit += (places >= LANE_CHECK_PLACES) ? 1ull : 0ull;
         at_places[(places < LANE_CHECK_PLACES) ? places : LANE_CHECK_PLACES] += 1ull;
         places_of[value] = (unsigned char)((places < LANE_CHECK_PLACES) ? places : LANE_CHECK_PLACES);
         k_of[value] = (places < LANE_CHECK_PLACES) ? k : 0ull;
@@ -803,20 +806,20 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     lane_line_decimal(results, " steps, record ", (unsigned long long)loaded.layout.out_bits);
     lane_line_decimal(results, " bits; device ", run_end - run_start);
     lane_line_decimal(results, " us over ", values);
-    scriptura_text(&results->line, " lanes; device and host records ");
-    scriptura_text(&results->line, same ? "equal" : "DIFFER");
+    mmgr_line_put(&results->line, " lanes; device and host records ");
+    mmgr_line_put(&results->line, same ? "equal" : "DIFFER");
     lane_line_decimal(results, " over the leading ", checked);
     lane_line_end(results);
     lane_line_decimal(results, "    the most places any value needs ", most);
     lane_line_decimal(results, "; values no place below ", (unsigned long long)LANE_CHECK_PLACES);
-    lane_line_decimal(results, " holds ", unheld);
+    lane_line_decimal(results, " represents ", unfit);
     lane_line_decimal(results, "; bits of k over the column ", k_bits);
     lane_line_decimal(results, " of raw ", values * 64ull);
     lane_line_decimal(results, ", that is ", (k_bits * 1000ull) / (values * 64ull));
-    scriptura_text(&results->line, " per mille, floored");
+    mmgr_line_put(&results->line, " per mille, floored");
     lane_line_decimal(results, "; strtod of k e-p unlike the stored bits ", apart);
     lane_line_end(results);
-    scriptura_text(&results->line, "    values at each least places, 0 up, and none:");
+    mmgr_line_put(&results->line, "    values at each least places, 0 up, and none:");
     for (unsigned int place = 0u; place <= LANE_CHECK_PLACES; place += 1u)
     {
         lane_line_decimal(results, " ", at_places[place]);
@@ -824,7 +827,8 @@ static int lane_places(SimResults *results, const LaneColumn *column, const unsi
     lane_line_decimal(results, "; k past 64 bits, read as none ", wide);
     lane_line_end(results);
     sim_check(results, same, "the places records equal the host reference's word for word");
-    sim_check(results, ok && (apart == 0ull), "every held k e-p reads back, correctly rounded, to the stored double");
+    sim_check(results, ok && (apart == 0ull),
+              "every represented k e-p reads back, correctly rounded, to the stored double");
     cudaFree(device_out);
     free(device);
     free(host);
@@ -939,7 +943,7 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
         ok = cycle_record_run(&run) != CYCLE_ERROR;
     }
     const unsigned long long run_end = engine_clock_microseconds();
-    // the host reference runs the leading `checked` records, and the device's sum over the same records is held
+    // the host reference runs the leading `checked` records, and the device's sum over the same records is checked
     // against the host's; the device also sums every record
     const unsigned long long checked = ((s_host_lanes != 0ull) && (s_host_lanes < values)) ? s_host_lanes : values;
     unsigned int device_sum[LANE_CHECK_SUM_LIMBS];
@@ -994,16 +998,16 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
     lane_line_decimal(results, " us over ", values);
     lane_line_decimal(results, " lanes, host ", host_end - host_start);
     lane_line_decimal(results, " us over the leading ", checked);
-    scriptura_text(&results->line, "; device and host records ");
-    scriptura_text(&results->line, same ? "equal" : "DIFFER");
-    scriptura_text(&results->line, ", sums ");
-    scriptura_text(&results->line, sums_same ? "equal" : "DIFFER");
+    mmgr_line_put(&results->line, "; device and host records ");
+    mmgr_line_put(&results->line, same ? "equal" : "DIFFER");
+    mmgr_line_put(&results->line, ", sums ");
+    mmgr_line_put(&results->line, sums_same ? "equal" : "DIFFER");
     lane_line_decimal(results, "; records unlike x from the bits ", apart);
     lane_line_end(results);
-    scriptura_text(&results->line, "    sum of x, hexadecimal, high limb first: ");
+    mmgr_line_put(&results->line, "    sum of x, hexadecimal, high limb first: ");
     for (unsigned int limb = sum_limbs; limb > 0u; limb -= 1u)
     {
-        scriptura_hex(&results->line, device_sum[limb - 1u], 8u);
+        mmgr_line_hex(&results->line, device_sum[limb - 1u], 8u);
     }
     lane_line_end(results);
     sim_check(results, same, "the device's x records equal the host reference's word for word");
@@ -1018,14 +1022,14 @@ static int lane_records(SimResults *results, const LaneColumn *column, const uns
 }
 
 // the form a value takes on its column's units: the integer on the first unit, a decimal on the second, a decimal
-// divided by one of the LANE_CHECK_DIVISORS bases, or its stored lanes kept
+// divided by one of the LANE_CHECK_DIVISORS bases, or its stored lanes retained
 #define LANE_CHECK_FORM_UNIT 0u
 #define LANE_CHECK_FORM_DECIMAL 1u
 #define LANE_CHECK_FORM_DIVIDED 2u
-#define LANE_CHECK_FORM_KEPT (LANE_CHECK_FORM_DIVIDED + LANE_CHECK_DIVISORS)
+#define LANE_CHECK_FORM_RETAINED (LANE_CHECK_FORM_DIVIDED + LANE_CHECK_DIVISORS)
 
 // a form plane's lane where each value is on its own places: its form, and LANE_CHECK_FORMS times its places
-#define LANE_CHECK_FORMS (LANE_CHECK_FORM_KEPT + 1u)
+#define LANE_CHECK_FORMS (LANE_CHECK_FORM_RETAINED + 1u)
 
 // the bases a decimal is divided by in binary64 before it is stored, as the libraries that write percentages and
 // per-mille scales divide
@@ -1036,30 +1040,31 @@ static const unsigned long long LANE_CHECK_DIVISOR[LANE_CHECK_DIVISORS] = {100ul
 #define LANE_CHECK_BASE_PATH "base_peak_intensity"
 #define LANE_CHECK_INTENSITIES 2u
 
-// A column on a unit: `unit` holds each value's integer on it, and a value `keep` flags is kept as its stored lanes
-// besides, its integer standing among the others so their run is not broken. Each 16-bit plane of the integers, the
-// flags, and the kept lanes as rows of four go through the tower and compression and back, each held against what went
-// in, and the coded bits of all of them are summed into `coded` and printed against the column's raw bits
+// A column on a unit: `unit` stores each value's integer on it, and a value `forms` flags is retained as its stored
+// lanes besides, its integer standing among the others so their run is not broken. Each 16-bit plane of the integers,
+// the flags, and the retained lanes as rows of four go through the tower and compression and back, each checked against
+// what went in, and the coded bits of all of them are summed into `coded` and printed against the column's raw bits
 static int lane_unit_code(SimResults *results, const LaneColumn *column, const unsigned long long *unit,
-                          const unsigned char *keep, unsigned long long *coded)
+                          const unsigned char *forms, unsigned long long *coded)
 {
     const unsigned long long values = column->values;
     const unsigned long long raw = values * 64ull;
     unsigned short *const plane = (unsigned short *)malloc((size_t)(values * 2ull) + 2u);
-    unsigned short *const kept = (unsigned short *)malloc((size_t)(values * 8ull) + 8u);
+    unsigned short *const codes = (unsigned short *)malloc((size_t)(values * 8ull) + 8u);
     unsigned short *device = NULL;
-    int ok = (plane != NULL) && (kept != NULL) && (cudaMalloc((void **)&device, (size_t)(values * 8ull)) == cudaSuccess);
-    unsigned long long kept_values = 0ull;
+    int ok =
+        (plane != NULL) && (codes != NULL) && (cudaMalloc((void **)&device, (size_t)(values * 8ull)) == cudaSuccess);
+    unsigned long long coded_values = 0ull;
     unsigned long long widest = 0ull;
     unsigned int formed = 0u;
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
         widest |= unit[value];
-        formed |= keep[value];
-        if (keep[value] == LANE_CHECK_FORM_KEPT)
+        formed |= forms[value];
+        if (forms[value] == LANE_CHECK_FORM_RETAINED)
         {
-            memcpy(kept + (kept_values * LANE_CHECK_LANES_PER_VALUE), column->bytes + (value * 8ull), 8u);
-            kept_values += 1ull;
+            memcpy(codes + (coded_values * LANE_CHECK_LANES_PER_VALUE), column->bytes + (value * 8ull), 8u);
+            coded_values += 1ull;
         }
     }
     const unsigned int plane_count = (widest == 0ull) ? 1u : ((exact_record_bits_of(widest) + 15u) / 16u);
@@ -1078,51 +1083,51 @@ static int lane_unit_code(SimResults *results, const LaneColumn *column, const u
         *coded += plane_bits[each];
     }
     unsigned long long flag_bits = 0ull;
-    unsigned long long kept_bits = 0ull;
+    unsigned long long coded_bits = 0ull;
     if (ok && (formed != 0u))
     {
         for (unsigned long long value = 0ull; value < values; value += 1ull)
         {
-            plane[value] = keep[value];
+            plane[value] = forms[value];
         }
         const unsigned short *rebuilt = NULL;
         ok = (cudaMemcpy(device, plane, (size_t)(values * 2ull), cudaMemcpyHostToDevice) == cudaSuccess) &&
              lane_round_trip(results, device, plane, line, &flag_bits, &rebuilt, NULL, 0u, 1);
         *coded += flag_bits;
     }
-    if (ok && (kept_values != 0ull))
+    if (ok && (coded_values != 0ull))
     {
         const unsigned short *rebuilt = NULL;
-        const unsigned long long rows[4] = {1ull, 1ull, kept_values, LANE_CHECK_LANES_PER_VALUE};
-        ok = (cudaMemcpy(device, kept, (size_t)(kept_values * 8ull), cudaMemcpyHostToDevice) == cudaSuccess) &&
-             lane_round_trip(results, device, kept, rows, &kept_bits, &rebuilt, NULL, 0u, 1);
-        *coded += kept_bits;
+        const unsigned long long rows[4] = {1ull, 1ull, coded_values, LANE_CHECK_LANES_PER_VALUE};
+        ok = (cudaMemcpy(device, codes, (size_t)(coded_values * 8ull), cudaMemcpyHostToDevice) == cudaSuccess) &&
+             lane_round_trip(results, device, codes, rows, &coded_bits, &rebuilt, NULL, 0u, 1);
+        *coded += coded_bits;
     }
     if (ok)
     {
         lane_line_decimal(results, " planes ", plane_count);
-        scriptura_text(&results->line, " coded");
+        mmgr_line_put(&results->line, " coded");
         for (unsigned int each = 0u; each < plane_count; each += 1u)
         {
             lane_line_decimal(results, " ", plane_bits[each]);
         }
-        lane_line_decimal(results, " bits; kept values ", kept_values);
+        lane_line_decimal(results, " bits; retained values ", coded_values);
         lane_line_decimal(results, ", forms coded ", flag_bits);
-        lane_line_decimal(results, " bits, kept lanes coded ", kept_bits);
+        lane_line_decimal(results, " bits, retained lanes coded ", coded_bits);
         lane_line_decimal(results, " bits; all ", *coded);
         lane_line_decimal(results, " of raw ", raw);
         lane_line_decimal(results, ", that is ", (*coded * 1000ull) / raw);
-        scriptura_text(&results->line, " per mille, floored");
+        mmgr_line_put(&results->line, " per mille, floored");
         lane_line_end(results);
     }
     cudaFree(device);
     free(plane);
-    free(kept);
+    free(codes);
     return ok;
 }
 
 // One unit for the column, 10^-P. A value of P places or fewer is the integer k 10^(P - p) on it; a value of more
-// places, or of none below LANE_CHECK_PLACES, is kept, and laid among the integers at its floor on the unit
+// places, or of none below LANE_CHECK_PLACES, is retained, and laid among the integers at its floor on the unit
 static int lane_decimal_trips(SimResults *results, const LaneColumn *column, const unsigned char *places_of,
                               const unsigned long long *k_of)
 {
@@ -1134,8 +1139,8 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
     }
     const unsigned long long values = column->values;
     unsigned long long *const unit = (unsigned long long *)malloc((size_t)(values * 8ull) + 8u);
-    unsigned char *const keep = (unsigned char *)malloc((size_t)values + 1u);
-    int ok = (unit != NULL) && (keep != NULL);
+    unsigned char *const forms = (unsigned char *)malloc((size_t)values + 1u);
+    int ok = (unit != NULL) && (forms != NULL);
     unsigned int most = 0u;
     for (unsigned long long value = 0ull; value < values; value += 1ull)
     {
@@ -1150,7 +1155,7 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
         for (unsigned long long value = 0ull; fits && (value < values); value += 1ull)
         {
             const unsigned int places = places_of[value];
-            keep[value] = (places > unit_places) ? LANE_CHECK_FORM_KEPT : LANE_CHECK_FORM_UNIT;
+            forms[value] = (places > unit_places) ? LANE_CHECK_FORM_RETAINED : LANE_CHECK_FORM_UNIT;
             if (places <= unit_places)
             {
                 const unsigned long long scale = ten[unit_places - places];
@@ -1176,9 +1181,9 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
             break;
         }
         lane_line_decimal(results, "    on 10^-", unit_places);
-        scriptura_character(&results->line, ':');
+        mmgr_line_ch(&results->line, ':');
         unsigned long long coded = 0ull;
-        ok = lane_unit_code(results, column, unit, keep, &coded);
+        ok = lane_unit_code(results, column, unit, forms, &coded);
         if (ok && (coded < fewest))
         {
             fewest = coded;
@@ -1190,34 +1195,35 @@ static int lane_decimal_trips(SimResults *results, const LaneColumn *column, con
         lane_line_decimal(results, "    the fewest bits on one unit: 10^-", fewest_unit);
         lane_line_decimal(results, ", ", fewest);
         lane_line_decimal(results, " bits, that is ", (fewest * 1000ull) / (values * 64ull));
-        scriptura_text(&results->line, " per mille of raw, floored");
+        mmgr_line_put(&results->line, " per mille of raw, floored");
         lane_line_end(results);
     }
     // each value on its own places: k at its own p, and p beside the form in the form plane
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
         const unsigned int places = places_of[value];
-        const int held = places < LANE_CHECK_PLACES;
-        unit[value] = held ? k_of[value] : 0ull;
-        keep[value] = held ? (unsigned char)(LANE_CHECK_FORM_UNIT + (LANE_CHECK_FORMS * places)) : LANE_CHECK_FORM_KEPT;
+        const int places_fit = places < LANE_CHECK_PLACES;
+        unit[value] = places_fit ? k_of[value] : 0ull;
+        forms[value] =
+            places_fit ? (unsigned char)(LANE_CHECK_FORM_UNIT + (LANE_CHECK_FORMS * places)) : LANE_CHECK_FORM_RETAINED;
     }
     if (ok)
     {
-        scriptura_text(&results->line, "    on each value's own places:");
+        mmgr_line_put(&results->line, "    on each value's own places:");
         unsigned long long own = 0ull;
-        ok = lane_unit_code(results, column, unit, keep, &own);
+        ok = lane_unit_code(results, column, unit, forms, &own);
     }
-    sim_check(results, ok, "every unit's planes, flags and kept lanes lift, code, decode and lower");
+    sim_check(results, ok, "every unit's planes, flags and retained lanes lift, code, decode and lower");
     free(unit);
-    free(keep);
+    free(forms);
     return ok;
 }
 
 // The counts program: x = c / B correctly rounded, B the row's base, an integer of member 1 read as its stored double,
-// and c the integer in B times x's preimage. `holds` is 1 where B is a whole number from 1 to 2^53 and such a c
+// and c the integer in B times x's preimage. `outputs` is 1 where B is a whole number from 1 to 2^53 and such a c
 // exists, and `count` is c there and 0 elsewhere
 static void lane_counts_program(ExactRecordProgram *program, unsigned long long most_placed, unsigned int shift_bits,
-                                unsigned int *holds, unsigned int *count)
+                                unsigned int *outputs, unsigned int *count)
 {
     const unsigned int fraction_field = exact_record_member_field(program, LANE_CHECK_MANTISSA_BITS, 0u);
     const unsigned int exponent_field =
@@ -1248,14 +1254,14 @@ static void lane_counts_program(ExactRecordProgram *program, unsigned long long 
     unsigned int least = 0u;
     unsigned int found = 0u;
     lane_preimage_integer(program, &preimage, base, &least, &found);
-    *holds = exact_record_product(program, exact_record_product(program, in_range, whole), found);
-    *count = exact_record_product(program, *holds, least);
+    *outputs = exact_record_product(program, exact_record_product(program, in_range, whole), found);
+    *count = exact_record_product(program, *outputs, least);
 }
 
 // Each intensity read against its row's base: the counts program runs on the device over every value, member 0 the
 // lowered lanes and member 1 the base column's stored doubles, the index naming each value's own row's base, and a
-// row with no base reads a 0 laid past the column's end. The host reference runs the leading values, every held c is
-// read back through c / B in binary64 against the stored double, and the counts go through lane_unit_code
+// row with no base reads a 0 laid past the column's end. The host reference runs the leading values, every represented
+// c is read back through c / B in binary64 against the stored double, and the counts go through lane_unit_code
 static int lane_counts(SimResults *results, const LaneColumn *column, const LaneColumn *bases,
                        const unsigned short *device_rebuilt, const unsigned char *const *places_of,
                        const unsigned long long *const *k_of)
@@ -1284,7 +1290,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         return 0;
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
-    const DeviceRecordStep holds_place = loaded.layout.step_table[outputs[0]];
+    const DeviceRecordStep output_place = loaded.layout.step_table[outputs[0]];
     const DeviceRecordStep count_place = loaded.layout.step_table[outputs[1]];
     const unsigned long long values = column->values;
     const unsigned long long checked = ((s_host_lanes != 0ull) && (s_host_lanes < values)) ? s_host_lanes : values;
@@ -1352,24 +1358,24 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     }
     const int same = ok && (memcmp(device, host, (size_t)(checked * out_limbs) * sizeof(unsigned int)) == 0);
     unsigned long long *const unit = (unsigned long long *)malloc((size_t)(values * 8ull) + 8u);
-    unsigned char *const keep = (unsigned char *)malloc((size_t)values + 1u);
-    ok = ok && (unit != NULL) && (keep != NULL);
-    unsigned long long held = 0ull;
+    unsigned char *const forms = (unsigned char *)malloc((size_t)values + 1u);
+    ok = ok && (unit != NULL) && (forms != NULL);
+    unsigned long long count = 0ull;
     unsigned long long apart = 0ull;
     unsigned long long count_bits = 0ull;
     unsigned long long widest = 0ull;
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
         OriorExactInteger read;
-        lane_field(&device[value * out_limbs], holds_place.out_offset, holds_place.out_bits, &read);
-        const int holding = read.limb[0] != 0u;
+        lane_field(&device[value * out_limbs], output_place.out_offset, output_place.out_bits, &read);
+        const int nonzero = read.limb[0] != 0u;
         lane_field(&device[value * out_limbs], count_place.out_offset, count_place.out_bits, &read);
         const unsigned long long c = ((unsigned long long)read.limb[1] << 32u) | read.limb[0];
         unit[value] = c;
-        keep[value] = holding ? LANE_CHECK_FORM_UNIT : LANE_CHECK_FORM_KEPT;
-        if (holding)
+        forms[value] = nonzero ? LANE_CHECK_FORM_UNIT : LANE_CHECK_FORM_RETAINED;
+        if (nonzero)
         {
-            held += 1ull;
+            count += 1ull;
             count_bits += lane_bits(&read);
             widest = (c > widest) ? c : widest;
             double x = 0.0;
@@ -1384,26 +1390,26 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     lane_line_decimal(results, " steps, record ", (unsigned long long)loaded.layout.out_bits);
     lane_line_decimal(results, " bits; device ", run_end - run_start);
     lane_line_decimal(results, " us over ", values);
-    scriptura_text(&results->line, " values; device and host records ");
-    scriptura_text(&results->line, same ? "equal" : "DIFFER");
+    mmgr_line_put(&results->line, " values; device and host records ");
+    mmgr_line_put(&results->line, same ? "equal" : "DIFFER");
     lane_line_decimal(results, " over the leading ", checked);
     lane_line_end(results);
     lane_line_decimal(results, "    rows with a base ", bases->values);
     lane_line_decimal(results, " of ", bases->rows);
-    lane_line_decimal(results, "; values a whole c over the base holds ", held);
+    lane_line_decimal(results, "; values a whole c over the base represents ", count);
     lane_line_decimal(results, " of ", values);
     lane_line_decimal(results, "; the widest c ", widest);
     lane_line_decimal(results, ", bits of c over them ", count_bits);
     lane_line_decimal(results, "; c / B unlike the stored double ", apart);
     lane_line_end(results);
     sim_check(results, same, "the counts records equal the host reference's word for word");
-    sim_check(results, ok && (apart == 0ull), "every held c over its base reads back to the stored double");
+    sim_check(results, ok && (apart == 0ull), "every represented c over its base reads back to the stored double");
     unsigned long long coded = 0ull;
     if (ok)
     {
-        scriptura_text(&results->line, "    on each row's 1 / B:");
-        ok = lane_unit_code(results, column, unit, keep, &coded);
-        sim_check(results, ok, "the counts' planes, flags and kept lanes lift, code, decode and lower");
+        mmgr_line_put(&results->line, "    on each row's 1 / B:");
+        ok = lane_unit_code(results, column, unit, forms, &coded);
+        sim_check(results, ok, "the counts' planes, flags and retained lanes lift, code, decode and lower");
     }
     if (ok)
     {
@@ -1411,10 +1417,10 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         lane_line_decimal(results, "    with the bases at their raw ", base_raw);
         lane_line_decimal(results, " bits: ", coded + base_raw);
         lane_line_decimal(results, ", that is ", ((coded + base_raw) * 1000ull) / (values * 64ull));
-        scriptura_text(&results->line, " per mille of the intensities' raw, floored");
+        mmgr_line_put(&results->line, " per mille of the intensities' raw, floored");
         lane_line_end(results);
     }
-    // a value no whole c over a base holds, read on 10^-P where P places hold it
+    // a value no whole c over a base represents, read on 10^-P where P places represent it
     unsigned long long ten[LANE_CHECK_TENS];
     ten[0] = 1ull;
     for (unsigned int power = 1u; power < LANE_CHECK_TENS; power += 1u)
@@ -1434,8 +1440,8 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         for (unsigned long long value = 0ull; value < values; value += 1ull)
         {
             second[value] = unit[value];
-            form[value] = keep[value];
-            for (unsigned int each = 0u; (form[value] == LANE_CHECK_FORM_KEPT) && (each <= LANE_CHECK_DIVISORS);
+            form[value] = forms[value];
+            for (unsigned int each = 0u; (form[value] == LANE_CHECK_FORM_RETAINED) && (each <= LANE_CHECK_DIVISORS);
                  each += 1u)
             {
                 const unsigned int places = places_of[each][value];
@@ -1454,7 +1460,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
             lane_line_decimal(results, ", over ", LANE_CHECK_DIVISOR[each]);
             lane_line_decimal(results, " for ", taken[1u + each]);
         }
-        scriptura_text(&results->line, ":");
+        mmgr_line_put(&results->line, ":");
         unsigned long long both = 0ull;
         ok = lane_unit_code(results, column, second, form, &both);
         if (ok && (both < fewest))
@@ -1469,16 +1475,17 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
         lane_line_decimal(results, "    the fewest: on 1 / B, else 10^-", fewest_unit);
         lane_line_decimal(results, ", with the bases at their raw: ", fewest + base_raw);
         lane_line_decimal(results, " bits, that is ", ((fewest + base_raw) * 1000ull) / (values * 64ull));
-        scriptura_text(&results->line, " per mille of the intensities' raw, floored");
+        mmgr_line_put(&results->line, " per mille of the intensities' raw, floored");
         lane_line_end(results);
     }
-    // each value on its own places: c over its base, else the first decimal form that holds it at its own p, and p
+    // each value on its own places: c over its base, else the first decimal form that represents it at its own p, and p
     // beside the form in the form plane
     for (unsigned long long value = 0ull; ok && (value < values); value += 1ull)
     {
         second[value] = unit[value];
-        form[value] = keep[value];
-        for (unsigned int each = 0u; (form[value] == LANE_CHECK_FORM_KEPT) && (each <= LANE_CHECK_DIVISORS); each += 1u)
+        form[value] = forms[value];
+        for (unsigned int each = 0u; (form[value] == LANE_CHECK_FORM_RETAINED) && (each <= LANE_CHECK_DIVISORS);
+             each += 1u)
         {
             const unsigned int places = places_of[each][value];
             if (places < LANE_CHECK_PLACES)
@@ -1492,16 +1499,16 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     }
     if (ok)
     {
-        scriptura_text(&results->line, "    on 1 / B, else each value's own places:");
+        mmgr_line_put(&results->line, "    on 1 / B, else each value's own places:");
         unsigned long long own = 0ull;
         ok = lane_unit_code(results, column, second, form, &own);
         const unsigned long long base_raw = bases->values * 64ull;
         lane_line_decimal(results, "    on its own places, with the bases at their raw: ", own + base_raw);
         lane_line_decimal(results, " bits, that is ", ((own + base_raw) * 1000ull) / (values * 64ull));
-        scriptura_text(&results->line, " per mille of the intensities' raw, floored");
+        mmgr_line_put(&results->line, " per mille of the intensities' raw, floored");
         lane_line_end(results);
     }
-    sim_check(results, ok, "the counts and decimals' planes, forms and kept lanes lift, code, decode and lower");
+    sim_check(results, ok, "the counts and decimals' planes, forms and retained lanes lift, code, decode and lower");
     free(second);
     free(form);
     cudaFree(device_out);
@@ -1512,7 +1519,7 @@ static int lane_counts(SimResults *results, const LaneColumn *column, const Lane
     free(device);
     free(host);
     free(unit);
-    free(keep);
+    free(forms);
     lane_release(&loaded);
     exact_record_close(&program);
     return ok;
@@ -1525,7 +1532,7 @@ int main(int count, char **arguments)
     sim_open(&results, capacity);
     if (count < 2)
     {
-        scriptura_text(&results.line, "usage: lane_check FILE.parquet [HOST_LANES [COLUMN]]\n"
+        mmgr_line_put(&results.line, "usage: lane_check FILE.parquet [HOST_LANES [COLUMN]]\n"
                                       "  HOST_LANES: the leading records the host reference checks, every one where it"
                                       " is not given or is 0\n"
                                       "  COLUMN: 0 precursor_mz, 1 ms2_mzs, 2 the intensities; every column where it"
@@ -1538,7 +1545,7 @@ int main(int count, char **arguments)
     const CasmiParquetFooterRead footer = {arguments[1], &s_footer};
     if (casmi_parquet_footer_read(&footer) < 0ll)
     {
-        scriptura_text(&results.line, "  the parquet footer did not read\n");
+        mmgr_line_put(&results.line, "  the parquet footer did not read\n");
         sim_flush(&results);
         return 1;
     }
@@ -1548,8 +1555,8 @@ int main(int count, char **arguments)
     {
         if (lane_column_read(arguments[1], LANE_CHECK_COLUMN_PATH[each], &columns[each]) == 0)
         {
-            scriptura_text(&results.line, "  a column did not read: ");
-            scriptura_text(&results.line, LANE_CHECK_COLUMN_PATH[each]);
+            mmgr_line_put(&results.line, "  a column did not read: ");
+            mmgr_line_put(&results.line, LANE_CHECK_COLUMN_PATH[each]);
             lane_line_end(&results);
             return 1;
         }
@@ -1558,7 +1565,7 @@ int main(int count, char **arguments)
     LaneColumn bases;
     if (lane_column_read(arguments[1], LANE_CHECK_BASE_PATH, &bases) == 0)
     {
-        scriptura_text(&results.line, "  a column did not read: " LANE_CHECK_BASE_PATH);
+        mmgr_line_put(&results.line, "  a column did not read: " LANE_CHECK_BASE_PATH);
         lane_line_end(&results);
         return 1;
     }
@@ -1579,11 +1586,11 @@ int main(int count, char **arguments)
         }
         const LaneColumn *const column = &columns[each];
         const unsigned long long lanes = column->values * LANE_CHECK_LANES_PER_VALUE;
-        scriptura_text(&results.line, "  ");
-        scriptura_text(&results.line, LANE_CHECK_COLUMN_PATH[each]);
+        mmgr_line_put(&results.line, "  ");
+        mmgr_line_put(&results.line, LANE_CHECK_COLUMN_PATH[each]);
         lane_line_decimal(&results, ": ", column->values);
         lane_line_decimal(&results, " values, ", lanes);
-        scriptura_text(&results.line, " lanes");
+        mmgr_line_put(&results.line, " lanes");
         lane_line_end(&results);
         sim_check(&results, lane_reading(&results, column), "the column's values sort");
         unsigned short *device_lanes = NULL;
@@ -1607,8 +1614,8 @@ int main(int count, char **arguments)
             const unsigned long long line[4] = {1ull, 1ull, 1ull, lanes};
             const unsigned long long rows[4] = {1ull, 1ull, column->values, LANE_CHECK_LANES_PER_VALUE};
             const unsigned long long *const extent = (layout == 0u) ? line : rows;
-            scriptura_text(&results.line, "   ");
-            scriptura_text(&results.line, LANE_CHECK_LAYOUT_NAME[layout]);
+            mmgr_line_put(&results.line, "   ");
+            mmgr_line_put(&results.line, LANE_CHECK_LAYOUT_NAME[layout]);
             lane_line_end(&results);
             unsigned long long bits = 0ull;
             const unsigned short *device_rebuilt = NULL;
@@ -1634,7 +1641,7 @@ int main(int count, char **arguments)
         }
         if (places_read)
         {
-            scriptura_text(&results.line, "   the values on one decimal unit");
+            mmgr_line_put(&results.line, "   the values on one decimal unit");
             lane_line_end(&results);
             (void)lane_decimal_trips(&results, column, places_of[0], k_of[0]);
         }
@@ -1643,7 +1650,7 @@ int main(int count, char **arguments)
             free(places_of[form]);
             free(k_of[form]);
         }
-        // the same lanes as planes: plane j holds lane j of every value, in value order; each significance lies
+        // the same lanes as planes: plane j contains lane j of every value, in value order; each significance lies
         // beside its own kind; laid once as four rows and once as four lattices of their own
         unsigned short *const planes = (unsigned short *)malloc((size_t)(lanes * 2ull) + 2u);
         unsigned short *device_planes = NULL;
@@ -1660,7 +1667,7 @@ int main(int count, char **arguments)
         if (planar)
         {
             const unsigned long long four_rows[4] = {1ull, 1ull, LANE_CHECK_LANES_PER_VALUE, column->values};
-            scriptura_text(&results.line, "   planes as four rows");
+            mmgr_line_put(&results.line, "   planes as four rows");
             lane_line_end(&results);
             unsigned long long bits = 0ull;
             const unsigned short *device_rebuilt = NULL;
@@ -1673,7 +1680,7 @@ int main(int count, char **arguments)
             {
                 const unsigned long long alone[4] = {1ull, 1ull, 1ull, column->values};
                 lane_line_decimal(&results, "   plane ", plane);
-                scriptura_text(&results.line, " alone");
+                mmgr_line_put(&results.line, " alone");
                 lane_line_end(&results);
                 bits = 0ull;
                 sim_check(&results,
@@ -1686,9 +1693,9 @@ int main(int count, char **arguments)
                 {
                     const TowerEdge edge = {0u, LANE_CHECK_EDGE_BITS, forward};
                     lane_line_decimal(&results, "   plane ", plane);
-                    scriptura_text(&results.line, " alone, its lanes ranked by count at floor 0, the ranking's ");
-                    scriptura_decimal(&results.line, LANE_CHECK_EDGE_ENTRIES * LANE_CHECK_EDGE_BITS, 1u);
-                    scriptura_text(&results.line, " bits charged to it");
+                    mmgr_line_put(&results.line, " alone, its lanes ranked by count at floor 0, the ranking's ");
+                    mmgr_line_decimal(&results.line, LANE_CHECK_EDGE_ENTRIES * LANE_CHECK_EDGE_BITS, 1u);
+                    mmgr_line_put(&results.line, " bits charged to it");
                     lane_line_end(&results);
                     unsigned long long edged = 0ull;
                     sim_check(&results,
@@ -1704,11 +1711,11 @@ int main(int count, char **arguments)
             lane_line_decimal(&results, "   the four planes alone: coded bits ", plane_bits);
             lane_line_decimal(&results, " of raw ", lanes * 16ull);
             lane_line_decimal(&results, ", that is ", (plane_bits * 1000ull) / (lanes * 16ull));
-            scriptura_text(&results.line, " per mille, floored");
+            mmgr_line_put(&results.line, " per mille, floored");
             lane_line_end(&results);
             lane_line_decimal(&results, "   each plane at the fewer bits of the two: coded bits ", better_bits);
             lane_line_decimal(&results, ", that is ", (better_bits * 1000ull) / (lanes * 16ull));
-            scriptura_text(&results.line, " per mille, floored");
+            mmgr_line_put(&results.line, " per mille, floored");
             lane_line_end(&results);
         }
         cudaFree(device_planes);

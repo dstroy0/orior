@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// inspect_py_facts.c: what one Python file says alone, and its facts for the tree's checks: the imports it makes as it
+// inspect_py_facts.c: what one Python file shows alone, and its facts for the tree's checks: the imports it makes as it
 // runs, those outside every function and class and outside a block that runs only for a type checker; and the
-// functions it declares, methods among them, with the calls in each outside the functions it holds: a name before a
+// functions it declares, methods among them, with the calls in each outside the functions it contains: a name before a
 // bracket, after no dot or after `self.` or `cls.`
 #include "inspect_py.h"
 
@@ -68,7 +68,7 @@ void cli_py_functions(const char *src, CliFacts *facts)
             facts->full = 1;
             return;
         }
-        const CliInspectFunction function = {cli_inspect_kept(facts, src + name->start, name->end - name->start),
+        const CliInspectFunction function = {cli_inspect_text_stored(facts, src + name->start, name->end - name->start),
                                              name->from,
                                              name->to,
                                              cli_py_tok(line, 0u)->from.line,
@@ -84,7 +84,7 @@ void cli_py_functions(const char *src, CliFacts *facts)
 }
 
 // an import put on the facts: its spec, its names from `name_first`, its alias, and the span of its line
-static void facts_import(CliFacts *facts, const CliLine *spec, unsigned int name_first, const CliInspectTok *alias,
+static void facts_import(CliFacts *facts, const VerbaLinea *spec, unsigned int name_first, const CliInspectTok *alias,
                          const char *src, const CliPyLine *line)
 {
     if (facts->imports == facts->imports_most)
@@ -92,13 +92,13 @@ static void facts_import(CliFacts *facts, const CliLine *spec, unsigned int name
         facts->full = 1;
         return;
     }
-    const CliInspectText kept_alias = (alias != NULL)
-                                          ? cli_inspect_kept(facts, src + alias->start, alias->end - alias->start)
-                                          : (CliInspectText){0u, 0u};
-    const CliInspectImport import = {cli_inspect_line_kept(facts, spec),
+    const CliInspectText alias_stored =
+        (alias != NULL) ? cli_inspect_text_stored(facts, src + alias->start, alias->end - alias->start)
+                        : (CliInspectText){0u, 0u};
+    const CliInspectImport import = {cli_inspect_line_stored(facts, spec),
                                      name_first,
                                      facts->names - name_first,
-                                     kept_alias,
+                                     alias_stored,
                                      alias != NULL,
                                      cli_py_tok(line, 0u)->from,
                                      cli_py_tok(line, line->count - 1u)->to};
@@ -119,8 +119,8 @@ static void facts_plain_import(const char *src, const CliPyLine *line, CliFacts 
         {
             continue;
         }
-        char spec[CLI_PATH_LONGEST];
-        CliLine dotted = {spec, sizeof(spec), 0ull};
+        char spec[CLI_PATH_MAX_LEN];
+        VerbaLinea dotted = {spec, sizeof(spec), 0ull};
         const CliInspectTok *alias = NULL;
         for (unsigned int part = start; part < at; part += 1u)
         {
@@ -130,7 +130,7 @@ static void facts_plain_import(const char *src, const CliPyLine *line, CliFacts 
                 alias = (part + 1u < at) ? cli_py_tok(line, part + 1u) : NULL;
                 break;
             }
-            cli_line_counted(&dotted, src + tok->start, tok->end - tok->start);
+            mmgr_line_put_n(&dotted, src + tok->start, tok->end - tok->start);
         }
         if (dotted.at > 0u)
         {
@@ -152,12 +152,12 @@ static void facts_from_import(const char *src, const CliPyLine *line, CliFacts *
     {
         return;
     }
-    char spec[CLI_PATH_LONGEST];
-    CliLine dotted = {spec, sizeof(spec), 0ull};
+    char spec[CLI_PATH_MAX_LEN];
+    VerbaLinea dotted = {spec, sizeof(spec), 0ull};
     for (unsigned int at = 1u; at < import_at; at += 1u)
     {
         const CliInspectTok *const tok = cli_py_tok(line, at);
-        cli_line_counted(&dotted, src + tok->start, tok->end - tok->start);
+        mmgr_line_put_n(&dotted, src + tok->start, tok->end - tok->start);
     }
     const unsigned int name_first = facts->names;
     unsigned int start = import_at + 1u;
@@ -213,7 +213,7 @@ void cli_py_imports(const char *src, CliFacts *facts)
         const CliPyLine *const line = &g_cli_py_line[at];
         const int declares = cli_py_head_is(src, line, "def") || cli_py_head_is(src, line, "class");
         const int checking = cli_py_head_is(src, line, "if") &&
-                             cli_py_holds(src, &g_cli_inspect_tok[line->first], line->count, "TYPE_CHECKING");
+                             cli_py_contains(src, &g_cli_inspect_tok[line->first], line->count, "TYPE_CHECKING");
         if ((declares || checking) && cli_py_opens(src, line))
         {
             skip_to = cli_py_block_end(at);

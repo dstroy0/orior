@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// overseer_check.c: the overseer held to overseer.h on accounts handed to a run, and the teacher's conference held on
-// a carrier that reaches no part (overseer_carrier.c)
+// overseer_check.c: the overseer checked against overseer.h on accounts handed to a run, and the teacher's conference
+// checked on a carrier that reaches no part (overseer_carrier.c)
 //
 //   consensus   two experts that read one cause agree: the ruling names it, the side that brought it on, the
 //               guidance and the lesson, and is handed to the conference as the overseer's account
@@ -11,24 +11,25 @@
 //   roster      an expert the overseer names nowhere joins by handing an account, and its cause is counted
 //   waits       the stand-in brought it on, and the pair is put the other way round already: the relation waits
 //   silent      a conference where no expert reads a cause rules nothing, and a question no party called a
-//               conference of is heard by no one
-//   lessons     a lesson holds its stand-in as written at its carrier, or at every carrier where its encoding is the
-//               cause, and holds nothing else; the lessons handed to the run are read back whole
-//   teacher     a question the carrier refuses calls a conference holding the teacher's account and the carrier's;
-//               one whose carrier outlasts its time calls one holding the teacher's
-//   airlock     a round reaches the carrier only once the cross has read it and handed a held list after it: a round
-//               the cross did not read, or one with no held list after it, is carried by nothing, as is every round of
-//               a channel with no airlock whose carrier is handed no held list. Given the real carrier and cross, a
-//               code the vendor reads clean passes with nothing held, and an instruction it calls illegal is held by
+//               conference of is received by no one
+//   lessons     a lesson blocks its stand-in as written at its carrier, or at every carrier where its encoding is the
+//               cause, and blocks nothing else; the lessons handed to the run are read back whole
+//   teacher     a question the carrier refuses calls a conference containing the teacher's account and the carrier's;
+//               one whose carrier outlasts its time calls one containing the teacher's
+//   airlock     a round reaches the carrier only once the cross has read it and handed a gated list after it: a round
+//               the cross did not read, or one with no gated list after it, is carried by nothing, as is every round of
+//               a channel with no airlock whose carrier is handed no gated list. Given the real carrier and cross, a
+//               code the vendor reads clean passes with nothing gated, and an instruction it calls illegal is gated by
 //               its encoding, every reading through the run's streams (run_channel.h, measuring_stick_query.c)
-//   tables      a conference held is a row of the run's conferences, each account it heard a row of its accounts and
-//               its lesson a row of its lessons, each naming the conference by the number of the question's identity
+//   tables      a conference convened is a row of the run's conferences, each account it received a row of its
+//               accounts and its lesson a row of its lessons, each naming the conference by the number of the
+//               question's identity
 //   verdicts    given the real carrier, every question its gate reads is a row of the run's table of verdicts keyed to
-//               its ask, held where a rule broke, its reason a text of the table of texts, and an ask read again a
+//               its query, gated where a rule broke, its reason a text of the table of texts, and a query read again a
 //               second row of it
-//   check       a question the cross holds only for a register past the count its kernel allots is put again with the
-//               count that clears it, read again and carried; one held for what no count clears keeps its count; each
-//               hold and each count given is a line of the teacher's trace
+//   check       a question the cross refuses only for a register past the count its kernel allots is put again with the
+//               count that clears it, read again and carried; one refused for what no count clears retains its count;
+//               each refusal and each count given is a line of the teacher's trace
 //
 //     overseer_check <overseer_carrier> [<orior_cubin_run> <machine file> <layout> <cross> <nvdisasm>]
 //
@@ -50,10 +51,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -69,35 +70,35 @@ static void check_accounts(QryShared *run, const char *identity, const char *con
     }
 }
 
-// every record of a name the run holds, gathered, and a NUL past them
+// every record of a name the run contains, gathered, and a NUL past them
 static unsigned char s_gathered[(QRY_WRITER_RING_BYTES / 2ull) + 1ull];
 
 // the records `name` of the run gathered into s_gathered: their bytes, 0 where there are none or they do not fit
 static unsigned long long check_gathered(const char *name)
 {
     const unsigned long long size = qry_member_gathered(name, s_gathered, sizeof(s_gathered) - 1u);
-    const unsigned long long held = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
-    s_gathered[held] = 0u;
-    return held;
+    const unsigned long long gathered_size = (size == QRY_MEMBER_UNREAD) ? 0ull : size;
+    s_gathered[gathered_size] = 0u;
+    return gathered_size;
 }
 
-// 1 where the records `name` of the run, gathered, hold `text`
-static int check_joined_holds(QryShared *run, const char *name, const char *text)
+// 1 where the records `name` of the run, gathered, contain `text`
+static int check_joined_contains(QryShared *run, const char *name, const char *text)
 {
     (void)run;
     return (check_gathered(name) != 0ull) && (strstr((const char *)s_gathered, text) != NULL);
 }
 
-// 1 where the conference of `identity` holds `text`
-static int check_conference_holds(QryShared *run, const char *identity, const char *text)
+// 1 where the conference of `identity` contains `text`
+static int check_conference_contains(QryShared *run, const char *identity, const char *text)
 {
-    char name[OVERSEER_NAME_LONGEST];
+    char name[OVERSEER_NAME_MAX_LEN];
     overseer_conference_named(identity, name);
-    return check_joined_holds(run, name, text);
+    return check_joined_contains(run, name, text);
 }
 
-// 1 where the latest blob `name` of the run holds `text`
-static int check_latest_holds(QryShared *run, const char *name, const char *text)
+// 1 where the latest blob `name` of the run contains `text`
+static int check_latest_contains(QryShared *run, const char *name, const char *text)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
@@ -117,8 +118,8 @@ static int check_latest_holds(QryShared *run, const char *name, const char *text
 }
 
 // The rows of `words` words each of the run's table `table` whose first column, past the who's two words, is
-// `conference`: their count, the last of them copied into `last`, which holds `words`, and in `cause_reads` the count
-// of those whose fourth column, an account's cause, is `cause`
+// `conference`: their count, the last of them copied into `last`, which is sized for `words`, and in `cause_reads` the
+// count of those whose fourth column, an account's cause, is `cause`
 static unsigned int check_rows_of(QryShared *run, const char *table, unsigned int words, unsigned long long conference,
                                   unsigned long long *last, unsigned long long cause, unsigned int *cause_reads)
 {
@@ -142,8 +143,8 @@ static unsigned int check_rows_of(QryShared *run, const char *table, unsigned in
     return count;
 }
 
-// 1 where the run's table of texts holds a row of the number `number`
-static int check_text_held(QryShared *run, unsigned long long number)
+// 1 where the run's table of texts contains a row of the number `number`
+static int check_text_stored(QryShared *run, unsigned long long number)
 {
     (void)run;
     const unsigned char *const bytes = s_gathered;
@@ -160,31 +161,32 @@ static int check_text_held(QryShared *run, unsigned long long number)
     return found;
 }
 
-// The rows of the run's table of verdicts of the ask whose code is the latest blob question.bin, in their order: the
-// rule, held, carried and reason of each, into `rule`, `held`, `carried` and `reason`, each of room `room`. Their count
-static unsigned int check_verdicts(QryShared *run, unsigned long long *rule, unsigned long long *held,
+// The rows of the run's table of verdicts of the query whose code is the latest blob question.bin, in their order: the
+// rule, gated, carried and reason of each, into `rule`, `gated`, `carried` and `reason`, each of room `room`. Their
+// count
+static unsigned int check_verdicts(QryShared *run, unsigned long long *rule, unsigned long long *gated,
                                    unsigned long long *carried, unsigned long long *reason, unsigned int room)
 {
     const unsigned char *code = NULL;
     unsigned long long code_size = 0ull;
-    unsigned long long ask = 0ull;
+    unsigned long long query = 0ull;
     unsigned int count = 0u;
     (void)run;
-    if (!qry_member_blob("question.bin", &code, &code_size, &ask))
+    if (!qry_member_blob("question.bin", &code, &code_size, &query))
     {
         return 0u;
     }
     const unsigned char *const bytes = s_gathered;
     const unsigned long long size = check_gathered("verdicts");
-    // a verdict's row: the who's two words, then its ask, rule, held, the byte it held at, its reason and carried
+    // a verdict's row: the who's two words, then its query, rule, gated, the byte it gated at, its reason and carried
     unsigned long long row[8];
     for (unsigned long long at = 0ull; ((at + sizeof(row)) <= size) && (count < room); at += sizeof(row))
     {
         memcpy(row, bytes + at, sizeof(row));
-        if (row[2] == ask)
+        if (row[2] == query)
         {
             rule[count] = row[3];
-            held[count] = row[4];
+            gated[count] = row[4];
             reason[count] = row[6];
             carried[count] = row[7];
             count += 1u;
@@ -193,7 +195,7 @@ static unsigned int check_verdicts(QryShared *run, unsigned long long *rule, uns
     return count;
 }
 
-// 1 where the latest blob `name` of the run is there and holds no byte
+// 1 where the latest blob `name` of the run is there and contains no byte
 static int check_latest_empty(QryShared *run, const char *name)
 {
     const unsigned char *bytes = NULL;
@@ -201,8 +203,8 @@ static int check_latest_empty(QryShared *run, const char *name)
     return qry_member_blob(name, &bytes, &size, NULL) && (size == 0ull);
 }
 
-// a question's identity as R keeps it (kqr.h): the hash of its code, its registers, its shape and launches, its
-// count of cases and the hash of its cases, into `identity`, which holds 96
+// a question's identity as R stores it (kqr.h): the hash of its code, its registers, its shape and launches, its
+// count of cases and the hash of its cases, into `identity`, which is sized for 96
 static void check_identity(const RunQuestion *question, char *identity)
 {
     unsigned long long code = 0xcbf29ce484222325ull;
@@ -249,27 +251,27 @@ int main(int count, char **words)
         "listener",
         "the part stamped 1 Xid critical errors against the launch, Xid 31; cause address",
         "gate",
-        "the code read safe, its register fields bound by 16; the held list loaded; the code holds no slot",
+        "the code read safe, its register fields bound by 16; the gated list loaded; the code contains no probe",
         "learner",
         "the pair a b, b put in place of a at 12:0040; carrier 12; stand-in addresses; standing LDG.E R0, [R2.64]",
         "coherence",
         "the pair a b; learning equality_coherence unknown_coherence",
         "counterexample",
-        "the pair holds no case apart yet",
+        "the pair contains no case apart yet",
         NULL};
     check_accounts(run, "check-consensus", s_consensus);
-    check_that(overseer_convened(run, "check-consensus", 0, &ruling) == 1, "consensus: the conference is heard");
-    check_that(ruling.accounts == 7u, "consensus: every account is heard once");
+    check_that(overseer_convened(run, "check-consensus", 0, &ruling) == 1, "consensus: the conference is convened");
+    check_that(ruling.accounts == 7u, "consensus: every account is received once");
     check_that(ruling.agreed && (ruling.cause == OVERSEER_CAUSE_ADDRESS), "consensus: the cause agreed is an address");
     check_that(ruling.side == OVERSEER_SIDE_STAND_IN, "consensus: the stand-in that addresses memory brought it on");
     check_that(ruling.guidance == OVERSEER_OTHER_WAY, "consensus: the pair is put the other way round");
     check_that(ruling.taught == 1, "consensus: a lesson is taught");
-    check_that(strstr(ruling.said, "equality_coherence") != NULL,
-               "consensus: the ruling says what the learner was after");
-    check_that(check_conference_holds(run, "check-consensus", "overseer: 7 accounts heard"),
+    check_that(strstr(ruling.text, "equality_coherence") != NULL,
+               "consensus: the ruling states what the learner was after");
+    check_that(check_conference_contains(run, "check-consensus", "overseer: 7 accounts received"),
                "consensus: the ruling is handed to the conference as the overseer's account");
 
-    // tables: the conference a row of the run's conferences, each account it heard a row of its accounts and its
+    // tables: the conference a row of the run's conferences, each account it received a row of its accounts and its
     // lesson a row of its lessons, each naming the conference by the number of the question's identity
     const unsigned long long consensus = table_text("check-consensus", strlen("check-consensus"));
     unsigned long long last[10];
@@ -277,14 +279,14 @@ int main(int count, char **words)
     check_that((check_rows_of(run, "conferences", 10u, consensus, last, 0ull, &reads) == 1u) && (last[3] == 1ull) &&
                    (last[4] == OVERSEER_CAUSE_ADDRESS) && (last[5] == OVERSEER_SIDE_STAND_IN) &&
                    (last[6] == OVERSEER_OTHER_WAY) && (last[7] == 7ull) && (last[8] == 1ull) &&
-                   check_text_held(run, last[9]),
+                   check_text_stored(run, last[9]),
                "tables: the conference is a row of the run's conferences, its ruling, its seven accounts, its lesson "
                "and its words");
     check_that((check_rows_of(run, "accounts", 6u, consensus, last, OVERSEER_CAUSE_ADDRESS, &reads) == 7u) &&
                    (reads == 2u),
                "tables: each of its seven accounts is a row of the run's accounts, two of them reading an address");
     check_that((check_rows_of(run, "lessons", 6u, consensus, last, 0ull, &reads) == 1u) &&
-                   (last[3] == OVERSEER_CAUSE_ADDRESS) && check_text_held(run, last[5]),
+                   (last[3] == OVERSEER_CAUSE_ADDRESS) && check_text_stored(run, last[5]),
                "tables: its lesson is a row of the run's lessons, its cause and the stand-in as written");
 
     // dissent: two causes, no ruling
@@ -292,19 +294,19 @@ int main(int count, char **words)
         "proctor", "CUDA_ERROR_ILLEGAL_INSTRUCTION (715); cause instruction", "listener", "Xid 31; cause address",
         "learner", "the pair a c; carrier 12; standing IADD3 R0, R1, R2, RZ", NULL};
     check_accounts(run, "check-dissent", s_dissent);
-    check_that(overseer_convened(run, "check-dissent", 0, &ruling) == 1, "dissent: the conference is heard");
+    check_that(overseer_convened(run, "check-dissent", 0, &ruling) == 1, "dissent: the conference is convened");
     check_that(!ruling.agreed && (ruling.guidance == OVERSEER_HANDS_OFF) && !ruling.taught,
                "dissent: two causes rule nothing, the learner left to go on as it would");
-    check_that(strstr(ruling.said,
+    check_that(strstr(ruling.text,
                       "every cause read the question's own: proctor reads instruction, listener reads address") != NULL,
-               "dissent: the ruling keeps the dissent, every cause the question's own");
+               "dissent: the ruling records the dissent, every cause the question's own");
 
-    // exception: an exception agrees with an instruction, and an encoding is held at every carrier
+    // exception: an exception agrees with an instruction, and an encoding is blocked at every carrier
     static const char *const s_exception[] = {
         "proctor", "CUDA_ERROR_LAUNCH_FAILED (719); cause exception",         "listener", "Xid 13; cause instruction",
         "learner", "the pair d e; carrier 7; standing IMAD.X R1, R2, R3, R4", NULL};
     check_accounts(run, "check-exception", s_exception);
-    check_that(overseer_convened(run, "check-exception", 0, &ruling) == 1, "exception: the conference is heard");
+    check_that(overseer_convened(run, "check-exception", 0, &ruling) == 1, "exception: the conference is convened");
     check_that(ruling.agreed && (ruling.cause == OVERSEER_CAUSE_INSTRUCTION) && (ruling.side == OVERSEER_SIDE_STAND_IN),
                "exception: an exception agrees with an instruction, the stand-in's encoding");
 
@@ -313,18 +315,18 @@ int main(int count, char **words)
         "proctor", "CUDA_ERROR_ILLEGAL_ADDRESS (700); cause address",        "listener", "Xid 31; cause address",
         "learner", "the pair f g; carrier 5; standing IADD3 R0, R1, R2, RZ", NULL};
     check_accounts(run, "check-context", s_context);
-    check_that(overseer_convened(run, "check-context", 0, &ruling) == 1, "context: the conference is heard");
+    check_that(overseer_convened(run, "check-context", 0, &ruling) == 1, "context: the conference is convened");
     check_that((ruling.side == OVERSEER_SIDE_CONTEXT) && (ruling.guidance == OVERSEER_ANOTHER_LINK),
                "context: the stand-in goes on to its next link");
 
     // roster and waits: an expert named nowhere joins, and a stand-in that controls, put both ways, waits
-    static const char *const s_roster[] = {"survivors", "the gate's survivors held none of it; cause time",
+    static const char *const s_roster[] = {"survivors", "the gate's survivors contained none of it; cause time",
                                            "proctor",   "CUDA_ERROR_LAUNCH_TIMEOUT (702); cause time",
                                            "learner",   "the pair h i; carrier 3; stand-in controls; standing BRA 0x40",
                                            NULL};
     check_accounts(run, "check-roster", s_roster);
-    check_that(overseer_convened(run, "check-roster", 1, &ruling) == 1, "roster: the conference is heard");
-    check_that(strstr(ruling.said, "survivors") != NULL, "roster: an expert named nowhere is heard");
+    check_that(overseer_convened(run, "check-roster", 1, &ruling) == 1, "roster: the conference is convened");
+    check_that(strstr(ruling.text, "survivors") != NULL, "roster: an expert named nowhere is included");
     check_that(ruling.agreed && (ruling.cause == OVERSEER_CAUSE_TIME) && (ruling.side == OVERSEER_SIDE_STAND_IN),
                "roster: its cause is counted, and the stand-in that controls brought it on");
     check_that(ruling.guidance == OVERSEER_WAITS, "waits: put the other way round already, the relation waits");
@@ -333,38 +335,38 @@ int main(int count, char **words)
     static const char *const s_silent[] = {"teacher", "the carrier was ended, out of time, code 0; the line is quiet",
                                            NULL};
     check_accounts(run, "check-silent", s_silent);
-    check_that(overseer_convened(run, "check-silent", 0, &ruling) == 1, "silent: the conference is heard");
+    check_that(overseer_convened(run, "check-silent", 0, &ruling) == 1, "silent: the conference is convened");
     check_that(!ruling.agreed && (ruling.guidance == OVERSEER_HANDS_OFF) &&
-                   (strstr(ruling.said, "no expert reads a cause") != NULL),
+                   (strstr(ruling.text, "no expert reads a cause") != NULL),
                "silent: no cause read, nothing ruled");
     check_that(overseer_convened(run, "check-never", 0, &ruling) == 0,
-               "silent: a question with no conference is heard by no one");
+               "silent: a question with no conference is received by no one");
 
     // lessons: as narrow as their conferences, and read back whole from the run
     char why[160];
-    check_that(overseer_holds("LDG.E R0, [R2.64]", "12", why, sizeof(why)),
-               "lessons: an address is held at its carrier");
-    check_that(!overseer_holds("LDG.E R0, [R2.64]", "13", why, sizeof(why)), "lessons: and at no other");
-    check_that(overseer_holds("IMAD.X R1, R2, R3, R4", "99", why, sizeof(why)),
-               "lessons: an encoding is held at every carrier");
-    check_that(overseer_holds("IADD3 R0, R1, R2, RZ", "5", why, sizeof(why)) &&
-                   !overseer_holds("IADD3 R0, R1, R2, RZ", "6", why, sizeof(why)) &&
-                   !overseer_holds("IADD3 R0, R1, R2, RZ", "12", why, sizeof(why)),
-               "lessons: a context is held at its carrier, and a dissent teaches nothing");
-    check_that(!overseer_holds("IADD3 R0, R1, R2, R3", "5", why, sizeof(why)),
-               "lessons: another writing of the form is not held");
+    check_that(overseer_blocks("LDG.E R0, [R2.64]", "12", why, sizeof(why)),
+               "lessons: an address is blocked at its carrier");
+    check_that(!overseer_blocks("LDG.E R0, [R2.64]", "13", why, sizeof(why)), "lessons: and at no other");
+    check_that(overseer_blocks("IMAD.X R1, R2, R3, R4", "99", why, sizeof(why)),
+               "lessons: an encoding is blocked at every carrier");
+    check_that(overseer_blocks("IADD3 R0, R1, R2, RZ", "5", why, sizeof(why)) &&
+                   !overseer_blocks("IADD3 R0, R1, R2, RZ", "6", why, sizeof(why)) &&
+                   !overseer_blocks("IADD3 R0, R1, R2, RZ", "12", why, sizeof(why)),
+               "lessons: a context is blocked at its carrier, and a dissent teaches nothing");
+    check_that(!overseer_blocks("IADD3 R0, R1, R2, R3", "5", why, sizeof(why)),
+               "lessons: another writing of the form is not blocked");
     check_that(overseer_lessons_handed(run) == 1, "lessons: handed to the run");
     overseer_lessons_cleared();
-    check_that(!overseer_holds("BRA 0x40", "3", why, sizeof(why)), "lessons: let go, none holds");
+    check_that(!overseer_blocks("BRA 0x40", "3", why, sizeof(why)), "lessons: let go, none blocks");
     check_that(overseer_lessons_read(run) == 4u, "lessons: the four taught read back from the run");
-    check_that(overseer_holds("BRA 0x40", "3", why, sizeof(why)) &&
-                   overseer_holds("IMAD.X R1, R2, R3, R4", "1", why, sizeof(why)),
-               "lessons: read back, each holds as it did");
+    check_that(overseer_blocks("BRA 0x40", "3", why, sizeof(why)) &&
+                   overseer_blocks("IMAD.X R1, R2, R3, R4", "1", why, sizeof(why)),
+               "lessons: read back, each blocks as it did");
 
     // teacher: a question the carrier refuses, through an airlock whose cross reads the round, calls a conference of
     // the teacher's account and the carrier's
-    const char *const refusing[] = {words[1], "refuse",  "--held", "held.txt", "--pop",    words[1],
-                                    "pop",    "--cross", words[1], "cross",    "held.txt", NULL};
+    const char *const refusing[] = {words[1], "refuse",  "--gated", "gated.txt", "--pop",     words[1],
+                                    "pop",    "--cross", words[1],  "cross",     "gated.txt", NULL};
     check_that(run_channel_open(refusing, 10000000ull) == 1, "teacher: the channel opens on the refusing carrier");
     for (unsigned int at = 0u; at < sizeof(s_code); at += 1u)
     {
@@ -373,64 +375,63 @@ int main(int count, char **words)
     s_question.code = s_code;
     s_question.code_size = sizeof(s_code);
     s_question.registers = 16u;
-    s_question.slot = RUN_SLOT_NONE;
+    s_question.place = RUN_PLACE_NONE;
     s_question.cases = 1u;
-    run_channel_ask(&s_question);
+    run_channel_put(&s_question);
     check_that(s_question.outcome == RUN_ILLEGAL, "teacher: the refusal comes back illegal");
     char identity[96];
     check_identity(&s_question, identity);
-    check_that(check_conference_holds(run, identity, "teacher: the question of 32 bytes of code"),
-               "teacher: the refusal's conference holds the teacher's account");
-    check_that(check_conference_holds(run, identity, "proctor: the launch of question.bin") &&
-                   check_conference_holds(run, identity, "listener: the part stamped 1 Xid"),
-               "teacher: and the carrier's accounts, as the carrier said them");
+    check_that(check_conference_contains(run, identity, "teacher: the question of 32 bytes of code"),
+               "teacher: the refusal's conference contains the teacher's account");
+    check_that(check_conference_contains(run, identity, "proctor: the launch of question.bin") &&
+                   check_conference_contains(run, identity, "listener: the part stamped 1 Xid"),
+               "teacher: and the carrier's accounts, as the carrier reported them");
     overseer_account(
         run, identity, "learner",
         "the pair j k, k put in place of j at 9:0010; carrier 9; stand-in addresses; standing ST.E [R4.64], R0");
     check_that(overseer_convened(run, identity, 0, &ruling) == 1 && ruling.agreed &&
                    (ruling.cause == OVERSEER_CAUSE_ADDRESS) && (ruling.guidance == OVERSEER_OTHER_WAY),
                "teacher: the conference rules on the carrier's and the learner's accounts");
-    check_that(check_latest_holds(run, "airlock.txt", " airlock_answers.txt "),
+    check_that(check_latest_contains(run, "airlock.txt", " airlock_answers.txt "),
                "airlock: the round's list is handed with its answers renamed for the pop");
     char line[256];
     snprintf(line, sizeof(line), "teacher: %s carried: illegal, refused CUDA_ERROR_ILLEGAL_ADDRESS", identity);
-    check_that(check_latest_holds(run, "trace", line),
+    check_that(check_latest_contains(run, "trace", line),
                "trace: the teacher's line for the refused question is in the run");
     run_channel_close();
 
-    // airlock: a round the cross does not read, or reads and hands no held list after, is carried by nothing
+    // airlock: a round the cross does not read, or reads and hands no gated list after, is carried by nothing
     static const char *const s_crossings[] = {"unread", "silent"};
     for (unsigned int crossing = 0u; crossing < 2u; crossing += 1u)
     {
-        const char *const unread[] = {words[1],   "refuse", "--held",  "held.txt", "--pop",
-                                      words[1],   "pop",    "--cross", words[1],   s_crossings[crossing],
-                                      "held.txt", NULL};
+        const char *const unread[] = {words[1], "refuse",  "--gated", "gated.txt",           "--pop",     words[1],
+                                      "pop",    "--cross", words[1],  s_crossings[crossing], "gated.txt", NULL};
         check_that(run_channel_open(unread, 10000000ull) == 1, "airlock: the channel opens");
         s_code[1] = (unsigned char)(0xa0u + crossing);
-        run_channel_ask(&s_question);
+        run_channel_put(&s_question);
         check_identity(&s_question, identity);
         check_that((s_question.outcome == RUN_NO_CHANNEL) && (strstr(s_question.refused, "the airlock") != NULL) &&
-                       !check_conference_holds(run, identity, "proctor:"),
+                       !check_conference_contains(run, identity, "proctor:"),
                    (crossing == 0u) ? "airlock: a round the cross did not read never reaches the carrier"
-                                    : "airlock: a round with no held list handed after it never reaches the carrier");
+                                    : "airlock: a round with no gated list handed after it never reaches the carrier");
         run_channel_close();
     }
 
-    // airlock: a live channel with none, and a carrier handed no held list, carries nothing; an airlock whose carrier
-    // reads no held list does not open
+    // airlock: a live channel with none, and a carrier handed no gated list, carries nothing; an airlock whose carrier
+    // reads no gated list does not open
     const char *const open_air[] = {words[1], "refuse", NULL};
     check_that(run_channel_open(open_air, 10000000ull) == 1, "airlock: a channel with none opens");
     s_code[1] = 0xb0u;
-    run_channel_ask(&s_question);
+    run_channel_put(&s_question);
     check_that((s_question.outcome == RUN_NO_CHANNEL) && (strstr(s_question.refused, "has none") != NULL),
                "airlock: and carries nothing");
     run_channel_close();
-    const char *const unheld[] = {words[1],  "refuse", "--pop", words[1],   "pop",
-                                  "--cross", words[1], "cross", "held.txt", NULL};
-    check_that(run_channel_open(unheld, 10000000ull) == 0,
-               "airlock: one whose carrier reads no held list does not open");
+    const char *const ungated_words[] = {words[1],  "refuse", "--pop", words[1],    "pop",
+                                         "--cross", words[1], "cross", "gated.txt", NULL};
+    check_that(run_channel_open(ungated_words, 10000000ull) == 0,
+               "airlock: one whose carrier reads no gated list does not open");
 
-    // the part's count of registers past what a container declares, which a hold's clearing count is raised by: 1,
+    // the part's count of registers past what a container declares, which a refusal's clearing count is raised by: 1,
     // read off a .ksc of the check's own written beside the carrier
     char past_path[1024];
     size_t folder = 0u;
@@ -448,47 +449,49 @@ int main(int count, char **words)
     }
     check_that(run_channel_registers_past(past_path) == 1, "check: the channel reads the registers past off it");
 
-    // check: a question the cross holds only for a register past its count is put again with the count that clears
-    // it and read again, and one held for what no count clears is kept held, each hold and each count a line of the
-    // teacher's trace
-    const char *const counted[] = {words[1], "refuse",  "--held", "held.txt",  "--pop",    words[1],
-                                   "pop",    "--cross", words[1], "registers", "held.txt", NULL};
-    check_that(run_channel_open(counted, 10000000ull) == 1, "check: the channel opens on a cross that holds registers");
+    // check: a question the cross refuses only for a register past its count is put again with the count that clears
+    // it and read again, and one refused for what no count clears stays refused, each refusal and each count a line of
+    // the teacher's trace
+    const char *const counted[] = {words[1], "refuse",  "--gated", "gated.txt", "--pop",     words[1],
+                                   "pop",    "--cross", words[1],  "registers", "gated.txt", NULL};
+    check_that(run_channel_open(counted, 10000000ull) == 1,
+               "check: the channel opens on a cross that refuses registers");
     s_code[1] = 0xc0u;
     s_question.registers = 16u;
     check_identity(&s_question, identity);
-    run_channel_ask(&s_question);
+    run_channel_put(&s_question);
     check_that(s_question.registers == 41u,
-               "check: a question held only for registers is put again with the count that clears it");
-    check_that(check_latest_holds(run, "questions.txt", "question.bin 41 cases.txt") &&
+               "check: a question refused only for registers is put again with the count that clears it");
+    check_that(check_latest_contains(run, "questions.txt", "question.bin 41 cases.txt") &&
                    (s_question.outcome == RUN_ILLEGAL),
                "check: read again, it passes and is carried with that count");
-    snprintf(line, sizeof(line), "teacher: %s checked: held, the stand-in reads R40, past the 16 registers", identity);
-    check_that(check_joined_holds(run, "trace", line), "check: its hold is a line of the teacher's trace");
+    snprintf(line, sizeof(line), "teacher: %s checked: gated, the stand-in reads R40, past the 16 registers", identity);
+    check_that(check_joined_contains(run, "trace", line), "check: its refusal is a line of the teacher's trace");
     snprintf(line, sizeof(line), "teacher: %s checked: put again with 41 registers in place of 16", identity);
-    check_that(check_joined_holds(run, "trace", line), "check: and so is the count it was given");
+    check_that(check_joined_contains(run, "trace", line), "check: and so is the count it was given");
     run_channel_close();
-    const char *const illegal[] = {words[1], "refuse",  "--held", "held.txt", "--pop",    words[1],
-                                   "pop",    "--cross", words[1], "illegal",  "held.txt", NULL};
-    check_that(run_channel_open(illegal, 10000000ull) == 1, "check: the channel opens on a cross that holds encodings");
+    const char *const illegal[] = {words[1], "refuse",  "--gated", "gated.txt", "--pop",     words[1],
+                                   "pop",    "--cross", words[1],  "illegal",   "gated.txt", NULL};
+    check_that(run_channel_open(illegal, 10000000ull) == 1,
+               "check: the channel opens on a cross that refuses encodings");
     s_code[1] = 0xc1u;
     s_question.registers = 16u;
     check_identity(&s_question, identity);
-    run_channel_ask(&s_question);
-    snprintf(line, sizeof(line), "teacher: %s checked: kept held: no count of registers clears it", identity);
-    check_that((s_question.registers == 16u) && check_joined_holds(run, "trace", line),
-               "check: a question held for what no count clears keeps its count, and is traced kept held");
+    run_channel_put(&s_question);
+    snprintf(line, sizeof(line), "teacher: %s checked: still refused: no count of registers clears it", identity);
+    check_that((s_question.registers == 16u) && check_joined_contains(run, "trace", line),
+               "check: a question refused for what no count clears retains its count, and is traced still refused");
     run_channel_close();
     s_question.registers = 16u;
 
     // airlock, with the real tools where they are given: the carrier's dry pop and the vendor's cross read the round
-    // through the run's streams, a clean code passes with nothing held, and an illegal instruction is held by its
+    // through the run's streams, a clean code passes with nothing gated, and an illegal instruction is gated by its
     // encoding
     if (count == 7)
     {
-        const char *const real[] = {words[1], "refuse", "--held",     "held.txt", "--pop",   words[2],
-                                    "--dry",  "--full", words[3],     words[4],   "--cross", words[5],
-                                    words[6], "SM86",   "airlock.md", "held.txt", NULL};
+        const char *const real[] = {words[1], "refuse", "--gated",    "gated.txt", "--pop",   words[2],
+                                    "--dry",  "--full", words[3],     words[4],    "--cross", words[5],
+                                    words[6], "SM86",   "airlock.md", "gated.txt", NULL};
         check_that(run_channel_open(real, 60000000ull) == 1, "airlock: the channel opens on the real pop and cross");
         // EXIT, then a NOP: what the vendor reads clean
         static const unsigned char s_clean[32] = {0x4du, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
@@ -496,20 +499,21 @@ int main(int count, char **words)
                                                   0x18u, 0x79u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0x00u,
                                                   0x00u, 0x00u, 0x00u, 0x00u, 0x00u, 0xc0u, 0x0fu, 0x00u};
         memcpy(s_code, s_clean, sizeof(s_clean));
-        run_channel_ask(&s_question);
+        run_channel_put(&s_question);
         check_that(s_question.outcome == RUN_ILLEGAL, "airlock: a clean code passes the real airlock to the carrier");
-        check_that(check_latest_holds(run, "airlock_cross.txt", "questions read: 1") &&
-                       check_latest_empty(run, "held.txt"),
-                   "airlock: the vendor read it and holds nothing");
+        check_that(check_latest_contains(run, "airlock_cross.txt", "questions read: 1") &&
+                       check_latest_empty(run, "gated.txt"),
+                   "airlock: the vendor read it and gates nothing");
         unsigned long long rule[4];
-        unsigned long long held[4];
+        unsigned long long gated_counts[4];
         unsigned long long carried[4];
         unsigned long long reason[4];
-        check_that((check_verdicts(run, rule, held, carried, reason, 4u) == 1u) &&
-                       (held[0] == ((rule[0] != 0ull) ? 1ull : 0ull)) && (carried[0] == 0ull) &&
-                       check_text_held(run, reason[0]),
-                   "verdicts: the pop's gate reads the ask once, a row keyed to it, held where a rule broke, the part "
-                   "taken out, its reason a text of the table of texts");
+        check_that(
+            (check_verdicts(run, rule, gated_counts, carried, reason, 4u) == 1u) &&
+                (gated_counts[0] == ((rule[0] != 0ull) ? 1ull : 0ull)) && (carried[0] == 0ull) &&
+                check_text_stored(run, reason[0]),
+            "verdicts: the pop's gate reads the query once, a row keyed to it, gated where a rule broke, the part "
+            "taken out, its reason a text of the table of texts");
         // MOV R40, c[0x0][0x28], then EXIT: a register the vendor reads past the 16 the question's kernel allots
         static const unsigned char s_past[32] = {0x02u, 0x7au, 0x28u, 0x00u, 0x00u, 0x0au, 0x00u, 0x00u,
                                                  0x00u, 0x0fu, 0x00u, 0x00u, 0x00u, 0xe4u, 0x0fu, 0x00u,
@@ -518,34 +522,34 @@ int main(int count, char **words)
         memcpy(s_code, s_past, sizeof(s_past));
         s_question.registers = 16u;
         check_identity(&s_question, identity);
-        run_channel_ask(&s_question);
-        snprintf(line, sizeof(line), "teacher: %s checked: held, the vendor reads R40 at byte ", identity);
-        check_that((s_question.registers == 41u) && check_joined_holds(run, "trace", line),
+        run_channel_put(&s_question);
+        snprintf(line, sizeof(line), "teacher: %s checked: gated, the vendor reads R40 at byte ", identity);
+        check_that((s_question.registers == 41u) && check_joined_contains(run, "trace", line),
                    "check: a register the vendor reads past the count is put again with the count that clears it");
-        check_that((s_question.outcome == RUN_ILLEGAL) && check_latest_empty(run, "held.txt"),
-                   "check: read again with that count, the vendor holds nothing and it is carried");
-        check_that(check_verdicts(run, rule, held, carried, reason, 4u) == 2u,
-                   "verdicts: the ask read again with the count that clears it is a second row of one ask");
+        check_that((s_question.outcome == RUN_ILLEGAL) && check_latest_empty(run, "gated.txt"),
+                   "check: read again with that count, the vendor gates nothing and it is carried");
+        check_that(check_verdicts(run, rule, gated_counts, carried, reason, 4u) == 2u,
+                   "verdicts: the query read again with the count that clears it is a second row of one query");
         s_question.registers = 16u;
         // all ones after the EXIT: an instruction the vendor calls illegal
         memset(s_code + 16, 0xff, 16u);
-        run_channel_ask(&s_question);
-        check_that(check_latest_holds(run, "held.txt", "ffffffffffffffff ffffffffffffffff"),
-                   "airlock: the instruction the vendor calls illegal is held by its encoding");
+        run_channel_put(&s_question);
+        check_that(check_latest_contains(run, "gated.txt", "ffffffffffffffff ffffffffffffffff"),
+                   "airlock: the instruction the vendor calls illegal is gated by its encoding");
         run_channel_close();
     }
 
     // teacher, last: a carrier that outlasts its time calls a conference too. Its ending opens the panic line, and no
     // question is put in the run after it
-    const char *const hanging[] = {words[1], "hang",    "--held", "held.txt", "--pop",    words[1],
-                                   "pop",    "--cross", words[1], "cross",    "held.txt", NULL};
+    const char *const hanging[] = {words[1], "hang",    "--gated", "gated.txt", "--pop",     words[1],
+                                   "pop",    "--cross", words[1],  "cross",     "gated.txt", NULL};
     check_that(run_channel_open(hanging, 1000000ull) == 1, "teacher: the channel opens on the hanging carrier");
     memset(s_code, 0, sizeof(s_code));
     s_code[0] = 0xffu;
-    run_channel_ask(&s_question);
+    run_channel_put(&s_question);
     check_that(s_question.outcome == RUN_NOTHING, "teacher: the carrier ended out of its time answers nothing");
     check_identity(&s_question, identity);
-    check_that(check_conference_holds(run, identity, "teacher: the question of 32 bytes of code"),
+    check_that(check_conference_contains(run, identity, "teacher: the question of 32 bytes of code"),
                "teacher: the ended carrier's question calls a conference");
     run_channel_close();
 

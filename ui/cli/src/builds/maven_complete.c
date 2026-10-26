@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // maven_complete.c: what completes the word before the cursor in a POM: after `${`, the properties the POM, its parents
-// and Maven set; after `</`, the element left open; after `<`, the elements the open one may hold, each written with
+// and Maven set; after `</`, the element left open; after `<`, the elements the open one may contain, each written with
 // its closing tag where no `>` follows; and in an element's text, the values it takes, the local repository's groups,
 // artifacts and versions among them. More folders of the repository than CLI_MAVEN_FOLDERS are not offered
 #include "maven_internal.h"
@@ -53,7 +53,7 @@ static void complete_properties(const char *path, const char *text, unsigned lon
     }
 }
 
-// the elements the element left open before `end` may hold, put after `token`, each written with its closing tag
+// the elements the element left open before `end` may contain, put after `token`, each written with its closing tag
 // where no `>` follows the cursor
 static void complete_elements(const char *text, unsigned long long end, const char *token,
                               unsigned long long token_size, int follows, CliCompletions *items)
@@ -72,12 +72,12 @@ static void complete_elements(const char *text, unsigned long long end, const ch
     const char *const *names = NULL;
     unsigned int count = 0u;
     static char s_detail[1u << 12u];
-    CliLine detail = {s_detail, sizeof(s_detail), 0ull};
+    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
     if (cli_xml_named(&s_xml, open, "properties"))
     {
         names = g_cli_maven_common_properties;
         count = 6u;
-        cli_line_text(&detail, "property");
+        mmgr_line_put(&detail, "property");
     }
     else if (cli_xml_inside_free(&s_xml, open) || cli_xml_named(&s_xml, open, "configuration"))
     {
@@ -86,9 +86,9 @@ static void complete_elements(const char *text, unsigned long long end, const ch
     else
     {
         names = cli_maven_schema(name, name_size, &count);
-        cli_line_text(&detail, "in <");
-        cli_line_counted(&detail, name, name_size);
-        cli_line_character(&detail, '>');
+        mmgr_line_put(&detail, "in <");
+        mmgr_line_put_n(&detail, name, name_size);
+        mmgr_line_ch(&detail, '>');
     }
     const unsigned long long base = cli_build_run_before(token, token_size, cli_build_word_letter);
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -103,20 +103,20 @@ static void complete_elements(const char *text, unsigned long long end, const ch
         }
         CliCompletion *const item = &items->item[first];
         static char s_insert[1u << 13u];
-        CliLine insert = {s_insert, sizeof(s_insert), 0ull};
-        cli_line_counted(&insert, items->text + item->insert_at, item->insert_size);
-        cli_line_text(&insert, ">$0</");
-        cli_line_counted(&insert, token, base);
-        cli_line_counted(&insert, items->text + item->insert_at, item->insert_size);
-        cli_line_character(&insert, '>');
-        const CliCompletion kept = *item;
+        VerbaLinea insert = {s_insert, sizeof(s_insert), 0ull};
+        mmgr_line_put_n(&insert, items->text + item->insert_at, item->insert_size);
+        mmgr_line_put(&insert, ">$0</");
+        mmgr_line_put_n(&insert, token, base);
+        mmgr_line_put_n(&insert, items->text + item->insert_at, item->insert_size);
+        mmgr_line_ch(&insert, '>');
+        const CliCompletion pivot = *item;
         items->count = first;
-        (void)cli_completion_put(items, items->text + kept.label_at, kept.label_size, kept.kind,
-                                 items->text + kept.detail_at, kept.detail_size, s_insert, insert.at, 1);
+        (void)cli_completion_put(items, items->text + pivot.label_at, pivot.label_size, pivot.kind,
+                                 items->text + pivot.detail_at, pivot.detail_size, s_insert, insert.at, 1);
     }
 }
 
-// a folder of the local repository kept by its name
+// a folder of the local repository recorded by its name
 typedef struct
 {
     unsigned int at[CLI_MAVEN_FOLDERS];
@@ -131,7 +131,7 @@ typedef struct
 
 static CliMavenFolders s_folders;
 
-// a folder of the repository kept, its name after the base
+// a folder of the repository recorded, its name after the base
 static void complete_folder_seen(void *context, const char *name, int is_folder)
 {
     CliMavenFolders *const folders = context;
@@ -179,13 +179,13 @@ static void complete_repository(const char *folder, const char *base, unsigned l
 // `size` bytes of a group joined to `repository` with its dots as slashes into `out`
 static void complete_group_path(const char *repository, const char *group, unsigned long long size, char *out)
 {
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
     for (unsigned long long at = 0ull; at < size; at += 1u)
     {
-        cli_line_character(&line, (group[at] == '.') ? '/' : group[at]);
+        mmgr_line_ch(&line, (group[at] == '.') ? '/' : group[at]);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     cli_full(repository, path, out);
 }
 
@@ -193,7 +193,7 @@ static void complete_group_path(const char *repository, const char *group, unsig
 static void complete_coordinates(const char *text, unsigned long long tag_end, const char *name, const char *token,
                                  unsigned long long token_size, CliCompletions *items)
 {
-    char repository[CLI_PATH_LONGEST];
+    char repository[CLI_PATH_MAX_LEN];
     if (!cli_maven_local_repository(repository))
     {
         return;
@@ -203,11 +203,11 @@ static void complete_coordinates(const char *text, unsigned long long tag_end, c
     const unsigned int open = (s_xml.opens > 0u) ? s_xml.open[s_xml.opens - 1u] : CLI_XML_NONE;
     static char s_group[1u << 12u];
     static char s_artifact[1u << 12u];
-    CliLine group = {s_group, sizeof(s_group), 0ull};
-    CliLine artifact = {s_artifact, sizeof(s_artifact), 0ull};
-    const int has_group = cli_xml_text_of(&s_xml, open, "groupId", &group) && cli_line_fits(&group);
-    const int has_artifact = cli_xml_text_of(&s_xml, open, "artifactId", &artifact) && cli_line_fits(&artifact);
-    char folder[CLI_PATH_LONGEST];
+    VerbaLinea group = {s_group, sizeof(s_group), 0ull};
+    VerbaLinea artifact = {s_artifact, sizeof(s_artifact), 0ull};
+    const int has_group = cli_xml_text_of(&s_xml, open, "groupId", &group) && mmgr_line_ok(&group);
+    const int has_artifact = cli_xml_text_of(&s_xml, open, "artifactId", &artifact) && mmgr_line_ok(&artifact);
+    char folder[CLI_PATH_MAX_LEN];
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "groupId", .cap = CLI_CELLS_POOL}))
     {
         unsigned long long typed = token_size;
@@ -227,8 +227,8 @@ static void complete_coordinates(const char *text, unsigned long long tag_end, c
     complete_group_path(repository, s_group, group.at, folder);
     if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "version", .cap = CLI_CELLS_POOL}))
     {
-        char version_folder[CLI_PATH_LONGEST];
-        (void)cli_line_closed(&artifact);
+        char version_folder[CLI_PATH_MAX_LEN];
+        (void)mmgr_line_finish(&artifact);
         cli_full(folder, s_artifact, version_folder);
         complete_repository(version_folder, "", 0ull, token, token_size, items);
         return;
@@ -277,10 +277,10 @@ static int complete_values(const char *name, unsigned long long size, const char
         return 0;
     }
     static char s_detail[1u << 12u];
-    CliLine detail = {s_detail, sizeof(s_detail), 0ull};
-    cli_line_character(&detail, '<');
-    cli_line_counted(&detail, name, size);
-    cli_line_character(&detail, '>');
+    VerbaLinea detail = {s_detail, sizeof(s_detail), 0ull};
+    mmgr_line_ch(&detail, '<');
+    mmgr_line_put_n(&detail, name, size);
+    mmgr_line_ch(&detail, '>');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         cli_build_relative(items, token, token_size, list[at],
@@ -316,9 +316,9 @@ void cli_maven_complete(const char *path, const char *text, unsigned long long s
         {
             const CliXmlElement *const open = &s_xml.element[s_xml.open[s_xml.opens - 1u]];
             static char s_insert[1u << 12u];
-            CliLine insert = {s_insert, sizeof(s_insert), 0ull};
-            cli_line_counted(&insert, text + open->from, open->to - open->from);
-            cli_line_character(&insert, '>');
+            VerbaLinea insert = {s_insert, sizeof(s_insert), 0ull};
+            mmgr_line_put_n(&insert, text + open->from, open->to - open->from);
+            mmgr_line_ch(&insert, '>');
             (void)cli_completion_put(items, text + open->from, open->to - open->from, "keyword", "close", 5u, s_insert,
                                      insert.at, 0);
         }

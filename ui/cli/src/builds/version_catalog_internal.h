@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // version_catalog_internal.h: Gradle's version catalogs, `gradle/libs.versions.toml` and the rest, as their reader
 // reads them: their sections, each entry a key and its value, a string and the span inside its quotes, a table of
-// fields, a list of strings or a bare word; what kept them from reading; and the aliases they give a script, each with
-// what it stands for (version_catalog_read.c, version_catalog_aliases.c, version_catalog_check.c,
+// fields, a list of strings or a bare word; what prevented them from reading; and the aliases they give a script, each
+// with what it stands for (version_catalog_read.c, version_catalog_aliases.c, version_catalog_check.c,
 // version_catalog_entries.c, version_catalog_complete.c)
 #ifndef VERSION_CATALOG_INTERNAL_H
 #define VERSION_CATALOG_INTERNAL_H
@@ -17,7 +17,7 @@
 #define CLI_VERSIONS_LIST 3u
 #define CLI_VERSIONS_BARE 4u
 
-// the most sections of a catalog, fields, strings of lists and things that kept it from reading, the bytes their
+// the most sections of a catalog, fields, strings of lists and things that prevented it from reading, the bytes their
 // texts take, and none; and the most bytes a message of the reader's own takes past the key it names
 #define CLI_VERSIONS_SECTIONS 4096u
 #define CLI_VERSIONS_FIELDS 65536u
@@ -25,9 +25,9 @@
 #define CLI_VERSIONS_ERRORS 4096u
 #define CLI_VERSIONS_POOL (1u << 22u)
 #define CLI_VERSIONS_NONE 0xffffffffu
-#define CLI_VERSIONS_SAID 128u
+#define CLI_VERSIONS_MSG_MAX_LEN 128u
 
-// A key and its value, the key's span kept: the key and the value's text in the pool; the span inside a string's
+// A key and its value, the key's span recorded: the key and the value's text in the pool; the span inside a string's
 // quotes; a table's first field or a list's first string, and how many; and the next field of its table or section
 typedef struct
 {
@@ -66,7 +66,7 @@ typedef struct
     unsigned int count;
 } CliVersionsSection;
 
-// What kept a catalog from reading: its span and what it says, in the pool
+// What prevented a catalog from reading: its span and what it reports, in the pool
 typedef struct
 {
     unsigned long long from;
@@ -75,9 +75,9 @@ typedef struct
     unsigned int message_size;
 } CliVersionsError;
 
-// A catalog as read, each part a cell of the cellblock and how many it holds and has room for, with 1 in `full` where
-// a part of it did not fit; and the cell a key or a string is read into and a message is made in, `longest` bytes the
-// longest line of the text
+// A catalog as read, each part a cell of the cellblock and how many it contains and has room for, with 1 in `full`
+// where a part of it did not fit; and the cell a key or a string is read into and a message is made in, `longest` bytes
+// the longest line of the text
 typedef struct
 {
     CliVersionsSection *section;
@@ -101,28 +101,28 @@ typedef struct
 } CliVersionsParsed;
 
 // the catalog read, under the catalog reader's lock (version_catalog_read.c); and the cells the catalogs' reader,
-// check and aliases hold (version_catalog_cells.c)
+// check and aliases occupy (version_catalog_cells.c)
 extern CliVersionsParsed g_cli_versions;
 extern CliLock g_cli_versions_lock;
-extern CliCellsTally g_cli_versions_cells;
+extern CellOwner g_cli_versions_cells;
 
 // `size` bytes of a catalog's text counted, each part of the catalog read taken as a cell of as many as the text can
-// make, up to its most: 1, or 0 where the cellblock could not meet one and none is held; the catalog read's cells and
-// the accessors' given back, called under the catalog reader's lock before it is given (version_catalog_cells.c)
+// make, up to its most: 1, or 0 where the cellblock could not meet one and none is allocated; the catalog read's cells
+// and the accessors' given back, called under the catalog reader's lock before it is given (version_catalog_cells.c)
 int cli_versions_taken(const char *text, unsigned long long size);
 void cli_versions_released(void);
 
 // `size` bytes of a catalog's text read into the catalog read: 1, or 0 where the cellblock could not meet it and
 // nothing is read; a text of its pool; the field among the fields from `first`, linked by their next, keyed `key`:
-// its place, CLI_VERSIONS_NONE where none is; and what a value says, in a few words, for a completion's detail, into
-// `out` (version_catalog_aliases.c)
+// its place, CLI_VERSIONS_NONE where none is; and what a value describes, in a few words, for a completion's detail,
+// into `out` (version_catalog_aliases.c)
 int cli_versions_parse(const char *text, unsigned long long size);
 const char *cli_versions_text(unsigned int at);
 unsigned int cli_versions_get(unsigned int first, const char *key);
-void cli_versions_describe(const CliVersionsField *field, CliLine *out);
+void cli_versions_describe(const CliVersionsField *field, VerbaLinea *out);
 
 // the accessor a script names an alias by, `-` and `_` a `.`, into `out`
-void cli_versions_accessor(const char *alias, unsigned long long size, CliLine *out);
+void cli_versions_accessor(const char *alias, unsigned long long size, VerbaLinea *out);
 
 // the most aliases of a catalog, and the bytes their texts take
 #define CLI_VERSIONS_ALIASES 16384u
@@ -155,7 +155,7 @@ typedef struct
 } CliVersionsAliases;
 
 // the aliases of `size` bytes of a catalog's text into `aliases`, by section: 1, or 0 where the cellblock could not
-// meet the catalog or its aliases and none is held; and their cells given back (version_catalog_aliases.c)
+// meet the catalog or its aliases and none is allocated; and their cells given back (version_catalog_aliases.c)
 int cli_versions_aliases(const char *text, unsigned long long size, CliVersionsAliases *aliases);
 void cli_versions_aliases_given(CliVersionsAliases *aliases);
 
@@ -164,7 +164,7 @@ void cli_versions_aliases_given(CliVersionsAliases *aliases);
 void cli_gradle_references(const CliBuildLines *lines, CliBuildFindings *found, const char *name, const char *shown,
                            const CliVersionsAliases *aliases);
 
-// the most accessors of one section kept, and the bytes they take
+// the most accessors of one section stored, and the bytes they take
 #define CLI_VERSIONS_NAMES 16384u
 #define CLI_VERSIONS_NAMES_TEXT (1u << 20u)
 
@@ -187,8 +187,8 @@ typedef struct
 {
     const CliBuildLines *lines;
     CliBuildFindings *found;
-    char folder[CLI_PATH_LONGEST];
-    char program[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char program[CLI_PATH_MAX_LEN];
     char *coordinates;
     char *full;
     unsigned long long room;
@@ -200,14 +200,14 @@ extern CliVersionsNames g_cli_versions_libraries;
 
 // the accessors of the section `name`'s entries into `names`: 1, or 0 where the cellblock could not meet them; the
 // accessor of `size` bytes of `name` into `out`, and
-// whether `names` holds it; a finding that `size` bytes of `text` over `from` to `to` is a snapshot, with the fix that
-// refreshes the build's dependencies; an error over an entry: its key between backticks, then `rest`; the fixes that
-// change the span `from` to `to` to each name of `known`, `count` of them, or of `names`, near `name`, between `open`
-// and `close` in their titles; the keys of a table no table of its kind knows, its keys `known`, each a finding; a
-// version checked; and the version a library's or a plugin's table names, by `version` or `version.ref`, of the thing
+// whether `names` contains it; a finding that `size` bytes of `text` over `from` to `to` is a snapshot, with the fix
+// that refreshes the build's dependencies; an error over an entry: its key between backticks, then `rest`; the fixes
+// that change the span `from` to `to` to each name of `known`, `count` of them, or of `names`, near `name`, between
+// `open` and `close` in their titles; the keys of a table no table of its kind knows, its keys `known`, each a finding;
+// a version checked; and the version a library's or a plugin's table names, by `version` or `version.ref`, of the thing
 // at `coordinates` (version_catalog_check.c)
 int cli_versions_names_of(const char *name, CliVersionsNames *names);
-int cli_versions_holds(const CliVersionsNames *names, const char *name, unsigned long long size, CliLine *out);
+int cli_versions_contains(const CliVersionsNames *names, const char *name, unsigned long long size, VerbaLinea *out);
 void cli_versions_snapshot(CliVersionsCheck *check, unsigned long long from, unsigned long long to, const char *text,
                            unsigned long long size);
 void cli_versions_entry_error(CliVersionsCheck *check, const CliVersionsField *field, const char *code,

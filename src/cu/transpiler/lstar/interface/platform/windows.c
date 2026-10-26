@@ -43,10 +43,10 @@ static InterfaceFault interface_fault_of(unsigned long long code)
 }
 
 // the longest command line a process is started with, its zero counted
-#define INTERFACE_COMMAND_LONGEST 32768u
+#define INTERFACE_COMMAND_MAX_LEN 32768u
 
-// the command's words as one command line into `line`, which holds `room`, the program first, each quoted as the C
-// runtime splits them back (as tessera_run_windows.c writes a job's): `line`, or NULL where it does not fit
+// the command's words as one command line into `line`, which has room for `room`, the program first, each quoted as the
+// C runtime splits them back (as tessera_run_windows.c writes a job's): `line`, or NULL where it does not fit
 static char *interface_command_line(const char *program, char *const *words, char *line, size_t room)
 {
     size_t capacity = 1u + (2u * strlen(program)) + 3u;
@@ -103,10 +103,10 @@ static char *interface_command_line(const char *program, char *const *words, cha
     return line;
 }
 
-// a program named with no folder, found along PATH; the program as named where PATH does not hold it
+// a program named with no folder, found along PATH; the program as named where PATH does not contain it
 static const char *interface_program_found(const char *program, char *found, size_t capacity)
 {
-    // the system's PATH, read through its own call, at most what an environment variable holds
+    // the system's PATH, read through its own call, at most what an environment variable allows
     static char s_path[32768];
     const DWORD length_path = GetEnvironmentVariableA("PATH", s_path, (DWORD)sizeof(s_path));
     const char *const path = ((length_path != 0u) && (length_path < sizeof(s_path))) ? s_path : NULL;
@@ -114,13 +114,13 @@ static const char *interface_program_found(const char *program, char *found, siz
     {
         return program;
     }
-    // the capacity is a buffer size this file holds, which a DWORD counts on every Windows target
+    // the capacity is a buffer size this file allocates, which a DWORD counts on every Windows target
     const DWORD length = SearchPathA(path, program, ".exe", (DWORD)capacity, found, NULL);
     return ((length != 0u) && (length < capacity)) ? found : program;
 }
 
 // the pipe a probe's output comes back through, drained by a thread of the interface's while the probe runs: a
-// probe that writes more than the pipe holds never waits on it
+// probe that writes more than the pipe buffers never waits on it
 typedef struct
 {
     HANDLE pipe;
@@ -135,7 +135,7 @@ static DWORD WINAPI interface_pipe_drained(LPVOID argument)
     DWORD read = 0u;
     while (ReadFile(piped->pipe, piece, sizeof(piece), &read, NULL) && (read != 0u))
     {
-        interface_output_kept(piped->answer, &piped->total, piece, read);
+        interface_output_appended(piped->answer, &piped->total, piece, read);
     }
     return 0u;
 }
@@ -144,14 +144,14 @@ static DWORD WINAPI interface_pipe_drained(LPVOID argument)
 // to its end or its limit, its output the file or the pipe. 0 where it was waited on to its end; -1 where the output
 // file or the pipe could not be made
 //
-// A started process inherits every inheritable handle its starter holds at that moment, its own and every other
-// probe's. Probes started from threads at once would each hold the others' pipes open, and a pipe a probe that has
-// ended still holds open in another never reaches its end. So from the moment a probe's inheritable handles are made
+// A started process inherits every inheritable handle its starter owns at that moment, its own and every other
+// probe's. Probes started from threads at once would each leave the others' pipes open, and a pipe a probe that has
+// ended still leaves open in another never reaches its end. So from the moment a probe's inheritable handles are made
 // to the moment the interface lets its own copies go, no other probe of this process is started
 static SRWLOCK s_interface_starting = SRWLOCK_INIT;
 
 // The launch queue (interface.h): two semaphores every process on the host opens by name, the places for the children
-// running at once and the one start under way, which its taker holds for the spacing after the start is made. A
+// running at once and the one start under way, which its taker reserves for the spacing after the start is made. A
 // process the system gives no named semaphore queues its own starts alone
 static HANDLE s_launches = NULL;
 static HANDLE s_launching = NULL;
@@ -231,7 +231,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     }
     else
     {
-        // the probe is handed the pipe's write end, and the interface keeps the read end to itself
+        // the probe is handed the pipe's write end, and the interface retains the read end to itself
         if (!INTERFACE_CHECK(CreatePipe(&pipe_read, &output, &inherited, 0u), probe, error, ENGINE_ERROR_RESOURCE))
         {
             ReleaseSRWLockExclusive(&s_interface_starting);
@@ -244,7 +244,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     const HANDLE input = CreateFileA("NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inherited, OPEN_EXISTING,
                                      FILE_ATTRIBUTE_NORMAL, NULL);
     char found[ENGINE_PATH_CAPACITY];
-    char command_line[INTERFACE_COMMAND_LONGEST];
+    char command_line[INTERFACE_COMMAND_MAX_LEN];
     char *const line = interface_command_line(interface_program_found(probe->command[0], found, sizeof(found)),
                                               probe->command, command_line, sizeof(command_line));
     const HANDLE job = CreateJobObjectA(NULL, NULL);
@@ -298,7 +298,7 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     const HANDLE reader = (pipe_read != NULL) ? CreateThread(NULL, 0u, interface_pipe_drained, &piped, 0u, NULL) : NULL;
     if ((pipe_read != NULL) && (reader == NULL))
     {
-        // a pipe nothing drains would hold the probe once it fills: the probe is ended before it runs
+        // a pipe nothing drains would block the probe once it fills: the probe is ended before it runs
         TerminateProcess(started.hProcess, 1u);
         CloseHandle(started.hThread);
         CloseHandle(started.hProcess);
@@ -337,8 +337,8 @@ long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer,
     {
         CloseHandle(job);
     }
-    // the pipe's reader ends at the pipe's end, once every process that held its write end has ended; one a process
-    // outside the job still holds is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far kept
+    // the pipe's reader ends at the pipe's end, once every process that owned its write end has ended; one a process
+    // outside the job still owns is let go after INTERFACE_DRAIN_MILLISECONDS, its read so far retained
     if (reader != NULL)
     {
         if (WaitForSingleObject(reader, (DWORD)INTERFACE_DRAIN_MILLISECONDS) == WAIT_TIMEOUT)
@@ -372,7 +372,7 @@ long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *an
     BOOL complete = ReadFile(file, piece, sizeof(piece), &got, NULL);
     while (complete && (got != 0u))
     {
-        interface_output_kept(answer, &total, piece, got);
+        interface_output_appended(answer, &total, piece, got);
         complete = ReadFile(file, piece, sizeof(piece), &got, NULL);
     }
     CloseHandle(file);

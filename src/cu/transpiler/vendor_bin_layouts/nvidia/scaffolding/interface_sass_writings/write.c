@@ -43,9 +43,9 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
             continue;
         }
         fitting += 1u;
-        // A form holding a truth table is put with every value of it, its sources in order: a table over three inputs
-        // already holds every order of them. Any other form is put with every assignment of the two words and RZ to
-        // its register sources that gives both words, and with the first word alone where it reads one source
+        // A form containing a truth table is put with every value of it, its sources in order: a table over three
+        // inputs already contains every order of them. Any other form is put with every assignment of the two words and
+        // RZ to its register sources that gives both words, and with the first word alone where it reads one source
         const unsigned int table = writings_table(form);
         const unsigned int values = (table < form->operands) ? 256u : 1u;
         const unsigned int sources = writings_sources(form);
@@ -75,12 +75,12 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
             char lines[2048];
             if (!writings_instruction(form, table, value, assignment, instruction, sizeof(instruction)) ||
                 (snprintf(lines, sizeof(lines), WRITINGS_HEAD "%s" WRITINGS_TAIL, instruction) >= (int)sizeof(lines)) ||
-                !writings_splice(s_kernel_text, lines, s_asking, sizeof(s_asking)))
+                !writings_splice(s_kernel_text, lines, s_query_text, sizeof(s_query_text)))
             {
                 continue;
             }
             const unsigned int count =
-                sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code, sizeof(s_code));
+                sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code));
             char cubin[1024];
             snprintf(cubin, sizeof(cubin), "%s/form_%05u.cubin", folder, written);
             if ((count == 0u) || !writings_cubin(count, cubin))
@@ -95,14 +95,14 @@ int writings_write(const char *pattern, const char *kernel_text, const char *mac
     fclose(cases);
     fclose(list);
     fclose(forms);
-    printf("interface sass writings: %u forms of %u fit, %u written and held to cubin_safe, %u cases\n", fitting,
+    printf("interface sass writings: %u forms of %u fit, %u written and checked by cubin_safe, %u cases\n", fitting,
            s_machine.forms, written, s_cases);
     return 0;
 }
 
-// the answers `answers` holds, a line a cubin as interface_sass_run writes them, read into `answered`, which holds
-// s_cases words a cubin: s_ran set for each cubin that answered every case, and the counts of those that answered and
-// those the part refused through `ran` and `refused`
+// the answers `answers` contains, a line a cubin as interface_sass_run writes them, read into `answered`, which
+// contains s_cases words a cubin: s_ran set for each cubin that answered every case, and the counts of those that
+// answered and those the part refused through `ran` and `refused`
 void writings_answers_read(FILE *answers, unsigned int count, unsigned int (*answered)[WRITINGS_CASES],
                                   unsigned char *ran_one, unsigned int *ran, unsigned int *refused)
 {
@@ -143,11 +143,11 @@ char s_forms[WRITINGS_FORMS_MOST][256];
 unsigned int s_form_count;
 static unsigned int s_answered[WRITINGS_FORMS_MOST][WRITINGS_CASES];
 unsigned char s_ran[WRITINGS_FORMS_MOST];
-unsigned char s_holds[WRITINGS_FORMS_MOST][WRITINGS_RELATIONS];
+unsigned char s_relation_agreed[WRITINGS_FORMS_MOST][WRITINGS_RELATIONS];
 static unsigned int s_forms_ran;
 static unsigned int s_forms_refused;
 
-// <folder>/forms.txt and <folder>/answers.txt read, and each form that answered held to every relation: 1, or 0
+// <folder>/forms.txt and <folder>/answers.txt read, and each form that answered checked against every relation: 1, or 0
 // where either file did not read
 int writings_load(const char *folder)
 {
@@ -189,7 +189,7 @@ int writings_load(const char *folder)
                 agreed +=
                     (s_answered[number][at] == writings_expected(&s_relation[relation], s_case[at])) ? 1u : 0u;
             }
-            s_holds[number][relation] = (unsigned char)(agreed == s_cases);
+            s_relation_agreed[number][relation] = (unsigned char)(agreed == s_cases);
         }
     }
     return 1;
@@ -197,7 +197,7 @@ int writings_load(const char *folder)
 
 // The answers read back against every relation: the forms that give each relation's every case its word, written to
 // `record`. A relation no form gives in one instruction is one the part has no single instruction for, among the forms
-// the machine file holds. 0, or 2 where nothing could be read
+// the machine file contains. 0, or 2 where nothing could be read
 int writings_read(const char *folder, const char *record)
 {
     FILE *const out = writings_load(folder) ? fopen(record, "wb") : NULL;
@@ -224,13 +224,13 @@ int writings_read(const char *folder, const char *record)
         unsigned int found = 0u;
         for (unsigned int number = 0u; number < form_count; number += 1u)
         {
-            found += (s_ran[number] && s_holds[number][relation]) ? 1u : 0u;
+            found += (s_ran[number] && s_relation_agreed[number][relation]) ? 1u : 0u;
         }
         fprintf(out, "## %s %s\n\n%u forms give every case its word.\n\n",
                 s_relation[relation].precept ? "precept" : "relation", s_relation[relation].name, found);
         for (unsigned int number = 0u; number < form_count; number += 1u)
         {
-            if (s_ran[number] && s_holds[number][relation])
+            if (s_ran[number] && s_relation_agreed[number][relation])
             {
                 fprintf(out, "- `%s`\n", s_forms[number]);
             }

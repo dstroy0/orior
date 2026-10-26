@@ -39,7 +39,7 @@ __device__ static void hessian_add(unsigned int *sum, const unsigned int *term, 
 }
 
 // one thread a point's entry; the entry's first thread writes the point's faces. Four terms of a residual below
-// 2^(32 limbs - 1) in size sum below 2^(32 limbs + 1). Limbs + 1 limbs hold every difference exactly
+// 2^(32 limbs - 1) in size sum below 2^(32 limbs + 1). Limbs + 1 limbs represent every difference exactly
 __global__ static void hessian_kernel(const unsigned int *residual, unsigned int depth, unsigned int height,
                                       unsigned int width, unsigned int limbs, unsigned int count,
                                       const unsigned int *voxels, unsigned int *faces, unsigned int *differences)

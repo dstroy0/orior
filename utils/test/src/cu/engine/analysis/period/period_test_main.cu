@@ -7,9 +7,9 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
                         const unsigned long long *extent, const unsigned long long *expected, int print)
 {
     const unsigned long long entries = period_agreement_entries(rank, extent);
-    const size_t slots = (size_t)((entries != 0ull) ? entries : 1ull);
-    unsigned long long *const counts = (unsigned long long *)calloc(slots, sizeof(unsigned long long));
-    unsigned long long *const reference = (unsigned long long *)calloc(slots, sizeof(unsigned long long));
+    const size_t entry_count = (size_t)((entries != 0ull) ? entries : 1ull);
+    unsigned long long *const counts = (unsigned long long *)calloc(entry_count, sizeof(unsigned long long));
+    unsigned long long *const reference = (unsigned long long *)calloc(entry_count, sizeof(unsigned long long));
     PeriodMargin *const band = (PeriodMargin *)calloc((size_t)(TEST_DRAWS * rank), sizeof(PeriodMargin));
     PeriodMargin *const band_again = (PeriodMargin *)calloc((size_t)(TEST_DRAWS * rank), sizeof(PeriodMargin));
     PeriodMeasurement measurement;
@@ -85,9 +85,9 @@ static void test_volume(SimResults *results, const char *name, const unsigned sh
         }
         if (print != 0)
         {
-            scriptura_text(&results->line, "  ");
-            scriptura_text(&results->line, name);
-            scriptura_character(&results->line, '\n');
+            mmgr_line_put(&results->line, "  ");
+            mmgr_line_put(&results->line, name);
+            mmgr_line_ch(&results->line, '\n');
             sim_flush(results);
             period_print(&measurement, stdout);
         }
@@ -132,7 +132,7 @@ int main(int count, char **arguments)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    // the most the test holds on the device at once: one volume's lanes, an allocation under a page, beside the period
+    // the most the test places on the device at once: one volume's lanes, an allocation under a page, beside the period
     // pool grown for the largest volume and the most agreement entries
     const unsigned long long declared =
         DEVICE_POOL_PAGE_BYTES + period_reserve_bytes(TEST_VOXELS_MAX, TEST_ENTRIES_MAX);
@@ -202,12 +202,12 @@ int main(int count, char **arguments)
             }
         }
     }
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "  a smooth ramp and noise, 16 volumes of 24 x 64 x 64, 8 shuffles each: a period found on ");
-    scriptura_decimal(&results.line, smooth_periods, 1u);
-    scriptura_text(&results.line, " of ");
-    scriptura_decimal(&results.line, smooth_axes, 1u);
-    scriptura_text(&results.line, " axes\n");
+    mmgr_line_decimal(&results.line, smooth_periods, 1u);
+    mmgr_line_put(&results.line, " of ");
+    mmgr_line_decimal(&results.line, smooth_axes, 1u);
+    mmgr_line_put(&results.line, " axes\n");
 
     static unsigned short flat_volume[16u * 16u * 16u];
     for (unsigned int at = 0u; at < (16u * 16u * 16u); at += 1u)
@@ -264,12 +264,12 @@ int main(int count, char **arguments)
             }
         }
     }
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "  uniform random u16, 64 volumes of 32 x 64 x 64, 8 shuffles each: a period found on ");
-    scriptura_decimal(&results.line, random_periods, 1u);
-    scriptura_text(&results.line, " of ");
-    scriptura_decimal(&results.line, random_axes, 1u);
-    scriptura_text(&results.line, " axes\n");
+    mmgr_line_decimal(&results.line, random_periods, 1u);
+    mmgr_line_put(&results.line, " of ");
+    mmgr_line_decimal(&results.line, random_axes, 1u);
+    mmgr_line_put(&results.line, " axes\n");
 
     unsigned short *device_lanes = NULL;
     const int allocated = cudaMalloc((void **)&device_lanes, 64u * sizeof(unsigned short)) == cudaSuccess;

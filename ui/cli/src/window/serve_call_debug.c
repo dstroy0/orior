@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // serve_call_debug.c: the calls of the debugger: a session started, its events going to the page as debug-event, a
-// session forgotten once its adapter says its program ended and its process kept as the adapter names it; the
+// session forgotten once its adapter reports its program ended and its process recorded as the adapter names it; the
 // sessions, the breakpoints, the exceptions a session stops on, its threads, its stack, scopes, variables and values;
 // its steps, a step across into the tree's own C, a watch of data, a recorded run's history and a step of it gone to;
 // memory and instructions; a Python line's bytecode; the processes; and a session or every one stopped. A path an
@@ -9,9 +9,9 @@
 #include "../debug/debug.h"
 #include "serve_internal.h"
 
-// what a session says on its own sent to the page as debug-event, a session's end and its process kept first
-static void debug_told(void *context, unsigned long long session, const char *event, const char *body,
-                       unsigned long long size)
+// what a session sends unprompted sent to the page as debug-event, a session's end and its process recorded first
+static void debug_event(void *context, unsigned long long session, const char *event, const char *body,
+                        unsigned long long size)
 {
     (void)context;
     if ((cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "terminated", .cap = CLI_CELLS_POOL})) ||
@@ -39,63 +39,63 @@ static void debug_told(void *context, unsigned long long session, const char *ev
     // the event's line in a cell of its body and the words about it, the event's name quoted on top, grown where that
     // name is quoted longer
     const unsigned long long named = cellul.len(&(CatenaFinitaCfg){.src = event, .cap = CLI_CELLS_POOL});
-    CliLine line;
-    (void)cli_line_growing(&line, size + named + 64ull, "an adapter's event told");
-    cli_line_text(&line, "{\"session\":");
-    cli_line_decimal(&line, session, 1u);
-    cli_line_text(&line, ",\"event\":");
+    VerbaLinea line;
+    (void)cli_growing_line_made(&line, size + named + 64ull);
+    mmgr_line_put(&line, "{\"session\":");
+    mmgr_line_decimal(&line, session, 1u);
+    mmgr_line_put(&line, ",\"event\":");
     cli_json_quoted(&line, event, named);
-    cli_line_text(&line, ",\"body\":");
-    cli_line_counted(&line, (size > 0ull) ? body : "null", (size > 0ull) ? size : 4ull);
-    cli_line_character(&line, '}');
-    if (cli_line_fits(&line))
+    mmgr_line_put(&line, ",\"body\":");
+    mmgr_line_put_n(&line, (size > 0ull) ? body : "null", (size > 0ull) ? size : 4ull);
+    mmgr_line_ch(&line, '}');
+    if (mmgr_line_ok(&line))
     {
         cli_serve_emitted("debug-event", line.out, line.at);
     }
-    cli_cell_given(line.out);
+    g_cli_cells->persistent_buf_release(line.out, NULL);
 }
 
 // a path an adapter named written as it stands in the tree, the tree its context
-static void debug_path_written(void *context, const char *path, CliLine *out)
+static void debug_path_written(void *context, const char *path, VerbaLinea *out)
 {
     const char *const root = context;
-    char shown[CLI_PATH_LONGEST];
-    CliLine line = {shown, sizeof(shown), 0ull};
+    char shown[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {shown, sizeof(shown), 0ull};
     cli_servers_tree_path(root, path, &line);
-    cli_json_quoted_lossy(out, (const unsigned char *)shown, cli_line_fits(&line) ? line.at : 0ull);
+    cli_json_quoted_lossy(out, (const unsigned char *)shown, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
-// the argument `session`: 1, or 0 with why said
-static int debug_session(const CliServeArgs *args, unsigned long long *session, CliLine *said)
+// the argument `session`: 1, or 0 with why given
+static int debug_session(const CliServeArgs *args, unsigned long long *session, VerbaLinea *err_msg)
 {
-    return cli_serve_whole(args, "session", session, said);
+    return cli_serve_whole(args, "session", session, err_msg);
 }
 
-static int debug_start(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_start(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    if (!cli_serve_tree(root, said))
+    char root[CLI_PATH_MAX_LEN];
+    if (!cli_serve_tree(root, err_msg))
     {
         return 0;
     }
-    const CliDebugEmit emit = {debug_told, NULL};
-    return cli_debug_start(root, args->json, cli_serve_arg(args, "start"), cli_serve_arg(args, "options"), emit, out,
-                           said);
+    const CliDebugSink sink = {debug_event, NULL};
+    return cli_debug_start(root, args->json, cli_serve_arg(args, "start"), cli_serve_arg(args, "options"), sink, out,
+                           err_msg);
 }
 
-static int debug_sessions(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_sessions(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     cli_debug_sessions(out);
     return 1;
 }
 
-static int debug_breakpoints(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_breakpoints(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    const char *const path = cli_serve_string(args, "path", said);
-    if ((path == NULL) || !cli_serve_tree(root, said))
+    char root[CLI_PATH_MAX_LEN];
+    const char *const path = cli_serve_string(args, "path", err_msg);
+    if ((path == NULL) || !cli_serve_tree(root, err_msg))
     {
         return 0;
     }
@@ -103,120 +103,120 @@ static int debug_breakpoints(const CliServeArgs *args, CliLine *out, CliLine *sa
     return 1;
 }
 
-static int debug_exceptions(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_exceptions(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
-    return debug_session(args, &session, said) &&
-           cli_debug_exceptions(session, args->json, cli_serve_arg(args, "on"), out, said);
+    return debug_session(args, &session, err_msg) &&
+           cli_debug_exceptions(session, args->json, cli_serve_arg(args, "on"), out, err_msg);
 }
 
-static int debug_raised(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_raised(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    return debug_session(args, &session, said) && cli_serve_signed(args, "thread", &thread, said) &&
-           cli_debug_raised(session, thread, out, said);
+    return debug_session(args, &session, err_msg) && cli_serve_signed(args, "thread", &thread, err_msg) &&
+           cli_debug_raised(session, thread, out, err_msg);
 }
 
-static int debug_threads(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_threads(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
-    return debug_session(args, &session, said) && cli_debug_threads(session, out, said);
+    return debug_session(args, &session, err_msg) && cli_debug_threads(session, out, err_msg);
 }
 
-static int debug_stack(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_stack(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    return cli_serve_tree(root, said) && debug_session(args, &session, said) &&
-           cli_serve_signed(args, "thread", &thread, said) &&
-           cli_debug_stack(session, thread, debug_path_written, root, out, said);
+    return cli_serve_tree(root, err_msg) && debug_session(args, &session, err_msg) &&
+           cli_serve_signed(args, "thread", &thread, err_msg) &&
+           cli_debug_stack(session, thread, debug_path_written, root, out, err_msg);
 }
 
-static int debug_scopes(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_scopes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long frame = 0ll;
-    return debug_session(args, &session, said) && cli_serve_signed(args, "frame", &frame, said) &&
-           cli_debug_scopes(session, frame, out, said);
+    return debug_session(args, &session, err_msg) && cli_serve_signed(args, "frame", &frame, err_msg) &&
+           cli_debug_scopes(session, frame, out, err_msg);
 }
 
-static int debug_variables(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_variables(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long reference = 0ll;
-    return debug_session(args, &session, said) && cli_serve_signed(args, "reference", &reference, said) &&
-           cli_debug_variables(session, reference, out, said);
+    return debug_session(args, &session, err_msg) && cli_serve_signed(args, "reference", &reference, err_msg) &&
+           cli_debug_variables(session, reference, out, err_msg);
 }
 
-static int debug_evaluate(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_evaluate(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long frame = 0ll;
-    const char *const expression = cli_serve_string(args, "expression", said);
-    const char *const context = (expression != NULL) ? cli_serve_string(args, "context", said) : NULL;
-    if ((context == NULL) || !debug_session(args, &session, said))
+    const char *const expression = cli_serve_string(args, "expression", err_msg);
+    const char *const context = (expression != NULL) ? cli_serve_string(args, "context", err_msg) : NULL;
+    if ((context == NULL) || !debug_session(args, &session, err_msg))
     {
         return 0;
     }
     const unsigned int given = cli_serve_arg(args, "frame");
     const int has_frame = (given != CLI_JSON_NONE) && !cli_json_is(args->json, given, CFG_JSON_NULL);
-    if (has_frame && !cli_serve_signed(args, "frame", &frame, said))
+    if (has_frame && !cli_serve_signed(args, "frame", &frame, err_msg))
     {
         return 0;
     }
-    return cli_debug_evaluate(session, expression, has_frame, frame, context, out, said);
+    return cli_debug_evaluate(session, expression, has_frame, frame, context, out, err_msg);
 }
 
-static int debug_step(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_step(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    const char *const how = cli_serve_string(args, "how", said);
-    return (how != NULL) && debug_session(args, &session, said) && cli_serve_signed(args, "thread", &thread, said) &&
-           cli_debug_step(session, how, thread, out, said);
+    const char *const how = cli_serve_string(args, "how", err_msg);
+    return (how != NULL) && debug_session(args, &session, err_msg) &&
+           cli_serve_signed(args, "thread", &thread, err_msg) && cli_debug_step(session, how, thread, out, err_msg);
 }
 
-static int debug_memory(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_memory(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long offset = 0ll;
     unsigned long long count = 0ull;
-    const char *const reference = cli_serve_string(args, "reference", said);
-    return (reference != NULL) && debug_session(args, &session, said) &&
-           cli_serve_signed(args, "offset", &offset, said) && cli_serve_whole(args, "count", &count, said) &&
-           cli_debug_memory(session, reference, offset, count, out, said);
+    const char *const reference = cli_serve_string(args, "reference", err_msg);
+    return (reference != NULL) && debug_session(args, &session, err_msg) &&
+           cli_serve_signed(args, "offset", &offset, err_msg) && cli_serve_whole(args, "count", &count, err_msg) &&
+           cli_debug_memory(session, reference, offset, count, out, err_msg);
 }
 
-static int debug_instructions(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_instructions(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long offset = 0ll;
     long long count = 0ll;
-    const char *const reference = cli_serve_string(args, "reference", said);
-    return (reference != NULL) && debug_session(args, &session, said) &&
-           cli_serve_signed(args, "offset", &offset, said) && cli_serve_signed(args, "count", &count, said) &&
-           cli_debug_instructions(session, reference, offset, count, out, said);
+    const char *const reference = cli_serve_string(args, "reference", err_msg);
+    return (reference != NULL) && debug_session(args, &session, err_msg) &&
+           cli_serve_signed(args, "offset", &offset, err_msg) && cli_serve_signed(args, "count", &count, err_msg) &&
+           cli_debug_instructions(session, reference, offset, count, out, err_msg);
 }
 
-static int debug_bytecode(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_bytecode(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    char full[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char full[CLI_PATH_MAX_LEN];
     unsigned long long line = 0ull;
-    // the line is cut to its low word, as no file holds more
-    return cli_serve_at(args, root, full, said) && cli_serve_whole(args, "line", &line, said) &&
-           cli_debug_bytecode(root, full, (unsigned int)line, out, said);
+    // the line is cut to its low word, as no file has more
+    return cli_serve_at(args, root, full, err_msg) && cli_serve_whole(args, "line", &line, err_msg) &&
+           cli_debug_bytecode(root, full, (unsigned int)line, out, err_msg);
 }
 
-static int debug_watch_data(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_watch_data(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     long long reference = 0ll;
     unsigned long long bytes = 0ull;
-    const char *const name = cli_serve_string(args, "name", said);
-    if ((name == NULL) || !debug_session(args, &session, said))
+    const char *const name = cli_serve_string(args, "name", err_msg);
+    if ((name == NULL) || !debug_session(args, &session, err_msg))
     {
         return 0;
     }
@@ -224,51 +224,52 @@ static int debug_watch_data(const CliServeArgs *args, CliLine *out, CliLine *sai
     const unsigned int sized = cli_serve_arg(args, "bytes");
     const int has_reference = (referenced != CLI_JSON_NONE) && !cli_json_is(args->json, referenced, CFG_JSON_NULL);
     const int has_bytes = (sized != CLI_JSON_NONE) && !cli_json_is(args->json, sized, CFG_JSON_NULL);
-    if ((has_reference && !cli_serve_signed(args, "reference", &reference, said)) ||
-        (has_bytes && !cli_serve_whole(args, "bytes", &bytes, said)))
+    if ((has_reference && !cli_serve_signed(args, "reference", &reference, err_msg)) ||
+        (has_bytes && !cli_serve_whole(args, "bytes", &bytes, err_msg)))
     {
         return 0;
     }
-    return cli_debug_watch_data(session, name, has_reference, reference, has_bytes, bytes, out, said);
+    return cli_debug_watch_data(session, name, has_reference, reference, has_bytes, bytes, out, err_msg);
 }
 
-static int debug_history(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_history(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     unsigned long long session = 0ull;
     long long frame = 0ll;
-    const char *const name = cli_serve_string(args, "name", said);
-    return (name != NULL) && cli_serve_tree(root, said) && debug_session(args, &session, said) &&
-           cli_serve_signed(args, "frame", &frame, said) &&
-           cli_debug_history(session, frame, name, debug_path_written, root, out, said);
+    const char *const name = cli_serve_string(args, "name", err_msg);
+    return (name != NULL) && cli_serve_tree(root, err_msg) && debug_session(args, &session, err_msg) &&
+           cli_serve_signed(args, "frame", &frame, err_msg) &&
+           cli_debug_history(session, frame, name, debug_path_written, root, out, err_msg);
 }
 
-static int debug_step_across(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_step_across(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     unsigned long long session = 0ull;
     long long thread = 0ll;
-    return cli_serve_tree(root, said) && debug_session(args, &session, said) &&
-           cli_serve_signed(args, "thread", &thread, said) && cli_debug_step_across(root, session, thread, out, said);
+    return cli_serve_tree(root, err_msg) && debug_session(args, &session, err_msg) &&
+           cli_serve_signed(args, "thread", &thread, err_msg) &&
+           cli_debug_step_across(root, session, thread, out, err_msg);
 }
 
-static int debug_goto(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_goto(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long session = 0ull;
     unsigned long long step = 0ull;
-    return debug_session(args, &session, said) && cli_serve_whole(args, "step", &step, said) &&
-           cli_debug_goto(session, step, out, said);
+    return debug_session(args, &session, err_msg) && cli_serve_whole(args, "step", &step, err_msg) &&
+           cli_debug_goto(session, step, out, err_msg);
 }
 
-static int debug_processes(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_processes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     cli_debug_processes(out);
     return 1;
 }
 
-static int debug_stop(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int debug_stop(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     const unsigned int given = cli_serve_arg(args, "session");
     if ((given == CLI_JSON_NONE) || cli_json_is(args->json, given, CFG_JSON_NULL))
@@ -278,13 +279,13 @@ static int debug_stop(const CliServeArgs *args, CliLine *out, CliLine *said)
     else
     {
         unsigned long long session = 0ull;
-        if (!debug_session(args, &session, said))
+        if (!debug_session(args, &session, err_msg))
         {
             return 0;
         }
         cli_debug_stop(session);
     }
-    cli_line_text(out, "null");
+    mmgr_line_put(out, "null");
     return 1;
 }
 

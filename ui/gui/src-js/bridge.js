@@ -5,24 +5,55 @@
 // called by name and answers with a promise, and an event calls its handler with { event, payload }.
 // Nothing else in the page reaches the bridge.
 //
-// The window answers its own commands, those of WINDOW; every other is the tree's side's, which the
-// window answers through call, in its own process for a tree on this machine and over its link for a
-// tree on another.
+// The window answers its own commands, those of WINDOW. Every other goes to orior's side through call, the
+// window's own calls of OWN answered in the window's process and the tree's side's in its own process for a tree
+// on this machine and over its link for a tree on another.
 
 const bridge = () => window.__TAURI_INTERNALS__;
 
 const WINDOW = new Set([
-  "app_changes", "app_exit", "app_version", "call", "carry_read", "carry_send", "carry_take", "carry_takings", "carry_undo", "checkers_known", "clip_files", "clip_read", "clip_write", "clone_start",
-  "code_docstring", "code_sort", "commands_read", "devcontainer_line", "document_changes", "document_edit", "document_find", "document_part", "document_read", "document_release",
-  "file_read_any", "file_write_any",
-  "files_copy", "files_paste", "fill_paragraph", "format_languages", "highlight_grammar", "highlight_lines",
-  "home_folder", "home_reveal", "image_data", "inspect_languages", "kept_now", "kept_write", "language_read", "languages_list", "launch_take", "link_open", "memory_calls", "memory_hold", "memory_use", "network_hold", "network_reached", "print_page", "printers_list",
-  "parse_classes", "pick", "plugin_code", "plugin_create", "plugin_draft", "plugin_request", "plugin_settings_read", "plugin_settings_write", "plugins_catalog_install", "plugins_catalog_read", "plugins_read", "project_create", "reader_menus_read",
-  "reads_file", "remote_get", "remote_rejoin", "repo_clone", "repo_opened", "report_asked", "report_auto", "report_auto_set", "report_bug", "report_error", "report_open",
-  "repos_folder", "scrollback_close", "settings_layers", "scrollback_keep", "scrollback_open", "scrollback_read", "scrollback_reset",
-  "structure_compare", "templates_list", "templates_reveal", "term_close", "term_open", "term_resize", "term_write",
-  "toolchain_install", "user_css_read", "view_open", "window_act", "window_open", "window_show", "workspace_read",
-  "zoom_set",
+  "app_changes", "app_debug", "app_exit", "app_version", "call", "print_page", "printers_list", "window_act", "window_show", "zoom_set",
+]);
+
+// The window's own calls orior's side answers, each sent as a call of the tree's side is with orior-own set: by
+// `name` where orior's side knows it by another, its answer dropped where `dropped`, and `failed` given in its place
+// where the call fails. Every other own call goes as it is named and fails as it fails.
+const OWN = new Map([
+  ["remote_get", { name: "link_standing", failed: () => null }],
+  ["remote_rejoin", { name: "link_drop", dropped: true, failed: () => null }],
+  ["launch_take", { failed: () => null }],
+  ["kept_now", { name: "state_now", failed: () => null }],
+  ["carry_takings", { failed: () => null }],
+  ["plugin_settings_write", { dropped: true }],
+  ["network_hold", { name: "network_disable", dropped: true, failed: () => null }],
+  ["network_reached", { failed: () => null }],
+  ["language_read", { failed: () => "" }],
+  ["languages_list", { failed: () => [] }],
+  ["report_auto", { failed: () => false }],
+  ["report_auto_set", { dropped: true }],
+  ["report_open", { dropped: true }],
+  ["highlight_grammar", { dropped: true }],
+  ["document_release", { dropped: true, failed: () => null }],
+  ["reads_file", { failed: () => false }],
+  ["templates_reveal", { dropped: true }],
+  ["file_write_any", { dropped: true }],
+  ["format_languages", { failed: () => [] }],
+  ["link_open", { dropped: true }],
+  ["clone_start", { failed: () => null }],
+  ["repo_opened", { failed: () => null }],
+  ["plugins_read", { failed: () => null }],
+  ["user_css_read", { failed: () => "" }],
+  ["reader_menus_read", { failed: () => "" }],
+  ["home_reveal", { dropped: true }],
+  ...[
+    "devcontainer_line", "commands_read", "settings_layers", "carry_send", "carry_read", "carry_take", "carry_undo", "plugin_settings_read", "plugins_catalog_read",
+    "plugins_catalog_install", "plugin_request", "image_data", "report_error", "report_bug", "report_prompted", "highlight_lines", "document_read", "document_part",
+    "document_edit", "document_changes", "document_find", "structure_compare", "workspace_read", "inspect_languages", "code_docstring", "fill_paragraph", "code_sort",
+    "templates_list", "project_create", "checkers_known", "parse_classes", "file_read_any", "toolchain_install", "repo_clone", "repos_folder", "plugin_code",
+    "home_folder", "plugin_draft", "plugin_create", "window_open", "memory_usage", "servers_unneeded_stop", "session_key", "scrollback_open", "scrollback_keep",
+    "scrollback_read", "scrollback_close", "scrollback_reset", "term_open", "term_write", "term_resize", "term_close",
+    "clip_read", "clip_write", "clip_files", "files_copy", "files_paste", "pick", "view_window",
+  ].map((name) => [name, {}]),
 ]);
 
 // A watch over every call, set by ui/test's walker of the menus: it is given each call and what
@@ -34,9 +65,17 @@ export function watchCalls(given) {
   return Boolean(watcher);
 }
 
+const encoder = new TextEncoder();
+
+// A call of orior's side goes as its arguments' bytes, its name in a header, and orior's side reads them as they
+// come and answers in place: the window between takes nothing apart.
 function send(command, args) {
   if (WINDOW.has(command) || command.startsWith("plugin:")) return bridge().invoke(command, args);
-  return bridge().invoke("call", { name: command, args });
+  const own = OWN.get(command);
+  const headers = own ? { "orior-call": own.name ?? command, "orior-own": "1" } : { "orior-call": command };
+  const sent = bridge().invoke("call", encoder.encode(JSON.stringify(args ?? {})), { headers });
+  const answered = own?.dropped ? sent.then(() => null) : sent;
+  return own?.failed ? answered.catch(own.failed) : answered;
 }
 
 // Those told of each call as it is made, each given a way to stop the wait on it, as waits.js is. A wait
@@ -58,9 +97,9 @@ let askNext = 0;
 let asksHeard = null;
 export async function asked(command, args = {}, wait = 6000) {
   asksHeard ??= listen("call-answered", (event) => {
-    const one = asks.get(event.payload?.ask);
+    const one = asks.get(event.payload?.request);
     if (one) {
-      asks.delete(event.payload.ask);
+      asks.delete(event.payload.request);
       one(event.payload);
     }
   });
@@ -75,12 +114,12 @@ export async function asked(command, args = {}, wait = 6000) {
   asks.set(ask, heard);
   let sent;
   try {
-    sent = await invoke(command, { ...args, ask });
+    sent = await invoke(command, { ...args, request: ask });
   } catch (error) {
     asks.delete(ask);
     throw error;
   }
-  if (!(sent && typeof sent === "object" && sent.asked === true)) {
+  if (!(sent && typeof sent === "object" && sent.deferred === true)) {
     asks.delete(ask);
     return sent;
   }
@@ -122,4 +161,11 @@ export async function listen(event, handler) {
 // to read. Answers the path chosen, or null.
 export function pick(kind) {
   return invoke("pick", { kind });
+}
+
+// A page the tree holds opened in a window of its own: orior's side names the window, its title and the address it
+// loads from, and the window is made as the web view makes any.
+export async function viewOpen(path) {
+  const view = await invoke("view_window", { path });
+  return invoke("plugin:webview|create_webview_window", { options: { label: view.label, url: view.url, title: view.title, width: 1280, height: 860 } });
 }

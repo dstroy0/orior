@@ -1,86 +1,86 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // devcontainer_plan.c: a description's JSON read, its strings, members and lists, its variables read in, and the
-// plan's texts it is kept in
+// plan's texts it is stored in
 #include "../../../../src/cu/includes/formats/cfg_json/cfg_json.h"
 #include "../text/json_tree.h"
 #include "../text/text.h"
 #include "devcontainer_internal.h"
 
-// the most bytes a description holds and the most tokens it reads into
+// the most bytes a description contains and the most tokens it reads into
 #define CLI_DESCRIPTION_BYTES (1u << 20u)
 
 #define CLI_DESCRIPTION_TOKENS 65536u
 
-CliCellsTally g_cli_devcontainer_cells = CLI_CELLS_TALLY("cli_devcontainer");
+CellOwner g_cli_devcontainer_cells = MMGR_CELL_OWNER("cli_devcontainer");
 
 // the description made plain, a cell of the bytes it was read in and one more, and its tokens, a cell of their count;
-// held under the plan's lock from the read to the plan made
+// guarded by the plan's lock from the read to the plan made
 static char *s_plain;
 static CfgJsonToken *s_tokens;
 
-// 1 where a text of the description did not fit what a plan keeps
+// 1 where a text of the description did not fit what a plan stores
 static int s_full;
 
-int cli_plan_description_read(const char *file, CliLine *said)
+int cli_plan_description_read(const char *file, VerbaLinea *err_msg)
 {
     s_full = 0;
     unsigned long long size = 0ull;
-    const unsigned char *const raw = cli_file_held(file, &size);
+    const unsigned char *const raw = cli_file_read(file, &size);
     if ((raw == NULL) || (size > CLI_DESCRIPTION_BYTES))
     {
         cli_file_let_go(raw, size);
-        cli_line_text(said, file);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     // plain JSON is the description with its comments and trailing commas left out, never longer
-    s_plain = cli_cell_taken_by(&g_cli_devcontainer_cells, size + 1ull, "a description made plain");
-    CliLine plain = {s_plain, (s_plain != NULL) ? (size + 1ull) : 0ull, 0ull};
+    s_plain = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_devcontainer_cells);
+    VerbaLinea plain = {s_plain, (s_plain != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (s_plain != NULL)
     {
         // the description's bytes read as the text they are
         cli_plain_json((const char *)raw, size, &plain);
     }
     cli_file_let_go(raw, size);
-    const unsigned int counted = cli_line_fits(&plain) ? cli_json_tokens_counted(s_plain, plain.at) : 0u;
+    const unsigned int counted = mmgr_line_ok(&plain) ? cli_json_tokens_counted(s_plain, plain.at) : 0u;
     const unsigned int tokens =
         (counted < CLI_DESCRIPTION_TOKENS) ? ((counted != 0u) ? counted : 1u) : CLI_DESCRIPTION_TOKENS;
-    s_tokens = cli_line_fits(&plain)
-                   ? cli_cell_taken_by(&g_cli_devcontainer_cells, tokens * sizeof(*s_tokens), "a description's tokens")
+    s_tokens = mmgr_line_ok(&plain)
+                   ? g_cli_cells->persistent_buf_alloc(tokens * sizeof(*s_tokens), &g_cli_devcontainer_cells)
                    : NULL;
     CfgJsonParse parse = {0u, 0u, 0u, NULL};
     if ((s_tokens != NULL) && cfg_json_parse_metadata(s_plain, plain.at, s_tokens, tokens, &parse))
     {
         return 1;
     }
-    if ((s_plain == NULL) || (cli_line_fits(&plain) && (s_tokens == NULL)))
+    if ((s_plain == NULL) || (mmgr_line_ok(&plain) && (s_tokens == NULL)))
     {
         cli_plan_description_given();
-        cli_line_text(said, file);
-        cli_line_text(said, ": the cells cannot meet it");
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, ": the cells cannot meet it");
         return 0;
     }
     cli_plan_description_given();
-    cli_line_text(said, file);
-    cli_line_text(said, ": ");
-    if (!cli_line_fits(&plain))
+    mmgr_line_put(err_msg, file);
+    mmgr_line_put(err_msg, ": ");
+    if (!mmgr_line_ok(&plain))
     {
-        cli_line_text(said, "it is longer than a description is read");
+        mmgr_line_put(err_msg, "it is longer than a description is read");
         return 0;
     }
-    cli_line_text(said, (parse.reason != NULL) ? parse.reason : "it is not JSON");
-    cli_line_text(said, " at line ");
-    cli_line_decimal(said, parse.line, 1u);
-    cli_line_text(said, ", column ");
-    cli_line_decimal(said, parse.column, 1u);
+    mmgr_line_put(err_msg, (parse.reason != NULL) ? parse.reason : "it is not JSON");
+    mmgr_line_put(err_msg, " at line ");
+    mmgr_line_decimal(err_msg, parse.line, 1u);
+    mmgr_line_put(err_msg, ", column ");
+    mmgr_line_decimal(err_msg, parse.column, 1u);
     return 0;
 }
 
 void cli_plan_description_given(void)
 {
-    cli_cell_given_by(&g_cli_devcontainer_cells, s_tokens);
-    cli_cell_given_by(&g_cli_devcontainer_cells, s_plain);
+    g_cli_cells->persistent_buf_release(s_tokens, &g_cli_devcontainer_cells);
+    g_cli_cells->persistent_buf_release(s_plain, &g_cli_devcontainer_cells);
     s_tokens = NULL;
     s_plain = NULL;
 }
@@ -90,14 +90,14 @@ int cli_plan_overflowed(void)
     return s_full;
 }
 
-// A string too long to decode is kept as none and the plan refused
+// A string too long to decode is recorded as none and the plan refused
 int cli_plan_string(unsigned int value, char *out)
 {
     if ((value == 0u) || (s_tokens[value].kind != CFG_JSON_STRING))
     {
         return 0;
     }
-    if (!cfg_json_string(s_plain, &s_tokens[value], out, CLI_STRING_LONGEST))
+    if (!cfg_json_string(s_plain, &s_tokens[value], out, CLI_STRING_MAX_LEN))
     {
         s_full = 1;
         return 0;
@@ -147,7 +147,7 @@ static int cli_same_key(unsigned int one, unsigned int other)
                 .src = s_plain + s_tokens[one].start, .other = s_plain + s_tokens[other].start, .bytes = size}) == 0);
 }
 
-// each member of the object at token `object` once, as a JSON object holds it: where its key first stands, with the
+// each member of the object at token `object` once, as a JSON object contains it: where its key first stands, with the
 // value of its last; the count, each key and value token into `keys` and `values`
 static unsigned int cli_members(unsigned int object, unsigned int *keys, unsigned int *values, unsigned int room)
 {
@@ -222,43 +222,43 @@ static const char *cli_last_part(const char *path)
 // A variable the description does not know, and `${` with no `}` after it, stand as they are
 void cli_plan_expanded(const char *text, const CliPlanPlaces *places, char *out)
 {
-    CliLine line = {out, CLI_STRING_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_STRING_MAX_LEN, 0ull};
     const char *rest = text;
     const char *open =
         cellul.find(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL});
     while (open != NULL)
     {
-        cli_line_counted(&line, rest, (unsigned long long)(open - rest));
+        mmgr_line_put_n(&line, rest, (unsigned long long)(open - rest));
         const char *const close = cellul.chr(&(CatenaFinitaCfg){.src = open, .cap = CLI_CELLS_POOL, .byte = '}'});
         if (close == NULL)
         {
             rest = open;
             break;
         }
-        char named[CLI_STRING_LONGEST];
-        CliLine name_line = {named, sizeof(named), 0ull};
-        cli_line_counted(&name_line, open + 2, (unsigned long long)(close - open - 2));
-        cli_line_closed(&name_line);
+        char named[CLI_STRING_MAX_LEN];
+        VerbaLinea name_line = {named, sizeof(named), 0ull};
+        mmgr_line_put_n(&name_line, open + 2, (unsigned long long)(close - open - 2));
+        mmgr_line_finish(&name_line);
         if (cellul.eq(&(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolder", .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line, places->root);
+            mmgr_line_put(&line, places->root);
         }
         else if (cellul.eq(
                      &(CatenaFinitaCfg){.src = named, .other = "localWorkspaceFolderBasename", .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line, cli_last_part(places->root));
+            mmgr_line_put(&line, cli_last_part(places->root));
         }
         else if (cellul.eq(
                      &(CatenaFinitaCfg){.src = named, .other = "containerWorkspaceFolder", .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line, places->folder);
+            mmgr_line_put(&line, places->folder);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){
                      .src = named, .other = "containerWorkspaceFolderBasename", .cap = CLI_CELLS_POOL}))
         {
             const char *const slash = cli_text_last(
                 places->folder, cellul.len(&(CatenaFinitaCfg){.src = places->folder, .cap = CLI_CELLS_POOL}), '/');
-            cli_line_text(&line, (slash != NULL) ? (slash + 1) : places->folder);
+            mmgr_line_put(&line, (slash != NULL) ? (slash + 1) : places->folder);
         }
         else if (cellul.starts(&(CatenaFinitaCfg){.src = named, .other = "localEnv:", .cap = CLI_CELLS_POOL}))
         {
@@ -269,48 +269,48 @@ void cli_plan_expanded(const char *text, const CliPlanPlaces *places, char *out)
             {
                 colon[0] = '\0';
             }
-            if (!query_environment_said(name, &line))
+            if (!query_environment_written(name, &line))
             {
-                cli_line_text(&line, fallback);
+                mmgr_line_put(&line, fallback);
             }
         }
         else
         {
-            cli_line_counted(&line, open, (unsigned long long)(close - open) + 1ull);
+            mmgr_line_put_n(&line, open, (unsigned long long)(close - open) + 1ull);
         }
         rest = close + 1;
         open = cellul.find(
             &(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL});
     }
-    cli_line_text(&line, rest);
-    s_full = s_full || !cli_line_fits(&line);
-    cli_line_closed(&line);
+    mmgr_line_put(&line, rest);
+    s_full = s_full || !mmgr_line_ok(&line);
+    mmgr_line_finish(&line);
 }
 
 // `path` alone where it is whole, else after `base` and the separator `base` writes
 void cli_plan_joined(const char *base, const char *path, char *out)
 {
     const int whole = (path[0] == '/') || (path[0] == '\\') || ((path[0] != '\0') && (path[1] == ':'));
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     if (!whole)
     {
         const char *const forward =
             cli_text_last(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), '/');
         const char *const backward =
             cli_text_last(base, cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}), '\\');
-        cli_line_text(&line, base);
-        cli_line_character(&line, ((backward != NULL) && ((forward == NULL) || (backward > forward))) ? '\\' : '/');
+        mmgr_line_put(&line, base);
+        mmgr_line_ch(&line, ((backward != NULL) && ((forward == NULL) || (backward > forward))) ? '\\' : '/');
     }
-    cli_line_text(&line, path);
-    s_full = s_full || !cli_line_fits(&line);
-    cli_line_closed(&line);
+    mmgr_line_put(&line, path);
+    s_full = s_full || !mmgr_line_ok(&line);
+    mmgr_line_finish(&line);
 }
 
 // a command the description runs, as the value at token `value` writes it: a string a shell's line, an array a
 // program's words, an object each of its values in turn
 static void cli_commands_of(CliPlan *plan, unsigned int value, CliPlanCommand *commands, unsigned int *count)
 {
-    static char s_word[CLI_STRING_LONGEST];
+    static char s_word[CLI_STRING_MAX_LEN];
     const CfgJsonKind kind = s_tokens[value].kind;
     if ((kind == CFG_JSON_STRING) || (kind == CFG_JSON_ARRAY))
     {
@@ -355,9 +355,9 @@ void cli_plan_commands(CliPlan *plan, const char *key, CliPlanCommand *commands,
 
 void cli_plan_pairs(CliPlan *plan, unsigned int object, const CliPlanPlaces *places, CliPlanList *list)
 {
-    static char s_key[CLI_STRING_LONGEST];
-    static char s_value[CLI_STRING_LONGEST];
-    static char s_read[CLI_STRING_LONGEST];
+    static char s_key[CLI_STRING_MAX_LEN];
+    static char s_value[CLI_STRING_MAX_LEN];
+    static char s_read[CLI_STRING_MAX_LEN];
     unsigned int keys[CLI_PLAN_LIST_MOST];
     unsigned int values[CLI_PLAN_LIST_MOST];
     const unsigned int members = cli_members(object, keys, values, CLI_PLAN_LIST_MOST);
@@ -375,10 +375,10 @@ void cli_plan_pairs(CliPlan *plan, unsigned int object, const CliPlanPlaces *pla
 // a mount as `mounts` names it, read: a string as docker takes it, or an object of its parts joined `key=value,...`
 static void cli_mount_of(CliPlan *plan, unsigned int value, const CliPlanPlaces *places)
 {
-    static char s_mount[CLI_STRING_LONGEST];
-    static char s_read[CLI_STRING_LONGEST];
-    static char s_part[CLI_STRING_LONGEST];
-    static char s_key[CLI_STRING_LONGEST];
+    static char s_mount[CLI_STRING_MAX_LEN];
+    static char s_read[CLI_STRING_MAX_LEN];
+    static char s_part[CLI_STRING_MAX_LEN];
+    static char s_key[CLI_STRING_MAX_LEN];
     if (cli_plan_string(value, s_mount))
     {
         cli_plan_expanded(s_mount, places, s_read);
@@ -389,7 +389,7 @@ static void cli_mount_of(CliPlan *plan, unsigned int value, const CliPlanPlaces 
     {
         return;
     }
-    CliLine line = {s_mount, sizeof(s_mount), 0ull};
+    VerbaLinea line = {s_mount, sizeof(s_mount), 0ull};
     unsigned int keys[CLI_PLAN_LIST_MOST];
     unsigned int values[CLI_PLAN_LIST_MOST];
     const unsigned int members = cli_members(value, keys, values, CLI_PLAN_LIST_MOST);
@@ -402,16 +402,16 @@ static void cli_mount_of(CliPlan *plan, unsigned int value, const CliPlanPlaces 
         }
         if (written != 0u)
         {
-            cli_line_character(&line, ',');
+            mmgr_line_ch(&line, ',');
         }
         s_full = s_full || !cfg_json_string(s_plain, &s_tokens[keys[at]], s_key, sizeof(s_key));
-        cli_line_text(&line, s_key);
-        cli_line_character(&line, '=');
-        cli_line_text(&line, s_part);
+        mmgr_line_put(&line, s_key);
+        mmgr_line_ch(&line, '=');
+        mmgr_line_put(&line, s_part);
         written += 1u;
     }
-    s_full = s_full || !cli_line_fits(&line);
-    cli_line_closed(&line);
+    s_full = s_full || !mmgr_line_ok(&line);
+    mmgr_line_finish(&line);
     cli_plan_expanded(s_mount, places, s_read);
     cli_plan_listed(plan, &plan->mounts, s_read);
 }

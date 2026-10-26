@@ -14,7 +14,7 @@ static const CliJson *s_json;
 // `then` compared with `now`, read into the shared tree: its node
 static unsigned int structure_compared(const char *then, const char *now)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_structure_compare(then, cellul.len(&(CatenaFinitaCfg){.src = then, .cap = CLI_CELLS_POOL}), now,
                           cellul.len(&(CatenaFinitaCfg){.src = now, .cap = CLI_CELLS_POOL}), &out);
     unsigned int found = CLI_JSON_NONE;
@@ -26,7 +26,7 @@ static unsigned int structure_compared(const char *then, const char *now)
 static void structure_member(unsigned int found, const char *name, const char *wanted, const char *what)
 {
     char text[512];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     cli_json_write(s_json, cli_json_member(s_json, found, name), &line, 0u, 0);
     cli_check_text(text, line.at, wanted, what);
 }
@@ -78,6 +78,7 @@ static void structure_tokens(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     structure_tokens();
     unsigned int found = structure_compared("f(a, b);\nreturn x;\n", "f(\n    a,\n    b\n);\n\nreturn   x;\n");
     structure_member(found, "left_marks", "[]", "layout alone marks no token on the left");
@@ -113,7 +114,7 @@ int main(void)
     {
         moved_right += (structure_at(block_right, at) == CLI_MOVED) ? 1u : 0u;
     }
-    // every closing sign is alike: the one that moved on the right is whichever the lines kept leave
+    // every closing sign is alike: the one that moved on the right is whichever the lines retained leave
     cli_check((structure_at(block_left, 0u) == CLI_MOVED) && (structure_at(block_left, 1u) == CLI_MOVED) &&
                   (structure_at(block_left, 2u) == CLI_MOVED) && (moved_right == 3u),
               "its closing sign along");

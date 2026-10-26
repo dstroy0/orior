@@ -98,9 +98,9 @@ __global__ static void unit_sweep_widen_kernel(const unsigned int *narrow_planes
 
 // `steps` unit pairs [1, 2, 1] along the axis, each reading the voxel's neighbors with the edge voxel standing in past
 // either end, then with `half` set the one unit step [1, 1] an odd order leaves, reading the voxel and the one before
-// it with the first voxel standing in before the start. That is the key's window reflected at the edges: a pair keeps
-// the line's reflection about the half voxel before its start, and the step after all pairs starts where the key's
-// window of the whole order starts, floor((order + 1) / 2) before the voxel.
+// it with the first voxel standing in before the start. That is the key's window reflected at the edges: a pair
+// preserves the line's reflection about the half voxel before its start, and the step after all pairs starts where the
+// key's window of the whole order starts, floor((order + 1) / 2) before the voxel.
 __global__ static void unit_sweep_axis_kernel(unsigned int *planes, UnitSweepExtent extent, unsigned int axis,
                                               unsigned int limbs, unsigned int steps, unsigned int half,
                                               unsigned int bits)
@@ -264,7 +264,7 @@ __global__ static void unit_sweep_comb_kernel(unsigned int *planes, UnitSweepExt
 }
 
 // `pairs` pairs [1, 2, 1] along the axis whose taps are `spacing` voxels apart, each reading the line reflected at its
-// edges. A pair is symmetric about the voxel and keeps the line's reflection about the half voxel past each end,
+// edges. A pair is symmetric about the voxel and preserves the line's reflection about the half voxel past each end,
 // and the pairs, the unit pairs and the comb's centered part may run in any order and still give the key's window.
 __global__ static void unit_sweep_spaced_kernel(unsigned int *planes, UnitSweepExtent extent, unsigned int axis,
                                                 unsigned int limbs, unsigned int pairs, unsigned int spacing,
@@ -401,7 +401,7 @@ static int unit_sweep_grow(unsigned int **planes, size_t *capacity, size_t words
     return ok;
 }
 
-// a bit length: the bits that hold `value`
+// a bit length: the bits that represent `value`
 static unsigned int unit_sweep_bit_length(unsigned int value)
 {
     unsigned int bits = 0u;
@@ -446,7 +446,7 @@ static int unit_sweep_combs(unsigned int *planes, const UnitSweepExtent *extent,
                               ENGINE_ERROR_REQUEST);
         if (ok != 0)
         {
-            // lines was held at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
+            // lines was bounded at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
             unit_sweep_comb_kernel<<<(unsigned int)lines, UNIT_SWEEP_THREADS, shared_bytes>>>(
                 planes, *extent, axis, limbs, taps, spacing, input_bits, growth);
             ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), planes, error);
@@ -480,7 +480,7 @@ static int unit_sweep_axes(unsigned int *planes, const UnitSweepExtent *extent, 
                               ENGINE_ERROR_REQUEST);
         if (ok != 0)
         {
-            // lines was held at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
+            // lines was bounded at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
             unit_sweep_axis_kernel<<<(unsigned int)lines, UNIT_SWEEP_THREADS, shared_bytes>>>(
                 planes, *extent, axis, limbs, steps, half, input_bits);
             ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), planes, error);
@@ -514,7 +514,7 @@ static int unit_sweep_spaced(unsigned int *planes, const UnitSweepExtent *extent
                                   ENGINE_ERROR_REQUEST);
             if (ok != 0)
             {
-                // lines was held at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
+                // lines was bounded at or below 2^31 - 1 above: it narrows to the unsigned int grid size exactly
                 unit_sweep_spaced_kernel<<<(unsigned int)lines, UNIT_SWEEP_THREADS, shared_bytes>>>(
                     planes, *extent, axis, limbs, pairs, 1u << spacing, input_bits);
                 ok = UNIT_SWEEP_STATUS_CHECK(cudaGetLastError(), planes, error);
@@ -594,7 +594,7 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     }
     EngineError *const error = request->error;
     const int planes_given = (request->device_planes != NULL) ? 1 : 0;
-    const int asked =
+    const int valid =
         UNIT_SWEEP_CHECK(((request->device_volume != NULL) != (planes_given != 0)) && (request->device_out != NULL),
                          request, error, ENGINE_ERROR_REQUEST) &&
         UNIT_SWEEP_CHECK((planes_given == 0) ||
@@ -602,7 +602,7 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
                          &request->input_bits, error, ENGINE_ERROR_REQUEST) &&
         UNIT_SWEEP_CHECK((request->depth != 0u) && (request->height != 0u) && (request->width != 0u), &request->depth,
                          error, ENGINE_ERROR_REQUEST);
-    if (asked == 0)
+    if (valid == 0)
     {
         return UNIT_SWEEP_ERROR;
     }
@@ -623,7 +623,7 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     {
         return UNIT_SWEEP_ERROR;
     }
-    // both are held at or below 32 limbs' bits above, and narrow to unsigned int exactly
+    // both are bounded at or below 32 limbs' bits above, and narrow to unsigned int exactly
     unsigned int narrow_bits = input_bits + (unsigned int)smooth_spaced_bits;
     unsigned int gain = (unsigned int)background_spaced_bits;
     // the narrow term's pairs: the smooth order's, and one more where an odd smooth order and an even comb each leave
@@ -658,7 +658,7 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     const UnitSweepExtent extent = {{request->depth, request->height, request->width},
                                     (unsigned long long)request->depth * request->height * request->width};
     UnitSweepResident *const buffers = &s_unit_sweep_resident;
-    // the caller holds the voxel count below 2^32: the block count fits unsigned int
+    // the caller bounds the voxel count below 2^32: the block count fits unsigned int
     const unsigned int blocks = (unsigned int)((extent.voxels + UNIT_SWEEP_THREADS - 1u) / UNIT_SWEEP_THREADS);
     int ok =
         unit_sweep_grow(&buffers->narrow_planes, &buffers->narrow_words, (size_t)extent.voxels * narrow_limbs, error) &&
@@ -678,7 +678,7 @@ extern "C" long unit_sweep_residual(const UnitSweepRequest *request)
     }
     ok = ok && unit_sweep_spaced(buffers->narrow_planes, &extent, narrow_limbs, request->smooth_spaced, paired_bits,
                                  error);
-    // the smooth's spaced bits are held at or below 32 limbs' bits above, and narrow to unsigned int exactly
+    // the smooth's spaced bits are bounded at or below 32 limbs' bits above, and narrow to unsigned int exactly
     paired_bits += (unsigned int)smooth_spaced_bits;
     ok = ok && unit_sweep_combs(buffers->narrow_planes, &extent, narrow_limbs, request->comb, paired_bits, error);
     if (ok != 0)
@@ -729,7 +729,7 @@ extern "C" long unit_sweep_lanes_compare(const UnitSweepComparison *comparison)
                                        buffers->disagreements, error);
     if ((ok != 0) && (comparison->lanes != 0ull))
     {
-        // the lanes are voxels, held below 2^32 by the caller: the block count fits unsigned int
+        // the lanes are voxels, bounded below 2^32 by the caller: the block count fits unsigned int
         unit_sweep_compare_kernel<<<(unsigned int)((comparison->lanes + UNIT_SWEEP_THREADS - 1u) / UNIT_SWEEP_THREADS),
                                     UNIT_SWEEP_THREADS>>>(comparison->device_left, comparison->device_right,
                                                           comparison->lanes, comparison->limbs, buffers->disagreements);

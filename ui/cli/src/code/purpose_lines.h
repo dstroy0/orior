@@ -21,6 +21,6 @@ CliSpan cli_purpose_trimmed_start(CliSpan span);
 CliSpan cli_purpose_trimmed(CliSpan span);
 int cli_purpose_starts(CliSpan span, const char *text);
 int cli_purpose_licensed(const char *text, unsigned long long length);
-void cli_purpose_uncommented(const CliSpan *lines, unsigned int count, const char *mark, CliLine *out);
+void cli_purpose_uncommented(const CliSpan *lines, unsigned int count, const char *mark, VerbaLinea *out);
 
 #endif

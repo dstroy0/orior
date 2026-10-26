@@ -125,7 +125,7 @@ static void references_one(const CliBuildLines *lines, CliBuildFindings *found, 
         {
             continue;
         }
-        CliLine known = {s_known, sizeof(s_known), 0ull};
+        VerbaLinea known = {s_known, sizeof(s_known), 0ull};
         cli_versions_accessor(aliases->text + alias->alias_at, alias->alias_size, &known);
         if ((known.at == path_size) &&
             (memor.cmp(&(MemoriaCfg){.src = s_known, .other = path, .bytes = (size_t)path_size}) == 0))
@@ -133,32 +133,32 @@ static void references_one(const CliBuildLines *lines, CliBuildFindings *found, 
             return;
         }
     }
-    CliLine said = cli_build_said(found);
-    cli_line_character(&said, '`');
-    cli_line_text(&said, name);
-    cli_line_character(&said, '.');
-    cli_line_counted(&said, text + from[0], to[count - 1u] - from[0]);
-    cli_line_text(&said, "` names no ");
-    cli_line_text(&said, kind);
-    cli_line_text(&said, " of `");
-    cli_line_text(&said, shown);
-    cli_line_character(&said, '`');
+    VerbaLinea msg = cli_build_msg_line(found);
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put(&msg, name);
+    mmgr_line_ch(&msg, '.');
+    mmgr_line_put_n(&msg, text + from[0], to[count - 1u] - from[0]);
+    mmgr_line_put(&msg, "` names no ");
+    mmgr_line_put(&msg, kind);
+    mmgr_line_put(&msg, " of `");
+    mmgr_line_put(&msg, shown);
+    mmgr_line_ch(&msg, '`');
     const unsigned int finding =
-        cli_build_finding(found, &said, lines, from[path_from], to[count - 1u], CLI_BUILD_ERROR, "gradle-catalog");
-    // each accessor is as long as its alias, so a cell of the aliases' texts holds those the nearest are chosen from
+        cli_build_finding(found, &msg, lines, from[path_from], to[count - 1u], CLI_BUILD_ERROR, "gradle-catalog");
+    // each accessor is as long as its alias, so a cell of the aliases' texts contains those the nearest are chosen from
     const unsigned long long room = aliases->used + 1ull;
-    char *const accessors = cli_cell_taken_by(&g_cli_gradle_cells, room, "a catalog's accessors");
+    char *const accessors = g_cli_cells->persistent_buf_alloc(room, &g_cli_gradle_cells);
     unsigned long long used = 0ull;
     for (unsigned int at = 0u; (accessors != NULL) && (at < aliases->count); at += 1u)
     {
         const CliVersionsAlias *const alias = &aliases->alias[at];
-        CliLine known = {accessors + used, room - used, 0ull};
+        VerbaLinea known = {accessors + used, room - used, 0ull};
         if (alias->section != section)
         {
             continue;
         }
         cli_versions_accessor(aliases->text + alias->alias_at, alias->alias_size, &known);
-        if (cli_line_fits(&known))
+        if (mmgr_line_ok(&known))
         {
             cli_build_near_offered(&near, accessors + used, known.at);
             used += known.at;
@@ -166,20 +166,20 @@ static void references_one(const CliBuildLines *lines, CliBuildFindings *found, 
     }
     for (unsigned int at = 0u; at < near.count; at += 1u)
     {
-        CliLine title = cli_build_said(found);
-        cli_line_text(&title, "Change to ");
-        cli_line_text(&title, name);
-        cli_line_character(&title, '.');
+        VerbaLinea title = cli_build_msg_line(found);
+        mmgr_line_put(&title, "Change to ");
+        mmgr_line_put(&title, name);
+        mmgr_line_ch(&title, '.');
         if (path_from == 1u)
         {
-            cli_line_counted(&title, text + from[0], to[0] - from[0]);
-            cli_line_character(&title, '.');
+            mmgr_line_put_n(&title, text + from[0], to[0] - from[0]);
+            mmgr_line_ch(&title, '.');
         }
-        cli_line_counted(&title, near.near[at], near.near_size[at]);
+        mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
         cli_build_edit_fix(found, finding, &title, lines, from[path_from], to[count - 1u], near.near[at],
                            near.near_size[at]);
     }
-    cli_cell_given_by(&g_cli_gradle_cells, accessors);
+    g_cli_cells->persistent_buf_release(accessors, &g_cli_gradle_cells);
 }
 
 void cli_gradle_references(const CliBuildLines *lines, CliBuildFindings *found, const char *name, const char *shown,

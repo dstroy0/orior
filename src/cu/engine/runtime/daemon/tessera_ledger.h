@@ -13,7 +13,7 @@ extern "C"
     typedef enum
     {
         TESSERA_JOB_WAITING = 0,
-        TESSERA_JOB_HELD = 1,
+        TESSERA_JOB_OVER_BUDGET = 1,
         TESSERA_JOB_RUNNING = 2
     } TesseraJobState;
 
@@ -21,22 +21,22 @@ extern "C"
     {
         TESSERA_EVENT_NONE = 0,
         TESSERA_EVENT_ADMITTED = 1,
-        TESSERA_EVENT_ASKED = 2,
+        TESSERA_EVENT_OVER_BUDGET = 2,
         TESSERA_EVENT_GREW = 3,
         TESSERA_EVENT_LOST = 4,
         TESSERA_EVENT_SWEEP = 5,
         TESSERA_EVENT_IDLE = 6
     } TesseraEventKind;
 
-    // A job as it asks. `declared` is the bytes the job says it will take; `standing` is the bytes its process already
-    // holds on the device as it asks (its CUDA context, and whatever it kept from an earlier job), measured by the
-    // daemon. The job's whole declaration is the two together, and the device's measured use already counts the
-    // standing bytes.
+    // A job as it requests. `declared` is the bytes the job states it will take; `standing` is the bytes its process
+    // already has allocated on the device as it requests (its CUDA context, and whatever it retained from an earlier
+    // job), measured by the daemon. The job's whole declaration is the two together, and the device's measured use
+    // already counts the standing bytes.
     typedef struct
     {
         EngineSignum signum;
         unsigned long long declared;
-        unsigned long long holding_microseconds;
+        unsigned long long grace_microseconds;
         unsigned long long sweep_microseconds;
         unsigned long long idle_microseconds;
         unsigned int override_budget;
@@ -55,7 +55,7 @@ extern "C"
         unsigned long long submitted;
         unsigned long long started;
         unsigned long long expected_end;
-        unsigned long long hold_until;
+        unsigned long long grace_until;
         unsigned long long next_sweep;
     } TesseraJob;
 
@@ -120,7 +120,7 @@ extern "C"
 
     // one call and what it reads: the time; the job it names; the device's capacity and use (DEVICE); the bytes a job
     // was measured using (MEASURE); 1 where a job finished (RELEASE); the events an admit may make, at most
-    // TESSERA_CALL_EVENTS (ADMIT); the idle time (IDLE); the job asked for (SUBMIT); the peak kept (REMEMBER)
+    // TESSERA_CALL_EVENTS (ADMIT); the idle time (IDLE); the job requested (SUBMIT); the peak tracked (REMEMBER)
     typedef struct
     {
         TesseraCallKind kind;
@@ -133,7 +133,7 @@ extern "C"
         unsigned long long start_limit;
         unsigned long long idle_microseconds;
         TesseraJobRequest request;
-        TesseraHistory kept;
+        TesseraHistory history;
     } TesseraCall;
 
     // a call's answer: what the ledger function returned (for ADMIT the jobs it started); 1 where the ledger had no
@@ -181,7 +181,7 @@ extern "C"
 
     unsigned long long tessera_ledger_wants(const TesseraLedger *ledger, const TesseraJob *job);
 
-    int tessera_ledger_remember(TesseraLedger *ledger, const TesseraHistory *kept);
+    int tessera_ledger_remember(TesseraLedger *ledger, const TesseraHistory *history);
 
     int tessera_ledger_idle(TesseraLedger *ledger, unsigned long long now, unsigned long long idle_microseconds);
 

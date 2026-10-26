@@ -73,7 +73,7 @@ MODULES=(cu/includes/formats/stack cu/includes/file_defs/krep cu/engine/analysis
          cu/engine/nbody/climb_machine cu/engine/nbody/body_overlap cu/engine/nbody/fingerprint
          cu/engine/nbody/print_pair cu/engine/nbody/velocity cu/engine/nbody/division cu/engine/nbody/marginal
          cu/engine/nbody/contact_side cu/engine/nbody/box_history cu/engine/nbody/heaviest_matching
-         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura
+         cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double
          cu/engine/analysis/period cu/includes/types/integers/exact_record)
 INGEST=(cu/includes/formats/cfg_json cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate
         cu/includes/codecs/deflate cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc
@@ -92,29 +92,35 @@ for module in "${MODULES[@]}"; do
     done
 done
 INCLUDES+=("${TESSERA_INCLUDES[@]}")
+# MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
+source "$ENGINE/../includes/file_defs/file_defs.sh"
+INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
+LINEA_OBJECTS=()
+PORTABLE_SOURCES=()
 for portable in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/engine/nbody/max_tree \
                 cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
-                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/engine/runtime/scriptura \
+                cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double \
                 cu/includes/types/integers/exact_record "${INGEST[@]}"; do
-    for source in "$(build_path "$portable")"/*.c; do
-        object="$OUT/$(basename "$source" .c)_knee.$EXTENSION"
-        rm -f "$object"
-        case "$(uname -s)" in
-            MINGW*|MSYS*|CYGWIN*)
-                nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" \
-                    -o "$object" ;;
-            *)
-                cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
-        esac
-        [ -f "$object" ] || { echo "  build failed: $portable/$(basename "$source") did not compile"; exit 1; }
-        OBJECTS+=("$object")
-        case "$(basename "$source")" in
-            scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
-        esac
-    done
+    PORTABLE_SOURCES+=("$(build_path "$portable")"/*.c)
+done
+PORTABLE_SOURCES+=("${FILE_DEFS_LINEA[@]}")
+for source in "${PORTABLE_SOURCES[@]}"; do
+    object="$OUT/$(basename "$source" .c)_knee.$EXTENSION"
+    rm -f "$object"
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            nvcc "${HOST_FLAGS[@]}" -Xcompiler "/std:c11 /O2" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" \
+                -o "$object" ;;
+        *)
+            cc -std=c11 -O2 -fPIC "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" -c "$source" -o "$object" ;;
+    esac
+    [ -f "$object" ] || { echo "  build failed: $source did not compile"; exit 1; }
+    OBJECTS+=("$object")
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
+    esac
 done
 for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     object="$OUT/${name}_knee.$EXTENSION"
@@ -129,7 +135,7 @@ for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     OBJECTS+=("$object")
 done
 # every load, draw and read is a job on the device's tessera daemon, built beside the binary
-tessera_build knee "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build knee "${LINEA_OBJECTS[@]}" || exit 1
 
 rm -f "$BINARY"
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 -fmad=false "${GENCODE[@]}" "${LINK_FLAGS[@]}" "${INCLUDES[@]}" "${EXACT_FLAGS[@]}" \

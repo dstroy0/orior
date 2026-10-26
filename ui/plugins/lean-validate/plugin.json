@@ -18,7 +18,7 @@
       "name": "maxHeartbeats",
       "about": "the heartbeats an elaboration may take before Lean stops it",
       "kinds": ["runtime.maxHeartbeats"],
-      "says": ["maximum number of heartbeats", "(deterministic) timeout"],
+      "phrases": ["maximum number of heartbeats", "(deterministic) timeout"],
       "not": ["synthInstance"],
       "lift": "-DmaxHeartbeats={value}",
       "default": 200000,
@@ -28,7 +28,7 @@
     {
       "name": "synthInstance.maxHeartbeats",
       "about": "the heartbeats a search for an instance may take",
-      "says": ["synthInstance.maxHeartbeats", "failed to synthesize instance (deterministic) timeout"],
+      "phrases": ["synthInstance.maxHeartbeats", "failed to synthesize instance (deterministic) timeout"],
       "lift": "-DsynthInstance.maxHeartbeats={value}",
       "default": 20000,
       "grow": 4,
@@ -37,7 +37,7 @@
     {
       "name": "synthInstance.maxSize",
       "about": "the size an instance found may grow to",
-      "says": ["synthInstance.maxSize"],
+      "phrases": ["synthInstance.maxSize"],
       "lift": "-DsynthInstance.maxSize={value}",
       "default": 128,
       "grow": 4,
@@ -47,7 +47,7 @@
       "name": "maxRecDepth",
       "about": "how deep elaboration and evaluation may recur",
       "kinds": ["runtime.maxRecDepth"],
-      "says": ["maximum recursion depth has been reached"],
+      "phrases": ["maximum recursion depth has been reached"],
       "lift": "-DmaxRecDepth={value}",
       "default": 512,
       "grow": 4,
@@ -56,7 +56,7 @@
     {
       "name": "kernel deep recursion",
       "about": "the stack the kernel checks a term on, which a deep term overruns",
-      "says": ["(kernel) deep recursion detected", "Stack overflow detected"],
+      "phrases": ["(kernel) deep recursion detected", "Stack overflow detected"],
       "lift": "--tstack={value}",
       "default": 8192,
       "grow": 4,
@@ -65,7 +65,7 @@
     {
       "name": "kernel timeout",
       "about": "the heartbeats the kernel may take to check a declaration",
-      "says": ["(kernel) deterministic timeout"],
+      "phrases": ["(kernel) deterministic timeout"],
       "lift": "-DmaxHeartbeats={value}",
       "default": 200000,
       "grow": 4,
@@ -74,7 +74,7 @@
     {
       "name": "memory",
       "about": "the memory Lean may take, in megabytes",
-      "says": ["out of memory", "memory exhausted"],
+      "phrases": ["out of memory", "memory exhausted"],
       "lift": "--memory={value}",
       "default": 8192,
       "grow": 2,
@@ -85,32 +85,32 @@
     {
       "words": ["Float", "Float32"],
       "severity": 2,
-      "says": "a floating point number holds a binary fraction of fixed width and rounds every result; a claim about an exact number carried in it is a claim about the rounded one"
+      "message": "a floating point number holds a binary fraction of fixed width and rounds every result; a claim about an exact number carried in it is a claim about the rounded one"
     },
     {
       "words": ["UInt8", "UInt16", "UInt32", "UInt64", "USize", "Int8", "Int16", "Int32", "Int64", "ISize"],
       "severity": 2,
-      "says": "a fixed width integer wraps past its largest value; ℕ and ℤ hold any size"
+      "message": "a fixed width integer wraps past its largest value; ℕ and ℤ hold any size"
     },
     {
       "words": ["native_decide", "Lean.ofReduceBool", "Lean.trustCompiler"],
       "severity": 2,
-      "says": "the compiled program decides this, and the kernel does not check it"
+      "message": "the compiled program decides this, and the kernel does not check it"
     },
     {
       "words": ["#eval"],
       "severity": 3,
-      "says": "an evaluation runs compiled code and proves nothing"
+      "message": "an evaluation runs compiled code and proves nothing"
     },
     {
       "words": ["implemented_by", "extern"],
       "severity": 2,
-      "says": "the code that runs is not the definition the proof reads"
+      "message": "the code that runs is not the definition the proof reads"
     },
     {
       "words": ["unsafe", "partial"],
       "severity": 3,
-      "says": "the kernel cannot unfold this definition, and no proof can see inside it"
+      "message": "the kernel cannot unfold this definition, and no proof can see inside it"
     }
   ],
   "audit": {

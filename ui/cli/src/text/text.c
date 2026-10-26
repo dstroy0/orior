@@ -251,16 +251,16 @@ int cli_text_order(const char *one, const char *other)
     return (order > 0) - (order < 0);
 }
 
-void cli_paths_sorted(char (*paths)[CLI_PATH_LONGEST], unsigned int count)
+void cli_paths_sorted(char (*paths)[CLI_PATH_MAX_LEN], unsigned int count)
 {
     for (unsigned int at = 1u; at < count; at += 1u)
     {
-        char held[CLI_PATH_LONGEST];
-        memor.cpy(&(MemoriaCfg){.dst = held,
+        char pivot[CLI_PATH_MAX_LEN];
+        memor.cpy(&(MemoriaCfg){.dst = pivot,
                                 .src = paths[at],
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = paths[at], .cap = CLI_CELLS_POOL}) + 1u});
         unsigned int place = at;
-        while ((place > 0u) && (cli_text_order(paths[place - 1u], held) > 0))
+        while ((place > 0u) && (cli_text_order(paths[place - 1u], pivot) > 0))
         {
             memor.cpy(&(MemoriaCfg){
                 .dst = paths[place],
@@ -269,8 +269,8 @@ void cli_paths_sorted(char (*paths)[CLI_PATH_LONGEST], unsigned int count)
             place -= 1u;
         }
         memor.cpy(&(MemoriaCfg){.dst = paths[place],
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
+                                .src = pivot,
+                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = pivot, .cap = CLI_CELLS_POOL}) + 1u});
     }
 }
 
@@ -301,10 +301,10 @@ int cli_text_same(const char *one, const char *other, unsigned long long size)
     return cellul.diff(&(CatenaFinitaCfg){.src = one, .other = other, .cap = (size_t)size}) == (size_t)size;
 }
 
-// Walks the aligned words the text stands in from the one holding its first byte, a word at a time: each word tested
-// against every byte of the set in every lane at once and the lanes the set holds joined, the lanes before the text
+// Walks the aligned words the text stands in from the one containing its first byte, a word at a time: each word tested
+// against every byte of the set in every lane at once and the lanes the set contains joined, the lanes before the text
 // masked off, and the first lane that stops the run taken: its terminator, or a byte of the set where `in_set` and
-// one outside it where not. Every load is an aligned word holding a byte of the text, so nothing outside those words
+// one outside it where not. Every load is an aligned word containing a byte of the text, so nothing outside those words
 // is read
 static unsigned long long text_run(const char *text, const char *set, int in_set)
 {
@@ -315,14 +315,14 @@ static unsigned long long text_run(const char *text, const char *set, int in_set
     for (;;)
     {
         const embed_word loaded = word.load_al(&(ScrutWordCfg){.at = (const void *)word_at});
-        embed_word held = 0u;
+        embed_word match_mask = 0u;
         for (const char *letter = set; *letter != '\0'; letter += 1)
         {
             // Explicit cast reads the set's byte as unsigned before it is repeated into every lane
-            held |= lane.eq(&(ScrutLaneCfg){.word = loaded, .byte = (uint8_t)*letter});
+            match_mask |= lane.eq(&(ScrutLaneCfg){.word = loaded, .byte = (uint8_t)*letter});
         }
         const embed_word ended = lane.has_zero(&(ScrutLaneCfg){.word = loaded});
-        const embed_word stops = (ended | (in_set ? held : (~held & MMGR_VERBUM_SCRUTOR_HIGH))) & ~before;
+        const embed_word stops = (ended | (in_set ? match_mask : (~match_mask & MMGR_VERBUM_SCRUTOR_HIGH))) & ~before;
         if (stops != 0u)
         {
             return (unsigned long long)(word_at + lane.first(&(ScrutLaneCfg){.mask = stops}) - first);
@@ -342,10 +342,10 @@ unsigned long long cli_text_over(const char *text, const char *set)
     return text_run(text, set, 0);
 }
 
-// Walks the aligned words the text stands in, from the one holding its last byte back to the one holding its first,
-// a word at a time: each word tested against the byte in every lane at once, its lanes outside the text masked off,
-// and the last lane that holds the byte taken. Every load is an aligned word holding a byte of the text, so nothing
-// outside those words is read
+// Walks the aligned words the text stands in, from the one containing its last byte back to the one containing its
+// first, a word at a time: each word tested against the byte in every lane at once, its lanes outside the text masked
+// off, and the last lane that contains the byte taken. Every load is an aligned word containing a byte of the text, so
+// nothing outside those words is read
 const char *cli_text_last(const char *text, unsigned long long length, char byte)
 {
     if (length == 0ull)
@@ -359,15 +359,15 @@ const char *cli_text_last(const char *text, unsigned long long length, char byte
     // Explicit cast reads the byte as unsigned before it is repeated into every lane
     const embed_word broadcast = MMGR_SWAR_ONES * (embed_word)(uint8_t)byte;
     uintptr_t word_at = (end - 1u) & ~(uintptr_t)(MMGR_SWAR_BYTES - 1u);
-    embed_word keep = mask.lanes_below(&(ScrutMaskCfg){.bytes = (size_t)(end - word_at)});
+    embed_word below_mask = mask.lanes_below(&(ScrutMaskCfg){.bytes = (size_t)(end - word_at)});
     for (;;)
     {
         if (word_at < first)
         {
-            keep &= ~mask.lanes_below(&(ScrutMaskCfg){.bytes = (size_t)(first - word_at)});
+            below_mask &= ~mask.lanes_below(&(ScrutMaskCfg){.bytes = (size_t)(first - word_at)});
         }
         const embed_word loaded = word.load_al(&(ScrutWordCfg){.at = (const void *)word_at});
-        const embed_word hit = lane.has_zero(&(ScrutLaneCfg){.word = loaded ^ broadcast}) & keep;
+        const embed_word hit = lane.has_zero(&(ScrutLaneCfg){.word = loaded ^ broadcast}) & below_mask;
         if (hit != 0u)
         {
             return (const char *)(word_at + lane.last(&(ScrutLaneCfg){.mask = hit}));
@@ -377,6 +377,6 @@ const char *cli_text_last(const char *text, unsigned long long length, char byte
             return NULL;
         }
         word_at -= MMGR_SWAR_BYTES;
-        keep = every;
+        below_mask = every;
     }
 }

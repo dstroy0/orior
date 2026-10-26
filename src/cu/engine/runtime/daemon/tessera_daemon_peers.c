@@ -53,7 +53,7 @@ static int daemon_deliver(TesseraPeer *peer)
     const int has_grew = peer->has_grew;
     const int has_decisive = peer->has_decisive;
     TesseraFrame grew;
-    daemon_frame_start(&grew, TESSERA_TELL_GREW, peer->identity);
+    daemon_frame_start(&grew, TESSERA_NOTICE_GREW, peer->identity);
     grew.signum = peer->signum;
     grew.bytes = peer->declared;
     grew.measured = peer->grew_to;

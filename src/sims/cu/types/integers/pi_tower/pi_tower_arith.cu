@@ -5,7 +5,7 @@
 
 int g_pi_tower_error = 0;
 
-// set where a search asks for a record past the range the records were limited to
+// set where a search requests a record past the range the records were limited to
 int g_pi_tower_records_short = 0;
 
 static void pi_tower_took(OriorExactStatus status)

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// cli_check.c: the checks of orior's C side, each said on the output as it is made, and their count last
+// cli_check.c: the checks of orior's C side, each printed on the output as it is made, and their count last
 #include "cli_check.h"
 #include "../../../../../ui/cli/src/command_line/cells.h"
 
@@ -10,44 +10,44 @@ static unsigned long long s_checks;
 static unsigned long long s_failed;
 
 // a line written to the output
-static void check_line(const CliLine *line)
+static void check_line(const VerbaLinea *line)
 {
-    query_terminal_written(0, line->out, cli_line_fits(line) ? line->at : 0ull);
+    query_terminal_written(0, line->out, mmgr_line_ok(line) ? line->at : 0ull);
 }
 
-void cli_check(int held, const char *what)
+void cli_check(int passed, const char *what)
 {
     char text[4096];
-    CliLine line = {text, sizeof(text), 0ull};
-    cli_line_text(&line, held ? "  ok   " : "  FAIL ");
-    cli_line_text(&line, what);
-    cli_line_character(&line, '\n');
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_put(&line, passed ? "  ok   " : "  FAIL ");
+    mmgr_line_put(&line, what);
+    mmgr_line_ch(&line, '\n');
     check_line(&line);
     s_checks += 1ull;
-    s_failed += held ? 0ull : 1ull;
+    s_failed += passed ? 0ull : 1ull;
 }
 
 void cli_check_text(const char *text, unsigned long long size, const char *wanted, const char *what)
 {
-    const int held = (cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL}) == size) &&
-                     (memor.cmp(&(MemoriaCfg){.src = text, .other = wanted, .bytes = size}) == 0);
-    cli_check(held, what);
-    if (!held)
+    const int matches = (cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL}) == size) &&
+                        (memor.cmp(&(MemoriaCfg){.src = text, .other = wanted, .bytes = size}) == 0);
+    cli_check(matches, what);
+    if (!matches)
     {
         static char s_came[1u << 16u];
-        CliLine line = {s_came, sizeof(s_came), 0ull};
-        cli_line_text(&line, "    came: ");
-        cli_line_counted(&line, text, size);
-        cli_line_text(&line, "\n    wanted: ");
-        cli_line_text(&line, wanted);
-        cli_line_character(&line, '\n');
+        VerbaLinea line = {s_came, sizeof(s_came), 0ull};
+        mmgr_line_put(&line, "    came: ");
+        mmgr_line_put_n(&line, text, size);
+        mmgr_line_put(&line, "\n    wanted: ");
+        mmgr_line_put(&line, wanted);
+        mmgr_line_ch(&line, '\n');
         check_line(&line);
     }
 }
 
 void cli_check_folder(const char *name, char *full)
 {
-    if (!query_path_full(name, full, CLI_PATH_LONGEST))
+    if (!query_path_full(name, full, CLI_PATH_MAX_LEN))
     {
         memor.cpy(&(MemoriaCfg){.dst = full,
                                 .src = name,
@@ -71,7 +71,7 @@ static CliJson s_json;
 const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsigned int *root)
 {
     *root = CLI_JSON_NONE;
-    s_tree = (s_tree != NULL) ? s_tree : cli_cell_taken(sizeof(*s_tree), "a check's parsed tree");
+    s_tree = (s_tree != NULL) ? s_tree : g_cli_cells->persistent_buf_alloc(sizeof(*s_tree), NULL);
     if (s_tree == NULL)
     {
         cli_check(0, "a check's parsed tree is taken");
@@ -80,8 +80,9 @@ const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsig
     cli_json_begun(&s_json, s_tree->node, sizeof(s_tree->node) / sizeof(s_tree->node[0]), s_tree->tree_text,
                    sizeof(s_tree->tree_text));
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    *root = cli_json_read(&s_json, text, size, s_tree->token, sizeof(s_tree->token) / sizeof(s_tree->token[0]), &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    *root =
+        cli_json_read(&s_json, text, size, s_tree->token, sizeof(s_tree->token) / sizeof(s_tree->token[0]), &err_msg);
     return &s_json;
 }
 
@@ -91,7 +92,7 @@ const char *cli_check_member_text(unsigned int node, const char *name)
     return (text != NULL) ? text : "";
 }
 
-unsigned int cli_check_finding(unsigned int found, const char *code, const char *holds)
+unsigned int cli_check_finding(unsigned int found, const char *code, const char *part)
 {
     for (unsigned int at = 0u; cli_json_item(&s_json, found, at) != CLI_JSON_NONE; at += 1u)
     {
@@ -100,9 +101,9 @@ unsigned int cli_check_finding(unsigned int found, const char *code, const char 
         if (((code == NULL) ||
              (cellul.eq(&(CatenaFinitaCfg){
                  .src = cli_check_member_text(one, "code"), .other = code, .cap = CLI_CELLS_POOL}))) &&
-            ((holds == NULL) ||
+            ((part == NULL) ||
              (cellul.find(&(CatenaFinitaCfg){
-                  .src = message, .cap = CLI_CELLS_POOL, .other = holds, .other_cap = CLI_CELLS_POOL}) != NULL)))
+                  .src = message, .cap = CLI_CELLS_POOL, .other = part, .other_cap = CLI_CELLS_POOL}) != NULL)))
         {
             return one;
         }
@@ -144,12 +145,12 @@ const CliCompletions *cli_check_build_completed(const char *root, const char *pa
 void cli_check_server(const char *name, unsigned int port, char *host, unsigned int *at)
 {
     char variable[64];
-    CliLine line = {variable, sizeof(variable), 0ull};
-    cli_line_text(&line, "ORIOR_");
-    cli_line_text(&line, name);
-    cli_line_text(&line, "_ADDRESS");
-    (void)cli_line_closed(&line);
-    char named[CLI_NAME_LONGEST];
+    VerbaLinea line = {variable, sizeof(variable), 0ull};
+    mmgr_line_put(&line, "ORIOR_");
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, "_ADDRESS");
+    (void)mmgr_line_finish(&line);
+    char named[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = host,
                             .src = "127.0.0.1",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "127.0.0.1", .cap = CLI_CELLS_POOL}) + 1u});
@@ -172,23 +173,23 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
         memor.cpy(&(MemoriaCfg){.dst = host,
                                 .src = named,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = named, .cap = CLI_CELLS_POOL}) + 1u});
-        // a port is below 65536, which an unsigned int holds
+        // a port is below 65536, which an unsigned int represents
         *at = (unsigned int)number;
     }
 }
 
 int cli_checked(void)
 {
-    cli_cell_given(s_tree);
+    g_cli_cells->persistent_buf_release(s_tree, NULL);
     s_tree = NULL;
     char text[128];
-    CliLine line = {text, sizeof(text), 0ull};
-    cli_line_decimal(&line, s_checks, 1u);
-    cli_line_text(&line, " checks, ");
-    cli_line_decimal(&line, s_failed, 1u);
-    cli_line_text(&line, " failed, cells ");
-    cli_cells_said(&line);
-    cli_line_character(&line, '\n');
+    VerbaLinea line = {text, sizeof(text), 0ull};
+    mmgr_line_decimal(&line, s_checks, 1u);
+    mmgr_line_put(&line, " checks, ");
+    mmgr_line_decimal(&line, s_failed, 1u);
+    mmgr_line_put(&line, " failed, cells ");
+    cli_cells_usage_written(&line);
+    mmgr_line_ch(&line, '\n');
     check_line(&line);
     return (s_failed > 0ull) ? 1 : 0;
 }

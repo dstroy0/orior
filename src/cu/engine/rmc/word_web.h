@@ -12,9 +12,9 @@
 // coherence the clock measures.
 //
 // A word is an operation the compiler decides in, written as the tree it is over the alphabet. The schema names
-// them and a ruleset gives each a line of the target's text. What neither one says is what the operation *is*,
-// which leaves nothing able to tell whether a target's single instruction for a word is worth taking, or to write a
-// word out for a target that lacks it. The tree says both:
+// them and a ruleset gives each a line of the target's text. What neither one states is what the operation *is*,
+// which leaves nothing able to determine whether a target's single instruction for a word is worth taking, or to write
+// a word out for a target that lacks it. The tree states both:
 //
 //  - A target with no instruction for a word is given the word's tree, each node a precept it does have, and the
 //    alphabet web writes out any precept it lacks as well. Nothing has to be hand written for a target twice.
@@ -53,7 +53,7 @@ typedef struct
 //    wrong tree is worse than a missing one. ADD, SUB and MUL are precepts for this same reason: they are where the
 //    fixed-arity trees stop, and each is one node here.
 //
-// This table is the floor of the word web and not all of it. What it does hold, it holds exactly.
+// This table is the floor of the word web and not all of it. What it does contain, it contains exactly.
 static const Word s_word_web[] = {
     // the gates, each its own precept and one node
     {"word_bitand", 2u, 1u, {{PRECEPT_BITAND, PRECEPT_ARG_AT(0u), PRECEPT_ARG_AT(1u)}}},

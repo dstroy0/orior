@@ -9,7 +9,7 @@
 // adding to one word a function of the others and wrapping to 32 bits. G is a bijection whatever the functions
 // are, and G^-1 undoes the shears in reverse order. One word is the order's counter, n -> n + 1. The orders load
 // themselves as the naturals, and the inverse carries them below zero. One program runs the orders 0 -> K -> -K -> 0
-// with every floor tapped: each visit to order k must hold the CPU's G^k(x), the counter must read k, and the return
+// with every floor tapped: each visit to order k must contain the CPU's G^k(x), the counter must read k, and the return
 // to 0 is exact. Then the order omega on a finite window: a floor is a table permutation of the 16-bit states, its
 // inverse table runs the negative orders, a third table reads a halt set, and an or gathers every bit's lim sup beside
 // the floor. A bijection of a finite set has no transient. Every orbit is a cycle, and +omega and -omega are one
@@ -19,7 +19,9 @@
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -63,7 +65,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } OrderResults;
 
 typedef struct

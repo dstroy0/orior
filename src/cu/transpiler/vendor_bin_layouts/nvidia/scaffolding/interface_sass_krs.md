@@ -1,4 +1,4 @@
-# A ruleset's forms held to the part's writings
+# A ruleset's forms checked against the part's writings
 
 Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is one precept over its operands is looked up in `src/cu/transpiler/lstar/protocol/table/sass.krs`, its form written with its result and operands where the search puts them, and looked for among the forms `interface_sass_writings.md` ran on the part.
 

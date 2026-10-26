@@ -28,7 +28,7 @@ int qasm_text_exponent(QasmText *builder, int exponent)
     digits[15] = '\0';
     do
     {
-        // a digit is 0 to 9. '0' plus it is an ASCII digit, which a char holds
+        // a digit is 0 to 9. '0' plus it is an ASCII digit, which a char represents
         digits[14u - length] = (char)('0' + (int)(left % 10u));
         left /= 10u;
         length += 1u;
@@ -104,15 +104,15 @@ void qasm_polynomial_trim(QasmPolynomial *polynomial)
     {
         last -= 1u;
     }
-    const unsigned int kept = (last - first) + 1u;
+    const unsigned int length = (last - first) + 1u;
     if (first > 0u)
     {
         // an unsigned int count widens to size_t exactly
-        memmove(&polynomial->coefficients[0], &polynomial->coefficients[first], (size_t)kept * sizeof(QasmNumber));
+        memmove(&polynomial->coefficients[0], &polynomial->coefficients[first], (size_t)length * sizeof(QasmNumber));
     }
     // first is below the count, and low + first stays within the exponent bound the allocation checked
     polynomial->low += (int)first;
-    polynomial->count = kept;
+    polynomial->count = length;
 }
 
 long qasm_polynomial_copy(const QasmPolynomial *from, QasmPolynomial *to, EngineError *error)
@@ -244,7 +244,7 @@ long qasm_polynomial_divide(const QasmPolynomial *numerator, const QasmPolynomia
     status = (status == 0L) ? qasm_polynomial_alloc(0, quotient_count, quotient, error) : status;
     for (unsigned int index = 0u; (status == 0L) && (index < numerator->count); index += 1u)
     {
-        // the numerator's lowest power is non-negative, held above. It re-signs to size_t exactly
+        // the numerator's lowest power is non-negative, bounded above. It re-signs to size_t exactly
         remainder->coefficients[(size_t)numerator->low + index] = numerator->coefficients[index];
     }
     QasmNumber leading_inverse;
@@ -257,7 +257,7 @@ long qasm_polynomial_divide(const QasmPolynomial *numerator, const QasmPolynomia
         if (!qasm_number_is_zero(&remainder->coefficients[at]))
         {
             QasmNumber coefficient;
-            // the loop keeps the degree at or above the divisor's. The shift is non-negative
+            // the loop maintains the degree at or above the divisor's. The shift is non-negative
             const size_t shift = (size_t)(degree - divisor_degree);
             status = qasm_number_multiply(&remainder->coefficients[at], &leading_inverse, &coefficient, error);
             status = (status == 0L) ? qasm_number_add(&quotient->coefficients[shift], &coefficient,
@@ -266,7 +266,7 @@ long qasm_polynomial_divide(const QasmPolynomial *numerator, const QasmPolynomia
             for (unsigned int index = 0u; (status == 0L) && (index < divisor->count); index += 1u)
             {
                 QasmNumber term;
-                // the divisor's lowest power is non-negative, held above. It re-signs to size_t exactly
+                // the divisor's lowest power is non-negative, bounded above. It re-signs to size_t exactly
                 QasmNumber *const target = &remainder->coefficients[(size_t)divisor->low + index + shift];
                 status = qasm_number_multiply(&coefficient, &divisor->coefficients[index], &term, error);
                 status = (status == 0L) ? qasm_number_subtract(target, &term, target, error) : status;

@@ -7,18 +7,19 @@
 // 64 x 256 x 256 view, under the weights 16, 1, 1 and 1, 1, 1. The host numbers the support components by a breadth
 // first walk in gate order and finds them the device's; each gate pair's weight is K - cost, K one more than its
 // component's summed costs, and at least 1. The chosen links are gate pairs, one to one, as many as the most any
-// matching of the gate holds (augmenting paths on the host); on every component of at most 25 gate pairs an
+// matching of the gate admits (augmenting paths on the host); on every component of at most 25 gate pairs an
 // enumeration of every matching finds the chosen links' count and cost the most links, then the least cost. The
 // crossing counts are recounted on the host. A synthetic chain written as .points and .drift runs through
 // sort_link_set: its .links reads back with its header, the predictions p = x + d_t + (x - x_prev - d_{t-1}), their
 // flags, and the chosen links following each body. A .drift of other weights errors and leaves no .links, and so does
 // a component whose K passes 32 bits. A span past 2^63 - 1 errors, a K past 32 bits or past 64 is named, and
 // malformed requests error. The gate's own error, ties past 2^30 pairs, is not forced: it would need frames past
-// what a test holds, and the output says so. O7's pooling is held on a hand count, on two counts whose cross products
-// pass 64 bits, on its errors and on drawn counts against the host's min-max form of the regression; a drawn sample
-// of 40 frames sorts plain and with O7, and the pooled .links is checked against the plain one frame pair by frame
-// pair: each cost its distance's level, K - cost, the chosen links the most links at the least cost on every component,
-// the crossings recounted. The test is one job on the device's tessera daemon, submitted before its first device work.
+// what a test covers, and the output reports so. O7's pooling is checked on a hand count, on two counts whose cross
+// products pass 64 bits, on its errors and on drawn counts against the host's min-max form of the regression; a drawn
+// sample of 40 frames sorts plain and with O7, and the pooled .links is checked against the plain one frame pair by
+// frame pair: each cost its distance's level, K - cost, the chosen links the most links at the least cost on every
+// component, the crossings recounted. The test is one job on the device's tessera daemon, submitted before its first
+// device work.
 //
 // The test links no engine_*.cu. Engine_sample_path below restates engine/engine_*.cu's, and sort_link.cu's paths
 // are built by the restatement here: a change to either format must be made in both. The test prints one path it
@@ -126,7 +127,7 @@ typedef struct
     unsigned long long components;
     unsigned long long enumerated;
     unsigned long long chosen;
-    unsigned long long kept;
+    unsigned long long retained;
     unsigned long long level;
     unsigned long long crossed;
 } SortTestSums;
@@ -232,7 +233,7 @@ static int sort_test_augment(SortTestAugment *augment, unsigned int source, unsi
     return 0;
 }
 
-// the most links any matching of the gate holds, by augmenting paths; the gate is in source order
+// the most links any matching of the gate admits, by augmenting paths; the gate is in source order
 static unsigned int sort_test_max_links(const SortLinks *links, unsigned int sources, unsigned int targets)
 {
     unsigned int *const start = (unsigned int *)calloc((size_t)sources + 2u, sizeof(unsigned int));
@@ -412,7 +413,7 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
         ok = (need[links->component[pair_at]] <= 0xFFFFFFFFull) && (weight >= 1ull) &&
              (links->weight[pair_at] == weight);
     }
-    // the chosen links: one to one, as many as the sort says, and as many as any matching of the gate holds
+    // the chosen links: one to one, as many as the sort reports, and as many as any matching of the gate admits
     unsigned char *const source_used = (unsigned char *)calloc((size_t)sources + 1u, 1u);
     unsigned char *const target_used = (unsigned char *)calloc((size_t)targets + 1u, 1u);
     ok = ok && (source_used != NULL) && (target_used != NULL);
@@ -450,7 +451,7 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
     }
     memset(source_used, 0, (size_t)sources + 1u);
     memset(target_used, 0, (size_t)targets + 1u);
-    unsigned long long kept = 0ull;
+    unsigned long long retained = 0ull;
     unsigned long long level = 0ull;
     unsigned long long crossed = 0ull;
     for (unsigned int component = 0u; ok && (component < components); component += 1u)
@@ -486,7 +487,7 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
                         (long long)pair->target_places[(ENGINE_AXES * (size_t)links->target[b]) + axis];
                     dot += (long long)pair->weights[axis] * before * after;
                 }
-                kept += (dot > 0ll) ? 1ull : 0ull;
+                retained += (dot > 0ll) ? 1ull : 0ull;
                 level += (dot == 0ll) ? 1ull : 0ull;
                 crossed += (dot < 0ll) ? 1ull : 0ull;
             }
@@ -499,7 +500,7 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
             sums->enumerated += 1ull;
         }
     }
-    ok = ok && (kept == links->kept) && (level == links->level) && (crossed == links->crossed);
+    ok = ok && (retained == links->retained) && (level == links->level) && (crossed == links->crossed);
     free(label);
     free(queue);
     free(by_source);
@@ -515,7 +516,7 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
     sums->gate += links->pairs;
     sums->components += links->components;
     sums->chosen += links->chosen;
-    sums->kept += links->kept;
+    sums->retained += links->retained;
     sums->level += links->level;
     sums->crossed += links->crossed;
     return ok;
@@ -523,33 +524,33 @@ static int sort_test_prove(const SortTestPair *pair, SortLinks *links, SortTestS
 
 static void sort_test_sums_print(SimResults *results, const char *what, const SortTestSums *sums)
 {
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, what);
-    scriptura_text(&results->line, ": ");
-    scriptura_decimal(&results->line, sums->agreed, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, sums->cases, 1u);
-    scriptura_text(&results->line, " pairs the host's; ");
-    scriptura_decimal(&results->line, sums->gate, 1u);
-    scriptura_text(&results->line, " gate pairs (");
-    scriptura_decimal(&results->line, sums->forward, 1u);
-    scriptura_text(&results->line, " forward, ");
-    scriptura_decimal(&results->line, sums->backward, 1u);
-    scriptura_text(&results->line, " backward, ");
-    scriptura_decimal(&results->line, sums->both, 1u);
-    scriptura_text(&results->line, " both), ");
-    scriptura_decimal(&results->line, sums->components, 1u);
-    scriptura_text(&results->line, " components, ");
-    scriptura_decimal(&results->line, sums->enumerated, 1u);
-    scriptura_text(&results->line, " enumerated; ");
-    scriptura_decimal(&results->line, sums->chosen, 1u);
-    scriptura_text(&results->line, " chosen; ");
-    scriptura_decimal(&results->line, sums->kept, 1u);
-    scriptura_text(&results->line, " kept, ");
-    scriptura_decimal(&results->line, sums->level, 1u);
-    scriptura_text(&results->line, " level, ");
-    scriptura_decimal(&results->line, sums->crossed, 1u);
-    scriptura_text(&results->line, " crossed\n");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, what);
+    mmgr_line_put(&results->line, ": ");
+    mmgr_line_decimal(&results->line, sums->agreed, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, sums->cases, 1u);
+    mmgr_line_put(&results->line, " pairs the host's; ");
+    mmgr_line_decimal(&results->line, sums->gate, 1u);
+    mmgr_line_put(&results->line, " gate pairs (");
+    mmgr_line_decimal(&results->line, sums->forward, 1u);
+    mmgr_line_put(&results->line, " forward, ");
+    mmgr_line_decimal(&results->line, sums->backward, 1u);
+    mmgr_line_put(&results->line, " backward, ");
+    mmgr_line_decimal(&results->line, sums->both, 1u);
+    mmgr_line_put(&results->line, " both), ");
+    mmgr_line_decimal(&results->line, sums->components, 1u);
+    mmgr_line_put(&results->line, " components, ");
+    mmgr_line_decimal(&results->line, sums->enumerated, 1u);
+    mmgr_line_put(&results->line, " enumerated; ");
+    mmgr_line_decimal(&results->line, sums->chosen, 1u);
+    mmgr_line_put(&results->line, " chosen; ");
+    mmgr_line_decimal(&results->line, sums->retained, 1u);
+    mmgr_line_put(&results->line, " retained, ");
+    mmgr_line_decimal(&results->line, sums->level, 1u);
+    mmgr_line_put(&results->line, " level, ");
+    mmgr_line_decimal(&results->line, sums->crossed, 1u);
+    mmgr_line_put(&results->line, " crossed\n");
     sim_flush(results);
 }
 
@@ -685,9 +686,9 @@ static void sort_test_outside(SimResults *results, SortLinks *links)
     ok = ok && sort_test_prove(&pair, links, &sums);
     sort_test_pair_release(&pair);
     sim_check(results, ok && (outside != 0ull), "predictions outside the view are gated as the host gates them");
-    scriptura_text(&results->line, "  ");
-    scriptura_decimal(&results->line, outside, 1u);
-    scriptura_text(&results->line, " of 200 predictions outside the view\n");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_decimal(&results->line, outside, 1u);
+    mmgr_line_put(&results->line, " of 200 predictions outside the view\n");
     sort_test_sums_print(results, "outside the view", &sums);
 }
 
@@ -712,7 +713,7 @@ static void sort_test_pile(SimResults *results, SortLinks *links)
         const int place[3] = {4, 6, 10};
         memcpy(&pair.target_places[ENGINE_AXES * target], place, sizeof(place));
     }
-    // the pool is given back first. The pile holds it for its own 50 points
+    // the pool is given back first. The pile reserves it for its own 50 points
     sort_release();
     ok = ok && sort_test_prove(&pair, links, &sums);
     ok = ok && (links->pairs == (SORT_TEST_PILE_SOURCES * SORT_TEST_PILE_TARGETS)) &&
@@ -764,7 +765,7 @@ static void sort_test_small_draws(SimResults *results, SortLinks *links)
     sort_test_sums_print(results, "small drawn frames", &sums);
 }
 
-// 6031 points against 6031, the most a frame of the scanned set holds, in a 64 x 256 x 256 view: most targets lie
+// 6031 points against 6031, the most a frame of the scanned set contains, in a 64 x 256 x 256 view: most targets lie
 // near a prediction and the rest are drawn anywhere
 static void sort_test_large(SimResults *results, SortLinks *links)
 {
@@ -853,9 +854,9 @@ static void sort_test_errors(SimResults *results, SortLinks *links)
               (wide == SORT_ERROR) && (links->why == SORT_WHY_WIDE) && (links->wide_component == 0u) &&
                   (links->needs == 9223372030926249002ull) && (links->needs_past_64 == 0),
               "a cost of 9223372030926249001 needs K = 9223372030926249002, named, past 32 bits");
-    scriptura_text(&results->line, "  one link across 3037000499 needs K = ");
-    scriptura_decimal(&results->line, links->needs, 1u);
-    scriptura_text(&results->line, "\n");
+    mmgr_line_put(&results->line, "  one link across 3037000499 needs K = ");
+    mmgr_line_decimal(&results->line, links->needs, 1u);
+    mmgr_line_put(&results->line, "\n");
     const int far_sources[9] = {0, 0, -1518500250, 0, 0, -1518500250, 0, 0, -1518500250};
     const long over_limit = sort_test_explicit(links, ones, 3u, far_sources, 1u, near_target);
     sim_check(results, (over_limit == SORT_ERROR) && (links->why == SORT_WHY_WIDE) && (links->needs_past_64 != 0),
@@ -870,12 +871,12 @@ static void sort_test_errors(SimResults *results, SortLinks *links)
     const long over = sort_test_explicit(links, ones, 2u, edge_sources, 1u, edge_target);
     sim_check(results, (over == SORT_ERROR) && (links->why == SORT_WHY_WIDE) && (links->needs == 4294967296ull),
               "costs of 4294967294 and 1 in one component need K = 4294967296 and error");
-    scriptura_text(&results->line, "  costs 4294967294 and 1 need K = ");
-    scriptura_decimal(&results->line, links->needs, 1u);
-    scriptura_text(&results->line, "\n");
-    scriptura_text(&results->line, "  not forced here: the gate's error when its ties pass 2^30 pairs (why ");
-    scriptura_decimal(&results->line, SORT_WHY_GATE, 1u);
-    scriptura_text(&results->line, "), which needs frames past what a test holds\n");
+    mmgr_line_put(&results->line, "  costs 4294967294 and 1 need K = ");
+    mmgr_line_decimal(&results->line, links->needs, 1u);
+    mmgr_line_put(&results->line, "\n");
+    mmgr_line_put(&results->line, "  not forced here: the gate's error when its ties pass 2^30 pairs (why ");
+    mmgr_line_decimal(&results->line, SORT_WHY_GATE, 1u);
+    mmgr_line_put(&results->line, "), which needs frames past what a test covers\n");
     sim_flush(results);
 }
 
@@ -884,14 +885,14 @@ static void sort_test_reserve_bytes(SimResults *results)
     const unsigned long long maximum = sort_reserve_bytes(SORT_TEST_POINTS_MAX);
     sim_check(results, (maximum != 0ull) && ((maximum % DEVICE_POOL_PAGE_BYTES) == 0ull),
               "the gate's pool for 6031 points is whole pages");
-    sim_check(results, sort_reserve_bytes(0u) == 0ull, "no points hold nothing");
+    sim_check(results, sort_reserve_bytes(0u) == 0ull, "no points reserve nothing");
     sim_check(results, sort_reserve_bytes(SORT_COUNT_MAX + 1u) == 0ull,
-              "points past the matching's bound hold nothing");
-    scriptura_text(&results->line, "  the gate holds ");
-    scriptura_decimal(&results->line, maximum, 1u);
-    scriptura_text(&results->line, " bytes for 6031 points a frame, ");
-    scriptura_decimal(&results->line, sort_reserve_bytes(1u), 1u);
-    scriptura_text(&results->line, " for one\n");
+              "points past the matching's bound reserve nothing");
+    mmgr_line_put(&results->line, "  the gate reserves ");
+    mmgr_line_decimal(&results->line, maximum, 1u);
+    mmgr_line_put(&results->line, " bytes for 6031 points a frame, ");
+    mmgr_line_decimal(&results->line, sort_reserve_bytes(1u), 1u);
+    mmgr_line_put(&results->line, " for one\n");
     sim_flush(results);
 }
 
@@ -1135,7 +1136,7 @@ static int sort_test_chain_read(SimResults *results, const unsigned int *links, 
             carried += ((flags & SORT_SOURCE_CARRIED) != 0u) ? 1u : 0u;
         }
         at += SORT_SOURCE_WORDS * SORT_TEST_BODIES;
-        unsigned long long kept = 0ull;
+        unsigned long long retained = 0ull;
         unsigned long long level = 0ull;
         unsigned long long crossed = 0ull;
         for (unsigned int one = 0u; ok && (one < pairs); one += 1u)
@@ -1168,12 +1169,12 @@ static int sort_test_chain_read(SimResults *results, const unsigned int *links, 
                            (long long)(source_places[gate[0]][axis] - source_places[next[0]][axis]) *
                            (long long)(target_places[gate[1]][axis] - target_places[next[1]][axis]);
                 }
-                kept += (dot > 0ll) ? 1ull : 0ull;
+                retained += (dot > 0ll) ? 1ull : 0ull;
                 level += (dot == 0ll) ? 1ull : 0ull;
                 crossed += (dot < 0ll) ? 1ull : 0ull;
             }
         }
-        ok = ok && (kept == counted[0]) && (level == counted[1]) && (crossed == counted[2]);
+        ok = ok && (retained == counted[0]) && (level == counted[1]) && (crossed == counted[2]);
         at += SORT_GATE_WORDS * pairs;
     }
     ok = ok && (at == count);
@@ -1185,17 +1186,17 @@ static int sort_test_chain_read(SimResults *results, const unsigned int *links, 
               " first frame carried");
     sim_check(results, followed == (SORT_TEST_BODIES * (SORT_TEST_FRAMES - 1u)),
               "every chosen link follows its body, at the cost from its prediction");
-    scriptura_text(&results->line, "  the chain: ");
-    scriptura_decimal(&results->line, predicted, 1u);
-    scriptura_text(&results->line, " predictions as drawn, ");
-    scriptura_decimal(&results->line, outside, 1u);
-    scriptura_text(&results->line, " outside, ");
-    scriptura_decimal(&results->line, carried, 1u);
-    scriptura_text(&results->line, " carried; ");
-    scriptura_decimal(&results->line, followed, 1u);
-    scriptura_text(&results->line, " chosen links follow their bodies, ");
-    scriptura_decimal(&results->line, zero_cost, 1u);
-    scriptura_text(&results->line, " of them at cost 0\n");
+    mmgr_line_put(&results->line, "  the chain: ");
+    mmgr_line_decimal(&results->line, predicted, 1u);
+    mmgr_line_put(&results->line, " predictions as drawn, ");
+    mmgr_line_decimal(&results->line, outside, 1u);
+    mmgr_line_put(&results->line, " outside, ");
+    mmgr_line_decimal(&results->line, carried, 1u);
+    mmgr_line_put(&results->line, " carried; ");
+    mmgr_line_decimal(&results->line, followed, 1u);
+    mmgr_line_put(&results->line, " chosen links follow their bodies, ");
+    mmgr_line_decimal(&results->line, zero_cost, 1u);
+    mmgr_line_put(&results->line, " of them at cost 0\n");
     sim_flush(results);
     return ok;
 }
@@ -1226,9 +1227,9 @@ static void sort_test_walk(SimResults *results, const char *set)
     char shown[ENGINE_PATH_CAPACITY];
     if (ok && engine_sample_path(shown, sizeof(shown), set, "chain", ".links"))
     {
-        scriptura_text(&results->line, "  the chain's .links, by the restated engine_sample_path: ");
-        scriptura_text(&results->line, shown);
-        scriptura_text(&results->line, "\n");
+        mmgr_line_put(&results->line, "  the chain's .links, by the restated engine_sample_path: ");
+        mmgr_line_put(&results->line, shown);
+        mmgr_line_put(&results->line, "\n");
     }
     unsigned int maximum = 0u;
     char *const every[3] = {(char *)"chain", (char *)"weighed", (char *)"wide"};
@@ -1326,7 +1327,7 @@ static void sort_test_levels(const SortFirstCount *counts, unsigned int count, u
     }
 }
 
-// sort_first_pool: a hand count, two counts whose cross products pass 64 bits, the errors, and drawn counts held
+// sort_first_pool: a hand count, two counts whose cross products pass 64 bits, the errors, and drawn counts checked
 // against the host's min-max levels
 static void sort_test_first_pool(SimResults *results)
 {
@@ -1345,14 +1346,14 @@ static void sort_test_first_pool(SimResults *results)
               "a hand count pools 1 with 2 at 7/8 and 3, 5 and 7 at 1/2; 9 stays its own block at 1/2 and"
               " shares their level: 5 blocks at 4 levels");
     // 411991917161190546 / 910402092372200759 is above 839884193750092557 / 2185629813747135544, and the two pool;
-    // taken mod 2^64 the cross products say the other way
+    // taken mod 2^64 the cross products point the other way
     SortFirstCount above[2] = {{4ull, 839884193750092557ull, 2185629813747135544ull, 99ull},
                                {9ull, 411991917161190546ull, 910402092372200759ull, 99ull}};
     ok = sort_first_pool(above, 2ull, &blocks, &levels) && (blocks == 1ull) && (levels == 1ull) &&
          (above[0].level == 0ull) && (above[1].level == 0ull);
     sim_check(results, ok, "a share above the one before it by cross products past 64 bits pools with it");
     // 219052283299494059 / 554932194672511887 is below 956727707341997303 / 964240444945033050, a level of its own;
-    // taken mod 2^64 the cross products say the other way
+    // taken mod 2^64 the cross products point the other way
     SortFirstCount below[2] = {{4ull, 956727707341997303ull, 964240444945033050ull, 99ull},
                                {9ull, 219052283299494059ull, 554932194672511887ull, 99ull}};
     ok = sort_first_pool(below, 2ull, &blocks, &levels) && (blocks == 2ull) && (levels == 2ull) &&
@@ -1411,15 +1412,15 @@ static void sort_test_first_pool(SimResults *results)
         all_levels += levels;
     }
     sim_check(results, ok, "drawn counts pool to the host's min-max levels, distance by distance");
-    scriptura_text(&results->line, "  sort_first_pool: ");
-    scriptura_decimal(&results->line, SORT_TEST_POOL_DRAWS, 1u);
-    scriptura_text(&results->line, " drawn counts of ");
-    scriptura_decimal(&results->line, distances, 1u);
-    scriptura_text(&results->line, " distances pooled into ");
-    scriptura_decimal(&results->line, all_blocks, 1u);
-    scriptura_text(&results->line, " blocks at ");
-    scriptura_decimal(&results->line, all_levels, 1u);
-    scriptura_text(&results->line, " levels, each the host's\n");
+    mmgr_line_put(&results->line, "  sort_first_pool: ");
+    mmgr_line_decimal(&results->line, SORT_TEST_POOL_DRAWS, 1u);
+    mmgr_line_put(&results->line, " drawn counts of ");
+    mmgr_line_decimal(&results->line, distances, 1u);
+    mmgr_line_put(&results->line, " distances pooled into ");
+    mmgr_line_decimal(&results->line, all_blocks, 1u);
+    mmgr_line_put(&results->line, " blocks at ");
+    mmgr_line_decimal(&results->line, all_levels, 1u);
+    mmgr_line_put(&results->line, " levels, each the host's\n");
     sim_flush(results);
 }
 
@@ -1586,7 +1587,7 @@ typedef struct
 
 // one frame pair of the pooled .links against the plain one: the pair's counts, its source records word for word, each
 // gate pair's source, target, component and flags but the chosen one the plain's, its cost its distance's level, its
-// weight K - cost, the chosen links one to one and as many as any matching holds, each component's most links at its
+// weight K - cost, the chosen links one to one and as many as any matching admits, each component's most links at its
 // least cost, and the crossings recounted
 static int sort_test_first_pair(const SortTestDrawn *drawn, unsigned int frame, const unsigned int *plain,
                                 const unsigned int *pooled, const SortFirstCount *counts, unsigned int distinct,
@@ -1796,21 +1797,21 @@ static void sort_test_first_walk(SimResults *results, const char *set)
     {
         maximum = (levels[one] > maximum) ? levels[one] : maximum;
     }
-    scriptura_text(&results->line, "  O7's drawn sample: ");
-    scriptura_decimal(&results->line, sums.pairs, 1u);
-    scriptura_text(&results->line, " frame pairs, ");
-    scriptura_decimal(&results->line, sums.gate, 1u);
-    scriptura_text(&results->line, " gate pairs at ");
-    scriptura_decimal(&results->line, ok ? distinct : 0u, 1u);
-    scriptura_text(&results->line, " distances pooled to ");
-    scriptura_decimal(&results->line, ok ? (maximum + 1ull) : 0ull, 1u);
-    scriptura_text(&results->line, " levels; ");
-    scriptura_decimal(&results->line, sums.components, 1u);
-    scriptura_text(&results->line, " components, all enumerated; ");
-    scriptura_decimal(&results->line, sums.chosen, 1u);
-    scriptura_text(&results->line, " chosen, ");
-    scriptura_decimal(&results->line, sums.changed, 1u);
-    scriptura_text(&results->line, " chosen flags changed from the first pass\n");
+    mmgr_line_put(&results->line, "  O7's drawn sample: ");
+    mmgr_line_decimal(&results->line, sums.pairs, 1u);
+    mmgr_line_put(&results->line, " frame pairs, ");
+    mmgr_line_decimal(&results->line, sums.gate, 1u);
+    mmgr_line_put(&results->line, " gate pairs at ");
+    mmgr_line_decimal(&results->line, ok ? distinct : 0u, 1u);
+    mmgr_line_put(&results->line, " distances pooled to ");
+    mmgr_line_decimal(&results->line, ok ? (maximum + 1ull) : 0ull, 1u);
+    mmgr_line_put(&results->line, " levels; ");
+    mmgr_line_decimal(&results->line, sums.components, 1u);
+    mmgr_line_put(&results->line, " components, all enumerated; ");
+    mmgr_line_decimal(&results->line, sums.chosen, 1u);
+    mmgr_line_put(&results->line, " chosen, ");
+    mmgr_line_decimal(&results->line, sums.changed, 1u);
+    mmgr_line_put(&results->line, " chosen flags changed from the first pass\n");
     sim_flush(results);
     // a stale .links, which the wide sample's error in its first pass must remove with O7 on too
     words.count = 0u;

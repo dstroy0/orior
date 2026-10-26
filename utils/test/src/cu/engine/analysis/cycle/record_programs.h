@@ -3,7 +3,7 @@
 #ifndef RECORD_PROGRAMS_H
 #define RECORD_PROGRAMS_H
 
-// The record programs the host oracle's test runs (record_test.c) and the tests that hold another
+// The record programs the host oracle's test runs (record_test.c) and the tests that check another
 // language to it (record_vhdl_test.cpp): each program, encoded and laid out, and the one xorshift stream its
 // inputs are drawn from: every test that draws them in the same order draws the same atoms, and the
 // digest that two parts' lines compare. It compiles as C and as C++

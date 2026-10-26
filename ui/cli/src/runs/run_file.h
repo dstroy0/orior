@@ -16,9 +16,9 @@
 #include "../command_line/cli_internal.h"
 
 // a path as a POSIX shell takes it, with forward slashes, in single quotes, after `out`
-void cli_run_file_quoted(CliLine *out, const char *path);
+void cli_run_file_quoted(VerbaLinea *out, const char *path);
 // the line that runs the file at `path`, under the tree at `root`, in `language`, written as `{"line", "tool"}`: 1, or
-// 0 with why said
-int cli_run_file_line(const char *root, const char *path, const char *language, CliLine *out, CliLine *said);
+// 0 with why given
+int cli_run_file_line(const char *root, const char *path, const char *language, VerbaLinea *out, VerbaLinea *err_msg);
 
 #endif

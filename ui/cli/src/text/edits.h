@@ -30,8 +30,8 @@ typedef struct
 } CliTextEdit;
 
 // a place written as `{"line", "col"}`, and an edit as `{"from", "to", "text"}`
-void cli_text_place_written(CliTextPlace place, CliLine *out);
-void cli_text_edit_written(const CliTextEdit *edit, CliLine *out);
+void cli_text_place_written(CliTextPlace place, VerbaLinea *out);
+void cli_text_edit_written(const CliTextEdit *edit, VerbaLinea *out);
 
 // the byte where the UTF-16 column `col` of `size` bytes of a line falls, the line's end where it is past it
 unsigned long long cli_text_byte_of(const char *line, unsigned long long size, unsigned int col);
@@ -39,13 +39,13 @@ unsigned long long cli_text_byte_of(const char *line, unsigned long long size, u
 // `size` bytes of `text` with `edits`, `count` of them, written over it into `out`: 1, or 0 where there are more than
 // CLI_TEXT_EDITS of them or the cellblock cannot meet the places they are found at
 int cli_text_applied(const char *text, unsigned long long size, const CliTextEdit *edits, unsigned int count,
-                     CliLine *out);
+                     VerbaLinea *out);
 
-// the most completion items one ask gives, and the bytes their texts take
+// the most completion items one request gives, and the bytes their texts take
 #define CLI_COMPLETIONS_MOST 4096u
 #define CLI_COMPLETIONS_TEXT (1u << 20u)
 
-// A completion item: what it shows, its kind, what it says of itself and what it inserts, each a text of its items',
+// A completion item: what it shows, its kind, what it states of itself and what it inserts, each a text of its items',
 // and whether what it inserts is a snippet, its stops written `$1` and `${1:name}`
 typedef struct
 {
@@ -70,13 +70,13 @@ typedef struct
 } CliCompletions;
 
 // items made empty; an item put after the others: 1, or 0 where it does not fit; the items made unique by what they
-// show, the first of each kept; and an item written as the page reads one, `{"label", "kind", "detail", "insert"}`
+// show, the first of each retained; and an item written as the page reads one, `{"label", "kind", "detail", "insert"}`
 // and `"snippet": true` where it is one (completions.c)
 void cli_completions_begun(CliCompletions *items);
 int cli_completion_put(CliCompletions *items, const char *label, unsigned long long label_size, const char *kind,
                        const char *detail, unsigned long long detail_size, const char *insert,
                        unsigned long long insert_size, int snippet);
 void cli_completions_unique(CliCompletions *items);
-void cli_completion_written(const CliCompletions *items, unsigned int at, CliLine *out);
+void cli_completion_written(const CliCompletions *items, unsigned int at, VerbaLinea *out);
 
 #endif

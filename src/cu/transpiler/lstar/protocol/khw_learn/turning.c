@@ -5,11 +5,11 @@
 #include "khw_learn_internal.h"
 
 // The turning case of the relation `anchor`, read swapped where `swapped`, into `word`, with the relation's answer to
-// it in `expected`: the first case of the relation, in the order the ladder holds them, whose two words differ, whose
+// it in `expected`: the first case of the relation, in the order the ladder orders them, whose two words differ, whose
 // answer differs from both, and whose answer to each word taken twice differs from the second word and from the
 // answer. The register pass reads a run three ways over this case, as the destination where it leaves the second word,
 // as the first source where it reads the second word twice, as the second where it reads the first twice: a case whose
-// readings coincide would place a run by a coincidence, and is passed over. 1, or 0 where the relation holds no such
+// readings coincide would place a run by a coincidence, and is passed over. 1, or 0 where the relation contains no such
 // case
 int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], unsigned int *expected)
 {
@@ -43,10 +43,10 @@ int khw_turning_words(unsigned int anchor, int swapped, unsigned int word[2], un
     return 0;
 }
 
-// 1 where the predicate relation `anchor`, read swapped where `swapped` and signed where `signed_read`, holds over
+// 1 where the predicate relation `anchor`, read swapped where `swapped` and signed where `signed_read`, is true over
 // `first` and `second`
-static int khw_predicate_holds(unsigned int anchor, int swapped, int signed_read, unsigned int first,
-                               unsigned int second)
+static int khw_predicate_matches(unsigned int anchor, int swapped, int signed_read, unsigned int first,
+                                 unsigned int second)
 {
     const unsigned int read[2] = {(swapped != 0) ? second : first, (swapped != 0) ? first : second};
     unsigned int answered = 0u;
@@ -62,11 +62,11 @@ static int khw_predicate_holds(unsigned int anchor, int swapped, int signed_read
 }
 
 // The turning case `which` of a predicate form of the relation `anchor`, read swapped where `swapped` and signed where
-// `signed_read`, into `word`: the cases of the relation in the order the ladder holds them, each in its order and then
-// the other, each pair once, whose words differ and over which the relation holds in the form's reading, so that the
+// `signed_read`, into `word`: the cases of the relation in the order the ladder orders them, each in its order and then
+// the other, each pair once, whose words differ and over which the relation is true in the form's reading, so that the
 // guarded store writes the second word. A turn that moves a word to another register shows only where that register
 // breaks the relation, which a case does for one word and not the other: the turns are put over every such case and
-// the bits any of them turned read as one. 1, or 0 where the relation holds fewer than `which` + 1 such cases or is
+// the bits any of them turned read as one. 1, or 0 where the relation contains fewer than `which` + 1 such cases or is
 // no predicate
 int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsigned int which, unsigned int word[2])
 {
@@ -86,7 +86,7 @@ int khw_predicate_words(unsigned int anchor, int swapped, int signed_read, unsig
         {
             const unsigned int first = (order == 0u) ? question->word[0] : question->word[1];
             const unsigned int second = (order == 0u) ? question->word[1] : question->word[0];
-            if (!khw_predicate_holds(anchor, swapped, signed_read, first, second))
+            if (!khw_predicate_matches(anchor, swapped, signed_read, first, second))
             {
                 continue;
             }
@@ -135,7 +135,7 @@ int khw_places_whole(const unsigned int *place, unsigned int runs, unsigned int 
     return 1;
 }
 
-// the field of `bit` among `fields`, the narrowest holding it, or `fields` where none does
+// the field of `bit` among `fields`, the narrowest containing it, or `fields` where none does
 static unsigned int khw_field_of(unsigned int bit, unsigned int fields, const unsigned int *field_first,
                                  const unsigned int *field_bits)
 {
@@ -152,10 +152,10 @@ static unsigned int khw_field_of(unsigned int bit, unsigned int fields, const un
 }
 
 unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const unsigned int *field_first,
-                               const unsigned int *field_bits, KhwAnswered *held)
+                               const unsigned int *field_bits, KhwAnswered *form)
 {
-    held->runs = 0u;
-    for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (held->runs < KHW_RUNS); bit += 1u)
+    form->runs = 0u;
+    for (unsigned int bit = KHW_TURN_FIRST; (bit <= KHW_TURN_LAST) && (form->runs < KHW_RUNS); bit += 1u)
     {
         if (turned[bit] == 0)
         {
@@ -168,12 +168,12 @@ unsigned int khw_runs_gathered(const int *turned, unsigned int fields, const uns
         {
             end += 1u;
         }
-        held->first[held->runs] = bit;
-        held->last[held->runs] = end;
-        held->place[held->runs] = KHW_PLACE_NONE;
-        held->kind[held->runs] = KHW_KIND_REGISTER;
-        held->runs += 1u;
+        form->first[form->runs] = bit;
+        form->last[form->runs] = end;
+        form->place[form->runs] = KHW_PLACE_NONE;
+        form->kind[form->runs] = KHW_KIND_REGISTER;
+        form->runs += 1u;
         bit = end;
     }
-    return held->runs;
+    return form->runs;
 }

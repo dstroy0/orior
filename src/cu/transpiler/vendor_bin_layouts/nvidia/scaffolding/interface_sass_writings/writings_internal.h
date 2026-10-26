@@ -1,6 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// writings_internal.h: what the modules of the writings probe share: its includes, the bounds of a container, its code and text, the registers the cases are written in, the anchors' and precepts' texts, the machine, pattern, container and kernel held, and the functions one module reads from another
+// writings_internal.h: what the modules of the writings probe share: its includes, the bounds of a container, its code
+// and text, the registers the cases are written in, the anchors' and precepts' texts, the machine, pattern, container
+// and kernel stored, and the functions one module reads from another
 #ifndef WRITINGS_INTERNAL_H
 #define WRITINGS_INTERNAL_H
 
@@ -17,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the most bytes a cubin, its code and a text take, the most exits a code holds, and the registers every cubin
+// the most bytes a cubin, its code and a text take, the most exits a code contains, and the registers every cubin
 // declares a thread
 #define WRITINGS_CUBIN_BYTES 262144u
 
@@ -76,7 +78,7 @@ typedef struct
     unsigned int which;
 } WritingsRelation;
 
-// the forms a search wrote, the answers the part gave them, and which relations each form holds
+// the forms a search wrote, the answers the part gave them, and which relations each form satisfies
 #define WRITINGS_FORMS_MOST 16384u
 
 // the register each node of a chain writes its word to, the root's being WRITINGS_RESULT, and the register a word of
@@ -96,7 +98,7 @@ extern SassMachine s_machine;
 extern unsigned char s_pattern[WRITINGS_CUBIN_BYTES];
 extern unsigned char s_code[WRITINGS_CODE_BYTES];
 extern char s_kernel_text[WRITINGS_TEXT_BYTES];
-extern char s_asking[WRITINGS_TEXT_BYTES];
+extern char s_query_text[WRITINGS_TEXT_BYTES];
 extern char s_kernel[128];
 extern unsigned long long s_pattern_size;
 extern unsigned int s_case[WRITINGS_CASES][2];
@@ -106,7 +108,7 @@ extern unsigned int s_relations;
 extern char s_forms[WRITINGS_FORMS_MOST][256];
 extern unsigned int s_form_count;
 extern unsigned char s_ran[WRITINGS_FORMS_MOST];
-extern unsigned char s_holds[WRITINGS_FORMS_MOST][WRITINGS_RELATIONS];
+extern unsigned char s_relation_agreed[WRITINGS_FORMS_MOST][WRITINGS_RELATIONS];
 
 unsigned long long writings_file_read(const char *path, unsigned char *bytes, unsigned long long room);
 void writings_relations(void);

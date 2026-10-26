@@ -124,22 +124,22 @@ unsigned int cli_files_wanted(const char *query, unsigned int *letters, unsigned
     cli_lock_take(&s_lock);
     const unsigned long long count = cli_regexp_letters(
         query, cellul.len(&(CatenaFinitaCfg){.src = query, .cap = CLI_CELLS_POOL}), s_read, CLI_FUZZY_LETTERS);
-    unsigned int kept = 0u;
-    for (unsigned long long at = 0ull; (at < count) && (kept < room); at += 1ull)
+    unsigned int wanted_count = 0u;
+    for (unsigned long long at = 0ull; (at < count) && (wanted_count < room); at += 1ull)
     {
         if (!cli_fuzzy_white(s_read[at]))
         {
-            letters[kept] = cli_regexp_lower(s_read[at]);
-            kept += 1u;
+            letters[wanted_count] = cli_regexp_lower(s_read[at]);
+            wanted_count += 1u;
         }
     }
     cli_lock_give(&s_lock);
-    return kept;
+    return wanted_count;
 }
 
 unsigned int cli_files_letters(const char *text, unsigned int *shown, unsigned int *lower, unsigned int room)
 {
-    // a letter count is below `room`, which an unsigned int holds
+    // a letter count is below `room`, which an unsigned int stores
     const unsigned int count = (unsigned int)cli_regexp_letters(
         text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), shown, room);
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -149,9 +149,9 @@ unsigned int cli_files_letters(const char *text, unsigned int *shown, unsigned i
     return count;
 }
 
-int cli_files_fuzzy_held(const unsigned int *wanted, unsigned int wanted_count, const unsigned int *shown,
-                         const unsigned int *lower, unsigned int count, unsigned int *latest, double *score,
-                         unsigned int *hits, unsigned int *hit_count)
+int cli_files_fuzzy_matches(const unsigned int *wanted, unsigned int wanted_count, const unsigned int *shown,
+                            const unsigned int *lower, unsigned int count, unsigned int *latest, double *score,
+                            unsigned int *hits, unsigned int *hit_count)
 {
     return cli_fuzzy_letters(wanted, wanted_count, shown, lower, count, 0u, 0, latest, score, hits, hit_count);
 }
@@ -167,7 +167,7 @@ int cli_files_fuzzy(const char *query, const char *text, unsigned long long from
     cli_lock_take(&s_lock);
     const unsigned int wanted = cli_files_wanted(query, s_wanted, CLI_FUZZY_LETTERS);
     const unsigned int letters = cli_files_letters(text, s_shown, s_lower, CLI_FUZZY_LETTERS);
-    // a place in letters is below CLI_FUZZY_LETTERS, which an unsigned int holds
+    // a place in letters is below CLI_FUZZY_LETTERS, which an unsigned int stores
     const unsigned int start = (from < CLI_FUZZY_LETTERS) ? (unsigned int)from : CLI_FUZZY_LETTERS;
     const int matched =
         cli_fuzzy_letters(s_wanted, wanted, s_shown, s_lower, letters, start, 0, s_latest, score, hits, count);

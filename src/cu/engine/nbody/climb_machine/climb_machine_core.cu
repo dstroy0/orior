@@ -194,7 +194,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     }
     // listed_count widens from unsigned int to size_t. Listed_count + 1 cannot wrap in 32 bits
     const size_t capacity = (size_t)listed_count + 1u;
-    const size_t slots = machine->capacity;
+    const size_t residents = machine->capacity;
     machine->core_earlier = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     machine->core_later = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     machine->core_side = (unsigned int *)malloc(capacity * sizeof(unsigned int));
@@ -202,20 +202,20 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     machine->core_match = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     machine->core_lag = (int *)malloc(capacity * 3u * sizeof(int));
     machine->core_width_first = (unsigned int *)malloc((capacity + 1u) * sizeof(unsigned int));
-    unsigned int *const listed_slot = (unsigned int *)malloc(capacity * sizeof(unsigned int));
+    unsigned int *const listed_resident = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     unsigned int *const listed_run_first = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     unsigned int *const listed_run_end = (unsigned int *)malloc(capacity * sizeof(unsigned int));
     int *const listed_center = (int *)malloc(capacity * 3u * sizeof(int));
     unsigned int *const widths = (unsigned int *)calloc(capacity, sizeof(unsigned int));
     size_t *const staged_at = (size_t *)calloc(capacity, sizeof(size_t));
-    unsigned int *const slot_first = (unsigned int *)calloc(slots + 1u, sizeof(unsigned int));
-    unsigned int *const slot_order = (unsigned int *)malloc(capacity * sizeof(unsigned int));
-    int steps_succeeded = (widest != 0u) && (machine->core_earlier != NULL) && (machine->core_later != NULL) &&
-                          (machine->core_side != NULL) && (machine->core_leaf != NULL) &&
-                          (machine->core_match != NULL) && (machine->core_lag != NULL) &&
-                          (machine->core_width_first != NULL) && (listed_slot != NULL) && (listed_run_first != NULL) &&
-                          (listed_run_end != NULL) && (listed_center != NULL) && (widths != NULL) &&
-                          (staged_at != NULL) && (slot_first != NULL) && (slot_order != NULL);
+    unsigned int *const resident_first = (unsigned int *)calloc(residents + 1u, sizeof(unsigned int));
+    unsigned int *const resident_order = (unsigned int *)malloc(capacity * sizeof(unsigned int));
+    int steps_succeeded =
+        (widest != 0u) && (machine->core_earlier != NULL) && (machine->core_later != NULL) &&
+        (machine->core_side != NULL) && (machine->core_leaf != NULL) && (machine->core_match != NULL) &&
+        (machine->core_lag != NULL) && (machine->core_width_first != NULL) && (listed_resident != NULL) &&
+        (listed_run_first != NULL) && (listed_run_end != NULL) && (listed_center != NULL) && (widths != NULL) &&
+        (staged_at != NULL) && (resident_first != NULL) && (resident_order != NULL);
     unsigned int climber_first = 0u;
     unsigned int listed_written = 0u;
     for (unsigned int pair = 0u; steps_succeeded && (pair < machine->ran_count); pair += 1u)
@@ -229,47 +229,48 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
             {
                 const unsigned int climber = climber_first + leaf;
                 const unsigned int index = machine->climber_side[climber];
-                const unsigned int own_slot = machine->side_slots[2u * index];
-                const unsigned int *const leaf_bundles = machine->slot_leaf_bundles[own_slot];
+                const unsigned int own_resident = machine->side_residents[2u * index];
+                const unsigned int *const leaf_bundles = machine->resident_leaf_bundles[own_resident];
                 const unsigned int bundle_first = leaf_bundles[leaf];
                 const unsigned int bundle_end = leaf_bundles[leaf + 1u];
-                // own_slot * run_room narrows from size_t to unsigned int exactly, as machine_split_runs holds capacity
+                // own_resident * run_room narrows from size_t to unsigned int exactly, as machine_split_runs bounds
+                // capacity
                 // * run_room within 32 bits
-                const unsigned int run_base = (unsigned int)(own_slot * machine->run_capacity);
+                const unsigned int run_base = (unsigned int)(own_resident * machine->run_capacity);
                 const unsigned int empty = (bundle_end <= bundle_first) ? 1u : 0u;
                 machine->core_earlier[listed_written] = pending->earlier;
                 machine->core_later[listed_written] = pending->later;
                 machine->core_side[listed_written] = side;
                 machine->core_leaf[listed_written] = leaf;
                 machine->core_match[listed_written] = machine->landed[climber];
-                listed_slot[listed_written] = machine->side_slots[(2u * index) + 1u];
+                listed_resident[listed_written] = machine->side_residents[(2u * index) + 1u];
                 listed_run_first[listed_written] =
-                    (empty != 0u) ? 0u : (run_base + machine->slot_bundle_first[own_slot][bundle_first]);
+                    (empty != 0u) ? 0u : (run_base + machine->resident_bundle_first[own_resident][bundle_first]);
                 listed_run_end[listed_written] =
-                    (empty != 0u) ? 0u : (run_base + machine->slot_bundle_end[own_slot][bundle_end - 1u]);
+                    (empty != 0u) ? 0u : (run_base + machine->resident_bundle_end[own_resident][bundle_end - 1u]);
                 listed_center[3u * listed_written] = machine->centers[3u * climber];
                 listed_center[(3u * listed_written) + 1u] = machine->centers[(3u * climber) + 1u];
                 listed_center[(3u * listed_written) + 2u] = machine->centers[(3u * climber) + 2u];
                 machine->core_lag[3u * listed_written] = listed_center[3u * listed_written];
                 machine->core_lag[(3u * listed_written) + 1u] = listed_center[(3u * listed_written) + 1u];
                 machine->core_lag[(3u * listed_written) + 2u] = listed_center[(3u * listed_written) + 2u];
-                slot_first[listed_slot[listed_written] + 1u] +=
+                resident_first[listed_resident[listed_written] + 1u] +=
                     (machine->landed[climber] != CLIMB_MACHINE_OUTSIDE) ? 1u : 0u;
                 listed_written += 1u;
             }
             climber_first += leaves;
         }
     }
-    for (size_t slot = 0u; steps_succeeded && (slot < slots); slot += 1u)
+    for (size_t resident = 0u; steps_succeeded && (resident < residents); resident += 1u)
     {
-        slot_first[slot + 1u] += slot_first[slot];
+        resident_first[resident + 1u] += resident_first[resident];
     }
-    unsigned int *const slot_fill =
-        steps_succeeded ? (unsigned int *)malloc((slots + 1u) * sizeof(unsigned int)) : NULL;
-    steps_succeeded = steps_succeeded && (slot_fill != NULL);
+    unsigned int *const resident_fill =
+        steps_succeeded ? (unsigned int *)malloc((residents + 1u) * sizeof(unsigned int)) : NULL;
+    steps_succeeded = steps_succeeded && (resident_fill != NULL);
     if (steps_succeeded)
     {
-        memcpy(slot_fill, slot_first, (slots + 1u) * sizeof(unsigned int));
+        memcpy(resident_fill, resident_first, (residents + 1u) * sizeof(unsigned int));
     }
     for (unsigned int listed_place = 0u; steps_succeeded && (listed_place < listed_count); listed_place += 1u)
     {
@@ -277,23 +278,23 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
         {
             continue;
         }
-        slot_order[slot_fill[listed_slot[listed_place]]] = listed_place;
-        slot_fill[listed_slot[listed_place]] += 1u;
+        resident_order[resident_fill[listed_resident[listed_place]]] = listed_place;
+        resident_fill[listed_resident[listed_place]] += 1u;
     }
-    unsigned int max_slot_items = 0u;
-    for (size_t slot = 0u; steps_succeeded && (slot < slots); slot += 1u)
+    unsigned int max_resident_items = 0u;
+    for (size_t resident = 0u; steps_succeeded && (resident < residents); resident += 1u)
     {
-        const unsigned int slot_items = slot_first[slot + 1u] - slot_first[slot];
-        max_slot_items = (slot_items > max_slot_items) ? slot_items : max_slot_items;
+        const unsigned int resident_items = resident_first[resident + 1u] - resident_first[resident];
+        max_resident_items = (resident_items > max_resident_items) ? resident_items : max_resident_items;
     }
     // voxels narrows from unsigned long long to size_t exactly, as climb_machine_open already allocated this many
     // labels
     const size_t voxels = (size_t)geometry.voxels;
-    // max_slot_items widens from unsigned int to size_t before the multiply. Items * widest * 10 cannot wrap in 32
+    // max_resident_items widens from unsigned int to size_t before the multiply. Items * widest * 10 cannot wrap in 32
     // bits
-    const size_t bins = (size_t)max_slot_items * widest * CLIMB_MACHINE_CORE_FIELDS;
-    // max_slot_items widens from unsigned int to size_t. Max_slot_items + 1 cannot wrap in 32 bits
-    const size_t item_capacity = (size_t)max_slot_items + 1u;
+    const size_t bins = (size_t)max_resident_items * widest * CLIMB_MACHINE_CORE_FIELDS;
+    // max_resident_items widens from unsigned int to size_t. Max_resident_items + 1 cannot wrap in 32 bits
+    const size_t item_capacity = (size_t)max_resident_items + 1u;
     unsigned int *painted = NULL;
     unsigned int *range_first = NULL;
     unsigned int *range_second = NULL;
@@ -330,17 +331,17 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     const unsigned int rows = geometry.depth * geometry.height;
     const unsigned int plane = geometry.height * geometry.width;
     const unsigned int height_columns = geometry.depth * geometry.width;
-    for (unsigned int slot = 0u; steps_succeeded && (slot < machine->capacity); slot += 1u)
+    for (unsigned int resident = 0u; steps_succeeded && (resident < machine->capacity); resident += 1u)
     {
-        const unsigned int slot_item_first = slot_first[slot];
-        const unsigned int slot_items = slot_first[slot + 1u] - slot_item_first;
-        if (slot_items == 0u)
+        const unsigned int resident_item_first = resident_first[resident];
+        const unsigned int resident_items = resident_first[resident + 1u] - resident_item_first;
+        if (resident_items == 0u)
         {
             continue;
         }
-        for (unsigned int item = 0u; item < slot_items; item += 1u)
+        for (unsigned int item = 0u; item < resident_items; item += 1u)
         {
-            const unsigned int listed_place = slot_order[slot_item_first + item];
+            const unsigned int listed_place = resident_order[resident_item_first + item];
             item_run_first[item] = listed_run_first[listed_place];
             item_run_end[item] = listed_run_end[listed_place];
             item_center[3u * item] = listed_center[3u * listed_place];
@@ -348,22 +349,21 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
             item_center[(3u * item) + 2u] = listed_center[(3u * listed_place) + 2u];
             item_match[item] = machine->core_match[listed_place];
         }
-        const size_t base = slot * machine->run_capacity;
-        const unsigned int runs = machine->slot_runs[slot];
-        // slot_items widens from unsigned int to size_t before the multiply. Items * widest * 10 cannot wrap in 32
+        const size_t base = resident * machine->run_capacity;
+        const unsigned int runs = machine->resident_runs[resident];
+        // resident_items widens from unsigned int to size_t before the multiply. Items * widest * 10 cannot wrap in 32
         // bits
-        const size_t slot_bins = (size_t)slot_items * widest * CLIMB_MACHINE_CORE_FIELDS;
-        steps_succeeded =
-            (cudaMemset(painted, 0xFF, voxels * sizeof(unsigned int)) == cudaSuccess) &&
-            (cudaMemset(device_bins, 0, slot_bins * sizeof(unsigned long long)) == cudaSuccess) &&
-            (cudaMemcpy(device_run_first, item_run_first, slot_items * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-             cudaSuccess) &&
-            (cudaMemcpy(device_run_end, item_run_end, slot_items * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-             cudaSuccess) &&
-            (cudaMemcpy(device_center, item_center, slot_items * sizeof(int) * 3u, cudaMemcpyHostToDevice) ==
-             cudaSuccess) &&
-            (cudaMemcpy(device_match, item_match, slot_items * sizeof(unsigned int), cudaMemcpyHostToDevice) ==
-             cudaSuccess);
+        const size_t resident_bins = (size_t)resident_items * widest * CLIMB_MACHINE_CORE_FIELDS;
+        steps_succeeded = (cudaMemset(painted, 0xFF, voxels * sizeof(unsigned int)) == cudaSuccess) &&
+                          (cudaMemset(device_bins, 0, resident_bins * sizeof(unsigned long long)) == cudaSuccess) &&
+                          (cudaMemcpy(device_run_first, item_run_first, resident_items * sizeof(unsigned int),
+                                      cudaMemcpyHostToDevice) == cudaSuccess) &&
+                          (cudaMemcpy(device_run_end, item_run_end, resident_items * sizeof(unsigned int),
+                                      cudaMemcpyHostToDevice) == cudaSuccess) &&
+                          (cudaMemcpy(device_center, item_center, resident_items * sizeof(int) * 3u,
+                                      cudaMemcpyHostToDevice) == cudaSuccess) &&
+                          (cudaMemcpy(device_match, item_match, resident_items * sizeof(unsigned int),
+                                      cudaMemcpyHostToDevice) == cudaSuccess);
         if (steps_succeeded && (runs != 0u))
         {
             machine_paint_kernel<<<(runs + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK, CLIMB_MACHINE_BLOCK>>>(
@@ -378,16 +378,18 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
                                           CLIMB_MACHINE_BLOCK>>>(painted, geometry, 1u, range_first, range_second);
             machine_range_column_kernel<<<(plane + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK,
                                           CLIMB_MACHINE_BLOCK>>>(painted, geometry, 0u, range_second, range_first);
-            machine_core_kernel<<<(slot_items + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK, CLIMB_MACHINE_BLOCK>>>(
-                slot_items, device_run_first, device_run_end, device_center, device_match, machine->run_start,
+            machine_core_kernel<<<(resident_items + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK,
+                                  CLIMB_MACHINE_BLOCK>>>(
+                resident_items, device_run_first, device_run_end, device_center, device_match, machine->run_start,
                 machine->run_length, painted, range_first, geometry, widest, device_bins, device_error);
             steps_succeeded = machine_launched() && (cudaDeviceSynchronize() == cudaSuccess);
         }
-        steps_succeeded = steps_succeeded && (cudaMemcpy(host_bins, device_bins, slot_bins * sizeof(unsigned long long),
-                                                         cudaMemcpyDeviceToHost) == cudaSuccess);
-        for (unsigned int item = 0u; steps_succeeded && (item < slot_items); item += 1u)
+        steps_succeeded =
+            steps_succeeded && (cudaMemcpy(host_bins, device_bins, resident_bins * sizeof(unsigned long long),
+                                           cudaMemcpyDeviceToHost) == cudaSuccess);
+        for (unsigned int item = 0u; steps_succeeded && (item < resident_items); item += 1u)
         {
-            const unsigned int listed_place = slot_order[slot_item_first + item];
+            const unsigned int listed_place = resident_order[resident_item_first + item];
             // item widens from unsigned int to size_t before the multiply. Item * widest * 10 cannot wrap in 32 bits
             const unsigned long long *const item_bins = &host_bins[(size_t)item * widest * CLIMB_MACHINE_CORE_FIELDS];
             unsigned int top_width = 0u;
@@ -435,7 +437,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     size_t widths_written = 0u;
     for (unsigned int listed_place = 0u; steps_succeeded && (listed_place < listed_count); listed_place += 1u)
     {
-        // widths_written is at most staged_count, held within 32 bits above. It narrows from size_t to unsigned int
+        // widths_written is at most staged_count, bounded within 32 bits above. It narrows from size_t to unsigned int
         // exactly
         machine->core_width_first[listed_place] = (unsigned int)widths_written;
         memcpy(&machine->core_fields[widths_written * CLIMB_MACHINE_CORE_FIELDS],
@@ -445,7 +447,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     }
     if (steps_succeeded)
     {
-        // widths_written equals staged_count, held within 32 bits above. It narrows from size_t to unsigned int
+        // widths_written equals staged_count, bounded within 32 bits above. It narrows from size_t to unsigned int
         // exactly
         machine->core_width_first[listed_count] = (unsigned int)widths_written;
     }
@@ -464,15 +466,15 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     free(item_match);
     free(host_bins);
     free(staged);
-    free(slot_fill);
-    free(slot_order);
-    free(slot_first);
+    free(resident_fill);
+    free(resident_order);
+    free(resident_first);
     free(staged_at);
     free(widths);
     free(listed_center);
     free(listed_run_end);
     free(listed_run_first);
-    free(listed_slot);
+    free(listed_resident);
     if (steps_succeeded == 0)
     {
         machine_core_release(machine);
@@ -487,7 +489,7 @@ extern "C" int climb_machine_core(ClimbMachine *machine, ClimbMachineCore *core)
     core->lag = machine->core_lag;
     core->width_first = machine->core_width_first;
     core->fields = machine->core_fields;
-    // widths_written equals staged_count, held within 32 bits above. It narrows from size_t to unsigned int exactly
+    // widths_written equals staged_count, bounded within 32 bits above. It narrows from size_t to unsigned int exactly
     core->widths = (unsigned int)widths_written;
     core->microseconds = engine_clock_microseconds() - started;
     return 1;

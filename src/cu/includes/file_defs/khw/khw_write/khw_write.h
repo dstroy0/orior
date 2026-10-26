@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// khw_write.h: the .khw written: the bounds of a form, how far it has been asked, its places and the
+// khw_write.h: the .khw written: the bounds of a form, how far it has been queried, its places and the
 // kinds of its operands, the names the forms are handed under, what the part answered of one form, and
 // the forms read and written for the vendor's writer to lay out
 #ifndef KHW_WRITE_H
@@ -21,19 +21,19 @@
 
 #define KHW_FORMS 16384u
 
-// how far a form has been asked, for a pass to ask only what a cross-check has read before it: a discovered form holds
-// only its relation, a turned form the runs its turns found but not which carry a register, a classified form the
-// operand runs its register-runs kept. A widening carries only a classified form, a turns pass only a discovered one,
-// a register pass only a turned one
+// how far a form has been queried, for a pass to query only what a cross-check has read before it: a discovered form
+// has only its relation, a turned form the runs its turns found but not which carry a register, a classified form the
+// operand runs its register-runs retained. A widening carries only a classified form, a turns pass only a discovered
+// one, a register pass only a turned one
 #define KHW_PHASE_DISCOVERED 0u
 
 #define KHW_PHASE_TURNED 1u
 
 #define KHW_PHASE_CLASSIFIED 2u
 
-// a frame form whose register-runs hold no run at a place of its relation's tuple answered no relation it holds a
-// field of: void, which no pass asks again and the vendor lays out nowhere, kept in the working set so that it is
-// not put again
+// a frame form whose register-runs contain no run at a place of its relation's tuple answered no relation it contains a
+// field of: void, which no pass queries again and the vendor lays out nowhere, retained in the working set so that it
+// is not put again
 #define KHW_PHASE_VOID 3u
 
 // the place of a run that carries no word of the relation's tuple, and the text it is written under
@@ -41,7 +41,7 @@
 
 #define KHW_PLACE_NONE_TEXT "-"
 
-// what a run's operand is, kept beside its place: a register, a pair of registers an address is read through, a
+// what a run's operand is, stored beside its place: a register, a pair of registers an address is read through, a
 // number, or a predicate; and the letter each is written as after the place in the answers and the working set
 #define KHW_KIND_REGISTER 0u
 
@@ -62,7 +62,7 @@
 // out of the container is KERNEL_BLOB_NAME (kernel_blob.h)
 #define KHW_MACHINE_NAME "machine.txt"
 
-// the blobs of the run the forms are kept in: the forms the part answered for, which the vendor's writer
+// the blobs of the run the forms are stored in: the forms the part answered for, which the vendor's writer
 // names and lays out, and the working set the passes of the split hand each other
 #define KHW_FORMS_NAME "forms.txt"
 
@@ -78,7 +78,7 @@ typedef struct
     unsigned int anchor;
     int swapped;
     int signed_read;
-    int signedness_asked;
+    int signedness_queried;
     unsigned int runs;
     unsigned int first[KHW_RUNS];
     unsigned int last[KHW_RUNS];
@@ -88,12 +88,12 @@ typedef struct
     // what each run's operand is, one of KHW_KIND_*
     unsigned int kind[KHW_RUNS];
     // the frame relation the form answered, FRAME_RELATION_COUNT where it answered the ladder's `anchor`, and the
-    // relation's reading: the word a load reads, the register's word a store keeps, a number's constant
+    // relation's reading: the word a load reads, the register's word a store stores, a number's constant
     unsigned int frame;
     unsigned long long reading;
     // the count of the relation read's candidates that survived the gate, its reading (Q11)
     unsigned int survivors;
-    // how far the form has been asked, one of KHW_PHASE_*
+    // how far the form has been queried, one of KHW_PHASE_*
     unsigned int phase;
 } KhwAnswered;
 
@@ -115,8 +115,8 @@ int khw_answers_written(void);
 int khw_forms_work_written(void);
 int khw_vendor_run(const char *mode, const char *answers);
 unsigned int khw_forms_read(const char *name);
-const char *khw_relation_named(const KhwAnswered *held, int with_reading, char *written, size_t room);
-int khw_runs_read(KhwAnswered *held, const char *text);
+const char *khw_relation_named(const KhwAnswered *answered, int with_reading, char *written, size_t room);
+int khw_runs_read(KhwAnswered *answered, const char *text);
 int khw_form_listed(const unsigned char *bytes, unsigned long long size, unsigned long long low,
                     unsigned long long high);
 

@@ -8,32 +8,35 @@
 
 #include "core_radius_weights.h"
 
-// The datum enters the core through Z_{-2A} Pi alone, and the tangent of the rule of core_radius_weights.h along a datum
-// direction p is the same rule taken once in the tangent of each field: with j = k - i,
+// The datum enters the core through Z_{-2A} Pi alone, and the tangent of the rule of core_radius_weights.h along a
+// datum direction p is the same rule taken once in the tangent of each field: with j = k - i,
 //     2 (k+1)(k+2) df_(k+1) = (k + 1 + h) L df_k + D eta L df_k' + 8 h k D eta^2 df_k
 //                             + sum (k - i + 1) (dw_i f_j + w_i df_j) + sum (du_i a_j + u_i (Z df)_j),
 //     2 (k+1)^2 du_(k+1) = (k + A) L du_k + D eta L du_k' + 8 h k D eta^2 du_k
 //                          + sum (k - i) (dw_i u_j + w_i du_j) + sum (du_i b_j + u_i (Z du)_j) + (Z dp)_k,
 //     (k+1) dw_k = -(Z du)_k,   (k+1) dp_(k+1) = L^2 sum (df_i f_j + f_i df_j),   dp_0 = p,
-// a_j and b_j the base's Z parts. Along p = e^(mu eta), d/deta (e^(mu eta) P) = e^(mu eta) (mu P + P_eta), and each field
-// of order k is e^(mu eta) times a polynomial in mu, held as one vector of weights for each power.
+// a_j and b_j the base's Z parts. Along p = e^(mu eta), d/deta (e^(mu eta) P) = e^(mu eta) (mu P + P_eta), and each
+// field of order k is e^(mu eta) times a polynomial in mu, stored as one vector of weights for each power.
 //
 // Only a path that takes the derivative of e^(mu eta) at every order reaches the power mu^k at order k, and such a path
 // reads the base at order 0 alone. The top weights therefore follow, with sigma = D eta + U_0 d,
 //     du_1 = L d / 2,   du_(k+1) = sigma L du_k / (2 (k+1)^2),   dw_k = -L d du_k / (k + 1),
 //     df_(k+1) = (sigma L df_k + F_0 dw_k) / (2 (k+1)(k+2)),
 // each a product of exact weights: the coefficient of mu^k at order k gains a factor near sigma mu / (2 k^2) at every
-// order, the loss of one eta-derivative an order, and at a point where sigma and d are past 0 it keeps one sign.
+// order, the loss of one eta-derivative an order, and at a point where sigma and d are past 0 it retains one sign.
 // Checks:
 // 1. du_k has degree k in mu from k = 1, and df_k from k = 2.
 // 2. The top weights of du_k and df_k are the weights of the products above at every order to the cfg's.
-// 3. At the cfg's eta, sigma and d are past 0 and the top coefficient of dF_k = df_k / L^(2k) keeps one sign.
-// 4. Every exact value is held in the build's width.
+// 3. At the cfg's eta, sigma and d are past 0 and the top coefficient of dF_k = df_k / L^(2k) retains one sign.
+// 4. Every exact value is stored in the build's width.
 // 5. Every coefficient at the cfg's eta is written whole to the cfg's record.
-// 6. Where the cfg holds `apart`, the tangent with every part off is the principal system at the vertex, order by order.
-// 7. Where the cfg holds `phase`, the root squared is s / s_0 and the root times the quotient is s_eta, at every order.
-// 8. Where the cfg holds `phase`, the amplitude's first coefficient is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0.
-// 9. Where the cfg holds `phase`, the swirl's b_0 is -L d f_0 / s_0 and its first coefficient
+// 6. Where the cfg contains `apart`, the tangent with every part off is the principal system at the vertex, order by
+// order.
+// 7. Where the cfg contains `phase`, the root squared is s / s_0 and the root times the quotient is s_eta, at every
+// order.
+// 8. Where the cfg contains `phase`, the amplitude's first coefficient is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at
+// Y = 0.
+// 9. Where the cfg contains `phase`, the swirl's b_0 is -L d f_0 / s_0 and its first coefficient
 //    (3/2) s_0 (L_eta / L + d_eta / d) + (1/2) s_0 f_eta / f_0 - 2 s_eta at Y = 0.
 // The request: core_tangent <cfg>.
 //     bash examples/navier_stokes/run.sh core_tangent examples/navier_stokes/cfg/core_tangent.cfg
@@ -163,11 +166,12 @@ static size_t core_tangent_degree(const CoreTangentPowers &powers)
 // vector of weights, d/deta (e^(mu eta) P) over e^(mu eta) = mu P + P_eta, and it is read at the vertex. The principal
 // tangent, the paths that take the derivative of e^(mu eta) at every step, is a system at the point alone:
 //     2 (k+1)^2 y_(k+1) = mu (D eta L y_k + L d sum u_i y_(k-i)) + mu L d [k = 0] + sum (k - i) w_i u_(k-i),
-//     (k+1) w_k = -mu L d y_k,   2 (k+1)(k+2) g_(k+1) = mu (D eta L g_k + L d sum u_i g_(k-i)) + sum (k - i + 1) w_i f_(k-i),
+//     (k+1) w_k = -mu L d y_k,   2 (k+1)(k+2) g_(k+1) = mu (D eta L g_k + L d sum u_i g_(k-i)) + sum (k - i + 1) w_i
+//     f_(k-i),
 // u_i and f_i the base's numerators at the point. Its growth along Y = X / L^2 is e^(sqrt(mu) Phi(Y)), Phi the integral
 // of sqrt(s / (2 Y)), s = L (D eta + d U(Y)) = sum s_k Y^k: with sqrt(s / s_0) = sum e_k Y^k,
 //     Phi(Y) = sqrt(2 s_0 Y) sum e_k Y^k / (2 k + 1),
-// every e_k exact. The record holds each value whole.
+// every e_k exact. The record contains each value whole.
 
 // The parts of the full tangent the principal system leaves out: the slope, P_eta in d/deta (e^(mu eta) P); the plain
 // terms, every term that takes no derivative; and the pressure, dp_k past k = 0. With every part off the full tangent is
@@ -615,11 +619,11 @@ int main(int count, char **arguments)
         }
     }
     sim_check(&results, one_sign, "sigma, d and L past 0 at the eta, and the top coefficient of dF_k of one sign at every order");
-    scriptura_text(&results.line, "  sigma at the eta: ");
+    mmgr_line_put(&results.line, "  sigma at the eta: ");
     sim_rational_print(&results.line, sigma_point);
-    scriptura_text(&results.line, (sign < 0) ? ", the top coefficients below 0\n" : ", the top coefficients past 0\n");
+    mmgr_line_put(&results.line, (sign < 0) ? ", the top coefficients below 0\n" : ", the top coefficients past 0\n");
     sim_flush(&results);
-    // the measurement at the vertex, where the cfg holds it
+    // the measurement at the vertex, where the cfg contains it
     SimRational measure_rho;
     SimRational measure_step;
     unsigned long long measure_order = 0ull;
@@ -693,10 +697,11 @@ int main(int count, char **arguments)
                 }
             }
         }
-        scriptura_text(&results.line, "  measurement at the vertex written to the record\n");
+        mmgr_line_put(&results.line, "  measurement at the vertex written to the record\n");
         sim_flush(&results);
     }
-    // the remainder taken apart at the vertex, where the cfg holds it: each part the principal system leaves out, alone
+    // the remainder taken apart at the vertex, where the cfg contains it: each part the principal system leaves out,
+    // alone
     SimRational apart_rho;
     SimRational apart_step;
     unsigned long long apart_order = 0ull;
@@ -769,8 +774,9 @@ int main(int count, char **arguments)
         }
         sim_check(&results, principal_same, "with every part off the tangent's weights read at the vertex are the principal system's, order by order");
     }
-    // the slope's share at larger mu, where the cfg holds it: the principal system at the point and the tangent with the
-    // slope alone, each with the size of its last order's term over its sum, which says how far the order resolves it
+    // the slope's share at larger mu, where the cfg contains it: the principal system at the point and the tangent with
+    // the slope alone, each with the size of its last order's term over its sum, which shows how far the order resolves
+    // it
     SimRational slope_rho;
     unsigned long long slope_order = 0ull;
     std::vector<SimRational> slope_mu;
@@ -834,10 +840,11 @@ int main(int count, char **arguments)
             }
         }
     }
-    // the phase in both directions at the vertex, where the cfg holds it. The slope turns mu into mu + d/deta at Y fixed, and
-    // with the growth e^(sqrt(mu) Psi(Y, eta)) the principal system's 2 Y Psi_Y^2 = s becomes 2 Y mu Psi_Y^2 = s (mu + sqrt(mu) Psi_eta):
-    // Psi = Phi + Phi_1 / sqrt(mu) + ..., Phi_1 = (1/2) int_0^Y Phi' Phi_eta dY. With sqrt(s) = sqrt(s_0) sum e_n Y^n and
-    // s_eta / sum e_n Y^n = sum g_n Y^n, Phi_eta = sqrt(Y / (2 s_0)) sum g_n Y^n / (2n + 1), and
+    // the phase in both directions at the vertex, where the cfg contains it. The slope turns mu into mu + d/deta at Y
+    // fixed, and with the growth e^(sqrt(mu) Psi(Y, eta)) the principal system's 2 Y Psi_Y^2 = s becomes 2 Y mu Psi_Y^2
+    // = s (mu + sqrt(mu) Psi_eta): Psi = Phi + Phi_1 / sqrt(mu) + ..., Phi_1 = (1/2) int_0^Y Phi' Phi_eta dY. With
+    // sqrt(s) = sqrt(s_0) sum e_n Y^n and s_eta / sum e_n Y^n = sum g_n Y^n, Phi_eta = sqrt(Y / (2 s_0)) sum g_n Y^n /
+    // (2n + 1), and
     //     Phi_1(Y) = (1/4) sum_n Y^(n+1) / (n + 1) sum_(i+j=n) e_i g_j / (2j + 1),
     // every coefficient exact: the slope's share of the principal nears e^(Phi_1(Y)) - 1 as mu grows.
     SimRational phase_rho;
@@ -994,15 +1001,18 @@ int main(int count, char **arguments)
                                                                   core_radius_times(core_radius_number(3ll, 2ll), transport_eta[0]));
         sim_check(&results, sim_rational_sign(sim_rational_difference(amplitude_slope[0], first_by_hand)) == 0,
                   "the amplitude's first coefficient is s_0 (L_eta / L + d_eta / d) - (3/2) s_eta at Y = 0");
-        // The swirl's amplitude past Phi_1. With g = e^(sqrt(mu) Phi) A_0 (b_0 + b_1 / sqrt(mu) + ...), the terms of order
-        // 1 / sqrt(mu) give 4 Y Phi' b_0' + (2 Phi' - N / Phi') b_0 = -F / Phi', F = L d (Y f)' / Y, the same with the slope on and
-        // off: the swirl's share nears e^(Phi_1) - 1 as the axial's does. The terms of order 1 / mu give the same operator on b_1
-        // with the source, slope on less off,
-        //     dS = -2 P ((Y b_0)' + b_0 Y l) - Y b_0 (P' + P^2 / 2) + s ((ln A_0)_eta b_0 + b_0_eta) - 2 Fs (E sum d_n Y^n + P),
-        // Y l = Y A_0' / A_0 of the principal and Fs = L d (Y f)' / (2 s). With J = e^(-int_0^Y N / (2 s)) the operator is
-        // (sqrt(Y) J b)' = sqrt(Y) J (source) / (4 Y Phi'). Then b_0 = -J^(-1) sum 2 (J Fs)_n Y^n / (2n + 1), -L d f_0 / s_0 at
-        // Y = 0, which asks f_0 past 0 at the point, and the swirl's share is e^(Phi_1) (1 + C / sqrt(mu)) - 1 with
-        //     C(Y) = e^(Phi_1) sqrt(Y / (2 s_0)) sum c_n Y^n,   sum c_n Y^n = (sum (J dS / E)_n Y^n / (n + 1)) / (2 J b_0).
+        // The swirl's amplitude past Phi_1. With g = e^(sqrt(mu) Phi) A_0 (b_0 + b_1 / sqrt(mu) + ...), the terms of
+        // order 1 / sqrt(mu) give 4 Y Phi' b_0' + (2 Phi' - N / Phi') b_0 = -F / Phi', F = L d (Y f)' / Y, the same
+        // with the slope on and off: the swirl's share nears e^(Phi_1) - 1 as the axial's does. The terms of order 1 /
+        // mu give the same operator on b_1 with the source, slope on less off,
+        //     dS = -2 P ((Y b_0)' + b_0 Y l) - Y b_0 (P' + P^2 / 2) + s ((ln A_0)_eta b_0 + b_0_eta) - 2 Fs (E sum d_n
+        //     Y^n + P),
+        // Y l = Y A_0' / A_0 of the principal and Fs = L d (Y f)' / (2 s). With J = e^(-int_0^Y N / (2 s)) the operator
+        // is (sqrt(Y) J b)' = sqrt(Y) J (source) / (4 Y Phi'). Then b_0 = -J^(-1) sum 2 (J Fs)_n Y^n / (2n + 1), -L d
+        // f_0 / s_0 at Y = 0, which requires f_0 past 0 at the point, and the swirl's share is e^(Phi_1) (1 + C /
+        // sqrt(mu)) - 1 with
+        //     C(Y) = e^(Phi_1) sqrt(Y / (2 s_0)) sum c_n Y^n,   sum c_n Y^n = (sum (J dS / E)_n Y^n / (n + 1)) / (2 J
+        //     b_0).
         const SimRational zero = core_radius_number(0ll, 1ll);
         // N / (2 s) and its eta-derivative (N_eta s - N s_eta) / (2 s^2), and J = e^w with w = -int_0^Y N / (2 s)
         const CoreRadiusSequence inflow_rate = core_tangent_series_scaled(core_tangent_over_transport(inflow_coefficient, root, transport[0], reach), half);
@@ -1164,12 +1174,13 @@ int main(int count, char **arguments)
                                         .c_str());
             }
         }
-        scriptura_text(&results.line, "  phase at the vertex written to the record\n");
+        mmgr_line_put(&results.line, "  phase at the vertex written to the record\n");
         sim_flush(&results);
     }
-    const int held = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
-    scriptura_text(&results.line, held ? "  every value is exact and held in the build's width\n" : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
-    sim_check(&results, held, "every value held");
+    const int fits = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
+    mmgr_line_put(&results.line, fits ? "  every value is exact and stored in the build's width\n"
+                                       : "  a value outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
+    sim_check(&results, fits, "every value stored");
     const int recorded = (record != NULL) && record_close(record);
     sim_check(&results, recorded, "record written");
     return sim_close(&results, "core tangent");

@@ -17,6 +17,11 @@
     ],
     "tokenizer": {
       "root": [
+        [
+          "^(\\s*)([Ff][Uu][Nn][Cc][Tt][Ii][Oo][Nn])(\\s+)([A-Za-z]+-[A-Za-z]+)(?![\\w-])",
+          ["","keyword","","predefined.declaration.function"]
+        ],
+        ["^(\\s*)([Ff][Uu][Nn][Cc][Tt][Ii][Oo][Nn])(\\s+)([\\w-]+)",["","keyword","","declaration.function"]],
         ["\\s+",""],
         ["<#","comment","@comment"],
         ["#.*$","comment"],
@@ -28,7 +33,10 @@
         ["\\[[A-Za-z.]+\\]","type"],
         ["[A-Za-z_]\\w*",{"cases":{"@words":"keyword","@default":""}}],
         ["\\d+","number"],
-        ["[{}()[\\]]","@brackets"],
+        ["\\{","delimiter.bracket.region.open"],
+        ["\\}","delimiter.bracket.region.close"],
+        ["[(\\[]","delimiter.bracket.open"],
+        ["[)\\]]","delimiter.bracket.close"],
         ["[<>=!&|;+*/%-]+","operator"]
       ],
       "comment": [["#>","comment","@pop"],["[^#]+|#","comment"]],

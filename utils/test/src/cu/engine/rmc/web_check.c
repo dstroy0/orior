@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// web_check.c: every tree of the alphabet web and the word web read once, and held to what a tree is. A node may
-// reach only nodes below it, which is what makes the root reachable and keeps a tree from looping; a node's children
-// must be as many as its precept takes; and a leaf must be an operand the word actually reads. None of this needs a
-// device or a target: the webs are the compiler's own and are the same on every part
+// web_check.c: every tree of the alphabet web and the word web read once, and checked against what a tree is. A node
+// may reach only nodes below it, which is what makes the root reachable and prevents a tree from looping; a node's
+// children must be as many as its precept takes; and a leaf must be an operand the word actually reads. None of this
+// needs a device or a target: the webs are the compiler's own and are the same on every part
 #include "../../../../../../src/cu/engine/rmc/precept_value.h"
 #include "../../../../../../src/cu/engine/rmc/tree_number.h"
 #include "../../../../../../src/cu/engine/rmc/word_web.h"
@@ -147,7 +147,7 @@ static int tree_same(const PreceptNode *one, unsigned char at_one, const Precept
     return 1;
 }
 
-// one tree put through a number and back, and held to what it was. 0 where it came back the same
+// one tree put through a number and back, and checked against what it was. 0 where it came back the same
 static int numbered(const char *what, const char *name, const PreceptNode *node, unsigned int nodes)
 {
     unsigned int arity_of[256];
@@ -164,7 +164,7 @@ static int numbered(const char *what, const char *name, const PreceptNode *node,
     tree_number_write(node, nodes - 1u, arity_of, &number, &place);
     if (place > TREE_PLACES)
     {
-        printf("  %s %s takes %u places, past the %u a number holds\n", what, name, place, TREE_PLACES);
+        printf("  %s %s takes %u places, past the %u a number represents\n", what, name, place, TREE_PLACES);
         return 1;
     }
     PreceptNode again[16];

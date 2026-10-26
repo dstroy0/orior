@@ -87,7 +87,7 @@ __global__ static void noise_lines_kernel(const unsigned short *lanes, const uns
 static void noise_line_add(NoiseLineCell *cells, unsigned int kind, unsigned long long length, long long summed,
                            unsigned long long squared, unsigned long long level)
 {
-    // the line's mean pair level, in bins of 8: the level sum holds 2 values a member
+    // the line's mean pair level, in bins of 8: the level sum contains 2 values a member
     const unsigned long long level_bin = level / (length * 16ull);
     NoiseLineCell *const cell =
         &cells[(kind * NOISE_LEVEL_BINS) + ((level_bin < NOISE_LEVEL_BINS) ? level_bin : (NOISE_LEVEL_BINS - 1u))];
@@ -153,7 +153,7 @@ static int noise_planes_rows(FILE *table, const char *name, const NoisePlane *pl
 }
 
 // A quiet voxel's frame differences have a mean square of at most NOISE_QUIET_SLOPE times its mean plus
-// NOISE_QUIET_FLOOR. A still voxel's is 2 (g L + R^2), and the set's transfer curves (compression_table.md) hold g at
+// NOISE_QUIET_FLOOR. A still voxel's is 2 (g L + R^2), and the set's transfer curves (compression_table.md) give g at
 // most 1.162 and the read variance near 2.5, at most 0.6 of this bound at every level; a voxel that structure moves
 // through reads far past it.
 #define NOISE_QUIET_SLOPE 4ull
@@ -162,7 +162,8 @@ static int noise_planes_rows(FILE *table, const char *name, const NoisePlane *pl
 
 // Marks the static voxels: among those that change and never touch either end of the lane, and where quiet is set
 // that pass the spread test above, the dimmest 1 / NOISE_STATIC_SHARE by their mean over the frames, rounded down.
-// The ceiling is the highest mean kept. The pixel maps leave quiet unset: a hot pixel is loud and is what they seek.
+// The ceiling is the highest mean retained. The pixel maps leave quiet unset: a hot pixel is loud and is what they
+// seek.
 int noise_static_mask(const unsigned short *volume, unsigned long long frames, unsigned long long voxels,
                       unsigned int quiet, unsigned char *mask, unsigned long long *ceiling)
 {
@@ -258,7 +259,7 @@ long noise_lines_sample(const unsigned short *volume, const unsigned long long e
     // every member square sum fits a word, and a plane's sum and level sum fit theirs; a plane's squared row sums
     // total at most its voxels times its width times 65535 squared, its columns' at most its voxels times its height
     // times that, and the longer side bounds both; every n^2 - n pooled totals at most the sample's voxel-frames times
-    // a plane's voxels, which a plane of at most 65535 squared voxels holds in a word
+    // a plane's voxels, which a plane of at most 65535 squared voxels represents in a word
     const int bounded = (frames >= 2ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         ((frames * voxels) <= (~0ull / (65535ull * 65535ull))) &&
                         (plane_voxels <= (0x7FFFFFFFFFFFFFFFull / 131070ull)) &&

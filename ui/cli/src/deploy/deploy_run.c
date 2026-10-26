@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// deploy_run.c: a deployment previewed, sent or rolled back: what each place holds shown, the files sent to every
+// deploy_run.c: a deployment previewed, sent or rolled back: what each place has shown, the files sent to every
 // place at once, a machine's release going in beside the one it runs, and every machine turned to the new release
-// only once every place holds it; a place that fails leaves each on the release it had
+// only once every place has it; a place that fails leaves each on the release it had
 #include "../code/git.h"
 #include "../command_line/cells.h"
 #include "../text/pieces.h"
@@ -19,7 +19,7 @@ typedef struct
     CliThread thread;
     unsigned int index;
     int sent;
-    char why[CLI_SAID_LONGEST];
+    char why[CLI_ERR_MSG_MAX_LEN];
     unsigned long long why_size;
 } CliDeploySending;
 
@@ -36,9 +36,9 @@ static unsigned long long s_time;
 static int s_replace;
 static int s_remove;
 
-void cli_deploy_say(const CliLine *line)
+void cli_deploy_print(const VerbaLinea *line)
 {
-    g_cli_deploy.say(g_cli_deploy.context, line->out, line->at);
+    g_cli_deploy.print(g_cli_deploy.context, line->out, line->at);
 }
 
 // whether the place at `index` takes a release beside the one it runs, as a machine does unless the deployment goes in
@@ -48,22 +48,22 @@ static int run_in_release(unsigned int index)
     return !g_cli_deploy.deployment.in_place && !g_cli_deploy.place[index].here;
 }
 
-// a line said: `before`, the place's name, `after`
-static void run_said(const char *before, unsigned int index, const char *after)
+// a line printed: `before`, the place's name, `after`
+static void run_line_printed(const char *before, unsigned int index, const char *after)
 {
-    char line[(3u * CLI_PATH_LONGEST) + 256u];
-    CliLine said = {line, sizeof(line), 0ull};
-    cli_line_text(&said, before);
-    cli_deploy_place_name(&g_cli_deploy.place[index], &said);
-    cli_line_text(&said, after);
-    cli_deploy_say(&said);
+    char line[(3u * CLI_PATH_MAX_LEN) + 256u];
+    VerbaLinea print_line = {line, sizeof(line), 0ull};
+    mmgr_line_put(&print_line, before);
+    cli_deploy_place_name(&g_cli_deploy.place[index], &print_line);
+    mmgr_line_put(&print_line, after);
+    cli_deploy_print(&print_line);
 }
 
 // the files sent to one place, on a thread of its own
 static void run_send(void *context)
 {
     CliDeploySending *const sending = (CliDeploySending *)context;
-    CliLine why = {sending->why, sizeof(sending->why), 0ull};
+    VerbaLinea why = {sending->why, sizeof(sending->why), 0ull};
     const int sent = cli_deploy_send_to(sending->index, run_in_release(sending->index), s_release, s_time, s_replace,
                                         s_remove, &why);
     cli_lock_take(&s_send_lock);
@@ -75,15 +75,15 @@ static void run_send(void *context)
 }
 
 // the deployment's places read, each place's lists and send placed in the run's pool at the count of the places, and
-// its patterns set: 1, or 0 with why said
-static int run_places(const char *root, CliLine *said)
+// its patterns set: 1, or 0 with why given
+static int run_places(const char *root, VerbaLinea *err_msg)
 {
     CliDeployRun *const run = &g_cli_deploy;
     const unsigned int tos = run->deployment.tos;
     if (tos == 0u)
     {
-        cli_line_text(said, run->deployment.name);
-        cli_line_text(said, " names no place to send to");
+        mmgr_line_put(err_msg, run->deployment.name);
+        mmgr_line_put(err_msg, " names no place to send to");
         return 0;
     }
     run->place = cli_deploy_placed(&run->pool, (unsigned long long)tos * sizeof(run->place[0]));
@@ -96,7 +96,7 @@ static int run_places(const char *root, CliLine *said)
         cli_deploy_placed(&run->pool, ((unsigned long long)run->deployment.excludes + 1u) * sizeof(run->pattern[0]));
     if (run->pool.refused)
     {
-        cli_line_text(said, "deploy.json: to names more than orior_cli holds");
+        mmgr_line_put(err_msg, "deploy.json: to names more than orior_cli supports");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = run->changed_list, .bytes = tos * sizeof(run->changed_list[0]), .val = 0u});
@@ -107,7 +107,7 @@ static int run_places(const char *root, CliLine *said)
     run->places = 0u;
     for (unsigned int at = 0u; at < tos; at += 1u)
     {
-        if (!cli_deploy_place(run->deployment.to[at], root, &run->place[run->places], said))
+        if (!cli_deploy_place(run->deployment.to[at], root, &run->place[run->places], err_msg))
         {
             return 0;
         }
@@ -123,72 +123,72 @@ static int run_places(const char *root, CliLine *said)
     return 1;
 }
 
-// what the run sends said, and what each place holds against it: 1, or 0 with why said where a place is not reached
+// what the run sends printed, and what each place has against it: 1, or 0 with why given where a place is not reached
 // and the run sends
-static int run_shown(int act, int replace, int remove, CliLine *said)
+static int run_shown(int act, int replace, int remove, VerbaLinea *err_msg)
 {
     CliDeployRun *const run = &g_cli_deploy;
-    char line[(4u * CLI_PATH_LONGEST) + 128u];
-    CliLine told = {line, sizeof(line), 0ull};
-    cli_line_decimal(&told, run->sents, 1u);
-    cli_line_text(&told, " files of ");
-    cli_line_text(&told, run->deployment.from);
-    cli_line_text(&told, " go to ");
-    cli_line_decimal(&told, run->places, 1u);
-    cli_line_text(&told, " places");
-    cli_deploy_say(&told);
+    char line[(4u * CLI_PATH_MAX_LEN) + 128u];
+    VerbaLinea print_buf = {line, sizeof(line), 0ull};
+    mmgr_line_decimal(&print_buf, run->sents, 1u);
+    mmgr_line_put(&print_buf, " files of ");
+    mmgr_line_put(&print_buf, run->deployment.from);
+    mmgr_line_put(&print_buf, " go to ");
+    mmgr_line_decimal(&print_buf, run->places, 1u);
+    mmgr_line_put(&print_buf, " places");
+    cli_deploy_print(&print_buf);
     for (unsigned int at = 0u; at < run->outs; at += 1u)
     {
-        told.at = 0ull;
-        cli_line_text(&told, "left out: ");
-        cli_line_text(&told, run->out[at].path);
-        cli_line_text(&told, ", by ");
-        cli_line_text(&told, run->out[at].text);
-        cli_deploy_say(&told);
+        print_buf.at = 0ull;
+        mmgr_line_put(&print_buf, "left out: ");
+        mmgr_line_put(&print_buf, run->out[at].path);
+        mmgr_line_put(&print_buf, ", by ");
+        mmgr_line_put(&print_buf, run->out[at].text);
+        cli_deploy_print(&print_buf);
     }
     for (unsigned int index = 0u; index < run->places; index += 1u)
     {
         const int releases = run_in_release(index);
         const char *const base = cli_deploy_place_folder(&run->place[index]);
-        char folder[CLI_PATH_LONGEST + 16u];
-        CliLine folder_line = {folder, sizeof(folder), 0ull};
-        cli_line_text(&folder_line, base);
-        cli_line_text(&folder_line, releases ? "/current" : "");
-        cli_line_closed(&folder_line);
+        char folder[CLI_PATH_MAX_LEN + 16u];
+        VerbaLinea folder_line = {folder, sizeof(folder), 0ull};
+        mmgr_line_put(&folder_line, base);
+        mmgr_line_put(&folder_line, releases ? "/current" : "");
+        mmgr_line_finish(&folder_line);
         if (act == CLI_DEPLOY_PREVIEW)
         {
-            run_said("", index,
-                     releases
-                         ? " takes a new release, turned to once every place holds one"
-                         : " takes the files into its folder itself, and holds some of them where it fails part way");
+            run_line_printed(
+                "", index,
+                releases ? " takes a new release, turned to once every place has one"
+                         : " takes the files into its folder itself, and retains some of them where it fails part way");
             for (unsigned int at = 0u; at < run->sents; at += 1u)
             {
-                told.at = 0ull;
-                cli_line_text(&told, run->sent[at].path);
-                cli_line_text(&told, " goes to ");
-                cli_line_text(&told, base);
-                cli_line_text(&told, releases ? "/releases/<new>/" : "/");
-                cli_line_text(&told, run->sent[at].path);
-                cli_deploy_say(&told);
+                print_buf.at = 0ull;
+                mmgr_line_put(&print_buf, run->sent[at].path);
+                mmgr_line_put(&print_buf, " goes to ");
+                mmgr_line_put(&print_buf, base);
+                mmgr_line_put(&print_buf, releases ? "/releases/<new>/" : "/");
+                mmgr_line_put(&print_buf, run->sent[at].path);
+                cli_deploy_print(&print_buf);
             }
         }
-        char why[CLI_SAID_LONGEST];
-        CliLine why_line = {why, sizeof(why) - 1u, 0ull};
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea why_line = {why, sizeof(why) - 1u, 0ull};
         run->changed[index] = 0u;
         run->gone[index] = 0u;
         if (!cli_deploy_standing(index, folder, replace, remove, &why_line))
         {
             why[why_line.at] = '\0';
-            CliLine *const into = (act == CLI_DEPLOY_PREVIEW) ? &told : said;
-            told.at = 0ull;
+            VerbaLinea *const into = (act == CLI_DEPLOY_PREVIEW) ? &print_buf : err_msg;
+            print_buf.at = 0ull;
             cli_deploy_place_name(&run->place[index], into);
-            cli_line_text(into, " is not reached: ");
-            cli_line_counted(into, why, why_line.at);
+            mmgr_line_put(into, " is not reached: ");
+            mmgr_line_put_n(into, why, why_line.at);
             if (act != CLI_DEPLOY_PREVIEW)
             {
                 return 0;
             }
-            cli_deploy_say(&told);
+            cli_deploy_print(&print_buf);
         }
     }
     return 1;
@@ -225,103 +225,104 @@ static int run_sends(void)
 }
 
 // every release sent taken away again where a place failed, and the run failed with each place's reason
-static int run_failed(const char *release, CliLine *said)
+static int run_failed(const char *release, VerbaLinea *err_msg)
 {
     const CliDeployRun *const run = &g_cli_deploy;
     unsigned int failed = 0u;
     char piece[CLI_DEPLOY_PIECE];
     CliPieces pieces;
-    CliLine told;
-    cli_pieces_begun(&pieces, &told, piece, sizeof(piece));
-    cli_line_text(&told, "no machine was turned to the new release, and each runs the release it had: ");
+    VerbaLinea print_buf;
+    cli_pieces_begun(&pieces, &print_buf, piece, sizeof(piece));
+    mmgr_line_put(&print_buf, "no machine was turned to the new release, and each runs the release it had: ");
     for (unsigned int index = 0u; index < run->places; index += 1u)
     {
         if (s_sending[index].sent && run_in_release(index))
         {
-            char line[(2u * CLI_PATH_LONGEST) + 64u];
-            CliLine command = {line, sizeof(line), 0ull};
-            char gone[CLI_PATH_LONGEST + 64u];
-            CliLine gone_line = {gone, sizeof(gone), 0ull};
-            cli_line_text(&gone_line, run->place[index].address.folder);
-            cli_line_text(&gone_line, "/releases/");
-            cli_line_text(&gone_line, release);
-            cli_line_text(&command, "rm -rf ");
+            char line[(2u * CLI_PATH_MAX_LEN) + 64u];
+            VerbaLinea command = {line, sizeof(line), 0ull};
+            char gone[CLI_PATH_MAX_LEN + 64u];
+            VerbaLinea gone_line = {gone, sizeof(gone), 0ull};
+            mmgr_line_put(&gone_line, run->place[index].address.folder);
+            mmgr_line_put(&gone_line, "/releases/");
+            mmgr_line_put(&gone_line, release);
+            mmgr_line_put(&command, "rm -rf ");
             cli_link_quote(gone, gone_line.at, &command);
-            cli_line_closed(&command);
-            char why[CLI_SAID_LONGEST];
-            CliLine none = {why, sizeof(why), 0ull};
-            CliLine nothing = {NULL, 0ull, 0ull};
-            (void)cli_deploy_ask(&run->place[index], line, NULL, 0ull, &nothing, &none);
+            mmgr_line_finish(&command);
+            char why[CLI_ERR_MSG_MAX_LEN];
+            VerbaLinea none = {why, sizeof(why), 0ull};
+            VerbaLinea nothing = {NULL, 0ull, 0ull};
+            (void)cli_deploy_remote_run(&run->place[index], line, NULL, 0ull, &nothing, &none);
         }
         if (!s_sending[index].sent)
         {
-            cli_line_text(&told, (failed > 0u) ? "; " : "");
-            cli_deploy_place_name(&run->place[index], &told);
-            cli_line_text(&told, ": ");
-            cli_line_counted(&told, s_sending[index].why, s_sending[index].why_size);
+            mmgr_line_put(&print_buf, (failed > 0u) ? "; " : "");
+            cli_deploy_place_name(&run->place[index], &print_buf);
+            mmgr_line_put(&print_buf, ": ");
+            mmgr_line_put_n(&print_buf, s_sending[index].why, s_sending[index].why_size);
             failed += 1u;
         }
     }
     unsigned long long size = 0ull;
-    char *const joined = cli_pieces_joined(&pieces, &told, "a deployment's failure", &size);
+    char *const joined = cli_pieces_joined(&pieces, &print_buf, "a deployment's failure", &size);
     if (joined != NULL)
     {
-        const CliLine whole = {joined, size, size};
-        cli_deploy_say(&whole);
+        const VerbaLinea whole = {joined, size, size};
+        cli_deploy_print(&whole);
     }
-    cli_cell_given(joined);
-    cli_line_decimal(said, failed, 1u);
-    cli_line_text(said, " of ");
-    cli_line_decimal(said, run->places, 1u);
-    cli_line_text(said, " places failed");
+    g_cli_cells->persistent_buf_release(joined, NULL);
+    mmgr_line_decimal(err_msg, failed, 1u);
+    mmgr_line_put(err_msg, " of ");
+    mmgr_line_decimal(err_msg, run->places, 1u);
+    mmgr_line_put(err_msg, " places failed");
     return 0;
 }
 
-// each place turned to the new release, or left holding the files sent, and its record written: 1, or 0 with why said
-static int run_turned(const char *release, int replace, int remove, CliLine *said)
+// each place turned to the new release, or left containing the files sent, and its record written: 1, or 0 with why
+// given
+static int run_turned(const char *release, int replace, int remove, VerbaLinea *err_msg)
 {
     const CliDeployRun *const run = &g_cli_deploy;
     for (unsigned int index = 0u; index < run->places; index += 1u)
     {
         const CliDeployPlace *const place = &run->place[index];
-        char why[CLI_SAID_LONGEST];
-        CliLine why_line = {why, sizeof(why), 0ull};
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea why_line = {why, sizeof(why), 0ull};
         if (run_in_release(index))
         {
-            char line[(2u * CLI_PATH_LONGEST) + 256u];
-            CliLine command = {line, sizeof(line), 0ull};
+            char line[(2u * CLI_PATH_MAX_LEN) + 256u];
+            VerbaLinea command = {line, sizeof(line), 0ull};
             cli_deploy_switch_line(place->address.folder, release, &command);
-            cli_line_closed(&command);
-            CliLine nothing = {NULL, 0ull, 0ull};
-            if (!cli_deploy_ask(place, line, NULL, 0ull, &nothing, &why_line))
+            mmgr_line_finish(&command);
+            VerbaLinea nothing = {NULL, 0ull, 0ull};
+            if (!cli_deploy_remote_run(place, line, NULL, 0ull, &nothing, &why_line))
             {
-                cli_deploy_place_name(place, said);
-                cli_line_text(said, ": ");
-                cli_line_counted(said, why, why_line.at);
+                cli_deploy_place_name(place, err_msg);
+                mmgr_line_put(err_msg, ": ");
+                mmgr_line_put_n(err_msg, why, why_line.at);
                 return 0;
             }
-            cli_deploy_prune(index, run->deployment.keep);
-            char told[64];
-            CliLine told_line = {told, sizeof(told), 0ull};
-            cli_line_text(&told_line, " now runs release ");
-            cli_line_text(&told_line, release);
-            (void)cli_line_closed(&told_line);
-            run_said("", index, told);
+            cli_deploy_prune(index, run->deployment.retain);
+            char print_buf[64];
+            VerbaLinea print_line = {print_buf, sizeof(print_buf), 0ull};
+            mmgr_line_put(&print_line, " now runs release ");
+            mmgr_line_put(&print_line, release);
+            (void)mmgr_line_finish(&print_line);
+            run_line_printed("", index, print_buf);
         }
         else
         {
-            if (remove && !cli_deploy_removed(index, said))
+            if (remove && !cli_deploy_removed(index, err_msg))
             {
                 return 0;
             }
-            run_said("", index, " holds the files sent");
+            run_line_printed("", index, " has the files sent");
         }
         cli_deploy_recorded(index, replace);
     }
     return 1;
 }
 
-// every cell of the run given back with the tree it was read from and what its places held, its lists emptied
+// every cell of the run given back with the tree it was read from and what its places had, its lists emptied
 static void run_given(void)
 {
     CliDeployRun *const run = &g_cli_deploy;
@@ -343,18 +344,18 @@ static void run_given(void)
     s_sending = NULL;
 }
 
-int cli_deploy_run(const char *root, const char *name, int act, int replace, int remove, CliDeploySay say,
-                   void *context, CliLine *said)
+int cli_deploy_run(const char *root, const char *name, int act, int replace, int remove, CliDeployPrintFn print,
+                   void *context, VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_deploy_lock);
     CliDeployRun *const run = &g_cli_deploy;
     run_given();
     run->root = root;
-    run->say = say;
+    run->print = print;
     run->context = context;
     unsigned int count = 0u;
     const CliDeployment *deployments = NULL;
-    int done = cli_deploy_read(root, &s_tree, &deployments, &count, said);
+    int done = cli_deploy_read(root, &s_tree, &deployments, &count, err_msg);
     unsigned int found = 0u;
     while ((found < count) &&
            !cellul.eq(&(CatenaFinitaCfg){.src = deployments[found].name, .other = name, .cap = CLI_CELLS_POOL}))
@@ -363,38 +364,38 @@ int cli_deploy_run(const char *root, const char *name, int act, int replace, int
     }
     if (done && (found == count))
     {
-        cli_line_text(said, "deploy.json names no deployment ");
-        cli_line_text(said, name);
+        mmgr_line_put(err_msg, "deploy.json names no deployment ");
+        mmgr_line_put(err_msg, name);
         done = 0;
     }
     if (done)
     {
         run->deployment = deployments[found];
-        done = run_places(root, said);
+        done = run_places(root, err_msg);
     }
     if (done && (act == CLI_DEPLOY_ROLL_BACK))
     {
-        done = cli_deploy_roll_back(said);
+        done = cli_deploy_roll_back(err_msg);
     }
     else if (done)
     {
-        done = cli_deploy_gather(said) && run_shown(act, replace, remove, said);
+        done = cli_deploy_gather(err_msg) && run_shown(act, replace, remove, err_msg);
         if (done && (act != CLI_DEPLOY_PREVIEW))
         {
-            char commit[CLI_NAME_LONGEST];
+            char commit[CLI_NAME_MAX_LEN];
             long long when = 0;
             int clean = 0;
             const unsigned long long now = cli_wall_milliseconds() / 1000u;
             // a commit's time before 1970 is taken as 1970
             s_time = cli_git_head(root, commit, &when, &clean) ? ((when > 0) ? (unsigned long long)when : 0ull) : now;
             char release[32];
-            CliLine release_line = {release, sizeof(release), 0ull};
+            VerbaLinea release_line = {release, sizeof(release), 0ull};
             cli_deploy_release_name(now, &release_line);
-            cli_line_closed(&release_line);
+            mmgr_line_finish(&release_line);
             s_release = release;
             s_replace = replace;
             s_remove = remove;
-            done = run_sends() ? run_turned(release, replace, remove, said) : run_failed(release, said);
+            done = run_sends() ? run_turned(release, replace, remove, err_msg) : run_failed(release, err_msg);
         }
     }
     run_given();

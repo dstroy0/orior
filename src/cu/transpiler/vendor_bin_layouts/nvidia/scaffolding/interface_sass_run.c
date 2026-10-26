@@ -1,27 +1,26 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // interface_sass_run.c: a list of cubins run on the part in one process, one answer a cubin. Nothing is compiled here:
-// the driver is handed each cubin as it was written and asked for its kernel.
+// the driver is handed each cubin as it was written and queried for its kernel.
 //
-//     interface_sass_run [--held <file>] <machine file> <list> <first> <answers> [<cases> [<most>]]
+//     interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<most>]]
 //
-// It joins the gate's safety airlock like the carrier: --held reads the vendor's verdict (cubin_safe_verdict_*), and a
-// line reaches the part only with a verdict in hand, an encoding the verdict holds never reaching it. Given no verdict
-// a line is held off the part, since code the vendor's reader never read for a fault can be the one that crashes the
-// host.
+// It joins the gate's safety airlock like the carrier: --gated reads the vendor's verdict (cubin_safe_verdict_*), and a
+// line reaches the part only with a verdict in hand, an encoding the verdict blocks never reaching it. Given no verdict
+// a line is blocked from the part, since code the vendor's reader never read for a fault can be the one that crashes
+// the host.
 //
-// The list holds one cubin a line, as `<path> <kernel>`. Each from line `first` on is read on the host first and held
-// to cubin_safe against the machine file; one that breaks a rule is never handed to the driver and adds `<number>
-// skipped cubin_safe_<verdict>`. Every other is loaded, its kernel run over the
-// probe's case, and a line `<number> answered <w0> <w1> <w2> <w3>` added to the answers file. Given a cases file, one
-// case a line as up to eight words in hex, the kernel is run once over every case, a thread a case, and the line holds
-// the first word of each case's answer in the file's order. Given `most`, a pass runs that many lines at most and
-// ends with exit 4 where lines are left, which keeps a pass short enough for a cap on its time to bound one cubin.
-// A cubin the part refuses
-// kills the context past recovery: resetting the part's primary context in place leaves the next launch failing. A
-// refusal adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that
-// line. A pause after each launch keeps a run of launches from flooding the part and taking the display down with it.
-// Exit 0 where every line ran, 2 where the list or the device was not reached.
+// The list contains one cubin a line, as `<path> <kernel>`. Each from line `first` on is read on the host first and
+// checked by cubin_safe against the machine file; one that breaks a rule is never handed to the driver and adds
+// `<number> skipped cubin_safe_<verdict>`. Every other is loaded, its kernel run over the probe's case, and a line
+// `<number> answered <w0> <w1> <w2> <w3>` added to the answers file. Given a cases file, one case a line as up to eight
+// words in hex, the kernel is run once over every case, a thread a case, and the line contains the first word of each
+// case's answer in the file's order. Given `most`, a pass runs that many lines at most and ends with exit 4 where lines
+// are left, which makes a pass short enough for a cap on its time to bound one cubin. A cubin the part refuses kills
+// the context past recovery: resetting the part's primary context in place leaves the next launch failing. A refusal
+// adds `<number> refused <error>` and ends the process with exit 3, and the caller starts it again past that line. A
+// pause after each launch prevents a run of launches from flooding the part and taking the display down with it. Exit 0
+// where every line ran, 2 where the list or the device was not reached.
 #include "../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../cubin_safe.h"
 #include "../../../../includes/parsers/line_read.h"
@@ -40,7 +39,8 @@
 #define SASS_RUN_IN_WORDS 8u
 #define SASS_RUN_OUT_WORDS 4u
 #define SASS_RUN_THREADS 256u
-// the wait after a launch, in milliseconds, which spaces the part's work and keeps a run of launches from flooding it
+// the wait after a launch, in milliseconds, which spaces the part's work and prevents a run of launches from flooding
+// it
 #define SASS_RUN_PAUSE_MS 25u
 
 static unsigned char s_image[SASS_RUN_CUBIN];
@@ -51,10 +51,10 @@ static unsigned int s_case_count = 1u;
 static unsigned int s_answers[SASS_RUN_THREADS][SASS_RUN_OUT_WORDS];
 
 // the cases file at `path` read into s_cases, one case a line as up to eight words in hex, the words a line leaves out
-// zero: 1, or 0 where it does not read, holds no case or holds more than a launch's threads
+// zero: 1, or 0 where it does not read, contains no case or contains more than a launch's threads
 static int sass_run_cases(const char *path)
 {
-    // the cases as the run holds them, a descent's written through the run's writer, or the disk where it holds none
+    // the cases as the run stores them, a descent's written through the run's writer, or the disk where it stores none
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long at = 0ull;
@@ -73,7 +73,7 @@ static int sass_run_cases(const char *path)
         unsigned long long word = 0ull;
         while ((read < SASS_RUN_IN_WORDS) && line_number(&at_word, 1, &word) && (word <= 0xffffffffull))
         {
-            // the test above holds the word inside 32 bits
+            // the test above bounds the word inside 32 bits
             words[read] = (unsigned int)word;
             read += 1u;
         }
@@ -139,12 +139,12 @@ static CUresult sass_run_one(const char *kernel)
 
 int main(int count, char **words)
 {
-    // the safety airlock: the vendor's verdict read into the gate where it is given, and held in hand for the part
-    if ((count >= 3) && (strcmp(words[1], "--held") == 0))
+    // the safety airlock: the vendor's verdict read into the gate where it is given, and retained for the part
+    if ((count >= 3) && (strcmp(words[1], "--gated") == 0))
     {
         if (!cubin_safe_verdict_load(words[2]))
         {
-            fprintf(stderr, "the held list %s did not read\n", words[2]);
+            fprintf(stderr, "the gated list %s did not read\n", words[2]);
             return 2;
         }
         words[2] = words[0];
@@ -154,13 +154,13 @@ int main(int count, char **words)
     if ((count < 5) || (count > 7))
     {
         fprintf(stderr,
-                "interface_sass_run [--held <file>] <machine file> <list> <first> <answers> [<cases> [<most>]]\n");
+                "interface_sass_run [--gated <file>] <machine file> <list> <first> <answers> [<cases> [<most>]]\n");
         return 2;
     }
     const unsigned long most = (count == 7) ? strtoul(words[6], NULL, 10) : 0ul;
     if ((count >= 6) && !sass_run_cases(words[5]))
     {
-        fprintf(stderr, "the cases %s did not read, or hold more than %u\n", words[5], SASS_RUN_THREADS);
+        fprintf(stderr, "the cases %s did not read, or contain more than %u\n", words[5], SASS_RUN_THREADS);
         return 2;
     }
     if (!sass_machine_read(&s_machine, words[1]))
@@ -198,8 +198,8 @@ int main(int count, char **words)
             fclose(list);
             return 4;
         }
-        // a line the writer held off the part: its turned operation key holds a control transfer, a wait or no form,
-        // and running it could loop or stall the part. It is answered without the device
+        // a line the writer blocked from the part: its turned operation key contains a control transfer, a wait or no
+        // form, and running it could loop or stall the part. It is answered without the device
         if (strcmp(path, "skip") == 0)
         {
             fprintf(answers, "%lu skipped %s\n", number, kernel);
@@ -215,7 +215,7 @@ int main(int count, char **words)
         if (verdict != CUBIN_SAFE)
         {
             fprintf(answers, "%lu skipped cubin_safe_%u\n", number, verdict);
-            printf("  %s held off the part: %s at byte %llu\n", path, cubin_safe_name(verdict), at);
+            printf("  %s blocked from the part: %s at byte %llu\n", path, cubin_safe_name(verdict), at);
             number += 1ul;
             continue;
         }
@@ -223,7 +223,7 @@ int main(int count, char **words)
         if (!cubin_safe_verdict_ready())
         {
             fprintf(answers, "%lu skipped no vendor verdict\n", number);
-            printf("  %s held off the part: the cross must read this code before the part\n", path);
+            printf("  %s blocked from the part: the cross must read this code before the part\n", path);
             number += 1ul;
             continue;
         }
@@ -250,7 +250,7 @@ int main(int count, char **words)
             fprintf(answers, "%lu answered %08x %08x %08x %08x\n", number, s_answers[0][0], s_answers[0][1],
                     s_answers[0][2], s_answers[0][3]);
         }
-        // the pause spaces the launches and keeps a run of them from flooding the part
+        // the pause spaces the launches and prevents a run of them from flooding the part
         Sleep(SASS_RUN_PAUSE_MS);
         number += 1ul;
     }

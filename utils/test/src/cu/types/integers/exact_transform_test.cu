@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Proves the exact integer's multiplication ladder at the width it is built at: the ladder (long multiplication,
-// Karatsuba, the Schonhage-Strassen transform) and the transform alone both equal a long multiplication kept here, on
-// keyed and edge-shaped limbs, balanced and unbalanced, across every rung boundary up to half the width; division
-// and gcd hold at the same width; and each rung is timed, so the crossovers are measured, not assumed. Every value
-// is allocated from the heap. The test runs at any width the header accepts.
+// Karatsuba, the Schonhage-Strassen transform) and the transform alone both equal a long multiplication implemented
+// here, on keyed and edge-shaped limbs, balanced and unbalanced, across every rung boundary up to half the width;
+// division and gcd are correct at the same width; and each rung is timed, so the crossovers are measured, not assumed.
+// Every value is allocated from the heap. The test runs at any width the header accepts.
 
 #include "../../../../../../src/cu/includes/types/integers/exact_integer.h"
 
@@ -253,7 +253,7 @@ int main(void)
                              ladder_matches(left, right, product))
                                 ? 1u
                                 : 0u;
-            // the product divides back to its factors, and the gcd holds the shorter one
+            // the product divides back to its factors, and the gcd is the shorter one
             int back = (orior_exact_divide(product, right, quotient, remainder) == ORIOR_EXACT_OK) &&
                        (remainder->sign == 0) && orior_exact_equal(quotient, left);
             back = back && (orior_exact_divide_exact(product, left, quotient) == ORIOR_EXACT_OK) &&
@@ -268,7 +268,7 @@ int main(void)
     check("the ladder equals long multiplication at every size, balanced and not, edge-shaped and keyed",
           ladder_ok == tried);
     check("the transform alone equals long multiplication at every size", transform_ok == tried);
-    check("each product divides back to its factors, exactly and with remainder, and the gcd holds a factor",
+    check("each product divides back to its factors, exactly and with remainder, and the gcd is a factor",
           divided == tried);
 
     // division of values that are not multiples: numerator = quotient . divisor + remainder, 0 <= |remainder| <

@@ -183,24 +183,24 @@ int inflate_codes(InflateStream *stream, const InflateHuffman *literals, const I
         {
             return 0;
         }
-        const unsigned int length_slot = symbol - (INFLATE_END_OF_BLOCK + 1u);
+        const unsigned int length_code = symbol - (INFLATE_END_OF_BLOCK + 1u);
         unsigned int length_extra = 0u;
-        if (!inflate_take(stream, inflate_length_extra[length_slot], &length_extra))
+        if (!inflate_take(stream, inflate_length_extra[length_code], &length_extra))
         {
             return 0;
         }
-        const unsigned long long length = (unsigned long long)inflate_length_base[length_slot] + length_extra;
-        unsigned int distance_slot = 0u;
-        if (!inflate_symbol(stream, distances, &distance_slot) || (distance_slot >= INFLATE_DISTANCE_LIMIT))
+        const unsigned long long length = (unsigned long long)inflate_length_base[length_code] + length_extra;
+        unsigned int distance_code = 0u;
+        if (!inflate_symbol(stream, distances, &distance_code) || (distance_code >= INFLATE_DISTANCE_LIMIT))
         {
             return 0;
         }
         unsigned int distance_extra = 0u;
-        if (!inflate_take(stream, inflate_distance_extra[distance_slot], &distance_extra))
+        if (!inflate_take(stream, inflate_distance_extra[distance_code], &distance_extra))
         {
             return 0;
         }
-        const unsigned long long distance = (unsigned long long)inflate_distance_base[distance_slot] + distance_extra;
+        const unsigned long long distance = (unsigned long long)inflate_distance_base[distance_code] + distance_extra;
         if ((distance > stream->written) || (length > (stream->out_capacity - stream->written)))
         {
             return 0;

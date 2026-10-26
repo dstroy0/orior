@@ -1,15 +1,15 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// catalog.h: every job the app can start, read from the tree each time it is asked for (catalog.c holds the jobs,
-// catalog_read.c reads them from the tree, catalog_scan.c reads what a file says of itself).
+// catalog.h: every job the app can start, read from the tree each time it is requested (catalog.c stores the jobs,
+// catalog_read.c reads them from the tree, catalog_scan.c reads what a file declares of itself).
 //
-// Nothing here holds a list of sims, parts, programs, viewers or stages. Each is read from the file that defines it:
+// Nothing here stores a list of sims, parts, programs, viewers or stages. Each is read from the file that defines it:
 // the sims from the case in src/sims/run.sh, the driver's parts from its own usage text, the viewers and the stage
 // scripts from where they sit. A sim added to run.sh is a job the next time the catalog is read, and a job whose file
 // is gone is gone with it.
 //
-// A catalog keeps its jobs, their params, steps and arguments, and every text they hold in the storage its holder hands
-// it, so the whole catalog and a run's one job are each kept in a room of their own and nothing is allocated
+// A catalog stores its jobs, their params, steps and arguments, and every text they contain in the storage its holder
+// hands it, so the whole catalog and a run's one job are each stored in a room of their own and nothing is allocated
 #ifndef CATALOG_H
 #define CATALOG_H
 
@@ -18,13 +18,13 @@
 // none: no text, no job
 #define CLI_CATALOG_NONE 0xffffffffu
 
-// how much of what a build does it says as it runs: every command it runs, as it runs it, where verbose, the first
-// choice and so the one a build takes where none is given, and what its tools say of their own, where quiet
+// how much of what a build does it prints as it runs: every command it runs, as it runs it, where verbose, the first
+// choice and so the one a build takes where none is given, and what its tools print of their own, where quiet
 #define CLI_TRACE "trace"
 #define CLI_TRACE_VERBOSE "verbose"
 #define CLI_TRACE_QUIET "quiet"
 
-// How a step's argument list is made from the values given. Each kind names the texts it holds in turn:
+// How a step's argument list is made from the values given. Each kind names the texts it contains in turn:
 //   LIT text          written as it is
 //   VALUE key         the value of a param, where one is given
 //   FLAG flag key     a flag and then the value of a param, where one is given
@@ -37,7 +37,7 @@
 //   WHEN key value    the words listed, where the param's value is the value named
 //   SET variable value        no argument: the variable set to the value in the step's environment
 //   SET_WHEN param value variable setting   no argument: the variable set where the param's value is the value named
-//   UNPATH name       no argument: the step's PATH without the folders that hold the program named
+//   UNPATH name       no argument: the step's PATH without the folders that contain the program named
 //   ONLY key value    no argument: the step runs only where the param's value is the value named
 //   GIVEN key         no argument: the step runs only where a value of the param is given
 //   SET_FROM variable key     no argument: the value of a param, where one is given, set under the variable named
@@ -88,7 +88,7 @@ enum
     CLI_PROGRAM_MADE
 };
 
-// An argument: its kind, its texts as its kind names them, whether WORDS asks for the separator, and the words WHEN
+// An argument: its kind, its texts as its kind names them, whether WORDS requires the separator, and the words WHEN
 // lists, `words` of the list from `first`
 typedef struct
 {
@@ -111,7 +111,7 @@ typedef struct
     unsigned int args;
 } CliStep;
 
-// One input a job takes: its key; its kind, how the app asks for it: one of `choices`, several of them, a file, a
+// One input a job takes: its key; its kind, how the app prompts for it: one of `choices`, several of them, a file, a
 // folder, a path to write, a word, or free words added to the end; its choices, `choices` of the list from `first`;
 // its default; and whether it is required
 typedef struct
@@ -124,7 +124,7 @@ typedef struct
     int required;
 } CliParam;
 
-// A job: its id, group, title, file and what it says of itself; its params and steps; and what it writes for a
+// A job: its id, group, title, file and what it declares of itself; its params and steps; and what it writes for a
 // reader to open, "views" where it writes pages, "program" where it builds one, else empty
 typedef struct
 {
@@ -141,7 +141,7 @@ typedef struct
 } CliJob;
 
 // A catalog: its jobs, params, steps, arguments, lists of texts and texts in the storage handed it, each with how many
-// it holds and how many it may; 1 in `full` where one did not fit; the count its cells are taken under where its
+// it contains and how many it may; 1 in `full` where one did not fit; the count its cells are taken under where its
 // storage grows, NULL where it was handed; and the most jobs it takes
 typedef struct
 {
@@ -164,7 +164,7 @@ typedef struct
     unsigned int used;
     unsigned int text_most;
     int full;
-    CliCellsTally *cells;
+    CellOwner *cells;
     unsigned int jobs_cap;
 } CliCatalog;
 
@@ -178,7 +178,7 @@ typedef struct
 
 typedef struct
 {
-    char key[CLI_VALUES_KEYS][CLI_NAME_LONGEST];
+    char key[CLI_VALUES_KEYS][CLI_NAME_MAX_LEN];
     unsigned int first[CLI_VALUES_KEYS];
     unsigned int count[CLI_VALUES_KEYS];
     unsigned int keys;
@@ -189,20 +189,20 @@ typedef struct
 } CliValues;
 
 // a catalog made empty whose storage is taken in cells counted to `cells`, each list doubled as it is put, `jobs_most`
-// jobs at the most; and its cells given back, the catalog left empty and holding nothing
-void cli_catalog_growing(CliCatalog *catalog, CliCellsTally *cells, unsigned int jobs_most);
+// jobs at the most; and its cells given back, the catalog left empty and containing nothing
+void cli_catalog_growing(CliCatalog *catalog, CellOwner *cells, unsigned int jobs_most);
 void cli_catalog_given(CliCatalog *catalog);
 // a catalog made empty over the storage handed it
 void cli_catalog_begun(CliCatalog *catalog, CliJob *jobs, unsigned int jobs_most, CliParam *params,
                        unsigned int params_most, CliStep *steps, unsigned int steps_most, CliArg *args,
                        unsigned int args_most, unsigned int *lists, unsigned int lists_most, char *text,
                        unsigned int text_most);
-// a text kept in the catalog: where it starts; and the text at a place, the empty text for none
+// a text stored in the catalog: where it starts; and the text at a place, the empty text for none
 unsigned int cli_catalog_text(CliCatalog *catalog, const char *text);
 const char *cli_catalog_at(const CliCatalog *catalog, unsigned int text);
 // a job begun with its id, group, title, file and about: its place, CLI_CATALOG_NONE where the catalog is full; a
 // param put on the last job; a choice put on the last param; a step put on the last job; an argument put on the last
-// step, its texts NULL past the last it holds; and a word put on the last argument's list
+// step, its texts NULL past the last it contains; and a word put on the last argument's list
 unsigned int cli_catalog_job(CliCatalog *catalog, const char *id, const char *group, const char *title,
                              const char *file, const char *about, const char *opens);
 void cli_catalog_param(CliCatalog *catalog, const char *key, const char *kind, int required);
@@ -232,7 +232,7 @@ typedef struct
 void cli_catalog_job_extent(const CliCatalog *from, unsigned int index, CliCatalogExtent *extent);
 // the job at `index` written as the window reads it: `{"id", "group", "title", "file", "about", "params": [{"key",
 // "kind", "choices", "default", "required"}], "opens"}`
-void cli_catalog_job_written(const CliCatalog *catalog, unsigned int index, CliLine *out);
+void cli_catalog_job_written(const CliCatalog *catalog, unsigned int index, VerbaLinea *out);
 
 // the values made empty; `value` put after the values of `key`; the values of `key`, `count` of them into `count`,
 // NULL where it has none; and the first value of `key`, NULL where it has none
@@ -246,7 +246,7 @@ const char *cli_values_at(const CliValues *values, unsigned int text);
 // (catalog_read.c); and the opening paragraph a file gives of itself: a Python module's docstring, or the comment
 // lines a script or a source file opens with, past its license lines, into `out` (catalog_scan.c)
 void cli_catalog_read(const char *root, CliCatalog *catalog);
-void cli_catalog_about(const char *path, CliLine *out);
+void cli_catalog_about(const char *path, VerbaLinea *out);
 // the jobs of the programs a tree's builds make, of deploying them, and of the query, put after the catalog's
 // (executables_jobs.c, deploy.c, query_jobs.c)
 void cli_executables_jobs(const char *root, CliCatalog *catalog);

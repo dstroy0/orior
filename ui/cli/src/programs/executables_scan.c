@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// executables_scan.c: what each kind of build script says of the programs it makes, read from its text: CMake's and
+// executables_scan.c: what each kind of build script declares of the programs it makes, read from its text: CMake's and
 // Meson's executables and projects, the calls of a command in a script's code, and the comments taken out of it
 // (executables_scan_more.c reads the rest)
 #include "executables_internal.h"
 
-CliCellsTally g_cli_executables_cells = CLI_CELLS_TALLY("cli_executables");
+CellOwner g_cli_executables_cells = MMGR_CELL_OWNER("cli_executables");
 
 char *cli_uncommented_taken(const char *text, char quote)
 {
     // the code with its comments taken out is no longer than the text
     const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    char *const code = cli_cell_taken_by(&g_cli_executables_cells, room, "a script's code");
+    char *const code = g_cli_cells->persistent_buf_alloc(room, &g_cli_executables_cells);
     if (code != NULL)
     {
         cli_uncommented(text, quote, code, room);
@@ -22,8 +22,8 @@ char *cli_uncommented_taken(const char *text, char quote)
 unsigned int cli_calls_taken(const char *code, const char *command, CliCall **calls)
 {
     const unsigned int count = (code != NULL) ? cli_calls(code, command, NULL, 0u) : 0u;
-    *calls = (count != 0u) ? cli_cell_taken_by(&g_cli_executables_cells, (unsigned long long)count * sizeof(CliCall),
-                                               "the calls of a command")
+    *calls = (count != 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)count * sizeof(CliCall),
+                                                               &g_cli_executables_cells)
                            : NULL;
     return (*calls != NULL) ? cli_calls(code, command, *calls, count) : 0u;
 }
@@ -56,9 +56,9 @@ void cli_scan_trim(const char **text, unsigned long long *length)
 
 void cli_scan_copied(const char *text, unsigned long long length, char *out, unsigned long long room)
 {
-    CliLine line = {out, room, 0ull};
-    cli_line_counted(&line, text, length);
-    cli_line_closed(&line);
+    VerbaLinea line = {out, room, 0ull};
+    mmgr_line_put_n(&line, text, length);
+    mmgr_line_finish(&line);
 }
 
 void cli_names_put(CliNames *names, const char *name, unsigned long long length, const char *value)
@@ -73,7 +73,7 @@ void cli_names_put(CliNames *names, const char *name, unsigned long long length,
     }
     if (names->count < CLI_EXECUTABLES_NAMES)
     {
-        cli_scan_copied(name, length, names->name[names->count], CLI_NAME_LONGEST);
+        cli_scan_copied(name, length, names->name[names->count], CLI_NAME_MAX_LEN);
         memor.cpy(&(MemoriaCfg){
             .dst = names->value[names->count],
             .src = (value != NULL) ? value : "",
@@ -84,7 +84,7 @@ void cli_names_put(CliNames *names, const char *name, unsigned long long length,
 
 void cli_uncommented(const char *text, char quote, char *out, unsigned long long room)
 {
-    CliLine line = {out, room, 0ull};
+    VerbaLinea line = {out, room, 0ull};
     const char *at = text;
     while (at[0] != '\0')
     {
@@ -102,12 +102,12 @@ void cli_uncommented(const char *text, char quote, char *out, unsigned long long
             {
                 break;
             }
-            cli_line_character(&line, letter[0]);
+            mmgr_line_ch(&line, letter[0]);
         }
-        cli_line_character(&line, '\n');
+        mmgr_line_ch(&line, '\n');
         at = (stop[0] != '\0') ? (stop + 1) : stop;
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // a letter in lower case, ASCII's
@@ -188,7 +188,7 @@ unsigned int cli_calls(const char *code, const char *command, CliCall *calls, un
     return found;
 }
 
-// the `index`th word of a CMake call, its quotes taken off, into `out`, which holds CLI_NAME_LONGEST: 1, or 0 where it
+// the `index`th word of a CMake call, its quotes taken off, into `out`, sized for CLI_NAME_MAX_LEN: 1, or 0 where it
 // has no such word
 static int cli_cmake_word(const CliCall *call, unsigned int index, char *out)
 {
@@ -221,7 +221,7 @@ static int cli_cmake_word(const CliCall *call, unsigned int index, char *out)
             {
                 to -= 1;
             }
-            cli_scan_copied(from, (unsigned long long)(to - from), out, CLI_NAME_LONGEST);
+            cli_scan_copied(from, (unsigned long long)(to - from), out, CLI_NAME_MAX_LEN);
             return 1;
         }
         at = stop;
@@ -237,8 +237,8 @@ void cli_cmake_targets(const char *text, const char *project, CliNames *names)
     const unsigned int count = cli_calls_taken(code, "add_executable", &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        char first[CLI_NAME_LONGEST];
-        char second[CLI_NAME_LONGEST];
+        char first[CLI_NAME_MAX_LEN];
+        char second[CLI_NAME_MAX_LEN];
         if (cli_cmake_word(&calls[at], 1u, second) &&
             ((cellul.eq(&(CatenaFinitaCfg){.src = second, .other = "IMPORTED", .cap = CLI_CELLS_POOL})) ||
              (cellul.eq(&(CatenaFinitaCfg){.src = second, .other = "ALIAS", .cap = CLI_CELLS_POOL}))))
@@ -249,22 +249,22 @@ void cli_cmake_targets(const char *text, const char *project, CliNames *names)
         {
             continue;
         }
-        char name[CLI_NAME_LONGEST];
-        CliLine line = {name, sizeof(name), 0ull};
+        char name[CLI_NAME_MAX_LEN];
+        VerbaLinea line = {name, sizeof(name), 0ull};
         for (const char *letter = first; letter[0] != '\0';)
         {
             if (cellul.starts(&(CatenaFinitaCfg){.src = letter, .other = "${PROJECT_NAME}", .cap = CLI_CELLS_POOL}))
             {
-                cli_line_text(&line, project);
+                mmgr_line_put(&line, project);
                 letter += 15;
             }
             else
             {
-                cli_line_character(&line, letter[0]);
+                mmgr_line_ch(&line, letter[0]);
                 letter += 1;
             }
         }
-        const unsigned long long length = cli_line_closed(&line);
+        const unsigned long long length = mmgr_line_finish(&line);
         if ((length != 0ull) &&
             (cellul.find(&(CatenaFinitaCfg){
                  .src = name, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL}) == NULL))
@@ -272,8 +272,8 @@ void cli_cmake_targets(const char *text, const char *project, CliNames *names)
             cli_names_put(names, name, length, NULL);
         }
     }
-    cli_cell_given_by(&g_cli_executables_cells, calls);
-    cli_cell_given_by(&g_cli_executables_cells, code);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
 }
 
 int cli_cmake_project(const char *text, char *out)
@@ -286,12 +286,12 @@ int cli_cmake_project(const char *text, char *out)
     {
         found = cli_cmake_word(&calls[at], 0u, out);
     }
-    cli_cell_given_by(&g_cli_executables_cells, calls);
-    cli_cell_given_by(&g_cli_executables_cells, code);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
     return found;
 }
 
-// a Meson call's first argument, where it is a string written out, into `out`, which holds CLI_NAME_LONGEST: 1, or 0
+// a Meson call's first argument, where it is a string written out, into `out`, sized for CLI_NAME_MAX_LEN: 1, or 0
 static int cli_meson_first(const CliCall *call, char *out)
 {
     const char *first = call->text;
@@ -305,7 +305,7 @@ static int cli_meson_first(const CliCall *call, char *out)
     {
         return 0;
     }
-    cli_scan_copied(first + 1, length - 2ull, out, CLI_NAME_LONGEST);
+    cli_scan_copied(first + 1, length - 2ull, out, CLI_NAME_MAX_LEN);
     return 1;
 }
 
@@ -317,14 +317,14 @@ void cli_meson_targets(const char *text, CliNames *names)
     const unsigned int count = cli_calls_taken(code, "executable", &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        char name[CLI_NAME_LONGEST];
+        char name[CLI_NAME_MAX_LEN];
         if (cli_meson_first(&calls[at], name))
         {
             cli_names_put(names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), NULL);
         }
     }
-    cli_cell_given_by(&g_cli_executables_cells, calls);
-    cli_cell_given_by(&g_cli_executables_cells, code);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
 }
 
 int cli_meson_project(const char *text, char *out)
@@ -337,7 +337,7 @@ int cli_meson_project(const char *text, char *out)
     {
         found = cli_meson_first(&calls[at], out);
     }
-    cli_cell_given_by(&g_cli_executables_cells, calls);
-    cli_cell_given_by(&g_cli_executables_cells, code);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
     return found;
 }

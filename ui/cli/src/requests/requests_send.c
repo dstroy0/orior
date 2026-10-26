@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // requests_send.c: a request sent and its answer read, a redirect followed up to ten times where the request follows
 // them, a 303, or a 301 or 302 of a POST, going on as a GET with no body; the request at a line of a file sent and its
-// answer kept; and a GET for orior's own reading. Two rooms hold what a request sends and reads, a third request
+// answer stored; and a GET for orior's own reading. Two rooms contain what a request sends and reads, a third request
 // waiting for one
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
@@ -23,18 +23,18 @@ CliRequestsRoom *cli_requests_room_taken(void)
     {
         cli_wake_wait(&s_wake, &s_lock);
     }
-    CliRequestsRoom *room = cli_cell_taken(sizeof(CliRequestsRoom), "a request's room");
+    CliRequestsRoom *room = g_cli_cells->persistent_buf_alloc(sizeof(CliRequestsRoom), NULL);
     if (room != NULL)
     {
         room->unpacked = NULL;
         room->unpacked_room = 0ull;
-        const int made = cli_line_growing(&room->body, CLI_REQUESTS_BODY_FIRST, "a request's body") &&
-                         cli_line_growing(&room->raw, CLI_REQUESTS_BODY_FIRST, "an answer's body as read");
+        const int made = cli_growing_line_made(&room->body, CLI_REQUESTS_BODY_FIRST) &&
+                         cli_growing_line_made(&room->raw, CLI_REQUESTS_BODY_FIRST);
         if (!made)
         {
-            cli_cell_given(room->raw.out);
-            cli_cell_given(room->body.out);
-            cli_cell_given(room);
+            g_cli_cells->persistent_buf_release(room->raw.out, NULL);
+            g_cli_cells->persistent_buf_release(room->body.out, NULL);
+            g_cli_cells->persistent_buf_release(room, NULL);
             room = NULL;
         }
     }
@@ -49,17 +49,17 @@ void cli_requests_room_given(CliRequestsRoom *room)
     {
         return;
     }
-    cli_cell_given(room->unpacked);
-    cli_cell_given(room->raw.out);
-    cli_cell_given(room->body.out);
-    cli_cell_given(room);
+    g_cli_cells->persistent_buf_release(room->unpacked, NULL);
+    g_cli_cells->persistent_buf_release(room->raw.out, NULL);
+    g_cli_cells->persistent_buf_release(room->body.out, NULL);
+    g_cli_cells->persistent_buf_release(room, NULL);
     cli_lock_take(&s_lock);
     s_rooms_used -= 1u;
     cli_wake_all(&s_wake);
     cli_lock_give(&s_lock);
 }
 
-// the answer made one that says what failed, at the hop's address
+// the answer made one that reports what failed, at the hop's address
 static void send_failed(CliRequestsRoom *room, const char *failed, unsigned long long size)
 {
     CliRequestsAnswer *const answer = &room->answer;
@@ -75,13 +75,14 @@ static void send_failed(CliRequestsRoom *room, const char *failed, unsigned long
     answer->cut = 0;
     answer->binary = 0;
     memor.set(&(MemoriaCfg){.dst = &answer->times, .val = 0, .bytes = sizeof(answer->times)});
-    const unsigned long long kept = (size < sizeof(answer->failed)) ? size : (sizeof(answer->failed) - 1u);
-    memor.cpy(&(MemoriaCfg){.dst = answer->failed, .src = failed, .bytes = (size_t)kept});
-    answer->failed[kept] = '\0';
+    const unsigned long long copy_len = (size < sizeof(answer->failed)) ? size : (sizeof(answer->failed) - 1u);
+    memor.cpy(&(MemoriaCfg){.dst = answer->failed, .src = failed, .bytes = (size_t)copy_len});
+    answer->failed[copy_len] = '\0';
     answer->has_failed = 1;
 }
 
-// whether the hop goes on to where the answer's Location says, and the hop made the one that goes there where it does
+// whether the hop goes on to where the answer's Location specifies, and the hop made the one that goes there where it
+// does
 static int send_redirected(const CliRequestsSent *sent, CliRequestsRoom *room)
 {
     CliRequestsAnswer *const answer = &room->answer;
@@ -94,9 +95,9 @@ static int send_redirected(const CliRequestsSent *sent, CliRequestsRoom *room)
         return 0;
     }
     char next_url[CLI_REQUESTS_ADDRESS];
-    CliLine next = {next_url, sizeof(next_url), 0ull};
+    VerbaLinea next = {next_url, sizeof(next_url), 0ull};
     cli_requests_joined(room->hop.url, answer->head + location->at, &next);
-    if (cli_line_closed(&next) == 0ull)
+    if (mmgr_line_finish(&next) == 0ull)
     {
         return 0;
     }
@@ -111,25 +112,25 @@ static int send_redirected(const CliRequestsSent *sent, CliRequestsRoom *room)
     {
         memor.cpy(&(MemoriaCfg){.dst = room->hop.method, .src = "GET", .bytes = 4u});
         room->hop.body_size = 0ull;
-        unsigned int kept = 0u;
+        unsigned int header_count = 0u;
         for (unsigned int at = 0u; at < room->hop.headers; at += 1u)
         {
             const char *const name = room->hop.header_name[at];
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-            const int dropped = ((size == 12u) && cli_requests_holds(name, size, "content-type")) ||
-                                ((size == 14u) && cli_requests_holds(name, size, "content-length"));
-            if (!dropped && (kept != at))
+            const int dropped = ((size == 12u) && cli_requests_contains(name, size, "content-type")) ||
+                                ((size == 14u) && cli_requests_contains(name, size, "content-length"));
+            if (!dropped && (header_count != at))
             {
-                memor.cpy(&(MemoriaCfg){.dst = room->hop.header_name[kept],
+                memor.cpy(&(MemoriaCfg){.dst = room->hop.header_name[header_count],
                                         .src = room->hop.header_name[at],
                                         .bytes = sizeof(room->hop.header_name[at])});
-                memor.cpy(&(MemoriaCfg){.dst = room->hop.header_value[kept],
+                memor.cpy(&(MemoriaCfg){.dst = room->hop.header_value[header_count],
                                         .src = room->hop.header_value[at],
                                         .bytes = sizeof(room->hop.header_value[at])});
             }
-            kept += dropped ? 0u : 1u;
+            header_count += dropped ? 0u : 1u;
         }
-        room->hop.headers = kept;
+        room->hop.headers = header_count;
     }
     return 1;
 }
@@ -144,38 +145,38 @@ void cli_requests_send(const CliRequestsSent *sent, int verify, CliRequestsRoom 
     room->answer.redirects = 0u;
     do
     {
-        char why[CLI_SAID_LONGEST];
-        CliLine said = {why, sizeof(why), 0ull};
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
         room->answer.has_failed = 0;
-        if (!cli_requests_once(room, verify, &said))
+        if (!cli_requests_once(room, verify, &err_msg))
         {
-            send_failed(room, why, said.at);
+            send_failed(room, why, err_msg.at);
         }
     } while (send_redirected(sent, room));
     room->answer.times.total = (double)((cli_clock_microseconds() - began + 50u) / 100u) / 10.0;
 }
 
 int cli_requests_sent_at(const char *root, const char *path, const char *text, unsigned long long size,
-                         unsigned long long line, const char *env, CliLine *out, CliLine *said)
+                         unsigned long long line, const char *env, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = cli_requests_room_taken();
     if (room == NULL)
     {
-        cli_line_text(said, "the request's room could not be taken");
+        mmgr_line_put(err_msg, "the request's room could not be taken");
         return 0;
     }
     char key[CLI_REQUESTS_ADDRESS + CLI_REQUESTS_NAME];
-    CliLine key_line = {key, sizeof(key), 0ull};
-    int sent = cli_requests_ready(root, path, text, size, line, env, &room->sent, &room->body, &key_line, said);
-    if (sent && !cli_line_fits(&key_line))
+    VerbaLinea key_line = {key, sizeof(key), 0ull};
+    int sent = cli_requests_ready(root, path, text, size, line, env, &room->sent, &room->body, &key_line, err_msg);
+    if (sent && !mmgr_line_ok(&key_line))
     {
-        cli_line_text(said, "the request is larger than orior_cli holds");
+        mmgr_line_put(err_msg, "the request is larger than orior_cli supports");
         sent = 0;
     }
     if (sent)
     {
         cli_requests_send(&room->sent, cli_requests_verifies(root, path, env), room);
-        sent = cli_requests_keep(root, path, key, key_line.at, &room->answer, &room->sent, said);
+        sent = cli_requests_history_save(root, path, key, key_line.at, &room->answer, &room->sent, err_msg);
     }
     if (sent)
     {
@@ -185,22 +186,23 @@ int cli_requests_sent_at(const char *root, const char *path, const char *text, u
     return sent;
 }
 
-int cli_requests_get(const char *address, unsigned int *status, CliLine *reason, int *cut, CliLine *body, CliLine *said)
+int cli_requests_get(const char *address, unsigned int *status, VerbaLinea *reason, int *cut, VerbaLinea *body,
+                     VerbaLinea *err_msg)
 {
     CliRequestsRoom *const room = cli_requests_room_taken();
     if (room == NULL)
     {
-        cli_line_text(said, "the request's room could not be taken");
+        mmgr_line_put(err_msg, "the request's room could not be taken");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = &room->sent, .val = 0, .bytes = sizeof(room->sent)});
     memor.cpy(&(MemoriaCfg){.dst = room->sent.method, .src = "GET", .bytes = 4u});
-    CliLine url = {room->sent.url, sizeof(room->sent.url), 0ull};
-    cli_line_text(&url, address);
+    VerbaLinea url = {room->sent.url, sizeof(room->sent.url), 0ull};
+    mmgr_line_put(&url, address);
     room->body.at = 0ull;
     room->sent.body = room->body.out;
     room->sent.redirect = 1;
-    const int fits = (cli_line_closed(&url) != 0ull);
+    const int fits = (mmgr_line_finish(&url) != 0ull);
     if (fits)
     {
         cli_requests_send(&room->sent, 1, room);
@@ -209,11 +211,11 @@ int cli_requests_get(const char *address, unsigned int *status, CliLine *reason,
     const int answered = fits && !answer->has_failed;
     if (!fits)
     {
-        cli_line_text(said, "the request is larger than orior_cli holds");
+        mmgr_line_put(err_msg, "the request is larger than orior_cli supports");
     }
     else if (!answered)
     {
-        cli_line_text(said, answer->failed);
+        mmgr_line_put(err_msg, answer->failed);
     }
     else
     {
@@ -222,7 +224,7 @@ int cli_requests_get(const char *address, unsigned int *status, CliLine *reason,
         cli_lossy(reason, (const unsigned char *)answer->head + answer->reason.at, answer->reason.size);
         if (answer->binary)
         {
-            cli_line_counted(body, (const char *)answer->body, answer->size);
+            mmgr_line_put_n(body, (const char *)answer->body, answer->size);
         }
         else
         {

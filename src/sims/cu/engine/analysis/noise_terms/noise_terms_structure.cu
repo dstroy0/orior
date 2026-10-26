@@ -8,18 +8,18 @@
 // path the camera drew: 10^6 T^2 sum_t (e_{t+k} - e_t)^2 / ((T - k)(2^b T + sum_t e_t)^2) in millionths. The intercept
 // reads the pairs' own noise, the mean over the pairs in 40 to 199 and their frame pairs of g^2 times the four
 // lights plus 4 R^2. The rounded scale adds to it the roundings' own mean square, about 1/3: with rho a light's
-// rounding in units of 2^-b, the rounded light times 2^b less the light before the scale times the scale held,
+// rounding in units of 2^-b, the rounded light times 2^b less the light before the scale times the scale applied,
 // g^2 (rho(x, t + k) - rho(x, t) - rho(x + 1, t + k) + rho(x + 1, t))^2 / 2^(2b) over the same pairs and frame pairs,
-// and the expected value holds that sum exactly. The cross term, 2 g^2 (S - S_x)(e_{t+k} - e_t) times that rounding
+// and the expected value includes that sum exactly. The cross term, 2 g^2 (S - S_x)(e_{t+k} - e_t) times that rounding
 // step over 2^(2b), averages to about 0 over the pairs, the roundings spread evenly over their range and unrelated to
-// the step they multiply (Derived), and is not kept. The slope's standard error, estimated from the plant, is under
+// the step they multiply (Derived), and is not retained. The slope's standard error, estimated from the plant, is under
 // 100 millionths at every lag. The slope's tolerance of 500 millionths is at least 5 of them. The intercept's is about
-// 0.2, and the tolerance of 1 keeps its full width, about 5 of them.
+// 0.2, and the tolerance of 1 covers its full width, about 5 of them.
 void terms_structure(SimResults *results, const unsigned short *lanes, const SimScene *scene, const SimCamera *camera)
 {
     EngineError error;
     memset(&error, 0, sizeof(error));
-    // the measurement's 28 exact integers are held off the stack
+    // the measurement's 28 exact integers are stored off the stack
     NoiseStructureMeasurement *const measurement =
         (NoiseStructureMeasurement *)malloc(sizeof(NoiseStructureMeasurement));
     const int ok = (measurement != NULL) && (noise_structure_volume(lanes, TERMS_EXTENT, measurement, &error) == 0L);
@@ -37,7 +37,7 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
         return;
     }
     // the light at every column and frame, exactly as the camera drew it: the scene has no body. Every z and y of a
-    // column holds the same light
+    // column has the same light
     for (unsigned long long x = 0ull; x < TERMS_WIDTH; x += 1ull)
     {
         // a column index is far below 2^63
@@ -60,7 +60,7 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
     }
     const long long unit = (camera->scale_bits != 0u) ? (1ll << camera->scale_bits) : 1ll;
     // each light's rounding in units of 1 / unit: the rounded light times the unit less the light before the scale
-    // times the scale held, as sim_light holds it, an integer of at most unit / 2 in size and 0 without a scale
+    // times the scale applied, as sim_light applies it, an integer of at most unit / 2 in size and 0 without a scale
     SimCamera unscaled = *camera;
     unscaled.scale_bits = 0u;
     for (unsigned long long x = 0ull; x < TERMS_WIDTH; x += 1ull)
@@ -76,16 +76,16 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
                                                    ((long long)sim_light(scene, &unscaled, frame, place) * factor);
         }
     }
-    scriptura_text(&results->line, "    e_t from ");
-    scriptura_signed(&results->line, least);
-    scriptura_text(&results->line, " to ");
-    scriptura_signed(&results->line, maximum);
-    scriptura_text(&results->line, ", summing to ");
-    scriptura_signed(&results->line, path_total);
-    scriptura_text(&results->line, " over the frames\n");
+    mmgr_line_put(&results->line, "    e_t from ");
+    mmgr_line_decimal_signed(&results->line, least);
+    mmgr_line_put(&results->line, " to ");
+    mmgr_line_decimal_signed(&results->line, maximum);
+    mmgr_line_put(&results->line, ", summing to ");
+    mmgr_line_decimal_signed(&results->line, path_total);
+    mmgr_line_put(&results->line, " over the frames\n");
     // the gain, offset and read variance are each far below 2^31
     const unsigned long long gain = camera->gain;
-    const char *const said[NOISE_FLICKER_LAGS] = {"lag 1", "lag 2", "lag 4", "lag 8", "lag 16", "lag 32", "lag 64"};
+    const char *const labels[NOISE_FLICKER_LAGS] = {"lag 1", "lag 2", "lag 4", "lag 8", "lag 16", "lag 32", "lag 64"};
     for (unsigned int lag = 0u; lag < NOISE_FLICKER_LAGS; lag += 1u)
     {
         const unsigned long long apart = 1ull << lag;
@@ -130,11 +130,11 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
                 rounded += gain * gain * (unsigned long long)(step * step);
             }
         }
-        scriptura_text(&results->line, "    ");
-        scriptura_text(&results->line, said[lag]);
-        scriptura_text(&results->line, ", over ");
-        scriptura_decimal(&results->line, measurement->pairs[lag], 1u);
-        scriptura_text(&results->line, " frame pairs\n");
+        mmgr_line_put(&results->line, "    ");
+        mmgr_line_put(&results->line, labels[lag]);
+        mmgr_line_put(&results->line, ", over ");
+        mmgr_line_decimal(&results->line, measurement->pairs[lag], 1u);
+        mmgr_line_put(&results->line, " frame pairs\n");
         sim_check(results, measurement->read[lag] != 0, "some bin's q spans two values, so the line reads");
         if (measurement->read[lag] == 0)
         {
@@ -165,7 +165,7 @@ void terms_structure(SimResults *results, const unsigned short *lanes, const Sim
     free(rounding);
 }
 
-// Rows 18 and 19 read back. Under a flat light S a pixel holds f = o + p g S / 2^b in both halves, its offset o and
+// Rows 18 and 19 read back. Under a flat light S a pixel reads f = o + p g S / 2^b in both halves, its offset o and
 // its gain's departure p, and the halves' covariance is var(f) over the pixels' drawn f,
 // (P sum F^2 - (sum F)^2) / (P^2 2^(2b)) with F = o 2^b + p g S: the fixed pattern is drawn per voxel. No two planes
 // share it, and the null reads 0. The pattern and the draws, independent between the halves with variance h^2 in a
@@ -200,9 +200,9 @@ int terms_halves(SimResults *results, const unsigned short *lanes, const SimCame
     }
     // P sum F^2 and (sum F)^2 are each below 2^59 over 2^14 pixels
     const long long varied = ((long long)pixels * fixed_square) - (fixed * fixed);
-    scriptura_text(&results->line, "    the level: ");
+    mmgr_line_put(&results->line, "    the level: ");
     sim_ratio_print(&results->line, &measurement->level, &measurement->level_denominator, 4u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     terms_ratio_within(results, "  the halves' covariance", &measurement->covariance,
                        &measurement->covariance_denominator, varied, pixels * pixels * unit * unit, range_numerator,
                        range_denominator);
@@ -269,7 +269,7 @@ void terms_halves_line(SimResults *results, const SimCamera *camera, const Noise
 }
 
 // The clip pass against the plant: spikes at 128 in one voxel-frame of 1024, dips never. At 16 and 32 a symmetric
-// shot's null holds its spikes and dips equal within 5 standard errors; a Poisson shot's upper tail is longer than its
+// shot's null has its spikes and dips equal within 5 standard errors; a Poisson shot's upper tail is longer than its
 // lower. Its null's spikes outnumber its dips by more than 5.
 void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned long long spike_denominator,
                   unsigned long long law)
@@ -285,26 +285,26 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
     {
         return;
     }
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const unsigned long long triples = spikes[NOISE_SPIKE_TRIPLES];
-    scriptura_text(line, "    ");
-    scriptura_decimal(line, triples, 1u);
-    scriptura_text(line, " triples; spikes and dips at 16, 32, 64, 128:");
+    mmgr_line_put(line, "    ");
+    mmgr_line_decimal(line, triples, 1u);
+    mmgr_line_put(line, " triples; spikes and dips at 16, 32, 64, 128:");
     for (unsigned int threshold = 0u; threshold < NOISE_SPIKE_THRESHOLDS; threshold += 1u)
     {
-        scriptura_character(line, ' ');
-        scriptura_decimal(line, spikes[1u + (2u * threshold)], 1u);
-        scriptura_text(line, ", ");
-        scriptura_decimal(line, spikes[2u + (2u * threshold)], 1u);
-        scriptura_character(line, ';');
+        mmgr_line_ch(line, ' ');
+        mmgr_line_decimal(line, spikes[1u + (2u * threshold)], 1u);
+        mmgr_line_put(line, ", ");
+        mmgr_line_decimal(line, spikes[2u + (2u * threshold)], 1u);
+        mmgr_line_ch(line, ';');
     }
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
     const unsigned long long top_spikes = spikes[1u + (2u * (NOISE_SPIKE_THRESHOLDS - 1u))];
     const unsigned long long top_dips = spikes[2u + (2u * (NOISE_SPIKE_THRESHOLDS - 1u))];
     sim_check(results, top_dips == 0ull, "no dip clears 128 at a level of 120");
     if (spike_denominator == 0ull)
     {
-        sim_check(results, top_spikes == 0ull, "the null holds no spike of 128");
+        sim_check(results, top_spikes == 0ull, "the null has no spike of 128");
         for (unsigned int threshold = 0u; threshold < 2u; threshold += 1u)
         {
             const unsigned long long raised = spikes[1u + (2u * threshold)];
@@ -332,7 +332,7 @@ void terms_spikes(SimResults *results, const unsigned short *lanes, unsigned lon
               "the spikes of 128 are the planted rate within 5 standard errors");
 }
 
-// the constant boxes: z 3 to 5, y 10 to 29, x 40 to 79 held at 0, and z 7, y 0 to 3, x 0 to 3 held at the top
+// the constant boxes: z 3 to 5, y 10 to 29, x 40 to 79 fixed at 0, and z 7, y 0 to 3, x 0 to 3 fixed at the top
 void terms_boxes(unsigned short *lanes)
 {
     const unsigned long long voxels = TERMS_DEPTH * TERMS_HEIGHT * TERMS_WIDTH;
@@ -371,38 +371,38 @@ void terms_clips(SimResults *results, const unsigned short *lanes)
     {
         return;
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "    at 0: ");
-    scriptura_decimal(line, counts[NOISE_CLIPS_AT_ZERO], 1u);
-    scriptura_text(line, ", at the top: ");
-    scriptura_decimal(line, counts[NOISE_CLIPS_AT_TOP], 1u);
-    scriptura_text(line, "; constant voxels: ");
-    scriptura_decimal(line, counts[NOISE_CLIPS_CONSTANT], 1u);
-    scriptura_text(line, " (at 0: ");
-    scriptura_decimal(line, counts[NOISE_CLIPS_CONSTANT_ZERO], 1u);
-    scriptura_text(line, ", at the top: ");
-    scriptura_decimal(line, counts[NOISE_CLIPS_CONSTANT_TOP], 1u);
-    scriptura_text(line, "), within z ");
-    scriptura_decimal(line, box[0], 1u);
-    scriptura_text(line, " to ");
-    scriptura_decimal(line, box[1], 1u);
-    scriptura_text(line, ", y ");
-    scriptura_decimal(line, box[2], 1u);
-    scriptura_text(line, " to ");
-    scriptura_decimal(line, box[3], 1u);
-    scriptura_text(line, ", x ");
-    scriptura_decimal(line, box[4], 1u);
-    scriptura_text(line, " to ");
-    scriptura_decimal(line, box[5], 1u);
-    scriptura_character(line, '\n');
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "    at 0: ");
+    mmgr_line_decimal(line, counts[NOISE_CLIPS_AT_ZERO], 1u);
+    mmgr_line_put(line, ", at the top: ");
+    mmgr_line_decimal(line, counts[NOISE_CLIPS_AT_TOP], 1u);
+    mmgr_line_put(line, "; constant voxels: ");
+    mmgr_line_decimal(line, counts[NOISE_CLIPS_CONSTANT], 1u);
+    mmgr_line_put(line, " (at 0: ");
+    mmgr_line_decimal(line, counts[NOISE_CLIPS_CONSTANT_ZERO], 1u);
+    mmgr_line_put(line, ", at the top: ");
+    mmgr_line_decimal(line, counts[NOISE_CLIPS_CONSTANT_TOP], 1u);
+    mmgr_line_put(line, "), within z ");
+    mmgr_line_decimal(line, box[0], 1u);
+    mmgr_line_put(line, " to ");
+    mmgr_line_decimal(line, box[1], 1u);
+    mmgr_line_put(line, ", y ");
+    mmgr_line_decimal(line, box[2], 1u);
+    mmgr_line_put(line, " to ");
+    mmgr_line_decimal(line, box[3], 1u);
+    mmgr_line_put(line, ", x ");
+    mmgr_line_decimal(line, box[4], 1u);
+    mmgr_line_put(line, " to ");
+    mmgr_line_decimal(line, box[5], 1u);
+    mmgr_line_ch(line, '\n');
     sim_check(results, counts[NOISE_CLIPS_AT_ZERO] == (TERMS_ZERO_BOX_VOXELS * TERMS_FRAMES),
               "every voxel-frame at 0 is the zero box's");
     sim_check(results, counts[NOISE_CLIPS_AT_TOP] == (TERMS_TOP_BOX_VOXELS * TERMS_FRAMES),
               "every voxel-frame at the top is the top box's");
     sim_check(results, counts[NOISE_CLIPS_CONSTANT] == (TERMS_ZERO_BOX_VOXELS + TERMS_TOP_BOX_VOXELS),
               "the constant voxels are the two boxes'");
-    sim_check(results, counts[NOISE_CLIPS_CONSTANT_ZERO] == TERMS_ZERO_BOX_VOXELS, "the zero box is held at 0");
-    sim_check(results, counts[NOISE_CLIPS_CONSTANT_TOP] == TERMS_TOP_BOX_VOXELS, "the top box is held at the top");
+    sim_check(results, counts[NOISE_CLIPS_CONSTANT_ZERO] == TERMS_ZERO_BOX_VOXELS, "the zero box is fixed at 0");
+    sim_check(results, counts[NOISE_CLIPS_CONSTANT_TOP] == TERMS_TOP_BOX_VOXELS, "the top box is fixed at the top");
     sim_check(results,
               (box[0] == 3u) && (box[1] == 7u) && (box[2] == 0u) && (box[3] == 29u) && (box[4] == 0u) &&
                   (box[5] == 79u),

@@ -5,7 +5,7 @@
 #include "qry.h"
 #include "../text/json_tree.h"
 
-// what a record says is read for at most so many of its bytes, and in whole where it is at most so many; the most
+// what a record contains is read for at most so many of its bytes, and in whole where it is at most so many; the most
 // records one read hands, a read of a run of any size taking a bounded room and going on from where it stopped at the
 // next; and the most runs viewed at once
 #define CLI_TEXT_SMALL 4096ull
@@ -19,21 +19,21 @@
 // A run viewed while its writer writes: its path and its shared memory mapped
 typedef struct
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     QryShared *run;
 } CliView;
 
 // the runs viewed, the run the window is a member of to append to, and the run the window's own work goes to: one lock
-// holds them all
+// contains them all
 static CliView s_views[CLI_VIEWS_MOST];
-static char s_member[CLI_PATH_LONGEST];
+static char s_member[CLI_PATH_MAX_LEN];
 static int s_membered;
-static char s_window[CLI_PATH_LONGEST];
+static char s_window[CLI_PATH_MAX_LEN];
 static int s_windowed;
 static int s_window_read;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// whether what a record says is read
+// whether what a record contains is read
 static int cli_texted(const char *name, unsigned int length, unsigned int priority, unsigned long long size)
 {
     const unsigned int prefix =
@@ -45,51 +45,60 @@ static int cli_texted(const char *name, unsigned int length, unsigned int priori
 }
 
 // `record` written as the window shows it, at the place `sequence`
-static void cli_blob_written(CliLine *out, unsigned long long sequence, const QryRecord *record, int first)
+static void cli_blob_written(VerbaLinea *out, unsigned long long sequence, const QryRecord *record, int first)
 {
     const char *const name = QRY_RECORD_NAME(record);
     const unsigned char *const blob = QRY_RECORD_BLOB(record);
-    cli_line_text(out, first ? "{\"name\":" : ",{\"name\":");
+    mmgr_line_put(out, first ? "{\"name\":" : ",{\"name\":");
     cli_json_quoted_lossy(out, (const unsigned char *)name, record->name_length);
-    cli_line_text(out, ",\"sequence\":");
-    cli_line_decimal(out, sequence, 1u);
-    cli_line_text(out, ",\"nanoseconds\":");
-    cli_line_decimal(out, record->time, 1u);
-    cli_line_text(out, ",\"priority\":");
-    cli_line_decimal(out, record->priority, 1u);
-    cli_line_text(out, ",\"size\":");
-    cli_line_decimal(out, record->blob_length, 1u);
-    cli_line_text(out, ",\"text\":");
+    mmgr_line_put(out, ",\"sequence\":");
+    mmgr_line_decimal(out, sequence, 1u);
+    mmgr_line_put(out, ",\"nanoseconds\":");
+    mmgr_line_decimal(out, record->time, 1u);
+    mmgr_line_put(out, ",\"priority\":");
+    mmgr_line_decimal(out, record->priority, 1u);
+    mmgr_line_put(out, ",\"size\":");
+    mmgr_line_decimal(out, record->blob_length, 1u);
+    mmgr_line_put(out, ",\"text\":");
     if (cli_texted(name, record->name_length, record->priority, record->blob_length))
     {
         cli_json_quoted_lossy(out, blob, (record->blob_length < CLI_TEXT_MOST) ? record->blob_length : CLI_TEXT_MOST);
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"whole\":true}");
+    mmgr_line_put(out, ",\"whole\":true}");
 }
 
 // The run at `path` viewed while its writer writes: its shared memory, or NULL where it writes no more or never made
-// the run. Called under the lock
+// the run. A view is pinned only while its run's writer writes: each call lets go of every view whose writer has
+// stopped, whichever run it is of. Called under the lock
 static QryShared *cli_view(const char *path)
 {
+    for (unsigned int at = 0u; at < CLI_VIEWS_MOST; at += 1u)
+    {
+        if ((s_views[at].run != NULL) && !qry_member_viewed_writing(s_views[at].run))
+        {
+            qry_member_unshared(s_views[at].run);
+            s_views[at].run = NULL;
+        }
+    }
     unsigned int found = CLI_VIEWS_MOST;
-    unsigned int free_slot = CLI_VIEWS_MOST;
+    unsigned int free_view = CLI_VIEWS_MOST;
     for (unsigned int at = 0u; at < CLI_VIEWS_MOST; at += 1u)
     {
         found = ((s_views[at].run != NULL) &&
                  (cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].path, .other = path, .cap = CLI_CELLS_POOL})))
                     ? at
                     : found;
-        free_slot = ((s_views[at].run == NULL) && (free_slot == CLI_VIEWS_MOST)) ? at : free_slot;
+        free_view = ((s_views[at].run == NULL) && (free_view == CLI_VIEWS_MOST)) ? at : free_view;
     }
     if (found == CLI_VIEWS_MOST)
     {
         QryShared *const run = qry_member_shared(path);
-        if ((run == NULL) || (free_slot == CLI_VIEWS_MOST) ||
-            (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) >= CLI_PATH_LONGEST))
+        if ((run == NULL) || (free_view == CLI_VIEWS_MOST) ||
+            (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) >= CLI_PATH_MAX_LEN))
         {
             if (run != NULL)
             {
@@ -97,11 +106,11 @@ static QryShared *cli_view(const char *path)
             }
             return NULL;
         }
-        memor.cpy(&(MemoriaCfg){.dst = s_views[free_slot].path,
+        memor.cpy(&(MemoriaCfg){.dst = s_views[free_view].path,
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
-        s_views[free_slot].run = run;
-        found = free_slot;
+        s_views[free_view].run = run;
+        found = free_view;
     }
     if (qry_member_viewed_writing(s_views[found].run))
     {
@@ -112,17 +121,17 @@ static QryShared *cli_view(const char *path)
     return NULL;
 }
 
-int cli_qry_read_file_from(const char *path, unsigned long long from, CliLine *out, CliLine *said)
+int cli_qry_read_file_from(const char *path, unsigned long long from, VerbaLinea *out, VerbaLinea *err_msg)
 {
     if (!query_is_file(path))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": no such run");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": no such run");
         return 0;
     }
-    cli_line_text(out, "{\"live\":false,\"blobs\":[");
+    mmgr_line_put(out, "{\"live\":false,\"blobs\":[");
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     unsigned long long at = (bytes == NULL) ? from : ((from < size) ? from : size);
     unsigned long long panicked = 0ull;
     unsigned int count = 0u;
@@ -140,24 +149,24 @@ int cli_qry_read_file_from(const char *path, unsigned long long from, CliLine *o
     {
         cli_file_let_go(bytes, size);
     }
-    cli_line_text(out, "],\"next\":");
-    cli_line_decimal(out, at, 1u);
-    cli_line_text(out, ",\"stepped\":0,\"table\":true,\"panicked\":");
-    cli_line_decimal(out, panicked, 1u);
-    cli_line_character(out, '}');
+    mmgr_line_put(out, "],\"next\":");
+    mmgr_line_decimal(out, at, 1u);
+    mmgr_line_put(out, ",\"stepped\":0,\"table\":true,\"panicked\":");
+    mmgr_line_decimal(out, panicked, 1u);
+    mmgr_line_ch(out, '}');
     return 1;
 }
 
-int cli_qry_read(const char *path, unsigned long long from, CliLine *out, CliLine *said)
+int cli_qry_read(const char *path, unsigned long long from, VerbaLinea *out, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
     QryShared *const run = cli_view(path);
     if (run == NULL)
     {
         cli_lock_give(&s_lock);
-        return cli_qry_read_file_from(path, from, out, said);
+        return cli_qry_read_file_from(path, from, out, err_msg);
     }
-    cli_line_text(out, "{\"live\":true,\"blobs\":[");
+    mmgr_line_put(out, "{\"live\":true,\"blobs\":[");
     unsigned long long at = from;
     unsigned int handed = 0u;
     const QryRecord *record = NULL;
@@ -166,11 +175,11 @@ int cli_qry_read(const char *path, unsigned long long from, CliLine *out, CliLin
         cli_blob_written(out, at - 1ull, record, handed == 0u);
         handed += 1u;
     }
-    cli_line_text(out, "],\"next\":");
-    cli_line_decimal(out, at, 1u);
-    cli_line_text(out, ",\"stepped\":0,\"table\":false,\"panicked\":");
-    cli_line_decimal(out, qry_member_viewed_panicked(run), 1u);
-    cli_line_character(out, '}');
+    mmgr_line_put(out, "],\"next\":");
+    mmgr_line_decimal(out, at, 1u);
+    mmgr_line_put(out, ",\"stepped\":0,\"table\":false,\"panicked\":");
+    mmgr_line_decimal(out, qry_member_viewed_panicked(run), 1u);
+    mmgr_line_ch(out, '}');
     cli_lock_give(&s_lock);
     return 1;
 }
@@ -182,7 +191,7 @@ static int cli_named(const QryRecord *record, const char *name)
            (memor.cmp(&(MemoriaCfg){.src = QRY_RECORD_NAME(record), .other = name, .bytes = record->name_length}) == 0);
 }
 
-int cli_qry_joined_bytes(const char *path, const char *name, CliLine *out, CliLine *said)
+int cli_qry_joined_bytes(const char *path, const char *name, VerbaLinea *out, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
     QryShared *const run = cli_view(path);
@@ -192,20 +201,20 @@ int cli_qry_joined_bytes(const char *path, const char *name, CliLine *out, CliLi
         unsigned long long at = 0ull;
         while (qry_member_viewed_read(run, &at, &record))
         {
-            cli_line_counted(out, (const char *)QRY_RECORD_BLOB(record),
-                             cli_named(record, name) ? record->blob_length : 0ull);
+            mmgr_line_put_n(out, (const char *)QRY_RECORD_BLOB(record),
+                            cli_named(record, name) ? record->blob_length : 0ull);
         }
         cli_lock_give(&s_lock);
         return 1;
     }
     cli_lock_give(&s_lock);
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(path, &size);
+    const unsigned char *const bytes = cli_file_read(path, &size);
     unsigned long long at = 0ull;
     while ((bytes != NULL) && qry_record_read(bytes, size, &at, &record))
     {
-        cli_line_counted(out, (const char *)QRY_RECORD_BLOB(record),
-                         cli_named(record, name) ? record->blob_length : 0ull);
+        mmgr_line_put_n(out, (const char *)QRY_RECORD_BLOB(record),
+                        cli_named(record, name) ? record->blob_length : 0ull);
     }
     if (bytes != NULL)
     {
@@ -213,14 +222,14 @@ int cli_qry_joined_bytes(const char *path, const char *name, CliLine *out, CliLi
     }
     if ((bytes == NULL) || (at != size))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": the run could not be read whole");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": the run could not be read whole");
         return 0;
     }
     return 1;
 }
 
-unsigned int cli_qry_member_names(const unsigned char *data, unsigned long long size, char (*names)[CLI_NAME_LONGEST],
+unsigned int cli_qry_member_names(const unsigned char *data, unsigned long long size, char (*names)[CLI_NAME_MAX_LEN],
                                   unsigned int room)
 {
     unsigned int count = 0u;
@@ -228,10 +237,10 @@ unsigned int cli_qry_member_names(const unsigned char *data, unsigned long long 
     const QryRecord *record = NULL;
     while (qry_record_read(data, size, &at, &record))
     {
-        char name[CLI_NAME_LONGEST];
-        CliLine line = {name, sizeof(name), 0ull};
-        cli_line_counted(&line, QRY_RECORD_NAME(record), record->name_length);
-        cli_line_closed(&line);
+        char name[CLI_NAME_MAX_LEN];
+        VerbaLinea line = {name, sizeof(name), 0ull};
+        mmgr_line_put_n(&line, QRY_RECORD_NAME(record), record->name_length);
+        mmgr_line_finish(&line);
         int seen = 0;
         for (unsigned int each = 0u; !seen && (each < count); each += 1u)
         {
@@ -260,24 +269,24 @@ unsigned long long cli_qry_member_size(const unsigned char *data, unsigned long 
     return joined;
 }
 
-void cli_qry_member_joined(const unsigned char *data, unsigned long long size, const char *name, CliLine *out)
+void cli_qry_member_joined(const unsigned char *data, unsigned long long size, const char *name, VerbaLinea *out)
 {
     unsigned long long at = 0ull;
     const QryRecord *record = NULL;
     while (qry_record_read(data, size, &at, &record))
     {
-        cli_line_counted(out, (const char *)QRY_RECORD_BLOB(record),
-                         cli_named(record, name) ? record->blob_length : 0ull);
+        mmgr_line_put_n(out, (const char *)QRY_RECORD_BLOB(record),
+                        cli_named(record, name) ? record->blob_length : 0ull);
     }
 }
 
 int cli_qry_append(const char *path, const char *name, const void *bytes, unsigned long long size,
-                   unsigned int priority, CliLine *said)
+                   unsigned int priority, VerbaLinea *err_msg)
 {
     if (priority > QRY_ORDINARY)
     {
-        cli_line_decimal(said, priority, 1u);
-        cli_line_text(said, " is not a priority: 0 a panic, 1 critical, 2 ordinary");
+        mmgr_line_decimal(err_msg, priority, 1u);
+        mmgr_line_put(err_msg, " is not a priority: 0 a panic, 1 critical, 2 ordinary");
         return 0;
     }
     cli_lock_take(&s_lock);
@@ -288,12 +297,12 @@ int cli_qry_append(const char *path, const char *name, const void *bytes, unsign
             qry_member_parted();
             s_membered = 0;
         }
-        if ((cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) >= CLI_PATH_LONGEST) ||
+        if ((cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) >= CLI_PATH_MAX_LEN) ||
             (qry_member_joined(path) == NULL))
         {
             cli_lock_give(&s_lock);
-            cli_line_text(said, "no writer runs for this run: ");
-            cli_line_text(said, path);
+            mmgr_line_put(err_msg, "no writer runs for this run: ");
+            mmgr_line_put(err_msg, path);
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = s_member,
@@ -305,8 +314,8 @@ int cli_qry_append(const char *path, const char *name, const void *bytes, unsign
     cli_lock_give(&s_lock);
     if (!appended)
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " is not a record the run takes, or larger than half its ring");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " is not a record the run takes, or larger than half its ring");
     }
     return appended;
 }
@@ -327,7 +336,7 @@ int cli_qry_ready(const char *path)
     return 0;
 }
 
-int cli_qry_stop(const char *path, CliLine *said)
+int cli_qry_stop(const char *path, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
     if (s_membered)
@@ -338,8 +347,8 @@ int cli_qry_stop(const char *path, CliLine *said)
     if (qry_member_joined(path) == NULL)
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "no writer runs for this run: ");
-        cli_line_text(said, path);
+        mmgr_line_put(err_msg, "no writer runs for this run: ");
+        mmgr_line_put(err_msg, path);
         return 0;
     }
     qry_member_stopped();
@@ -348,7 +357,7 @@ int cli_qry_stop(const char *path, CliLine *said)
     return 1;
 }
 
-// the run the window's work goes to read from QRY the first time it is asked for. Called under the lock
+// the run the window's work goes to read from QRY the first time it is requested. Called under the lock
 static void cli_window_read(void)
 {
     if (!s_window_read)
@@ -376,7 +385,7 @@ void cli_qry_join_window(const char *path)
     cli_lock_take(&s_lock);
     s_window_read = 1;
     s_windowed =
-        (path != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) < CLI_PATH_LONGEST);
+        (path != NULL) && (cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) < CLI_PATH_MAX_LEN);
     memor.cpy(&(MemoriaCfg){
         .dst = s_window,
         .src = s_windowed ? path : "",

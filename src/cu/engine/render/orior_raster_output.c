@@ -78,7 +78,7 @@ size_t orior_volume_cell_for(const OriorVolumeConfig *config, size_t alignment)
     }
 
     // Out of range folds back into the block. Every layout below is a bijection on [0, cells), and
-    // an alignment count above the block size has to land somewhere; wrapping keeps the map total
+    // an alignment count above the block size has to land somewhere; wrapping preserves the map total
     // and is stated and not left to an out of bounds write.
     const size_t at = alignment % cells;
     const size_t sheet = width * height;
@@ -153,7 +153,7 @@ int orior_volume_render_host(uint8_t *voxels, const OriorVolumeConfig *config, c
 {
     // RESERVED, NOT READ, AND NOT DELETED. The census below is built from `corpus`. A caller
     // supplied one is discarded here. The parameter stays because a tunable with no reader is an
-    // integration point and not dead weight, and the header says so at the declaration. It is not
+    // integration point and not dead weight, and the header states so at the declaration. It is not
     // the rarity source.
     (void)census_in;
 
@@ -251,7 +251,7 @@ int orior_volume_write_raw(const char *path, const uint8_t *voxels, const OriorV
     }
 
     // The sidecar, because Netpbm has no volume container and inventing one would make this tree
-    // the only reader of its own output. A generated file says it is generated and names what made
+    // the only reader of its own output. A generated file states it is generated and names what made
     // it, and somebody meeting the .raw alone can work out what to do with it.
     char sidecar[512];
     const int used = snprintf(sidecar, sizeof(sidecar), "%s.txt", path);

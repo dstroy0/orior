@@ -1,21 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
-// The residual's odd orders (ruling (a)): an odd smooth order is held and an odd background order errored. The key's
-// window for an order o on an axis starts floor((o + 1) / 2) before the voxel, over the input reflected at its edges.
-// With the smooth order s odd, the narrow term's window starts (s + 1) / 2 before and the wide term's (s + b + 1) / 2;
-// with b even the two stay centerd on one point, half a voxel before the voxel of the lane's index, and the residual
-// sits there with them. An odd b would center them half a voxel apart. Every lane of the key's residual and of the
-// unit sweeps' is checked against the residual counted here from that definition, on odd, even and mixed orders over
-// extents that include a single voxel and an axis one voxel long, and an odd background order errors at each of the
-// three sites as a request error from its own module. The comb of n on an axis is a running sum of n voxels taken on
-// both terms before the smooth: its row is the binomial's times n ones, its window starts floor(T / 2) before the voxel
-// for a row of T taps, and an even n moves both terms half a voxel as an odd smooth order does. The sets with combs
-// hold odd and even n, n of 0 and 1, and n past the extent. A spaced pair at 2^j is the row times 1 + 2 z^(2^j) +
-// z^(2^(j + 1)); it widens the window by 2^(j + 1) taps, moves no center, and adds 2 bits to its term and, on the
-// background, to the gain. The sets with spaced pairs hold pairs on the smooth and on the background, more than one at
-// a spacing, and spacings past the extent. The test is one job on the device's tessera daemon, submitted before its
-// first device work.
+// The residual's odd orders (ruling (a)): an odd smooth order is accepted and an odd background order errored. The
+// key's window for an order o on an axis starts floor((o + 1) / 2) before the voxel, over the input reflected at its
+// edges. With the smooth order s odd, the narrow term's window starts (s + 1) / 2 before and the wide term's (s + b +
+// 1) / 2; with b even the two stay centerd on one point, half a voxel before the voxel of the lane's index, and the
+// residual sits there with them. An odd b would center them half a voxel apart. Every lane of the key's residual and of
+// the unit sweeps' is checked against the residual counted here from that definition, on odd, even and mixed orders
+// over extents that include a single voxel and an axis one voxel long, and an odd background order errors at each of
+// the three sites as a request error from its own module. The comb of n on an axis is a running sum of n voxels taken
+// on both terms before the smooth: its row is the binomial's times n ones, its window starts floor(T / 2) before the
+// voxel for a row of T taps, and an even n moves both terms half a voxel as an odd smooth order does. The sets with
+// combs contain odd and even n, n of 0 and 1, and n past the extent. A spaced pair at 2^j is the row times 1 + 2
+// z^(2^j) + z^(2^(j + 1)); it widens the window by 2^(j + 1) taps, moves no center, and adds 2 bits to its term and, on
+// the background, to the gain. The sets with spaced pairs contain pairs on the smooth and on the background, more than
+// one at a spacing, and spacings past the extent. The test is one job on the device's tessera daemon, submitted before
+// its first device work.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
@@ -278,7 +278,7 @@ static int odd_test_read(const unsigned int *device_lanes, unsigned int voxels, 
                        cudaMemcpyDeviceToHost) == cudaSuccess);
 }
 
-// a set's spaced pairs into a request's, which holds ENGINE_SPACINGS spacings to the set's ODD_TEST_SPACINGS
+// a set's spaced pairs into a request's, which fits ENGINE_SPACINGS spacings to the set's ODD_TEST_SPACINGS
 static void odd_test_spaced(const unsigned int (*from)[ODD_TEST_SPACINGS],
                             unsigned int to[ENGINE_AXES][ENGINE_SPACINGS])
 {
@@ -389,25 +389,25 @@ static void odd_test_case(SimResults *results, const unsigned int *extent, unsig
 
 static void odd_test_report(SimResults *results, unsigned int orders, const OddTestResults *counts)
 {
-    scriptura_text(&results->line, "  smooth ");
+    mmgr_line_put(&results->line, "  smooth ");
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
-        scriptura_decimal(&results->line, ODD_TEST_SMOOTH[orders][axis], 1u);
+        mmgr_line_ch(&results->line, (axis == 0u) ? '{' : ',');
+        mmgr_line_decimal(&results->line, ODD_TEST_SMOOTH[orders][axis], 1u);
     }
-    scriptura_text(&results->line, "} background ");
+    mmgr_line_put(&results->line, "} background ");
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
-        scriptura_decimal(&results->line, ODD_TEST_BACKGROUND[orders][axis], 1u);
+        mmgr_line_ch(&results->line, (axis == 0u) ? '{' : ',');
+        mmgr_line_decimal(&results->line, ODD_TEST_BACKGROUND[orders][axis], 1u);
     }
-    scriptura_text(&results->line, "} comb ");
+    mmgr_line_put(&results->line, "} comb ");
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
-        scriptura_character(&results->line, (axis == 0u) ? '{' : ',');
-        scriptura_decimal(&results->line, ODD_TEST_COMB[orders][axis], 1u);
+        mmgr_line_ch(&results->line, (axis == 0u) ? '{' : ',');
+        mmgr_line_decimal(&results->line, ODD_TEST_COMB[orders][axis], 1u);
     }
-    scriptura_character(&results->line, '}');
+    mmgr_line_ch(&results->line, '}');
     // a spaced pair is written as axis:spacing, s for the smooth's and b for the background's
     for (unsigned int axis = 0u; axis < ENGINE_AXES; axis += 1u)
     {
@@ -415,29 +415,29 @@ static void odd_test_report(SimResults *results, unsigned int orders, const OddT
         {
             for (unsigned int pair = 0u; pair < ODD_TEST_SMOOTH_SPACED[orders][axis][spacing]; pair += 1u)
             {
-                scriptura_text(&results->line, " s");
-                scriptura_decimal(&results->line, axis, 1u);
-                scriptura_character(&results->line, ':');
-                scriptura_decimal(&results->line, 1ull << spacing, 1u);
+                mmgr_line_put(&results->line, " s");
+                mmgr_line_decimal(&results->line, axis, 1u);
+                mmgr_line_ch(&results->line, ':');
+                mmgr_line_decimal(&results->line, 1ull << spacing, 1u);
             }
             for (unsigned int pair = 0u; pair < ODD_TEST_BACKGROUND_SPACED[orders][axis][spacing]; pair += 1u)
             {
-                scriptura_text(&results->line, " b");
-                scriptura_decimal(&results->line, axis, 1u);
-                scriptura_character(&results->line, ':');
-                scriptura_decimal(&results->line, 1ull << spacing, 1u);
+                mmgr_line_put(&results->line, " b");
+                mmgr_line_decimal(&results->line, axis, 1u);
+                mmgr_line_ch(&results->line, ':');
+                mmgr_line_decimal(&results->line, 1ull << spacing, 1u);
             }
         }
     }
-    scriptura_text(&results->line, ": ");
-    scriptura_decimal(&results->line, counts->lanes, 1u);
-    scriptura_text(&results->line, " lanes over the extents, ");
-    scriptura_decimal(&results->line, counts->nonzero, 1u);
-    scriptura_text(&results->line, " of them not zero; the key differs on ");
-    scriptura_decimal(&results->line, counts->key_differ, 1u);
-    scriptura_text(&results->line, ", the unit sweeps on ");
-    scriptura_decimal(&results->line, counts->sweep_differ, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, ": ");
+    mmgr_line_decimal(&results->line, counts->lanes, 1u);
+    mmgr_line_put(&results->line, " lanes over the extents, ");
+    mmgr_line_decimal(&results->line, counts->nonzero, 1u);
+    mmgr_line_put(&results->line, " of them not zero; the key differs on ");
+    mmgr_line_decimal(&results->line, counts->key_differ, 1u);
+    mmgr_line_put(&results->line, ", the unit sweeps on ");
+    mmgr_line_decimal(&results->line, counts->sweep_differ, 1u);
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }
 
@@ -490,15 +490,15 @@ static void odd_test_period(SimResults *results, const OddTestDevice *device, Od
         sim_check(results, (key_left == 0ull) && (sweep_left == 0ull),
                   "a comb of n sends a period of n to zero on every lane inside the line, key and unit sweeps alike");
         sim_check(results, bare_left != 0ull, "without the comb the same lanes are not all zero");
-        scriptura_text(&results->line, "  a period of ");
-        scriptura_decimal(&results->line, period, 1u);
-        scriptura_text(&results->line, " along 41 voxels: with its comb, ");
-        scriptura_decimal(&results->line, key_left, 1u);
-        scriptura_text(&results->line, " lanes inside are not zero on the key and ");
-        scriptura_decimal(&results->line, sweep_left, 1u);
-        scriptura_text(&results->line, " on the unit sweeps; without it, ");
-        scriptura_decimal(&results->line, bare_left, 1u);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  a period of ");
+        mmgr_line_decimal(&results->line, period, 1u);
+        mmgr_line_put(&results->line, " along 41 voxels: with its comb, ");
+        mmgr_line_decimal(&results->line, key_left, 1u);
+        mmgr_line_put(&results->line, " lanes inside are not zero on the key and ");
+        mmgr_line_decimal(&results->line, sweep_left, 1u);
+        mmgr_line_put(&results->line, " on the unit sweeps; without it, ");
+        mmgr_line_decimal(&results->line, bare_left, 1u);
+        mmgr_line_ch(&results->line, '\n');
         sim_flush(results);
     }
 }
@@ -527,7 +527,7 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     memcpy(program[0].orders, comb, sizeof(program[0].orders));
     program[1].operation = ENGINE_SMOOTH;
     memcpy(program[1].orders, smooth, sizeof(program[1].orders));
-    program[2].operation = ENGINE_KEEP;
+    program[2].operation = ENGINE_SAVE;
     program[3].operation = ENGINE_SMOOTH;
     memcpy(program[3].orders, background, sizeof(program[3].orders));
     program[4].operation = ENGINE_SCALE_SUBTRACT;
@@ -535,7 +535,7 @@ static void odd_test_errors(SimResults *results, const OddTestDevice *device)
     memset(&error, 0, sizeof(error));
     EngineKey math;
     memset(&math, 0, sizeof(math));
-    // the five steps written here: the comb, the smooth, the keep, the background's smooth and the subtraction
+    // the five steps written here: the comb, the smooth, the retention, the background's smooth and the subtraction
     const KeymathEncodeRequest encode_request = {program, 5u, &math, &error};
     sim_check(results,
               (keymath_encode(&encode_request) == KEYMATH_ERROR) && (error.kind == ENGINE_ERROR_REQUEST) &&
@@ -577,7 +577,7 @@ int main(int count, char **arguments)
         (cudaMalloc((void **)&device.sweep_out, lane_words * sizeof(unsigned int)) == cudaSuccess);
     if (admitted != 0)
     {
-        sim_check(&results, passed, "the test's buffers are held on the host and the device");
+        sim_check(&results, passed, "the test's buffers are allocated on the host and the device");
     }
     for (unsigned int orders = 0u; passed && (orders < ODD_TEST_ORDER_SETS); orders += 1u)
     {

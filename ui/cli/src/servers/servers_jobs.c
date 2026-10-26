@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// servers_jobs.c: the servers' work done off the thread that asks for it: a server stopped, a file checked by a
-// checker or by orior's own reading, the tree checked whole, and the tree's index read. Each job takes a place of its
+// servers_jobs.c: the servers' work done off the thread that requests it: a server stopped, a file checked by a
+// checker or by orior's own reading, the tree checked whole, and the tree read. Each job takes a place of its
 // own as it is handed over, its bytes a cell sized to them, copied there or handed over whole by the caller who filled
 // it, and is taken by the first of the servers' threads free, which gives the cell back once the job is done; the
 // threads started as the first jobs come; a job handed over while every place is taken waits for one
@@ -57,16 +57,16 @@ static void jobs_worker(void *context)
         cli_wake_all(&s_wake);
         cli_lock_give(&s_lock);
         run(bytes, size);
-        cli_cell_given(bytes);
+        g_cli_cells->persistent_buf_release(bytes, NULL);
     }
 }
 
 int cli_servers_later(CliServersJob run, const void *job, unsigned long long size)
 {
-    char *const bytes = cli_cell_taken(size, "a job handed to the servers");
+    char *const bytes = g_cli_cells->persistent_buf_alloc(size, NULL);
     if (bytes != NULL)
     {
-        // a size the cell holds fits a size_t
+        // a size the cell stores fits a size_t
         memor.cpy(&(MemoriaCfg){.dst = bytes, .src = job, .bytes = (size_t)size});
     }
     return cli_servers_later_handed(run, bytes, size);

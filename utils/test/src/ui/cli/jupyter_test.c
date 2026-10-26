@@ -14,8 +14,8 @@ static CliKernel s_kernel;
 static CliKernelReader s_reader;
 static CliLock s_lock = CLI_LOCK_INIT;
 static CliWake s_wake = CLI_WAKE_INIT;
-static char s_heard[1u << 23u];
-static unsigned long long s_heard_at;
+static char s_messages[1u << 23u];
+static unsigned long long s_messages_at;
 static char s_seen[1u << 23u];
 static char s_result[1u << 12u];
 static const CliJson *s_json;
@@ -27,12 +27,12 @@ static void jupyter_signed_read(void)
     static const char s_content[] = "{\"code\":\"1\"}";
     static const char s_forged[] = "{\"code\":\"2\"}";
     char signed_text[256];
-    CliLine signed_parts = {signed_text, sizeof(signed_text), 0ull};
-    cli_line_text(&signed_parts, s_header);
-    cli_line_text(&signed_parts, "{}{}");
-    cli_line_text(&signed_parts, s_content);
+    VerbaLinea signed_parts = {signed_text, sizeof(signed_text), 0ull};
+    mmgr_line_put(&signed_parts, s_header);
+    mmgr_line_put(&signed_parts, "{}{}");
+    mmgr_line_put(&signed_parts, s_content);
     char signature[72];
-    CliLine hex = {signature, sizeof(signature), 0ull};
+    VerbaLinea hex = {signature, sizeof(signature), 0ull};
     cli_hmac_sha256_text("secret", 6ull, signed_text, signed_parts.at, &hex);
     memor.cpy(&(MemoriaCfg){.dst = s_kernel.key,
                             .src = "secret",
@@ -47,7 +47,7 @@ static void jupyter_signed_read(void)
                               {(const unsigned char *)"{}", 2ull},
                               {(const unsigned char *)s_content, sizeof(s_content) - 1u}};
     char out[512];
-    CliLine message = {out, sizeof(out), 0ull};
+    VerbaLinea message = {out, sizeof(out), 0ull};
     char parent[CLI_KERNEL_ID];
     cli_check(cli_kernel_message_written(&s_reader, frames, 7u, &message, parent), "a signed message reads back");
     unsigned int root = CLI_JSON_NONE;
@@ -65,30 +65,30 @@ static void jupyter_signed_read(void)
     cli_check(!cli_kernel_message_written(&s_reader, frames, 7u, &message, parent), "a forged message does not");
 }
 
-// a message a kernel said kept, a line each
-static void jupyter_heard(void *context, const char *message, unsigned long long size)
+// a message a kernel sent recorded, a line each
+static void jupyter_capture(void *context, const char *message, unsigned long long size)
 {
     (void)context;
     cli_lock_take(&s_lock);
-    if (s_heard_at + size + 1ull < sizeof(s_heard))
+    if (s_messages_at + size + 1ull < sizeof(s_messages))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_heard + s_heard_at, .src = message, .bytes = size});
-        s_heard[s_heard_at + size] = '\n';
-        s_heard_at += size + 1ull;
+        memor.cpy(&(MemoriaCfg){.dst = s_messages + s_messages_at, .src = message, .bytes = size});
+        s_messages[s_messages_at + size] = '\n';
+        s_messages_at += size + 1ull;
     }
     cli_wake_all(&s_wake);
     cli_lock_give(&s_lock);
 }
 
-// the first message heard whose parent is `id` and whose type is `kind`, or one of the two types `kind` and `other`,
+// the first message received whose parent is `id` and whose type is `kind`, or one of the two types `kind` and `other`,
 // and, where `member` is not NULL, whose content's `member`, or its `inner` where that is not NULL, is `wanted`: its
 // node in the shared tree, CLI_JSON_NONE where none is
-static unsigned int jupyter_said(const char *id, const char *kind, const char *other, const char *member,
-                                 const char *inner, const char *wanted)
+static unsigned int jupyter_message_find(const char *id, const char *kind, const char *other, const char *member,
+                                         const char *inner, const char *wanted)
 {
     cli_lock_take(&s_lock);
-    const unsigned long long size = s_heard_at;
-    memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_heard, .bytes = size});
+    const unsigned long long size = s_messages_at;
+    memor.cpy(&(MemoriaCfg){.dst = s_seen, .src = s_messages, .bytes = size});
     cli_lock_give(&s_lock);
     for (unsigned long long at = 0ull; at < size;)
     {
@@ -124,7 +124,7 @@ static unsigned int jupyter_said(const char *id, const char *kind, const char *o
 static void jupyter_idle(const char *id)
 {
     const unsigned long long until = cli_clock_milliseconds() + JUPYTER_PATIENCE;
-    while ((jupyter_said(id, "status", NULL, "execution_state", NULL, "idle") == CLI_JSON_NONE) &&
+    while ((jupyter_message_find(id, "status", NULL, "execution_state", NULL, "idle") == CLI_JSON_NONE) &&
            (cli_clock_milliseconds() < until))
     {
         cli_lock_take(&s_lock);
@@ -137,7 +137,7 @@ static void jupyter_idle(const char *id)
 static int jupyter_python(CliKernelSpec *spec)
 {
     static char s_specs[1u << 20u];
-    CliLine out = {s_specs, sizeof(s_specs), 0ull};
+    VerbaLinea out = {s_specs, sizeof(s_specs), 0ull};
     cli_jupyter_specs_written(&out);
     unsigned int specs = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_specs, out.at, &specs);
@@ -155,24 +155,24 @@ static int jupyter_python(CliKernelSpec *spec)
     return 0;
 }
 
-// `code` run on the kernel: its id into `id`, which holds CLI_KERNEL_ID
+// `code` run on the kernel: its id into `id`, which is sized for CLI_KERNEL_ID
 static void jupyter_run(CliKernel *kernel, const char *code, char *id)
 {
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     id[0] = '\0';
     (void)cli_jupyter_executed(kernel, code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}), id,
-                               &said);
+                               &err_msg);
 }
 
 // a Python kernel runs cells and stops when interrupted
 static void jupyter_cells(const CliKernelSpec *spec)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("jupyter_cells", folder);
-    CliKernel *const kernel = cli_jupyter_started(spec, folder, jupyter_heard, NULL, &said);
+    CliKernel *const kernel = cli_jupyter_started(spec, folder, jupyter_capture, NULL, &err_msg);
     cli_check(kernel != NULL, "the Python kernel starts");
     if (kernel == NULL)
     {
@@ -181,21 +181,23 @@ static void jupyter_cells(const CliKernelSpec *spec)
     char first[CLI_KERNEL_ID];
     jupyter_run(kernel, "print('hi')\n1 + 1", first);
     jupyter_idle(first);
-    cli_check(jupyter_said(first, "stream", NULL, "text", NULL, "hi\n") != CLI_JSON_NONE, "a cell's print is heard");
-    cli_check(jupyter_said(first, "execute_result", NULL, "data", "text/plain", "2") != CLI_JSON_NONE, "and its value");
+    cli_check(jupyter_message_find(first, "stream", NULL, "text", NULL, "hi\n") != CLI_JSON_NONE,
+              "a cell's print is received");
+    cli_check(jupyter_message_find(first, "execute_result", NULL, "data", "text/plain", "2") != CLI_JSON_NONE,
+              "and its value");
     char failing[CLI_KERNEL_ID];
     jupyter_run(kernel, "1 / 0", failing);
     jupyter_idle(failing);
-    cli_check(jupyter_said(failing, "error", NULL, "ename", NULL, "ZeroDivisionError") != CLI_JSON_NONE,
-              "a cell's error is heard");
+    cli_check(jupyter_message_find(failing, "error", NULL, "ename", NULL, "ZeroDivisionError") != CLI_JSON_NONE,
+              "a cell's error is received");
     char looping[CLI_KERNEL_ID];
     jupyter_run(kernel, "import time\nwhile True:\n    time.sleep(0.05)", looping);
     query_paused(800u);
-    cli_check(cli_jupyter_interrupted(kernel, &said), "the kernel is interrupted");
+    cli_check(cli_jupyter_interrupted(kernel, &err_msg), "the kernel is interrupted");
     jupyter_idle(looping);
-    cli_check(jupyter_said(looping, "error", NULL, "ename", NULL, "KeyboardInterrupt") != CLI_JSON_NONE,
+    cli_check(jupyter_message_find(looping, "error", NULL, "ename", NULL, "KeyboardInterrupt") != CLI_JSON_NONE,
               "a loop interrupted stops");
-    cli_check(!cli_jupyter_stopped(kernel, 10000ull), "the kernel stops when asked");
+    cli_check(!cli_jupyter_stopped(kernel, 10000ull), "the kernel stops when requested");
     cli_jupyter_given(kernel);
 }
 
@@ -204,15 +206,15 @@ static void jupyter_cells(const CliKernelSpec *spec)
 static const char *jupyter_result(const char *id)
 {
     const unsigned long long until = cli_clock_milliseconds() + JUPYTER_PATIENCE;
-    unsigned int found = jupyter_said(id, "execute_result", "error", NULL, NULL, NULL);
+    unsigned int found = jupyter_message_find(id, "execute_result", "error", NULL, NULL, NULL);
     while ((found == CLI_JSON_NONE) && (cli_clock_milliseconds() < until))
     {
         cli_lock_take(&s_lock);
         (void)cli_wake_wait_for(&s_wake, &s_lock, 20ull);
         cli_lock_give(&s_lock);
-        found = jupyter_said(id, "execute_result", "error", NULL, NULL, NULL);
+        found = jupyter_message_find(id, "execute_result", "error", NULL, NULL, NULL);
     }
-    CliLine result = {s_result, sizeof(s_result), 0ull};
+    VerbaLinea result = {s_result, sizeof(s_result), 0ull};
     if (found != CLI_JSON_NONE)
     {
         const unsigned int content = cli_json_member(s_json, found, "content");
@@ -220,14 +222,14 @@ static const char *jupyter_result(const char *id)
             s_json, cli_json_member(s_json, cli_json_member(s_json, content, "data"), "text/plain"), NULL);
         if (plain != NULL)
         {
-            cli_line_text(&result, plain);
+            mmgr_line_put(&result, plain);
         }
         else
         {
             cli_json_write(s_json, content, &result, 0u, 0);
         }
     }
-    (void)cli_line_closed(&result);
+    (void)mmgr_line_finish(&result);
     return s_result;
 }
 
@@ -236,28 +238,28 @@ static const char *jupyter_result(const char *id)
 static void jupyter_debugged(const CliKernelSpec *spec)
 {
     static const char s_code[] = "import sys\nsys._getframe().f_code.co_filename";
-    char folder[CLI_PATH_LONGEST];
-    char file[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("jupyter_debug_cell", folder);
     cli_full(folder, "cell.py", file);
     (void)query_file_written(file, s_code, sizeof(s_code) - 1u);
-    CliKernel *const kernel = cli_jupyter_started(spec, folder, jupyter_heard, NULL, &said);
+    CliKernel *const kernel = cli_jupyter_started(spec, folder, jupyter_capture, NULL, &err_msg);
     if (kernel == NULL)
     {
         cli_check(0, "the Python kernel starts");
         return;
     }
     unsigned int port = 0u;
-    said.at = 0ull;
-    if (!cli_jupyter_debug_next(kernel, file, &port, &said))
+    err_msg.at = 0ull;
+    if (!cli_jupyter_debug_next(kernel, file, &port, &err_msg))
     {
-        (void)cli_line_closed(&said);
+        (void)mmgr_line_finish(&err_msg);
         cli_check(cellul.find(&(CatenaFinitaCfg){
                       .src = why, .cap = CLI_CELLS_POOL, .other = "has no debugpy", .other_cap = CLI_CELLS_POOL}) !=
                       NULL,
-                  "a kernel with no debugpy says so");
+                  "a kernel with no debugpy reports so");
         (void)cli_jupyter_stopped(kernel, 10000ull);
         cli_jupyter_given(kernel);
         return;
@@ -283,12 +285,12 @@ static void jupyter_debugged(const CliKernelSpec *spec)
                   NULL,
               "and only its next run");
     unsigned int again = 0u;
-    said.at = 0ull;
-    const int readied = cli_jupyter_debug_next(kernel, file, &again, &said);
+    err_msg.at = 0ull;
+    const int readied = cli_jupyter_debug_next(kernel, file, &again, &err_msg);
     if (!readied)
     {
         // why the second readying failed, written beside the check
-        query_terminal_written(1, why, said.at);
+        query_terminal_written(1, why, err_msg.at);
         query_terminal_written(1, "\n", 1ull);
     }
     cli_check(readied && (again == port), "debugpy listens at the same port again");
@@ -298,6 +300,7 @@ static void jupyter_debugged(const CliKernelSpec *spec)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     jupyter_signed_read();
     static CliKernelSpec s_spec;
     if (!jupyter_python(&s_spec))

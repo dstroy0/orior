@@ -21,7 +21,7 @@ static const char *const s_known[8][2] = {
      "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json"}};
 
 // a fragment of a reference with its `%XX` escapes read into `out`
-static void resolve_percent_decoded(const char *text, unsigned long long size, CliLine *out)
+static void resolve_percent_decoded(const char *text, unsigned long long size, VerbaLinea *out)
 {
     for (unsigned long long at = 0ull; at < size;)
     {
@@ -33,12 +33,12 @@ static void resolve_percent_decoded(const char *text, unsigned long long size, C
             const int spaced = (hex[0] == ' ') || ((hex[0] >= '\t') && (hex[0] <= '\r')) || (hex[0] == '-');
             if ((end == hex + 2) && !spaced)
             {
-                cli_line_character(out, (char)value);
+                mmgr_line_ch(out, (char)value);
                 at += 3u;
                 continue;
             }
         }
-        cli_line_character(out, text[at]);
+        mmgr_line_ch(out, text[at]);
         at += 1u;
     }
 }
@@ -64,18 +64,18 @@ static unsigned int resolve_pointer(const CliJson *json, unsigned int node, cons
             end += 1u;
         }
         char token[1u << 12u];
-        CliLine line = {token, sizeof(token), 0ull};
+        VerbaLinea line = {token, sizeof(token), 0ull};
         for (unsigned long long one = start; one < end; one += 1u)
         {
             if ((pointer[one] == '~') && (one + 1u < end) && ((pointer[one + 1u] == '0') || (pointer[one + 1u] == '1')))
             {
-                cli_line_character(&line, (pointer[one + 1u] == '1') ? '/' : '~');
+                mmgr_line_ch(&line, (pointer[one + 1u] == '1') ? '/' : '~');
                 one += 1u;
                 continue;
             }
-            cli_line_character(&line, pointer[one]);
+            mmgr_line_ch(&line, pointer[one]);
         }
-        if (cli_line_closed(&line) == 0u && (end > start))
+        if (mmgr_line_finish(&line) == 0u && (end > start))
         {
             return CLI_JSON_NONE;
         }
@@ -135,16 +135,16 @@ static unsigned int resolve_anchored(const CliJson *json, unsigned int node, con
     return CLI_JSON_NONE;
 }
 
-// `target` read from `base` into `out`, which holds CLI_PATH_LONGEST: a URL as it stands, and otherwise beside the
+// `target` read from `base` into `out`, sized for CLI_PATH_MAX_LEN: a URL as it stands, and otherwise beside the
 // base, a URL's or a file's, its `.` and `..` read
 static void resolve_join(const char *base, const char *target, unsigned long long size, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     unsigned long long found = 0ull;
     if (cli_text_find(target, size, "://", 3u, &found))
     {
-        cli_line_counted(&line, target, size);
-        (void)cli_line_closed(&line);
+        mmgr_line_put_n(&line, target, size);
+        (void)mmgr_line_finish(&line);
         return;
     }
     const int url = (cellul.find(&(CatenaFinitaCfg){
@@ -165,13 +165,13 @@ static void resolve_join(const char *base, const char *target, unsigned long lon
         !url && (rest_size > 0u) && ((rest[0] == '/') || (rest[0] == '\\') || ((rest_size > 1u) && (rest[1] == ':')));
     if (absolute)
     {
-        cli_line_counted(&line, rest, rest_size);
-        (void)cli_line_closed(&line);
+        mmgr_line_put_n(&line, rest, rest_size);
+        (void)mmgr_line_finish(&line);
         return;
     }
-    cli_line_counted(&line, base,
-                     (cut != NULL) ? (unsigned long long)(cut - base)
-                                   : (url ? cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) : 0u));
+    mmgr_line_put_n(&line, base,
+                    (cut != NULL) ? (unsigned long long)(cut - base)
+                                  : (url ? cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL}) : 0u));
     unsigned int parts = 0u;
     for (unsigned long long at = 0ull; at < line.at; at += 1u)
     {
@@ -199,13 +199,13 @@ static void resolve_join(const char *base, const char *target, unsigned long lon
         }
         else if (!((part == 1u) && (rest[start] == '.')) && (url || (part > 0u)))
         {
-            cli_line_text(&line, (url || (line.at > 0u)) ? "/" : "");
-            cli_line_counted(&line, rest + start, part);
+            mmgr_line_put(&line, (url || (line.at > 0u)) ? "/" : "");
+            mmgr_line_put_n(&line, rest + start, part);
             parts += 1u;
         }
         start = end + 1u;
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
 }
 
 unsigned int cli_schema_resolve(CliSchemaStore *store, const char *base, const char *reference, unsigned long long size,
@@ -213,11 +213,11 @@ unsigned int cli_schema_resolve(CliSchemaStore *store, const char *base, const c
 {
     unsigned long long hash = size;
     (void)cli_text_find(reference, size, "#", 1u, &hash);
-    CliLine line = {key, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {key, CLI_PATH_MAX_LEN, 0ull};
     if (hash == 0u)
     {
-        cli_line_text(&line, base);
-        (void)cli_line_closed(&line);
+        mmgr_line_put(&line, base);
+        (void)mmgr_line_finish(&line);
     }
     else
     {
@@ -237,7 +237,7 @@ unsigned int cli_schema_resolve(CliSchemaStore *store, const char *base, const c
     if (fragment[0] == '/')
     {
         static char s_decoded[1u << 14u];
-        CliLine decoded = {s_decoded, sizeof(s_decoded), 0ull};
+        VerbaLinea decoded = {s_decoded, sizeof(s_decoded), 0ull};
         resolve_percent_decoded(fragment, fragment_size, &decoded);
         const unsigned int found = resolve_pointer(&store->json, doc, s_decoded, decoded.at);
         return (found != CLI_JSON_NONE) ? found : CLI_SCHEMA_NONE;
@@ -271,9 +271,9 @@ int cli_schema_of(const char *path, const CliSchemaRead *read, char *key, int *n
         if (cli_text_find(text, value->text_size, "://", 3u, &found) &&
             !cli_text_starts(text, value->text_size, "file://"))
         {
-            CliLine line = {key, CLI_PATH_LONGEST, 0ull};
-            cli_line_counted(&line, text, value->text_size);
-            (void)cli_line_closed(&line);
+            VerbaLinea line = {key, CLI_PATH_MAX_LEN, 0ull};
+            mmgr_line_put_n(&line, text, value->text_size);
+            (void)mmgr_line_finish(&line);
         }
         else
         {
@@ -300,9 +300,9 @@ int cli_schema_of(const char *path, const CliSchemaRead *read, char *key, int *n
         }
         if (same)
         {
-            CliLine line = {key, CLI_PATH_LONGEST, 0ull};
-            cli_line_text(&line, s_known[at][1]);
-            (void)cli_line_closed(&line);
+            VerbaLinea line = {key, CLI_PATH_MAX_LEN, 0ull};
+            mmgr_line_put(&line, s_known[at][1]);
+            (void)mmgr_line_finish(&line);
             return 1;
         }
     }

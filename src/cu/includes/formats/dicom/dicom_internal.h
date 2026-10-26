@@ -42,7 +42,7 @@ typedef struct
     unsigned int has_high;
     unsigned int pixel_representation;
     unsigned int samples;
-    unsigned long long pixel_kept;
+    unsigned long long pixel_stored;
     unsigned int has_position;
     unsigned int has_orientation;
     unsigned int has_instance;

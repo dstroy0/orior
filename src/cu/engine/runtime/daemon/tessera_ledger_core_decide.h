@@ -7,13 +7,13 @@
 
 #include "tessera_ledger_core_heap.h"
 
-TESSERA_CORE int tessera_core_history_keep(TesseraLedger *ledger, const TesseraJob *job, unsigned long long now)
+TESSERA_CORE int tessera_core_history_save(TesseraLedger *ledger, const TesseraJob *job, unsigned long long now)
 {
-    TesseraHistory kept;
-    kept.signum = job->request.signum;
-    kept.peak = job->peak;
-    kept.duration = now - job->started;
-    return tessera_core_remember(ledger, &kept);
+    TesseraHistory history;
+    history.signum = job->request.signum;
+    history.peak = job->peak;
+    history.duration = now - job->started;
+    return tessera_core_remember(ledger, &history);
 }
 
 TESSERA_CORE int tessera_core_release(TesseraLedger *ledger, unsigned long long identity, unsigned long long now,
@@ -24,8 +24,8 @@ TESSERA_CORE int tessera_core_release(TesseraLedger *ledger, unsigned long long 
     {
         return 0;
     }
-    const int kept = (finished == 0) || (job->state != TESSERA_JOB_RUNNING) || (job->measures == 0ull) ||
-                     tessera_core_history_keep(ledger, job, now);
+    const int history = (finished == 0) || (job->state != TESSERA_JOB_RUNNING) || (job->measures == 0ull) ||
+                        tessera_core_history_save(ledger, job, now);
     ledger->idle_microseconds = job->request.idle_microseconds;
     tessera_core_remove(ledger, job);
     if (ledger->job_count == 0ull)
@@ -33,9 +33,9 @@ TESSERA_CORE int tessera_core_release(TesseraLedger *ledger, unsigned long long 
         ledger->idle_since = now;
         return tessera_core_heap_push(ledger, tessera_core_sum(now, ledger->idle_microseconds), 0ull,
                                       TESSERA_EVENT_IDLE) &&
-               kept;
+               history;
     }
-    return kept;
+    return history;
 }
 
 TESSERA_CORE int tessera_core_idle(TesseraLedger *ledger, unsigned long long now, unsigned long long idle_microseconds)
@@ -59,7 +59,7 @@ TESSERA_CORE int tessera_core_start(TesseraLedger *ledger, TesseraJob *job, unsi
     }
     job->state = TESSERA_JOB_RUNNING;
     job->reservation = tessera_core_wants(ledger, job);
-    // until its first sweep the job uses what its process held as it asked, which the device's measure already
+    // until its first sweep the job uses what its process allocated as it requested, which the device's measure already
     // counts: the headroom owes the device only the bytes it has yet to find
     job->used = job->request.standing;
     job->peak = 0ull;
@@ -218,7 +218,8 @@ TESSERA_CORE int tessera_core_fire(TesseraLedger *ledger, unsigned long long now
             event->identity = job->identity;
             return tessera_core_heap_push(ledger, job->next_sweep, job->identity, TESSERA_EVENT_SWEEP);
         }
-        if ((due.kind == TESSERA_EVENT_LOST) && (job->state == TESSERA_JOB_HELD) && (job->hold_until == due.when))
+        if ((due.kind == TESSERA_EVENT_LOST) && (job->state == TESSERA_JOB_OVER_BUDGET) &&
+            (job->grace_until == due.when))
         {
             *event = tessera_core_event(TESSERA_EVENT_LOST, job->identity, job->request.declared, 0ull);
             tessera_core_remove(ledger, job);
@@ -282,7 +283,7 @@ TESSERA_CORE void tessera_core_call(TesseraLedger *ledger, const TesseraCall *ca
         answer->result = (unsigned long long)tessera_core_idle(ledger, call->now, call->idle_microseconds);
         break;
     case TESSERA_CALL_REMEMBER:
-        answer->result = (unsigned long long)tessera_core_remember(ledger, &call->kept);
+        answer->result = (unsigned long long)tessera_core_remember(ledger, &call->history);
         break;
     case TESSERA_CALL_NEXT:
         answer->result = (unsigned long long)tessera_core_next(ledger, &answer->root);

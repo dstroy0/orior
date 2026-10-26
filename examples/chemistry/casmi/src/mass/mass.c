@@ -8,17 +8,16 @@
 
 #include "isotope_table.h"
 
-
-/** Symbol slots: an upper-case letter, then nothing or one lower-case letter. */
-#define MASS_SYMBOL_SLOTS (26u * 27u)
+/** Symbol indices: an upper-case letter, then nothing or one lower-case letter. */
+#define MASS_SYMBOL_INDEX_COUNT (26u * 27u)
 
 /** Not yet looked up, in the monoisotope memo. */
 #define MASS_MEMO_UNSET (-2ll)
 
-/** A sum past this is refused, keeping every mass and product in range. */
+/** A sum past this is refused, maintaining every mass and product in range. */
 #define MASS_LIMIT (1ll << 62)
 
-static long long s_monoisotope_memo[MASS_SYMBOL_SLOTS];
+static long long s_monoisotope_memo[MASS_SYMBOL_INDEX_COUNT];
 static int s_memo_ready = 0;
 
 const CasmiIsotope *casmi_isotope_table(unsigned int *count)
@@ -27,7 +26,7 @@ const CasmiIsotope *casmi_isotope_table(unsigned int *count)
     return casmi_isotope;
 }
 
-static long long mass_symbol_slot(const char *symbol, unsigned long long length)
+static long long mass_symbol_index(const char *symbol, unsigned long long length)
 {
     if (length == 0ull || length > 2ull || symbol[0] < 'A' || symbol[0] > 'Z')
     {
@@ -78,24 +77,24 @@ static long long mass_monoisotope_search(const char *symbol, unsigned long long 
 
 long long casmi_isotope_monoisotope(const char *symbol, unsigned long long length)
 {
-    const long long slot = mass_symbol_slot(symbol, length);
-    if (slot < 0ll)
+    const long long symbol_index = mass_symbol_index(symbol, length);
+    if (symbol_index < 0ll)
     {
         return ENGINE_BYTES_ERROR;
     }
     if (!s_memo_ready)
     {
-        for (unsigned int each = 0u; each < MASS_SYMBOL_SLOTS; each += 1u)
+        for (unsigned int each = 0u; each < MASS_SYMBOL_INDEX_COUNT; each += 1u)
         {
             s_monoisotope_memo[each] = MASS_MEMO_UNSET;
         }
         s_memo_ready = 1;
     }
-    if (s_monoisotope_memo[slot] == MASS_MEMO_UNSET)
+    if (s_monoisotope_memo[symbol_index] == MASS_MEMO_UNSET)
     {
-        s_monoisotope_memo[slot] = mass_monoisotope_search(symbol, length);
+        s_monoisotope_memo[symbol_index] = mass_monoisotope_search(symbol, length);
     }
-    return s_monoisotope_memo[slot];
+    return s_monoisotope_memo[symbol_index];
 }
 
 /** Reads one run of decimal digits; an absent run is 1. Refuses past 2^31. */
@@ -144,23 +143,23 @@ static int mass_formula_add(const char *text, unsigned long long start, unsigned
         {
             return 0;
         }
-        unsigned int slot = 0u;
-        while ((slot < formula->element_count) && (formula->isotope[slot] != (unsigned int)isotope))
+        unsigned int symbol_index = 0u;
+        while ((symbol_index < formula->element_count) && (formula->isotope[symbol_index] != (unsigned int)isotope))
         {
-            slot += 1u;
+            symbol_index += 1u;
         }
-        if (slot == formula->element_count)
+        if (symbol_index == formula->element_count)
         {
-            if (slot >= CASMI_FORMULA_ELEMENTS_MOST)
+            if (symbol_index >= CASMI_FORMULA_ELEMENTS_MOST)
             {
                 return 0;
             }
             // isotope is an index below CASMI_ISOTOPE_COUNT; it fits unsigned int.
-            formula->isotope[slot] = (unsigned int)isotope;
-            formula->count[slot] = 0ll;
+            formula->isotope[symbol_index] = (unsigned int)isotope;
+            formula->count[symbol_index] = 0ll;
             formula->element_count += 1u;
         }
-        formula->count[slot] += sign * count;
+        formula->count[symbol_index] += sign * count;
     }
     return 1;
 }
@@ -179,10 +178,10 @@ long long casmi_formula_read(const CasmiFormulaRead *args)
 long long casmi_formula_mass(const CasmiFormula *formula)
 {
     long long total = 0ll;
-    for (unsigned int slot = 0u; slot < formula->element_count; slot += 1u)
+    for (unsigned int symbol_index = 0u; symbol_index < formula->element_count; symbol_index += 1u)
     {
-        const long long each = casmi_isotope[formula->isotope[slot]].mass;
-        const long long count = formula->count[slot];
+        const long long each = casmi_isotope[formula->isotope[symbol_index]].mass;
+        const long long count = formula->count[symbol_index];
         const long long magnitude = (count < 0ll) ? -count : count;
         if ((magnitude != 0ll) && (each > MASS_LIMIT / magnitude))
         {

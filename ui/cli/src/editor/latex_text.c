@@ -246,8 +246,8 @@ const char *cli_latex_engine_of(const char *text, unsigned long long length)
         {
             break;
         }
-        char said[32];
-        unsigned long long kept = 0ull;
+        char engine_name[32];
+        unsigned long long len = 0ull;
         int fits = 1;
         for (unsigned long long letter = start + 1ull; letter < start + size; letter += 1ull)
         {
@@ -255,32 +255,33 @@ const char *cli_latex_engine_of(const char *text, unsigned long long length)
             {
                 continue;
             }
-            if (kept + 1ull < sizeof(said))
+            if (len + 1ull < sizeof(engine_name))
             {
-                said[kept] = text[letter];
-                kept += 1ull;
+                engine_name[len] = text[letter];
+                len += 1ull;
             }
             else
             {
                 fits = 0;
             }
         }
-        const unsigned long long head = ((kept >= 12ull) && latex_named(said, 12ull, "!texprogram="))      ? 12ull
-                                        : ((kept >= 15ull) && latex_named(said, 15ull, "!texts-program=")) ? 15ull
-                                                                                                           : 0ull;
+        const unsigned long long head = ((len >= 12ull) && latex_named(engine_name, 12ull, "!texprogram="))      ? 12ull
+                                        : ((len >= 15ull) && latex_named(engine_name, 15ull, "!texts-program=")) ? 15ull
+                                                                                                                 : 0ull;
         if (!fits || (head == 0ull))
         {
             continue;
         }
-        if (latex_named(said + head, kept - head, "pdflatex") || latex_named(said + head, kept - head, "latex"))
+        if (latex_named(engine_name + head, len - head, "pdflatex") ||
+            latex_named(engine_name + head, len - head, "latex"))
         {
             return "pdflatex";
         }
-        if (latex_named(said + head, kept - head, "xelatex"))
+        if (latex_named(engine_name + head, len - head, "xelatex"))
         {
             return "xelatex";
         }
-        if (latex_named(said + head, kept - head, "lualatex"))
+        if (latex_named(engine_name + head, len - head, "lualatex"))
         {
             return "lualatex";
         }

@@ -10,7 +10,7 @@
 static unsigned char s_run[4096];
 static char s_out[1u << 16u];
 
-// a record of `name` holding `blob`, written at `time` with `priority`, put after the `at` bytes of s_run: the bytes
+// a record of `name` containing `blob`, written at `time` with `priority`, put after the `at` bytes of s_run: the bytes
 // after it
 static unsigned long long run_record(unsigned long long at, const char *name, const char *blob, unsigned long long time,
                                      unsigned int priority)
@@ -28,7 +28,7 @@ static unsigned long long run_record(unsigned long long at, const char *name, co
     {
         for (unsigned int each = 0u; each < widths[field]; each += 1u)
         {
-            // a byte of the field, its low eight bits kept
+            // a byte of the field, its low eight bits retained
             bytes[place + each] = (unsigned char)((fields[field] >> (8u * each)) & 0xffu);
         }
         place += widths[field];
@@ -38,7 +38,7 @@ static unsigned long long run_record(unsigned long long at, const char *name, co
     const unsigned long long crc = qry_record_crc(bytes, whole - 8ull);
     for (unsigned int each = 0u; each < 8u; each += 1u)
     {
-        // a byte of the CRC, its low eight bits kept
+        // a byte of the CRC, its low eight bits retained
         bytes[whole - 8ull + each] = (unsigned char)((crc >> (8u * each)) & 0xffu);
     }
     return at + whole;
@@ -60,18 +60,18 @@ static unsigned long long run_whole(const CliJson *json, unsigned int node, cons
 // a finished run is read whole and then from where a read stopped
 static void run_finished(void)
 {
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("qry_read", dir);
     cli_full(dir, "query1-x.qry", path);
     unsigned long long size = run_record(0ull, "a.txt", "one\n", 10ull, QRY_ORDINARY);
     size = run_record(size, "panic", "why\n", 20ull, QRY_PANIC);
     const unsigned long long first = size;
     (void)query_file_written(path, s_run, first);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_qry_read_file_from(path, 0ull, &out, &said), "a finished run reads");
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_qry_read_file_from(path, 0ull, &out, &err_msg), "a finished run reads");
     unsigned int read = CLI_JSON_NONE;
     const CliJson *json = cli_check_parsed(s_out, out.at, &read);
     const unsigned int blobs = cli_json_member(json, read, "blobs");
@@ -86,7 +86,7 @@ static void run_finished(void)
               "its records read in order");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = cli_check_member_text(one, "text"), .other = "one\n", .cap = CLI_CELLS_POOL}),
-              "with what they say");
+              "with what they contain");
     cli_check(run_whole(json, panic, "nanoseconds") == 20ull, "and when");
     cli_check(run_whole(json, read, "panicked") == run_whole(json, panic, "sequence"), "its panic is the panic record");
     const unsigned long long next = run_whole(json, read, "next");
@@ -94,12 +94,12 @@ static void run_finished(void)
     size = run_record(size, "a.txt", "two\n", 30ull, QRY_ORDINARY);
     (void)query_file_written(path, s_run, size);
     out.at = 0ull;
-    (void)cli_qry_read_file_from(path, next, &out, &said);
+    (void)cli_qry_read_file_from(path, next, &out, &err_msg);
     json = cli_check_parsed(s_out, out.at, &read);
     cli_check(json->node[cli_json_member(json, read, "blobs")].count == 1u,
               "a read goes on from where the last stopped");
     out.at = 0ull;
-    cli_check(cli_qry_joined_bytes(path, "a.txt", &out, &said), "a name's records join");
+    cli_check(cli_qry_joined_bytes(path, "a.txt", &out, &err_msg), "a name's records join");
     cli_check_text(s_out, out.at, "one\ntwo\n", "in the order they were written");
 }
 
@@ -109,13 +109,13 @@ static void run_members(void)
     unsigned long long size = run_record(0ull, "b.txt", "1", 1ull, QRY_ORDINARY);
     size = run_record(size, "a.txt", "2", 2ull, QRY_ORDINARY);
     size = run_record(size, "b.txt", "3", 3ull, QRY_ORDINARY);
-    char names[4][CLI_NAME_LONGEST];
+    char names[4][CLI_NAME_MAX_LEN];
     const unsigned int count = cli_qry_member_names(s_run, size, names, 4u);
     cli_check((count == 2u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = names[0], .other = "b.txt", .cap = CLI_CELLS_POOL})) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = names[1], .other = "a.txt", .cap = CLI_CELLS_POOL})),
               "a run's names come in the order of their first records");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_qry_member_joined(s_run, size, "b.txt", &out);
     cli_check_text(s_out, out.at, "13", "each name's records joined");
     out.at = 0ull;
@@ -126,8 +126,8 @@ static void run_members(void)
 // a tree's runs are listed with their folder and its lessons, each list in cells given back as the listing ends
 static void run_listed(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("qry_listed", root);
     cli_full(root, "runs", path);
     (void)query_folder_made(path);
@@ -135,9 +135,9 @@ static void run_listed(void)
     (void)query_file_written(path, "", 0ull);
     cli_full(root, "runs/overseer.txt", path);
     (void)query_file_written(path, "lesson time * a stand in\n", 25ull);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_qry_listed(root, &out);
-    cli_line_closed(&out);
+    mmgr_line_finish(&out);
     cli_check((cellul.find(&(CatenaFinitaCfg){.src = s_out,
                                               .cap = CLI_CELLS_POOL,
                                               .other = "{\"path\":\"runs/one.qry\",\"folder\":\"runs\"",
@@ -147,17 +147,56 @@ static void run_listed(void)
                                                   .other = "\"lessons\":[{\"cause\":\"time\"",
                                                   .other_cap = CLI_CELLS_POOL}) != NULL),
               "a tree's run is listed with its folder and the folder's lessons");
-    cli_check((g_cli_qry_listed_cells.holds != 0ull) && (g_cli_qry_listed_cells.hw != 0ull),
-              "and the walk keeps its folders in a cell while the runs listed are given back");
+    cli_check((g_cli_qry_listed_cells.in_use != 0ull) && (g_cli_qry_listed_cells.hw != 0ull),
+              "and the walk stores its folders in a cell while the runs listed are given back");
+}
+
+// whether the runs `root` lists hold `wanted`
+static int run_listed_holds(const char *root, const char *wanted)
+{
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_qry_listed(root, &out);
+    mmgr_line_finish(&out);
+    return cellul.find(&(CatenaFinitaCfg){.src = s_out, .cap = CLI_CELLS_POOL, .other = wanted, .other_cap = 64u}) !=
+           NULL;
+}
+
+// a tree once walked is not walked again: a run in a folder new since shows once the tree's watch says it was
+// written, and a folder made while the watch lost changes shows once the tree is walked again for that
+static void run_watched(void)
+{
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    cli_check_folder("qry_watched", root);
+    cli_full(root, "first", path);
+    (void)query_folder_made(path);
+    cli_full(root, "first/one.qry", path);
+    (void)query_file_written(path, "", 0ull);
+    cli_check(run_listed_holds(root, "\"first/one.qry\""), "a tree's first listing walks it");
+    cli_full(root, "later", path);
+    (void)query_folder_made(path);
+    cli_full(root, "later/two.qry", path);
+    (void)query_file_written(path, "", 0ull);
+    cli_check(!run_listed_holds(root, "\"later/two.qry\""), "a folder new since is not walked for");
+    cli_qry_run_written(root, "later/two.qry", 13ull);
+    cli_check(run_listed_holds(root, "\"later/two.qry\""), "a run the watch saw written shows, its folder kept");
+    cli_full(root, "lost", path);
+    (void)query_folder_made(path);
+    cli_full(root, "lost/three.qry", path);
+    (void)query_file_written(path, "", 0ull);
+    cli_qry_runs_lost(root);
+    cli_check(run_listed_holds(root, "\"lost/three.qry\""), "the watch's changes lost, the tree is walked again");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     run_finished();
     run_members();
     run_listed();
+    run_watched();
     static const char s_overseer[] = "lesson time * a stand in\nnot a lesson\nlesson register 3\n";
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_qry_lessons_written(s_overseer, sizeof(s_overseer) - 1u, &out);
     cli_check_text(s_out, out.at, "{\"cause\":\"time\",\"carrier\":\"*\",\"stand_in\":\"a stand in\"}",
                    "a lesson line is read and any other passed over");

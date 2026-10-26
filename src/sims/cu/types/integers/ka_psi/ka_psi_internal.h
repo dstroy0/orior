@@ -79,7 +79,7 @@ int psi_value_compare(const PsiValue *left, const PsiValue *right, unsigned long
 
 SimRational psi_value_expand(const PsiValue *value, unsigned long long base);
 
-void psi_value_print(ScripturaLine *line, const PsiValue *value);
+void psi_value_print(VerbaLinea *line, const PsiValue *value);
 
 void psi_sprecher_numerator(const PsiCase *psi_case, const unsigned char *digit, OriorExactInteger *numerator);
 

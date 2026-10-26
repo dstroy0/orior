@@ -20,7 +20,7 @@ extern "C"
     {
         unsigned long long state[8];
         unsigned char block[SHA512_BLOCK_BYTES];
-        unsigned int held;
+        unsigned int buffered;
         unsigned long long taken;
     } Sha512;
 

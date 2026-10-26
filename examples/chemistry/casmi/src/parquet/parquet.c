@@ -49,7 +49,7 @@ _Static_assert((7u * (CASMI_THRIFT_VARINT_BYTES_MOST - 1u)) < 64u,
 
 /**
  * The bits of a varint's last group that land inside sixty-four: 64 - 7 x 9 = 1. The two asserts above
- * hold it to 1 through 7; a last group carrying a bit at or above it encodes more than 2^64 - 1.
+ * limit it to 1 through 7; a last group carrying a bit at or above it encodes more than 2^64 - 1.
  */
 #define CASMI_THRIFT_VARINT_LAST_GROUP_BITS (64u - (7u * (CASMI_THRIFT_VARINT_BYTES_MOST - 1u)))
 
@@ -80,7 +80,7 @@ _Static_assert(CASMI_PARQUET_HYBRID_BITS_MOST <= (sizeof(unsigned int) * CHAR_BI
 _Static_assert((CASMI_PARQUET_HYBRID_BITS_MOST + 7u) <= 64u,
                "CASMI_PARQUET_HYBRID_BITS_MOST: a bit-packed value plus its 7-bit offset must fit one 64-bit window");
 
-/** A cursor over bytes held in memory. Any overrun sets broken, and every later read returns zero. */
+/** A cursor over bytes stored in memory. Any overrun sets broken, and every later read returns zero. */
 typedef struct
 {
     const unsigned char *bytes;
@@ -99,7 +99,7 @@ typedef struct
     long long field_id;
 } ParquetThriftFrame;
 
-/** One schema element's parent, as the preorder walk of the schema holds it. */
+/** One schema element's parent, as the preorder walk of the schema records it. */
 typedef struct
 {
     unsigned long long children_left;
@@ -193,7 +193,7 @@ CASMI_ALWAYS_INLINE unsigned long long parquet_varint_read(ParquetCursor *cursor
             cursor->broken = 1u;
             return 0ull;
         }
-        // Widened to 64 bits before the shift, which reaches 63; the last group was held above to the bits
+        // Widened to 64 bits before the shift, which reaches 63; the last group was limited above to the bits
         // that land below bit 64; no bit is lost.
         value |= (unsigned long long)group_bits << (7u * group);
         if ((byte & 0x80u) == 0u)
@@ -215,7 +215,7 @@ CASMI_ALWAYS_INLINE long long parquet_zigzag_read(ParquetCursor *cursor)
     return ((stored & 1ull) != 0ull) ? (-value_bits - 1ll) : value_bits;
 }
 
-/** A zigzag integer that a count, size or offset field holds, refused where negative. */
+/** A zigzag integer that a count, size or offset field contains, refused where negative. */
 CASMI_ALWAYS_INLINE unsigned long long parquet_nonnegative_integer_read(ParquetCursor *cursor)
 {
     const long long value = parquet_zigzag_read(cursor);
@@ -278,7 +278,7 @@ CASMI_ALWAYS_INLINE unsigned int parquet_field_read(ParquetCursor *cursor, long 
     return header & 0x0Fu;
 }
 
-/** Skip one value that holds no other value. A kind that is not a scalar breaks the cursor. */
+/** Skip one value that contains no other value. A kind that is not a scalar breaks the cursor. */
 CASMI_ALWAYS_INLINE void parquet_scalar_skip(ParquetCursor *cursor, unsigned int kind)
 {
     switch (kind)
@@ -967,7 +967,7 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
         {
             const unsigned long long groups = header >> 1u;
             // A group of eight values takes bit_width bytes; at any nonzero width more groups than
-            // bytes left cannot fit; refusing them first keeps the product below from wrapping.
+            // bytes left cannot fit; refusing them first prevents the product below from wrapping.
             if ((groups == 0ull) || ((read->bit_width != 0u) && (groups > (cursor.byte_count - cursor.position))))
             {
                 return 0;
@@ -982,14 +982,14 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
             for (unsigned long long step = 0ull; (step < packed_values) && (written < read->value_count); step += 1ull)
             {
                 // A value of at most 32 bits starts within its first byte's low 7 bits; the eight
-                // bytes from that byte hold it whole; the window is cut short only at the run's end.
+                // bytes from that byte contain it whole; the window is cut short only at the run's end.
                 const unsigned long long first_bit = step * read->bit_width;
                 const unsigned long long first_byte = cursor.position + (first_bit >> 3u);
                 const unsigned long long bytes_left = packed_end - first_byte;
                 // bytes_left is below 8 on the narrowing arm; it fits unsigned int.
                 const unsigned int window_bytes = (bytes_left < 8ull) ? (unsigned int)bytes_left : 8u;
                 const unsigned long long window = parquet_little_endian_read(cursor.bytes + first_byte, window_bytes);
-                // The masked value holds bit_width bits, at most 32; it fits unsigned int.
+                // The masked value contains bit_width bits, at most 32; it fits unsigned int.
                 read->out[written] = (unsigned int)((window >> (first_bit & 7ull)) & mask);
                 written += 1ull;
             }
@@ -999,7 +999,7 @@ CASMI_ALWAYS_INLINE int parquet_hybrid_decode(const ParquetHybridRead *read)
     return 1;
 }
 
-/** The bit width of a level whose ceiling is most: the fewest bits that hold 0 through most. */
+/** The bit width of a level whose ceiling is most: the fewest bits that represent 0 through most. */
 CASMI_ALWAYS_INLINE unsigned int parquet_level_width_measure(unsigned int most)
 {
     unsigned int width = 0u;
@@ -1041,7 +1041,7 @@ CASMI_ALWAYS_INLINE int parquet_page_header_read(ParquetCursor *cursor, ParquetP
                  inner = parquet_field_read(cursor, &inner_id))
             {
                 // Encodings are 0 through 9 and level byte counts fit a page, all stored as i32;
-                // each narrowing below keeps its value.
+                // each narrowing below preserves its value.
                 if ((inner_id == 1ll) && (inner == CASMI_THRIFT_I32))
                 {
                     header->level_count = parquet_nonnegative_integer_read(cursor);
@@ -1229,15 +1229,15 @@ CASMI_ALWAYS_INLINE int parquet_values_decode(ParquetColumnWalk *walk, unsigned 
             {
                 return 0;
             }
-            const unsigned long long slot = walk->values_done + value;
+            const unsigned long long at = walk->values_done + value;
             if (variable)
             {
-                column->value_offset[slot] = walk->dictionary_offset[entry];
-                column->value_length[slot] = walk->dictionary_length[entry];
+                column->value_offset[at] = walk->dictionary_offset[entry];
+                column->value_length[at] = walk->dictionary_length[entry];
             }
             else
             {
-                memcpy(column->value_bytes + (slot * column->fixed_bytes),
+                memcpy(column->value_bytes + (at * column->fixed_bytes),
                        walk->dictionary_bytes + (entry * column->fixed_bytes), column->fixed_bytes);
             }
         }
@@ -1273,9 +1273,9 @@ CASMI_ALWAYS_INLINE int parquet_values_decode(ParquetColumnWalk *walk, unsigned 
             return 0;
         }
         memcpy(column->value_bytes + walk->value_bytes_used, plain.bytes + plain.position, length);
-        const unsigned long long slot = walk->values_done + value;
-        column->value_offset[slot] = walk->value_bytes_used;
-        column->value_length[slot] = length;
+        const unsigned long long at = walk->values_done + value;
+        column->value_offset[at] = walk->value_bytes_used;
+        column->value_length[at] = length;
         walk->value_bytes_used += length;
         plain.position += length;
     }
@@ -1351,7 +1351,7 @@ CASMI_ALWAYS_INLINE int parquet_data_page_decode(ParquetColumnWalk *walk, const 
     else
     {
         // A V2 page stores its levels uncompressed and unprefixed ahead of the values, which alone
-        // are compressed, and only where the header says so.
+        // are compressed, and only where the header specifies so.
         const unsigned long long level_bytes = header->repetition_bytes + header->definition_bytes;
         if ((level_bytes > header->compressed_bytes) || (level_bytes > header->uncompressed_bytes))
         {

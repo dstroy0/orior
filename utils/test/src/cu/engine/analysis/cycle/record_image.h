@@ -3,7 +3,7 @@
 #ifndef RECORD_IMAGE_H
 #define RECORD_IMAGE_H
 
-// The tests that run a language's lane off the device and hold it to the host oracle (record_vhdl_test.cpp,
+// The tests that run a language's lane off the device and check it against the host oracle (record_vhdl_test.cpp,
 // record_c_test.cpp): the programs drawn as record_test draws them, in its order, each handed to the test's own
 // run; the memory image a lane runs over, laid out as the device lays out its launch; and the files a lane's bench
 // reads the image from and writes its records to. It compiles as C++
@@ -83,7 +83,7 @@ static RecordImage record_image(const EngineRecordLayout *layout, unsigned int *
     image.error = 4ull * memory.size();
     memory.push_back(0u);
     // the hot words and the program's block, each at an address of whole 64-bit words: the next lane 0, and the block
-    // owned by the launch's number and told to run, as the host lays them out before the first launch
+    // owned by the launch's number and instructed to run, as the host lays them out before the first launch
     memory.resize(memory.size() + (memory.size() % 2u), 0u);
     const unsigned long long hot = 4ull * memory.size();
     memory.resize(memory.size() + (sizeof(CycleHot) / 4u), 0u);

@@ -30,7 +30,7 @@ static void ksg_word(unsigned long long value, unsigned char *out)
 {
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        // a word shifted down to its low byte keeps only that byte
+        // a word shifted down to its low byte retains only that byte
         out[at] = (unsigned char)(value >> (8u * at));
     }
 }

@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // settings_layers.c: the settings in force from the reader's chain and the tree's, each part of a file standing over
-// the parts before it, each `${name}` read, and every problem told once
-#include "kept.h"
+// the parts before it, each `${name}` read, and every problem reported once
 #include "settings_internal.h"
+#include "state.h"
 
 #include <stddef.h>
 
@@ -22,10 +22,10 @@ typedef struct
     CliRaw raw[CLI_LAYER_RAW];
     unsigned int raws;
     const char *root;
-    char home[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
     const char *system;
     unsigned int depth;
-    char missing[CLI_SETTINGS_PROBLEMS][CLI_NAME_LONGEST];
+    char missing[CLI_SETTINGS_PROBLEMS][CLI_NAME_MAX_LEN];
     unsigned int missings;
 } CliNames;
 
@@ -41,13 +41,13 @@ static CliLock s_lock = CLI_LOCK_INIT;
 
 void cli_settings_layers_given(CliLayers *layers)
 {
-    cli_cell_given_by(&g_cli_settings_cells, layers->text);
+    g_cli_cells->persistent_buf_release(layers->text, &g_cli_settings_cells);
     layers->text = NULL;
     layers->used = 0ull;
     layers->room = 0ull;
 }
 
-unsigned int cli_settings_kept_text(CliLayers *layers, const char *text, unsigned long long length)
+unsigned int cli_settings_text_stored(CliLayers *layers, const char *text, unsigned long long length)
 {
     const unsigned long long most = layers->used + length + 1ull;
     if (most > CLI_SETTINGS_TEXT)
@@ -56,12 +56,12 @@ unsigned int cli_settings_kept_text(CliLayers *layers, const char *text, unsigne
     }
     if (most > layers->room)
     {
-        // twice the room, or CLI_LAYERS_TEXT_FIRST where it holds none, so texts kept one at a time take the cell again
-        // seldom, up to the most the texts hold
+        // twice the room, or CLI_LAYERS_TEXT_FIRST where it contains none, so texts stored one at a time take the cell
+        // again seldom, up to the most the texts contain
         const unsigned long long doubled = (layers->room == 0ull) ? CLI_LAYERS_TEXT_FIRST : (2ull * layers->room);
         const unsigned long long wanted = (most > doubled) ? most : doubled;
         const unsigned long long room = (wanted < CLI_SETTINGS_TEXT) ? wanted : CLI_SETTINGS_TEXT;
-        char *const grown = cli_cell_taken_by(&g_cli_settings_cells, room, "the settings layers' texts");
+        char *const grown = g_cli_cells->persistent_buf_alloc(room, &g_cli_settings_cells);
         if (grown == NULL)
         {
             return 0u;
@@ -69,12 +69,12 @@ unsigned int cli_settings_kept_text(CliLayers *layers, const char *text, unsigne
         if (layers->text != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = grown, .src = layers->text, .bytes = (size_t)layers->used});
-            cli_cell_given_by(&g_cli_settings_cells, layers->text);
+            g_cli_cells->persistent_buf_release(layers->text, &g_cli_settings_cells);
         }
         layers->text = grown;
         layers->room = room;
     }
-    // a place is below CLI_SETTINGS_TEXT, which an unsigned int holds
+    // a place is below CLI_SETTINGS_TEXT, which an unsigned int stores
     const unsigned int at = (unsigned int)layers->used;
     memor.cpy(&(MemoriaCfg){.dst = layers->text + at, .src = text, .bytes = length});
     layers->text[at + length] = '\0';
@@ -94,42 +94,42 @@ void cli_settings_problem(CliLayers *layers, const char *problem)
     }
     if (layers->problems < (CLI_SETTINGS_PROBLEMS * 2u))
     {
-        layers->problem[layers->problems] = cli_settings_kept_text(
+        layers->problem[layers->problems] = cli_settings_text_stored(
             layers, problem, cellul.len(&(CatenaFinitaCfg){.src = problem, .cap = CLI_CELLS_POOL}));
         layers->problems += 1u;
     }
 }
 
-static void cli_value_written(const CliChain *chain, unsigned int value, CliLine *out);
+static void cli_value_written(const CliChain *chain, unsigned int value, VerbaLinea *out);
 
-// what `${name}` reads into `out`: 1, or 0 where nothing gives it, the name kept among those missing
-static int cli_look(void *context, const char *name, unsigned long long length, CliLine *out)
+// what `${name}` reads into `out`: 1, or 0 where nothing gives it, the name recorded among those missing
+static int cli_look(void *context, const char *name, unsigned long long length, VerbaLinea *out)
 {
     CliNames *const names = (CliNames *)context;
     int found = 0;
-    char variable[CLI_NAME_LONGEST];
-    char value[CLI_PATH_LONGEST];
+    char variable[CLI_NAME_MAX_LEN];
+    char value[CLI_PATH_MAX_LEN];
     if ((length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "home", .bytes = 4u}) == 0))
     {
-        cli_line_text(out, names->home);
+        mmgr_line_put(out, names->home);
         found = names->home[0] != '\0';
     }
     else if ((length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "tree", .bytes = 4u}) == 0))
     {
-        cli_line_text(out, names->root);
+        mmgr_line_put(out, names->root);
         found = names->root[0] != '\0';
     }
     else if ((length == 6ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "system", .bytes = 6u}) == 0))
     {
-        cli_line_text(out, names->system);
+        mmgr_line_put(out, names->system);
         found = 1;
     }
     else if ((length > 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "env:", .bytes = 4u}) == 0))
     {
-        CliLine line = {variable, sizeof(variable), 0ull};
-        cli_line_counted(&line, name + 4, length - 4ull);
-        cli_line_closed(&line);
-        found = query_environment_said(variable, out);
+        VerbaLinea line = {variable, sizeof(variable), 0ull};
+        mmgr_line_put_n(&line, name + 4, length - 4ull);
+        mmgr_line_finish(&line);
+        found = query_environment_written(variable, out);
     }
     else if ((length > 8ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "setting:", .bytes = 8u}) == 0) &&
              (names->depth < CLI_SETTINGS_NAMES_DEEP))
@@ -149,18 +149,18 @@ static int cli_look(void *context, const char *name, unsigned long long length, 
     }
     if (!found && (names->missings < CLI_SETTINGS_PROBLEMS))
     {
-        CliLine line = {names->missing[names->missings], CLI_NAME_LONGEST, 0ull};
-        cli_line_counted(&line, name, length);
-        cli_line_closed(&line);
+        VerbaLinea line = {names->missing[names->missings], CLI_NAME_MAX_LEN, 0ull};
+        mmgr_line_put_n(&line, name, length);
+        mmgr_line_finish(&line);
         names->missings += 1u;
     }
     return found;
 }
 
 // a value with each `${name}` in its texts read, as the page reads it back: a string's text, else compact JSON
-static void cli_json_expanded(const CliChain *chain, unsigned int value, CliLine *out);
+static void cli_json_expanded(const CliChain *chain, unsigned int value, VerbaLinea *out);
 
-static void cli_value_written(const CliChain *chain, unsigned int value, CliLine *out)
+static void cli_value_written(const CliChain *chain, unsigned int value, VerbaLinea *out)
 {
     unsigned long long length = 0ull;
     const char *const text = cli_json_string(&chain->json, value, &length);
@@ -172,18 +172,18 @@ static void cli_value_written(const CliChain *chain, unsigned int value, CliLine
     cli_json_expanded(chain, value, out);
 }
 
-static void cli_json_expanded(const CliChain *chain, unsigned int value, CliLine *out)
+static void cli_json_expanded(const CliChain *chain, unsigned int value, VerbaLinea *out)
 {
     const CliJsonNode *const node = &chain->json.node[value];
     if (node->kind == CFG_JSON_STRING)
     {
         static char s_text[CLI_SETTINGS_NAMES_DEEP + 1u][CLI_LAYER_VALUE];
         char *const room = s_text[s_names.depth];
-        CliLine line = {room, CLI_LAYER_VALUE, 0ull};
+        VerbaLinea line = {room, CLI_LAYER_VALUE, 0ull};
         unsigned long long length = 0ull;
         const char *const text = cli_json_string(&chain->json, value, &length);
         cli_settings_expand(text, length, cli_look, &s_names, &line);
-        cli_json_quoted(out, room, cli_line_fits(&line) ? line.at : 0ull);
+        cli_json_quoted(out, room, mmgr_line_ok(&line) ? line.at : 0ull);
         return;
     }
     if ((node->kind != CFG_JSON_ARRAY) && (node->kind != CFG_JSON_OBJECT))
@@ -192,35 +192,35 @@ static void cli_json_expanded(const CliChain *chain, unsigned int value, CliLine
         return;
     }
     const int object = node->kind == CFG_JSON_OBJECT;
-    cli_line_character(out, object ? '{' : '[');
+    mmgr_line_ch(out, object ? '{' : '[');
     for (unsigned int child = node->first; child != CLI_JSON_NONE; child = chain->json.node[child].next)
     {
-        cli_line_text(out, (child != node->first) ? "," : "");
+        mmgr_line_put(out, (child != node->first) ? "," : "");
         if (object)
         {
             const char *const key = chain->json.text + chain->json.node[child].key;
             cli_json_quoted(out, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}));
-            cli_line_character(out, ':');
+            mmgr_line_ch(out, ':');
         }
         cli_json_expanded(chain, child, out);
     }
-    cli_line_character(out, object ? '}' : ']');
+    mmgr_line_ch(out, object ? '}' : ']');
 }
 
-// each name `missing` that the setting `key` of `file` names and nothing gives, said as a problem
-static void cli_said(CliLayers *layers, const char *file, const char *key)
+// each name `missing` that the setting `key` of `file` names and nothing gives, reported as a problem
+static void cli_missing_reported(CliLayers *layers, const char *file, const char *key)
 {
     for (unsigned int at = 0u; at < s_names.missings; at += 1u)
     {
-        char problem[CLI_PATH_LONGEST * 2u];
-        CliLine line = {problem, sizeof(problem), 0ull};
-        cli_line_text(&line, file);
-        cli_line_text(&line, ": ");
-        cli_line_text(&line, key);
-        cli_line_text(&line, " names ${");
-        cli_line_text(&line, s_names.missing[at]);
-        cli_line_text(&line, "}, which nothing gives");
-        cli_line_closed(&line);
+        char problem[CLI_PATH_MAX_LEN * 2u];
+        VerbaLinea line = {problem, sizeof(problem), 0ull};
+        mmgr_line_put(&line, file);
+        mmgr_line_put(&line, ": ");
+        mmgr_line_put(&line, key);
+        mmgr_line_put(&line, " names ${");
+        mmgr_line_put(&line, s_names.missing[at]);
+        mmgr_line_put(&line, "}, which nothing gives");
+        mmgr_line_finish(&line);
         cli_settings_problem(layers, problem);
     }
     s_names.missings = 0u;
@@ -241,13 +241,13 @@ static void cli_text_set(CliLayers *layers, CliLayerText *texts, unsigned int *c
     if (*count < CLI_LAYERS_KEYS)
     {
         texts[*count] = (CliLayerText){
-            cli_settings_kept_text(layers, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL})),
+            cli_settings_text_stored(layers, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL})),
             text};
         *count += 1u;
     }
 }
 
-// whether `from` holds a part that sets `key` already
+// whether `from` contains a part that sets `key` already
 static int cli_set_before(const CliLayers *layers, const char *key)
 {
     for (unsigned int at = 0u; at < layers->froms; at += 1u)
@@ -267,38 +267,38 @@ static void cli_source_put(CliLayers *layers, const char *key, const char *file,
     if (layers->froms < CLI_LAYERS_SOURCES)
     {
         layers->from[layers->froms] = (CliLayerSource){
-            cli_settings_kept_text(layers, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL})),
-            cli_settings_kept_text(layers, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL})),
-            (part != NULL) ? cli_settings_kept_text(layers, part,
-                                                    cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL}))
+            cli_settings_text_stored(layers, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL})),
+            cli_settings_text_stored(layers, file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL})),
+            (part != NULL) ? cli_settings_text_stored(
+                                 layers, part, cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL}))
                            : 0u,
             part != NULL, text};
         layers->froms += 1u;
     }
 }
 
-// a value read with each `${name}` in it read, kept in the layers' texts, each name nothing gives said as a problem of
-// the file and the key: its place
-static unsigned int cli_read_kept(CliLayers *layers, const CliChain *chain, unsigned int value, const char *file,
-                                  const char *key)
+// a value read with each `${name}` in it read, stored in the layers' texts, each name nothing gives reported as a
+// problem of the file and the key: its place
+static unsigned int cli_read_stored(CliLayers *layers, const CliChain *chain, unsigned int value, const char *file,
+                                    const char *key)
 {
-    CliLine line = {s_value, sizeof(s_value), 0ull};
+    VerbaLinea line = {s_value, sizeof(s_value), 0ull};
     s_names.depth = 0u;
     cli_value_written(chain, value, &line);
-    cli_said(layers, file, key);
-    return cli_settings_kept_text(layers, s_value, cli_line_fits(&line) ? line.at : 0ull);
+    cli_missing_reported(layers, file, key);
+    return cli_settings_text_stored(layers, s_value, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
 void cli_settings_layers(const CliChain *reader, const CliChain *tree, const char *root, CliLayers *layers)
 {
     // every count and every key's place made 0, the texts begun anew with the empty text at their first place
     memor.set(&(MemoriaCfg){.dst = layers, .val = 0, .bytes = sizeof(*layers)});
-    (void)cli_settings_kept_text(layers, "", 0ull);
+    (void)cli_settings_text_stored(layers, "", 0ull);
     layers->system = cli_settings_system();
     if (reader->files != 0u)
     {
         memor.cpy(
-            &(MemoriaCfg){.dst = layers->own_file, .bytes = CLI_PATH_LONGEST, .src = reader->file[reader->files - 1u]});
+            &(MemoriaCfg){.dst = layers->own_file, .bytes = CLI_PATH_MAX_LEN, .src = reader->file[reader->files - 1u]});
         layers->has_own_file = 1;
     }
     for (unsigned int at = 0u; at < reader->problems; at += 1u)
@@ -310,7 +310,7 @@ void cli_settings_layers(const CliChain *reader, const CliChain *tree, const cha
         cli_settings_problem(layers, tree->problem[at]);
     }
     cli_lock_take(&s_lock);
-    cli_settings_parts_kept(s_parts, s_values, s_kinds);
+    cli_settings_parts_stored(s_parts, s_values, s_kinds);
     unsigned int parts = 0u;
     unsigned int values = 0u;
     unsigned int kinds = 0u;
@@ -322,9 +322,9 @@ void cli_settings_layers(const CliChain *reader, const CliChain *tree, const cha
         const unsigned int file = of_tree ? (at - reader->files) : at;
         if (layers->files < (CLI_SETTINGS_DEEPEST * 2u))
         {
-            layers->file[layers->files] =
-                cli_settings_kept_text(layers, chain->file[file],
-                                       cellul.len(&(CatenaFinitaCfg){.src = chain->file[file], .cap = CLI_CELLS_POOL}));
+            layers->file[layers->files] = cli_settings_text_stored(
+                layers, chain->file[file],
+                cellul.len(&(CatenaFinitaCfg){.src = chain->file[file], .cap = CLI_CELLS_POOL}));
             layers->files += 1u;
         }
         parts =
@@ -352,14 +352,14 @@ void cli_settings_layers(const CliChain *reader, const CliChain *tree, const cha
         for (unsigned int each = 0u; each < part->count; each += 1u)
         {
             const CliPartValue *const value = &s_values[part->first + each];
-            const unsigned int text = cli_read_kept(layers, part->chain, value->value, file, value->key);
+            const unsigned int text = cli_read_stored(layers, part->chain, value->value, file, value->key);
             if (!cli_set_before(layers, value->key))
             {
                 // a value of the reader's own that names another stands over the files it takes
                 char raw[CLI_LAYER_VALUE];
-                CliLine back = {raw, sizeof(raw), 0ull};
-                cli_kept_read_back(&part->chain->json, value->value, &back);
-                cli_line_closed(&back);
+                VerbaLinea back = {raw, sizeof(raw), 0ull};
+                cli_state_read_back(&part->chain->json, value->value, &back);
+                mmgr_line_finish(&back);
                 const int named =
                     cellul.find(&(CatenaFinitaCfg){
                         .src = raw, .cap = CLI_CELLS_POOL, .other = "${", .other_cap = CLI_CELLS_POOL}) != NULL;
@@ -369,7 +369,7 @@ void cli_settings_layers(const CliChain *reader, const CliChain *tree, const cha
                 }
                 if ((part->rank == CLI_RANK_OWN) && named && (layers->owns < CLI_LAYERS_KEYS))
                 {
-                    layers->own[layers->owns] = cli_settings_kept_text(
+                    layers->own[layers->owns] = cli_settings_text_stored(
                         layers, value->key, cellul.len(&(CatenaFinitaCfg){.src = value->key, .cap = CLI_CELLS_POOL}));
                     layers->owns += 1u;
                 }
@@ -396,20 +396,20 @@ void cli_settings_layers(const CliChain *reader, const CliChain *tree, const cha
             if ((!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "theme.dark", .cap = CLI_CELLS_POOL})) &&
                 (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "theme.light", .cap = CLI_CELLS_POOL})))
             {
-                char problem[CLI_PATH_LONGEST * 2u];
-                CliLine line = {problem, sizeof(problem), 0ull};
-                cli_line_text(&line, file);
-                cli_line_text(&line, ": ");
-                cli_line_text(&line, set->key);
-                cli_line_text(&line, " sets ");
-                cli_line_text(&line, key);
-                cli_line_text(&line, ", and a kind of file sets its theme alone: theme.dark and theme.light");
-                cli_line_closed(&line);
+                char problem[CLI_PATH_MAX_LEN * 2u];
+                VerbaLinea line = {problem, sizeof(problem), 0ull};
+                mmgr_line_put(&line, file);
+                mmgr_line_put(&line, ": ");
+                mmgr_line_put(&line, set->key);
+                mmgr_line_put(&line, " sets ");
+                mmgr_line_put(&line, key);
+                mmgr_line_put(&line, ", and a kind of file sets its theme alone: theme.dark and theme.light");
+                mmgr_line_finish(&line);
                 cli_settings_problem(layers, problem);
                 continue;
             }
-            const unsigned int text = cli_read_kept(layers, set->chain, member, file, key);
-            const unsigned int kind_text = cli_settings_kept_text(layers, kind, kind_length);
+            const unsigned int text = cli_read_stored(layers, set->chain, member, file, key);
+            const unsigned int kind_text = cli_settings_text_stored(layers, kind, kind_length);
             int known = 0;
             for (unsigned int each = 0u; !known && (each < layers->kinds); each += 1u)
             {
@@ -423,17 +423,17 @@ void cli_settings_layers(const CliChain *reader, const CliChain *tree, const cha
             {
                 layers->kind[layers->kinds] =
                     (CliKindText){kind_text,
-                                  cli_settings_kept_text(
+                                  cli_settings_text_stored(
                                       layers, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL})),
                                   text};
                 layers->kinds += 1u;
             }
-            char from[CLI_NAME_LONGEST * 2u];
-            CliLine named = {from, sizeof(from), 0ull};
-            cli_line_text(&named, set->key);
-            cli_line_character(&named, ' ');
-            cli_line_text(&named, key);
-            cli_line_closed(&named);
+            char from[CLI_NAME_MAX_LEN * 2u];
+            VerbaLinea named = {from, sizeof(from), 0ull};
+            mmgr_line_put(&named, set->key);
+            mmgr_line_ch(&named, ' ');
+            mmgr_line_put(&named, key);
+            mmgr_line_finish(&named);
             cli_source_put(layers, from, file, NULL, text);
         }
     }

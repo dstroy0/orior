@@ -3,7 +3,7 @@
 // ksg_writing.h: a file written whole, and sealed as it is written where it is of a kind ksg seals: the file and its
 // seal each written beside its place under a name of the writer's, made durable, and put in its place, the file first
 // and then its seal, so a write that fails leaves the file and the seal it would have replaced as they were, and one
-// cut between the two leaves a file its old seal does not hold (ksg_writing.c)
+// cut between the two leaves a file its old seal does not match (ksg_writing.c)
 #ifndef KSG_WRITING_H
 #define KSG_WRITING_H
 
@@ -22,10 +22,10 @@ extern "C"
         long long file;
         long long seal;
         KsgSeal sealing;
-        char path[KSG_PATH_LONGEST];
-        char part[KSG_PATH_LONGEST];
-        char seal_path[KSG_PATH_LONGEST];
-        char seal_part[KSG_PATH_LONGEST];
+        char path[KSG_PATH_MAX_LEN];
+        char part[KSG_PATH_MAX_LEN];
+        char seal_path[KSG_PATH_MAX_LEN];
+        char seal_part[KSG_PATH_MAX_LEN];
         int whole;
         unsigned char root[KSG_SIGNUM_BYTES];
     } KsgWriting;

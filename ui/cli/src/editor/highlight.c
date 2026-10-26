@@ -19,10 +19,10 @@ static int s_full;
 // `length` bytes of `text` put among the grammar's texts, lower case where `lower` is 1: where they start
 static unsigned int cli_text(CliGrammar *grammar, const char *text, unsigned long long length, int lower)
 {
-    unsigned int letters[CLI_NAME_LONGEST];
-    const unsigned long long count = cli_regexp_letters(text, length, letters, CLI_NAME_LONGEST);
-    CliLine line = {grammar->text + grammar->text_size, s_read->text_most - grammar->text_size, 0ull};
-    if (lower && (count < CLI_NAME_LONGEST))
+    unsigned int letters[CLI_NAME_MAX_LEN];
+    const unsigned long long count = cli_regexp_letters(text, length, letters, CLI_NAME_MAX_LEN);
+    VerbaLinea line = {grammar->text + grammar->text_size, s_read->text_most - grammar->text_size, 0ull};
+    if (lower && (count < CLI_NAME_MAX_LEN))
     {
         for (unsigned long long at = 0ull; at < count; at += 1ull)
         {
@@ -31,16 +31,16 @@ static unsigned int cli_text(CliGrammar *grammar, const char *text, unsigned lon
     }
     else
     {
-        cli_line_counted(&line, text, length);
+        mmgr_line_put_n(&line, text, length);
     }
-    if (!cli_line_fits(&line))
+    if (!mmgr_line_ok(&line))
     {
         s_full = 1;
         return 0u;
     }
     const unsigned int at = grammar->text_size;
     // the texts are below the room's text_most, which an unsigned int counts
-    grammar->text_size += (unsigned int)cli_line_closed(&line) + 1u;
+    grammar->text_size += (unsigned int)mmgr_line_finish(&line) + 1u;
     return at;
 }
 
@@ -82,9 +82,9 @@ static unsigned int cli_token_made(CliGrammar *grammar, unsigned int kind, unsig
     return grammar->tokens - 1u;
 }
 
-// the token a value writes into `token`, none for null: 1, or 0 with why said
+// the token a value writes into `token`, none for null: 1, or 0 with why given
 static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int value, unsigned int *token,
-                        CliLine *said)
+                        VerbaLinea *err_msg)
 {
     *token = CLI_HIGHLIGHT_NONE;
     if ((value == CLI_JSON_NONE) || cli_json_is(json, value, CFG_JSON_NULL))
@@ -101,7 +101,7 @@ static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int v
     const int grouped = cli_json_is(json, value, CFG_JSON_ARRAY);
     if (!grouped && !cli_json_is(json, cases, CFG_JSON_OBJECT))
     {
-        cli_line_text(said, "a token that is neither a name, a list nor cases");
+        mmgr_line_put(err_msg, "a token that is neither a name, a list nor cases");
         return 0;
     }
     const unsigned int list = grouped ? value : cases;
@@ -112,7 +112,7 @@ static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int v
         s_full = 1;
         return 1;
     }
-    // the range of the cases held first, so the tokens under them go after it
+    // the range of the cases placed first, so the tokens under them go after it
     const unsigned int first = grammar->case_count;
     grammar->case_count += count;
     grammar->token[made].first = first;
@@ -121,7 +121,7 @@ static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int v
     for (unsigned int child = json->node[list].first; child != CLI_JSON_NONE; child = json->node[child].next)
     {
         unsigned int inner = CLI_HIGHLIGHT_NONE;
-        if (!cli_token_of(grammar, json, child, &inner, said))
+        if (!cli_token_of(grammar, json, child, &inner, err_msg))
         {
             return 0;
         }
@@ -139,9 +139,9 @@ static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int v
     return 1;
 }
 
-// a rule's pattern read, its arrays put after the grammar's: 1, or 0 with why said
+// a rule's pattern read, its arrays put after the grammar's: 1, or 0 with why given
 static int cli_pattern_of(CliGrammar *grammar, const CliJson *json, unsigned int value, CliHighlightRule *rule,
-                          CliLine *said)
+                          VerbaLinea *err_msg)
 {
     const char *source = cli_json_string(json, value, NULL);
     const char *flags = "";
@@ -150,7 +150,7 @@ static int cli_pattern_of(CliGrammar *grammar, const CliJson *json, unsigned int
         source = cli_json_string(json, cli_json_member(json, value, "pattern"), NULL);
         if (source == NULL)
         {
-            cli_line_text(said, "a pattern with no source");
+            mmgr_line_put(err_msg, "a pattern with no source");
             return 0;
         }
         const char *const given = cli_json_string(json, cli_json_member(json, value, "flags"), NULL);
@@ -158,12 +158,12 @@ static int cli_pattern_of(CliGrammar *grammar, const CliJson *json, unsigned int
     }
     else if (source == NULL)
     {
-        cli_line_text(said, "a pattern that is neither text nor a source and flags");
+        mmgr_line_put(err_msg, "a pattern that is neither text nor a source and flags");
         return 0;
     }
     CliRegexp read;
     cli_regexp_roomed(&read, s_read->pattern);
-    if (!cli_regexp_read(&read, source, flags, said))
+    if (!cli_regexp_read(&read, source, flags, err_msg))
     {
         return 0;
     }
@@ -215,8 +215,9 @@ void cli_highlight_pattern(const CliGrammar *grammar, const CliHighlightRule *ru
     pattern->anchored = rule->anchored;
 }
 
-// one rule of a state read: an include, or a pattern with its token and the state it goes to. 1, or 0 with why said
-static int cli_rule_read(CliGrammar *grammar, const CliJson *json, unsigned int value, unsigned int *own, CliLine *said)
+// one rule of a state read: an include, or a pattern with its token and the state it goes to. 1, or 0 with why given
+static int cli_rule_read(CliGrammar *grammar, const CliJson *json, unsigned int value, unsigned int *own,
+                         VerbaLinea *err_msg)
 {
     const char *const included = cli_json_string(json, cli_json_member(json, value, "include"), NULL);
     if (*own >= s_read->own_most)
@@ -235,13 +236,13 @@ static int cli_rule_read(CliGrammar *grammar, const CliJson *json, unsigned int 
     }
     if (!cli_json_is(json, value, CFG_JSON_ARRAY))
     {
-        cli_line_text(said, "a rule that is no list");
+        mmgr_line_put(err_msg, "a rule that is no list");
         return 0;
     }
     const unsigned int pattern = cli_json_item(json, value, 0u);
     if (pattern == CLI_JSON_NONE)
     {
-        cli_line_text(said, "a rule with no pattern");
+        mmgr_line_put(err_msg, "a rule with no pattern");
         return 0;
     }
     if (grammar->rules >= s_read->rules_most)
@@ -250,7 +251,7 @@ static int cli_rule_read(CliGrammar *grammar, const CliJson *json, unsigned int 
         return 1;
     }
     CliHighlightRule *const rule = &grammar->rule[grammar->rules];
-    if (!cli_pattern_of(grammar, json, pattern, rule, said))
+    if (!cli_pattern_of(grammar, json, pattern, rule, err_msg))
     {
         return 0;
     }
@@ -260,7 +261,7 @@ static int cli_rule_read(CliGrammar *grammar, const CliJson *json, unsigned int 
     const unsigned int token = own_next ? cli_json_member(json, action, "token") : action;
     const char *const next =
         cli_json_string(json, own_next ? cli_json_member(json, action, "next") : cli_json_item(json, value, 2u), NULL);
-    if (!cli_token_of(grammar, json, token, &rule->token, said))
+    if (!cli_token_of(grammar, json, token, &rule->token, err_msg))
     {
         return 0;
     }
@@ -371,11 +372,12 @@ static void cli_words_read(CliGrammar *grammar, const CliJson *json, unsigned in
     }
 }
 
-int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *room, CliGrammar *grammar, CliLine *said)
+int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *room, CliGrammar *grammar,
+                       VerbaLinea *err_msg)
 {
     if (!cli_json_is(json, def, CFG_JSON_OBJECT))
     {
-        cli_line_text(said, "a grammar that is no object");
+        mmgr_line_put(err_msg, "a grammar that is no object");
         return 0;
     }
     s_read = room;
@@ -400,7 +402,7 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
     const unsigned int tokenizer = cli_json_member(json, def, "tokenizer");
     if (!cli_json_is(json, tokenizer, CFG_JSON_OBJECT))
     {
-        cli_line_text(said, "a grammar with no tokenizer");
+        mmgr_line_put(err_msg, "a grammar with no tokenizer");
         return 0;
     }
     grammar->name[0] = cli_text(grammar, "", 0u, 0);
@@ -410,7 +412,7 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
     {
         if (!cli_json_is(json, state, CFG_JSON_ARRAY))
         {
-            cli_line_text(said, "a state that is no list");
+            mmgr_line_put(err_msg, "a state that is no list");
             return 0;
         }
         if (grammar->states >= s_read->states_most)
@@ -424,7 +426,7 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
         entry->first = own;
         for (unsigned int rule = json->node[state].first; rule != CLI_JSON_NONE; rule = json->node[rule].next)
         {
-            if (!cli_rule_read(grammar, json, rule, &own, said))
+            if (!cli_rule_read(grammar, json, rule, &own, err_msg))
             {
                 return 0;
             }
@@ -488,7 +490,7 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
     }
     if (s_full)
     {
-        cli_line_text(said, "a grammar that holds more than a grammar is read into");
+        mmgr_line_put(err_msg, "a grammar that contains more than a grammar is read into");
         return 0;
     }
     return 1;

@@ -6,7 +6,7 @@
 
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -25,7 +25,7 @@
  *      on a skewed field where rarity actually varies.
  *   3. THE MEASUREMENT CAN FAIL. The negative control orders the probes the wrong way round,
  *      commonest symbol first, and must read MORE than the unsteered order. A negative control that
- *      reads the same says the ordering is a no-op and every number above it is worthless.
+ *      reads the same shows the ordering is a no-op and every number above it is worthless.
  *   4. THE DISPATCH IS EXACT. Three fields whose answers are derived by hand from the rule and
  *      not read off a run. The integer form is graded against arithmetic and not against the
  *      floating point form it replaced.

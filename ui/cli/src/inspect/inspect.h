@@ -3,19 +3,19 @@
 // inspect.h: inspections: checks of orior's own over the tree's Python and JavaScript, each finding given to the
 // editor as a diagnostic beside the language servers', with the edits of its quick fix where one applies.
 //
-// What a file says alone, the Python and the JavaScript readers find: a name set and never read, code no path reaches,
-// and a Python docstring out of PEP 257's form. What the tree says, the tree's index finds, from each file's imports
+// What a file shows alone, the Python and the JavaScript readers find: a name set and never read, code no path reaches,
+// and a Python docstring out of PEP 257's form. What the tree shows, the tree finds, from each file's imports
 // and classes:
 //
 // - an import that leads back round to the file that makes it, through the imports the files it reaches make as they
 //   run, named with the files it passes through;
 // - an attribute a method reads of `self` that neither its class, a class it comes from, nor a class that comes from it
 //   sets, as a mixin's methods are found in the classes it is mixed into and a class's in the mixins it takes in. A
-//   class whose family holds a class from outside the tree, or that sets its attributes by name, is left alone. What
-//   each class's family sets is kept, and a language server's report that a class has no such attribute, as pyright
+//   class whose family contains a class from outside the tree, or that sets its attributes by name, is left alone. What
+//   each class's family sets is recorded, and a language server's report that a class has no such attribute, as pyright
 //   gives of a mixin, is not passed on where the family sets it.
 //
-// The index also holds each function a file declares and the calls in it, which the call hierarchy reads where no
+// The tree also records each function a file declares and the calls in it, which the call hierarchy reads where no
 // language server answers: a call of a name reaches the functions of that name in the caller's file, or, where its
 // file declares none, those of the tree in its language.
 //
@@ -59,7 +59,7 @@ typedef struct
     unsigned int col;
 } CliInspectPlace;
 
-// A text kept in a pool: where it starts and its length, a 0 after it
+// A text stored in a pool: where it starts and its length, a 0 after it
 typedef struct
 {
     unsigned int at;
@@ -74,7 +74,7 @@ typedef struct
     CliInspectText text;
 } CliInspectEdit;
 
-// A quick fix: what it says it does, and its edits, `edits` of them from `edit_first`
+// A quick fix: what it states it does, and its edits, `edits` of them from `edit_first`
 typedef struct
 {
     CliInspectText title;
@@ -82,8 +82,8 @@ typedef struct
     unsigned int edits;
 } CliInspectFix;
 
-// What an inspection found: its span, how it is shown, what it says in Markdown, its name, the page that tells of what
-// it checks, NULL where none does, and its fixes
+// What an inspection found: its span, how it is shown, what it states in Markdown, its name, the page that explains
+// what it checks, NULL where none does, and its fixes
 typedef struct
 {
     CliInspectPlace from;
@@ -137,7 +137,7 @@ typedef struct
 } CliInspectClass;
 
 // A function a file declares: its name and the span of its name, its first and last lines, and each call in it, of a
-// bare name or of a method of `self` or `this`, outside the functions it holds, with the call's span
+// bare name or of a method of `self` or `this`, outside the functions it contains, with the call's span
 typedef struct
 {
     CliInspectText name;
@@ -149,9 +149,9 @@ typedef struct
     unsigned int calls;
 } CliInspectFunction;
 
-// What a file holds for the inspections, in the storage its holder hands it: its imports, its classes, its functions,
-// and what it says alone, the findings, their fixes and edits, the names the others list, and the texts of all; 1 in
-// `full` where one did not fit
+// What a file contains for the inspections, in the storage its holder hands it: its imports, its classes, its
+// functions, and what it shows alone, the findings, their fixes and edits, the names the others list, and the texts of
+// all; 1 in `full` where one did not fit
 typedef struct
 {
     CliInspectImport *import;
@@ -179,7 +179,7 @@ typedef struct
     unsigned int used;
     unsigned int text_most;
     int full;
-    // counting: each put counts what it would keep and keeps nothing, so a walk sizes the room the next walk fills
+    // counting: each put counts what it would store and stores nothing, so a walk sizes the room the next walk fills
     int counting;
 } CliFacts;
 
@@ -201,7 +201,7 @@ typedef struct
 // A file as its parse reads it, in the storage its holder hands it: each line's runs, `count` of them from `first`,
 // every column of the line in one; the regions that fold, by their first and last lines; and the spans Expand
 // Selection steps through; 1 in `full` where one did not fit. A parse handed no storage counts the runs, lines, folds
-// and spans it would hold, for its holder to take that storage and parse again
+// and spans it would contain, for its holder to take that storage and parse again
 typedef struct
 {
     CliInspectRun *run;
@@ -231,7 +231,7 @@ extern const char *const g_cli_inspect_docstring_forms[4];
 const char *cli_inspect_language_of(const char *path);
 const char *cli_inspect_text(const char *pool, CliInspectText text);
 
-// facts made empty over the storage handed them; facts that count what a walk would keep and keep nothing, so the
+// facts made empty over the storage handed them; facts that count what a walk would store and store nothing, so the
 // walk sizes the room the next one fills; and the facts of `size` bytes of a file's text in `language`, where the
 // inspections read the language: 1, or 0 where they do not
 void cli_facts_counting(CliFacts *facts);
@@ -242,10 +242,10 @@ void cli_facts_begun(CliFacts *facts, CliInspectImport *imports, unsigned int im
                      unsigned int names_most, char *text, unsigned int text_most);
 int cli_inspect_facts(const char *language, const char *text, unsigned long long size, CliFacts *facts);
 
-// a finding of `facts` written as a diagnostic of the protocol's form, its message Markdown and its fixes kept in its
+// a finding of `facts` written as a diagnostic of the protocol's form, its message Markdown and its fixes stored in its
 // data: `{"range", "severity", "message": {"kind", "value"}, "source": "orior", "code", "data": {"orior": fixes},
 // "codeDescription"}`
-void cli_inspect_finding_written(const CliFacts *facts, unsigned int finding, CliLine *out);
+void cli_inspect_finding_written(const CliFacts *facts, unsigned int finding, VerbaLinea *out);
 
 // a parse made empty over the storage handed it; and the parse of `size` bytes of a file's text in `language`: 1, or 0
 // where the inspections do not read the language
@@ -254,8 +254,8 @@ void cli_parsed_begun(CliParsed *parsed, CliInspectRun *runs, unsigned int runs_
                       unsigned int *fold_last, unsigned int folds_most, CliInspectSpan *ranges,
                       unsigned int ranges_most);
 int cli_inspect_parse(const char *language, const char *text, unsigned long long size, CliParsed *parsed);
-// the spans of `ranges`, `count` of them, that hold `from` to `to` and are more than it, the least first, each once,
-// into `out`, which holds `most`: their count
+// the spans of `ranges`, `count` of them, that contain `from` to `to` and are more than it, the least first, each once,
+// into `out`, sized for `most`: their count
 unsigned int cli_inspect_ranges_at(const CliInspectSpan *ranges, unsigned int count, CliInspectPlace from,
                                    CliInspectPlace to, CliInspectSpan *out, unsigned int most);
 // folds by their first line, each the widest that starts there, one line or more below it, sorted: `count` pairs of
@@ -263,14 +263,14 @@ unsigned int cli_inspect_ranges_at(const CliInspectSpan *ranges, unsigned int co
 unsigned int cli_inspect_folds_of(unsigned int *first, unsigned int *last, unsigned int count);
 
 // a docstring drawn up for the function at or around `line` of `size` bytes of a file's text in `language`, in
-// `form`: the edit that writes it, its text into `text`, and the place to write its summary: 1, or 0 with why said;
+// `form`: the edit that writes it, its text into `text`, and the place to write its summary: 1, or 0 with why given;
 // and the methods of the class at or around `line` sorted by name, each with the comments and decorators over it, the
 // class's other members and its blank lines staying where they stand: the edit that writes the class's body again, its
-// text into `text`: 1, or 0 with why said
+// text into `text`: 1, or 0 with why given
 int cli_inspect_docstring(const char *language, const char *source, unsigned long long size, unsigned int line,
-                          const char *form, CliInspectEdit *edit, CliLine *text, CliInspectPlace *summary,
-                          CliLine *said);
+                          const char *form, CliInspectEdit *edit, VerbaLinea *text, CliInspectPlace *summary,
+                          VerbaLinea *err_msg);
 int cli_inspect_sort_methods(const char *language, const char *source, unsigned long long size, unsigned int line,
-                             CliInspectEdit *edit, CliLine *text, CliLine *said);
+                             CliInspectEdit *edit, VerbaLinea *text, VerbaLinea *err_msg);
 
 #endif

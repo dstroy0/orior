@@ -24,7 +24,7 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
     EngineError *const error = request->error;
     static const char *const files[NOISE_CLIPS_TABLES] = {"noise_clips.tsv", "noise_values.tsv", "noise_spikes.tsv"};
     static const char *const headers[NOISE_CLIPS_TABLES] = {
-        "sample\tleast\tmost\tnever_held_between\tat_zero\tat_top\tconstant\tconstant_zero\tconstant_top\tz_least"
+        "sample\tleast\tmost\tnever_present_between\tat_zero\tat_top\tconstant\tconstant_zero\tconstant_top\tz_least"
         "\tz_most\ty_least\ty_most\tx_least\tx_most\n",
         "sample\tvalue\tcount\tconstant_voxels\n",
         "sample\tlowest_mean\ttriples\tspikes_16\tdips_16\tspikes_32\tdips_32\tspikes_64\tdips_64\tspikes_128"
@@ -38,9 +38,9 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
         ok = noise_table_open(request->set, files[kind], headers[kind], paths[kind], &tables[kind], error);
     }
     printf("  clips: every value counted; the voxel-frames at 0 and at the lane's top, 65535; the voxels whose every"
-           " frame holds one value, and the box they sit in\n");
+           " frame is one value, and the box they sit in\n");
     printf("  and each frame against the frames beside it: a spike clears both from above by 16, 32, 64 or 128, a dip"
-           " from below (symmetric noise holds them equal)\n");
+           " from below (symmetric noise gives them equal)\n");
     NoiseClips *const clips = (NoiseClips *)malloc(sizeof(NoiseClips));
     ok = ok && NOISE_DETECTOR_CHECK(clips != NULL, &clips, error, ENGINE_ERROR_RESOURCE);
     const unsigned long long began = engine_clock_microseconds();
@@ -79,7 +79,7 @@ extern "C" long noise_clips_set(const NoiseSetRequest *request)
 // the pixel maps' halves: the z planes below the middle, then those from it up
 #define NOISE_PIXEL_HALVES 2u
 
-// each pixel and half holds its static voxels, their values summed over the frames, and their frame differences
+// each pixel and half contains its static voxels, their values summed over the frames, and their frame differences
 // squared and summed
 #define NOISE_PIXEL_VOXELS 0u
 
@@ -123,14 +123,14 @@ static long noise_pixels_sample(const unsigned short *volume, const unsigned lon
             for (unsigned long long z = 0ull; z < depth; z += 1ull)
             {
                 const unsigned long long half = (z < middle) ? 0ull : 1ull;
-                const unsigned char *const kept = &mask[z * plane_voxels];
+                const unsigned char *const plane_mask = &mask[z * plane_voxels];
                 const unsigned short *const lanes = &volume[(frame * voxels) + (z * plane_voxels)];
                 // the same plane one frame earlier; the first frame has none and reads itself
                 const unsigned short *const earlier =
                     (frame != 0ull) ? &volume[((frame - 1ull) * voxels) + (z * plane_voxels)] : lanes;
                 for (unsigned long long pixel = 0ull; pixel < plane_voxels; pixel += 1ull)
                 {
-                    if (kept[pixel] == 0u)
+                    if (plane_mask[pixel] == 0u)
                     {
                         continue;
                     }
@@ -201,7 +201,7 @@ extern "C" long noise_pixels_set(const NoiseSetRequest *request)
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST);
         const unsigned long long cells = NOISE_PIXEL_CELLS(extent[2] * extent[3]);
-        // the maps grow to the widest plane the set holds
+        // the maps grow to the widest plane the set contains
         if (ok && (cells > max_cells))
         {
             free(maps);

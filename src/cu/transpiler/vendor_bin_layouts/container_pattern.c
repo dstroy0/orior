@@ -1,24 +1,24 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// container_pattern.c: a pattern's tables, sections and attributes read where the layout says, each place held inside
-// the pattern
+// container_pattern.c: a pattern's tables, sections and attributes read where the layout specifies, each place checked
+// inside the pattern
 #include "container_write_internal.h"
 
 unsigned long long container_value_read(const unsigned char *bytes, unsigned int width)
 {
-    unsigned long long held = 0ull;
+    unsigned long long value = 0ull;
     for (unsigned int at = 0u; at < width; at += 1u)
     {
-        held |= ((unsigned long long)bytes[at]) << (8u * at);
+        value |= ((unsigned long long)bytes[at]) << (8u * at);
     }
-    return held;
+    return value;
 }
 
 // every place the emitter uses, taken out of `layout`. 1, or 0 with the missing row named by the layout itself
 int container_places_read(const ContainerLayout *layout, Places *places)
 {
     memset(places, 0, sizeof(*places));
-    const int held =
+    const int read_ok =
         layout_field(layout, "header.segment_table", &places->segment_table, &places->segment_table_width) &&
         layout_field(layout, "header.section_table", &places->section_table, &places->section_table_width) &&
         layout_field(layout, "header.segment_entry", &places->segment_entry, &places->segment_entry_width) &&
@@ -36,7 +36,7 @@ int container_places_read(const ContainerLayout *layout, Places *places)
         layout_field(layout, "segment.file_size", &places->segment_file_size, &places->segment_file_width) &&
         layout_field(layout, "segment.memory_size", &places->segment_memory_size, &places->segment_memory_width) &&
         layout_field(layout, "symbol.size", &places->symbol_size, &places->symbol_size_width);
-    if (!held)
+    if (!read_ok)
     {
         return 0;
     }
@@ -102,7 +102,7 @@ static int place_inside(unsigned long long at, unsigned int width, unsigned long
 // 1 where every place the emitter reads in `pattern`, which is `size` bytes, lies inside it: every field inside its
 // header, entry or symbol, both tables, the bytes of every section that takes bytes in the file, and every section's
 // name with its ending inside the names
-int container_pattern_holds(const Places *places, const unsigned char *pattern, unsigned long long size)
+int container_pattern_matches(const Places *places, const unsigned char *pattern, unsigned long long size)
 {
     if ((places->header_bytes > size) ||
         !place_inside(places->segment_table, places->segment_table_width, places->header_bytes) ||
@@ -194,7 +194,7 @@ unsigned int container_registers_read(const ContainerLayout *layout, const unsig
 {
     Places places;
     char named[256];
-    if (!container_places_read(layout, &places) || !container_pattern_holds(&places, pattern, pattern_size) ||
+    if (!container_places_read(layout, &places) || !container_pattern_matches(&places, pattern, pattern_size) ||
         !layout_text(layout, "section.code", part, named, sizeof(named)))
     {
         return 0u;
@@ -224,7 +224,7 @@ int container_part_code(const ContainerLayout *layout, const unsigned char *patt
 {
     Places places;
     char named[256];
-    if (!container_places_read(layout, &places) || !container_pattern_holds(&places, pattern, pattern_size) ||
+    if (!container_places_read(layout, &places) || !container_pattern_matches(&places, pattern, pattern_size) ||
         !layout_text(layout, "section.code", part, named, sizeof(named)))
     {
         return 0;
@@ -255,7 +255,7 @@ unsigned int container_exits_read(const ContainerLayout *layout, const unsigned 
 {
     Places places;
     char named[256];
-    if (!container_places_read(layout, &places) || !container_pattern_holds(&places, pattern, pattern_size) ||
+    if (!container_places_read(layout, &places) || !container_pattern_matches(&places, pattern, pattern_size) ||
         !layout_text(layout, "section.part_info", part, named, sizeof(named)))
     {
         return 0u;
@@ -368,7 +368,7 @@ unsigned int container_named_sections(const ContainerLayout *layout, const unsig
     return found;
 }
 
-// the place of the section named `name`, or `count` where the pattern holds none
+// the place of the section named `name`, or `count` where the pattern contains none
 unsigned int container_section_named(const Places *places, const unsigned char *pattern, const Section *sections,
                                      unsigned int count, unsigned long long strings, const char *name)
 {
@@ -383,7 +383,7 @@ unsigned int container_section_named(const Places *places, const unsigned char *
     return found;
 }
 
-// the attribute `attribute` of these bytes, or NULL where they hold none; its value's size through `value_size`
+// the attribute `attribute` of these bytes, or NULL where they contain none; its value's size through `value_size`
 const unsigned char *container_attribute_of(const Places *places, const unsigned char *bytes, unsigned long long size,
                                             unsigned long long attribute, unsigned long long *value_size)
 {
@@ -392,19 +392,19 @@ const unsigned char *container_attribute_of(const Places *places, const unsigned
     {
         const unsigned long long format = bytes[at];
         const unsigned long long named = bytes[at + 1u];
-        const unsigned long long kept =
+        const unsigned long long retained =
             (format == places->attribute_format_value) ? container_value_read(&bytes[at + 2u], 2u) : 0ull;
-        // a value that runs past the section ends the read, and the section holds no attribute past it
-        if (kept > (size - (at + places->attribute_header)))
+        // a value that runs past the section ends the read, and the section contains no attribute past it
+        if (retained > (size - (at + places->attribute_header)))
         {
             break;
         }
         if (named == attribute)
         {
-            *value_size = kept;
+            *value_size = retained;
             return &bytes[at];
         }
-        at += places->attribute_header + kept;
+        at += places->attribute_header + retained;
     }
     *value_size = 0ull;
     return NULL;

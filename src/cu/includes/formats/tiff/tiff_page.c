@@ -163,14 +163,14 @@ int tiff_page(TiffFile *file, unsigned long long ifd, TiffPage *page)
             {
                 tiff_fail_number(file, "the values of tag", tag, "run past the end of the file");
             }
-            for (unsigned int slot = 0u; slot < (unsigned int)TIFF_TAGS; slot += 1u)
+            for (unsigned int at = 0u; at < (unsigned int)TIFF_TAGS; at += 1u)
             {
-                if (tag == tiff_tag_numbers[slot])
+                if (tag == tiff_tag_numbers[at])
                 {
-                    found[slot].present = 1u;
-                    found[slot].type = type;
-                    found[slot].count = count;
-                    memcpy(found[slot].value, &raw[4u + value_bytes], value_bytes);
+                    found[at].present = 1u;
+                    found[at].type = type;
+                    found[at].count = count;
+                    memcpy(found[at].value, &raw[4u + value_bytes], value_bytes);
                 }
             }
         }
@@ -352,9 +352,9 @@ static void tiff_swap(unsigned char *chunk, unsigned long long elements, unsigne
         for (unsigned int low = 0u; low < (element_bytes / 2u); low += 1u)
         {
             const unsigned int high = element_bytes - 1u - low;
-            const unsigned char kept = bytes[low];
+            const unsigned char swapped = bytes[low];
             bytes[low] = bytes[high];
-            bytes[high] = kept;
+            bytes[high] = swapped;
         }
     }
 }

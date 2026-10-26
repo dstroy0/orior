@@ -29,7 +29,9 @@
 #include "../includes/formats/parquet/parquet.h"
 #include "runtime/obsignatio/obsignatio.h"
 #include "analysis/residual/residual.h"
-#include "runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "../includes/codecs/snappy/snappy.h"
 #include "../includes/formats/stack/stack.h"
 #include "../includes/formats/tiff/tiff.h"
@@ -64,7 +66,7 @@
 #define ENGINE_DIRECTORY_REMOVE(path_) rmdir(path_)
 #endif
 
-void engine_error_keep(const EngineError *error);
+void engine_error_latch(const EngineError *error);
 
 #define ENGINE_CHECK(condition_, evacaddr_, error_, kind_)                                                             \
     engine_error_check((condition_), (kind_), ENGINE_MODULE_ENGINE, (unsigned int)__LINE__, (const void *)(evacaddr_), \
@@ -137,7 +139,7 @@ int entry_json_load(const char *path, EntryJson *json);
 
 unsigned int entry_json_at(const EntryJson *json, unsigned int object, const char *name);
 
-unsigned int entry_json_element(const EntryJson *json, unsigned int array, unsigned int slot);
+unsigned int entry_json_element(const EntryJson *json, unsigned int array, unsigned int at);
 
 int entry_json_text(const EntryJson *json, unsigned int token, char *out, size_t capacity);
 
@@ -223,16 +225,16 @@ int entry_set_root(const EngineSignum *roots, unsigned long long count, EngineSi
 
 #define ENTRY_ROW_TEXT 640u
 
-void entry_signum_text(ScripturaLine *line, const EngineSignum *signum);
+void entry_signum_text(VerbaLinea *line, const EngineSignum *signum);
 
-void entry_percent(ScripturaLine *line, unsigned long long part, unsigned long long total);
+void entry_percent(VerbaLinea *line, unsigned long long part, unsigned long long total);
 
 unsigned long long entry_report_capacity(char *const *samples, unsigned long long reached, const char *source,
                                          const char *set);
 
-void entry_report_total(ScripturaLine *line, const EngineSetReport *report, unsigned int count);
+void entry_report_total(VerbaLinea *line, const EngineSetReport *report, unsigned int count);
 
-void entry_seal_failure(ScripturaLine *line, const EngineSampleRecord *record);
+void entry_seal_failure(VerbaLinea *line, const EngineSampleRecord *record);
 
 extern "C" long engine_iapx_load(const char *set, const char *sample, unsigned long long extent[4],
                                  unsigned short **volume, EngineSignum *root, EngineSideBytes *side,

@@ -16,11 +16,11 @@ static unsigned char s_cubin[UNPRINTED_CUBIN_BYTES];
 unsigned char s_code[UNPRINTED_CODE_BYTES];
 unsigned char s_turned[UNPRINTED_CODE_BYTES];
 char s_kernel_text[UNPRINTED_TEXT_BYTES];
-char s_asking[UNPRINTED_TEXT_BYTES];
+char s_query_text[UNPRINTED_TEXT_BYTES];
 static char s_output[UNPRINTED_OUTPUT_BYTES];
 static unsigned int s_exits[UNPRINTED_EXITS];
 
-// `path` read whole into `bytes`, which holds `room` of them: how many were read, 0 where the file was not read
+// `path` read whole into `bytes`, sized for `room` of them: how many were read, 0 where the file was not read
 unsigned long long unprinted_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
     FILE *const file = fopen(path, "rb");
@@ -83,7 +83,7 @@ static void unprinted_word_write(unsigned char *bytes, unsigned long long word)
 {
     for (unsigned int at = 0u; at < 8u; at += 1u)
     {
-        // each byte is the word's next eight bits, which a byte holds
+        // each byte is the word's next eight bits, which a byte stores
         bytes[at] = (unsigned char)(word >> (8u * at));
     }
 }
@@ -98,8 +98,8 @@ void unprinted_binary(unsigned long long value, unsigned int bits, char *text)
     text[bits] = '\0';
 }
 
-// the kernel's text with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel holds
-// no such line or `text` will not hold the whole
+// the kernel's text with its line that begins `IADD3 ` replaced by `lines`, into `text`: 1, or 0 where the kernel
+// contains no such line or `text` will not fit the whole
 int unprinted_text(const char *kernel_text, const char *lines, char *text, size_t room)
 {
     const char *const line = strstr(kernel_text, "\nIADD3 ");
@@ -124,7 +124,7 @@ int unprinted_kernel(const char *kernel_text, char *kernel, size_t room)
 }
 
 // every instruction of `code`, `count` of them, whose operation bits are `low` and `high`'s, their numbers in order
-// into `found`, which holds `room`: how many there are
+// into `found`, sized for `room`: how many there are
 unsigned int unprinted_find(const unsigned char *code, unsigned int count, unsigned long long low,
                                    unsigned long long high, unsigned int *found, unsigned int room)
 {
@@ -146,7 +146,7 @@ unsigned int unprinted_find(const unsigned char *code, unsigned int count, unsig
 }
 
 // the encoding at place `place` of `code` with `bits` bits from `first` set to `value`, and the bits each question
-// holds fixed beside it
+// fixes beside it
 void unprinted_place_write(unsigned char *code, unsigned int place, const UnprintedFixed *fixed,
                                   unsigned int fixed_count, unsigned int first, unsigned int bits,
                                   unsigned long long value)
@@ -185,19 +185,19 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
         snprintf(ended, room, "not written");
         return 0;
     }
-    // the gate the carrier and the rest of the scaffolding share: a turned bit whose slot transfers control or waits
-    // would loop or stall the part and take the display down with it, and is held off the part here, never handed to
-    // the driver. The register count is left open (UNPRINTED_REGISTERS), since which registers the part allots is one
-    // of the things this probe reads
-    unsigned long long held_at = 0ull;
-    if (cubin_safe_image(&s_machine, s_cubin, size, written.registers, &held_at) != CUBIN_SAFE)
+    // the gate the carrier and the rest of the scaffolding share: a turned bit whose operation key transfers control or
+    // waits would loop or stall the part and take the display down with it, and is blocked from the part here, never
+    // handed to the driver. The register count is left open (UNPRINTED_REGISTERS), since which registers the part
+    // allots is one of the things this probe reads
+    unsigned long long value_at = 0ull;
+    if (cubin_safe_image(&s_machine, s_cubin, size, written.registers, &value_at) != CUBIN_SAFE)
     {
-        snprintf(ended, room, "held off the part by cubin_safe at byte %llu", held_at);
+        snprintf(ended, room, "blocked from the part by cubin_safe at byte %llu", value_at);
         return 0;
     }
     char output[1024];
     snprintf(output, sizeof(output), "%s/unprinted.out", s_folder);
-    // one case of eight words, none of the other seven zero, the case every question of the probe is asked over
+    // one case of eight words, none of the other seven zero, the case every question of the probe is tested over
     char *const command[] = {(char *)s_runner,   (char *)"run",      cubin,              (char *)"0000000b",
                              (char *)"00000007", (char *)"00000003", (char *)"00000005", (char *)"00000002",
                              (char *)"00000009", (char *)"00000001", (char *)"00000004", NULL};
@@ -224,7 +224,7 @@ int unprinted_run(const unsigned char *code, unsigned long long code_size, unsig
                  (name != NULL) ? name + 1 : "");
         return 0;
     }
-    // the runner prints each answered word as eight hexadecimal digits, which an unsigned int holds
+    // the runner prints each answered word as eight hexadecimal digits, which an unsigned int stores
     const char *walk = line + 9;
     for (unsigned int word = 0u; word < UNPRINTED_COPIES; word += 1u)
     {

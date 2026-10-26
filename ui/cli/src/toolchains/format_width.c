@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// format_width.c: the width a formatter keeps a file's lines to, read from the project's settings for it, and the
+// format_width.c: the width a formatter wraps a file's lines to, read from the project's settings for it, and the
 // nearest settings file read
 #include "format_internal.h"
 
@@ -46,21 +46,21 @@ int cli_format_utf8(const char *bytes, unsigned long long size)
     return 1;
 }
 
-void cli_format_failed(const char *program, const char *path, const CliRan *ran, CliLine *said)
+void cli_format_failed(const char *program, const char *path, const CliRan *ran, VerbaLinea *err_msg)
 {
     const char *name = path;
     for (const char *at = path; at[0] != '\0'; at += 1)
     {
         name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
     }
-    cli_line_text(said, program);
-    cli_line_text(said, " could not format ");
-    cli_line_text(said, (name[0] != '\0') ? name : path);
-    cli_line_text(said, ": ");
+    mmgr_line_put(err_msg, program);
+    mmgr_line_put(err_msg, " could not format ");
+    mmgr_line_put(err_msg, (name[0] != '\0') ? name : path);
+    mmgr_line_put(err_msg, ": ");
     const CliSpan whole = cli_trimmed((CliSpan){ran->err, ran->err_size});
     if (whole.length == 0ull)
     {
-        cli_line_text(said, "it said nothing");
+        mmgr_line_put(err_msg, "it printed nothing");
         return;
     }
     unsigned long long at = 0ull;
@@ -74,17 +74,17 @@ void cli_format_failed(const char *program, const char *path, const CliRan *ran,
         length -= ((newline != NULL) && (length > 0ull) && (whole.at[end - 1ull] == '\r')) ? 1ull : 0ull;
         if (line != 0u)
         {
-            cli_line_character(said, '\n');
+            mmgr_line_ch(err_msg, '\n');
         }
-        cli_lossy(said, (const unsigned char *)whole.at + at, length);
+        cli_lossy(err_msg, (const unsigned char *)whole.at + at, length);
         at = end + 1ull;
     }
 }
 
 int cli_format_nearest(const char *path, const char *const *names, unsigned int count)
 {
-    char folder[CLI_PATH_LONGEST];
-    char up[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char up[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(path, folder))
     {
         return 0;
@@ -93,18 +93,18 @@ int cli_format_nearest(const char *path, const char *const *names, unsigned int 
     {
         for (unsigned int at = 0u; at < count; at += 1u)
         {
-            char file[CLI_PATH_LONGEST];
+            char file[CLI_PATH_MAX_LEN];
             cli_full(folder, names[at], file);
             unsigned long long size = 0ull;
-            const unsigned char *const bytes = cli_file_held(file, &size);
+            const unsigned char *const bytes = cli_file_read(file, &size);
             if (bytes == NULL)
             {
                 continue;
             }
-            // the settings kept in a cell sized to the file, ended by a 0, the ones kept before given back
-            cli_cell_given(g_cli_format.settings);
+            // the settings stored in a cell sized to the file, ended by a 0, the ones stored before given back
+            g_cli_cells->persistent_buf_release(g_cli_format.settings, NULL);
             g_cli_format.settings = cli_format_utf8((const char *)bytes, size)
-                                        ? cli_cell_taken(size + 1ull, "a formatter's settings")
+                                        ? g_cli_cells->persistent_buf_alloc(size + 1ull, NULL)
                                         : NULL;
             const int text = g_cli_format.settings != NULL;
             if (text)
@@ -225,7 +225,7 @@ static int cli_wraps_prose(const char *text)
     {
         if ((at[0] == '\n') || (at[0] == ',') || (at[0] == '{') || (at[0] == '}') || (at[0] == '\0'))
         {
-            char piece[CLI_NAME_LONGEST * 4u];
+            char piece[CLI_NAME_MAX_LEN * 4u];
             // the part lies before `at`, its end at or past its start
             const unsigned long long length = (unsigned long long)(at - part);
             if (length < sizeof(piece))
@@ -257,8 +257,8 @@ int cli_format_margin(const char *path, const char *language, unsigned int *widt
     static const char *const s_clang[2] = {".clang-format", "_clang-format"};
     static const char *const s_prettier[4] = {".prettierrc", ".prettierrc.json", ".prettierrc.yaml", ".prettierrc.yml"};
     cli_lock_take(&g_cli_format_lock);
-    char why[CLI_NAME_LONGEST * 4u];
-    CliLine unknown = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN * 4u];
+    VerbaLinea unknown = {why, sizeof(why), 0ull};
     const unsigned int tool = cli_format_tool(language, &unknown);
     const CliJson *const json = &g_cli_format.json;
     const char *const program =
@@ -331,6 +331,6 @@ int cli_format_margin(const char *path, const char *language, unsigned int *widt
 
 int cli_format_width(const char *path, const char *language, unsigned int *width)
 {
-    char by[CLI_NAME_LONGEST];
+    char by[CLI_NAME_MAX_LEN];
     return cli_format_margin(path, language, width, by);
 }

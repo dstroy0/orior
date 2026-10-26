@@ -4,18 +4,17 @@
 // The run view: every job the catalog reads from the tree, the values each takes, and the output of
 // each run as it arrives.
 
-import { invoke, listen, pick } from "./bridge.js";
+import { invoke, listen } from "./bridge.js";
 
 import { makeFuse } from "./fuse.js";
-import { courseLine, courseRead, courseStart, panelRead, panelReplanned, panelStart, panelStep, planOf, spanSaid, telemetryLine, telemetryRead, telemetryStart, telemetryStep, valuesOfWords } from "./protocol.js";
+import { telemetryLine, valuesOfWords } from "./protocol.js";
 import { makeRuler } from "./ruler.js";
-import { keepLattice } from "./lattice.js";
 import { focusedKey, keepListKeys, refocus } from "./lists.js";
 import { copyText, menuOn } from "./menu.js";
-import { coloredHtml } from "./screen.js";
+import { field, remember, remembered, valuesFrom } from "./run/form.js";
+import { chosenIn, console_, lineNode, outputItems } from "./run/output.js";
+import { CONSOLE, fusePlace, panelRedrawn, planNoted, runRead, runRecord } from "./run/panel.js";
 import { write } from "./status.js";
-import { say } from "./statusbar.js";
-import { runInTerminal } from "./terminal.js";
 import { wordmark } from "./wordmark.js";
 import { showView } from "./views.js";
 
@@ -29,7 +28,7 @@ const KEPT_LINES = 20000;
 // run again and again cannot fill memory either.
 const KEPT_RUNS = 10;
 
-const state = {
+export const state = {
   jobs: [],
   chosen: null,
   // The one group of jobs the list shows, chosen from the strip; null before any is.
@@ -47,153 +46,8 @@ const state = {
 // The time ruler under the fuse, kept as the fuse is.
 state.ruler = makeRuler(state.fuse.canvas);
 
-// How far the fuse has burnt for the run shown: a protocol run's place along its line, the ruler's head
-// for any other run.
-function fusePlace() {
-  const run = shownRun();
-  const job = run && state.jobs.find((one) => one.id === run.job);
-  return job?.group === PROTOCOL ? lineRead(run).place : state.ruler.headAt();
-}
-
-// The line of a protocol run as the panel reads it: a course's steps where the run is the course, each a
-// node, the fire at the step under way part way by its pass; else the pass's own nodes. Each node has its
-// label and whether it is reached, current or failed.
-function lineRead(run) {
-  const pass = panelRead(run.reading, shownOf(run));
-  if (run.course.steps.length) {
-    return courseRead(run.course, pass.place, run.done);
-  }
-  const nodes = pass.nodes.map((node, index) => ({ key: node.key, label: node.label, reached: node.reached, current: !run.done && index === pass.at + 1, failed: false }));
-  return { nodes, place: pass.place };
-}
-
-// The line of a protocol run: its nodes, each a circle with its label, the fuse between them, which burns
-// from node to node as the run goes. The fuse's canvas is the one fuse of the page, taken from the ruler's
-// box while a protocol run is shown and given back after.
-let lineBox = null;
-function lineOf(run) {
-  if (!lineBox) {
-    lineBox = element("div", { className: "protocol-line" });
-  }
-  lineBox.replaceChildren(state.fuse.canvas, nodesOf(run));
-  return lineBox;
-}
-
-function nodesOf(run) {
-  const { nodes } = lineRead(run);
-  const box = element("div", { className: "protocol-nodes", id: "protocol-nodes" });
-  const last = nodes.length - 1;
-  nodes.forEach((node, index) => {
-    const state_ = node.failed ? " failed" : node.current ? " current" : node.reached ? " reached" : "";
-    const one = element("div", { className: `protocol-node${state_}${index === 0 ? " first" : ""}${index === last ? " last" : ""}`, title: node.label });
-    one.style.left = last > 0 ? `${(index / last) * 100}%` : "0";
-    one.append(element("span", { className: "protocol-dot", textContent: node.label }));
-    box.append(one);
-  });
-  return box;
-}
-
-// The one line said under the line: the step under way and its round, the time gone, and the errors
-// where there are any.
-function statusOf(run) {
-  const nowMs = nowOf(run);
-  const read = telemetryRead(run.telemetry, { nowMs, plan: run.plan, reading: run.reading, ended: run.done });
-  const pass = panelRead(run.reading, shownOf(run));
-  const parts = [];
-  if (run.course.steps.length) {
-    const step = run.course.at;
-    parts.push(step ? `step ${step} of ${run.course.steps.length}, ${run.course.steps[step - 1]}` : `${run.course.steps.length} steps`);
-  } else if (run.pass) {
-    parts.push(run.pass);
-  }
-  if (pass.round.rounds) {
-    parts.push(`round ${pass.round.rounds}, ${pass.round.answered} of ${pass.round.asked} answered`);
-  }
-  parts.push(spanSaid(nowMs));
-  const box = element("div", { className: "protocol-status", id: "protocol-status" }, element("span", { textContent: parts.join(" \u00b7 ") }));
-  const errors = [["held", read.held], ["refused", read.refused], ["faulted", read.faulted], ["panics", read.panics]].filter(([, count]) => count);
-  if (errors.length) {
-    box.append(element("span", { className: "warn", textContent: errors.map(([name, count]) => `${count} ${name}`).join(" \u00b7 ") }));
-  }
-  // each cellblock's two peaks against its pool, a warning where they stand at nine tenths of it or more together
-  for (const cellblock of read.cells) {
-    const mib = (bytes) => (bytes / 1048576).toFixed(1);
-    const close = (cellblock.persistent + cellblock.temporary) * 10 >= cellblock.size * 9;
-    const said = `${cellblock.name} ${mib(cellblock.persistent)} + ${mib(cellblock.temporary)} of ${mib(cellblock.size)} MiB`;
-    box.append(element("span", { className: close ? "warn" : "", textContent: said }));
-  }
-  return box;
-}
-
-// The run's clock: milliseconds since the job started, standing still at the end once the run has ended.
-function nowOf(run) {
-  return run.done && run.endMs !== null ? run.endMs : performance.now() - run.clock;
-}
-
-// The views of a protocol run, as tabs over the console box: the overview, the run's line with the fire on
-// it and one line said under it; and the console.
-const OVERVIEW = "overview";
-const CONSOLE = "console";
-function tabStrip(run) {
-  const strip = element("div", { className: "tabs console-tabs", id: "protocol-tabs", role: "tablist" });
-  const views = [
-    { key: OVERVIEW, label: "Overview", count: 0 },
-    { key: CONSOLE, label: "Console", count: run.lines.length },
-  ];
-  for (const view of views) {
-    const tab = element("button", { className: "tab", type: "button", role: "tab" });
-    tab.setAttribute("aria-selected", run.view === view.key ? "true" : "false");
-    tab.append(element("span", { textContent: view.label }), element("span", { className: "count", textContent: view.count ? String(view.count) : "" }));
-    tab.addEventListener("click", () => {
-      run.view = view.key;
-      drawStage();
-    });
-    strip.append(tab);
-  }
-  return strip;
-}
-
-// The body of a protocol run's view: the line for the overview, the console's lines, or a node's blobs.
-function viewBody(run) {
-  if (run.view === OVERVIEW) {
-    const overview = element("div", { className: "protocol-overview" }, lineOf(run), statusOf(run));
-    // the clock moves, so the line said is drawn again each second while the overview stands; a run that
-    // has ended stands still, drawn once more at its end and then left
-    const ticker = setInterval(() => {
-      const shown = document.getElementById("protocol-status");
-      if (!shown || !overview.isConnected) {
-        clearInterval(ticker);
-        return;
-      }
-      shown.replaceWith(statusOf(run));
-      if (run.done) {
-        clearInterval(ticker);
-      }
-    }, 1000);
-    return overview;
-  }
-  const lines = element("pre", { className: "lines", id: "lines" });
-  run.lines.forEach((line) => lines.append(lineNode(line)));
-  if (run.done) {
-    lines.append(endNode(run));
-  }
-  return lines;
-}
-
-function shownOf(run) {
-  // the tools are built by the time the writer names the run's database, and the run has started once its first blob
-  // comes
-  return { pass: run.pass, plan: run.plan, tools: run.tools, started: run.telemetry.firstAt !== null, ended: run.done };
-}
-
 // The protocol jobs, whose runs show in the panel.
-const PROTOCOL = "protocol";
-
-// A run record as it starts: its console lines and, for a protocol run, the reading of its database, the
-// .qry its writer names and where the next read of it goes on from.
-function runRecord(run, job, lines, steps, clock) {
-  return { run, job, lines, started: steps.length, steps, clock, endMs: null, done: false, code: null, views: [], made: null, stopped: false, reading: panelStart(), plan: null, pass: "", tools: false, qry: null, next: 0, readUnderWay: false, readAgain: false, view: OVERVIEW, telemetry: telemetryStart(), reachedAt: {}, course: courseStart() };
-}
+export const PROTOCOL = "protocol";
 
 // A run's start, said before its first line: its record made here, so that every line finds it.
 function onStart({ payload }) {
@@ -203,43 +57,13 @@ function onStart({ payload }) {
   }
 }
 
-// The run read where its writer wrote it: its buffer through qry_read, from where the last read stopped, each blob
-// taken into the panel's reading in the order the writer placed it. A read comes as a console line of the run comes
-// and once more at its end; one asked for while another is under way is made as that one ends.
-async function runRead(run) {
-  if (!run.qry) {
-    return;
-  }
-  if (run.readUnderWay) {
-    run.readAgain = true;
-    return;
-  }
-  run.readUnderWay = true;
-  do {
-    run.readAgain = false;
-    const read = await invoke("qry_read", { path: run.qry, from: run.next }).catch(() => null);
-    if (read) {
-      run.next = read.next;
-      for (const blob of read.blobs) {
-        panelStep(run.reading, blob, { plan: run.plan });
-        telemetryStep(run.telemetry, blob, performance.now() - run.clock);
-      }
-      panelRedrawn(run);
-    }
-  } while (run.readAgain);
-  run.readUnderWay = false;
-}
-
-const remembered = (id) => JSON.parse(localStorage.getItem(`orior.values.${id}`) || "{}");
-const remember = (id, values) => localStorage.setItem(`orior.values.${id}`, JSON.stringify(values));
-
-function element(tag, props = {}, ...children) {
+export function element(tag, props = {}, ...children) {
   const made = Object.assign(document.createElement(tag), props);
   made.append(...children.filter((child) => child !== null && child !== undefined));
   return made;
 }
 
-function runsOf(id) {
+export function runsOf(id) {
   return [...state.runs.values()].filter((run) => run.job === id);
 }
 
@@ -249,7 +73,7 @@ function liveOf(id) {
 
 // The run on the stage: the one the reader chose of the chosen job's runs, else its newest, or null
 // where no job is chosen or it has not run.
-function shownRun() {
+export function shownRun() {
   if (state.chosen === null) {
     return null;
   }
@@ -347,72 +171,7 @@ function item(job) {
   return button;
 }
 
-async function pickInto(param, input) {
-  const given = await pick(param.kind);
-  if (typeof given === "string") {
-    input.value = given;
-    input.dispatchEvent(new Event("input"));
-  }
-}
-
-function field(job, param, values) {
-  const id = `param-${param.key}`;
-  const label = element("label", { htmlFor: id, textContent: param.key, className: param.required ? "needed" : "" });
-  const given = values[param.key] ?? (param.default ? [param.default] : []);
-  let control;
-  if (param.kind === "choice") {
-    control = element("select", { id });
-    if (!param.required) {
-      control.append(element("option", { value: "", textContent: "" }));
-    }
-    param.choices.forEach((value) => control.append(element("option", { value, textContent: value })));
-    control.value = given[0] ?? "";
-  } else if (param.kind === "many") {
-    control = element("div", { className: "choices", id });
-    for (const value of param.choices) {
-      const box = element("input", { type: "checkbox", value, checked: given.includes(value) });
-      control.append(element("label", {}, box, value));
-    }
-  } else {
-    const input = element("input", { id, type: "text", value: given[0] ?? "", spellcheck: false });
-    if (param.kind === "choice-or-file") {
-      const list = element("datalist", { id: `${id}-list` });
-      param.choices.forEach((value) => list.append(element("option", { value })));
-      input.setAttribute("list", list.id);
-      control = element("div", { className: "pick" }, input, list, pickButton(param, input));
-    } else if (["file", "dir", "save", "save-dir"].includes(param.kind)) {
-      control = element("div", { className: "pick" }, input, pickButton(param, input));
-    } else {
-      control = input;
-    }
-  }
-  return [label, control];
-}
-
-function pickButton(param, input) {
-  const button = element("button", { className: "secondary", type: "button", textContent: "Open" });
-  button.addEventListener("click", () => pickInto(param, input));
-  return button;
-}
-
-function valuesFrom(job) {
-  const values = {};
-  for (const param of job.params) {
-    const node = document.getElementById(`param-${param.key}`);
-    if (!node) {
-      continue;
-    }
-    if (param.kind === "many") {
-      values[param.key] = [...node.querySelectorAll("input:checked")].map((box) => box.value);
-    } else {
-      const input = node.matches("input, select") ? node : node.querySelector("input");
-      values[param.key] = input.value.trim() ? [input.value.trim()] : [];
-    }
-  }
-  return values;
-}
-
-function drawStage() {
+export function drawStage() {
   const stage = document.getElementById("job-stage");
   const job = state.jobs.find((one) => one.id === state.chosen);
   if (!job) {
@@ -420,10 +179,8 @@ function drawStage() {
     if (stage.querySelector(":scope > .empty")) {
       return;
     }
-    const canvas = element("canvas", { className: "lattice" });
     const body = element("div", { className: "empty-body" }, wordmark("h1"));
-    stage.replaceChildren(element("div", { className: "empty" }, canvas, body));
-    keepLattice(canvas);
+    stage.replaceChildren(element("div", { className: "empty" }, body));
     return;
   }
   const values = remembered(job.id);
@@ -497,206 +254,6 @@ export async function startJob(id, values) {
     drawStage();
   }
   return run;
-}
-
-// A job's output, which a job that has not run yet has none of.
-function console_(job) {
-  const runs = runsOf(job.id);
-  if (!runs.length) {
-    state.fuse.follow(null);
-    state.ruler.follow(null);
-    return null;
-  }
-  const shown = state.runs.get(state.shown.get(job.id)) ?? runs[runs.length - 1];
-  const head = element("div", { className: "console-head" });
-  for (const run of runs) {
-    const tab = element("button", { className: `run ${endClass(run)}`, type: "button", textContent: `#${run.run} ${status(run)}` });
-    if (run === shown) {
-      tab.setAttribute("aria-current", "true");
-    }
-    tab.addEventListener("click", () => {
-      state.shown.set(job.id, run.run);
-      drawStage();
-    });
-    head.append(tab);
-  }
-  if (shown?.views.length) {
-    const views = element("div", { className: "views" });
-    for (const page of shown.views) {
-      const button = element("button", { type: "button", textContent: page.split("/").pop(), title: page });
-      button.addEventListener("click", () => invoke("view_open", { path: page }));
-      views.append(button);
-    }
-    head.append(views);
-  }
-  if (shown?.made) {
-    head.append(madeButtons(job, shown.made));
-  }
-  const protocol = job.group === PROTOCOL && shown;
-  if (protocol) {
-    const body = viewBody(shown);
-    requestAnimationFrame(() => {
-      body.scrollTop = body.scrollHeight;
-      state.fuse.follow(shown);
-      state.ruler.follow(shown);
-    });
-    return element("div", { className: "console" }, head, tabStrip(shown), body);
-  }
-  const lines = element("pre", { className: "lines", id: "lines" });
-  shown?.lines.forEach((line) => lines.append(lineNode(line)));
-  if (shown?.done) {
-    lines.append(endNode(shown));
-  }
-  requestAnimationFrame(() => {
-    lines.scrollTop = lines.scrollHeight;
-    state.fuse.follow(shown ?? null);
-    state.ruler.follow(shown ?? null);
-  });
-  if (!state.ruler.element.contains(state.fuse.canvas)) {
-    state.ruler.element.prepend(state.fuse.canvas);
-  }
-  return element("div", { className: "console" }, head, lines, state.ruler.element);
-}
-
-// The panel drawn again in place for the run shown, as a blob or the plan comes: once a frame however
-// many came, and only where what it shows has changed, so that it stands still between changes.
-let panelFrame = 0;
-function panelRedrawn(run) {
-  if (panelFrame) {
-    return;
-  }
-  panelFrame = requestAnimationFrame(() => {
-    panelFrame = 0;
-    const nodes = document.getElementById("protocol-nodes");
-    const status_ = document.getElementById("protocol-status");
-    const tabs = document.getElementById("protocol-tabs");
-    if ((nodes || tabs) && state.chosen === run.job && (state.shown.get(run.job) ?? run.run) === run.run) {
-      const drawn = nodesOf(run);
-      if (nodes && drawn.innerHTML !== nodes.innerHTML) {
-        nodes.replaceWith(drawn);
-      }
-      if (status_) {
-        status_.replaceWith(statusOf(run));
-      }
-      const strip = tabStrip(run);
-      if (tabs && strip.innerHTML !== tabs.innerHTML) {
-        tabs.replaceWith(strip);
-      }
-      state.fuse.flare();
-    }
-  });
-}
-
-// The plan the teacher says on its console, kept on the run; the course's lines, each step of which is a
-// pass of its own whose reading starts over; and the writer naming its tap, which says the run started.
-function planNoted(run, line) {
-  if (/^\s*course: /.test(line.text)) {
-    const before = run.course.at;
-    courseLine(run.course, line.text);
-    if (run.course.at !== before) {
-      // the step to come is a member of the course's one run, and the writer's blobs go on into a reading of its own
-      run.reading = panelStart();
-      run.plan = null;
-      run.pass = run.course.steps[run.course.at - 1] ?? "";
-    }
-    panelRedrawn(run);
-    return;
-  }
-  if (/^\s*plan: /.test(line.text)) {
-    const planned = planOf(line.text);
-    if (planned && !run.plan) {
-      run.plan = planned;
-      run.reading = panelReplanned(run.reading, planned);
-    }
-    run.pass = run.plan?.pass ?? run.pass;
-    panelRedrawn(run);
-  }
-  if (line.stream === "command" && !run.pass) {
-    // the pass's name off the command line, `orior_gui protocol learn <pass> ...`, for the line before the plan comes
-    const words = line.text.split(/\s+/);
-    const at = words.indexOf("learn");
-    run.pass = at >= 0 && words[at + 1] ? words[at + 1] : words[words.indexOf("protocol") + 1] ?? "";
-    panelRedrawn(run);
-  }
-  // the writer naming the run's database: the tools are built, and the writer's blobs come from here on
-  const made = /^\s*orior_qry_writer: the run of (.+) is made\s*$/.exec(line.text);
-  if (made) {
-    run.tools = true;
-    run.qry = made[1];
-    panelRedrawn(run);
-  }
-}
-
-function status(run) {
-  if (!run.done) {
-    return "running";
-  }
-  if (run.stopped) {
-    return "stopped";
-  }
-  return run.code === null ? "ended" : `exit ${run.code}`;
-}
-
-function endClass(run) {
-  if (!run.done) {
-    return "";
-  }
-  return run.code === 0 && !run.stopped ? "ok" : "failed";
-}
-
-// A line of output, in the colors its escape sequences ask for.
-function lineNode(line) {
-  if (!line.text.includes("\x1b")) {
-    return element("span", { className: line.stream, textContent: `${line.text}\n` });
-  }
-  return element("span", { className: line.stream, innerHTML: `${coloredHtml(line.text)}\n` });
-}
-
-// A path as a POSIX shell takes it, in single quotes.
-function quoted(path) {
-  return `'${path.replace(/'/g, "'\\''")}'`;
-}
-
-// The program a build made, by its full path: one in the tree is named from the tree's top folder.
-function madePath(made) {
-  if (/^([A-Za-z]:)?[\\/]/.test(made)) {
-    return made;
-  }
-  const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
-  return `${top}/${made}`;
-}
-
-// What a build that made a program offers: the program run in the terminal at the tree's top folder;
-// built and run again in the job, as orior_gui runs it or as the system runs a program opened on its
-// own; the libraries it loads through a PATH copied beside it; and its path copied.
-function madeButtons(job, made) {
-  const buttons = element("div", { className: "views" });
-  const button = (label, act, title = made) => {
-    const one = element("button", { type: "button", textContent: label, title });
-    one.addEventListener("click", act);
-    buttons.append(one);
-  };
-  button(`Run ${made.split("/").pop()}`, () => {
-    const top = document.getElementById("tree-path").textContent.replace(/\\/g, "/");
-    runInTerminal(`( cd -- ${quoted(top)} && ${quoted(madePath(made))} )`);
-  });
-  const again = (then) => startJob(job.id, { ...valuesFrom(job), then: [then] }).catch((error) => say(String(error), { failed: true }));
-  button("Run in the Job", () => again("run"));
-  button("Run as the System Runs It", () => again("run as the system runs it"));
-  button("Copy Libraries Beside It", async () => {
-    try {
-      const copied = await invoke("made_libraries_copy", { path: made });
-      say(copied.length ? `Copied ${copied.join(", ")} beside ${made.split("/").pop()}` : `${made.split("/").pop()} loads no library through a PATH`);
-    } catch (error) {
-      say(String(error), { failed: true });
-    }
-  });
-  button("Copy Path", () => copyText(madePath(made)), madePath(made));
-  return buttons;
-}
-
-function endNode(run) {
-  return element("span", { className: `end ${endClass(run)}`, textContent: status(run) });
 }
 
 function onLine({ payload }) {
@@ -848,33 +405,11 @@ export const runCommands = {
   "output-select-all": () => shownLines() && window.getSelection().selectAllChildren(shownLines()),
 };
 
-// The text chosen in `lines`, as the document holds it: read from the range chosen, which gives it in a
-// window without the keys, where WebKit's selection gives none.
-function chosenIn(lines) {
-  const selection = window.getSelection();
-  return lines && selection?.rangeCount && !selection.isCollapsed && lines.contains(selection.anchorNode) ? selection.getRangeAt(0).toString() : "";
-}
-
-// The output's menu: copy what is chosen in it, or all of it, or choose all of it.
-function outputItems(event) {
-  const lines = event.target.closest(".lines");
-  if (!lines) {
-    return null;
-  }
-  const chosen = chosenIn(lines);
-  return [
-    { label: "Copy", keys: "Ctrl+C", command: "output-copy", args: [], disabled: !chosen, run: () => copyText(chosen) },
-    { label: "Copy all", command: "output-copy-all", args: [], run: () => copyText(lines.textContent) },
-    "-",
-    { label: "Select all", command: "output-select-all", args: [], run: () => window.getSelection().selectAllChildren(lines) },
-  ];
-}
-
 // Reads again, from its first line, each run kept on the tree's machine that this window has not
 // seen end: a run going there when the window opened, and one whose lines stopped coming when the
 // link to the machine dropped. A tree on this machine keeps none.
 export async function readRunsAgain() {
-  const kept = await invoke("runs_kept").catch(() => []);
+  const kept = await invoke("runs_detached").catch(() => []);
   for (const one of kept) {
     const known = state.runs.get(one.run);
     if (known?.done || (!known && one.ended)) {

@@ -5,7 +5,7 @@
 // that set stepping, and breakpoints as the protocol writes them
 #include "debug_internal.h"
 
-// the bytes of a string filled in, and the lock the room it is filled in is held by
+// the bytes of a string filled in, and the lock the room it is filled in is guarded by
 #define CLI_DEBUG_FILLED (1u << 16u)
 
 static char s_filled[2][CLI_DEBUG_FILLED];
@@ -87,7 +87,7 @@ unsigned long long cli_debug_base64(const char *text, unsigned long long size, u
                                     unsigned long long room)
 {
     unsigned long long count = 0ull;
-    unsigned int held = 0u;
+    unsigned int accum = 0u;
     unsigned int bits = 0u;
     for (unsigned long long at = 0ull; at < size; at += 1ull)
     {
@@ -102,17 +102,17 @@ unsigned long long cli_debug_base64(const char *text, unsigned long long size, u
         {
             continue;
         }
-        held = (held << 6u) | (unsigned int)value;
+        accum = (accum << 6u) | (unsigned int)value;
         bits += 6u;
         if (bits >= 8u)
         {
             bits -= 8u;
             if (count < room)
             {
-                out[count] = (unsigned char)((held >> bits) & 0xffu);
+                out[count] = (unsigned char)((accum >> bits) & 0xffu);
                 count += 1ull;
             }
-            held &= (1u << bits) - 1u;
+            accum &= (1u << bits) - 1u;
         }
     }
     return count;
@@ -122,31 +122,31 @@ unsigned long long cli_debug_base64(const char *text, unsigned long long size, u
 static const char *arguments_string_filled(const char *text, unsigned long long length, const char *const *names,
                                            const char *const *withs, unsigned int count, unsigned long long *size)
 {
-    CliLine first = {s_filled[0], sizeof(s_filled[0]), 0ull};
-    cli_line_counted(&first, text, length);
+    VerbaLinea first = {s_filled[0], sizeof(s_filled[0]), 0ull};
+    mmgr_line_put_n(&first, text, length);
     unsigned int from = 0u;
     unsigned long long at_end = first.at;
     for (unsigned int one = 0u; one < count; one += 1u)
     {
-        char mark[CLI_NAME_LONGEST];
-        CliLine marked = {mark, sizeof(mark), 0ull};
-        cli_line_character(&marked, '{');
-        cli_line_text(&marked, names[one]);
-        cli_line_character(&marked, '}');
+        char mark[CLI_NAME_MAX_LEN];
+        VerbaLinea marked = {mark, sizeof(mark), 0ull};
+        mmgr_line_ch(&marked, '{');
+        mmgr_line_put(&marked, names[one]);
+        mmgr_line_ch(&marked, '}');
         const unsigned long long mark_size = marked.at;
-        CliLine next = {s_filled[1u - from], sizeof(s_filled[0]), 0ull};
+        VerbaLinea next = {s_filled[1u - from], sizeof(s_filled[0]), 0ull};
         const char *const was = s_filled[from];
         for (unsigned long long at = 0ull; at < at_end;)
         {
             if ((at + mark_size <= at_end) &&
                 (memor.cmp(&(MemoriaCfg){.src = was + at, .other = mark, .bytes = mark_size}) == 0))
             {
-                cli_line_text(&next, withs[one]);
+                mmgr_line_put(&next, withs[one]);
                 at += mark_size;
             }
             else
             {
-                cli_line_character(&next, was[at]);
+                mmgr_line_ch(&next, was[at]);
                 at += 1ull;
             }
         }
@@ -185,9 +185,9 @@ static unsigned int arguments_filled(CliJson *to, const CliJson *json, unsigned 
         if (numbered && arguments_digits(filled, size, &value))
         {
             char number[32];
-            CliLine written = {number, sizeof(number), 0ull};
-            cli_line_decimal(&written, value, 1u);
-            cli_line_closed(&written);
+            VerbaLinea written = {number, sizeof(number), 0ull};
+            mmgr_line_decimal(&written, value, 1u);
+            mmgr_line_finish(&written);
             return cli_json_number_made(to, number);
         }
         return cli_json_string_made(to, filled, size);
@@ -295,8 +295,8 @@ void cli_debug_step_arguments(const char *language, const CliJson *json, unsigne
         return;
     }
     char patterns[CLI_DEBUG_FILLED];
-    CliLine joined = {patterns, sizeof(patterns), 0ull};
-    cli_line_text(&joined, "settings set target.process.thread.step-avoid-regexp ");
+    VerbaLinea joined = {patterns, sizeof(patterns), 0ull};
+    mmgr_line_put(&joined, "settings set target.process.thread.step-avoid-regexp ");
     unsigned int count = 0u;
     for (unsigned int at = 0u; cli_json_item(json, skip, at) != CLI_JSON_NONE; at += 1u)
     {
@@ -304,8 +304,8 @@ void cli_debug_step_arguments(const char *language, const CliJson *json, unsigne
         const char *const trimmed = arguments_trimmed(cli_debug_text(json, cli_json_item(json, skip, at), ""), &length);
         if (length > 0ull)
         {
-            cli_line_text(&joined, (count > 0u) ? "|" : "");
-            cli_line_counted(&joined, trimmed, length);
+            mmgr_line_put(&joined, (count > 0u) ? "|" : "");
+            mmgr_line_put_n(&joined, trimmed, length);
             count += 1u;
         }
     }
@@ -320,18 +320,18 @@ void cli_debug_step_arguments(const char *language, const CliJson *json, unsigne
     cli_json_set(to, arguments, "initCommands", commands);
 }
 
-void cli_debug_breakpoints_written(const CliJson *json, unsigned int breakpoints, CliLine *out)
+void cli_debug_breakpoints_written(const CliJson *json, unsigned int breakpoints, VerbaLinea *out)
 {
     static const char *const s_keys[3] = {"condition", "hitCondition", "logMessage"};
     static const char *const s_fields[3] = {"condition", "hits", "log"};
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; cli_json_item(json, breakpoints, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int one = cli_json_item(json, breakpoints, at);
         unsigned long long line = 0ull;
         (void)cli_debug_unsigned(json, cli_json_member(json, one, "line"), &line);
-        cli_line_text(out, (at > 0u) ? ",{\"line\":" : "{\"line\":");
-        cli_line_decimal(out, (line & 0xffffffffull) + 1ull, 1u);
+        mmgr_line_put(out, (at > 0u) ? ",{\"line\":" : "{\"line\":");
+        mmgr_line_decimal(out, (line & 0xffffffffull) + 1ull, 1u);
         for (unsigned int field = 0u; field < 3u; field += 1u)
         {
             unsigned long long length = 0ull;
@@ -339,13 +339,13 @@ void cli_debug_breakpoints_written(const CliJson *json, unsigned int breakpoints
                 arguments_trimmed(cli_debug_text(json, cli_json_member(json, one, s_fields[field]), ""), &length);
             if (length > 0ull)
             {
-                cli_line_text(out, ",\"");
-                cli_line_text(out, s_keys[field]);
-                cli_line_text(out, "\":");
+                mmgr_line_put(out, ",\"");
+                mmgr_line_put(out, s_keys[field]);
+                mmgr_line_put(out, "\":");
                 cli_json_quoted_lossy(out, (const unsigned char *)trimmed, length);
             }
         }
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
 }

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// envs_resolve.c: an environment of the tree made ready to use, Pipenv and Nix asked where theirs are, and the
+// envs_resolve.c: an environment of the tree made ready to use, Pipenv and Nix queried where theirs are, and the
 // packages its Python has not installed
 #include "../command_line/cells.h"
 #include "../text/json_tree.h"
@@ -12,15 +12,15 @@ typedef struct
 {
     CliFound found;
     char path[CLI_PATH_TEXT];
-    char *said;
-    unsigned long long said_size;
+    char *output;
+    unsigned long long output_size;
 } CliEnvRoom;
 
 static CliEnvRoom *s_room;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// the Python and the bin folder of a virtual environment's folder into `environment`: 1, or 0 with why said
-static int cli_venv_at(const char *folder, CliTreeEnvironment *environment, CliLine *said)
+// the Python and the bin folder of a virtual environment's folder into `environment`: 1, or 0 with why given
+static int cli_venv_at(const char *folder, CliTreeEnvironment *environment, VerbaLinea *err_msg)
 {
 #if defined(_WIN32)
     static const char *const s_bin = "Scripts";
@@ -29,14 +29,14 @@ static int cli_venv_at(const char *folder, CliTreeEnvironment *environment, CliL
     static const char *const s_bin = "bin";
     static const char *const s_python = "python";
 #endif
-    char bin[CLI_PATH_LONGEST];
-    char python[CLI_PATH_LONGEST];
+    char bin[CLI_PATH_MAX_LEN];
+    char python[CLI_PATH_MAX_LEN];
     cli_full(folder, s_bin, bin);
     cli_full(bin, s_python, python);
     if (!query_is_file(python))
     {
-        cli_line_text(said, folder);
-        cli_line_text(said, " holds no Python");
+        mmgr_line_put(err_msg, folder);
+        mmgr_line_put(err_msg, " contains no Python");
         return 0;
     }
     environment->bins = 1u;
@@ -52,35 +52,36 @@ static int cli_venv_at(const char *folder, CliTreeEnvironment *environment, CliL
 }
 
 // the output of the program the manifest names `id`, run in `folder` with `args`, into the room: 1, or 0 with why
-// said
-static int cli_asked(const char *id, const char *folder, const char *const *args, unsigned int count, CliLine *said)
+// given
+static int cli_tool_output_read(const char *id, const char *folder, const char *const *args, unsigned int count,
+                                VerbaLinea *err_msg)
 {
     CliJson json;
-    char why[CLI_NAME_LONGEST];
-    CliLine unknown = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unknown = {why, sizeof(why), 0ull};
     const unsigned int tool = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), id, &unknown);
     if (tool == CLI_JSON_NONE)
     {
         cli_json_given(&json);
-        cli_line_text(said, id);
-        cli_line_text(said, " is not in the manifest");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is not in the manifest");
         return 0;
     }
     const char *const shown = cli_json_string(&json, cli_json_member(&json, tool, "name"), NULL);
-    char name[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){
         .dst = name,
         .src = (shown != NULL) ? shown : id,
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (shown != NULL) ? shown : id, .cap = CLI_CELLS_POOL}) + 1u});
     unsigned int folders = 0u;
-    char (*const path)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&folders);
-    cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_LONGEST])path, folders, &s_room->found);
-    cli_cell_given(path);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders);
+    cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])path, folders, &s_room->found);
+    g_cli_cells->persistent_buf_release(path, NULL);
     cli_json_given(&json);
     if (!s_room->found.has_program)
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " is not found: File, Toolchains opens its install page or takes its folder");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " is not found: File, Toolchains opens its install page or takes its folder");
         return 0;
     }
     const char *words[16] = {s_room->found.program};
@@ -92,18 +93,18 @@ static int cli_asked(const char *id, const char *folder, const char *const *args
     cli_toolchains_run_path(s_room->path, sizeof(s_room->path));
     const CliSetting settings[2] = {{"PATH", s_room->path}, {"PIPENV_IGNORE_VIRTUALENVS", "1"}};
     CliRan *const ran = cli_ran_taken();
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     if (!cli_ran(words, folder, settings, 2u, ran, &unstarted))
     {
         cli_ran_given(ran);
-        cli_line_text(said, name);
-        cli_line_text(said, ": ");
-        cli_line_counted(said, why, unstarted.at);
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, why, unstarted.at);
         return 0;
     }
     if (ran->code != 0ll)
     {
-        // the last line of what it said, trimmed, or that it failed
+        // the last line of what it printed, trimmed, or that it failed
         unsigned long long end = ran->err_size;
         while ((end > 0ull) &&
                ((ran->err[end - 1ull] == ' ') || ((ran->err[end - 1ull] >= '\t') && (ran->err[end - 1ull] <= '\r'))))
@@ -121,49 +122,49 @@ static int cli_asked(const char *id, const char *folder, const char *const *args
             first += 1ull;
         }
         start = (start > first) ? start : first;
-        cli_line_text(said, name);
-        cli_line_text(said, ": ");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, ": ");
         if (end > start)
         {
-            cli_lossy(said, (const unsigned char *)ran->err + start, end - start);
+            cli_lossy(err_msg, (const unsigned char *)ran->err + start, end - start);
         }
         else
         {
-            cli_line_text(said, "it failed");
+            mmgr_line_put(err_msg, "it failed");
         }
         cli_ran_given(ran);
         return 0;
     }
-    cli_cell_given(s_room->said);
-    s_room->said = cli_cell_taken(ran->out_size + 1ull, "what an environment's tool answered");
-    s_room->said_size = (s_room->said != NULL) ? ran->out_size : 0ull;
-    if (s_room->said != NULL)
+    g_cli_cells->persistent_buf_release(s_room->output, NULL);
+    s_room->output = g_cli_cells->persistent_buf_alloc(ran->out_size + 1ull, NULL);
+    s_room->output_size = (s_room->output != NULL) ? ran->out_size : 0ull;
+    if (s_room->output != NULL)
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_room->said, .src = ran->out, .bytes = ran->out_size});
-        s_room->said[ran->out_size] = '\0';
+        memor.cpy(&(MemoriaCfg){.dst = s_room->output, .src = ran->out, .bytes = ran->out_size});
+        s_room->output[ran->out_size] = '\0';
     }
     cli_ran_given(ran);
-    if (s_room->said == NULL)
+    if (s_room->output == NULL)
     {
-        cli_line_text(said, name);
-        cli_line_text(said, ": its answer could not be kept");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, ": its answer could not be stored");
         return 0;
     }
     return 1;
 }
 
-// the folders of a Nix development shell's PATH that are in its store, and its Python where one of them holds it
-static int cli_nix_read(CliTreeEnvironment *environment, CliLine *said)
+// the folders of a Nix development shell's PATH that are in its store, and its Python where one of them contains it
+static int cli_nix_read(CliTreeEnvironment *environment, VerbaLinea *err_msg)
 {
     CliJson json;
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, s_room->said, s_room->said_size, 0u, 0ull, &unread);
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
+    const unsigned int root = cli_json_taken(&json, s_room->output, s_room->output_size, 0u, 0ull, &unread);
     if (root == CLI_JSON_NONE)
     {
         cli_json_given(&json);
-        cli_line_text(said, "Nix: ");
-        cli_line_counted(said, why, unread.at);
+        mmgr_line_put(err_msg, "Nix: ");
+        mmgr_line_put_n(err_msg, why, unread.at);
         return 0;
     }
     const unsigned int path = cli_json_member(&json, cli_json_member(&json, root, "variables"), "PATH");
@@ -184,11 +185,11 @@ static int cli_nix_read(CliTreeEnvironment *environment, CliLine *said)
         {
             continue;
         }
-        char folder[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
         const unsigned long long size = at - from;
         const char *const start = folders + from;
         from = at + 1ull;
-        if ((size >= CLI_PATH_LONGEST) || (environment->bins >= CLI_ENVIRONMENT_BINS))
+        if ((size >= CLI_PATH_MAX_LEN) || (environment->bins >= CLI_ENVIRONMENT_BINS))
         {
             continue;
         }
@@ -203,7 +204,7 @@ static int cli_nix_read(CliTreeEnvironment *environment, CliLine *said)
                                 .src = folder,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
         environment->bins += 1u;
-        char python[CLI_PATH_LONGEST];
+        char python[CLI_PATH_MAX_LEN];
         cli_full(folder, "python3", python);
         if (!environment->has_python && query_is_file(python))
         {
@@ -219,9 +220,9 @@ static int cli_nix_read(CliTreeEnvironment *environment, CliLine *said)
 }
 
 int cli_envs_resolve(const char *root, const char *kind, const char *place, CliTreeEnvironment *environment,
-                     CliLine *said)
+                     VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (place[0] == '\0')
     {
         memor.cpy(&(MemoriaCfg){.dst = folder,
@@ -233,52 +234,52 @@ int cli_envs_resolve(const char *root, const char *kind, const char *place, CliT
         cli_full(root, place, folder);
     }
     cli_lock_take(&s_lock);
-    s_room = cli_cell_taken(sizeof(*s_room), "an environment's resolving");
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
     if (s_room == NULL)
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "an environment's resolving could not be taken");
+        mmgr_line_put(err_msg, "an environment's resolving could not be taken");
         return 0;
     }
-    s_room->said = NULL;
-    s_room->said_size = 0ull;
+    s_room->output = NULL;
+    s_room->output_size = 0ull;
     int made = 0;
     if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "venv", .cap = CLI_CELLS_POOL}))
     {
-        made = cli_venv_at(folder, environment, said);
+        made = cli_venv_at(folder, environment, err_msg);
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "pipenv", .cap = CLI_CELLS_POOL}))
     {
         static const char *const s_args[1] = {"--venv"};
-        made = cli_asked("pipenv", folder, s_args, 1u, said);
+        made = cli_tool_output_read("pipenv", folder, s_args, 1u, err_msg);
         if (made)
         {
             // the folder Pipenv gave, trimmed
             unsigned long long start = 0ull;
-            unsigned long long end = s_room->said_size;
-            while ((start < end) &&
-                   ((s_room->said[start] == ' ') || ((s_room->said[start] >= '\t') && (s_room->said[start] <= '\r'))))
+            unsigned long long end = s_room->output_size;
+            while ((start < end) && ((s_room->output[start] == ' ') ||
+                                     ((s_room->output[start] >= '\t') && (s_room->output[start] <= '\r'))))
             {
                 start += 1ull;
             }
-            while ((end > start) && ((s_room->said[end - 1ull] == ' ') ||
-                                     ((s_room->said[end - 1ull] >= '\t') && (s_room->said[end - 1ull] <= '\r'))))
+            while ((end > start) && ((s_room->output[end - 1ull] == ' ') ||
+                                     ((s_room->output[end - 1ull] >= '\t') && (s_room->output[end - 1ull] <= '\r'))))
             {
                 end -= 1ull;
             }
-            s_room->said[end] = '\0';
-            made = cli_venv_at(s_room->said + start, environment, said);
+            s_room->output[end] = '\0';
+            made = cli_venv_at(s_room->output + start, environment, err_msg);
         }
     }
     else if (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "nix", .cap = CLI_CELLS_POOL}))
     {
         static const char *const s_args[2] = {"print-dev-env", "--json"};
-        made = cli_asked("nix", folder, s_args, 2u, said) && cli_nix_read(environment, said);
+        made = cli_tool_output_read("nix", folder, s_args, 2u, err_msg) && cli_nix_read(environment, err_msg);
     }
     else
     {
-        cli_line_text(said, kind);
-        cli_line_text(said, " is no kind of environment");
+        mmgr_line_put(err_msg, kind);
+        mmgr_line_put(err_msg, " is no kind of environment");
     }
     if (made)
     {
@@ -286,8 +287,8 @@ int cli_envs_resolve(const char *root, const char *kind, const char *place, CliT
                                 .src = place,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_cell_given(s_room->said);
-    cli_cell_given(s_room);
+    g_cli_cells->persistent_buf_release(s_room->output, NULL);
+    g_cli_cells->persistent_buf_release(s_room, NULL);
     s_room = NULL;
     cli_lock_give(&s_lock);
     return made;
@@ -316,9 +317,9 @@ static int cli_package_same(const char *one, unsigned long long one_length, cons
 }
 
 void cli_envs_missing(const CliTreeEnvironment *environment, const char *const *requires, unsigned int count,
-                      CliLine *out)
+                      VerbaLinea *out)
 {
-    // pip's list read into a tree sized to it; where it cannot be read none is said to be missing, as where the
+    // pip's list read into a tree sized to it; where it cannot be read none is reported to be missing, as where the
     // environment has no Python
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
@@ -329,17 +330,17 @@ void cli_envs_missing(const CliTreeEnvironment *environment, const char *const *
         const char *const words[8] = {environment->python,           "-m", "pip", "list", "--format", "json",
                                       "--disable-pip-version-check", NULL};
         CliRan *const ran = cli_ran_taken();
-        char why[CLI_NAME_LONGEST];
-        CliLine unstarted = {why, sizeof(why), 0ull};
+        char why[CLI_NAME_MAX_LEN];
+        VerbaLinea unstarted = {why, sizeof(why), 0ull};
         started = cli_ran(words, NULL, NULL, 0u, ran, &unstarted);
         if (started)
         {
-            CliLine unread = {why, sizeof(why), 0ull};
+            VerbaLinea unread = {why, sizeof(why), 0ull};
             listed = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, &unread);
         }
         cli_ran_given(ran);
     }
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     unsigned int written = 0u;
     for (unsigned int index = 0u; started && (index < count); index += 1u)
     {
@@ -354,11 +355,11 @@ void cli_envs_missing(const CliTreeEnvironment *environment, const char *const *
         }
         if (!installed)
         {
-            cli_line_text(out, (written != 0u) ? "," : "");
+            mmgr_line_put(out, (written != 0u) ? "," : "");
             cli_json_quoted(out, requires[index], length);
             written += 1u;
         }
     }
-    cli_line_character(out, ']');
+    mmgr_line_ch(out, ']');
     cli_json_given(&json);
 }

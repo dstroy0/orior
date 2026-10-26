@@ -19,22 +19,23 @@ KEYMATH_CU="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 KEY_SCHEDULE_CU="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 CUBIN="$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding"
 OUT="$TOP/build/sass_lane_needs"
 mkdir -p "$OUT"
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$TOP/src/cu/includes/codecs/crc" -I "$CYCLE" -I "$CYCLE_CU" -I "$CODEGEN" -I "$CODEGEN_CU" -I "$CODEGEN_CU_2" -I "$KEYMATH" -I "$KEYMATH_CU"
-    -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" -I "$SCRIPTURA" -I "$CUBIN" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
+    -I "$KEY_SCHEDULE" -I "$KEY_SCHEDULE_CU" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$CUBIN" -I "$TOP/utils/test/src/cu/engine/analysis/cycle")
 OBJECTS=()
-for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
-    object="$OUT/$(basename "$source").o"
-    cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/includes/parsers" -c "$source" -o "$object" || exit 1
+for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
+    object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
+    cc -std=c11 -O2 -Wall -Wextra -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$TOP/src/cu/includes/parsers" \
+        "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
 # cycle.c is the host oracle that runs a lane, which nothing here does: only the encoder and the layout are wanted,
 # and on this host cycle.c wants __ehdr_start, which the linker gives an ELF and not a PE
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c; do
     object="$OUT/$(basename "$source" .c).o"
     cc -std=c11 -O2 -Wall -Wextra "${INCLUDES[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
@@ -47,10 +48,10 @@ for source in "$KEYMATH_CU/keymath.cu" "$KEY_SCHEDULE_CU/key_schedule.cu" "$CODE
         asm_printer_*.cu | codegen*.cu) continue ;;
     esac
     object="$OUT/$(basename "$source").o"
-    c++ -std=c++17 -O2 -Wall "${INCLUDES[@]}" -x c++ -c "$source" -o "$object" || exit 1
+    "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall "${INCLUDES[@]}" -x c++ -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-c++ -o "$OUT/sass_lane_needs" "${OBJECTS[@]}" -lpthread || exit 1
+"$FILE_DEFS_CXX" -o "$OUT/sass_lane_needs" "${OBJECTS[@]}" -lpthread || exit 1
 
 # the ruleset is named from the top of the tree, which is where the generator reads it from
 cd "$TOP" || exit 1

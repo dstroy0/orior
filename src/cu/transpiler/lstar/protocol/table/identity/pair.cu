@@ -7,11 +7,11 @@ thread_local RunQuestion *t_question = NULL;
 thread_local std::vector<unsigned int> *t_places = NULL;
 
 // every choice a put makes at a link, written to the log as `choice <flags> <link>`, the flags of the trace's
-// table that hold there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
-// it, or why the put ended at it. The flags an open pair's links hold are the questions a further pass takes up
+// table that are set there ORed into one word (query_trace.tsv): why a link was passed over, how the part answered
+// it, or why the put ended at it. The flags an open pair's links carry are the questions a further pass takes up
 void PairWork::chosen(const char *const *names, unsigned int count, const std::string &link) const
 {
-    if (s_ask_log == NULL)
+    if (s_query_log == NULL)
     {
         return;
     }
@@ -20,7 +20,7 @@ void PairWork::chosen(const char *const *names, unsigned int count, const std::s
     {
         word |= query_trace_flag(s_query_trace, names[at]);
     }
-    ask_written(s_ask_log, "choice 0x%llx %s\n", word, link.c_str());
+    query_log_print(s_query_log, "choice 0x%llx %s\n", word, link.c_str());
 }
 
 // one choice written, by its flag's name
@@ -30,26 +30,26 @@ void PairWork::chose(const char *name, const std::string &link) const
     chosen(names, 1u, link);
 }
 
-// The conference a refused put calls, held on the pair's thread once the teacher has called it (overseer.h). The
+// The conference a refused put calls, convened on the pair's thread once the teacher has called it (overseer.h). The
 // learner hands its statement: what it put, the carrier, what the stand-in does and the stand-in as written. The
-// coherence sets hand what the pair was being asked as: the sets the bridge reads it into and what its texts say
-// of it. The counterexample hands the first case apart the pair holds, this run's or the bridge's. The ruling is
+// coherence sets hand what the pair was being queried as: the sets the bridge reads it into and what its texts show
+// of it. The counterexample hands the first case apart the pair contains, this run's or the bridge's. The ruling is
 // written to the trace and its choice to the log, and its guidance given back: OVERSEER_HANDS_OFF where no party
-// called a conference of `asked`
+// called a conference of `statement`
 unsigned int PairWork::conferred(const std::string &from, const std::string &to, const std::string &statement,
-                                 const std::string &standing, const std::string &carrier_name,
-                                 unsigned int scratch, const RunQuestion &asked, const std::string &closed_here,
+                                 const std::string &standing, const std::string &carrier_name, unsigned int scratch,
+                                 const RunQuestion &question, const std::string &closed_here,
                                  const std::string &link_address)
 {
     QryShared *const run = qry_member_run();
-    const std::string identity = question_identity(&asked);
-    char joined[OVERSEER_STANDING_LONGEST];
+    const std::string identity = question_identity(&question);
+    char joined[OVERSEER_STANDING_MAX_LEN];
     overseer_standing_joined(standing.c_str(), joined);
-    const std::string said = statement + "; carrier " + carrier_name +
-                             (form_addresses(standing) ? "; stand-in addresses" : "") +
-                             (form_controls(standing) ? "; stand-in controls" : "") +
-                             ((scratch != 0u) ? "; stand-in scratch" : "") + "; standing " + joined;
-    overseer_account(run, identity.c_str(), "learner", said.c_str());
+    const std::string statement_line = statement + "; carrier " + carrier_name +
+                                       (form_addresses(standing) ? "; stand-in addresses" : "") +
+                                       (form_controls(standing) ? "; stand-in controls" : "") +
+                                       ((scratch != 0u) ? "; stand-in scratch" : "") + "; standing " + joined;
+    overseer_account(run, identity.c_str(), "learner", statement_line.c_str());
     std::string sets;
     std::string counterexample = closed_here;
     for (const std::string &line : pair_beneath(bridge, from, to))
@@ -70,8 +70,8 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
                      ("the pair " + from + " " + to + "; learning " + learning).c_str());
     overseer_account(run, identity.c_str(), "counterexample",
                      counterexample.empty()
-                         ? "the pair holds no case apart yet"
-                         : ("the pair holds its first case apart; counterexample " + counterexample).c_str());
+                         ? "the pair contains no case apart yet"
+                         : ("the pair contains its first case apart; counterexample " + counterexample).c_str());
     OverseerRuling ruling;
     if (!overseer_convened(run, identity.c_str(), t_other_way, &ruling))
     {
@@ -80,26 +80,26 @@ unsigned int PairWork::conferred(const std::string &from, const std::string &to,
     conferences += 1u;
     lessons_taught += ruling.taught ? 1u : 0u;
     chose("conference", link_address);
-    if (s_ask_trace != NULL)
+    if (s_trace_log != NULL)
     {
-        ask_written(s_ask_trace, "conference %s: %s\n", identity.c_str(), ruling.said);
-        ask_flushed(s_ask_trace);
+        query_log_print(s_trace_log, "conference %s: %s\n", identity.c_str(), ruling.text);
+        query_log_flushed(s_trace_log);
     }
     return ruling.guidance;
 }
 
 // The bridge's pairs put to the part, `pair <form> <form>` in Lstar.klq: two forms whose sameness the text leaves
-// open. A pair is put in a carrier, a chain of ours the host computes that holds one form's text as the ruleset writes
-// it: the form's arguments are read off the chain's lines, the other form is written in its place with the arguments
-// of its parameters' names, and the chain is assembled as the engine assembles it and put to the part over every case
-// the host computes the carrier on. The pair is open with its count of cases where the part answers the changed chain
-// as the host answers the carrier on every one, and closed at the carrier's address, the question and the position
-// of the link, and the first case it answers apart. Each form is tried in the other's place, the first in the
+// open. A pair is put in a carrier, a chain of ours the host computes that contains one form's text as the ruleset
+// writes it: the form's arguments are read off the chain's lines, the other form is written in its place with the
+// arguments of its parameters' names, and the chain is assembled as the engine assembles it and put to the part over
+// every case the host computes the carrier on. The pair is open with its count of cases where the part answers the
+// changed chain as the host answers the carrier on every one, and closed at the carrier's address, the question and the
+// position of the link, and the first case it answers apart. Each form is tried in the other's place, the first in the
 // second's first; a pair neither form can stand in for in any carrier, the second naming a parameter the first does
 // not or neither's text standing in a chain, and a pair the part refuses in every carrier, is open with 0. Each
-// verdict is written beneath its pair in the bridge in place of the one it held. Where the log is kept, each put is
-// followed by the values the form reads there on every case, the carrier cut at the form, for orior_klq_decoder to read its
-// product off
+// verdict is written beneath its pair in the bridge in place of the one it recorded. Where the log is retained, each
+// put is followed by the values the form reads there on every case, the carrier cut at the form, for orior_klq_decoder
+// to read its product off
 int identity_pair(const char *engine, const char *answers, const char *ksc, const char *klq,
                   const char *machine_path, const char *const *carrier)
 {
@@ -117,8 +117,8 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     // IDENTITY_SEED where it is given
     work.seed = identity_seed();
     std::string line;
-    std::istringstream held_bridge(run_file_text(klq));
-    while (std::getline(held_bridge, line))
+    std::istringstream bridge_stream(run_file_text(klq));
+    while (std::getline(bridge_stream, line))
     {
         work.bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
@@ -138,8 +138,8 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     // the lessons a run before this one taught, carried into this run (overseer.h)
     overseer_lessons_cleared();
     const unsigned int lessons_carried = overseer_lessons_read(qry_member_run());
-    // the asks the query record held before this cycle, read with R
-    const unsigned int recorded_before = s_query_record.asks;
+    // the queries the query record contained before this cycle, read with R
+    const unsigned int recorded_before = s_query_record.query_count;
     const std::unique_ptr<RunQuestion> stalled(new RunQuestion());
     std::vector<unsigned int> stalled_places;
     stall_cases(stalled.get(), &stalled_places);
@@ -165,15 +165,15 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     std::vector<std::string> written;
     unsigned int open = 0u;
     unsigned int closed = 0u;
-    unsigned int unasked = 0u;
+    unsigned int unqueried = 0u;
     int beneath = 0;
-    ask_files_opened();
-    // what the texts of a pair's two forms say of it before any ask, written to the log
+    query_logs_opened();
+    // what the texts of a pair's two forms show of it before any query, written to the log
     const auto pair_facts = [&](const std::string &first, const std::string &second) {
-        ask_written(s_ask_log, "facts %s %s%s\n", first.c_str(), second.c_str(),
-                    pair_categories(work.sass, first, second).c_str());
+        query_log_print(s_query_log, "facts %s %s%s\n", first.c_str(), second.c_str(),
+                        pair_categories(work.sass, first, second).c_str());
     };
-    // every pair of the bridge, in its order, the question and places its put asks with, the hash of what its put
+    // every pair of the bridge, in its order, the question and places its put queries with, the hash of what its put
     // reads, and the verdict it came to
     struct PairPut
     {
@@ -243,9 +243,9 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         }
     }
     // Each pair put in a thread of its own, run only in its turn: its facts, its put, and the stand-in the other way
-    // round where the form's own way answered nothing. Its trace and its log are logs of its own, held in memory and
-    // handed whole to the query's writer once it is put, after what the thread that carries the asks wrote before it
-    s_round_asks.assign(pairs.size(), std::vector<CarriedAsk>());
+    // round where the form's own way answered nothing. Its trace and its log are logs of its own, stored in memory and
+    // handed whole to the query's writer once it is put, after what the thread that carries the queries wrote before it
+    s_round_queries.assign(pairs.size(), std::vector<CarriedQuery>());
     std::vector<std::thread> threads;
     for (size_t at = 0u; at < pairs.size(); at += 1u)
     {
@@ -259,18 +259,18 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
                 s_turn_changed.wait(lock, [at]() { return s_turn == (int)at; });
             }
             t_pair = (int)at;
-            AskLog pair_trace = {s_trace_whole.name, std::string()};
-            AskLog pair_log = {s_log_whole.name, std::string()};
-            if (s_ask_run != NULL)
+            QueryLog pair_trace = {s_trace_whole.name, std::string()};
+            QueryLog pair_log = {s_log_whole.name, std::string()};
+            if (s_query_run != NULL)
             {
-                s_ask_trace = &pair_trace;
-                s_ask_log = &pair_log;
+                s_trace_log = &pair_trace;
+                s_query_log = &pair_log;
             }
             PairPut &pair = pairs[at];
             t_question = pair.question.get();
             t_places = &pair.places;
             stall_cases(t_question, t_places);
-            if (s_ask_log != NULL)
+            if (s_query_log != NULL)
             {
                 pair_facts(pair.first, pair.second);
             }
@@ -292,15 +292,16 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
             {
                 work.witness_lower(pair.first, pair.second, &pair.verdict);
             }
-            if (s_ask_log != NULL)
+            if (s_query_log != NULL)
             {
-                s_ask_trace = NULL;
-                s_ask_log = NULL;
-                // the thread that carries the asks waits out this pair's turn: what it wrote before the pair goes first
-                ask_handed(&s_trace_whole);
-                ask_handed(&s_log_whole);
-                ask_handed(&pair_trace);
-                ask_handed(&pair_log);
+                s_trace_log = NULL;
+                s_query_log = NULL;
+                // the thread that carries the queries waits out this pair's turn: what it wrote before the pair goes
+                // first
+                query_log_handed(&s_trace_whole);
+                query_log_handed(&s_log_whole);
+                query_log_handed(&pair_trace);
+                query_log_handed(&pair_log);
             }
             std::unique_lock<std::mutex> lock(s_turn_lock);
             pair.put_whole = 1;
@@ -308,8 +309,8 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
             s_turn_changed.notify_all();
         });
     }
-    // The rounds: each pair not yet put runs in its turn until it asks or is put, and the asks the round was handed
-    // are answered together. The rounds loop while a pair is left to put, and end once every pair is put
+    // The rounds: each pair not yet put runs in its turn until it queries or is put, and the queries the round was
+    // handed are answered together. The rounds loop while a pair is left to put, and end once every pair is put
     unsigned int round = 0u;
     size_t left = pairs.size() - settled;
     printf("orior_klq_identity pair: %zu pairs settled on the record, %zu gray in the queue\n", settled, left);
@@ -317,12 +318,12 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     {
         const std::chrono::steady_clock::time_point round_began = std::chrono::steady_clock::now();
         const unsigned long long handed_before = s_round_handed;
-        const unsigned long long held_before = s_round_held;
+        const unsigned long long recalled_before = s_round_recalled;
         const unsigned long long processes_before = s_round_processes;
         round += 1u;
         kqr_mark(&s_query_record, KQR_ROUND_RECORD, std::to_string(round).c_str());
-        std::vector<CarriedAsk> carried;
-        unsigned int asking = 0u;
+        std::vector<CarriedQuery> carried;
+        unsigned int in_flight = 0u;
         for (size_t at = 0u; at < pairs.size(); at += 1u)
         {
             std::unique_lock<std::mutex> lock(s_turn_lock);
@@ -333,16 +334,17 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
             s_turn = (int)at;
             s_turn_changed.notify_all();
             s_turn_changed.wait(lock, []() { return s_turn == -1; });
-            asking += s_round_asks[at].empty() ? 0u : 1u;
-            carried.insert(carried.end(), s_round_asks[at].begin(), s_round_asks[at].end());
-            s_round_asks[at].clear();
+            in_flight += s_round_queries[at].empty() ? 0u : 1u;
+            carried.insert(carried.end(), s_round_queries[at].begin(), s_round_queries[at].end());
+            s_round_queries[at].clear();
         }
-        asks_answered(carried);
+        queries_answered(carried);
         left = (size_t)std::count_if(pairs.begin(), pairs.end(), [](const PairPut &pair) { return !pair.put_whole; });
         const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - round_began).count();
-        printf("orior_klq_identity round %u: %u pairs asked, %llu asks handed, %llu answered from what was held, %llu "
+        printf("orior_klq_identity round %u: %u pairs queried, %llu queries handed, %llu answered from what was "
+               "recorded, %llu "
                "processes, %zu of %zu pairs put, %.1f seconds\n",
-               round, asking, s_round_handed - handed_before, s_round_held - held_before,
+               round, in_flight, s_round_handed - handed_before, s_round_recalled - recalled_before,
                s_round_processes - processes_before, pairs.size() - left, pairs.size(), seconds);
         fflush(stdout);
     }
@@ -350,7 +352,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
     {
         thread.join();
     }
-    // the bridge written with each pair's verdict beneath it, in place of the verdict it held
+    // the bridge written with each pair's verdict beneath it, in place of the verdict it recorded
     size_t paired = 0u;
     for (const std::string &entry : work.bridge)
     {
@@ -369,29 +371,30 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         paired += 1u;
         open += ((pair.verdict.rfind("open ", 0u) == 0u) && (pair.verdict != "open 0")) ? 1u : 0u;
         closed += (pair.verdict.rfind("closed ", 0u) == 0u) ? 1u : 0u;
-        unasked += (pair.verdict == "open 0") ? 1u : 0u;
+        unqueried += (pair.verdict == "open 0") ? 1u : 0u;
         printf("  %s %s: %s\n", pair.first.c_str(), pair.second.c_str(), pair.verdict.c_str());
         written.push_back(pair.verdict);
     }
     run_channel_close();
     RunWritten file = {klq, 1, std::string()};
-    for (const std::string &kept : written)
+    for (const std::string &written_line : written)
     {
-        run_print(&file, "%s\n", kept.c_str());
+        run_print(&file, "%s\n", written_line.c_str());
     }
     if (!run_closed(&file))
     {
         printf("orior_klq_identity pair: %s could not be written\n", klq);
         return 1;
     }
-    printf("orior_klq_identity pair: %llu asks, %u open, %u closed, %u not asked, written to %s\n", work.asks, open, closed,
-           unasked, klq);
-    // the lessons held, those carried in and those taught, handed to the run for the next run to carry
+    printf("orior_klq_identity pair: %llu queries, %u open, %u closed, %u not queried, written to %s\n",
+           work.queries, open, closed, unqueried, klq);
+    // the lessons stored, those carried in and those taught, handed to the run for the next run to carry
     overseer_lessons_handed(qry_member_run());
     printf("orior_klq_identity pair: %u conferences called by refusals, %u lessons taught, %u carried in\n", work.conferences,
            work.lessons_taught, lessons_carried);
-    // the path this cycle read off the asks, each pair and its verdict, an open pair the question a further pass takes
-    // up, written to the query record with every ask it held and every ask this cycle put once R is written back
+    // the path this cycle read off the queries, each pair and its verdict, an open pair the question a further pass
+    // takes up, written to the query record with every query it contained and every query this cycle put once R is
+    // written back
     kqr_paths_clear(&s_query_record);
     static KqrPath s_path;
     for (const PairPut &pair : pairs)
@@ -404,7 +407,7 @@ int identity_pair(const char *engine, const char *answers, const char *ksc, cons
         kqr_path_add(&s_query_record, &s_path);
         pair_row_handed(pair.first, pair.second, s_path.read, s_path.reads, pair.verdict);
     }
-    printf("orior_klq_identity pair: %u asks held in the query record, %u of them put this cycle\n", s_query_record.asks,
-           s_query_record.asks - recorded_before);
+    printf("orior_klq_identity pair: %u queries stored in the query record, %u of them put this cycle\n",
+           s_query_record.query_count, s_query_record.query_count - recorded_before);
     return 0;
 }

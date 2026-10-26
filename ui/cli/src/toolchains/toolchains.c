@@ -33,37 +33,38 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
     // the program's own bytes are toolchains.json's text, and the reader's file is read mapped
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
     const char *const bundled_text = (const char *)g_cli_toolchains_json;
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned long long added_size = 0ull;
     const unsigned char *added_text = NULL;
     if (cli_home_folder(path))
     {
-        CliLine line = {path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
-                        CLI_PATH_LONGEST - cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), 0ull};
-        cli_line_text(&line, "/user_toolchains.json");
-        added_text = (cli_line_closed(&line) != 0ull) ? cli_file_held(path, &added_size) : NULL;
+        VerbaLinea line = {path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}),
+                           CLI_PATH_MAX_LEN - cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), 0ull};
+        mmgr_line_put(&line, "/user_toolchains.json");
+        added_text = (mmgr_line_finish(&line) != 0ull) ? cli_file_read(path, &added_size) : NULL;
     }
-    // the tree one cell sized to both texts' tokens and bytes and the array kept, the tokens one cell for the larger
+    // the tree one cell sized to both texts' tokens and bytes and the array stored, the tokens one cell for the larger
     const unsigned int bundled_tokens = cli_json_tokens_counted(bundled_text, g_cli_toolchains_json_size) + 1u;
     const unsigned int added_tokens =
         (added_text != NULL) ? (cli_json_tokens_counted((const char *)added_text, added_size) + 1u) : 0u;
     const unsigned int tokens_most = (bundled_tokens > added_tokens) ? bundled_tokens : added_tokens;
     CfgJsonToken *const tokens =
-        cli_cell_taken((unsigned long long)tokens_most * sizeof(CfgJsonToken), "the toolchains' manifest's tokens");
-    const int held = (tokens != NULL) && cli_json_held(json, bundled_tokens + added_tokens + 1u + nodes_more,
-                                                       g_cli_toolchains_json_size + added_size + 1ull + text_more,
-                                                       "the toolchains' manifest");
-    char why[CLI_PATH_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
+        g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
+    const int reserved =
+        (tokens != NULL) &&
+        cli_json_reserved(json, bundled_tokens + added_tokens + 1u + nodes_more,
+                          g_cli_toolchains_json_size + added_size + 1ull + text_more, "the toolchains' manifest");
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int bundled =
-        held ? cli_json_read(json, bundled_text, g_cli_toolchains_json_size, tokens, tokens_most, &said)
-             : CLI_JSON_NONE;
+        reserved ? cli_json_read(json, bundled_text, g_cli_toolchains_json_size, tokens, tokens_most, &err_msg)
+                 : CLI_JSON_NONE;
     const unsigned int tools = cli_json_member(json, bundled, "tools");
     const unsigned int added =
         (cli_json_is(json, tools, CFG_JSON_ARRAY) && (added_text != NULL))
-            ? cli_json_read(json, (const char *)added_text, added_size, tokens, tokens_most, &said)
+            ? cli_json_read(json, (const char *)added_text, added_size, tokens, tokens_most, &err_msg)
             : CLI_JSON_NONE;
-    cli_cell_given(tokens);
+    g_cli_cells->persistent_buf_release(tokens, NULL);
     if (added_text != NULL)
     {
         cli_file_let_go(added_text, added_size);
@@ -81,20 +82,20 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
         tool = next;
     }
     // those for another system left out
-    const unsigned int kept = cli_json_made(json, CFG_JSON_ARRAY);
+    const unsigned int list_node = cli_json_made(json, CFG_JSON_ARRAY);
     for (unsigned int tool = json->node[tools].first; tool != CLI_JSON_NONE;)
     {
         const unsigned int next = json->node[tool].next;
         if (cli_for_here(json, tool))
         {
-            cli_json_append(json, kept, tool);
+            cli_json_append(json, list_node, tool);
         }
         tool = next;
     }
-    return json->full ? CLI_JSON_NONE : kept;
+    return json->full ? CLI_JSON_NONE : list_node;
 }
 
-unsigned int cli_toolchains_tool(CliJson *json, unsigned int manifest, const char *id, CliLine *said)
+unsigned int cli_toolchains_tool(CliJson *json, unsigned int manifest, const char *id, VerbaLinea *err_msg)
 {
     for (unsigned int tool = cli_json_is(json, manifest, CFG_JSON_ARRAY) ? json->node[manifest].first : CLI_JSON_NONE;
          tool != CLI_JSON_NONE; tool = json->node[tool].next)
@@ -105,9 +106,9 @@ unsigned int cli_toolchains_tool(CliJson *json, unsigned int manifest, const cha
             return tool;
         }
     }
-    cli_line_text(said, "orior_cli knows no toolchain ");
-    cli_line_text(said, id);
-    cli_line_text(said, ": orior_cli file toolchains lists them");
+    mmgr_line_put(err_msg, "orior_cli knows no toolchain ");
+    mmgr_line_put(err_msg, id);
+    mmgr_line_put(err_msg, ": orior_cli file toolchains lists them");
     return CLI_JSON_NONE;
 }
 
@@ -130,12 +131,12 @@ int cli_toolchains_program_in(const char *dir, const char *const *names, unsigne
     {
         for (unsigned int form = 0u; form < forms; form += 1u)
         {
-            CliLine line = {path, CLI_PATH_LONGEST, 0ull};
-            cli_line_text(&line, dir);
-            cli_line_character(&line, '/');
-            cli_line_text(&line, names[name]);
-            cli_line_text(&line, s_extensions[form]);
-            if ((cli_line_closed(&line) != 0ull) && query_is_file(path))
+            VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+            mmgr_line_put(&line, dir);
+            mmgr_line_ch(&line, '/');
+            mmgr_line_put(&line, names[name]);
+            mmgr_line_put(&line, s_extensions[form]);
+            if ((mmgr_line_finish(&line) != 0ull) && query_is_file(path))
             {
                 return 1;
             }
@@ -163,12 +164,12 @@ int cli_toolchains_tool_program_in(const CliJson *json, unsigned int tool, const
 }
 
 // A folder as written in toolchains.json, its variables filled in: %NAME% on Windows, and ~ and $NAME elsewhere, into
-// `out`, which holds CLI_PATH_LONGEST. A variable that is not set leaves the folder out: 0
+// `out`, sized for CLI_PATH_MAX_LEN. A variable that is not set leaves the folder out: 0
 static int cli_expand(const char *text, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     const char *rest = text;
-    char value[CLI_PATH_LONGEST];
+    char value[CLI_PATH_MAX_LEN];
     if (rest[0] == '~')
     {
         if (!query_environment_read("HOME", value, sizeof(value)) &&
@@ -176,7 +177,7 @@ static int cli_expand(const char *text, char *out)
         {
             return 0;
         }
-        cli_line_text(&line, value);
+        mmgr_line_put(&line, value);
         rest += 1;
     }
     for (;;)
@@ -186,7 +187,7 @@ static int cli_expand(const char *text, char *out)
         {
             mark += 1;
         }
-        cli_line_counted(&line, rest, (unsigned long long)(mark - rest));
+        mmgr_line_put_n(&line, rest, (unsigned long long)(mark - rest));
         if (mark[0] == '\0')
         {
             break;
@@ -212,23 +213,23 @@ static int cli_expand(const char *text, char *out)
                 end += 1;
             }
         }
-        char name[CLI_NAME_LONGEST];
-        CliLine named = {name, sizeof(name), 0ull};
-        cli_line_counted(&named, after, (unsigned long long)(end - after));
-        if ((cli_line_closed(&named) == 0ull) || !query_environment_said(name, &line))
+        char name[CLI_NAME_MAX_LEN];
+        VerbaLinea named = {name, sizeof(name), 0ull};
+        mmgr_line_put_n(&named, after, (unsigned long long)(end - after));
+        if ((mmgr_line_finish(&named) == 0ull) || !query_environment_written(name, &line))
         {
             return 0;
         }
         rest = (mark[0] == '%') ? (end + 1) : end;
     }
-    return cli_line_closed(&line) != 0ull;
+    return mmgr_line_finish(&line) != 0ull;
 }
 
 // whether `name` matches `pattern`, whose * matches any run of letters, case aside on Windows
 int cli_toolchains_matches(const char *pattern, const char *name)
 {
-    char left[CLI_NAME_LONGEST];
-    char right[CLI_NAME_LONGEST];
+    char left[CLI_NAME_MAX_LEN];
+    char right[CLI_NAME_MAX_LEN];
     memor.cpy(&(MemoriaCfg){.dst = left,
                             .src = pattern,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}) + 1u});
@@ -274,10 +275,10 @@ int cli_toolchains_matches(const char *pattern, const char *name)
         }
         else
         {
-            char piece[CLI_NAME_LONGEST];
-            CliLine line = {piece, sizeof(piece), 0ull};
-            cli_line_counted(&line, part, size);
-            cli_line_closed(&line);
+            char piece[CLI_NAME_MAX_LEN];
+            VerbaLinea line = {piece, sizeof(piece), 0ull};
+            mmgr_line_put_n(&line, part, size);
+            mmgr_line_finish(&line);
             const char *const found = cellul.find(&(CatenaFinitaCfg){
                 .src = right + at, .cap = CLI_CELLS_POOL, .other = piece, .other_cap = CLI_CELLS_POOL});
             if (found == NULL)
@@ -354,7 +355,7 @@ int cli_toolchains_natural(const char *a, const char *b)
 typedef struct
 {
     const char *part;
-    char (*names)[CLI_NAME_LONGEST];
+    char (*names)[CLI_NAME_MAX_LEN];
     unsigned int count;
     unsigned int room;
 } CliMatching;
@@ -381,13 +382,13 @@ static void cli_matching_each(void *context, const char *name, int is_folder)
     matching->count += 1u;
 }
 
-unsigned int cli_toolchains_folders_of(const char *pattern, char (*folders)[CLI_PATH_LONGEST], unsigned int count,
+unsigned int cli_toolchains_folders_of(const char *pattern, char (*folders)[CLI_PATH_MAX_LEN], unsigned int count,
                                        unsigned int room)
 {
-    static char s_found[2][64][CLI_PATH_LONGEST];
-    static char s_names[64][CLI_NAME_LONGEST];
+    static char s_found[2][64][CLI_PATH_MAX_LEN];
+    static char s_names[64][CLI_NAME_MAX_LEN];
     static CliLock s_walking = CLI_LOCK_INIT;
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     if (!cli_expand(pattern, full))
     {
         return count;
@@ -405,32 +406,32 @@ unsigned int cli_toolchains_folders_of(const char *pattern, char (*folders)[CLI_
         {
             end += 1;
         }
-        char piece[CLI_NAME_LONGEST];
-        CliLine line = {piece, sizeof(piece), 0ull};
-        cli_line_counted(&line, part, (unsigned long long)(end - part));
-        cli_line_closed(&line);
+        char piece[CLI_NAME_MAX_LEN];
+        VerbaLinea line = {piece, sizeof(piece), 0ull};
+        mmgr_line_put_n(&line, part, (unsigned long long)(end - part));
+        mmgr_line_finish(&line);
         const char separator = (end[0] != '\0') ? end[0] : '/';
         unsigned int next = 0u;
         for (unsigned int at = 0u; at < found; at += 1u)
         {
             if (cellul.chr(&(CatenaFinitaCfg){.src = piece, .cap = CLI_CELLS_POOL, .byte = '*'}) == NULL)
             {
-                CliLine joined = {s_found[1u - now][next], CLI_PATH_LONGEST, 0ull};
-                cli_line_text(&joined, s_found[now][at]);
-                cli_line_text(&joined, piece);
-                cli_line_character(&joined, separator);
-                next += ((cli_line_closed(&joined) != 0ull) && (next < 64u)) ? 1u : 0u;
+                VerbaLinea joined = {s_found[1u - now][next], CLI_PATH_MAX_LEN, 0ull};
+                mmgr_line_put(&joined, s_found[now][at]);
+                mmgr_line_put(&joined, piece);
+                mmgr_line_ch(&joined, separator);
+                next += ((mmgr_line_finish(&joined) != 0ull) && (next < 64u)) ? 1u : 0u;
                 continue;
             }
             CliMatching matching = {piece, s_names, 0u, 64u};
             query_folder_each(s_found[now][at], cli_matching_each, &matching);
             for (unsigned int each = 0u; (each < matching.count) && (next < 64u); each += 1u)
             {
-                CliLine joined = {s_found[1u - now][next], CLI_PATH_LONGEST, 0ull};
-                cli_line_text(&joined, s_found[now][at]);
-                cli_line_text(&joined, s_names[each]);
-                cli_line_character(&joined, separator);
-                next += (cli_line_closed(&joined) != 0ull) ? 1u : 0u;
+                VerbaLinea joined = {s_found[1u - now][next], CLI_PATH_MAX_LEN, 0ull};
+                mmgr_line_put(&joined, s_found[now][at]);
+                mmgr_line_put(&joined, s_names[each]);
+                mmgr_line_ch(&joined, separator);
+                next += (mmgr_line_finish(&joined) != 0ull) ? 1u : 0u;
             }
         }
         now = 1u - now;
@@ -470,13 +471,13 @@ void cli_toolchains_key_of(const char *dir, char *key)
     }
     key[length] = '\0';
 #if defined(_WIN32)
-    unsigned int letters[CLI_PATH_LONGEST];
-    const unsigned long long count = cli_regexp_letters(key, length, letters, CLI_PATH_LONGEST);
-    CliLine line = {key, CLI_PATH_LONGEST, 0ull};
+    unsigned int letters[CLI_PATH_MAX_LEN];
+    const unsigned long long count = cli_regexp_letters(key, length, letters, CLI_PATH_MAX_LEN);
+    VerbaLinea line = {key, CLI_PATH_MAX_LEN, 0ull};
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
         cli_utf8_put(&line, cli_regexp_lower(letters[at]));
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 #endif
 }

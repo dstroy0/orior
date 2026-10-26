@@ -78,10 +78,10 @@ struct VolumesResident
     unsigned long long *before;
     unsigned long long *after;
     unsigned int *volumes[SHIFT_AGREEMENT_VOLUMES];
-    unsigned int kept;
-    unsigned long long *kept_words;
-    unsigned int kept_axes;
-    unsigned int kept_extents[SHIFT_AGREEMENT_AXES];
+    unsigned int cached;
+    unsigned long long *cached_words;
+    unsigned int cached_axes;
+    unsigned int cached_extents[SHIFT_AGREEMENT_AXES];
 };
 
 static_assert(SHIFT_AGREEMENT_VOLUMES == 4u,

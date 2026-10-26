@@ -4,9 +4,10 @@
 #include "fields_internal.h"
 #include "../../../../../includes/parsers/line_read.h"
 
-// the answers interface_sass_run wrote for the write pass's cubins, read against the form the first instruction holds
-// and labeled a bit a row to `record`. A bit the part refused, one it read inside a run the machine file records for
-// an operand, one it read outside every recorded run, and one it left the answer unchanged are told apart
+// the answers interface_sass_run wrote for the write pass's cubins, read against the form the first instruction
+// contains and labeled a bit a row to `record`. A bit the part refused, one it read inside a run the machine file
+// records for an operand, one it read outside every recorded run, and one it left the answer unchanged are
+// distinguished
 int fields_read(const char *machine_path, const char *instructions, const char *answers, const char *record)
 {
     if (!sass_machine_read(&s_machine, machine_path))
@@ -17,7 +18,7 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     char instruction[512];
     if (!fields_first(instructions, instruction, sizeof(instruction)))
     {
-        fprintf(stderr, "the instructions %s hold no form\n", instructions);
+        fprintf(stderr, "the instructions %s contain no form\n", instructions);
         return 2;
     }
     SassInstructionParts parts;
@@ -25,7 +26,7 @@ int fields_read(const char *machine_path, const char *instructions, const char *
     const SassForm *const form = sass_machine_form(&s_machine, &parts);
     if (form == NULL)
     {
-        fprintf(stderr, "the machine file holds no form for %s\n", instruction);
+        fprintf(stderr, "the machine file contains no form for %s\n", instruction);
         return 2;
     }
     FILE *const in = fopen(answers, "rb");
@@ -36,12 +37,13 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         return 2;
     }
     fprintf(out, "# A form's fields, found on the part\n\n");
-    fprintf(out, "Written by `interface_sass_probe_fields read`. The form is `%s`. Each row is one of its operation "
-                 "bits turned over and run on the part, against the answer the form gives untouched. A bit the part "
-                 "refuses, one it reads inside a run the machine file records for an operand, one it reads outside "
-                 "every recorded run, and one that leaves the answer unchanged are told apart. A bit held off the "
-                 "part, whose turned operation key holds a control transfer, a wait or no form in the machine file, "
-                 "is marked skipped and run on nothing.\n\n",
+    fprintf(out,
+            "Written by `interface_sass_probe_fields read`. The form is `%s`. Each row is one of its operation "
+            "bits turned over and run on the part, against the answer the form gives untouched. A bit the part "
+            "refuses, one it reads inside a run the machine file records for an operand, one it reads outside "
+            "every recorded run, and one that leaves the answer unchanged are distinguished. A bit blocked from the"
+            "part, whose turned operation key contains a control transfer, a wait or no form in the machine file, "
+            "is marked skipped and run on nothing.\n\n",
             instruction);
     fprintf(out, "| bit | operand | part |\n|---|---|---|\n");
     char line[256];
@@ -63,7 +65,7 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         {
             continue;
         }
-        // the word after the kind, where the line holds one
+        // the word after the kind, where the line contains one
         line_word(&read, word, sizeof(word));
         if (number == 0u)
         {
@@ -86,8 +88,8 @@ int fields_read(const char *machine_path, const char *instructions, const char *
         const char *part = NULL;
         if ((strcmp(kind, "refused") == 0) || (strcmp(kind, "hung") == 0) || (strcmp(kind, "skipped") == 0))
         {
-            // a bit the part refused, one it ran too long on, and one held off the part as unsafe to run are each no
-            // operand field; they share the first column and the row says which
+            // a bit the part refused, one it ran too long on, and one blocked from the part as unsafe to run are each
+            // no operand field; they share the first column and the row specifies which
             refused += 1u;
             part = (kind[0] == 'h') ? "hung" : ((kind[0] == 's') ? "skipped" : "refused");
         }
@@ -163,7 +165,7 @@ static const char *fields_mark(unsigned int mark)
 
 // `operand`, which begins with a register token (R then digits, or RZ), written to `out` with that token replaced by
 // `put`. A .hi names the second register of a pair and leaves the operand a register of the same form: it is dropped,
-// and `put` itself is the register read or written. Any other suffix is kept
+// and `put` itself is the register read or written. Any other suffix is retained
 static void fields_swap(const char *operand, const char *put, char *out, size_t room)
 {
     size_t length = 0u;
@@ -172,13 +174,13 @@ static void fields_swap(const char *operand, const char *put, char *out, size_t 
         length = (operand[1] == 'Z') ? 2u : (1u + strspn(operand + 1, "0123456789"));
     }
     const char *const rest = operand + length;
-    const size_t kept = strlen(rest) - (sass_high_half(operand) ? 3u : 0u);
-    snprintf(out, room, "%s%.*s", put, (int)kept, rest);
+    const size_t rest_length = strlen(rest) - (sass_high_half(operand) ? 3u : 0u);
+    snprintf(out, room, "%s%.*s", put, (int)rest_length, rest);
 }
 
 // `operand`, an address, written to `out` with the register its address is read from replaced by `put`: the register
-// after the last `[`. A descriptor's uniform register before it is kept, and an address whose last `[` holds no
-// register is copied as it stands. 1, or 0 where `out` will not hold it
+// after the last `[`. A descriptor's uniform register before it is retained, and an address whose last `[` contains no
+// register is copied as it stands. 1, or 0 where `out` will not contain it
 static int fields_address_swap(const char *operand, const char *put, char *out, size_t room)
 {
     const char *const open = strrchr(operand, '[');
@@ -194,11 +196,11 @@ static int fields_address_swap(const char *operand, const char *put, char *out, 
 // `instruction` written to `redirected`, rebuilt from its parts, with its first operand moved where the kernel reads it
 // and each source register operand moved to the next of the head's set registers, where the form's result and its
 // source fields reach the answer. A global load's address is moved onto the case's, where the load reads the case's
-// words and not memory no thread holds. A first operand that is a register moves to R8, the register the kernel stores
+// words and not memory no thread uses. A first operand that is a register moves to R8, the register the kernel stores
 // as the answer. A first operand that is a predicate moves to P0, and `observe` takes the line that turns P0 into a
 // value in R8; it is left empty otherwise. A form whose first operand is neither, or is one the operation reads, is
 // copied as it stands, since nothing of it would be observed through R8. 1, or 0 where `redirected` or `observe` will
-// not hold it
+// not contain it
 int fields_redirect(const char *instruction, char *redirected, size_t room, char *observe, size_t observe_room)
 {
     static const char *const sources[FIELDS_SOURCES] = {"R10", "R12", "R14", "R16", "R18", "R20"};
@@ -266,9 +268,9 @@ int fields_redirect(const char *instruction, char *redirected, size_t room, char
 // the first instruction of `instructions`, moved where the kernel reads it and assembled alone, with each operation bit
 // turned and read back through the machine file, nothing run. The untouched encoding is printed first, under `base`,
 // with what it reads back as. Each bit is printed with what its turned encoding reads
-// back as: `no form` where no form holds it, `same text` where it reads back as the instruction itself, which no field
-// of the machine file holds, and the text it reads back as otherwise. Lines begin `NAMES`, for a script to gather. 0,
-// or 2 where nothing was read
+// back as: `no form` where no form matches it, `same text` where it reads back as the instruction itself, which no
+// field of the machine file matches, and the text it reads back as otherwise. Lines begin `NAMES`, for a script to
+// gather. 0, or 2 where nothing was read
 int fields_names(const char *machine_path, const char *instructions)
 {
     if (!sass_machine_read(&s_machine, machine_path))
@@ -285,7 +287,7 @@ int fields_names(const char *machine_path, const char *instructions)
         !fields_redirect(instruction, redirected, sizeof(redirected), observe, sizeof(observe)) ||
         !sass_assemble(&s_machine, redirected, 0ull, 0ull, SASS_CONTROL_SAFE, &low, &high))
     {
-        fprintf(stderr, "the instructions %s hold no form that assembles\n", instructions);
+        fprintf(stderr, "the instructions %s contain no form that assembles\n", instructions);
         return 2;
     }
     char text[256];

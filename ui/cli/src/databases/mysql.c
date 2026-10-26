@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // mysql.c: a MySQL connection's packets, read off the socket through a room of their own and sent in pieces of at
 // most 16 MiB; and the handshake and sign-in, by mysql_native_password, caching_sha2_password, or the password sealed
-// by the server's RSA key where caching_sha2_password asks for it whole
+// by the server's RSA key where caching_sha2_password requests it whole
 #include "../text/digest.h"
 #include "../text/json_tree.h"
 #include "mysql_internal.h"
@@ -44,7 +44,7 @@ int cli_mysql_packet(CliMysql *mysql, CliDbFailure *failure)
         unsigned char head[4];
         if (!mysql_read(mysql, head, sizeof(head)))
         {
-            cli_db_failure_said(failure, "the connection broke: the server closed it or did not answer");
+            cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
             return 0;
         }
         const unsigned long long length =
@@ -53,7 +53,7 @@ int cli_mysql_packet(CliMysql *mysql, CliDbFailure *failure)
         fits = fits && (mysql->size + length <= sizeof(mysql->packet));
         if (!mysql_read(mysql, fits ? mysql->packet + mysql->size : NULL, length))
         {
-            cli_db_failure_said(failure, "the connection broke: the server closed it or did not answer");
+            cli_db_failure_set(failure, "the connection broke: the server closed it or did not answer");
             return 0;
         }
         mysql->size += fits ? length : 0ull;
@@ -64,7 +64,7 @@ int cli_mysql_packet(CliMysql *mysql, CliDbFailure *failure)
     }
     if (!fits)
     {
-        cli_db_failure_said(failure, "a packet is past the room orior_cli reads one in");
+        cli_db_failure_set(failure, "a packet is past the room orior_cli reads one in");
     }
     return fits;
 }
@@ -97,7 +97,7 @@ int cli_mysql_sent(CliMysql *mysql, const unsigned char *payload, unsigned long 
     }
     if (!sent)
     {
-        cli_db_failure_said(failure, "the connection broke: the server closed it");
+        cli_db_failure_set(failure, "the connection broke: the server closed it");
     }
     return sent;
 }
@@ -107,18 +107,18 @@ void cli_mysql_failure_of(const unsigned char *payload, unsigned long long size,
     memor.set(&(MemoriaCfg){.dst = failure, .val = 0, .bytes = sizeof(*failure)});
     const unsigned int code = ((size > 1u) ? payload[1] : 0u) | ((size > 2u) ? ((unsigned int)payload[2] << 8u) : 0u);
     const int has_state = (size > 3u) && (payload[3] == '#');
-    CliLine message = {failure->message, sizeof(failure->message), 0ull};
+    VerbaLinea message = {failure->message, sizeof(failure->message), 0ull};
     const unsigned long long from = has_state ? 9ull : 3ull;
     cli_lossy(&message, payload + from, (size > from) ? size - from : 0ull);
-    cli_line_closed(&message);
-    CliLine code_line = {failure->code, sizeof(failure->code), 0ull};
-    cli_line_decimal(&code_line, code, 1u);
+    mmgr_line_finish(&message);
+    VerbaLinea code_line = {failure->code, sizeof(failure->code), 0ull};
+    mmgr_line_decimal(&code_line, code, 1u);
     if (has_state)
     {
-        cli_line_character(&code_line, ' ');
+        mmgr_line_ch(&code_line, ' ');
         cli_lossy(&code_line, payload + 4u, (size >= 9u) ? 5ull : ((size > 4u) ? size - 4u : 0ull));
     }
-    cli_line_closed(&code_line);
+    mmgr_line_finish(&code_line);
 }
 
 int cli_mysql_lenenc(const unsigned char *bytes, unsigned long long size, unsigned long long *at,
@@ -182,22 +182,22 @@ unsigned int cli_mysql_answer(const char *password, const unsigned char *scrambl
     unsigned char mixed[32];
     unsigned char joined[96];
     const unsigned int width = caching ? 32u : 20u;
-    const unsigned long long kept = (size < 64u) ? size : 64ull;
+    const unsigned long long copied_len = (size < 64u) ? size : 64ull;
     if (caching)
     {
         cli_sha256_bytes(password, cellul.len(&(CatenaFinitaCfg){.src = password, .cap = CLI_CELLS_POOL}), once);
         cli_sha256_bytes(once, width, twice);
         memor.cpy(&(MemoriaCfg){.dst = joined, .src = twice, .bytes = width});
-        memor.cpy(&(MemoriaCfg){.dst = joined + width, .src = scramble, .bytes = (size_t)kept});
-        cli_sha256_bytes(joined, width + kept, mixed);
+        memor.cpy(&(MemoriaCfg){.dst = joined + width, .src = scramble, .bytes = (size_t)copied_len});
+        cli_sha256_bytes(joined, width + copied_len, mixed);
     }
     else
     {
         cli_sha1_bytes(password, cellul.len(&(CatenaFinitaCfg){.src = password, .cap = CLI_CELLS_POOL}), once);
         cli_sha1_bytes(once, width, twice);
-        memor.cpy(&(MemoriaCfg){.dst = joined, .src = scramble, .bytes = (size_t)kept});
-        memor.cpy(&(MemoriaCfg){.dst = joined + kept, .src = twice, .bytes = width});
-        cli_sha1_bytes(joined, kept + width, mixed);
+        memor.cpy(&(MemoriaCfg){.dst = joined, .src = scramble, .bytes = (size_t)copied_len});
+        memor.cpy(&(MemoriaCfg){.dst = joined + copied_len, .src = twice, .bytes = width});
+        cli_sha1_bytes(joined, copied_len + width, mixed);
     }
     for (unsigned int at = 0u; at < width; at += 1u)
     {

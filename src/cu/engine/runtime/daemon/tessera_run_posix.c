@@ -79,8 +79,8 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     // a pid is positive. It converts exactly
     run_record_launched(channel, (unsigned long long)made);
     const char word = 1;
-    const ssize_t said = write(go[1], &word, 1u);
-    (void)said;
+    const ssize_t go_written = write(go[1], &word, 1u);
+    (void)go_written;
     close(go[1]);
 #if defined(SYS_pidfd_open)
     // a descriptor number fits an int
@@ -114,8 +114,8 @@ int run_ended(RunChild *child, unsigned long long microseconds)
     }
     siginfo_t ended;
     memset(&ended, 0, sizeof(ended));
-    const int asked = waitid(P_PID, (id_t)child->pid, &ended, WEXITED | WNOHANG | WNOWAIT);
-    return ((asked == 0) && (ended.si_pid == child->pid)) || ((asked != 0) && (errno != EINTR));
+    const int wait_result = waitid(P_PID, (id_t)child->pid, &ended, WEXITED | WNOHANG | WNOWAIT);
+    return ((wait_result == 0) && (ended.si_pid == child->pid)) || ((wait_result != 0) && (errno != EINTR));
 }
 
 int run_finish(RunChild *child)
@@ -152,7 +152,7 @@ static unsigned long long run_living(const RunProcess *processes, unsigned long 
         const int alive = processes[at].in_tree && run_process_read(processes[at].pid, &now) && (now.state != 'Z');
         if (alive && (signal_number != 0))
         {
-            // a pid read from /proc is positive, and a pid_t holds it
+            // a pid read from /proc is positive, and a pid_t represents it
             kill((pid_t)processes[at].pid, signal_number);
         }
         living += alive ? 1ull : 0ull;
@@ -160,7 +160,7 @@ static unsigned long long run_living(const RunProcess *processes, unsigned long 
     return living;
 }
 
-// the command's tree is asked to end (SIGTERM); what is left of it after the grace is ended by force (SIGKILL). The
+// the command's tree is requested to end (SIGTERM); what is left of it after the grace is ended by force (SIGKILL). The
 // count ended by force
 unsigned long long run_end_command(RunChild *child, unsigned long long grace)
 {
@@ -172,8 +172,8 @@ unsigned long long run_end_command(RunChild *child, unsigned long long grace)
         return 1ull;
     }
     unsigned long long living = run_living(processes, count, SIGTERM);
-    const unsigned long long asked = run_now();
-    while ((living != 0ull) && ((run_now() - asked) < grace))
+    const unsigned long long term_sent_at = run_now();
+    while ((living != 0ull) && ((run_now() - term_sent_at) < grace))
     {
         run_pause(RUN_ENDING_MICROSECONDS);
         living = run_living(processes, count, 0);
@@ -195,7 +195,7 @@ int run_folder_exists(const char *path)
 }
 
 // the parent's record, locked for this process's life and let go with it: how its child finds that it lives. The
-// descriptor closes on exec: no child holds the lock with it
+// descriptor closes on exec: no child takes the lock with it
 int run_record_make(RunChannel *channel, const char *path)
 {
     channel->record = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
@@ -223,7 +223,7 @@ void run_record_close(RunChannel *channel)
 }
 
 // 1 while the parent lives. A Windows parent (this child runs in WSL) shares its record only for reading, and an open
-// for writing errors while it lives; a Linux parent holds a lock on it. Either is let go when the parent ends
+// for writing errors while it lives; a Linux parent takes a lock on it. Either is let go when the parent ends
 int run_parent_alive(const char *parent)
 {
     const int opened = open(parent, O_WRONLY | O_CLOEXEC);
@@ -248,7 +248,7 @@ int run_process_read(unsigned long long pid, RunProcess *process)
     char line[1024];
     const int read = fgets(line, sizeof(line), stat) != NULL;
     fclose(stat);
-    // the name may hold spaces and parentheses: the fields are read after its last ')', the state, the parent, nine
+    // the name may contain spaces and parentheses: the fields are read after its last ')', the state, the parent, nine
     // skipped, then the process's own user and system ticks and those of the children it waited for
     const char *const after_name = read ? strrchr(line, ')') : NULL;
     unsigned long long user = 0ull;

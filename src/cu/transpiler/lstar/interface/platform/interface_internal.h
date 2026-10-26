@@ -30,7 +30,7 @@
 
 #define INTERFACE_MILLION 1000000ull
 #define INTERFACE_THOUSAND 1000ull
-// how often a POSIX interface asks whether its probe has ended
+// how often a POSIX interface checks whether its probe has ended
 #define INTERFACE_POLL_MICROSECONDS 1000ull
 // a probe's output is read back in pieces this long
 #define INTERFACE_READ_BYTES 4096u
@@ -41,16 +41,16 @@
     engine_error_check((condition_), (kind_), ENGINE_MODULE_INTERFACE, (unsigned int)__LINE__, (const void *)(evacaddr_),   \
                        (error_))
 
-// the probe's output kept in the answer piece by piece and ended whole, and the host's clock in microseconds
-void interface_output_kept(InterfaceAnswer *answer, unsigned long long *total, const char *piece,
-                           unsigned long long read);
+// the probe's output stored in the answer piece by piece and ended whole, and the host's clock in microseconds
+void interface_output_appended(InterfaceAnswer *answer, unsigned long long *total, const char *piece,
+                               unsigned long long read);
 void interface_output_ended(InterfaceAnswer *answer, unsigned long long total);
 unsigned long long interface_now(void);
 // the probe started and run to its end or its limit by the platform's own means (platform/windows.c,
 // platform/posix.c): 0 where it was waited on to its end; -1 where the output file or the pipe could not be made
 long interface_probe_start(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error);
 // the probe's output file read back by the platform's own means: its length whole, and as much of it as the answer's
-// capacity holds; 0, or -1 where the file could not be read whole
+// capacity allows; 0, or -1 where the file could not be read whole
 long interface_output_file_read(const InterfaceProbe *probe, InterfaceAnswer *answer, EngineError *error);
 
 #endif

@@ -30,17 +30,17 @@ extern "C"
 
     typedef enum
     {
-        TESSERA_ASK_SUBMIT = 1,
-        TESSERA_ASK_OVERRIDE = 2,
-        TESSERA_ASK_RELEASE = 3,
-        TESSERA_ASK_PRECALC_KEPT = 4,
-        TESSERA_ASK_MEASURED = 5,
-        TESSERA_TELL_ADMITTED = 16,
-        TESSERA_TELL_ASKED = 17,
-        TESSERA_TELL_GREW = 18,
-        TESSERA_TELL_LOST = 19,
-        TESSERA_TELL_RELEASED = 20,
-        TESSERA_TELL_ERROR = 21
+        TESSERA_REQUEST_SUBMIT = 1,
+        TESSERA_REQUEST_OVERRIDE = 2,
+        TESSERA_REQUEST_RELEASE = 3,
+        TESSERA_REQUEST_PRECALC_SAVED = 4,
+        TESSERA_REQUEST_MEASURED = 5,
+        TESSERA_NOTICE_ADMITTED = 16,
+        TESSERA_NOTICE_OVER_BUDGET = 17,
+        TESSERA_NOTICE_GREW = 18,
+        TESSERA_NOTICE_LOST = 19,
+        TESSERA_NOTICE_RELEASED = 20,
+        TESSERA_NOTICE_ERROR = 21
     } TesseraFrameKind;
 
     typedef struct
@@ -52,7 +52,7 @@ extern "C"
         unsigned char device[TESSERA_DEVICE_BYTES];
         EngineSignum signum;
         unsigned long long declared;
-        unsigned long long holding_microseconds;
+        unsigned long long grace_microseconds;
         unsigned long long sweep_microseconds;
         unsigned long long idle_microseconds;
         unsigned long long bytes;
@@ -78,15 +78,15 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
     int tessera_path_lost(const unsigned char device[TESSERA_DEVICE_BYTES], unsigned long long identity,
                           const EngineSignum *signum, char *path, unsigned int capacity);
 
-    // a paravirtual device (WSL) measures no process from outside it; each job's process measures itself and says so
+    // a paravirtual device (WSL) measures no process from outside it; each job's process measures itself and reports so
     TESSERA_EXPORT int tessera_self_paravirtual(void);
 
     TESSERA_EXPORT int tessera_self_measure(unsigned long long luid, unsigned long long *used);
 
     TESSERA_EXPORT int tessera_device_names_host(const unsigned char device[TESSERA_DEVICE_BYTES]);
 
-    // the logical processors host jobs run on: every one but those of the host's last cores, kept for the desktop (two,
-    // or $TESSERA_HOST_KEPT_CORES, and never every core); 0 where the host's cores could not be read
+    // the logical processors host jobs run on: every one but those of the host's last cores, reserved for the desktop
+    // (two, or $TESSERA_HOST_RESERVED_CORES, and never every core); 0 where the host's cores could not be read
     TESSERA_EXPORT unsigned long long tessera_self_host_mask(void);
 
     typedef struct
@@ -95,7 +95,7 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned long long luid;
         EngineSignum signum;
         unsigned long long declared;
-        unsigned long long holding_microseconds;
+        unsigned long long grace_microseconds;
         unsigned long long sweep_microseconds;
         unsigned long long idle_microseconds;
         unsigned int override_budget;
@@ -104,10 +104,11 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         // how long the submit waits for the job to fit the headroom; past it the submit errs, its connection closes
         // and the daemon drops the job. 0 waits until it fits
         unsigned long long waiting_microseconds;
-    } TesseraJobAsk;
+    } TesseraJobSubmit;
 
-    // `standing` is the bytes the job's process already held on the device as it asked (its CUDA context and whatever
-    // it kept from an earlier job), which the daemon measured and counted with its declaration; it is told on admission
+    // `standing` is the bytes the job's process already allocated on the device as it requested (its CUDA context and
+    // whatever it retained from an earlier job), which the daemon measured and counted with its declaration; it is
+    // reported on admission
     typedef struct
     {
         unsigned long long identity;
@@ -115,10 +116,10 @@ _Static_assert(sizeof(TesseraFrame) == TESSERA_FRAME_BYTES, "tessera: a frame is
         unsigned long long last_peak;
         unsigned long long grown_to;
         unsigned long long standing;
-        // the microseconds the submit waited for its answer; a submit that errs with `waited` at or past the ask's
+        // the microseconds the submit waited for its answer; a submit that errs with `waited` at or past the request's
         // `waiting_microseconds` found no headroom in time
         unsigned long long waited;
-        unsigned int asked;
+        unsigned int over_budget;
         unsigned int lost;
         char lost_path[ENGINE_PATH_CAPACITY];
     } TesseraTicket;
@@ -133,16 +134,17 @@ _Static_assert((offsetof(TesseraTicket, lost_path) % 8u) == 0u,
 
     typedef struct TesseraClient TesseraClient;
 
-    TESSERA_EXPORT long tessera_job_submit(const TesseraJobAsk *ask, TesseraClient **client, TesseraTicket *ticket);
+    TESSERA_EXPORT long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client,
+                                           TesseraTicket *ticket);
 
     TESSERA_EXPORT long tessera_job_override(TesseraClient *client, TesseraTicket *ticket, EngineError *error);
 
     TESSERA_EXPORT long tessera_job_wait(TesseraClient *client, TesseraTicket *ticket, EngineError *error);
 
-    TESSERA_EXPORT long tessera_job_precalc_kept(TesseraClient *client, EngineError *error);
+    TESSERA_EXPORT long tessera_job_precalc_saved(TesseraClient *client, EngineError *error);
 
     // an admitted job's own measure, where the daemon reads none from outside (the host's processors, or a device under
-    // WSL); any growth the daemon has told back is read into the ticket
+    // WSL); any growth the daemon has reported back is read into the ticket
     TESSERA_EXPORT long tessera_job_report(TesseraClient *client, TesseraTicket *ticket, unsigned long long measured,
                                            EngineError *error);
 

@@ -6,7 +6,9 @@
 #include "../../../../../src/cu/engine/analysis/compression/compression.h"
 #include "../../../../../src/cu/engine/analysis/tower/tower.h"
 #include "../../../../../src/cu/engine/engine.h"
-#include "../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <stdio.h>
@@ -15,19 +17,19 @@
 
 static void ingest_line_decimal(SimResults *results, const char *before, unsigned long long value)
 {
-    scriptura_text(&results->line, before);
-    scriptura_decimal(&results->line, value, 1u);
+    mmgr_line_put(&results->line, before);
+    mmgr_line_decimal(&results->line, value, 1u);
 }
 
 static void ingest_line_end(SimResults *results)
 {
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }
 
 static void ingest_error_line(SimResults *results, const char *what, const EngineError *error)
 {
-    scriptura_text(&results->line, what);
+    mmgr_line_put(&results->line, what);
     ingest_line_decimal(results, ": module ", (unsigned long long)error->module);
     ingest_line_decimal(results, ", site ", (unsigned long long)error->site);
     ingest_line_decimal(results, ", kind ", (unsigned long long)error->kind);
@@ -52,12 +54,12 @@ int ingest_run(SimResults *results, int count, char **arguments)
     const unsigned int members = engine_source_samples(path, &names);
     if (members == 0u)
     {
-        scriptura_text(&results->line, "  the file lists no member the engine reads");
+        mmgr_line_put(&results->line, "  the file lists no member the engine reads");
         ingest_line_end(results);
         ingest_names_release(names, 0u);
         return 0;
     }
-    // the job holds one member's lanes on the device at a time, with the tower's and the coder's pools for them: the
+    // the job stores one member's lanes on the device at a time, with the tower's and the coder's pools for them: the
     // widest member's
     unsigned long long widest = 0ull;
     unsigned long long lanes_total = 0ull;
@@ -70,8 +72,8 @@ int ingest_run(SimResults *results, int count, char **arguments)
         ok = engine_source_lanes(path, names[member], &lanes, &error) == 0L;
         if (!ok)
         {
-            scriptura_text(&results->line, "  ");
-            scriptura_text(&results->line, names[member]);
+            mmgr_line_put(&results->line, "  ");
+            mmgr_line_put(&results->line, names[member]);
             ingest_error_line(results, " did not describe", &error);
         }
         widest = (lanes > widest) ? lanes : widest;

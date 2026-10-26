@@ -12,23 +12,23 @@
 
 // The ellipse E_rho is the image of the circle |z| = rho under eta = (z + 1/z) / 2, drawn over the segment
 // [-1, 1] with its feet at eta = -1 and eta = +1, where d = 1 - eta^2 is 0. A field f = sum f_m T_m(eta), its
-// Chebyshev weights given by the cfg, is held by ||f||_rho = sum |f_m| rho^m. For 0 <= h <= 1/2 and
+// Chebyshev weights given by the cfg, is bounded by ||f||_rho = sum |f_m| rho^m. For 0 <= h <= 1/2 and
 // 1 < rho_min <= rho' < rho <= rho0:
 //     ||f g|| <= ||f|| ||g||,   ||eta f|| <= rho0 ||f||,   ||d f|| <= (1 + rho0^2) / 2 ||f||,
 //     ||L^-1 f|| <= l ||f||, l = 1 / ((1 - h) - h rho0^2),
 //     ||f'||_rho' <= K / (rho - rho') ||f||_rho, K = rho0^2 / (rho_min^2 - 1),
 //     ||d f'||_rho' <= ((1 + rho0^2) / 4) / (rho - rho') ||f||_rho,
 // the third from T_m' = m U_(m-1), ||U_(m-1)||_rho' <= 2 rho'^(m+1) / (rho'^2 - 1) and m q^m <= 1 / (2 (1 - q)), the
-// last from (1 - eta^2) T_m' = m (T_(m-1) - T_(m+1)) / 2: with the derivative held at the feet by d, its bound reads no
-// rho_min. The order k is held on its own scale of ellipses, |f|_k = sup over rho in [rho_min, rho0) of
+// last from (1 - eta^2) T_m' = m (T_(m-1) - T_(m+1)) / 2: with the derivative bounded at the feet by d, its bound reads
+// no rho_min. The order k is bounded on its own scale of ellipses, |f|_k = sup over rho in [rho_min, rho0) of
 // ||f||_rho (rho0 - rho)^k, which gives |f g|_(j+k) <= |f|_j |g|_k, |f|_(k+1) <= Delta |f|_k with
 // Delta = rho0 - rho_min, |f'|_(k+1) <= 3 K (k + 1) |f|_k and |d f'|_(k+1) <= 3 (1 + rho0^2) / 4 (k + 1) |f|_k.
 // The rule of core_rule.cu then bounds a_k = |F_k|_k, u_k = |U_k|_k, p_k = |P_k|_k and w_k = |v_k|_(k+1) order by
 // order from the data: the witness, exact to the order N. Each d f' is bounded both ways, by (1 + rho0^2) / 2 times
-// 3 K and by the feet's 3 (1 + rho0^2) / 4, and each gives its own witness. The weights of each order kept apart, as
-// magnitudes and exact, give two more, read on the ellipse only where the order is bounded. The exact weights to N,
+// 3 K and by the feet's 3 (1 + rho0^2) / 4, and each gives its own witness. The weights of each order retained apart,
+// as magnitudes and exact, give two more, read on the ellipse only where the order is bounded. The exact weights to N,
 // carried past N to the cfg's carry by magnitudes mode by mode, give a last one: each carried order bounds the exact
-// one where its weight sits, and each is rounded up to a multiple of 2^-bits, a bound held in a length that does not
+// one where its weight sits, and each is rounded up to a multiple of 2^-bits, a bound stored in a length that does not
 // grow with the order.
 // The proof: with B_x = max over k <= N of x_k r^k (k + 1), B_w raised to at least C_w B_u, C_w = l (2 rho0 Delta + E),
 // E the constant of d f', and B_p to at least 2 r Delta B_a^2 H_(N+1) / (N + 1), two inequalities at k = N, each a sum
@@ -39,18 +39,16 @@
 // Checks:
 // 1. Every order's weights, carried ones too, are within the length the rule fixes, the length the proof on one
 //    ellipse reads.
-// 2. Every ellipse of the cfg is one the bounds hold on.
-// 3. Every bound of the witness and the proof is exact and held in the build's width.
+// 2. Every ellipse of the cfg is one the bounds are valid on.
+// 3. Every bound of the witness and the proof is exact and stored in the build's width.
 // 4. The witness and the proof are written whole to the cfg's record, with the radius each proves.
 // 5. An X inside a proved radius has F_low past 0, and each medium of the cfg has its walls written there.
-// 6. The carry on the device holds every sum below the product of its primes, and is the host's to the last bit at
+// 6. The carry on the device bounds every sum below the product of its primes, and is the host's to the last bit at
 //    every order both reach.
-// 7. Where the cfg holds a principal system, s_eff and (Y F)' are past 0 on its [0, Y_1] at every ellipse's vertex.
-// The request: core_radius <cfg>. The norms of the reach's orders on E_rho carry rho^m to its last mode, and ask the
-// width of 256 limbs.
+// 7. Where the cfg contains a principal system, s_eff and (Y F)' are past 0 on its [0, Y_1] at every ellipse's vertex.
+// The request: core_radius <cfg>. The norms of the reach's orders on E_rho carry rho^m to its last mode, and request
+// the width of 256 limbs.
 //     SIM_EXACT_LIMBS=256 bash examples/navier_stokes/run.sh core_radius examples/navier_stokes/cfg/core_radius.cfg
-
-
 
 // l [(c + 2 j) rho0 Delta + E (j + 1)], the bound of (Z_b f)_j with |2 b| = c
 static SimRational core_radius_turned(const CoreRadiusScale *scale, SimRational c, SimRational j)
@@ -449,12 +447,14 @@ static SimRational core_radius_place(const CoreRadiusWeights &weights, SimRation
     return (sim_rational_sign(mass) > 0) ? core_radius_over(moment, mass) : core_radius_number(0ll, 1ll);
 }
 
-// the largest r = j step the proof on E_rho holds at, the radius r / l^2 it proves, with the norms written to the record
-// and the numbers it reads at r appended to `lean` as the witness `name`; the numbers and the norms in `held` and
-// `norms`, the rate in `held` 0 where no r is proved
-static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const CoreRadiusOrders *orders, unsigned int g0, unsigned int order,
-                                          unsigned int split, SimRational step, unsigned long long steps, FILE *record, const std::string &name,
-                                          const std::string &title, std::string *lean, CoreRadiusProof *held, CoreRadiusSequence *norms)
+// the largest r = j step the proof on E_rho is valid at, the radius r / l^2 it proves, with the norms written to the
+// record and the numbers it reads at r appended to `lean` as the witness `name`; the numbers and the norms in
+// `rate_proof` and `norms`, the rate in `rate_proof` 0 where no r is proved
+static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const CoreRadiusOrders *orders, unsigned int g0,
+                                          unsigned int order, unsigned int split, SimRational step,
+                                          unsigned long long steps, FILE *record, const std::string &name,
+                                          const std::string &title, std::string *lean, CoreRadiusProof *rate_proof,
+                                          CoreRadiusSequence *norms)
 {
     const SimRational one = core_radius_number(1ll, 1ll);
     const SimRational two = core_radius_number(2ll, 1ll);
@@ -512,12 +512,12 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
     }
     const SimRational proved = core_radius_times(core_radius_number((long long)low, 1ll), step);
     const SimRational radius = core_radius_over(proved, core_radius_times(scale->l, scale->l));
-    held->rate = core_radius_number(0ll, 1ll);
+    rate_proof->rate = core_radius_number(0ll, 1ll);
     *norms = nf;
     if ((low > 0ull) && core_radius_fixed_proof(scale, &fixed, g0, nf, nu, np, nw, order, split, proved, &proof))
     {
         *lean += core_radius_lean(name, title, split, order, &proof);
-        *held = proof;
+        *rate_proof = proof;
     }
     if (record != NULL)
     {
@@ -527,8 +527,8 @@ static SimRational core_radius_fixed_rate(const CoreRadiusScale *scale, const Co
             record_text(record, ("    " + term_book_rational(nf[k]) + " " + term_book_rational(nu[k]) + " " + term_book_rational(np[k]) + " " + term_book_rational(nw[k])).c_str());
         }
         record_text(record, ("  proved r " + term_book_rational(proved) + ", radius " + term_book_rational(radius)).c_str());
-        // each order's weights read as amplitudes in [0, 1] over a place t = m / G_k in [0, 1]: where the order holds
-        // its weight, and so the share of its length a derivative of it costs
+        // each order's weights read as amplitudes in [0, 1] over a place t = m / G_k in [0, 1]: where the order
+        // contains its weight, and so the share of its length a derivative of it costs
         record_text(record, "  place of f_k and u_k on the 0-1 scale, sum m |c_m| rho^m / (G_k sum |c_m| rho^m)");
         for (unsigned int k = 1u; k <= order; k += 1u)
         {
@@ -817,13 +817,13 @@ static std::vector<CoreRadiusWall> core_radius_walls(SimRational nu, SimRational
     return walls;
 }
 
-// the largest r = j step, j = 1..steps, the proof holds at over the witness a, u, p, w, 0 where it holds at none, with
-// the witness and r written to the record under `name`
+// the largest r = j step, j = 1..steps, the proof is valid at over the witness a, u, p, w, 0 where it is valid at none,
+// with the witness and r written to the record under `name`
 static SimRational core_radius_rate(const CoreRadiusScale *scale, const CoreRadiusSequence &a, const CoreRadiusSequence &u, const CoreRadiusSequence &p,
                                     const CoreRadiusSequence &w, unsigned int order, SimRational step, unsigned long long steps, FILE *record,
                                     const std::string &name)
 {
-    // every B_x grows with r and 1 / r falls: where the proof holds at r it holds below r, and j is bisected
+    // every B_x grows with r and 1 / r falls: where the proof is valid at r it is valid below r, and j is bisected
     unsigned long long low = 0ull;
     unsigned long long high = steps + 1ull;
     while (high - low > 1ull)
@@ -897,7 +897,7 @@ int main(int count, char **arguments)
                      run_cfg_rationals(&cfg, "walls.viscosity", &viscosity) && run_cfg_rationals(&cfg, "walls.sound", &sound) &&
                      run_cfg_rationals(&cfg, "walls.spacing", &spacing) && run_cfg_rationals(&cfg, "walls.relaxation", &relaxation) &&
                      run_cfg_rationals(&cfg, "walls.mass", &mass) && run_cfg_rationals(&cfg, "walls.ionization", &ionization);
-    // the principal system, read where the cfg holds it
+    // the principal system, read where the cfg contains it
     SimRational principal_reach;
     unsigned long long principal_pieces = 0ull;
     const int principal = read && run_cfg_rational(&cfg, "principal.reach", &principal_reach) &&
@@ -954,9 +954,9 @@ int main(int count, char **arguments)
     core_radius_device_open(&device, (unsigned int)reach + 1u, reach_modes, (unsigned int)((2ull * bits + 256ull) / 30ull + 1ull));
     CoreRadiusOrders reached;
     core_radius_continued(&constants, &exact, (unsigned int)order, (unsigned int)reach, &unit, &device, &reached);
-    sim_check(&results, device.held, "the device's carry held, every sum below the product of its primes");
+    sim_check(&results, device.available, "the device's carry bounded, every sum below the product of its primes");
     core_radius_device_close(&device);
-    int same = device.held;
+    int same = device.available;
     for (unsigned int k = 0u; same && (k <= (unsigned int)carry); k += 1u)
     {
         same = core_radius_same(continued.f[k], reached.f[k]) && core_radius_same(continued.g[k], reached.g[k]) &&
@@ -1006,9 +1006,10 @@ int main(int count, char **arguments)
         scale.cut = cut;
         scale.rho = outer[index];
         scale.delta = sim_rational_difference(outer[index], inner[index]);
-        const int held = (sim_rational_sign(scale.delta) > 0) && (sim_rational_sign(l_inverse) > 0) && (sim_rational_sign(inner_square) > 0);
-        legal = legal && held;
-        if (!held)
+        const int conditions_met = (sim_rational_sign(scale.delta) > 0) && (sim_rational_sign(l_inverse) > 0) &&
+                                   (sim_rational_sign(inner_square) > 0);
+        legal = legal && conditions_met;
+        if (!conditions_met)
         {
             continue;
         }
@@ -1026,11 +1027,11 @@ int main(int count, char **arguments)
         CoreRadiusSequence u;
         CoreRadiusSequence p;
         CoreRadiusSequence w;
-        // the four witnesses read on the whole segment alone: their constants hold the feet of d at eta = -1 and +1
+        // the four witnesses read on the whole segment alone: their constants bound the feet of d at eta = -1 and +1
         SimRational plain = core_radius_number(0ll, 1ll);
         SimRational feet = core_radius_number(0ll, 1ll);
         SimRational weights = core_radius_number(0ll, 1ll);
-        SimRational kept = core_radius_number(0ll, 1ll);
+        SimRational retained = core_radius_number(0ll, 1ll);
         if (whole)
         {
             scale.feet = core_radius_times(core_radius_over(core_radius_plus(one, rho_square), core_radius_number(2ll, 1ll)), scale.k3);
@@ -1042,7 +1043,7 @@ int main(int count, char **arguments)
             core_radius_weights_witness(&scale, &orders, last, &a, &u, &p, &w);
             weights = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "weights");
             core_radius_weights_witness(&scale, &exact, last, &a, &u, &p, &w);
-            kept = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "exact weights");
+            retained = core_radius_rate(&scale, a, u, p, w, last, step, steps, record, "exact weights");
         }
         // a cut's witnesses carry names of their own, beside the whole segment's in one Lean library
         const std::string ellipse = (whole ? "ellipse_" : "cut_ellipse_") + std::to_string(index);
@@ -1065,23 +1066,24 @@ int main(int count, char **arguments)
             SimRational vertex;
             SimRational s_least;
             SimRational grown_least;
-            const int vertex_held = (sim_rational_sign(reached_proof.rate) > 0) &&
-                                    core_radius_principal(&scale, &exact, &reached, (unsigned int)order, (unsigned int)reach, &reached_proof, principal_reach,
-                                                          principal_pieces, &vertex, &s_least, &grown_least);
-            principal_all = principal_all && vertex_held;
+            const int vertex_ok = (sim_rational_sign(reached_proof.rate) > 0) &&
+                                  core_radius_principal(&scale, &exact, &reached, (unsigned int)order,
+                                                        (unsigned int)reach, &reached_proof, principal_reach,
+                                                        principal_pieces, &vertex, &s_least, &grown_least);
+            principal_all = principal_all && vertex_ok;
             const std::string reading = "principal system at the vertex eta " + term_book_rational(vertex) + " on Y in [0, " + term_book_rational(principal_reach) +
                                         "], Y = X / L^2: s_eff >= " + term_book_rational(s_least) + ", (Y F)' >= " + term_book_rational(grown_least);
             if (record != NULL)
             {
                 record_text(record, reading.c_str());
             }
-            scriptura_text(&results.line, "  principal system at the vertex eta ");
+            mmgr_line_put(&results.line, "  principal system at the vertex eta ");
             sim_rational_print(&results.line, core_radius_down(vertex, &unit));
-            scriptura_text(&results.line, ": s_eff >= ");
+            mmgr_line_put(&results.line, ": s_eff >= ");
             sim_rational_print(&results.line, core_radius_down(s_least, &unit));
-            scriptura_text(&results.line, ", (Y F)' >= ");
+            mmgr_line_put(&results.line, ", (Y F)' >= ");
             sim_rational_print(&results.line, core_radius_down(grown_least, &unit));
-            scriptura_text(&results.line, "\n");
+            mmgr_line_put(&results.line, "\n");
             sim_flush(&results);
         }
         // the X of each proof's radius, stepped by the walls' step, where X F_low^2 is largest
@@ -1103,7 +1105,7 @@ int main(int count, char **arguments)
                     x = core_radius_plus(x, wall_step);
                     continue;
                 }
-                // rounded down to a multiple of 2^-bits, held in a length the walls' products fit
+                // rounded down to a multiple of 2^-bits, stored in a length the walls' products fit
                 const SimRational least = core_radius_down(exact_least, &unit);
                 const SimRational value = core_radius_times(x, core_radius_times(least, least));
                 if ((sim_rational_sign(least) > 0) && (!found || (sim_rational_sign(sim_rational_difference(value, best_value)) > 0)))
@@ -1117,28 +1119,28 @@ int main(int count, char **arguments)
                 x = core_radius_plus(x, wall_step);
             }
         }
-        scriptura_text(&results.line, "  rho0 ");
+        mmgr_line_put(&results.line, "  rho0 ");
         sim_rational_print(&results.line, outer[index]);
-        scriptura_text(&results.line, ", rho_min ");
+        mmgr_line_put(&results.line, ", rho_min ");
         sim_rational_print(&results.line, inner[index]);
-        scriptura_text(&results.line, ": X < ");
+        mmgr_line_put(&results.line, ": X < ");
         sim_rational_print(&results.line, core_radius_times(plain, scale.delta));
-        scriptura_text(&results.line, " with d f' bounded by K, X < ");
+        mmgr_line_put(&results.line, " with d f' bounded by K, X < ");
         sim_rational_print(&results.line, core_radius_times(feet, scale.delta));
-        scriptura_text(&results.line, " with it bounded at the feet, X < ");
+        mmgr_line_put(&results.line, " with it bounded at the feet, X < ");
         sim_rational_print(&results.line, core_radius_times(weights, scale.delta));
-        scriptura_text(&results.line, " with each mode's weight kept, X < ");
-        sim_rational_print(&results.line, core_radius_times(kept, scale.delta));
-        scriptura_text(&results.line, " with each weight exact, X < ");
+        mmgr_line_put(&results.line, " with each mode's weight retained, X < ");
+        sim_rational_print(&results.line, core_radius_times(retained, scale.delta));
+        mmgr_line_put(&results.line, " with each weight exact, X < ");
         sim_rational_print(&results.line, one_ellipse);
-        scriptura_text(&results.line, " on E_rho0 alone, X < ");
+        mmgr_line_put(&results.line, " on E_rho0 alone, X < ");
         sim_rational_print(&results.line, carried);
-        scriptura_text(&results.line, " with the magnitudes carried to the order of the cfg's carry, X < ");
+        mmgr_line_put(&results.line, " with the magnitudes carried to the order of the cfg's carry, X < ");
         sim_rational_print(&results.line, far);
-        scriptura_text(&results.line, " with them carried on the device to the cfg's reach and split there\n");
+        mmgr_line_put(&results.line, " with them carried on the device to the cfg's reach and split there\n");
         sim_flush(&results);
     }
-    sim_check(&results, legal, "every ellipse of the cfg one the bounds hold on");
+    sim_check(&results, legal, "every ellipse of the cfg one the bounds are valid on");
     if (principal)
     {
         sim_check(&results, principal_all, "at every ellipse's vertex, s_eff and (Y F)' past 0 on [0, Y_1]: the principal tangent grows as I_0(sqrt(2 s_least mu Y))");
@@ -1147,7 +1149,7 @@ int main(int count, char **arguments)
     if (found)
     {
         const std::string at = "walls at X = " + term_book_rational(best_x) + " on E_rho0, rho0 = " + term_book_rational(best_ellipse) + ", F_low = " + term_book_rational(best_least);
-        scriptura_text(&results.line, ("  " + at + "\n").c_str());
+        mmgr_line_put(&results.line, ("  " + at + "\n").c_str());
         if (record != NULL)
         {
             record_text(record, at.c_str());
@@ -1161,7 +1163,7 @@ int main(int count, char **arguments)
         {
             const std::vector<CoreRadiusWall> walls = core_radius_walls(viscosity[index], best_x, best_least, sound[index], spacing[index], relaxation[index], mass[index],
                                                                         ionization[index], light, mach, mach_names);
-            scriptura_text(&results.line, ("  " + media[index] + ", the time left before T each wall is passed by:\n").c_str());
+            mmgr_line_put(&results.line, ("  " + media[index] + ", the time left before T each wall is passed by:\n").c_str());
             if (record != NULL)
             {
                 record_text(record, ("  " + media[index] + ": wall, time left in seconds, n with 10^-(n+1) < tau <= 10^-n, halves of the radius to the Planck time").c_str());
@@ -1170,7 +1172,7 @@ int main(int count, char **arguments)
             {
                 const unsigned int decade = core_radius_decade(wall.tau);
                 const unsigned int halves = core_radius_halves(wall.tau, planck);
-                scriptura_text(&results.line, ("    " + wall.name + ": 10^-" + std::to_string(decade + 1u) + " < tau <= 10^-" + std::to_string(decade) + " s, then " +
+                mmgr_line_put(&results.line, ("    " + wall.name + ": 10^-" + std::to_string(decade + 1u) + " < tau <= 10^-" + std::to_string(decade) + " s, then " +
                                                std::to_string(halves) + " halves of the radius to the Planck time\n")
                                                   .c_str());
                 if (record != NULL)
@@ -1183,9 +1185,11 @@ int main(int count, char **arguments)
     }
     lean += "end CoreRadius\n";
     sim_check(&results, core_radius_lean_write(arguments[1], &cfg, "report.lean", lean), "Lean witness written");
-    const int held = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
-    scriptura_text(&results.line, held ? "  every bound is exact and held in the build's width\n" : "  a bound outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
-    sim_check(&results, held, "every bound held");
+    const int conditions_met = !run_cfg_short() && !record_short() && (g_sim_rational_wide == 0);
+    mmgr_line_put(&results.line, conditions_met
+                                      ? "  every bound is exact and stored in the build's width\n"
+                                      : "  a bound outgrew the build's width: run with a larger SIM_EXACT_LIMBS\n");
+    sim_check(&results, conditions_met, "every bound bounded");
     const int recorded = (record != NULL) && record_close(record);
     sim_check(&results, recorded, "record written");
     return sim_close(&results, "core radius");

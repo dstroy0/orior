@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // archive_path.c: where a path of the tree runs into an archive, and on into one inside it; what a folder within an
-// archive holds; and a file within one read
+// archive contains; and a file within one read
 #include "../command_line/cells.h"
 #include "../text/text.h"
 #include "archive_internal.h"
@@ -21,14 +21,14 @@ static CliRoom *cli_archive_rooms(unsigned int at)
                                                     : &levels->tar;
 }
 
-int cli_archive_held(CliLine *said)
+int cli_archive_locked(VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_archive_lock);
-    g_cli_archive_levels = cli_cell_taken(sizeof(*g_cli_archive_levels), "the archives a path runs through");
+    g_cli_archive_levels = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_archive_levels), NULL);
     if (g_cli_archive_levels == NULL)
     {
         cli_lock_give(&g_cli_archive_lock);
-        cli_line_text(said, "the archives a path runs through could not be taken");
+        mmgr_line_put(err_msg, "the archives a path runs through could not be taken");
         return 0;
     }
     for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
@@ -42,14 +42,14 @@ void cli_archive_released(void)
 {
     for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
     {
-        cli_cell_given(cli_archive_rooms(at)->bytes);
+        g_cli_cells->persistent_buf_release(cli_archive_rooms(at)->bytes, NULL);
     }
-    cli_cell_given(g_cli_archive_levels);
+    g_cli_cells->persistent_buf_release(g_cli_archive_levels, NULL);
     g_cli_archive_levels = NULL;
     cli_lock_give(&g_cli_archive_lock);
 }
 
-int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, CliLine *said)
+int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, VerbaLinea *err_msg)
 {
     if (need <= room->room)
     {
@@ -57,18 +57,18 @@ int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, C
     }
     if (need > CLI_ARCHIVE_MOST)
     {
-        cli_line_text(said, what);
-        cli_line_text(said, " is larger than orior_cli holds");
+        mmgr_line_put(err_msg, what);
+        mmgr_line_put(err_msg, " is larger than orior_cli supports");
         return 0;
     }
-    unsigned char *const cell = cli_cell_taken(need, what);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(need, NULL);
     if (cell == NULL)
     {
-        cli_line_text(said, what);
-        cli_line_text(said, " could not be taken");
+        mmgr_line_put(err_msg, what);
+        mmgr_line_put(err_msg, " could not be taken");
         return 0;
     }
-    cli_cell_given(room->bytes);
+    g_cli_cells->persistent_buf_release(room->bytes, NULL);
     room->bytes = cell;
     room->room = need;
     return 1;
@@ -91,9 +91,9 @@ void cli_archive_parts_of(const char *path, CliParts *parts)
         }
         if ((stop > at) && (parts->count < CLI_ARCHIVE_PARTS))
         {
-            CliLine line = {parts->part[parts->count], CLI_NAME_LONGEST, 0ull};
-            cli_line_counted(&line, at, (unsigned long long)(stop - at));
-            cli_line_closed(&line);
+            VerbaLinea line = {parts->part[parts->count], CLI_NAME_MAX_LEN, 0ull};
+            mmgr_line_put_n(&line, at, (unsigned long long)(stop - at));
+            mmgr_line_finish(&line);
             parts->count += 1u;
         }
         at = (stop[0] != '\0') ? (stop + 1) : stop;
@@ -102,13 +102,13 @@ void cli_archive_parts_of(const char *path, CliParts *parts)
 
 void cli_archive_joined(const CliParts *parts, unsigned int from, unsigned int to, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     for (unsigned int at = from; at < to; at += 1u)
     {
-        cli_line_text(&line, (at != from) ? "/" : "");
-        cli_line_text(&line, parts->part[at]);
+        mmgr_line_put(&line, (at != from) ? "/" : "");
+        mmgr_line_put(&line, parts->part[at]);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 const CliMember *cli_archive_file_named(const CliMembers *members, const char *name)
@@ -127,10 +127,10 @@ const CliMember *cli_archive_file_named(const CliMembers *members, const char *n
 
 int cli_archive_split(const char *root, const char *path, char *file, char *inner)
 {
-    char full[CLI_PATH_LONGEST];
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_inside(root, path, full, &said))
+    char full[CLI_PATH_MAX_LEN];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (!cli_inside(root, path, full, &err_msg))
     {
         return 0;
     }
@@ -139,7 +139,7 @@ int cli_archive_split(const char *root, const char *path, char *file, char *inne
         .dst = file, .src = full, .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
     while (!query_is_file(file) && !query_is_folder(file))
     {
-        char above[CLI_PATH_LONGEST];
+        char above[CLI_PATH_MAX_LEN];
         if (!cli_path_parent(file, above))
         {
             return 0;
@@ -169,23 +169,23 @@ int cli_archive_split(const char *root, const char *path, char *file, char *inne
     return 1;
 }
 
-int cli_archive_descend(CliDescent *descent, const CliParts *parts, CliLine *said)
+int cli_archive_descend(CliDescent *descent, const CliParts *parts, VerbaLinea *err_msg)
 {
     unsigned int buffer = 0u;
     for (;;)
     {
-        char inner[CLI_NAME_LONGEST];
+        char inner[CLI_NAME_MAX_LEN];
         unsigned long long unpacked = 0ull;
         cli_gz_inner(descent->name, inner);
         if (!cli_members_of(descent->bytes, descent->size, descent->kind, inner, &g_cli_archive_levels->members[0],
-                            &g_cli_archive_levels->unpacked[0], &unpacked, said))
+                            &g_cli_archive_levels->unpacked[0], &unpacked, err_msg))
         {
             return 0;
         }
         int deeper = 0;
         for (unsigned int cut = parts->count; !deeper && (cut > descent->left); cut -= 1u)
         {
-            char path[CLI_PATH_LONGEST];
+            char path[CLI_PATH_MAX_LEN];
             cli_archive_joined(parts, descent->left, cut, path);
             const CliMember *const member = cli_archive_file_named(&g_cli_archive_levels->members[0], path);
             const unsigned int nested = cli_archive_kind_of(path);
@@ -196,7 +196,7 @@ int cli_archive_descend(CliDescent *descent, const CliParts *parts, CliLine *sai
             unsigned long long size = 0ull;
             if (!cli_data_of(descent->bytes, descent->size, descent->kind, g_cli_archive_levels->unpacked[0].bytes,
                              unpacked, &g_cli_archive_levels->members[0], member, &g_cli_archive_levels->inner[buffer],
-                             &size, said))
+                             &size, err_msg))
             {
                 return 0;
             }
@@ -218,14 +218,14 @@ int cli_archive_descend(CliDescent *descent, const CliParts *parts, CliLine *sai
 }
 
 // the hex of `length` bytes, two lower case digits each, put in the children's texts: its place
-static unsigned int cli_hex_kept(CliChildren *found, const char *bytes, unsigned long long length)
+static unsigned int cli_hex_stored(CliChildren *found, const char *bytes, unsigned long long length)
 {
     static const char s_hex[17] = "0123456789abcdef";
     if ((found->used + (length * 2ull) + 1ull) > CLI_ARCHIVE_NAMES)
     {
         return 0u;
     }
-    // a place is below CLI_ARCHIVE_NAMES, which an unsigned int holds
+    // a place is below CLI_ARCHIVE_NAMES, which an unsigned int stores
     const unsigned int at = (unsigned int)found->used;
     for (unsigned long long byte = 0ull; byte < length; byte += 1ull)
     {
@@ -238,14 +238,14 @@ static unsigned int cli_hex_kept(CliChildren *found, const char *bytes, unsigned
 }
 
 // a text put in the children's texts: its place
-static unsigned int cli_text_kept(CliChildren *found, const char *text)
+static unsigned int cli_text_stored(CliChildren *found, const char *text)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     if ((found->used + length + 1ull) > CLI_ARCHIVE_NAMES)
     {
         return 0u;
     }
-    // a place is below CLI_ARCHIVE_NAMES, which an unsigned int holds
+    // a place is below CLI_ARCHIVE_NAMES, which an unsigned int stores
     const unsigned int at = (unsigned int)found->used;
     memor.cpy(&(MemoriaCfg){.dst = found->text + at, .src = text, .bytes = length + 1ull});
     found->used += length + 1ull;
@@ -312,14 +312,14 @@ static void cli_children(const CliDescent *descent, const CliParts *parts, const
         const int archive = !deeper && !member->dir && (cli_archive_kind_of(child) != CLI_ARCHIVE_NONE);
         CliChild *const one = &found->item[found->count];
         found->count += 1u;
-        one->name = cli_text_kept(found, child);
-        char path[CLI_PATH_LONGEST];
-        CliLine line = {path, sizeof(path), 0ull};
-        cli_line_text(&line, prefix);
-        cli_line_character(&line, '/');
-        cli_line_text(&line, child);
-        cli_line_closed(&line);
-        one->path = cli_text_kept(found, path);
+        one->name = cli_text_stored(found, child);
+        char path[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {path, sizeof(path), 0ull};
+        mmgr_line_put(&line, prefix);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, child);
+        mmgr_line_finish(&line);
+        one->path = cli_text_stored(found, path);
         one->dir = deeper || member->dir || archive;
         one->archive = archive;
         one->has_raw = member->has_raw && !deeper;
@@ -339,20 +339,21 @@ static void cli_children(const CliDescent *descent, const CliParts *parts, const
             {
                 start -= 1ull;
             }
-            one->raw = (end > start) ? cli_hex_kept(found, raw + start, end - start) : cli_hex_kept(found, raw, length);
+            one->raw =
+                (end > start) ? cli_hex_stored(found, raw + start, end - start) : cli_hex_stored(found, raw, length);
         }
     }
     // folders first, then by name, case aside
     for (unsigned int at = 1u; at < found->count; at += 1u)
     {
-        const CliChild held = found->item[at];
+        const CliChild swap = found->item[at];
         unsigned int place = at;
         while (place > 0u)
         {
             const CliChild *const before = &found->item[place - 1u];
             const int first =
-                (held.dir && !before->dir) ||
-                ((held.dir == before->dir) && cli_before(found->text + held.name, found->text + before->name));
+                (swap.dir && !before->dir) ||
+                ((swap.dir == before->dir) && cli_before(found->text + swap.name, found->text + before->name));
             if (!first)
             {
                 break;
@@ -360,18 +361,18 @@ static void cli_children(const CliDescent *descent, const CliParts *parts, const
             found->item[place] = *before;
             place -= 1u;
         }
-        found->item[place] = held;
+        found->item[place] = swap;
     }
 }
 
 int cli_archive_opened(const char *root, const char *path, const char *missing, CliDescent *descent, CliParts *parts,
-                       char *file, CliLine *said)
+                       char *file, VerbaLinea *err_msg)
 {
-    char inner[CLI_PATH_LONGEST];
+    char inner[CLI_PATH_MAX_LEN];
     if (!cli_archive_split(root, path, file, inner))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, missing);
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, missing);
         return 0;
     }
     const char *const base =
@@ -381,11 +382,11 @@ int cli_archive_opened(const char *root, const char *path, const char *missing, 
             ? (cli_text_last(file, cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}), '\\') + 1)
             : file;
     descent->kind = cli_archive_kind_of(base);
-    descent->bytes = cli_file_held(file, &descent->size);
+    descent->bytes = cli_file_read(file, &descent->size);
     if (descent->bytes == NULL)
     {
-        cli_line_text(said, file);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = descent->name,
@@ -396,26 +397,26 @@ int cli_archive_opened(const char *root, const char *path, const char *missing, 
     return 1;
 }
 
-int cli_archive_list(const char *root, const char *path, CliChildren *found, CliLine *said)
+int cli_archive_list(const char *root, const char *path, CliChildren *found, VerbaLinea *err_msg)
 {
     static CliParts s_parts;
     CliDescent descent;
-    char file[CLI_PATH_LONGEST];
-    if (!cli_archive_held(said))
+    char file[CLI_PATH_MAX_LEN];
+    if (!cli_archive_locked(err_msg))
     {
         return 0;
     }
-    if (!cli_archive_opened(root, path, " is no archive", &descent, &s_parts, file, said))
+    if (!cli_archive_opened(root, path, " is no archive", &descent, &s_parts, file, err_msg))
     {
         cli_archive_released();
         return 0;
     }
     const unsigned char *const mapped = descent.bytes;
     const unsigned long long mapped_size = descent.size;
-    const int done = cli_archive_descend(&descent, &s_parts, said);
+    const int done = cli_archive_descend(&descent, &s_parts, err_msg);
     if (done)
     {
-        char prefix[CLI_PATH_LONGEST];
+        char prefix[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = prefix,
                                 .src = path,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u});
@@ -432,45 +433,45 @@ int cli_archive_list(const char *root, const char *path, CliChildren *found, Cli
     return done;
 }
 
-int cli_archive_read(const char *root, const char *path, CliLine *out, CliLine *said)
+int cli_archive_read(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
 {
     static CliParts s_parts;
     CliDescent descent;
-    char file[CLI_PATH_LONGEST];
-    if (!cli_archive_held(said))
+    char file[CLI_PATH_MAX_LEN];
+    if (!cli_archive_locked(err_msg))
     {
         return 0;
     }
-    if (!cli_archive_opened(root, path, " is in no archive", &descent, &s_parts, file, said))
+    if (!cli_archive_opened(root, path, " is in no archive", &descent, &s_parts, file, err_msg))
     {
         cli_archive_released();
         return 0;
     }
     const unsigned char *const mapped = descent.bytes;
     const unsigned long long mapped_size = descent.size;
-    int done = cli_archive_descend(&descent, &s_parts, said);
-    char wanted[CLI_PATH_LONGEST];
+    int done = cli_archive_descend(&descent, &s_parts, err_msg);
+    char wanted[CLI_PATH_MAX_LEN];
     cli_archive_joined(&s_parts, descent.left, s_parts.count, wanted);
-    char inner[CLI_NAME_LONGEST];
+    char inner[CLI_NAME_MAX_LEN];
     cli_gz_inner(descent.name, inner);
     unsigned long long unpacked = 0ull;
     done = done && cli_members_of(descent.bytes, descent.size, descent.kind, inner, &g_cli_archive_levels->members[0],
-                                  &g_cli_archive_levels->unpacked[0], &unpacked, said);
+                                  &g_cli_archive_levels->unpacked[0], &unpacked, err_msg);
     const CliMember *const member = done ? cli_archive_file_named(&g_cli_archive_levels->members[0], wanted) : NULL;
     if (done && (member == NULL))
     {
-        cli_line_text(said, descent.name);
-        cli_line_text(said, " holds no ");
-        cli_line_text(said, wanted);
+        mmgr_line_put(err_msg, descent.name);
+        mmgr_line_put(err_msg, " contains no ");
+        mmgr_line_put(err_msg, wanted);
         done = 0;
     }
     unsigned long long size = 0ull;
     done = done &&
            cli_data_of(descent.bytes, descent.size, descent.kind, g_cli_archive_levels->unpacked[0].bytes, unpacked,
-                       &g_cli_archive_levels->members[0], member, &g_cli_archive_levels->written[0], &size, said);
+                       &g_cli_archive_levels->members[0], member, &g_cli_archive_levels->written[0], &size, err_msg);
     if (done)
     {
-        cli_line_counted(out, (const char *)g_cli_archive_levels->written[0].bytes, size);
+        mmgr_line_put_n(out, (const char *)g_cli_archive_levels->written[0].bytes, size);
     }
     cli_file_let_go(mapped, mapped_size);
     cli_archive_released();

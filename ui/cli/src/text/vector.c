@@ -24,7 +24,7 @@ unsigned int cli_vector_paths(unsigned int *paths)
     return count;
 }
 
-// the widest path, read once: every thread that reads it before it is kept reads the same answer and keeps it
+// the widest path, read once: every thread that reads it before it is stored reads the same answer and stores it
 #if defined(_MSC_VER) && !defined(__clang__)
 static volatile int s_best = -1;
 #else
@@ -37,10 +37,10 @@ unsigned int cli_vector_best(void)
     {
         unsigned int paths[4];
         const unsigned int count = cli_vector_paths(paths);
-        // a path is one of four, which an int holds
+        // a path is one of four, which an int represents
         s_best = (int)paths[count - 1u];
     }
-    // read back as the path it was kept as
+    // read back as the path it was stored as
     return (unsigned int)s_best;
 }
 

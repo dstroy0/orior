@@ -3,17 +3,17 @@
 // overseer_carrier.c: a carrier for overseer_check that reaches no part, and the airlock's pop and cross beside it.
 // Given `refuse`, it hands the question it is handed the answer the carrier hands where the part refused a question
 // and stayed whole, with the accounts a refusal carries (cubin_run.c); given `hang`, it outlasts the time it is given
-// and answers nothing. A `--held <name>` after either is the held list a carrier reads, and is passed over. Given
+// and answers nothing. A `--gated <name>` after either is the gated list a carrier reads, and is passed over. Given
 // `pop`, it pops nothing and ends clean. As the airlock's cross, the round's list put after its first word, it hands an
-// empty held list given `cross`, ends as a cross that did not read given `unread`, and ends clean having handed nothing
-// given `silent` (run_channel.h). Given `registers`, it hands an empty held list and holds each question of fewer than
-// OVERSEER_CARRIER_CLEARING registers for a register past its count, the holds it hands the teacher naming that count;
-// given `illegal`, it holds each question for an instruction no count clears. Either ends as the cross does where it
-// holds some
+// empty gated list given `cross`, ends as a cross that did not read given `unread`, and ends clean having handed
+// nothing given `silent` (run_channel.h). Given `registers`, it hands an empty gated list and refuses each question of
+// fewer than OVERSEER_CARRIER_CLEARING registers for a register past its count, the refusals it hands the teacher
+// naming that count; given `illegal`, it refuses each question for an instruction no count clears. Either ends as the
+// cross does where it refuses some
 //
-//     overseer_carrier refuse|hang [--held <name>] <code> <registers> <cases> <answers> <slot>
+//     overseer_carrier refuse|hang [--gated <name>] <code> <registers> <cases> <answers> <probe>
 //     overseer_carrier pop ... --list <list>
-//     overseer_carrier <list> cross|unread|silent|registers|illegal <held> [<holds> [<read>]]
+//     overseer_carrier <list> cross|unread|silent|registers|illegal <gated> [<refusals> [<read>]]
 //
 // Exit 0 where it answered, popped, crossed or hung out its time, 1 where the answer could not be handed, 2 where the
 // words are none of the above or the cross did not read
@@ -34,33 +34,33 @@
 
 // the seconds `hang` outlasts, past any time overseer_check gives a question
 #define OVERSEER_CARRIER_HANG_SECONDS 5u
-// the count of registers that clears a hold the `registers` cross says, R40 the register it reads
+// the count of registers that clears a refusal the `registers` cross reports, R40 the register it reads
 #define OVERSEER_CARRIER_CLEARING 41u
 
-// the refusal and its accounts, as the carrier says them after a launch the part refused
+// the refusal and its accounts, as the carrier reports them after a launch the part refused
 static const char s_refused[] =
     "refused CUDA_ERROR_ILLEGAL_ADDRESS\n"
     "proctor: the launch of question.bin, 32 bytes of code, 16 registers, 32 threads in 1 blocks over 1 cases, 0 "
     "launches timed after it, was refused, the part left whole: the driver's status CUDA_ERROR_ILLEGAL_ADDRESS (700); "
     "cause address\n"
     "listener: the part stamped 1 Xid critical errors against the launch, Xid 31; cause address\n"
-    "gate: the code read safe, its register fields bound by 16; the held list loaded; the code holds no slot\n";
+    "gate: the code read safe, its register fields bound by 16; the gated list loaded; the code contains no probe\n";
 
-// The holds of the cross `mode`, `registers` or `illegal`, over the list `list_name` of `run`, handed as `holds_name`,
-// and an empty held list as `held_name`: 1 where it held any, 0 where it held none, 2 where the list or a blob was not
-// had
-static int overseer_carrier_held(QryShared *run, const char *mode, const char *list_name, const char *held_name,
-                                 const char *holds_name)
+// The refusals of the cross `mode`, `registers` or `illegal`, over the list `list_name` of `run`, handed as
+// `gated_list_name`, and an empty gated list as `gated_name`: 1 where it refused any, 0 where it refused none, 2 where
+// the list or a blob was not had
+static int overseer_carrier_gated(QryShared *run, const char *mode, const char *list_name, const char *gated_name,
+                                  const char *gated_list_name)
 {
     const unsigned char *list = NULL;
     unsigned long long size = 0ull;
     if (!qry_member_blob(list_name, &list, &size, NULL) ||
-        (qry_member_append(held_name, "", 0ull, QRY_ORDINARY) == 0ull))
+        (qry_member_append(gated_name, "", 0ull, QRY_ORDINARY) == 0ull))
     {
         return 2;
     }
     const int illegal = (strcmp(mode, "illegal") == 0);
-    char holds[4096];
+    char gated_text[4096];
     size_t length = 0u;
     for (unsigned long long at = 0ull; at < size;)
     {
@@ -80,15 +80,15 @@ static int overseer_carrier_held(QryShared *run, const char *mode, const char *l
         }
         answers[strcspn(answers, ".")] = '\0';
         const int written = illegal
-                                ? snprintf(holds + length, sizeof(holds) - length,
+                                ? snprintf(gated_text + length, sizeof(gated_text) - length,
                                            "%s 0 the stand-in reads an illegal instruction\n", answers)
-                                : snprintf(holds + length, sizeof(holds) - length,
+                                : snprintf(gated_text + length, sizeof(gated_text) - length,
                                            "%s %u the stand-in reads R40, past the %u registers its kernel allots\n",
                                            answers, OVERSEER_CARRIER_CLEARING, registers);
-        // a hold's line fits what is left of the holds, and its length is not negative
-        length += ((written > 0) && ((size_t)written < (sizeof(holds) - length))) ? (size_t)written : 0u;
+        // a refusal's line fits what is left of the refusals, and its length is not negative
+        length += ((written > 0) && ((size_t)written < (sizeof(gated_text) - length))) ? (size_t)written : 0u;
     }
-    if (qry_member_append(holds_name, holds, (unsigned long long)length, QRY_ORDINARY) == 0ull)
+    if (qry_member_append(gated_list_name, gated_text, (unsigned long long)length, QRY_ORDINARY) == 0ull)
     {
         return 2;
     }
@@ -101,7 +101,7 @@ int main(int count, char **words)
     {
         return 0;
     }
-    // the cross's words: the list, the mode, the held list, and after them the holds and the read list the airlock
+    // the cross's words: the list, the mode, the gated list, and after them the refusals and the read list the airlock
     // names, which this cross passes over
     if ((count >= 4) && (count <= 6) &&
         ((strcmp(words[2], "cross") == 0) || (strcmp(words[2], "unread") == 0) || (strcmp(words[2], "silent") == 0) ||
@@ -115,7 +115,7 @@ int main(int count, char **words)
         if ((strcmp(words[2], "registers") == 0) || (strcmp(words[2], "illegal") == 0))
         {
             return ((run == NULL) || (count < 5)) ? 2
-                                                  : overseer_carrier_held(run, words[2], words[1], words[3], words[4]);
+                                                  : overseer_carrier_gated(run, words[2], words[1], words[3], words[4]);
         }
         if ((strcmp(words[2], "cross") == 0) &&
             ((run == NULL) || (qry_member_append(words[3], "", 0ull, QRY_ORDINARY) == 0ull)))
@@ -124,11 +124,11 @@ int main(int count, char **words)
         }
         return 0;
     }
-    const int held = (count >= 4) && (strcmp(words[2], "--held") == 0);
-    const int first = held ? 4 : 2;
+    const int gated_mode = (count >= 4) && (strcmp(words[2], "--gated") == 0);
+    const int first = gated_mode ? 4 : 2;
     if (((count - first) != 5) || ((strcmp(words[1], "refuse") != 0) && (strcmp(words[1], "hang") != 0)))
     {
-        fprintf(stderr, "overseer_carrier refuse|hang [--held <name>] <code> <registers> <cases> <answers> <slot>\n");
+        fprintf(stderr, "overseer_carrier refuse|hang [--gated <name>] <code> <registers> <cases> <answers> <probe>\n");
         return 2;
     }
     if (strcmp(words[1], "hang") == 0)

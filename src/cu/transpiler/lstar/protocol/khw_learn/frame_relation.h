@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_relation.h: the frame relations, what the host computes for a case from the launch and the case alone, for the
-// teacher's frame round and the check that holds them (The frame forms asked, Open 6.4)
+// teacher's frame round and the check that checks them (Open 6.4)
 #ifndef FRAME_RELATION_H
 #define FRAME_RELATION_H
 
@@ -44,17 +44,17 @@ extern "C"
 // size, as many as give every case a thread
 #define FRAME_LAUNCHED (RUN_THREADS_A_BLOCK * ((FRAME_CASES + RUN_THREADS_A_BLOCK - 1u) / RUN_THREADS_A_BLOCK))
 
-// the place of a tuple a relation does not hold
+// the place of a tuple a relation does not have
 #define FRAME_PLACE_NONE 0xffffffffu
 
     // The host's answer of `relation` for the thread `at`, put with the case's two words `word` under the relation's
     // reading `reading`: the word a load reads, 0 or 1; the word of the register a store's variant set, 1 for the
     // second; a number's constant. The answer is the record's two words as one value, the first word low: a lane's
     // number, a block's, a word loaded or a number stand in the first with the second 0, as the stores before the
-    // slot leave it; a store leaves the case's second word in the first, as the slot found it, and the register's
-    // word in the second; an exit leaves the fill word in the first; the block size, `dim`, is the threads a block
-    // on every case, which the launch alone sets; and a parameter's word, `parameter`, is the count the launch hands
-    // the kernel on every case, its reading the count's place among the parameters. 1, or 0 where the relation is
+    // probe place leave it; a store leaves the case's second word in the first, as the probe place found it, and the
+    // register's word in the second; an exit leaves the fill word in the first; the block size, `dim`, is the threads a
+    // block on every case, which the launch alone sets; and a parameter's word, `parameter`, is the count the launch
+    // hands the kernel on every case, its reading the count's place among the parameters. 1, or 0 where the relation is
     // none of the eight
     static inline int frame_answer(unsigned int relation, unsigned int at, const unsigned int *word,
                                    unsigned long long reading, unsigned long long *answered)
@@ -92,7 +92,7 @@ extern "C"
 
     // each relation's tuple places: the destination, last where the relation writes a register; the address a load
     // reads through; the number, a number's value, a load's or a store's offset, or a parameter's place among the
-    // parameters; the register a store keeps; and the guard an exit reads. FRAME_PLACE_NONE where the relation holds
+    // parameters; the register a store stores; and the guard an exit reads. FRAME_PLACE_NONE where the relation has
     // none
     static inline unsigned int frame_place_destination(unsigned int relation)
     {

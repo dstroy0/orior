@@ -41,9 +41,9 @@ static int limbs_compare(const uint32_t *left, size_t left_used, const uint32_t 
 
 // Knuth's algorithm D in base 2^32 on operands of any length: the top two limbs of the running remainder over the
 // divisor's normalized top limb estimate each quotient limb, the estimate is at most two high, and the
-// multiply-subtract's borrow says when to add the divisor back. top has top_used limbs and bottom bottom_used, its
-// top limb nonzero; quotient takes top_used - bottom_used + 1 limbs and rest bottom_used, both written in full;
-// work holds top_used + bottom_used + 1 words
+// multiply-subtract's borrow determines when to add the divisor back. top has top_used limbs and bottom bottom_used,
+// its top limb nonzero; quotient takes top_used - bottom_used + 1 limbs and rest bottom_used, both written in full;
+// work contains top_used + bottom_used + 1 words
 static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *bottom, size_t bottom_used,
                          uint32_t *quotient, uint32_t *rest, uint32_t *work)
 {
@@ -149,7 +149,7 @@ static void limbs_divide(const uint32_t *top, size_t top_used, const uint32_t *b
 // t - used + 2 limbs. Each level halves the quotient's precision p: the top p/2 + 2 limbs of d give a reciprocal good
 // to half the limbs, shifted back up; one Newton step x + x (beta^t - d x) / beta^t squares its relative error; and
 // multiplying back fixes the last units exactly. Every product is on the ladder. The reciprocal costs a few
-// products. 0 when workspace cannot be held
+// products. 0 when workspace cannot be allocated
 static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t t)
 {
     const size_t precision = t - used;
@@ -174,8 +174,8 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
     }
     const size_t half = precision / 2u;
     const size_t inner_precision = precision - half;
-    const size_t keep = (used < (inner_precision + 2u)) ? used : (inner_precision + 2u);
-    const size_t dropped = used - keep;
+    const size_t taken = (used < (inner_precision + 2u)) ? used : (inner_precision + 2u);
+    const size_t dropped = used - taken;
     // products run to t + 4 limbs; the Newton step's error term to t + 2
     const size_t span = t + precision + 8u;
     uint32_t *const workspace = (uint32_t *)calloc((5u * span) + count, sizeof(uint32_t));
@@ -189,7 +189,7 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
     uint32_t *const step = &error[span];
     uint32_t *const correction = &step[span];
     uint32_t *const inner = &correction[span];
-    if (limbs_reciprocal(inner, &d[dropped], keep, keep + inner_precision) == 0)
+    if (limbs_reciprocal(inner, &d[dropped], taken, taken + inner_precision) == 0)
     {
         free(workspace);
         return 0;
@@ -219,7 +219,7 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
         limbs_ladder_product(step, guess, guess_used, error, error_used);
         const size_t step_used = limbs_used(step, guess_used + error_used);
         memset(correction, 0, span * sizeof(uint32_t));
-        // the step is below the guess; the cap only keeps a far guess inside its limbs, the exact pass below fixing it
+        // the step is below the guess; the cap only limits a far guess inside its limbs, the exact pass below fixing it
         const size_t correction_used = (step_used > t) ? (((step_used - t) < count) ? (step_used - t) : count) : 0u;
         memcpy(correction, &step[t], correction_used * sizeof(uint32_t));
         if (over)
@@ -260,7 +260,7 @@ static int limbs_reciprocal(uint32_t *x, const uint32_t *d, size_t used, size_t 
 
 // division by the reciprocal: with x = floor(beta^n / d) for a top of n limbs, q = floor(top x / beta^n) is the
 // quotient or at most two below it, and the remainder settles it; quotient takes n - used + 1 limbs and rest used.
-// 0 when workspace cannot be held
+// 0 when workspace cannot be allocated
 static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint32_t *bottom, size_t bottom_used,
                                uint32_t *quotient, uint32_t *rest)
 {
@@ -321,7 +321,8 @@ static int limbs_divide_newton(const uint32_t *top, size_t top_used, const uint3
 }
 
 // the full-width division: Newton's once the divisor and the quotient both reach ORIOR_EXACT_NEWTON_LIMBS (or
-// always, when asked), long division below it or when Newton's workspace cannot be held; work holds 2 limbs + 1 words
+// always, when requested), long division below it or when Newton's workspace cannot be allocated; work contains 2 limbs
+// + 1 words
 static void magnitude_divide_by(const uint32_t *top, const uint32_t *bottom, uint32_t *quotient, uint32_t *rest,
                                 uint32_t *work, int newton_only)
 {

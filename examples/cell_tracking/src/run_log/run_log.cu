@@ -56,20 +56,20 @@ void rules_line(const TreeRules *rules, char *line, size_t capacity)
         {"merge-split", rules->merge_split},
         {"merge-target", rules->merge_target},
         {"forward-only", rules->forward_only},
-        {"keep-view", rules->keep_view},
+        {"retain-view", rules->retain_view},
         {"resolve", rules->resolve},
         {"sticky", rules->sticky},
         {"motion-check", rules->motion_check},
         {"climb", rules->climb},
     };
     line[0] = '\0';
-    for (unsigned int slot = 0u; slot < (unsigned int)(sizeof(every) / sizeof(every[0])); slot += 1u)
+    for (unsigned int index = 0u; index < (unsigned int)(sizeof(every) / sizeof(every[0])); index += 1u)
     {
         const size_t at = strlen(line);
-        const int fits = (every[slot].on != 0) && ((at + strlen(every[slot].name) + 2u) < capacity);
+        const int fits = (every[index].on != 0) && ((at + strlen(every[index].name) + 2u) < capacity);
         if (fits != 0)
         {
-            snprintf(&line[at], capacity - at, " %s", every[slot].name);
+            snprintf(&line[at], capacity - at, " %s", every[index].name);
         }
     }
 }
@@ -84,7 +84,7 @@ FILE *log_open(void)
         fprintf(log, "when\tkind\trules\tsample\tframes\tobjects\tleaves\tlargest\trejoined"
                      "\tedges\tcorrect\tbranched\twrong\tno_link\tmissed"
                      "\tread_ms\tbodies_ms\tstore_ms\tties_ms\tmotion_ms\tlanding_ms\toverlap_ms\tclimb_ms"
-                     "\tengines_ms\ttree_ms\tweb_asked\tweb_moved\tweb_capped\tweb_members"
+                     "\tengines_ms\ttree_ms\tweb_queried\tweb_moved\tweb_capped\tweb_members"
                      "\tdamp_leaves\tdamp_landings\tdamp_deviations\n");
     }
     return log;

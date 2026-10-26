@@ -8,8 +8,9 @@ import { progressBar, timeLeft } from "./progress.js";
 import { editing, forgetTree, loadMounts, onShown, openAt, openElsewhere, openFile, restoreSession, startEdit, takeSettings } from "./edit.js";
 import { loadBreakpoints } from "./debug.js";
 import { loadBookmarks } from "./bookmarks.js";
-import { keepLattices } from "./lattice.js";
+import { startLattice } from "./lattice.js";
 import { hideLoading, showLoading } from "./loading.js";
+import { firstStart } from "./session.js";
 import { startMenus } from "./menu.js";
 import { drawMenubar, hearCommandLine, restoreEnvironment, runCommand, runLaunch, sheet as menubarSheet, startMenubar } from "./menubar.js";
 import { forgetRuns } from "./runs.js";
@@ -195,7 +196,7 @@ function showSettings(changed) {
   if (has("zoom")) {
     showZoom();
   }
-  if (has("cores-kept")) {
+  if (has("cores-reserved")) {
     giveCores();
   }
   if (has("keys")) {
@@ -213,6 +214,11 @@ function showSettings(changed) {
 async function start() {
   invoke("window_show").catch(() => {});
   const commands = invoke("commands_read");
+  // The loading pane, the name standing on it, shows once, on the first start in the system's session, while
+  // the tree is read
+  if (await firstStart()) {
+    showLoading();
+  }
   giveCores();
   catchErrors();
   await startMotion();
@@ -229,7 +235,7 @@ async function start() {
   document.getElementById("open-button").addEventListener("click", () => openFolder());
   document.getElementById("clone-button").addEventListener("click", () => runCommand("clone"));
   await startMenubar({ openFolder, commands });
-  keepLattices();
+  startLattice();
   await styled;
   startSearch((path, line, col) => {
     showView("edit");
@@ -320,6 +326,7 @@ async function start() {
   // there first where it has to be.
   await linkJoined();
   await begin(await invoke("root_get"));
+  await hideLoading();
   settlePanes();
   onView(settlePanes);
   await runLaunch();
@@ -360,42 +367,37 @@ async function checkNeeded() {
 
 let started = false;
 
-// Reads the tree behind the eye, and takes the eye away whether the read succeeds or fails.
+// Reads the tree.
 async function begin(root) {
-  showLoading();
-  try {
-    if (!(await settle(root))) {
-      return;
-    }
-    await readSettings(root);
-    readTree();
-    readTrust();
-    const defs = await invoke("definitions_read");
-    if (!started) {
-      started = true;
-      await startEdit(defs);
-      startPreview();
-      startRequests();
-      startPeek();
-      startPurpose();
-      startGather();
-    }
-    await loadRun();
-    drawMenubar();
-    await restoreEnvironment();
-    // The folders and files mounted beside the tree come back before the tabs that show them.
-    await loadMounts();
-    await restoreSession();
-    // The tests of the tree open before are forgotten, and this tree's read where their window shows.
-    forgetTests();
-    forgetRuns();
-    if (paneOpen("tests")) {
-      loadTests();
-    }
-    checkNeeded();
-  } finally {
-    await hideLoading();
+  if (!(await settle(root))) {
+    return;
   }
+  await readSettings(root);
+  readTree();
+  readTrust();
+  const defs = await invoke("definitions_read");
+  if (!started) {
+    started = true;
+    await startEdit(defs);
+    startPreview();
+    startRequests();
+    startPeek();
+    startPurpose();
+    startGather();
+  }
+  await loadRun();
+  drawMenubar();
+  await restoreEnvironment();
+  // The folders and files mounted beside the tree come back before the tabs that show them.
+  await loadMounts();
+  await restoreSession();
+  // The tests of the tree open before are forgotten, and this tree's read where their window shows.
+  forgetTests();
+  forgetRuns();
+  if (paneOpen("tests")) {
+    loadTests();
+  }
+  checkNeeded();
 }
 
 start();

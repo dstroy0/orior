@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // run.c: a query run (qry_member.h): its folder, its .qry, its writer's process, whether it was joined, and the files
-// it read and may leave. Every process a loop starts reaches the run by QRY. A run's .qry holds everything the run
+// it read and may leave. Every process a loop starts reaches the run by QRY. A run's .qry contains everything the run
 // did and every file it ran against, as it read each one and as it left each one it changed. As a run ends only the
-// newest QRY_KEPT runs of its folder are kept, 64 where it is not set
+// newest QRY_RETAINED runs of its folder are retained, 64 where it is not set
 #include "../query_internal.h"
 
-// the folder the course's runs are kept in (course.c)
+// the folder the course's runs are stored in (course.c)
 #define QUERY_COURSE_FOLDER "build/engine/course/qry"
 
 // the folder `path` stands in written into `folder`, the top of the tree where it names none
@@ -17,16 +17,16 @@ static void query_parent_of(const char *path, const char *root, char *folder)
     {
         slash = ((*at == '/') || (*at == '\\')) ? at : slash;
     }
-    CliLine line = {folder, QUERY_PATH_LONGEST, 0ull};
+    VerbaLinea line = {folder, QUERY_PATH_MAX_LEN, 0ull};
     if (slash != NULL)
     {
-        cli_line_counted(&line, path, (unsigned long long)(slash - path));
+        mmgr_line_put_n(&line, path, (unsigned long long)(slash - path));
     }
     else
     {
-        cli_line_text(&line, root);
+        mmgr_line_put(&line, root);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // the cells of the files a run read and may leave given back, as the run ends and before a run begins again in its
@@ -39,10 +39,10 @@ static void query_run_paths_given(QueryRun *run)
 
 // the run's writer named: its program built where stale, its .qry and the top of the tree
 static int query_run_writer(QueryRun *run, const char *root, const char *qry, const QueryPrograms *programs,
-                            CliLine *said)
+                            VerbaLinea *err_msg)
 {
     memor.set(&(MemoriaCfg){.dst = run, .val = 0, .bytes = sizeof(*run)});
-    if (!query_tool_built(root, programs, "orior_qry_writer", run->writer.binary, sizeof(run->writer.binary), said))
+    if (!query_tool_built(root, programs, "orior_qry_writer", run->writer.binary, sizeof(run->writer.binary), err_msg))
     {
         return 0;
     }
@@ -56,17 +56,18 @@ static int query_run_writer(QueryRun *run, const char *root, const char *qry, co
     return 1;
 }
 
-int query_run_joining(QueryRun *run, const char *root, const char *qry, const QueryPrograms *programs, CliLine *said)
+int query_run_joining(QueryRun *run, const char *root, const char *qry, const QueryPrograms *programs,
+                      VerbaLinea *err_msg)
 {
     query_run_paths_given(run);
-    if (!query_run_writer(run, root, qry, programs, said))
+    if (!query_run_writer(run, root, qry, programs, err_msg))
     {
         return 0;
     }
     if (!query_writer_runs(&run->writer) || !query_writer_joined(&run->writer))
     {
-        cli_line_text(said, "no writer runs ");
-        cli_line_text(said, qry);
+        mmgr_line_put(err_msg, "no writer runs ");
+        mmgr_line_put(err_msg, qry);
         return 0;
     }
     query_parent_of(qry, root, run->folder);
@@ -75,59 +76,59 @@ int query_run_joining(QueryRun *run, const char *root, const char *qry, const Qu
 }
 
 int query_run_started(QueryRun *run, const char *root, const char *folder, const QueryPrograms *programs,
-                      QueryContext *context, CliLine *said)
+                      QueryContext *context, VerbaLinea *err_msg)
 {
     (void)context;
     query_run_paths_given(run);
-    char held[QUERY_PATH_LONGEST];
-    if (query_environment_read("QRY", held, sizeof(held)))
+    char qry_path[QUERY_PATH_MAX_LEN];
+    if (query_environment_read("QRY", qry_path, sizeof(qry_path)))
     {
         QueryRun joined;
-        if (query_run_writer(&joined, root, held, programs, said) && query_writer_runs(&joined.writer) &&
+        if (query_run_writer(&joined, root, qry_path, programs, err_msg) && query_writer_runs(&joined.writer) &&
             query_writer_joined(&joined.writer))
         {
             *run = joined;
-            query_parent_of(held, root, run->folder);
+            query_parent_of(qry_path, root, run->folder);
             run->joined = 1;
             return 1;
         }
-        said->at = 0ull;
+        err_msg->at = 0ull;
     }
     if (!query_folder_made(folder))
     {
-        cli_line_text(said, folder);
-        cli_line_text(said, " is no folder");
+        mmgr_line_put(err_msg, folder);
+        mmgr_line_put(err_msg, " is no folder");
         return 0;
     }
     char name[128];
     query_next_name(folder, name, sizeof(name));
-    char qry[QUERY_PATH_LONGEST];
-    CliLine line = {qry, sizeof(qry), 0ull};
-    cli_line_text(&line, folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    char full[QUERY_PATH_LONGEST];
-    if ((cli_line_closed(&line) == 0ull) || !query_path_full(qry, full, sizeof(full)) ||
-        !query_run_writer(run, root, full, programs, said))
+    char qry[QUERY_PATH_MAX_LEN];
+    VerbaLinea line = {qry, sizeof(qry), 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
+    char full[QUERY_PATH_MAX_LEN];
+    if ((mmgr_line_finish(&line) == 0ull) || !query_path_full(qry, full, sizeof(full)) ||
+        !query_run_writer(run, root, full, programs, err_msg))
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = run->folder,
                             .src = folder,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
-    if (!query_writer_start(&run->writer, &run->process, said))
+    if (!query_writer_start(&run->writer, &run->process, err_msg))
     {
         return 0;
     }
     if (!query_writer_made(&run->writer))
     {
-        cli_line_text(said, "the run's writer did not start");
+        mmgr_line_put(err_msg, "the run's writer did not start");
         return 0;
     }
     if (!query_writer_joined(&run->writer))
     {
-        query_writer_stop(&run->writer, said);
-        cli_line_text(said, "the run's buffer could not be opened");
+        query_writer_stop(&run->writer, err_msg);
+        mmgr_line_put(err_msg, "the run's buffer could not be opened");
         return 0;
     }
     return 1;
@@ -157,8 +158,8 @@ typedef struct
 static unsigned int query_carried_runs(const QueryRuns *folder, const QueryRuns *course, QueryCarriedRun **carried)
 {
     const unsigned int count = folder->count + course->count;
-    *carried = (count > 0u) ? cli_cell_taken_by(&g_query_cells, (unsigned long long)count * sizeof(QueryCarriedRun),
-                                                "the runs carried from")
+    *carried = (count > 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)count * sizeof(QueryCarriedRun),
+                                                                &g_query_cells)
                             : NULL;
     if (*carried == NULL)
     {
@@ -176,25 +177,25 @@ static unsigned int query_carried_runs(const QueryRuns *folder, const QueryRuns 
         for (unsigned int back = at; (back > 0u) && ((*carried)[back - 1u].changed < (*carried)[back].changed);
              back -= 1u)
         {
-            const QueryCarriedRun held = (*carried)[back];
+            const QueryCarriedRun swap = (*carried)[back];
             (*carried)[back] = (*carried)[back - 1u];
-            (*carried)[back - 1u] = held;
+            (*carried)[back - 1u] = swap;
         }
     }
     return count;
 }
 
 int query_run_carried(QueryRun *run, const char *folder, const char *const *files, unsigned int count,
-                      const char *crystal, CliLine *said)
+                      const char *crystal, VerbaLinea *err_msg)
 {
-    char course[QUERY_PATH_LONGEST];
-    CliLine course_line = {course, sizeof(course), 0ull};
-    cli_line_text(&course_line, run->writer.top);
-    cli_line_character(&course_line, '/');
-    cli_line_text(&course_line, QUERY_COURSE_FOLDER);
-    cli_line_closed(&course_line);
-    char full_folder[QUERY_PATH_LONGEST];
-    char full_course[QUERY_PATH_LONGEST];
+    char course[QUERY_PATH_MAX_LEN];
+    VerbaLinea course_line = {course, sizeof(course), 0ull};
+    mmgr_line_put(&course_line, run->writer.top);
+    mmgr_line_ch(&course_line, '/');
+    mmgr_line_put(&course_line, QUERY_COURSE_FOLDER);
+    mmgr_line_finish(&course_line);
+    char full_folder[QUERY_PATH_MAX_LEN];
+    char full_course[QUERY_PATH_MAX_LEN];
     const int course_apart =
         !query_path_full(folder, full_folder, sizeof(full_folder)) ||
         !query_path_full(course, full_course, sizeof(full_course)) ||
@@ -226,9 +227,9 @@ int query_run_carried(QueryRun *run, const char *folder, const char *const *file
         {
             break;
         }
-        char named[QUERY_PATH_LONGEST];
-        char full_named[QUERY_PATH_LONGEST];
-        char full_qry[QUERY_PATH_LONGEST];
+        char named[QUERY_PATH_MAX_LEN];
+        char full_named[QUERY_PATH_MAX_LEN];
+        char full_qry[QUERY_PATH_MAX_LEN];
         if (!query_opened(carried_from[at].path, crystal, named, sizeof(named)) ||
             (query_path_full(named, full_named, sizeof(full_named)) &&
              query_path_full(run->writer.qry, full_qry, sizeof(full_qry)) &&
@@ -236,11 +237,11 @@ int query_run_carried(QueryRun *run, const char *folder, const char *const *file
         {
             continue;
         }
-        char carried[QUERY_SAID_LONGEST];
-        CliLine carried_line = {carried, sizeof(carried), 0ull};
+        char carried[QUERY_LINE_MAX_LEN];
+        VerbaLinea carried_line = {carried, sizeof(carried), 0ull};
         query_writer_carry(&run->writer, named, s_missing, missing, &carried_line);
     }
-    cli_cell_given_by(&g_query_cells, carried_from);
+    g_cli_cells->persistent_buf_release(carried_from, &g_query_cells);
     query_runs_given(&course_runs);
     query_runs_given(&folder_runs);
     for (unsigned int file = 0u; file < count; file += 1u)
@@ -254,12 +255,12 @@ int query_run_carried(QueryRun *run, const char *folder, const char *const *file
         const unsigned char *const mapped = qry_member_file_mapped(files[file], &size);
         if (mapped == NULL)
         {
-            cli_line_text(said, files[file]);
-            cli_line_text(said, ": it could not be read");
+            mmgr_line_put(err_msg, files[file]);
+            mmgr_line_put(err_msg, ": it could not be read");
             return 0;
         }
         const int appended =
-            query_writer_append(&run->writer, query_base(files[file]), mapped, size, QRY_ORDINARY, said);
+            query_writer_append(&run->writer, query_base(files[file]), mapped, size, QRY_ORDINARY, err_msg);
         qry_member_file_unmapped(mapped, size);
         if (!appended)
         {
@@ -269,7 +270,7 @@ int query_run_carried(QueryRun *run, const char *folder, const char *const *file
     return 1;
 }
 
-int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, CliLine *said)
+int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, VerbaLinea *err_msg)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -277,9 +278,9 @@ int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, 
         {
             continue;
         }
-        // a run that holds the file already, a step before this one in the course having read or written it, keeps
+        // a run that has the file already, a step before this one in the course having read or written it, retains
         // its own: the disk's copy is older than the run's until the run ends and writes it
-        char name[QUERY_PATH_LONGEST];
+        char name[QUERY_PATH_MAX_LEN];
         query_named(run->writer.top, paths[at], name, sizeof(name));
         const unsigned char *bytes = NULL;
         unsigned long long size = 0ull;
@@ -288,11 +289,11 @@ int query_run_read(QueryRun *run, const char *const *paths, unsigned int count, 
             const unsigned char *const mapped = qry_member_file_mapped(paths[at], &size);
             if (mapped == NULL)
             {
-                cli_line_text(said, paths[at]);
-                cli_line_text(said, ": it could not be read");
+                mmgr_line_put(err_msg, paths[at]);
+                mmgr_line_put(err_msg, ": it could not be read");
                 return 0;
             }
-            const int appended = query_writer_append(&run->writer, name, mapped, size, QRY_ORDINARY, said);
+            const int appended = query_writer_append(&run->writer, name, mapped, size, QRY_ORDINARY, err_msg);
             qry_member_file_unmapped(mapped, size);
             if (!appended)
             {
@@ -322,10 +323,10 @@ void query_run_left(QueryRun *run, const char *const *paths, unsigned int count)
     }
 }
 
-int query_run_stopped(QueryRun *run, CliLine *said)
+int query_run_stopped(QueryRun *run, VerbaLinea *err_msg)
 {
     query_run_paths_given(run);
-    // this process is a member of the run no more before the writer is asked to stop
+    // this process is a member of the run no more before the writer is requested to stop
     const unsigned long long process = run->process;
     run->process = 0ull;
     if (process == 0ull)
@@ -334,30 +335,30 @@ int query_run_stopped(QueryRun *run, CliLine *said)
         return 1;
     }
     query_writer_parted(&run->writer);
-    const int stopped = query_writer_stop(&run->writer, said);
+    const int stopped = query_writer_stop(&run->writer, err_msg);
     QueryProcess waited = {process, 0ull};
     query_process_wait(&waited);
-    query_kept(run->folder, query_kept_most());
+    query_runs_pruned(run->folder, query_retain_max());
     return stopped;
 }
 
-int query_run_ended(QueryRun *run, QueryLeave leave, QueryAsker asker, QueryContext *context, CliLine *said)
+int query_run_ended(QueryRun *run, QueryLeave leave, QueryPrompter prompter, QueryContext *context, VerbaLinea *err_msg)
 {
     for (unsigned int at = 0u; at < run->left.count; at += 1u)
     {
-        char left[QUERY_SAID_LONGEST];
-        CliLine left_line = {left, sizeof(left), 0ull};
-        cli_line_text(&left_line, "  ");
-        if (!query_writer_left(&run->writer, run->left.path[at], &left_line) && (cli_line_closed(&left_line) != 0ull))
+        char left[QUERY_LINE_MAX_LEN];
+        VerbaLinea left_line = {left, sizeof(left), 0ull};
+        mmgr_line_put(&left_line, "  ");
+        if (!query_writer_left(&run->writer, run->left.path[at], &left_line) && (mmgr_line_finish(&left_line) != 0ull))
         {
-            query_said(context, left);
+            query_print(context, left);
         }
     }
     query_paths_given(&run->left);
-    if (!query_leaves_settled(run, leave, asker, context, said))
+    if (!query_leaves_settled(run, leave, prompter, context, err_msg))
     {
         query_run_paths_given(run);
         return 0;
     }
-    return query_run_stopped(run, said);
+    return query_run_stopped(run, err_msg);
 }

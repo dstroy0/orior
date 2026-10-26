@@ -69,4 +69,14 @@ Nothing. There is no model, no training, no set of examples to learn from, and n
 
 It runs in human time: seconds on a laptop, against a database someone else published. It can be pointed at anything, because it assumes nothing about the subject. All it needs is an object that isn't already at maximum entropy. Every single reading has a limit, and each one comes with a stated floor. If a reading doesn't clear its floor, the honest answer is that nothing was found. [Reading the result](usage.md#reading-the-result) explains what a floor is.
 
+## Terms borrowed from physics
+
+Some names come from physics and mathematics. Each one names a part of the engine and means this:
+
+| term | meaning |
+| --- | --- |
+| the null, the shuffle | the object with its counts kept and its order shuffled: the background a pattern is measured against |
+| the demon | the null space of a reading, worked out before any object is read: every change to an object that the reading cannot see, known in advance from rank and nullity instead of found by experiment. [`null_first.py`](https://github.com/dstroy0/orior/blob/main/examples/00_blob_viz_tools/null_first.py) builds it. Laplace's name is borrowed for that position only. |
+| the boundary, holographic | the contents of a volume read from how they are arranged on its two-dimensional boundary. The holographic principle in physics is an analogy for it, and nothing here tests that principle. |
+
 **Author:** dstroy0 (Douglas Quigg) <dquigg123@gmail.com>

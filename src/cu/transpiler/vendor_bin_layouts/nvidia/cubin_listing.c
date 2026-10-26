@@ -41,13 +41,13 @@ typedef struct
     int aside;
 } ListedCode;
 
-// the output the disassembler printed, grown to hold the most it prints
+// the output the disassembler printed, grown to contain the most it prints
 static char *s_output = NULL;
 static unsigned long long s_output_room = 0ull;
 static unsigned long long s_output_size = 0ull;
 static unsigned int s_starts = 0u;
 
-// The disassembler run over the stream at `path`, raw as `architecture` where it is not NULL, what it printed kept in
+// The disassembler run over the stream at `path`, raw as `architecture` where it is not NULL, what it printed stored in
 // s_output: 0 where it ended clean, 1 where it did not, -1 where it could not be run
 static int listing_read(const char *nvdisasm, const char *architecture, char *path)
 {
@@ -73,7 +73,7 @@ static int listing_read(const char *nvdisasm, const char *architecture, char *pa
             s_output_size = answer.output_bytes;
             return ((answer.ending == INTERFACE_ENDING_EXITED) && (answer.code == 0ull)) ? 0 : 1;
         }
-        // the output ran past its room: the room grown to hold it, and the read made again
+        // the output ran past its room: the room grown to contain it, and the read made again
         const unsigned long long room = answer.output_bytes + 1048576ull;
         char *const larger = (char *)realloc(s_output, (size_t)room);
         if (larger == NULL)
@@ -89,17 +89,17 @@ static int listing_read(const char *nvdisasm, const char *architecture, char *pa
 // the address the vendor stopped at, read off `at address 0x<hex>`: 1, or 0 where it names none
 static int listing_stopped_at(unsigned long long *address)
 {
-    static const char s_said[] = "at address 0x";
-    const size_t said = sizeof(s_said) - 1u;
-    for (unsigned long long at = 0ull; (at + said) < s_output_size; at += 1ull)
+    static const char s_address_marker[] = "at address 0x";
+    const size_t marker_length = sizeof(s_address_marker) - 1u;
+    for (unsigned long long at = 0ull; (at + marker_length) < s_output_size; at += 1ull)
     {
-        if (memcmp(s_output + at, s_said, said) != 0)
+        if (memcmp(s_output + at, s_address_marker, marker_length) != 0)
         {
             continue;
         }
         unsigned long long value = 0ull;
         size_t digits = 0u;
-        for (unsigned long long walk = at + said; walk < s_output_size; walk += 1ull)
+        for (unsigned long long walk = at + marker_length; walk < s_output_size; walk += 1ull)
         {
             const char c = s_output[walk];
             const int digit = ((c >= '0') && (c <= '9')) || ((c >= 'a') && (c <= 'f'));
@@ -206,39 +206,39 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
     const char **const names = (const char **)calloc((size_t)count + 1u, sizeof(const char *));
     unsigned int *const of = (unsigned int *)calloc((size_t)count + 1u, sizeof(unsigned int));
     unsigned long long total = 0ull;
-    unsigned int kept = 0u;
+    unsigned int retained = 0u;
     for (unsigned int at = 0u; (parts != NULL) && (names != NULL) && (of != NULL) && (at < count); at += 1u)
     {
         if (codes[at].aside)
         {
             continue;
         }
-        parts[kept] = (ContainerPart){codes[at].kernel, codes[at].code, codes[at].size, 0u, codes[at].exits,
-                                      codes[at].exit_count};
-        names[kept] = codes[at].kernel;
-        of[kept] = at;
+        parts[retained] = (ContainerPart){codes[at].kernel, codes[at].code,      codes[at].size, 0u,
+                                          codes[at].exits,  codes[at].exit_count};
+        names[retained] = codes[at].kernel;
+        of[retained] = at;
         total += codes[at].size;
-        kept += 1u;
+        retained += 1u;
     }
     // every section may move by its alignment, and every part's attributes grow by four bytes an exit
     const unsigned long long room = (pattern_size * 2ull) + (total * 2ull) + 1048576ull;
     unsigned char *const cubin = (unsigned char *)malloc((size_t)room);
     unsigned long long cubin_size = 0ull;
-    const CubinKernels kernels = {pattern, pattern_size, parts, kept};
+    const CubinKernels kernels = {pattern, pattern_size, parts, retained};
     char path[1400];
-    int read = (parts != NULL) && (names != NULL) && (of != NULL) && (cubin != NULL) && (kept != 0u) &&
+    int read = (parts != NULL) && (names != NULL) && (of != NULL) && (cubin != NULL) && (retained != 0u) &&
                cubin_kernels_write(&kernels, cubin, room, &cubin_size) &&
                (qry_member_streamed("cubin_listing_cubin", cubin, cubin_size, path, sizeof(path)) != 0ull) &&
                (listing_read(nvdisasm, NULL, path) == 0);
     free(cubin);
     CubinListingCut cut;
     memset(&cut, 0, sizeof(cut));
-    read = read && cubin_listing_cut(s_output, (size_t)s_output_size, names, kept, &cut);
-    for (unsigned int at = 0u; read && (at < kept); at += 1u)
+    read = read && cubin_listing_cut(s_output, (size_t)s_output_size, names, retained, &cut);
+    for (unsigned int at = 0u; read && (at < retained); at += 1u)
     {
         read = cut.found[at];
     }
-    for (unsigned int at = 0u; read && (at < kept); at += 1u)
+    for (unsigned int at = 0u; read && (at < retained); at += 1u)
     {
         char name[96];
         snprintf(name, sizeof(name), "%s.dis", codes[of[at]].number);
@@ -248,10 +248,11 @@ static int listing_cubin_read(QryShared *run, ListedCode *codes, unsigned int co
     free(parts);
     free(names);
     free(of);
-    return read || (kept == 0u);
+    return read || (retained == 0u);
 }
 
-// the line of `list` at `*at` into `line`, which holds `room`, `*at` moved past it: 1, or 0 where the list has ended
+// the line of `list` at `*at` into `line`, which has room for `room`, `*at` moved past it: 1, or 0 where the list has
+// ended
 static int listing_line(const unsigned char *list, unsigned long long size, unsigned long long *at, char *line,
                         size_t room)
 {
@@ -300,7 +301,7 @@ int main(int count, char **words)
     {
         return 2;
     }
-    // the pattern's own EXIT encoding, read where its first kernel's info says its first exit lies
+    // the pattern's own EXIT encoding, read where its first kernel's info specifies its first exit lies
     unsigned long long exit_low = 0ull;
     int exit_known = 0;
     unsigned int code_count = 0u;
@@ -349,7 +350,7 @@ int main(int count, char **words)
         code->exit_count = (exit_known && (code->exits != NULL))
                                ? cubin_exits_find(code->code, code->size, exit_low, code->exits, room)
                                : 0u;
-        // a code whose kernel the pattern does not hold, or that holds no exit, is read alone
+        // a code whose kernel the pattern does not contain, or that contains no exit, is read alone
         code->aside = !cubin_code_of(pattern, pattern_size, code->kernel, &offset, &size) || (code->exit_count == 0u);
     }
     s_output_room = ((unsigned long long)code_count * 65536ull) + 16777216ull;

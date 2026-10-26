@@ -6,7 +6,7 @@
 // the most lines of one cell's source two cells are compared by
 #define CLI_NOTEBOOK_LINES 4096u
 
-CliCellsTally g_cli_notebook_cells = CLI_CELLS_TALLY("cli_notebooks");
+CellOwner g_cli_notebook_cells = MMGR_CELL_OWNER("cli_notebooks");
 
 // A merge's room, one cell sized to the cells of its three books: the cells of each side, where each base cell stands
 // on each side, CLI_JSON_NONE where it stands on none, and the table of the longest runs of the same cells, a row for
@@ -22,9 +22,9 @@ typedef struct
 } CliMergeRoom;
 
 int cli_notebook_for_diff(CliJson *json, const char *text, unsigned long long size, CfgJsonToken *tokens,
-                          unsigned int tokens_most, CliLine *out, CliLine *said)
+                          unsigned int tokens_most, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const unsigned int book = cli_notebook_read(json, "x.ipynb", text, size, tokens, tokens_most, said);
+    const unsigned int book = cli_notebook_read(json, "x.ipynb", text, size, tokens, tokens_most, err_msg);
     if (book == CLI_JSON_NONE)
     {
         return 0;
@@ -37,17 +37,17 @@ int cli_notebook_for_diff(CliJson *json, const char *text, unsigned long long si
     {
         index += 1u;
         const char *const named = cli_json_string(json, cli_json_member(json, cell, "cell_type"), NULL);
-        cli_line_text(out, "# cell ");
-        cli_line_decimal(out, index, 1u);
-        cli_line_text(out, " (");
-        cli_line_text(out, (named != NULL) ? named : "code");
-        cli_line_text(out, ")\n");
+        mmgr_line_put(out, "# cell ");
+        mmgr_line_decimal(out, index, 1u);
+        mmgr_line_put(out, " (");
+        mmgr_line_put(out, (named != NULL) ? named : "code");
+        mmgr_line_put(out, ")\n");
         unsigned long long length = 0ull;
         const char *const source = cli_notebook_source(json, cell, &length);
-        cli_line_counted(out, source, length);
-        if (cli_line_fits(out) && !cli_notebook_ends(out->out + begun, out->at - begun, "\n"))
+        mmgr_line_put_n(out, source, length);
+        if (mmgr_line_ok(out) && !cli_notebook_ends(out->out + begun, out->at - begun, "\n"))
         {
-            cli_line_character(out, '\n');
+            mmgr_line_ch(out, '\n');
         }
         const unsigned int outputs = cli_json_member(json, cell, "outputs");
         for (unsigned int output = cli_json_is(json, outputs, CFG_JSON_ARRAY) ? json->node[outputs].first
@@ -60,37 +60,37 @@ int cli_notebook_for_diff(CliJson *json, const char *text, unsigned long long si
             const char *const evalue = cli_json_string(json, cli_json_member(json, output, "evalue"), NULL);
             const char *const ename = cli_json_string(json, cli_json_member(json, output, "ename"), NULL);
             const char *const typed = cli_json_string(json, cli_json_member(json, output, "output_type"), NULL);
-            cli_line_text(out, "## ");
-            cli_line_text(out, (typed != NULL) ? typed : "output");
+            mmgr_line_put(out, "## ");
+            mmgr_line_put(out, (typed != NULL) ? typed : "output");
             if ((shown != NULL) || (evalue != NULL))
             {
-                cli_line_character(out, '\n');
+                mmgr_line_ch(out, '\n');
                 if (shown != NULL)
                 {
-                    cli_line_text(out, shown);
+                    mmgr_line_put(out, shown);
                 }
                 else
                 {
-                    cli_line_text(out, (ename != NULL) ? ename : "error");
-                    cli_line_text(out, ": ");
-                    cli_line_text(out, evalue);
+                    mmgr_line_put(out, (ename != NULL) ? ename : "error");
+                    mmgr_line_put(out, ": ");
+                    mmgr_line_put(out, evalue);
                 }
-                if (cli_line_fits(out) && !cli_notebook_ends(out->out + begun, out->at - begun, "\n"))
+                if (mmgr_line_ok(out) && !cli_notebook_ends(out->out + begun, out->at - begun, "\n"))
                 {
-                    cli_line_character(out, '\n');
+                    mmgr_line_ch(out, '\n');
                 }
                 continue;
             }
-            cli_line_text(out, ": ");
+            mmgr_line_put(out, ": ");
             int first = 1;
             for (unsigned int kind = cli_json_is(json, data, CFG_JSON_OBJECT) ? json->node[data].first : CLI_JSON_NONE;
                  kind != CLI_JSON_NONE; kind = json->node[kind].next)
             {
-                cli_line_text(out, first ? "" : ", ");
-                cli_line_text(out, json->text + json->node[kind].key);
+                mmgr_line_put(out, first ? "" : ", ");
+                mmgr_line_put(out, json->text + json->node[kind].key);
                 first = 0;
             }
-            cli_line_character(out, '\n');
+            mmgr_line_ch(out, '\n');
         }
     }
     return 1;
@@ -117,7 +117,7 @@ static unsigned int cli_lines_split(const char *text, unsigned long long length,
     return count;
 }
 
-// whether two cells' sources are alike enough to be one cell: at least half their lines held in common, each line of
+// whether two cells' sources are alike enough to be one cell: at least half their lines shared, each line of
 // one matched to the first line of the other like it not matched yet; the lines of both, and which of the other's are
 // matched, in a cell of their count, two that cannot be given one not alike
 static int cli_alike(const CliJson *json, unsigned int one, unsigned int other)
@@ -135,7 +135,7 @@ static int cli_alike(const CliJson *json, unsigned int one, unsigned int other)
     const unsigned int right = cli_lines_split(right_text, right_length, NULL);
     const char *(*const lines)[2] =
         ((left != 0u) && (right != 0u))
-            ? cli_cell_taken_by(&g_cli_notebook_cells, ((left + right) * sizeof(*lines)) + right, "the lines compared")
+            ? g_cli_cells->persistent_buf_alloc(((left + right) * sizeof(*lines)) + right, &g_cli_notebook_cells)
             : NULL;
     if (lines == NULL)
     {
@@ -163,7 +163,7 @@ static int cli_alike(const CliJson *json, unsigned int one, unsigned int other)
             }
         }
     }
-    cli_cell_given_by(&g_cli_notebook_cells, lines);
+    g_cli_cells->persistent_buf_release(lines, &g_cli_notebook_cells);
     // twice the lines in common over all the lines of both at least a half
     return (4ull * shared) >= ((unsigned long long)left + right);
 }
@@ -183,7 +183,7 @@ static int cli_same_cell(const CliJson *json, unsigned int one, unsigned int oth
 }
 
 // For each cell of `base`, where the same cell stands in `other`, by the longest run of matches in order, as a diff
-// aligns lines, the table of runs held in `runs`, a row of `m` and one more for each of `n` and one more
+// aligns lines, the table of runs stored in `runs`, a row of `m` and one more for each of `n` and one more
 static void cli_aligned(const CliJson *json, const unsigned int *base, unsigned int n, const unsigned int *other,
                         unsigned int m, unsigned int *found, unsigned int *runs)
 {
@@ -299,7 +299,7 @@ static int cli_changed(const CliJson *json, unsigned int cell, unsigned int base
                           cli_json_member(json, base, "cell_type"));
 }
 
-// whether two cells hold the same source
+// whether two cells contain the same source
 static int cli_same_source(const CliJson *json, unsigned int one, unsigned int other)
 {
     unsigned long long length = 0ull;
@@ -311,7 +311,7 @@ static int cli_same_source(const CliJson *json, unsigned int one, unsigned int o
 }
 
 // the cells each side added after the base cell `after`, CLI_JSON_NONE for the head, put as entries: ours, then each
-// of theirs no cell of ours added there holds the source of
+// of theirs no cell of ours added there contains the source of
 static void cli_added_put(CliJson *json, const CliMergeRoom *room, unsigned int entries, unsigned int after,
                           unsigned int bases, unsigned int ours, unsigned int theirs)
 {
@@ -328,13 +328,13 @@ static void cli_added_put(CliJson *json, const CliMergeRoom *room, unsigned int 
         {
             continue;
         }
-        int held = 0;
-        for (unsigned int mine = 0u; !held && (mine < ours); mine += 1u)
+        int found = 0;
+        for (unsigned int mine = 0u; !found && (mine < ours); mine += 1u)
         {
-            held = !cli_taken(room->ours_at, bases, mine) && (cli_follows(room->ours_at, bases, mine) == after) &&
-                   cli_same_source(json, room->ours[mine], room->theirs[index]);
+            found = !cli_taken(room->ours_at, bases, mine) && (cli_follows(room->ours_at, bases, mine) == after) &&
+                    cli_same_source(json, room->ours[mine], room->theirs[index]);
         }
-        if (!held)
+        if (!found)
         {
             cli_entry(json, entries, "take", room->theirs[index]);
         }
@@ -355,7 +355,7 @@ static void cli_conflict(CliJson *json, unsigned int entries, unsigned int base,
     cli_json_append(json, entries, entry);
 }
 
-// the entry for one base cell, as each side holds it
+// the entry for one base cell, as each side stores it
 static void cli_base_entry(CliJson *json, unsigned int entries, unsigned int base, unsigned int mine,
                            unsigned int yours)
 {
@@ -395,8 +395,8 @@ unsigned int cli_notebook_merge(CliJson *json, unsigned int base, unsigned int o
     const unsigned int their_count = cli_cells(json, theirs, NULL);
     const unsigned long long wider = ((our_count > their_count) ? our_count : their_count) + 1ull;
     const unsigned long long lists = (3ull * bases) + our_count + their_count;
-    unsigned int *const cell = cli_cell_taken_by(
-        &g_cli_notebook_cells, (lists + ((bases + 1ull) * wider)) * sizeof(*cell), "the room of a notebook's merge");
+    unsigned int *const cell =
+        g_cli_cells->persistent_buf_alloc((lists + ((bases + 1ull) * wider)) * sizeof(*cell), &g_cli_notebook_cells);
     if (cell == NULL)
     {
         return CLI_JSON_NONE;
@@ -423,7 +423,7 @@ unsigned int cli_notebook_merge(CliJson *json, unsigned int base, unsigned int o
         cli_base_entry(json, entries, room.base[index], mine, yours);
         cli_added_put(json, &room, entries, index, bases, our_count, their_count);
     }
-    cli_cell_given_by(&g_cli_notebook_cells, cell);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_notebook_cells);
     const unsigned int book = cli_json_copy(json, ours);
     cli_json_set(json, book, "cells", cli_json_made(json, CFG_JSON_ARRAY));
     const unsigned int merged = cli_json_made(json, CFG_JSON_OBJECT);

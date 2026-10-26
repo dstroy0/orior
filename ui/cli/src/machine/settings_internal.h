@@ -7,17 +7,17 @@
 #include "settings.h"
 
 // the kind a `[kind]` key names, its letters from `*kind`, `*length` of them: 1, or 0 where the key names none;
-// whether a tree's file does not set `key`; the reader's home folder into `out`, which holds CLI_PATH_LONGEST, empty
+// whether a tree's file does not set `key`; the reader's home folder into `out`, sized for CLI_PATH_MAX_LEN, empty
 // where there is none; and `length` bytes of `text` with each `${name}` that `look` reads put in its place, one it does
 // not read staying as it is, after `out`
 int cli_settings_kind_of(const char *key, const char **kind, unsigned long long *length);
-int cli_settings_held(const char *key);
+int cli_settings_tree_scoped(const char *key);
 void cli_settings_home(char *out);
 void cli_settings_expand(const char *text, unsigned long long length,
-                         int (*look)(void *context, const char *name, unsigned long long length, CliLine *out),
-                         void *context, CliLine *out);
+                         int (*look)(void *context, const char *name, unsigned long long length, VerbaLinea *out),
+                         void *context, VerbaLinea *out);
 
-// the most parts of files read, the most settings they hold together, and the most bytes of a setting's text
+// the most parts of files read, the most settings they contain together, and the most bytes of a setting's text
 #define CLI_LAYER_PARTS 128u
 
 #define CLI_LAYER_RAW 8192u
@@ -60,13 +60,13 @@ typedef struct
     unsigned int object;
 } CliKindSet;
 
-// a text put in the layers' texts: its place; and a problem put after the layers', told once (settings_layers.c)
-unsigned int cli_settings_kept_text(CliLayers *layers, const char *text, unsigned long long length);
+// a text put in the layers' texts: its place; and a problem put after the layers', reported once (settings_layers.c)
+unsigned int cli_settings_text_stored(CliLayers *layers, const char *text, unsigned long long length);
 void cli_settings_problem(CliLayers *layers, const char *problem);
-// where the parts, their values and the kinds' settings are kept; and the parts of the file `file` of `chain` put
+// where the parts, their values and the kinds' settings are stored; and the parts of the file `file` of `chain` put
 // after the parts, its values after `*values` and its kinds' settings after `*kinds`: the parts' count after
 // (settings_parts.c)
-void cli_settings_parts_kept(CliPart *parts, CliPartValue *values, CliKindSet *kinds);
+void cli_settings_parts_stored(CliPart *parts, CliPartValue *values, CliKindSet *kinds);
 unsigned int cli_settings_file_parts(CliLayers *layers, const CliChain *chain, unsigned int file, int of_tree, int own,
                                      unsigned int parts, unsigned int *values, unsigned int *kinds);
 

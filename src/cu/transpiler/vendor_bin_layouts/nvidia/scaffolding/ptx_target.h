@@ -4,7 +4,7 @@
 #define PTX_TARGET_H
 
 // The lane as PTX, a language of the register lane (code_generator.h): its ruleset is ptx.krs, nvJitLink assembles it,
-// and its header is asked of NVRTC
+// and its header is queried from NVRTC
 
 #include "../../../../engine/rmc/code_generator.h"
 
@@ -14,7 +14,7 @@ class PtxTarget : public CodeGenerator
     PtxTarget(void);
 };
 
-// the PTX code generator a process holds, its ruleset read at its first call to ruleset()
+// the PTX code generator a process owns, its ruleset read at its first call to ruleset()
 PtxTarget &ptx_target(void);
 
 #endif

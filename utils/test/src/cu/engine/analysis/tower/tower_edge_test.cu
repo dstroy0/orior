@@ -62,7 +62,7 @@ static void tower_test_lanes(unsigned short *lanes, unsigned long long count, un
     }
 }
 
-// |x| of the 8-bit two's complement field; |-128| is 128, which the 8-bit carrier still holds
+// |x| of the 8-bit two's complement field; |-128| is 128, which the 8-bit carrier still represents
 static unsigned int tower_test_absolute(unsigned int x)
 {
     return (x < 128u) ? x : (256u - x);
@@ -87,18 +87,18 @@ static void tower_test_bennett(unsigned int *table, unsigned int (*function)(uns
     }
 }
 
-// f(x) reads out of the edged word: x is kept, the carrier moved by exactly f(x), the high bits passed through
+// f(x) reads out of the edged word: x is preserved, the carrier moved by exactly f(x), the high bits passed through
 static int tower_test_readout(int plain, int edged, unsigned int (*function)(unsigned int))
 {
     // a coefficient's two's complement bits, read as a word
     const unsigned int before = (unsigned int)plain;
     const unsigned int after = (unsigned int)edged;
     const unsigned int argument = before & BENNETT_FIELD;
-    const int argument_kept = (after & BENNETT_FIELD) == argument;
+    const int argument_preserved = (after & BENNETT_FIELD) == argument;
     const int carrier_moved =
         (((after ^ before) >> BENNETT_X_BITS) & BENNETT_FIELD) == (function(argument) & BENNETT_FIELD);
-    const int high_kept = (after >> BENNETT_BITS) == (before >> BENNETT_BITS);
-    return argument_kept && carrier_moved && high_kept;
+    const int high_preserved = (after >> BENNETT_BITS) == (before >> BENNETT_BITS);
+    return argument_preserved && carrier_moved && high_preserved;
 }
 
 struct TowerRig
@@ -183,7 +183,7 @@ int main(void)
     tower_test_lanes(rig.host, rig.lanes, 0x0123456789ABCDEFull);
     if (cudaMalloc((void **)&rig.device_lanes, (size_t)rig.lanes * sizeof(unsigned short)) != cudaSuccess)
     {
-        printf("  FAIL could not hold the device lanes\n");
+        printf("  FAIL could not allocate the device lanes\n");
         return 1;
     }
     cudaMemcpy(rig.device_lanes, rig.host, (size_t)rig.lanes * sizeof(unsigned short), cudaMemcpyHostToDevice);
@@ -247,13 +247,13 @@ int main(void)
     check("stacked edges no mismatches", mismatches == 0ull);
     check("stacked edges rebuilt matches lanes", rebuilt_ok != 0);
 
-    // edges on every floor, including the fully collapsed floor slot
+    // edges on every floor, including the fully collapsed floor place
     TowerEdge spread[4];
-    for (unsigned int slot = 0u; slot < 4u; slot += 1u)
+    for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        spread[slot].floor = slot;
-        spread[slot].index_bits = EDGE_BITS;
-        spread[slot].forward = (slot & 1u) ? affine_b : affine_a;
+        spread[at].floor = at;
+        spread[at].index_bits = EDGE_BITS;
+        spread[at].forward = (at & 1u) ? affine_b : affine_a;
     }
     trip = tower_test_trip(&rig, spread, 4u, &mismatches, &rebuilt_ok, NULL);
     check("every floor lift/lower returns", trip == 0L);
@@ -286,7 +286,7 @@ int main(void)
     trip = tower_test_trip(&rig, &wide_bits, 1u, &mismatches, &rebuilt_ok, NULL);
     check("oversize index_bits errored", trip != 0L);
 
-    // a floor slot past the collapsed floor errors
+    // a floor place past the collapsed floor errors
     TowerEdge far;
     far.floor = 50u;
     far.index_bits = EDGE_BITS;

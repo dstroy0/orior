@@ -72,7 +72,7 @@ static int hdf5_survey_mark(Hdf5File *file, Hdf5Survey *survey, unsigned long lo
             (grown <= HDF5_OBJECTS) ? (unsigned long long *)realloc(survey->seen, grown * sizeof(*larger)) : NULL;
         if (larger == NULL)
         {
-            return (hdf5_error(file, "more objects than the survey holds") - 1);
+            return (hdf5_error(file, "more objects than the survey supports") - 1);
         }
         survey->seen = larger;
         survey->seen_capacity = grown;
@@ -98,7 +98,7 @@ static Hdf5Walk hdf5_survey_link(Hdf5File *file, void *state, const unsigned cha
     const size_t mark = survey->path_length;
     if ((name_length >= HDF5_PATH_CAPACITY) || ((mark + 1u + name_length) >= HDF5_PATH_CAPACITY))
     {
-        return hdf5_walk_error(file, "a member path longer than the survey holds");
+        return hdf5_walk_error(file, "a member path longer than the survey supports");
     }
     survey->path[mark] = '/';
     memcpy(&survey->path[mark + 1u], name, name_length);
@@ -156,7 +156,7 @@ static int hdf5_survey(Hdf5File *file, unsigned long long *address)
     }
     if (ok && (survey->candidates > 1u))
     {
-        fprintf(stderr, "hdf5: %s holds %u datasets of rank 2 or more; name one:\n", file->path, survey->candidates);
+        fprintf(stderr, "hdf5: %s contains %u datasets of rank 2 or more; name one:\n", file->path, survey->candidates);
         (void)hdf5_survey_pass(file, survey, 1);
         ok = hdf5_error(file, "more than one dataset of rank 2 or more; name the member");
     }
@@ -280,7 +280,7 @@ static int hdf5_chunking_check(Hdf5File *file, const Hdf5Object *object)
         }
         if (!hdf5_codec_ready(file, identifier))
         {
-            return hdf5_error_number(file, "a filter whose decoder slot is empty; filter", identifier);
+            return hdf5_error_number(file, "a filter whose decoder entry is empty; filter", identifier);
         }
     }
     return 1;

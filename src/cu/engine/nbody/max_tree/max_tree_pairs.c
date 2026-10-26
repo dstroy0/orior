@@ -140,18 +140,18 @@ long max_tree_pairs(const MaxTreePairsRequest *request)
 static void max_tree_fenwick_add(unsigned long long *fenwick, unsigned int size, unsigned int at,
                                  unsigned long long amount)
 {
-    for (unsigned int slot = at + 1u; slot <= size; slot += slot & (0u - slot))
+    for (unsigned int tree_at = at + 1u; tree_at <= size; tree_at += tree_at & (0u - tree_at))
     {
-        fenwick[slot] += amount;
+        fenwick[tree_at] += amount;
     }
 }
 
 static unsigned long long max_tree_fenwick_below(const unsigned long long *fenwick, unsigned int end)
 {
     unsigned long long total = 0ull;
-    for (unsigned int slot = end; slot > 0u; slot -= slot & (0u - slot))
+    for (unsigned int tree_at = end; tree_at > 0u; tree_at -= tree_at & (0u - tree_at))
     {
-        total += fenwick[slot];
+        total += fenwick[tree_at];
     }
     return total;
 }
@@ -166,10 +166,10 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
     const MaxTreeNodes *const earlier = request->earlier;
     const MaxTreeNodes *const later = request->later;
     const MaxTreePairs *const pairs = request->pairs;
-    const unsigned int asked = request->asked;
-    if (!MAX_TREE_HOST_CHECK((earlier != NULL) && (later != NULL) && (pairs != NULL) && (asked <= 0x7FFFFFFFu) &&
-                                 ((asked == 0u) || ((request->earlier_nodes != NULL) &&
-                                                    (request->later_nodes != NULL) && (request->sums != NULL))),
+    const unsigned int pair_count = request->pair_count;
+    if (!MAX_TREE_HOST_CHECK((earlier != NULL) && (later != NULL) && (pairs != NULL) && (pair_count <= 0x7FFFFFFFu) &&
+                                 ((pair_count == 0u) || ((request->earlier_nodes != NULL) &&
+                                                         (request->later_nodes != NULL) && (request->sums != NULL))),
                              request, error, ENGINE_ERROR_REQUEST))
     {
         return MAX_TREE_ERROR;
@@ -184,7 +184,7 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
             return MAX_TREE_ERROR;
         }
     }
-    for (unsigned int query = 0u; query < asked; query += 1u)
+    for (unsigned int query = 0u; query < pair_count; query += 1u)
     {
         if (!MAX_TREE_HOST_CHECK((request->earlier_nodes[query] < earlier->count) &&
                                      (request->later_nodes[query] < later->count),
@@ -193,13 +193,13 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
             return MAX_TREE_ERROR;
         }
     }
-    if (asked == 0u)
+    if (pair_count == 0u)
     {
         return 0L;
     }
-    const size_t events = 2u * (size_t)asked;
+    const size_t events = 2u * (size_t)pair_count;
     unsigned long long *const keys = (unsigned long long *)malloc(events * sizeof(unsigned long long));
-    unsigned long long *const below = (unsigned long long *)malloc((size_t)asked * sizeof(unsigned long long));
+    unsigned long long *const below = (unsigned long long *)malloc((size_t)pair_count * sizeof(unsigned long long));
     unsigned long long *const fenwick =
         (unsigned long long *)calloc((size_t)later->count + 1u, sizeof(unsigned long long));
     if (!MAX_TREE_HOST_CHECK((keys != NULL) && (below != NULL) && (fenwick != NULL), request, error,
@@ -210,7 +210,7 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
         free(fenwick);
         return MAX_TREE_ERROR;
     }
-    for (unsigned int query = 0u; query < asked; query += 1u)
+    for (unsigned int query = 0u; query < pair_count; query += 1u)
     {
         const unsigned int node = request->earlier_nodes[query];
         // an event's low word is twice the query, plus 1 for the range's lower edge; the high word is the row edge
@@ -244,7 +244,7 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
         }
     }
     int ok = 1;
-    for (unsigned int query = 0u; (ok != 0) && (query < asked); query += 1u)
+    for (unsigned int query = 0u; (ok != 0) && (query < pair_count); query += 1u)
     {
         // the rows below a subtree's start are a subset of the rows below its end
         ok =
@@ -254,5 +254,5 @@ long max_tree_overlap_sums(const MaxTreeOverlapSumsRequest *request)
     free(keys);
     free(below);
     free(fenwick);
-    return (ok != 0) ? (long)asked : MAX_TREE_ERROR;
+    return (ok != 0) ? (long)pair_count : MAX_TREE_ERROR;
 }

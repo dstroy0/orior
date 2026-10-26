@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // stick.c: the measuring stick: every function of the CUDA language in a kernel of its own (measuring_stick.py),
-// compiled by nvcc and disassembled, the answer key what the engine builds for each function is held against; nvcc
+// compiled by nvcc and disassembled, the answer key what the engine builds for each function is checked against; nvcc
 // runs only where the stick's text changed since the container beside it was compiled. The engine's stick: each kernel
-// read form by form through `cu.krs` and written in `sass.krs`, held against nvcc's listing on the host, its encodings
-// read back through nvdisasm. The read: nvcc's listing read kernel by kernel, and against `sass.krs`, into
+// read form by form through `cu.krs` and written in `sass.krs`, checked against nvcc's listing on the host, its
+// encodings read back through nvdisasm. The read: nvcc's listing read kernel by kernel, and against `sass.krs`, into
 // `measuring_stick.md` (measuring_stick_read.c). Nothing goes to a device. The listing and each kernel's read are
 // handed to the run's writer under their paths, the files a run writes
 #include "../../../cli/src/text/text.h"
@@ -19,11 +19,11 @@
 // `folder`/`name` into `path`
 static void query_in(const char *folder, const char *name, char *path)
 {
-    CliLine line = {path, QUERY_PATH_LONGEST, 0ull};
-    cli_line_text(&line, folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    cli_line_closed(&line);
+    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
+    mmgr_line_finish(&line);
 }
 
 void query_stick_paths(const QueryContext *context, QueryStickPaths *paths)
@@ -57,73 +57,73 @@ int query_stick_changed(const char *cu, const char *fresh, const char *cubin)
     return !(same && query_is_file(cubin));
 }
 
-// the program of `role` into `path`, which holds QUERY_PATH_LONGEST
-static int query_program(const QueryContext *context, QueryRole role, char *path, CliLine *said)
+// the program of `role` into `path`, sized for QUERY_PATH_MAX_LEN
+static int query_program(const QueryContext *context, QueryRole role, char *path, VerbaLinea *err_msg)
 {
-    return context->programs->program(context->programs->context, role, path, QUERY_PATH_LONGEST, said);
+    return context->programs->program(context->programs->context, role, path, QUERY_PATH_MAX_LEN, err_msg);
 }
 
 // the latest blob of `name` handed to the run's writer as the file at `path`
-static int query_blob_filed(const QueryRun *run, const char *name, const char *path, CliLine *said)
+static int query_blob_filed(const QueryRun *run, const char *name, const char *path, VerbaLinea *err_msg)
 {
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if (!query_writer_latest(&run->writer, name, &bytes, &size))
     {
-        cli_line_text(said, "the run holds no ");
-        cli_line_text(said, name);
+        mmgr_line_put(err_msg, "the run contains no ");
+        mmgr_line_put(err_msg, name);
         return 0;
     }
-    return query_writer_file(&run->writer, path, bytes, size, said);
+    return query_writer_file(&run->writer, path, bytes, size, err_msg);
 }
 
 // The text's generator and nvcc's container and listing: the generator run, nvcc where the text changed, and the
 // listing read by cuobjdump
-static int query_vendor_read(QueryContext *context, const QueryRun *run, CliLine *said)
+static int query_vendor_read(QueryContext *context, const QueryRun *run, VerbaLinea *err_msg)
 {
     static QueryStickPaths s_paths;
     query_stick_paths(context, &s_paths);
     if (!query_folder_made(s_paths.out))
     {
-        cli_line_text(said, s_paths.out);
-        cli_line_text(said, " could not be made");
+        mmgr_line_put(err_msg, s_paths.out);
+        mmgr_line_put(err_msg, " could not be made");
         return 0;
     }
-    static char s_python[QUERY_PATH_LONGEST];
-    static char s_nvcc[QUERY_PATH_LONGEST];
-    static char s_cuobjdump[QUERY_PATH_LONGEST];
-    if (!query_program(context, QUERY_ROLE_PYTHON, s_python, said))
+    static char s_python[QUERY_PATH_MAX_LEN];
+    static char s_nvcc[QUERY_PATH_MAX_LEN];
+    static char s_cuobjdump[QUERY_PATH_MAX_LEN];
+    if (!query_program(context, QUERY_ROLE_PYTHON, s_python, err_msg))
     {
         return 0;
     }
-    char generator[QUERY_PATH_LONGEST];
+    char generator[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_NVIDIA "/measuring_stick.py", generator);
     const char *const generate[5] = {s_python, generator, s_paths.cu_new, s_paths.tsv, NULL};
     long long code = -1ll;
-    if (!query_context_teed(context, run, "measuring_stick", generate, &code, said))
+    if (!query_context_teed(context, run, "measuring_stick", generate, &code, err_msg))
     {
         return 0;
     }
     if (code != 0ll)
     {
-        cli_line_text(said, "the stick was not written");
+        mmgr_line_put(err_msg, "the stick was not written");
         return 0;
     }
     if (!query_stick_changed(s_paths.cu, s_paths.cu_new, s_paths.cubin))
     {
         query_removed(s_paths.cu_new);
-        query_said(context, "  the stick is unchanged: nvcc's cubin kept");
+        query_print(context, "  the stick is unchanged: nvcc's cubin retained");
         return 1;
     }
     if (!query_file_renamed(s_paths.cu_new, s_paths.cu))
     {
-        cli_line_text(said, s_paths.cu);
-        cli_line_text(said, ": the new text could not be put in its place");
+        mmgr_line_put(err_msg, s_paths.cu);
+        mmgr_line_put(err_msg, ": the new text could not be put in its place");
         return 0;
     }
     query_removed(s_paths.cubin);
-    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, said) ||
-        !query_program(context, QUERY_ROLE_CUOBJDUMP, s_cuobjdump, said))
+    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, err_msg) ||
+        !query_program(context, QUERY_ROLE_CUOBJDUMP, s_cuobjdump, err_msg))
     {
         return 0;
     }
@@ -131,9 +131,9 @@ static int query_vendor_read(QueryContext *context, const QueryRun *run, CliLine
     memor.set(&(MemoriaCfg){.dst = &s_compile, .val = 0, .bytes = sizeof(s_compile)});
     query_words_add(&s_compile, s_nvcc);
 #if defined(_WIN32)
-    char cl[QUERY_PATH_LONGEST];
-    char ignored_text[QUERY_SAID_LONGEST];
-    CliLine ignored = {ignored_text, sizeof(ignored_text), 0ull};
+    char cl[QUERY_PATH_MAX_LEN];
+    char ignored_text[QUERY_LINE_MAX_LEN];
+    VerbaLinea ignored = {ignored_text, sizeof(ignored_text), 0ull};
     if (query_program(context, QUERY_ROLE_CL, cl, &ignored))
     {
         // the folder cl stands in, nvcc's host compiler
@@ -153,29 +153,29 @@ static int query_vendor_read(QueryContext *context, const QueryRun *run, CliLine
     }
     query_words_add(&s_compile, s_paths.cubin);
     query_words_add(&s_compile, s_paths.cu);
-    if (!query_context_teed(context, run, "nvcc", s_compile.word, &code, said))
+    if (!query_context_teed(context, run, "nvcc", s_compile.word, &code, err_msg))
     {
         return 0;
     }
     if (code != 0ll)
     {
-        cli_line_text(said, "nvcc did not compile the stick");
+        mmgr_line_put(err_msg, "nvcc did not compile the stick");
         return 0;
     }
     const char *const listing[4] = {s_cuobjdump, "-sass", s_paths.cubin, NULL};
-    if (!query_context_handed(context, run, "measuring_stick_nvcc.sass", listing, &code, said))
+    if (!query_context_handed(context, run, "measuring_stick_nvcc.sass", listing, &code, err_msg))
     {
         return 0;
     }
     if (code != 0ll)
     {
-        cli_line_text(said, "cuobjdump did not read the stick");
+        mmgr_line_put(err_msg, "cuobjdump did not read the stick");
         return 0;
     }
-    return query_blob_filed(run, "measuring_stick_nvcc.sass", s_paths.sass, said);
+    return query_blob_filed(run, "measuring_stick_nvcc.sass", s_paths.sass, err_msg);
 }
 
-// what the walk over a folder's codes keeps: the folder and the codes found, sorted
+// what the walk over a folder's codes records: the folder and the codes found, sorted
 typedef struct
 {
     const char *folder;
@@ -192,67 +192,67 @@ static void query_code_walked(void *context, const char *name, int is_folder)
     {
         return;
     }
-    char path[QUERY_PATH_LONGEST];
+    char path[QUERY_PATH_MAX_LEN];
     query_in(walk->folder, name, path);
-    char (*const codes)[QUERY_PATH_LONGEST] = walk->codes->path;
+    char (*const codes)[QUERY_PATH_MAX_LEN] = walk->codes->path;
     unsigned int at = walk->codes->count;
     while ((at > 0u) && (cli_text_order(codes[at - 1u], path) > 0))
     {
-        memor.cpy(&(MemoriaCfg){.dst = codes[at], .src = codes[at - 1u], .bytes = QUERY_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = codes[at], .src = codes[at - 1u], .bytes = QUERY_PATH_MAX_LEN});
         at -= 1u;
     }
-    memor.cpy(&(MemoriaCfg){.dst = codes[at], .src = path, .bytes = QUERY_PATH_LONGEST});
+    memor.cpy(&(MemoriaCfg){.dst = codes[at], .src = path, .bytes = QUERY_PATH_MAX_LEN});
     walk->codes->count += 1u;
 }
 
 // the codes, a line each, handed to the run as `cubin_listing_codes.txt` from a cell of their size: 1, or 0 with why
-// said
-static int query_codes_handed(const QueryRun *run, const QueryPaths *codes, CliLine *said)
+// given
+static int query_codes_handed(const QueryRun *run, const QueryPaths *codes, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
     for (unsigned int at = 0u; at < codes->count; at += 1u)
     {
-        size += cellul.len(&(CatenaFinitaCfg){.src = codes->path[at], .cap = QUERY_PATH_LONGEST}) + 1u;
+        size += cellul.len(&(CatenaFinitaCfg){.src = codes->path[at], .cap = QUERY_PATH_MAX_LEN}) + 1u;
     }
-    char *const text = cli_cell_taken_by(&g_query_cells, size + 1ull, "the codes the vendor reads");
+    char *const text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_query_cells);
     if (text == NULL)
     {
-        cli_line_text(said, "the codes the vendor reads could not be held");
+        mmgr_line_put(err_msg, "the codes the vendor reads could not be stored");
         return 0;
     }
-    CliLine list = {text, size + 1ull, 0ull};
+    VerbaLinea list = {text, size + 1ull, 0ull};
     for (unsigned int at = 0u; at < codes->count; at += 1u)
     {
-        cli_line_text(&list, codes->path[at]);
-        cli_line_character(&list, '\n');
+        mmgr_line_put(&list, codes->path[at]);
+        mmgr_line_ch(&list, '\n');
     }
-    const int handed = cli_line_fits(&list) &&
-                       query_writer_append(&run->writer, "cubin_listing_codes.txt", text, list.at, QRY_ORDINARY, said);
-    cli_cell_given_by(&g_query_cells, text);
+    const int handed = mmgr_line_ok(&list) && query_writer_append(&run->writer, "cubin_listing_codes.txt", text,
+                                                                  list.at, QRY_ORDINARY, err_msg);
+    g_cli_cells->persistent_buf_release(text, &g_query_cells);
     return handed;
 }
 
-// the vendor's listing of each code of `codes` read and filed: 1, or 0 with why said
+// the vendor's listing of each code of `codes` read and filed: 1, or 0 with why given
 static int query_codes_listed(QueryContext *context, const QueryRun *run, const char *pattern, const char *prefix,
-                              const char *architecture, const QueryPaths *codes, CliLine *said)
+                              const char *architecture, const QueryPaths *codes, VerbaLinea *err_msg)
 {
-    static char s_listing[QUERY_PATH_LONGEST];
-    static char s_nvdisasm[QUERY_PATH_LONGEST];
-    if (!query_context_tool(context, "orior_cubin_listing", s_listing, said) ||
-        !query_program(context, QUERY_ROLE_NVDISASM, s_nvdisasm, said) || !query_codes_handed(run, codes, said))
+    static char s_listing[QUERY_PATH_MAX_LEN];
+    static char s_nvdisasm[QUERY_PATH_MAX_LEN];
+    if (!query_context_tool(context, "orior_cubin_listing", s_listing, err_msg) ||
+        !query_program(context, QUERY_ROLE_NVDISASM, s_nvdisasm, err_msg) || !query_codes_handed(run, codes, err_msg))
     {
         return 0;
     }
     const char *const words[7] = {s_listing, pattern, prefix, architecture, s_nvdisasm, "cubin_listing_codes.txt",
                                   NULL};
     long long code = -1ll;
-    if (!query_context_teed(context, run, "orior_cubin_listing", words, &code, said))
+    if (!query_context_teed(context, run, "orior_cubin_listing", words, &code, err_msg))
     {
         return 0;
     }
     if (code != 0ll)
     {
-        cli_line_text(said, "the vendor did not read the codes");
+        mmgr_line_put(err_msg, "the vendor did not read the codes");
         return 0;
     }
     for (unsigned int at = 0u; at < codes->count; at += 1u)
@@ -261,17 +261,17 @@ static int query_codes_listed(QueryContext *context, const QueryRun *run, const 
         const char *const code = codes->path[at];
         const char *name = cli_text_last(code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}), '/');
         name = (name != NULL) ? (name + 1) : code;
-        char blob[QUERY_PATH_LONGEST];
-        char dis[QUERY_PATH_LONGEST];
-        CliLine blob_line = {blob, sizeof(blob), 0ull};
-        cli_line_text_most(&blob_line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) - 4u);
-        cli_line_text(&blob_line, ".dis");
-        cli_line_closed(&blob_line);
-        CliLine dis_line = {dis, sizeof(dis), 0ull};
-        cli_line_text_most(&dis_line, code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}) - 4u);
-        cli_line_text(&dis_line, ".dis");
-        cli_line_closed(&dis_line);
-        if (!query_blob_filed(run, blob, dis, said))
+        char blob[QUERY_PATH_MAX_LEN];
+        char dis[QUERY_PATH_MAX_LEN];
+        VerbaLinea blob_line = {blob, sizeof(blob), 0ull};
+        mmgr_line_put_most(&blob_line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}) - 4u);
+        mmgr_line_put(&blob_line, ".dis");
+        mmgr_line_finish(&blob_line);
+        VerbaLinea dis_line = {dis, sizeof(dis), 0ull};
+        mmgr_line_put_most(&dis_line, code, cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL}) - 4u);
+        mmgr_line_put(&dis_line, ".dis");
+        mmgr_line_finish(&dis_line);
+        if (!query_blob_filed(run, blob, dis, err_msg))
         {
             return 0;
         }
@@ -280,53 +280,53 @@ static int query_codes_listed(QueryContext *context, const QueryRun *run, const 
 }
 
 int query_listings_read(QueryContext *context, const QueryRun *run, const char *pattern, const char *prefix,
-                        const char *architecture, const char *folder, CliLine *said)
+                        const char *architecture, const char *folder, VerbaLinea *err_msg)
 {
     QueryPaths codes = {NULL, 0u, 0u};
     QueryCodesWalk walk = {folder, &codes};
     query_folder_each(folder, query_code_walked, &walk);
     const int read =
-        (codes.count == 0u) || query_codes_listed(context, run, pattern, prefix, architecture, &codes, said);
+        (codes.count == 0u) || query_codes_listed(context, run, pattern, prefix, architecture, &codes, err_msg);
     query_paths_given(&codes);
     return read;
 }
 
 // the vendor's reading of the stick, and nvcc's listing read against `sass.krs` into the record
-static int query_stick_vendor(QueryContext *context, CliLine *said)
+static int query_stick_vendor(QueryContext *context, VerbaLinea *err_msg)
 {
-    static char s_reader[QUERY_PATH_LONGEST];
+    static char s_reader[QUERY_PATH_MAX_LEN];
     static QueryStickPaths s_paths;
     static QueryRun s_run;
     query_stick_paths(context, &s_paths);
-    if (!query_context_tool(context, "orior_measuring_stick_read", s_reader, said) ||
-        !query_context_started(context, &s_run, QUERY_STICK "/qry", said))
+    if (!query_context_tool(context, "orior_measuring_stick_read", s_reader, err_msg) ||
+        !query_context_started(context, &s_run, QUERY_STICK "/qry", err_msg))
     {
         return -1;
     }
-    char krs[QUERY_PATH_LONGEST];
-    char record[QUERY_PATH_LONGEST];
+    char krs[QUERY_PATH_MAX_LEN];
+    char record[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_TABLE "/sass.krs", krs);
     query_at(context, QUERY_NVIDIA "/measuring_stick.md", record);
     long long code = -1ll;
-    int whole = query_vendor_read(context, &s_run, said);
+    int whole = query_vendor_read(context, &s_run, err_msg);
     if (whole)
     {
         // the record is the read's to write through the run's writer; named here as a leaf, so that it is shown and
-        // asked
+        // requested
         const char *const left[1] = {record};
         query_run_left(&s_run, left, 1u);
         const char *const words[6] = {s_reader, s_paths.sass, s_paths.tsv, krs, record, NULL};
-        whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", words, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", words, &code, err_msg);
     }
-    if (!query_context_ended(context, &s_run, said) || !whole)
+    if (!query_context_ended(context, &s_run, err_msg) || !whole)
     {
         return -1;
     }
-    // an exit code is far below what an int holds
+    // an exit code is far below what an int represents
     return (int)code;
 }
 
-// what the walk that clears the engine's folder keeps: the folder
+// what the walk that clears the engine's folder records: the folder
 static void query_engine_cleared(void *context, const char *name, int is_folder)
 {
     static const char *const s_kinds[4] = {".sass", ".bin", ".dis", ".registers"};
@@ -336,7 +336,7 @@ static void query_engine_cleared(void *context, const char *name, int is_folder)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = dot, .other = s_kinds[at], .cap = CLI_CELLS_POOL}))
         {
-            char path[QUERY_PATH_LONGEST];
+            char path[QUERY_PATH_MAX_LEN];
             query_in((const char *)context, name, path);
             query_removed(path);
         }
@@ -345,80 +345,80 @@ static void query_engine_cleared(void *context, const char *name, int is_folder)
 
 // the engine's stick: each kernel written through the rulesets, its encodings read back, and the record written
 // against nvcc's listing
-static int query_stick_engine(QueryContext *context, CliLine *said)
+static int query_stick_engine(QueryContext *context, VerbaLinea *err_msg)
 {
-    static char s_engine[QUERY_PATH_LONGEST];
-    static char s_reader[QUERY_PATH_LONGEST];
+    static char s_engine[QUERY_PATH_MAX_LEN];
+    static char s_reader[QUERY_PATH_MAX_LEN];
     static QueryStickPaths s_paths;
     static QueryRun s_run;
     query_stick_paths(context, &s_paths);
-    if (!query_context_tool(context, "orior_measuring_stick_engine", s_engine, said) ||
-        !query_context_tool(context, "orior_measuring_stick_read", s_reader, said))
+    if (!query_context_tool(context, "orior_measuring_stick_engine", s_engine, err_msg) ||
+        !query_context_tool(context, "orior_measuring_stick_read", s_reader, err_msg))
     {
         return -1;
     }
-    char out[QUERY_PATH_LONGEST];
+    char out[QUERY_PATH_MAX_LEN];
     query_in(s_paths.out, "engine", out);
     if (!query_folder_made(out))
     {
-        cli_line_text(said, out);
-        cli_line_text(said, " could not be made");
+        mmgr_line_put(err_msg, out);
+        mmgr_line_put(err_msg, " could not be made");
         return -1;
     }
     query_folder_each(out, query_engine_cleared, out);
-    char cu_krs[QUERY_PATH_LONGEST];
-    char sass_krs[QUERY_PATH_LONGEST];
-    char sass_ksc[QUERY_PATH_LONGEST];
-    char machine[QUERY_PATH_LONGEST];
-    char record[QUERY_PATH_LONGEST];
-    char engine_tsv[QUERY_PATH_LONGEST];
+    char cu_krs[QUERY_PATH_MAX_LEN];
+    char sass_krs[QUERY_PATH_MAX_LEN];
+    char sass_ksc[QUERY_PATH_MAX_LEN];
+    char machine[QUERY_PATH_MAX_LEN];
+    char record[QUERY_PATH_MAX_LEN];
+    char engine_tsv[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_TABLE "/cu.krs", cu_krs);
     query_at(context, QUERY_TABLE "/sass.krs", sass_krs);
     query_at(context, QUERY_TABLE "/sass.ksc", sass_ksc);
     query_at(context, QUERY_TABLE "/sm_86.khw", machine);
     query_at(context, QUERY_NVIDIA "/measuring_stick.md", record);
     query_in(out, "engine.tsv", engine_tsv);
-    if (!query_context_started(context, &s_run, QUERY_STICK "/engine/qry", said))
+    if (!query_context_started(context, &s_run, QUERY_STICK "/engine/qry", err_msg))
     {
         return -1;
     }
     const char *const read[7] = {cu_krs, sass_krs, sass_ksc, machine, s_paths.cu, s_paths.sass, s_paths.tsv};
     const char *const left[3] = {sass_krs, record, engine_tsv};
-    int whole = query_run_read(&s_run, read, 7u, said);
+    int whole = query_run_read(&s_run, read, 7u, err_msg);
     query_run_left(&s_run, left, 3u);
     long long code = -1ll;
     if (whole)
     {
         const char *const words[5] = {s_engine, s_paths.cu, s_paths.sass, out, NULL};
-        whole = query_context_handed(context, &s_run, "assembler.log", words, &code, said);
+        whole = query_context_handed(context, &s_run, "assembler.log", words, &code, err_msg);
     }
     if (whole && (code != 0ll))
     {
-        // the engine's refusal ends the loop: the leaves handed as the run holds them, exit 1
-        query_said(context, "  the engine did not write the stick");
-        return query_context_ended(context, &s_run, said) ? 1 : -1;
+        // the engine's refusal ends the loop: the leaves handed as the run contains them, exit 1
+        query_print(context, "  the engine did not write the stick");
+        return query_context_ended(context, &s_run, err_msg) ? 1 : -1;
     }
-    whole = whole && query_listings_read(context, &s_run, s_paths.cubin, "measuring_stick_", "SM86", out, said);
+    whole = whole && query_listings_read(context, &s_run, s_paths.cubin, "measuring_stick_", "SM86", out, err_msg);
     if (whole)
     {
         const char *const words[8] = {s_reader, s_paths.sass, s_paths.tsv, sass_krs, record, engine_tsv, out, NULL};
-        whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", words, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", words, &code, err_msg);
     }
-    if (!query_context_ended(context, &s_run, said) || !whole)
+    if (!query_context_ended(context, &s_run, err_msg) || !whole)
     {
         return -1;
     }
-    // an exit code is far below what an int holds
+    // an exit code is far below what an int represents
     return (int)code;
 }
 
 // the read with the words given, in the run joined or one of the stick's own
-static int query_stick_read(QueryContext *context, const char *const *words, unsigned int count, CliLine *said)
+static int query_stick_read(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
-    static char s_reader[QUERY_PATH_LONGEST];
+    static char s_reader[QUERY_PATH_MAX_LEN];
     static QueryRun s_run;
-    if (!query_context_tool(context, "orior_measuring_stick_read", s_reader, said) ||
-        !query_context_started(context, &s_run, QUERY_STICK "/engine/qry", said))
+    if (!query_context_tool(context, "orior_measuring_stick_read", s_reader, err_msg) ||
+        !query_context_started(context, &s_run, QUERY_STICK "/engine/qry", err_msg))
     {
         return -1;
     }
@@ -430,16 +430,16 @@ static int query_stick_read(QueryContext *context, const char *const *words, uns
         query_words_add(&s_words, words[at]);
     }
     long long code = -1ll;
-    const int whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", s_words.word, &code, said);
-    if (!query_context_ended(context, &s_run, said) || !whole)
+    const int whole = query_context_teed(context, &s_run, "orior_measuring_stick_read", s_words.word, &code, err_msg);
+    if (!query_context_ended(context, &s_run, err_msg) || !whole)
     {
         return -1;
     }
-    // an exit code is far below what an int holds
+    // an exit code is far below what an int represents
     return (int)code;
 }
 
-int query_stick_words(const char *const *words, unsigned int count, CliLine *said)
+int query_stick_words(const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
     if ((count == 0u) ||
         ((count == 1u) && (cellul.eq(&(CatenaFinitaCfg){.src = words[0], .other = "vendor", .cap = CLI_CELLS_POOL}))))
@@ -454,20 +454,20 @@ int query_stick_words(const char *const *words, unsigned int count, CliLine *sai
     {
         return QUERY_STICK_READ;
     }
-    cli_line_text(said, "stick takes nothing, vendor, engine, or read <words>");
+    mmgr_line_put(err_msg, "stick takes nothing, vendor, engine, or read <words>");
     return -1;
 }
 
-int query_stick_run(QueryContext *context, const char *const *words, unsigned int count, CliLine *said)
+int query_stick_run(QueryContext *context, const char *const *words, unsigned int count, VerbaLinea *err_msg)
 {
-    const int what = query_stick_words(words, count, said);
+    const int what = query_stick_words(words, count, err_msg);
     if (what == QUERY_STICK_VENDOR)
     {
-        return query_stick_vendor(context, said);
+        return query_stick_vendor(context, err_msg);
     }
     if (what == QUERY_STICK_ENGINE)
     {
-        return query_stick_engine(context, said);
+        return query_stick_engine(context, err_msg);
     }
-    return (what == QUERY_STICK_READ) ? query_stick_read(context, &words[1], count - 1u, said) : -1;
+    return (what == QUERY_STICK_READ) ? query_stick_read(context, &words[1], count - 1u, err_msg) : -1;
 }

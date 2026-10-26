@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // command_line_bridge.c: the bridge at the command line: its keys listed, each with how many pairs it has and how many
-// of them are open and closed, those that hold a word where one is given; and one key shown whole, its pairs with
+// of them are open and closed, those that contain a word where one is given; and one key shown whole, its pairs with
 // their verdicts and notes, the name each .klm gives it, and each ruleset's entries of it, every line with the file and
 // line it is read from
 #include "../editor/bridge.h"
@@ -10,7 +10,7 @@
 #include "command_line_internal.h"
 
 // The command's room, a cell taken as it starts and given back as it ends: the bridge's tree, in a cell of its own,
-// and a line said
+// and a line printed
 typedef struct
 {
     CliJson json;
@@ -27,7 +27,7 @@ static const char *bridge_text(unsigned int node, const char *name)
 }
 
 // `{path}:{line}` written, the line counted from 1, of a node's `line`, counted from 0
-static void bridge_at(CliLine *out, const char *path, unsigned int node)
+static void bridge_at(VerbaLinea *out, const char *path, unsigned int node)
 {
     const unsigned int line = cli_json_member(&s_room->json, node, "line");
     unsigned long long number = 0ull;
@@ -44,20 +44,20 @@ static void bridge_at(CliLine *out, const char *path, unsigned int node)
             number = number * 10ull + (unsigned long long)(digit - '0');
         }
     }
-    cli_line_text(out, path);
-    cli_line_character(out, ':');
-    cli_line_decimal(out, number + 1ull, 1u);
+    mmgr_line_put(out, path);
+    mmgr_line_ch(out, ':');
+    mmgr_line_decimal(out, number + 1ull, 1u);
 }
 
 // the line written, its spaces at the end not
-static void bridge_out(const CliLine *line)
+static void bridge_out(const VerbaLinea *line)
 {
-    const unsigned long long size = cli_line_fits(line) ? line->at : 0ull;
+    const unsigned long long size = mmgr_line_ok(line) ? line->at : 0ull;
     cli_out_line(line->out, cli_text_trimmed_end(line->out, size));
 }
 
 // how many pairs a key has, and how many of them are open and closed, the empty text for a key with none
-static void bridge_tally(unsigned int key, CliLine *out)
+static void bridge_pair_counts(unsigned int key, VerbaLinea *out)
 {
     const unsigned int pairs = cli_json_member(&s_room->json, key, "pairs");
     const unsigned int count = cli_json_is(&s_room->json, pairs, CFG_JSON_ARRAY) ? s_room->json.node[pairs].count : 0u;
@@ -82,20 +82,20 @@ static void bridge_tally(unsigned int key, CliLine *out)
                           : 0u;
         }
     }
-    cli_line_decimal(out, count, 1u);
-    cli_line_text(out, " pairs, ");
-    cli_line_decimal(out, open, 1u);
-    cli_line_text(out, " open, ");
-    cli_line_decimal(out, closed, 1u);
-    cli_line_text(out, " closed");
+    mmgr_line_decimal(out, count, 1u);
+    mmgr_line_put(out, " pairs, ");
+    mmgr_line_decimal(out, open, 1u);
+    mmgr_line_put(out, " open, ");
+    mmgr_line_decimal(out, closed, 1u);
+    mmgr_line_put(out, " closed");
 }
 
 // the key's pairs, each with its verdict and its notes
 static void bridge_pairs(const char *path, const char *name, unsigned int key)
 {
-    CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-    cli_line_text(&line, name);
-    cli_line_text(&line, "  ");
+    VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, "  ");
     bridge_at(&line, path, key);
     bridge_out(&line);
     const unsigned int pairs = cli_json_member(&s_room->json, key, "pairs");
@@ -107,25 +107,25 @@ static void bridge_pairs(const char *path, const char *name, unsigned int key)
     for (unsigned int pair = s_room->json.node[pairs].first; pair != CLI_JSON_NONE; pair = s_room->json.node[pair].next)
     {
         line.at = 0ull;
-        cli_line_text(&line, "  ");
-        cli_line_text(&line, bridge_text(pair, "first"));
-        cli_line_text(&line, " ~ ");
-        cli_line_text(&line, bridge_text(pair, "second"));
-        cli_line_text(&line, "  ");
+        mmgr_line_put(&line, "  ");
+        mmgr_line_put(&line, bridge_text(pair, "first"));
+        mmgr_line_put(&line, " ~ ");
+        mmgr_line_put(&line, bridge_text(pair, "second"));
+        mmgr_line_put(&line, "  ");
         const unsigned int verdict = cli_json_member(&s_room->json, pair, "verdict");
         if (cli_json_is(&s_room->json, verdict, CFG_JSON_OBJECT))
         {
             static char s_verdict[1u << 12u];
-            CliLine said = {s_verdict, sizeof(s_verdict), 0ull};
-            cli_line_text(&said, bridge_text(verdict, "word"));
-            cli_line_character(&said, ' ');
-            cli_line_text(&said, bridge_text(verdict, "rest"));
+            VerbaLinea verdict_line = {s_verdict, sizeof(s_verdict), 0ull};
+            mmgr_line_put(&verdict_line, bridge_text(verdict, "word"));
+            mmgr_line_ch(&verdict_line, ' ');
+            mmgr_line_put(&verdict_line, bridge_text(verdict, "rest"));
             unsigned long long from = 0ull;
             unsigned long long to = 0ull;
-            cli_text_trimmed(s_verdict, cli_line_fits(&said) ? said.at : 0ull, &from, &to);
-            cli_line_counted(&line, s_verdict + from, to - from);
+            cli_text_trimmed(s_verdict, mmgr_line_ok(&verdict_line) ? verdict_line.at : 0ull, &from, &to);
+            mmgr_line_put_n(&line, s_verdict + from, to - from);
         }
-        cli_line_text(&line, "  ");
+        mmgr_line_put(&line, "  ");
         bridge_at(&line, path, pair);
         bridge_out(&line);
         const unsigned int notes = cli_json_member(&s_room->json, pair, "notes");
@@ -134,10 +134,10 @@ static void bridge_pairs(const char *path, const char *name, unsigned int key)
         for (unsigned int note = first; note != CLI_JSON_NONE; note = s_room->json.node[note].next)
         {
             line.at = 0ull;
-            cli_line_text(&line, "    ");
-            cli_line_text(&line, bridge_text(note, "word"));
-            cli_line_character(&line, ' ');
-            cli_line_text(&line, bridge_text(note, "rest"));
+            mmgr_line_put(&line, "    ");
+            mmgr_line_put(&line, bridge_text(note, "word"));
+            mmgr_line_ch(&line, ' ');
+            mmgr_line_put(&line, bridge_text(note, "rest"));
             bridge_out(&line);
         }
     }
@@ -169,33 +169,33 @@ static void bridge_maps(unsigned int bridge, const char *name)
                 cli_out("maps");
                 any = 1;
             }
-            CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-            cli_line_text(&line, "  ");
-            cli_line_text(&line, bridge_text(map, "language"));
-            cli_line_text(&line, "  ");
-            cli_line_text(&line, named);
+            VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+            mmgr_line_put(&line, "  ");
+            mmgr_line_put(&line, bridge_text(map, "language"));
+            mmgr_line_put(&line, "  ");
+            mmgr_line_put(&line, named);
             if ((key[0] != '\0') && (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = named, .cap = CLI_CELLS_POOL})))
             {
-                cli_line_text(&line, " -> ");
-                cli_line_text(&line, key);
+                mmgr_line_put(&line, " -> ");
+                mmgr_line_put(&line, key);
             }
             const unsigned int kind = cli_json_member(&s_room->json, entry, "kind");
             if (cli_json_is(&s_room->json, kind, CFG_JSON_OBJECT))
             {
-                cli_line_text(&line, "  ");
-                cli_line_text(&line, bridge_text(kind, "rest"));
+                mmgr_line_put(&line, "  ");
+                mmgr_line_put(&line, bridge_text(kind, "rest"));
             }
             const unsigned int breaks = cli_json_member(&s_room->json, entry, "breaks");
             const unsigned int broken_first =
                 cli_json_is(&s_room->json, breaks, CFG_JSON_ARRAY) ? s_room->json.node[breaks].first : CLI_JSON_NONE;
             for (unsigned int broken = broken_first; broken != CLI_JSON_NONE; broken = s_room->json.node[broken].next)
             {
-                cli_line_text(&line, "  breaks ");
-                cli_line_text(&line, bridge_text(broken, "rest"));
+                mmgr_line_put(&line, "  breaks ");
+                mmgr_line_put(&line, bridge_text(broken, "rest"));
             }
-            cli_line_text(&line, "  ");
+            mmgr_line_put(&line, "  ");
             bridge_at(&line, bridge_text(map, "path"), entry);
-            cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+            cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
         }
     }
 }
@@ -224,14 +224,14 @@ static void bridge_rulesets(unsigned int bridge, const char *name)
                 cli_out("rulesets");
                 any = 1;
             }
-            CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-            cli_line_text(&line, "  ");
-            cli_line_text(&line, file);
-            cli_line_text(&line, "  ");
-            cli_line_text(&line, bridge_text(entry, "kind"));
-            cli_line_text(&line, "  ");
+            VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+            mmgr_line_put(&line, "  ");
+            mmgr_line_put(&line, file);
+            mmgr_line_put(&line, "  ");
+            mmgr_line_put(&line, bridge_text(entry, "kind"));
+            mmgr_line_put(&line, "  ");
             bridge_at(&line, path, entry);
-            cli_out_line(s_room->line, cli_line_fits(&line) ? line.at : 0ull);
+            cli_out_line(s_room->line, mmgr_line_ok(&line) ? line.at : 0ull);
         }
     }
 }
@@ -264,7 +264,7 @@ static int bridge_words(const char *root, const char *word)
     for (unsigned int key = first; key != CLI_JSON_NONE; key = s_room->json.node[key].next)
     {
         const char *const name = s_room->json.text + s_room->json.node[key].key;
-        if ((word == NULL) || cli_holds_word(name, word))
+        if ((word == NULL) || cli_contains_word(name, word))
         {
             const unsigned long long letters =
                 cli_text_letters(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
@@ -274,26 +274,26 @@ static int bridge_words(const char *root, const char *word)
     }
     if (count == 0u)
     {
-        cli_err("no key holds that word");
+        cli_err("no key contains that word");
         return CLI_NO_CODE;
     }
     for (unsigned int key = first; key != CLI_JSON_NONE; key = s_room->json.node[key].next)
     {
         const char *const name = s_room->json.text + s_room->json.node[key].key;
-        if ((word != NULL) && !cli_holds_word(name, word))
+        if ((word != NULL) && !cli_contains_word(name, word))
         {
             continue;
         }
-        CliLine line = {s_room->line, sizeof(s_room->line), 0ull};
-        cli_line_text(&line, name);
+        VerbaLinea line = {s_room->line, sizeof(s_room->line), 0ull};
+        mmgr_line_put(&line, name);
         for (unsigned long long letters =
                  cli_text_letters(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
              letters < pad; letters += 1ull)
         {
-            cli_line_character(&line, ' ');
+            mmgr_line_ch(&line, ' ');
         }
-        cli_line_text(&line, "  ");
-        bridge_tally(key, &line);
+        mmgr_line_put(&line, "  ");
+        bridge_pair_counts(key, &line);
         bridge_out(&line);
     }
     return 0;
@@ -301,7 +301,7 @@ static int bridge_words(const char *root, const char *word)
 
 int cli_bridge_words(const char *root, const char *word)
 {
-    s_room = cli_cell_taken(sizeof(*s_room), "a showing of the bridge");
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
     if (s_room == NULL)
     {
         cli_err("a showing of the bridge could not be taken");
@@ -309,7 +309,7 @@ int cli_bridge_words(const char *root, const char *word)
     }
     const int code = bridge_words(root, word);
     cli_json_given(&s_room->json);
-    cli_cell_given(s_room);
+    g_cli_cells->persistent_buf_release(s_room, NULL);
     s_room = NULL;
     return code;
 }

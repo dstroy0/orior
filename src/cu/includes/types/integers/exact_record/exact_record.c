@@ -102,9 +102,10 @@ static unsigned int exact_record_fold(ExactRecordProgram *program, long long val
     }
     const unsigned int zero = exact_record_append(program, ENGINE_RECORD_CONSTANT, 0u, 0u, 0u, 1, 0ll);
     const unsigned long long magnitude = (unsigned long long)(-value);
-    const unsigned int held = exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(magnitude & 0xFFFFFFFFull),
-                                                  (unsigned int)(magnitude >> 32u), 0u, 1, -value);
-    return exact_record_append(program, ENGINE_RECORD_DIFFERENCE, zero, held, 0u, 1, value);
+    const unsigned int constant_reg =
+        exact_record_append(program, ENGINE_RECORD_CONSTANT, (unsigned int)(magnitude & 0xFFFFFFFFull),
+                            (unsigned int)(magnitude >> 32u), 0u, 1, -value);
+    return exact_record_append(program, ENGINE_RECORD_DIFFERENCE, zero, constant_reg, 0u, 1, value);
 }
 
 int exact_record_known(const ExactRecordProgram *program, unsigned int value, long long *out)
@@ -236,8 +237,8 @@ unsigned int exact_record_signed(ExactRecordProgram *program, long long value)
         return exact_record_fold(program, value);
     }
     const unsigned long long magnitude = (value < 0ll) ? (0ull - (unsigned long long)value) : (unsigned long long)value;
-    const unsigned int held = exact_record_constant(program, magnitude);
-    return (value < 0ll) ? exact_record_negate(program, held) : held;
+    const unsigned int constant_reg = exact_record_constant(program, magnitude);
+    return (value < 0ll) ? exact_record_negate(program, constant_reg) : constant_reg;
 }
 
 unsigned int exact_record_power_two(ExactRecordProgram *program, unsigned int bits)
@@ -459,7 +460,7 @@ unsigned int exact_record_power(ExactRecordProgram *program, unsigned int base, 
 }
 
 // value *= factor over `limbs` limbs, a table row laid out on the host: the factor's two limbs, a row each as the long
-// multiplication takes them. 1 where the product passes the limbs or its room cannot be held
+// multiplication takes them. 1 where the product passes the limbs or its room cannot be allocated
 static unsigned int exact_record_limbs_times(unsigned int *value, unsigned int limbs, unsigned long long factor)
 {
     unsigned int *const product = (unsigned int *)calloc((size_t)limbs + 2u, sizeof(unsigned int));
@@ -545,7 +546,7 @@ unsigned int exact_record_power_of(ExactRecordProgram *program, unsigned long lo
     free(values);
     const unsigned int nibbles = (exponent_bits + EXACT_RECORD_NIBBLE_BITS - 1u) / EXACT_RECORD_NIBBLE_BITS;
     // 16^nibbles stands above every exponent: added, it leaves each nibble's bits as they are, and a quotient by any
-    // lower power of 16 keeps a whole nibble for the table's index
+    // lower power of 16 leaves a whole nibble for the table's index
     const unsigned int guarded =
         exact_record_sum(program, exponent, exact_record_power_two(program, EXACT_RECORD_NIBBLE_BITS * nibbles));
     unsigned int power = 0u;

@@ -65,18 +65,18 @@ static void engine_residual_free(void)
     resident->check_words = 0u;
 }
 
-// a buffer held while it is large enough, and made again where a request needs more
-static int engine_residual_grow(void **buffer, size_t *held, size_t wanted, size_t unit, EngineError *error)
+// a buffer retained while it is large enough, and made again where a request needs more
+static int engine_residual_grow(void **buffer, size_t *buffer_size, size_t wanted, size_t unit, EngineError *error)
 {
-    if (wanted <= *held)
+    if (wanted <= *buffer_size)
     {
         return 1;
     }
     cudaFree(*buffer);
     *buffer = NULL;
-    *held = 0u;
+    *buffer_size = 0u;
     const int ok = ENGINE_STATUS_CHECK(cudaMalloc(buffer, wanted * unit), buffer, error);
-    *held = (ok != 0) ? wanted : 0u;
+    *buffer_size = (ok != 0) ? wanted : 0u;
     return ok;
 }
 
@@ -174,7 +174,7 @@ static unsigned long long engine_residual_comb_bits(unsigned int length)
 }
 
 // an odd sum of the smooth order and the comb's n - 1 puts the residual half a voxel before its lane's voxel. It is
-// allowed only where the request gives the place to say so.
+// allowed only where the request gives the place to report so.
 static int engine_residual_placed(const unsigned int smooth_orders[ENGINE_AXES], const unsigned int comb[ENGINE_AXES],
                                   int *const *offset_halves, EngineError *error)
 {
@@ -209,11 +209,11 @@ extern "C" long engine_residual(const EngineResidualRequest *request, const unsi
         return ENGINE_ERROR;
     }
     *device_residual = NULL;
-    const int asked = ENGINE_CHECK(request->volume != NULL, &request->volume, error, ENGINE_ERROR_REQUEST) &&
+    const int valid = ENGINE_CHECK(request->volume != NULL, &request->volume, error, ENGINE_ERROR_REQUEST) &&
                       ENGINE_CHECK((request->depth != 0u) && (request->height != 0u) && (request->width != 0u),
                                    &request->depth, error, ENGINE_ERROR_REQUEST) &&
                       engine_residual_placed(request->smooth_orders, request->comb, &request->offset_halves, error);
-    if (asked == 0)
+    if (valid == 0)
     {
         return ENGINE_ERROR;
     }
@@ -338,7 +338,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     const unsigned long long voxels = (plane_voxels <= 0xFFFFFFFFull) ? (plane_voxels * request->depth) : 0ull;
     const unsigned long long residual_limbs = (residual_bits + 31ull) / 32ull;
     const unsigned long long input_limbs = ((unsigned long long)request->input_bits + 31ull) / 32ull;
-    const int asked =
+    const int valid =
         ENGINE_CHECK(request->planes != NULL, &request->planes, error, ENGINE_ERROR_REQUEST) &&
         ENGINE_CHECK(request->input_bits != 0u, &request->input_bits, error, ENGINE_ERROR_REQUEST) &&
         ENGINE_CHECK((voxels != 0ull) && (voxels <= 0xFFFFFFFFull), &request->depth, error, ENGINE_ERROR_REQUEST) &&
@@ -347,7 +347,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
         engine_residual_placed(request->smooth_orders, request->comb, &request->offset_halves, error);
     EngineResidualPlanesResident *const resident = &s_residual_planes_resident;
     int ok =
-        asked &&
+        valid &&
         engine_residual_planes_grow(&resident->planes, &resident->plane_words, (size_t)(voxels * input_limbs), error) &&
         engine_residual_planes_grow(&resident->residual, &resident->residual_words, (size_t)(voxels * residual_limbs),
                                     error) &&
@@ -366,7 +366,7 @@ extern "C" long engine_residual_planes(const EngineResidualPlanesRequest *reques
     memcpy(sweep_request.comb, request->comb, sizeof(sweep_request.comb));
     memcpy(sweep_request.smooth_spaced, request->smooth_spaced, sizeof(sweep_request.smooth_spaced));
     memcpy(sweep_request.background_spaced, request->background_spaced, sizeof(sweep_request.background_spaced));
-    // the limbs are held at or below 2^32 / 32 above. They narrow to unsigned int exactly
+    // the limbs are bounded at or below 2^32 / 32 above. They narrow to unsigned int exactly
     sweep_request.limbs = (unsigned int)residual_limbs;
     sweep_request.device_out = resident->residual;
     sweep_request.error = error;
@@ -399,7 +399,7 @@ extern "C" long engine_frame_bodies(const EngineBodiesRequest *request, EngineLe
     if (ENGINE_CHECK(leaves != NULL, &leaves, error, ENGINE_ERROR_REQUEST) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     memset(leaves, 0, sizeof(*leaves));
@@ -410,7 +410,7 @@ extern "C" long engine_frame_bodies(const EngineBodiesRequest *request, EngineLe
                      ENGINE_ERROR_REQUEST) == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     unsigned int level_code = 0u;
@@ -435,7 +435,7 @@ extern "C" long engine_frame_bodies(const EngineBodiesRequest *request, EngineLe
     if (grown == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     s_bodies_results.frames += 1ull;

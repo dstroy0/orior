@@ -1083,14 +1083,14 @@ static void ab_discover(const char *name, const uint8_t *corpus, size_t corpus_l
     }
     ab_draw_noise(noise, corpus_len * 2u, 0x5417FFuLL);
 
-    for (size_t slot = corpus_len - 1u; slot > 0u; slot--)
+    for (size_t at = corpus_len - 1u; at > 0u; at--)
     {
-        const uint32_t drawn = ((uint32_t)noise[slot * 2u] << 8) | (uint32_t)noise[(slot * 2u) + 1u];
-        const size_t pick = (size_t)(drawn % (uint32_t)(slot + 1u));
-        const uint8_t held = shuffled[slot];
+        const uint32_t drawn = ((uint32_t)noise[at * 2u] << 8) | (uint32_t)noise[(at * 2u) + 1u];
+        const size_t pick = (size_t)(drawn % (uint32_t)(at + 1u));
+        const uint8_t swapped = shuffled[at];
 
-        shuffled[slot] = shuffled[pick];
-        shuffled[pick] = held;
+        shuffled[at] = shuffled[pick];
+        shuffled[pick] = swapped;
     }
 
     (void)ab_shift_survey(shuffled, corpus_len, &null_found, &null_peak, &null_shift);
@@ -1116,17 +1116,17 @@ static double ab_spacing(const uint8_t *corpus, size_t length, unsigned *which, 
 
     for (size_t at = 0u; at < length; at++)
     {
-        const uint8_t held = corpus[at];
+        const uint8_t current_byte = corpus[at];
 
-        if (seen_at[held] != length)
+        if (seen_at[current_byte] != length)
         {
-            const double apart = (double)(at - seen_at[held]);
+            const double apart = (double)(at - seen_at[current_byte]);
 
-            counted[held]++;
-            total[held] += apart;
-            squares[held] += apart * apart;
+            counted[current_byte]++;
+            total[current_byte] += apart;
+            squares[current_byte] += apart * apart;
         }
-        seen_at[held] = at;
+        seen_at[current_byte] = at;
     }
 
     double tightest = 1.0;
@@ -1184,14 +1184,14 @@ static void ab_language(const char *name, const uint8_t *corpus, size_t corpus_l
     }
     ab_draw_noise(noise, corpus_len * 2u, 0xB0DEEuLL);
 
-    for (size_t slot = corpus_len - 1u; slot > 0u; slot--)
+    for (size_t at = corpus_len - 1u; at > 0u; at--)
     {
-        const uint32_t drawn = ((uint32_t)noise[slot * 2u] << 8) | (uint32_t)noise[(slot * 2u) + 1u];
-        const size_t pick = (size_t)(drawn % (uint32_t)(slot + 1u));
-        const uint8_t held = shuffled[slot];
+        const uint32_t drawn = ((uint32_t)noise[at * 2u] << 8) | (uint32_t)noise[(at * 2u) + 1u];
+        const size_t pick = (size_t)(drawn % (uint32_t)(at + 1u));
+        const uint8_t swapped = shuffled[at];
 
-        shuffled[slot] = shuffled[pick];
-        shuffled[pick] = held;
+        shuffled[at] = shuffled[pick];
+        shuffled[pick] = swapped;
     }
 
     const double null_tight = ab_spacing(shuffled, corpus_len, &null_byte, &null_gap);
@@ -1228,28 +1228,28 @@ static void ab_boundary_filter(const char *name, const uint8_t *corpus, size_t c
     for (size_t at = 0u; at < alignments; at += step)
     {
         size_t inside[64];
-        unsigned held = 0u;
+        unsigned boundary_count = 0u;
 
-        for (size_t index = 0u; (index < needle_len) && (held < 64u); index++)
+        for (size_t index = 0u; (index < needle_len) && (boundary_count < 64u); index++)
         {
             if (corpus[at + index] == marker)
             {
-                inside[held] = index;
-                held++;
+                inside[boundary_count] = index;
+                boundary_count++;
             }
         }
-        if (held < 2u)
+        if (boundary_count < 2u)
         {
             continue;
         }
 
-        size_t kept = 0u;
+        size_t survivor_count = 0u;
 
         for (size_t start = 0u; start < alignments; start++)
         {
             unsigned matched = 0u;
 
-            while (matched < held)
+            while (matched < boundary_count)
             {
                 if (corpus[start + inside[matched]] != marker)
                 {
@@ -1257,14 +1257,14 @@ static void ab_boundary_filter(const char *name, const uint8_t *corpus, size_t c
                 }
                 matched++;
             }
-            if (matched == held)
+            if (matched == boundary_count)
             {
-                kept++;
+                survivor_count++;
             }
         }
 
-        survivors += (double)kept;
-        signature += (double)held;
+        survivors += (double)survivor_count;
+        signature += (double)boundary_count;
         samples++;
     }
 
@@ -1275,12 +1275,11 @@ static void ab_boundary_filter(const char *name, const uint8_t *corpus, size_t c
 
     const double count = (double)samples;
     const double mean_marks = signature / count;
-    const double mean_kept = survivors / count;
+    const double mean_survivors = survivors / count;
 
-    printf("ancorae_boundary,%s,%u,%u,%u,%.2f,%.2f,%.1f,%.4f\n", name, (unsigned)needle_len,
-           (unsigned)corpus_len, (unsigned)marked, mean_marks, mean_kept,
-           (double)alignments / ((mean_kept > 0.0) ? mean_kept : 1.0),
-           (double)marked / (double)corpus_len);
+    printf("ancorae_boundary,%s,%u,%u,%u,%.2f,%.2f,%.1f,%.4f\n", name, (unsigned)needle_len, (unsigned)corpus_len,
+           (unsigned)marked, mean_marks, mean_survivors,
+           (double)alignments / ((mean_survivors > 0.0) ? mean_survivors : 1.0), (double)marked / (double)corpus_len);
 }
 
 typedef struct
@@ -1317,11 +1316,11 @@ static int ab_by_stamp(const void *left, const void *right)
 static void ab_universals(const char *name, const uint8_t *corpus, size_t corpus_len, uint8_t marker)
 {
     static AbUnit units[AB_FILE_UNITS];
-    size_t held = 0u;
+    size_t count = 0u;
     size_t at = 0u;
     size_t distinct_budgeted = 0u;
 
-    while ((at < corpus_len) && (held < AB_FILE_UNITS))
+    while ((at < corpus_len) && (count < AB_FILE_UNITS))
     {
         while ((at < corpus_len) && (corpus[at] == marker))
         {
@@ -1339,27 +1338,27 @@ static void ab_universals(const char *name, const uint8_t *corpus, size_t corpus
         }
         if (at > opened)
         {
-            units[held].stamp = stamp;
-            units[held].seen = 1u;
-            units[held].span = (uint32_t)(at - opened);
-            held++;
+            units[count].stamp = stamp;
+            units[count].seen = 1u;
+            units[count].span = (uint32_t)(at - opened);
+            count++;
         }
     }
 
-    if (held < 32u)
+    if (count < 32u)
     {
         return;
     }
 
-    qsort(units, held, sizeof units[0], ab_by_stamp);
+    qsort(units, count, sizeof units[0], ab_by_stamp);
 
     size_t distinct = 0u;
 
-    for (size_t index = 0u; index < held;)
+    for (size_t index = 0u; index < count;)
     {
         size_t run = index + 1u;
 
-        while ((run < held) && (units[run].stamp == units[index].stamp))
+        while ((run < count) && (units[run].stamp == units[index].stamp))
         {
             run++;
         }
@@ -1423,7 +1422,7 @@ static void ab_universals(const char *name, const uint8_t *corpus, size_t corpus
 
     double carried = 0.0;
 
-    if (held >= AB_TOKEN_BUDGET)
+    if (count >= AB_TOKEN_BUDGET)
     {
         static AbUnit budgeted[AB_TOKEN_BUDGET];
         size_t taken = 0u;
@@ -1475,9 +1474,8 @@ static void ab_universals(const char *name, const uint8_t *corpus, size_t corpus
         }
     }
 
-    printf("ancorae_universal,%s,%u,%u,%u,%.2f,%.3f,%.3f,%u,%.3f\n", name, (unsigned)corpus_len,
-           (unsigned)held, (unsigned)distinct, mean_span, slope, brevity, (unsigned)distinct_budgeted,
-           carried);
+    printf("ancorae_universal,%s,%u,%u,%u,%.2f,%.3f,%.3f,%u,%.3f\n", name, (unsigned)corpus_len, (unsigned)count,
+           (unsigned)distinct, mean_span, slope, brevity, (unsigned)distinct_budgeted, carried);
 }
 
 typedef struct
@@ -1555,7 +1553,7 @@ static void ab_variety(const char *name, const uint8_t *corpus, size_t corpus_le
     double score[12];
     size_t counted[12];
     size_t varied[12];
-    unsigned kept = 0u;
+    unsigned chosen_count = 0u;
 
     double variety_total = 0.0;
     unsigned variety_count = 0u;
@@ -1583,23 +1581,23 @@ static void ab_variety(const char *name, const uint8_t *corpus, size_t corpus_le
             variety_total += variety;
             variety_count++;
 
-            if (kept < 12u)
+            if (chosen_count < 12u)
             {
-                best[kept] = links[index];
-                score[kept] = variety;
-                counted[kept] = seen;
-                varied[kept] = followers;
-                kept++;
+                best[chosen_count] = links[index];
+                score[chosen_count] = variety;
+                counted[chosen_count] = seen;
+                varied[chosen_count] = followers;
+                chosen_count++;
             }
             else
             {
                 unsigned worst = 0u;
 
-                for (unsigned slot = 1u; slot < 12u; slot++)
+                for (unsigned position = 1u; position < 12u; position++)
                 {
-                    if (score[slot] > score[worst])
+                    if (score[position] > score[worst])
                     {
-                        worst = slot;
+                        worst = position;
                     }
                 }
                 if (variety < score[worst])
@@ -1614,11 +1612,11 @@ static void ab_variety(const char *name, const uint8_t *corpus, size_t corpus_le
         index = run;
     }
 
-    for (unsigned slot = 0u; slot < kept; slot++)
+    for (unsigned position = 0u; position < chosen_count; position++)
     {
-        unsigned pick = slot;
+        unsigned pick = position;
 
-        for (unsigned other = slot + 1u; other < kept; other++)
+        for (unsigned other = position + 1u; other < chosen_count; other++)
         {
             if (score[other] < score[pick])
             {
@@ -1626,22 +1624,22 @@ static void ab_variety(const char *name, const uint8_t *corpus, size_t corpus_le
             }
         }
 
-        const AbLink held = best[slot];
-        const double swap = score[slot];
-        const size_t swap_seen = counted[slot];
-        const size_t swap_varied = varied[slot];
+        const AbLink swapped = best[position];
+        const double swap = score[position];
+        const size_t swap_seen = counted[position];
+        const size_t swap_varied = varied[position];
 
-        best[slot] = best[pick];
-        score[slot] = score[pick];
-        counted[slot] = counted[pick];
-        varied[slot] = varied[pick];
-        best[pick] = held;
+        best[position] = best[pick];
+        score[position] = score[pick];
+        counted[position] = counted[pick];
+        varied[position] = varied[pick];
+        best[pick] = swapped;
         score[pick] = swap;
         counted[pick] = swap_seen;
         varied[pick] = swap_varied;
 
-        printf("#   %-18.*s %-8u %-10u %.3f\n", (int)best[slot].span, &corpus[best[slot].where],
-               (unsigned)counted[slot], (unsigned)varied[slot], score[slot]);
+        printf("#   %-18.*s %-8u %-10u %.3f\n", (int)best[position].span, &corpus[best[position].where],
+               (unsigned)counted[position], (unsigned)varied[position], score[position]);
     }
 
     printf("ancorae_formula,%s,%u,%u,%.4f\n", name, (unsigned)taken, variety_count,
@@ -1706,7 +1704,7 @@ static void ab_salience(const char *name, const uint8_t *corpus, size_t corpus_l
     AbLink best[10];
     double score[10];
     size_t counted[10];
-    unsigned kept = 0u;
+    unsigned chosen_count = 0u;
     size_t index = 0u;
 
     while (index < taken)
@@ -1738,22 +1736,22 @@ static void ab_salience(const char *name, const uint8_t *corpus, size_t corpus_l
             const double spread = (squares / runs) - (mean * mean);
             const double burst = (mean > 0.0) ? (spread / (mean * mean)) : 0.0;
 
-            if (kept < 10u)
+            if (chosen_count < 10u)
             {
-                best[kept] = places[index];
-                score[kept] = burst;
-                counted[kept] = seen;
-                kept++;
+                best[chosen_count] = places[index];
+                score[chosen_count] = burst;
+                counted[chosen_count] = seen;
+                chosen_count++;
             }
             else
             {
                 unsigned worst = 0u;
 
-                for (unsigned slot = 1u; slot < 10u; slot++)
+                for (unsigned position = 1u; position < 10u; position++)
                 {
-                    if (score[slot] < score[worst])
+                    if (score[position] < score[worst])
                     {
-                        worst = slot;
+                        worst = position;
                     }
                 }
                 if (burst > score[worst])
@@ -1768,11 +1766,11 @@ static void ab_salience(const char *name, const uint8_t *corpus, size_t corpus_l
     }
 
     printf("# %s, burst\n", name);
-    for (unsigned slot = 0u; slot < kept; slot++)
+    for (unsigned position = 0u; position < chosen_count; position++)
     {
-        unsigned pick = slot;
+        unsigned pick = position;
 
-        for (unsigned other = slot + 1u; other < kept; other++)
+        for (unsigned other = position + 1u; other < chosen_count; other++)
         {
             if (score[other] > score[pick])
             {
@@ -1780,19 +1778,19 @@ static void ab_salience(const char *name, const uint8_t *corpus, size_t corpus_l
             }
         }
 
-        const AbLink held = best[slot];
-        const double swap = score[slot];
-        const size_t swap_seen = counted[slot];
+        const AbLink swapped = best[position];
+        const double swap = score[position];
+        const size_t swap_seen = counted[position];
 
-        best[slot] = best[pick];
-        score[slot] = score[pick];
-        counted[slot] = counted[pick];
-        best[pick] = held;
+        best[position] = best[pick];
+        score[position] = score[pick];
+        counted[position] = counted[pick];
+        best[pick] = swapped;
         score[pick] = swap;
         counted[pick] = swap_seen;
 
-        printf("#   %-18.*s %-8u %.2f\n", (int)best[slot].span, &corpus[best[slot].where],
-               (unsigned)counted[slot], score[slot]);
+        printf("#   %-18.*s %-8u %.2f\n", (int)best[position].span, &corpus[best[position].where],
+               (unsigned)counted[position], score[position]);
     }
 }
 
@@ -2017,12 +2015,11 @@ static void ab_report(const char *name, const uint8_t *corpus, size_t corpus_len
     {
         const uint8_t *const needle = &corpus[sample * step];
         size_t reached = 0u;
-        const AbResult held =
-            ab_free_order(corpus, corpus_len, needle, needle_len, calibrated_stride, &reached, 0u,
-                          &mirror_error);
+        const AbResult result =
+            ab_free_order(corpus, corpus_len, needle, needle_len, calibrated_stride, &reached, 0u, &mirror_error);
 
-        calibrated_reads += (double)held.reads;
-        if (held.found != ab_naive(corpus, corpus_len, needle, needle_len).found)
+        calibrated_reads += (double)result.reads;
+        if (result.found != ab_naive(corpus, corpus_len, needle, needle_len).found)
         {
             calibrated_wrong++;
         }
@@ -2037,11 +2034,11 @@ static void ab_report(const char *name, const uint8_t *corpus, size_t corpus_len
     {
         const uint8_t *const needle = &corpus[sample * step];
         size_t used = 0u;
-        const AbResult held = ab_adaptive(corpus, corpus_len, needle, needle_len, &used, &mirror_error);
+        const AbResult result = ab_adaptive(corpus, corpus_len, needle, needle_len, &used, &mirror_error);
 
-        adaptive_reads += (double)held.reads;
+        adaptive_reads += (double)result.reads;
         adaptive_probes += (double)used;
-        if (held.found != ab_naive(corpus, corpus_len, needle, needle_len).found)
+        if (result.found != ab_naive(corpus, corpus_len, needle, needle_len).found)
         {
             adaptive_wrong++;
         }
@@ -2088,7 +2085,7 @@ int main(int argc, char **argv)
 {
     if (argc > 1)
     {
-        static uint8_t held[AB_FILE_BYTES];
+        static uint8_t file_bytes[AB_FILE_BYTES];
 
         printf("bench,corpus,corpus_bytes,tightest_byte,mean_gap,dispersion,shuffled_byte,"
                "shuffled_dispersion,ratio\n");
@@ -2104,15 +2101,15 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            const size_t taken = fread(held, 1u, sizeof held, source);
+            const size_t taken = fread(file_bytes, 1u, sizeof file_bytes, source);
 
             (void)fclose(source);
 
             for (size_t index = 0u; index < taken; index++)
             {
-                if ((held[index] == 0x0Du) || (held[index] == 0x0Au))
+                if ((file_bytes[index] == 0x0Du) || (file_bytes[index] == 0x0Au))
                 {
-                    held[index] = 0x20u;
+                    file_bytes[index] = 0x20u;
                 }
             }
             if (taken < 1024u)
@@ -2134,11 +2131,11 @@ int main(int argc, char **argv)
             unsigned marker = 0u;
             double gap = 0.0;
 
-            (void)ab_spacing(held, taken, &marker, &gap);
-            ab_language(label, held, taken);
-            ab_universals(label, held, taken, (uint8_t)marker);
-            ab_variety(label, held, taken, (uint8_t)marker);
-            ab_salience(label, held, taken, (uint8_t)marker);
+            (void)ab_spacing(file_bytes, taken, &marker, &gap);
+            ab_language(label, file_bytes, taken);
+            ab_universals(label, file_bytes, taken, (uint8_t)marker);
+            ab_variety(label, file_bytes, taken, (uint8_t)marker);
+            ab_salience(label, file_bytes, taken, (uint8_t)marker);
         }
         return 0;
     }

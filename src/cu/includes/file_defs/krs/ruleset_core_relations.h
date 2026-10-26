@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ruleset_core_relations.h: the absurd relations held among the entries: names a word apart, banks, operands,
+// ruleset_core_relations.h: the absurd relations present among the entries: names a word apart, banks, operands,
 // forms, pairs and constructs (ruleset_core_relation.h includes the parts in order)
 #ifndef RULESET_CORE_RELATIONS_H
 #define RULESET_CORE_RELATIONS_H
@@ -86,7 +86,8 @@ CODEGEN_CORE int ruleset_core_relation_banked(const RulesetCoreRelations *relati
     return 0;
 }
 
-// 1 where `entry`'s text holds the fixed entry `fixed`'s register as an operand of its own, not part of a longer word
+// 1 where `entry`'s text contains the fixed entry `fixed`'s register as an operand of its own, not part of a longer
+// word
 CODEGEN_CORE int ruleset_core_relation_operand(const RulesetCoreRelations *relations, const RulesetCoreEntry *entry,
                                                const RulesetCoreEntry *fixed)
 {
@@ -112,21 +113,22 @@ CODEGEN_CORE int ruleset_core_relation_operand(const RulesetCoreRelations *relat
     return 0;
 }
 
-// what each form says of itself: a text that says nothing, a parameter it never writes and a place it does not take
+// what each form states of itself: a text that states nothing, a parameter it never writes and a place it does not take
 CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, unsigned int at)
 {
     const unsigned char *const text = relations->text;
     const RulesetCoreEntry *const entry = &relations->entries[at];
     if ((entry->equals == 0u) || (entry->text.length == 0u))
     {
-        ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_NO_TEXT, at, RULESET_CORE_NONE);
+        ruleset_core_relation_add(relations, RULESET_CORE_RELATION_NO_TEXT, at, RULESET_CORE_NONE);
         return;
     }
     const unsigned int count = ruleset_core_relation_parts(text, entry->head, (unsigned char)' ');
     for (unsigned int place = 0u; place < count; place += 1u)
     {
         const RulesetCoreSpan parameter = ruleset_core_relation_part(text, entry->head, (unsigned char)' ', place);
-        int written = 0;
+        // a parameter whose name opens with an underscore is one the form takes and does not write
+        int written = (parameter.length != 0u) && (text[parameter.first] == '_');
         for (unsigned int letter = 0u; (written == 0) && (letter < entry->text.length); letter += 1u)
         {
             const RulesetCoreSpan named = (text[entry->text.first + letter] == '{')
@@ -136,7 +138,7 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
         }
         if (written == 0)
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_PARAMETER_UNWRITTEN, at, place);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_PARAMETER_UNWRITTEN, at, place);
             break;
         }
     }
@@ -156,7 +158,7 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
         if ((named.length != 0u) && (fixed_named == 0) &&
             (ruleset_core_relation_place(relations, entry, named) == count))
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_PLACE_UNKNOWN, at, letter);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_PLACE_UNKNOWN, at, letter);
             break;
         }
     }
@@ -167,7 +169,7 @@ CODEGEN_CORE void ruleset_core_relation_form(RulesetCoreRelations *relations, un
             ruleset_core_relation_banked(relations, register_entry) &&
             ruleset_core_relation_operand(relations, entry, register_entry))
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_NUMERIC_NAME, at, fixed);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_NUMERIC_NAME, at, fixed);
             break;
         }
     }
@@ -223,7 +225,7 @@ CODEGEN_CORE void ruleset_core_relation_pairs(RulesetCoreRelations *relations, u
     {
         if (found[kind] != RULESET_CORE_NONE)
         {
-            ruleset_core_relation_keep(relations, kinds[kind], at, found[kind]);
+            ruleset_core_relation_add(relations, kinds[kind], at, found[kind]);
         }
     }
 }
@@ -248,12 +250,12 @@ CODEGEN_CORE void ruleset_core_relation_construct(RulesetCoreRelations *relation
         const unsigned int giver = ruleset_core_relation_giver(relations, written->name);
         if (giver == RULESET_CORE_NONE)
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_LINE_NOT_GIVEN, line, RULESET_CORE_NONE);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_LINE_NOT_GIVEN, line, RULESET_CORE_NONE);
         }
         else if (ruleset_core_relation_parts(text, written->head, (unsigned char)' ') !=
                  ruleset_core_relation_parts(text, relations->entries[giver].head, (unsigned char)' '))
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_LINE_ARGUMENTS, line, giver);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_LINE_ARGUMENTS, line, giver);
         }
     }
     if (lines == 1u)
@@ -270,7 +272,7 @@ CODEGEN_CORE void ruleset_core_relation_construct(RulesetCoreRelations *relation
         const unsigned int giver = ruleset_core_relation_giver(relations, written->name);
         if ((renamed != 0) && (giver != RULESET_CORE_NONE))
         {
-            ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_RENAMED, at, giver);
+            ruleset_core_relation_add(relations, RULESET_CORE_RELATION_RENAMED, at, giver);
         }
     }
     // the walk from the construct over the constructs its lines name, each marked with this walk's number once seen
@@ -293,7 +295,7 @@ CODEGEN_CORE void ruleset_core_relation_construct(RulesetCoreRelations *relation
             const unsigned int giver = ruleset_core_relation_giver(relations, written->name);
             if (giver == at)
             {
-                ruleset_core_relation_keep(relations, RULESET_CORE_RELATION_LOOP, at, line);
+                ruleset_core_relation_add(relations, RULESET_CORE_RELATION_LOOP, at, line);
                 return;
             }
             if ((giver != RULESET_CORE_NONE) && (relations->entries[giver].kind == RULESET_CORE_ENTRY_CONSTRUCT) &&

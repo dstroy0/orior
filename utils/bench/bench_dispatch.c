@@ -70,16 +70,16 @@ static uint64_t cycles_now(void)
 
 static double two_to_the(double exponent)
 {
-    double held = 1.0;
+    double power = 1.0;
     double remaining = exponent;
 
     while (remaining >= 1.0)
     {
-        held *= 2.0;
+        power *= 2.0;
         remaining -= 1.0;
     }
-    held *= 1.0 + (remaining * 0.6931472) + (remaining * remaining * 0.2402265);
-    return held;
+    power *= 1.0 + (remaining * 0.6931472) + (remaining * remaining * 0.2402265);
+    return power;
 }
 
 typedef struct
@@ -128,17 +128,17 @@ static double cycles_given_up(const Row *rows, size_t count, double flat_share, 
     double lost = 0.0;
     size_t right = 0u;
 
-    for (size_t slot = 0u; slot < count; slot += 1u)
+    for (size_t at = 0u; at < count; at += 1u)
     {
-        const int flat = flatness(&rows[slot]) >= flat_share;
-        const int take_free = (flat == 0) && (rows[slot].needle_len <= ceiling);
-        const uint64_t paid = (take_free != 0) ? rows[slot].freed : rows[slot].inorder;
+        const int flat = flatness(&rows[at]) >= flat_share;
+        const int take_free = (flat == 0) && (rows[at].needle_len <= ceiling);
+        const uint64_t paid = (take_free != 0) ? rows[at].freed : rows[at].inorder;
 
-        if (paid == quickest(&rows[slot]))
+        if (paid == quickest(&rows[at]))
         {
             right += 1u;
         }
-        lost += (double)paid - (double)quickest(&rows[slot]);
+        lost += (double)paid - (double)quickest(&rows[at]);
     }
     *agreed = right;
     return lost;
@@ -230,19 +230,16 @@ static void print_rows(const Row *rows, size_t count)
 {
     printf("\n  %-12s %-7s %-9s %-9s %-6s %-4s %-13s %-13s %-9s %s\n", "corpus", "h2", "distinct",
            "flatness", "m", "in", "inorder", "free", "faster", "by");
-    for (size_t slot = 0u; slot < count; slot += 1u)
+    for (size_t at = 0u; at < count; at += 1u)
     {
-        const int inorder_wins = rows[slot].inorder < rows[slot].freed;
-        const uint64_t slower = inorder_wins ? rows[slot].freed : rows[slot].inorder;
+        const int inorder_wins = rows[at].inorder < rows[at].freed;
+        const uint64_t slower = inorder_wins ? rows[at].freed : rows[at].inorder;
 
         printf("  %-12s %-7.3f %-9llu %-9.4f %-6llu %-4s %-13llu %-13llu %-9s %.2fx\n",
-               bench_corpus_name(rows[slot].kind), rows[slot].entropy,
-               (unsigned long long)rows[slot].distinct, flatness(&rows[slot]),
-               (unsigned long long)rows[slot].needle_len,
-               (rows[slot].present != 0u) ? "yes" : "no",
-               (unsigned long long)rows[slot].inorder, (unsigned long long)rows[slot].freed,
-               inorder_wins ? "orior_inorder" : "orior_free",
-               (double)slower / (double)quickest(&rows[slot]));
+               bench_corpus_name(rows[at].kind), rows[at].entropy, (unsigned long long)rows[at].distinct,
+               flatness(&rows[at]), (unsigned long long)rows[at].needle_len, (rows[at].present != 0u) ? "yes" : "no",
+               (unsigned long long)rows[at].inorder, (unsigned long long)rows[at].freed,
+               inorder_wins ? "orior_inorder" : "orior_free", (double)slower / (double)quickest(&rows[at]));
     }
 }
 
@@ -317,22 +314,21 @@ static void recommend_per_corpus(const Row *rows, size_t count)
         double inorder_total = 0.0;
         double free_total = 0.0;
         double widest = 1.0;
-        double held_flatness = 0.0;
+        double best_flatness = 0.0;
         size_t here = 0u;
 
-        for (size_t slot = 0u; slot < count; slot += 1u)
+        for (size_t at = 0u; at < count; at += 1u)
         {
-            if (rows[slot].kind != KINDS[which])
+            if (rows[at].kind != KINDS[which])
             {
                 continue;
             }
-            const uint64_t slower = (rows[slot].inorder < rows[slot].freed) ? rows[slot].freed
-                                                                            : rows[slot].inorder;
-            const double margin = (double)slower / (double)quickest(&rows[slot]);
+            const uint64_t slower = (rows[at].inorder < rows[at].freed) ? rows[at].freed : rows[at].inorder;
+            const double margin = (double)slower / (double)quickest(&rows[at]);
 
-            inorder_total += (double)rows[slot].inorder;
-            free_total += (double)rows[slot].freed;
-            held_flatness = flatness(&rows[slot]);
+            inorder_total += (double)rows[at].inorder;
+            free_total += (double)rows[at].freed;
+            best_flatness = flatness(&rows[at]);
             here += 1u;
             if (margin > widest)
             {
@@ -351,16 +347,15 @@ static void recommend_per_corpus(const Row *rows, size_t count)
         {
             double lost = 0.0;
 
-            for (size_t slot = 0u; slot < count; slot += 1u)
+            for (size_t at = 0u; at < count; at += 1u)
             {
-                if (rows[slot].kind != KINDS[which])
+                if (rows[at].kind != KINDS[which])
                 {
                     continue;
                 }
-                const uint64_t paid = (rows[slot].needle_len <= CEILINGS[rung]) ? rows[slot].freed
-                                                                                : rows[slot].inorder;
+                const uint64_t paid = (rows[at].needle_len <= CEILINGS[rung]) ? rows[at].freed : rows[at].inorder;
 
-                lost += (double)paid - (double)quickest(&rows[slot]);
+                lost += (double)paid - (double)quickest(&rows[at]);
             }
             if ((best_lost < 0.0) || (lost < best_lost))
             {
@@ -376,12 +371,11 @@ static void recommend_per_corpus(const Row *rows, size_t count)
 
         name_ceiling(ceiling_text, sizeof ceiling_text, best_ceiling);
 
-        printf("  %-12s %-9.4f %-15s %-15s %-13.2f %.2fx\n", bench_corpus_name(KINDS[which]),
-               held_flatness, inorder_wins ? "orior_inorder" : "orior_free", ceiling_text, ratio,
-               widest);
+        printf("  %-12s %-9.4f %-15s %-15s %-13.2f %.2fx\n", bench_corpus_name(KINDS[which]), best_flatness,
+               inorder_wins ? "orior_inorder" : "orior_free", ceiling_text, ratio, widest);
     }
     printf("  The needle length column is fitted to that corpus alone, for a caller\n");
-    printf("  holding one corpus wants. A ceiling fitted across three reports where the average\n");
+    printf("  containing one corpus wants. A ceiling fitted across three reports where the average\n");
     printf("  crosses over, and the average crosses over nowhere in particular.\n");
 }
 
@@ -404,11 +398,10 @@ static void score_named(const Row *rows, size_t count)
     const size_t named_count = sizeof NAMED / sizeof NAMED[0];
     double worst = 0.0;
 
-    for (size_t slot = 0u; slot < named_count; slot += 1u)
+    for (size_t at = 0u; at < named_count; at += 1u)
     {
         size_t agreed = 0u;
-        const double lost = cycles_given_up(rows, count, NAMED[slot].flat_share,
-                                            NAMED[slot].ceiling, &agreed);
+        const double lost = cycles_given_up(rows, count, NAMED[at].flat_share, NAMED[at].ceiling, &agreed);
 
         if (lost > worst)
         {
@@ -418,33 +411,31 @@ static void score_named(const Row *rows, size_t count)
 
     printf("\n  %-38s %-16s %-18s %s\n", "rule", "picked fastest", "cycles given up",
            "share of the worst");
-    for (size_t slot = 0u; slot < named_count; slot += 1u)
+    for (size_t at = 0u; at < named_count; at += 1u)
     {
         size_t agreed = 0u;
-        const double lost = cycles_given_up(rows, count, NAMED[slot].flat_share,
-                                            NAMED[slot].ceiling, &agreed);
+        const double lost = cycles_given_up(rows, count, NAMED[at].flat_share, NAMED[at].ceiling, &agreed);
         char counted[32];
 
         (void)snprintf(counted, sizeof counted, "%llu of %llu", (unsigned long long)agreed,
                        (unsigned long long)count);
-        printf("  %-38s %-16s %-18.0f %.3f\n", NAMED[slot].name, counted, lost,
-               (worst > 0.0) ? (lost / worst) : 0.0);
+        printf("  %-38s %-16s %-18.0f %.3f\n", NAMED[at].name, counted, lost, (worst > 0.0) ? (lost / worst) : 0.0);
     }
 
     double kernel_lost = 0.0;
     size_t kernel_agreed = 0u;
 
-    for (size_t slot = 0u; slot < count; slot += 1u)
+    for (size_t at = 0u; at < count; at += 1u)
     {
-        const OriorPlan plan = {&rows[slot].census, rows[slot].needle_len, 0u};
+        const OriorPlan plan = {&rows[at].census, rows[at].needle_len, 0u};
         const OriorEngine chosen = orior_choose(&plan);
-        const uint64_t paid = (chosen == orior_free) ? rows[slot].freed : rows[slot].inorder;
+        const uint64_t paid = (chosen == orior_free) ? rows[at].freed : rows[at].inorder;
 
-        if (paid == quickest(&rows[slot]))
+        if (paid == quickest(&rows[at]))
         {
             kernel_agreed += 1u;
         }
-        kernel_lost += (double)paid - (double)quickest(&rows[slot]);
+        kernel_lost += (double)paid - (double)quickest(&rows[at]);
     }
 
     char counted[32];
@@ -476,8 +467,7 @@ int main(void)
 
     printf("  Which arm to run, and what the two thresholds should be, at N=%llu over %llu\n",
            (unsigned long long)CORPUS_BYTES, (unsigned long long)NEEDLES_PER_ROW);
-    printf("  needles a row, keeping the smallest of %llu trials.\n",
-           (unsigned long long)TIMED_TRIALS);
+    printf("  needles a row, retaining the smallest of %llu trials.\n", (unsigned long long)TIMED_TRIALS);
 
     const size_t count = measure_rows(rows, corpus, absent);
 

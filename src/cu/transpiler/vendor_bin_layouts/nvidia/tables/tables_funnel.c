@@ -6,7 +6,7 @@
 //     orior_tables_funnel <capture> <instructions.txt> <latencies.txt>
 //
 // Exit 0 where both tables were written, 1 where the capture could not be read or a table could not be written, 2
-// where the capture holds no instruction archive that unpacks whole, 3 where it holds no copies of the latencies.
+// where the capture contains no instruction archive that unpacks whole, 3 where it contains no copies of the latencies.
 #include "funnel.h"
 
 #include <stdio.h>
@@ -80,12 +80,12 @@ int main(int count, char **words)
     int code = 0;
     if (instructions.length == 0u)
     {
-        fprintf(stderr, "orior_tables_funnel: %s holds no instruction archive that unpacks whole\n", words[1]);
+        fprintf(stderr, "orior_tables_funnel: %s contains no instruction archive that unpacks whole\n", words[1]);
         code = 2;
     }
     else if (latencies.length == 0u)
     {
-        fprintf(stderr, "orior_tables_funnel: %s holds no copies of the latencies\n", words[1]);
+        fprintf(stderr, "orior_tables_funnel: %s contains no copies of the latencies\n", words[1]);
         code = 3;
     }
     else if (!tables_file_written(words[2], &instructions) || !tables_file_written(words[3], &latencies))

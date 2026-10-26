@@ -25,7 +25,7 @@ struct RulesetName
 #define REGCLASS_WRITTEN(name_, text_) {text_, 1u},
 #define PHYSREG_WRITTEN(name_, text_) {text_, 0u},
 
-// what a code generator asks of its ruleset: the file it is read from, the toolchain and the header its path builds
+// what a code generator requires of its ruleset: the file it is read from, the toolchain and the header its path builds
 // with, NULL where it takes those the file names, and the forms, banks and fixed registers the code generator names
 struct RulesetSchema
 {
@@ -40,16 +40,16 @@ struct RulesetSchema
     unsigned int fixed_count;
 };
 
-// a text cut at its parameters: pieces[k] comes before the argument of parameter slots[k], and the last piece after the
-// last argument, one piece more than slots
+// a text cut at its parameters: pieces[k] comes before the argument of parameter placeholders[k], and the last piece
+// after the last argument, one piece more than placeholders
 struct InstrTemplate
 {
     std::vector<std::string> pieces;
-    std::vector<unsigned int> slots;
+    std::vector<unsigned int> placeholders;
 };
 
-// what one argument of a construct's line is: text written as it stands, the construct's own parameter at a slot, or
-// a scratch register of a bank, `number` naming it within one writing of the construct
+// what one argument of a construct's line is: text written as it stands, the construct's own parameter at a
+// placeholder, or a scratch register of a bank, `number` naming it within one writing of the construct
 enum PseudoOperandKind
 {
     PSEUDO_TEXT = 0,
@@ -60,7 +60,7 @@ enum PseudoOperandKind
 struct PseudoOperand
 {
     PseudoOperandKind kind;
-    unsigned int slot;
+    unsigned int placeholder;
     unsigned int number;
     std::string text;
 };
@@ -125,9 +125,9 @@ struct Ruleset
     std::vector<std::string> building_parameters;
 };
 
-// the folds of the .ksc of `rules`' name beside its file read into rules->folds in place of those it held: each line
-// `compile folds <word> <form>: the system folds the <kind> put for <parameter>`, the parameter found by its name in
-// the ruleset's own line for the form. A line naming a form or parameter the ruleset does not give is passed over
+// the folds of the .ksc of `rules`' name beside its file read into rules->folds in place of those it contained: each
+// line `compile folds <word> <form>: the system folds the <kind> put for <parameter>`, the parameter found by its name
+// in the ruleset's own line for the form. A line naming a form or parameter the ruleset does not give is passed over
 void ruleset_folds_read(Ruleset *rules);
 
 // the names of form `form`'s parameters in the order the ruleset's own line for it gives them; none where it gives no
@@ -143,7 +143,7 @@ void ruleset_write_taking(const Ruleset *rules, std::string &text, unsigned int 
 void ruleset_write(const Ruleset *rules, std::string &text, unsigned int name,
                    std::initializer_list<std::string> arguments, int *broken);
 
-// the same, its arguments held in a list
+// the same, its arguments stored in a list
 void ruleset_write_list(const Ruleset *rules, std::string &text, unsigned int name,
                         const std::vector<std::string> &arguments, const ScratchRegisters &scratch, int *broken);
 

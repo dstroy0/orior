@@ -34,7 +34,7 @@ static void boundary_redundant(BoundaryResults *results)
     BoundaryTower *const back = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
     if ((encoder == NULL) || (decoder == NULL) || (inverse == NULL) || (tower == NULL) || (back == NULL))
     {
-        boundary_check(results, 0, "the redundant residue code is held");
+        boundary_check(results, 0, "the redundant residue code is allocated");
         free(encoder);
         free(decoder);
         free(inverse);
@@ -84,17 +84,17 @@ static void boundary_redundant(BoundaryResults *results)
     unsigned int inside_count = zero;
     for (unsigned int dropped = 0u; dropped < BOUNDARY_TEST_CODE_MODULI; dropped += 1u)
     {
-        unsigned int kept[BOUNDARY_TEST_CODE_MODULI - 1u];
+        unsigned int residues[BOUNDARY_TEST_CODE_MODULI - 1u];
         unsigned int count = 0u;
         for (unsigned int at = 0u; at < BOUNDARY_TEST_CODE_MODULI; at += 1u)
         {
             if (at != dropped)
             {
-                kept[count] = at;
+                residues[count] = at;
                 count += 1u;
             }
         }
-        const unsigned int candidate = boundary_code_garner(decoder, residue, kept, count);
+        const unsigned int candidate = boundary_code_garner(decoder, residue, residues, count);
         const unsigned int inside = boundary_append(decoder, ENGINE_RECORD_DIFFERENCE, one,
                                                     boundary_code_outside(decoder, candidate, range, zero));
         weighted = boundary_append(decoder, ENGINE_RECORD_SUM, weighted,
@@ -102,7 +102,7 @@ static void boundary_redundant(BoundaryResults *results)
         inside_count = boundary_append(decoder, ENGINE_RECORD_SUM, inside_count, inside);
     }
     boundary_output(decoder, inside_count);
-    // the mean of the reconstructions in the range, the count held at one or more so no lane divides by zero
+    // the mean of the reconstructions in the range, the count bounded at one or more so no lane divides by zero
     const unsigned int none = boundary_append(decoder, ENGINE_RECORD_DIFFERENCE, one,
                                               boundary_append(decoder, ENGINE_RECORD_COMPARE, inside_count, zero));
     const unsigned int divisor = boundary_append(decoder, ENGINE_RECORD_SUM, inside_count, none);
@@ -319,55 +319,55 @@ static void boundary_redundant(BoundaryResults *results)
         plain_other += (differs != 0) ? 1u : 0u;
         plain_right += (differs == information_struck) ? 1u : 0u;
     }
-    scriptura_text(&results->line, "  redundant residue code: moduli");
+    mmgr_line_put(&results->line, "  redundant residue code: moduli");
     for (unsigned int at = 0u; at < BOUNDARY_TEST_CODE_MODULI; at += 1u)
     {
-        scriptura_character(&results->line, ' ');
-        scriptura_decimal(&results->line, s_boundary_moduli[at], 1u);
+        mmgr_line_ch(&results->line, ' ');
+        mmgr_line_decimal(&results->line, s_boundary_moduli[at], 1u);
     }
-    scriptura_text(&results->line, ", the first two covering [-2^21, 2^21); ");
-    scriptura_decimal(&results->line, crystals, 1u);
-    scriptura_text(&results->line, " crystals of T over 16-bit samples, ");
-    scriptura_decimal(&results->line, in_range, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, coefficients, 1u);
-    scriptura_text(&results->line, " coefficients in the range, ");
-    scriptura_decimal(&results->line, residues_right, 1u);
-    scriptura_text(&results->line, " encoded right\n    clean: ");
-    scriptura_decimal(&results->line, clean_right, 1u);
-    scriptura_text(&results->line, " decode to their coefficient, ");
-    scriptura_decimal(&results->line, false_alarms, 1u);
-    scriptura_text(&results->line, " false alarms\n    one residue corrupted in ");
-    scriptura_decimal(&results->line, corrupted[1], 1u);
-    scriptura_text(&results->line, ": the syndrome is right on ");
-    scriptura_decimal(&results->line, flagged_right[1], 1u);
-    scriptura_text(&results->line, " and the coefficient corrected on ");
-    scriptura_decimal(&results->line, corrected_right, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, coefficients, 1u);
-    scriptura_text(&results->line, "; T^-1 of the corrected crystal returns the samples on ");
-    scriptura_decimal(&results->line, returned, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, crystals, 1u);
-    scriptura_text(&results->line, "\n    two residues corrupted in ");
-    scriptura_decimal(&results->line, corrupted[2], 1u);
-    scriptura_text(&results->line, ": detected on ");
-    scriptura_decimal(&results->line, detected, 1u);
-    scriptura_text(&results->line, ", the syndrome right on ");
-    scriptura_decimal(&results->line, flagged_right[2], 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, coefficients, 1u);
-    scriptura_text(&results->line, "; the one-error correction misses ");
-    scriptura_decimal(&results->line, miscorrected, 1u);
-    scriptura_text(&results->line, " of them\n    without the code: the two information residues alone read ");
-    scriptura_decimal(&results->line, plain_moved, 1u);
-    scriptura_text(&results->line, " coefficients as another's, and T^-1 runs on all ");
-    scriptura_decimal(&results->line, crystals, 1u);
-    scriptura_text(&results->line, " crystals, returning other samples on ");
-    scriptura_decimal(&results->line, plain_other, 1u);
-    scriptura_text(&results->line, ", exactly where an information residue was struck on ");
-    scriptura_decimal(&results->line, plain_right, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, ", the first two covering [-2^21, 2^21); ");
+    mmgr_line_decimal(&results->line, crystals, 1u);
+    mmgr_line_put(&results->line, " crystals of T over 16-bit samples, ");
+    mmgr_line_decimal(&results->line, in_range, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, coefficients, 1u);
+    mmgr_line_put(&results->line, " coefficients in the range, ");
+    mmgr_line_decimal(&results->line, residues_right, 1u);
+    mmgr_line_put(&results->line, " encoded right\n    clean: ");
+    mmgr_line_decimal(&results->line, clean_right, 1u);
+    mmgr_line_put(&results->line, " decode to their coefficient, ");
+    mmgr_line_decimal(&results->line, false_alarms, 1u);
+    mmgr_line_put(&results->line, " false alarms\n    one residue corrupted in ");
+    mmgr_line_decimal(&results->line, corrupted[1], 1u);
+    mmgr_line_put(&results->line, ": the syndrome is right on ");
+    mmgr_line_decimal(&results->line, flagged_right[1], 1u);
+    mmgr_line_put(&results->line, " and the coefficient corrected on ");
+    mmgr_line_decimal(&results->line, corrected_right, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, coefficients, 1u);
+    mmgr_line_put(&results->line, "; T^-1 of the corrected crystal returns the samples on ");
+    mmgr_line_decimal(&results->line, returned, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, crystals, 1u);
+    mmgr_line_put(&results->line, "\n    two residues corrupted in ");
+    mmgr_line_decimal(&results->line, corrupted[2], 1u);
+    mmgr_line_put(&results->line, ": detected on ");
+    mmgr_line_decimal(&results->line, detected, 1u);
+    mmgr_line_put(&results->line, ", the syndrome right on ");
+    mmgr_line_decimal(&results->line, flagged_right[2], 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, coefficients, 1u);
+    mmgr_line_put(&results->line, "; the one-error correction misses ");
+    mmgr_line_decimal(&results->line, miscorrected, 1u);
+    mmgr_line_put(&results->line, " of them\n    without the code: the two information residues alone read ");
+    mmgr_line_decimal(&results->line, plain_moved, 1u);
+    mmgr_line_put(&results->line, " coefficients as another's, and T^-1 runs on all ");
+    mmgr_line_decimal(&results->line, crystals, 1u);
+    mmgr_line_put(&results->line, " crystals, returning other samples on ");
+    mmgr_line_decimal(&results->line, plain_other, 1u);
+    mmgr_line_put(&results->line, ", exactly where an information residue was struck on ");
+    mmgr_line_decimal(&results->line, plain_right, 1u);
+    mmgr_line_ch(&results->line, '\n');
     boundary_check(results, moduli_valid,
                    "the moduli are odd primes, ascending, and the first two cover the range 2^22");
     boundary_check(results, (encoded != 0) && (decoded != 0) && (inverted != 0),
@@ -435,10 +435,10 @@ static const BoundaryPart s_boundary_parts[] = {
 
 #define BOUNDARY_TEST_PARTS (sizeof(s_boundary_parts) / sizeof(s_boundary_parts[0]))
 
-// the lines held so far written out and the line emptied: a suite's log grows as each part ends
+// the lines buffered so far written out and the line emptied: a suite's log grows as each part ends
 static void boundary_lines_out(BoundaryResults *results)
 {
-    scriptura_write(&results->line, stdout);
+    (void)(mmgr_line_ok(&results->line) && (fwrite(results->line.out, 1u, mmgr_line_finish(&results->line), stdout) == results->line.at));
     fflush(stdout);
     results->line.at = 0ull;
 }
@@ -492,9 +492,9 @@ int main(int count, char **arguments)
         if ((chosen & (1u << part)) != 0u)
         {
             boundary_seed(part);
-            scriptura_text(&results.line, "  part ");
-            scriptura_text(&results.line, s_boundary_parts[part].name);
-            scriptura_character(&results.line, '\n');
+            mmgr_line_put(&results.line, "  part ");
+            mmgr_line_put(&results.line, s_boundary_parts[part].name);
+            mmgr_line_ch(&results.line, '\n');
             s_boundary_parts[part].run(&results);
             boundary_lines_out(&results);
         }
@@ -503,12 +503,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     boundary_check(&results, (admitted != 0) && (job.failures == 0ull),
                    "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record boundary test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record boundary test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

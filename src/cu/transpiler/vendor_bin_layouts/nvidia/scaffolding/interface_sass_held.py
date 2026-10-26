@@ -9,7 +9,7 @@
 #     interface_sass_held.py <list> <nvdisasm> <architecture> <folder> <held>
 #
 # The list is a line a cubin, `<cubin-path> <kernel>` (interface_sass_run's own list); a `skip` line is passed over.
-# <held> is the feedback interface_sass_run reads next (--held): a line `<low> <high>` an encoding to hold off the part.
+# <held> is the feedback interface_sass_run reads next (--gated): a line `<low> <high>` an encoding to hold off the part.
 # Exits 1 where the vendor holds one or more, 0 where none, 2 where a tool or file was not reached.
 import os, re, struct, subprocess, sys
 

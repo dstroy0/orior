@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // monolith_run.c: the monolith's cubin (monolith.cu) loaded as it was built and run on the part. Nothing is compiled
-// here: the driver is handed the cubin and asked for its entries.
+// here: the driver is handed the cubin and queried for its entries.
 //
-// The first entry answers every precept for each case, held against precept_applied on the host, and the part's clock
-// across it is read on every run. The second runs every costed precept as a chain of `turns` turns of MONOLITH_BLOCK
-// steps, alone and then interleaved with every other, and the mean of `cost runs` runs is read a step. Every chain's
-// last word is held against the same chain run through precept_applied on the host, which says every step ran.
+// The first entry answers every precept for each case, checked against precept_applied on the host, and the part's
+// clock across it is read on every run. The second runs every costed precept as a chain of `turns` turns of
+// MONOLITH_BLOCK steps, alone and then interleaved with every other, and the mean of `cost runs` runs is read a step.
+// Every chain's last word is checked against the same chain run through precept_applied on the host, which confirms
+// every step ran.
 //
 //     monolith_run <cubin> [runs] [turns] [cost runs]
 #include "../../../../engine/rmc/precept_value.h"
@@ -38,10 +39,10 @@ static const char *const s_names[PRECEPT_COUNT] = {PRECEPTS(MONOLITH_NAMED)};
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what, unsigned int precept, unsigned int left, unsigned int right)
+static void check_that(int passed, const char *what, unsigned int precept, unsigned int left, unsigned int right)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s, precept %u, left %08x, right %08x\n", what, precept, left, right);
@@ -80,22 +81,22 @@ static unsigned int monolith_expected(unsigned int precept, unsigned int left, u
 // `word` put through `steps` steps of `precept` with `right` the right word, on the host
 static unsigned int monolith_chain(unsigned int precept, unsigned int word, unsigned int right, unsigned long long steps)
 {
-    unsigned int held = word;
+    unsigned int current = word;
     for (unsigned long long step = 0ull; step < steps; step += 1ull)
     {
-        held = precept_applied((unsigned char)precept, held, right);
+        current = precept_applied((unsigned char)precept, current, right);
     }
-    return held;
+    return current;
 }
 
 // a count of the words given, read as at least one
 static unsigned int monolith_count_given(int count_of_words, char **words, int place, long otherwise)
 {
-    const long asked = (count_of_words > place) ? strtol(words[place], NULL, 10) : otherwise;
-    return (asked > 0L) ? (unsigned int)asked : 1u;
+    const long given = (count_of_words > place) ? strtol(words[place], NULL, 10) : otherwise;
+    return (given > 0L) ? (unsigned int)given : 1u;
 }
 
-// every precept answered for each case and held against the host, the clock across the program read
+// every precept answered for each case and checked against the host, the clock across the program read
 static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, unsigned int runs, const char *cubin)
 {
     // small words, a shift of nothing, of one, of the width less one and of past the width, and the sign's end
@@ -138,7 +139,7 @@ static int monolith_answers(CUfunction entry, CUdeviceptr in, CUdeviceptr out, u
     return 1;
 }
 
-// every costed chain run alone and interleaved, `cost_runs` times, each its mean a step, and every last word held
+// every costed chain run alone and interleaved, `cost_runs` times, each its mean a step, and every last word checked
 // against the host's
 static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cost_runs)
 {
@@ -236,7 +237,7 @@ static int monolith_costs(CUfunction entry, unsigned int turns, unsigned int cos
 
     // The singles ranked by their least, each delta to the next read as a state of gnascor's branch pair. Inside s the
     // two are one cost, a slice inside the floor, dual or gray (which of the two is gnascor's Open 4). Past s the row's
-    // precept is the cheaper side and holds: lead
+    // precept is the cheaper side and is valid: lead
     unsigned int order[MONOLITH_COSTED_COUNT];
     for (unsigned int place = 0u; place < MONOLITH_COSTED_COUNT; place += 1u)
     {

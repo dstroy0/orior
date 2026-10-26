@@ -13,12 +13,12 @@
 //            e = n_q d_r - n_r d_q against n_r d_q by the same two signs, and w = (1 - c_high)(1 + c_low) I_q I_r, each
 //            intensity m 2^s on its row's least power of two, s its exponent above the row's least
 //   peak:    each query peak's heaviest w by a COMPARE tournament
-//   sum:     M = the sum of a pair's kept w; Q and R = the sums of I^2 over each spectrum's peaks
+//   sum:     M = the sum of a pair's retained w; Q and R = the sums of I^2 over each spectrum's peaks
 //   score:   (M^2, Q R), put in order by COMPARE(M_a^2 Q_b R_b, M_b^2 Q_a R_a); a row's power of two cancels in it
 //   list:    a molecule's structures, the scored by repeated tournaments heaviest first, then the unscored in
 //            structure order, the first 25 written
 //
-// validate holds out the cfg's query library and places each molecule's answer in its list; test reads the test file
+// validate reserves the cfg's query library and places each molecule's answer in its list; test reads the test file
 // after the train file, ranks its molecules against every spectrum of the train file and writes their lists' SMILES
 
 #include "rank.h"
@@ -53,13 +53,13 @@
 // the device bytes the job declares: the widest sweep's records, members and index
 #define RANK_DECLARED (2ull << 30u)
 
-// the most a chunk of match lanes holds: on the device its index, records and order, 52 bytes a lane at the match's
+// the most a chunk of match lanes stores: on the device its index, records and order, 52 bytes a lane at the match's
 // record of 8 limbs
 #define RANK_CHUNK_LANES (1ull << 24u)
 
-// a double's fields as IEEE 754 binary64 lays them, and the exponent its integer mantissa stands at: x = m 2^(E - 1075),
-// E the stored exponent, 1 for a subnormal, and m its fraction with the leading 1 where E is stored above 0. A record
-// holds E in RANK_EXPONENT_BITS bits
+// a double's fields as IEEE 754 binary64 lays them, and the exponent its integer mantissa stands at: x = m 2^(E -
+// 1075), E the stored exponent, 1 for a subnormal, and m its fraction with the leading 1 where E is stored above 0. A
+// record stores E in RANK_EXPONENT_BITS bits
 #define RANK_MANTISSA_BITS 52u
 #define RANK_EXPONENT_MASK 0x7FFull
 #define RANK_UNIT_EXPONENT 1075u
@@ -80,7 +80,7 @@ typedef struct
     long long adduct;
 } RankTerm;
 
-// groups of record numbers: group g holds entry[first[g] .. first[g] + count[g])
+// groups of record numbers: group g contains entry[first[g] .. first[g] + count[g])
 typedef struct
 {
     const unsigned long long *first;
@@ -109,11 +109,11 @@ static int rank_hex_read(const char *text, OriorExactInteger *value)
     }
     for (size_t digit = 0u; digit < digits; digit += 1u)
     {
-        const char held = at[digits - 1u - digit];
-        const int nibble = ((held >= '0') && (held <= '9'))   ? (held - '0')
-                           : ((held >= 'a') && (held <= 'f')) ? (held - 'a' + 10)
-                           : ((held >= 'A') && (held <= 'F')) ? (held - 'A' + 10)
-                                                              : -1;
+        const char digit_char = at[digits - 1u - digit];
+        const int nibble = ((digit_char >= '0') && (digit_char <= '9'))   ? (digit_char - '0')
+                           : ((digit_char >= 'a') && (digit_char <= 'f')) ? (digit_char - 'a' + 10)
+                           : ((digit_char >= 'A') && (digit_char <= 'F')) ? (digit_char - 'A' + 10)
+                                                                          : -1;
         if (nibble < 0)
         {
             return 0;
@@ -135,7 +135,7 @@ static int rank_cfg_string(const char *text, const CfgJsonToken *tokens, unsigne
     return (value != 0u) && cfg_json_string(text, &tokens[value], out, RANK_PATH_BYTES);
 }
 
-// a text's id in the set's table of that column, RANK_ABSENT where the set holds no such string
+// a text's id in the set's table of that column, RANK_ABSENT where the set contains no such string
 static unsigned int rank_string_find(const RankSet *set, unsigned int text, const char *wanted)
 {
     for (size_t each = 0u; each < set->strings[text].size(); each += 1u)
@@ -151,12 +151,12 @@ static unsigned int rank_string_find(const RankSet *set, unsigned int text, cons
 static unsigned int rank_terms_merge(const CasmiFormula *formula, const CasmiAdduct *adduct, RankTerm *term)
 {
     unsigned int count = 0u;
-    for (unsigned int slot = 0u; slot < (formula->element_count + adduct->terms.element_count); slot += 1u)
+    for (unsigned int index = 0u; index < (formula->element_count + adduct->terms.element_count); index += 1u)
     {
-        const int from_formula = slot < formula->element_count;
-        const unsigned int at = from_formula ? slot : (slot - formula->element_count);
+        const int from_formula = index < formula->element_count;
+        const unsigned int at = from_formula ? index : (index - formula->element_count);
         const unsigned int named = from_formula ? formula->isotope[at] : adduct->terms.isotope[at];
-        const long long held = from_formula ? formula->count[at] : adduct->terms.count[at];
+        const long long term_count = from_formula ? formula->count[at] : adduct->terms.count[at];
         unsigned int entry = 0u;
         while ((entry < count) && (term[entry].isotope != named))
         {
@@ -169,8 +169,8 @@ static unsigned int rank_terms_merge(const CasmiFormula *formula, const CasmiAdd
             term[entry].adduct = 0ll;
             count += 1u;
         }
-        term[entry].formula += from_formula ? held : 0ll;
-        term[entry].adduct += from_formula ? 0ll : held;
+        term[entry].formula += from_formula ? term_count : 0ll;
+        term[entry].adduct += from_formula ? 0ll : term_count;
     }
     return count;
 }
@@ -187,7 +187,7 @@ static void rank_exact_signed(long long value, OriorExactInteger *out)
 }
 
 // The match's inside is (1 - high)(1 + low) of two signs of -1 or +1: 4 where the peaks match and 0 elsewhere. A
-// kept weight is 4 I_q I_r and M^2 over Q R is 16 cos^2 on every pair alike
+// retained weight is 4 I_q I_r and M^2 over Q R is 16 cos^2 on every pair alike
 #define RANK_INSIDE_SQUARED 16ull
 
 // a pair's cosine squared in parts per million, floored: 10^6 M^2 over 16 Q R, exact; ~0 where it does not fit
@@ -314,7 +314,7 @@ static int rank_sum_lay(SimResults *results, RankField value, unsigned int limbs
 // Sums each group's records on the device, three to a lane, pass after pass, until each group is one record; every
 // group takes every pass, zero records filling a short lane; every sum ends in one layout. A pass lays its lanes'
 // records as three planes, lane l's three records record l of each: the sweep reads them with no index. *summed
-// holds group g's sum at g, then a zero record
+// stores group g's sum at g, then a zero record
 static int rank_group_sum(SimResults *results, const char *name, RankField value, unsigned int value_limbs,
                           const unsigned int *records, unsigned long long record_count, const RankGroups *groups,
                           std::vector<unsigned int> *summed, RankField *summed_field, unsigned int *summed_limbs,
@@ -522,12 +522,12 @@ static unsigned long long s_rank_started;
 
 static void rank_tally_line(SimResults *results, const char *name, const RankTally *tally)
 {
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, name);
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, name);
     rank_line_decimal(results, ": ", tally->lanes);
     rank_line_decimal(results, " lanes, device ", tally->microseconds);
     rank_line_decimal(results, " us, ended at ", engine_clock_microseconds() - s_rank_started);
-    scriptura_text(&results->line, " us of the run");
+    mmgr_line_put(&results->line, " us of the run");
     rank_line_end(results);
 }
 
@@ -540,7 +540,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     const int test = (count == 6) && (strcmp(arguments[4], "test") == 0);
     if (!validate && !test)
     {
-        scriptura_text(&results->line, "  --rank TRAIN.parquet CFG validate, or --rank TRAIN.parquet CFG test TEST.parquet");
+        mmgr_line_put(&results->line, "  --rank TRAIN.parquet CFG validate, or --rank TRAIN.parquet CFG test TEST.parquet");
         rank_line_end(results);
         return 0;
     }
@@ -556,8 +556,8 @@ int rank_run(SimResults *results, int count, char **arguments)
     CfgJsonParse parse;
     if ((cfg_length == 0u) || !cfg_json_parse(cfg_text, cfg_length, tokens, RANK_TOKENS_MOST, &parse))
     {
-        scriptura_text(&results->line, "  the cfg did not read: ");
-        scriptura_text(&results->line, cfg_path);
+        mmgr_line_put(&results->line, "  the cfg did not read: ");
+        mmgr_line_put(&results->line, cfg_path);
         rank_line_end(results);
         return 0;
     }
@@ -588,7 +588,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     if (!ok)
     {
-        scriptura_text(&results->line,
+        mmgr_line_put(&results->line,
                        "  the cfg lacks validate.query_library, output.submission or an envelope with a positive N");
         rank_line_end(results);
         return 0;
@@ -622,7 +622,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     if (test)
     {
         rank_line_decimal(results, "  test file: ", spectra - set_spectra);
-        scriptura_text(&results->line, " spectra");
+        mmgr_line_put(&results->line, " spectra");
         rank_line_end(results);
     }
     rank_line_decimal(results, "  read: ", spectra);
@@ -630,14 +630,14 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, " row groups, ", set.mz.bits.size());
     rank_line_decimal(results, " peaks, ", (unsigned long long)set.strings[RANK_KEY].size());
     rank_line_decimal(results, " structures, by ", engine_clock_microseconds() - s_rank_started);
-    scriptura_text(&results->line, " us of the run");
+    mmgr_line_put(&results->line, " us of the run");
     rank_line_end(results);
 
     // The bounds the programs are laid out by, from the stored bits: the most 1075 - E a precursor or an m/z takes, and
     // each row's least intensity exponent and the most any intensity stands above its row's. Every value is above 0 or
     // 0, and below 2^53
     unsigned int two_most = 0u;
-    int signs_held = 1;
+    int signs_agree = 1;
     for (int column = 0; column < 2; column += 1)
     {
         const std::vector<unsigned long long> &bits = (column == 0) ? set.precursor.bits : set.mz.bits;
@@ -646,7 +646,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             unsigned long long mantissa = 0ull;
             unsigned int exponent = 0u;
             rank_double(bits[value], &mantissa, &exponent);
-            signs_held = signs_held && ((bits[value] >> RANK_SIGN_BIT) == 0ull) && (exponent <= RANK_UNIT_EXPONENT);
+            signs_agree = signs_agree && ((bits[value] >> RANK_SIGN_BIT) == 0ull) && (exponent <= RANK_UNIT_EXPONENT);
             two_most = std::max(two_most, RANK_UNIT_EXPONENT - std::min(exponent, RANK_UNIT_EXPONENT));
         }
     }
@@ -661,7 +661,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             unsigned long long mantissa = 0ull;
             unsigned int exponent = 0u;
             rank_double(set.intensity.bits[value], &mantissa, &exponent);
-            signs_held = signs_held && ((set.intensity.bits[value] >> RANK_SIGN_BIT) == 0ull);
+            signs_agree = signs_agree && ((set.intensity.bits[value] >> RANK_SIGN_BIT) == 0ull);
             if (mantissa != 0ull)
             {
                 intensity_floor[spectrum] = std::min(intensity_floor[spectrum], exponent);
@@ -675,9 +675,9 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, "  bounds: 1075 - E at most ", two_most);
     rank_line_decimal(results, ", an intensity's exponent above its row's least at most ", shift_most);
     rank_line_end(results);
-    if (!signs_held)
+    if (!signs_agree)
     {
-        scriptura_text(&results->line, "  a value is below 0, or a precursor or an m/z is 2^53 or more");
+        mmgr_line_put(&results->line, "  a value is below 0, or a precursor or an m/z is 2^53 or more");
         rank_line_end(results);
         return 0;
     }
@@ -686,7 +686,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         return 0;
     }
 
-    // each spectrum's mode, the held-out library, and the reference spectra of each structure
+    // each spectrum's mode, the reserved library, and the reference spectra of each structure
     unsigned int mode_of_string[2] = {rank_string_find(&set, RANK_MODE, mode_name[0]),
                                       rank_string_find(&set, RANK_MODE, mode_name[1])};
     std::vector<unsigned int> mode((size_t)spectra, RANK_ABSENT);
@@ -695,21 +695,21 @@ int rank_run(SimResults *results, int count, char **arguments)
         const unsigned int named = set.text[RANK_MODE][spectrum];
         mode[spectrum] = (named == mode_of_string[0]) ? 0u : (named == mode_of_string[1]) ? 1u : RANK_ABSENT;
     }
-    const unsigned int held_out = validate ? rank_string_find(&set, RANK_LIBRARY, query_library) : RANK_ABSENT;
-    if (validate && (held_out == RANK_ABSENT))
+    const unsigned int library_query = validate ? rank_string_find(&set, RANK_LIBRARY, query_library) : RANK_ABSENT;
+    if (validate && (library_query == RANK_ABSENT))
     {
-        scriptura_text(&results->line, "  validate.query_library is no library of the set: ");
-        scriptura_text(&results->line, query_library);
+        mmgr_line_put(&results->line, "  validate.query_library is no library of the set: ");
+        mmgr_line_put(&results->line, query_library);
         rank_line_end(results);
         return 0;
     }
-    // each spectrum a query or a reference: in validate the held-out library's spectra and every other, in test the
+    // each spectrum a query or a reference: in validate the reserved library's spectra and every other, in test the
     // test set's and the set's
     std::vector<unsigned char> is_query((size_t)spectra, 0u);
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
     {
         is_query[spectrum] =
-            (unsigned char)(validate ? (set.text[RANK_LIBRARY][spectrum] == held_out) : (spectrum >= set_spectra));
+            (unsigned char)(validate ? (set.text[RANK_LIBRARY][spectrum] == library_query) : (spectrum >= set_spectra));
     }
     const unsigned long long structures = set.strings[RANK_KEY].size();
     std::vector<unsigned char> reference((size_t)spectra, 0u);
@@ -789,7 +789,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     rank_line_decimal(results, "  queries: ", query_count);
     rank_line_decimal(results, " spectra of ", molecule_count);
-    scriptura_text(&results->line, " molecules");
+    mmgr_line_put(&results->line, " molecules");
     rank_line_end(results);
 
     // the query adducts, each read once
@@ -800,12 +800,12 @@ int rank_run(SimResults *results, int count, char **arguments)
     for (unsigned long long each = 0ull; each < query_count; each += 1ull)
     {
         const unsigned int name = set.text[RANK_ADDUCT][query[each]];
-        size_t slot = 0u;
-        while ((slot < adduct_name.size()) && (adduct_name[slot] != name))
+        size_t position = 0u;
+        while ((position < adduct_name.size()) && (adduct_name[position] != name))
         {
-            slot += 1u;
+            position += 1u;
         }
-        if ((slot == adduct_name.size()) && (name != RANK_ABSENT) && (slot < RANK_ADDUCTS_MOST))
+        if ((position == adduct_name.size()) && (name != RANK_ABSENT) && (position < RANK_ADDUCTS_MOST))
         {
             CasmiAdduct read;
             memset(&read, 0, sizeof(read));
@@ -818,15 +818,15 @@ int rank_run(SimResults *results, int count, char **arguments)
             adduct.push_back(read);
             adduct_name.push_back(name);
         }
-        const int readable = (slot < adduct.size()) && (adduct[slot].charge != 0ll);
-        query_adduct[each] = readable ? (unsigned int)slot : RANK_ABSENT;
+        const int readable = (position < adduct.size()) && (adduct[position].charge != 0ll);
+        query_adduct[each] = readable ? (unsigned int)position : RANK_ABSENT;
         refused_adduct += readable ? 0ull : 1ull;
     }
     rank_line_decimal(results, "  query adducts: ", adduct.size());
     rank_line_decimal(results, " read; query spectra whose adduct was refused ", refused_adduct);
     rank_line_end(results);
 
-    // the candidate formulas: every structure holding a reference spectrum, its formula the first its spectra name
+    // the candidate formulas: every structure containing a reference spectrum, its formula the first its spectra name
     std::vector<unsigned int> formula_of_structure((size_t)structures + 1u, RANK_ABSENT);
     std::vector<unsigned int> formula_text_of_structure((size_t)structures + 1u, RANK_ABSENT);
     for (unsigned long long spectrum = 0ull; spectrum < spectra; spectrum += 1ull)
@@ -856,9 +856,9 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             CasmiFormula read;
             memset(&read, 0, sizeof(read));
-            const std::string &held = set.strings[RANK_FORMULA][text];
-            const CasmiFormulaRead request = {held.data(), held.size(), &read};
-            int good = !held.empty() && (casmi_formula_read(&request) >= 0ll) && (read.element_count > 0u);
+            const std::string &formula_entry = set.strings[RANK_FORMULA][text];
+            const CasmiFormulaRead request = {formula_entry.data(), formula_entry.size(), &read};
+            int good = !formula_entry.empty() && (casmi_formula_read(&request) >= 0ll) && (read.element_count > 0u);
             for (unsigned int element = 0u; good && (element < read.element_count); element += 1u)
             {
                 good = read.count[element] >= 0ll;
@@ -908,7 +908,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, "; formulas read ", formula_count);
     rank_line_decimal(results, ", refused ", refused_formula);
     rank_line_decimal(results, "; read by ", engine_clock_microseconds() - s_rank_started);
-    scriptura_text(&results->line, " us of the run");
+    mmgr_line_put(&results->line, " us of the run");
     rank_line_end(results);
 
     // ---- ion ----
@@ -920,18 +920,18 @@ int rank_run(SimResults *results, int count, char **arguments)
     unsigned int formula_bits = 1u;
     unsigned int adduct_bits = 1u;
     unsigned int mass_bits = 1u;
-    for (size_t slot = 0u; slot < adduct.size(); slot += 1u)
+    for (size_t position = 0u; position < adduct.size(); position += 1u)
     {
-        if (adduct[slot].charge == 0ll)
+        if (adduct[position].charge == 0ll)
         {
             continue;
         }
-        molecules_bits = std::max(molecules_bits, rank_magnitude_bits(adduct[slot].molecules));
-        charge_bits = std::max(charge_bits, rank_magnitude_bits(adduct[slot].charge));
+        molecules_bits = std::max(molecules_bits, rank_magnitude_bits(adduct[position].molecules));
+        charge_bits = std::max(charge_bits, rank_magnitude_bits(adduct[position].charge));
         for (unsigned long long each = 0ull; each < formula_count; each += 1ull)
         {
             RankTerm term[RANK_TERMS_MOST];
-            const unsigned int terms = rank_terms_merge(&formula[each], &adduct[slot], term);
+            const unsigned int terms = rank_terms_merge(&formula[each], &adduct[position], term);
             terms_most = std::max(terms_most, terms);
             for (unsigned int entry = 0u; entry < terms; entry += 1u)
             {
@@ -1038,9 +1038,9 @@ int rank_run(SimResults *results, int count, char **arguments)
     RankTally window_tally = {0ull, 0ull};
     unsigned long long ion_against_c = 0ull;
     unsigned long long window_mixed = 0ull;
-    for (size_t slot = 0u; ok && (slot < adduct.size()); slot += 1u)
+    for (size_t position = 0u; ok && (position < adduct.size()); position += 1u)
     {
-        if (adduct[slot].charge == 0ll)
+        if (adduct[position].charge == 0ll)
         {
             continue;
         }
@@ -1049,13 +1049,13 @@ int rank_run(SimResults *results, int count, char **arguments)
         {
             unsigned int *const atom = &ion_atoms[each * ion_atom_limbs];
             RankTerm term[RANK_TERMS_MOST];
-            const unsigned int terms = rank_terms_merge(&formula[each], &adduct[slot], term);
+            const unsigned int terms = rank_terms_merge(&formula[each], &adduct[position], term);
             OriorExactInteger value;
             unsigned int at = 0u;
-            rank_exact_signed(adduct[slot].molecules, &value);
+            rank_exact_signed(adduct[position].molecules, &value);
             rank_field_put(atom, at, molecules_bits + 1u, &value);
             at += molecules_bits + 1u;
-            rank_exact_signed(adduct[slot].charge, &value);
+            rank_exact_signed(adduct[position].charge, &value);
             rank_field_put(atom, at, charge_bits + 1u, &value);
             at += charge_bits + 1u;
             for (unsigned int entry = 0u; entry < terms; entry += 1u)
@@ -1080,13 +1080,14 @@ int rank_run(SimResults *results, int count, char **arguments)
         for (unsigned long long each = 0ull; ok && (each < formula_count); each += 1ull)
         {
             const long long neutral = casmi_formula_mass(&formula[each]);
-            const long long numerator = (neutral < 0ll) ? -1ll : casmi_ion_numerator(neutral, &adduct[slot]);
-            const long long expected = (numerator < 0ll) ? -1ll : (numerator + (adduct[slot].charge * CASMI_ELECTRON_MASS));
-            OriorExactInteger held;
-            rank_field_read(&ion_records[each * ion.layout.out_limbs], ion_sum, &held);
+            const long long numerator = (neutral < 0ll) ? -1ll : casmi_ion_numerator(neutral, &adduct[position]);
+            const long long expected =
+                (numerator < 0ll) ? -1ll : (numerator + (adduct[position].charge * CASMI_ELECTRON_MASS));
+            OriorExactInteger formula_entry;
+            rank_field_read(&ion_records[each * ion.layout.out_limbs], ion_sum, &formula_entry);
             OriorExactInteger wanted;
             rank_exact_signed(expected, &wanted);
-            ion_against_c += ((expected >= 0ll) && !orior_exact_equal(&held, &wanted)) ? 1ull : 0ull;
+            ion_against_c += ((expected >= 0ll) && !orior_exact_equal(&formula_entry, &wanted)) ? 1ull : 0ull;
         }
         // the queries of this adduct against every formula, as many at a time as fill a chunk
         unsigned long long each = 0ull;
@@ -1097,7 +1098,7 @@ int rank_run(SimResults *results, int count, char **arguments)
             std::vector<unsigned int> window_query;
             while ((each < query_count) && (window_query.size() < queries_most))
             {
-                if (query_adduct[each] == slot)
+                if (query_adduct[each] == position)
                 {
                     const unsigned long long spectrum = query[each];
                     unsigned long long mantissa = 0ull;
@@ -1120,12 +1121,12 @@ int rank_run(SimResults *results, int count, char **arguments)
             index.reserve((size_t)(3ull * taken * formula_count));
             for (unsigned long long local = 0ull; local < taken; local += 1ull)
             {
-                const unsigned int held_mode = mode[query[window_query[local]]];
+                const unsigned int query_mode = mode[query[window_query[local]]];
                 for (unsigned long long candidate = 0ull; candidate < formula_count; candidate += 1ull)
                 {
                     index.push_back((unsigned int)local);
                     index.push_back((unsigned int)candidate);
-                    index.push_back(held_mode);
+                    index.push_back(query_mode);
                 }
             }
             const unsigned long long lanes = taken * formula_count;
@@ -1139,8 +1140,8 @@ int rank_run(SimResults *results, int count, char **arguments)
             unsigned long long lane = 0ull;
             for (unsigned long long local = 0ull; ok && (local < taken); local += 1ull)
             {
-                const unsigned int held = window_query[local];
-                inside_first[held] = inside.size();
+                const unsigned int formula_entry = window_query[local];
+                inside_first[formula_entry] = inside.size();
                 for (unsigned long long candidate = 0ull; candidate < formula_count; candidate += 1ull)
                 {
                     const unsigned int *const record = &signs[lane * window.layout.out_limbs];
@@ -1150,7 +1151,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                     if ((high < 0) && (low > 0))
                     {
                         inside.push_back((unsigned int)candidate);
-                        inside_count[held] += 1ull;
+                        inside_count[formula_entry] += 1ull;
                     }
                     lane += 1ull;
                 }
@@ -1173,7 +1174,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         queries_empty += (inside_count[each] == 0ull) ? 1ull : 0ull;
     }
     rank_line_decimal(results, "  window: (query, formula) inside ", inside.size());
-    rank_line_decimal(results, "; queries holding none ", queries_empty);
+    rank_line_decimal(results, "; queries containing none ", queries_empty);
     rank_line_decimal(results, "; signs of 0 ", window_mixed);
     rank_line_end(results);
 
@@ -1185,7 +1186,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     peak_layout.shift_bits = shift_bits;
     peak_layout.limbs = (peak_layout.shift_offset + shift_bits + 31u) / 32u;
     rank_line_decimal(results, "  peaks: record ", peak_layout.limbs);
-    scriptura_text(&results->line, " limbs");
+    mmgr_line_put(&results->line, " limbs");
     rank_line_end(results);
     // a spectrum's peaks as records: each m/z's mantissa and exponent, and each intensity's mantissa and its exponent
     // above its row's least, 0 for an intensity of 0
@@ -1237,7 +1238,7 @@ int rank_run(SimResults *results, int count, char **arguments)
         const unsigned int inside = exact_record_product(&program, exact_record_difference(&program, one, high),
                                                          exact_record_sum(&program, one, low));
         // the weight, I_q I_r = m_q m_r 2^(s_q + s_r) on the two rows' least powers of two, and 1 where it is above
-        // zero: the lanes kept
+        // zero: the lanes retained
         const unsigned int shifts = exact_record_sum(&program, exact_record_read_unsigned(&program, shift_field, 0u),
                                                      exact_record_read_unsigned(&program, shift_field, 1u));
         unsigned int outputs[2];
@@ -1258,10 +1259,10 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
     }
     const RankField weight_field = rank_output(&match, 0u);
-    const RankField kept_field = rank_output(&match, 1u);
+    const RankField match_field = rank_output(&match, 1u);
     const unsigned int match_limbs = match.layout.out_limbs;
     rank_line_decimal(results, "  match: program loaded by ", engine_clock_microseconds() - s_rank_started);
-    scriptura_text(&results->line, " us of the run");
+    mmgr_line_put(&results->line, " us of the run");
     rank_line_end(results);
 
     // match: each query's peaks against every peak of every reference spectrum its window names, same mode
@@ -1275,12 +1276,12 @@ int rank_run(SimResults *results, int count, char **arguments)
     RankTally match_tally = {0ull, 0ull};
     RankMatchDevice match_device;
     ok = rank_match_open(&match_device, envelope_records.data(), envelope_records.size());
-    std::vector<unsigned int> kept_lanes;
-    std::vector<unsigned int> kept_records;
+    std::vector<unsigned int> matched_lanes;
+    std::vector<unsigned int> matched_records;
     for (unsigned long long each = 0ull; ok && (each < query_count); each += 1ull)
     {
         const unsigned int spectrum_q = query[each];
-        const unsigned int held_mode = mode[spectrum_q];
+        const unsigned int query_mode = mode[spectrum_q];
         const unsigned long long query_peaks = set.mz.row_start[spectrum_q + 1ull] - set.mz.row_start[spectrum_q];
         query_pair_first[each] = pair_query.size();
         if ((query_peaks == 0ull) || (inside_count[each] == 0ull))
@@ -1291,9 +1292,9 @@ int rank_run(SimResults *results, int count, char **arguments)
         peak_put(spectrum_q, query_atoms.data());
         ok = rank_match_query(&match_device, query_atoms.data(), query_atoms.size());
         std::vector<unsigned int> query_reference;
-        for (unsigned long long slot = 0ull; slot < inside_count[each]; slot += 1ull)
+        for (unsigned long long position = 0ull; position < inside_count[each]; position += 1ull)
         {
-            const unsigned int named = inside[inside_first[each] + slot];
+            const unsigned int named = inside[inside_first[each] + position];
             for (unsigned long long at = formula_structure_first[named]; at < formula_structure_first[named + 1ull];
                  at += 1ull)
             {
@@ -1303,7 +1304,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                 {
                     const unsigned int spectrum = structure_reference[spectrum_at];
                     const unsigned long long peaks = set.mz.row_start[spectrum + 1ull] - set.mz.row_start[spectrum];
-                    if ((mode[spectrum] == held_mode) && (peaks > 0ull))
+                    if ((mode[spectrum] == query_mode) && (peaks > 0ull))
                     {
                         query_reference.push_back(spectrum);
                     }
@@ -1349,20 +1350,29 @@ int rank_run(SimResults *results, int count, char **arguments)
                 atom += peaks;
             }
             lane_first[chunk.size()] = lane_at;
-            const RankMatchChunk run = {&match,           kept_field,         reference_atoms.data(),
-                                        reference_peaks,  lane_first.data(),  atom_first.data(),
-                                        chunk_peaks.data(), chunk.size(),     query_peaks,
-                                        RANK_MODES,       held_mode,          lanes};
-            ok = rank_match_chunk(results, &match_device, &run, &kept_lanes, &kept_records, &match_tally.microseconds);
+            const RankMatchChunk run = {&match,
+                                        match_field,
+                                        reference_atoms.data(),
+                                        reference_peaks,
+                                        lane_first.data(),
+                                        atom_first.data(),
+                                        chunk_peaks.data(),
+                                        chunk.size(),
+                                        query_peaks,
+                                        RANK_MODES,
+                                        query_mode,
+                                        lanes};
+            ok = rank_match_chunk(results, &match_device, &run, &matched_lanes, &matched_records,
+                                  &match_tally.microseconds);
             match_tally.lanes += lanes;
-            // each kept lane, least first: its spectrum and query peak from the chunk's first lanes; a spectrum's kept
-            // lanes are one pair, and a run of one (spectrum, query peak) is one group
+            // each retained lane, least first: its spectrum and query peak from the chunk's first lanes; a spectrum's
+            // retained lanes are one pair, and a run of one (spectrum, query peak) is one group
             size_t local = 0u;
             size_t open_spectrum = chunk.size();
             unsigned long long open_peak = ~0ull;
-            for (size_t kept = 0u; ok && (kept < kept_lanes.size()); kept += 1u)
+            for (size_t matched_at = 0u; ok && (matched_at < matched_lanes.size()); matched_at += 1u)
             {
-                const unsigned long long lane = kept_lanes[kept];
+                const unsigned long long lane = matched_lanes[matched_at];
                 while (lane >= lane_first[local + 1u])
                 {
                     local += 1u;
@@ -1382,7 +1392,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                     matched_group_first.push_back((unsigned int)(matched.size() / match_limbs));
                     open_peak = query_peak;
                 }
-                const unsigned int *const record = &kept_records[kept * match_limbs];
+                const unsigned int *const record = &matched_records[matched_at * match_limbs];
                 matched.insert(matched.end(), record, record + match_limbs);
             }
         }
@@ -1397,9 +1407,9 @@ int rank_run(SimResults *results, int count, char **arguments)
     const unsigned long long pair_count = pair_query.size();
     const unsigned long long peak_group_count = matched_group_first.size();
     rank_tally_line(results, "match", &match_tally);
-    rank_line_decimal(results, "  match: pairs holding a matched peak ", pair_count);
+    rank_line_decimal(results, "  match: pairs containing a matched peak ", pair_count);
     rank_line_decimal(results, "; (pair, query peak) groups ", peak_group_count);
-    rank_line_decimal(results, "; matched lanes kept ", matched_count);
+    rank_line_decimal(results, "; matched lanes retained ", matched_count);
     rank_line_end(results);
 
     // peak: each (pair, query peak) group's heaviest weight
@@ -1426,7 +1436,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_machine_release(&value_order);
     rank_tally_line(results, "peak tournament", &peak_tally);
 
-    // sum: M per pair, the sum of its query peaks' kept weights
+    // sum: M per pair, the sum of its query peaks' retained weights
     std::vector<unsigned long long> pair_first((size_t)pair_count + 1u);
     std::vector<unsigned long long> pair_peaks((size_t)pair_count + 1u);
     for (unsigned long long pair = 0ull; pair < pair_count; pair += 1ull)
@@ -1450,17 +1460,17 @@ int rank_run(SimResults *results, int count, char **arguments)
     std::vector<unsigned int> norm_spectrum;
     for (unsigned long long pair = 0ull; pair < pair_count; pair += 1ull)
     {
-        const unsigned int held_query = pair_query[pair];
-        const unsigned int held_reference = pair_spectrum[pair];
-        if (norm_of_query[held_query] == RANK_ABSENT)
+        const unsigned int pair_query_at = pair_query[pair];
+        const unsigned int pair_reference = pair_spectrum[pair];
+        if (norm_of_query[pair_query_at] == RANK_ABSENT)
         {
-            norm_of_query[held_query] = (unsigned int)norm_spectrum.size();
-            norm_spectrum.push_back(query[held_query]);
+            norm_of_query[pair_query_at] = (unsigned int)norm_spectrum.size();
+            norm_spectrum.push_back(query[pair_query_at]);
         }
-        if (norm_of_reference[held_reference] == RANK_ABSENT)
+        if (norm_of_reference[pair_reference] == RANK_ABSENT)
         {
-            norm_of_reference[held_reference] = (unsigned int)norm_spectrum.size();
-            norm_spectrum.push_back(held_reference);
+            norm_of_reference[pair_reference] = (unsigned int)norm_spectrum.size();
+            norm_spectrum.push_back(pair_reference);
         }
     }
     unsigned long long norm_peaks = 0ull;
@@ -1579,9 +1589,9 @@ int rank_run(SimResults *results, int count, char **arguments)
         const size_t base = group_structure.size();
         for (unsigned long long at = molecule_query_first[molecule]; at < molecule_query_first[molecule + 1ull]; at += 1ull)
         {
-            const unsigned int held = molecule_query[at];
-            for (unsigned long long pair = query_pair_first[held]; pair < (query_pair_first[held] + query_pair_count[held]);
-                 pair += 1ull)
+            const unsigned int formula_entry = molecule_query[at];
+            for (unsigned long long pair = query_pair_first[formula_entry];
+                 pair < (query_pair_first[formula_entry] + query_pair_count[formula_entry]); pair += 1ull)
             {
                 const unsigned int structure = set.text[RANK_KEY][pair_spectrum[pair]];
                 if (structure_group[structure] == RANK_ABSENT)
@@ -1606,9 +1616,9 @@ int rank_run(SimResults *results, int count, char **arguments)
         }
         for (unsigned long long at = molecule_query_first[molecule]; at < molecule_query_first[molecule + 1ull]; at += 1ull)
         {
-            const unsigned int held = molecule_query[at];
-            for (unsigned long long pair = query_pair_first[held]; pair < (query_pair_first[held] + query_pair_count[held]);
-                 pair += 1ull)
+            const unsigned int formula_entry = molecule_query[at];
+            for (unsigned long long pair = query_pair_first[formula_entry];
+                 pair < (query_pair_first[formula_entry] + query_pair_count[formula_entry]); pair += 1ull)
             {
                 const unsigned int structure = set.text[RANK_KEY][pair_spectrum[pair]];
                 const size_t group = base + structure_group[structure];
@@ -1693,7 +1703,7 @@ int rank_run(SimResults *results, int count, char **arguments)
 
     // each molecule's list: the chosen structures, then its unscored candidates in structure order, to 25. In validate
     // the answer's place in it; in test the list's SMILES, each structure's from its first reference spectrum that
-    // holds one, written as the molecule's line of the submission
+    // contains one, written as the molecule's line of the submission
     FILE *submission = NULL;
     std::vector<unsigned int> structure_smiles((size_t)structures + 1u, RANK_ABSENT);
     std::vector<unsigned char> molecule_written(set.strings[RANK_MOLECULE].size() + 1u, 0u);
@@ -1710,8 +1720,8 @@ int rank_run(SimResults *results, int count, char **arguments)
         submission = (engine_directories_make(submission_path, 0) != 0) ? fopen(submission_path, "wb") : NULL;
         if (submission == NULL)
         {
-            scriptura_text(&results->line, "  the submission did not open: ");
-            scriptura_text(&results->line, submission_path);
+            mmgr_line_put(&results->line, "  the submission did not open: ");
+            mmgr_line_put(&results->line, submission_path);
             rank_line_end(results);
             return 0;
         }
@@ -1730,10 +1740,10 @@ int rank_run(SimResults *results, int count, char **arguments)
         std::vector<unsigned int> candidate;
         for (unsigned long long at = molecule_query_first[molecule]; at < molecule_query_first[molecule + 1ull]; at += 1ull)
         {
-            const unsigned int held = molecule_query[at];
-            for (unsigned long long slot = 0ull; slot < inside_count[held]; slot += 1ull)
+            const unsigned int formula_entry = molecule_query[at];
+            for (unsigned long long position = 0ull; position < inside_count[formula_entry]; position += 1ull)
             {
-                const unsigned int named = inside[inside_first[held] + slot];
+                const unsigned int named = inside[inside_first[formula_entry] + position];
                 for (unsigned long long each = formula_structure_first[named]; each < formula_structure_first[named + 1ull];
                      each += 1ull)
                 {
@@ -1817,18 +1827,18 @@ int rank_run(SimResults *results, int count, char **arguments)
                 {
                     truth_group = (group_structure[group] == truth) ? (unsigned int)group : truth_group;
                 }
-                scriptura_text(&results->line, "  miss ");
-                scriptura_text(&results->line, set.strings[RANK_KEY][truth].c_str());
+                mmgr_line_put(&results->line, "  miss ");
+                mmgr_line_put(&results->line, set.strings[RANK_KEY][truth].c_str());
                 if (place == 0u)
                 {
-                    scriptura_text(&results->line, " not listed: ");
+                    mmgr_line_put(&results->line, " not listed: ");
                 }
                 else
                 {
                     rank_line_decimal(results, " place ", place);
-                    scriptura_text(&results->line, ": ");
+                    mmgr_line_put(&results->line, ": ");
                 }
-                scriptura_text(&results->line, !has_reference  ? "no reference spectrum"
+                mmgr_line_put(&results->line, !has_reference  ? "no reference spectrum"
                                                 : !is_candidate ? "formula outside every window"
                                                 : !is_scored    ? "no matched peak"
                                                                 : "outranked");
@@ -1837,8 +1847,8 @@ int rank_run(SimResults *results, int count, char **arguments)
                     const unsigned int first_group = chosen[(molecule * RANK_LIST_MOST)];
                     const unsigned int first = group_structure[first_group];
                     const int same_formula = formula_text_of_structure[first] == formula_text_of_structure[truth];
-                    scriptura_text(&results->line, "; first ");
-                    scriptura_text(&results->line, set.strings[RANK_KEY][first].c_str());
+                    mmgr_line_put(&results->line, "; first ");
+                    mmgr_line_put(&results->line, set.strings[RANK_KEY][first].c_str());
                     rank_line_decimal(results, " cos2 ",
                                       rank_score_ppm(&scores[(size_t)structure_winner[first_group] * score_limbs],
                                                      score_numerator, score_denominator));
@@ -1848,7 +1858,7 @@ int rank_run(SimResults *results, int count, char **arguments)
                                           rank_score_ppm(&scores[(size_t)structure_winner[truth_group] * score_limbs],
                                                          score_numerator, score_denominator));
                     }
-                    scriptura_text(&results->line, same_formula ? ", same formula" : ", another formula");
+                    mmgr_line_put(&results->line, same_formula ? ", same formula" : ", another formula");
                     truth_isomer += (is_scored && same_formula) ? 1ull : 0ull;
                 }
                 rank_line_decimal(results, "; candidates ", candidate.size());
@@ -1880,8 +1890,8 @@ int rank_run(SimResults *results, int count, char **arguments)
             }
         }
         const int closed = fclose(submission) == 0;
-        scriptura_text(&results->line, "  submission ");
-        scriptura_text(&results->line, submission_path);
+        mmgr_line_put(&results->line, "  submission ");
+        mmgr_line_put(&results->line, submission_path);
         rank_line_decimal(results, ": molecules ", molecule_count + unranked);
         rank_line_decimal(results, "; with no candidate, given C, ", given_none);
         rank_line_decimal(results, "; with no query of a known mode, given C, ", unranked);
@@ -1895,7 +1905,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     rank_line_decimal(results, "; candidate with no matched peak ", truth_unscored);
     rank_line_decimal(results, "; scored and outranked by a structure of its formula ", truth_isomer);
     rank_line_end(results);
-    scriptura_text(&results->line, "  answers at each place, 1 to 25, then not listed:");
+    mmgr_line_put(&results->line, "  answers at each place, 1 to 25, then not listed:");
     for (unsigned int place = 1u; place <= RANK_LIST_MOST; place += 1u)
     {
         rank_line_decimal(results, " ", rank_counts[place]);
@@ -1924,7 +1934,7 @@ int rank_run(SimResults *results, int count, char **arguments)
     }
     const unsigned long long parts = (molecule_count != 0ull) ? ((numerator * 1000000ull) / (common * molecule_count)) : 0ull;
     rank_line_decimal(results, "  MRR@25: ", parts);
-    scriptura_text(&results->line, " parts per million, floored");
+    mmgr_line_put(&results->line, " parts per million, floored");
     rank_line_end(results);
     return 1;
 }

@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window_call_home.c: the window's calls on orior's own folder: the page's entries kept there and read back, the
+// window_call_home.c: the window's calls on orior's own folder: the page's entries stored there and read back, the
 // settings in force from the reader's and the tree's, the reader's settings carried to and taken from another
 // machine, a plugin's own settings, the reader's language files, stylesheet and menus, and its places opened as the
 // system opens them
 #include "../command_line/cells.h"
 #include "../machine/carry_internal.h"
-#include "../machine/kept.h"
 #include "../machine/settings.h"
+#include "../machine/state.h"
 #include "../plugins/plugins.h"
 #include "window_internal.h"
 
@@ -22,26 +22,27 @@ typedef struct
     CliLayers layers;
 } CliHomeSettings;
 
-// the lock a call on orior's folder answers under, one at a time, and the cells it holds while it answers, each sized
-// to what it holds
+// the lock a call on orior's folder answers under, one at a time, and the cells it occupies while it answers, each
+// sized to what it contains
 static CliLock s_lock = CLI_LOCK_INIT;
-static CliCellsTally s_cells = CLI_CELLS_TALLY("cli_window_home");
+static CellOwner s_cells = MMGR_CELL_OWNER("cli_window_home");
 
-// a growing line begun for a text of orior's folder: 1, or 0 with why said where its cell is refused
-static int home_line_begun(CliLine *line, CliLine *said)
+// a growing line begun for a text of orior's folder: 1, or 0 with why given where its cell is refused
+static int home_line_begun(VerbaLinea *line, VerbaLinea *err_msg)
 {
-    const int begun = cli_line_growing(line, CLI_HOME_TEXT_FIRST, "a text of orior's folder");
+    const int begun = cli_growing_line_made(line, CLI_HOME_TEXT_FIRST);
     if (!begun)
     {
-        cli_line_text(said, "a text of orior's folder could not be given a cell");
+        mmgr_line_put(err_msg, "a text of orior's folder could not be given a cell");
     }
     return begun;
 }
 
-// the strings of the argument `key` into a cell of their count, `*items`, given back with cli_cell_given_by(&s_cells,
-// ...) either way, their count into `count`: 1, or 0 with why said
+// the strings of the argument `key` into a cell of their count, `*items`, given back with
+// g_cli_cells->persistent_buf_release(&s_cells,
+// ...) either way, their count into `count`: 1, or 0 with why given
 static int home_strings(const CliServeArgs *args, const char *key, const char ***items, unsigned int *count,
-                        CliLine *said)
+                        VerbaLinea *err_msg)
 {
     const unsigned int node = cli_serve_arg(args, key);
     unsigned int most = 0u;
@@ -52,33 +53,33 @@ static int home_strings(const CliServeArgs *args, const char *key, const char **
         most += 1u;
     }
     *count = 0u;
-    *items = cli_cell_taken_by(&s_cells, (most + 1ull) * sizeof(**items), "the strings a call on orior's folder names");
+    *items = g_cli_cells->persistent_buf_alloc((most + 1ull) * sizeof(**items), &s_cells);
     if (*items == NULL)
     {
-        cli_line_text(said, "the strings a call on orior's folder names could not be given a cell");
+        mmgr_line_put(err_msg, "the strings a call on orior's folder names could not be given a cell");
         return 0;
     }
-    return cli_serve_strings(args, key, *items, most, count, said);
+    return cli_serve_strings(args, key, *items, most, count, err_msg);
 }
 
-// the page's changed entries kept, each key starting `orior.` with its new text, or null where it is gone
-static int home_kept_write(const CliServeArgs *args, CliLine *out, CliLine *said)
+// the page's changed entries stored, each key starting `orior.` with its new text, or null where it is gone
+static int home_state_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)out;
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_home_folder(folder))
     {
-        cli_line_text(said, "orior_cli has no folder of its own to keep its entries in");
+        mmgr_line_put(err_msg, "orior_cli has no folder of its own to store its entries in");
         return 0;
     }
     const unsigned int changes = cli_serve_arg(args, "changes");
-    CliLine kept;
-    if (!home_line_begun(&kept, said))
+    VerbaLinea state_line;
+    if (!home_line_begun(&state_line, err_msg))
     {
         return 0;
     }
     cli_lock_take(&s_lock);
-    cli_line_character(&kept, '{');
+    mmgr_line_ch(&state_line, '{');
     const unsigned int first =
         cli_json_is(args->json, changes, CFG_JSON_OBJECT) ? args->json->node[changes].first : CLI_JSON_NONE;
     for (unsigned int member = first; member != CLI_JSON_NONE; member = args->json->node[member].next)
@@ -88,140 +89,191 @@ static int home_kept_write(const CliServeArgs *args, CliLine *out, CliLine *said
         {
             continue;
         }
-        cli_line_text(&kept, (kept.at > 1ull) ? "," : "");
-        cli_window_quoted(&kept, key + 6);
-        cli_line_character(&kept, ':');
-        cli_json_write(args->json, member, &kept, 0u, 0);
+        mmgr_line_put(&state_line, (state_line.at > 1ull) ? "," : "");
+        cli_window_quoted(&state_line, key + 6);
+        mmgr_line_ch(&state_line, ':');
+        cli_json_write(args->json, member, &state_line, 0u, 0);
     }
-    cli_line_character(&kept, '}');
-    const int done = cli_line_fits(&kept) && cli_kept_keep(folder, kept.out, kept.at, said);
+    mmgr_line_ch(&state_line, '}');
+    const int done = mmgr_line_ok(&state_line) && cli_state_save(folder, state_line.out, state_line.at, err_msg);
     cli_lock_give(&s_lock);
-    cli_cell_given(kept.out);
+    g_cli_cells->persistent_buf_release(state_line.out, NULL);
     return done;
 }
 
-// what orior's folder keeps read into `json`, a tree in a cell sized to it, given back with cli_json_given either
-// way, under the lock: its object, or CLI_JSON_NONE where it keeps nothing
-static unsigned int home_kept_tree(CliJson *json)
+// what orior's folder stores read into `json`, a tree in a cell sized to it, given back with cli_json_given either
+// way, under the lock: its object, or CLI_JSON_NONE where it stores nothing
+static unsigned int home_state_tree(CliJson *json)
 {
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
-    CliLine kept;
+    VerbaLinea state_line;
     char why[256];
-    CliLine ignored = {why, sizeof(why), 0ull};
-    if (!cli_home_folder(folder) || !home_line_begun(&kept, &ignored))
+    VerbaLinea ignored = {why, sizeof(why), 0ull};
+    if (!cli_home_folder(folder) || !home_line_begun(&state_line, &ignored))
     {
         return CLI_JSON_NONE;
     }
-    const unsigned int tree = (cli_kept_read(folder, &kept) && cli_line_fits(&kept))
-                                  ? cli_json_taken(json, kept.out, kept.at, 0u, 0ull, &ignored)
+    const unsigned int tree = (cli_state_read(folder, &state_line) && mmgr_line_ok(&state_line))
+                                  ? cli_json_taken(json, state_line.out, state_line.at, 0u, 0ull, &ignored)
                                   : CLI_JSON_NONE;
-    cli_cell_given(kept.out);
+    g_cli_cells->persistent_buf_release(state_line.out, NULL);
     return cli_json_is(json, tree, CFG_JSON_OBJECT) ? tree : CLI_JSON_NONE;
 }
 
-// what orior's folder keeps, each key with `orior.` before it, or null where it keeps nothing yet
-static int home_kept_read(const CliServeArgs *args, CliLine *out, CliLine *said)
+// what orior's folder stores, each key with `orior.` before it, or null where it stores nothing yet
+static int home_state_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     CliJson json;
     cli_lock_take(&s_lock);
-    const unsigned int tree = home_kept_tree(&json);
+    const unsigned int tree = home_state_tree(&json);
     if (tree == CLI_JSON_NONE)
     {
         cli_json_given(&json);
         cli_lock_give(&s_lock);
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return 1;
     }
-    cli_line_character(out, '{');
+    mmgr_line_ch(out, '{');
     for (unsigned int member = json.node[tree].first; member != CLI_JSON_NONE; member = json.node[member].next)
     {
-        cli_line_text(out, (member != json.node[tree].first) ? ",\"orior." : "\"orior.");
+        mmgr_line_put(out, (member != json.node[tree].first) ? ",\"orior." : "\"orior.");
         cli_json_escaped_lossy(
             out, (const unsigned char *)(json.text + json.node[member].key),
             cellul.len(&(CatenaFinitaCfg){.src = json.text + json.node[member].key, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, "\":");
+        mmgr_line_put(out, "\":");
         cli_json_write(&json, member, out, 0u, 0);
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
     cli_json_given(&json);
     cli_lock_give(&s_lock);
     return 1;
 }
 
-// the settings and themes orior's folder keeps now, by key without `orior.`, and each of the page's keys that is a
-// setting the folder no longer keeps
-static int home_kept_now(const CliServeArgs *args, CliLine *out, CliLine *said)
+// the bytes the page's first script is begun in, doubling as it fills
+#define CLI_WINDOW_KEPT_SCRIPT_FIRST (16ull << 10u)
+
+// the page's first script before what orior's folder stores and after it
+static const char s_kept_before[] =
+    "(() => { if (location.protocol === \"view:\" || location.hostname === \"view.localhost\") return; "
+    "if (sessionStorage.getItem(\"orior.kept.read\")) return; sessionStorage.setItem(\"orior.kept.read\", \"1\"); "
+    "const kept = ";
+static const char s_kept_after[] =
+    "; if (kept === null) { window.oriorKeepAll = true; return; } "
+    "for (const key of Object.keys(localStorage)) { if (key.startsWith(\"orior.\") && !(key in kept)) "
+    "localStorage.removeItem(key); } "
+    "for (const [key, text] of Object.entries(kept)) localStorage.setItem(key, text); })();";
+
+// the page's first script, made once
+static VerbaLinea s_kept_script;
+
+const char *cli_window_kept_script(unsigned long long *size)
+{
+    *size = 0ull;
+    if (!cli_growing_line_made(&s_kept_script, CLI_WINDOW_KEPT_SCRIPT_FIRST))
+    {
+        return NULL;
+    }
+    mmgr_line_put(&s_kept_script, s_kept_before);
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    (void)home_state_read(NULL, &s_kept_script, &err_msg);
+    mmgr_line_put(&s_kept_script, s_kept_after);
+    *size = mmgr_line_ok(&s_kept_script) ? s_kept_script.at : 0ull;
+    return s_kept_script.out;
+}
+
+void cli_window_kept_script_given(void)
+{
+    g_cli_cells->persistent_buf_release(s_kept_script.out, NULL);
+    s_kept_script = (VerbaLinea){NULL, 0ull, 0ull};
+}
+
+int cli_window_title_bar_system(void)
+{
+    CliJson json;
+    cli_lock_take(&s_lock);
+    const unsigned int tree = home_state_tree(&json);
+    const char *const title_bar = cli_json_string(&json, cli_json_member(&json, tree, "titlebar"), NULL);
+    const int system = (title_bar != NULL) &&
+                       cellul.eq(&(CatenaFinitaCfg){.src = title_bar, .other = "system", .cap = CLI_CELLS_POOL});
+    cli_json_given(&json);
+    cli_lock_give(&s_lock);
+    return system;
+}
+
+// the settings and themes orior's folder stores now, by key without `orior.`, and each of the page's keys that is a
+// setting the folder no longer stores
+static int home_state_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned int count = 0u;
     const char **keys = NULL;
-    if (!home_strings(args, "keys", &keys, &count, said))
+    if (!home_strings(args, "keys", &keys, &count, err_msg))
     {
-        cli_cell_given_by(&s_cells, keys);
+        g_cli_cells->persistent_buf_release(keys, &s_cells);
         return 0;
     }
     CliJson json;
     cli_lock_take(&s_lock);
-    const unsigned int tree = home_kept_tree(&json);
+    const unsigned int tree = home_state_tree(&json);
     const unsigned int first = (tree != CLI_JSON_NONE) ? json.node[tree].first : CLI_JSON_NONE;
-    cli_line_text(out, "{\"set\":{");
+    mmgr_line_put(out, "{\"set\":{");
     int any = 0;
     for (unsigned int member = first; member != CLI_JSON_NONE; member = json.node[member].next)
     {
         const char *const key = json.text + json.node[member].key;
-        if (cli_kept_is_carried(key))
+        if (cli_state_is_carried(key))
         {
-            cli_line_text(out, any ? "," : "");
+            mmgr_line_put(out, any ? "," : "");
             cli_window_quoted(out, key);
-            cli_line_character(out, ':');
+            mmgr_line_ch(out, ':');
             cli_json_write(&json, member, out, 0u, 0);
             any = 1;
         }
     }
-    cli_line_text(out, "},\"gone\":[");
+    mmgr_line_put(out, "},\"gone\":[");
     any = 0;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const key = keys[at] + 6;
         if ((cellul.starts(&(CatenaFinitaCfg){.src = keys[at], .other = "orior.", .cap = CLI_CELLS_POOL})) &&
-            cli_kept_is_carried(key) &&
+            cli_state_is_carried(key) &&
             (!cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "themes", .cap = CLI_CELLS_POOL})) &&
             (cli_json_member(&json, tree, key) == CLI_JSON_NONE))
         {
-            cli_line_text(out, any ? "," : "");
+            mmgr_line_put(out, any ? "," : "");
             cli_window_quoted(out, key);
             any = 1;
         }
     }
-    cli_line_text(out, "]}");
+    mmgr_line_put(out, "]}");
     cli_json_given(&json);
     cli_lock_give(&s_lock);
-    cli_cell_given_by(&s_cells, keys);
+    g_cli_cells->persistent_buf_release(keys, &s_cells);
     return 1;
 }
 
 // the settings in force for the tree at `root`, from the reader's settings and the tree's, `tree`
-static int home_settings_layers(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const root = cli_serve_string(args, "root", said);
-    CliLine tree;
-    if ((root == NULL) || !home_line_begun(&tree, said))
+    const char *const root = cli_serve_string(args, "root", err_msg);
+    VerbaLinea tree;
+    if ((root == NULL) || !home_line_begun(&tree, err_msg))
     {
         return 0;
     }
-    CliHomeSettings *const settings =
-        cli_cell_taken_by(&s_cells, sizeof(*settings), "the settings' chains and layers of a call");
+    CliHomeSettings *const settings = g_cli_cells->persistent_buf_alloc(sizeof(*settings), &s_cells);
     if (settings == NULL)
     {
-        cli_cell_given(tree.out);
-        cli_line_text(said, "the settings' chains and layers could not be given a cell");
+        g_cli_cells->persistent_buf_release(tree.out, NULL);
+        mmgr_line_put(err_msg, "the settings' chains and layers could not be given a cell");
         return 0;
     }
     cli_lock_take(&s_lock);
     cli_window_arg_written(args, "tree", &tree);
-    const int read = cli_line_fits(&tree) && cli_settings_chain_read(tree.out, tree.at, &settings->tree, said);
+    const int read = mmgr_line_ok(&tree) && cli_settings_chain_read(tree.out, tree.at, &settings->tree, err_msg);
     if (read)
     {
         cli_settings_reader(&settings->reader);
@@ -232,100 +284,100 @@ static int home_settings_layers(const CliServeArgs *args, CliLine *out, CliLine 
     }
     cli_settings_chain_given(&settings->tree);
     cli_lock_give(&s_lock);
-    cli_cell_given_by(&s_cells, settings);
-    cli_cell_given(tree.out);
+    g_cli_cells->persistent_buf_release(settings, &s_cells);
+    g_cli_cells->persistent_buf_release(tree.out, NULL);
     return read;
 }
 
 // the carried files written as an object of each place and its text
-static void home_carried_written(const CliCarried *carried, CliLine *out)
+static void home_carried_written(const CliCarried *carried, VerbaLinea *out)
 {
-    cli_line_character(out, '{');
+    mmgr_line_ch(out, '{');
     for (unsigned int at = 0u; at < carried->count; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "," : "");
+        mmgr_line_put(out, (at > 0u) ? "," : "");
         cli_window_quoted(out, cli_carried_place(carried, at));
-        cli_line_character(out, ':');
+        mmgr_line_ch(out, ':');
         cli_window_counted(out, cli_carried_value(carried, at), carried->size[at]);
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
 // the reader's settings that travel written to `to`, a file or a folder of the reader's
-static int home_carry_send(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int home_carry_send(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char home[CLI_PATH_LONGEST];
-    const char *const to = cli_serve_string(args, "to", said);
-    CliLine done;
-    if ((to == NULL) || !cli_window_home(home, said) || !home_line_begun(&done, said))
+    char home[CLI_PATH_MAX_LEN];
+    const char *const to = cli_serve_string(args, "to", err_msg);
+    VerbaLinea done;
+    if ((to == NULL) || !cli_window_home(home, err_msg) || !home_line_begun(&done, err_msg))
     {
         return 0;
     }
-    const int sent = cli_carry_send(home, to, &done, said);
+    const int sent = cli_carry_send(home, to, &done, err_msg);
     if (sent)
     {
-        cli_window_counted(out, done.out, cli_line_fits(&done) ? done.at : 0ull);
+        cli_window_counted(out, done.out, mmgr_line_ok(&done) ? done.at : 0ull);
     }
-    cli_cell_given(done.out);
+    g_cli_cells->persistent_buf_release(done.out, NULL);
     return sent;
 }
 
 // what the file or folder `from` carries, and how it differs from the reader's own here
-static int home_carry_read(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int home_carry_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char home[CLI_PATH_LONGEST];
-    const char *const from = cli_serve_string(args, "from", said);
-    if ((from == NULL) || !cli_window_home(home, said))
+    char home[CLI_PATH_MAX_LEN];
+    const char *const from = cli_serve_string(args, "from", err_msg);
+    if ((from == NULL) || !cli_window_home(home, err_msg))
     {
         return 0;
     }
-    CliCarried *const carried = cli_cell_taken_by(&s_cells, sizeof(*carried), "the files a carry holds");
+    CliCarried *const carried = g_cli_cells->persistent_buf_alloc(sizeof(*carried), &s_cells);
     if (carried == NULL)
     {
-        cli_line_text(said, "the files a carry holds could not be given a cell");
+        mmgr_line_put(err_msg, "the files a carry contains could not be given a cell");
         return 0;
     }
     carried->count = 0u;
     cli_lock_take(&s_lock);
-    const int read = cli_carry_read(from, carried, said);
+    const int read = cli_carry_read(from, carried, err_msg);
     if (read)
     {
-        cli_line_text(out, "{\"there\":");
+        mmgr_line_put(out, "{\"there\":");
         home_carried_written(carried, out);
-        cli_line_text(out, ",\"differences\":");
+        mmgr_line_put(out, ",\"differences\":");
         cli_carry_differences(home, carried, out);
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
     cli_carried_clear(carried);
     cli_lock_give(&s_lock);
-    cli_cell_given_by(&s_cells, carried);
+    g_cli_cells->persistent_buf_release(carried, &s_cells);
     return read;
 }
 
 // the files of `places` that `there`, read from `from`, carries taken in, and of settings.json the settings of `keys`
-static int home_carry_take(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int home_carry_take(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned int places = 0u;
     unsigned int keys = 0u;
-    char home[CLI_PATH_LONGEST];
-    const char *const from = cli_serve_string(args, "from", said);
-    if ((from == NULL) || !cli_window_home(home, said))
+    char home[CLI_PATH_MAX_LEN];
+    const char *const from = cli_serve_string(args, "from", err_msg);
+    if ((from == NULL) || !cli_window_home(home, err_msg))
     {
         return 0;
     }
     const char **place_of = NULL;
     const char **key_of = NULL;
-    CliCarried *const carried = cli_cell_taken_by(&s_cells, sizeof(*carried), "the files a carry holds");
-    if ((carried == NULL) || !home_strings(args, "places", &place_of, &places, said) ||
-        !home_strings(args, "keys", &key_of, &keys, said))
+    CliCarried *const carried = g_cli_cells->persistent_buf_alloc(sizeof(*carried), &s_cells);
+    if ((carried == NULL) || !home_strings(args, "places", &place_of, &places, err_msg) ||
+        !home_strings(args, "keys", &key_of, &keys, err_msg))
     {
         if (carried == NULL)
         {
-            cli_line_text(said, "the files a carry holds could not be given a cell");
+            mmgr_line_put(err_msg, "the files a carry contains could not be given a cell");
         }
-        cli_cell_given_by(&s_cells, key_of);
-        cli_cell_given_by(&s_cells, place_of);
-        cli_cell_given_by(&s_cells, carried);
+        g_cli_cells->persistent_buf_release(key_of, &s_cells);
+        g_cli_cells->persistent_buf_release(place_of, &s_cells);
+        g_cli_cells->persistent_buf_release(carried, &s_cells);
         return 0;
     }
     carried->count = 0u;
@@ -342,24 +394,24 @@ static int home_carry_take(const CliServeArgs *args, CliLine *out, CliLine *said
             (void)cli_carried_put(carried, args->json->text + args->json->node[member].key, text, length);
         }
     }
-    const int taken = cli_carry_take(home, from, carried, place_of, places, key_of, keys, out, said);
+    const int taken = cli_carry_take(home, from, carried, place_of, places, key_of, keys, out, err_msg);
     cli_carried_clear(carried);
     cli_lock_give(&s_lock);
-    cli_cell_given_by(&s_cells, key_of);
-    cli_cell_given_by(&s_cells, place_of);
-    cli_cell_given_by(&s_cells, carried);
+    g_cli_cells->persistent_buf_release(key_of, &s_cells);
+    g_cli_cells->persistent_buf_release(place_of, &s_cells);
+    g_cli_cells->persistent_buf_release(carried, &s_cells);
     return taken;
 }
 
-// every taking kept, the last first
-static int home_carry_takings(const CliServeArgs *args, CliLine *out, CliLine *said)
+// every taking saved, the last first
+static int home_carry_takings(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
-    char home[CLI_PATH_LONGEST];
+    (void)err_msg;
+    char home[CLI_PATH_MAX_LEN];
     if (!cli_home_folder(home))
     {
-        cli_line_text(out, "[]");
+        mmgr_line_put(out, "[]");
         return 1;
     }
     cli_carry_takings(home, out);
@@ -367,61 +419,61 @@ static int home_carry_takings(const CliServeArgs *args, CliLine *out, CliLine *s
 }
 
 // the taking `id` undone
-static int home_carry_undo(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int home_carry_undo(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char home[CLI_PATH_LONGEST];
-    const char *const id = cli_serve_string(args, "id", said);
-    return (id != NULL) && cli_window_home(home, said) && cli_carry_undo(home, id, out, said);
+    char home[CLI_PATH_MAX_LEN];
+    const char *const id = cli_serve_string(args, "id", err_msg);
+    return (id != NULL) && cli_window_home(home, err_msg) && cli_carry_undo(home, id, out, err_msg);
 }
 
-// the file of the plugin `id`'s settings into `path`: 1, or 0 with why said
-static int home_plugin_settings_path(const char *id, char *folder, char *path, CliLine *said)
+// the file of the plugin `id`'s settings into `path`: 1, or 0 with why given
+static int home_plugin_settings_path(const char *id, char *folder, char *path, VerbaLinea *err_msg)
 {
-    char home[CLI_PATH_LONGEST];
-    char slug[CLI_NAME_LONGEST];
-    if (!cli_window_home(home, said))
+    char home[CLI_PATH_MAX_LEN];
+    char slug[CLI_NAME_MAX_LEN];
+    if (!cli_window_home(home, err_msg))
     {
         return 0;
     }
     cli_full(home, "plugin_settings", folder);
     cli_plugins_slug(id, slug);
-    CliLine line = {path, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, slug);
-    cli_line_text(&line, ".json");
-    return cli_line_closed(&line) != 0ull;
+    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, slug);
+    mmgr_line_put(&line, ".json");
+    return mmgr_line_finish(&line) != 0ull;
 }
 
 // the settings of the plugin `id`, as it last wrote them, or an empty object
-static int home_plugin_settings_read(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int home_plugin_settings_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    const char *const id = cli_serve_string(args, "id", said);
-    if ((id == NULL) || !home_plugin_settings_path(id, folder, path, said))
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    const char *const id = cli_serve_string(args, "id", err_msg);
+    if ((id == NULL) || !home_plugin_settings_path(id, folder, path, err_msg))
     {
         return 0;
     }
     cli_lock_take(&s_lock);
     unsigned long long size = 0ull;
-    const unsigned char *const mapped = cli_file_held(path, &size);
+    const unsigned char *const mapped = cli_file_read(path, &size);
     const unsigned long long start = out->at;
     if ((mapped == NULL) || !cli_json_compacted((const char *)mapped, size, out))
     {
         out->at = start;
-        cli_line_text(out, "{}");
+        mmgr_line_put(out, "{}");
     }
     cli_file_let_go(mapped, size);
     cli_lock_give(&s_lock);
     return 1;
 }
 
-// `values` kept as the settings of the plugin `id`, in place of those it kept before
-static int home_plugin_settings_write(const CliServeArgs *args, CliLine *out, CliLine *said)
+// `values` stored as the settings of the plugin `id`, in place of those it stored before
+static int home_plugin_settings_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)out;
-    const char *const id = cli_serve_string(args, "id", said);
+    const char *const id = cli_serve_string(args, "id", err_msg);
     const unsigned int values = cli_serve_arg(args, "values");
     if (id == NULL)
     {
@@ -429,44 +481,44 @@ static int home_plugin_settings_write(const CliServeArgs *args, CliLine *out, Cl
     }
     if (!cli_json_is(args->json, values, CFG_JSON_OBJECT))
     {
-        cli_line_text(said, "a plugin's settings are an object");
+        mmgr_line_put(err_msg, "a plugin's settings are an object");
         return 0;
     }
-    char folder[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    if (!home_plugin_settings_path(id, folder, path, said))
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    if (!home_plugin_settings_path(id, folder, path, err_msg))
     {
         return 0;
     }
     if (!query_folder_made(folder))
     {
-        cli_line_text(said, folder);
-        cli_line_text(said, ": it could not be made");
+        mmgr_line_put(err_msg, folder);
+        mmgr_line_put(err_msg, ": it could not be made");
         return 0;
     }
-    CliLine text;
-    if (!home_line_begun(&text, said))
+    VerbaLinea text;
+    if (!home_line_begun(&text, err_msg))
     {
         return 0;
     }
     cli_lock_take(&s_lock);
     cli_json_write(args->json, values, &text, 2u, 0);
-    cli_line_character(&text, '\n');
-    const int written = cli_line_fits(&text) && query_file_written(path, text.out, text.at);
+    mmgr_line_ch(&text, '\n');
+    const int written = mmgr_line_ok(&text) && query_file_written(path, text.out, text.at);
     cli_lock_give(&s_lock);
-    cli_cell_given(text.out);
+    g_cli_cells->persistent_buf_release(text.out, NULL);
     if (!written)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be written");
     }
     return written;
 }
 
 const CliServeCall g_cli_window_home_calls[] = {
-    {"kept_write", home_kept_write},
-    {"kept_read", home_kept_read},
-    {"kept_now", home_kept_now},
+    {"state_write", home_state_write},
+    {"state_read", home_state_read},
+    {"state_now", home_state_now},
     {"settings_layers", home_settings_layers},
     {"carry_send", home_carry_send},
     {"carry_read", home_carry_read},

@@ -32,19 +32,19 @@ void boundary_check(BoundaryResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
 // a ratio in hundredths, as whole.fraction
-void boundary_hundredths(ScripturaLine *line, unsigned long long top, unsigned long long bottom)
+void boundary_hundredths(VerbaLinea *line, unsigned long long top, unsigned long long bottom)
 {
     const unsigned long long hundredths = (bottom == 0ull) ? 0ull : (((100ull * top) + (bottom / 2ull)) / bottom);
-    scriptura_decimal(line, hundredths / 100ull, 1u);
-    scriptura_character(line, '.');
-    scriptura_decimal(line, hundredths % 100ull, 2u);
+    mmgr_line_decimal(line, hundredths / 100ull, 1u);
+    mmgr_line_ch(line, '.');
+    mmgr_line_decimal(line, hundredths % 100ull, 2u);
 }
 
 unsigned int boundary_append(BoundaryProgram *program, EngineRecordOperation operation, unsigned int left,
@@ -122,7 +122,7 @@ void boundary_forward(BoundaryProgram *program, BoundaryTower *tower, unsigned i
 }
 
 // with a twin, a rebuilt register wrapped to its forward twin's width and one bit more: the value is the twin's. The
-// wrap holds it exactly and the inverse stays as narrow as the forward
+// wrap represents it exactly and the inverse stays as narrow as the forward
 static unsigned int boundary_mirror(BoundaryProgram *program, unsigned int value, const BoundaryTower *twin,
                                     const EngineRecordKey *twin_key, unsigned int level, unsigned int at)
 {
@@ -135,7 +135,7 @@ static unsigned int boundary_mirror(BoundaryProgram *program, unsigned int value
 
 // T^-1 from a crystal's registers, `samples` of them over `levels` levels, level by level from the boundary out:
 // x_2i = s_i - floor((d_(i-1) + d_i + 2) / 4), then x_(2j+1) = d_j + floor((x_2j + x_(2j+2)) / 2). back->low[l]
-// holds the rebuilt band at level l.
+// represents the rebuilt band at level l.
 void boundary_inverse(BoundaryProgram *program, const unsigned int *crystal, const BoundaryTower *twin,
                       const EngineRecordKey *twin_key, BoundaryTower *back, unsigned int samples, unsigned int levels)
 {

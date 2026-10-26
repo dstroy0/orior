@@ -110,8 +110,8 @@ function symbolRows(query) {
   return rows.sort((a, b) => b.score - a.score);
 }
 
-// What the tree's files declare whose names answer `query`, from the index the app keeps of them.
-// While the index is still being read, a last row says more may be found.
+// What the tree's files declare whose names answer `query`, from the tree the app keeps of them.
+// While the tree is still being read, a last row says more may be found.
 async function treeSymbolRows(query) {
   const found = await state.hooks.treeSymbols(query).catch(() => null);
   if (!found) {
@@ -325,7 +325,7 @@ export function openPalette(text = "", { everywhere = false, custom = null } = {
   state.everywhere = everywhere;
   state.custom = custom;
   if (custom?.items) {
-    state.held = invoke("pick_hold", { texts: custom.items.map((item) => item.text.replace(/\n/g, " ")).join("\n") });
+    state.held = invoke("pick_store", { texts: custom.items.map((item) => item.text.replace(/\n/g, " ")).join("\n") });
   }
   state.node.classList.toggle("everywhere", everywhere);
   state.node.hidden = false;

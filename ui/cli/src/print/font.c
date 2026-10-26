@@ -250,12 +250,12 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
     {
         return;
     }
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, walk->folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    if (cli_line_closed(&line) == 0ull)
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, walk->folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return;
     }
@@ -274,7 +274,7 @@ static void cli_walk_each(void *context, const char *name, int is_folder)
 
 // The font file `name` found in the folders: in one of them, or, off Windows, under one to a depth of four, as the
 // fonts of Linux distributions stand in folders of their own under the fonts folder
-static int cli_find(char (*folders)[CLI_PATH_LONGEST], unsigned int count, const char *name, char *found)
+static int cli_find(char (*folders)[CLI_PATH_MAX_LEN], unsigned int count, const char *name, char *found)
 {
     found[0] = '\0';
     if (name[0] == '\0')
@@ -283,11 +283,11 @@ static int cli_find(char (*folders)[CLI_PATH_LONGEST], unsigned int count, const
     }
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        CliLine line = {found, CLI_PATH_LONGEST, 0ull};
-        cli_line_text(&line, folders[at]);
-        cli_line_character(&line, '/');
-        cli_line_text(&line, name);
-        if ((cli_line_closed(&line) != 0ull) && query_is_file(found))
+        VerbaLinea line = {found, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, folders[at]);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, name);
+        if ((mmgr_line_finish(&line) != 0ull) && query_is_file(found))
         {
             return 1;
         }
@@ -305,15 +305,15 @@ static int cli_find(char (*folders)[CLI_PATH_LONGEST], unsigned int count, const
 }
 
 // a folder put after the folders looked in, `under` after `base`
-static void cli_folder(char (*folders)[CLI_PATH_LONGEST], unsigned int *count, const char *base, const char *under)
+static void cli_folder(char (*folders)[CLI_PATH_MAX_LEN], unsigned int *count, const char *base, const char *under)
 {
-    CliLine line = {folders[*count], CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, base);
-    cli_line_text(&line, under);
-    *count += (cli_line_closed(&line) != 0ull) ? 1u : 0u;
+    VerbaLinea line = {folders[*count], CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, base);
+    mmgr_line_put(&line, under);
+    *count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
 }
 
-void cli_font_monospace(char (*paths)[CLI_PATH_LONGEST])
+void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN])
 {
     static const char *const s_families[8][4] = {
         {"IBMPlexMono-Regular.ttf", "IBMPlexMono-Bold.ttf", "IBMPlexMono-Italic.ttf", "IBMPlexMono-BoldItalic.ttf"},
@@ -326,9 +326,9 @@ void cli_font_monospace(char (*paths)[CLI_PATH_LONGEST])
         {"Menlo.ttc", "", "", ""},
         {"cour.ttf", "courbd.ttf", "couri.ttf", "courbi.ttf"},
         {"Courier New.ttf", "Courier New Bold.ttf", "Courier New Italic.ttf", "Courier New Bold Italic.ttf"}};
-    char folders[4][CLI_PATH_LONGEST];
+    char folders[4][CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
-    char named[CLI_PATH_LONGEST];
+    char named[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
     if (query_environment_read("WINDIR", named, sizeof(named)))
     {

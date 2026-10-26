@@ -66,7 +66,16 @@ class Connection:
         self.handlers = {}
         self.sending = threading.Lock()
         self.closed = False
+        # a page whose renderer crashed answers no call it was given before, while its socket stays open
+        self.handlers["Inspector.targetCrashed"] = [self._crashed]
         threading.Thread(target=self._reading, daemon=True).start()
+
+    def _crashed(self, _params):
+        """Every call waiting failed at once, as the crashed page answers none of them."""
+        for ident in list(self.waiting):
+            waiter = self.waiting.pop(ident, None)
+            if waiter is not None:
+                waiter.put({"error": {"message": "the page crashed"}})
 
     def _read(self, count):
         while len(self.rest) < count:

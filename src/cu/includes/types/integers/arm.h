@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -12,11 +12,11 @@
  *
  * @note Every engine returns the same counts. Where two disagree one of them has a defect, and
  *       nothing about the difference is a tradeoff. This is the same contract OriorEngine
- *       carries for the search kernel and it is kept for the same reason.
+ *       carries for the search kernel and it is retained for the same reason.
  * @note The portable arm is the reference. It is always present, uses no intrinsic and no compiler
  *       extension, and every other arm is graded against it on the same data.
  * @note An arm reports itself absent at run time where the machine cannot run it. A build that
- *       compiled an AVX2 arm still has to ask the processor before calling it, since the build
+ *       compiled an AVX2 arm still has to query the processor before calling it, since the build
  *       machine and the running machine are not the same machine.
  */
 #ifndef ORIOR_EXACT_ARM_H
@@ -31,7 +31,7 @@ extern "C"
 #endif
 
     /**
-     * @brief One implementation of the operations a measure asks of an exact integer.
+     * @brief One implementation of the operations a measure requires of an exact integer.
      *
      * @note `equal` and `compare` are the two the measure spends its time in. `agreement` is offered
      *       whole because an arm may parallelize across positions instead of across limbs. The GPU arm
@@ -59,7 +59,7 @@ extern "C"
      * @brief The AVX2 arm, comparing eight limbs per instruction.
      *
      * @return A pointer to the arm, or NULL where this processor does not carry AVX2.
-     * @note Asks the processor instead of trusting the build. A binary compiled with AVX2 available
+     * @note Queries the processor instead of trusting the build. A binary compiled with AVX2 available
      *       runs on machines that do not have it, and calling in would raise an illegal instruction.
      */
     const OriorExactArm *orior_exact_avx2_arm(void);
@@ -74,7 +74,7 @@ extern "C"
      * @return A pointer to the arm, or NULL where this processor lacks AVX-512F and AVX-512BW.
      * @note Never run. No machine in this project carries AVX-512. This arm is graded on the
      *       instructions it emits and not on any answer it produced. It calls itself avx512-unrun, which
-     *       keeps a row of results from showing it beside a run arm with the difference invisible.
+     *       prevents a row of results from showing it beside a run arm with the difference invisible.
      */
     const OriorExactArm *orior_exact_avx512_arm(void);
 

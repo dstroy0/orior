@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // profile.c: a profile run: the program started under the shim, here or by `ssh` on another machine, the shim given on
-// its input, each line it writes told as output or as the counts so far, and its end told
+// its input, each line it writes reported as output or as the counts so far, and its end reported
 #include "profile.h"
 #include "../servers/lsp.h"
 #include "../text/json_tree.h"
 #include "../toolchains/toolchains.h"
 
-// the profiles held at once, the one running and the one before it ending; the longest line read whole, and the bytes
+// the profiles open at once, the one running and the one before it ending; the longest line read whole, and the bytes
 // a line's cell is first taken with
 #define CLI_PROFILES 2u
 #define CLI_PROFILE_LINE (1u << 20u)
@@ -16,13 +16,13 @@
 // The start of the lines the shim writes its counts on
 #define CLI_PROFILE_MARK "\x1eorior-profile "
 
-// A profile: whether its place is taken, where it tells, its process and whether it still waits to be waited on, its
-// readers still reading, under the profiles' lock, the code the shim said the program ended with, and the cells its
-// words and the PATH it runs with are held in, taken with its place and given back with it
+// A profile: whether its place is taken, where it reports, its process and whether it still waits to be waited on, its
+// readers still reading, under the profiles' lock, the code the shim reported the program ended with, and the cells its
+// words and the PATH it runs with are allocated in, taken with its place and given back with it
 typedef struct
 {
     int taken;
-    CliTell tell;
+    CliJsonSink sink;
     CliSpawned spawned;
     int running;
     unsigned int going;
@@ -34,7 +34,7 @@ typedef struct
     char *path;
 } CliProfile;
 
-static CliCellsTally s_cells = CLI_CELLS_TALLY("cli_profile");
+static CellOwner s_cells = MMGR_CELL_OWNER("cli_profile");
 static CliProfile s_profiles[CLI_PROFILES];
 static CliProfile *s_running;
 static CliLock s_lock = CLI_LOCK_INIT;
@@ -43,8 +43,8 @@ static CliWake s_wake = CLI_WAKE_INIT;
 // a profile's cells given back, under the profiles' lock
 static void profile_cells_given(CliProfile *profile)
 {
-    cli_cell_given_by(&s_cells, profile->words);
-    cli_cell_given_by(&s_cells, profile->path);
+    g_cli_cells->persistent_buf_release(profile->words, &s_cells);
+    g_cli_cells->persistent_buf_release(profile->path, &s_cells);
     profile->words = NULL;
     profile->path = NULL;
 }
@@ -63,53 +63,53 @@ void cli_profile_stop(void)
     cli_lock_give(&s_lock);
 }
 
-// a line the program wrote told as output, to its errors where `error`, in a cell of the most its quoting takes, each
-// byte at most `\u` and four digits
-static void profile_output_told(CliProfile *profile, const char *line, unsigned long long size, int error)
+// a line the program wrote reported as output, to its errors where `error`, in a cell of the most its quoting takes,
+// each byte at most `\u` and four digits
+static void profile_output_emitted(CliProfile *profile, const char *line, unsigned long long size, int error)
 {
     const unsigned long long room = (size * 6ull) + 64ull;
-    char *const told = cli_cell_taken_by(&s_cells, room, "a profile's line told");
-    if (told == NULL)
+    char *const json_buf = g_cli_cells->persistent_buf_alloc(room, &s_cells);
+    if (json_buf == NULL)
     {
         return;
     }
-    CliLine out = {told, room, 0ull};
-    cli_line_text(&out, "{\"kind\":\"output\",\"text\":");
+    VerbaLinea out = {json_buf, room, 0ull};
+    mmgr_line_put(&out, "{\"kind\":\"output\",\"text\":");
     cli_json_quoted_lossy(&out, (const unsigned char *)line, size);
-    cli_line_text(&out, error ? ",\"error\":true}" : ",\"error\":false}");
-    if (cli_line_fits(&out))
+    mmgr_line_put(&out, error ? ",\"error\":true}" : ",\"error\":false}");
+    if (mmgr_line_ok(&out))
     {
-        profile->tell.told(profile->tell.context, out.out, out.at);
+        profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    cli_cell_given_by(&s_cells, told);
+    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
 }
 
-// a line of the program's output heard: the counts so far where it starts with the mark, the code the program ended
-// with kept where the counts say it is done, and any other line told as output
+// a line of the program's output received: the counts so far where it starts with the mark, the code the program ended
+// with recorded where the counts report it is done, and any other line reported as output
 static void profile_line(CliProfile *profile, const char *line, unsigned long long size)
 {
     const unsigned long long mark = sizeof(CLI_PROFILE_MARK) - 1ull;
     if ((size < mark) || (memor.cmp(&(MemoriaCfg){.src = line, .other = CLI_PROFILE_MARK, .bytes = mark}) != 0))
     {
-        profile_output_told(profile, line, size, 0);
+        profile_output_emitted(profile, line, size, 0);
         return;
     }
     const char *const json = line + mark;
     const unsigned long long length = size - mark;
     // the counts compacted are no longer than they are written
     const unsigned long long room = length + 64ull;
-    char *const told = cli_cell_taken_by(&s_cells, room, "a profile's counts told");
-    if (told == NULL)
+    char *const json_buf = g_cli_cells->persistent_buf_alloc(room, &s_cells);
+    if (json_buf == NULL)
     {
         return;
     }
-    CliLine out = {told, room, 0ull};
-    cli_line_text(&out, "{\"kind\":\"counts\",\"counts\":");
+    VerbaLinea out = {json_buf, room, 0ull};
+    mmgr_line_put(&out, "{\"kind\":\"counts\",\"counts\":");
     if (!cli_utf8_whole(json, length) || !cli_json_compacted(json, length, &out))
     {
-        cli_line_text(&out, "null");
+        mmgr_line_put(&out, "null");
     }
-    cli_line_character(&out, '}');
+    mmgr_line_ch(&out, '}');
     unsigned long long at = 0ull;
     unsigned long long done_size = 0ull;
     if (cli_lsp_member(json, length, "done", &at, &done_size) && (done_size == 4ull) &&
@@ -130,17 +130,17 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
         profile->code = negative ? -code : code;
         cli_lock_give(&s_lock);
     }
-    if (cli_line_fits(&out))
+    if (mmgr_line_ok(&out))
     {
-        profile->tell.told(profile->tell.context, out.out, out.at);
+        profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    cli_cell_given_by(&s_cells, told);
+    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
 }
 
 // the lines of a pipe read until it ends, each in a cell grown as it fills, handed on with its "\r" before "\n" taken
 // off, a line longer than CLI_PROFILE_LINE, or than the cell could be grown to, handed on in pieces of that length
 static void profile_lines(CliProfile *profile, unsigned long long pipe,
-                          void (*heard)(CliProfile *profile, const char *line, unsigned long long size))
+                          void (*each_line)(CliProfile *profile, const char *line, unsigned long long size))
 {
     char *line = NULL;
     unsigned long long room = 0ull;
@@ -159,19 +159,19 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
             {
                 const unsigned long long doubled = (room == 0ull) ? CLI_PROFILE_LINE_FIRST : (2ull * room);
                 const unsigned long long wanted = (doubled < CLI_PROFILE_LINE) ? doubled : CLI_PROFILE_LINE;
-                char *const grown = cli_cell_taken_by(&s_cells, wanted, "a line a profile reads");
+                char *const grown = g_cli_cells->persistent_buf_alloc(wanted, &s_cells);
                 if (grown != NULL)
                 {
                     memor.cpy(&(MemoriaCfg){.dst = grown, .src = line, .bytes = (size_t)used});
-                    cli_cell_given_by(&s_cells, line);
+                    g_cli_cells->persistent_buf_release(line, &s_cells);
                     line = grown;
                     room = wanted;
                 }
             }
             if ((piece[at] == '\n') || ((used == room) && (used > 0ull)))
             {
-                heard(profile, line,
-                      ((piece[at] == '\n') && (used > 0ull) && (line[used - 1ull] == '\r')) ? used - 1ull : used);
+                each_line(profile, line,
+                          ((piece[at] == '\n') && (used > 0ull) && (line[used - 1ull] == '\r')) ? used - 1ull : used);
                 used = 0ull;
             }
             if ((piece[at] != '\n') && (used < room))
@@ -183,18 +183,18 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
     }
     if (used > 0ull)
     {
-        heard(profile, line, used);
+        each_line(profile, line, used);
     }
-    cli_cell_given_by(&s_cells, line);
+    g_cli_cells->persistent_buf_release(line, &s_cells);
 }
 
-// a line the program wrote to its errors told as output
+// a line the program wrote to its errors reported as output
 static void profile_error_line(CliProfile *profile, const char *line, unsigned long long size)
 {
-    profile_output_told(profile, line, size, 1);
+    profile_output_emitted(profile, line, size, 1);
 }
 
-// a reader's end: told to the profile, and its place given back with the last
+// a reader's end: reported to the profile, and its place given back with the last
 static void profile_reader_ended(CliProfile *profile)
 {
     cli_lock_take(&s_lock);
@@ -218,7 +218,7 @@ static void profile_errors_read(void *context)
 }
 
 // what the program writes read until it ends, then its errors waited for, its process waited on where it was not
-// stopped, and its end told: the code it ended with, and that it ended, ended with another code, or was stopped
+// stopped, and its end reported: the code it ended with, and that it ended, ended with another code, or was stopped
 static void profile_output_read(void *context)
 {
     CliProfile *const profile = (CliProfile *)context;
@@ -240,38 +240,38 @@ static void profile_output_read(void *context)
     const long long code = profile->has_code ? profile->code : status;
     cli_lock_give(&s_lock);
     char done[256];
-    CliLine out = {done, sizeof(done), 0ull};
-    cli_line_text(&out, "{\"kind\":\"done\",\"code\":");
+    VerbaLinea out = {done, sizeof(done), 0ull};
+    mmgr_line_put(&out, "{\"kind\":\"done\",\"code\":");
     if (has_code)
     {
-        cli_line_signed(&out, code);
+        mmgr_line_decimal_signed(&out, code);
     }
     else
     {
-        cli_line_text(&out, "null");
+        mmgr_line_put(&out, "null");
     }
-    cli_line_text(&out, ",\"said\":\"");
+    mmgr_line_put(&out, ",\"message\":\"");
     if (!has_code)
     {
-        cli_line_text(&out, "The run was stopped.");
+        mmgr_line_put(&out, "The run was stopped.");
     }
     else if (code == 0ll)
     {
-        cli_line_text(&out, "The run ended.");
+        mmgr_line_put(&out, "The run ended.");
     }
     else
     {
-        cli_line_text(&out, "The run ended with exit code ");
-        cli_line_signed(&out, code);
-        cli_line_character(&out, '.');
+        mmgr_line_put(&out, "The run ended with exit code ");
+        mmgr_line_decimal_signed(&out, code);
+        mmgr_line_ch(&out, '.');
     }
-    cli_line_text(&out, "\"}");
-    profile->tell.told(profile->tell.context, out.out, out.at);
+    mmgr_line_put(&out, "\"}");
+    profile->sink.emit(profile->sink.context, out.out, out.at);
     profile_reader_ended(profile);
 }
 
 // a profile's place taken once one is free, made empty
-static CliProfile *profile_taken(CliTell tell)
+static CliProfile *profile_taken(CliJsonSink sink)
 {
     cli_lock_take(&s_lock);
     CliProfile *profile = NULL;
@@ -287,13 +287,13 @@ static CliProfile *profile_taken(CliTell tell)
         }
     }
     profile->taken = 1;
-    profile->tell = tell;
+    profile->sink = sink;
     profile->running = 0;
     profile->going = 0u;
     profile->has_code = 0;
     profile->code = 0ll;
     memor.set(&(MemoriaCfg){.dst = &profile->spawned, .val = 0, .bytes = sizeof(profile->spawned)});
-    profile->words = cli_cell_taken_by(&s_cells, sizeof(*profile->words), "a profile's words");
+    profile->words = g_cli_cells->persistent_buf_alloc(sizeof(*profile->words), &s_cells);
     profile->path = NULL;
     cli_lock_give(&s_lock);
     if (profile->words != NULL)
@@ -316,18 +316,18 @@ static void profile_let_go(CliProfile *profile)
 }
 
 // a text written as one word of a shell, in single quotes, each quote of it closed, escaped and opened again
-static void profile_quoted(CliLine *out, const char *text)
+static void profile_quoted(VerbaLinea *out, const char *text)
 {
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
     for (const char *letter = text; *letter != '\0'; letter += 1)
     {
-        cli_line_text(out, (*letter == '\'') ? "'\\''" : "");
-        cli_line_counted(out, letter, (*letter == '\'') ? 0ull : 1ull);
+        mmgr_line_put(out, (*letter == '\'') ? "'\\''" : "");
+        mmgr_line_put_n(out, letter, (*letter == '\'') ? 0ull : 1ull);
     }
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
 }
 
-int cli_profile_start(const char *root, const char *file, const char *remote, CliTell tell, CliLine *said)
+int cli_profile_start(const char *root, const char *file, const char *remote, CliJsonSink sink, VerbaLinea *err_msg)
 {
     cli_profile_stop();
     const char *trimmed = (remote != NULL) ? remote : "";
@@ -340,42 +340,42 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
         far ? cellul.chr(&(CatenaFinitaCfg){.src = remote, .cap = CLI_CELLS_POOL, .byte = ':'}) : NULL;
     if (far && (colon == NULL))
     {
-        cli_line_text(said, remote);
-        cli_line_text(said, " names no folder: user@host:folder");
+        mmgr_line_put(err_msg, remote);
+        mmgr_line_put(err_msg, " names no folder: user@host:folder");
         return 0;
     }
-    char python[CLI_PATH_LONGEST];
+    char python[CLI_PATH_MAX_LEN];
     if (!far && !cli_test_python(python))
     {
-        cli_line_text(said, "no Python is found: File, Toolchains takes its folder");
+        mmgr_line_put(err_msg, "no Python is found: File, Toolchains takes its folder");
         return 0;
     }
-    CliProfile *const profile = profile_taken(tell);
+    CliProfile *const profile = profile_taken(sink);
     // the PATH a program here runs with, as long as the system lets an environment's value be
     profile->path =
-        ((profile->words != NULL) && !far) ? cli_cell_taken_by(&s_cells, CLI_PATH_TEXT, "a profile's PATH") : NULL;
+        ((profile->words != NULL) && !far) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &s_cells) : NULL;
     if ((profile->words == NULL) || (!far && (profile->path == NULL)))
     {
         profile_let_go(profile);
-        cli_line_text(said, "the cells a profile is run in could not be taken");
+        mmgr_line_put(err_msg, "the cells a profile is run in could not be taken");
         return 0;
     }
-    char host[CLI_PATH_LONGEST];
-    char shell[CLI_PATH_LONGEST * 3u];
-    char full[CLI_PATH_LONGEST];
+    char host[CLI_PATH_MAX_LEN];
+    char shell[CLI_PATH_MAX_LEN * 3u];
+    char full[CLI_PATH_MAX_LEN];
     unsigned int settings_count = 1u;
     CliSetting settings[2] = {{"PYTHONUNBUFFERED", "1"}, {"PATH", profile->path}};
     if (far)
     {
-        CliLine host_line = {host, sizeof(host), 0ull};
-        cli_line_counted(&host_line, remote, (unsigned long long)(colon - remote));
-        cli_line_closed(&host_line);
-        CliLine shell_line = {shell, sizeof(shell), 0ull};
-        cli_line_text(&shell_line, "cd ");
+        VerbaLinea host_line = {host, sizeof(host), 0ull};
+        mmgr_line_put_n(&host_line, remote, (unsigned long long)(colon - remote));
+        mmgr_line_finish(&host_line);
+        VerbaLinea shell_line = {shell, sizeof(shell), 0ull};
+        mmgr_line_put(&shell_line, "cd ");
         profile_quoted(&shell_line, colon + 1);
-        cli_line_text(&shell_line, " && exec python3 - - ");
+        mmgr_line_put(&shell_line, " && exec python3 - - ");
         profile_quoted(&shell_line, file);
-        cli_line_closed(&shell_line);
+        mmgr_line_finish(&shell_line);
         const char *const words[5] = {"ssh", "-o", "BatchMode=yes", host, shell};
         for (unsigned int at = 0u; at < 5u; at += 1u)
         {
@@ -393,7 +393,8 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
             cli_words_put(profile->words, words[at]);
         }
     }
-    if (!cli_spawn_fed(&profile->spawned, profile->words->word, far ? NULL : root, settings, settings_count, 1, said))
+    if (!cli_spawn_fed(&profile->spawned, profile->words->word, far ? NULL : root, settings, settings_count, 1,
+                       err_msg))
     {
         profile_let_go(profile);
         return 0;
@@ -409,7 +410,7 @@ int cli_profile_start(const char *root, const char *file, const char *remote, Cl
     cli_lock_give(&s_lock);
     if (!given)
     {
-        cli_line_text(said, "the shim could not be given to Python");
+        mmgr_line_put(err_msg, "the shim could not be given to Python");
         cli_profile_stop();
     }
     profile->error_thread = (CliThread){profile_errors_read, profile};

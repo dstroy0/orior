@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kdm.h: a part's .kdm (kdm.oracle.tsv), a k-file people read and write (kfile_lines.h): its first line `kdm <part>`, then
-// its own section, the comments, the head of its rows and the rows, every arrangement of primitives that produces an
-// operator and what it costs the part, a row each, its fields apart by tabs; and after its last row, its tail: the
+// kdm.h: a part's .kdm (kdm.oracle.tsv), a k-file people read and write (kfile_lines.h): its first line `kdm <part>`,
+// then its own section, the comments, the head of its rows and the rows, every arrangement of primitives that produces
+// an operator and what it costs the part, a row each, its fields apart by tabs; and after its last row, its tail: the
 // part's registers, widths, loads and stores in a block of the ruleset's language, `__krs__(` to `)__krs__` (klang.h),
 // which the ruleset reader reads, its pipes, and their comments.
 //
 // A program that writes the rows writes the whole section, after a who line of its own; the tail stands as the file
-// held it, the who that was in force over it written again before it. A program that writes the pipes writes them at
+// stored it, the who that was in force over it written again before it. A program that writes the pipes writes them at
 // the end of the tail, after a who line of its own, and the pipes before them are let go.
 #ifndef KDM_H
 #define KDM_H
@@ -45,23 +45,23 @@ extern "C"
         int verdict;
     } KdmRow;
 
-    // the .kdm at `path` read into `file` as the run holds it (kfile_lines_read): 1, and none of its lines where there is no
-    // such file; 0 where there was no memory for a line
+    // the .kdm at `path` read into `file` as the run stores it (kfile_lines_read): 1, and none of its lines where there
+    // is no such file; 0 where there was no memory for a line
     int kdm_read(KdmFile *file, const char *path);
 
     // `file` handed to the run's writer as the file at `path`, written by `who` (kfile_lines_write_by): 1, or 0 where it
     // could not be written
     int kdm_write_by(const KdmFile *file, const char *path, Who who);
 
-    // every line `file` holds let go, and the file zeros again
+    // every line `file` contains let go, and the file zeros again
     void kdm_free(KdmFile *file);
 
     // 1 with the row `line` is in `row`, five fields apart by tabs or six with a descent's verdict, and the operator no
     // comment; 0 otherwise
     int kdm_row_read(const char *line, KdmRow *row);
 
-    // the line the file's tail starts at, the one after its last row, or after the head of its rows where it holds
-    // none, or its count of lines where it holds no head
+    // the line the file's tail starts at, the one after its last row, or after the head of its rows where it has
+    // none, or its count of lines where it has no head
     unsigned int kdm_tail_at(const KdmFile *file);
 
     // The file's section, every line from its second to its tail, replaced by `lines`, `count` of them, written by

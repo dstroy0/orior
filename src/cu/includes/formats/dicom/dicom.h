@@ -25,7 +25,7 @@ extern "C"
     long long dicom_read(const EngineArrayRead *request);
 
     // the `want` decimals of element (group, tag) in one leaf of a crystal's side bytes; `found` is 0 where the
-    // leaf does not hold it. Returns 0 only on an error
+    // leaf does not contain it. Returns 0 only on an error
     int dicom_side_decimal_list(const EngineSideBytes *side, unsigned long long leaf, unsigned int group,
                                 unsigned int tag, unsigned int want, DicomDecimal *out, unsigned int *found,
                                 EngineError *error);

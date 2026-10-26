@@ -364,12 +364,11 @@ int adversarial_case_stop_equals_continue(void)
         printf("    FAIL descent count %zu against reference %zu\n", shallow_count, reference);
         failed = 1;
     }
-    for (size_t slot = 0u; slot < stopped; slot += 1u)
+    for (size_t at = 0u; at < stopped; at += 1u)
     {
-        if (shallow[slot] != deep[slot])
+        if (shallow[at] != deep[at])
         {
-            printf("    FAIL induction: probe %zu is offset %zu stopped and %zu forced\n", slot, shallow[slot],
-                   deep[slot]);
+            printf("    FAIL induction: probe %zu is offset %zu stopped and %zu forced\n", at, shallow[at], deep[at]);
             failed = 1;
         }
     }

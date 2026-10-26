@@ -583,7 +583,7 @@ bears on the zeros of `Z` or on the hypothesis.
 
 ## Entry 9, 2026-10-03: Turing's method, run as a machine over the record machine's automata
 
-`examples/0_experimental/exact_zeta_held.cu`, one binary built by `exact_zeta_held.sh`: every stage a
+`examples/0_experimental/exact_zeta_scaled.cu`, one binary built by `exact_zeta_held.sh`: every stage a
 program of the record machine, run on the device as one job of its tessera daemon.
 
 **The claim.** Every zero of zeta with ordinate in `(T_a, T_e]` lies on the critical line and is simple:
@@ -838,7 +838,7 @@ claims nothing about the hypothesis.
 
 ## Entry 14: the zeros below cell 10's point a, by Euler-Maclaurin on the device
 
-`examples/0_experimental/exact_zeta_held.cu` from cell 1: cells 1 to 9 by Euler-Maclaurin, in entry 9's
+`examples/0_experimental/exact_zeta_scaled.cu` from cell 1: cells 1 to 9 by Euler-Maclaurin, in entry 9's
 binary and on its lattice.
 
 **The claim.** Every zero of zeta with ordinate in `(0, T_a]` lies on the critical line and is simple:

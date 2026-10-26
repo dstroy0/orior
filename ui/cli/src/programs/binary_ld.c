@@ -13,7 +13,7 @@ typedef struct
 {
     const char *head;
     const char *tail;
-    char names[64][CLI_NAME_LONGEST];
+    char names[64][CLI_NAME_MAX_LEN];
     unsigned int count;
 } CliIncluded;
 
@@ -46,7 +46,7 @@ static void cli_included_each(void *context, const char *name, int is_folder)
 
 // The folders a file of the loader's settings names, those of the files it includes among them, four includes deep at
 // most, put into `folders` after `count`: the count after
-static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_LONGEST], unsigned int count,
+static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_MAX_LEN], unsigned int count,
                                 unsigned int depth)
 {
     static char s_text[5][CLI_LD_CONF_BYTES];
@@ -106,7 +106,7 @@ static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_LONGE
         {
             from += 1;
         }
-        char folder[CLI_PATH_LONGEST];
+        char folder[CLI_PATH_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = folder,
                                 .src = from,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}) + 1u});
@@ -117,7 +117,7 @@ static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_LONGE
             continue;
         }
         slash[0] = '\0';
-        char name[CLI_NAME_LONGEST];
+        char name[CLI_NAME_MAX_LEN];
         memor.cpy(&(MemoriaCfg){.dst = name,
                                 .src = slash + 1,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = slash + 1, .cap = CLI_CELLS_POOL}) + 1u});
@@ -133,12 +133,12 @@ static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_LONGE
         query_folder_each((folder[0] != '\0') ? folder : "/", cli_included_each, included);
         for (unsigned int at = 0u; (depth < 4u) && (at < included->count); at += 1u)
         {
-            char file[CLI_PATH_LONGEST];
-            CliLine joined = {file, sizeof(file), 0ull};
-            cli_line_text(&joined, folder);
-            cli_line_character(&joined, '/');
-            cli_line_text(&joined, included->names[at]);
-            if (cli_line_closed(&joined) != 0ull)
+            char file[CLI_PATH_MAX_LEN];
+            VerbaLinea joined = {file, sizeof(file), 0ull};
+            mmgr_line_put(&joined, folder);
+            mmgr_line_ch(&joined, '/');
+            mmgr_line_put(&joined, included->names[at]);
+            if (mmgr_line_finish(&joined) != 0ull)
             {
                 count = cli_ld_conf(file, folders, count, depth + 1u);
             }
@@ -147,7 +147,7 @@ static unsigned int cli_ld_conf(const char *path, char (*folders)[CLI_PATH_LONGE
     return count;
 }
 
-unsigned int cli_binary_linux_folders(char (*folders)[CLI_PATH_LONGEST])
+unsigned int cli_binary_linux_folders(char (*folders)[CLI_PATH_MAX_LEN])
 {
     static const char *const s_system[8] = {"/lib64",
                                             "/usr/lib64",

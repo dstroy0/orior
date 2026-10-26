@@ -5,22 +5,22 @@
 
 void cli_page_beside(const char *path, const char *ending, char *beside)
 {
-    char parent[CLI_PATH_LONGEST];
+    char parent[CLI_PATH_MAX_LEN];
     const char *name = path;
     for (const char *at = path; at[0] != '\0'; at += 1)
     {
         name = ((at[0] == '/') || (at[0] == '\\')) ? (at + 1) : name;
     }
-    CliLine line = {beside, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {beside, CLI_PATH_MAX_LEN, 0ull};
     if (cli_path_parent(path, parent))
     {
-        cli_line_text(&line, parent);
-        cli_line_character(&line, '/');
+        mmgr_line_put(&line, parent);
+        mmgr_line_ch(&line, '/');
     }
-    cli_line_character(&line, '.');
-    cli_line_text(&line, name);
-    cli_line_text(&line, ending);
-    cli_line_closed(&line);
+    mmgr_line_ch(&line, '.');
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, ending);
+    mmgr_line_finish(&line);
 }
 
 unsigned long long cli_page_written_at(const CliPaged *one, const CliPagePiece *piece, unsigned long long line)
@@ -30,7 +30,7 @@ unsigned long long cli_page_written_at(const CliPaged *one, const CliPagePiece *
         return piece->to;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(one->shadow, &size);
+    const unsigned char *const bytes = cli_file_read(one->shadow, &size);
     const unsigned long long end = ((bytes != NULL) && (piece->to < size)) ? piece->to : size;
     unsigned long long at = piece->from;
     for (unsigned long long passed = 0ull; (bytes != NULL) && (passed < line) && (at < end); passed += 1ull)

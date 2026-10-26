@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_py_write.c: a docstring drawn up for the Python function at or around a line, in Google's, NumPy's or
-// reStructuredText's form or a summary line alone, from what the function says of itself: its parameters with their
+// reStructuredText's form or a summary line alone, from what the function declares of itself: its parameters with their
 // annotations, what it gives back, whether it yields, and what it raises
 #include "../text/json_tree.h"
 #include "inspect_py.h"
@@ -9,12 +9,12 @@
 // the most parameters and raised names a function's docstring names
 #define CLI_PY_PARAMS 256u
 
-// What a function says of itself for its docstring: its parameters, each its name with its stars and its
+// What a function declares of itself for its docstring: its parameters, each its name with its stars and its
 // annotation where it has one, what it gives back where its header names it, whether it gives anything, whether it
 // yields, and what it raises, each a part of the source
 typedef struct
 {
-    char param[CLI_PY_PARAMS][CLI_NAME_LONGEST];
+    char param[CLI_PY_PARAMS][CLI_NAME_MAX_LEN];
     unsigned long long annotation_start[CLI_PY_PARAMS];
     unsigned long long annotation_end[CLI_PY_PARAMS];
     int annotated[CLI_PY_PARAMS];
@@ -24,13 +24,13 @@ typedef struct
     int has_returns;
     int gives;
     int yields;
-    char raised[CLI_PY_PARAMS][CLI_NAME_LONGEST];
+    char raised[CLI_PY_PARAMS][CLI_NAME_MAX_LEN];
     unsigned int raises;
 } PySignature;
 
 static PySignature s_sign;
 
-// the function whose header or block holds `line`, the innermost: its line's index, or g_cli_py_lines for none
+// the function whose header or block contains `line`, the innermost: its line's index, or g_cli_py_lines for none
 static unsigned int write_function_around(const char *src, unsigned int line, const char *head)
 {
     unsigned int found = g_cli_py_lines;
@@ -50,16 +50,16 @@ static unsigned int write_function_around(const char *src, unsigned int line, co
     return found;
 }
 
-// one parameter of a header, its tokens from `first` to `end` among the line's, kept in the signature
+// one parameter of a header, its tokens from `first` to `end` among the line's, recorded in the signature
 static void write_parameter(const char *src, const CliPyLine *header, unsigned int first, unsigned int end, int index)
 {
     char stars[8];
-    CliLine starred = {stars, sizeof(stars), 0ull};
+    VerbaLinea starred = {stars, sizeof(stars), 0ull};
     unsigned int at = first;
     while ((at < end) && (cli_py_is(src, cli_py_tok(header, at), "*") || cli_py_is(src, cli_py_tok(header, at), "**")))
     {
         const CliInspectTok *const star = cli_py_tok(header, at);
-        cli_line_counted(&starred, src + star->start, star->end - star->start);
+        mmgr_line_put_n(&starred, src + star->start, star->end - star->start);
         at += 1u;
     }
     unsigned int name_at = end;
@@ -76,10 +76,10 @@ static void write_parameter(const char *src, const CliPyLine *header, unsigned i
     {
         return;
     }
-    CliLine param = {s_sign.param[s_sign.params], CLI_NAME_LONGEST, 0ull};
-    cli_line_counted(&param, stars, starred.at);
-    cli_line_counted(&param, src + name->start, name->end - name->start);
-    cli_line_closed(&param);
+    VerbaLinea param = {s_sign.param[s_sign.params], CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put_n(&param, stars, starred.at);
+    mmgr_line_put_n(&param, src + name->start, name->end - name->start);
+    mmgr_line_finish(&param);
     unsigned int colon = end;
     unsigned int equal = end;
     for (unsigned int part = first; part < end; part += 1u)
@@ -97,7 +97,7 @@ static void write_parameter(const char *src, const CliPyLine *header, unsigned i
     s_sign.params += 1u;
 }
 
-// the parameters and what a function's header says it gives back
+// the parameters and what a function's header declares it gives back
 static void write_header(const char *src, const CliPyLine *header)
 {
     unsigned int open = 0u;
@@ -159,7 +159,7 @@ static void write_header(const char *src, const CliPyLine *header)
     }
 }
 
-// what the function whose header is the line at `at` says of itself, into s_sign
+// what the function whose header is the line at `at` declares of itself, into s_sign
 static void write_signature(const char *src, unsigned int at)
 {
     memor.set(&(MemoriaCfg){.dst = &s_sign, .val = 0, .bytes = sizeof(s_sign)});
@@ -183,10 +183,10 @@ static void write_signature(const char *src, unsigned int at)
         {
             s_sign.gives = 1;
         }
-        s_sign.yields = s_sign.yields || cli_py_holds(src, &g_cli_inspect_tok[line->first], line->count, "yield");
+        s_sign.yields = s_sign.yields || cli_py_contains(src, &g_cli_inspect_tok[line->first], line->count, "yield");
         if (cli_py_is(src, first, "raise") && (line->count > 1u) && (s_sign.raises < CLI_PY_PARAMS))
         {
-            CliLine raised = {s_sign.raised[s_sign.raises], CLI_NAME_LONGEST, 0ull};
+            VerbaLinea raised = {s_sign.raised[s_sign.raises], CLI_NAME_MAX_LEN, 0ull};
             for (unsigned int part = 1u; part < line->count; part += 1u)
             {
                 const CliInspectTok *const word = cli_py_tok(line, part);
@@ -194,9 +194,9 @@ static void write_signature(const char *src, unsigned int at)
                 {
                     break;
                 }
-                cli_line_counted(&raised, src + word->start, word->end - word->start);
+                mmgr_line_put_n(&raised, src + word->start, word->end - word->start);
             }
-            int known = (cli_line_closed(&raised) == 0ull) || (raised.at == 0u);
+            int known = (mmgr_line_finish(&raised) == 0ull) || (raised.at == 0u);
             for (unsigned int one = 0u; !known && (one < s_sign.raises); one += 1u)
             {
                 known = (cellul.eq(&(CatenaFinitaCfg){
@@ -212,13 +212,13 @@ static void write_signature(const char *src, unsigned int at)
 
 // the lines of the docstring being drawn up, each its start and length in their pool, and how many there are
 static char s_pool[1u << 18u];
-static CliLine s_pool_line;
+static VerbaLinea s_pool_line;
 static unsigned long long s_line_start[CLI_PY_PARAMS * 4u];
 static unsigned long long s_line_size[CLI_PY_PARAMS * 4u];
 static unsigned int s_lines;
 
 // the docstring's next line begun in the pool
-static CliLine *write_line(void)
+static VerbaLinea *write_line(void)
 {
     if (s_lines < CLI_PY_PARAMS * 4u)
     {
@@ -238,7 +238,7 @@ static void write_line_done(void)
 // a line of `text` put on the docstring
 static void write_text_line(const char *text)
 {
-    cli_line_text(write_line(), text);
+    mmgr_line_put(write_line(), text);
     write_line_done();
 }
 
@@ -249,24 +249,24 @@ static void write_section(const char *form, const char *title)
     if (cellul.eq(&(CatenaFinitaCfg){.src = form, .other = "numpy", .cap = CLI_CELLS_POOL}))
     {
         write_text_line(title);
-        CliLine *const line = write_line();
+        VerbaLinea *const line = write_line();
         for (size_t at = 0u; at < cellul.len(&(CatenaFinitaCfg){.src = title, .cap = CLI_CELLS_POOL}); at += 1u)
         {
-            cli_line_character(line, '-');
+            mmgr_line_ch(line, '-');
         }
         write_line_done();
         return;
     }
-    CliLine *const line = write_line();
-    cli_line_text(line, title);
-    cli_line_character(line, ':');
+    VerbaLinea *const line = write_line();
+    mmgr_line_put(line, title);
+    mmgr_line_ch(line, ':');
     write_line_done();
 }
 
 // a part of the source put on the docstring's line
 static void write_part(const char *src, unsigned long long start, unsigned long long end)
 {
-    cli_line_counted(&s_pool_line, src + start, end - start);
+    mmgr_line_put_n(&s_pool_line, src + start, end - start);
 }
 
 // the fields of reStructuredText's form put on the docstring
@@ -278,15 +278,15 @@ static void write_rest(const char *src)
     }
     for (unsigned int at = 0u; at < s_sign.params; at += 1u)
     {
-        cli_line_text(write_line(), ":param ");
-        cli_line_text(&s_pool_line, s_sign.param[at]);
-        cli_line_character(&s_pool_line, ':');
+        mmgr_line_put(write_line(), ":param ");
+        mmgr_line_put(&s_pool_line, s_sign.param[at]);
+        mmgr_line_ch(&s_pool_line, ':');
         write_line_done();
         if (s_sign.annotated[at])
         {
-            cli_line_text(write_line(), ":type ");
-            cli_line_text(&s_pool_line, s_sign.param[at]);
-            cli_line_text(&s_pool_line, ": ");
+            mmgr_line_put(write_line(), ":type ");
+            mmgr_line_put(&s_pool_line, s_sign.param[at]);
+            mmgr_line_put(&s_pool_line, ": ");
             write_part(src, s_sign.annotation_start[at], s_sign.annotation_end[at]);
             write_line_done();
         }
@@ -296,16 +296,16 @@ static void write_rest(const char *src)
         write_text_line(s_sign.yields ? ":yield:" : ":return:");
         if (s_sign.has_returns)
         {
-            cli_line_text(write_line(), ":rtype: ");
+            mmgr_line_put(write_line(), ":rtype: ");
             write_part(src, s_sign.returns_start, s_sign.returns_end);
             write_line_done();
         }
     }
     for (unsigned int at = 0u; at < s_sign.raises; at += 1u)
     {
-        cli_line_text(write_line(), ":raises ");
-        cli_line_text(&s_pool_line, s_sign.raised[at]);
-        cli_line_character(&s_pool_line, ':');
+        mmgr_line_put(write_line(), ":raises ");
+        mmgr_line_put(&s_pool_line, s_sign.raised[at]);
+        mmgr_line_ch(&s_pool_line, ':');
         write_line_done();
     }
 }
@@ -319,28 +319,28 @@ static void write_sections(const char *src, const char *form)
         write_section(form, numpy ? "Parameters" : "Args");
         for (unsigned int at = 0u; at < s_sign.params; at += 1u)
         {
-            CliLine *const line = write_line();
-            cli_line_text(line, numpy ? "" : "    ");
-            cli_line_text(line, s_sign.param[at]);
+            VerbaLinea *const line = write_line();
+            mmgr_line_put(line, numpy ? "" : "    ");
+            mmgr_line_put(line, s_sign.param[at]);
             if (s_sign.annotated[at])
             {
-                cli_line_text(line, numpy ? " : " : " (");
+                mmgr_line_put(line, numpy ? " : " : " (");
                 write_part(src, s_sign.annotation_start[at], s_sign.annotation_end[at]);
-                cli_line_text(line, numpy ? "" : ")");
+                mmgr_line_put(line, numpy ? "" : ")");
             }
-            cli_line_text(line, numpy ? "" : ":");
+            mmgr_line_put(line, numpy ? "" : ":");
             write_line_done();
         }
     }
     if (s_sign.gives || s_sign.yields)
     {
         write_section(form, s_sign.yields ? "Yields" : "Returns");
-        CliLine *const line = write_line();
+        VerbaLinea *const line = write_line();
         if (s_sign.has_returns)
         {
-            cli_line_text(line, numpy ? "" : "    ");
+            mmgr_line_put(line, numpy ? "" : "    ");
             write_part(src, s_sign.returns_start, s_sign.returns_end);
-            cli_line_text(line, numpy ? "" : ":");
+            mmgr_line_put(line, numpy ? "" : ":");
         }
         write_line_done();
         if (s_line_size[s_lines - 1u] == 0u)
@@ -353,10 +353,10 @@ static void write_sections(const char *src, const char *form)
         write_section(form, "Raises");
         for (unsigned int at = 0u; at < s_sign.raises; at += 1u)
         {
-            CliLine *const line = write_line();
-            cli_line_text(line, numpy ? "" : "    ");
-            cli_line_text(line, s_sign.raised[at]);
-            cli_line_text(line, numpy ? "" : ":");
+            VerbaLinea *const line = write_line();
+            mmgr_line_put(line, numpy ? "" : "    ");
+            mmgr_line_put(line, s_sign.raised[at]);
+            mmgr_line_put(line, numpy ? "" : ":");
             write_line_done();
         }
     }
@@ -368,18 +368,18 @@ unsigned int cli_py_around(const char *src, unsigned int line, const char *head)
 }
 
 int cli_inspect_py_docstring(const char *src, unsigned long long size, unsigned int line, const char *form,
-                             CliInspectEdit *edit, CliLine *text, CliInspectPlace *summary, CliLine *said)
+                             CliInspectEdit *edit, VerbaLinea *text, CliInspectPlace *summary, VerbaLinea *err_msg)
 {
     cli_py_read(src, size);
     const unsigned int at = write_function_around(src, line, "def");
     if (at == g_cli_py_lines)
     {
-        cli_line_text(said, "Write Docstring writes one for the function the cursor is in.");
+        mmgr_line_put(err_msg, "Write Docstring writes one for the function the cursor is in.");
         return 0;
     }
     if (cli_py_block_end(at) <= at + 1u)
     {
-        cli_line_text(said, "The function's body stands on its header's line.");
+        mmgr_line_put(err_msg, "The function's body stands on its header's line.");
         return 0;
     }
     const CliPyLine *const first = &g_cli_py_line[at + 1u];
@@ -390,7 +390,7 @@ int cli_inspect_py_docstring(const char *src, unsigned long long size, unsigned 
     }
     if (documented)
     {
-        cli_line_text(said, "The function has a docstring.");
+        mmgr_line_put(err_msg, "The function has a docstring.");
         return 0;
     }
     write_signature(src, at);
@@ -413,7 +413,7 @@ int cli_inspect_py_docstring(const char *src, unsigned long long size, unsigned 
         indent += taken;
         units += (letter >= 0x10000u) ? 2u : 1u;
     }
-    s_pool_line = (CliLine){s_pool, sizeof(s_pool), 0ull};
+    s_pool_line = (VerbaLinea){s_pool, sizeof(s_pool), 0ull};
     s_lines = 0u;
     if (cellul.eq(&(CatenaFinitaCfg){.src = form, .other = "rest", .cap = CLI_CELLS_POOL}))
     {
@@ -423,26 +423,26 @@ int cli_inspect_py_docstring(const char *src, unsigned long long size, unsigned 
     {
         write_sections(src, form);
     }
-    cli_line_counted(text, src + body, indent - body);
-    cli_line_text(text, "\"\"\"");
+    mmgr_line_put_n(text, src + body, indent - body);
+    mmgr_line_put(text, "\"\"\"");
     if (s_lines == 0u)
     {
-        cli_line_text(text, "\"\"\"\n");
+        mmgr_line_put(text, "\"\"\"\n");
     }
     else
     {
-        cli_line_character(text, '\n');
+        mmgr_line_ch(text, '\n');
         for (unsigned int index = 0u; index < s_lines; index += 1u)
         {
             if (s_line_size[index] > 0u)
             {
-                cli_line_counted(text, src + body, indent - body);
-                cli_line_counted(text, s_pool + s_line_start[index], s_line_size[index]);
+                mmgr_line_put_n(text, src + body, indent - body);
+                mmgr_line_put_n(text, s_pool + s_line_start[index], s_line_size[index]);
             }
-            cli_line_character(text, '\n');
+            mmgr_line_ch(text, '\n');
         }
-        cli_line_counted(text, src + body, indent - body);
-        cli_line_text(text, "\"\"\"\n");
+        mmgr_line_put_n(text, src + body, indent - body);
+        mmgr_line_put(text, "\"\"\"\n");
     }
     const CliInspectPlace place = {header_end + 1u, 0u};
     *edit = (CliInspectEdit){place, place, {0u, 0u}};

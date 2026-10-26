@@ -1,20 +1,21 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// requests_head.c: the head of a request as it goes out, the head of its answer kept as it is read, the answer's body
+// requests_head.c: the head of a request as it goes out, the head of its answer stored as it is read, the answer's body
 // undone where it was packed, and whether that body is text
 #include "../command_line/cells.h"
 #include "../editor/archive.h"
 #include "../text/json_tree.h"
 #include "requests_internal.h"
 
-int cli_requests_head_kept(CliRequestsAnswer *answer, const char *text, unsigned long long size, CliRequestsText *kept)
+int cli_requests_head_stored(CliRequestsAnswer *answer, const char *text, unsigned long long size,
+                             CliRequestsText *text_span)
 {
     if (answer->head_used + size + 1u > sizeof(answer->head))
     {
         return 0;
     }
-    kept->at = answer->head_used;
-    kept->size = size;
+    text_span->at = answer->head_used;
+    text_span->size = size;
     memor.cpy(&(MemoriaCfg){.dst = answer->head + answer->head_used, .src = text, .bytes = (size_t)size});
     answer->head[answer->head_used + size] = '\0';
     answer->head_used += size + 1u;
@@ -39,8 +40,8 @@ int cli_requests_head_line(CliRequestsAnswer *answer, const char *line, unsigned
     cli_requests_trimmed(line, &name_start, &name_end);
     cli_requests_trimmed(line, &value_start, &value_end);
     const unsigned int at = answer->headers;
-    if (!cli_requests_head_kept(answer, line + name_start, name_end - name_start, &answer->header_name[at]) ||
-        !cli_requests_head_kept(answer, line + value_start, value_end - value_start, &answer->header_value[at]))
+    if (!cli_requests_head_stored(answer, line + name_start, name_end - name_start, &answer->header_name[at]) ||
+        !cli_requests_head_stored(answer, line + value_start, value_end - value_start, &answer->header_value[at]))
     {
         return 0;
     }
@@ -55,7 +56,7 @@ static int head_has(const CliRequestsSent *hop, const char *name)
     for (unsigned int at = 0u; at < hop->headers; at += 1u)
     {
         if ((cellul.len(&(CatenaFinitaCfg){.src = hop->header_name[at], .cap = CLI_CELLS_POOL}) == length) &&
-            cli_requests_holds(hop->header_name[at], length, name))
+            cli_requests_contains(hop->header_name[at], length, name))
         {
             return 1;
         }
@@ -64,43 +65,44 @@ static int head_has(const CliRequestsSent *hop, const char *name)
 }
 
 // a header written where the request names none of its name
-static void head_given(const CliRequestsSent *hop, const char *name, const char *lower, const char *value, CliLine *out)
+static void head_given(const CliRequestsSent *hop, const char *name, const char *lower, const char *value,
+                       VerbaLinea *out)
 {
     if (!head_has(hop, lower))
     {
-        cli_line_text(out, name);
-        cli_line_text(out, ": ");
-        cli_line_text(out, value);
-        cli_line_text(out, "\r\n");
+        mmgr_line_put(out, name);
+        mmgr_line_put(out, ": ");
+        mmgr_line_put(out, value);
+        mmgr_line_put(out, "\r\n");
     }
 }
 
-void cli_requests_head_written(const CliRequestsSent *hop, const CliRequestsAddress *address, CliLine *out)
+void cli_requests_head_written(const CliRequestsSent *hop, const CliRequestsAddress *address, VerbaLinea *out)
 {
-    cli_line_text(out, hop->method);
-    cli_line_character(out, ' ');
-    cli_line_text(out, address->target);
-    cli_line_text(out, " HTTP/1.1\r\n");
+    mmgr_line_put(out, hop->method);
+    mmgr_line_ch(out, ' ');
+    mmgr_line_put(out, address->target);
+    mmgr_line_put(out, " HTTP/1.1\r\n");
     char host[CLI_REQUESTS_ADDRESS + 16u];
-    CliLine host_line = {host, sizeof(host), 0ull};
+    VerbaLinea host_line = {host, sizeof(host), 0ull};
     const int bracketed =
         (cellul.chr(&(CatenaFinitaCfg){.src = address->host, .cap = CLI_CELLS_POOL, .byte = ':'}) != NULL);
-    cli_line_text(&host_line, bracketed ? "[" : "");
-    cli_line_text(&host_line, address->host);
-    cli_line_text(&host_line, bracketed ? "]" : "");
+    mmgr_line_put(&host_line, bracketed ? "[" : "");
+    mmgr_line_put(&host_line, address->host);
+    mmgr_line_put(&host_line, bracketed ? "]" : "");
     if (address->port != (address->secure ? 443u : 80u))
     {
-        cli_line_character(&host_line, ':');
-        cli_line_decimal(&host_line, address->port, 1u);
+        mmgr_line_ch(&host_line, ':');
+        mmgr_line_decimal(&host_line, address->port, 1u);
     }
-    cli_line_closed(&host_line);
+    mmgr_line_finish(&host_line);
     head_given(hop, "Host", "host", host, out);
     for (unsigned int at = 0u; at < hop->headers; at += 1u)
     {
-        cli_line_text(out, hop->header_name[at]);
-        cli_line_text(out, ": ");
-        cli_line_text(out, hop->header_value[at]);
-        cli_line_text(out, "\r\n");
+        mmgr_line_put(out, hop->header_name[at]);
+        mmgr_line_put(out, ": ");
+        mmgr_line_put(out, hop->header_value[at]);
+        mmgr_line_put(out, "\r\n");
     }
     head_given(hop, "User-Agent", "user-agent", "orior/" CLI_VERSION, out);
     head_given(hop, "Accept", "accept", "*/*", out);
@@ -111,44 +113,44 @@ void cli_requests_head_written(const CliRequestsSent *hop, const CliRequestsAddr
     if (((hop->body_size > 0u) || sends) && !head_has(hop, "transfer-encoding"))
     {
         char length[24];
-        CliLine length_line = {length, sizeof(length), 0ull};
-        cli_line_decimal(&length_line, hop->body_size, 1u);
-        cli_line_closed(&length_line);
+        VerbaLinea length_line = {length, sizeof(length), 0ull};
+        mmgr_line_decimal(&length_line, hop->body_size, 1u);
+        mmgr_line_finish(&length_line);
         head_given(hop, "Content-Length", "content-length", length, out);
     }
     head_given(hop, "Connection", "connection", "close", out);
-    cli_line_text(out, "\r\n");
+    mmgr_line_put(out, "\r\n");
 }
 
 // whether a header's value, ASCII case aside, is `lower`
 static int head_is(const CliRequestsAnswer *answer, const CliRequestsText *value, const char *lower)
 {
     return (value != NULL) && (value->size == cellul.len(&(CatenaFinitaCfg){.src = lower, .cap = CLI_CELLS_POOL})) &&
-           cli_requests_holds(answer->head + value->at, value->size, lower);
+           cli_requests_contains(answer->head + value->at, value->size, lower);
 }
 
 // the room's unpacked body a cell of `bytes`, CLI_REQUESTS_BODY at the most, the one before given back where it is
-// smaller: 1, or 0 with why said where the cell is refused
-static int head_unpacked_room(CliRequestsRoom *room, unsigned long long bytes, CliLine *said)
+// smaller: 1, or 0 with why given where the cell is refused
+static int head_unpacked_room(CliRequestsRoom *room, unsigned long long bytes, VerbaLinea *err_msg)
 {
     const unsigned long long wanted = (bytes < 1ull) ? 1ull : ((bytes > CLI_REQUESTS_BODY) ? CLI_REQUESTS_BODY : bytes);
     if ((room->unpacked != NULL) && (room->unpacked_room >= wanted))
     {
         return 1;
     }
-    unsigned char *const cell = cli_cell_taken(wanted, "an answer's body undone");
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(wanted, NULL);
     if (cell == NULL)
     {
-        cli_line_text(said, "the answer's body undone could not be held");
+        mmgr_line_put(err_msg, "the answer's body undone could not be stored");
         return 0;
     }
-    cli_cell_given(room->unpacked);
+    g_cli_cells->persistent_buf_release(room->unpacked, NULL);
     room->unpacked = cell;
     room->unpacked_room = wanted;
     return 1;
 }
 
-int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, CliLine *said)
+int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLinea *err_msg)
 {
     CliRequestsAnswer *const answer = &room->answer;
     const CliRequestsText *const encoding = cli_requests_header(answer, "Content-Encoding");
@@ -159,33 +161,33 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, CliLine
     if (head_is(answer, encoding, "gzip") || head_is(answer, encoding, "x-gzip"))
     {
         // a gzip ends with its unpacked size, so the room is taken once at that size
-        const unsigned long long told =
+        const unsigned long long unpacked_size =
             (size >= 4ull)
                 ? ((unsigned long long)raw[size - 4ull] | ((unsigned long long)raw[size - 3ull] << 8u) |
                    ((unsigned long long)raw[size - 2ull] << 16u) | ((unsigned long long)raw[size - 1ull] << 24u))
                 : 0ull;
-        if (!head_unpacked_room(room, told, said) ||
-            !cli_gunzip(raw, size, room->unpacked, room->unpacked_room, &unpacked, said))
+        if (!head_unpacked_room(room, unpacked_size, err_msg) ||
+            !cli_gunzip(raw, size, room->unpacked, room->unpacked_room, &unpacked, err_msg))
         {
             return 0;
         }
     }
     else if (head_is(answer, encoding, "deflate"))
     {
-        // a deflate says no size: the room begins at four times the packed bytes and doubles while it fills
+        // a deflate gives no size: the room begins at four times the packed bytes and doubles while it fills
         const int zlib =
             (size > 2u) && ((raw[0] & 0x0fu) == 8u) && ((((unsigned int)raw[0] << 8u) | raw[1]) % 31u == 0u);
-        const unsigned long long said_at = said->at;
+        const unsigned long long err_at = err_msg->at;
         unsigned long long room_bytes = 4ull * size;
         for (;;)
         {
             unsigned long long used = 0ull;
-            if (!head_unpacked_room(room, room_bytes, said))
+            if (!head_unpacked_room(room, room_bytes, err_msg))
             {
                 return 0;
             }
             if (cli_inflate(zlib ? (raw + 2) : raw, zlib ? (size - 2u) : size, room->unpacked, room->unpacked_room,
-                            &unpacked, &used, said))
+                            &unpacked, &used, err_msg))
             {
                 break;
             }
@@ -193,7 +195,7 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, CliLine
             {
                 return 0;
             }
-            said->at = said_at;
+            err_msg->at = err_at;
             room_bytes = 2ull * room->unpacked_room;
         }
     }
@@ -213,10 +215,10 @@ int cli_requests_is_text(const CliRequestsAnswer *answer)
     const unsigned long long size = (type != NULL) ? type->size : 0ull;
     static const char *const texts[7] = {"json", "xml", "javascript", "x-www-form-urlencoded",
                                          "yaml", "csv", "graphql"};
-    int text = (size >= 5u) && cli_requests_holds(kind, 5u, "text/");
+    int text = (size >= 5u) && cli_requests_contains(kind, 5u, "text/");
     for (unsigned int at = 0u; !text && (at < 7u); at += 1u)
     {
-        text = cli_requests_holds(kind, size, texts[at]);
+        text = cli_requests_contains(kind, size, texts[at]);
     }
     if (text)
     {
@@ -225,13 +227,13 @@ int cli_requests_is_text(const CliRequestsAnswer *answer)
     static const char *const starts[3] = {"image/", "audio/", "video/"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        if ((size >= 6u) && cli_requests_holds(kind, 6u, starts[at]))
+        if ((size >= 6u) && cli_requests_contains(kind, 6u, starts[at]))
         {
             return 0;
         }
     }
-    if (cli_requests_holds(kind, size, "octet-stream") || cli_requests_holds(kind, size, "pdf") ||
-        cli_requests_holds(kind, size, "zip"))
+    if (cli_requests_contains(kind, size, "octet-stream") || cli_requests_contains(kind, size, "pdf") ||
+        cli_requests_contains(kind, size, "zip"))
     {
         return 0;
     }

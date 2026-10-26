@@ -8,34 +8,34 @@
 #include "../toolchains/toolchains.h"
 #include "executables_internal.h"
 
-int cli_executables_program(const char *tool, const char *name, char *path, CliLine *said)
+int cli_executables_program(const char *tool, const char *name, char *path, VerbaLinea *err_msg)
 {
     // the manifest's tree and the PATH's folders each a cell of the search's, and the program found
     CliFound found_tool;
     CliJson json;
-    char why[CLI_NAME_LONGEST];
-    CliLine unknown = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unknown = {why, sizeof(why), 0ull};
     const unsigned int one = cli_toolchains_tool(&json, cli_toolchains_manifest(&json, 0u, 0ull), tool, &unknown);
     if (one == CLI_JSON_NONE)
     {
         cli_json_given(&json);
-        cli_line_text(said, "no toolchain ");
-        cli_line_text(said, tool);
+        mmgr_line_put(err_msg, "no toolchain ");
+        mmgr_line_put(err_msg, tool);
         return 0;
     }
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&count);
-    cli_toolchains_find(&json, one, (const char (*)[CLI_PATH_LONGEST])folders, count, &found_tool);
-    cli_cell_given(folders);
-    char folder[CLI_PATH_LONGEST];
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+    cli_toolchains_find(&json, one, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &found_tool);
+    g_cli_cells->persistent_buf_release(folders, NULL);
+    char folder[CLI_PATH_MAX_LEN];
     const char *const names[1] = {name};
     const int found = found_tool.has_program && cli_path_parent(found_tool.program, folder) &&
                       cli_toolchains_program_in(folder, names, 1u, path);
     if (!found)
     {
         const char *const shown = cli_json_string(&json, cli_json_member(&json, one, "name"), NULL);
-        cli_line_text(said, (shown != NULL) ? shown : tool);
-        cli_line_text(said,
+        mmgr_line_put(err_msg, (shown != NULL) ? shown : tool);
+        mmgr_line_put(err_msg,
                       " builds it, and is not found: File, Toolchains opens its install page or takes its folder");
     }
     cli_json_given(&json);
@@ -43,10 +43,10 @@ int cli_executables_program(const char *tool, const char *name, char *path, CliL
 }
 
 int cli_executables_output(const char *tool, const char *name, const char *const *args, unsigned int count,
-                           const char *folder, CliRan *ran, CliLine *said)
+                           const char *folder, CliRan *ran, VerbaLinea *err_msg)
 {
-    char program[CLI_PATH_LONGEST];
-    if (!cli_executables_program(tool, name, program, said))
+    char program[CLI_PATH_MAX_LEN];
+    if (!cli_executables_program(tool, name, program, err_msg))
     {
         return 0;
     }
@@ -56,15 +56,15 @@ int cli_executables_output(const char *tool, const char *name, const char *const
         words[at + 1u] = args[at];
     }
     words[((count < 14u) ? count : 14u) + 1u] = NULL;
-    char why[CLI_PATH_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     const int started = cli_ran(words, folder, NULL, 0u, ran, &unstarted);
     if (!started || (ran->code != 0ll))
     {
-        cli_line_text(said, name);
-        cli_line_character(said, ' ');
-        cli_line_text(said, (count != 0u) ? args[0] : "");
-        cli_line_text(said, ": ");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_ch(err_msg, ' ');
+        mmgr_line_put(err_msg, (count != 0u) ? args[0] : "");
+        mmgr_line_put(err_msg, ": ");
         const char *from = started ? ran->err : why;
         const char *to = started ? (ran->err + ran->err_size) : (why + unstarted.at);
         while ((from < to) && cli_scan_white(from[0]))
@@ -75,29 +75,29 @@ int cli_executables_output(const char *tool, const char *name, const char *const
         {
             to -= 1;
         }
-        cli_line_counted(said, from, (unsigned long long)(to - from));
+        mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
         return 0;
     }
     return 1;
 }
 
-// the folder Cargo builds the package of `manifest` into, as `cargo metadata` run in the package's folder says, where
-// Cargo reads the package's own settings as its build does, into `out`, which holds CLI_PATH_LONGEST: 1, or 0 with why
-// said
-static int cli_cargo_target(const char *manifest, char *out, CliLine *said)
+// the folder Cargo builds the package of `manifest` into, as `cargo metadata` run in the package's folder reports,
+// where Cargo reads the package's own settings as its build does, into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 with
+// why given
+static int cli_cargo_target(const char *manifest, char *out, VerbaLinea *err_msg)
 {
-    char cargo[CLI_PATH_LONGEST];
-    if (!cli_executables_program("rust", "cargo", cargo, said))
+    char cargo[CLI_PATH_MAX_LEN];
+    if (!cli_executables_program("rust", "cargo", cargo, err_msg))
     {
         return 0;
     }
     const char *const words[9] = {
         cargo, "metadata", "--no-deps", "--format-version", "1", "--offline", "--manifest-path", manifest, NULL};
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     const int has_folder = cli_path_parent(manifest, folder);
     CliRan *const ran = cli_ran_taken();
-    char why[CLI_PATH_LONGEST];
-    CliLine unstarted = {why, sizeof(why), 0ull};
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea unstarted = {why, sizeof(why), 0ull};
     const int started = cli_ran(words, has_folder ? folder : NULL, NULL, 0u, ran, &unstarted);
     if (!started || (ran->code != 0ll))
     {
@@ -111,29 +111,29 @@ static int cli_cargo_target(const char *manifest, char *out, CliLine *said)
         {
             to -= 1;
         }
-        cli_line_text(said, "cargo metadata: ");
-        cli_line_counted(said, from, (unsigned long long)(to - from));
+        mmgr_line_put(err_msg, "cargo metadata: ");
+        mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
         cli_ran_given(ran);
         return 0;
     }
     // Cargo's answer read into a tree sized to it
     CliJson json;
-    char reason[CLI_NAME_LONGEST];
-    CliLine unread = {reason, sizeof(reason), 0ull};
+    char reason[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {reason, sizeof(reason), 0ull};
     const unsigned int root = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, &unread);
     cli_ran_given(ran);
     if (root == CLI_JSON_NONE)
     {
         cli_json_given(&json);
-        cli_line_text(said, "cargo metadata: ");
-        cli_line_counted(said, reason, unread.at);
+        mmgr_line_put(err_msg, "cargo metadata: ");
+        mmgr_line_put_n(err_msg, reason, unread.at);
         return 0;
     }
     const char *const target = cli_json_string(&json, cli_json_member(&json, root, "target_directory"), NULL);
     if (target == NULL)
     {
         cli_json_given(&json);
-        cli_line_text(said, "cargo metadata names no target_directory");
+        mmgr_line_put(err_msg, "cargo metadata names no target_directory");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){
@@ -142,16 +142,16 @@ static int cli_cargo_target(const char *manifest, char *out, CliLine *said)
     return 1;
 }
 
-// the program .NET's build made, from the last line it printed for the project, into `out`, which holds
-// CLI_PATH_LONGEST: a folder it published to holds the program, and an assembly has the program beside it. 1, or 0
-// with why said
-int cli_dotnet_artifact(const char *name, const CliLines *lines, char *out, CliLine *said)
+// the program .NET's build made, from the last line it printed for the project, into `out`, sized for
+// CLI_PATH_MAX_LEN: a folder it published to contains the program, and an assembly has the program beside it. 1, or 0
+// with why given
+int cli_dotnet_artifact(const char *name, const CliLines *lines, char *out, VerbaLinea *err_msg)
 {
-    char mark[CLI_NAME_LONGEST + 4u];
-    CliLine marked = {mark, sizeof(mark), 0ull};
-    cli_line_text(&marked, name);
-    cli_line_text(&marked, " -> ");
-    cli_line_closed(&marked);
+    char mark[CLI_NAME_MAX_LEN + 4u];
+    VerbaLinea marked = {mark, sizeof(mark), 0ull};
+    mmgr_line_put(&marked, name);
+    mmgr_line_put(&marked, " -> ");
+    mmgr_line_finish(&marked);
     const unsigned long long mark_length = cellul.len(&(CatenaFinitaCfg){.src = mark, .cap = CLI_CELLS_POOL});
     for (unsigned int index = lines->count; index > 0u; index -= 1u)
     {
@@ -165,77 +165,78 @@ int cli_dotnet_artifact(const char *name, const CliLines *lines, char *out, CliL
         const char *path = from + mark_length;
         unsigned long long size = length - mark_length;
         cli_scan_trim(&path, &size);
-        char file[CLI_NAME_LONGEST];
+        char file[CLI_NAME_MAX_LEN];
         cli_program_file(name, file);
-        CliLine line = {out, CLI_PATH_LONGEST, 0ull};
-        cli_line_counted(&line, path, size);
-        cli_line_closed(&line);
+        VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put_n(&line, path, size);
+        mmgr_line_finish(&line);
         const int folder =
             ((size > 0ull) && ((path[size - 1ull] == '/') || (path[size - 1ull] == '\\'))) || query_is_folder(out);
         const int assembly = (size > 4ull) && (path[size - 4ull] == '.') && ((path[size - 3ull] | 0x20) == 'd') &&
                              ((path[size - 2ull] | 0x20) == 'l') && ((path[size - 1ull] | 0x20) == 'l');
         if (folder || assembly)
         {
-            char held[CLI_PATH_LONGEST];
+            char artifact[CLI_PATH_MAX_LEN];
             if (folder)
             {
                 memor.cpy(
-                    &(MemoriaCfg){.dst = held,
+                    &(MemoriaCfg){.dst = artifact,
                                   .src = out,
                                   .bytes = cellul.len(&(CatenaFinitaCfg){.src = out, .cap = CLI_CELLS_POOL}) + 1u});
             }
-            else if (!cli_path_parent(out, held))
+            else if (!cli_path_parent(out, artifact))
             {
-                held[0] = '\0';
+                artifact[0] = '\0';
             }
-            CliLine joined = {out, CLI_PATH_LONGEST, 0ull};
-            cli_line_text(&joined, held);
-            const unsigned long long held_length = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL});
-            const int slashed =
-                (held_length > 0ull) && ((held[held_length - 1ull] == '/') || (held[held_length - 1ull] == '\\'));
-            cli_line_text(&joined, ((held_length > 0ull) && !slashed) ? "/" : "");
-            cli_line_text(&joined, file);
-            cli_line_closed(&joined);
+            VerbaLinea joined = {out, CLI_PATH_MAX_LEN, 0ull};
+            mmgr_line_put(&joined, artifact);
+            const unsigned long long artifact_length =
+                cellul.len(&(CatenaFinitaCfg){.src = artifact, .cap = CLI_CELLS_POOL});
+            const int slashed = (artifact_length > 0ull) && ((artifact[artifact_length - 1ull] == '/') ||
+                                                             (artifact[artifact_length - 1ull] == '\\'));
+            mmgr_line_put(&joined, ((artifact_length > 0ull) && !slashed) ? "/" : "");
+            mmgr_line_put(&joined, file);
+            mmgr_line_finish(&joined);
         }
         return 1;
     }
-    cli_line_text(said, "dotnet named no file for ");
-    cli_line_text(said, name);
+    mmgr_line_put(err_msg, "dotnet named no file for ");
+    mmgr_line_put(err_msg, name);
     return 0;
 }
 
-// `parts`, `count` of them, joined by `/` into `out`, which holds CLI_PATH_LONGEST
+// `parts`, `count` of them, joined by `/` into `out`, sized for CLI_PATH_MAX_LEN
 static void cli_parts(const char *const *parts, unsigned int count, char *out)
 {
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&line, (at != 0u) ? "/" : "");
-        cli_line_text(&line, parts[at]);
+        mmgr_line_put(&line, (at != 0u) ? "/" : "");
+        mmgr_line_put(&line, parts[at]);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 int cli_executables_made(const char *root, const char *id, const CliValues *values, const CliLines *lines, char *path,
-                         CliLine *said)
+                         VerbaLinea *err_msg)
 {
     const char *const colon = cli_text_last(id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}), ':');
     if ((!cellul.starts(&(CatenaFinitaCfg){.src = id, .other = "executable/", .cap = CLI_CELLS_POOL})) ||
         (colon == NULL) || (colon < (id + 11)))
     {
-        cli_line_text(said, id);
-        cli_line_text(said, " is no executable's job");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is no executable's job");
         return 0;
     }
-    char script[CLI_PATH_LONGEST];
-    CliLine scripted = {script, sizeof(script), 0ull};
-    cli_line_counted(&scripted, id + 11, (unsigned long long)(colon - (id + 11)));
-    cli_line_closed(&scripted);
+    char script[CLI_PATH_MAX_LEN];
+    VerbaLinea scripted = {script, sizeof(script), 0ull};
+    mmgr_line_put_n(&scripted, id + 11, (unsigned long long)(colon - (id + 11)));
+    mmgr_line_finish(&scripted);
     const char *const name = colon + 1;
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     const char *const halves[2] = {root, script};
     cli_parts(halves, 2u, full);
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(full, folder))
     {
         memor.cpy(&(MemoriaCfg){.dst = folder,
@@ -250,11 +251,11 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
     const unsigned int kind = cli_executables_kind_of(base);
     if (kind == CLI_KIND_NONE)
     {
-        cli_line_text(said, script);
-        cli_line_text(said, " is no build script");
+        mmgr_line_put(err_msg, script);
+        mmgr_line_put(err_msg, " is no build script");
         return 0;
     }
-    char file[CLI_NAME_LONGEST];
+    char file[CLI_NAME_MAX_LEN];
     cli_program_file(name, file);
     int found = 1;
     if (kind == CLI_KIND_CARGO)
@@ -263,8 +264,8 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
         const char *const profile_folder =
             (cellul.eq(&(CatenaFinitaCfg){.src = profile, .other = "dev", .cap = CLI_CELLS_POOL})) ? "debug" : profile;
         const char *const target = cli_first(values, "target", "this machine");
-        char built[CLI_PATH_LONGEST] = "";
-        found = cli_cargo_target(full, built, said);
+        char built[CLI_PATH_MAX_LEN] = "";
+        found = cli_cargo_target(full, built, err_msg);
         if (cellul.eq(&(CatenaFinitaCfg){.src = target, .other = "this machine", .cap = CLI_CELLS_POOL}))
         {
             const char *const parts[3] = {built, profile_folder, file};
@@ -272,16 +273,16 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
         }
         else
         {
-            char named[CLI_NAME_LONGEST];
-            CliLine line = {named, sizeof(named), 0ull};
-            cli_line_text(&line, name);
-            cli_line_text(
+            char named[CLI_NAME_MAX_LEN];
+            VerbaLinea line = {named, sizeof(named), 0ull};
+            mmgr_line_put(&line, name);
+            mmgr_line_put(
                 &line,
                 (cellul.find(&(CatenaFinitaCfg){
                      .src = target, .cap = CLI_CELLS_POOL, .other = "windows", .other_cap = CLI_CELLS_POOL}) != NULL)
                     ? ".exe"
                     : "");
-            cli_line_closed(&line);
+            mmgr_line_finish(&line);
             const char *const parts[4] = {built, target, profile_folder, named};
             cli_parts(parts, 4u, path);
         }
@@ -291,17 +292,17 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
         const int cmake = kind == CLI_KIND_CMAKE;
         const char *const config =
             cmake ? cli_first(values, "config", "Debug") : cli_first(values, "buildtype", "debug");
-        char relative[CLI_PATH_LONGEST];
+        char relative[CLI_PATH_MAX_LEN];
         cli_build_folder(root, full, cmake ? "cmake" : "meson", relative);
-        char build[CLI_PATH_LONGEST];
-        CliLine line = {build, sizeof(build), 0ull};
-        cli_line_text(&line, root);
-        cli_line_character(&line, '/');
-        cli_line_text(&line, relative);
-        cli_line_text(&line, config);
-        cli_line_closed(&line);
-        found =
-            cmake ? cli_cmake_artifact(build, name, config, path, said) : cli_meson_artifact(build, name, path, said);
+        char build[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {build, sizeof(build), 0ull};
+        mmgr_line_put(&line, root);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put(&line, relative);
+        mmgr_line_put(&line, config);
+        mmgr_line_finish(&line);
+        found = cmake ? cli_cmake_artifact(build, name, config, path, err_msg)
+                      : cli_meson_artifact(build, name, path, err_msg);
     }
     else if (kind == CLI_KIND_GO)
     {
@@ -309,19 +310,19 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
         const char *host_processor = NULL;
         cli_go_host(&host_system, &host_processor);
         const char *const system = cli_first(values, "GOOS", host_system);
-        char pair[CLI_NAME_LONGEST];
-        CliLine line = {pair, sizeof(pair), 0ull};
-        cli_line_text(&line, system);
-        cli_line_character(&line, '-');
-        cli_line_text(&line, cli_first(values, "GOARCH", host_processor));
-        cli_line_closed(&line);
-        char named[CLI_NAME_LONGEST];
-        CliLine program = {named, sizeof(named), 0ull};
-        cli_line_text(&program, name);
-        cli_line_text(&program,
+        char pair[CLI_NAME_MAX_LEN];
+        VerbaLinea line = {pair, sizeof(pair), 0ull};
+        mmgr_line_put(&line, system);
+        mmgr_line_ch(&line, '-');
+        mmgr_line_put(&line, cli_first(values, "GOARCH", host_processor));
+        mmgr_line_finish(&line);
+        char named[CLI_NAME_MAX_LEN];
+        VerbaLinea program = {named, sizeof(named), 0ull};
+        mmgr_line_put(&program, name);
+        mmgr_line_put(&program,
                       (cellul.eq(&(CatenaFinitaCfg){.src = system, .other = "windows", .cap = CLI_CELLS_POOL})) ? ".exe"
                                                                                                                 : "");
-        cli_line_closed(&program);
+        mmgr_line_finish(&program);
         const char *const parts[5] = {root, "build", "exe", pair, named};
         cli_parts(parts, 5u, path);
     }
@@ -332,7 +333,7 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
     }
     else if (kind == CLI_KIND_DOTNET)
     {
-        found = cli_dotnet_artifact(name, lines, path, said);
+        found = cli_dotnet_artifact(name, lines, path, err_msg);
     }
     else if (kind == CLI_KIND_ZIG)
     {
@@ -341,22 +342,22 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
     }
     else
     {
-        char exe[CLI_NAME_LONGEST];
-        char under[CLI_PATH_LONGEST];
+        char exe[CLI_NAME_MAX_LEN];
+        char under[CLI_PATH_MAX_LEN];
         // the spec read, a cell of its size taken for the reading
         char *const spec = cli_text_taken(full);
         if (spec == NULL)
         {
-            cli_line_text(said, script);
-            cli_line_text(said, ": it could not be read");
+            mmgr_line_put(err_msg, script);
+            mmgr_line_put(err_msg, ": it could not be read");
             return 0;
         }
         found = cli_spec_made(spec, exe, under);
-        cli_cell_given_by(&g_cli_executables_cells, spec);
+        g_cli_cells->persistent_buf_release(spec, &g_cli_executables_cells);
         if (!found)
         {
-            cli_line_text(said, script);
-            cli_line_text(said, " is no PyInstaller spec");
+            mmgr_line_put(err_msg, script);
+            mmgr_line_put(err_msg, " is no PyInstaller spec");
             return 0;
         }
         const char *const parts[2] = {folder, under};
@@ -364,8 +365,8 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
     }
     if (found && !query_is_file(path))
     {
-        cli_line_text(said, "the build made no ");
-        cli_line_text(said, path);
+        mmgr_line_put(err_msg, "the build made no ");
+        mmgr_line_put(err_msg, path);
         return 0;
     }
     return found;

@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // Themes that reach further: a color for every kind of token a grammar names, an image behind the
-// editor, file icons matched to names by patterns, Preferences marking each color whose contrast
-// with the color under it is too low, and every color the window draws set by a variable of the theme.
+// editor, file icons matched to names by patterns, and every color the window draws set by a variable
+// of the theme.
 
+import { paletteOf, readTheme, themeText } from "../../gui/src-js/themes.js";
 import { invoke } from "../../gui/src-js/bridge.js";
 import { gitGraphSvg, journeySvg, pieSvg } from "../../gui/src-js/mermaid.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
@@ -12,25 +13,10 @@ import { tokenKinds } from "../../gui/src-js/editor/tokens.js";
 import { iconOf } from "../../gui/src-js/explorer.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
 import { scheme } from "../../gui/src-js/scheme.js";
-import { choose, contrastOf, deleteTheme, paletteOf, readTheme, saveTheme, themeText } from "../../gui/src-js/themes.js";
 import { showView } from "../../gui/src-js/views.js";
+import { inSheet, leave, useTheme } from "../themes.js";
 
 const { test, assert, ui } = window.__harness;
-
-// What of Preferences answers `selector` in the sheet open now: a sheet closed a moment before stays on the
-// page until its close is heard, with its own rows.
-const inSheet = (selector) => [...(document.querySelector("dialog.sheet[open]")?.querySelectorAll(selector) ?? [])];
-
-// Makes the theme `name` over the scheme shown, from `parts`, and chooses it.
-function useTheme(name, parts) {
-  saveTheme({ name, base: scheme(), colors: {}, ...parts });
-  choose(scheme(), name);
-}
-
-function leave(name) {
-  choose(scheme(), null);
-  deleteTheme(name);
-}
 
 async function opened(path, text) {
   await invoke("file_write", { path, text });
@@ -115,31 +101,6 @@ test("a file takes the icon of the first of the theme's patterns its name matche
   assert.deepEqual(copied.icons, [{ pattern: "*.md", mark: "M", color: "--t4" }], "a theme copied out and read back keeps its icons");
   assert.equal(copied.colors["--t-string-escape"], "#00ff00", "and its colors of kinds of token");
   leave("Icons for Themes");
-});
-
-test("Preferences marks each color whose contrast with the color under it is too low for text", async () => {
-  assert.ok(Math.abs(contrastOf("#000000", "#ffffff") - 21) < 0.01);
-  assert.ok(Math.abs(contrastOf("#777777", "#777777") - 1) < 0.01);
-  assert.ok(contrastOf("rgba(0, 0, 0, 0)", "#ffffff") < 1.01, "a color with alpha laid over the one under it");
-  const under = paletteOf(scheme()).get("--ed-bg");
-  useTheme("Faint for Themes", { colors: { "--t-comment": under } });
-  runCommand("preferences");
-  const row = () => inSheet('.prefs-color[data-name="--t-comment"]')[0];
-  await ui.waitFor(() => row(), 5000);
-  assert.ok(row().classList.contains("low"));
-  assert.match(row().querySelector(".prefs-contrast").textContent, /^1\.0:1 on --ed-bg$/);
-  assert.match(inSheet(".prefs-contrasts")[0].textContent, /--t-comment on --ed-bg, 1\.0:1/);
-  await ui.click(inSheet(".prefs-palette .filter")[0]);
-  await ui.type("--t-comment");
-  await ui.waitFor(() => inSheet(".prefs-color").every((one) => one.dataset.name.startsWith("--t-comment")), 2000);
-  await ui.click(row().querySelector(".prefs-value"));
-  const text = row().querySelector(".prefs-value");
-  text.select();
-  await ui.type(scheme() === "dark" ? "#ffffff" : "#000000");
-  await ui.key("Enter");
-  await ui.waitFor(() => !row().classList.contains("low"), 2000);
-  document.querySelector("dialog.sheet")?.close();
-  leave("Faint for Themes");
 });
 
 test("every color the stylesheet draws is a variable of the theme a reader can set", () => {

@@ -4,58 +4,59 @@
 // pulled off its disassembler. For each architecture nvcc compiles a key kernel to a cubin, and the disassembler for
 // Linux, fetched once from the vendor's archive at the compiler's version, is run over the cubin in the test harness's
 // Ubuntu image with every copy and heap block it makes written out (tables_intercept.c, tables_capture.sh), and the
-// funnel reads the two tables off that capture (orior_tables_funnel). An architecture whose two tables stand already is kept
-// as it is
+// funnel reads the two tables off that capture (orior_tables_funnel). An architecture whose two tables stand already is
+// retained as it is
 #include "../../../cli/src/text/text.h"
 #include "tables_internal.h"
 
 // `folder`/`name` into `path`
 void query_tables_in(const char *folder, const char *name, char *path)
 {
-    CliLine line = {path, QUERY_PATH_LONGEST, 0ull};
-    cli_line_text(&line, folder);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, name);
-    cli_line_closed(&line);
+    VerbaLinea line = {path, QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, folder);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, name);
+    mmgr_line_finish(&line);
 }
 
 // the tables of `arch` under `out`: its instructions and its latencies
 void query_tables_of(const char *out, const char *arch, char *instructions, char *latencies)
 {
     char name[128];
-    CliLine line = {name, sizeof(name), 0ull};
-    cli_line_text(&line, "tables/");
-    cli_line_text(&line, arch);
-    cli_line_text(&line, "_instructions.txt");
-    cli_line_closed(&line);
+    VerbaLinea line = {name, sizeof(name), 0ull};
+    mmgr_line_put(&line, "tables/");
+    mmgr_line_put(&line, arch);
+    mmgr_line_put(&line, "_instructions.txt");
+    mmgr_line_finish(&line);
     query_tables_in(out, name, instructions);
     line.at = 0ull;
-    cli_line_text(&line, "tables/");
-    cli_line_text(&line, arch);
-    cli_line_text(&line, "_latencies.txt");
-    cli_line_closed(&line);
+    mmgr_line_put(&line, "tables/");
+    mmgr_line_put(&line, arch);
+    mmgr_line_put(&line, "_latencies.txt");
+    mmgr_line_finish(&line);
     query_tables_in(out, name, latencies);
 }
 
 // the compiler's version, `V13.3.73`, read off `nvcc --version` into `version`: 1, or 0 where it names none
-int query_version_of(const unsigned char *said, unsigned long long size, char *version, size_t room)
+int query_version_of(const unsigned char *output, unsigned long long size, char *version, size_t room)
 {
     for (unsigned long long at = 0ull; (at + 1ull) < size; at += 1ull)
     {
-        if ((said[at] != 'V') || ((at != 0ull) && (said[at - 1u] != ' ') && (said[at - 1u] != '\n')))
+        if ((output[at] != 'V') || ((at != 0ull) && (output[at - 1u] != ' ') && (output[at - 1u] != '\n')))
         {
             continue;
         }
         unsigned long long end = at + 1ull;
-        while ((end < size) && (((said[end] >= '0') && (said[end] <= '9')) || (said[end] == '.')))
+        while ((end < size) && (((output[end] >= '0') && (output[end] <= '9')) || (output[end] == '.')))
         {
             end += 1ull;
         }
-        if ((end > (at + 1ull)) && ((end == size) || (said[end] == ' ') || (said[end] == '\n') || (said[end] == '\r')))
+        if ((end > (at + 1ull)) &&
+            ((end == size) || (output[end] == ' ') || (output[end] == '\n') || (output[end] == '\r')))
         {
-            CliLine line = {version, room, 0ull};
-            cli_line_counted(&line, (const char *)(said + at + 1u), end - at - 1ull);
-            return cli_line_closed(&line) != 0ull;
+            VerbaLinea line = {version, room, 0ull};
+            mmgr_line_put_n(&line, (const char *)(output + at + 1u), end - at - 1ull);
+            return mmgr_line_finish(&line) != 0ull;
         }
     }
     return 0;
@@ -63,36 +64,38 @@ int query_version_of(const unsigned char *said, unsigned long long size, char *v
 
 void query_archive_named(const char *version, char *archive, size_t room)
 {
-    CliLine line = {archive, room, 0ull};
-    cli_line_text(&line, "cuda_nvdisasm-linux-x86_64-");
-    cli_line_text(&line, version);
-    cli_line_text(&line, "-archive");
-    cli_line_closed(&line);
+    VerbaLinea line = {archive, room, 0ull};
+    mmgr_line_put(&line, "cuda_nvdisasm-linux-x86_64-");
+    mmgr_line_put(&line, version);
+    mmgr_line_put(&line, "-archive");
+    mmgr_line_finish(&line);
 }
 
 // the architectures `nvcc --list-gpu-arch` lists, `compute_86` read as `sm_86`, into `arches`: their count
-unsigned int query_architectures_of(const unsigned char *said, unsigned long long size, char (*arches)[16])
+unsigned int query_architectures_of(const unsigned char *output, unsigned long long size, char (*arches)[16])
 {
     unsigned int count = 0u;
     unsigned long long at = 0ull;
     while ((at < size) && (count < QUERY_ARCHITECTURES_MOST))
     {
-        while ((at < size) && ((said[at] == ' ') || (said[at] == '\n') || (said[at] == '\r') || (said[at] == '\t')))
+        while ((at < size) &&
+               ((output[at] == ' ') || (output[at] == '\n') || (output[at] == '\r') || (output[at] == '\t')))
         {
             at += 1ull;
         }
         const unsigned long long first = at;
-        while ((at < size) && (said[at] != ' ') && (said[at] != '\n') && (said[at] != '\r') && (said[at] != '\t'))
+        while ((at < size) && (output[at] != ' ') && (output[at] != '\n') && (output[at] != '\r') &&
+               (output[at] != '\t'))
         {
             at += 1ull;
         }
         if (((at - first) > 8ull) && ((at - first) < 18ull) &&
-            (memor.cmp(&(MemoriaCfg){.src = said + first, .other = "compute_", .bytes = 8u}) == 0))
+            (memor.cmp(&(MemoriaCfg){.src = output + first, .other = "compute_", .bytes = 8u}) == 0))
         {
-            CliLine line = {arches[count], 16u, 0ull};
-            cli_line_text(&line, "sm_");
-            cli_line_counted(&line, (const char *)(said + first + 8u), at - first - 8ull);
-            count += (cli_line_closed(&line) != 0ull) ? 1u : 0u;
+            VerbaLinea line = {arches[count], 16u, 0ull};
+            mmgr_line_put(&line, "sm_");
+            mmgr_line_put_n(&line, (const char *)(output + first + 8u), at - first - 8ull);
+            count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
         }
     }
     return count;
@@ -105,44 +108,44 @@ void query_in_container(const char *root, const char *path, char *inside)
     const char *under = (cli_text_same(path, root, length) && ((path[length] == '/') || (path[length] == '\\')))
                             ? (path + length + 1u)
                             : path;
-    CliLine line = {inside, QUERY_PATH_LONGEST, 0ull};
-    cli_line_text(&line, "/tree/");
+    VerbaLinea line = {inside, QUERY_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, "/tree/");
     for (const char *at = under; *at != '\0'; at += 1)
     {
-        cli_line_character(&line, (*at == '\\') ? '/' : *at);
+        mmgr_line_ch(&line, (*at == '\\') ? '/' : *at);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // the program of `role` into `path`
-int query_program(const QueryContext *context, QueryRole role, char *path, CliLine *said)
+int query_program(const QueryContext *context, QueryRole role, char *path, VerbaLinea *err_msg)
 {
-    return context->programs->program(context->programs->context, role, path, QUERY_PATH_LONGEST, said);
+    return context->programs->program(context->programs->context, role, path, QUERY_PATH_MAX_LEN, err_msg);
 }
 
 // The architectures the words name, `sm_86 sm_90`, or every one the compiler lists where none is named, into
-// `arches`: their count, or 0 with why said
+// `arches`: their count, or 0 with why given
 unsigned int query_architectures(QueryContext *context, const QueryRun *run, const char *const *words,
-                                 unsigned int count, char (*arches)[16], CliLine *said)
+                                 unsigned int count, char (*arches)[16], VerbaLinea *err_msg)
 {
     if (count != 0u)
     {
-        unsigned int kept = 0u;
-        for (unsigned int at = 0u; (at < count) && (kept < QUERY_ARCHITECTURES_MOST); at += 1u)
+        unsigned int arch_count = 0u;
+        for (unsigned int at = 0u; (at < count) && (arch_count < QUERY_ARCHITECTURES_MOST); at += 1u)
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = arches[kept],
+                &(MemoriaCfg){.dst = arches[arch_count],
                               .src = words[at],
                               .bytes = cellul.len(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL}) + 1u});
-            kept += (arches[kept][0] != '\0') ? 1u : 0u;
+            arch_count += (arches[arch_count][0] != '\0') ? 1u : 0u;
         }
-        return kept;
+        return arch_count;
     }
-    static char s_nvcc[QUERY_PATH_LONGEST];
+    static char s_nvcc[QUERY_PATH_MAX_LEN];
     long long code = -1ll;
     const char *const listed[3] = {s_nvcc, "--list-gpu-arch", NULL};
-    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, said) ||
-        !query_context_handed(context, run, "nvcc_architectures.txt", listed, &code, said))
+    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, err_msg) ||
+        !query_context_handed(context, run, "nvcc_architectures.txt", listed, &code, err_msg))
     {
         return 0u;
     }
@@ -150,25 +153,25 @@ unsigned int query_architectures(QueryContext *context, const QueryRun *run, con
     unsigned long long size = 0ull;
     if (!query_writer_latest(&run->writer, "nvcc_architectures.txt", &bytes, &size))
     {
-        cli_line_text(said, "the run holds no nvcc_architectures.txt");
+        mmgr_line_put(err_msg, "the run contains no nvcc_architectures.txt");
         return 0u;
     }
     const unsigned int found = query_architectures_of(bytes, size, arches);
     if (found == 0u)
     {
-        cli_line_text(said, "nvcc lists no architecture");
+        mmgr_line_put(err_msg, "nvcc lists no architecture");
     }
     return found;
 }
 
 // the disassembler for Linux under the tables' folder, fetched and unpacked where it is not there, into `program`
-int query_disassembler(QueryContext *context, const QueryRun *run, const char *out, char *program, CliLine *said)
+int query_disassembler(QueryContext *context, const QueryRun *run, const char *out, char *program, VerbaLinea *err_msg)
 {
-    static char s_nvcc[QUERY_PATH_LONGEST];
+    static char s_nvcc[QUERY_PATH_MAX_LEN];
     long long code = -1ll;
-    const char *const asked[3] = {s_nvcc, "--version", NULL};
-    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, said) ||
-        !query_context_handed(context, run, "nvcc_version.txt", asked, &code, said))
+    const char *const version_words[3] = {s_nvcc, "--version", NULL};
+    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, err_msg) ||
+        !query_context_handed(context, run, "nvcc_version.txt", version_words, &code, err_msg))
     {
         return 0;
     }
@@ -178,14 +181,14 @@ int query_disassembler(QueryContext *context, const QueryRun *run, const char *o
     if (!query_writer_latest(&run->writer, "nvcc_version.txt", &bytes, &size) ||
         !query_version_of(bytes, size, version, sizeof(version)))
     {
-        cli_line_text(said, "nvcc --version names no version");
+        mmgr_line_put(err_msg, "nvcc --version names no version");
         return 0;
     }
     char archive[128];
     query_archive_named(version, archive, sizeof(archive));
-    char download[QUERY_PATH_LONGEST];
-    char unpacked[QUERY_PATH_LONGEST];
-    char tar[QUERY_PATH_LONGEST];
+    char download[QUERY_PATH_MAX_LEN];
+    char unpacked[QUERY_PATH_MAX_LEN];
+    char tar[QUERY_PATH_MAX_LEN];
     query_tables_in(out, "download", download);
     query_tables_in(download, archive, unpacked);
     query_tables_in(unpacked, "bin/nvdisasm", program);
@@ -195,54 +198,55 @@ int query_disassembler(QueryContext *context, const QueryRun *run, const char *o
     }
     if (!query_folder_made(download))
     {
-        cli_line_text(said, download);
-        cli_line_text(said, " could not be made");
+        mmgr_line_put(err_msg, download);
+        mmgr_line_put(err_msg, " could not be made");
         return 0;
     }
     char tar_name[160];
-    CliLine tar_line = {tar_name, sizeof(tar_name), 0ull};
-    cli_line_text(&tar_line, archive);
-    cli_line_text(&tar_line, ".tar.xz");
-    cli_line_closed(&tar_line);
+    VerbaLinea tar_line = {tar_name, sizeof(tar_name), 0ull};
+    mmgr_line_put(&tar_line, archive);
+    mmgr_line_put(&tar_line, ".tar.xz");
+    mmgr_line_finish(&tar_line);
     query_tables_in(download, tar_name, tar);
     char url[512];
-    CliLine url_line = {url, sizeof(url), 0ull};
-    cli_line_text(&url_line, "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvdisasm/linux-x86_64/");
-    cli_line_text(&url_line, tar_name);
-    cli_line_closed(&url_line);
-    static char s_curl[QUERY_PATH_LONGEST];
-    static char s_tar[QUERY_PATH_LONGEST];
-    if (!query_program(context, QUERY_ROLE_CURL, s_curl, said) || !query_program(context, QUERY_ROLE_TAR, s_tar, said))
+    VerbaLinea url_line = {url, sizeof(url), 0ull};
+    mmgr_line_put(&url_line, "https://developer.download.nvidia.com/compute/cuda/redist/cuda_nvdisasm/linux-x86_64/");
+    mmgr_line_put(&url_line, tar_name);
+    mmgr_line_finish(&url_line);
+    static char s_curl[QUERY_PATH_MAX_LEN];
+    static char s_tar[QUERY_PATH_MAX_LEN];
+    if (!query_program(context, QUERY_ROLE_CURL, s_curl, err_msg) ||
+        !query_program(context, QUERY_ROLE_TAR, s_tar, err_msg))
     {
         return 0;
     }
     char fetching[256];
-    CliLine fetching_line = {fetching, sizeof(fetching), 0ull};
-    cli_line_text(&fetching_line, "  the vendor's disassembler for Linux ");
-    cli_line_text(&fetching_line, version);
-    cli_line_text(&fetching_line, " fetched");
-    if (cli_line_closed(&fetching_line) != 0ull)
+    VerbaLinea fetching_line = {fetching, sizeof(fetching), 0ull};
+    mmgr_line_put(&fetching_line, "  the vendor's disassembler for Linux ");
+    mmgr_line_put(&fetching_line, version);
+    mmgr_line_put(&fetching_line, " fetched");
+    if (mmgr_line_finish(&fetching_line) != 0ull)
     {
-        query_said(context, fetching);
+        query_print(context, fetching);
     }
     const char *const fetch[7] = {s_curl, "-s", "-f", "-o", tar, url, NULL};
-    if (!query_context_teed(context, run, "curl", fetch, &code, said) || (code != 0ll))
+    if (!query_context_teed(context, run, "curl", fetch, &code, err_msg) || (code != 0ll))
     {
-        cli_line_text(said, "the vendor's archive could not be fetched: ");
-        cli_line_text(said, url);
+        mmgr_line_put(err_msg, "the vendor's archive could not be fetched: ");
+        mmgr_line_put(err_msg, url);
         return 0;
     }
     const char *const unpack[6] = {s_tar, "-xf", tar, "-C", download, NULL};
-    if (!query_context_teed(context, run, "tar", unpack, &code, said) || (code != 0ll))
+    if (!query_context_teed(context, run, "tar", unpack, &code, err_msg) || (code != 0ll))
     {
-        cli_line_text(said, tar);
-        cli_line_text(said, " could not be unpacked");
+        mmgr_line_put(err_msg, tar);
+        mmgr_line_put(err_msg, " could not be unpacked");
         return 0;
     }
     if (!query_is_file(program))
     {
-        cli_line_text(said, tar);
-        cli_line_text(said, " holds no nvdisasm");
+        mmgr_line_put(err_msg, tar);
+        mmgr_line_put(err_msg, " contains no nvdisasm");
         return 0;
     }
     return 1;
@@ -250,42 +254,42 @@ int query_disassembler(QueryContext *context, const QueryRun *run, const char *o
 
 // the key cubin of `arch` compiled where it is not there, into `cubin`
 int query_key_cubin(QueryContext *context, const QueryRun *run, const char *out, const char *arch, char *cubin,
-                    CliLine *said)
+                    VerbaLinea *err_msg)
 {
-    char cubins[QUERY_PATH_LONGEST];
-    char key[QUERY_PATH_LONGEST];
+    char cubins[QUERY_PATH_MAX_LEN];
+    char key[QUERY_PATH_MAX_LEN];
     query_tables_in(out, "cubins", cubins);
     query_tables_in(cubins, "key.cu", key);
     if (!query_folder_made(cubins) ||
         (!query_is_file(key) && !query_file_written(key, QUERY_TABLES_KEY, sizeof(QUERY_TABLES_KEY) - 1u)))
     {
-        cli_line_text(said, key);
-        cli_line_text(said, " could not be written");
+        mmgr_line_put(err_msg, key);
+        mmgr_line_put(err_msg, " could not be written");
         return 0;
     }
     char name[32];
-    CliLine name_line = {name, sizeof(name), 0ull};
-    cli_line_text(&name_line, arch);
-    cli_line_text(&name_line, ".cubin");
-    cli_line_closed(&name_line);
+    VerbaLinea name_line = {name, sizeof(name), 0ull};
+    mmgr_line_put(&name_line, arch);
+    mmgr_line_put(&name_line, ".cubin");
+    mmgr_line_finish(&name_line);
     query_tables_in(cubins, name, cubin);
     if (query_is_file(cubin))
     {
         return 1;
     }
-    static char s_nvcc[QUERY_PATH_LONGEST];
+    static char s_nvcc[QUERY_PATH_MAX_LEN];
     char flag[32];
-    CliLine flag_line = {flag, sizeof(flag), 0ull};
-    cli_line_text(&flag_line, "-arch=");
-    cli_line_text(&flag_line, arch);
-    cli_line_closed(&flag_line);
+    VerbaLinea flag_line = {flag, sizeof(flag), 0ull};
+    mmgr_line_put(&flag_line, "-arch=");
+    mmgr_line_put(&flag_line, arch);
+    mmgr_line_finish(&flag_line);
     long long code = -1ll;
     const char *const compile[7] = {s_nvcc, flag, "-cubin", "-o", cubin, key, NULL};
-    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, said) ||
-        !query_context_teed(context, run, "nvcc", compile, &code, said) || (code != 0ll))
+    if (!query_program(context, QUERY_ROLE_NVCC, s_nvcc, err_msg) ||
+        !query_context_teed(context, run, "nvcc", compile, &code, err_msg) || (code != 0ll))
     {
-        cli_line_text(said, "nvcc did not compile the key for ");
-        cli_line_text(said, arch);
+        mmgr_line_put(err_msg, "nvcc did not compile the key for ");
+        mmgr_line_put(err_msg, arch);
         return 0;
     }
     return 1;

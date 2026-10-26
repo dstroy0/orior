@@ -10,8 +10,8 @@
 #include "format.h"
 #include "toolchains.h"
 
-// The room the formatting reads into: the manifest and a settings file's text, each a cell sized to what it holds, the
-// toolchain found, and the formatter's words
+// The room the formatting reads into: the manifest and a settings file's text, each a cell sized to what it contains,
+// the toolchain found, and the formatter's words
 typedef struct
 {
     CliJson json;
@@ -29,21 +29,21 @@ extern CliLock g_cli_format_lock;
 void cli_format_released(void);
 
 // the manifest read into the room, and the toolchain that formats `language` in it: the tool, or CLI_JSON_NONE with
-// why said where none does (format.c)
-unsigned int cli_format_tool(const char *language, CliLine *said);
+// why given where none does (format.c)
+unsigned int cli_format_tool(const char *language, VerbaLinea *err_msg);
 
-// the first of the files `names`, `count` of them, in the folder of `path` or the nearest folder above it that holds
+// the first of the files `names`, `count` of them, in the folder of `path` or the nearest folder above it that contains
 // one, read whole into the room's settings: 1, or 0 where none is there or reads as UTF-8 (format_width.c)
 int cli_format_nearest(const char *path, const char *const *names, unsigned int count);
-// whether `size` bytes are UTF-8 whole; and that `program` could not format the file at `path` said, with the first
-// six lines of what it said, trimmed, or that it said nothing (format_width.c)
+// whether `size` bytes are UTF-8 whole; and that `program` could not format the file at `path` reported, with the first
+// six lines of what it printed, trimmed, or that it printed nothing (format_width.c)
 int cli_format_utf8(const char *bytes, unsigned long long size);
-void cli_format_failed(const char *program, const char *path, const CliRan *ran, CliLine *said);
+void cli_format_failed(const char *program, const char *path, const CliRan *ran, VerbaLinea *err_msg);
 // the whole number set for `key` in a settings file, TOML, YAML or JSON: within the TOML table `table` where one is
 // named, and before any table where none is: 1 with it into `number`, or 0 (format_width.c)
 int cli_format_number_in(const char *text, const char *table, const char *key, unsigned int *number);
-// the Rust edition of the crate that holds the file at `path`, as its Cargo.toml names it, or 2021 where the crate
-// names none of its own, into `edition`, which holds CLI_NAME_LONGEST, under the formatting's lock (format.c)
+// the Rust edition of the crate that contains the file at `path`, as its Cargo.toml names it, or 2021 where the crate
+// names none of its own, into `edition`, sized for CLI_NAME_MAX_LEN, under the formatting's lock (format.c)
 void cli_format_edition_of(const char *path, char *edition);
 
 #endif

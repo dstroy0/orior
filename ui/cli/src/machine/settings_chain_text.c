@@ -4,34 +4,34 @@
 #include "../text/text.h"
 #include "settings_internal.h"
 
-void cli_settings_chain_written(const CliChain *chain, CliLine *out)
+void cli_settings_chain_written(const CliChain *chain, VerbaLinea *out)
 {
-    cli_line_text(out, "{\"files\":[");
+    mmgr_line_put(out, "{\"files\":[");
     for (unsigned int at = 0u; at < chain->files; at += 1u)
     {
-        cli_line_text(out, (at != 0u) ? ",{\"file\":" : "{\"file\":");
+        mmgr_line_put(out, (at != 0u) ? ",{\"file\":" : "{\"file\":");
         cli_json_quoted(out, chain->file[at],
                         cellul.len(&(CatenaFinitaCfg){.src = chain->file[at], .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"values\":");
+        mmgr_line_put(out, ",\"values\":");
         cli_json_write(&chain->json, chain->values[at], out, 0u, 0);
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
-    cli_line_text(out, "],\"problems\":[");
+    mmgr_line_put(out, "],\"problems\":[");
     for (unsigned int at = 0u; at < chain->problems; at += 1u)
     {
-        cli_line_text(out, (at != 0u) ? "," : "");
+        mmgr_line_put(out, (at != 0u) ? "," : "");
         cli_json_quoted(out, chain->problem[at],
                         cellul.len(&(CatenaFinitaCfg){.src = chain->problem[at], .cap = CLI_CELLS_POOL}));
     }
-    cli_line_text(out, "]}");
+    mmgr_line_put(out, "]}");
 }
 
-int cli_settings_chain_read(const char *text, unsigned long long length, CliChain *chain, CliLine *said)
+int cli_settings_chain_read(const char *text, unsigned long long length, CliChain *chain, VerbaLinea *err_msg)
 {
     cli_json_begun(&chain->json, NULL, 0u, NULL, 0ull);
     chain->files = 0u;
     chain->problems = 0u;
-    const unsigned int root = cli_json_taken(&chain->json, text, length, 0u, 0ull, said);
+    const unsigned int root = cli_json_taken(&chain->json, text, length, 0u, 0ull, err_msg);
     if (!cli_json_is(&chain->json, root, CFG_JSON_OBJECT))
     {
         return 0;
@@ -61,9 +61,9 @@ int cli_settings_chain_read(const char *text, unsigned long long length, CliChai
         const char *const problem = cli_json_string(&chain->json, item, NULL);
         if (problem != NULL)
         {
-            CliLine line = {chain->problem[chain->problems], CLI_PATH_LONGEST * 2u, 0ull};
-            cli_line_text(&line, problem);
-            cli_line_closed(&line);
+            VerbaLinea line = {chain->problem[chain->problems], CLI_PATH_MAX_LEN * 2u, 0ull};
+            mmgr_line_put(&line, problem);
+            mmgr_line_finish(&line);
             chain->problems += 1u;
         }
     }

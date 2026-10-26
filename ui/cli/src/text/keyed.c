@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// keyed.c: texts kept by a key, every keeper's entries in the modules' shared cells: each entry its key, the text
+// keyed.c: texts stored by a key, every store's entries in the modules' shared cells: each entry its key, the text
 // beside it and its text one after another in a cell of its own, each ended by a 0; an entry found by its key's hash
 // and then its key
 #include "keyed.h"
@@ -18,7 +18,7 @@ static unsigned int keyed_hash(const char *key)
     return hash;
 }
 
-// the entry kept under `key`, `entries` where none is
+// the entry stored under `key`, `entries` where none is
 static unsigned int keyed_find(const CliKeyed *keyed, const char *key)
 {
     const unsigned int hash = keyed_hash(key);
@@ -37,27 +37,27 @@ static unsigned int keyed_find(const CliKeyed *keyed, const char *key)
 // a cell of `size` bytes for `keyed`'s entry, or NULL; and a cell given back
 static char *keyed_cell_taken(const CliKeyed *keyed, unsigned long long size)
 {
-    return cli_cell_taken(size, keyed->name);
+    return g_cli_cells->persistent_buf_alloc(size, NULL);
 }
 
 static void keyed_cell_given(char *cell)
 {
-    cli_cell_given(cell);
+    g_cli_cells->persistent_buf_release(cell, NULL);
 }
 
-// that `key` could not be kept by `keyed`, and why, said on the standard error
+// that `key` could not be stored by `keyed`, and why, reported on the standard error
 static void keyed_refused(const CliKeyed *keyed, const char *key, const char *why)
 {
-    char told[CLI_PATH_LONGEST + 256u];
-    CliLine line = {told, sizeof(told), 0ull};
-    cli_line_text(&line, "orior: ");
-    cli_line_text(&line, keyed->name);
-    cli_line_text(&line, ": ");
-    cli_line_text(&line, key);
-    cli_line_text(&line, " is not kept: ");
-    cli_line_text(&line, why);
-    cli_line_character(&line, '\n');
-    query_terminal_written(1, told, line.at);
+    char msg_buf[CLI_PATH_MAX_LEN + 256u];
+    VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
+    mmgr_line_put(&line, "orior: ");
+    mmgr_line_put(&line, keyed->name);
+    mmgr_line_put(&line, ": ");
+    mmgr_line_put(&line, key);
+    mmgr_line_put(&line, " is not stored: ");
+    mmgr_line_put(&line, why);
+    mmgr_line_ch(&line, '\n');
+    query_terminal_written(1, msg_buf, line.at);
 }
 
 void cli_keyed_begun(CliKeyed *keyed, const char *name, unsigned int entries_most)
@@ -84,19 +84,19 @@ static void keyed_pages_given(CliKeyed *keyed)
     }
 }
 
-// the entries that hold one moved down together, in the order they stand, the pages they leave given back
+// the entries that contain one moved down together, in the order they stand, the pages they leave given back
 static void keyed_compacted(CliKeyed *keyed)
 {
-    unsigned int kept = 0u;
+    unsigned int count = 0u;
     for (unsigned int at = 0u; at < keyed->entries; at += 1u)
     {
         if (cli_keyed_entry(keyed, at)->used)
         {
-            *cli_keyed_entry(keyed, kept) = *cli_keyed_entry(keyed, at);
-            kept += 1u;
+            *cli_keyed_entry(keyed, count) = *cli_keyed_entry(keyed, at);
+            count += 1u;
         }
     }
-    keyed->entries = kept;
+    keyed->entries = count;
     keyed_pages_given(keyed);
 }
 
@@ -128,10 +128,10 @@ int cli_keyed_put(CliKeyed *keyed, const char *key, const char *beside, const ch
     }
     memor.cpy(&(MemoriaCfg){.dst = place, .src = key, .bytes = key_size + 1u});
     memor.cpy(&(MemoriaCfg){.dst = place + key_size + 1u, .src = beside, .bytes = beside_size + 1u});
-    // a size the cell held fits a size_t
+    // a size the cell allocated fits a size_t
     memor.cpy(&(MemoriaCfg){.dst = place + key_size + 1u + beside_size + 1u, .src = text, .bytes = (size_t)size});
     place[key_size + 1u + beside_size + 1u + size] = '\0';
-    // a key's and a second text's sizes are a path's and a URI's, far inside what an unsigned int holds
+    // a key's and a second text's sizes are a path's and a URI's, far inside what an unsigned int represents
     *cli_keyed_entry(keyed, keyed->entries) =
         (CliKeyedEntry){1, keyed_hash(key), place, needed, (unsigned int)key_size, (unsigned int)beside_size};
     keyed->entries += 1u;

@@ -18,11 +18,11 @@ static char s_seen_text[CLI_MAVEN_LISTED_TEXT];
 static unsigned int s_seen_used;
 
 // the child `name` of `of`, with the properties it names given, into `out`: 1, or 0 where it has none
-static int dependencies_get(const CliMavenCheck *check, unsigned int of, const char *name, CliLine *out)
+static int dependencies_get(const CliMavenCheck *check, unsigned int of, const char *name, VerbaLinea *out)
 {
     static char s_raw[1u << 14u];
-    CliLine raw = {s_raw, sizeof(s_raw), 0ull};
-    if (!cli_xml_text_of(check->xml, of, name, &raw) || !cli_line_fits(&raw))
+    VerbaLinea raw = {s_raw, sizeof(s_raw), 0ull};
+    if (!cli_xml_text_of(check->xml, of, name, &raw) || !mmgr_line_ok(&raw))
     {
         return 0;
     }
@@ -30,7 +30,7 @@ static int dependencies_get(const CliMavenCheck *check, unsigned int of, const c
     return 1;
 }
 
-// whether `size` bytes of `whole` were listed above in this list, and kept where they were not
+// whether `size` bytes of `whole` were listed above in this list, and recorded where they were not
 static int dependencies_seen(const char *whole, unsigned long long size)
 {
     for (unsigned int at = 0u; at < s_seen; at += 1u)
@@ -58,9 +58,9 @@ static void dependencies_scope(const CliMavenCheck *check, unsigned int dependen
     const CliXml *const xml = check->xml;
     const unsigned int scope = cli_xml_child(xml, dependency, "scope");
     static char s_value[1u << 12u];
-    CliLine value = {s_value, sizeof(s_value), 0ull};
+    VerbaLinea value = {s_value, sizeof(s_value), 0ull};
     unsigned long long found = 0ull;
-    if ((scope == CLI_XML_NONE) || !cli_xml_text(xml, scope, &value) || !cli_line_fits(&value) ||
+    if ((scope == CLI_XML_NONE) || !cli_xml_text(xml, scope, &value) || !mmgr_line_ok(&value) ||
         cli_text_find(s_value, value.at, "${", 2u, &found))
     {
         return;
@@ -74,17 +74,17 @@ static void dependencies_scope(const CliMavenCheck *check, unsigned int dependen
         }
     }
     const CliXmlElement *const element = &xml->element[scope];
-    CliLine said = cli_build_said(check->found);
-    cli_line_character(&said, '`');
-    cli_line_counted(&said, s_value, value.at);
-    cli_line_text(&said, "` is no scope: a scope is ");
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put_n(&msg, s_value, value.at);
+    mmgr_line_put(&msg, "` is no scope: a scope is ");
     for (unsigned int at = 0u; at < 6u; at += 1u)
     {
-        cli_line_text(&said, (at > 0u) ? ", `" : "`");
-        cli_line_text(&said, g_cli_maven_scopes[at]);
-        cli_line_character(&said, '`');
+        mmgr_line_put(&msg, (at > 0u) ? ", `" : "`");
+        mmgr_line_put(&msg, g_cli_maven_scopes[at]);
+        mmgr_line_ch(&msg, '`');
     }
-    const unsigned int finding = cli_build_finding(check->found, &said, check->lines, element->inner_from,
+    const unsigned int finding = cli_build_finding(check->found, &msg, check->lines, element->inner_from,
                                                    element->inner_to, CLI_BUILD_ERROR, "pom-scope");
     CliBuildNear near;
     cli_build_near_begun(&near, s_value, value.at);
@@ -95,9 +95,9 @@ static void dependencies_scope(const CliMavenCheck *check, unsigned int dependen
     }
     for (unsigned int at = 0u; at < near.count; at += 1u)
     {
-        CliLine title = cli_build_said(check->found);
-        cli_line_text(&title, "Change to ");
-        cli_line_counted(&title, near.near[at], near.near_size[at]);
+        VerbaLinea title = cli_build_msg_line(check->found);
+        mmgr_line_put(&title, "Change to ");
+        mmgr_line_put_n(&title, near.near[at], near.near_size[at]);
         cli_build_edit_fix(check->found, finding, &title, check->lines, element->inner_from, element->inner_to,
                            near.near[at], near.near_size[at]);
     }
@@ -126,54 +126,54 @@ static void dependencies_one(const CliMavenCheck *check, unsigned int dependency
     static char s_key[1u << 14u];
     static char s_whole[1u << 14u];
     static char s_version[1u << 14u];
-    CliLine key = {s_key, sizeof(s_key), 0ull};
+    VerbaLinea key = {s_key, sizeof(s_key), 0ull};
     if (!dependencies_get(check, dependency, "groupId", &key))
     {
-        CliLine said = cli_build_said(check->found);
-        cli_line_text(&said, "A dependency names its `<groupId>` and its `<artifactId>`");
-        (void)cli_build_finding(check->found, &said, check->lines, element->from, element->to, CLI_BUILD_ERROR,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_put(&msg, "A dependency names its `<groupId>` and its `<artifactId>`");
+        (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_ERROR,
                                 "pom-dependency");
         return;
     }
-    cli_line_character(&key, ':');
+    mmgr_line_ch(&key, ':');
     if (!dependencies_get(check, dependency, "artifactId", &key))
     {
-        CliLine said = cli_build_said(check->found);
-        cli_line_text(&said, "A dependency names its `<groupId>` and its `<artifactId>`");
-        (void)cli_build_finding(check->found, &said, check->lines, element->from, element->to, CLI_BUILD_ERROR,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_put(&msg, "A dependency names its `<groupId>` and its `<artifactId>`");
+        (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_ERROR,
                                 "pom-dependency");
         return;
     }
-    CliLine whole = {s_whole, sizeof(s_whole), 0ull};
-    cli_line_counted(&whole, s_key, key.at);
-    cli_line_character(&whole, ':');
+    VerbaLinea whole = {s_whole, sizeof(s_whole), 0ull};
+    mmgr_line_put_n(&whole, s_key, key.at);
+    mmgr_line_ch(&whole, ':');
     if (!dependencies_get(check, dependency, "type", &whole))
     {
-        cli_line_text(&whole, "jar");
+        mmgr_line_put(&whole, "jar");
     }
-    cli_line_character(&whole, ':');
+    mmgr_line_ch(&whole, ':');
     (void)dependencies_get(check, dependency, "classifier", &whole);
     if (dependencies_seen(s_whole, whole.at))
     {
-        CliLine said = cli_build_said(check->found);
-        cli_line_character(&said, '`');
-        cli_line_counted(&said, s_key, key.at);
-        cli_line_text(&said, "` is listed above it in these dependencies");
-        (void)cli_build_finding(check->found, &said, check->lines, element->from, element->to, CLI_BUILD_WARNING,
+        VerbaLinea msg = cli_build_msg_line(check->found);
+        mmgr_line_ch(&msg, '`');
+        mmgr_line_put_n(&msg, s_key, key.at);
+        mmgr_line_put(&msg, "` is listed above it in these dependencies");
+        (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_WARNING,
                                 "pom-duplicate");
     }
     dependencies_scope(check, dependency);
-    CliLine version = {s_version, sizeof(s_version), 0ull};
+    VerbaLinea version = {s_version, sizeof(s_version), 0ull};
     if (!dependencies_get(check, dependency, "version", &version))
     {
         const CliMavenModel *const model = check->model;
         if (!managing && model->whole && !model->imports && !dependencies_managed(model, s_key, key.at))
         {
-            CliLine said = cli_build_said(check->found);
-            cli_line_character(&said, '`');
-            cli_line_counted(&said, s_key, key.at);
-            cli_line_text(&said, "` has no version, and no `<dependencyManagement>` gives it one");
-            (void)cli_build_finding(check->found, &said, check->lines, element->from, element->to, CLI_BUILD_WARNING,
+            VerbaLinea msg = cli_build_msg_line(check->found);
+            mmgr_line_ch(&msg, '`');
+            mmgr_line_put_n(&msg, s_key, key.at);
+            mmgr_line_put(&msg, "` has no version, and no `<dependencyManagement>` gives it one");
+            (void)cli_build_finding(check->found, &msg, check->lines, element->from, element->to, CLI_BUILD_WARNING,
                                     "pom-version");
         }
         return;
@@ -184,16 +184,16 @@ static void dependencies_one(const CliMavenCheck *check, unsigned int dependency
     }
     const unsigned int child = cli_xml_child(xml, dependency, "version");
     const CliXmlElement *const at = &xml->element[(child != CLI_XML_NONE) ? child : dependency];
-    CliLine coordinates = {s_whole, sizeof(s_whole), 0ull};
-    cli_line_counted(&coordinates, s_key, key.at);
-    cli_line_character(&coordinates, ':');
-    cli_line_counted(&coordinates, s_version, version.at);
-    CliLine said = cli_build_said(check->found);
-    cli_line_character(&said, '`');
-    cli_line_counted(&said, s_whole, coordinates.at);
-    cli_line_text(&said, "` is a snapshot, whose newest build Maven fetches with `-U`");
+    VerbaLinea coordinates = {s_whole, sizeof(s_whole), 0ull};
+    mmgr_line_put_n(&coordinates, s_key, key.at);
+    mmgr_line_ch(&coordinates, ':');
+    mmgr_line_put_n(&coordinates, s_version, version.at);
+    VerbaLinea msg = cli_build_msg_line(check->found);
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put_n(&msg, s_whole, coordinates.at);
+    mmgr_line_put(&msg, "` is a snapshot, whose newest build Maven fetches with `-U`");
     const unsigned int finding =
-        cli_build_finding(check->found, &said, check->lines, at->inner_from, at->inner_to, CLI_BUILD_NOTE, "snapshot");
+        cli_build_finding(check->found, &msg, check->lines, at->inner_from, at->inner_to, CLI_BUILD_NOTE, "snapshot");
     cli_maven_update(check, finding, s_whole, coordinates.at);
 }
 

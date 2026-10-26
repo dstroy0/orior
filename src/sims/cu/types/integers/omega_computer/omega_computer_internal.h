@@ -22,15 +22,16 @@
 // machines deep. The nested runs go to a lazy machine (call by need, and read back under every lambda and into every
 // argument of a variable. It reaches a normal form wherever one exists); the direct run goes to it and to the
 // rewriting of chaitin_omega, which must agree.
-// 1. U is 190 bits and closed, and Tromp's own test holds at every depth: U reading delimit (326 bits, ait/delimit.lam)
+// 1. U is 190 bits and closed, and Tromp's own test passes at every depth: U reading delimit (326 bits,
+// ait/delimit.lam)
 //    and then 1111000111001 gives the list 11010.
 // 2. The direct run: every closed M through L bits run on nil by normal order rewriting, with Brent's watcher and the
 //    growth proof of chaitin_omega deciding the runs that never halt. The lazy machine gives the rewriting's normal
 //    form wherever both halt, and no run of either halts where the other proves it never does.
 // 3. At every depth, every M whose nested run halts has the direct run's normal form, token for token, and none halts
 //    where a run at any depth proves it never does.
-// 4. Each depth's bracket holds the one outside it: every M the inner machine finishes, the outer machine finished, and
-//    the non-halts, proven at any depth, hold at every depth by Church and Rosser.
+// 4. Each depth's bracket contains the one outside it: every M the inner machine finishes, the outer machine finished,
+//    and the non-halts, proven at any depth, remain valid at every depth by Church and Rosser.
 // Measured: each depth's bracket and the bits of Omega_nil it proves, and the steps each depth takes against the one
 // outside it.
 
@@ -79,7 +80,7 @@
 
 #define OMEGA_COMPUTER_NODE_APPLY 2
 
-// a thunk's states: its term not yet evaluated, entered and under evaluation, or holding its value
+// a thunk's states: its term not yet evaluated, entered and under evaluation, or storing its value
 #define OMEGA_COMPUTER_UNEVALUATED 0
 
 #define OMEGA_COMPUTER_ENTERED 1

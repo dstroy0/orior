@@ -31,23 +31,23 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
         }
         char stem[ENTRY_PATH_CAPACITY];
         snprintf(stem, sizeof(stem), "%s", name);
-        int kept = 0;
+        int has_sample = 0;
         if (samples_of_set != 0)
         {
             char character[ENTRY_PATH_CAPACITY];
-            kept = engine_sample_path(character, sizeof(character), directory, name, ENTRY_CRYSTAL_SUFFIX) &&
-                   entry_exists(character);
+            has_sample = engine_sample_path(character, sizeof(character), directory, name, ENTRY_CRYSTAL_SUFFIX) &&
+                         entry_exists(character);
         }
-        for (unsigned int suffix = 0u; (samples_of_set == 0) && (kept == 0) && (suffix < ENTRY_SOURCE_SUFFIX_COUNT);
-             suffix += 1u)
+        for (unsigned int suffix = 0u;
+             (samples_of_set == 0) && (has_sample == 0) && (suffix < ENTRY_SOURCE_SUFFIX_COUNT); suffix += 1u)
         {
             if (entry_ends(stem, ENTRY_SOURCE_SUFFIXES[suffix]))
             {
                 stem[strlen(stem) - strlen(ENTRY_SOURCE_SUFFIXES[suffix])] = '\0';
-                kept = 1;
+                has_sample = 1;
             }
         }
-        if (kept != 0)
+        if (has_sample != 0)
         {
             const size_t size = strlen(stem) + 1u;
             char *const copy = (char *)malloc(size);
@@ -72,16 +72,16 @@ static unsigned int entry_listing(const char *directory, char ***names, int samp
     char **const listed = (char **)calloc(found.size() + 1u, sizeof(char *));
     if (listed == NULL)
     {
-        for (size_t slot = 0u; slot < found.size(); slot += 1u)
+        for (size_t found_at = 0u; found_at < found.size(); found_at += 1u)
         {
-            free(found[slot]);
+            free(found[found_at]);
         }
         *names = NULL;
         return 0u;
     }
-    for (size_t slot = 0u; slot < found.size(); slot += 1u)
+    for (size_t found_at = 0u; found_at < found.size(); found_at += 1u)
     {
-        listed[slot] = found[slot];
+        listed[found_at] = found[found_at];
     }
     qsort(listed, found.size(), sizeof(char *), entry_order_names);
     *names = listed;
@@ -207,7 +207,7 @@ extern "C" long engine_iapx_head(const char *set, const char *sample, unsigned l
         (krep_crystal_head(path, &stream, NULL, error) == 0))
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     memcpy(extent, stream.extent, sizeof(stream.extent));
@@ -323,7 +323,7 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
     }
     if (ok != 0)
     {
-        // the offsets and the stream are compression's own, kept for its next call; only the bits are kept
+        // the offsets and the stream are compression's own, retained for its next call; only the bits are retained
         EngineStream stream;
         memset(&stream, 0, sizeof(stream));
         CompressionEncodeRequest code;
@@ -342,7 +342,7 @@ extern "C" long engine_lattice_bits(const int *values, const unsigned long long 
     if (ok == 0)
     {
         engine_error_frame(error);
-        engine_error_keep(error);
+        engine_error_latch(error);
         return ENGINE_ERROR;
     }
     return 0L;

@@ -1,22 +1,25 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // serve_call_bring.c: files from outside the window copied into a folder of the tree on a thread of their own, each
-// telling how far along it is and the copy telling where each went once done
+// reporting how far along it is and the copy reporting where each went once done; the tree on another machine, the
+// files read here and written there over the link a part at a time
+#include "../comms/link.h"
 #include "../editor/files.h"
 #include "serve_internal.h"
 
-// the most files one bring copies, the most bytes of their paths, and the bytes what it tells is begun to be written
+// the most files one bring copies, the most bytes of their paths, and the bytes what it reports is begun to be written
 // in, doubling as it is
 #define CLI_SERVE_BRINGS 4096u
 #define CLI_SERVE_BRING_PATHS (1u << 20u)
-#define CLI_SERVE_BRING_TOLD_FIRST 4096u
+#define CLI_SERVE_BRING_PROGRESS_INIT_CAP 4096u
 
-// A bring of files on a thread of its own: the tree, the folder they go into, the files and the texts of their paths,
-// one cell of their count and their bytes the bring gives back as it ends
+// A bring of files on a thread of its own: the tree, whether it is on another machine over the link, the folder they go
+// into, the files and the texts of their paths, one cell of their count and their bytes the bring gives back as it ends
 typedef struct
 {
-    char root[CLI_PATH_LONGEST];
-    char into[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    int linked;
+    char into[CLI_PATH_MAX_LEN];
     const char **from;
     unsigned int count;
     CliThread thread;
@@ -27,57 +30,69 @@ static CliServeBring s_bring;
 static CliLock s_bring_lock = CLI_LOCK_INIT;
 static CliWake s_bring_wake = CLI_WAKE_INIT;
 
-// how far a file is copied told as bring-progress
-static void bring_told(void *context, const char *path, unsigned long long done, unsigned long long size)
+// how far a file is copied reported as bring-progress
+static void bring_progress(void *context, const char *path, unsigned long long done, unsigned long long size)
 {
     (void)context;
-    char body[CLI_PATH_LONGEST + 128u];
-    CliLine line = {body, sizeof(body), 0ull};
-    cli_line_text(&line, "{\"path\":");
+    char body[CLI_PATH_MAX_LEN + 128u];
+    VerbaLinea line = {body, sizeof(body), 0ull};
+    mmgr_line_put(&line, "{\"path\":");
     cli_json_quoted_lossy(&line, (const unsigned char *)path,
                           cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&line, ",\"done\":");
-    cli_line_decimal(&line, done, 1u);
-    cli_line_text(&line, ",\"size\":");
-    cli_line_decimal(&line, size, 1u);
-    cli_line_character(&line, '}');
-    if (cli_line_fits(&line))
+    mmgr_line_put(&line, ",\"done\":");
+    mmgr_line_decimal(&line, done, 1u);
+    mmgr_line_put(&line, ",\"size\":");
+    mmgr_line_decimal(&line, size, 1u);
+    mmgr_line_ch(&line, '}');
+    if (mmgr_line_ok(&line))
     {
         cli_serve_emitted("bring-progress", body, line.at);
     }
 }
 
-// the files of the bring copied, and where each went told as bring-done once done
+// a call of the tree's side on another machine, over the link
+static int bring_linked_call(void *context, const char *name, const char *arguments, VerbaLinea *out,
+                             VerbaLinea *err_msg)
+{
+    (void)context;
+    return cli_link_call(name, arguments, cellul.len(&(CatenaFinitaCfg){.src = arguments, .cap = CLI_CELLS_POOL}), out,
+                         err_msg);
+}
+
+// the files of the bring copied, or read here and written over the link where the tree is on another machine, and
+// where each went reported as bring-done once done
 static void bring_run(void *context)
 {
     CliServeBring *const bring = context;
     char why[1024];
-    CliLine brought;
-    (void)cli_line_growing(&brought, CLI_SERVE_BRING_TOLD_FIRST, "where the files brought went");
-    CliLine said = {why, sizeof(why), 0ull};
-    const int done =
-        cli_files_bring(bring->root, bring->into, bring->from, bring->count, bring_told, NULL, &brought, &said);
-    CliLine line;
-    (void)cli_line_growing(&line, brought.at + CLI_SERVE_BRING_TOLD_FIRST, "a bring told done");
-    cli_line_text(&line, "{\"into\":");
+    VerbaLinea brought;
+    (void)cli_growing_line_made(&brought, CLI_SERVE_BRING_PROGRESS_INIT_CAP);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int done = bring->linked ? cli_files_bring_over(bring_linked_call, NULL, bring->into, bring->from,
+                                                          bring->count, bring_progress, NULL, &brought, &err_msg)
+                                   : cli_files_bring(bring->root, bring->into, bring->from, bring->count,
+                                                     bring_progress, NULL, &brought, &err_msg);
+    VerbaLinea line;
+    (void)cli_growing_line_made(&line, brought.at + CLI_SERVE_BRING_PROGRESS_INIT_CAP);
+    mmgr_line_put(&line, "{\"into\":");
     cli_json_quoted_lossy(&line, (const unsigned char *)bring->into,
                           cellul.len(&(CatenaFinitaCfg){.src = bring->into, .cap = CLI_CELLS_POOL}));
     if (done)
     {
-        cli_line_text(&line, ",\"brought\":");
-        cli_line_counted(&line, brought.out, cli_line_fits(&brought) ? brought.at : 0ull);
+        mmgr_line_put(&line, ",\"brought\":");
+        mmgr_line_put_n(&line, brought.out, mmgr_line_ok(&brought) ? brought.at : 0ull);
     }
     else
     {
-        cli_line_text(&line, ",\"error\":");
-        cli_json_quoted_lossy(&line, (const unsigned char *)why, cli_line_fits(&said) ? said.at : 0ull);
+        mmgr_line_put(&line, ",\"error\":");
+        cli_json_quoted_lossy(&line, (const unsigned char *)why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
     }
-    cli_line_character(&line, '}');
-    cli_serve_emitted("bring-done", line.out, cli_line_fits(&line) ? line.at : 0ull);
-    cli_cell_given(line.out);
-    cli_cell_given(brought.out);
+    mmgr_line_ch(&line, '}');
+    cli_serve_emitted("bring-done", line.out, mmgr_line_ok(&line) ? line.at : 0ull);
+    g_cli_cells->persistent_buf_release(line.out, NULL);
+    g_cli_cells->persistent_buf_release(brought.out, NULL);
     cli_lock_take(&s_bring_lock);
-    cli_cell_given_by(&g_cli_serve_strings_cells, bring->from);
+    g_cli_cells->persistent_buf_release(bring->from, &g_cli_serve_strings_cells);
     bring->from = NULL;
     bring->count = 0u;
     bring->busy = 0;
@@ -85,31 +100,35 @@ static void bring_run(void *context)
     cli_lock_give(&s_bring_lock);
 }
 
-int cli_serve_files_bring(const CliServeArgs *args, CliLine *out, CliLine *said)
+// the bring the call's arguments name started, into the tree open here or, where `linked`, into the tree on another
+// machine the link is open to: null into `out`, 1, or 0 with why given
+static int bring_started(const CliServeArgs *args, int linked, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    root[0] = '\0';
     unsigned int count = 0u;
     const char **given = NULL;
-    const char *const into = cli_serve_string(args, "into", said);
-    if ((into == NULL) || !cli_serve_strings_taken(args, "paths", CLI_SERVE_BRINGS, &given, &count, said) ||
-        !cli_serve_tree(root, said))
+    const char *const into = cli_serve_string(args, "into", err_msg);
+    if ((into == NULL) || !cli_serve_strings_taken(args, "paths", CLI_SERVE_BRINGS, &given, &count, err_msg) ||
+        (!linked && !cli_serve_tree(root, err_msg)))
     {
         cli_serve_strings_given(given);
         return 0;
     }
-    // the paths kept past the call, CLI_SERVE_BRING_PATHS of them at the most, in a cell of their pointers and bytes
+    // the paths retained past the call, CLI_SERVE_BRING_PATHS of them at the most, in a cell of their pointers and
+    // bytes
     unsigned long long bytes = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         bytes += cellul.len(&(CatenaFinitaCfg){.src = given[at], .cap = CLI_CELLS_POOL}) + 1ull;
     }
     bytes = (bytes < CLI_SERVE_BRING_PATHS) ? bytes : CLI_SERVE_BRING_PATHS;
-    const char **const from = cli_cell_taken_by(
-        &g_cli_serve_strings_cells, ((count + 1ull) * sizeof(*from)) + bytes + 1ull, "the files a bring copies");
+    const char **const from =
+        g_cli_cells->persistent_buf_alloc(((count + 1ull) * sizeof(*from)) + bytes + 1ull, &g_cli_serve_strings_cells);
     if (from == NULL)
     {
         cli_serve_strings_given(given);
-        cli_line_text(said, "the files a bring copies could not be given a cell");
+        mmgr_line_put(err_msg, "the files a bring copies could not be given a cell");
         return 0;
     }
     char *const paths = (char *)(void *)(from + count + 1u);
@@ -119,10 +138,11 @@ int cli_serve_files_bring(const CliServeArgs *args, CliLine *out, CliLine *said)
         cli_wake_wait(&s_bring_wake, &s_bring_lock);
     }
     s_bring.busy = 1;
+    s_bring.linked = linked;
     memor.cpy(&(MemoriaCfg){.dst = s_bring.root, .src = root, .bytes = sizeof(root)});
-    CliLine line = {s_bring.into, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, into);
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {s_bring.into, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, into);
+    (void)mmgr_line_finish(&line);
     unsigned long long used = 0ull;
     s_bring.from = from;
     s_bring.count = 0u;
@@ -146,17 +166,27 @@ int cli_serve_files_bring(const CliServeArgs *args, CliLine *out, CliLine *said)
     {
         bring_run(&s_bring);
     }
-    cli_line_text(out, "null");
+    mmgr_line_put(out, "null");
     return 1;
 }
 
-int cli_serve_bring_name(const CliServeArgs *args, CliLine *out, CliLine *said)
+int cli_serve_files_bring(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    const char *const into = cli_serve_string(args, "into", said);
-    const char *const name = (into != NULL) ? cli_serve_string(args, "name", said) : NULL;
-    if ((name == NULL) || !cli_serve_tree(root, said) || !cli_files_free_in(root, into, name, path, said))
+    return bring_started(args, 0, out, err_msg);
+}
+
+int cli_serve_files_bring_over(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+{
+    return bring_started(args, 1, out, err_msg);
+}
+
+int cli_serve_bring_name(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+{
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    const char *const into = cli_serve_string(args, "into", err_msg);
+    const char *const name = (into != NULL) ? cli_serve_string(args, "name", err_msg) : NULL;
+    if ((name == NULL) || !cli_serve_tree(root, err_msg) || !cli_files_free_in(root, into, name, path, err_msg))
     {
         return 0;
     }

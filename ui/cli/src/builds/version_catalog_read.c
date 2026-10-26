@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // version_catalog_read.c: a version catalog read: each `[section]` and the entries under it, a key, bare or quoted,
-// its parts joined by dots, `=` and a value, one entry a line, comments and blank lines passed; and what kept it from
-// reading, each with its span. A line whose entry could not be read is passed whole, and the line after it read as
-// its own. Parts of the catalog past what its storage holds are not kept, and it is marked full
+// its parts joined by dots, `=` and a value, one entry a line, comments and blank lines passed; and what prevented it
+// from reading, each with its span. A line whose entry could not be read is passed whole, and the line after it read as
+// its own. Parts of the catalog past what its storage contains are not stored, and it is marked full
 #include "version_catalog_internal.h"
 
 CliVersionsParsed g_cli_versions;
@@ -31,8 +31,8 @@ static unsigned int read_peek(const CliVersionsReader *read, unsigned long long 
     return cli_text_letter(read->text, read->size, read->at, length);
 }
 
-// `size` bytes of `bytes` kept in the pool: where they start, CLI_VERSIONS_POOL where they do not fit
-static unsigned int read_kept(const char *bytes, unsigned long long size)
+// `size` bytes of `bytes` stored in the pool: where they start, CLI_VERSIONS_POOL where they do not fit
+static unsigned int read_text_stored(const char *bytes, unsigned long long size)
 {
     CliVersionsParsed *const parsed = &g_cli_versions;
     if (size + 1u > parsed->pool_room - parsed->used)
@@ -47,11 +47,11 @@ static unsigned int read_kept(const char *bytes, unsigned long long size)
     return at;
 }
 
-// what kept the catalog from reading put with its span
+// what prevented the catalog from reading put with its span
 static void read_error(unsigned long long from, unsigned long long to, const char *bytes, unsigned long long size)
 {
     CliVersionsParsed *const parsed = &g_cli_versions;
-    const unsigned int at = read_kept(bytes, size);
+    const unsigned int at = read_text_stored(bytes, size);
     if ((parsed->errors == parsed->errors_room) || (at == CLI_VERSIONS_POOL))
     {
         parsed->full = 1;
@@ -61,8 +61,8 @@ static void read_error(unsigned long long from, unsigned long long to, const cha
     parsed->errors += 1u;
 }
 
-// what kept the catalog from reading, a text, put with its span
-static void read_said(unsigned long long from, unsigned long long to, const char *message)
+// what prevented the catalog from reading, a text, put with its span
+static void read_error_text(unsigned long long from, unsigned long long to, const char *message)
 {
     read_error(from, to, message, cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}));
 }
@@ -128,7 +128,7 @@ static void read_rest_of_line(CliVersionsReader *read)
         const char here = read->text[read->at];
         if ((here != '\n') && (here != '\r') && (here != '#'))
         {
-            read_said(read->at, read_find(read, "\n"), "A line holds one entry");
+            read_error_text(read->at, read_find(read, "\n"), "A line has one entry");
         }
     }
     read_skip_line(read);
@@ -136,7 +136,7 @@ static void read_rest_of_line(CliVersionsReader *read)
 
 // a string in `quote`s, its text written into `out` and the span inside its quotes into `from` and `to`: 1, or 0 where
 // it is not closed on its line
-static int read_string(CliVersionsReader *read, char quote, CliLine *out, unsigned long long *from,
+static int read_string(CliVersionsReader *read, char quote, VerbaLinea *out, unsigned long long *from,
                        unsigned long long *to)
 {
     const unsigned long long start = read->at;
@@ -161,15 +161,15 @@ static int read_string(CliVersionsReader *read, char quote, CliLine *out, unsign
             read->at += 1u;
             if (read_peek(read, &length) != CLI_VERSIONS_END)
             {
-                cli_line_counted(out, read->text + read->at, length);
+                mmgr_line_put_n(out, read->text + read->at, length);
                 read->at += length;
             }
             continue;
         }
-        cli_line_counted(out, read->text + read->at, length);
+        mmgr_line_put_n(out, read->text + read->at, length);
         read->at += length;
     }
-    read_said(start, read->at, "A string is closed on its line");
+    read_error_text(start, read->at, "A string is closed on its line");
     return 0;
 }
 
@@ -180,7 +180,7 @@ static int read_bare_letter(unsigned int letter)
 }
 
 // a key, bare or quoted, its parts joined by dots, into `out`: 1, or 0 where none is there
-static int read_key(CliVersionsReader *read, CliLine *out)
+static int read_key(CliVersionsReader *read, VerbaLinea *out)
 {
     for (;;)
     {
@@ -202,13 +202,13 @@ static int read_key(CliVersionsReader *read, CliLine *out)
             {
                 read->at += length;
             }
-            cli_line_counted(out, read->text + start, read->at - start);
+            mmgr_line_put_n(out, read->text + start, read->at - start);
         }
         else
         {
             const unsigned long long end = read_find(read, "\n");
             const unsigned long long past = (end > read->at + 1u) ? end : read->at + 1u;
-            read_said(read->at, (past < read->size) ? past : read->size, "An entry starts with its name");
+            read_error_text(read->at, (past < read->size) ? past : read->size, "An entry starts with its name");
             return 0;
         }
         read_spaces(read);
@@ -218,7 +218,7 @@ static int read_key(CliVersionsReader *read, CliLine *out)
         }
         read->at += 1u;
         read_spaces(read);
-        cli_line_character(out, '.');
+        mmgr_line_ch(out, '.');
     }
 }
 
@@ -261,7 +261,7 @@ static int read_table(CliVersionsReader *read, CliVersionsField *field)
         }
         if (here == '\n')
         {
-            read_said((read->at > 0u) ? read->at - 1u : 0u, read->at, "A table is closed with `}` on its line");
+            read_error_text((read->at > 0u) ? read->at - 1u : 0u, read->at, "A table is closed with `}` on its line");
             return 1;
         }
         const unsigned int child = read_field(read);
@@ -286,7 +286,7 @@ static int read_list(CliVersionsReader *read, CliVersionsField *field)
         read_blank(read);
         if (read->at >= read->size)
         {
-            read_said(start, start + 1u, "A list is closed with `]`");
+            read_error_text(start, start + 1u, "A list is closed with `]`");
             return 1;
         }
         const char here = read->text[read->at];
@@ -302,14 +302,14 @@ static int read_list(CliVersionsReader *read, CliVersionsField *field)
         }
         if ((here == '"') || (here == '\''))
         {
-            CliLine text = {parsed->line, parsed->longest + 1u, 0ull};
+            VerbaLinea text = {parsed->line, parsed->longest + 1u, 0ull};
             unsigned long long from = 0ull;
             unsigned long long to = 0ull;
             if (!read_string(read, here, &text, &from, &to))
             {
                 return 0;
             }
-            const unsigned int at = read_kept(parsed->line, text.at);
+            const unsigned int at = read_text_stored(parsed->line, text.at);
             if ((parsed->items < parsed->items_room) && (at != CLI_VERSIONS_POOL) &&
                 (parsed->items == field->first + field->count))
             {
@@ -320,7 +320,7 @@ static int read_list(CliVersionsReader *read, CliVersionsField *field)
             continue;
         }
         const unsigned long long end = read_find(read, ",]\n");
-        read_said(read->at, end, "A bundle lists its libraries' aliases as strings");
+        read_error_text(read->at, end, "A bundle lists its libraries' aliases as strings");
         read->at = end;
     }
 }
@@ -335,13 +335,13 @@ static int read_value(CliVersionsReader *read, CliVersionsField *field)
     const char here = read->text[read->at];
     if ((here == '"') || (here == '\''))
     {
-        CliLine text = {g_cli_versions.line, g_cli_versions.longest + 1u, 0ull};
+        VerbaLinea text = {g_cli_versions.line, g_cli_versions.longest + 1u, 0ull};
         if (!read_string(read, here, &text, &field->value_from, &field->value_to))
         {
             return 0;
         }
         field->shape = CLI_VERSIONS_TEXT;
-        field->text_at = read_kept(g_cli_versions.line, text.at);
+        field->text_at = read_text_stored(g_cli_versions.line, text.at);
         field->text_size = (unsigned int)text.at;
         return 1;
     }
@@ -360,7 +360,7 @@ static int read_value(CliVersionsReader *read, CliVersionsField *field)
     unsigned long long to = 0ull;
     cli_text_trimmed(read->text + start, end - start, &from, &to);
     field->shape = CLI_VERSIONS_BARE;
-    field->text_at = read_kept(read->text + start + from, to - from);
+    field->text_at = read_text_stored(read->text + start + from, to - from);
     field->text_size = (unsigned int)(to - from);
     return 1;
 }
@@ -371,7 +371,7 @@ static unsigned int read_field(CliVersionsReader *read)
     CliVersionsParsed *const parsed = &g_cli_versions;
     const unsigned long long from = read->at;
     // the key in the line's cell, and a message naming it after
-    CliLine key = {parsed->line, parsed->longest + 1u, 0ull};
+    VerbaLinea key = {parsed->line, parsed->longest + 1u, 0ull};
     if (!read_key(read, &key))
     {
         return CLI_VERSIONS_NONE;
@@ -381,11 +381,11 @@ static unsigned int read_field(CliVersionsReader *read)
     if ((read->at >= read->size) || (read->text[read->at] != '='))
     {
         const unsigned long long end = read_find(read, "\n");
-        CliLine said = {parsed->line + parsed->longest + 1u, parsed->longest + CLI_VERSIONS_SAID, 0ull};
-        cli_line_character(&said, '`');
-        cli_line_counted(&said, parsed->line, key.at);
-        cli_line_text(&said, "` is given its value with `=`");
-        read_error(from, (end > to) ? end : to, said.out, said.at);
+        VerbaLinea msg = {parsed->line + parsed->longest + 1u, parsed->longest + CLI_VERSIONS_MSG_MAX_LEN, 0ull};
+        mmgr_line_ch(&msg, '`');
+        mmgr_line_put_n(&msg, parsed->line, key.at);
+        mmgr_line_put(&msg, "` is given its value with `=`");
+        read_error(from, (end > to) ? end : to, msg.out, msg.at);
         return CLI_VERSIONS_NONE;
     }
     read->at += 1u;
@@ -399,7 +399,7 @@ static unsigned int read_field(CliVersionsReader *read)
     parsed->fields += 1u;
     CliVersionsField *const field = &parsed->field[at];
     memor.set(&(MemoriaCfg){.dst = field, .val = 0, .bytes = sizeof(*field)});
-    field->key_at = read_kept(parsed->line, key.at);
+    field->key_at = read_text_stored(parsed->line, key.at);
     field->key_size = (unsigned int)key.at;
     field->from = from;
     field->to = to;
@@ -421,7 +421,7 @@ static void read_section(CliVersionsReader *read)
         cli_text_trimmed(read->text + from, end - from, &name_from, &name_to);
         if (parsed->sections < parsed->sections_room)
         {
-            const unsigned int name = read_kept(read->text + from + name_from, name_to - name_from);
+            const unsigned int name = read_text_stored(read->text + from + name_from, name_to - name_from);
             parsed->section[parsed->sections] = (CliVersionsSection){
                 name, (unsigned int)(name_to - name_from), from, end, CLI_VERSIONS_NONE, CLI_VERSIONS_NONE, 0u};
             parsed->sections += 1u;
@@ -433,7 +433,7 @@ static void read_section(CliVersionsReader *read)
         read->at = end + 1u;
         return;
     }
-    read_said(read->at, end, "A section's name is closed with `]`");
+    read_error_text(read->at, end, "A section's name is closed with `]`");
     read->at = end;
 }
 
@@ -474,8 +474,8 @@ int cli_versions_parse(const char *text, unsigned long long size)
         }
         if (parsed->sections == 0u)
         {
-            read_said(start, read.at,
-                      "An entry stands under a section: `[versions]`, `[libraries]`, `[bundles]` or `[plugins]`");
+            read_error_text(start, read.at,
+                            "An entry stands under a section: `[versions]`, `[libraries]`, `[bundles]` or `[plugins]`");
         }
         else
         {

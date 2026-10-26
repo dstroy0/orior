@@ -37,7 +37,7 @@ device. `run.sh` gives its tests an endpoint of their own, `TESSERA_RUNTIME`, wh
 as Linux reads it into the socket's folder. The job test and the host test each start a daemon there, apart from the
 daemons real jobs are using.
 
-A client links `tessera_client_*.c`, `tessera_paths.c`, `tessera_frame.c`, `tessera_self.c` and scriptura. The
+A client links `tessera_client_*.c`, `tessera_paths.c`, `tessera_frame.c`, `tessera_self.c` and MMgr's line (`verba_scribo/verba_linea.h`). The
 daemon also links `tessera_ledger.c`, `tessera_measure.c` and obsignatio (`engine/runtime/obsignatio/obsignatio_*.cu`),
 and `pdh` on Windows. On Linux both link `-ldl -lpthread`. It uses obsignatio's host seal (`obsignatio_seal`, `obsignatio_seal_verify`), and it never makes a CUDA
 context of its own.
@@ -103,7 +103,7 @@ says so with the path and exits, and no job is admitted. A missing history is a 
 never rewritten: move it aside to start fresh, or put back a good copy.
 
 **Tickets are sealed.** Each ticket in lost and found ends with a line `seal <64 hex digits>`, the same seal over
-every byte above it. The daemon adds "precalc kept" to a ticket only when its seal holds, then seals it again.
+every byte above it. The daemon adds "precalc saved" to a ticket only when its seal holds, then seals it again.
 
 ## Submitting a job
 
@@ -119,7 +119,7 @@ memcpy(ask.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);   // cudaGetDev
 memcpy(&ask.luid, properties.luid, sizeof(ask.luid));             // Windows; 0 elsewhere
 ask.signum = request_signum;          // the BLAKE3 root of the job's request: same request, same signum
 ask.declared = bytes_needed;          // what the job needs on top of what its process holds; must not be 0
-ask.holding_microseconds = 2000000;   // how long it may wait held over budget before it is lost
+ask.grace_microseconds = 2000000;   // how long it may wait held over budget before it is lost
 ask.sweep_microseconds = 20000;       // how often its process is measured while it runs; must not be 0
 ask.idle_microseconds = 5000000;      // how long the daemon lives on once no job is left
 ask.override_budget = 0;              // 1 admits it on its declaration even over its signum's peak
@@ -138,7 +138,7 @@ if (tessera_job_submit(&ask, &client, &ticket) == TESSERA_ERROR) { /* the error 
 |---|---|---|
 | `asked == 0`, `lost == 0` | **admitted.** `granted` is the bytes reserved for it, and `standing` the bytes its process held as it asked, which `granted` includes | run the job, then release it |
 | `asked == 1` | **held.** It declared more than its signum's last peak (`last_peak`) | override it, or wait |
-| `lost == 1` | **lost.** It was held past its holding time | keep its precalc in `lost_path`, then say so |
+| `lost == 1` | **lost.** It was reserved past its grace time | keep its precalc in `lost_path`, then say so |
 
 A job that doesn't fit the headroom yet waits inside the submit until it fits, with no ticket until then. An ask
 with `waiting_microseconds` waits that long at most: past it the submit errs with `ticket.waited` at or past it, its
@@ -150,7 +150,7 @@ declaration over its standing, and measured.
 returns when the job is admitted or lost.
 
 **Lost.** Write whatever the job had already worked out into `ticket.lost_path`, beside the ticket the daemon
-wrote there. Then call `tessera_job_precalc_kept(client, &error)`, which releases the job and ends the client.
+wrote there. Then call `tessera_job_precalc_saved(client, &error)`, which releases the job and ends the client.
 A later run can resume from that directory instead of starting over.
 
 ## Running and releasing
@@ -187,7 +187,7 @@ and a pid reused by a new process is never taken for the old one.
    admits it on its declaration over its standing, the memory it kept: 412,254,208 bytes.
 3. Declaring exactly the kept peak is admitted at once, over its standing.
 4. Declaring four times the peak with no answer is held for its 0.4 s holding time, then lost. The ticket names
-   its lost and found directory, and the precalc kept releases it. The ticket's seal holds with the note in it.
+   its lost and found directory, and the precalc saved releases it. The ticket's seal holds with the note in it.
 5. Once the daemon has ended, the history it left is whole records and a seal. The test damages one byte of it,
    then cuts one byte off, then strips the seal. Each time the submit errors because no daemon starts on it.
    With the file restored, the daemon starts and the same signum over its peak is asked with the kept peak, and the
@@ -253,7 +253,7 @@ device allocation, and `sim_close` releases the job:
 - **Daemon:** `$TESSERA_DAEMON`, else the `tessera_daemon` beside the sim, which `../../../sims/run.sh` builds there.
 - **When held:** `TESSERA_OVERRIDE=1` admits a declaration over the kept peak.
 
-`ask_state` and `ka_psi` never touch the device and submit nothing. Each sim's count includes
+`povm_state` and `ka_psi` never touch the device and submit nothing. Each sim's count includes
 its two tessera checks:
 
 | sim | declared | peak measured | checks |
@@ -277,7 +277,7 @@ jobs as a device's daemon admits memory jobs, and counts in thousandths of one l
 the sealed history are unchanged.
 
 - **Capacity.** Every logical processor but those of the host's last two cores, which are kept for the desktop
-  (`tessera_self_host_mask`). `TESSERA_HOST_KEPT_CORES` changes the two, and one core is always left to jobs. The
+  (`tessera_self_host_mask`). `TESSERA_HOST_RESERVED_CORES` changes the two, and one core is always left to jobs. The
   cores are read from `GetLogicalProcessorInformationEx` on Windows and from sysfs `thread_siblings` on Linux. On this
   machine (i7-5960X, 8 cores, 16 logical) that is logical 0 to 11, mask `0xfff`, 12,000 thousandths.
 - **In use.** The running jobs' reports, summed. Nothing else on the host is counted: the desktop's work runs on the

@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksg_writing.c: a file written whole and sealed as it is written, as ksg_writing.h says, through the run writer's
+// ksg_writing.c: a file written whole and sealed as it is written, as ksg_writing.h specifies, through the run writer's
 // file calls, which make each file durable and put it in its place
 #include "ksg_writing.h"
 
@@ -8,12 +8,12 @@
 
 #include <string.h>
 
-// `path` with `suffix` after it into `out`, which holds KSG_PATH_LONGEST: 1, or 0 where it does not fit
+// `path` with `suffix` after it into `out`, which has room for KSG_PATH_MAX_LEN: 1, or 0 where it does not fit
 static int ksg_named(const char *path, const char *suffix, char *out)
 {
     const size_t length = strlen(path);
     const size_t more = strlen(suffix);
-    if ((length + more) >= KSG_PATH_LONGEST)
+    if ((length + more) >= KSG_PATH_MAX_LEN)
     {
         return 0;
     }
@@ -71,18 +71,18 @@ int ksg_writing_put(void *context, const char *bytes, unsigned long long size)
 int ksg_writing_ended(KsgWriting *writing, int whole)
 {
     unsigned char trailer[KSG_TRAILER_BYTES];
-    int kept = whole && writing->whole;
+    int ok = whole && writing->whole;
     if (writing->seal >= 0)
     {
-        kept = kept && ksg_seal_ended(&writing->sealing, writing->root, trailer) &&
-               qry_writer_file_put(writing->seal, trailer, sizeof(trailer));
-        kept = qry_writer_file_closed(writing->seal) && kept;
+        ok = ok && ksg_seal_ended(&writing->sealing, writing->root, trailer) &&
+             qry_writer_file_put(writing->seal, trailer, sizeof(trailer));
+        ok = qry_writer_file_closed(writing->seal) && ok;
     }
     if (writing->file >= 0)
     {
-        kept = qry_writer_file_closed(writing->file) && kept;
+        ok = qry_writer_file_closed(writing->file) && ok;
     }
-    if (!kept)
+    if (!ok)
     {
         (void)qry_writer_file_removed(writing->part);
         if (writing->seal >= 0)
@@ -92,10 +92,10 @@ int ksg_writing_ended(KsgWriting *writing, int whole)
         return 0;
     }
     // the file goes first: a write cut between the two leaves the new file beside a seal of the old, which fails
-    kept = qry_writer_file_placed(writing->part, writing->path);
-    if ((writing->seal >= 0) && !kept)
+    ok = qry_writer_file_placed(writing->part, writing->path);
+    if ((writing->seal >= 0) && !ok)
     {
         (void)qry_writer_file_removed(writing->seal_part);
     }
-    return kept && ((writing->seal < 0) || qry_writer_file_placed(writing->seal_part, writing->seal_path));
+    return ok && ((writing->seal < 0) || qry_writer_file_placed(writing->seal_part, writing->seal_path));
 }

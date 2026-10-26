@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // writer_carry.c: the run's records read: the latest of a name in the run while this process is a member, from the
-// .qry after; every record of a name joined; the file at a path as the run holds it; and the latest record of names
+// .qry after; every record of a name joined; the file at a path as the run stores it; and the latest record of names
 // carried from a finished .qry into this run
 #include "../../../cli/src/text/text.h"
 #include "../query_internal.h"
 
-// a record read out of a finished .qry, in a cell of its size kept until the next read of one
+// a record read out of a finished .qry, in a cell of its size retained until the next read of one
 static unsigned char *s_read;
 
 // 1 where the `length` letters at `name` are the text `text`
@@ -19,7 +19,7 @@ static int query_name_is(const char *name, unsigned int length, const char *text
 int query_writer_latest(const QueryWriter *writer, const char *name, const unsigned char **bytes,
                         unsigned long long *size)
 {
-    if (query_writer_member_held(writer))
+    if (query_writer_is_member(writer))
     {
         return qry_member_blob(name, bytes, size, NULL);
     }
@@ -36,11 +36,9 @@ int query_writer_latest(const QueryWriter *writer, const char *name, const unsig
     {
         latest = query_name_is(QRY_RECORD_NAME(record), record->name_length, name) ? record : latest;
     }
-    cli_cell_given_by(&g_query_cells, s_read);
+    g_cli_cells->persistent_buf_release(s_read, &g_query_cells);
     // one byte past the blob, so an empty blob is a cell too
-    s_read = (latest != NULL)
-                 ? cli_cell_taken_by(&g_query_cells, latest->blob_length + 1ull, "a record read from a finished run")
-                 : NULL;
+    s_read = (latest != NULL) ? g_cli_cells->persistent_buf_alloc(latest->blob_length + 1ull, &g_query_cells) : NULL;
     if (s_read != NULL)
     {
         // a record fits half a ring, whose bytes a size_t counts
@@ -54,9 +52,9 @@ int query_writer_latest(const QueryWriter *writer, const char *name, const unsig
 
 // Every record of `name` joined into `joined`, in the order the writer wrote them: in the run while this process is a
 // member, from the .qry after. 1, or 0 where none was there or they did not fit
-int query_writer_read(const QueryWriter *writer, const char *name, CliLine *joined)
+int query_writer_read(const QueryWriter *writer, const char *name, VerbaLinea *joined)
 {
-    if (query_writer_member_held(writer))
+    if (query_writer_is_member(writer))
     {
         const unsigned long long room = joined->capacity - joined->at;
         const unsigned long long gathered =
@@ -81,12 +79,12 @@ int query_writer_read(const QueryWriter *writer, const char *name, CliLine *join
     {
         if (query_name_is(QRY_RECORD_NAME(record), record->name_length, name))
         {
-            cli_line_counted(joined, (const char *)QRY_RECORD_BLOB(record), record->blob_length);
+            mmgr_line_put_n(joined, (const char *)QRY_RECORD_BLOB(record), record->blob_length);
             found = 1;
         }
     }
     qry_member_file_unmapped(mapped, mapped_size);
-    return found && cli_line_fits(joined);
+    return found && mmgr_line_ok(joined);
 }
 
 // the bytes every record of `name` takes, in the run this process is a member of
@@ -104,13 +102,13 @@ static unsigned long long query_member_named_size(const char *name)
 
 char *query_writer_read_taken(const QueryWriter *writer, const char *name, unsigned long long *size)
 {
-    if (query_writer_member_held(writer))
+    if (query_writer_is_member(writer))
     {
         for (;;)
         {
             const unsigned long long named = query_member_named_size(name);
             char *const joined =
-                (named > 0ull) ? cli_cell_taken_by(&g_query_cells, named + 1ull, "a run's records joined") : NULL;
+                (named > 0ull) ? g_cli_cells->persistent_buf_alloc(named + 1ull, &g_query_cells) : NULL;
             if (joined == NULL)
             {
                 return NULL;
@@ -123,7 +121,7 @@ char *query_writer_read_taken(const QueryWriter *writer, const char *name, unsig
                 return joined;
             }
             // records of the name came between the count and the gathering, so they are counted again
-            cli_cell_given_by(&g_query_cells, joined);
+            g_cli_cells->persistent_buf_release(joined, &g_query_cells);
         }
     }
     unsigned long long mapped_size = 0ull;
@@ -139,8 +137,7 @@ char *query_writer_read_taken(const QueryWriter *writer, const char *name, unsig
     {
         named += query_name_is(QRY_RECORD_NAME(record), record->name_length, name) ? record->blob_length : 0ull;
     }
-    char *const joined =
-        (named > 0ull) ? cli_cell_taken_by(&g_query_cells, named + 1ull, "a run's records joined") : NULL;
+    char *const joined = (named > 0ull) ? g_cli_cells->persistent_buf_alloc(named + 1ull, &g_query_cells) : NULL;
     unsigned long long put = 0ull;
     at = 0ull;
     while ((joined != NULL) && qry_record_read(mapped, mapped_size, &at, &record))
@@ -162,11 +159,11 @@ char *query_writer_read_taken(const QueryWriter *writer, const char *name, unsig
     return joined;
 }
 
-// The file at `path` as the run holds it: its latest record, or the file where the run holds none, at `bytes`
+// The file at `path` as the run stores it: its latest record, or the file where the run stores none, at `bytes`
 int query_writer_current(const QueryWriter *writer, const char *path, const unsigned char **bytes,
                          unsigned long long *size)
 {
-    return query_writer_member_held(writer) && qry_member_file_blob(path, bytes, size);
+    return query_writer_is_member(writer) && qry_member_file_blob(path, bytes, size);
 }
 
 // whether `record` is of a name carried: one of the `count` of `names`, or any where none are named
@@ -181,19 +178,19 @@ static int query_carry_wanted(const QryRecord *record, const char *const *names,
 }
 
 int query_writer_carry(const QueryWriter *writer, const char *from, const char *const *names, unsigned int count,
-                       CliLine *said)
+                       VerbaLinea *err_msg)
 {
-    if (!query_writer_member_held(writer))
+    if (!query_writer_is_member(writer))
     {
-        cli_line_text(said, "carry: this process is a member of no run");
+        mmgr_line_put(err_msg, "carry: this process is a member of no run");
         return 0;
     }
     unsigned long long mapped_size = 0ull;
     const unsigned char *const mapped = qry_member_file_mapped(from, &mapped_size);
     if (mapped == NULL)
     {
-        cli_line_text(said, from);
-        cli_line_text(said, " could not be read whole");
+        mmgr_line_put(err_msg, from);
+        mmgr_line_put(err_msg, " could not be read whole");
         return 0;
     }
     // the records carried counted, then the latest record of each name carried, where it stands in the mapped .qry, in
@@ -206,9 +203,9 @@ int query_writer_carry(const QueryWriter *writer, const char *from, const char *
         records += query_carry_wanted(record, names, count) ? 1u : 0u;
     }
     const QryRecord **const latest =
-        (records > 0u) ? cli_cell_taken_by(&g_query_cells, (unsigned long long)records * sizeof(QryRecord *),
-                                           "the records carried")
-                       : NULL;
+        (records > 0u)
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)records * sizeof(QryRecord *), &g_query_cells)
+            : NULL;
     unsigned int latests = 0u;
     at = 0ull;
     while ((latest != NULL) && qry_record_read(mapped, mapped_size, &at, &record))
@@ -218,22 +215,22 @@ int query_writer_carry(const QueryWriter *writer, const char *from, const char *
             continue;
         }
         const char *const name = QRY_RECORD_NAME(record);
-        unsigned int kept = 0u;
-        while ((kept < latests) &&
-               ((latest[kept]->name_length != record->name_length) ||
+        unsigned int found_at = 0u;
+        while ((found_at < latests) &&
+               ((latest[found_at]->name_length != record->name_length) ||
                 (memor.cmp(&(MemoriaCfg){
-                     .src = QRY_RECORD_NAME(latest[kept]), .other = name, .bytes = record->name_length}) != 0)))
+                     .src = QRY_RECORD_NAME(latest[found_at]), .other = name, .bytes = record->name_length}) != 0)))
         {
-            kept += 1u;
+            found_at += 1u;
         }
-        latests += (kept == latests) ? 1u : 0u;
-        latest[kept] = record;
+        latests += (found_at == latests) ? 1u : 0u;
+        latest[found_at] = record;
     }
     const int whole = (records == 0u) || ((latest != NULL) && (at == mapped_size));
     unsigned int carried = 0u;
     for (unsigned int each = 0u; whole && (each < latests); each += 1u)
     {
-        char name[QRY_NAME_LONGEST + 1u];
+        char name[QRY_NAME_MAX_LEN + 1u];
         memor.cpy(&(MemoriaCfg){.dst = name, .src = QRY_RECORD_NAME(latest[each]), .bytes = latest[each]->name_length});
         name[latest[each]->name_length] = '\0';
         carried +=
@@ -241,41 +238,40 @@ int query_writer_carry(const QueryWriter *writer, const char *from, const char *
                 ? 1u
                 : 0u;
     }
-    cli_cell_given_by(&g_query_cells, (void *)latest);
+    g_cli_cells->persistent_buf_release((void *)latest, &g_query_cells);
     qry_member_settled();
     qry_member_file_unmapped(mapped, mapped_size);
     if (!whole)
     {
-        cli_line_text(said, from);
-        cli_line_text(said, " could not be read whole");
+        mmgr_line_put(err_msg, from);
+        mmgr_line_put(err_msg, " could not be read whole");
         return 0;
     }
-    cli_line_decimal(said, carried, 0u);
-    cli_line_text(said, " records carried from ");
-    cli_line_text(said, from);
+    mmgr_line_decimal(err_msg, carried, 0u);
+    mmgr_line_put(err_msg, " records carried from ");
+    mmgr_line_put(err_msg, from);
     return 1;
 }
 
-// The names listed in `listed`, one a line, carried from the finished .qry at `from`: what was carried said
-int query_writer_carry_listed(const QueryWriter *writer, const char *from, const char *listed, CliLine *said)
+// The names listed in `listed`, one a line, carried from the finished .qry at `from`: what was carried reported
+int query_writer_carry_listed(const QueryWriter *writer, const char *from, const char *listed, VerbaLinea *err_msg)
 {
     // the list copied into a cell of its size, each name trimmed of the spaces about it and ended by a 0 in place, and
     // a place for each line in a cell of their count
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = listed, .cap = CLI_CELLS_POOL});
-    char *const names = cli_cell_taken_by(&g_query_cells, size + 1u, "the names carried");
+    char *const names = g_cli_cells->persistent_buf_alloc(size + 1u, &g_query_cells);
     unsigned int lines = 1u;
     for (size_t at = 0u; at < size; at += 1u)
     {
         lines += (listed[at] == '\n') ? 1u : 0u;
     }
     const char **const named =
-        (names != NULL)
-            ? cli_cell_taken_by(&g_query_cells, (unsigned long long)lines * sizeof(char *), "the names carried")
-            : NULL;
+        (names != NULL) ? g_cli_cells->persistent_buf_alloc((unsigned long long)lines * sizeof(char *), &g_query_cells)
+                        : NULL;
     if (named == NULL)
     {
-        cli_cell_given_by(&g_query_cells, names);
-        cli_line_text(said, "the names carried could not be held");
+        g_cli_cells->persistent_buf_release(names, &g_query_cells);
+        mmgr_line_put(err_msg, "the names carried could not be stored");
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = names, .src = listed, .bytes = size + 1u});
@@ -295,7 +291,7 @@ int query_writer_carry_listed(const QueryWriter *writer, const char *from, const
             last -= 1u;
         }
         const size_t gap = cli_text_over(line + length, "\r\n");
-        if ((last > first) && ((last - first) <= QRY_NAME_LONGEST))
+        if ((last > first) && ((last - first) <= QRY_NAME_MAX_LEN))
         {
             line[last] = '\0';
             named[count] = line + first;
@@ -303,13 +299,13 @@ int query_writer_carry_listed(const QueryWriter *writer, const char *from, const
         }
         line += length + gap;
     }
-    const int carried = (count == 0u) || query_writer_carry(writer, from, named, count, said);
+    const int carried = (count == 0u) || query_writer_carry(writer, from, named, count, err_msg);
     if (count == 0u)
     {
-        cli_line_text(said, "no records carried from ");
-        cli_line_text(said, from);
+        mmgr_line_put(err_msg, "no records carried from ");
+        mmgr_line_put(err_msg, from);
     }
-    cli_cell_given_by(&g_query_cells, (void *)named);
-    cli_cell_given_by(&g_query_cells, names);
+    g_cli_cells->persistent_buf_release((void *)named, &g_query_cells);
+    g_cli_cells->persistent_buf_release(names, &g_query_cells);
     return carried;
 }

@@ -10,10 +10,10 @@
 
 // 1 where the form names a memory address to read, which a clocked target reads by the next state, and the memory
 // writes the form makes
-CODEGEN_CORE int codegen_asks(unsigned int form)
+CODEGEN_CORE int codegen_touches_memory(unsigned int form)
 {
-    return (form == OPCODE_LAUNCH_ASK) || (form == OPCODE_GLOBAL_ASK) || (form == OPCODE_GLOBAL_ASK_IF) ||
-           (form == OPCODE_GLOBAL_ASK_ATOMIC);
+    return (form == OPCODE_LAUNCH_LOAD) || (form == OPCODE_GLOBAL_LOAD) || (form == OPCODE_GLOBAL_LOAD_IF) ||
+           (form == OPCODE_GLOBAL_ATOMIC);
 }
 
 CODEGEN_CORE unsigned int codegen_writes(unsigned int form)
@@ -119,7 +119,7 @@ CODEGEN_CORE void codegen_schedule_instr(MachineFunction *lane, Schedule *schedu
     schedule->filled = 1u;
     schedule->maximum = (schedule->chained > schedule->maximum) ? schedule->chained : schedule->maximum;
     schedule->ending =
-        ((form == OPCODE_ERROR_IF) || (form == OPCODE_ERROR_OPEN_UNLESS) || codegen_asks(form)) ? 1u : 0u;
+        ((form == OPCODE_ERROR_IF) || (form == OPCODE_ERROR_OPEN_UNLESS) || codegen_touches_memory(form)) ? 1u : 0u;
     if (form == OPCODE_LOOP_BACK_IF)
     {
         const unsigned int loop = item->arguments[0].number;

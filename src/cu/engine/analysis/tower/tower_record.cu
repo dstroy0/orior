@@ -29,7 +29,7 @@ static unsigned int tower_record_constant(TowerRecordBuilder *builder, unsigned 
             return constant.second;
         }
     }
-    // a constant step holds its value's low 32 bits in `left` and its high 32 in `right`
+    // a constant step stores its value's low 32 bits in `left` and its high 32 in `right`
     const unsigned int step_index = tower_record_append(
         builder, ENGINE_RECORD_CONSTANT, (unsigned int)(value & 0xFFFFFFFFull), (unsigned int)(value >> 32u));
     builder->constants.push_back(std::pair<unsigned long long, unsigned int>(value, step_index));
@@ -56,7 +56,7 @@ static unsigned int tower_record_floor_shift(TowerRecordBuilder *builder, unsign
 static void tower_record_lifting_step(TowerRecordBuilder *builder, const TowerLiftingStep &rule, int undo,
                                       std::vector<unsigned int> &target, const std::vector<unsigned int> &other)
 {
-    // both bands of a lifted line hold at least one value, and far fewer than 2^31
+    // both bands of a lifted line contain at least one value, and far fewer than 2^31
     const long long last = (long long)other.size() - 1ll;
     for (size_t at = 0u; at < target.size(); at += 1u)
     {
@@ -247,7 +247,7 @@ static long tower_record_run(const TowerRecordRequest *request, int inverse)
         registers[(size_t)lane] = request->in_registers[lane];
     }
     const std::vector<TowerStep> floors = tower_floors(request->extent);
-    // counted first. A program its step names or the caller's capacity cannot hold errors before a step is written
+    // counted first. A program its step names or the caller's capacity cannot fit errors before a step is written
     TowerRecordBuilder counted = {NULL, start, {}};
     std::vector<unsigned int> named = registers;
     tower_record_build(&counted, rules, rule_count, floors, named, inverse);

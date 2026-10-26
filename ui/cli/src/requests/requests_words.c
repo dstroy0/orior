@@ -34,7 +34,7 @@ static int words_put(CliRequestsWords *words, const char *bytes, unsigned long l
     return 1;
 }
 
-// the word being read ended and kept: 1, or 0 where the pool or the list is full
+// the word being read ended and stored: 1, or 0 where the pool or the list is full
 static int words_ended(CliRequestsWords *words, unsigned long long *start)
 {
     if ((words->count == CLI_REQUESTS_CURL_WORDS) || (words->used + 1u > sizeof(words->text)))
@@ -109,7 +109,7 @@ static int words_double(const char *line, unsigned long long size, unsigned long
     return fits;
 }
 
-int cli_requests_words(const char *line, unsigned long long size, CliRequestsWords *words, CliLine *said)
+int cli_requests_words(const char *line, unsigned long long size, CliRequestsWords *words, VerbaLinea *err_msg)
 {
     words->count = 0u;
     words->used = 0ull;
@@ -181,16 +181,16 @@ int cli_requests_words(const char *line, unsigned long long size, CliRequestsWor
     read = ((read == 1) && started) ? words_ended(words, &start) : read;
     if (read == -1)
     {
-        cli_line_text(said, "a quote does not close");
+        mmgr_line_put(err_msg, "a quote does not close");
     }
     else if (read == 0)
     {
-        cli_line_text(said, "the curl line is larger than orior_cli holds");
+        mmgr_line_put(err_msg, "the curl line is larger than orior_cli supports");
     }
     return read == 1;
 }
 
-void cli_requests_uncareted(const char *line, unsigned long long size, CliLine *out)
+void cli_requests_uncareted(const char *line, unsigned long long size, VerbaLinea *out)
 {
     unsigned long long at = 0ull;
     while (at < size)
@@ -208,7 +208,7 @@ void cli_requests_uncareted(const char *line, unsigned long long size, CliLine *
         }
         unsigned int whole = 0u;
         const unsigned long long taken = words_letter(line, size, at, &whole);
-        cli_line_counted(out, line + at, taken);
+        mmgr_line_put_n(out, line + at, taken);
         at += taken;
     }
 }

@@ -23,7 +23,7 @@ typedef struct
 
 static BenchReaders s_readers = {NULL, 0u, 0u, 0, CLI_LOCK_INIT, CLI_WAKE_INIT};
 
-// room for a whole file from the system's allocator, outside the cells, kept in `context` to be freed
+// room for a whole file from the system's allocator, outside the cells, stored in `context` to be freed
 static unsigned char *readers_roomed(void *context, unsigned long long size)
 {
     unsigned char **const room = context;
@@ -54,7 +54,7 @@ static void readers_run(void *context)
             free(room);
             continue;
         }
-        const unsigned char *const bytes = cli_file_held(corpus->paths[index], &size);
+        const unsigned char *const bytes = cli_file_read(corpus->paths[index], &size);
         cli_file_let_go(bytes, size);
     }
     cli_lock_take(&s_readers.lock);
@@ -63,7 +63,7 @@ static void readers_run(void *context)
     cli_lock_give(&s_readers.lock);
 }
 
-BenchMeasure bench_held_by(const BenchCorpus *corpus, unsigned int threads, int plain)
+BenchMeasure bench_files_read_by(const BenchCorpus *corpus, unsigned int threads, int plain)
 {
     BenchMeasure measure = {0ull, ~0ull};
     static CliThread s_thread[16];
@@ -96,7 +96,7 @@ BenchMeasure bench_held_by(const BenchCorpus *corpus, unsigned int threads, int 
     return measure;
 }
 
-static int picked_keeps(void *context, const char *path)
+static int picked_include(void *context, const char *path)
 {
     (void)context;
     (void)path;
@@ -106,18 +106,18 @@ static int picked_keeps(void *context, const char *path)
 BenchMeasure bench_picked(const BenchCorpus *corpus)
 {
     BenchMeasure measure = {0ull, ~0ull};
-    char under[CLI_PATH_LONGEST];
+    char under[CLI_PATH_MAX_LEN];
     cli_full(corpus->root, "ui/cli/src", under);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
-        // the view is read once, as the window holds it between searches; the first repeat pays for it
+        // the view is read once, as the window caches it between searches; the first repeat pays for it
         if (round == 0u)
         {
             cli_files_forget_seen();
         }
         CliPicked picked = {NULL, NULL, 0u};
         const unsigned long long began = cli_clock_microseconds();
-        (void)cli_files_picked(&picked, under, picked_keeps, NULL);
+        (void)cli_files_picked(&picked, under, picked_include, NULL);
         const unsigned long long took = cli_clock_microseconds() - began;
         cli_picked_let(&picked);
         measure.bytes = corpus->whole;
@@ -129,14 +129,14 @@ BenchMeasure bench_picked(const BenchCorpus *corpus)
 BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
 {
     BenchMeasure measure = {0ull, ~0ull};
-    char under[CLI_PATH_LONGEST];
+    char under[CLI_PATH_MAX_LEN];
     cli_full(corpus->root, "ui/cli/src", under);
-    CliLine out;
-    (void)cli_line_growing(&out, 1ull << 20u, "the search's hits");
+    VerbaLinea out;
+    (void)cli_growing_line_made(&out, 1ull << 20u);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
-        char why[CLI_SAID_LONGEST];
-        CliLine said = {why, sizeof(why), 0ull};
+        char why[CLI_ERR_MSG_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
         const CliPatterns none = {0};
         out.at = 0ull;
         if (round == 0u)
@@ -144,11 +144,11 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
             cli_files_forget_seen();
         }
         const unsigned long long began = cli_clock_microseconds();
-        (void)cli_files_search(under, needle, (CliSearching){0, 0, 0}, &none, &out, &said);
+        (void)cli_files_search(under, needle, (CliSearching){0, 0, 0}, &none, &out, &err_msg);
         const unsigned long long took = cli_clock_microseconds() - began;
         measure.bytes = corpus->whole;
         measure.least = (took < measure.least) ? took : measure.least;
     }
-    cli_cell_given(out.out);
+    g_cli_cells->persistent_buf_release(out.out, NULL);
     return measure;
 }

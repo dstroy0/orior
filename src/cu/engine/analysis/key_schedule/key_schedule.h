@@ -23,7 +23,7 @@ extern "C"
         unsigned int fields;
         const unsigned int *in_limbs;
         // When set, a register is freed once no later step reads it, and a long chain runs within the
-        // file's ENGINE_RECORD_LIMBS_MAX limbs. When clear, every step keeps its own register for the
+        // file's ENGINE_RECORD_LIMBS_MAX limbs. When clear, every step uses its own register for the
         // whole run, the layout the proven programs were measured against.
         int reuse;
         EngineRecordLayout *layout;

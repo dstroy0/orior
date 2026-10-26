@@ -42,7 +42,7 @@ extern "C" {
 #define CASMI_PARQUET_SCHEMA_DEPTH_MOST 16u
 
 /**
- * The most steps one CASMI record program may hold, the size of each program builder's step array.
+ * The most steps one CASMI record program may contain, the size of each program builder's step array.
  * The engine caps no step count: its binding resource is ENGINE_RECORD_LIMBS_MAX limbs of live
  * registers, and its imprint errors on a program past them.
  */
@@ -67,7 +67,7 @@ static_assert(sizeof(size_t) == sizeof(unsigned long long), "size_t: expected 64
 #define CASMI_ALWAYS_INLINE static inline
 #endif
 
-// A file past 2 GiB needs a 64-bit seek. Windows keeps long at 32 bits and names the 64-bit seek
+// A file past 2 GiB needs a 64-bit seek. Windows defines long as 32 bits and names the 64-bit seek
 // _fseeki64; every other target this builds for is LP64, where fseek's long is already 64 bits.
 #if defined(_WIN32)
 #define CASMI_HAVE_WINDOWS_SEEK 1

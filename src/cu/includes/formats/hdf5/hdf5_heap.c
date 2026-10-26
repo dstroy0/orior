@@ -267,7 +267,7 @@ static Hdf5Walk hdf5_tree2_node(Hdf5File *file, Hdf5Tree2 *tree, unsigned long l
     if ((records > tree->maximum[level]) || (!root && (records == 0ull)))
     {
         return hdf5_walk_error(file,
-                                "a version 2 B-tree node with more records than it can hold, or none below the root");
+                               "a version 2 B-tree node with more records than it can contain, or none below the root");
     }
     const size_t pointer =
         (level == 0u)
@@ -382,7 +382,7 @@ static Hdf5Walk hdf5_dense_record(Hdf5File *file, void *state, const unsigned ch
     Hdf5DenseWalk *const dense = (Hdf5DenseWalk *)state;
     if (record_bytes <= 4u)
     {
-        return hdf5_walk_error(file, "a link name record too short to hold a heap identifier");
+        return hdf5_walk_error(file, "a link name record too short to contain a heap identifier");
     }
     const unsigned char *object = NULL;
     size_t object_bytes = 0u;

@@ -33,12 +33,12 @@ void cli_toml_value(const char *value, unsigned long long length, char *out, uns
 // A Cargo.toml's [[bin]] tables: each one's name and path, where it gives them
 typedef struct
 {
-    char name[CLI_SCAN_BINS][CLI_NAME_LONGEST];
-    char path[CLI_SCAN_BINS][CLI_PATH_LONGEST];
+    char name[CLI_SCAN_BINS][CLI_NAME_MAX_LEN];
+    char path[CLI_SCAN_BINS][CLI_PATH_MAX_LEN];
     int has_name[CLI_SCAN_BINS];
     int has_path[CLI_SCAN_BINS];
     unsigned int count;
-    char taken[CLI_SCAN_BINS][CLI_PATH_LONGEST];
+    char taken[CLI_SCAN_BINS][CLI_PATH_MAX_LEN];
     unsigned int takens;
     const char *folder;
     CliNames more;
@@ -48,23 +48,23 @@ typedef struct
 static void cli_bin_each(void *context, const char *name, int is_folder)
 {
     CliBins *const bins = (CliBins *)context;
-    char path[CLI_PATH_LONGEST];
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, bins->folder);
-    cli_line_text(&line, "/src/bin/");
-    cli_line_text(&line, name);
-    cli_line_text(&line, is_folder ? "/main.rs" : "");
-    if ((cli_line_closed(&line) == 0ull) || !query_is_file(path))
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, bins->folder);
+    mmgr_line_put(&line, "/src/bin/");
+    mmgr_line_put(&line, name);
+    mmgr_line_put(&line, is_folder ? "/main.rs" : "");
+    if ((mmgr_line_finish(&line) == 0ull) || !query_is_file(path))
     {
         return;
     }
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-    char relative[CLI_PATH_LONGEST];
-    CliLine kept = {relative, sizeof(relative), 0ull};
-    cli_line_text(&kept, "src/bin/");
-    cli_line_text(&kept, name);
-    cli_line_text(&kept, is_folder ? "/main.rs" : "");
-    cli_line_closed(&kept);
+    char relative[CLI_PATH_MAX_LEN];
+    VerbaLinea relative_line = {relative, sizeof(relative), 0ull};
+    mmgr_line_put(&relative_line, "src/bin/");
+    mmgr_line_put(&relative_line, name);
+    mmgr_line_put(&relative_line, is_folder ? "/main.rs" : "");
+    mmgr_line_finish(&relative_line);
     if (is_folder)
     {
         cli_names_put(&bins->more, name, length, relative);
@@ -86,8 +86,8 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
     bins->count = 0u;
     bins->takens = 0u;
     bins->more.count = 0u;
-    char table[CLI_NAME_LONGEST] = "";
-    char package[CLI_NAME_LONGEST] = "";
+    char table[CLI_NAME_MAX_LEN] = "";
+    char package[CLI_NAME_MAX_LEN] = "";
     int has_package = 0;
     int autobins = 1;
     const char *line = text;
@@ -135,7 +135,7 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
         const char *key = from;
         unsigned long long key_length = (unsigned long long)(equals - from);
         cli_scan_trim(&key, &key_length);
-        char value[CLI_PATH_LONGEST];
+        char value[CLI_PATH_MAX_LEN];
         cli_toml_value(equals + 1, (unsigned long long)((from + length) - (equals + 1)), value, sizeof(value));
         const int is_name =
             (key_length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = key, .other = "name", .bytes = 4u}) == 0);
@@ -168,7 +168,7 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
         cli_lock_give(&s_lock);
         return;
     }
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     if (!cli_path_parent(manifest, folder))
     {
         memor.cpy(&(MemoriaCfg){.dst = folder,
@@ -181,23 +181,23 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
         {
             continue;
         }
-        char path[CLI_PATH_LONGEST];
-        CliLine line_made = {path, sizeof(path), 0ull};
+        char path[CLI_PATH_MAX_LEN];
+        VerbaLinea line_made = {path, sizeof(path), 0ull};
         if (bins->has_path[at])
         {
-            cli_line_text(&line_made, bins->path[at]);
+            mmgr_line_put(&line_made, bins->path[at]);
         }
         else if (cellul.eq(&(CatenaFinitaCfg){.src = bins->name[at], .other = package, .cap = CLI_CELLS_POOL}))
         {
-            cli_line_text(&line_made, "src/main.rs");
+            mmgr_line_put(&line_made, "src/main.rs");
         }
         else
         {
-            cli_line_text(&line_made, "src/bin/");
-            cli_line_text(&line_made, bins->name[at]);
-            cli_line_text(&line_made, ".rs");
+            mmgr_line_put(&line_made, "src/bin/");
+            mmgr_line_put(&line_made, bins->name[at]);
+            mmgr_line_put(&line_made, ".rs");
         }
-        cli_line_closed(&line_made);
+        mmgr_line_finish(&line_made);
         // the path as Cargo reads it: `/` between its parts and no `./` before it
         for (char *slash = path; slash[0] != '\0'; slash += 1)
         {
@@ -219,30 +219,30 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
         if (names->count < CLI_EXECUTABLES_NAMES)
         {
             memor.cpy(
-                &(MemoriaCfg){.dst = names->name[names->count], .bytes = CLI_NAME_LONGEST, .src = bins->name[at]});
+                &(MemoriaCfg){.dst = names->name[names->count], .bytes = CLI_NAME_MAX_LEN, .src = bins->name[at]});
             names->value[names->count][0] = '\0';
             names->count += 1u;
         }
     }
     if (autobins)
     {
-        char main[CLI_PATH_LONGEST];
-        CliLine main_line = {main, sizeof(main), 0ull};
-        cli_line_text(&main_line, folder);
-        cli_line_text(&main_line, "/src/main.rs");
+        char main[CLI_PATH_MAX_LEN];
+        VerbaLinea main_line = {main, sizeof(main), 0ull};
+        mmgr_line_put(&main_line, folder);
+        mmgr_line_put(&main_line, "/src/main.rs");
         CliNames found;
         found.count = 0u;
-        if ((cli_line_closed(&main_line) != 0ull) && query_is_file(main))
+        if ((mmgr_line_finish(&main_line) != 0ull) && query_is_file(main))
         {
             cli_names_put(&found, package, cellul.len(&(CatenaFinitaCfg){.src = package, .cap = CLI_CELLS_POOL}),
                           "src/main.rs");
         }
-        char bin_folder[CLI_PATH_LONGEST];
-        CliLine bin_line = {bin_folder, sizeof(bin_folder), 0ull};
-        cli_line_text(&bin_line, folder);
-        cli_line_text(&bin_line, "/src/bin");
+        char bin_folder[CLI_PATH_MAX_LEN];
+        VerbaLinea bin_line = {bin_folder, sizeof(bin_folder), 0ull};
+        mmgr_line_put(&bin_line, folder);
+        mmgr_line_put(&bin_line, "/src/bin");
         bins->folder = folder;
-        if (cli_line_closed(&bin_line) != 0ull)
+        if (mmgr_line_finish(&bin_line) != 0ull)
         {
             query_folder_each(bin_folder, cli_bin_each, bins);
         }
@@ -259,8 +259,8 @@ void cli_cargo_bins(const char *manifest, const char *text, CliNames *names)
                 {
                     break;
                 }
-                char name[CLI_NAME_LONGEST];
-                char value[CLI_PATH_LONGEST];
+                char name[CLI_NAME_MAX_LEN];
+                char value[CLI_PATH_MAX_LEN];
                 memor.cpy(&(MemoriaCfg){
                     .dst = name,
                     .src = bins->more.name[place],

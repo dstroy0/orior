@@ -6,7 +6,7 @@
 // The static voxels the ladder reads, counted by column along x, where the ladder's scene sets the level: the
 // detector's rule (noise_detector_lines.cu:155-234) run again on the host. A voxel that changes, never touches either
 // end of the lane and passes the quiet test is eligible; the dimmest quarter of those by their mean over the frames,
-// rounded down, is kept, every voxel at or below the highest mean the quarter reaches. The ceiling is that mean.
+// rounded down, is retained, every voxel at or below the highest mean the quarter reaches. The ceiling is that mean.
 static int terms_static_columns(const unsigned short *lanes, unsigned long long columns[TERMS_WIDTH],
                                 unsigned long long *ceiling)
 {
@@ -85,10 +85,10 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
 // C15 and C19 read back (build plan item 38). A Poisson shot at gain g over a ramp of levels, offset O and read
 // variance r^2, no fixed pattern: at a level L = O + g S the cumulants are k2 = g (L - O) + r^2, k3 = g^2 (L - O) and
 // k4 = g^3 (L - O) - r^2 / 2. The ladder's slopes are g, g^2 and g^3, the k3 line crosses 0 at O, and the k2 line
-// reads r^2 there. A Poisson count holds both checks with equality. The sim prints them and checks neither. The
+// reads r^2 there. A Poisson count satisfies both checks with equality. The sim prints them and checks neither. The
 // reaches are each the smallest fraction of the kind the check uses, fiftieths for s2, quarters for s3, tenths for
 // R^2 and whole units for s4 and O, at or above 5 standard errors of the measurement over the static blocks here, the
-// quiet static quarter of the view, 19 blocks of 5 frames a voxel, worked over levels 22 to 84; the mask keeps 22 to
+// quiet static quarter of the view, 19 blocks of 5 frames a voxel, worked over levels 22 to 84; the mask retains 22 to
 // 82. The standard errors, Derived, first order. A frame's shot cumulants 2 to 8 are g^2 S, g^3 S, g^4 S, 0,
 // -9 g^6 S, -49 g^7 S and -104 g^8 S (S electrons, each adding 0, 1, 2 or 4 at chances 9, 8, 6 and 1 in 24), the
 // read's r^2, 0, -r^2 / 2, 0, r^2, 0 and -17 r^2 / 4. A block of n spreads its k-statistics by var k2 = k4 / n +
@@ -96,11 +96,11 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
 // + 6 n k2^3 / ((n - 1)(n - 2)) and var k4 = k8 / n + (16 k2 k6 + 48 k3 k5 + 34 k4^2) / (n - 1) + (72 k2^2 k4 +
 // 144 k2 k3^2) n / ((n - 1)(n - 2)) + 24 n (n + 1) k2^4 / ((n - 1)(n - 2)(n - 3)) (R. A. Fisher, "Moments and
 // product moments of sampling distributions", Proc. London Math. Soc. 30, 1929; M. G. Kendall and A. Stuart, The
-// Advanced Theory of Statistics, vol. 1). The static mask keeps the dimmest quarter of the eligible voxels by their
+// Advanced Theory of Statistics, vol. 1). The static mask retains the dimmest quarter of the eligible voxels by their
 // mean over the frames, and the quiet test leaves out part of the bright columns: the quarter ends at a mean of 77,
-// inside column 28 (level 78). The sim prints n_c, the voxels kept in column c, for c = 0 to 30, 116456 in all, and
-// checks that their 19 blocks each are the ladder's. Column c holds N_c = 19 n_c blocks at L_c = 22 + 2 c, S = c + 1;
-// N = sum N_c, and the blocks' mean level Lbar = 49.46. A slope's variance is sum N_c (L_c - Lbar)^2 var k_j(S_c) /
+// inside column 28 (level 78). The sim prints n_c, the voxels retained in column c, for c = 0 to 30, 116456 in all, and
+// checks that their 19 blocks each are the ladder's. Column c contains N_c = 19 n_c blocks at L_c = 22 + 2 c, S = c +
+// 1; N = sum N_c, and the blocks' mean level Lbar = 49.46. A slope's variance is sum N_c (L_c - Lbar)^2 var k_j(S_c) /
 // (sum N_c (L_c - Lbar)^2)^2. The least-squares weight at O on a block of column c is w_c = 1 / N +
 // (O - Lbar)(L_c - Lbar) / sum N_c (L_c - Lbar)^2, O's error is the k3 line's at O over g^2, var O = sum N_c w_c^2
 // var k3(S_c) / g^4, and R^2 - r^2 is about e2(O) - e3(O) / g, the two lines' errors at O, a block's share v(S) =
@@ -110,9 +110,9 @@ static int terms_static_columns(const unsigned short *lanes, unsigned long long 
 // about 8.2 of them, from r^2 = 4, and a measurement of 0 falls 3.08 of them past the tolerance's edge: the check shows
 // the read noise present at that strength, short of 5, and no tolerance gives 5 on both sides with 8.2 between them. s2
 // reads 6.6 of its SE below g: x's noise, var k2 / 90, attenuates the slopes by 0.9974, Derived, 2.3 SE of it, and
-// the remaining 4.3 SE has the sign of the quiet test's cut; the tolerance of 1/50 holds it. Neglected: x taken as
+// the remaining 4.3 SE has the sign of the quiet test's cut; the tolerance of 1/50 covers it. Neglected: x taken as
 // fixed, the place noise one voxel's blocks share, and the quiet test and the cut by mean, in columns 15 to 30, taken
-// as unrelated to the blocks they keep.
+// as unrelated to the blocks they retain.
 void terms_ladder(SimResults *results, const unsigned short *lanes)
 {
     EngineError error;
@@ -124,16 +124,16 @@ void terms_ladder(SimResults *results, const unsigned short *lanes)
     {
         return;
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "    ");
-    scriptura_decimal(line, measurement.blocks, 1u);
-    scriptura_text(line, " blocks kept, ");
-    scriptura_decimal(line, measurement.left_out, 1u);
-    scriptura_text(line, " left out; s3 >= s2^2 ");
-    scriptura_text(line, (measurement.rising != 0) ? "holds" : "fails");
-    scriptura_text(line, ", s2 s4 >= s3^2 ");
-    scriptura_text(line, (measurement.convex != 0) ? "holds" : "fails");
-    scriptura_character(line, '\n');
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "    ");
+    mmgr_line_decimal(line, measurement.blocks, 1u);
+    mmgr_line_put(line, " blocks retained, ");
+    mmgr_line_decimal(line, measurement.left_out, 1u);
+    mmgr_line_put(line, " left out; s3 >= s2^2 ");
+    mmgr_line_put(line, (measurement.rising != 0) ? "passes" : "fails");
+    mmgr_line_put(line, ", s2 s4 >= s3^2 ");
+    mmgr_line_put(line, (measurement.convex != 0) ? "passes" : "fails");
+    mmgr_line_ch(line, '\n');
     unsigned long long columns[TERMS_WIDTH];
     unsigned long long ceiling = 0ull;
     const int copied = terms_static_columns(lanes, columns, &ceiling);
@@ -145,19 +145,19 @@ void terms_ladder(SimResults *results, const unsigned short *lanes)
         members += columns[x];
         last = (columns[x] != 0ull) ? x : last;
     }
-    scriptura_text(line, "    the static voxels by column along x from column 0, every mean kept at most ");
-    scriptura_decimal(line, ceiling, 1u);
-    scriptura_character(line, ':');
+    mmgr_line_put(line, "    the static voxels by column along x from column 0, every mean no more than ");
+    mmgr_line_decimal(line, ceiling, 1u);
+    mmgr_line_ch(line, ':');
     for (unsigned long long x = 0ull; copied && (x <= last); x += 1ull)
     {
-        scriptura_character(line, ' ');
-        scriptura_decimal(line, columns[x], 1u);
+        mmgr_line_ch(line, ' ');
+        mmgr_line_decimal(line, columns[x], 1u);
     }
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
     sim_check(results,
               copied &&
                   ((members * (TERMS_FRAMES / TERMS_MOMENT_BLOCK)) == (measurement.blocks + measurement.left_out)),
-              "the copied mask's voxels hold the ladder's blocks, kept and left out");
+              "the copied mask's voxels contain the ladder's blocks, retained and left out");
     const long long gain = TERMS_LADDER_GAIN;
     terms_ratio_within(results, "s2, the k2 line's slope", &measurement.cumulant[0].slope,
                        &measurement.cumulant[0].denominator, gain, 1ull, 1ull, 50ull);
@@ -219,11 +219,11 @@ void terms_crosstalk(SimResults *results, const unsigned short *lanes, unsigned 
     {
         // the planted share is a few eighths, far below 2^31
         const long long eighths = (axis == 1u) ? (long long)along_x_eighths : 0ll;
-        scriptura_text(&results->line, "    ");
-        scriptura_text(&results->line, axis_names[axis]);
-        scriptura_text(&results->line, ", over ");
-        scriptura_decimal(&results->line, measurement.pairs[axis], 1u);
-        scriptura_text(&results->line, " frame differences\n");
+        mmgr_line_put(&results->line, "    ");
+        mmgr_line_put(&results->line, axis_names[axis]);
+        mmgr_line_put(&results->line, ", over ");
+        mmgr_line_decimal(&results->line, measurement.pairs[axis], 1u);
+        mmgr_line_put(&results->line, " frame differences\n");
         OriorExactInteger twice;
         const int doubled = sim_exact_scaled(&measurement.spread[axis], 2ull, &twice);
         sim_check(results, doubled && (measurement.spread[axis].sign > 0), "V is positive");
@@ -280,7 +280,7 @@ void terms_charge(SimResults *results, const unsigned short *bias, const unsigne
 
 // C16 read back (build plan item 38). A lit series against the bias, as C14 reads a dark one: the lit mean less the
 // bias's is g q S and the lit E[d^2] / 2 less the bias's is g^2 f' q S. Their ratio is g f'. A count of Fano factor
-// f thinned by q holds f' - 1 = q (f - 1), and where the excess follows the thinning, f' = F^2 f at every q. The
+// f thinned by q satisfies f' - 1 = q (f - 1), and where the excess follows the thinning, f' = F^2 f at every q. The
 // standard error of the ratio is under 1/1000 in every run here. A tolerance of 1/200 is at least 5 of them.
 void terms_thinned(SimResults *results, const unsigned short *bias, const unsigned short *lit, long long expected,
                    unsigned long long expected_denominator)
@@ -336,11 +336,11 @@ void terms_blur(SimResults *results, const unsigned short *lanes, const SimScene
         const unsigned long long apart = (total > expected) ? (total - expected) : (expected - total);
         worst = (apart > worst) ? apart : worst;
     }
-    scriptura_text(&results->line, "    the worst column's mean less the blurred light's: ");
+    mmgr_line_put(&results->line, "    the worst column's mean less the blurred light's: ");
     sim_fraction_print(&results->line, worst, samples, 4u);
-    scriptura_text(&results->line, " lane units; the kernel moves the planted light by up to ");
-    scriptura_decimal(&results->line, moved, 1u);
-    scriptura_text(&results->line, " electrons\n");
+    mmgr_line_put(&results->line, " lane units; the kernel moves the planted light by up to ");
+    mmgr_line_decimal(&results->line, moved, 1u);
+    mmgr_line_put(&results->line, " electrons\n");
     sim_check(results, (8ull * worst) <= samples, "every column's mean is the blurred light's within 1/8");
     sim_check(results, moved > 1ull, "the kernel moves the planted light by more than 1 somewhere");
 }

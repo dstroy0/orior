@@ -33,19 +33,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # THE TREE LABEL IS IMPORTED AND NEVER RECOMPUTED HERE.
 #
-# This file used to define the label itself, as os.path.basename of the root. build_manifest.py then
-# learned to read the name from repotools.toml instead, because a directory basename is where
-# somebody put a tree and not what the project calls itself. The two definitions stopped agreeing, and
-# this file compared the directory's own name against 1,417 rows tagged "BTC" and "orior",
-# and printed "0 checked, 0 changed, 0 missing".
+# build_manifest.py reads the name from repotools.toml, because a directory basename is where
+# somebody put a tree and not what the project calls itself. A label computed here can disagree
+# with it, and then this file compares a label no row carries and prints "0 checked, 0 changed,
+# 0 missing".
 #
 # That reads as a pass. A verifier that checks nothing and reports no failures leaves a tree less
 # protected than one with no verifier, because it answers the question it was asked without ever
 # asking it. The rule this tree already records about docs_check applies without modification: a
 # check that read nothing has not passed.
 #
-# Importing the function is the only thing keeping the two from drifting again. A copy would carry
-# the same bug, waiting for the next rename.
+# Importing the function keeps the two from drifting. A copy would carry the same bug, waiting for
+# the next rename.
 import build_manifest  # noqa: E402
 
 

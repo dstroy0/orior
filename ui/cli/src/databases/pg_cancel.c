@@ -42,17 +42,17 @@ int cli_pg_canceller(const CliPg *pg, CliPgCancel *cancel)
     return pg->has_cancel;
 }
 
-int cli_pg_cancel_sent(const CliPgCancel *cancel, CliLine *said)
+int cli_pg_cancel_sent(const CliPgCancel *cancel, VerbaLinea *err_msg)
 {
-    char address[CLI_NAME_LONGEST + 16u];
-    CliLine named = {address, sizeof(address), 0ull};
-    cli_line_text(&named, cancel->host);
-    cli_line_character(&named, ':');
-    cli_line_decimal(&named, cancel->port, 1u);
-    cli_line_closed(&named);
+    char address[CLI_NAME_MAX_LEN + 16u];
+    VerbaLinea named = {address, sizeof(address), 0ull};
+    mmgr_line_put(&named, cancel->host);
+    mmgr_line_ch(&named, ':');
+    mmgr_line_decimal(&named, cancel->port, 1u);
+    mmgr_line_finish(&named);
     CliSocket socket;
-    if (!cli_net_reach(address, "stopping a PostgreSQL statement", said) ||
-        !cli_socket_connected(&socket, cancel->host, cancel->port, said))
+    if (!cli_net_reach(address, "stopping a PostgreSQL statement", err_msg) ||
+        !cli_socket_connected(&socket, cancel->host, cancel->port, err_msg))
     {
         return 0;
     }
@@ -71,7 +71,7 @@ int cli_pg_cancel_sent(const CliPgCancel *cancel, CliLine *said)
     if (!cli_socket_written(&socket, request, length))
     {
         cli_socket_closed(&socket);
-        cli_line_text(said, "the cancel request could not be sent");
+        mmgr_line_put(err_msg, "the cancel request could not be sent");
         return 0;
     }
     // the server closes the connection once it has the request
@@ -81,16 +81,16 @@ int cli_pg_cancel_sent(const CliPgCancel *cancel, CliLine *said)
     return 1;
 }
 
-void cli_pg_literal(const char *text, CliLine *out)
+void cli_pg_literal(const char *text, VerbaLinea *out)
 {
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
     for (const char *letter = text; *letter != '\0'; letter += 1)
     {
-        cli_line_text(out, (*letter == '\'') ? "''" : "");
+        mmgr_line_put(out, (*letter == '\'') ? "''" : "");
         if (*letter != '\'')
         {
-            cli_line_character(out, *letter);
+            mmgr_line_ch(out, *letter);
         }
     }
-    cli_line_character(out, '\'');
+    mmgr_line_ch(out, '\'');
 }

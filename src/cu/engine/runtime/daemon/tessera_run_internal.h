@@ -40,12 +40,12 @@
 #define RUN_GREETING_MICROSECONDS 20000ull
 // a keepalive unchanged this long sends the child looking for its parent ($TESSERA_RUN_SILENT_MS)
 #define RUN_SILENT_MICROSECONDS 10000000ull
-// a parent that still holds its record and has kept no keepalive this long is not responding
+// a parent that still locks its record and has sent no keepalive this long is not responding
 // ($TESSERA_RUN_UNRESPONSIVE_MS)
 #define RUN_UNRESPONSIVE_MICROSECONDS 60000000ull
-// a command asked to end is given this long before what is left of it is ended by force
+// a command requested to end is given this long before what is left of it is ended by force
 #define RUN_GRACE_MICROSECONDS 10000000ull
-// how often a command asked to end is read for what is left of it
+// how often a command requested to end is read for what is left of it
 #define RUN_ENDING_MICROSECONDS 100000ull
 #define RUN_MILLION 1000000ull
 #define RUN_THOUSAND 1000ull
@@ -88,11 +88,11 @@ typedef struct
 #endif
 } RunChild;
 
-// the parent's side of a child tessera_run. Their records share one path, before .parent (the parent's, held open for
+// the parent's side of a child tessera_run. Their records share one path, before .parent (the parent's, locked open for
 // the parent's whole life), .child (the child's) and .log (the child's entries); named_records is that path as the
-// child names it. The parent records the pid it launched, then the pid the child says it has. Across the VM (a child
+// child names it. The parent records the pid it launched, then the pid the child reports it has. Across the VM (a child
 // in WSL) the child's record carries its command's processor time and the wall time it was read at, on the child's own
-// clock, which no job here holds: the rate between two of its records is the command's processors
+// clock, which no job here uses: the rate between two of its records is the command's processors
 typedef struct
 {
     char records[ENGINE_PATH_CAPACITY];
@@ -138,7 +138,7 @@ int run_record_read(const char *path, char state[RUN_STATE_CAPACITY], unsigned l
 void run_log(const char *records, const char *entry);
 
 // the whole processors the job was granted, written to $TESSERA_RUN_PROCESSORS for the command and every process it
-// starts to read: the workers a command starts are the processors its job holds
+// starts to read: the workers a command starts are the processors its job has
 int run_processors_named(unsigned long long processors);
 
 int run_start(RunChild *child, char *const *words, int count, unsigned long long mask, RunChannel *channel);

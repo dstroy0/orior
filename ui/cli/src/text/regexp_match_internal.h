@@ -9,8 +9,8 @@
 
 #include <stdint.h>
 
-// the most passes' ends the one-way repeats standing at once keep, the ends a match keeps on its own stack before they
-// go to a cell, and a pass that took nothing
+// the most passes' ends the one-way repeats standing at once store, the ends a match stores on its own stack before
+// they go to a cell, and a pass that took nothing
 #define CLI_REGEXP_ENDS_MOST (1u << 22u)
 #define CLI_REGEXP_ENDS_STACKED 256u
 
@@ -18,8 +18,9 @@
 
 // Where a match stands: the text and its length, each group's span, the steps taken, where the match's end was
 // handed, and the address its stack stood at as it began; and the passes' ends of the one-way repeats standing on the
-// stack, each repeat's from where it began, how many stand and the room they have, kept on the match's own stack until
-// they outgrow it and then in a cell of twice the room each time they fill it, `ends_held` 1 while they are in one
+// stack, each repeat's from where it began, how many stand and the room they have, stored on the match's own stack
+// until they outgrow it and then in a cell of twice the room each time they fill it, `ends_reserved` 1 while they are
+// in one
 typedef struct
 {
     const unsigned int *text;
@@ -31,7 +32,7 @@ typedef struct
     unsigned int *ends;
     unsigned long long ends_top;
     unsigned long long ends_room;
-    int ends_held;
+    int ends_reserved;
 } CliRegexpRun;
 
 // What comes after a node, handed the place it stops at: the match's end; the rest of the sequence `node` from its
@@ -57,7 +58,7 @@ typedef struct CliRegexpThen
 } CliRegexpThen;
 
 // a word's character, a space, a line's end; two letters the same, under `i` without case; a class node's or a
-// character node's holding of one letter, -1 for a node that takes no one letter
+// character node's matching of one letter, -1 for a node that takes no one letter
 int cli_regexp_word(unsigned int letter);
 int cli_regexp_space(unsigned int letter);
 int cli_regexp_ends_line(unsigned int letter);

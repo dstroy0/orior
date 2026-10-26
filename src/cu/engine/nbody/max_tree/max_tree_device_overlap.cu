@@ -10,18 +10,19 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
     EngineError *const error = overlap->error;
     const unsigned int count = overlap->depth * overlap->height * overlap->width;
     const unsigned int spread = (count + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK;
-    const unsigned int origin_slot = overlap->slot[origin];
-    if (!MAX_TREE_CHECK((level != 0u) && (level <= resident->kept_top[origin_slot]), step, error, ENGINE_ERROR_REQUEST))
+    const unsigned int origin_place = overlap->frame_place[origin];
+    if (!MAX_TREE_CHECK((level != 0u) && (level <= resident->frame_top[origin_place]), step, error,
+                        ENGINE_ERROR_REQUEST))
     {
         return 0;
     }
-    const unsigned int *const value = &resident->kept_values[origin_slot][(size_t)level * ENGINE_RESIDUAL_LIMBS];
+    const unsigned int *const value = &resident->frame_values[origin_place][(size_t)level * ENGINE_RESIDUAL_LIMBS];
     unsigned int thresholds[2] = {0u, 0u};
     int ok = 1;
     for (unsigned int frame = 0u; (ok != 0) && (frame < 2u); frame += 1u)
     {
-        const unsigned int slot = overlap->slot[frame];
-        const unsigned int top = resident->kept_top[slot];
+        const unsigned int place = overlap->frame_place[frame];
+        const unsigned int top = resident->frame_top[place];
         thresholds[frame] = top + 1u;
         ok = MAX_TREE_STATUS_CHECK(
             cudaMemcpy(&overlap->thresholds[frame], &thresholds[frame], sizeof(unsigned int), cudaMemcpyHostToDevice),
@@ -29,7 +30,7 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
         if (ok != 0)
         {
             max_tree_overlap_threshold_kernel<<<(top + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK, MAX_TREE_BLOCK>>>(
-                resident->kept_values[slot], top, value, &overlap->thresholds[frame]);
+                resident->frame_values[place], top, value, &overlap->thresholds[frame]);
             ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), &overlap->thresholds[frame], error);
         }
     }
@@ -41,7 +42,7 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
                                overlap->tallies, error);
     for (unsigned int frame = 0u; (ok != 0) && (frame < 2u); frame += 1u)
     {
-        max_tree_cc_start_kernel<<<spread, MAX_TREE_BLOCK>>>(resident->kept_code[overlap->slot[frame]], count,
+        max_tree_cc_start_kernel<<<spread, MAX_TREE_BLOCK>>>(resident->frame_code[overlap->frame_place[frame]], count,
                                                              thresholds[frame], overlap->ranges[frame],
                                                              overlap->label[frame]);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), overlap->label[frame], error) &&
@@ -64,7 +65,7 @@ static int max_tree_overlap_step(MaxTreeOverlap *overlap, unsigned int origin, u
             overlap->ranges[0], overlap->label[0], overlap->ranges[1], overlap->label[1], overlap->depth,
             overlap->height, overlap->width, overlap->lag[0], overlap->lag[1], overlap->lag[2], overlap->pairs[0]);
         size_t bytes = overlap->scratch_bytes;
-        // the voxel count was held below 2^32 when the frame was cut, and the sort takes it as int
+        // the voxel count was bounded below 2^32 when the frame was cut, and the sort takes it as int
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), overlap->pairs[0], error) &&
              MAX_TREE_STATUS_CHECK(cub::DeviceRadixSort::SortKeys(overlap->scratch, bytes, overlap->pairs[0],
                                                                   overlap->pairs[1], (int)count),
@@ -151,11 +152,11 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
     }
     EngineError *const error = request->error;
     const MaxTreeResident *const resident = &g_max_tree_resident;
-    int asked =
+    int valid =
         MAX_TREE_CHECK((request->step_count != NULL) && (request->steps != NULL), request, error,
                        ENGINE_ERROR_REQUEST) &&
-        MAX_TREE_CHECK((resident->keeping != 0) && (resident->kept_ready[0] != 0u) && (resident->kept_ready[1] != 0u) &&
-                           (resident->last_depth != 0u),
+        MAX_TREE_CHECK((resident->retaining_frames != 0) && (resident->frame_ready[0] != 0u) &&
+                           (resident->frame_ready[1] != 0u) && (resident->last_depth != 0u),
                        resident, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK((request->earlier_level_count == 0u) || (request->earlier_levels != NULL),
                        &request->earlier_levels, error, ENGINE_ERROR_REQUEST) &&
@@ -173,21 +174,21 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
         MAX_TREE_CHECK((request->earlier_level_count + request->later_level_count) <= request->step_capacity,
                        &request->step_capacity, error, ENGINE_ERROR_REQUEST);
     const size_t voxels = resident->voxels;
-    for (unsigned int frame = 0u; (asked != 0) && (frame < 2u); frame += 1u)
+    for (unsigned int frame = 0u; (valid != 0) && (frame < 2u); frame += 1u)
     {
-        for (unsigned int probe = 0u; (asked != 0) && (probe < request->probe_counts[frame]); probe += 1u)
+        for (unsigned int probe = 0u; (valid != 0) && (probe < request->probe_counts[frame]); probe += 1u)
         {
-            asked = MAX_TREE_CHECK(request->probe_voxels[frame][probe] < voxels, &request->probe_voxels[frame][probe],
+            valid = MAX_TREE_CHECK(request->probe_voxels[frame][probe] < voxels, &request->probe_voxels[frame][probe],
                                    error, ENGINE_ERROR_REQUEST);
         }
     }
-    for (unsigned int link = 0u; (asked != 0) && (link < request->link_count); link += 1u)
+    for (unsigned int link = 0u; (valid != 0) && (link < request->link_count); link += 1u)
     {
-        asked = MAX_TREE_CHECK((request->probe_links[2u * link] < request->probe_counts[0]) &&
+        valid = MAX_TREE_CHECK((request->probe_links[2u * link] < request->probe_counts[0]) &&
                                    (request->probe_links[(2u * link) + 1u] < request->probe_counts[1]),
                                &request->probe_links[2u * link], error, ENGINE_ERROR_REQUEST);
     }
-    if (asked == 0)
+    if (valid == 0)
     {
         return MAX_TREE_ERROR;
     }
@@ -196,8 +197,8 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
     overlap.depth = resident->last_depth;
     overlap.height = resident->last_height;
     overlap.width = resident->last_width;
-    overlap.slot[0] = resident->kept_current ^ 1u;
-    overlap.slot[1] = resident->kept_current;
+    overlap.frame_place[0] = resident->frame_current ^ 1u;
+    overlap.frame_place[1] = resident->frame_current;
     overlap.link_count = request->link_count;
     overlap.error = error;
     for (unsigned int axis = 0u; axis < 3u; axis += 1u)
@@ -232,7 +233,7 @@ extern "C" long max_tree_overlap(const MaxTreeOverlapRequest *request)
                  MAX_TREE_STATUS_CHECK(cudaMalloc((void **)&overlap.links_present, request->link_count),
                                        &overlap.links_present, error)));
     overlap.probe_links = device_links;
-    // the voxel count was held below 2^32 when the frame was cut, and the sort takes it as int
+    // the voxel count was bounded below 2^32 when the frame was cut, and the sort takes it as int
     ok = ok &&
          MAX_TREE_STATUS_CHECK(cub::DeviceRadixSort::SortKeys(NULL, overlap.scratch_bytes,
                                                               (const unsigned long long *)NULL,

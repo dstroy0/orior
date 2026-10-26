@@ -1,16 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// tables_intercept.c: every heap block the vendor's disassembler lets go, or still holds as it ends, and every copy
+// tables_intercept.c: every heap block the vendor's disassembler lets go, or still retains as it ends, and every copy
 // it makes, written out whole, so that the tables it unpacks for one architecture are read off them: the
-// instruction set, held packed in one block, and the latencies, copied out of the buffer they are unpacked into
+// instruction set, stored packed in one block, and the latencies, copied out of the buffer they are unpacked into
 //
 // Built as a shared library and loaded before the C library on Linux (LD_PRELOAD), it stands in for malloc, calloc,
-// realloc, free and memcpy. It keeps each live block's size and writes a record to stdout as a block of at least
-// TABLES_LEAST bytes is freed, and for each such block still held as the program ends: a line `<ptr 0x0 size>` with
-// the block's address in hex and its byte count in decimal, then the block's `size` bytes. Each copy writes a record
-// the same way, `<dst src size>` and the bytes copied (orior_tables_funnel). The C library's own routines are reached
-// through dlsym, which allocates while they are found: those first allocations come off a static arena of its own,
-// never freed.
+// realloc, free and memcpy. It records each live block's size and writes a record to stdout as a block of at least
+// TABLES_LEAST bytes is freed, and for each such block still allocated as the program ends: a line `<ptr 0x0 size>`
+// with the block's address in hex and its byte count in decimal, then the block's `size` bytes. Each copy writes a
+// record the same way, `<dst src size>` and the bytes copied (orior_tables_funnel). The C library's own routines are
+// reached through dlsym, which allocates while they are found: those first allocations come off a static arena of its
+// own, never freed.
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <stddef.h>
@@ -109,7 +109,7 @@ void *memcpy(void *restrict dest, const void *restrict src, size_t num)
     return s_memcpy(dest, src, num);
 }
 
-static void tables_kept(void *at, size_t size)
+static void tables_recorded(void *at, size_t size)
 {
     if ((at == NULL) || (size < TABLES_LEAST) || (s_blocks >= TABLES_BLOCKS))
     {
@@ -120,7 +120,7 @@ static void tables_kept(void *at, size_t size)
     s_blocks += 1u;
 }
 
-// the block at `at` taken off the kept ones and written out: 1 where it was kept
+// the block at `at` taken off the tracked ones and written out: 1 where it was tracked
 static int tables_let_go(void *at)
 {
     for (unsigned int block = 0u; block < s_blocks; block += 1u)
@@ -136,7 +136,7 @@ static int tables_let_go(void *at)
     return 0;
 }
 
-// every block still held written out as the program ends
+// every block still allocated written out as the program ends
 __attribute__((destructor)) static void tables_ended(void)
 {
     for (unsigned int block = 0u; block < s_blocks; block += 1u)
@@ -170,7 +170,7 @@ void *malloc(size_t size)
         return tables_arena(size);
     }
     void *const at = s_malloc(size);
-    tables_kept(at, size);
+    tables_recorded(at, size);
     return at;
 }
 
@@ -187,7 +187,7 @@ void *calloc(size_t count, size_t size)
         return at;
     }
     void *const at = s_calloc(count, size);
-    tables_kept(at, count * size);
+    tables_recorded(at, count * size);
     return at;
 }
 
@@ -196,7 +196,7 @@ void *realloc(void *at, size_t size)
     tables_found();
     if (tables_in_arena(at))
     {
-        // a block of the arena moved: as much of it as the arena holds past it, which is at least the block
+        // a block of the arena moved: as much of it as the arena contains past it, which is at least the block
         const size_t left = (size_t)((s_arena + TABLES_ARENA) - (unsigned char *)at);
         void *const moved = malloc(size);
         if (moved != NULL)
@@ -207,7 +207,7 @@ void *realloc(void *at, size_t size)
     }
     tables_let_go(at);
     void *const grown = s_realloc(at, size);
-    tables_kept(grown, size);
+    tables_recorded(grown, size);
     return grown;
 }
 

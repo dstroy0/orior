@@ -13,7 +13,7 @@
  * agree with each other at all. The closure is one component. Every position must carry one rank.
  *
  * A grouping that stopped at the first matching representative would have produced more than one
- * class here, and a rank probe built on it would have refuted an alignment holding a true
+ * class here, and a rank probe built on it would have refuted an alignment containing a true
  * occurrence. This asserts the closure and not the first match, the difference between
  * useless and wrong.
  */
@@ -99,15 +99,15 @@ static int check_projection_closes(void)
                ((elapsed != 0) && (wide_classes == wide_len)) ? "ok" : "FAILS");
         failed += ((elapsed != 0) && (wide_classes == wide_len)) ? 0 : 1;
 
-        // THE RAREST 255 KEEP THEIR OWN RANKS AND THE COMMONEST MERGE. Every class here holds one
+        // THE RAREST 255 RETAIN THEIR OWN RANKS AND THE COMMONEST MERGE. Every class here contains one
         // member. Ties break by class index and the first 255 positions take ranks 0 to 254 while
         // the rest share 255. The form this replaced capped during discovery and merged by ARRIVAL,
         // which on a natural field eats the rarest classes instead of the commonest.
         size_t distinct_ranks = 0u;
         int seen[256];
-        for (size_t slot = 0u; slot < 256u; slot += 1u)
+        for (size_t index = 0u; index < 256u; index += 1u)
         {
-            seen[slot] = 0;
+            seen[index] = 0;
         }
         for (size_t at = 0u; at < wide_len; at += 1u)
         {
@@ -118,7 +118,7 @@ static int check_projection_closes(void)
             }
         }
 
-        printf("  %38s %8zu %8s %10s\n", "ranks used, rarest kept apart", distinct_ranks, "256",
+        printf("  %38s %8zu %8s %10s\n", "ranks used, rarest separated", distinct_ranks, "256",
                (distinct_ranks == 256u) ? "ok" : "FAILS");
         failed += (distinct_ranks == 256u) ? 0 : 1;
     }
@@ -129,9 +129,9 @@ static int check_projection_closes(void)
     free(wide_members);
     free(wide_place);
 
-    // A ERROR WRITES NOTHING, AND THAT IS CHECKED BY PLANTING A SENTINEL. Fail closed says a
+    // A ERROR WRITES NOTHING, AND THAT IS CHECKED BY PLANTING A SENTINEL. Fail closed means a
     // request that cannot be met changes no state. The undersize path used to zero `distinct` while
-    // the null and zero-length paths left it alone. A caller could not tell an errored zero from a
+    // the null and zero-length paths left it alone. A caller could not distinguish an errored zero from a
     // measured zero. The realistic caller error is sizing the buffers by an expected class count
     // and not by `length`, which hands over buffers correct for the field they had in mind.
     {
@@ -240,9 +240,9 @@ static int check_any_type_agrees(void)
     else
     {
         size_t differing = 0u;
-        for (size_t slot = 0u; slot < placed_bytes; slot += 1u)
+        for (size_t index = 0u; index < placed_bytes; index += 1u)
         {
-            if (by_bytes[slot] != by_oracle[slot])
+            if (by_bytes[index] != by_oracle[index])
             {
                 differing += 1u;
             }
@@ -453,7 +453,7 @@ int main(void)
     {
         // A FAILURE AND NOT A SKIP. The path is compiled in. The file is either there or the
         // repository is not what this binary was built against. Printing a skip and returning zero
-        // is how the natural field went ungraded without anybody being told.
+        // is how the natural field went ungraded without anybody being informed.
         printf("\n  natural field absent at %s, FAILS\n", ORIOR_SOURCE_ROOT "/LICENSES/AGPL-3.0-or-later.txt");
         failed += 1;
     }

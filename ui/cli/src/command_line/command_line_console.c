@@ -4,7 +4,7 @@
 // its tree, errors filed on their own turned on or off, the bug report page opened, a search of the tree, the plugins,
 // the reader's stylesheet, the toolchains, a clone, the tree's dev container brought up and a window opened on it,
 // files formatted, run and validated; the tree's jobs listed, shown and run, its tests and its bridge listed, and the
-// words of `orior_cli protocol` said to a window open on the tree or run here. And a word that names a file of the tree
+// words of `orior_cli protocol` sent to a window open on the tree or run here. And a word that names a file of the tree
 #include "../deploy/devcontainer.h"
 #include "../editor/files.h"
 #include "../machine/reach.h"
@@ -17,24 +17,24 @@
 #include "command_line_internal.h"
 
 static char s_line[1u << 16u];
-static char s_said[1u << 14u];
+static char s_err_buf[1u << 14u];
 
 // a line of the output made of two texts
 static void console_out_two(const char *one, const char *other)
 {
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, one);
-    cli_line_text(&line, other);
-    cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, one);
+    mmgr_line_put(&line, other);
+    cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
-// why said written to the errors
-static void console_err_said(const CliLine *said)
+// why given written to the errors
+static void console_err_print(const VerbaLinea *err_msg)
 {
-    cli_err_line(said->out, cli_line_fits(said) ? said->at : 0ull);
+    cli_err_line(err_msg->out, mmgr_line_ok(err_msg) ? err_msg->at : 0ull);
 }
 
-// `orior_cli help auto-report [on|off]`: errors filing on their own turned on or off, or which said
+// `orior_cli help auto-report [on|off]`: errors filing on their own turned on or off, or which reported
 static int console_auto_report(const char *word)
 {
     if (word == NULL)
@@ -45,16 +45,17 @@ static int console_auto_report(const char *word)
     if ((!cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "on", .cap = CLI_CELLS_POOL})) &&
         (!cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "off", .cap = CLI_CELLS_POOL})))
     {
-        CliLine line = {s_line, sizeof(s_line), 0ull};
-        cli_line_text(&line, word);
-        cli_line_text(&line, " is neither on nor off");
-        cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        mmgr_line_put(&line, word);
+        mmgr_line_put(&line, " is neither on nor off");
+        cli_err_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
         return CLI_WRONG;
     }
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if (!cli_report_set_auto(cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "on", .cap = CLI_CELLS_POOL}), &said))
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    if (!cli_report_set_auto(cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "on", .cap = CLI_CELLS_POOL}),
+                             &err_msg))
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_NO_CODE;
     }
     return 0;
@@ -64,67 +65,67 @@ static int console_auto_report(const char *word)
 static int console_report_page(const char *named, const char *const *words, unsigned int count)
 {
     static char s_title[1u << 12u];
-    CliLine title = {s_title, sizeof(s_title), 0ull};
+    VerbaLinea title = {s_title, sizeof(s_title), 0ull};
     const int known = (count > 0u) && cli_report_category_known(words[0]);
     for (unsigned int at = known ? 1u : 0u; at < count; at += 1u)
     {
-        cli_line_text(&title, (title.at > 0ull) ? " " : "");
-        cli_line_text(&title, words[at]);
+        mmgr_line_put(&title, (title.at > 0ull) ? " " : "");
+        mmgr_line_put(&title, words[at]);
     }
-    (void)cli_line_closed(&title);
-    static char s_root[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    const int has_root = cli_command_line_tree(named, s_root, &said);
+    (void)mmgr_line_finish(&title);
+    static char s_root[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    const int has_root = cli_command_line_tree(named, s_root, &err_msg);
     const CliReport given = {known ? words[0] : "unknown", s_title, "", "", ""};
     static char s_url[CLI_REPORT_URL];
-    CliLine url = {s_url, sizeof(s_url), 0ull};
+    VerbaLinea url = {s_url, sizeof(s_url), 0ull};
     cli_report_page(&given, has_root ? s_root : NULL, &url);
-    (void)cli_line_closed(&url);
+    (void)mmgr_line_finish(&url);
     cli_out(s_url);
-    said.at = 0ull;
-    if (!cli_report_open_page(s_url, &said))
+    err_msg.at = 0ull;
+    if (!cli_report_open_page(s_url, &err_msg))
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_NO_CODE;
     }
     return 0;
 }
 
-// a docker line said as the dev container comes up
+// a docker line printed as the dev container comes up
 static void console_docker_line(void *context, const char *text, unsigned long long length)
 {
     (void)context;
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, "$ ");
-    cli_line_counted(&line, text, length);
-    cli_out_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, "$ ");
+    mmgr_line_put_n(&line, text, length);
+    cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
 }
 
-// the tree's dev container brought up as its description says, docker's output shown as it comes, and a window
+// the tree's dev container brought up as its description specifies, docker's output shown as it comes, and a window
 // opened on the tree in it; a program not orior_gui, which opens no window, names the address to open
 static int console_dev_container(const char *named)
 {
-    static char s_root[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if (!cli_command_line_tree(named, s_root, &said))
+    static char s_root[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    if (!cli_command_line_tree(named, s_root, &err_msg))
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_NO_CODE;
     }
     static CliPlan s_plan;
-    if (!cli_devcontainer_plan(s_root, &s_plan, &said))
+    if (!cli_devcontainer_plan(s_root, &s_plan, &err_msg))
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_WRONG;
     }
-    char address[CLI_PATH_LONGEST];
-    const QuerySink say = {console_docker_line, NULL};
-    if (!cli_devcontainer_up(&s_plan, say, address, &said))
+    char address[CLI_PATH_MAX_LEN];
+    const QuerySink sink = {console_docker_line, NULL};
+    if (!cli_devcontainer_up(&s_plan, sink, address, &err_msg))
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_NO_CODE;
     }
-    char program[CLI_PATH_LONGEST] = "";
+    char program[CLI_PATH_MAX_LEN] = "";
     const int own = cli_program_own(program, sizeof(program));
     const char *leaf = program;
     for (const char *at = program; *at != '\0'; at += 1)
@@ -146,11 +147,11 @@ static int console_dev_container(const char *named)
     unsigned int id = 0u;
     if (!cli_started_outside(words, &id))
     {
-        CliLine line = {s_line, sizeof(s_line), 0ull};
-        cli_line_text(&line, "orior_gui --remote ");
-        cli_line_text(&line, address);
-        cli_line_text(&line, ": it could not be started");
-        cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        mmgr_line_put(&line, "orior_gui --remote ");
+        mmgr_line_put(&line, address);
+        mmgr_line_put(&line, ": it could not be started");
+        cli_err_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
         return CLI_NO_CODE;
     }
     console_out_two("Opened a window on ", address);
@@ -164,7 +165,7 @@ static void console_protocol_line(void *context, const char *text, unsigned long
     cli_out_line(text, length);
 }
 
-// the words of `orior_cli protocol`: said to a window open on the tree, which runs the protocol command as its job and
+// the words of `orior_cli protocol`: sent to a window open on the tree, which runs the protocol command as its job and
 // shows the run in its protocol panel; with none open run here, and so does the job's own command, which carries the
 // window's door in its environment and must not reach the window again. A reading, `decode` and the two readings of a
 // pulled table, prints here and is no job of the window's
@@ -180,38 +181,38 @@ static int console_protocol(const char *root, const char *command, const char *c
     if (!inside_a_job && !reading)
     {
         static CliReachAnswer s_answer;
-        CliLine said = {s_said, sizeof(s_said), 0ull};
-        const int asked = cli_reach_ask(root, "protocol", command, words, count, &s_answer, &said);
-        if (asked == 0)
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        const int requested = cli_reach_request(root, "protocol", command, words, count, &s_answer, &err_msg);
+        if (requested == 0)
         {
-            console_err_said(&said);
+            console_err_print(&err_msg);
             return CLI_WRONG;
         }
-        if (asked > 0)
+        if (requested > 0)
         {
-            if (s_answer.said[0] != '\0')
+            if (s_answer.text[0] != '\0')
             {
                 if (s_answer.done)
                 {
-                    cli_out(s_answer.said);
+                    cli_out(s_answer.text);
                 }
                 else
                 {
-                    cli_err(s_answer.said);
+                    cli_err(s_answer.text);
                 }
             }
             return s_answer.done ? 0 : CLI_WRONG;
         }
     }
     static const char *s_all[CLI_LAUNCH_ARGS + 1u];
-    const unsigned int kept = (count < CLI_LAUNCH_ARGS) ? count : CLI_LAUNCH_ARGS;
+    const unsigned int arg_count = (count < CLI_LAUNCH_ARGS) ? count : CLI_LAUNCH_ARGS;
     s_all[0] = command;
-    for (unsigned int at = 0u; at < kept; at += 1u)
+    for (unsigned int at = 0u; at < arg_count; at += 1u)
     {
         s_all[at + 1u] = words[at];
     }
     const QuerySink sink = {console_protocol_line, NULL};
-    const int code = cli_protocol_run(root, s_all, kept + 1u, sink);
+    const int code = cli_protocol_run(root, s_all, arg_count + 1u, sink);
     return (code < 0) ? CLI_WRONG : code;
 }
 
@@ -219,11 +220,11 @@ static int console_protocol(const char *root, const char *command, const char *c
 // not there yet
 static int console_user_css(void)
 {
-    char path[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if (!cli_home_ensure_user_css(path, &said))
+    char path[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    if (!cli_home_ensure_user_css(path, &err_msg))
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_NO_CODE;
     }
     cli_out(path);
@@ -236,7 +237,7 @@ static int console_treeless(const char *command, const char *named, const char *
                             int *code)
 {
     const char *const first = (count > 0u) ? words[0] : NULL;
-    static char s_root[CLI_PATH_LONGEST];
+    static char s_root[CLI_PATH_MAX_LEN];
     if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "keys", .cap = CLI_CELLS_POOL}))
     {
         cli_keys();
@@ -245,8 +246,8 @@ static int console_treeless(const char *command, const char *named, const char *
     else if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "about", .cap = CLI_CELLS_POOL}))
     {
         cli_out("orior_cli " CLI_VERSION);
-        CliLine said = {s_said, sizeof(s_said), 0ull};
-        if (cli_command_line_tree(named, s_root, &said))
+        VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+        if (cli_command_line_tree(named, s_root, &err_msg))
         {
             cli_out(s_root);
         }
@@ -313,18 +314,18 @@ static int console_treeless(const char *command, const char *named, const char *
 
 int cli_console(const char *command, const char *named, const char *const *words, unsigned int count)
 {
-    static const char *const s_protocol[] = {"course", "tables", "decode", "query", "learn", "cross",
-                                             "write",  "pairs",  "stick",  "kept",  "sweep"};
+    static const char *const s_protocol[] = {"course", "tables", "decode", "query",     "learn", "cross",
+                                             "write",  "pairs",  "stick",  "retention", "sweep"};
     int code = 0;
     if (console_treeless(command, named, words, count, &code))
     {
         return code;
     }
-    static char s_root[CLI_PATH_LONGEST];
-    CliLine said = {s_said, sizeof(s_said), 0ull};
-    if (!cli_command_line_tree(named, s_root, &said))
+    static char s_root[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
+    if (!cli_command_line_tree(named, s_root, &err_msg))
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_NO_CODE;
     }
     const char *const first = (count > 0u) ? words[0] : NULL;
@@ -349,18 +350,18 @@ int cli_console(const char *command, const char *named, const char *const *words
     }
     if (first == NULL)
     {
-        CliLine line = {s_line, sizeof(s_line), 0ull};
-        cli_line_text(&line, command);
-        cli_line_text(&line, " needs a job: orior_cli run list names them");
-        cli_err_line(s_line, cli_line_fits(&line) ? line.at : 0ull);
+        VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+        mmgr_line_put(&line, command);
+        mmgr_line_put(&line, " needs a job: orior_cli run list names them");
+        cli_err_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
         return CLI_WRONG;
     }
     const CliCatalog *const catalog = cli_command_line_catalog(s_root);
-    said.at = 0ull;
-    const unsigned int job = cli_job_named(catalog, NULL, 0u, first, &said);
+    err_msg.at = 0ull;
+    const unsigned int job = cli_job_named(catalog, NULL, 0u, first, &err_msg);
     if (job == CLI_CATALOG_NONE)
     {
-        console_err_said(&said);
+        console_err_print(&err_msg);
         return CLI_NO_CODE;
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "show", .cap = CLI_CELLS_POOL}))
@@ -371,7 +372,7 @@ int cli_console(const char *command, const char *named, const char *const *words
     return cli_job_run(s_root, catalog, job, words + 1, count - 1u);
 }
 
-int cli_file_word(const char *named, const char *word, CliLine *out, CliLine *said)
+int cli_file_word(const char *named, const char *word, VerbaLinea *out, VerbaLinea *err_msg)
 {
     // the path is the word before a line and a column, each a colon and digits, that follow it
     size_t path = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
@@ -392,20 +393,20 @@ int cli_file_word(const char *named, const char *word, CliLine *out, CliLine *sa
             path = colon - 1u;
         }
     }
-    char given[CLI_PATH_LONGEST];
+    char given[CLI_PATH_MAX_LEN];
     if (path >= sizeof(given))
     {
         return -1;
     }
     memor.cpy(&(MemoriaCfg){.dst = given, .src = word, .bytes = path});
     given[path] = '\0';
-    char full[CLI_PATH_LONGEST];
+    char full[CLI_PATH_MAX_LEN];
     if (!query_path_full(given, full, sizeof(full)) || !query_is_file(full))
     {
         return -1;
     }
-    static char s_root[CLI_PATH_LONGEST];
-    if (!cli_command_line_tree(named, s_root, said))
+    static char s_root[CLI_PATH_MAX_LEN];
+    if (!cli_command_line_tree(named, s_root, err_msg))
     {
         return 0;
     }
@@ -414,9 +415,9 @@ int cli_file_word(const char *named, const char *word, CliLine *out, CliLine *sa
     if (!cli_text_same(full, s_root, root) ||
         (!separated && (full[root] != '/') && (full[root] != '\\') && (full[root] != '\0')))
     {
-        cli_line_text(said, full);
-        cli_line_text(said, " is not in the tree ");
-        cli_line_text(said, s_root);
+        mmgr_line_put(err_msg, full);
+        mmgr_line_put(err_msg, " is not in the tree ");
+        mmgr_line_put(err_msg, s_root);
         return 0;
     }
     const char *inner = full + root;
@@ -426,8 +427,8 @@ int cli_file_word(const char *named, const char *word, CliLine *out, CliLine *sa
     }
     for (; *inner != '\0'; inner += 1)
     {
-        cli_line_character(out, (*inner == '\\') ? '/' : *inner);
+        mmgr_line_ch(out, (*inner == '\\') ? '/' : *inner);
     }
-    cli_line_text(out, word + path);
+    mmgr_line_put(out, word + path);
     return 1;
 }

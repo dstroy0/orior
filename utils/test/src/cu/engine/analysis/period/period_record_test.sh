@@ -14,7 +14,7 @@ KEYMATH="$TOP/src/cu/engine/analysis/keymath"
 KEY_SCHEDULE="$TOP/src/cu/engine/analysis/key_schedule"
 NO_ROUNDING="$TOP/src/cu/includes/types/integers"
 EXACT_RECORD="$TOP/src/cu/includes/types/integers/exact_record"
-SCRIPTURA="$TOP/src/cu/engine/runtime/scriptura"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
 source "$TOP/utils/maint/engine/build_stamp.sh"
 source "$TOP/utils/maint/engine/tessera_build.sh"
 build_stamp period_record_test
@@ -52,11 +52,11 @@ for one in $ARCHES; do
 done
 
 INCLUDES=(-I "$TOP/src/cu/engine" -I "$MODULE" -I "$DEVICE_POOL" -I "$CYCLE" -I "$CODEGEN" -I "$LSTAR_PARSER" -I "$KEYMATH"
-          -I "$KEY_SCHEDULE" -I "$NO_ROUNDING" -I "$EXACT_RECORD" -I "$SCRIPTURA" "${TESSERA_INCLUDES[@]}")
+          -I "$KEY_SCHEDULE" -I "$NO_ROUNDING" -I "$EXACT_RECORD" "${FILE_DEFS_MMGR_FLAGS[@]}" "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+LINEA_OBJECTS=()
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$CYCLE/cycle.c" "$EXACT_RECORD/exact_record.c"; do
     object="$OUT/$(basename "$source" .c)_record.$EXTENSION"
     rm -f "$object"
@@ -68,12 +68,12 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
 # the test is a job on the device's tessera daemon, built beside it
-tessera_build record "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build record "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST"/period_record_test.cu "$TOP/src/sims/cu/sim_job.cu" "$MODULE"/period_{measure,select,record}.cu \

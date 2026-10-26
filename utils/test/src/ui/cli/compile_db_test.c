@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // compile_db_test.c: the compilation database's check: a CMake reply gives each source the build's compiler, includes
-// and defines; a tree's own database is kept and read for its compilers; and a command line's words keep quoted ones
-// whole
+// and defines; a tree's own database is stored and read for its compilers; and a command line's words preserve quoted
+// ones whole
 #include "../../../../../ui/cli/src/builds/compile_db_internal.h"
 #include "cli_check.h"
 
@@ -15,12 +15,12 @@ static CliWords s_words;
 // `text` written to the file `name` of the folder `dir`
 static void compile_file(const char *dir, const char *name, const char *text, unsigned long long size)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(dir, name, path);
     (void)query_file_written(path, text, size);
 }
 
-// a path with each `\` a `/` into `out`, which holds CLI_PATH_LONGEST
+// a path with each `\` a `/` into `out`, which is sized for CLI_PATH_MAX_LEN
 static void compile_forward(const char *path, char *out)
 {
     memor.cpy(&(MemoriaCfg){
@@ -31,8 +31,8 @@ static void compile_forward(const char *path, char *out)
     }
 }
 
-// whether the words clangd starts with hold `word`
-static int compile_holds(const char *word)
+// whether the words clangd starts with contain `word`
+static int compile_has_word(const char *word)
 {
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
@@ -46,27 +46,27 @@ static int compile_holds(const char *word)
 
 // the entry of `name` in the folder `source` as the database should write it, built in `built` by the words
 // `flags`, `count` of them
-static void compile_entry(CliLine *line, const char *built, const char *source, const char *name,
+static void compile_entry(VerbaLinea *line, const char *built, const char *source, const char *name,
                           const char *const *flags, unsigned int count)
 {
-    char file[CLI_PATH_LONGEST];
-    CliLine named = {file, sizeof(file), 0ull};
-    cli_line_text(&named, source);
-    cli_line_text(&named, "/src/");
-    cli_line_text(&named, name);
-    (void)cli_line_closed(&named);
-    cli_line_text(line, "{\"directory\":");
+    char file[CLI_PATH_MAX_LEN];
+    VerbaLinea named = {file, sizeof(file), 0ull};
+    mmgr_line_put(&named, source);
+    mmgr_line_put(&named, "/src/");
+    mmgr_line_put(&named, name);
+    (void)mmgr_line_finish(&named);
+    mmgr_line_put(line, "{\"directory\":");
     cli_json_quoted(line, built, cellul.len(&(CatenaFinitaCfg){.src = built, .cap = CLI_CELLS_POOL}));
-    cli_line_text(line, ",\"file\":");
+    mmgr_line_put(line, ",\"file\":");
     cli_json_quoted(line, file, named.at);
-    cli_line_text(line, ",\"arguments\":[");
+    mmgr_line_put(line, ",\"arguments\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         cli_json_quoted(line, flags[at], cellul.len(&(CatenaFinitaCfg){.src = flags[at], .cap = CLI_CELLS_POOL}));
-        cli_line_character(line, ',');
+        mmgr_line_ch(line, ',');
     }
     cli_json_quoted(line, file, named.at);
-    cli_line_text(line, "]}");
+    mmgr_line_put(line, "]}");
 }
 
 // a CMake reply gives each source the build's compiler, includes and defines
@@ -88,11 +88,11 @@ static void compile_cmake(void)
     static const char *const s_c[7] = {"/usr/bin/gcc",   "-g",         "-std=gnu11", "-I/x/include",
                                        "-isystem/x/sys", "-DNEEDED=1", "-c"};
     static const char *const s_cxx[5] = {"C:/VS/bin/cl.exe", "/W3", "/IC:/x/include", "/DWIN", "/c"};
-    char dir[CLI_PATH_LONGEST];
-    char build[CLI_PATH_LONGEST];
-    char reply[CLI_PATH_LONGEST];
-    char source[CLI_PATH_LONGEST];
-    char built[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char build[CLI_PATH_MAX_LEN];
+    char reply[CLI_PATH_MAX_LEN];
+    char source[CLI_PATH_MAX_LEN];
+    char built[CLI_PATH_MAX_LEN];
     cli_check_folder("compile_db_cmake", dir);
     cli_full(dir, "build/cmake/Debug", build);
     cli_full(build, ".cmake/api/v1/reply", reply);
@@ -100,43 +100,44 @@ static void compile_cmake(void)
     compile_forward(dir, source);
     compile_forward(build, built);
     compile_file(reply, "index-2026-01-01T00-00-00-0000.json", s_index, sizeof(s_index) - 1u);
-    CliLine line = {s_text, sizeof(s_text), 0ull};
-    cli_line_text(&line, "{\"paths\": {\"source\": ");
+    VerbaLinea line = {s_text, sizeof(s_text), 0ull};
+    mmgr_line_put(&line, "{\"paths\": {\"source\": ");
     cli_json_quoted(&line, source, cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&line, ", \"build\": ");
+    mmgr_line_put(&line, ", \"build\": ");
     cli_json_quoted(&line, built, cellul.len(&(CatenaFinitaCfg){.src = built, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&line, "}, \"configurations\": [{\"name\": \"Release\", \"targets\": []}, {\"name\": \"Debug\", "
+    mmgr_line_put(&line, "}, \"configurations\": [{\"name\": \"Release\", \"targets\": []}, {\"name\": \"Debug\", "
                          "\"targets\": [{\"name\": \"probe\", \"jsonFile\": \"target-probe.json\"}]}]}");
     compile_file(reply, "codemodel-v2-a.json", s_text, line.at);
     compile_file(reply, "toolchains-v1-a.json", s_toolchains, sizeof(s_toolchains) - 1u);
     compile_file(reply, "target-probe.json", s_target, sizeof(s_target) - 1u);
     static CliDatabase s_database;
     (void)cli_compile_db_refresh(dir, &s_database);
-    const unsigned long long held = g_cli_compile_cells.holds;
+    const unsigned long long in_use_before = g_cli_compile_cells.in_use;
     query_paused(2100u);
     (void)cli_compile_db_refresh(dir, &s_database);
-    cli_check((g_cli_compile_cells.hw != 0ull) && (held != 0ull) && (g_cli_compile_cells.holds == held),
-              "a look holds only the files it read once it is done, and a look again that finds them the same no more");
+    cli_check(
+        (g_cli_compile_cells.hw != 0ull) && (in_use_before != 0ull) && (g_cli_compile_cells.in_use == in_use_before),
+        "a look retains only the files it read once it is done, and a look again that finds them the same no more");
     line.at = 0ull;
-    cli_line_character(&line, '[');
+    mmgr_line_ch(&line, '[');
     compile_entry(&line, built, source, "main.c", s_c, 7u);
-    cli_line_character(&line, ',');
+    mmgr_line_ch(&line, ',');
     compile_entry(&line, built, source, "more.cpp", s_cxx, 5u);
-    cli_line_character(&line, ']');
+    mmgr_line_ch(&line, ']');
     CliJson wanted;
     cli_json_begun(&wanted, s_node, sizeof(s_node) / sizeof(s_node[0]), s_tree_text, sizeof(s_tree_text));
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int wanted_root =
-        cli_json_read(&wanted, s_text, line.at, s_token, sizeof(s_token) / sizeof(s_token[0]), &said);
-    char path[CLI_PATH_LONGEST];
+        cli_json_read(&wanted, s_text, line.at, s_token, sizeof(s_token) / sizeof(s_token[0]), &err_msg);
+    char path[CLI_PATH_MAX_LEN];
     cli_full(dir, CLI_COMPILE_WRITTEN, path);
     static char s_written[1u << 16u];
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_written, sizeof(s_written));
     unsigned int written = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_written, (size == QRY_MEMBER_UNREAD) ? 0ull : size, &written);
     cli_check(cli_json_same(json, written, &wanted, wanted_root), "the Debug configuration's, CUDA's left out");
-    char folder[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
     cli_full(dir, "build/orior", folder);
     cli_check(s_database.has_folder &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_database.folder, .other = folder, .cap = CLI_CELLS_POOL})),
@@ -145,11 +146,11 @@ static void compile_cmake(void)
     s_words.count = 0u;
     s_words.used = 0u;
     cli_compile_db_words(&s_database, &s_words);
-    cli_check(compile_holds("--query-driver=/usr/bin/gcc") && (s_words.count == 2u),
+    cli_check(compile_has_word("--query-driver=/usr/bin/gcc") && (s_words.count == 2u),
               "cl answers no question of its headers");
 }
 
-// a tree's own database is kept and read for its compilers
+// a tree's own database is stored and read for its compilers
 static void compile_own(void)
 {
     static const char s_clangd[] = "CompileFlags:\n  CompilationDatabase: out  # the tree's own\n";
@@ -157,9 +158,9 @@ static void compile_own(void)
                                 "\"\\\"/opt/cross/bin/arm-none-eabi-gcc\\\" -c a.c\"}]";
     static CliInputs s_inputs;
     static CliDatabase s_database;
-    char dir[CLI_PATH_LONGEST];
-    char out[CLI_PATH_LONGEST];
-    char own[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char out[CLI_PATH_MAX_LEN];
+    char own[CLI_PATH_MAX_LEN];
     cli_check_folder("compile_db_own", dir);
     cli_full(dir, "out", out);
     (void)query_folder_made(out);
@@ -180,9 +181,9 @@ static void compile_own(void)
     s_words.count = 0u;
     s_words.used = 0u;
     cli_compile_db_words(&s_database, &s_words);
-    cli_check((s_words.count == 1u) && compile_holds("--query-driver=/opt/cross/bin/arm-none-eabi-gcc"),
-              "clangd may ask that compiler");
-    char path[CLI_PATH_LONGEST];
+    cli_check((s_words.count == 1u) && compile_has_word("--query-driver=/opt/cross/bin/arm-none-eabi-gcc"),
+              "clangd may query that compiler");
+    char path[CLI_PATH_MAX_LEN];
     cli_full(dir, CLI_COMPILE_WRITTEN, path);
     cli_check(!query_is_file(path), "nothing written over the tree's own");
 }
@@ -190,19 +191,20 @@ static void compile_own(void)
 // a word of a command line put after the others, `|` between them
 static void compile_word(void *context, const char *word, unsigned long long size)
 {
-    CliLine *const line = context;
-    cli_line_text(line, (line->at > 0ull) ? "|" : "");
-    cli_line_counted(line, word, size);
+    VerbaLinea *const line = context;
+    mmgr_line_put(line, (line->at > 0ull) ? "|" : "");
+    mmgr_line_put_n(line, word, size);
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     compile_cmake();
     compile_own();
     static const char s_line[] = "\"C:/Program Files/LLVM/bin/clang.exe\" -I \"a b\" -c x.c";
-    CliLine words = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea words = {s_text, sizeof(s_text), 0ull};
     cli_compile_words_each(s_line, sizeof(s_line) - 1u, compile_word, &words);
     cli_check_text(s_text, words.at, "C:/Program Files/LLVM/bin/clang.exe|-I|a b|-c|x.c",
-                   "a command line's words keep quoted ones whole");
+                   "a command line's words preserve quoted ones whole");
     return cli_checked();
 }

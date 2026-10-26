@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // S9's faces (cell_tracking/src/faces), faces_find_set on synthetic sets written as .points, .drift, .shape and .links,
-// every .faces word checked against a hand's. walk is 4 frames in a 4 x 5 x 6 view. Frame 0 holds a (0, 0, 0) and b
+// every .faces word checked against a hand's. walk is 4 frames in a 4 x 5 x 6 view. Frame 0 contains a (0, 0, 0) and b
 // (3, 4, 5); frame 1, drifted (1, 1, 1) onto, t (0, 0, 0), p (0, 2, 2), s (1, 1, 1), q (2, 0, 2) and r (2, 2, 0); frame
 // 2, drifted (-1, -1, -1) onto, c (1, 1, 0), w (2, 2, 5), x (2, 3, 4), v (2, 4, 2) and u (3, 2, 2); frame 3, drifted
 // (0, 0, 1) onto, e (0, 0, 0) and c' (1, 1, 3). a links to t and c to c'; p to u is in the gate and not chosen. So p,
@@ -20,12 +20,12 @@
 // counting other points, a .shape face past the six, no .shape, a .links of another view, two chosen links out of one
 // point, a pair record whose chosen count is not its gate's, a .links cut short (each a copy of walk), and a view past
 // 2^31 - 1 voxels; and beside a good still, which writes, the first of them makes the set error. Malformed requests
-// error. The test is host work and asks nothing of the device.
+// error. The test is host work and requires nothing of the device.
 //
 // The test links no engine_*.cu. Engine_sample_path below restates engine/engine_*.cu's; and the formats are written
 // here by hand from faces.h, scan.cu, hessian.h and sort.h: a change to any must be made here too. The CRC-64 the
-// .faces carries is taken a bit at a time here, apart from cu/includes/codecs/crc/crc.h's table, which faces_find.cu takes
-// it by.
+// .faces carries is taken a bit at a time here, apart from cu/includes/codecs/crc/crc.h's table, which faces_find.cu
+// takes it by.
 #include "faces.h"
 #include "scan.h"
 #include "sort.h"
@@ -259,8 +259,8 @@ static int faces_test_hessian(const char *set, const char *sample, const FacesTe
 }
 
 // the .links: its head, then each frame pair's record (sources, targets, gate pairs, components one a gate pair,
-// chosen, and kept, level and crossed 0, which the part does not read), each source's prediction and flags, and each
-// gate pair (source, target, cost 1, weight 1, component 0, flags)
+// chosen, and retained, level and crossed 0, which the part does not read), each source's prediction and flags, and
+// each gate pair (source, target, cost 1, weight 1, component 0, flags)
 static int faces_test_links(const char *set, const char *sample, const FacesTestSample *walk, FacesFlaw flaw)
 {
     FacesTestWords words;
@@ -290,12 +290,12 @@ static int faces_test_links(const char *set, const char *sample, const FacesTest
         }
         // two out: a to p chosen too, beside a to t
         const unsigned int doubled = ((flaw == FACES_FLAW_TWO_OUT) && (frame == 0u)) ? 1u : 0u;
-        const unsigned int told = ((flaw == FACES_FLAW_CHOSEN) && (frame == 0u)) ? 1u : 0u;
+        const unsigned int flagged = ((flaw == FACES_FLAW_CHOSEN) && (frame == 0u)) ? 1u : 0u;
         const unsigned int record[SORT_PAIR_WORDS] = {walk->counts[frame],
                                                       walk->counts[frame + 1u],
                                                       gates + doubled,
                                                       gates + doubled,
-                                                      chosen + doubled + told,
+                                                      chosen + doubled + flagged,
                                                       0u,
                                                       0u,
                                                       0u,
@@ -450,7 +450,7 @@ static int faces_test_crc(const char *path, unsigned long long *crc)
     return complete;
 }
 
-// the sample's .faces held word by word against its head (the view and the CRC-64 of its .links) and `points`, four
+// the sample's .faces checked word by word against its head (the view and the CRC-64 of its .links) and `points`, four
 // words a point, frame by frame
 static int faces_test_matches(const char *set, const char *sample, const FacesTestSample *walk,
                               const unsigned int *points)
@@ -503,7 +503,7 @@ static int faces_test_matches(const char *set, const char *sample, const FacesTe
     }
     if ((file != NULL) && (read.count != want.count))
     {
-        printf("  %s's .faces holds %u words, and the hand's %u\n", sample, read.count, want.count);
+        printf("  %s's .faces contains %u words, and the hand's %u\n", sample, read.count, want.count);
     }
     return same;
 }

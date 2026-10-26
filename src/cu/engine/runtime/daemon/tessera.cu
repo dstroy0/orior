@@ -29,8 +29,8 @@ __global__ void tessera_device_run(TesseraLedger *ledger, const TesseraCall *cal
     *stopped = at;
 }
 
-// `items` on the device grown to hold `wanted` of `size` bytes each, its capacity doubled until it does, and the
-// `count` it held copied into the grown array
+// `items` on the device grown to contain `wanted` of `size` bytes each, its capacity doubled until it does, and the
+// `count` it contained copied into the grown array
 static int tessera_device_grow(void **items, unsigned long long *capacity, unsigned long long count,
                                unsigned long long wanted, size_t size)
 {
@@ -59,7 +59,7 @@ static int tessera_device_grow(void **items, unsigned long long *capacity, unsig
     return 1;
 }
 
-// each array of the device's ledger, kept on the host in `ledger`, grown to the most a call of `kind` can add
+// each array of the device's ledger, stored on the host in `ledger`, grown to the most a call of `kind` can add
 static int tessera_device_reserve(TesseraLedger *ledger, TesseraCallKind kind)
 {
     const TesseraCapacity needed = tessera_core_capacity(ledger, kind);
@@ -128,7 +128,7 @@ int tessera_device_calls(TesseraDevice *device, const TesseraCall *calls, unsign
               cudaSuccess);
         if (ok && (reached < count))
         {
-            // the call at `reached` could add more than the ledger's arrays hold: each is grown to the most it can
+            // the call at `reached` could add more than the ledger's arrays contain: each is grown to the most it can
             // add, and the run goes on from that call, which the ledger then takes
             ok = tessera_device_reserve(&device->host_ledger, calls[reached].kind) &&
                  (cudaMemcpy(device->ledger, &device->host_ledger, sizeof(TesseraLedger), cudaMemcpyHostToDevice) ==
@@ -153,7 +153,7 @@ int tessera_device_read(const TesseraDevice *device, TesseraLedger *copy)
         return 0;
     }
     *copy = host_ledger;
-    // one more of each than it holds, and an empty array is not a null pointer
+    // one more of each than it contains, and an empty array is not a null pointer
     copy->job_capacity = host_ledger.job_count + 1ull;
     copy->history_capacity = host_ledger.history_count + 1ull;
     copy->heap_capacity = host_ledger.heap_count + 1ull;

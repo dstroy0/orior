@@ -3,14 +3,14 @@
 // regexp_match.c: a pattern matched at one place by backtracking. Each node takes the text where it can and hands the
 // place it stops at to what comes after it, a chain of frames on the stack: the rest of a sequence, a group's end, a
 // lookahead's true, a repetition's next pass, or the match's end. A repeat over what takes the text one way at a place
-// or not at all steps along without going deeper, its passes' ends kept in the match's own arena, on its stack until
+// or not at all steps along without going deeper, its passes' ends stored in the match's own arena, on its stack until
 // they outgrow it and then in a cell twice as large each time they fill theirs, given back as the match ends
 #include "regexp_match_internal.h"
 
 #include "../command_line/cells.h"
 
 // room for one more end in the run's ends, moved to a cell of twice the room where they fill theirs: 1, or 0 where they
-// hold the most or the cellblock cannot meet the cell
+// contain the most or the cellblock cannot meet the cell
 static int match_end_room(CliRegexpRun *run)
 {
     if (run->ends_top < run->ends_room)
@@ -22,19 +22,19 @@ static int match_end_room(CliRegexpRun *run)
         return 0;
     }
     const unsigned long long room = run->ends_room * 2ull;
-    unsigned int *const grown = cli_cell_taken(room * sizeof(unsigned int), "a match's repeats' ends");
+    unsigned int *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(unsigned int), NULL);
     if (grown == NULL)
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = grown, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
-    if (run->ends_held)
+    if (run->ends_reserved)
     {
-        cli_cell_given(run->ends);
+        g_cli_cells->persistent_buf_release(run->ends, NULL);
     }
     run->ends = grown;
     run->ends_room = room;
-    run->ends_held = 1;
+    run->ends_reserved = 1;
     return 1;
 }
 
@@ -68,8 +68,8 @@ int cli_regexp_same(const CliRegexp *regexp, unsigned int a, unsigned int b)
     return (a == b) || (regexp->fold && (cli_regexp_lower(a) == cli_regexp_lower(b)));
 }
 
-// whether one item of a class holds of `letter`
-static int cli_item_holds(const CliRegexpItem *item, unsigned int letter)
+// whether one item of a class matches `letter`
+static int cli_item_matches(const CliRegexpItem *item, unsigned int letter)
 {
     switch (item->kind)
     {
@@ -86,8 +86,8 @@ static int cli_item_holds(const CliRegexpItem *item, unsigned int letter)
     }
 }
 
-// whether the class node `node` holds of `letter`: any item holds of it, or under `i` of its lower or upper case
-static int cli_class_holds(const CliRegexp *regexp, const CliRegexpNode *node, unsigned int letter)
+// whether the class node `node` matches `letter`: any item matches it, or under `i` of its lower or upper case
+static int cli_class_matches(const CliRegexp *regexp, const CliRegexpNode *node, unsigned int letter)
 {
     const unsigned int tried[3] = {letter, cli_regexp_lower(letter), cli_regexp_upper(letter)};
     int found = 0;
@@ -95,7 +95,7 @@ static int cli_class_holds(const CliRegexp *regexp, const CliRegexpNode *node, u
     {
         for (unsigned int at = 0u; !found && (at < node->count); at += 1u)
         {
-            found = cli_item_holds(&regexp->item[node->first + at], tried[each]);
+            found = cli_item_matches(&regexp->item[node->first + at], tried[each]);
         }
     }
     return found != node->negated;
@@ -115,7 +115,7 @@ int cli_regexp_one(const CliRegexp *regexp, unsigned int index, unsigned int let
     case CLI_REGEXP_ANY:
         return !cli_regexp_ends_line(letter);
     case CLI_REGEXP_CLASS:
-        return cli_class_holds(regexp, node, letter);
+        return cli_class_matches(regexp, node, letter);
     default:
         return -1;
     }
@@ -187,13 +187,13 @@ int cli_regexp_then(const CliRegexp *regexp, const CliRegexpThen *then, unsigned
     case CLI_THEN_CHAIN:
         return cli_regexp_chain(regexp, then->node, then->index, at, run, then->next);
     case CLI_THEN_GROUP: {
-        const CliRegexpSpan kept = run->groups[then->index];
+        const CliRegexpSpan group_span = run->groups[then->index];
         run->groups[then->index] = (CliRegexpSpan){then->from, at, 1};
         if (cli_regexp_then(regexp, then->next, at, run))
         {
             return 1;
         }
-        run->groups[then->index] = kept;
+        run->groups[then->index] = group_span;
         return 0;
     }
     case CLI_THEN_TRUE:

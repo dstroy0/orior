@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -13,7 +13,7 @@
  * @note Written for the Raspberry Pi 5, which is a Cortex-A76 at aarch64. NEON is mandatory in the
  *       base aarch64 architecture. On a 64 bit ARM build there is nothing to detect and the arm
  *       is always available. A 32 bit ARM build is a different matter and is gated below.
- * @note A NEON register is 128 bits and holds four 32 bit limbs against AVX2's eight. The loop is
+ * @note A NEON register is 128 bits and contains four 32 bit limbs against AVX2's eight. The loop is
  *       otherwise identical. The arithmetic belongs to the representation and not to the
  *       instruction set, and every arm has to return what the portable one returns.
  * @note vceqq_u32 sets a lane to all ones where the two limbs match. There is no movemask on NEON.
@@ -33,7 +33,7 @@
 
 #if ORIOR_NEON_USABLE
 
-/** @brief Limbs compared per NEON instruction. 128 bits holds four 32 bit limbs. */
+/** @brief Limbs compared per NEON instruction. 128 bits contains four 32 bit limbs. */
 #define ORIOR_NEON_LANES 4u
 
 /**
@@ -43,7 +43,7 @@
  * @param[in] right Second magnitude [BORROWS].
  * @return          1 where every limb matches, 0 otherwise.
  * @note Walks from the top limb down. At a scale of 1024 decimal digits a deposited value carries
- *       hundreds of trailing zero digits. The low limbs are zero on both sides and hold nothing.
+ *       hundreds of trailing zero digits. The low limbs are zero on both sides and carry nothing.
  */
 static int neon_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
@@ -76,7 +76,7 @@ static int neon_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
- * @note The vector says a block differs and not which limb differs first. The block holding the
+ * @note The vector reports a block differs and not which limb differs first. The block containing the
  *       highest difference is walked backward one limb at a time. That runs at most four scalar
  *       steps, once per comparison.
  */
@@ -113,7 +113,7 @@ static int neon_magnitude_compare(const uint32_t *left, const uint32_t *right)
 }
 
 /**
- * @brief Whether two integers hold the same value, sign included.
+ * @brief Whether two integers have the same value, sign included.
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].

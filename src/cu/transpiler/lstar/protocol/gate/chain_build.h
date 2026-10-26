@@ -6,23 +6,23 @@
 // Every arrangement of primitives that produces a relation.
 //
 // An operator is a chain, and a chain can be rearranged. A person writing a compiler affords one arrangement for
-// each operator, because a person has to write it. Nobody writes these. Every arrangement that works is kept and a
+// each operator, because a person has to write it. Nobody writes these. Every arrangement that works is retained and a
 // job takes the one that suits it. What separates the arrangements is cost, and cost is measured on the target.
 // Finding them is this file's part of it.
 //
-// A chain is kept when it answers every case of the relation. The cases are arithmetic and the chain is run over
-// them here, with no target involved: a chain that fails a case is wrong everywhere, and there is no reason to ask a
+// A chain is retained when it answers every case of the relation. The cases are arithmetic and the chain is run over
+// them here, with no target involved: a chain that fails a case is wrong everywhere, and there is no reason to query a
 // target about it. A chain that passes is a candidate the target may or may not be able to write.
 
 #include "../../../../engine/rmc/precept_value.h"
 #include "../counterexample/ladder.h"
 
-// the most nodes a chain holds. One node is the target having the operator outright, two and three are the
+// the most nodes a chain contains. One node is the target having the operator outright, two and three are the
 // arrangements worth weighing against one another
 #define CHAIN_NODES 3u
-// the most chains kept for one relation
+// the most chains retained for one relation
 #define CHAIN_MOST 2048u
-// how many words past the cases an arrangement is put with before it is kept
+// how many words past the cases an arrangement is put with before it is retained
 #define CHAIN_SWEEP 512u
 
 typedef struct
@@ -39,16 +39,16 @@ typedef struct
     unsigned int over;
     // arrangements tried
     unsigned int tried;
-    // arrangements the cases alone let through: all a ladder that stopped at its own cases would hold
+    // arrangements the cases alone let through: all a ladder that stopped at its own cases would contain
     unsigned int fitted;
 } ChainSet;
 
 // Every chain of at most CHAIN_NODES nodes that answers `cases` and the relation they belong to, into `set`. The
-// count kept. Shorter chains are found first: a set that fills holds the shortest arrangements there are
+// count retained. Shorter chains are found first: a set that fills contains the shortest arrangements there are
 unsigned int chain_build(ChainSet *set, const LadderQuestion *cases, unsigned int count);
 
-// The same, with `swept` saying whether an arrangement is put with words past the cases before it is kept. Built
-// without the sweep, a set holds every arrangement that fits the cases and nothing says which of those is the
+// The same, with `swept` specifying whether an arrangement is put with words past the cases before it is retained.
+// Built without the sweep, a set contains every arrangement that fits the cases and nothing shows which of those is the
 // relation: that is a reading of how much the ladder's own cases decide, and it is not a set to derive from
 unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsigned int count, int swept);
 
@@ -61,8 +61,8 @@ unsigned int chain_build_cases(ChainSet *set, const LadderQuestion *cases, unsig
 // different order each time is a preference
 void chain_shuffle(ChainSet *set, unsigned int seed);
 
-// `chain` written into `text`, which holds `room`, as the operator applied to its operands. The count written, and 0
-// with the text empty where it does not fit
+// `chain` written into `text`, which has room for `room`, as the operator applied to its operands. The count written,
+// and 0 with the text empty where it does not fit
 unsigned int chain_text(const Chain *chain, char *text, unsigned int room);
 
 #endif

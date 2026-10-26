@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lng_check.c: the three language tables held against the tree and against each other (lng.h), run from the top of
+// lng_check.c: the three language tables checked against the tree and against each other (lng.h), run from the top of
 // the tree by lng_check.sh.
 //
 //     src/lng/lng_check.sh
@@ -20,7 +20,7 @@
 
 static KfileLines s_file;
 
-// the file at `path` read into s_file, or the run ended where it holds no line
+// the file at `path` read into s_file, or the run ended where it contains no line
 static void lng_check_read(const char *path)
 {
     if (!kfile_lines_read(&s_file, path) || (s_file.lines == 0u))
@@ -30,7 +30,7 @@ static void lng_check_read(const char *path)
     }
 }
 
-// the table at `path` read into `table`, the defects of its form kept after `defects`
+// the table at `path` read into `table`, the defects of its form appended to `defects`
 static void lng_check_table(const char *path, LngTable *table, LngList *defects)
 {
     lng_check_read(path);
@@ -52,10 +52,10 @@ int main(void)
     lng_table_findings(&hol, &findings);
     lng_check_table("src/lng/gnascor_asm_lng.tsv", &asm_table, &defects);
 
-    LngList held = {NULL, 0u, 0u};
+    LngList hits = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < table.rows; row += 1u)
     {
-        lng_set_add(&held, lng_cell(&table, row, "word"));
+        lng_set_add(&hits, lng_cell(&table, row, "word"));
     }
     LngMap used = {{NULL, 0u, 0u}, {NULL, 0u, 0u}};
     LngList used_names = {NULL, 0u, 0u};
@@ -96,18 +96,18 @@ int main(void)
     for (unsigned int at = 0u; at < (kscs.count + kdms.count); at += 1u)
     {
         const char *const path = (at < kscs.count) ? kscs.text[at] : kdms.text[at - kscs.count];
-        LngList kept = {NULL, 0u, 0u};
+        LngList lines = {NULL, 0u, 0u};
         kfile_lines_read(&s_file, path);
-        lng_ruleset_lines(&s_file, &kept);
-        lng_ruleset_words(path, (const char *const *)kept.text, kept.count, &used);
-        lng_list_free(&kept);
+        lng_ruleset_lines(&s_file, &lines);
+        lng_ruleset_words(path, (const char *const *)lines.text, lines.count, &used);
+        lng_list_free(&lines);
     }
     for (unsigned int at = 0u; at < used.key.count; at += 1u)
     {
         unsigned int place = 0u;
-        if (!lng_set_find(&held, used.key.text[at], &place))
+        if (!lng_set_find(&hits, used.key.text[at], &place))
         {
-            lng_list_printed(&defects, "%s is used at %s and no table holds it", used.key.text[at],
+            lng_list_printed(&defects, "%s is used at %s and no table contains it", used.key.text[at],
                              used.value.text[at]);
         }
     }
@@ -245,7 +245,7 @@ int main(void)
     }
     lng_list_free(&used_names);
     lng_map_free(&used);
-    lng_list_free(&held);
+    lng_list_free(&hits);
     lng_table_free(&asm_table);
     lng_table_free(&hol);
     lng_table_free(&table);

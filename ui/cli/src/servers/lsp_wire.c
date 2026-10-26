@@ -10,10 +10,11 @@
 #define CLI_LSP_PIECE 2048u
 #define CLI_LSP_ESCAPED 16384u
 
-int cli_lsp_send(const CliLspWriter *writer, CliLock *lock, const char *body, unsigned long long size, CliLine *said)
+int cli_lsp_send(const CliLspWriter *writer, CliLock *lock, const char *body, unsigned long long size,
+                 VerbaLinea *err_msg)
 {
     const CliLspPart part = {body, size, 0};
-    return cli_lsp_send_parts(writer, lock, &part, 1u, said);
+    return cli_lsp_send_parts(writer, lock, &part, 1u, err_msg);
 }
 
 // the end of the next piece of a text to escape from `at`, a letter never cut
@@ -42,7 +43,7 @@ static unsigned long long wire_part(const CliLspWriter *writer, const CliLspPart
     while (at < part->size)
     {
         const unsigned long long end = wire_piece_end(part->bytes, part->size, at);
-        CliLine line = {escaped, sizeof(escaped), 0ull};
+        VerbaLinea line = {escaped, sizeof(escaped), 0ull};
         cli_json_escaped_lossy(&line, (const unsigned char *)part->bytes + at, end - at);
         *failed = *failed || ((writer != NULL) && !writer->write(writer->sink, escaped, line.at));
         count += line.at;
@@ -52,7 +53,7 @@ static unsigned long long wire_part(const CliLspWriter *writer, const CliLspPart
 }
 
 int cli_lsp_send_parts(const CliLspWriter *writer, CliLock *lock, const CliLspPart *parts, unsigned int count,
-                       CliLine *said)
+                       VerbaLinea *err_msg)
 {
     int failed = 0;
     unsigned long long length = 0ull;
@@ -61,10 +62,10 @@ int cli_lsp_send_parts(const CliLspWriter *writer, CliLock *lock, const CliLspPa
         length += wire_part(NULL, &parts[at], &failed);
     }
     char head[64];
-    CliLine line = {head, sizeof(head), 0ull};
-    cli_line_text(&line, "Content-Length: ");
-    cli_line_decimal(&line, length, 1u);
-    cli_line_text(&line, "\r\n\r\n");
+    VerbaLinea line = {head, sizeof(head), 0ull};
+    mmgr_line_put(&line, "Content-Length: ");
+    mmgr_line_decimal(&line, length, 1u);
+    mmgr_line_put(&line, "\r\n\r\n");
     cli_lock_take(lock);
     failed = !writer->write(writer->sink, head, line.at);
     for (unsigned int at = 0u; !failed && (at < count); at += 1u)
@@ -74,25 +75,25 @@ int cli_lsp_send_parts(const CliLspWriter *writer, CliLock *lock, const CliLspPa
     cli_lock_give(lock);
     if (failed)
     {
-        cli_line_text(said, "the server stopped: its input could not be written");
+        mmgr_line_put(err_msg, "the server stopped: its input could not be written");
         return 0;
     }
     return 1;
 }
 
-// the next byte the reader holds, more read from its source where it holds none: 1, or 0 at the source's end
+// the next byte the reader buffers, more read from its source where it buffers none: 1, or 0 at the source's end
 static int wire_byte(CliLspReader *reader, char *byte)
 {
     if (reader->start == reader->end)
     {
         reader->start = 0ull;
-        reader->end = reader->read(reader->source, reader->held, sizeof(reader->held));
+        reader->end = reader->read(reader->source, reader->buf, sizeof(reader->buf));
         if (reader->end == 0ull)
         {
             return 0;
         }
     }
-    *byte = reader->held[reader->start];
+    *byte = reader->buf[reader->start];
     reader->start += 1ull;
     return 1;
 }
@@ -106,17 +107,17 @@ static int wire_bytes(CliLspReader *reader, char *into, unsigned long long size)
         if (reader->start == reader->end)
         {
             reader->start = 0ull;
-            reader->end = reader->read(reader->source, reader->held, sizeof(reader->held));
+            reader->end = reader->read(reader->source, reader->buf, sizeof(reader->buf));
             if (reader->end == 0ull)
             {
                 return 0;
             }
         }
-        const unsigned long long held = reader->end - reader->start;
-        const unsigned long long taken = (held < size - done) ? held : size - done;
+        const unsigned long long buffered = reader->end - reader->start;
+        const unsigned long long taken = (buffered < size - done) ? buffered : size - done;
         if (into != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = into + done, .src = reader->held + reader->start, .bytes = taken});
+            memor.cpy(&(MemoriaCfg){.dst = into + done, .src = reader->buf + reader->start, .bytes = taken});
         }
         reader->start += taken;
         done += taken;
@@ -185,7 +186,7 @@ static int wire_head_read(CliLspReader *reader, unsigned long long *length)
 static int wire_body_whole(const char *body, unsigned long long length)
 {
     char tiny[1];
-    CliLine checked = {tiny, sizeof(tiny), 0ull};
+    VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
     return cli_utf8_whole(body, length) && cli_json_compacted(body, length, &checked);
 }
 
@@ -199,10 +200,10 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
             return NULL;
         }
         // one byte past the body, so an empty body is a cell too; a body the cells cannot meet is passed over whole
-        char *const body = cli_cell_taken(length + 1ull, "a message read");
+        char *const body = g_cli_cells->persistent_buf_alloc(length + 1ull, NULL);
         if (!wire_bytes(reader, body, length))
         {
-            cli_cell_given(body);
+            g_cli_cells->persistent_buf_release(body, NULL);
             return NULL;
         }
         if ((body != NULL) && wire_body_whole(body, length))
@@ -211,7 +212,7 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
             *size = length;
             return body;
         }
-        cli_cell_given(body);
+        g_cli_cells->persistent_buf_release(body, NULL);
     }
 }
 
@@ -334,8 +335,8 @@ int cli_lsp_member(const char *body, unsigned long long size, const char *name, 
 void cli_lsp_uri_of(const char *path, char *uri, unsigned long long room)
 {
     static const char s_hex[17] = "0123456789ABCDEF";
-    CliLine out = {uri, room, 0ull};
-    cli_line_text(&out, ((path[0] == '/') || (path[0] == '\\')) ? "file://" : "file:///");
+    VerbaLinea out = {uri, room, 0ull};
+    mmgr_line_put(&out, ((path[0] == '/') || (path[0] == '\\')) ? "file://" : "file:///");
     for (const char *at = path; *at != '\0'; at += 1)
     {
         const unsigned char byte = (unsigned char)((*at == '\\') ? '/' : *at);
@@ -343,14 +344,14 @@ void cli_lsp_uri_of(const char *path, char *uri, unsigned long long room)
             (cellul.chr(&(CatenaFinitaCfg){.src = "-._~/:", .cap = CLI_CELLS_POOL, .byte = byte}) != NULL &&
              (byte != 0u)))
         {
-            cli_line_character(&out, (char)byte);
+            mmgr_line_ch(&out, (char)byte);
             continue;
         }
-        cli_line_character(&out, '%');
-        cli_line_character(&out, s_hex[byte >> 4u]);
-        cli_line_character(&out, s_hex[byte & 0x0fu]);
+        mmgr_line_ch(&out, '%');
+        mmgr_line_ch(&out, s_hex[byte >> 4u]);
+        mmgr_line_ch(&out, s_hex[byte & 0x0fu]);
     }
-    cli_line_closed(&out);
+    mmgr_line_finish(&out);
 }
 
 // a hex digit's value, or 16 where it is none
@@ -368,7 +369,7 @@ int cli_lsp_path_of(const char *uri, unsigned long long length, char *path)
     {
         return 0;
     }
-    CliLine out = {path, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea out = {path, CLI_PATH_MAX_LEN, 0ull};
     unsigned long long at = 7ull;
     while (at < length)
     {
@@ -379,15 +380,15 @@ int cli_lsp_path_of(const char *uri, unsigned long long length, char *path)
             const unsigned int low = wire_hex(uri[at + 2ull]);
             if ((high < 16u) && (low < 16u))
             {
-                cli_line_character(&out, (char)((high << 4u) | low));
+                mmgr_line_ch(&out, (char)((high << 4u) | low));
                 at += 3ull;
                 continue;
             }
         }
-        cli_line_character(&out, uri[at]);
+        mmgr_line_ch(&out, uri[at]);
         at += 1ull;
     }
-    if ((cli_line_closed(&out) == 0ull) || !cli_utf8_whole(path, out.at))
+    if ((mmgr_line_finish(&out) == 0ull) || !cli_utf8_whole(path, out.at))
     {
         return 0;
     }
@@ -403,9 +404,9 @@ void cli_lsp_key_of(const char *uri, unsigned long long length, char *key)
 {
     if (!cli_lsp_path_of(uri, length, key))
     {
-        CliLine out = {key, CLI_PATH_LONGEST, 0ull};
-        cli_line_counted(&out, uri, length);
-        cli_line_closed(&out);
+        VerbaLinea out = {key, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put_n(&out, uri, length);
+        mmgr_line_finish(&out);
     }
     for (char *letter = key; *letter != '\0'; letter += 1)
     {
@@ -422,8 +423,8 @@ int cli_lsp_string(const char *text, unsigned long long length, char *out, unsig
     CfgJsonToken token[1];
     CliJson json;
     cli_json_begun(&json, node, 1u, out, room);
-    char why[CLI_SAID_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_read(&json, text, length, token, 1u, &unread);
     unsigned long long size = 0ull;
     const char *const letters = cli_json_string(&json, root, &size);
@@ -436,21 +437,21 @@ int cli_lsp_string(const char *text, unsigned long long length, char *out, unsig
     return 1;
 }
 
-void cli_lsp_at(const char *path, unsigned int line, unsigned int col, const char *added, CliLine *params)
+void cli_lsp_at(const char *path, unsigned int line, unsigned int col, const char *added, VerbaLinea *params)
 {
-    char uri[CLI_PATH_LONGEST * 3u];
+    char uri[CLI_PATH_MAX_LEN * 3u];
     cli_lsp_uri_of(path, uri, sizeof(uri));
-    cli_line_text(params, "{\"textDocument\":{\"uri\":");
+    mmgr_line_put(params, "{\"textDocument\":{\"uri\":");
     cli_json_quoted(params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
-    cli_line_text(params, "},\"position\":{\"line\":");
-    cli_line_decimal(params, line, 1u);
-    cli_line_text(params, ",\"character\":");
-    cli_line_decimal(params, col, 1u);
-    cli_line_character(params, '}');
+    mmgr_line_put(params, "},\"position\":{\"line\":");
+    mmgr_line_decimal(params, line, 1u);
+    mmgr_line_put(params, ",\"character\":");
+    mmgr_line_decimal(params, col, 1u);
+    mmgr_line_ch(params, '}');
     if (added != NULL)
     {
-        cli_line_character(params, ',');
-        cli_line_text(params, added);
+        mmgr_line_ch(params, ',');
+        mmgr_line_put(params, added);
     }
-    cli_line_character(params, '}');
+    mmgr_line_ch(params, '}');
 }

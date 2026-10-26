@@ -5,9 +5,9 @@
 // standing for the folder the program was found in, the `languages` it serves, `*` every one, and, in `ids`, the
 // protocol's name of a language where it is not orior's. The window starts one as it starts its plugin, at the tree's
 // top, with the options the plugin gives, and stops it as it stops the plugin. It is handed every file of its languages
-// the editor holds as it starts, and each the editor opens, changes and closes after; its diagnostics are kept as a
-// checker's findings under the plugin's id; and what else it says goes to the window as the event `plugin-server`,
-// `{plugin, method, params, request}`, `request` the id of a request held until the plugin answers it, null for a
+// the editor has open as it starts, and each the editor opens, changes and closes after; its diagnostics are stored as
+// a checker's findings under the plugin's id; and what else it sends goes to the window as the event `plugin-server`,
+// `{plugin, method, params, request}`, `request` the id of a request pending until the plugin answers it, null for a
 // notification
 #include "../plugins/plugins.h"
 #include "../toolchains/toolchains.h"
@@ -17,16 +17,16 @@
 #define CLI_SERVERS_PLUGINS 8u
 
 // A plugin's server running: whether its place is taken, its plugin's id, the server, the languages it serves and the
-// protocol's name of each, and where what it says goes
+// protocol's name of each, and where what it sends goes
 typedef struct
 {
     int used;
-    char id[CLI_NAME_LONGEST];
+    char id[CLI_NAME_MAX_LEN];
     CliLsp *lsp;
-    char language[CLI_SERVERS_LANGUAGES][CLI_NAME_LONGEST];
-    char named[CLI_SERVERS_LANGUAGES][CLI_NAME_LONGEST];
+    char language[CLI_SERVERS_LANGUAGES][CLI_NAME_MAX_LEN];
+    char named[CLI_SERVERS_LANGUAGES][CLI_NAME_MAX_LEN];
     unsigned int languages;
-    CliServersEmit emit;
+    CliServersSink sink;
 } CliPluginServer;
 
 static CliPluginServer s_plugin[CLI_SERVERS_PLUGINS];
@@ -44,15 +44,15 @@ typedef struct
 static void plugins_found(void *context, const CliPlugin *plugin)
 {
     CliPluginRead *const read = context;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = read->id, .cap = CLI_NAME_LONGEST}))
+    if (!cellul.eq(&(CatenaFinitaCfg){.src = plugin->id, .other = read->id, .cap = CLI_NAME_MAX_LEN}))
     {
         return;
     }
     cli_json_given(&read->json);
     cli_json_begun(&read->json, NULL, 0u, NULL, 0ull);
     char quiet[256];
-    CliLine said = {quiet, sizeof(quiet), 0ull};
-    read->root = cli_json_taken(&read->json, plugin->text, plugin->size, 0u, 0ull, &said);
+    VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
+    read->root = cli_json_taken(&read->json, plugin->text, plugin->size, 0u, 0ull, &err_msg);
 }
 
 // the place of the running server of plugin `id`, or CLI_SERVERS_PLUGINS where none runs. Under the plugins' lock
@@ -61,7 +61,7 @@ static unsigned int plugins_place(const char *id)
     unsigned int at = 0u;
     while ((at < CLI_SERVERS_PLUGINS) &&
            !(s_plugin[at].used &&
-             cellul.eq(&(CatenaFinitaCfg){.src = s_plugin[at].id, .other = id, .cap = CLI_NAME_LONGEST})))
+             cellul.eq(&(CatenaFinitaCfg){.src = s_plugin[at].id, .other = id, .cap = CLI_NAME_MAX_LEN})))
     {
         at += 1u;
     }
@@ -75,7 +75,7 @@ static const char *plugins_named(const CliPluginServer *plugin, const char *lang
     int every = 0;
     for (unsigned int at = 0u; at < plugin->languages; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = plugin->language[at], .other = language, .cap = CLI_NAME_LONGEST}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = plugin->language[at], .other = language, .cap = CLI_NAME_MAX_LEN}))
         {
             return plugin->named[at];
         }
@@ -84,15 +84,15 @@ static const char *plugins_named(const CliPluginServer *plugin, const char *lang
     return every ? language : NULL;
 }
 
-// a server's diagnostics of a file kept as its plugin's findings, and the file's diagnostics passed on whole
+// a server's diagnostics of a file stored as its plugin's findings, and the file's diagnostics passed on whole
 static void plugins_diagnostics(const CliPluginServer *plugin, const char *params, unsigned long long size)
 {
     unsigned long long uri_at = 0ull;
     unsigned long long uri_length = 0ull;
     unsigned long long all_at = 0ull;
     unsigned long long all_length = 0ull;
-    char uri[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char uri[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_lsp_member(params, size, "uri", &uri_at, &uri_length) ||
         !cli_lsp_member(params, size, "diagnostics", &all_at, &all_length) ||
         !cli_lsp_string(params + uri_at, uri_length, uri, sizeof(uri)) ||
@@ -100,70 +100,70 @@ static void plugins_diagnostics(const CliPluginServer *plugin, const char *param
     {
         return;
     }
-    CliLine found = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_line_growing(&found, all_length + CLI_PATH_LONGEST, "a plugin server's diagnostics");
-    cli_line_text(&found, "[[");
+    VerbaLinea found = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_growing_line_made(&found, all_length + CLI_PATH_MAX_LEN);
+    mmgr_line_put(&found, "[[");
     cli_json_quoted_lossy(&found, (const unsigned char *)path,
                           cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&found, ',');
-    cli_line_counted(&found, params + all_at, all_length);
-    cli_line_text(&found, "]]");
-    if (cli_line_fits(&found))
+    mmgr_line_ch(&found, ',');
+    mmgr_line_put_n(&found, params + all_at, all_length);
+    mmgr_line_put(&found, "]]");
+    if (mmgr_line_ok(&found))
     {
-        cli_servers_keep_checked(plugin->id, found.out, found.at, 1, &plugin->emit);
+        cli_servers_findings_stored(plugin->id, found.out, found.at, 1, &plugin->sink);
     }
-    cli_cell_given(found.out);
+    g_cli_cells->persistent_buf_release(found.out, NULL);
 }
 
-// what the server of the plugin `id` says, `method` with `size` bytes of `params`, passed to the window where `emit`
-// sends it as `plugin-server`, `request` the id of the request held or null
-static void plugins_said(const char *id, const CliServersEmit *emit, const char *method, const char *params,
-                         unsigned long long size, const char *request)
+// what the server of the plugin `id` sends, `method` with `size` bytes of `params`, passed to the window where `emit`
+// sends it as `plugin-server`, `request` the id of the request pending or null
+static void plugins_msg_emitted(const char *id, const CliServersSink *sink, const char *method, const char *params,
+                                unsigned long long size, const char *request)
 {
-    CliLine told = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_line_growing(&told, size + 256ull, "what a plugin's server says");
-    cli_line_text(&told, "{\"plugin\":");
-    cli_json_quoted_lossy(&told, (const unsigned char *)id,
-                          cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_LONGEST}));
-    cli_line_text(&told, ",\"method\":");
-    cli_json_quoted_lossy(&told, (const unsigned char *)method,
+    VerbaLinea event_json = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    (void)cli_growing_line_made(&event_json, size + 256ull);
+    mmgr_line_put(&event_json, "{\"plugin\":");
+    cli_json_quoted_lossy(&event_json, (const unsigned char *)id,
+                          cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN}));
+    mmgr_line_put(&event_json, ",\"method\":");
+    cli_json_quoted_lossy(&event_json, (const unsigned char *)method,
                           cellul.len(&(CatenaFinitaCfg){.src = method, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&told, ",\"params\":");
-    cli_line_counted(&told, params, size);
-    cli_line_text(&told, ",\"request\":");
-    cli_line_text(&told, request);
-    cli_line_character(&told, '}');
-    if (cli_line_fits(&told))
+    mmgr_line_put(&event_json, ",\"params\":");
+    mmgr_line_put_n(&event_json, params, size);
+    mmgr_line_put(&event_json, ",\"request\":");
+    mmgr_line_put(&event_json, request);
+    mmgr_line_ch(&event_json, '}');
+    if (mmgr_line_ok(&event_json))
     {
-        emit->told(emit->context, "plugin-server", told.out, told.at);
+        sink->emit(sink->context, "plugin-server", event_json.out, event_json.at);
     }
-    cli_cell_given(told.out);
+    g_cli_cells->persistent_buf_release(event_json.out, NULL);
 }
 
-// what a plugin's server says on its own: its diagnostics kept, and all it says passed to the window, a request held
-// unanswered for the plugin to answer where the window hears it, and answered with null where it does not
-static void plugins_heard(void *context, const char *method, const char *params, unsigned long long size,
-                          CliLine *answer)
+// what a plugin's server sends unprompted: its diagnostics stored, and all it sends passed to the window, a request
+// pending unanswered for the plugin to answer where the window receives it, and answered with null where it does not
+static void plugins_recv(void *context, const char *method, const char *params, unsigned long long size,
+                         VerbaLinea *answer)
 {
     const CliPluginServer *const plugin = context;
     if (cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "textDocument/publishDiagnostics", .cap = CLI_CELLS_POOL}))
     {
         plugins_diagnostics(plugin, params, size);
-        // and heard by the plugin as well, which lists them as its own findings
-        if (plugin->emit.told != NULL)
+        // and received by the plugin as well, which lists them as its own findings
+        if (plugin->sink.emit != NULL)
         {
-            plugins_said(plugin->id, &plugin->emit, method, params, size, "null");
+            plugins_msg_emitted(plugin->id, &plugin->sink, method, params, size, "null");
         }
         return;
     }
-    if (plugin->emit.told == NULL)
+    if (plugin->sink.emit == NULL)
     {
-        cli_line_text(answer, "null");
+        mmgr_line_put(answer, "null");
         return;
     }
     char request[64];
-    const int asked = cli_lsp_answer_later(request, sizeof(request));
-    plugins_said(plugin->id, &plugin->emit, method, params, size, asked ? request : "null");
+    const int deferred = cli_lsp_answer_later(request, sizeof(request));
+    plugins_msg_emitted(plugin->id, &plugin->sink, method, params, size, deferred ? request : "null");
 }
 
 // the languages a plugin's server serves read from `server` in `json` into `plugin`, each with the protocol's name
@@ -180,20 +180,20 @@ static void plugins_languages_read(const CliJson *json, unsigned int server, Cli
         const char *const named =
             cli_json_string(json, cli_json_member(json, ids, (language != NULL) ? language : ""), NULL);
         if ((language == NULL) ||
-            (cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_NAME_LONGEST}) >= CLI_NAME_LONGEST))
+            (cellul.len(&(CatenaFinitaCfg){.src = language, .cap = CLI_NAME_MAX_LEN}) >= CLI_NAME_MAX_LEN))
         {
             continue;
         }
-        CliLine own = {plugin->language[plugin->languages], CLI_NAME_LONGEST, 0ull};
-        cli_line_text(&own, language);
-        (void)cli_line_closed(&own);
-        CliLine protocol = {plugin->named[plugin->languages], CLI_NAME_LONGEST, 0ull};
-        cli_line_text(&protocol, (named != NULL) ? named : language);
-        plugin->languages += (cli_line_closed(&protocol) != 0ull) ? 1u : 0u;
+        VerbaLinea own = {plugin->language[plugin->languages], CLI_NAME_MAX_LEN, 0ull};
+        mmgr_line_put(&own, language);
+        (void)mmgr_line_finish(&own);
+        VerbaLinea protocol = {plugin->named[plugin->languages], CLI_NAME_MAX_LEN, 0ull};
+        mmgr_line_put(&protocol, (named != NULL) ? named : language);
+        plugin->languages += (mmgr_line_finish(&protocol) != 0ull) ? 1u : 0u;
     }
 }
 
-// A plugin server just started and the language each extension opens as, to hand it the files the editor holds
+// A plugin server just started and the language each extension opens as, to hand it the files the editor has open
 typedef struct
 {
     CliPluginServer *plugin;
@@ -201,41 +201,43 @@ typedef struct
 } CliPluginHanding;
 
 // a file of the editor's handed to the plugin server just started where it serves the file's language
-static void plugins_held_handed(void *context, const char *key, const char *beside, const char *text,
+static void plugins_open_handed(void *context, const char *key, const char *beside, const char *text,
                                 unsigned long long size)
 {
     (void)key;
     CliPluginHanding *const handing = context;
     CliPluginServer *const plugin = handing->plugin;
-    char language[CLI_NAME_LONGEST];
+    char language[CLI_NAME_MAX_LEN];
     const char *const named =
         cli_plugins_language_for(&handing->languages, beside, language) ? plugins_named(plugin, language) : NULL;
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if ((named != NULL) && !cli_lsp_has(plugin->lsp, beside))
     {
-        (void)cli_lsp_opened(plugin->lsp, beside, named, text, size, &said);
+        (void)cli_lsp_opened(plugin->lsp, beside, named, text, size, &err_msg);
     }
 }
 
 int cli_servers_plugin_start(const char *root, const char *id, const char *options, unsigned long long length,
-                             const char *const *first, unsigned int firsts, const CliServersEmit *emit, CliLine *said)
+                             const char *const *first, unsigned int firsts, const CliServersSink *sink,
+                             VerbaLinea *err_msg)
 {
     cli_servers_plugin_stop(id);
     CliPluginRead read = {id, {0}, CLI_JSON_NONE};
     cli_json_begun(&read.json, NULL, 0u, NULL, 0ull);
     cli_plugins_each(plugins_found, &read);
     const unsigned int server = cli_json_member(&read.json, read.root, "server");
-    char program[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
-    CliWords *const words = cli_cell_taken(sizeof(*words), "a plugin server's words");
-    char *const path = cli_cell_taken(CLI_PATH_TEXT, "a plugin server's PATH");
+    char program[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    CliWords *const words = g_cli_cells->persistent_buf_alloc(sizeof(*words), NULL);
+    char *const path = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, NULL);
     int started = 0;
     if (!cli_json_is(&read.json, server, CFG_JSON_OBJECT))
     {
-        cli_line_text(said, "the plugin brings no server");
+        mmgr_line_put(err_msg, "the plugin brings no server");
     }
-    else if ((words != NULL) && (path != NULL) && cli_servers_plugin_program(&read.json, server, program, folder, said))
+    else if ((words != NULL) && (path != NULL) &&
+             cli_servers_plugin_program(&read.json, server, program, folder, err_msg))
     {
         *words = (CliWords){{NULL}, 0u, {0}, 0u, 0};
         for (unsigned int at = 0u; at < firsts; at += 1u)
@@ -244,9 +246,9 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
         }
         cli_servers_plugin_args(&read.json, server, folder, words);
         // the options with each `{folder}` in them the folder the program was found in, as the arguments have it
-        const unsigned long long room = length + (CLI_PATH_LONGEST * 16ull);
-        char *const given = cli_cell_taken(room, "a plugin server's options");
-        CliLine written = {given, room, 0ull};
+        const unsigned long long room = length + (CLI_PATH_MAX_LEN * 16ull);
+        char *const given = g_cli_cells->persistent_buf_alloc(room, NULL);
+        VerbaLinea written = {given, room, 0ull};
         cli_servers_plugin_folder_put(&written, (given != NULL) ? options : "", (given != NULL) ? length : 0ull, folder,
                                       1);
         cli_toolchains_run_path(path, CLI_PATH_TEXT);
@@ -260,21 +262,21 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
         CliPluginServer *const plugin = (at < CLI_SERVERS_PLUGINS) ? &s_plugin[at] : NULL;
         if (plugin != NULL)
         {
-            CliLine named = {plugin->id, CLI_NAME_LONGEST, 0ull};
-            cli_line_text(&named, id);
-            (void)cli_line_closed(&named);
+            VerbaLinea named = {plugin->id, CLI_NAME_MAX_LEN, 0ull};
+            mmgr_line_put(&named, id);
+            (void)mmgr_line_finish(&named);
             plugins_languages_read(&read.json, server, plugin);
-            plugin->emit = *emit;
-            plugin->lsp = (words->full || (given == NULL) || !cli_line_fits(&written))
+            plugin->sink = *sink;
+            plugin->lsp = (words->full || (given == NULL) || !mmgr_line_ok(&written))
                               ? NULL
                               : cli_lsp_started(program, words->word, words->count, root, given, written.at, setting,
-                                                1u, plugins_heard, plugin, said);
+                                                1u, plugins_recv, plugin, err_msg);
             plugin->used = plugin->lsp != NULL;
             started = plugin->used;
         }
         else
         {
-            cli_line_text(said, "as many plugin servers run as orior_cli runs at once");
+            mmgr_line_put(err_msg, "as many plugin servers run as orior_cli runs at once");
         }
         cli_lock_give(&s_plugins_lock);
         if (started)
@@ -282,14 +284,14 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
             CliPluginHanding handing = {plugin, {NULL, 0u, 0u}};
             cli_plugins_languages(&handing.languages);
             cli_lock_take(&g_cli_servers_texts_lock);
-            cli_keyed_each(&g_cli_servers_texts, plugins_held_handed, &handing);
+            cli_keyed_each(&g_cli_servers_texts, plugins_open_handed, &handing);
             cli_lock_give(&g_cli_servers_texts_lock);
             cli_plugins_languages_given(&handing.languages);
         }
-        cli_cell_given(given);
+        g_cli_cells->persistent_buf_release(given, NULL);
     }
-    cli_cell_given(path);
-    cli_cell_given(words);
+    g_cli_cells->persistent_buf_release(path, NULL);
+    g_cli_cells->persistent_buf_release(words, NULL);
     cli_json_given(&read.json);
     return started;
 }
@@ -308,67 +310,67 @@ void cli_servers_plugin_stop(const char *id)
     if (lsp != NULL)
     {
         cli_lsp_stopped(lsp);
-        cli_lsp_given(lsp);
+        cli_lsp_unref(lsp);
     }
 }
 
-// the server of plugin `id`, held, or NULL with why said where none runs
-CliLsp *cli_servers_plugin_of(const char *id, CliLine *said)
+// the server of plugin `id`, referenced, or NULL with why given where none runs
+CliLsp *cli_servers_plugin_of(const char *id, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_plugins_lock);
     const unsigned int at = plugins_place(id);
     CliLsp *const lsp = (at < CLI_SERVERS_PLUGINS) ? s_plugin[at].lsp : NULL;
     if (lsp != NULL)
     {
-        cli_lsp_held(lsp);
+        cli_lsp_ref(lsp);
     }
     cli_lock_give(&s_plugins_lock);
     if (lsp == NULL)
     {
-        cli_line_text(said, "no server of the plugin ");
-        cli_line_text(said, id);
-        cli_line_text(said, " runs");
+        mmgr_line_put(err_msg, "no server of the plugin ");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " runs");
     }
     return lsp;
 }
 
 int cli_servers_plugin_request(const char *id, const char *method, const char *params, unsigned long long length,
-                               unsigned long long wait, CliLine *result, CliLine *said)
+                               unsigned long long wait, VerbaLinea *result, VerbaLinea *err_msg)
 {
-    CliLsp *const lsp = cli_servers_plugin_of(id, said);
-    const int done = (lsp != NULL) && cli_lsp_requested(lsp, method, params, length, wait, result, said);
+    CliLsp *const lsp = cli_servers_plugin_of(id, err_msg);
+    const int done = (lsp != NULL) && cli_lsp_requested(lsp, method, params, length, wait, result, err_msg);
     if (lsp != NULL)
     {
-        cli_lsp_given(lsp);
+        cli_lsp_unref(lsp);
     }
     return done;
 }
 
 int cli_servers_plugin_notify(const char *id, const char *method, const char *params, unsigned long long length,
-                              CliLine *said)
+                              VerbaLinea *err_msg)
 {
-    CliLsp *const lsp = cli_servers_plugin_of(id, said);
-    const int done = (lsp != NULL) && cli_lsp_notified(lsp, method, params, length, said);
+    CliLsp *const lsp = cli_servers_plugin_of(id, err_msg);
+    const int done = (lsp != NULL) && cli_lsp_notified(lsp, method, params, length, err_msg);
     if (lsp != NULL)
     {
-        cli_lsp_given(lsp);
+        cli_lsp_unref(lsp);
     }
     return done;
 }
 
 int cli_servers_plugin_answer(const char *id, const char *request, const char *result, unsigned long long length,
-                              CliLine *said)
+                              VerbaLinea *err_msg)
 {
-    CliLsp *const lsp = cli_servers_plugin_of(id, said);
-    const int done = (lsp != NULL) && cli_lsp_answer(lsp, request, result, length, said);
+    CliLsp *const lsp = cli_servers_plugin_of(id, err_msg);
+    const int done = (lsp != NULL) && cli_lsp_answer(lsp, request, result, length, err_msg);
     if (lsp != NULL)
     {
-        cli_lsp_given(lsp);
+        cli_lsp_unref(lsp);
     }
     return done;
 }
 
-// What the editor does to a file, told to each plugin server: the file, its language where it opens, its text and its
+// What the editor does to a file, sent to each plugin server: the file, its language where it opens, its text and its
 // size where it opens or changes, and whether it closes
 typedef struct
 {
@@ -377,69 +379,69 @@ typedef struct
     const char *text;
     unsigned long long size;
     int closes;
-} CliPluginsTold;
+} CliPluginsChange;
 
-// what the editor did to a file told to each plugin server that serves it or holds it: how many were told
-static unsigned int plugins_told(const CliPluginsTold *told)
+// what the editor did to a file sent to each plugin server that serves it or has it open: how many were notified
+static unsigned int plugins_change_sent(const CliPluginsChange *change)
 {
-    CliLsp *held[CLI_SERVERS_PLUGINS];
+    CliLsp *owners[CLI_SERVERS_PLUGINS];
     const char *named[CLI_SERVERS_PLUGINS];
     unsigned int count = 0u;
     cli_lock_take(&s_plugins_lock);
     for (unsigned int at = 0u; at < CLI_SERVERS_PLUGINS; at += 1u)
     {
         const char *const name =
-            (s_plugin[at].used && (told->language != NULL)) ? plugins_named(&s_plugin[at], told->language) : NULL;
-        if (s_plugin[at].used && ((name != NULL) || cli_lsp_has(s_plugin[at].lsp, told->path)))
+            (s_plugin[at].used && (change->language != NULL)) ? plugins_named(&s_plugin[at], change->language) : NULL;
+        if (s_plugin[at].used && ((name != NULL) || cli_lsp_has(s_plugin[at].lsp, change->path)))
         {
-            cli_lsp_held(s_plugin[at].lsp);
-            held[count] = s_plugin[at].lsp;
+            cli_lsp_ref(s_plugin[at].lsp);
+            owners[count] = s_plugin[at].lsp;
             named[count] = name;
             count += 1u;
         }
     }
     cli_lock_give(&s_plugins_lock);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const int has = cli_lsp_has(held[at], told->path);
-        if (told->closes && has)
+        const int has = cli_lsp_has(owners[at], change->path);
+        if (change->closes && has)
         {
-            (void)cli_lsp_closed(held[at], told->path, &said);
+            (void)cli_lsp_closed(owners[at], change->path, &err_msg);
         }
-        else if (!told->closes && has)
+        else if (!change->closes && has)
         {
-            (void)cli_lsp_changed(held[at], told->path, told->text, told->size, &said);
+            (void)cli_lsp_changed(owners[at], change->path, change->text, change->size, &err_msg);
         }
-        else if (!told->closes && (named[at] != NULL))
+        else if (!change->closes && (named[at] != NULL))
         {
-            (void)cli_lsp_opened(held[at], told->path, named[at], told->text, told->size, &said);
+            (void)cli_lsp_opened(owners[at], change->path, named[at], change->text, change->size, &err_msg);
         }
-        cli_lsp_given(held[at]);
+        cli_lsp_unref(owners[at]);
     }
     return count;
 }
 
 int cli_servers_plugins_opened(const char *path, const char *language, const char *text, unsigned long long size)
 {
-    const CliPluginsTold told = {path, language, text, size, 0};
-    return plugins_told(&told) > 0u;
+    const CliPluginsChange change = {path, language, text, size, 0};
+    return plugins_change_sent(&change) > 0u;
 }
 
 void cli_servers_plugins_changed(const char *path, const char *text, unsigned long long size)
 {
-    const CliPluginsTold told = {path, NULL, text, size, 0};
-    (void)plugins_told(&told);
+    const CliPluginsChange change = {path, NULL, text, size, 0};
+    (void)plugins_change_sent(&change);
 }
 
 void cli_servers_plugins_closed(const char *path)
 {
-    const CliPluginsTold told = {path, NULL, "", 0ull, 1};
-    (void)plugins_told(&told);
+    const CliPluginsChange change = {path, NULL, "", 0ull, 1};
+    (void)plugins_change_sent(&change);
 }
 
-CliLsp *cli_servers_plugin_holding(unsigned int *at, const char *path, char *id)
+CliLsp *cli_servers_plugin_owner_of(unsigned int *at, const char *path, char *id)
 {
     CliLsp *found = NULL;
     cli_lock_take(&s_plugins_lock);
@@ -449,9 +451,9 @@ CliLsp *cli_servers_plugin_holding(unsigned int *at, const char *path, char *id)
         *at += 1u;
         if (plugin->used && cli_lsp_has(plugin->lsp, path))
         {
-            cli_lsp_held(plugin->lsp);
+            cli_lsp_ref(plugin->lsp);
             found = plugin->lsp;
-            memor.cpy(&(MemoriaCfg){.dst = id, .src = plugin->id, .bytes = CLI_NAME_LONGEST});
+            memor.cpy(&(MemoriaCfg){.dst = id, .src = plugin->id, .bytes = CLI_NAME_MAX_LEN});
         }
     }
     cli_lock_give(&s_plugins_lock);
@@ -462,10 +464,10 @@ void cli_servers_plugin_command(const char *id, const char *command, unsigned lo
 {
     cli_lock_take(&s_plugins_lock);
     const unsigned int at = plugins_place(id);
-    const CliServersEmit emit = (at < CLI_SERVERS_PLUGINS) ? s_plugin[at].emit : (CliServersEmit){NULL, NULL, ""};
+    const CliServersSink sink = (at < CLI_SERVERS_PLUGINS) ? s_plugin[at].sink : (CliServersSink){NULL, NULL, ""};
     cli_lock_give(&s_plugins_lock);
-    if (emit.told != NULL)
+    if (sink.emit != NULL)
     {
-        plugins_said(id, &emit, "orior/command", command, size, "null");
+        plugins_msg_emitted(id, &sink, "orior/command", command, size, "null");
     }
 }

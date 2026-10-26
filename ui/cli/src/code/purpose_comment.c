@@ -13,7 +13,7 @@
 #define CLI_COMMENT_LINES 65536u
 #define CLI_COMMENT_ROOM (1u << 18u)
 
-// The room a comment is read in, held under the lock: the text's lines and a block comment's, `line_room` of each, the
+// The room a comment is read in, guarded by the lock: the text's lines and a block comment's, `line_room` of each, the
 // comment marks of its language, and the texts made, `room` bytes each; the lists and the texts one cell sized to
 // the text read
 typedef struct
@@ -22,24 +22,24 @@ typedef struct
     unsigned int lines;
     unsigned int line_room;
     CliSpan *body;
-    char id[CLI_NAME_LONGEST];
-    char line_mark[CLI_NAME_LONGEST];
+    char id[CLI_NAME_MAX_LEN];
+    char line_mark[CLI_NAME_MAX_LEN];
     int has_line;
-    char open[CLI_NAME_LONGEST];
-    char close[CLI_NAME_LONGEST];
+    char open[CLI_NAME_MAX_LEN];
+    char close[CLI_NAME_MAX_LEN];
     int has_block;
     char *made;
     char *joined;
-    char *kept;
+    char *paragraph;
     unsigned long long room;
 } CliCommentRoom;
 
 static CliCommentRoom s_room;
 
-CliCellsTally g_cli_purpose_cells = CLI_CELLS_TALLY("cli_purpose");
+CellOwner g_cli_purpose_cells = MMGR_CELL_OWNER("cli_purpose");
 
-// a text's lines, as Rust's lines() splits them, CLI_COMMENT_LINES at the most, read into the room where it holds a
-// list of them: their count
+// a text's lines, as Rust's lines() splits them, CLI_COMMENT_LINES at the most, read into the room where it has room
+// for a list of them: their count
 static unsigned int cli_lines_read(const char *text, unsigned long long size)
 {
     unsigned int lines = 0u;
@@ -69,7 +69,7 @@ static int cli_room_taken(const char *text, unsigned long long size)
     const unsigned int line_room = (lines != 0u) ? lines : 1u;
     const unsigned long long room = (size < CLI_COMMENT_ROOM) ? (size + 1ull) : CLI_COMMENT_ROOM;
     const unsigned long long spans = 2ull * line_room * sizeof(CliSpan);
-    char *const cell = cli_cell_taken_by(&g_cli_purpose_cells, spans + (3ull * room), "the room a comment is read in");
+    char *const cell = g_cli_cells->persistent_buf_alloc(spans + (3ull * room), &g_cli_purpose_cells);
     if (cell == NULL)
     {
         return 0;
@@ -80,7 +80,7 @@ static int cli_room_taken(const char *text, unsigned long long size)
     s_room.line_room = line_room;
     s_room.made = cell + spans;
     s_room.joined = s_room.made + room;
-    s_room.kept = s_room.joined + room;
+    s_room.paragraph = s_room.joined + room;
     s_room.room = room;
     s_room.lines = cli_lines_read(text, size);
     return 1;
@@ -89,7 +89,7 @@ static int cli_room_taken(const char *text, unsigned long long size)
 // the room's cell given back
 static void cli_room_given(void)
 {
-    cli_cell_given_by(&g_cli_purpose_cells, s_room.line);
+    g_cli_cells->persistent_buf_release(s_room.line, &g_cli_purpose_cells);
     s_room.line = NULL;
     s_room.body = NULL;
     s_room.lines = 0u;
@@ -103,8 +103,8 @@ static void cli_plugin_each(void *context, const CliPlugin *plugin)
         return;
     }
     CliJson json = {0};
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &unread);
     const unsigned int comments = cli_json_member(&json, root, "comments");
     const char *const line = cli_json_string(&json, cli_json_member(&json, comments, "line"), NULL);
@@ -139,10 +139,10 @@ static void cli_marks_of(const char *path)
     }
 }
 
-// the first sentences of a text, its words joined by spaces, up to CLI_PURPOSE_SAID letters, written into `out`
-static void cli_sentences(const char *text, unsigned long long size, CliLine *out)
+// the first sentences of a text, its words joined by spaces, up to CLI_PURPOSE_TEXT_MAX_LEN letters, written into `out`
+static void cli_sentences(const char *text, unsigned long long size, VerbaLinea *out)
 {
-    CliLine joined = {s_room.joined, s_room.room, 0ull};
+    VerbaLinea joined = {s_room.joined, s_room.room, 0ull};
     unsigned long long letters = 0ull;
     unsigned long long cut = 0ull;
     int in_word = 0;
@@ -158,19 +158,19 @@ static void cli_sentences(const char *text, unsigned long long size, CliLine *ou
         }
         if (!in_word && (joined.at != 0ull))
         {
-            cli_line_character(&joined, ' ');
+            mmgr_line_ch(&joined, ' ');
             letters += 1ull;
-            cut = (letters == CLI_PURPOSE_SAID) ? joined.at : cut;
+            cut = (letters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
         }
         in_word = 1;
-        cli_line_counted(&joined, text + at, step);
+        mmgr_line_put_n(&joined, text + at, step);
         letters += 1ull;
-        cut = (letters == CLI_PURPOSE_SAID) ? joined.at : cut;
+        cut = (letters == CLI_PURPOSE_TEXT_MAX_LEN) ? joined.at : cut;
         at += step;
     }
-    if (letters <= CLI_PURPOSE_SAID)
+    if (letters <= CLI_PURPOSE_TEXT_MAX_LEN)
     {
-        cli_line_counted(out, s_room.joined, joined.at);
+        mmgr_line_put_n(out, s_room.joined, joined.at);
         return;
     }
     // the cut's last sentence end past its first third, else the cut, its trailing whitespace left off, and an ellipsis
@@ -178,24 +178,24 @@ static void cli_sentences(const char *text, unsigned long long size, CliLine *ou
     {
         if ((s_room.joined[end - 2ull] == '.') && (s_room.joined[end - 1ull] == ' '))
         {
-            if ((end - 2ull) > (CLI_PURPOSE_SAID / 3u))
+            if ((end - 2ull) > (CLI_PURPOSE_TEXT_MAX_LEN / 3u))
             {
-                cli_line_counted(out, s_room.joined, end - 1ull);
+                mmgr_line_put_n(out, s_room.joined, end - 1ull);
                 return;
             }
             break;
         }
     }
     const CliSpan trimmed = cli_purpose_trimmed((CliSpan){s_room.joined, cut});
-    cli_line_counted(out, trimmed.at, trimmed.length);
-    cli_line_text(out, "\xe2\x80\xa6");
+    mmgr_line_put_n(out, trimmed.at, trimmed.length);
+    mmgr_line_put(out, "\xe2\x80\xa6");
 }
 
 // the first paragraph of a Markdown text under its headings, its marks of emphasis and its links' addresses left out
-static void cli_first_paragraph(CliLine *out)
+static void cli_first_paragraph(VerbaLinea *out)
 {
     const unsigned long long begun = out->at;
-    CliLine joined = {s_room.joined, s_room.room, 0ull};
+    VerbaLinea joined = {s_room.joined, s_room.room, 0ull};
     unsigned int taken = 0u;
     for (unsigned int at = 0u; at < s_room.lines; at += 1u)
     {
@@ -217,9 +217,9 @@ static void cli_first_paragraph(CliLine *out)
         }
         if (taken != 0u)
         {
-            cli_line_character(&joined, ' ');
+            mmgr_line_ch(&joined, ' ');
         }
-        cli_line_counted(&joined, trimmed.at, trimmed.length);
+        mmgr_line_put_n(&joined, trimmed.at, trimmed.length);
         taken += 1u;
     }
     // each link's address left out, then the marks
@@ -242,17 +242,17 @@ static void cli_first_paragraph(CliLine *out)
         }
         for (const char *at = rest; at < open; at += 1)
         {
-            cli_line_character(out, at[0]);
+            mmgr_line_ch(out, at[0]);
         }
         rest = close + 1;
     }
     for (const char *at = rest; at < end; at += 1)
     {
-        cli_line_character(out, at[0]);
+        mmgr_line_ch(out, at[0]);
     }
     // the marks of emphasis left out of what was written
     char *const written = out->out;
-    unsigned long long kept = begun;
+    unsigned long long paragraph = begun;
     for (unsigned long long at = begun; at < out->at; at += 1ull)
     {
         const char letter = written[at];
@@ -266,27 +266,27 @@ static void cli_first_paragraph(CliLine *out)
         {
             continue;
         }
-        written[kept] = letter;
-        kept += 1ull;
+        written[paragraph] = letter;
+        paragraph += 1ull;
     }
-    out->at = kept;
+    out->at = paragraph;
 }
 
-// the comment that a block comment's open mark starts at line `at` of the room holds, its lines written into `out`,
+// the comment that a block comment's open mark starts at line `at` of the room contains, its lines written into `out`,
 // `at` moved past it
-static void cli_block_read(unsigned int *at, CliLine *out)
+static void cli_block_read(unsigned int *at, VerbaLinea *out)
 {
     // the room's lines from `at` on, joined by newlines
-    CliLine rest = {s_room.joined, s_room.room, 0ull};
+    VerbaLinea rest = {s_room.joined, s_room.room, 0ull};
     for (unsigned int line = *at; line < s_room.lines; line += 1u)
     {
         if (line != *at)
         {
-            cli_line_character(&rest, '\n');
+            mmgr_line_ch(&rest, '\n');
         }
-        cli_line_counted(&rest, s_room.line[line].at, s_room.line[line].length);
+        mmgr_line_put_n(&rest, s_room.line[line].at, s_room.line[line].length);
     }
-    cli_line_closed(&rest);
+    mmgr_line_finish(&rest);
     const char *const joined = s_room.joined;
     const char *const opened = cellul.find(
         &(CatenaFinitaCfg){.src = joined, .cap = CLI_CELLS_POOL, .other = s_room.open, .other_cap = CLI_CELLS_POOL});
@@ -332,8 +332,8 @@ static void cli_block_read(unsigned int *at, CliLine *out)
     cli_purpose_uncommented(s_room.body, count, "*", out);
 }
 
-// the first comment of `text`, the text of the file at `path` whose lines the room holds, written into `out`
-static void cli_comment_read(const char *path, const char *text, CliLine *out)
+// the first comment of `text`, the text of the file at `path` whose lines the room contains, written into `out`
+static void cli_comment_read(const char *path, const char *text, VerbaLinea *out)
 {
     // the extension of the file's name, in lower case
     const char *name = path;
@@ -356,10 +356,10 @@ static void cli_comment_read(const char *path, const char *text, CliLine *out)
         (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "rst", .cap = CLI_CELLS_POOL})) ||
         (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "txt", .cap = CLI_CELLS_POOL})))
     {
-        CliLine paragraph = {s_room.made, s_room.room, 0ull};
+        VerbaLinea paragraph = {s_room.made, s_room.room, 0ull};
         cli_first_paragraph(&paragraph);
-        memor.cpy(&(MemoriaCfg){.dst = s_room.kept, .src = s_room.made, .bytes = paragraph.at});
-        cli_sentences(s_room.kept, paragraph.at, out);
+        memor.cpy(&(MemoriaCfg){.dst = s_room.paragraph, .src = s_room.made, .bytes = paragraph.at});
+        cli_sentences(s_room.paragraph, paragraph.at, out);
         return;
     }
     cli_marks_of(path);
@@ -372,7 +372,7 @@ static void cli_comment_read(const char *path, const char *text, CliLine *out)
             at += 1u;
             continue;
         }
-        CliLine said = {s_room.made, s_room.room, 0ull};
+        VerbaLinea text_line = {s_room.made, s_room.room, 0ull};
         if (s_room.has_line && cli_purpose_starts(trimmed, s_room.line_mark))
         {
             const unsigned int start = at;
@@ -380,11 +380,11 @@ static void cli_comment_read(const char *path, const char *text, CliLine *out)
             {
                 at += 1u;
             }
-            cli_purpose_uncommented(s_room.line + start, at - start, s_room.line_mark, &said);
+            cli_purpose_uncommented(s_room.line + start, at - start, s_room.line_mark, &text_line);
         }
         else if (s_room.has_block && cli_purpose_starts(trimmed, s_room.open))
         {
-            cli_block_read(&at, &said);
+            cli_block_read(&at, &text_line);
         }
         else if ((cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = "py", .cap = CLI_CELLS_POOL})) &&
                  (cli_purpose_starts(trimmed, "\"\"\"") || cli_purpose_starts(trimmed, "'''") ||
@@ -405,9 +405,9 @@ static void cli_comment_read(const char *path, const char *text, CliLine *out)
             const char *const body = (first != NULL) ? (first + 3) : text;
             const char *const ended = cellul.find(
                 &(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL, .other = quote, .other_cap = CLI_CELLS_POOL});
-            cli_line_counted(&said, body,
-                             (ended != NULL) ? (unsigned long long)(ended - body)
-                                             : cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL}));
+            mmgr_line_put_n(&text_line, body,
+                            (ended != NULL) ? (unsigned long long)(ended - body)
+                                            : cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL}));
             // a docstring read is passed, so a license's docstring does not stop the reading there
             at += 1u;
         }
@@ -415,17 +415,17 @@ static void cli_comment_read(const char *path, const char *text, CliLine *out)
         {
             return;
         }
-        const CliSpan comment = cli_purpose_trimmed((CliSpan){s_room.made, said.at});
-        if ((comment.length != 0ull) && !cli_purpose_licensed(s_room.made, said.at))
+        const CliSpan comment = cli_purpose_trimmed((CliSpan){s_room.made, text_line.at});
+        if ((comment.length != 0ull) && !cli_purpose_licensed(s_room.made, text_line.at))
         {
-            memor.cpy(&(MemoriaCfg){.dst = s_room.kept, .src = s_room.made, .bytes = said.at});
-            cli_sentences(s_room.kept, said.at, out);
+            memor.cpy(&(MemoriaCfg){.dst = s_room.paragraph, .src = s_room.made, .bytes = text_line.at});
+            cli_sentences(s_room.paragraph, text_line.at, out);
             return;
         }
     }
 }
 
-void cli_purpose_first_comment(const char *path, const char *text, unsigned long long size, CliLine *out)
+void cli_purpose_first_comment(const char *path, const char *text, unsigned long long size, VerbaLinea *out)
 {
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);

@@ -5,10 +5,10 @@
 // then each of its 104 operation bits is turned over one at a time and run again. A turned bit that changes the answer
 // or stops the instruction running is a bit the part reads; one that changes nothing is control or unused.
 //
-// Which operand a read bit belongs to is matched instead of guessed: the same instruction is run with each source operand's
-// register number or number moved by a known amount, and a turned encoding bit belongs to the operand whose move
-// gives the same answer. A read bit no operand's move explains is the operation's own, or a field the text does not
-// print.
+// Which operand a read bit belongs to is matched instead of guessed: the same instruction is run with each source
+// operand's register number or number moved by a known amount, and a turned encoding bit belongs to the operand whose
+// move gives the same answer. A read bit no operand's move explains is the operation's own, or a field the text does
+// not print.
 //
 // Nothing is compiled and no disassembler is run. The cubins are written here and run by interface_sass_run, which
 // loads each through the driver and answers over one case; a cubin the part refuses ends that runner, and this restarts
@@ -16,7 +16,7 @@
 //
 //     interface_sass_probe_fields <pattern cubin> <kernel text> <machine file> <folder> <instructions>
 //
-// The instructions file holds one instruction a line, as sass_krs_assemble writes the forms a ruleset uses. The tool
+// The instructions file contains one instruction a line, as sass_krs_assemble writes the forms a ruleset uses. The tool
 // writes <folder>/list.txt and the cubins it names; interface_sass_run runs that list and writes the answers, which a
 // later pass reads back against the form's runs. The kernel opens with its section's label, loads the case into
 // registers and stores the answer's first word from R7.
@@ -71,8 +71,8 @@ int main(int count, char **words)
         {
             continue;
         }
-        // the first operand moved to R8, the register the kernel stores as the answer, which then holds what the form
-        // writes
+        // the first operand moved to R8, the register the kernel stores as the answer, which then contains what the
+        // form writes
         char redirected[512];
         char observe[64];
         if (!fields_redirect(walk, redirected, sizeof(redirected), observe, sizeof(observe)))
@@ -84,10 +84,10 @@ int main(int count, char **words)
         snprintf(lines, sizeof(lines), FIELDS_LINES_HEAD "%s%s" FIELDS_LINES_TAIL, redirected, observe);
         unsigned long long low = 0ull;
         unsigned long long high = 0ull;
-        const unsigned int assembled = fields_splice(s_kernel_text, lines, s_asking, sizeof(s_asking))
-                                           ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code,
-                                                                 sizeof(s_code))
-                                           : 0u;
+        const unsigned int assembled =
+            fields_splice(s_kernel_text, lines, s_query_text, sizeof(s_query_text))
+                ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code))
+                : 0u;
         const int alone =
             (assembled != 0u) && sass_assemble(&s_machine, redirected, 0ull, 0ull, SASS_CONTROL_SAFE, &low, &high);
         const unsigned int place = alone ? fields_find(s_code, assembled, low, high) : assembled;
@@ -117,7 +117,7 @@ int main(int count, char **words)
         snprintf(path, sizeof(path), "%s/list.txt", folder);
         FILE *const made = fopen(path, "wb");
         // the baseline first, its bit 128 turning nothing, then one line an operation bit. A bit whose turned operation
-        // key holds a control transfer, a wait or no form is held off the part with a skip line in its place: a
+        // key contains a control transfer, a wait or no form is blocked from the part with a skip line in its place: a
         // bit-flip never loops or stalls the part, and the line order still names the bit a row belongs to
         for (unsigned int bit = 0u; bit <= FIELDS_OPERATION_BITS; bit += 1u)
         {

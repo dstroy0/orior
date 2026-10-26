@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// inspect_test.c: the inspections of a file alone: a Python name set and never read is found and its fix keeps a call;
-// one read in a closure, an f-string or with locals is not; Python code after a return is found and taken out; a
+// inspect_test.c: the inspections of a file alone: a Python name set and never read is found and its fix preserves a
+// call; one read in a closure, an f-string or with locals is not; Python code after a return is found and taken out; a
 // docstring out of PEP 257's form is found and fixed; a JavaScript declaration never read and code after a return are
 // found; a Python docstring is drawn up in each form and a JSDoc comment for a JavaScript function; and a class's
 // methods are sorted by name, its other members staying in place
@@ -46,10 +46,10 @@ static const char *inspect_applied(const char *text, unsigned int finding)
                                             cellul.len(&(CatenaFinitaCfg){.src = written, .cap = CLI_CELLS_POOL})};
         count += 1u;
     }
-    CliLine out = {s_applied, sizeof(s_applied), 0ull};
+    VerbaLinea out = {s_applied, sizeof(s_applied), 0ull};
     (void)cli_text_applied(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), s_text_edits,
                            count, &out);
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_applied;
 }
 
@@ -58,49 +58,49 @@ static const char *inspect_replaced(const char *text, const char *from, const ch
 {
     const char *const at =
         cellul.find(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = from, .other_cap = CLI_CELLS_POOL});
-    CliLine out = {s_wanted, sizeof(s_wanted), 0ull};
+    VerbaLinea out = {s_wanted, sizeof(s_wanted), 0ull};
     if (at != NULL)
     {
-        cli_line_counted(&out, text, (unsigned long long)(at - text));
-        cli_line_text(&out, to);
-        cli_line_text(&out, at + cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}));
+        mmgr_line_put_n(&out, text, (unsigned long long)(at - text));
+        mmgr_line_put(&out, to);
+        mmgr_line_put(&out, at + cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL}));
     }
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_wanted;
 }
 
 // each finding of s_facts written: `line:code name` where `codes`, else its name, the first word of its message without
 // its backticks, joined by `|`
-static const char *inspect_said(int codes)
+static const char *inspect_findings_text(int codes)
 {
-    static char s_said[4096];
-    CliLine line = {s_said, sizeof(s_said), 0ull};
+    static char s_findings_text[4096];
+    VerbaLinea line = {s_findings_text, sizeof(s_findings_text), 0ull};
     for (unsigned int at = 0u; at < s_facts.findings; at += 1u)
     {
         const CliInspectFinding *const one = &s_facts.finding[at];
         const char *const message = cli_inspect_text(s_facts.text, one->message);
-        cli_line_text(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
         if (codes)
         {
-            cli_line_decimal(&line, one->from.line, 1u);
-            cli_line_character(&line, ':');
-            cli_line_text(&line, one->code);
-            cli_line_character(&line, ' ');
+            mmgr_line_decimal(&line, one->from.line, 1u);
+            mmgr_line_ch(&line, ':');
+            mmgr_line_put(&line, one->code);
+            mmgr_line_ch(&line, ' ');
         }
         for (const char *letter = message; (letter[0] != '\0') && (letter[0] != ' '); letter += 1)
         {
             if (letter[0] != '`')
             {
-                cli_line_character(&line, letter[0]);
+                mmgr_line_ch(&line, letter[0]);
             }
         }
     }
-    (void)cli_line_closed(&line);
-    return s_said;
+    (void)mmgr_line_finish(&line);
+    return s_findings_text;
 }
 
-// a Python name set and never read is found and its fix keeps a call; and one read in a closure, an f-string or with
-// locals is not
+// a Python name set and never read is found and its fix preserves a call; and one read in a closure, an f-string or
+// with locals is not
 static void inspect_python_unread(void)
 {
     static const char s_text[] =
@@ -108,13 +108,13 @@ static void inspect_python_unread(void)
         "with open(a) as handle:\n        pass\n    try:\n        pass\n    except ValueError as "
         "error:\n        pass\n    return total\n";
     cli_check(inspect_facts("python", s_text) &&
-                  (cellul.eq(
-                      &(CatenaFinitaCfg){.src = inspect_said(0), .other = "seen|handle|error", .cap = CLI_CELLS_POOL})),
+                  (cellul.eq(&(CatenaFinitaCfg){
+                      .src = inspect_findings_text(0), .other = "seen|handle|error", .cap = CLI_CELLS_POOL})),
               "a Python name set and never read is found");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = inspect_applied(s_text, 0u),
                                            .other = inspect_replaced(s_text, "    seen = g(a)\n", "    g(a)\n"),
                                            .cap = CLI_CELLS_POOL}),
-              "its fix keeps the call");
+              "its fix preserves the call");
     cli_check(cellul.find(&(CatenaFinitaCfg){.src = inspect_applied(s_text, 1u),
                                              .cap = CLI_CELLS_POOL,
                                              .other = "with open(a):",
@@ -167,11 +167,11 @@ static void inspect_python_shape(void)
                                  "\"\"\"Return four.\n\n    More.\n    \"\"\"\n";
     (void)inspect_facts("python", s_docs);
     char codes[256];
-    CliLine line = {codes, sizeof(codes), 0ull};
+    VerbaLinea line = {codes, sizeof(codes), 0ull};
     for (unsigned int at = 0u; at < s_facts.findings; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, s_facts.finding[at].code);
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, s_facts.finding[at].code);
     }
     cli_check_text(codes, line.at, "docstring-quotes|docstring-period|docstring-space|docstring-blank|docstring-close",
                    "a docstring out of PEP 257's form is found");
@@ -200,26 +200,27 @@ static void inspect_python_shape(void)
 static void inspect_javascript(void)
 {
     static const char s_text[] =
-        "export function f(a) {\n  const unused = 1;\n  const kept = g(a);\n  let used = a + 1;\n  const obj = { used: "
+        "export function f(a) {\n  const unused = 1;\n  const retained = g(a);\n  let used = a + 1;\n  const obj = { "
+        "used: "
         "1, "
         "other };\n  const after = `${obj.used}`;\n  if (a) return after;\n  return used;\n  "
         "console.log(a);\n}\n\nfunction "
         "h(x) {\n  switch (x) {\n    case 1:\n      return 1;\n      x += 1;\n    case 2:\n      break;\n  }\n  return "
         "/a\\/b/.test(x) ? x / 2 : x;\n}\n";
-    cli_check(
-        inspect_facts("javascript", s_text) &&
-            (cellul.eq(&(CatenaFinitaCfg){.src = inspect_said(1),
-                                          .other = "1:unread unused|2:unread kept|8:unreachable No|15:unreachable No",
-                                          .cap = CLI_CELLS_POOL})),
-        "a JavaScript declaration never read and code after a return are found");
+    cli_check(inspect_facts("javascript", s_text) &&
+                  (cellul.eq(&(CatenaFinitaCfg){
+                      .src = inspect_findings_text(1),
+                      .other = "1:unread unused|2:unread retained|8:unreachable No|15:unreachable No",
+                      .cap = CLI_CELLS_POOL})),
+              "a JavaScript declaration never read and code after a return are found");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = inspect_applied(s_text, 0u),
                                            .other = inspect_replaced(s_text, "  const unused = 1;\n", ""),
                                            .cap = CLI_CELLS_POOL}),
               "a declaration of nothing is taken out");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = inspect_applied(s_text, 1u),
-                                           .other = inspect_replaced(s_text, "const kept = g(a);", "g(a);"),
+                                           .other = inspect_replaced(s_text, "const retained = g(a);", "g(a);"),
                                            .cap = CLI_CELLS_POOL}),
-              "one of a call keeps the call");
+              "one of a call preserves the call");
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = inspect_applied(s_text, 2u),
                                            .other = inspect_replaced(s_text, "  console.log(a);\n", ""),
                                            .cap = CLI_CELLS_POOL}),
@@ -231,10 +232,10 @@ static const char *inspect_edited(const char *source, const CliInspectEdit *edit
                                   unsigned long long size)
 {
     const CliTextEdit one = {{edit->from.line, edit->from.col}, {edit->to.line, edit->to.col}, text, size};
-    CliLine out = {s_applied, sizeof(s_applied), 0ull};
+    VerbaLinea out = {s_applied, sizeof(s_applied), 0ull};
     (void)cli_text_applied(source, cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}), &one, 1u,
                            &out);
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_applied;
 }
 
@@ -245,11 +246,11 @@ static int inspect_docstring(const char *language, const char *source, unsigned 
 {
     static char s_text[1u << 14u];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine text = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea text = {s_text, sizeof(s_text), 0ull};
     CliInspectEdit edit;
     if (!cli_inspect_docstring(language, source, cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}),
-                               line, form, &edit, &text, summary, &said))
+                               line, form, &edit, &text, summary, &err_msg))
     {
         return 0;
     }
@@ -306,11 +307,11 @@ static void inspect_docstrings(void)
     static const char s_js[] = "export function area(width, height = 2) {\n  if (width < 0) {\n    throw new "
                                "RangeError(\"width\");\n  }\n  return width * height;\n}\n";
     char wanted[512];
-    CliLine line = {wanted, sizeof(wanted), 0ull};
-    cli_line_text(&line,
+    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    mmgr_line_put(&line,
                   "/**\n * \n *\n * @param width\n * @param height\n * @returns\n * @throws {RangeError}\n */\n");
-    cli_line_text(&line, s_js);
-    (void)cli_line_closed(&line);
+    mmgr_line_put(&line, s_js);
+    (void)mmgr_line_finish(&line);
     cli_check(inspect_docstring("javascript", s_js, 1u, "google", &summary) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = s_applied, .other = wanted, .cap = CLI_CELLS_POOL})) &&
                   (summary.line == 1u) && (summary.col == 3u),
@@ -322,12 +323,12 @@ static int inspect_sorted(const char *language, const char *source, unsigned int
 {
     static char s_text[1u << 14u];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine text = {s_text, sizeof(s_text), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea text = {s_text, sizeof(s_text), 0ull};
     CliInspectEdit edit;
     if (!cli_inspect_sort_methods(language, source,
                                   cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}), line, &edit,
-                                  &text, &said))
+                                  &text, &err_msg))
     {
         return 0;
     }
@@ -366,6 +367,7 @@ static void inspect_sort(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     inspect_python_unread();
     inspect_python_shape();
     inspect_javascript();

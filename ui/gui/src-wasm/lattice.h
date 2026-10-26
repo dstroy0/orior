@@ -1,0 +1,110 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// lattice.h: what the lattice's two sources share: its numbers, the stage of its loop, each slot's lattice, and the
+// dots the GPU draws. The lattice (lattice.c) lays out, moves, shades and judges the points; its GL driver
+// (lattice_gl.c) hands the dots to the page's WebGL, which puts them down and dithers them.
+#ifndef LATTICE_H
+#define LATTICE_H
+
+#include <stdint.h>
+
+#define LATTICE_EXPORT(name_) __attribute__((export_name(#name_)))
+#define LATTICE_IMPORT(name_) __attribute__((import_module("env"), import_name(#name_)))
+
+// a number's spelling, for the shader written with it
+#define LATTICE_TEXT(value_) #value_
+#define LATTICE_TEXT_OF(value_) LATTICE_TEXT(value_)
+
+// how far the most disordered point goes from its place, in pixels, and the seed of every lattice's points
+#define LATTICE_REACH (22.0 * 2.4)
+#define LATTICE_SEED 1729u
+// where one side is ordered: the share of the lattice before its points start to move, and the share over which they
+// go from in place to as far as they go
+#define LATTICE_ORDERED 0.1
+#define LATTICE_RAMP 0.54
+#define LATTICE_PI 3.141592653589793
+// the lattices the module keeps at once, the window's in the first and the module's checks' in the others; the levels
+// of pen the dots are shaded from; the most levels a page draws its 2D lattice with
+#define LATTICE_SLOTS 8u
+#define LATTICE_LEVELS 24
+#define LATTICE_LEVELS_MOST 128u
+
+// the kinds of stage: one side ordered at an angle, the order spreading from a front, the whole lattice at one
+// disorder, and the order gathering from the top; the shader compares them as 0.0 to 3.0
+enum LatticeStageKind
+{
+    LATTICE_SIDED = 0,
+    LATTICE_SPREAD = 1,
+    LATTICE_WHOLE = 2,
+    LATTICE_GATHER = 3,
+};
+
+// where the loop stands: its stage's kind, the angle of a side, the front of a spread and the share of the stage
+// done, as doubles the page reads in this order
+typedef struct
+{
+    double kind;
+    double angle;
+    double front;
+    double part;
+} LatticeStageAt;
+
+// one dot as the GPU draws it: its place across and down and its radius, in pixels, and its color, red, green, blue
+// and its ink a byte each in that order
+typedef struct
+{
+    float across;
+    float down;
+    float radius;
+    uint32_t color;
+} LatticeDot;
+
+_Static_assert(sizeof(LatticeDot) == 16u, "LatticeDot: the GL driver hands the GPU 16 bytes a dot");
+_Static_assert(__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "LatticeDot: a color's bytes stand red first in memory");
+
+// the shades a dot takes, one a step of its disorder from ordered to the least ordered: its color, as LatticeDot's,
+// and its radius in pixels
+#define LATTICE_SHADES 256u
+typedef struct
+{
+    uint32_t color[LATTICE_SHADES];
+    float radius[LATTICE_SHADES];
+} LatticeShades;
+
+// how far a point's offset reaches as a signed byte: the radius of its circle of movement
+#define LATTICE_OFFSET_MOST 127.0
+
+// one lattice: its points stand on a grid, `columns` across and `rows` down, the first `half` a step in from the top
+// left and the rest a `step` apart, so a point's origin is its row and column and stays where it is whatever the box it
+// is laid out over; each keeps the place it moves toward on its circle around its origin, drawn from a seed of its row
+// and column, as its offset across and down, a signed byte each, the circle's radius LATTICE_OFFSET_MOST, two bytes a
+// point for as many as `capacity` points. Made once a page draws with them, as many as `dots_room` and `placed_room`
+// hold: each point moved and shaded as a dot, and each placed point's place, two doubles a point grouped by level,
+// with how many points stand at each level
+typedef struct
+{
+    int8_t *offsets;
+    LatticeDot *dots;
+    double *placed;
+    uint32_t capacity;
+    uint32_t dots_room;
+    uint32_t placed_room;
+    uint32_t count;
+    uint32_t columns;
+    uint32_t rows;
+    double half;
+    double step;
+    uint32_t counts[LATTICE_LEVELS_MOST];
+} LatticeSlot;
+
+// the lattice of `slot`, which is below LATTICE_SLOTS
+LatticeSlot *lattice_slot(uint32_t slot);
+
+// where the loop stands at `seconds`
+LatticeStageAt *lattice_stage(double seconds);
+
+// every point of `held`, `width` by `height` pixels, moved where the loop at `seconds` puts it, then shaded from
+// `shades` by its disorder there, into its dots: 1, or 0 where the memory cannot hold them
+uint32_t lattice_dots_moved(LatticeSlot *held, double width, double height, double seconds, const LatticeShades *shades);
+
+#endif

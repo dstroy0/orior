@@ -181,7 +181,7 @@ function heard(told) {
     state.last = told;
     state.run = null;
     const summary = summaryOf(told);
-    say(told.said && !told.passed && !told.failed && !told.skipped ? `No test ran: ${told.said}` : summary, { failed: told.failed > 0 || Boolean(told.said) });
+    say(told.message && !told.passed && !told.failed && !told.skipped ? `No test ran: ${told.message}` : summary, { failed: told.failed > 0 || Boolean(told.message) });
   }
   draw();
   state.hooks?.repaint();
@@ -245,7 +245,7 @@ function draw() {
     const done = [...state.results.values()].filter((one) => !["running", "none"].includes(one.outcome)).length;
     rows.push(element("p", { className: "pane-empty tests-said", textContent: `Running with ${state.run.runner} over ${state.run.workers} process${state.run.workers === 1 ? "" : "es"}: ${done} done.` }));
   } else if (state.last) {
-    rows.push(element("p", { className: `pane-empty tests-said${state.last.failed ? " failed" : ""}`, textContent: state.last.said && !state.last.passed && !state.last.failed ? `No test ran: ${state.last.said}` : summaryOf(state.last) }));
+    rows.push(element("p", { className: `pane-empty tests-said${state.last.failed ? " failed" : ""}`, textContent: state.last.message && !state.last.passed && !state.last.failed ? `No test ran: ${state.last.message}` : summaryOf(state.last) }));
   }
   const files = testsByFile();
   if (!files.size) {

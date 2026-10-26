@@ -109,7 +109,7 @@ __global__ static void noise_clips_kernel(const unsigned short *lanes, unsigned 
             atomicAdd(&counts[NOISE_CLIPS_CONSTANT_TOP], 1ull);
         }
         atomicAdd(&constant_values[least], 1ull);
-        // each coordinate is below its extent, which the host holds under 2^32
+        // each coordinate is below its extent, which the host bounds under 2^32
         const unsigned int place[ENGINE_AXES] = {(unsigned int)(voxel / (height * width)),
                                                  (unsigned int)((voxel / width) % height),
                                                  (unsigned int)(voxel % width)};
@@ -157,7 +157,7 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     // the voxels each thread takes in turn
     const unsigned long long rounds = (blocks != 0u) ? ((needed + blocks - 1ull) / blocks) : 0ull;
     // every count is at most the sample's voxel-frames; a block's shared counts are at most its threads' voxel-frames,
-    // which an unsigned int holds; every coordinate fits an unsigned int
+    // which an unsigned int represents; every coordinate fits an unsigned int
     const int bounded = (frames >= 1ull) && (voxels != 0ull) && (frames <= (~0ull / voxels)) &&
                         (depth <= 0xFFFFFFFFull) && (height <= 0xFFFFFFFFull) && (width <= 0xFFFFFFFFull) &&
                         (rounds <= ((0xFFFFFFFFull / NOISE_DETECTOR_THREADS) / frames));
@@ -221,7 +221,7 @@ long noise_clips_sample(const unsigned short *volume, const unsigned long long e
     return (ok != 0) ? 0L : NOISE_DETECTOR_ERROR;
 }
 
-// the least and most values the sample holds, and how many values between them it never holds
+// the least and most values the sample contains, and how many values between them it never contains
 static void noise_clips_range(const NoiseClips *clips, unsigned int *least, unsigned int *maximum,
                               unsigned long long *empty)
 {
@@ -264,7 +264,7 @@ void noise_clips_summary(const char *name, const NoiseClips *clips)
     unsigned int maximum = 0u;
     unsigned long long empty = 0ull;
     noise_clips_range(clips, &least, &maximum, &empty);
-    printf("  %-24s values %u to %u, %llu never held between; at 0: %llu, at the top: %llu; constant voxels: %llu"
+    printf("  %-24s values %u to %u, %llu never present between; at 0: %llu, at the top: %llu; constant voxels: %llu"
            " (at 0: %llu, at the top: %llu)",
            name, least, maximum, empty, clips->counts[NOISE_CLIPS_AT_ZERO], clips->counts[NOISE_CLIPS_AT_TOP],
            clips->counts[NOISE_CLIPS_CONSTANT], clips->counts[NOISE_CLIPS_CONSTANT_ZERO],

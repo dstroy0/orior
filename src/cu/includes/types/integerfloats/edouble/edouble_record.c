@@ -119,61 +119,62 @@ static void edouble_record_shift(ExactRecordProgram *program, unsigned int magni
     }
 }
 
-EdoubleRecordHeld edouble_record_cut(ExactRecordProgram *program, EdoubleRecord value, unsigned int width,
-                                     unsigned int range_bits)
+EdoubleRecordInterval edouble_record_cut(ExactRecordProgram *program, EdoubleRecord value, unsigned int width,
+                                         unsigned int range_bits)
 {
-    return edouble_record_held_cut(program, edouble_record_held_of(value), width, range_bits);
+    return edouble_record_interval_cut(program, edouble_record_interval_of(value), width, range_bits);
 }
 
-EdoubleRecordHeld edouble_record_held_of(EdoubleRecord value)
+EdoubleRecordInterval edouble_record_interval_of(EdoubleRecord value)
 {
-    EdoubleRecordHeld held = {value.mantissa, value.mantissa, value.exponent};
-    return held;
+    EdoubleRecordInterval interval = {value.mantissa, value.mantissa, value.exponent};
+    return interval;
 }
 
-EdoubleRecordHeld edouble_record_held_negate(ExactRecordProgram *program, EdoubleRecordHeld value)
+EdoubleRecordInterval edouble_record_interval_negate(ExactRecordProgram *program, EdoubleRecordInterval value)
 {
-    EdoubleRecordHeld held = {exact_record_negate(program, value.up), exact_record_negate(program, value.down),
-                              value.exponent};
-    return held;
+    EdoubleRecordInterval interval = {exact_record_negate(program, value.up), exact_record_negate(program, value.down),
+                                      value.exponent};
+    return interval;
 }
 
-EdoubleRecordHeld edouble_record_held_sum(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
-                                          unsigned int spread_bits)
+EdoubleRecordInterval edouble_record_interval_sum(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                  EdoubleRecordInterval b, unsigned int spread_bits)
 {
     unsigned int lift = 0u;
     unsigned int a_larger = 0u;
     int known_side = -1;
     edouble_record_line_up(program, a.exponent, b.exponent, spread_bits, &lift, &a_larger, &known_side);
-    EdoubleRecordHeld held = {edouble_record_lined(program, a.down, b.down, lift, a_larger, known_side),
-                              edouble_record_lined(program, a.up, b.up, lift, a_larger, known_side),
-                              exact_record_select(program, a_larger, b.exponent, a.exponent)};
-    return held;
+    EdoubleRecordInterval interval = {edouble_record_lined(program, a.down, b.down, lift, a_larger, known_side),
+                                      edouble_record_lined(program, a.up, b.up, lift, a_larger, known_side),
+                                      exact_record_select(program, a_larger, b.exponent, a.exponent)};
+    return interval;
 }
 
-EdoubleRecordHeld edouble_record_held_difference(ExactRecordProgram *program, EdoubleRecordHeld a,
-                                                 EdoubleRecordHeld b, unsigned int spread_bits)
+EdoubleRecordInterval edouble_record_interval_difference(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                         EdoubleRecordInterval b, unsigned int spread_bits)
 {
-    return edouble_record_held_sum(program, a, edouble_record_held_negate(program, b), spread_bits);
+    return edouble_record_interval_sum(program, a, edouble_record_interval_negate(program, b), spread_bits);
 }
 
 // the least and the most of the four corner products, whatever the signs
-EdoubleRecordHeld edouble_record_held_product(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b)
+EdoubleRecordInterval edouble_record_interval_product(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                      EdoubleRecordInterval b)
 {
     const unsigned int corner[4] = {
         exact_record_product(program, a.down, b.down), exact_record_product(program, a.down, b.up),
         exact_record_product(program, a.up, b.down), exact_record_product(program, a.up, b.up)};
-    EdoubleRecordHeld held;
-    held.down = exact_record_min(program, exact_record_min(program, corner[0], corner[1]),
-                                 exact_record_min(program, corner[2], corner[3]));
-    held.up = exact_record_max(program, exact_record_max(program, corner[0], corner[1]),
-                               exact_record_max(program, corner[2], corner[3]));
-    held.exponent = exact_record_sum(program, a.exponent, b.exponent);
-    return held;
+    EdoubleRecordInterval interval;
+    interval.down = exact_record_min(program, exact_record_min(program, corner[0], corner[1]),
+                                     exact_record_min(program, corner[2], corner[3]));
+    interval.up = exact_record_max(program, exact_record_max(program, corner[0], corner[1]),
+                                   exact_record_max(program, corner[2], corner[3]));
+    interval.exponent = exact_record_sum(program, a.exponent, b.exponent);
+    return interval;
 }
 
-EdoubleRecordHeld edouble_record_held_cut(ExactRecordProgram *program, EdoubleRecordHeld value, unsigned int width,
-                                          unsigned int range_bits)
+EdoubleRecordInterval edouble_record_interval_cut(ExactRecordProgram *program, EdoubleRecordInterval value,
+                                                  unsigned int width, unsigned int range_bits)
 {
     const unsigned int magnitude = exact_record_max(program, exact_record_absolute(program, value.down),
                                                     exact_record_absolute(program, value.up));
@@ -187,16 +188,17 @@ EdoubleRecordHeld edouble_record_held_cut(ExactRecordProgram *program, EdoubleRe
     unsigned int unused = 0u;
     edouble_record_floor_ceiling(program, value.down, power, &down, &unused);
     edouble_record_floor_ceiling(program, value.up, power, &unused, &up);
-    EdoubleRecordHeld held;
-    held.down = exact_record_wrap(program, down, width + 2u);
-    held.up = exact_record_wrap(program, up, width + 2u);
-    held.exponent = exact_record_sum(program, value.exponent, shift);
-    return held;
+    EdoubleRecordInterval interval;
+    interval.down = exact_record_wrap(program, down, width + 2u);
+    interval.up = exact_record_wrap(program, up, width + 2u);
+    interval.exponent = exact_record_sum(program, value.exponent, shift);
+    return interval;
 }
 
-// over a divisor that holds no 0 the quotient is monotone in each operand, and its least and most lie at the corners
-EdoubleRecordHeld edouble_record_held_quotient(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
-                                               unsigned int width, unsigned int divisor_bits)
+// over a divisor that contains no 0 the quotient is monotone in each operand, and its least and most lie at the corners
+EdoubleRecordInterval edouble_record_interval_quotient(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                       EdoubleRecordInterval b, unsigned int width,
+                                                       unsigned int divisor_bits)
 {
     const unsigned int lift = width + divisor_bits;
     const unsigned int scale = exact_record_power_two(program, lift);
@@ -210,32 +212,33 @@ EdoubleRecordHeld edouble_record_held_quotient(ExactRecordProgram *program, Edou
         edouble_record_floor_ceiling(program, numerator[corner / 2u], divisor[corner % 2u], &floor[corner],
                                      &ceiling[corner]);
     }
-    EdoubleRecordHeld held;
-    held.down = exact_record_min(program, exact_record_min(program, floor[0], floor[1]),
-                                 exact_record_min(program, floor[2], floor[3]));
-    held.up = exact_record_max(program, exact_record_max(program, ceiling[0], ceiling[1]),
-                               exact_record_max(program, ceiling[2], ceiling[3]));
-    held.exponent = exact_record_difference(program, exact_record_difference(program, a.exponent, b.exponent),
-                                            exact_record_constant(program, (unsigned long long)lift));
-    return held;
+    EdoubleRecordInterval interval;
+    interval.down = exact_record_min(program, exact_record_min(program, floor[0], floor[1]),
+                                     exact_record_min(program, floor[2], floor[3]));
+    interval.up = exact_record_max(program, exact_record_max(program, ceiling[0], ceiling[1]),
+                                   exact_record_max(program, ceiling[2], ceiling[3]));
+    interval.exponent = exact_record_difference(program, exact_record_difference(program, a.exponent, b.exponent),
+                                                exact_record_constant(program, (unsigned long long)lift));
+    return interval;
 }
 
-unsigned int edouble_record_held_above(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
-                                       unsigned int spread_bits)
+unsigned int edouble_record_interval_above(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                           EdoubleRecordInterval b, unsigned int spread_bits)
 {
     return edouble_record_above(program, edouble_record_of(a.down, a.exponent), edouble_record_of(b.up, b.exponent),
                                 spread_bits);
 }
 
-EdoubleRecordHeld edouble_record_held_times_two_to(ExactRecordProgram *program, EdoubleRecordHeld value, long long power)
+EdoubleRecordInterval edouble_record_interval_times_two_to(ExactRecordProgram *program, EdoubleRecordInterval value,
+                                                           long long power)
 {
-    EdoubleRecordHeld held = {value.down, value.up,
-                              exact_record_sum(program, value.exponent, exact_record_signed(program, power))};
-    return held;
+    EdoubleRecordInterval interval = {value.down, value.up,
+                                      exact_record_sum(program, value.exponent, exact_record_signed(program, power))};
+    return interval;
 }
 
-EdoubleRecordHeld edouble_record_held_at(ExactRecordProgram *program, EdoubleRecordHeld value, long long exponent,
-                                         unsigned int bits, unsigned int range_bits)
+EdoubleRecordInterval edouble_record_interval_at(ExactRecordProgram *program, EdoubleRecordInterval value,
+                                                 long long exponent, unsigned int bits, unsigned int range_bits)
 {
     const unsigned int target = exact_record_signed(program, exponent);
     unsigned int down = 0u;
@@ -271,20 +274,21 @@ EdoubleRecordHeld edouble_record_held_at(ExactRecordProgram *program, EdoubleRec
         down = exact_record_select(program, lifting, exact_record_product(program, value.down, power), floor);
         up = exact_record_select(program, lifting, exact_record_product(program, value.up, power), ceiling);
     }
-    EdoubleRecordHeld held = {exact_record_wrap(program, down, bits), exact_record_wrap(program, up, bits), target};
-    return held;
+    EdoubleRecordInterval interval = {exact_record_wrap(program, down, bits), exact_record_wrap(program, up, bits),
+                                      target};
+    return interval;
 }
 
-EdoubleRecordHeld edouble_record_quotient(ExactRecordProgram *program, EdoubleRecord a, EdoubleRecord b,
-                                          unsigned int width, unsigned int divisor_bits)
+EdoubleRecordInterval edouble_record_quotient(ExactRecordProgram *program, EdoubleRecord a, EdoubleRecord b,
+                                              unsigned int width, unsigned int divisor_bits)
 {
     const unsigned int lift = width + divisor_bits;
     const unsigned int lifted = exact_record_product(program, a.mantissa, exact_record_power_two(program, lift));
-    EdoubleRecordHeld held;
-    edouble_record_floor_ceiling(program, lifted, b.mantissa, &held.down, &held.up);
-    held.exponent = exact_record_difference(program, exact_record_difference(program, a.exponent, b.exponent),
-                                            exact_record_constant(program, (unsigned long long)lift));
-    return held;
+    EdoubleRecordInterval interval;
+    edouble_record_floor_ceiling(program, lifted, b.mantissa, &interval.down, &interval.up);
+    interval.exponent = exact_record_difference(program, exact_record_difference(program, a.exponent, b.exponent),
+                                                exact_record_constant(program, (unsigned long long)lift));
+    return interval;
 }
 
 // ---- balls ----
@@ -452,7 +456,7 @@ EdoubleRecordBall edouble_record_ball_quotient(ExactRecordProgram *program, Edou
     const EdoubleRecord size_a = edouble_record_size(program, a.center);
     const EdoubleRecord size_b = edouble_record_size(program, b.center);
     const EdoubleRecord margin = edouble_record_difference(program, size_b, b.radius, 1u);
-    // b's ball holds no 0 where |c_b| - r_b is above 0; where it holds 0 every divisor is 1 and the flag is 0
+    // b's ball contains no 0 where |c_b| - r_b is above 0; where it contains 0 every divisor is 1 and the flag is 0
     const unsigned int clear = exact_record_above(program, margin.mantissa, exact_record_constant(program, 0ull));
     const unsigned int one = exact_record_constant(program, 1ull);
     const EdoubleRecord divisor = edouble_record_of(exact_record_select(program, clear, b.center.mantissa, one), b.center.exponent);

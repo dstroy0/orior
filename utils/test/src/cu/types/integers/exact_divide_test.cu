@@ -159,7 +159,7 @@ int main(void)
         divisor.limb[1] = 0u;
         divisor.limb[2] = 0x80000000u;
         divisor.sign = 1;
-        check("long division holds where the estimate runs high", divide_valid(&numerator, &divisor));
+        check("long division is correct where the estimate runs high", divide_valid(&numerator, &divisor));
     }
 
     {
@@ -268,7 +268,8 @@ int main(void)
              (remainder.sign == 0);
         passed_trials += ok ? 1u : 0u;
     }
-    check("the gcd divides both, holds the shared factor, and leaves coprime cofactors", passed_trials == GCD_TRIALS);
+    check("the gcd divides both, contains the shared factor, and leaves coprime cofactors",
+          passed_trials == GCD_TRIALS);
 
     // against Euclid on the long division, which is proved above apart from the gcd
     passed_trials = 0u;

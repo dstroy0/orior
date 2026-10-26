@@ -8,14 +8,14 @@
 #include "../command_line/cli_internal.h"
 
 // the compiler's settings the POM `pom`, `size` bytes of its text, gives, and Maven's own, written as an array of
-// `{"key", "group", "label", "value", "file", "settable"}`: where it is kept, its name and its value as written, the
+// `{"key", "group", "label", "value", "file", "settable"}`: where it is stored, its name and its value as written, the
 // file it is read from, and whether it can be set here
-void cli_maven_settings(const char *root, const char *pom, const char *text, unsigned long long size, CliLine *out);
+void cli_maven_settings(const char *root, const char *pom, const char *text, unsigned long long size, VerbaLinea *out);
 
 // the setting `key` set to `value`: in the POM `pom`, `size` bytes of its text, by the edits written into `out` as an
 // array of `{"path", "edits"}`; in the user's `settings.xml`, written to it, `[]` written into `out`: 1, or 0 with why
-// said
+// given
 int cli_maven_set(const char *pom, const char *text, unsigned long long size, const char *key, const char *value,
-                  CliLine *out, CliLine *said);
+                  VerbaLinea *out, VerbaLinea *err_msg);
 
 #endif

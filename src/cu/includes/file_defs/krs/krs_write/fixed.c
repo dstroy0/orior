@@ -13,7 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// the four fixed registers the kernel the system accepted leaves at its slot, in the order their lines are written
+// the four fixed registers the kernel the system accepted leaves at its probe place, in the order their lines are
+// written
 static const char *const s_fixed_names[] = {"zero", "lane_number", "record", "index"};
 
 #define KRS_FIXED_NAMES ((unsigned int)(sizeof(s_fixed_names) / sizeof(s_fixed_names[0])))
@@ -73,8 +74,8 @@ static const char *fixed_given_of(const KrsFixedGiven *given, unsigned int count
     return NULL;
 }
 
-// 1 where `name` is one of the four the kernel's slot answers for
-static int fixed_asked(const char *name)
+// 1 where `name` is one of the four the kernel's probe place answers for
+static int fixed_is_placeholder_name(const char *name)
 {
     for (unsigned int at = 0u; at < KRS_FIXED_NAMES; at += 1u)
     {
@@ -126,7 +127,7 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
     unsigned int written = 0u;
     size_t used = 0u;
     missing[0] = '\0';
-    // the given lines a row replaces with another text, kept in the .krf beside the .ksc
+    // the given lines a row replaces with another text, stored in the .krf beside the .ksc
     const char *removed[KRS_FIXED_NAMES];
     unsigned int removals = 0u;
     for (unsigned int name = 0u; name < KRS_FIXED_NAMES; name += 1u)
@@ -153,22 +154,22 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
             }
             continue;
         }
-        const char *const kept = fixed_given_of(s_given, givens, s_fixed_names[name]);
-        if (kept != NULL)
+        const char *const given_text = fixed_given_of(s_given, givens, s_fixed_names[name]);
+        if (given_text != NULL)
         {
-            *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = kept});
+            *at = verba_textus.put(&(VerbaTextusCfg){.out = out, .cap = cap, .at = *at, .text = given_text});
             *at = verba_littera.ch(&(VerbaLitteraCfg){.out = out, .cap = cap, .at = *at, .ch = '\n'});
             written += 1u;
             continue;
         }
         const int added = snprintf(missing + used, room - used, "%s%s", (used == 0u) ? "" : ", ", s_fixed_names[name]);
-        // snprintf counts what it would write, a count no wider than the room; what fits is what is kept
+        // snprintf counts what it would write, a count no wider than the room; what fits is what is written
         used += (added > 0) ? (size_t)added : 0u;
         used = (used < room) ? used : (room - 1u);
     }
     for (unsigned int given = 0u; given < givens; given += 1u)
     {
-        if (fixed_asked(s_given[given].name))
+        if (fixed_is_placeholder_name(s_given[given].name))
         {
             continue;
         }
@@ -182,7 +183,7 @@ unsigned int krs_fixed_written(char *out, size_t cap, size_t *at, const char *ks
         krf_path_beside(ksc_path, krf, sizeof(krf));
         if (!krf_removed(krf, "krs", "replaced", removed, removals))
         {
-            printf("  orior_krs_write: %u fixed lines a row replaced could not be kept in %s\n", removals, krf);
+            printf("  orior_krs_write: %u fixed lines a row replaced could not be stored in %s\n", removals, krf);
         }
     }
     return written;

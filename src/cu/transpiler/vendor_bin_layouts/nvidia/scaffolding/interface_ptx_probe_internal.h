@@ -4,15 +4,15 @@
 #ifndef INTERFACE_PTX_PROBE_INTERNAL_H
 #define INTERFACE_PTX_PROBE_INTERNAL_H
 
-// A probe for the interface's PTX test (engine_table.md item 11(f) 4): questions asked of the device in the ruleset's own
-// words. Each question's kernel is written from ptx.krs, one form by its name at a time (target.h), around a kernel of
-// this probe's own that loads a case's eight input words and stores four output words, and nvJitLink assembles it as
-// the engine's PTX path does. The header is asked of NVRTC. One question a process, named by the first word:
+// A probe for the interface's PTX test (engine_table.md item 11(f) 4): questions queried of the device in the ruleset's
+// own words. Each question's kernel is written from ptx.krs, one form by its name at a time (target.h), around a kernel
+// of this probe's own that loads a case's eight input words and stores four output words, and nvJitLink assembles it as
+// the engine's PTX path does. The header is requested of NVRTC. One question a process, named by the first word:
 //   membership   every arithmetic, test and conversion form the code generator writes, over 65,536 cases of input
 //   words, each
 //                answer checked against the host's integers; a form's answer where PTX leaves it undefined (a divisor
 //                of 0) is printed and not checked. Exit 0 where every defined answer agrees, 1 where one does not
-//   address      a load from address 16, which no allocation holds
+//   address      a load from address 16, which no allocation covers
 //   misaligned   a 32-bit load from an address one byte past an allocation's start
 //   trap         PTX's trap instruction
 //   lacking      elect.sync, which PTX gives sm_90 and later, in a kernel for this device
@@ -21,7 +21,7 @@
 //                SASS probe (interface_sass_probe.c), nothing run
 // A question the device errors prints "error <code> <name>" for the CUDA error it gave, then the error the next
 // allocation gives, "after <code> <name>", and exits 3. One the toolchain errors prints "errored" and its log, and
-// exits 4. Exit 2 where the probe could not ask at all
+// exits 4. Exit 2 where the probe could not query at all
 #include "../../../../engine/rmc/machine_ir_builder.h"
 #include "ptx_target.h"
 
@@ -48,7 +48,7 @@
 // the answer the host's integers give a case: the output words, and 0 where the rule leaves the answer undefined
 typedef std::function<int(const unsigned int *in, unsigned int *out)> ProbeRule;
 
-// one question: its name, the forms that ask it as the kernel's body, the output words it writes and the host's rule
+// one question: its name, the forms that pose it as the kernel's body, the output words it writes and the host's rule
 struct ProbeQuestion
 {
     std::string name;

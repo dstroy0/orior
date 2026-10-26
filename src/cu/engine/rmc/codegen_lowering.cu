@@ -29,7 +29,7 @@ void codegen_device_release(DeviceArena *memory)
     memory->allocations.clear();
 }
 
-// the blocks a kernel over `count` threads takes; 0 where the count is past a grid, which the callers hold below
+// the blocks a kernel over `count` threads takes; 0 where the count is past a grid, which the callers bound below
 unsigned int codegen_device_blocks(unsigned long long count)
 {
     return (unsigned int)((count + CODEGEN_THREADS - 1u) / CODEGEN_THREADS);
@@ -41,25 +41,25 @@ void codegen_device_launched(DeviceArena *memory)
     memory->ok = (memory->ok != 0) && (cudaGetLastError() == cudaSuccess);
 }
 
-// the assembly printer laid out by the device from what a build kept of it, into `text_layout`, which the caller gives
-// back by key_schedule_record_release: 1 where it is laid out, else 0 and why
+// the assembly printer laid out by the device from what a build retained of it, into `text_layout`, which the caller
+// gives back by key_schedule_record_release: 1 where it is laid out, else 0 and why
 int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLayout *text_layout, std::string *error)
 {
-    const AsmPrinterProgram &kept = *program;
+    const AsmPrinterProgram &host_program = *program;
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {ASM_PRINTER_RECORD_LIMBS, 0u, 0u};
     LayoutRequest request{};
-    request.steps = kept.steps.data();
+    request.steps = host_program.steps.data();
     // the assembly printer's steps are a few hundred, and its fields and tables a handful
-    request.count = (unsigned int)kept.steps.size();
-    request.field_bits = kept.field_bits.data();
-    request.field_offset = kept.field_offset.data();
-    request.fields = (unsigned int)kept.field_bits.size();
+    request.count = (unsigned int)host_program.steps.size();
+    request.field_bits = host_program.field_bits.data();
+    request.field_offset = host_program.field_offset.data();
+    request.fields = (unsigned int)host_program.field_bits.size();
     request.members = 1u;
     request.in_limbs = in_limbs;
-    request.outputs = &kept.output;
+    request.outputs = &host_program.output;
     request.output_count = 1u;
-    request.tables = kept.tables.data();
-    request.table_count = (unsigned int)kept.tables.size();
+    request.tables = host_program.tables.data();
+    request.table_count = (unsigned int)host_program.tables.size();
     request.reuse = 1;
     std::string why;
     if (layout_device(&request, text_layout, &why) == 0)
@@ -70,9 +70,9 @@ int asm_printer_program_device(const AsmPrinterProgram *program, EngineRecordLay
     return 1;
 }
 
-// the assembly printer laid out by the device from what asm_printer_ruleset_build kept of it, into `text_layout`, which
-// the caller gives back by key_schedule_record_release: 1 where it is laid out and is the host's word for word, else 0
-// and why
+// the assembly printer laid out by the device from what asm_printer_ruleset_build retained of it, into `text_layout`,
+// which the caller gives back by key_schedule_record_release: 1 where it is laid out and is the host's word for word,
+// else 0 and why
 int asm_printer_program_placed(const AsmPrinterRuleset *text_rules, EngineRecordLayout *text_layout,
                                std::string *error)
 {
@@ -103,12 +103,12 @@ static void codegen_device_move(DeviceArena *memory, MachineInstr *to, const Mac
 // The lane's forms decided on the device, in `device_arena`, which the caller frees, from the step table at
 // `device_steps`, in device memory, and the rest of `layout`'s sizes, whose own step table is not read, each form's
 // construct taking its scratch from `scratch`, `scratch_count` words (ruleset_scratch): in the text's order at
-// `*text_items`, `*item_count` of them. Where `costs` is given, the body is split into states by it and `report` told
-// how, as CodeGenerator::decided splits it. The forms are decided in three phases, each counted and then written, the
-// lane going on from one to the next in device memory: the steps' forms and the lane's own through its close; the
-// schedule; the body's opening and the end. Every count that sizes the device's memory comes back to the host once: the
-// step forms' total and the summary after the steps are counted, each phase's parts after they are counted, and the
-// schedule's forms
+// `*text_items`, `*item_count` of them. Where `costs` is given, the body is split into states by it and `report`
+// informed how, as CodeGenerator::decided splits it. The forms are decided in three phases, each counted and then
+// written, the lane going on from one to the next in device memory: the steps' forms and the lane's own through its
+// close; the schedule; the body's opening and the end. Every count that sizes the device's memory comes back to the
+// host once: the step forms' total and the summary after the steps are counted, each phase's parts after they are
+// counted, and the schedule's forms
 int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *layout,
                           const DeviceRecordStep *device_steps, const unsigned int *scratch,
                           unsigned long long scratch_count, unsigned int places, const ScheduleCosts *costs,
@@ -192,9 +192,9 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     }
     const unsigned long long stepped = codegen_device_scan(&memory, counts, item_first, steps);
     codegen_device_read(&memory, summary, device_summary, CODEGEN_SUMMARY);
-    if ((memory.ok != 0) && (summary[CODEGEN_UNHELD] != 0u))
+    if ((memory.ok != 0) && (summary[CODEGEN_STEP_FAILED] != 0u))
     {
-        *error = "a step is one the lane does not hold";
+        *error = "a step is one the lane does not support";
         return 0;
     }
     if (memory.ok != 0)
@@ -224,7 +224,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     }
     if ((memory.ok != 0) && (first_count >= CODEGEN_COUNT_MAX))
     {
-        *error = "the lane holds more forms than a scan counts";
+        *error = "the lane contains more forms than a scan counts";
         return 0;
     }
     memory.ok =
@@ -274,7 +274,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
         scheduled_count = schedule_end.count;
         if ((memory.ok != 0) && (scheduled_count >= CODEGEN_COUNT_MAX))
         {
-            *error = "the split lane holds more forms than a scan counts";
+            *error = "the split lane contains more forms than a scan counts";
             return 0;
         }
         scheduled_instrs = codegen_device_take<MachineInstr>(&memory, scheduled_count);
@@ -320,7 +320,7 @@ int codegen_device_decide(DeviceArena *device_arena, const EngineRecordLayout *l
     const unsigned long long total = head + last_count + body_written;
     if ((memory.ok != 0) && (total >= CODEGEN_COUNT_MAX))
     {
-        *error = "the lane holds more forms than a scan counts";
+        *error = "the lane contains more forms than a scan counts";
         return 0;
     }
     MachineInstr *const text = codegen_device_take<MachineInstr>(&memory, total);

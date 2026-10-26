@@ -68,7 +68,7 @@ static const PiTowerRecord &pi_tower_record_before(const std::vector<PiTowerReco
 
 // whether the steps 0 .. count - 1 touch every cell of width cell. The count points cut the circle into count gaps of
 // at most three lengths (Sos): point i is followed by i + u where i < count - u, by i - v where i >= v, and by
-// i + u - v between, u and v being the lowest and highest standing steps below count. A gap from p holds a whole
+// i + u - v between, u and v being the lowest and highest standing steps below count. A gap from p contains a whole
 // empty cell exactly where (p mod cell) + gap >= 2 cell, and p mod cell is the turn by A mod cell on cell.
 int pi_tower_covered(const PiTowerTurn &turn, const PiWide &cell, const PiWide &count)
 {
@@ -108,7 +108,7 @@ int pi_tower_covered(const PiTowerTurn &turn, const PiWide &cell, const PiWide &
     return 1;
 }
 
-void pi_tower_print_decimal(ScripturaLine *line, PiWide value)
+void pi_tower_print_decimal(VerbaLinea *line, PiWide value)
 {
     const PiWide chunk = pi_tower_unsigned(1000000000000000000ull);
     std::vector<unsigned long long> parts;
@@ -117,19 +117,19 @@ void pi_tower_print_decimal(ScripturaLine *line, PiWide value)
         parts.push_back(pi_tower_word(pi_tower_remainder(value, chunk)));
         value = pi_tower_quotient(value, chunk);
     } while (value.sign != 0);
-    scriptura_decimal(line, parts.back(), 1u);
+    mmgr_line_decimal(line, parts.back(), 1u);
     for (size_t at = parts.size() - 1u; at > 0u; at -= 1u)
     {
-        scriptura_decimal(line, parts[at - 1u], 18u);
+        mmgr_line_decimal(line, parts[at - 1u], 18u);
     }
 }
 
 // numerator / denominator in exponent notation, four significant digits
-void pi_tower_print_exponent(ScripturaLine *line, PiWide numerator, PiWide denominator)
+void pi_tower_print_exponent(VerbaLinea *line, PiWide numerator, PiWide denominator)
 {
     if (numerator.sign == 0)
     {
-        scriptura_character(line, '0');
+        mmgr_line_ch(line, '0');
         return;
     }
     const PiWide ten = pi_tower_unsigned(10ull);
@@ -146,11 +146,11 @@ void pi_tower_print_exponent(ScripturaLine *line, PiWide numerator, PiWide denom
     }
     const unsigned long long digits =
         pi_tower_word(pi_tower_quotient(pi_tower_product(numerator, pi_tower_unsigned(1000ull)), denominator));
-    scriptura_decimal(line, digits / 1000ull, 1u);
-    scriptura_character(line, '.');
-    scriptura_decimal(line, digits % 1000ull, 3u);
-    scriptura_character(line, 'e');
-    scriptura_signed(line, exponent);
+    mmgr_line_decimal(line, digits / 1000ull, 1u);
+    mmgr_line_ch(line, '.');
+    mmgr_line_decimal(line, digits % 1000ull, 3u);
+    mmgr_line_ch(line, 'e');
+    mmgr_line_decimal_signed(line, exponent);
 }
 
 // pi 2^(precision + PI_TOWER_GUARD) strictly between low and high by Machin's formula, and A = floor(alpha 2^precision)
@@ -182,16 +182,16 @@ int pi_tower_bracket(SimResults *results, unsigned int precision, PiWide *alpha,
     unsigned long long terms = 0ull;
     const int agree = pi_tower_machin(precision, alpha, low, high, &terms);
     const unsigned long long leading = pi_tower_word(pi_tower_quotient(*alpha, pi_tower_power_two(precision - 64u)));
-    scriptura_text(&results->line, "  pi by Machin's formula at ");
-    scriptura_decimal(&results->line, bits, 1u);
-    scriptura_text(&results->line, " bits, ");
-    scriptura_decimal(&results->line, terms, 1u);
-    scriptura_text(&results->line, " terms; after the point it begins 0x");
+    mmgr_line_put(&results->line, "  pi by Machin's formula at ");
+    mmgr_line_decimal(&results->line, bits, 1u);
+    mmgr_line_put(&results->line, " bits, ");
+    mmgr_line_decimal(&results->line, terms, 1u);
+    mmgr_line_put(&results->line, " terms; after the point it begins 0x");
     for (unsigned int nibble = 16u; nibble > 0u; nibble -= 1u)
     {
-        scriptura_character(&results->line, "0123456789ABCDEF"[(leading >> (4u * (nibble - 1u))) & 15ull]);
+        mmgr_line_ch(&results->line, "0123456789ABCDEF"[(leading >> (4u * (nibble - 1u))) & 15ull]);
     }
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_check(results, agree,
               "floor(pi 2^P) is one integer at both ends of Machin's bracket, at the turn's precision P");
     sim_check(results, leading == PI_TOWER_PUBLISHED_BITS, "pi's first 64 bits after the point are 0x243F6A8885A308D3");
@@ -232,17 +232,17 @@ void pi_tower_floors(SimResults *results, const PiTowerTurn &turn, std::vector<P
         denominators->push_back(denominator);
         floors->push_back(lower[at]);
     }
-    scriptura_text(&results->line, "  ");
-    scriptura_decimal(&results->line, certified, 1u);
-    scriptura_text(&results->line, " floors certified by the bracket: pi = [3; ");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_decimal(&results->line, certified, 1u);
+    mmgr_line_put(&results->line, " floors certified by the bracket: pi = [3; ");
     for (size_t at = 0u; (at < certified) && (at < 40u); at += 1u)
     {
-        scriptura_decimal(&results->line, pi_tower_word(lower[at]), 1u);
-        scriptura_text(&results->line, (at + 1u < certified) ? ", " : "]\n");
+        mmgr_line_decimal(&results->line, pi_tower_word(lower[at]), 1u);
+        mmgr_line_put(&results->line, (at + 1u < certified) ? ", " : "]\n");
     }
     if (certified > 40u)
     {
-        scriptura_text(&results->line, "...]\n");
+        mmgr_line_put(&results->line, "...]\n");
     }
     sim_check(results, agree,
               "the certified floors begin 7, 15, 1, 292, 1, 1, 1, 2, 1, 3, 1, 14, 2, 1, 1, 2, 2, 2, 2, 1, 84");
@@ -293,29 +293,29 @@ void pi_tower_floors(SimResults *results, const PiTowerTurn &turn, std::vector<P
     {
         matched += 1u;
     }
-    scriptura_text(&results->line, "  floor j, turns on it a_j, the step q_j of its closest return, and how close\n");
+    mmgr_line_put(&results->line, "  floor j, turns on it a_j, the step q_j of its closest return, and how close\n");
     for (size_t at = 0u; at < floors_in_bound; at += 1u)
     {
         const PiWide place = pi_tower_remainder(pi_tower_product(turn.multiplier, (*denominators)[at]), turn.modulus);
         const PiWide mirror = pi_tower_difference(turn.modulus, place);
-        scriptura_text(&results->line, "    ");
-        scriptura_decimal(&results->line, at, 2u);
-        scriptura_text(&results->line, "  a ");
+        mmgr_line_put(&results->line, "    ");
+        mmgr_line_decimal(&results->line, at, 2u);
+        mmgr_line_put(&results->line, "  a ");
         pi_tower_print_decimal(&results->line, (*floors)[at]);
-        scriptura_text(&results->line, "  q ");
+        mmgr_line_put(&results->line, "  q ");
         pi_tower_print_decimal(&results->line, (*denominators)[at]);
-        scriptura_text(&results->line, "  ||q pi|| ");
+        mmgr_line_put(&results->line, "  ||q pi|| ");
         pi_tower_print_exponent(&results->line, (pi_tower_compare(place, mirror) < 0) ? place : mirror, turn.modulus);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_ch(&results->line, '\n');
         sim_flush(results);
     }
-    scriptura_text(&results->line, "  the turn's closest returns to 2^112 steps: ");
-    scriptura_decimal(&results->line, returns.size(), 1u);
-    scriptura_text(&results->line, "; the floors' q_j to 2^112: ");
-    scriptura_decimal(&results->line, floors_in_bound, 1u);
-    scriptura_text(&results->line, "; equal in order: ");
-    scriptura_decimal(&results->line, matched, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, "  the turn's closest returns to 2^112 steps: ");
+    mmgr_line_decimal(&results->line, returns.size(), 1u);
+    mmgr_line_put(&results->line, "; the floors' q_j to 2^112: ");
+    mmgr_line_decimal(&results->line, floors_in_bound, 1u);
+    mmgr_line_put(&results->line, "; equal in order: ");
+    mmgr_line_decimal(&results->line, matched, 1u);
+    mmgr_line_ch(&results->line, '\n');
     sim_check(results, (matched == returns.size()) && (matched == floors_in_bound) && (matched > 40u),
               "the turn's closest returns are exactly the floors' convergent denominators, to 2^112 steps");
     sim_flush(results);

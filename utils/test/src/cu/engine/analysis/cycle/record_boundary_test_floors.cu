@@ -34,7 +34,7 @@ void boundary_floors(BoundaryResults *results)
     BoundaryTower *const back = (BoundaryTower *)calloc(1u, sizeof(BoundaryTower));
     if ((program == NULL) || (tower == NULL) || (back == NULL))
     {
-        boundary_check(results, 0, "the floors are held");
+        boundary_check(results, 0, "the floors are allocated");
         free(program);
         free(tower);
         free(back);
@@ -169,45 +169,45 @@ void boundary_floors(BoundaryResults *results)
             ring_widest = ring_widest && (ring[(2u * BOUNDARY_TEST_LEVELS) - level] <= ring[BOUNDARY_TEST_LEVELS]);
         }
     }
-    scriptura_text(&results->line, "  floors: ");
-    scriptura_decimal(&results->line, program->count, 1u);
-    scriptura_text(&results->line, " steps, file ");
-    scriptura_decimal(&results->line, loaded.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs, ");
-    scriptura_decimal(&results->line, program->output_count, 1u);
-    scriptura_text(&results->line, " outputs; ");
-    scriptura_decimal(&results->line, rebuilt, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes rebuilt, ");
-    scriptura_decimal(&results->line, mirrored, 1u);
-    scriptura_text(&results->line, " with the heap mirrored at every floor, ");
-    scriptura_decimal(&results->line, within, 1u);
-    scriptura_text(&results->line, " inside the ring\n    ring by floor:");
+    mmgr_line_put(&results->line, "  floors: ");
+    mmgr_line_decimal(&results->line, program->count, 1u);
+    mmgr_line_put(&results->line, " steps, file ");
+    mmgr_line_decimal(&results->line, loaded.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs, ");
+    mmgr_line_decimal(&results->line, program->output_count, 1u);
+    mmgr_line_put(&results->line, " outputs; ");
+    mmgr_line_decimal(&results->line, rebuilt, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes rebuilt, ");
+    mmgr_line_decimal(&results->line, mirrored, 1u);
+    mmgr_line_put(&results->line, " with the heap mirrored at every floor, ");
+    mmgr_line_decimal(&results->line, within, 1u);
+    mmgr_line_put(&results->line, " inside the ring\n    ring by floor:");
     for (unsigned int floor = 0u; floor < BOUNDARY_TEST_FLOORS; floor += 1u)
     {
-        scriptura_character(&results->line, ' ');
-        scriptura_decimal(&results->line, ring[floor], 1u);
+        mmgr_line_ch(&results->line, ' ');
+        mmgr_line_decimal(&results->line, ring[floor], 1u);
     }
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     const char *const names[BOUNDARY_TEST_CLASSES] = {"ramp", "ramp +-8", "ramp +-1024", "noise"};
     unsigned long long pinch_top[BOUNDARY_TEST_CLASSES];
     unsigned long long pinch_bottom[BOUNDARY_TEST_CLASSES];
     for (unsigned int kind = 0u; kind < BOUNDARY_TEST_CLASSES; kind += 1u)
     {
-        scriptura_text(&results->line, "    heap by floor, ");
-        scriptura_text(&results->line, names[kind]);
-        scriptura_text(&results->line, ":");
+        mmgr_line_put(&results->line, "    heap by floor, ");
+        mmgr_line_put(&results->line, names[kind]);
+        mmgr_line_put(&results->line, ":");
         for (unsigned int floor = 0u; floor < BOUNDARY_TEST_FLOORS; floor += 1u)
         {
-            scriptura_character(&results->line, ' ');
-            scriptura_decimal(&results->line, heap[kind][floor] / BOUNDARY_TEST_CLASS_LANES, 1u);
+            mmgr_line_ch(&results->line, ' ');
+            mmgr_line_decimal(&results->line, heap[kind][floor] / BOUNDARY_TEST_CLASS_LANES, 1u);
         }
         pinch_top[kind] = heap[kind][0];
         pinch_bottom[kind] = heap[kind][BOUNDARY_TEST_LEVELS];
-        scriptura_text(&results->line, "; pinch ");
+        mmgr_line_put(&results->line, "; pinch ");
         boundary_hundredths(&results->line, pinch_top[kind], pinch_bottom[kind]);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_ch(&results->line, '\n');
     }
     int ordered = 1;
     for (unsigned int kind = 1u; kind < BOUNDARY_TEST_CLASSES; kind += 1u)
@@ -245,7 +245,7 @@ void boundary_top(BoundaryResults *results)
     const unsigned int divisors[BOUNDARY_TEST_TOP_SETTINGS] = {3u, 5u, 12345u};
     const unsigned int lanes = BOUNDARY_TEST_TOP_LANES;
     unsigned long long commuted = 0ull;
-    unsigned long long kept = 0ull;
+    unsigned long long retained = 0ull;
     unsigned long long tied = 0ull;
     unsigned long long near = 0ull;
     unsigned long long carried = 0ull;
@@ -308,7 +308,7 @@ void boundary_top(BoundaryResults *results)
                 value[at] = boundary_read(record, &loaded.layout.step_table[outputs[at]]);
             }
             commuted += (value[0] == value[1]) ? 1ull : 0ull;
-            kept += ((value[3] == 0ll) || (value[3] == value[2])) ? 1ull : 0ull;
+            retained += ((value[3] == 0ll) || (value[3] == value[2])) ? 1ull : 0ull;
             tied += ((value[3] == 0ll) && (value[2] != 0ll)) ? 1ull : 0ull;
             const long long off = value[4] - value[5];
             near += ((off >= -1ll) && (off <= 1ll)) ? 1ull : 0ull;
@@ -322,26 +322,26 @@ void boundary_top(BoundaryResults *results)
         boundary_free(&loaded);
     }
     const unsigned long long total = (unsigned long long)BOUNDARY_TEST_TOP_SETTINGS * lanes;
-    scriptura_text(&results->line, "  top projection, x / 2^k for k = 3, 7, 5 and c = 3, 5, 12345 over ");
-    scriptura_decimal(&results->line, total, 1u);
-    scriptura_text(&results->line, " lanes: nested quotients agree on ");
-    scriptura_decimal(&results->line, commuted, 1u);
-    scriptura_text(&results->line, ", the order is kept on ");
-    scriptura_decimal(&results->line, kept, 1u);
-    scriptura_text(&results->line, " (tied on ");
-    scriptura_decimal(&results->line, tied, 1u);
-    scriptura_text(&results->line, "), the sum is within one on ");
-    scriptura_decimal(&results->line, near, 1u);
-    scriptura_text(&results->line, " (carried on ");
-    scriptura_decimal(&results->line, carried, 1u);
-    scriptura_text(&results->line, "); the 8-bit wrap reverses the order on ");
-    scriptura_decimal(&results->line, reversed, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, "  top projection, x / 2^k for k = 3, 7, 5 and c = 3, 5, 12345 over ");
+    mmgr_line_decimal(&results->line, total, 1u);
+    mmgr_line_put(&results->line, " lanes: nested quotients agree on ");
+    mmgr_line_decimal(&results->line, commuted, 1u);
+    mmgr_line_put(&results->line, ", the order is preserved on ");
+    mmgr_line_decimal(&results->line, retained, 1u);
+    mmgr_line_put(&results->line, " (tied on ");
+    mmgr_line_decimal(&results->line, tied, 1u);
+    mmgr_line_put(&results->line, "), the sum is within one on ");
+    mmgr_line_decimal(&results->line, near, 1u);
+    mmgr_line_put(&results->line, " (carried on ");
+    mmgr_line_decimal(&results->line, carried, 1u);
+    mmgr_line_put(&results->line, "); the 8-bit wrap reverses the order on ");
+    mmgr_line_decimal(&results->line, reversed, 1u);
+    mmgr_line_ch(&results->line, '\n');
     boundary_check(results, ran_all != 0, "the top projections run on the host and the device, word for word");
     boundary_check(results, commuted == total,
                    "the quotient by c passes through the top projection: (x / 2^k) / c = (x / c) / 2^k");
-    boundary_check(results, kept == total, "the top projection never reverses a comparison, it only ties");
+    boundary_check(results, retained == total, "the top projection never reverses a comparison, it only ties");
     boundary_check(results, (near == total) && (carried != 0ull),
                    "a sum through the top projection is off by the carry from below, at most one");
-    boundary_check(results, reversed != 0ull, "the 8-bit wrap reverses comparisons the top projection keeps");
+    boundary_check(results, reversed != 0ull, "the 8-bit wrap reverses comparisons the top projection preserves");
 }

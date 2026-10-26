@@ -37,7 +37,7 @@ void orior_counters_reset(void)
  * @param[out] offsets    Where the chosen offsets are written [BORROWS].
  * @param[in]  wanted     How many to choose, at least one.
  * @param[in]  needle_len Length of the needle they index.
- * @note One draw per cell keeps the spread and gives the anchor set no period of its own. An even
+ * @note One draw per cell preserves the spread and gives the anchor set no period of its own. An even
  *       comb shares a period with whatever the domain carries, the failure this avoids.
  * @warning A needle of length zero has no in-range offset to choose. The clamp below computes
  *          needle_len - 1u, and on size_t that wraps to SIZE_MAX instead of saturating. Every
@@ -49,22 +49,22 @@ void choose_offsets(size_t *offsets, size_t wanted, size_t needle_len)
 {
     if (needle_len == 0u)
     {
-        for (size_t slot = 0u; slot < wanted; slot += 1u)
+        for (size_t at = 0u; at < wanted; at += 1u)
         {
-            offsets[slot] = 0u;
+            offsets[at] = 0u;
         }
         return;
     }
 
     const size_t cell = needle_len / wanted;
 
-    for (size_t slot = 0u; slot < wanted; slot += 1u)
+    for (size_t at = 0u; at < wanted; at += 1u)
     {
-        const size_t inside = (cell > 1u) ? ((slot * 7u) % cell) : 0u;
-        offsets[slot] = (slot * cell) + inside;
-        if (offsets[slot] >= needle_len)
+        const size_t inside = (cell > 1u) ? ((at * 7u) % cell) : 0u;
+        offsets[at] = (at * cell) + inside;
+        if (offsets[at] >= needle_len)
         {
-            offsets[slot] = needle_len - 1u;
+            offsets[at] = needle_len - 1u;
         }
     }
 }
@@ -119,17 +119,17 @@ static size_t sift_inorder_n(const uint8_t *corpus, size_t corpus_len, const uin
 
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
-        size_t slot = 0u;
-        while (slot < anchors)
+        size_t index = 0u;
+        while (index < anchors)
         {
             ORIOR_PROBED();
-            if (corpus[at + offsets[slot]] != needle[offsets[slot]])
+            if (corpus[at + offsets[index]] != needle[offsets[index]])
             {
                 break;
             }
-            slot += 1u;
+            index += 1u;
         }
-        if (slot == anchors)
+        if (index == anchors)
         {
             ORIOR_VERIFIED();
             if (memcmp(corpus + at, needle, needle_len) == 0)
@@ -163,9 +163,9 @@ size_t orior_free(const uint8_t *corpus, size_t corpus_len, const uint8_t *needl
     size_t found = 0u;
 
     choose_offsets(offsets, ORIOR_ANCHORS, needle_len);
-    for (size_t slot = 0u; slot < ORIOR_ANCHORS; slot += 1u)
+    for (size_t index = 0u; index < ORIOR_ANCHORS; index += 1u)
     {
-        wanted[slot] = needle[offsets[slot]];
+        wanted[index] = needle[offsets[index]];
     }
 
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
@@ -193,7 +193,7 @@ OriorEngine orior_choose(const OriorPlan *plan)
     // No plan is no statistics, and the engine that needs none is the naive one. BOTH POINTERS ARE
     // TESTED HERE and neither test is delegated to the callee. orior_steer_prefers_free returns 0
     // on a null census. Delegating would work and would leave this function reading as though it
-    // dereferences an unchecked pointer. The next person to read it could not tell it is safe
+    // dereferences an unchecked pointer. The next person to read it could not determine it is safe
     // without opening another file.
     if ((plan == NULL) || (plan->census == NULL))
     {
@@ -205,7 +205,7 @@ OriorEngine orior_choose(const OriorPlan *plan)
     // enough to make the loop trip count vary, and a varying trip count costs a mispredicted branch
     // per alignment. The branchless engine exists to avoid that.
     //
-    // THE RULE IS AN EXACT INTEGER COMPARISON. It asks whether the effective alphabet 2^H2 reaches
+    // THE RULE IS AN EXACT INTEGER COMPARISON. It tests whether the effective alphabet 2^H2 reaches
     // 85/100 of the symbols used: how close it has to sit to the symbols actually used before a
     // corpus counts as memoryless. Writing 2^H2 as total^2 over the sum of squared counts clears
     // both denominators and leaves
@@ -215,7 +215,7 @@ OriorEngine orior_choose(const OriorPlan *plan)
     // which is a comparison between two exact integers, carried in the limb form where it outgrows
     // 64 bits. No logarithm is taken, no series is evaluated, and the threshold is the exact rational
     // 85/100. Every threshold from 0.34 to 0.96 scores identically on the corpora, which read 0.96,
-    // 0.33 and 1.00 with nothing between. orior_steer_prefers_free holds the comparison, and the
+    // 0.33 and 1.00 with nothing between. orior_steer_prefers_free contains the comparison, and the
     // sweep in test_steer grades it.
     return orior_steer_prefers_free(plan->census) ? orior_free : orior_inorder;
 }
@@ -243,7 +243,7 @@ size_t orior_run(const OriorPlan *plan, const uint8_t *corpus, size_t corpus_len
 {
     const OriorEngine chosen = orior_choose(plan);
 
-    // Held and dispatched and not re-asked, because the choice is three ways and not two.
+    // Stored and dispatched and not re-tested, because the choice is three ways and not two.
     // Reaching the tail on a null plan would run the in order engine with the full anchor set,
     // the outcome the guard in orior_choose prevents.
     if (chosen == orior_naive)

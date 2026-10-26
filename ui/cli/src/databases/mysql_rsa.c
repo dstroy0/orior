@@ -235,14 +235,14 @@ static int rsa_element(const unsigned char *der, unsigned long long size, unsign
     return 1;
 }
 
-// the key a PEM holds, as a SubjectPublicKeyInfo or as PKCS #1's RSAPublicKey: its modulus and exponent, and the
-// modulus's length in bytes into `length`: 1, or 0 where it holds none
+// the key a PEM contains, as a SubjectPublicKeyInfo or as PKCS #1's RSAPublicKey: its modulus and exponent, and the
+// modulus's length in bytes into `length`: 1, or 0 where it contains none
 static int rsa_public_key(const char *pem, unsigned long long size, CliBig *modulus, CliBig *exponent,
                           unsigned long long *length)
 {
     static char s_body[CLI_RSA_DER * 2u];
     static unsigned char s_der[CLI_RSA_DER];
-    CliLine body = {s_body, sizeof(s_body), 0ull};
+    VerbaLinea body = {s_body, sizeof(s_body), 0ull};
     for (unsigned long long at = 0ull; at < size;)
     {
         const char *const newline =
@@ -250,12 +250,12 @@ static int rsa_public_key(const char *pem, unsigned long long size, CliBig *modu
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - pem) : size;
         if ((end - at < 5u) || (memor.cmp(&(MemoriaCfg){.src = pem + at, .other = "-----", .bytes = 5u}) != 0))
         {
-            cli_line_counted(&body, pem + at, end - at);
+            mmgr_line_put_n(&body, pem + at, end - at);
         }
         at = end + 1ull;
     }
     unsigned long long der_size = 0ull;
-    if (!cli_line_fits(&body) || !cli_unbase64(body.out, body.at, s_der, sizeof(s_der), &der_size))
+    if (!mmgr_line_ok(&body) || !cli_unbase64(body.out, body.at, s_der, sizeof(s_der), &der_size))
     {
         return 0;
     }
@@ -356,7 +356,7 @@ void cli_mysql_oaep(const unsigned char *message, unsigned long long size, const
 }
 
 int cli_mysql_rsa_sealed(const char *pem, unsigned long long pem_size, const unsigned char *message,
-                         unsigned long long size, unsigned char *out, unsigned long long *out_size, CliLine *said)
+                         unsigned long long size, unsigned char *out, unsigned long long *out_size, VerbaLinea *err_msg)
 {
     static CliBig s_modulus;
     static CliBig s_exponent;
@@ -370,13 +370,13 @@ int cli_mysql_rsa_sealed(const char *pem, unsigned long long pem_size, const uns
     if (!rsa_public_key(pem, pem_size, &s_modulus, &s_exponent, &length))
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "the server's RSA key could not be read");
+        mmgr_line_put(err_msg, "the server's RSA key could not be read");
         return 0;
     }
     if ((size + 42u > length) || !cli_random_bytes(seed, sizeof(seed)))
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "the password is too long for the server's RSA key");
+        mmgr_line_put(err_msg, "the password is too long for the server's RSA key");
         return 0;
     }
     cli_mysql_oaep(message, size, seed, length, padded);
@@ -390,7 +390,7 @@ int cli_mysql_rsa_sealed(const char *pem, unsigned long long pem_size, const uns
     cli_lock_give(&s_lock);
     if (!sealed)
     {
-        cli_line_text(said, "the server's RSA key is longer than orior_cli takes");
+        mmgr_line_put(err_msg, "the server's RSA key is longer than orior_cli takes");
     }
     return sealed;
 }

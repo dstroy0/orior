@@ -1,4 +1,4 @@
-# Bits the disassembler does not print, asked of the part
+# Bits the disassembler does not print, probed on the part
 
 Written by `interface_sass_probe_unprinted` (`interface_sass_unprinted.sh`) whole on every run. Each row is one value of the field written into the question's instruction and run on the part over the case 0xb, 0x7. A value that answers as printed leaves the field without effect on that question.
 
@@ -25,7 +25,7 @@ Each question's lines, put in place of the kernel's `IADD3`:
 19. `STG.E term[UR4][R4.64+0x8], R0`; `LDG.E.CONSTANT R7, term[UR4][R4.64+0x8]`
 20. `STG.E term[UR4][R4.64+0x8], R0`; `LDG.E.CONSTANT R7, term[UR4][R4.64+0x8]`
 
-| question | instruction | bits | the form holds | value | answer |
+| question | instruction | bits | the form contains | value | answer |
 |---|---|---|---|---|---|
 | 1 | `IMAD.IADD R7, R0, 0x1, R7` | 87-90 | 1111 | 0000 | 00000012, as printed |
 | 1 | `IMAD.IADD R7, R0, 0x1, R7` | 87-90 | 1111 | 0001 | 00000012, as printed |
@@ -128,134 +128,134 @@ Each question's lines, put in place of the kernel's `IADD3`:
 | 9 | `LDG.E.CONSTANT R7, term[UR4][R2.64], !P1` | none |  |  | 00000000, as printed |
 | 10 | `LDG.E.CONSTANT R7, term[UR4][R2.64], !P2` | none |  |  | 0000000b, as printed |
 | 11 | `LDG.E.CONSTANT R7, term[UR4][R2.64], !PT` | none |  |  | 00000000, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000110 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 000111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001110 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 001111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010110 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 010111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011110 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 011111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100110 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 100111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101110 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 101111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110110 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 110111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111000 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111010 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111100 | 0000000b, as printed |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111110 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 0 | 000100 | 111111 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000110 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 000111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001110 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 001111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010110 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 010111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011110 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 011111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100110 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 100111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101110 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 101111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110110 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 110111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111000 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111010 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111100 | 0000000b, as printed |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111110 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 held at 1 | 000100 | 111111 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000110 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 000111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001110 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 001111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010110 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 010111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011110 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 011111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100110 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 100111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101110 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 101111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110110 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 110111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111000 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111010 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111100 | 0000000b, as printed |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111110 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 12 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 0 | 000100 | 111111 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000110 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 000111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001110 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 001111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010110 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 010111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011110 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 011111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100110 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 100111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101110 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 101111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110110 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 110111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111000 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111010 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111100 | 0000000b, as printed |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111110 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 13 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 32-37, bit 101 fixed at 1 | 000100 | 111111 | 0000000b, as printed |
 | 14 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 38-39 | 00 | 00 | 0000000b, as printed |
 | 14 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 38-39 | 00 | 01 | 0000000b, as printed |
 | 14 | `LDG.E.CONSTANT R7, term[UR4][R2.64]` | 38-39 | 00 | 10 | 0000000b, as printed |
@@ -516,73 +516,73 @@ Each question's lines, put in place of the kernel's `IADD3`:
 | 15 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | 64-71 | 11000100 | 11111101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
 | 15 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | 64-71 | 11000100 | 11111110 | did not run: exited, code 3, cudaErrorIllegalInstruction |
 | 15 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | 64-71 | 11000100 | 11111111 | 0000000b, as printed |
-| 16 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | none, bit 64 held at 100 |  |  | 0000000b, as printed |
-| 17 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | none, bit 64 held at 100 |  |  | 0000000b, as printed |
-| 18 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | none, bit 64 held at 100 |  |  | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000110 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 000111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001110 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 001111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010110 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 010111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011110 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 011111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100110 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 100111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101110 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 101111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110110 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 110111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111000 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111010 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111100 | 0000000b, as printed |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111110 | did not run: exited, code 3, cudaErrorIllegalInstruction |
-| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 held at 0 | 000100 | 111111 | 0000000b, as printed |
+| 16 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | none, bit 64 fixed at 100 |  |  | 0000000b, as printed |
+| 17 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | none, bit 64 fixed at 100 |  |  | 0000000b, as printed |
+| 18 | `ATOMG.E.ADD.64.STRONG.GPU PT, R8, term[UR4][R4.64+0x8], R0` | none, bit 64 fixed at 100 |  |  | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000110 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 000111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001110 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 001111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010110 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 010111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011110 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 011111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100110 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 100111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101110 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 101111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110110 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 110111 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111000 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111001 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111010 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111011 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111100 | 0000000b, as printed |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111101 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111110 | did not run: exited, code 3, cudaErrorIllegalInstruction |
+| 19 | `STG.E term[UR4][R4.64+0x8], R0` | 64-69, bit 101 fixed at 0 | 000100 | 111111 | 0000000b, as printed |
 | 20 | `STG.E term[UR4][R4.64+0x8], R0` | 70-71 | 00 | 00 | 0000000b, as printed |
 | 20 | `STG.E term[UR4][R4.64+0x8], R0` | 70-71 | 00 | 01 | 0000000b, as printed |
 | 20 | `STG.E term[UR4][R4.64+0x8], R0` | 70-71 | 00 | 10 | 0000000b, as printed |

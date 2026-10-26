@@ -56,8 +56,8 @@ const granted = (grants) => (grants.length ? grants.join(", ") : "nothing");
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
 
 function partRow(part) {
-  const status = part.refused ? `${part.said} said, ${part.refused} refused` : `${part.said} said`;
-  const detail = `${part.process ? `process ${part.process}` : "in orior"}; listens on ${granted(part.listen)}; speaks on ${granted(part.speak)}`;
+  const status = part.refused ? `${part.sent} said, ${part.refused} refused` : `${part.sent} said`;
+  const detail = `${part.process ? `process ${part.process}` : "in orior"}; listens on ${granted(part.listen)}; speaks on ${granted(part.send)}`;
   const row = element("div", { className: `containers-row comms-part ${part.refused ? "dead" : "running"}`, title: detail }, element("span", { className: "containers-dot" }), element("span", { className: "name", textContent: part.name }), element("span", { className: "status", textContent: status }), element("span", { className: "detail", textContent: detail }));
   row.dataset.key = part.name;
   return row;

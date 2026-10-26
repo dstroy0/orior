@@ -73,7 +73,7 @@ is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The
 \item \textbf{The frame} (\texttt{tessera.\allowbreak{}h}) is 128 bytes, little-endian, the same on every platform: magic, version, kind, the override, the device's UUID (16 bytes) and LUID, the request's signum, its declared bytes, its three times, and the bytes, measure and identity of a reply.
 
 \begin{itemize}
-\item Asks: submit, override, release, precalc kept.
+\item Asks: submit, override, release, precalc saved.
 \item Tells: admitted, asked, grew, lost, released, refused.
 \end{itemize}
 \item \textbf{The client} blocks in its submit until the daemon admits the job, asks about it, or loses it. A grew frame can arrive while the job runs; the client drains those at release and reports the largest in its ticket, for the caller to warn.
@@ -111,7 +111,7 @@ is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The
 \item If a job overruns its expected end, the head's shadow moves later. That is measured and reported like a growth, never hidden.
 \end{itemize}
 \item \textbf{Time: the soonest change is the root.} “what I want is the shortest time to change of anything to be the root because that is most likely event, in order”. Every deadline goes into one min-heap keyed by the time until it changes something: each live job's next sweep, each held job's holding expiry, the idle teardown. The daemon waits on its socket for at most the root's remaining time, handles the root, pushes that item's next deadline and takes the new root. Events are handled strictly in time order, and nothing is polled on a fixed tick. The shortest sweep among live jobs falls out of the heap without being chosen.
-\item \textbf{Lost and found keeps the work.} When a held job stalls past its holding time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to \texttt{hst/\allowbreak{}lnf.\allowbreak{}log} as a sealed block and tells the client, with the log's path. The client keeps its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
+\item \textbf{Lost and found keeps the work.} When a held job stalls past its grace time, the daemon appends its ticket (identity, signum, pid, declared, peak, measured, times, reason) to \texttt{hst/\allowbreak{}lnf.\allowbreak{}log} as a sealed block and tells the client, with the log's path. The client keeps its precalc and says so; the daemon then appends a sealed note for that identity. The job can be resumed and not recomputed.
 \end{itemize}
 
 \textbf{The seal.} The seal is \texttt{obsignatio\_\allowbreak{}seal}, BLAKE3 keyed at the file level (\texttt{OBSIGNATIO\_\allowbreak{}LEVEL\_\allowbreak{}FILE}), and it runs on the host. The daemon still makes no CUDA call and holds no device context.
@@ -119,7 +119,7 @@ is kept under its signum σ\_\allowbreak{}j, the BLAKE3 root of its request. The
 \begin{itemize}
 \item \textbf{The history file} is its records, 48 bytes each (the 32-byte signum, then the peak and the duration, 8 bytes each), followed by a 32-byte seal over them. The save builds the whole file, seals it, writes it whole as \texttt{hst/\allowbreak{}tail.\allowbreak{}log} and renames it over \texttt{hst/\allowbreak{}head.\allowbreak{}log}. Each failure on the way (the allocation, the seal, the open, the write, the close, the rename) is printed on stderr. The call sites still don't branch on the save's result, but a failed save is never silent.
 \item \textbf{The load} refuses a history shorter than the seal, one whose length less the seal is not a whole number of records (a short tail, or a file with no seal), and one whose seal does not hold. It names the file and the daemon exits. A missing history is a fresh start.
-\item \textbf{A ticket} is one block of \texttt{hst/\allowbreak{}lnf.\allowbreak{}log}: its text, starting \texttt{identity <16 hex digits>}, then a last line \texttt{seal <64 hex digits>} sealing every byte of the block above it. A note, such as “precalc kept”, is appended as its own sealed block that starts \texttt{identity <16 hex digits>} and then the note text. It goes in only when the log holds a ticket of that identity whose seal holds. A job whose ticket's seal is broken takes no note, and the precalc kept is not answered.
+\item \textbf{A ticket} is one block of \texttt{hst/\allowbreak{}lnf.\allowbreak{}log}: its text, starting \texttt{identity <16 hex digits>}, then a last line \texttt{seal <64 hex digits>} sealing every byte of the block above it. A note, such as “precalc saved”, is appended as its own sealed block that starts \texttt{identity <16 hex digits>} and then the note text. It goes in only when the log holds a ticket of that identity whose seal holds. A job whose ticket's seal is broken takes no note, and the precalc saved is not answered.
 \end{itemize}
 
 That was the gap before this date: the history was raw records and the ticket plain text. A damaged history of whole records read without complaint, a short tail was dropped silently, and a failed save went unreported.

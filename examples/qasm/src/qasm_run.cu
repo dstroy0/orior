@@ -310,8 +310,8 @@ long qasm_job_submit(const unsigned char *request, unsigned long long bytes, uns
     static char daemon[ENGINE_PATH_CAPACITY];
     int device = 0;
     cudaDeviceProp properties;
-    TesseraJobAsk ask;
-    memset(&ask, 0, sizeof(ask));
+    TesseraJobSubmit submit;
+    memset(&submit, 0, sizeof(submit));
     if (!QASM_CHECK(qasm_job_daemon(daemon, sizeof(daemon)), daemon, error, ENGINE_ERROR_RESOURCE) ||
         !QASM_STATUS_CHECK(cudaGetDevice(&device), &device, error) ||
         !QASM_STATUS_CHECK(cudaGetDeviceProperties(&properties, device), &properties, error))
@@ -319,44 +319,44 @@ long qasm_job_submit(const unsigned char *request, unsigned long long bytes, uns
         return QASM_ERROR;
     }
     const ObsignatioSignumRequest signum = {
-        request, bytes, NULL, OBSIGNATIO_MODE_HASH, ask.signum.bytes, ENGINE_SIGNUM_BYTES, error};
+        request, bytes, NULL, OBSIGNATIO_MODE_HASH, submit.signum.bytes, ENGINE_SIGNUM_BYTES, error};
     if (obsignatio_signum(&signum) != 0L)
     {
         engine_error_frame(error);
         return QASM_ERROR;
     }
-    memcpy(ask.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
 #if defined(_WIN32)
-    memcpy(&ask.luid, properties.luid, sizeof(ask.luid));
+    memcpy(&submit.luid, properties.luid, sizeof(submit.luid));
 #endif
-    ask.declared = declared;
-    ask.holding_microseconds = QASM_JOB_RUNNING_MICROSECONDS;
-    ask.sweep_microseconds = QASM_JOB_SWEEP_MICROSECONDS;
-    ask.idle_microseconds = QASM_JOB_IDLE_MICROSECONDS;
-    ask.override_budget = (getenv("TESSERA_OVERRIDE") != NULL) ? 1u : 0u;
-    ask.daemon_path = daemon;
-    ask.error = error;
+    submit.declared = declared;
+    submit.grace_microseconds = QASM_JOB_RUNNING_MICROSECONDS;
+    submit.sweep_microseconds = QASM_JOB_SWEEP_MICROSECONDS;
+    submit.idle_microseconds = QASM_JOB_IDLE_MICROSECONDS;
+    submit.override_budget = (getenv("TESSERA_OVERRIDE") != NULL) ? 1u : 0u;
+    submit.daemon_path = daemon;
+    submit.error = error;
     TesseraTicket ticket;
     memset(&ticket, 0, sizeof(ticket));
     TesseraClient *client = NULL;
-    if (tessera_job_submit(&ask, &client, &ticket) != 0L)
+    if (tessera_job_submit(&submit, &client, &ticket) != 0L)
     {
         engine_error_frame(error);
         return QASM_ERROR;
     }
-    if (ticket.asked != 0u)
+    if (ticket.over_budget != 0u)
     {
         fprintf(stderr,
-                "tessera: the run declares %llu bytes over its kept peak of %llu; TESSERA_OVERRIDE=1 admits it\n",
+                "tessera: the run declares %llu bytes over its tracked peak of %llu; TESSERA_OVERRIDE=1 admits it\n",
                 declared, ticket.last_peak);
         const int admitted = (tessera_job_wait(client, &ticket, error) == 0L) && (ticket.lost == 0u);
         if (!admitted)
         {
             if (ticket.lost != 0u)
             {
-                fprintf(stderr, "tessera: the run was held past its holding time and lost (ticket in %s)\n",
+                fprintf(stderr, "tessera: the run was reserved past its grace time and lost (ticket in %s)\n",
                         ticket.lost_path);
-                tessera_job_precalc_kept(client, error);
+                tessera_job_precalc_saved(client, error);
             }
             QASM_CHECK(0, client, error, ENGINE_ERROR_RESOURCE);
             return QASM_ERROR;

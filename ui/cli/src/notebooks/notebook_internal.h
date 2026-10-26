@@ -17,7 +17,7 @@ const char *cli_notebook_comment(const char *path);
 // the line of a text that starts at `at` before `end`: where it ends, its `\r` before `\n` left off, into `stop`;
 // where the next starts
 const char *cli_notebook_line(const char *at, const char *end, const char **stop);
-// a text as Jupyter keeps it: an array node of its lines, each with its line end but the last
+// a text as Jupyter stores it: an array node of its lines, each with its line end but the last
 unsigned int cli_notebook_lines_of(CliJson *json, const char *text, unsigned long long length);
 
 #endif

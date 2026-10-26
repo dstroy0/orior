@@ -13,7 +13,7 @@ HEAVIEST="$ENGINE/nbody/heaviest_matching"
 DEVICE_POOL="$ENGINE/runtime/device_pool"
 DEVICE_POOL_CU="$ENGINE/../../cu/engine/runtime/device_pool"
 NO_ROUNDING="$ENGINE/../types/integers"
-SCRIPTURA="$ENGINE/runtime/scriptura"
+source "$ENGINE/../includes/file_defs/file_defs.sh"
 build_stamp sort_test
 
 HOST_FLAGS=()
@@ -48,12 +48,12 @@ for one in $ARCHES; do
     GENCODE+=(-gencode "arch=compute_${one#sm_},code=${one}")
 done
 
-INCLUDES=(-I "$ENGINE" -I "$SORT" -I "$SCAN" -I "$HEAVIEST" -I "$DEVICE_POOL" -I "$NO_ROUNDING" -I "$SCRIPTURA"
+INCLUDES=(-I "$ENGINE" -I "$SORT" -I "$SCAN" -I "$HEAVIEST" -I "$DEVICE_POOL" -I "$NO_ROUNDING" "${FILE_DEFS_MMGR_FLAGS[@]}"
           "${TESSERA_INCLUDES[@]}")
 rm -f "$BINARY"
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
-for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
+LINEA_OBJECTS=()
+for source in "${FILE_DEFS_LINEA[@]}" "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}.c \
               "$HEAVIEST/heaviest_matching.c"; do
     object="$OUT/$(basename "$source" .c)_sort.$EXTENSION"
     rm -f "$object"
@@ -65,12 +65,12 @@ for source in "$SCRIPTURA"/*.c "$NO_ROUNDING"/exact_integer_{add,limbs,multiply,
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
 # the test is a job on the device's tessera daemon, built beside it
-tessera_build sort "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build sort "${LINEA_OBJECTS[@]}" || exit 1
 
 nvcc "${HOST_FLAGS[@]}" -std=c++17 -O2 "${GENCODE[@]}" "${INCLUDES[@]}" -o "$BINARY" \
     "$TEST/sort_test.cu" "$ENGINE/../../engine/sims/sim_job.cu" "$SORT/sort_link.cu" "$SCAN/drift.cu" \

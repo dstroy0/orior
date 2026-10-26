@@ -22,7 +22,7 @@ __device__ static void noise_neighbors_flush(unsigned long long *cells, unsigned
 }
 
 // One thread a voxel. At each radius whose voxel is inside the view, every frame pair's difference is multiplied by
-// that voxel's, the product's sign kept by summing the raised and lowered products apart.
+// that voxel's, the product's sign preserved by summing the raised and lowered products apart.
 __global__ static void noise_neighbors_kernel(const unsigned short *lanes, unsigned long long frames,
                                               unsigned long long depth, unsigned long long height,
                                               unsigned long long width, unsigned long long *sums)
@@ -153,7 +153,7 @@ int noise_neighbors_per_mille(const unsigned long long cell[NOISE_NEIGHBORS_SUMS
     {
         ok = quotient.limb[limb] == 0u;
     }
-    // the magnitude is at most 2000, one limb; the sign is held apart
+    // the magnitude is at most 2000, one limb; the sign is stored apart
     *per_mille = ok ? ((long long)quotient.limb[0] * (long long)quotient.sign) : 0ll;
     return ok;
 }
@@ -231,7 +231,7 @@ extern "C" long noise_neighbors_set(const NoiseSetRequest *request)
                                table, error);
     printf("  neighbors: each frame difference times the next voxel's along z, y and x, and the voxel's 2 to 32 planes"
            " on along z (z2 to z32), in bins of 8 by the pair's mean\n");
-    printf("  2000 (raised - lowered) / (squares + next squares), signed per mille (independent noise holds 0):\n");
+    printf("  2000 (raised - lowered) / (squares + next squares), signed per mille (independent noise gives 0):\n");
     printf("  %-24s  ", "mean");
     for (unsigned int shown = 0u; shown < NOISE_NEIGHBORS_SHOWN; shown += 1u)
     {

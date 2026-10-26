@@ -23,13 +23,13 @@ int Decoding::bridge_read(const char *klq)
         return 1;
     }
     // a file read whole is at most what a size_t counts
-    std::istringstream held_bridge(std::string((const char *)bridge_bytes, (size_t)bridge_size));
-    while (std::getline(held_bridge, line))
+    std::istringstream bridge_stream(std::string((const char *)bridge_bytes, (size_t)bridge_size));
+    while (std::getline(bridge_stream, line))
     {
         bridge.push_back((!line.empty() && (line.back() == '\r')) ? line.substr(0u, line.size() - 1u) : line);
     }
     // each pair's concept as it is written, its own product's where this log answered it and otherwise the one the
-    // bridge held beneath it. A pair whose concept another pair shares is folded: one ask answers both
+    // bridge recorded beneath it. A pair whose concept another pair shares is folded: one query answers both
     std::map<std::string, std::string> pair_concepts;
     std::string concept_pair;
     for (const std::string &entry : bridge)
@@ -49,20 +49,20 @@ int Decoding::bridge_read(const char *klq)
             pair_concepts[concept_pair] = entry.substr(18u);
         }
     }
-    for (const auto &held : identities)
+    for (const auto &identity_entry : identities)
     {
-        pair_concepts[held.first] = held.second;
+        pair_concepts[identity_entry.first] = identity_entry.second;
     }
     std::map<std::string, unsigned int> pairs_of_concept;
-    for (const auto &held : pair_concepts)
+    for (const auto &identity_entry : pair_concepts)
     {
-        pairs_of_concept[held.second] += 1u;
+        pairs_of_concept[identity_entry.second] += 1u;
     }
-    for (const auto &held : pair_concepts)
+    for (const auto &identity_entry : pair_concepts)
     {
-        if (pairs_of_concept[held.second] > 1u)
+        if (pairs_of_concept[identity_entry.second] > 1u)
         {
-            metas[held.first].insert("folding_coherence");
+            metas[identity_entry.first].insert("folding_coherence");
         }
     }
     return 0;
@@ -70,26 +70,26 @@ int Decoding::bridge_read(const char *klq)
 
 void Decoding::pair_closed()
 {
-    if (!pair_held.empty())
+    if (!pair_beneath.empty())
     {
         // a pair the log read the texts or the answers of hangs from the metas read of it now, and any other
-        // from the metas the bridge held. The fold is read off every pair's concept, and always now
-        const int texts_read = faceted.count(pair_held) != 0u;
-        const int answered = decoded.count(pair_held) != 0u;
+        // from the metas the bridge recorded. The fold is read off every pair's concept, and always now
+        const int texts_read = faceted.count(pair_beneath) != 0u;
+        const int answered = decoded.count(pair_beneath) != 0u;
         for (const char *const meta : s_metas)
         {
-            const int held = std::find(metas_held.begin(), metas_held.end(), meta) != metas_held.end();
+            const int meta_known = std::find(metas_beneath.begin(), metas_beneath.end(), meta) != metas_beneath.end();
             const int now = texts_read || answered || (std::string(meta) == "folding_coherence");
-            if (now ? (metas[pair_held].count(meta) != 0u) : held)
+            if (now ? (metas[pair_beneath].count(meta) != 0u) : meta_known)
             {
                 written.push_back(meta);
                 counted[meta] += 1u;
             }
         }
         // every set the pair is read into, each a light of its own: the categories its texts read it into and the
-        // sets its answers read it into, each read now where the log read it and otherwise as the bridge held it
+        // sets its answers read it into, each read now where the log read it and otherwise as the bridge recorded it
         std::set<std::string> lit;
-        for (const std::string &set : sets_held)
+        for (const std::string &set : sets_beneath)
         {
             if (named_in(s_categories, std::size(s_categories), set) ? !texts_read : !answered)
             {
@@ -98,11 +98,11 @@ void Decoding::pair_closed()
         }
         if (answered)
         {
-            lit.insert(decoded[pair_held].begin(), decoded[pair_held].end());
+            lit.insert(decoded[pair_beneath].begin(), decoded[pair_beneath].end());
         }
         if (texts_read)
         {
-            lit.insert(categories[pair_held].begin(), categories[pair_held].end());
+            lit.insert(categories[pair_beneath].begin(), categories[pair_beneath].end());
         }
         // only an answer reads a pair out of `unknown_coherence`, a member of every category beneath
         int read_down = 0;
@@ -132,23 +132,23 @@ void Decoding::pair_closed()
         sets.insert(std::find(sets.begin(), sets.end(), "unknown_coherence"), lit.begin(), lit.end());
         // each set's signal and noise: its pairs, those a whole product names, and the rows of their products
         // that came back one way and both ways
-        const auto product_held = products.find(pair_held);
-        const size_t signal_rows = (product_held != products.end()) ? concept_signal(product_held->second) : 0u;
+        const auto product_found = products.find(pair_beneath);
+        const size_t signal_rows = (product_found != products.end()) ? concept_signal(product_found->second) : 0u;
         const size_t noise_rows =
-            (product_held != products.end()) ? (product_held->second.rows.size() - signal_rows) : 0u;
+            (product_found != products.end()) ? (product_found->second.rows.size() - signal_rows) : 0u;
         for (const std::string &set : sets)
         {
             written.push_back(set);
             counted[set] += 1u;
-            named_pairs[set] += (identities.count(pair_held) != 0u) ? 1u : 0u;
+            named_pairs[set] += (identities.count(pair_beneath) != 0u) ? 1u : 0u;
             set_signal[set] += signal_rows;
             set_noise[set] += noise_rows;
         }
         // a pair answered in this log is the concept its own product is, and none until that product is whole
-        const std::string identity = (identities.count(pair_held) != 0u)
-                                         ? ("concept_coherence " + identities[pair_held])
-                                     : (decoded.count(pair_held) != 0u) ? std::string()
-                                                                        : identity_held;
+        const std::string identity = (identities.count(pair_beneath) != 0u)
+                                         ? ("concept_coherence " + identities[pair_beneath])
+                                     : (decoded.count(pair_beneath) != 0u) ? std::string()
+                                                                           : identity_beneath;
         if (!identity.empty())
         {
             written.push_back(identity);
@@ -156,25 +156,25 @@ void Decoding::pair_closed()
         }
         // the intent the pair's forms carry of their own, the values each writes as the ruleset gives it
         std::string intent;
-        for (const unsigned long long value : pair_qualifiers[pair_held])
+        for (const unsigned long long value : pair_qualifiers[pair_beneath])
         {
             char written_value[24];
             snprintf(written_value, sizeof(written_value), " %llx", value);
             intent += written_value;
         }
-        intent = !intent.empty()                    ? ("intent_coherence" + intent)
-                 : (decoded.count(pair_held) != 0u) ? std::string()
-                                                    : intent_held;
+        intent = !intent.empty()                       ? ("intent_coherence" + intent)
+                 : (decoded.count(pair_beneath) != 0u) ? std::string()
+                                                       : intent_beneath;
         if (!intent.empty())
         {
             written.push_back(intent);
         }
     }
-    pair_held.clear();
-    sets_held.clear();
-    metas_held.clear();
-    identity_held.clear();
-    intent_held.clear();
+    pair_beneath.clear();
+    sets_beneath.clear();
+    metas_beneath.clear();
+    identity_beneath.clear();
+    intent_beneath.clear();
 }
 
 void Decoding::bridge_folded()
@@ -184,27 +184,27 @@ void Decoding::bridge_folded()
         const int verdict = (entry.rfind("open ", 0u) == 0u) || (entry.rfind("closed ", 0u) == 0u);
         const int meta = std::find_if(std::begin(s_metas), std::end(s_metas),
                                       [&](const char *const each) { return entry == each; }) != std::end(s_metas);
-        if (!pair_held.empty() && meta)
+        if (!pair_beneath.empty() && meta)
         {
-            metas_held.push_back(entry);
+            metas_beneath.push_back(entry);
             continue;
         }
-        if (!pair_held.empty() && set_line(entry))
+        if (!pair_beneath.empty() && set_line(entry))
         {
-            sets_held.push_back(entry);
+            sets_beneath.push_back(entry);
             continue;
         }
-        if (!pair_held.empty() && (entry.rfind("concept_coherence ", 0u) == 0u))
+        if (!pair_beneath.empty() && (entry.rfind("concept_coherence ", 0u) == 0u))
         {
-            identity_held = entry;
+            identity_beneath = entry;
             continue;
         }
-        if (!pair_held.empty() && (entry.rfind("intent_coherence ", 0u) == 0u))
+        if (!pair_beneath.empty() && (entry.rfind("intent_coherence ", 0u) == 0u))
         {
-            intent_held = entry;
+            intent_beneath = entry;
             continue;
         }
-        if (!pair_held.empty() && verdict)
+        if (!pair_beneath.empty() && verdict)
         {
             written.push_back(entry);
             continue;
@@ -218,7 +218,7 @@ void Decoding::bridge_folded()
             std::string first;
             std::string second;
             words >> kind >> first >> second;
-            pair_held = pair_key(first, second);
+            pair_beneath = pair_key(first, second);
         }
     }
     pair_closed();
@@ -228,9 +228,9 @@ int Decoding::bridge_handed(const char *klq)
 {
     // the bridge handed to the run's writer, which writes it in the file's place (qry_member_filed)
     std::string bridge_text;
-    for (const std::string &kept : written)
+    for (const std::string &line : written)
     {
-        bridge_text += kept + "\n";
+        bridge_text += line + "\n";
     }
     if (!qry_member_filed(klq, bridge_text.data(), bridge_text.size()))
     {
@@ -242,37 +242,37 @@ int Decoding::bridge_handed(const char *klq)
 
 void Decoding::printed(const char *klq)
 {
-    for (const auto &held : decoded)
+    for (const auto &entry : decoded)
     {
         std::string lights;
-        for (const std::string &meta : metas[held.first])
+        for (const std::string &meta : metas[entry.first])
         {
             lights += meta + " ";
         }
-        for (const std::string &set : categories[held.first])
+        for (const std::string &set : categories[entry.first])
         {
             lights += set + " ";
         }
-        for (const std::string &set : held.second)
+        for (const std::string &set : entry.second)
         {
             lights += set + " ";
         }
-        printf("  %s: %s%s\n", held.first.c_str(), lights.c_str(),
-               (identities.count(held.first) != 0u) ? identities[held.first].c_str() : "-");
+        printf("  %s: %s%s\n", entry.first.c_str(), lights.c_str(),
+               (identities.count(entry.first) != 0u) ? identities[entry.first].c_str() : "-");
     }
     unsigned int shared = 0u;
-    for (const auto &held : concepts)
+    for (const auto &entry : concepts)
     {
-        shared += (held.second > 1u) ? 1u : 0u;
+        shared += (entry.second > 1u) ? 1u : 0u;
     }
     // the choices of every pair's puts by the trace's flags, and those of each pair the part answered nothing of, the
     // questions a further pass takes up
-    const auto choices_written = [this](const std::map<unsigned long long, unsigned int> &held) {
+    const auto choices_written = [this](const std::map<unsigned long long, unsigned int> &entry) {
         std::string written;
         for (const auto &flag : trace.named)
         {
-            const auto count = held.find(flag.first);
-            if (count != held.end())
+            const auto count = entry.find(flag.first);
+            if (count != entry.end())
             {
                 written += (written.empty() ? "" : ", ") + std::to_string(count->second) + " " + flag.second;
             }
@@ -284,16 +284,16 @@ void Decoding::printed(const char *klq)
         printf("  choices: %s\n", choices_written(chosen).c_str());
     }
     const unsigned long long answered_flags = query_trace_flag(trace, "alike") | query_trace_flag(trace, "apart");
-    for (const auto &held : choices)
+    for (const auto &entry : choices)
     {
         int answered = 0;
-        for (const auto &flag : held.second)
+        for (const auto &flag : entry.second)
         {
             answered |= ((flag.first & answered_flags) != 0ull) ? 1 : 0;
         }
-        if (!held.first.empty() && (decoded.count(held.first) == 0u) && !answered)
+        if (!entry.first.empty() && (decoded.count(entry.first) == 0u) && !answered)
         {
-            printf("  answered nothing, %s: %s\n", held.first.c_str(), choices_written(held.second).c_str());
+            printf("  answered nothing, %s: %s\n", entry.first.c_str(), choices_written(entry.second).c_str());
         }
     }
     // each set's pairs, those a whole product names, and its signal against its noise in rows of the products

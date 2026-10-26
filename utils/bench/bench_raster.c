@@ -115,20 +115,20 @@ int main(void)
                                             .survivors_length = alignments,
                                             .sample_stride = 1u);
     OriorRasterProbe steered[ORIOR_STEER_ANCHORS];
-    for (size_t slot = 0u; slot < coarms; slot += 1u)
+    for (size_t index = 0u; index < coarms; index += 1u)
     {
-        steered[slot].origin = spawned[slot];
-        steered[slot].step = 1u;
-        steered[slot].length = 1u;
+        steered[index].origin = spawned[index];
+        steered[index].step = 1u;
+        steered[index].length = 1u;
     }
 
     OriorRasterProbe plain[ORIOR_STEER_ANCHORS];
     const size_t cell_span = RASTER_NEEDLE / ORIOR_STEER_ANCHORS;
-    for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
+    for (size_t index = 0u; index < ORIOR_STEER_ANCHORS; index += 1u)
     {
-        plain[slot].origin = (slot * cell_span) + ((cell_span > 1u) ? ((slot * 7u) % cell_span) : 0u);
-        plain[slot].step = 1u;
-        plain[slot].length = 1u;
+        plain[index].origin = (index * cell_span) + ((cell_span > 1u) ? ((index * 7u) % cell_span) : 0u);
+        plain[index].step = 1u;
+        plain[index].length = 1u;
     }
 
     const int have_device = orior_raster_device_available();

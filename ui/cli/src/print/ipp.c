@@ -20,18 +20,18 @@ void cli_ipp_begun(CliIppMessage *message, unsigned int code, unsigned int reque
 #define CLI_IPP_FIRST 16u
 #define CLI_IPP_BYTES_FIRST 1024u
 
-CliCellsTally g_cli_ipp_cells = CLI_CELLS_TALLY("cli_ipp");
+CellOwner g_cli_ipp_cells = MMGR_CELL_OWNER("cli_ipp");
 
 void cli_ipp_given(CliIppMessage *message)
 {
-    cli_cell_given_by(&g_cli_ipp_cells, message->group);
-    cli_cell_given_by(&g_cli_ipp_cells, message->attribute);
-    cli_cell_given_by(&g_cli_ipp_cells, message->value);
-    cli_cell_given_by(&g_cli_ipp_cells, message->bytes);
+    g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);
+    g_cli_cells->persistent_buf_release(message->attribute, &g_cli_ipp_cells);
+    g_cli_cells->persistent_buf_release(message->value, &g_cli_ipp_cells);
+    g_cli_cells->persistent_buf_release(message->bytes, &g_cli_ipp_cells);
     *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ull, 0};
 }
 
-// `list`, `count` items of `each` bytes in a room of `*room`, made to hold `wanted` in all, `most` at the most, its
+// `list`, `count` items of `each` bytes in a room of `*room`, made to fit `wanted` in all, `most` at the most, its
 // room begun at `first`: the list, moved into a cell of doubled room where it is too small; or NULL with the message
 // full where `wanted` is past `most` or the cell is refused
 static void *cli_room(CliIppMessage *message, void *list, unsigned int count, unsigned int *room,
@@ -48,30 +48,30 @@ static void *cli_room(CliIppMessage *message, void *list, unsigned int count, un
         grown *= 2ull;
     }
     grown = (grown < most) ? grown : most;
-    void *const larger = (wanted <= most) ? cli_cell_taken_by(&g_cli_ipp_cells, grown * each, what) : NULL;
+    void *const larger = (wanted <= most) ? g_cli_cells->persistent_buf_alloc(grown * each, &g_cli_ipp_cells) : NULL;
     if (larger == NULL)
     {
         message->full = 1;
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    cli_cell_given_by(&g_cli_ipp_cells, list);
-    // a room no more than `most`, which an unsigned int holds
+    g_cli_cells->persistent_buf_release(list, &g_cli_ipp_cells);
+    // a room no more than `most`, which an unsigned int stores
     *room = (unsigned int)grown;
     return larger;
 }
 
-// `length` bytes kept among the message's: where they start
-static unsigned int cli_kept(CliIppMessage *message, const void *bytes, unsigned long long length)
+// `length` bytes stored among the message's: where they start
+static unsigned int cli_bytes_stored(CliIppMessage *message, const void *bytes, unsigned long long length)
 {
-    unsigned char *const kept =
+    unsigned char *const bytes_at =
         cli_room(message, message->bytes, message->used, &message->byte_room, 1ull, message->used + length,
                  CLI_IPP_BYTES, CLI_IPP_BYTES_FIRST, "an IPP message's bytes");
-    if (kept == NULL)
+    if (bytes_at == NULL)
     {
         return 0u;
     }
-    message->bytes = kept;
+    message->bytes = bytes_at;
     const unsigned int at = message->used;
     memor.cpy(&(MemoriaCfg){.dst = message->bytes + at, .src = bytes, .bytes = length});
     // the bytes are below CLI_IPP_BYTES, which an unsigned int counts
@@ -109,7 +109,8 @@ static void cli_attribute_counted(CliIppMessage *message, const void *name, unsi
     }
     message->attribute = attributes;
     // a name is at most what the encoding's 16 bits count
-    const CliIppAttribute attribute = {cli_kept(message, name, length), (unsigned int)length, message->values, 0u};
+    const CliIppAttribute attribute = {cli_bytes_stored(message, name, length), (unsigned int)length, message->values,
+                                       0u};
     message->attribute[message->attributes] = attribute;
     message->attributes += 1u;
     message->group[message->groups - 1u].count += 1u;
@@ -161,41 +162,41 @@ void cli_ipp_text(CliIppMessage *message, unsigned int tag, const char *text)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
     // a text is at most what the encoding's 16 bits count
-    const CliIppValue made = {CLI_IPP_TEXT, tag, 0, 0, cli_kept(message, text, length), (unsigned int)length};
+    const CliIppValue made = {CLI_IPP_TEXT, tag, 0, 0, cli_bytes_stored(message, text, length), (unsigned int)length};
     cli_value(message, &made);
 }
 
 // a number's bytes, the high first
-static void cli_bytes_of(unsigned long long value, unsigned int count, CliLine *out)
+static void cli_bytes_of(unsigned long long value, unsigned int count, VerbaLinea *out)
 {
     for (unsigned int byte = count; byte > 0u; byte -= 1u)
     {
         // each byte of the number in turn
-        cli_line_character(out, (char)(unsigned char)((value >> (8u * (byte - 1u))) & 0xffu));
+        mmgr_line_ch(out, (char)(unsigned char)((value >> (8u * (byte - 1u))) & 0xffu));
     }
 }
 
-void cli_ipp_encode(const CliIppMessage *message, CliLine *out)
+void cli_ipp_encode(const CliIppMessage *message, VerbaLinea *out)
 {
-    cli_line_character(out, 2);
-    cli_line_character(out, 0);
+    mmgr_line_ch(out, 2);
+    mmgr_line_ch(out, 0);
     cli_bytes_of(message->code, 2u, out);
     cli_bytes_of(message->request_id, 4u, out);
     for (unsigned int group_at = 0u; group_at < message->groups; group_at += 1u)
     {
         const CliIppGroup *const group = &message->group[group_at];
         // a tag is a byte
-        cli_line_character(out, (char)(unsigned char)group->tag);
+        mmgr_line_ch(out, (char)(unsigned char)group->tag);
         for (unsigned int each = 0u; each < group->count; each += 1u)
         {
             const CliIppAttribute *const attribute = &message->attribute[group->first + each];
             for (unsigned int index = 0u; index < attribute->count; index += 1u)
             {
                 const CliIppValue *const value = &message->value[attribute->first + index];
-                cli_line_character(out, (char)(unsigned char)value->tag);
+                mmgr_line_ch(out, (char)(unsigned char)value->tag);
                 const unsigned int named = (index == 0u) ? attribute->name_length : 0u;
                 cli_bytes_of(named, 2u, out);
-                cli_line_counted(out, (const char *)(message->bytes + attribute->name), named);
+                mmgr_line_put_n(out, (const char *)(message->bytes + attribute->name), named);
                 // a number's bits are written as the 32 bits they are
                 switch (value->kind)
                 {
@@ -206,7 +207,7 @@ void cli_ipp_encode(const CliIppMessage *message, CliLine *out)
                     break;
                 case CLI_IPP_BOOLEAN:
                     cli_bytes_of(1u, 2u, out);
-                    cli_line_character(out, (char)(value->low ? 1 : 0));
+                    mmgr_line_ch(out, (char)(value->low ? 1 : 0));
                     break;
                 case CLI_IPP_RANGE:
                     cli_bytes_of(8u, 2u, out);
@@ -215,13 +216,13 @@ void cli_ipp_encode(const CliIppMessage *message, CliLine *out)
                     break;
                 default:
                     cli_bytes_of(value->length, 2u, out);
-                    cli_line_counted(out, (const char *)(message->bytes + value->bytes), value->length);
+                    mmgr_line_put_n(out, (const char *)(message->bytes + value->bytes), value->length);
                     break;
                 }
             }
         }
     }
-    cli_line_character(out, (char)CLI_IPP_END);
+    mmgr_line_ch(out, (char)CLI_IPP_END);
 }
 
 // `count` bytes taken from `at`: where they start, or NULL where the answer is cut short
@@ -254,14 +255,14 @@ static int cli_signed(const unsigned char *raw, unsigned long long length)
     return (length >= 4ull) ? (int)(unsigned int)cli_number(raw, 4u) : 0;
 }
 
-int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMessage *message, CliLine *said)
+int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMessage *message, VerbaLinea *err_msg)
 {
     unsigned long long at = 2ull;
     const unsigned char *const code = cli_take(bytes, size, &at, 2ull);
     const unsigned char *const request = cli_take(bytes, size, &at, 4ull);
     if ((code == NULL) || (request == NULL))
     {
-        cli_line_text(said, "the printer's answer is cut short");
+        mmgr_line_put(err_msg, "the printer's answer is cut short");
         return 0;
     }
     // a status is 16 bits and an id 32
@@ -271,7 +272,7 @@ int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMe
         const unsigned char *const tag = cli_take(bytes, size, &at, 1ull);
         if (tag == NULL)
         {
-            cli_line_text(said, "the printer's answer is cut short");
+            mmgr_line_put(err_msg, "the printer's answer is cut short");
             return 0;
         }
         if (tag[0] == CLI_IPP_END)
@@ -291,12 +292,12 @@ int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMe
         const unsigned char *const raw = (value_size != NULL) ? cli_take(bytes, size, &at, length) : NULL;
         if (raw == NULL)
         {
-            cli_line_text(said, "the printer's answer is cut short");
+            mmgr_line_put(err_msg, "the printer's answer is cut short");
             return 0;
         }
         if (message->groups == 0u)
         {
-            cli_line_text(said, "the printer's answer has an attribute in no group");
+            mmgr_line_put(err_msg, "the printer's answer has an attribute in no group");
             return 0;
         }
         // a value with no name is one more of the attribute before it, and passed over where its group has none
@@ -331,7 +332,7 @@ int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMe
             break;
         default:
             value.kind = ((tag[0] >= 0x41u) && (tag[0] <= 0x49u)) ? CLI_IPP_TEXT : CLI_IPP_OTHER;
-            value.bytes = cli_kept(message, raw, length);
+            value.bytes = cli_bytes_stored(message, raw, length);
             // a value is at most what the encoding's 16 bits count
             value.length = (unsigned int)length;
             break;
@@ -342,7 +343,7 @@ int cli_ipp_decode(const unsigned char *bytes, unsigned long long size, CliIppMe
     message->data_length = size - at;
     if (message->full)
     {
-        cli_line_text(said, "the printer's answer holds more than orior_cli reads");
+        mmgr_line_put(err_msg, "the printer's answer contains more than orior_cli reads");
         return 0;
     }
     return 1;
@@ -381,9 +382,9 @@ int cli_ipp_value_text(const CliIppMessage *message, const CliIppValue *value, c
     {
         return 0;
     }
-    CliLine line = {out, room, 0ull};
-    cli_line_counted(&line, (const char *)(message->bytes + value->bytes), value->length);
-    cli_line_closed(&line);
+    VerbaLinea line = {out, room, 0ull};
+    mmgr_line_put_n(&line, (const char *)(message->bytes + value->bytes), value->length);
+    mmgr_line_finish(&line);
     return 1;
 }
 

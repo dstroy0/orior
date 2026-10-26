@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // serve_call_page.c: the calls of the page's own kinds of file and of the machine's containers: a file too large for
-// the page held here as the file and the lines written over it, opened, shaped, read, edited, changed, found in, saved
-// and let go; a file of HTTP requests parsed, its environments read, a request sent, its answers kept, written as curl
-// and read from curl, and its private environment made; and the containers and pods, their logs, and a container
-// acted on or a line run in it
+// the page stored here as the file and the lines written over it, opened, shaped, read, edited, changed, found in,
+// saved and let go; a file of HTTP requests parsed, its environments read, a request sent, its answers stored, written
+// as curl and read from curl, and its private environment made; and the containers and pods, their logs, and a
+// container acted on or a line run in it
 #include "../command_line/cells.h"
 #include "../deploy/containers.h"
 #include "../editor/document.h"
@@ -12,7 +12,7 @@
 #include "../requests/requests.h"
 #include "serve_internal.h"
 
-// the most changes and edits one edit of a held text makes
+// the most changes and edits one edit of a stored text makes
 #define CLI_SERVE_CHANGES 4096u
 #define CLI_SERVE_PAGE_EDITS 65536u
 
@@ -25,32 +25,32 @@ static int page_place(const CliJson *json, unsigned int node, CliPlace *place)
     return (place->line != none) && (place->col != none);
 }
 
-static int pages_open(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    char full[CLI_PATH_LONGEST];
-    const char *const key = cli_serve_string(args, "key", said);
-    return (key != NULL) && cli_serve_at(args, root, full, said) && cli_pages_open(key, full, out, said);
+    char root[CLI_PATH_MAX_LEN];
+    char full[CLI_PATH_MAX_LEN];
+    const char *const key = cli_serve_string(args, "key", err_msg);
+    return (key != NULL) && cli_serve_at(args, root, full, err_msg) && cli_pages_open(key, full, out, err_msg);
 }
 
-static int pages_shape(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_shape(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const key = cli_serve_string(args, "key", said);
-    return (key != NULL) && cli_pages_shape(key, out, said);
+    const char *const key = cli_serve_string(args, "key", err_msg);
+    return (key != NULL) && cli_pages_shape(key, out, err_msg);
 }
 
-static int pages_read(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
-    const char *const key = cli_serve_string(args, "key", said);
-    return (key != NULL) && cli_serve_whole(args, "from", &from, said) && cli_serve_whole(args, "to", &to, said) &&
-           cli_pages_read(key, from, to, out, said);
+    const char *const key = cli_serve_string(args, "key", err_msg);
+    return (key != NULL) && cli_serve_whole(args, "from", &from, err_msg) &&
+           cli_serve_whole(args, "to", &to, err_msg) && cli_pages_read(key, from, to, out, err_msg);
 }
 
-static int pages_edit(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const key = cli_serve_string(args, "key", said);
+    const char *const key = cli_serve_string(args, "key", err_msg);
     if (key == NULL)
     {
         return 0;
@@ -59,7 +59,7 @@ static int pages_edit(const CliServeArgs *args, CliLine *out, CliLine *said)
     const unsigned int changes = cli_serve_arg(args, "changes");
     if (!cli_json_is(json, changes, CFG_JSON_ARRAY))
     {
-        cli_line_text(said, "changes: invalid type: null, expected a sequence");
+        mmgr_line_put(err_msg, "changes: invalid type: null, expected a sequence");
         return 0;
     }
     // the changes and their edits counted, CLI_SERVE_CHANGES and CLI_SERVE_PAGE_EDITS at the most, and one cell taken
@@ -79,7 +79,7 @@ static int pages_edit(const CliServeArgs *args, CliLine *out, CliLine *said)
     const unsigned long long edit_bytes = (edits_most + 1ull) * sizeof(CliEdit);
     const unsigned long long change_bytes = (changes_most + 1ull) * sizeof(const CliEdit *);
     char *const cell = cli_serve_cell(edit_bytes + change_bytes + ((changes_most + 1ull) * sizeof(unsigned int)),
-                                      "the edits of a held text", said);
+                                      "the edits of a stored text", err_msg);
     if (cell == NULL)
     {
         return 0;
@@ -113,25 +113,25 @@ static int pages_edit(const CliServeArgs *args, CliLine *out, CliLine *said)
     const int whole = (missing == NULL);
     if (!whole)
     {
-        cli_line_text(said, "changes: missing field `");
-        cli_line_text(said, missing);
-        cli_line_character(said, '`');
+        mmgr_line_put(err_msg, "changes: missing field `");
+        mmgr_line_put(err_msg, missing);
+        mmgr_line_ch(err_msg, '`');
     }
-    const int done = whole && cli_pages_edit(key, change_list, edit_counts, count, out, said);
-    cli_cell_given(cell);
+    const int done = whole && cli_pages_edit(key, change_list, edit_counts, count, out, err_msg);
+    g_cli_cells->persistent_buf_release(cell, NULL);
     return done;
 }
 
-static int pages_changed(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_changed(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const key = cli_serve_string(args, "key", said);
-    return (key != NULL) && cli_pages_changed(key, out, said);
+    const char *const key = cli_serve_string(args, "key", err_msg);
+    return (key != NULL) && cli_pages_changed(key, out, err_msg);
 }
 
-static int pages_find(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_find(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long most = 0ull;
-    const char *const key = cli_serve_string(args, "key", said);
+    const char *const key = cli_serve_string(args, "key", err_msg);
     const unsigned int node = cli_serve_arg(args, "sought");
     const CliServeArgs sought_args = {args->json, node};
     int regex = 0;
@@ -139,74 +139,74 @@ static int pages_find(const CliServeArgs *args, CliLine *out, CliLine *said)
     int word = 0;
     int unicode = 0;
     const char *const query =
-        cli_json_is(args->json, node, CFG_JSON_OBJECT) ? cli_serve_string(&sought_args, "query", said) : NULL;
-    if ((key == NULL) || (query == NULL) || !cli_serve_bool(&sought_args, "regex", &regex, said) ||
-        !cli_serve_bool(&sought_args, "case", &match_case, said) ||
-        !cli_serve_bool(&sought_args, "word", &word, said) ||
-        !cli_serve_bool(&sought_args, "unicode", &unicode, said) || !cli_serve_whole(args, "most", &most, said))
+        cli_json_is(args->json, node, CFG_JSON_OBJECT) ? cli_serve_string(&sought_args, "query", err_msg) : NULL;
+    if ((key == NULL) || (query == NULL) || !cli_serve_bool(&sought_args, "regex", &regex, err_msg) ||
+        !cli_serve_bool(&sought_args, "case", &match_case, err_msg) ||
+        !cli_serve_bool(&sought_args, "word", &word, err_msg) ||
+        !cli_serve_bool(&sought_args, "unicode", &unicode, err_msg) || !cli_serve_whole(args, "most", &most, err_msg))
     {
         if ((key != NULL) && !cli_json_is(args->json, node, CFG_JSON_OBJECT))
         {
-            cli_line_text(said, "sought: invalid type: null, expected struct Sought");
+            mmgr_line_put(err_msg, "sought: invalid type: null, expected struct Sought");
         }
         return 0;
     }
     const CliDocSought sought = {query, regex, match_case, word, unicode};
-    return cli_pages_find(key, &sought, most, out, said);
+    return cli_pages_find(key, &sought, most, out, err_msg);
 }
 
-static int pages_save(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_save(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const key = cli_serve_string(args, "key", said);
+    const char *const key = cli_serve_string(args, "key", err_msg);
     if (key == NULL)
     {
         return 0;
     }
     // a paged file is written as every file of the tree is, one write at a time
     cli_lock_take(&g_cli_serve_write_lock);
-    const int saved = cli_pages_save(key, out, said);
+    const int saved = cli_pages_save(key, out, err_msg);
     cli_lock_give(&g_cli_serve_write_lock);
     return saved;
 }
 
-static int pages_release(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pages_release(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const key = cli_serve_string(args, "key", said);
+    const char *const key = cli_serve_string(args, "key", err_msg);
     if (key == NULL)
     {
         return 0;
     }
     cli_pages_release(key);
-    cli_line_text(out, "null");
+    mmgr_line_put(out, "null");
     return 1;
 }
 
-static int requests_parse(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int requests_parse(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    const char *const text = cli_serve_string(args, "text", said);
+    const char *const text = cli_serve_string(args, "text", err_msg);
     if (text == NULL)
     {
         return 0;
     }
     (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &size);
-    return cli_requests_parsed(text, size, out, said);
+    return cli_requests_parsed(text, size, out, err_msg);
 }
 
-static int requests_environments(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int requests_environments(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    const char *const path = cli_serve_string(args, "path", said);
-    return (path != NULL) && cli_serve_tree(root, said) && cli_requests_environments(root, path, out, said);
+    char root[CLI_PATH_MAX_LEN];
+    const char *const path = cli_serve_string(args, "path", err_msg);
+    return (path != NULL) && cli_serve_tree(root, err_msg) && cli_requests_environments(root, path, out, err_msg);
 }
 
-// the arguments `path`, `text` and `line` of a request, and the tree: 1, or 0 with why said
+// the arguments `path`, `text` and `line` of a request, and the tree: 1, or 0 with why given
 static int requests_at(const CliServeArgs *args, char *root, const char **path, const char **text,
-                       unsigned long long *size, unsigned long long *line, CliLine *said)
+                       unsigned long long *size, unsigned long long *line, VerbaLinea *err_msg)
 {
-    *path = cli_serve_string(args, "path", said);
-    *text = (*path != NULL) ? cli_serve_string(args, "text", said) : NULL;
-    if ((*text == NULL) || !cli_serve_whole(args, "line", line, said) || !cli_serve_tree(root, said))
+    *path = cli_serve_string(args, "path", err_msg);
+    *text = (*path != NULL) ? cli_serve_string(args, "text", err_msg) : NULL;
+    if ((*text == NULL) || !cli_serve_whole(args, "line", line, err_msg) || !cli_serve_tree(root, err_msg))
     {
         return 0;
     }
@@ -214,105 +214,105 @@ static int requests_at(const CliServeArgs *args, char *root, const char **path, 
     return 1;
 }
 
-static int requests_send(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int requests_send(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     const char *path = NULL;
     const char *text = NULL;
     unsigned long long size = 0ull;
     unsigned long long line = 0ull;
-    return requests_at(args, root, &path, &text, &size, &line, said) &&
-           cli_requests_sent_at(root, path, text, size, line, cli_serve_string_or(args, "env", NULL), out, said);
+    return requests_at(args, root, &path, &text, &size, &line, err_msg) &&
+           cli_requests_sent_at(root, path, text, size, line, cli_serve_string_or(args, "env", NULL), out, err_msg);
 }
 
-static int requests_answers(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int requests_answers(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     const char *path = NULL;
     const char *text = NULL;
     unsigned long long size = 0ull;
     unsigned long long line = 0ull;
-    return requests_at(args, root, &path, &text, &size, &line, said) &&
-           cli_requests_answers(root, path, text, size, line, out, said);
+    return requests_at(args, root, &path, &text, &size, &line, err_msg) &&
+           cli_requests_answers(root, path, text, size, line, out, err_msg);
 }
 
-static int requests_curl(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int requests_curl(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     const char *path = NULL;
     const char *text = NULL;
     unsigned long long size = 0ull;
     unsigned long long line = 0ull;
-    return requests_at(args, root, &path, &text, &size, &line, said) &&
-           cli_requests_curl(root, path, text, size, line, cli_serve_string_or(args, "env", NULL), out, said);
+    return requests_at(args, root, &path, &text, &size, &line, err_msg) &&
+           cli_requests_curl(root, path, text, size, line, cli_serve_string_or(args, "env", NULL), out, err_msg);
 }
 
-static int requests_from_curl(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int requests_from_curl(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    const char *const text = cli_serve_string(args, "text", said);
+    const char *const text = cli_serve_string(args, "text", err_msg);
     if (text == NULL)
     {
         return 0;
     }
     (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &size);
-    return cli_requests_from_curl(text, size, out, said);
+    return cli_requests_from_curl(text, size, out, err_msg);
 }
 
-static int requests_private(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int requests_private(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char root[CLI_PATH_LONGEST];
-    const char *const path = cli_serve_string(args, "path", said);
-    return (path != NULL) && cli_serve_tree(root, said) && cli_requests_private_made(root, path, out, said);
+    char root[CLI_PATH_MAX_LEN];
+    const char *const path = cli_serve_string(args, "path", err_msg);
+    return (path != NULL) && cli_serve_tree(root, err_msg) && cli_requests_private_made(root, path, out, err_msg);
 }
 
-static int containers_list(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int containers_list(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     cli_containers_list(out);
     return 1;
 }
 
-static int container_act(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int container_act(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const name = cli_serve_string(args, "name", said);
-    const char *const act = (name != NULL) ? cli_serve_string(args, "act", said) : NULL;
-    if ((act == NULL) || !cli_containers_act(name, act, said))
+    const char *const name = cli_serve_string(args, "name", err_msg);
+    const char *const act = (name != NULL) ? cli_serve_string(args, "act", err_msg) : NULL;
+    if ((act == NULL) || !cli_containers_act(name, act, err_msg))
     {
         return 0;
     }
-    cli_line_text(out, "null");
+    mmgr_line_put(out, "null");
     return 1;
 }
 
-static int container_logs(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int container_logs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const name = cli_serve_string(args, "name", said);
-    return (name != NULL) && cli_containers_logs(name, out, said);
+    const char *const name = cli_serve_string(args, "name", err_msg);
+    return (name != NULL) && cli_containers_logs(name, out, err_msg);
 }
 
-static int container_run(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int container_run(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const name = cli_serve_string(args, "name", said);
-    const char *const line = (name != NULL) ? cli_serve_string(args, "line", said) : NULL;
-    return (line != NULL) && cli_containers_run_in(name, line, out, said);
+    const char *const name = cli_serve_string(args, "name", err_msg);
+    const char *const line = (name != NULL) ? cli_serve_string(args, "line", err_msg) : NULL;
+    return (line != NULL) && cli_containers_run_in(name, line, out, err_msg);
 }
 
-static int pods_list(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pods_list(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)args;
-    (void)said;
+    (void)err_msg;
     cli_containers_pods(out);
     return 1;
 }
 
-static int pod_logs(const CliServeArgs *args, CliLine *out, CliLine *said)
+static int pod_logs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    const char *const space = cli_serve_string(args, "namespace", said);
-    const char *const name = (space != NULL) ? cli_serve_string(args, "name", said) : NULL;
+    const char *const space = cli_serve_string(args, "namespace", err_msg);
+    const char *const name = (space != NULL) ? cli_serve_string(args, "name", err_msg) : NULL;
     return (name != NULL) &&
-           cli_containers_pod_logs(space, name, cli_serve_string_or(args, "container", NULL), out, said);
+           cli_containers_pod_logs(space, name, cli_serve_string_or(args, "container", NULL), out, err_msg);
 }
 
 const CliServeCall g_cli_serve_page_calls[] = {

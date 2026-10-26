@@ -10,7 +10,7 @@ static char s_out[1u << 14u];
 // the first comment of `text`, the text of the file at `path`, checked against `wanted`
 static void purpose_comment(const char *path, const char *text, const char *wanted, const char *what)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_purpose_first_comment(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &out);
     cli_check_text(s_out, out.at, wanted, what);
 }
@@ -24,7 +24,7 @@ static int purpose_uses(const char *text, const char *name, const char *stem)
 // `text` written to the file `name` of the folder
 static void purpose_file(const char *root, const char *name, const char *text)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(root, name, path);
     (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
@@ -50,17 +50,17 @@ static void purpose_comments(void)
                     "outside.\n\nMore.\n",
                     "An IDE of its own, with no libraries from outside.", "a Markdown file's first paragraph");
     static char s_long[4096];
-    CliLine line = {s_long, sizeof(s_long), 0ull};
-    cli_line_text(&line, "// ");
+    VerbaLinea line = {s_long, sizeof(s_long), 0ull};
+    mmgr_line_put(&line, "// ");
     for (unsigned int at = 0u; at < 60u; at += 1u)
     {
-        cli_line_text(&line, "A sentence of words. ");
+        mmgr_line_put(&line, "A sentence of words. ");
     }
-    cli_line_character(&line, '\n');
-    (void)cli_line_closed(&line);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    mmgr_line_ch(&line, '\n');
+    (void)mmgr_line_finish(&line);
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_purpose_first_comment("a.js", s_long, line.at, &out);
-    cli_check((out.at >= 6ull) && (out.at <= CLI_PURPOSE_SAID) &&
+    cli_check((out.at >= 6ull) && (out.at <= CLI_PURPOSE_TEXT_MAX_LEN) &&
                   (memor.cmp(&(MemoriaCfg){.src = s_out + out.at - 6u, .other = "words.", .bytes = 6u}) == 0),
               "a long comment is cut at a sentence");
 }
@@ -68,8 +68,8 @@ static void purpose_comments(void)
 // a file's purpose names the files of the tree that use it
 static void purpose_users(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char src[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char src[CLI_PATH_MAX_LEN];
     cli_check_folder("purpose", root);
     cli_full(root, "src", src);
     (void)query_folder_made(src);
@@ -79,19 +79,20 @@ static void purpose_users(void)
     purpose_file(root, "src/other.js", "const nothing = 0;\n");
     purpose_file(root, "index.html", "<script type=\"module\" src=\"src/lib.js\"></script>\n");
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_purpose(root, "src/lib.js", &out, &said), "a file's purpose is read");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_purpose(root, "src/lib.js", &out, &err_msg), "a file's purpose is read");
     cli_check_text(s_out, out.at,
-                   "{\"said\":\"Helpers for the window.\",\"users\":[\"index.html\",\"src/main.js\"],\"all\":2}",
+                   "{\"comment\":\"Helpers for the window.\",\"users\":[\"index.html\",\"src/main.js\"],\"all\":2}",
                    "it names the files of the tree that use it");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     purpose_comments();
     // the texts read are each a few hundred bytes, the room each is read in sized to it
-    cli_check((g_cli_purpose_cells.holds == 0ull) && (g_cli_purpose_cells.hw != 0ull) &&
+    cli_check((g_cli_purpose_cells.in_use == 0ull) && (g_cli_purpose_cells.hw != 0ull) &&
                   (g_cli_purpose_cells.hw < 65536ull),
               "a comment is read in a room sized to its text, given back");
     cli_check(purpose_uses("import { x } from \"./preview.js\";", "preview.js", "preview"), "an import uses a script");

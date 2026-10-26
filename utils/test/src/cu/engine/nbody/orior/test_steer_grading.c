@@ -20,13 +20,13 @@ static size_t count_with_probes(const uint8_t *corpus, size_t corpus_len, const 
 
     for (size_t at = 0u; (at + needle_len) <= corpus_len; at += 1u)
     {
-        size_t slot = 0u;
-        while (slot < probe_count)
+        size_t index = 0u;
+        while (index < probe_count)
         {
             int agrees = 1;
-            for (size_t step = 0u; step < probes[slot].length; step += 1u)
+            for (size_t step = 0u; step < probes[index].length; step += 1u)
             {
-                const size_t offset = probes[slot].origin + (step * probes[slot].step);
+                const size_t offset = probes[index].origin + (step * probes[index].step);
                 taken += 1u;
                 if (corpus[at + offset] != needle[offset])
                 {
@@ -38,9 +38,9 @@ static size_t count_with_probes(const uint8_t *corpus, size_t corpus_len, const 
             {
                 break;
             }
-            slot += 1u;
+            index += 1u;
         }
-        if (slot == probe_count)
+        if (index == probe_count)
         {
             verified += 1u;
             if (memcmp(corpus + at, needle, needle_len) == 0)
@@ -133,7 +133,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     /* READS PER ALIGNMENT IS THE MEASURE, AND ITS FLOOR IS EXACTLY ONE. Every alignment has to be
      * looked at at least once to be rejected. No probe arrangement can read fewer than one byte
      * per alignment. Printing the raw reads alone hides how close a route is to that floor; the
-     * normalized figure says whether there is anything left to win. Carried in thousandths by exact
+     * normalized figure shows whether there is anything left to win. Carried in thousandths by exact
      * integer division, with the numerator and denominator both printed beside it. */
     printf("\n  FIELD %s, %zu bytes, %zu alignments, reference count %zu\n\n", label, corpus_len, alignments, want);
     printf("  %26s %8s %10s %14s %12s %10s\n", "route", "probes", "count", "reads", "per align", "verdict");
@@ -141,11 +141,11 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     /* Spatial placement, unsteered, as the engine did before any of this. */
     OriorProbe spatial[ORIOR_STEER_ANCHORS];
     const size_t cell = needle_len / ORIOR_STEER_ANCHORS;
-    for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
+    for (size_t at = 0u; at < ORIOR_STEER_ANCHORS; at += 1u)
     {
-        spatial[slot].origin = (slot * cell) + ((cell > 1u) ? ((slot * 7u) % cell) : 0u);
-        spatial[slot].step = 1u;
-        spatial[slot].length = 1u;
+        spatial[at].origin = (at * cell) + ((cell > 1u) ? ((at * 7u) % cell) : 0u);
+        spatial[at].step = 1u;
+        spatial[at].length = 1u;
     }
     uint64_t spatial_reads = 0u;
     uint64_t spatial_verifications = 0u;
@@ -157,20 +157,20 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
 
     /* Recursive reorder of those same placements. */
     size_t reordered[ORIOR_STEER_ANCHORS];
-    for (size_t slot = 0u; slot < ORIOR_STEER_ANCHORS; slot += 1u)
+    for (size_t at = 0u; at < ORIOR_STEER_ANCHORS; at += 1u)
     {
-        reordered[slot] = spatial[slot].origin;
+        reordered[at] = spatial[at].origin;
     }
     const size_t depth = ORIOR_STEER_CALL(orior_steer_plan_recursive, OriorSteerDescent, .offsets = reordered,
                                            .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
                                            .needle = needle, .needle_len = needle_len, .survivors = survivors,
                                            .survivors_length = alignments, .sample_stride = 1u);
     OriorProbe recursive[ORIOR_STEER_ANCHORS];
-    for (size_t slot = 0u; slot < depth; slot += 1u)
+    for (size_t at = 0u; at < depth; at += 1u)
     {
-        recursive[slot].origin = reordered[slot];
-        recursive[slot].step = 1u;
-        recursive[slot].length = 1u;
+        recursive[at].origin = reordered[at];
+        recursive[at].step = 1u;
+        recursive[at].length = 1u;
     }
     uint64_t recursive_reads = 0u;
     uint64_t recursive_verifications = 0u;
@@ -179,18 +179,18 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     print_route_row("recursive reorder", depth, recursive_count, recursive_reads, alignments, recursive_count == want);
     failed += (recursive_count == want) ? 0 : 1;
 
-    /* Coarms spawned wherever the field says, and not where a spread rule put them. */
+    /* Coarms spawned wherever the field specifies, and not where a spread rule put them. */
     size_t spawned[ORIOR_STEER_ANCHORS];
     const size_t coarms = ORIOR_STEER_CALL(orior_steer_spawn_coarms, OriorSteerDescent, .offsets = spawned,
                                             .count = ORIOR_STEER_ANCHORS, .corpus = corpus, .corpus_len = corpus_len,
                                             .needle = needle, .needle_len = needle_len, .survivors = survivors,
                                             .survivors_length = alignments, .sample_stride = 1u);
     OriorProbe coarm_probes[ORIOR_STEER_ANCHORS];
-    for (size_t slot = 0u; slot < coarms; slot += 1u)
+    for (size_t at = 0u; at < coarms; at += 1u)
     {
-        coarm_probes[slot].origin = spawned[slot];
-        coarm_probes[slot].step = 1u;
-        coarm_probes[slot].length = 1u;
+        coarm_probes[at].origin = spawned[at];
+        coarm_probes[at].step = 1u;
+        coarm_probes[at].length = 1u;
     }
     uint64_t coarm_reads = 0u;
     uint64_t coarm_verifications = 0u;
@@ -213,10 +213,10 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     failed += (eye_count == want) ? 0 : 1;
 
     printf("    shapes spawned:");
-    for (size_t slot = 0u; slot < eyes; slot += 1u)
+    for (size_t at = 0u; at < eyes; at += 1u)
     {
-        printf(" %s(origin %zu, step %zu, length %zu)", (swept[slot].length == 1u) ? "arm" : "eye", swept[slot].origin,
-               swept[slot].step, swept[slot].length);
+        printf(" %s(origin %zu, step %zu, length %zu)", (swept[at].length == 1u) ? "arm" : "eye", swept[at].origin,
+               swept[at].step, swept[at].length);
     }
     printf("\n");
 
@@ -231,7 +231,7 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
     //
     // The theorem: an engine that decides each alignment from reads taken AT that alignment performs
     // at least one read per alignment. An alignment decided on zero reads is decided by a function
-    // whose domain is the empty tuple. Its range holds one value and it answers identically at
+    // whose domain is the empty tuple. Its range contains one value and it answers identically at
     // every alignment. An adversary edits the corpus there and flips whether that alignment matches,
     // the engine observes nothing different, and one of the two answers is wrong. So total reads,
     // probe reads plus the compares that follow them, is at least the alignment count, always.
@@ -288,11 +288,11 @@ int grade_field(const char *label, const uint8_t *corpus, size_t corpus_len)
  * called produces no wrong answer. Every count stays identical, every differential passes, and the
  * suite reports green while the engine runs the scalar path it always ran. That happened here: the
  * AVX2 arm was built, graded against portable and benched at thirty-three times its rate while
- * orior_steer.c went on calling its own loop, and nothing in the suite could say so, because
+ * orior_steer.c went on calling its own loop, and nothing in the suite could detect so, because
  * identical counts are exactly what an unused implementation produces.
  *
  * The claim asserted here is about the WIRING. Run the planner, then require that the scan counter
- * says the widest arm reporting itself present ran. A machine with no wide arm passes
+ * shows the widest arm reporting itself present ran. A machine with no wide arm passes
  * on the portable count alone, which is correct and not a waiver: there is nothing to have
  * failed to wire.
  */
@@ -321,9 +321,9 @@ int check_arm_is_wired(const uint8_t *corpus, size_t corpus_len, const uint8_t *
 
     printf("  %18s %14s %14s %10s %10s\n", "widest arm", "scans", "wide scans", "share", "verdict");
 
-    /* A COUNT SAYS THE ARM RAN. A SHARE SAYS IT RAN ON THE WORK IT WAS GIVEN. The distinction
+    /* A COUNT SHOWS THE ARM RAN. A SHARE SHOWS IT RAN ON THE WORK IT WAS GIVEN. The distinction
      * matters because they fail differently: a count above zero is satisfied by a single dispatch,
-     * and a change that accidentally routed almost every sweep to the scalar fall-through would keep
+     * and a change that accidentally routed almost every sweep to the scalar fall-through would stay
      * the count non-zero and be entirely wrong. This whole planner run is at stride one, the
      * only stride an arm serves. Every scan in it should reach the wide arm and the share
      * should be the full hundred. */

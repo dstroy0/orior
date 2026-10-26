@@ -7,8 +7,8 @@
 // The arrangements a descent ran over, written by `chains` into each `into` with its verdict, read back against the
 // cases the descent placed for that relation, each `cases` file a case a line as the two words and the word the
 // relation gives them. An arrangement stands on the part where it gives every placed case its word, and the part's
-// verdict is held to the descent's, written to `record`: 0 where every verdict agrees, 1 where one does not, 2 where
-// nothing could be read
+// verdict is checked against the descent's, written to `record`: 0 where every verdict agrees, 1 where one does not, 2
+// where nothing could be read
 int writings_descent_read(const char *record, unsigned int pairs, char **folders)
 {
     static char s_chain[WRITINGS_CHAINS_MOST][512];
@@ -26,7 +26,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
                  "every arrangement it descends over, its verdict on each and the cases it placed. Each arrangement "
                  "is written node by node from the writings `interface_sass_writings.md` found and run on the part "
                  "over the placed cases alone, and stands where it gives every one its word. The part's verdict is "
-                 "held to the descent's.\n\n");
+                 "checked against the descent's.\n\n");
     fprintf(out, "| relation | cases placed | arrangements | run | standing on the part | standing on the host | "
                  "verdicts that differ |\n|---|---|---|---|---|---|---|\n");
     unsigned int differ_total = 0u;
@@ -38,7 +38,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
         char line[WRITINGS_LINE];
         unsigned int placed[WRITINGS_CASES][3];
         unsigned int placed_count = 0u;
-        // the descent's cases as the run holds them, the descent's run having written them through its writer
+        // the descent's cases as the run stores them, the descent's run having written them through its writer
         const unsigned char *cases = NULL;
         unsigned long long cases_size = 0ull;
         unsigned long long cases_at = 0ull;
@@ -60,7 +60,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
             if (line_number(&read, 1, &word[0]) && line_number(&read, 1, &word[1]) && line_number(&read, 1, &word[2]) &&
                 (word[0] <= 0xffffffffull) && (word[1] <= 0xffffffffull) && (word[2] <= 0xffffffffull))
             {
-                // the test above holds each word inside 32 bits
+                // the test above bounds each word inside 32 bits
                 placed[placed_count][0] = (unsigned int)word[0];
                 placed[placed_count][1] = (unsigned int)word[1];
                 placed[placed_count][2] = (unsigned int)word[2];
@@ -126,7 +126,7 @@ int writings_descent_read(const char *record, unsigned int pairs, char **folders
     return (differ_total == 0u) ? 0 : 1;
 }
 
-// `text` with every `{name}` replaced by `put`, into `out`: 1, or 0 where `out` will not hold it
+// `text` with every `{name}` replaced by `put`, into `out`: 1, or 0 where `out` will not fit it
 static int writings_fill(const char *text, const char *name, const char *put, char *out, size_t room)
 {
     char brace[300];
@@ -184,14 +184,14 @@ static void writings_flat(const char *text, char *out, size_t room)
     out[at] = '\0';
 }
 
-// The words of the word web that are one precept over their operands, each held to the writings the part gave: the
-// ruleset's form for the word, its result put in WRITINGS_RESULT and its operands by place in WRITINGS_LEFT and
-// WRITINGS_RIGHT, looked for among the forms the search ran. Where it ran, it either gives every case the precept's word
-// or does not; where the search never ran that text, the record says so. Written to `record`: 0 where every form found
-// holds, 1 where one does not, 2 where nothing could be read
+// The words of the word web that are one precept over their operands, each checked against the writings the part gave:
+// the ruleset's form for the word, its result put in WRITINGS_RESULT and its operands by place in WRITINGS_LEFT and
+// WRITINGS_RIGHT, looked for among the forms the search ran. Where it ran, it either gives every case the precept's
+// word or does not; where the search never ran that text, the record reports it. Written to `record`: 0 where every
+// form found matches, 1 where one does not, 2 where nothing could be read
 int writings_krs_read(const char *folder, const char *ruleset, const char *record)
 {
-    // the ruleset as the run holds it, or the disk where the run holds none (qry_member_file)
+    // the ruleset as the run stores it, or the disk where the run stores none (qry_member_file)
     const unsigned char *rules = NULL;
     unsigned long long rules_size = 0ull;
     unsigned long long rules_at = 0ull;
@@ -208,13 +208,13 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
     {
         rule_count += (strncmp(s_rule[rule_count], "form ", 5u) == 0) ? 1u : 0u;
     }
-    fprintf(out, "# A ruleset's forms held to the part's writings\n\n");
+    fprintf(out, "# A ruleset's forms checked against the part's writings\n\n");
     fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. Each word of the word web that is one "
                  "precept over its operands is looked up in `%s`, its form written with its result and operands where "
                  "the search puts them, and looked for among the forms `interface_sass_writings.md` ran on the part.\n\n",
             ruleset);
     fprintf(out, "| word | precept | form as run | on the part |\n|---|---|---|---|\n");
-    unsigned int held = 0u;
+    unsigned int found_count = 0u;
     unsigned int differ = 0u;
     for (unsigned int word = 0u; word < WORD_WEB_COUNT; word += 1u)
     {
@@ -278,15 +278,15 @@ int writings_krs_read(const char *folder, const char *ruleset, const char *recor
         const char *verdict = "not among the forms run";
         if (found < s_form_count)
         {
-            const int holds = s_holds[found][relation];
-            verdict = holds ? "gives every case its word" : "does not give every case its word";
-            held += holds ? 1u : 0u;
-            differ += holds ? 0u : 1u;
+            const int agreed = s_relation_agreed[found][relation];
+            verdict = agreed ? "gives every case its word" : "does not give every case its word";
+            found_count += agreed ? 1u : 0u;
+            differ += agreed ? 0u : 1u;
         }
         fprintf(out, "| `%s` | %s | `%s` | %s |\n", one->name, s_precept_text[precept], flat, verdict);
         printf("  %-18s %-4s %-44s %s\n", one->name, s_precept_text[precept], flat, verdict);
     }
     fclose(out);
-    printf("interface sass krs: %u forms hold, %u do not, the record written to %s\n", held, differ, record);
+    printf("interface sass krs: %u forms match, %u do not, the record written to %s\n", found_count, differ, record);
     return (differ == 0u) ? 0 : 1;
 }

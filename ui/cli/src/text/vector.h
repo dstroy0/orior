@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// vector.h: the inner loops of the page's slow modules, over text held in UTF-16 units as the page's own strings hold
-// it, each written in the processor's vector instructions: SSE2, and AVX2 where the machine has it, on x86-64
+// vector.h: the inner loops of the page's slow modules, over text stored in UTF-16 units as the page's own strings
+// store it, each written in the processor's vector instructions: SSE2, and AVX2 where the machine has it, on x86-64
 // (vector_x86.c); NEON on aarch64 (vector_neon.c); and a plain loop where neither is there (vector.c). Each path
-// answers as the plain loop does, which the checks hold each one to on every path the machine runs.
+// answers as the plain loop does, which the checks check each one against on every path the machine runs.
 //
 // A search without case folds as the page's own does with the `i` and `u` flags: each unit of the text and of what is
 // sought to its simple case fold. Only text sought in ASCII is searched here; two units outside ASCII fold into it,
@@ -30,7 +30,7 @@ enum
     CLI_VECTOR_NEON
 };
 
-// the paths this machine runs into `paths`, which holds 4, the plain loop first and the widest last: their count
+// the paths this machine runs into `paths`, sized for 4, the plain loop first and the widest last: their count
 unsigned int cli_vector_paths(unsigned int *paths);
 // the widest path this machine runs
 unsigned int cli_vector_best(void);

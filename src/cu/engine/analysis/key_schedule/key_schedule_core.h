@@ -88,7 +88,7 @@ KEY_SCHEDULE_CORE unsigned int key_schedule_core_refs(const EngineRecordTerm *te
     return 0u;
 }
 
-// `limbs` taken from the first free block that holds them, else from the file's top; the blocks free are `*count` in
+// `limbs` taken from the first free block that fits them, else from the file's top; the blocks free are `*count` in
 // offset order
 KEY_SCHEDULE_CORE unsigned int key_schedule_core_alloc(KeyScheduleBlock *freed, unsigned int *count, unsigned int limbs,
                                                        unsigned int *top)
@@ -154,7 +154,7 @@ KEY_SCHEDULE_CORE void key_schedule_core_free(KeyScheduleBlock *freed, unsigned 
 }
 
 // The register file's total limbs: with reuse, a register is freed once its last reader has run, and a later step takes
-// its place, and a long chain runs within ENGINE_RECORD_LIMBS_MAX; without reuse, every step keeps its own place, the
+// its place, and a long chain runs within ENGINE_RECORD_LIMBS_MAX; without reuse, every step uses its own place, the
 // layout the proven programs were measured against. 0 where the file passes ENGINE_RECORD_LIMBS_MAX
 KEY_SCHEDULE_CORE int key_schedule_core_places(KeyScheduleCoreLayout *layout)
 {
@@ -246,7 +246,7 @@ KEY_SCHEDULE_CORE int key_schedule_core_error(KeyScheduleCoreLayout *layout, uns
 
 // Each step laid out for the device from its term, as key_schedule_record_layout lays it out: its limbs, operands and
 // fields, each table's first word, each register's place, and each output's offset and bits in the record: 1 where it
-// holds, else 0 with where it ended in `end` and `at`
+// is satisfied, else 0 with where it ended in `end` and `at`
 KEY_SCHEDULE_CORE int key_schedule_core_record_layout(KeyScheduleCoreLayout *layout)
 {
     layout->end = KEY_SCHEDULE_CORE_OK;

@@ -5,7 +5,7 @@
 #ifndef CYCLE_RECORD_OPERATE_H
 #define CYCLE_RECORD_OPERATE_H
 
-// Euclid's gcd of the magnitudes by the long division above, into `limbs` of value; scratch holds 5 * WIDE + 2
+// Euclid's gcd of the magnitudes by the long division above, into `limbs` of value; scratch contains 5 * WIDE + 2
 template <unsigned int WIDE>
 __device__ static void cycle_record_gcd(const unsigned int *left, unsigned int left_limbs, const unsigned int *right,
                                         unsigned int right_limbs, unsigned int *value, unsigned int limbs,
@@ -36,7 +36,7 @@ __device__ static void cycle_record_gcd(const unsigned int *left, unsigned int l
 // the quotient of an exact division by a multiply with the divisor's inverse and a mask: both are shifted past the
 // divisor's low zero bits, the odd divisor's inverse modulo 2^(32 limbs) is grown by Newton's x(2 - dx) from one
 // word, and the quotient is the low limbs of numerator . inverse; multiplying back proves it. 0 for a zero divisor or
-// a remainder. scratch holds 5 * WIDE limbs.
+// a remainder. scratch contains 5 * WIDE limbs.
 template <unsigned int WIDE>
 __device__ static int cycle_record_exact_quotient(const unsigned int *top, unsigned int top_limbs,
                                                   const unsigned int *bottom, unsigned int bottom_limbs,

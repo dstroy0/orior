@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// db_link.c: one link to a database, PostgreSQL's, MySQL's or SQLite's, each spoken alike: opened, read-only where the
-// connection matters and is guarded so, a statement started and its rows read, its transaction's state, what stops it,
-// what the server noted, and the link ended
+// db_link.c: one link to a database, PostgreSQL's, MySQL's or SQLite's, each implemented alike: opened, read-only where
+// the connection matters and is guarded so, a statement started and its rows read, its transaction's state, what stops
+// it, what the server noted, and the link ended
 #include "db_internal.h"
 
 // whether a path is whole, from a root or a drive, and not by its place in the tree
@@ -66,7 +66,7 @@ int cli_db_link_open(CliDbLink *link, const char *root, const CliDbConnection *c
     }
     if (cellul.eq(&(CatenaFinitaCfg){.src = config->kind, .other = "sqlite", .cap = CLI_CELLS_POOL}))
     {
-        char file[CLI_PATH_LONGEST];
+        char file[CLI_PATH_MAX_LEN];
         if (link_whole(config->file))
         {
             memor.cpy(&(MemoriaCfg){
@@ -83,12 +83,12 @@ int cli_db_link_open(CliDbLink *link, const char *root, const CliDbConnection *c
         link->kind = (link->lite != NULL) ? CLI_DB_LINK_LITE : CLI_DB_LINK_NONE;
         return link->lite != NULL;
     }
-    char said[CLI_NAME_LONGEST + 64u];
-    CliLine line = {said, sizeof(said), 0ull};
-    cli_line_text(&line, config->kind);
-    cli_line_text(&line, " is no kind of database orior_cli speaks");
-    cli_line_closed(&line);
-    cli_db_failure_said(failure, said);
+    char warned[CLI_NAME_MAX_LEN + 64u];
+    VerbaLinea line = {warned, sizeof(warned), 0ull};
+    mmgr_line_put(&line, config->kind);
+    mmgr_line_put(&line, " is no kind of database orior_cli supports");
+    mmgr_line_finish(&line);
+    cli_db_failure_set(failure, warned);
     return 0;
 }
 
@@ -118,21 +118,21 @@ const CliDbHead *cli_db_link_head(const CliDbLink *link)
     return &link->lite->head;
 }
 
-int cli_db_link_rows(CliDbLink *link, unsigned long long count, CliDbRowTold told, void *context, int *done, char *tag,
-                     CliDbFailure *failure)
+int cli_db_link_rows(CliDbLink *link, unsigned long long count, CliDbRowFn each_row, void *context, int *done,
+                     char *tag, CliDbFailure *failure)
 {
     if (link->kind == CLI_DB_LINK_PG)
     {
-        return cli_pg_rows(link->pg, count, told, context, done, tag, failure);
+        return cli_pg_rows(link->pg, count, each_row, context, done, tag, failure);
     }
     if (link->kind == CLI_DB_LINK_MY)
     {
-        return cli_mysql_rows(link->my, count, told, context, done, tag, failure);
+        return cli_mysql_rows(link->my, count, each_row, context, done, tag, failure);
     }
-    return cli_db_lite_rows(link->lite, count, told, context, done, tag, failure);
+    return cli_db_lite_rows(link->lite, count, each_row, context, done, tag, failure);
 }
 
-int cli_db_link_all(CliDbLink *link, const char *statement, unsigned long long size, CliDbRowTold told, void *context,
+int cli_db_link_all(CliDbLink *link, const char *statement, unsigned long long size, CliDbRowFn each_row, void *context,
                     CliDbFailure *failure)
 {
     char tag[CLI_DB_TAG];
@@ -142,7 +142,7 @@ int cli_db_link_all(CliDbLink *link, const char *statement, unsigned long long s
     }
     for (int done = !cli_db_link_head(link)->rows; !done;)
     {
-        if (!cli_db_link_rows(link, 4096ull, told, context, &done, tag, failure))
+        if (!cli_db_link_rows(link, 4096ull, each_row, context, &done, tag, failure))
         {
             return 0;
         }
@@ -181,17 +181,17 @@ int cli_db_link_stopper(const CliDbLink *link, CliDbStop *stop)
     return link->kind == CLI_DB_LINK_LITE;
 }
 
-int cli_db_stop_sent(const CliDbStop *stop, CliLine *said)
+int cli_db_stop_sent(const CliDbStop *stop, VerbaLinea *err_msg)
 {
     if (stop->kind == CLI_DB_LINK_PG)
     {
-        return cli_pg_cancel_sent(&stop->pg, said);
+        return cli_pg_cancel_sent(&stop->pg, err_msg);
     }
     if (stop->kind == CLI_DB_LINK_MY)
     {
-        return cli_mysql_cancel_sent(&stop->my, said);
+        return cli_mysql_cancel_sent(&stop->my, err_msg);
     }
-    return cli_db_lite_interrupted(stop->lite, said);
+    return cli_db_lite_interrupted(stop->lite, err_msg);
 }
 
 // The warnings MySQL gave, written each a row's values joined by spaces, and how many there are
@@ -199,25 +199,25 @@ typedef struct
 {
     void (*each)(void *context, const char *notice);
     void *context;
-    unsigned int said;
+    unsigned int warned;
 } CliDbLinkWarnings;
 
 static int link_warning(void *context, const CliDbValue *values, unsigned int count)
 {
     CliDbLinkWarnings *const warnings = (CliDbLinkWarnings *)context;
     char notice[CLI_DB_FIELD];
-    CliLine line = {notice, sizeof(notice), 0ull};
+    VerbaLinea line = {notice, sizeof(notice), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if (!values[at].null)
         {
-            cli_line_text(&line, (line.at > 0ull) ? " " : "");
+            mmgr_line_put(&line, (line.at > 0ull) ? " " : "");
             cli_lossy(&line, (const unsigned char *)values[at].text, values[at].size);
         }
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     warnings->each(warnings->context, notice);
-    warnings->said += 1u;
+    warnings->warned += 1u;
     return 1;
 }
 
@@ -240,13 +240,13 @@ void cli_db_link_notices(CliDbLink *link, void (*each)(void *context, const char
     CliDbLinkWarnings warnings = {each, context, 0u};
     CliDbFailure failure;
     (void)cli_mysql_all(link->my, s_show, sizeof(s_show) - 1u, link_warning, &warnings, &failure);
-    if (warnings.said == 0u)
+    if (warnings.warned == 0u)
     {
         char notice[64];
-        CliLine line = {notice, sizeof(notice), 0ull};
-        cli_line_decimal(&line, count, 1u);
-        cli_line_text(&line, (count == 1u) ? " warning" : " warnings");
-        cli_line_closed(&line);
+        VerbaLinea line = {notice, sizeof(notice), 0ull};
+        mmgr_line_decimal(&line, count, 1u);
+        mmgr_line_put(&line, (count == 1u) ? " warning" : " warnings");
+        mmgr_line_finish(&line);
         each(context, notice);
     }
 }

@@ -322,18 +322,18 @@ int zstd_offset_resolve(ZstdDecoder *decoder, unsigned long long offset_value, u
         decoder->repeat[0u] = *offset;
         return 1;
     }
-    const unsigned long long slot = (offset_value - 1ull) + ((literal_length == 0ull) ? 1ull : 0ull);
-    if (slot == 0ull)
+    const unsigned long long repeat_at = (offset_value - 1ull) + ((literal_length == 0ull) ? 1ull : 0ull);
+    if (repeat_at == 0ull)
     {
         *offset = decoder->repeat[0u];
         return 1;
     }
-    const unsigned long long chosen = (slot == 3ull) ? (decoder->repeat[0u] - 1ull) : decoder->repeat[slot];
+    const unsigned long long chosen = (repeat_at == 3ull) ? (decoder->repeat[0u] - 1ull) : decoder->repeat[repeat_at];
     if (chosen == 0ull)
     {
         return 0;
     }
-    if (slot != 1ull)
+    if (repeat_at != 1ull)
     {
         decoder->repeat[2u] = decoder->repeat[1u];
     }

@@ -7,8 +7,8 @@
 #include "../toolchains/toolchains.h"
 #include "command_line_internal.h"
 
-// the catalog the command line reads, in cells of its size, held until it is read again
-CliCellsTally g_cli_line_catalog_cells = CLI_CELLS_TALLY("cli_line_catalog");
+// the catalog the command line reads, in cells of its size, stored until it is read again
+CellOwner g_cli_line_catalog_cells = MMGR_CELL_OWNER("cli_line_catalog");
 static CliCatalog s_catalog;
 
 void cli_out_line(const char *text, unsigned long long size)
@@ -48,23 +48,23 @@ unsigned int cli_width(void)
     return (width >= 40ull) ? (unsigned int)width : 100u;
 }
 
-void cli_cut(const char *text, unsigned long long size, unsigned long long most, CliLine *out)
+void cli_cut(const char *text, unsigned long long size, unsigned long long most, VerbaLinea *out)
 {
     if (cli_text_letters(text, size) <= most)
     {
-        cli_line_counted(out, text, size);
+        mmgr_line_put_n(out, text, size);
         return;
     }
-    const unsigned long long kept = (most > 3ull) ? most - 3ull : 0ull;
+    const unsigned long long shown = (most > 3ull) ? most - 3ull : 0ull;
     unsigned long long at = 0ull;
-    for (unsigned long long letter = 0ull; letter < kept; letter += 1ull)
+    for (unsigned long long letter = 0ull; letter < shown; letter += 1ull)
     {
         unsigned long long length = 0ull;
         (void)cli_text_letter(text, size, at, &length);
         at += (length > 0ull) ? length : 1ull;
     }
-    cli_line_counted(out, text, cli_text_trimmed_end(text, at));
-    cli_line_text(out, "...");
+    mmgr_line_put_n(out, text, cli_text_trimmed_end(text, at));
+    mmgr_line_put(out, "...");
 }
 
 void cli_wrap(const char *text, unsigned long long size, const char *lead, unsigned long long most,
@@ -72,21 +72,21 @@ void cli_wrap(const char *text, unsigned long long size, const char *lead, unsig
 {
     static char s_line[1u << 16u];
     const unsigned long long lead_size = cellul.len(&(CatenaFinitaCfg){.src = lead, .cap = CLI_CELLS_POOL});
-    CliLine line = {s_line, sizeof(s_line), 0ull};
-    cli_line_text(&line, lead);
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
+    mmgr_line_put(&line, lead);
     unsigned long long at = 0ull;
     unsigned long long word = 0ull;
     unsigned long long length = 0ull;
     while (cli_text_word(text, size, &at, &word, &length))
     {
-        const int held = (line.at > lead_size);
-        if (held && (line.at + 1ull + length > most))
+        const int started = (line.at > lead_size);
+        if (started && (line.at + 1ull + length > most))
         {
             each(context, s_line, line.at);
             line.at = lead_size;
         }
-        cli_line_text(&line, (line.at > lead_size) ? " " : "");
-        cli_line_counted(&line, text + word, length);
+        mmgr_line_put(&line, (line.at > lead_size) ? " " : "");
+        mmgr_line_put_n(&line, text + word, length);
     }
     if (line.at > lead_size)
     {
@@ -94,7 +94,7 @@ void cli_wrap(const char *text, unsigned long long size, const char *lead, unsig
     }
 }
 
-int cli_holds_word(const char *text, const char *word)
+int cli_contains_word(const char *text, const char *word)
 {
     const size_t length = cellul.len(&(CatenaFinitaCfg){.src = word, .cap = CLI_CELLS_POOL});
     const size_t size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
@@ -121,18 +121,18 @@ int cli_holds_word(const char *text, const char *word)
     return 0;
 }
 
-void cli_quoted_word(const char *word, CliLine *out)
+void cli_quoted_word(const char *word, VerbaLinea *out)
 {
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
     for (const char *at = word; *at != '\0'; at += 1)
     {
         if ((*at == '\\') || (*at == '"'))
         {
-            cli_line_character(out, '\\');
+            mmgr_line_ch(out, '\\');
         }
-        cli_line_character(out, *at);
+        mmgr_line_ch(out, *at);
     }
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
 }
 
 CliCatalog *cli_command_line_catalog(const char *root)
@@ -144,7 +144,7 @@ CliCatalog *cli_command_line_catalog(const char *root)
 }
 
 unsigned int cli_job_named(const CliCatalog *catalog, const unsigned int *among, unsigned int among_count,
-                           const char *name, CliLine *said)
+                           const char *name, VerbaLinea *err_msg)
 {
     const unsigned int jobs = (among != NULL) ? among_count : catalog->jobs;
     for (unsigned int one = 0u; one < jobs; one += 1u)
@@ -182,25 +182,25 @@ unsigned int cli_job_named(const CliCatalog *catalog, const unsigned int *among,
     }
     if (count == 0u)
     {
-        cli_line_text(said, "no job ");
-        cli_line_text(said, name);
-        cli_line_text(said, ": orior_cli list names them");
+        mmgr_line_put(err_msg, "no job ");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, ": orior_cli list names them");
         return CLI_CATALOG_NONE;
     }
-    cli_line_text(said, name);
-    cli_line_text(said, " names ");
-    cli_line_decimal(said, count, 1u);
-    cli_line_text(said, " jobs; give one of:");
+    mmgr_line_put(err_msg, name);
+    mmgr_line_put(err_msg, " names ");
+    mmgr_line_decimal(err_msg, count, 1u);
+    mmgr_line_put(err_msg, " jobs; give one of:");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(said, "\n  ");
-        cli_line_text(said, cli_catalog_at(catalog, catalog->job[s_many[at]].id));
+        mmgr_line_put(err_msg, "\n  ");
+        mmgr_line_put(err_msg, cli_catalog_at(catalog, catalog->job[s_many[at]].id));
     }
     return CLI_CATALOG_NONE;
 }
 
-// whether the job at `job` takes the param `key`: 1, or 0 with what it takes said
-static int values_known(const CliCatalog *catalog, unsigned int job, const char *key, CliLine *said)
+// whether the job at `job` takes the param `key`: 1, or 0 with what it takes given
+static int values_known(const CliCatalog *catalog, unsigned int job, const char *key, VerbaLinea *err_msg)
 {
     const CliJob *const one = &catalog->job[job];
     for (unsigned int at = 0u; at < one->params; at += 1u)
@@ -212,64 +212,64 @@ static int values_known(const CliCatalog *catalog, unsigned int job, const char 
             return 1;
         }
     }
-    cli_line_text(said, cli_catalog_at(catalog, one->id));
+    mmgr_line_put(err_msg, cli_catalog_at(catalog, one->id));
     if (one->params == 0u)
     {
-        cli_line_text(said, " takes no values");
+        mmgr_line_put(err_msg, " takes no values");
         return 0;
     }
-    cli_line_text(said, " takes no ");
-    cli_line_text(said, key);
-    cli_line_text(said, "; it takes ");
+    mmgr_line_put(err_msg, " takes no ");
+    mmgr_line_put(err_msg, key);
+    mmgr_line_put(err_msg, "; it takes ");
     for (unsigned int at = 0u; at < one->params; at += 1u)
     {
-        cli_line_text(said, (at > 0u) ? ", " : "");
-        cli_line_text(said, cli_catalog_at(catalog, catalog->param[one->param_first + at].key));
+        mmgr_line_put(err_msg, (at > 0u) ? ", " : "");
+        mmgr_line_put(err_msg, cli_catalog_at(catalog, catalog->param[one->param_first + at].key));
     }
     return 0;
 }
 
 int cli_job_values(const CliCatalog *catalog, unsigned int job, const char *const *words, unsigned int count,
-                   CliValues *values, CliLine *said)
+                   CliValues *values, VerbaLinea *err_msg)
 {
     cli_values_begun(values);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = words[at], .other = "--", .cap = CLI_CELLS_POOL}))
         {
-            if (!values_known(catalog, job, "arguments", said))
+            if (!values_known(catalog, job, "arguments", err_msg))
             {
                 return 0;
             }
             static char s_free[1u << 16u];
-            CliLine free = {s_free, sizeof(s_free), 0ull};
+            VerbaLinea free = {s_free, sizeof(s_free), 0ull};
             for (unsigned int word = at + 1u; word < count; word += 1u)
             {
-                cli_line_text(&free, (word > at + 1u) ? " " : "");
+                mmgr_line_put(&free, (word > at + 1u) ? " " : "");
                 cli_quoted_word(words[word], &free);
             }
-            (void)cli_line_closed(&free);
+            (void)mmgr_line_finish(&free);
             cli_values_put(values, "arguments", s_free);
             break;
         }
         const char *const equals = cellul.chr(&(CatenaFinitaCfg){.src = words[at], .cap = CLI_CELLS_POOL, .byte = '='});
         if (equals == NULL)
         {
-            cli_line_text(said, words[at]);
-            cli_line_text(said, " is not key=value; words for the job go after --");
+            mmgr_line_put(err_msg, words[at]);
+            mmgr_line_put(err_msg, " is not key=value; words for the job go after --");
             return 0;
         }
-        char key[CLI_NAME_LONGEST];
+        char key[CLI_NAME_MAX_LEN];
         const size_t size = (size_t)(equals - words[at]);
         if (size >= sizeof(key))
         {
-            cli_line_text(said, words[at]);
-            cli_line_text(said, " is not key=value; words for the job go after --");
+            mmgr_line_put(err_msg, words[at]);
+            mmgr_line_put(err_msg, " is not key=value; words for the job go after --");
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = key, .src = words[at], .bytes = size});
         key[size] = '\0';
-        if (!values_known(catalog, job, key, said))
+        if (!values_known(catalog, job, key, err_msg))
         {
             return 0;
         }
@@ -300,17 +300,17 @@ void cli_job_subject(const CliCatalog *catalog, unsigned int job, char *subject)
         (slash != NULL) ? cellul.chr(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL, .byte = '/'}) : NULL;
     const size_t size =
         (end != NULL) ? (size_t)(end - from) : cellul.len(&(CatenaFinitaCfg){.src = from, .cap = CLI_CELLS_POOL});
-    const size_t kept = (size < CLI_NAME_LONGEST) ? size : CLI_NAME_LONGEST - 1u;
-    memor.cpy(&(MemoriaCfg){.dst = subject, .src = from, .bytes = kept});
-    subject[kept] = '\0';
+    const size_t copied_len = (size < CLI_NAME_MAX_LEN) ? size : CLI_NAME_MAX_LEN - 1u;
+    memor.cpy(&(MemoriaCfg){.dst = subject, .src = from, .bytes = copied_len});
+    subject[copied_len] = '\0';
 }
 
-int cli_command_line_tree(const char *named, char *root, CliLine *said)
+int cli_command_line_tree(const char *named, char *root, VerbaLinea *err_msg)
 {
-    const int found = (named != NULL) ? cli_tree_at(named, root, said) : cli_tree_found(root);
+    const int found = (named != NULL) ? cli_tree_at(named, root, err_msg) : cli_tree_found(root);
     if (!found && (named == NULL))
     {
-        cli_line_text(said, "no orior tree here: run from inside one, or name one with --root");
+        mmgr_line_put(err_msg, "no orior tree here: run from inside one, or name one with --root");
     }
     if (found)
     {

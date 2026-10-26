@@ -64,7 +64,7 @@ unsigned long long parquet_varint_read(ParquetCursor *cursor)
             cursor->broken = 1u;
             return 0ull;
         }
-        // widened to 64 bits before the shift, which reaches 63, and the last group was held to the bits below 64
+        // widened to 64 bits before the shift, which reaches 63, and the last group was limited to the bits below 64
         value |= (unsigned long long)group_bits << (7u * group);
         if ((byte & 0x80u) == 0u)
         {
@@ -85,7 +85,7 @@ static long long parquet_zigzag_read(ParquetCursor *cursor)
     return ((stored & 1ull) != 0ull) ? (-value_bits - 1ll) : value_bits;
 }
 
-// a zigzag integer a count, size or offset field holds, refused where negative
+// a zigzag integer a count, size or offset field contains, refused where negative
 unsigned long long parquet_nonnegative_read(ParquetCursor *cursor)
 {
     const long long value = parquet_zigzag_read(cursor);
@@ -145,7 +145,7 @@ unsigned int parquet_field_read(ParquetCursor *cursor, long long *field_id)
     return header & 0x0Fu;
 }
 
-// skip one value that holds no other value. A kind that is not a scalar breaks the cursor
+// skip one value that contains no other value. A kind that is not a scalar breaks the cursor
 static void parquet_scalar_skip(ParquetCursor *cursor, unsigned int kind)
 {
     switch (kind)
@@ -256,7 +256,7 @@ void parquet_value_skip(ParquetCursor *cursor, unsigned int kind)
     }
 }
 
-// `count` bytes from `from` after the ones held, the room doubled until they fit. 0 where the room does not grow
+// `count` bytes from `from` after the ones stored, the room doubled until they fit. 0 where the room does not grow
 int parquet_bytes_append(ParquetBytes *bytes, const unsigned char *from, unsigned long long count)
 {
     if (count > (bytes->room - bytes->count))

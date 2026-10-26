@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // diff_test.c: the page's diff's check: lines put in, taken out and changed are marked as the page marks them, the same
-// text has no marks and texts too far apart have none at all, lines that hash alike and differ are told apart, and a
+// text has no marks and texts too far apart have none at all, lines that hash alike and differ are distinguished, and a
 // long text with lines changed far apart marks each
 #include "../../../../../ui/cli/src/editor/document.h"
 #include "cli_check.h"
@@ -37,7 +37,7 @@ static const CliLines *diff_lines(DiffSide *side, const char *text, unsigned lon
 static unsigned long long diff_changes(const char *then, unsigned long long then_size, const char *now,
                                        unsigned long long now_size)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     return cli_diff_line_changes(diff_lines(&s_then, then, then_size), diff_lines(&s_now, now, now_size), &out) ? out.at
                                                                                                                 : 0ull;
 }
@@ -48,13 +48,14 @@ static void diff_member(unsigned long long size, const char *name, const char *w
     unsigned int root = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, size, &root);
     char text[1024];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     cli_json_write(json, cli_json_member(json, root, name), &line, 0u, 0);
     cli_check_text(text, line.at, wanted, what);
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     unsigned long long size = diff_changes("a\nb\nc\nd\ne", 9ull, "a\nB\nc\nnew\nd", 11ull);
     diff_member(size, "changed", "[1]", "a line changed is marked changed");
     diff_member(size, "added", "[3]", "a line put in is marked added");
@@ -68,16 +69,16 @@ int main(void)
     diff_member(size, "changed", "[]", "nothing changed");
     diff_member(size, "removed", "[]", "nothing taken out");
     diff_member(size, "hunks", "[]", "and no hunk");
-    CliLine then = {s_then_text, sizeof(s_then_text), 0ull};
-    CliLine now = {s_now_text, sizeof(s_now_text), 0ull};
+    VerbaLinea then = {s_then_text, sizeof(s_then_text), 0ull};
+    VerbaLinea now = {s_now_text, sizeof(s_now_text), 0ull};
     for (unsigned int at = 0u; at < 4000u; at += 1u)
     {
-        cli_line_text(&then, "old ");
-        cli_line_decimal(&then, at, 1u);
-        cli_line_character(&then, '\n');
-        cli_line_text(&now, "new ");
-        cli_line_decimal(&now, at, 1u);
-        cli_line_character(&now, '\n');
+        mmgr_line_put(&then, "old ");
+        mmgr_line_decimal(&then, at, 1u);
+        mmgr_line_ch(&then, '\n');
+        mmgr_line_put(&now, "new ");
+        mmgr_line_decimal(&now, at, 1u);
+        mmgr_line_ch(&now, '\n');
     }
     cli_check(diff_changes(s_then_text, then.at, s_now_text, now.at) == 0ull,
               "texts too far apart have no marks at all");
@@ -96,28 +97,28 @@ int main(void)
     now.at = 0ull;
     for (unsigned int at = 0u; at < 50000u; at += 1u)
     {
-        cli_line_text(&then, (at > 0u) ? "\nx_" : "x_");
-        cli_line_decimal(&then, at, 1u);
-        cli_line_text(&then, " = ");
-        cli_line_decimal(&then, at, 1u);
-        cli_line_text(&then, " * 2");
-        cli_line_text(&now, (at > 0u) ? "\nx_" : "x_");
-        cli_line_decimal(&now, at, 1u);
-        cli_line_text(&now, " = ");
-        cli_line_decimal(&now, at, 1u);
-        cli_line_text(&now, ((at >= 1000u) && (((at - 1000u) % 5000u) == 0u)) ? " * 2 changed" : " * 2");
+        mmgr_line_put(&then, (at > 0u) ? "\nx_" : "x_");
+        mmgr_line_decimal(&then, at, 1u);
+        mmgr_line_put(&then, " = ");
+        mmgr_line_decimal(&then, at, 1u);
+        mmgr_line_put(&then, " * 2");
+        mmgr_line_put(&now, (at > 0u) ? "\nx_" : "x_");
+        mmgr_line_decimal(&now, at, 1u);
+        mmgr_line_put(&now, " = ");
+        mmgr_line_decimal(&now, at, 1u);
+        mmgr_line_put(&now, ((at >= 1000u) && (((at - 1000u) % 5000u) == 0u)) ? " * 2 changed" : " * 2");
     }
     size = diff_changes(s_then_text, then.at, s_now_text, now.at);
     char wanted[256];
-    CliLine line = {wanted, sizeof(wanted), 0ull};
-    cli_line_character(&line, '[');
+    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    mmgr_line_ch(&line, '[');
     for (unsigned int at = 1000u; at < 50000u; at += 5000u)
     {
-        cli_line_text(&line, (at > 1000u) ? "," : "");
-        cli_line_decimal(&line, at, 1u);
+        mmgr_line_put(&line, (at > 1000u) ? "," : "");
+        mmgr_line_decimal(&line, at, 1u);
     }
-    cli_line_character(&line, ']');
-    (void)cli_line_closed(&line);
+    mmgr_line_ch(&line, ']');
+    (void)mmgr_line_finish(&line);
     diff_member(size, "changed", wanted, "a long text with lines changed far apart marks each");
     diff_member(size, "added", "[]", "and puts none in");
     diff_member(size, "removed", "[]", "and takes none out");

@@ -3,7 +3,7 @@
 //
 // a client with no device of its own: it submits one job for the device named on its command line through the
 // endpoint tessera_path_endpoint names ($TESSERA_RUNTIME in a container), with no daemon path: only a daemon
-// already listening there, or a socket systemd holds, can answer. It prints what came back.
+// already listening there, or a socket systemd owns, can answer. It prints what came back.
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
 
 #include <stdio.h>
@@ -32,26 +32,26 @@ int main(int count, char **arguments)
 {
     EngineError error;
     memset(&error, 0, sizeof(error));
-    TesseraJobAsk ask;
-    memset(&ask, 0, sizeof(ask));
-    if ((count < 2) || !probe_hex(arguments[1], ask.device, TESSERA_DEVICE_BYTES))
+    TesseraJobSubmit submit;
+    memset(&submit, 0, sizeof(submit));
+    if ((count < 2) || !probe_hex(arguments[1], submit.device, TESSERA_DEVICE_BYTES))
     {
         printf("  tessera socket probe: the device's UUID as 32 lowercase hex digits is the one argument\n");
         return 2;
     }
     char endpoint[ENGINE_PATH_CAPACITY];
-    const int named = tessera_path_endpoint(ask.device, endpoint, ENGINE_PATH_CAPACITY);
+    const int named = tessera_path_endpoint(submit.device, endpoint, ENGINE_PATH_CAPACITY);
     printf("  endpoint %s\n", named ? endpoint : "(none)");
-    ask.signum.bytes[0] = 0x50u;
-    ask.declared = 1ull;
-    ask.holding_microseconds = 1000000ull;
-    ask.sweep_microseconds = 20000ull;
-    ask.idle_microseconds = 1000000ull;
-    ask.daemon_path = NULL;
-    ask.error = &error;
+    submit.signum.bytes[0] = 0x50u;
+    submit.declared = 1ull;
+    submit.grace_microseconds = 1000000ull;
+    submit.sweep_microseconds = 20000ull;
+    submit.idle_microseconds = 1000000ull;
+    submit.daemon_path = NULL;
+    submit.error = &error;
     TesseraClient *client = NULL;
     TesseraTicket ticket;
-    const long answer = tessera_job_submit(&ask, &client, &ticket);
+    const long answer = tessera_job_submit(&submit, &client, &ticket);
     printf("  submit %s (error kind %d, module %d, site %u, status %d)\n", (answer == 0L) ? "admitted" : "errored",
            (int)error.kind, (int)error.module, error.site, error.status);
     if (answer == 0L)

@@ -27,9 +27,9 @@ static void max_tree_part(const unsigned int *residual, const MaxTree *theirs, c
     {
         const unsigned int their_parent = theirs->parent[first];
         const unsigned int my_parent = mine->parent[first];
-        printf("    part: %u of %u voxels differ; first voxel %u at %u, reference parent %u at %u, asked parent %u "
-               "at %u; voxel level equals reference parent %d, asked parent %d; parents equal %d; reference "
-               "parent's parent %u, asked parent's parent %u\n",
+        printf("    part: %u of %u voxels differ; first voxel %u at %u, reference parent %u at %u, queried parent %u "
+               "at %u; voxel level equals reference parent %d, queried parent %d; parents equal %d; reference "
+               "parent's parent %u, queried parent's parent %u\n",
                differing, theirs->admitted, first, place[first], their_parent, place[their_parent], my_parent,
                place[my_parent], max_tree_same(residual, first, their_parent),
                max_tree_same(residual, first, my_parent), max_tree_same(residual, their_parent, my_parent),
@@ -61,10 +61,10 @@ static void max_tree_key_exact(const unsigned int *key, OriorExactInteger *value
 
 static int max_tree_stronger(const unsigned int *keys, unsigned int face, unsigned int standing)
 {
-    max_tree_ask_ready();
-    max_tree_key_exact(&keys[(size_t)face * MAX_TREE_KEY_LIMBS], &g_asked_left);
-    max_tree_key_exact(&keys[(size_t)standing * MAX_TREE_KEY_LIMBS], &g_asked_right);
-    return (orior_exact_compare(&g_asked_left, &g_asked_right) > 0) ? 1 : 0;
+    max_tree_compare_ready();
+    max_tree_key_exact(&keys[(size_t)face * MAX_TREE_KEY_LIMBS], &g_compare_left);
+    max_tree_key_exact(&keys[(size_t)standing * MAX_TREE_KEY_LIMBS], &g_compare_right);
+    return (orior_exact_compare(&g_compare_left, &g_compare_right) > 0) ? 1 : 0;
 }
 
 int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int height, unsigned int width,
@@ -177,16 +177,16 @@ int max_tree_poc(const unsigned int *residual, unsigned int depth, unsigned int 
         *rounds = turns;
     }
 
-    MaxTree asked;
-    memset(&asked, 0, sizeof(asked));
-    ok = (ok != 0) && (max_tree_build_bound(residual, depth, height, width, bound, &asked) >= 0L);
+    MaxTree tree;
+    memset(&tree, 0, sizeof(tree));
+    ok = (ok != 0) && (max_tree_build_bound(residual, depth, height, width, bound, &tree) >= 0L);
     const int built = ok;
-    ok = (ok != 0) && (max_tree_equal(&reference, &asked) != 0);
+    ok = (ok != 0) && (max_tree_equal(&reference, &tree) != 0);
     if ((built != 0) && (ok == 0))
     {
-        max_tree_part(residual, &reference, &asked);
+        max_tree_part(residual, &reference, &tree);
     }
-    max_tree_release(&asked);
+    max_tree_release(&tree);
     free(left);
     free(right);
     free(axes);
@@ -219,9 +219,9 @@ void max_tree_nodes_release(MaxTreeNodes *nodes)
     memset(nodes, 0, sizeof(*nodes));
 }
 
-// the node arrays numbered in DFS order from the canonical voxels: `slot` names each canonical voxel's place among
+// the node arrays numbered in DFS order from the canonical voxels: `node_of` names each canonical voxel's place among
 // them in voxel order, `rank` each admitted voxel's dense rank; returns 0 where a voxel's parent is not canonical
-static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *slot, const unsigned int *rank,
+static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *node_of, const unsigned int *rank,
                                 unsigned int count, MaxTreeNodes *nodes, EngineError *error)
 {
     const size_t voxels = tree->voxels;
@@ -236,20 +236,20 @@ static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *slot, c
                                  tree, error, ENGINE_ERROR_RESOURCE);
     for (size_t voxel = 0u; (ok != 0) && (voxel < voxels); voxel += 1u)
     {
-        if (slot[voxel] == MAX_TREE_ABSENT)
+        if (node_of[voxel] == MAX_TREE_ABSENT)
         {
             continue;
         }
-        // a voxel index is below the tree's voxel count, which max_tree_grow holds below 2^32 - 1
-        canonical[slot[voxel]] = (unsigned int)voxel;
+        // a voxel index is below the tree's voxel count, which max_tree_grow bounds below 2^32 - 1
+        canonical[node_of[voxel]] = (unsigned int)voxel;
         const unsigned int above = tree->parent[voxel];
         if (above == voxel)
         {
             continue;
         }
         // a canonical voxel's parent is the canonical voxel of the node below it
-        ok = MAX_TREE_HOST_CHECK(slot[above] != MAX_TREE_ABSENT, &tree->parent[voxel], error, ENGINE_ERROR_LOGIC);
-        starts[slot[above] + 1u] += (ok != 0) ? 1u : 0u;
+        ok = MAX_TREE_HOST_CHECK(node_of[above] != MAX_TREE_ABSENT, &tree->parent[voxel], error, ENGINE_ERROR_LOGIC);
+        starts[node_of[above] + 1u] += (ok != 0) ? 1u : 0u;
     }
     for (unsigned int node = 0u; (ok != 0) && (node < count); node += 1u)
     {
@@ -265,8 +265,8 @@ static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *slot, c
         const unsigned int above = tree->parent[voxel];
         if (above != voxel)
         {
-            children[filled[slot[above]]] = node;
-            filled[slot[above]] += 1u;
+            children[filled[node_of[above]]] = node;
+            filled[node_of[above]] += 1u;
         }
     }
     unsigned int waiting_count = 0u;
@@ -299,7 +299,7 @@ static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *slot, c
         const unsigned int above = tree->parent[voxel];
         nodes->voxel[at] = voxel;
         nodes->level[at] = rank[voxel];
-        nodes->parent[at] = (above == voxel) ? at : placed[slot[above]];
+        nodes->parent[at] = (above == voxel) ? at : placed[node_of[above]];
         nodes->subtree_end[at] = 1u;
     }
     for (unsigned int at = count; (ok != 0) && (at > 0u); at -= 1u)
@@ -323,10 +323,10 @@ static int max_tree_nodes_build(const MaxTree *tree, const unsigned int *slot, c
             nodes->own[voxel] = MAX_TREE_ABSENT;
             continue;
         }
-        const unsigned int node_slot = (slot[voxel] != MAX_TREE_ABSENT) ? slot[voxel] : slot[above];
+        const unsigned int node_at = (node_of[voxel] != MAX_TREE_ABSENT) ? node_of[voxel] : node_of[above];
         // an admitted voxel that is not canonical points at its node's canonical voxel
-        ok = MAX_TREE_HOST_CHECK(node_slot != MAX_TREE_ABSENT, &tree->parent[voxel], error, ENGINE_ERROR_LOGIC);
-        nodes->own[voxel] = (ok != 0) ? placed[node_slot] : MAX_TREE_ABSENT;
+        ok = MAX_TREE_HOST_CHECK(node_at != MAX_TREE_ABSENT, &tree->parent[voxel], error, ENGINE_ERROR_LOGIC);
+        nodes->own[voxel] = (ok != 0) ? placed[node_at] : MAX_TREE_ABSENT;
     }
     free(starts);
     free(children);
@@ -357,8 +357,8 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     const size_t voxels = tree->voxels;
     const unsigned int admitted = tree->admitted;
     unsigned int *const rank = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
-    unsigned int *const slot = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
-    int ok = MAX_TREE_HOST_CHECK((rank != NULL) && (slot != NULL), request, error, ENGINE_ERROR_RESOURCE);
+    unsigned int *const node_of = (unsigned int *)malloc((voxels + 1u) * sizeof(unsigned int));
+    int ok = MAX_TREE_HOST_CHECK((rank != NULL) && (node_of != NULL), request, error, ENGINE_ERROR_RESOURCE);
     unsigned int levels = 0u;
     for (unsigned int at = admitted; (ok != 0) && (at > 0u); at -= 1u)
     {
@@ -370,11 +370,11 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
     for (size_t voxel = 0u; (ok != 0) && (voxel < voxels); voxel += 1u)
     {
         const unsigned int above = tree->parent[voxel];
-        // a voxel index is below the tree's voxel count, which max_tree_grow holds below 2^32 - 1
+        // a voxel index is below the tree's voxel count, which max_tree_grow bounds below 2^32 - 1
         const unsigned int here = (unsigned int)voxel;
         const int canonical =
             (above != MAX_TREE_ABSENT) && ((above == here) || (max_tree_same(residual, here, above) == 0));
-        slot[voxel] = (canonical != 0) ? count : MAX_TREE_ABSENT;
+        node_of[voxel] = (canonical != 0) ? count : MAX_TREE_ABSENT;
         count += (canonical != 0) ? 1u : 0u;
     }
     if (ok != 0)
@@ -389,9 +389,9 @@ long max_tree_nodes(const MaxTreeNodesRequest *request)
                                      (nodes->subtree_end != NULL) && (nodes->root != NULL) && (nodes->own != NULL),
                                  request, error, ENGINE_ERROR_RESOURCE);
     }
-    ok = (ok != 0) && max_tree_nodes_build(tree, slot, rank, count, nodes, error);
+    ok = (ok != 0) && max_tree_nodes_build(tree, node_of, rank, count, nodes, error);
     free(rank);
-    free(slot);
+    free(node_of);
     if (ok == 0)
     {
         max_tree_nodes_release(nodes);

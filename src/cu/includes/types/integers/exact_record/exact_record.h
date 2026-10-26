@@ -6,17 +6,17 @@
 #include "../../../../engine/engine.h"
 
 // The exact integer's arithmetic on the device, as steps of a record program. A program is built here on the host and
-// every value it names is a register the device holds for a lane: each call writes the steps of one operation and
-// returns the step that holds its result. Nothing here computes a lane's value on the host; the host lays out
+// every value it names is a register the device allocates for a lane: each call writes the steps of one operation and
+// returns the step that contains its result. Nothing here computes a lane's value on the host; the host lays out
 // constants, fields and tables.
 //
 // Every value is exact. A quotient rounds toward zero, and down and up give the integers below and above it whatever
-// the signs, the outward pair a held value is read through. A register's width is the bound keymath finds at imprint;
-// wrap and narrow give a value its own width where the caller holds the bound.
+// the signs, the outward pair a stored value is read through. A register's width is the bound keymath finds at imprint;
+// wrap and narrow give a value its own width where the caller knows the bound.
 //
 // A step whose operands are all constants the program knows, each below 2^62 in size, is the constant it gives: the
 // program writes that constant and no step for the operation, and a sum with 0, a product with 1 or 0 and a quotient
-// by 1 give their other operand or 0. A value every lane holds alike, an exponent the program sets, costs no step.
+// by 1 give their other operand or 0. A value every lane shares alike, an exponent the program sets, costs no step.
 
 #ifdef __cplusplus
 extern "C"
@@ -42,7 +42,7 @@ extern "C"
         // each step's value where the program knows it, a constant below 2^62 in size, and 1 there in `known`
         long long *values;
         unsigned char *known;
-        // 1 where a step, field or table could not be held; every later call then writes nothing and returns 0
+        // 1 where a step, field or table could not be allocated; every later call then writes nothing and returns 0
         int failed;
     } ExactRecordProgram;
 
@@ -118,7 +118,7 @@ extern "C"
     // read back signed, is the value
     unsigned int exact_record_wrap(ExactRecordProgram *program, unsigned int value, unsigned int bits);
 
-    // a value known to lie in [0, 2^bits), its register given that width: the and with 2^bits - 1 keeps it
+    // a value known to lie in [0, 2^bits), its register given that width: the and with 2^bits - 1 preserves it
     unsigned int exact_record_narrow(ExactRecordProgram *program, unsigned int value, unsigned int bits);
 
     // bit `bit` of a value's two's complement, 0 or 1

@@ -9,8 +9,8 @@ unsigned int scheduler_round(RunQuestion *const *question, const unsigned int *s
     for (unsigned int first = 0u; first < count; first += SCHEDULER_ROUND_MOST)
     {
         const unsigned int carried = ((count - first) < SCHEDULER_ROUND_MOST) ? (count - first) : SCHEDULER_ROUND_MOST;
-        // the round's order by insertion, the most settling first and the order handed kept between equals: a round
-        // holds few enough questions for that
+        // the round's order by insertion, the most settling first and the order handed preserved between equals: a
+        // round contains few enough questions for that
         RunQuestion *ordered[SCHEDULER_ROUND_MOST];
         unsigned int weight[SCHEDULER_ROUND_MOST];
         for (unsigned int at = 0u; at < carried; at += 1u)
@@ -25,7 +25,7 @@ unsigned int scheduler_round(RunQuestion *const *question, const unsigned int *s
             ordered[place] = question[first + at];
             weight[place] = settles[first + at];
         }
-        answered += run_channel_ask_many(ordered, carried);
+        answered += run_channel_put_many(ordered, carried);
     }
     return answered;
 }

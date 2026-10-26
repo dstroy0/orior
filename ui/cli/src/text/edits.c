@@ -10,30 +10,30 @@
 #include <stdlib.h>
 
 // the places of the edits being written, each edit's from and then its to; their bytes; the order they are taken in,
-// one cell of twice the edits' count; and the lock they are held under, which the sorts read them through
+// one cell of twice the edits' count; and the lock they are guarded by, which the sorts read them through
 static CliTextPlace *s_place;
 static unsigned long long *s_byte;
 static unsigned int *s_order;
 static CliLock s_edits_lock = CLI_LOCK_INIT;
 
-void cli_text_place_written(CliTextPlace place, CliLine *out)
+void cli_text_place_written(CliTextPlace place, VerbaLinea *out)
 {
-    cli_line_text(out, "{\"line\":");
-    cli_line_decimal(out, place.line, 1u);
-    cli_line_text(out, ",\"col\":");
-    cli_line_decimal(out, place.col, 1u);
-    cli_line_character(out, '}');
+    mmgr_line_put(out, "{\"line\":");
+    mmgr_line_decimal(out, place.line, 1u);
+    mmgr_line_put(out, ",\"col\":");
+    mmgr_line_decimal(out, place.col, 1u);
+    mmgr_line_ch(out, '}');
 }
 
-void cli_text_edit_written(const CliTextEdit *edit, CliLine *out)
+void cli_text_edit_written(const CliTextEdit *edit, VerbaLinea *out)
 {
-    cli_line_text(out, "{\"from\":");
+    mmgr_line_put(out, "{\"from\":");
     cli_text_place_written(edit->from, out);
-    cli_line_text(out, ",\"to\":");
+    mmgr_line_put(out, ",\"to\":");
     cli_text_place_written(edit->to, out);
-    cli_line_text(out, ",\"text\":");
+    mmgr_line_put(out, ",\"text\":");
     cli_json_quoted(out, edit->text, edit->size);
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
 unsigned long long cli_text_byte_of(const char *line, unsigned long long size, unsigned int col)
@@ -123,7 +123,7 @@ static void edits_bytes(const char *text, unsigned long long size, unsigned int 
 }
 
 int cli_text_applied(const char *text, unsigned long long size, const CliTextEdit *edits, unsigned int count,
-                     CliLine *out)
+                     VerbaLinea *out)
 {
     if (count > CLI_TEXT_EDITS)
     {
@@ -131,8 +131,8 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
     }
     // the bytes first on the cell's boundary, then the places, then the order
     const unsigned long long places = 2ull * count;
-    char *const cell = cli_cell_taken((places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)),
-                                      "the places of the edits written");
+    char *const cell = g_cli_cells->persistent_buf_alloc(
+        (places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)), NULL);
     if (cell == NULL)
     {
         return 0;
@@ -152,21 +152,21 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
         s_order[at] = at;
     }
     qsort(s_order, count, sizeof(s_order[0]), edits_by_span);
-    unsigned long long held = 0ull;
+    unsigned long long cursor = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const unsigned int edit = s_order[at];
-        const unsigned long long from = (s_byte[2u * edit] > held) ? s_byte[2u * edit] : held;
+        const unsigned long long from = (s_byte[2u * edit] > cursor) ? s_byte[2u * edit] : cursor;
         const unsigned long long to = s_byte[(2u * edit) + 1u];
-        cli_line_counted(out, text + held, from - held);
-        cli_line_counted(out, edits[edit].text, edits[edit].size);
-        held = (to > from) ? to : from;
+        mmgr_line_put_n(out, text + cursor, from - cursor);
+        mmgr_line_put_n(out, edits[edit].text, edits[edit].size);
+        cursor = (to > from) ? to : from;
     }
-    cli_line_counted(out, text + held, size - held);
+    mmgr_line_put_n(out, text + cursor, size - cursor);
     s_byte = NULL;
     s_place = NULL;
     s_order = NULL;
     cli_lock_give(&s_edits_lock);
-    cli_cell_given(cell);
+    g_cli_cells->persistent_buf_release(cell, NULL);
     return 1;
 }

@@ -75,8 +75,8 @@ extern "C" void cycle_resident_release(void)
 }
 
 // The stack a launch grew past `before`, given back once its work is done. The runtime raises the stack limit to the
-// widest frame a kernel launches with, reserves that frame for every thread the device keeps resident, and holds it
-// until the limit is set back. A `before` of 0 is a limit never read, and nothing is set.
+// widest frame a kernel launches with, reserves that frame for every thread the device maintains resident, and reserves
+// it until the limit is set back. A `before` of 0 is a limit never read, and nothing is set.
 int cycle_stack_return(size_t before, const void *evacaddr, EngineError *error)
 {
     if (before == 0u)

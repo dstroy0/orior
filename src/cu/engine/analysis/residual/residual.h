@@ -12,7 +12,7 @@ extern "C"
 
 #define RESIDUAL_ERROR (-1L)
 
-// the comb, the smooth, its spaced pairs at each spacing, the keep, the background's smooth, its spaced pairs at each
+// the comb, the smooth, its spaced pairs at each spacing, the save, the background's smooth, its spaced pairs at each
 // spacing and the scaled subtraction
 #define RESIDUAL_STEPS (5u + (2u * ENGINE_SPACINGS))
 

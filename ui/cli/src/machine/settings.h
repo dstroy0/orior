@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // settings.h: settings by file, each part of a file standing over the parts before it: the files the reader's
 // settings.json takes, settings.json itself, the files a tree's `.orior/settings.json` takes, and that file
-// (settings.c, settings_layers.c). A settings file is JSON, with comments and trailing commas as VS Code's files hold
-// them, each key a setting as settings.json keeps it (kept.c), and these keys of its own:
+// (settings.c, settings_layers.c). A settings file is JSON, with comments and trailing commas as VS Code's files write
+// them, each key a setting as settings.json stores it (state.c), and these keys of its own:
 //
 // - `takes`: the path of another settings file, from the file's own folder, whose settings this one takes, its own
 //   standing over them;
@@ -23,7 +23,7 @@
 #include "../text/json_tree.h"
 
 // the cells the settings are read and laid in (settings.c)
-extern CliCellsTally g_cli_settings_cells;
+extern CellOwner g_cli_settings_cells;
 
 // the tree's settings file, from its top folder; the most files one chain of `takes` reads; and the most settings one
 // `${setting:name}` reads through
@@ -33,20 +33,20 @@ extern CliCellsTally g_cli_settings_cells;
 
 #define CLI_SETTINGS_NAMES_DEEP 8u
 
-// the most bytes of the layers' texts, and the most problems a chain or the layers tell
+// the most bytes of the layers' texts, and the most problems a chain or the layers report
 #define CLI_SETTINGS_TEXT (1u << 21u)
 
 #define CLI_SETTINGS_PROBLEMS 64u
 
 // The files of one chain, the first taken by the second and so on to the last, read into one tree in a cell of their
-// tokens and bytes, each the path it is shown by and the object of every key it holds, and what could not be read
+// tokens and bytes, each the path it is shown by and the object of every key it contains, and what could not be read
 typedef struct
 {
     CliJson json;
-    char file[CLI_SETTINGS_DEEPEST][CLI_PATH_LONGEST];
+    char file[CLI_SETTINGS_DEEPEST][CLI_PATH_MAX_LEN];
     unsigned int values[CLI_SETTINGS_DEEPEST];
     unsigned int files;
-    char problem[CLI_SETTINGS_PROBLEMS][CLI_PATH_LONGEST * 2u];
+    char problem[CLI_SETTINGS_PROBLEMS][CLI_PATH_MAX_LEN * 2u];
     unsigned int problems;
 } CliChain;
 
@@ -89,7 +89,7 @@ typedef struct
 // the problems met and the system
 typedef struct
 {
-    char own_file[CLI_PATH_LONGEST];
+    char own_file[CLI_PATH_MAX_LEN];
     int has_own_file;
     CliLayerText over[CLI_LAYERS_KEYS];
     unsigned int overs;
@@ -118,24 +118,24 @@ int cli_settings_is_file_key(const char *key);
 // the file at `path` and each it takes, the one taken first, each shown by its path from `root` where it is under it,
 // else as it is; a file not there gives none; a file taken that is not there, or that a chain takes twice, is a
 // problem. The tree's settings, its file and each it takes, shown from the tree's top folder; and the reader's,
-// settings.json in orior's own folder and each file it takes. Each into `chain`, which holds nothing before, its tree
-// given back by cli_settings_chain_given (settings.c)
+// settings.json in orior's own folder and each file it takes. Each into `chain`, which contains nothing before, its
+// tree given back by cli_settings_chain_given (settings.c)
 void cli_settings_chain(const char *path, const char *root, CliChain *chain);
 void cli_settings_tree(const char *root, CliChain *chain);
 void cli_settings_reader(CliChain *chain);
 // a chain written as the window reads it, `{"files": [{"file", "values"}], "problems"}`, after `out`; a chain the
-// window hands back, so written, read into `chain`, which holds nothing before: 1, or 0 with why said; and a chain's
-// tree given back, the chain left holding nothing (settings_chain_text.c)
-void cli_settings_chain_written(const CliChain *chain, CliLine *out);
-int cli_settings_chain_read(const char *text, unsigned long long length, CliChain *chain, CliLine *said);
+// window hands back, so written, read into `chain`, which contains nothing before: 1, or 0 with why given; and a
+// chain's tree given back, the chain left containing nothing (settings_chain_text.c)
+void cli_settings_chain_written(const CliChain *chain, VerbaLinea *out);
+int cli_settings_chain_read(const char *text, unsigned long long length, CliChain *chain, VerbaLinea *err_msg);
 void cli_settings_chain_given(CliChain *chain);
-// the settings in force from the reader's chain and the tree's, for the tree at `root`, into `layers`, which hold
-// nothing before, their texts in a cell grown as they are kept; the layers' texts given back, the layers left holding
-// none; the layers written as the window reads them after `out`; and the text of `key` the layers set over the
-// reader's own, or under it, NULL where they set none (settings_layers.c)
+// the settings in force from the reader's chain and the tree's, for the tree at `root`, into `layers`, which contain
+// nothing before, their texts in a cell grown as they are stored; the layers' texts given back, the layers left
+// containing none; the layers written as the window reads them after `out`; and the text of `key` the layers set over
+// the reader's own, or under it, NULL where they set none (settings_layers.c)
 void cli_settings_layers(const CliChain *reader, const CliChain *tree, const char *root, CliLayers *layers);
 void cli_settings_layers_given(CliLayers *layers);
-void cli_settings_layers_written(const CliLayers *layers, CliLine *out);
+void cli_settings_layers_written(const CliLayers *layers, VerbaLinea *out);
 const char *cli_settings_layer(const CliLayers *layers, const char *key, int over);
 
 #endif

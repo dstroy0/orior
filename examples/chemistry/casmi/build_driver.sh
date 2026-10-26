@@ -73,7 +73,7 @@ MODULES=(cu/includes/formats/cfg_json cu/includes/formats/stack cu/includes/file
          cu/engine/nbody/print_pair cu/engine/nbody/velocity cu/engine/nbody/division cu/engine/nbody/marginal
          cu/engine/nbody/contact_side cu/engine/nbody/box_history cu/engine/nbody/heaviest_matching
          cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/includes/types/integerfloats/edouble
-         cu/includes/types/integers/exact_record cu/engine/runtime/scriptura)
+         cu/includes/types/integers/exact_record)
 INGEST=(cu/includes/formats/zarr cu/includes/codecs/zstd cu/includes/codecs/inflate cu/includes/codecs/deflate
         cu/includes/codecs/lz4 cu/includes/codecs/snappy cu/includes/codecs/blosc cu/includes/formats/tiff
         cu/includes/formats/hdf5 cu/includes/codecs/zip cu/includes/formats/dicom cu/includes/formats/npy
@@ -90,14 +90,17 @@ for module in "${MODULES[@]}"; do
     done
 done
 INCLUDES+=("${TESSERA_INCLUDES[@]}")
+# MMgr's line, which the engine writes its text through: its flags for every source, its sources among the portable ones
+source "$ENGINE/../includes/file_defs/file_defs.sh"
+INCLUDES+=("${FILE_DEFS_MMGR_FLAGS[@]}")
 
 OBJECTS=()
-SCRIPTURA_OBJECTS=()
+LINEA_OBJECTS=()
 PORTABLE=()
 for module in cu/engine/nbody/body_overlap cu/engine/analysis/shift_agreement cu/includes/formats/cfg_json \
               cu/engine/nbody/max_tree cu/engine/analysis/cycle cu/engine/nbody/heaviest_matching cu/engine/nbody/marginal \
               cu/includes/types/integerfloats/double_fields cu/includes/types/integerfloats/decimal_double cu/includes/types/integerfloats/edouble \
-              cu/includes/types/integers/exact_record cu/engine/runtime/scriptura "${INGEST[@]}"; do
+              cu/includes/types/integers/exact_record "${INGEST[@]}"; do
     for source in "$(build_path "$module")"/*.c; do
         [ -f "$source" ] && PORTABLE+=("$source")
     done
@@ -106,6 +109,7 @@ for name in exact_integer_{add,limbs,multiply,divide,gcd,decimal,hash}; do
     PORTABLE+=("$EXACT_ROOT/$name.c")
 done
 PORTABLE+=("$ROOT/src/parquet/parquet.c" "$ROOT/src/mass/mass.c")
+PORTABLE+=("${FILE_DEFS_LINEA[@]}")
 for source in "${PORTABLE[@]}"; do
     object="$OUT/$(basename "$source" .c)_casmi_driver.$EXTENSION"
     rm -f "$object"
@@ -117,11 +121,11 @@ for source in "${PORTABLE[@]}"; do
     esac
     [ -f "$object" ] || { echo "  build failed: $(basename "$source") did not compile"; exit 1; }
     OBJECTS+=("$object")
-    case "$(basename "$source")" in
-        scriptura*) SCRIPTURA_OBJECTS+=("$object") ;;
+    case "$source" in
+        */mmgr/src/*) LINEA_OBJECTS+=("$object") ;;
     esac
 done
-tessera_build casmi_driver "${SCRIPTURA_OBJECTS[@]}" || exit 1
+tessera_build casmi_driver "${LINEA_OBJECTS[@]}" || exit 1
 
 # The engine's sources, each compiled alone, through the compile cache under a key of src/ only: its tree at HEAD,
 # its uncommitted changes and its untracked files, and the toolkit. The tree's own key covers every file of the

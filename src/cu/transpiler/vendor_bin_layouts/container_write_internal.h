@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// What the container_*.c pieces share: the places a layout gives, a part as the emitter holds it, and the
+// What the container_*.c pieces share: the places a layout gives, a part as the emitter stores it, and the
 // functions one piece calls in another
 #ifndef CONTAINER_WRITE_INTERNAL_H
 #define CONTAINER_WRITE_INTERNAL_H
@@ -10,8 +10,8 @@
 #include <stdio.h>
 #include <string.h>
 
-// what bounds the sections a container may hold. It is not the format's to state: a format says where things are, and
-// this says how many of them the write will carry at once
+// what bounds the sections a container may contain. It is not the format's to state: a format specifies where things
+// are, and this specifies how many of them the write will carry at once
 #define CONTAINER_SECTIONS 16384u
 
 // every place this reads or writes, taken out of the layout once
@@ -32,7 +32,7 @@ typedef struct
     unsigned long long attribute_header, attribute_format_value, attribute_registers, attribute_exits;
 } Places;
 
-// a part of the container as this holds it: where it was, its type, the bytes it takes now and how many, and where
+// a part of the container as this stores it: where it was, its type, the bytes it takes now and how many, and where
 // it goes
 typedef struct
 {
@@ -48,7 +48,7 @@ unsigned long long container_value_read(const unsigned char *bytes, unsigned int
 
 int container_places_read(const ContainerLayout *layout, Places *places);
 
-int container_pattern_holds(const Places *places, const unsigned char *pattern, unsigned long long size);
+int container_pattern_matches(const Places *places, const unsigned char *pattern, unsigned long long size);
 
 int container_section_takes_bytes(const Places *places, const unsigned char *pattern, unsigned long long at,
                                   unsigned long long index);

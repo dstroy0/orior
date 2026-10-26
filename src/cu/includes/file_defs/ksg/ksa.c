@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// ksa.c: the table of schemes an approval of a seal is made by, and an approval made and held, as ksa.h lays them out.
-// Each scheme signs KSA_CONTEXT and then the seal's trailer
+// ksa.c: the table of schemes an approval of a seal is made by, and an approval made and verified, as ksa.h lays them
+// out. Each scheme signs KSA_CONTEXT and then the seal's trailer
 #include "ksa.h"
 
 #include "../../codecs/ed25519/ed25519.h"
@@ -26,10 +26,10 @@ static void ksa_ed25519_signed(const unsigned char *secret, const unsigned char 
     ed25519_signed(secret, key, message, bytes, signature);
 }
 
-static int ksa_ed25519_holds(const unsigned char *key, const void *message, size_t bytes,
-                             const unsigned char *signature)
+static int ksa_ed25519_verify(const unsigned char *key, const void *message, size_t bytes,
+                              const unsigned char *signature)
 {
-    return ed25519_holds(key, message, bytes, signature);
+    return ed25519_verify(key, message, bytes, signature);
 }
 
 // the schemes an approval is made by, one row each
@@ -41,7 +41,7 @@ static const KsaScheme s_schemes[] = {
      ED25519_SIGNATURE_BYTES,
      ksa_ed25519_public_of,
      ksa_ed25519_signed,
-     ksa_ed25519_holds},
+     ksa_ed25519_verify},
 };
 
 #define KSA_SCHEMES (sizeof(s_schemes) / sizeof(s_schemes[0]))
@@ -113,7 +113,7 @@ void ksa_approved(const KsaScheme *scheme, const unsigned char *secret, const un
     scheme->signed_with(secret, approval->key, message, sizeof(message), approval->signature);
 }
 
-int ksa_holds(const KsaApproval *approval, const unsigned char *trailer)
+int ksa_verify(const KsaApproval *approval, const unsigned char *trailer)
 {
     const KsaScheme *const scheme = ksa_scheme_tagged(approval->tag);
     if ((scheme == NULL) || (approval->key_bytes != scheme->key_bytes) ||
@@ -123,5 +123,5 @@ int ksa_holds(const KsaApproval *approval, const unsigned char *trailer)
     }
     unsigned char message[KSA_MESSAGE_BYTES];
     ksa_message(trailer, message);
-    return scheme->holds(approval->key, message, sizeof(message), approval->signature);
+    return scheme->verify(approval->key, message, sizeof(message), approval->signature);
 }

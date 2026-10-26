@@ -12,7 +12,7 @@
 #define CLI_DEBUG_PROCESSES_FIRST 256u
 #define CLI_DEBUG_PROCESS_TEXT_FIRST 16384ull
 
-CliCellsTally g_cli_debug_processes_cells = CLI_CELLS_TALLY("cli_debug_processes");
+CellOwner g_cli_debug_processes_cells = MMGR_CELL_OWNER("cli_debug_processes");
 
 // A process listed: its number, and where its name and its line start in the text
 typedef struct
@@ -36,22 +36,22 @@ typedef struct
     CliDebugProcess *sorted;
 } CliDebugListing;
 
-// `cell` of `size` bytes moved into a cell of `larger`, given back: the larger, or NULL with `cell` kept where it is
-// refused
+// `cell` of `size` bytes moved into a cell of `larger`, given back: the larger, or NULL with `cell` retained where it
+// is refused
 static void *processes_moved(void *cell, unsigned long long size, unsigned long long larger, const char *what)
 {
-    char *const moved = cli_cell_taken_by(&g_cli_debug_processes_cells, larger, what);
+    char *const moved = g_cli_cells->persistent_buf_alloc(larger, &g_cli_debug_processes_cells);
     if (moved == NULL)
     {
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (size_t)size});
-    cli_cell_given_by(&g_cli_debug_processes_cells, cell);
+    g_cli_cells->persistent_buf_release(cell, &g_cli_debug_processes_cells);
     return moved;
 }
 
-// a text kept in the listing's text: where it starts, or where an empty one does where it does not fit
-static unsigned long long processes_kept(CliDebugListing *listing, const char *text)
+// a text stored in the listing's text: where it starts, or where an empty one does where it does not fit
+static unsigned long long processes_text_stored(CliDebugListing *listing, const char *text)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
     while ((listing->used + size > listing->text_room) && (listing->text_room < CLI_DEBUG_PROCESS_TEXT))
@@ -98,7 +98,7 @@ static void processes_listed(void *context, unsigned int pid, const char *name, 
         listing->room = larger;
     }
     listing->process[listing->count] =
-        (CliDebugProcess){pid, processes_kept(listing, name), processes_kept(listing, command)};
+        (CliDebugProcess){pid, processes_text_stored(listing, name), processes_text_stored(listing, command)};
     listing->count += 1u;
 }
 
@@ -143,41 +143,39 @@ static void processes_sorted(CliDebugListing *listing, unsigned int from, unsign
         .dst = &process[from], .src = &listing->sorted[from], .bytes = (size_t)(to - from) * sizeof(process[0])});
 }
 
-void cli_debug_processes(CliLine *out)
+void cli_debug_processes(VerbaLinea *out)
 {
     CliDebugListing listing = {
         NULL, 0u, CLI_DEBUG_PROCESSES_FIRST, NULL, 1ull, CLI_DEBUG_PROCESS_TEXT_FIRST, cli_process_own(), NULL};
-    listing.process = cli_cell_taken_by(&g_cli_debug_processes_cells,
-                                        CLI_DEBUG_PROCESSES_FIRST * sizeof(CliDebugProcess), "the processes listed");
-    listing.text =
-        cli_cell_taken_by(&g_cli_debug_processes_cells, CLI_DEBUG_PROCESS_TEXT_FIRST, "the processes' names and lines");
+    listing.process = g_cli_cells->persistent_buf_alloc(CLI_DEBUG_PROCESSES_FIRST * sizeof(CliDebugProcess),
+                                                        &g_cli_debug_processes_cells);
+    listing.text = g_cli_cells->persistent_buf_alloc(CLI_DEBUG_PROCESS_TEXT_FIRST, &g_cli_debug_processes_cells);
     if ((listing.process != NULL) && (listing.text != NULL))
     {
         listing.text[0] = '\0';
         cli_processes_each(processes_listed, &listing);
-        listing.sorted = cli_cell_taken_by(&g_cli_debug_processes_cells,
-                                           ((unsigned long long)listing.count + 1ull) * sizeof(CliDebugProcess),
-                                           "the processes' sorting room");
+        listing.sorted = g_cli_cells->persistent_buf_alloc(
+            ((unsigned long long)listing.count + 1ull) * sizeof(CliDebugProcess), &g_cli_debug_processes_cells);
     }
     const unsigned int count = (listing.sorted != NULL) ? listing.count : 0u;
     processes_sorted(&listing, 0u, count);
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *const name = listing.text + listing.process[at].name;
         const char *const command = listing.text + listing.process[at].command;
-        cli_line_text(out, (at > 0u) ? ",{\"pid\":" : "{\"pid\":");
-        cli_line_decimal(out, listing.process[at].pid, 1u);
-        cli_line_text(out, ",\"name\":");
+        mmgr_line_put(out, (at > 0u) ? ",{\"pid\":" : "{\"pid\":");
+        mmgr_line_decimal(out, listing.process[at].pid, 1u);
+        mmgr_line_put(out, ",\"name\":");
         cli_json_quoted_lossy(out, (const unsigned char *)name,
                               cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"command\":");
+        mmgr_line_put(out, ",\"command\":");
         cli_json_quoted_lossy(out, (const unsigned char *)command,
                               cellul.len(&(CatenaFinitaCfg){.src = command, .cap = CLI_CELLS_POOL}));
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
-    cli_line_character(out, ']');
-    cli_cell_given_by(&g_cli_debug_processes_cells, listing.sorted);
-    cli_cell_given_by(&g_cli_debug_processes_cells, listing.text);
-    cli_cell_given_by(&g_cli_debug_processes_cells, listing.process);
+    mmgr_line_ch(out, ']');
+    g_cli_cells->persistent_buf_release(listing.sorted, &g_cli_debug_processes_cells);
+    g_cli_cells->persistent_buf_release(listing.text, &g_cli_debug_processes_cells);
+    g_cli_cells->persistent_buf_release(listing.process, &g_cli_debug_processes_cells);
 }

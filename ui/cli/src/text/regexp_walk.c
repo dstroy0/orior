@@ -211,25 +211,28 @@ unsigned long long cli_regexp_pass(const CliRegexp *regexp, unsigned int index, 
     }
 }
 
-// a lookahead at `at`: the rest handed on where the inner holds, or where it does not for `(?!`, every group it set
+// a lookahead at `at`: the rest handed on where the inner matches, or where it does not for `(?!`, every group it set
 // let go where it does not stand
 static int cli_looked(const CliRegexp *regexp, const CliRegexpNode *node, unsigned long long at, CliRegexpRun *run,
                       const CliRegexpThen *then)
 {
-    CliRegexpSpan kept[CLI_REGEXP_GROUPS];
-    memor.cpy(&(MemoriaCfg){.dst = kept, .src = run->groups, .bytes = (regexp->groups + 1u) * sizeof(kept[0])});
+    CliRegexpSpan saved_groups[CLI_REGEXP_GROUPS];
+    memor.cpy(&(MemoriaCfg){
+        .dst = saved_groups, .src = run->groups, .bytes = (regexp->groups + 1u) * sizeof(saved_groups[0])});
     const CliRegexpThen frame = {CLI_THEN_TRUE, 0u, 0u, 0u, 0ull, NULL};
     const int found = cli_regexp_walk(regexp, node->child, at, run, &frame);
     if (node->negated)
     {
-        memor.cpy(&(MemoriaCfg){.dst = run->groups, .src = kept, .bytes = (regexp->groups + 1u) * sizeof(kept[0])});
+        memor.cpy(&(MemoriaCfg){
+            .dst = run->groups, .src = saved_groups, .bytes = (regexp->groups + 1u) * sizeof(saved_groups[0])});
         return !found && cli_regexp_then(regexp, then, at, run);
     }
     if (found && cli_regexp_then(regexp, then, at, run))
     {
         return 1;
     }
-    memor.cpy(&(MemoriaCfg){.dst = run->groups, .src = kept, .bytes = (regexp->groups + 1u) * sizeof(kept[0])});
+    memor.cpy(&(MemoriaCfg){
+        .dst = run->groups, .src = saved_groups, .bytes = (regexp->groups + 1u) * sizeof(saved_groups[0])});
     return 0;
 }
 
@@ -332,14 +335,14 @@ int cli_regexp_match_into(const CliRegexp *regexp, const unsigned int *text, uns
     }
     memor.set(&(MemoriaCfg){.dst = groups, .val = 0, .bytes = (regexp->groups + 1u) * sizeof(groups[0])});
     const char mark = 0;
-    // the repeats' ends kept on this stack until they outgrow it
+    // the repeats' ends stored on this stack until they outgrow it
     unsigned int ends[CLI_REGEXP_ENDS_STACKED];
     CliRegexpRun run = {text, length, groups, 0ull, 0ull, (uintptr_t)&mark, ends, 0ull, CLI_REGEXP_ENDS_STACKED, 0};
     const CliRegexpThen end = {CLI_THEN_END, 0u, 0u, 0u, 0ull, NULL};
     const int found = cli_regexp_walk(regexp, regexp->root, at, &run, &end);
-    if (run.ends_held)
+    if (run.ends_reserved)
     {
-        cli_cell_given(run.ends);
+        g_cli_cells->persistent_buf_release(run.ends, NULL);
     }
     if (found)
     {

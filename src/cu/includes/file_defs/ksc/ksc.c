@@ -32,8 +32,8 @@ int ksc_line_add(KscFile *file, const char *text)
     return kfile_lines_line_add(file, text);
 }
 
-// the word of `text` at `*at` into `word`, which holds `room`, the spaces before it skipped and `*at` moved past it: 1,
-// or 0 where there is no word or it does not fit
+// the word of `text` at `*at` into `word`, which has room for `room`, the spaces before it skipped and `*at` moved past
+// it: 1, or 0 where there is no word or it does not fit
 static int ksc_word_read(const char *text, size_t *at, char *word, size_t room)
 {
     *at += strspn(text + *at, " \t");
@@ -64,12 +64,12 @@ int ksc_row_read(const char *line, const char *channel, KscRow *row)
     return 1;
 }
 
-// 1 where the question of `line` is one of `channel` that begins with the words `asked`
-static int ksc_row_asked(const char *line, const char *channel, const char *asked)
+// 1 where the question of `line` is one of `channel` that begins with the words `question_prefix`
+static int ksc_row_question_starts(const char *line, const char *channel, const char *question_prefix)
 {
     static KscRow s_row;
-    const size_t length = strlen(asked);
-    return ksc_row_read(line, channel, &s_row) && (strncmp(s_row.question, asked, length) == 0) &&
+    const size_t length = strlen(question_prefix);
+    return ksc_row_read(line, channel, &s_row) && (strncmp(s_row.question, question_prefix, length) == 0) &&
            ((s_row.question[length] == '\0') || (s_row.question[length] == ' '));
 }
 
@@ -84,20 +84,20 @@ static int ksc_count_read(const char *line, const char *channel, char *answer)
            ksc_word_read(line, &at, answer, KSC_ANSWER);
 }
 
-int ksc_rows_replaced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
+int ksc_rows_replaced_by(KscFile *file, const char *channel, const char *question_prefix, const char *const *rows,
                          unsigned int count, Who who)
 {
-    return ksc_rows_replaced_traced_by(file, channel, asked, rows, count, who, NULL);
+    return ksc_rows_replaced_traced_by(file, channel, question_prefix, rows, count, who, NULL);
 }
 
-int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *asked, const char *const *rows,
-                                unsigned int count, Who who, KfileLines *removed)
+int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *question_prefix,
+                                const char *const *rows, unsigned int count, Who who, KfileLines *removed)
 {
     static KscRow s_row;
-    // the rows let go that no row put gives again, in the order the file holds them, before any line moves
+    // the rows let go that no row put gives again, in the order the file contains them, before any line moves
     for (unsigned int at = 0u; (removed != NULL) && (at < file->lines); at += 1u)
     {
-        if (!ksc_row_asked(file->line[at], channel, asked))
+        if (!ksc_row_question_starts(file->line[at], channel, question_prefix))
         {
             continue;
         }
@@ -111,38 +111,39 @@ int ksc_rows_replaced_traced_by(KscFile *file, const char *channel, const char *
             return 0;
         }
     }
-    // the rows go where the first row of the question stood, so that a row put again keeps its place; where the file
-    // holds none of the question, after the last row of the channel it keeps, or after its last line where it keeps
-    // none of the channel
+    // the rows go where the first row of the question stood, so that a row put again retains its place; where the file
+    // contains none of the question, after the last row of the channel it retains, or after its last line where it
+    // retains none of the channel
     unsigned int place = file->lines;
-    unsigned int first_asked = file->lines;
+    unsigned int first_match = file->lines;
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
         if (!ksc_row_read(file->line[at], channel, &s_row))
         {
             continue;
         }
-        if (ksc_row_asked(file->line[at], channel, asked))
+        if (ksc_row_question_starts(file->line[at], channel, question_prefix))
         {
-            first_asked = (first_asked == file->lines) ? at : first_asked;
+            first_match = (first_match == file->lines) ? at : first_match;
         }
         else
         {
             place = at + 1u;
         }
     }
-    place = (first_asked != file->lines) ? first_asked : place;
+    place = (first_match != file->lines) ? first_match : place;
     const unsigned int put = kfile_lines_put_by(file, place, rows, count, who);
     if ((put == 0u) && (count != 0u))
     {
         return 0;
     }
-    // every row asked let go but those just put
+    // every row matched let go but those just put
     unsigned int at = file->lines;
     while (at != 0u)
     {
         at -= 1u;
-        if (((at < place) || (at >= (place + put))) && ksc_row_asked(file->line[at], channel, asked))
+        if (((at < place) || (at >= (place + put))) &&
+            ksc_row_question_starts(file->line[at], channel, question_prefix))
         {
             kfile_lines_line_drop(file, at);
         }
@@ -202,7 +203,7 @@ int ksc_field_read(const char *line, char *name, size_t room, unsigned int *from
     {
         return 0;
     }
-    // each a bit's place or a count of bits, which an unsigned int holds
+    // each a bit's place or a count of bits, which an unsigned int represents
     *from = (unsigned int)first;
     *width = (unsigned int)bits;
     return 1;

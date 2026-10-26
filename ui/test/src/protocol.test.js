@@ -193,7 +193,7 @@ test("the time left is the rounds left at the last rounds' spacing", () => {
 test("a round's line gives the latency, and the errors are counted off the console", () => {
   const telemetry = telemetryStart();
   telemetryLine(telemetry, "  round: 21 question(s), airlock 0.62 s (pop 0.11 s, cross 0.50 s), carrier 0.30 s");
-  telemetryLine(telemetry, "  held off the part at byte 232: an encoding the vendor held off the part");
+  telemetryLine(telemetry, "  blocked from the part at byte 232: an encoding the vendor blocked from the part");
   telemetryLine(telemetry, "  refused CUDA_ERROR_ILLEGAL_INSTRUCTION the part faulted");
   telemetryStep(telemetry, blob("conference_q7", 400, PANIC), 100);
   const read = telemetryRead(telemetry, { nowMs: 200, reading: panelStart() });

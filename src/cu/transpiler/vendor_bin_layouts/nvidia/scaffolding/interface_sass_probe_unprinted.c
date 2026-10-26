@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// interface_sass_probe_unprinted.c: bits the disassembler does not print, asked of the part. A question is a few
+// interface_sass_probe_unprinted.c: bits the disassembler does not print, probed on the part. A question is a few
 // instructions put in place of the kernel's IADD3, one of them the instruction whose bits are turned. That instruction
 // is assembled through the machine file, every value of the field is written into its encoding in turn, and each
-// encoding is run on the part over one case. What the part answers for each value is kept, against the answer the
-// printed text says. A value that answers as printed leaves the field without effect on this question; one that
+// encoding is run on the part over one case. What the part answers for each value is recorded, against the answer the
+// printed text specifies. A value that answers as printed leaves the field without effect on this question; one that
 // answers otherwise, or does not run, is the part reading the field.
 //
-// No disassembler is asked. The pattern cubin, the kernel's text and the runner are an earlier run's. The runner
+// No disassembler is invoked. The pattern cubin, the kernel's text and the runner are an earlier run's. The runner
 // loads a cubin and runs its kernel over one case of eight words.
 //
 //     interface_sass_probe_unprinted <runner> <pattern cubin> <kernel text> <machine file> <folder> <record>
@@ -54,7 +54,7 @@ int main(int count, char **words)
         return 0;
     }
     const unsigned int questions = (unsigned int)(sizeof(s_questions) / sizeof(s_questions[0]));
-    fprintf(record, "# Bits the disassembler does not print, asked of the part\n\n"
+    fprintf(record, "# Bits the disassembler does not print, probed on the part\n\n"
                     "Written by `interface_sass_probe_unprinted` (`interface_sass_unprinted.sh`) whole on every run. "
                     "Each row is one value of the field written into the question's instruction and run on the part "
                     "over the case 0xb, 0x7. A value that answers as printed leaves the field without effect on that "
@@ -76,12 +76,12 @@ int main(int count, char **words)
         }
         fprintf(record, "`\n");
     }
-    fprintf(record, "\n| question | instruction | bits | the form holds | value | answer |\n"
+    fprintf(record, "\n| question | instruction | bits | the form contains | value | answer |\n"
                     "|---|---|---|---|---|---|\n");
     unsigned int put = 0u;
     for (unsigned int number = 0u; number < questions; number += 1u)
     {
-        put += (unprinted_ask(&s_questions[number], number + 1u, record) >= 0) ? 1u : 0u;
+        put += (unprinted_query(&s_questions[number], number + 1u, record) >= 0) ? 1u : 0u;
     }
     fclose(record);
     printf("interface sass unprinted: %u of %u questions put, the record written to %s\n", put, questions, words[6]);

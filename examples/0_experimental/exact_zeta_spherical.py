@@ -153,7 +153,7 @@ def run(binary, r_bits, u_bits):
         for v in [1 << (SCALE_BITS - u_bits), 1 << (SCALE_BITS - r_bits), inv_pi] + artanh + cosine:
             put(handle, v)
     ran = subprocess.run([binary, given, taken], capture_output=True, text=True,
-                         env=dict(os.environ, CYCLE_RECORD_KEEP_PTX="1"))
+                         env=dict(os.environ, CYCLE_RECORD_RETAIN_PTX="1"))
     if ran.returncode:
         print(ran.stdout.strip()[-2000:])
         print(ran.stderr.strip()[-2000:])

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // runner_test.c: the runner's check: stop ends a build and every process it started at once, a setting given is set in
-// the step's environment and leads its line, a variable set when a param holds a value is set then alone, and words
+// the step's environment and leads its line, a variable set when a param has a value is set then alone, and words
 // split as a shell splits them
 #include "../../../../../ui/cli/src/command_line/catalog.h"
 #include "../../../../../ui/cli/src/runs/runner.h"
@@ -25,21 +25,21 @@ static CliCatalog *runner_catalog(void)
     return &s_catalog;
 }
 
-// a run's end heard
-static void runner_said(void *context, const CliSaid *said)
+// a run's end received
+static void runner_event(void *context, const CliRunEvent *event)
 {
     (void)context;
-    (void)said;
+    (void)event;
 }
 
 // stop ends a build and every process it started at once
 static void runner_stop(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    (void)cli_container_held();
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    (void)cli_container_made();
     cli_check_folder("runner_stop", root);
     cli_full(root, "src", path);
     (void)query_folder_made(path);
@@ -56,24 +56,25 @@ static void runner_stop(void)
     cli_values_put(&s_values, "arguments", "");
     cli_values_put(&s_values, "trace", "quiet");
     unsigned long long run = 0ull;
-    const CliRunSink sink = {runner_said, NULL};
-    cli_check(cli_runs_start(sink, root, &s_catalog, job, &s_values, &run, &said), "the build starts");
+    const CliRunSink sink = {runner_event, NULL};
+    cli_check(cli_runs_start(sink, root, &s_catalog, job, &s_values, &run, &err_msg), "the build starts");
     query_paused(1500u);
-    const unsigned long long asked = cli_clock_milliseconds();
-    (void)cli_runs_stop(run, &said);
+    const unsigned long long stop_ms = cli_clock_milliseconds();
+    (void)cli_runs_stop(run, &err_msg);
     cli_runs_wait(run);
-    cli_check(cli_clock_milliseconds() - asked < 5000ull, "the run ends at once after Stop");
+    cli_check(cli_clock_milliseconds() - stop_ms < 5000ull, "the run ends at once after Stop");
 }
 
-// the command the one step of the catalog's last job runs with the values, its line into `shown`, which holds 256
+// the command the one step of the catalog's last job runs with the values, its line into `shown`, which is sized for
+// 256
 static void runner_command(char *shown)
 {
-    CliLine line = {shown, 256u, 0ull};
+    VerbaLinea line = {shown, 256u, 0ull};
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_runner_command(".", &s_catalog, &s_catalog.step[0], &s_values, &s_command, &line, &said),
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_runner_command(".", &s_catalog, &s_catalog.step[0], &s_values, &s_command, &line, &err_msg),
               "the step's command is made");
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
 }
 
 // whether the command sets only `name` to `value`, or nothing where `name` is NULL
@@ -89,7 +90,7 @@ static int runner_sets(const char *name, const char *value)
            (cellul.eq(&(CatenaFinitaCfg){.src = s_command.setting[0].value, .other = value, .cap = CLI_CELLS_POOL}));
 }
 
-// a setting given is set in the step's environment and leads its line; a variable set when a param holds a value is
+// a setting given is set in the step's environment and leads its line; a variable set when a param has a value is
 // set then alone
 static void runner_settings(void)
 {
@@ -116,7 +117,7 @@ static void runner_settings(void)
     cli_check(runner_sets("SHELLOPTS", "xtrace") &&
                   (cellul.eq(&(CatenaFinitaCfg){
                       .src = shown, .other = "SHELLOPTS=xtrace bash build.sh", .cap = CLI_CELLS_POOL})),
-              "a variable is set when its param holds its value");
+              "a variable is set when its param has its value");
     cli_values_begun(&s_values);
     cli_values_put(&s_values, "trace", "quiet");
     runner_command(shown);
@@ -125,7 +126,7 @@ static void runner_settings(void)
               "and then alone");
 }
 
-// the words of `text` split, `|` between them, into `out`, which holds 256: 1, or 0 where they do not split
+// the words of `text` split, `|` between them, into `out`, which is sized for 256: 1, or 0 where they do not split
 static int runner_split(const char *text, char *out)
 {
     static CliWords s_words;
@@ -133,27 +134,28 @@ static int runner_split(const char *text, char *out)
     s_words.used = 0u;
     s_words.full = 0;
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (!cli_runner_shell_words(text, &s_words, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (!cli_runner_shell_words(text, &s_words, &err_msg))
     {
         return 0;
     }
-    CliLine line = {out, 256u, 0ull};
+    VerbaLinea line = {out, 256u, 0ull};
     for (unsigned int at = 0u; at < s_words.count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, s_words.word[at]);
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, s_words.word[at]);
     }
-    (void)cli_line_closed(&line);
+    (void)mmgr_line_finish(&line);
     return (s_words.count > 0u) ? 1 : -1;
 }
 
 int main(void)
 {
-    char bash[CLI_PATH_LONGEST];
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    char bash[CLI_PATH_MAX_LEN];
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    if (cli_runner_bash(bash, &said))
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    if (cli_runner_bash(bash, &err_msg))
     {
         runner_stop();
         runner_settings();

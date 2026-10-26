@@ -37,7 +37,7 @@ int cli_requests_number(const char *text, unsigned long long size, unsigned int 
     return 1;
 }
 
-int cli_requests_holds(const char *text, unsigned long long size, const char *needle)
+int cli_requests_contains(const char *text, unsigned long long size, const char *needle)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = needle, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at + length <= size; at += 1ull)
@@ -55,9 +55,9 @@ int cli_requests_holds(const char *text, unsigned long long size, const char *ne
     return 0;
 }
 
-// the host and the port of an address's authority into `address`, after its user: 1, or 0 with why said
+// the host and the port of an address's authority into `address`, after its user: 1, or 0 with why given
 static int url_host(const char *url, const char *authority, unsigned long long size, CliRequestsAddress *address,
-                    CliLine *said)
+                    VerbaLinea *err_msg)
 {
     const char *port = NULL;
     unsigned long long port_size = 0ull;
@@ -68,8 +68,8 @@ static int url_host(const char *url, const char *authority, unsigned long long s
         const char *const close = memor.chr(&(MemoriaCfg){.src = authority, .val = ']', .bytes = (size_t)size});
         if (close == NULL)
         {
-            cli_line_text(said, url);
-            cli_line_text(said, " has an address that does not close");
+            mmgr_line_put(err_msg, url);
+            mmgr_line_put(err_msg, " has an address that does not close");
             return 0;
         }
         host = authority + 1;
@@ -90,47 +90,47 @@ static int url_host(const char *url, const char *authority, unsigned long long s
     unsigned long long number = address->secure ? 443u : 80u;
     if ((port != NULL) && !cli_requests_number(port, port_size, 10u, 65535u, &number))
     {
-        cli_line_counted(said, port, port_size);
-        cli_line_text(said, " is not a port");
+        mmgr_line_put_n(err_msg, port, port_size);
+        mmgr_line_put(err_msg, " is not a port");
         return 0;
     }
     // a port read is at most 65535
     address->port = (unsigned int)number;
     if (host_size == 0u)
     {
-        cli_line_text(said, url);
-        cli_line_text(said, " names no host");
+        mmgr_line_put(err_msg, url);
+        mmgr_line_put(err_msg, " names no host");
         return 0;
     }
-    CliLine host_line = {address->host, sizeof(address->host), 0ull};
-    cli_line_counted(&host_line, host, host_size);
-    if (cli_line_closed(&host_line) == 0ull)
+    VerbaLinea host_line = {address->host, sizeof(address->host), 0ull};
+    mmgr_line_put_n(&host_line, host, host_size);
+    if (mmgr_line_finish(&host_line) == 0ull)
     {
-        cli_line_text(said, "the request is larger than orior_cli holds");
+        mmgr_line_put(err_msg, "the request is larger than orior_cli supports");
         return 0;
     }
     return 1;
 }
 
-int cli_requests_address(const char *url, CliRequestsAddress *address, CliLine *said)
+int cli_requests_address(const char *url, CliRequestsAddress *address, VerbaLinea *err_msg)
 {
     const char *const scheme_end =
         cellul.find(&(CatenaFinitaCfg){.src = url, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL});
     if (scheme_end == NULL)
     {
-        cli_line_text(said, url);
-        cli_line_text(said, " names no scheme");
+        mmgr_line_put(err_msg, url);
+        mmgr_line_put(err_msg, " names no scheme");
         return 0;
     }
     const unsigned long long scheme = (unsigned long long)(scheme_end - url);
-    address->secure = (scheme == 5u) && cli_requests_holds(url, 5u, "https");
-    if (!address->secure && !((scheme == 4u) && cli_requests_holds(url, 4u, "http")))
+    address->secure = (scheme == 5u) && cli_requests_contains(url, 5u, "https");
+    if (!address->secure && !((scheme == 4u) && cli_requests_contains(url, 4u, "http")))
     {
         for (unsigned long long at = 0ull; at < scheme; at += 1ull)
         {
-            cli_line_character(said, url_lower(url[at]));
+            mmgr_line_ch(err_msg, url_lower(url[at]));
         }
-        cli_line_text(said, " is not http or https");
+        mmgr_line_put(err_msg, " is not http or https");
         return 0;
     }
     const char *const rest = scheme_end + 3;
@@ -142,23 +142,23 @@ int cli_requests_address(const char *url, CliRequestsAddress *address, CliLine *
     }
     const char *const target = rest + authority_end;
     const unsigned long long target_size = cli_text_upto(target, "#");
-    CliLine target_line = {address->target, sizeof(address->target), 0ull};
-    cli_line_text(&target_line, ((target_size == 0u) || (target[0] == '?')) ? "/" : "");
-    cli_line_counted(&target_line, target, target_size);
-    if (cli_line_closed(&target_line) == 0ull)
+    VerbaLinea target_line = {address->target, sizeof(address->target), 0ull};
+    mmgr_line_put(&target_line, ((target_size == 0u) || (target[0] == '?')) ? "/" : "");
+    mmgr_line_put_n(&target_line, target, target_size);
+    if (mmgr_line_finish(&target_line) == 0ull)
     {
-        cli_line_text(said, "the request is larger than orior_cli holds");
+        mmgr_line_put(err_msg, "the request is larger than orior_cli supports");
         return 0;
     }
-    return url_host(url, authority, (unsigned long long)(rest + authority_end - authority), address, said);
+    return url_host(url, authority, (unsigned long long)(rest + authority_end - authority), address, err_msg);
 }
 
-void cli_requests_joined(const char *base, const char *location, CliLine *out)
+void cli_requests_joined(const char *base, const char *location, VerbaLinea *out)
 {
     if (cellul.find(&(CatenaFinitaCfg){
             .src = location, .cap = CLI_CELLS_POOL, .other = "://", .other_cap = CLI_CELLS_POOL}) != NULL)
     {
-        cli_line_text(out, location);
+        mmgr_line_put(out, location);
         return;
     }
     const char *const scheme_end = cellul.find(
@@ -166,20 +166,20 @@ void cli_requests_joined(const char *base, const char *location, CliLine *out)
     const char *const rest = (scheme_end != NULL) ? (scheme_end + 3) : base;
     if (scheme_end != NULL)
     {
-        cli_line_counted(out, base, (unsigned long long)(scheme_end - base));
+        mmgr_line_put_n(out, base, (unsigned long long)(scheme_end - base));
     }
     else
     {
-        cli_line_text(out, "http");
+        mmgr_line_put(out, "http");
     }
-    cli_line_text(out, "://");
+    mmgr_line_put(out, "://");
     if ((location[0] == '/') && (location[1] == '/'))
     {
-        cli_line_text(out, location + 2);
+        mmgr_line_put(out, location + 2);
         return;
     }
     const unsigned long long authority = cli_text_upto(rest, "/?#");
-    cli_line_counted(out, rest, authority);
+    mmgr_line_put_n(out, rest, authority);
     if (location[0] != '/')
     {
         const char *const path = rest + authority;
@@ -191,11 +191,11 @@ void cli_requests_joined(const char *base, const char *location, CliLine *out)
         }
         if (folder == 0u)
         {
-            cli_line_character(out, '/');
+            mmgr_line_ch(out, '/');
         }
-        cli_line_counted(out, path, folder);
+        mmgr_line_put_n(out, path, folder);
     }
-    cli_line_text(out, location);
+    mmgr_line_put(out, location);
 }
 
 const CliRequestsText *cli_requests_header(const CliRequestsAnswer *answer, const char *name)
@@ -203,14 +203,14 @@ const CliRequestsText *cli_requests_header(const CliRequestsAnswer *answer, cons
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
     for (unsigned int at = 0u; at < answer->headers; at += 1u)
     {
-        const CliRequestsText *const held = &answer->header_name[at];
+        const CliRequestsText *const name_at = &answer->header_name[at];
         unsigned long long same = 0ull;
-        while ((held->size == length) && (same < length) &&
-               (url_lower(answer->head[held->at + same]) == url_lower(name[same])))
+        while ((name_at->size == length) && (same < length) &&
+               (url_lower(answer->head[name_at->at + same]) == url_lower(name[same])))
         {
             same += 1ull;
         }
-        if ((held->size == length) && (same == length))
+        if ((name_at->size == length) && (same == length))
         {
             return &answer->header_value[at];
         }

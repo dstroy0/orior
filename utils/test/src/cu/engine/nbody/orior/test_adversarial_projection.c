@@ -7,7 +7,7 @@
  *        they do not.
  *
  * @return 0 where the joint route never undercounts, is exact at 256 classes or fewer, and every
- *         premise holds, 1 otherwise.
+ *         premise is true, 1 otherwise.
  *
  * @note THE DEFECT. A rank is a symbol's place in the rarity order of the population one call
  *       counted. The class comes from the oracle the caller supplies, and it is the same
@@ -97,7 +97,7 @@ static int adversarial_case_joint_projection(void)
 
     if (reported_truth != 1u)
     {
-        printf("    FAIL premise: the hand built field holds %zu occurrences, not 1\n", reported_truth);
+        printf("    FAIL premise: the hand built field contains %zu occurrences, not 1\n", reported_truth);
         failed = 1;
     }
     if ((reported_apart_ran == 0) || (reported_apart != 0u))
@@ -130,7 +130,7 @@ static int adversarial_case_joint_projection(void)
         }
 
         // Even seeds cut the needle out of the corpus. The true count is at least one. Odd seeds draw
-        // it independently. The needle holds symbols in proportions the corpus does not.
+        // it independently. The needle contains symbols in proportions the corpus does not.
         if ((seed % 2u) == 0u)
         {
             const size_t origin = adversarial_next(&state) % ((ADVERSARIAL_PROJECTED - needle_length) + 1u);
@@ -214,7 +214,7 @@ static int adversarial_case_joint_projection(void)
 
     for (size_t at = 0u; at < singleton_length; at += 1u)
     {
-        // Narrows a position below 300 into 32 bits, which holds it.
+        // Narrows a position below 300 into 32 bits, which represents it.
         corpus[at] = 0x00200000u + (uint32_t)at;
     }
     needle[0] = corpus[260];
@@ -246,7 +246,7 @@ static int adversarial_case_joint_projection(void)
         failed = 1;
     }
 
-    printf("  joint projection keeps every true occurrence, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
+    printf("  joint projection retains every true occurrence, verdict %s\n", (failed == 0) ? "ok" : "FAILS");
 
     free(corpus);
     free(corpus_ranks);

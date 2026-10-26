@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// fixed_read.h: what a register holds at the slot, read from its values over the cases, in C for the fixed mode's asks
-// and for the check that holds them (The fixed registers asked, Open 6.2)
+// fixed_read.h: what a register contains at the probe place, read from its values over the cases, in C for the fixed
+// mode's queries and for the check that checks them (Open 6.2)
 #ifndef FIXED_READ_H
 #define FIXED_READ_H
 
@@ -10,7 +10,7 @@ extern "C"
 {
 #endif
 
-    // what a register's values over the cases say it holds at the slot
+    // what a register's values over the cases show it contains at the probe place
     typedef enum
     {
         FIXED_NOTHING,
@@ -21,12 +21,12 @@ extern "C"
         FIXED_CASE_WORD_1
     } FixedKind;
 
-    // The kind the values `held`, one a case and case t on thread t, are read as, against the host's thread number and
-    // the case's words `first` and `second`. A store of 32 bits leaves the record's low word, and each value is read
-    // at that width. The lane's number where every value is its case's number; a case word where every value is it;
-    // the record where the values step 16 a case and the index where they step 32, each the low word of an address;
+    // The kind the values `values`, one a case and case t on thread t, are read as, against the host's thread number
+    // and the case's words `first` and `second`. A store of 32 bits leaves the record's low word, and each value is
+    // read at that width. The lane's number where every value is its case's number; a case word where every value is
+    // it; the record where the values step 16 a case and the index where they step 32, each the low word of an address;
     // nothing where they are 0, one constant, or fewer than two
-    static inline FixedKind fixed_kind(const unsigned long long *held, const unsigned int *first,
+    static inline FixedKind fixed_kind(const unsigned long long *values, const unsigned int *first,
                                        const unsigned int *second, unsigned int cases)
     {
         if (cases < 2u)
@@ -40,15 +40,15 @@ extern "C"
         int index = 1;
         for (unsigned int at = 0u; at < cases; at += 1u)
         {
-            // the store is 32 bits wide: the value is the low word of what the register held
-            const unsigned int value = (unsigned int)(held[at] & 0xffffffffull);
+            // the store is 32 bits wide: the value is the low word of what the register contained
+            const unsigned int value = (unsigned int)(values[at] & 0xffffffffull);
             lane = lane && (value == at);
             word_0 = word_0 && (value == first[at]);
             word_1 = word_1 && (value == second[at]);
             if ((at + 1u) < cases)
             {
                 // the step between two cases' values, at the width the store leaves them
-                const unsigned int step = (unsigned int)((held[at + 1u] - held[at]) & 0xffffffffull);
+                const unsigned int step = (unsigned int)((values[at + 1u] - values[at]) & 0xffffffffull);
                 record = record && (step == 16u);
                 index = index && (step == 32u);
             }

@@ -24,7 +24,7 @@ static const TowerTestRuleset s_tower_test_ruleset[TOWER_TEST_RULESETS] = {
     {"the S transform", s_tower_test_s_transform, 2u, 0},
     {"a four-tap predict and the 5/3's update", s_tower_test_four_tap, 2u, 0}};
 
-// how many volumes' records hold, at the registers named, the values expected of them
+// how many volumes' records contain, at the registers named, the values expected of them
 static unsigned int tower_test_matches(const TowerTestLoaded *loaded, const std::vector<unsigned int> &out,
                                        const std::vector<unsigned int> &registers,
                                        const std::vector<long long> &expected, unsigned int volumes)
@@ -51,7 +51,7 @@ static unsigned int tower_test_matches(const TowerTestLoaded *loaded, const std:
 static void tower_test_ruleset(SimResults *results, const unsigned long long extent[4], const TowerTestRuleset *ruleset,
                                const std::vector<unsigned short> &source, const std::vector<int> &kernel_crystal)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     // a block's sample count is far below 2^32
     const unsigned int lanes = (unsigned int)(source.size() / TOWER_TEST_VOLUMES);
     const unsigned int volumes = TOWER_TEST_VOLUMES;
@@ -152,30 +152,30 @@ static void tower_test_ruleset(SimResults *results, const unsigned long long ext
     const unsigned int round_limbs = round.layout.file_limbs;
     tower_test_free(&round);
 
-    scriptura_text(line, "    ");
-    scriptura_text(line, ruleset->name);
-    scriptura_text(line, ": T ");
-    scriptura_decimal(line, lift_count, 1u);
-    scriptura_text(line, " steps in a file of ");
-    scriptura_decimal(line, lift_limbs, 1u);
-    scriptura_text(line, " limbs, the widest coefficient ");
-    scriptura_decimal(line, widest, 1u);
-    scriptura_text(line, " bits; T^-1 ");
-    scriptura_decimal(line, lower_count, 1u);
-    scriptura_text(line, " steps, ");
-    scriptura_decimal(line, lower_limbs, 1u);
-    scriptura_text(line, " limbs; T . T^-1 ");
-    scriptura_decimal(line, round_limbs, 1u);
-    scriptura_text(line, " limbs\n      of ");
-    scriptura_decimal(line, volumes, 1u);
-    scriptura_text(line,
+    mmgr_line_put(line, "    ");
+    mmgr_line_put(line, ruleset->name);
+    mmgr_line_put(line, ": T ");
+    mmgr_line_decimal(line, lift_count, 1u);
+    mmgr_line_put(line, " steps in a file of ");
+    mmgr_line_decimal(line, lift_limbs, 1u);
+    mmgr_line_put(line, " limbs, the widest coefficient ");
+    mmgr_line_decimal(line, widest, 1u);
+    mmgr_line_put(line, " bits; T^-1 ");
+    mmgr_line_decimal(line, lower_count, 1u);
+    mmgr_line_put(line, " steps, ");
+    mmgr_line_decimal(line, lower_limbs, 1u);
+    mmgr_line_put(line, " limbs; T . T^-1 ");
+    mmgr_line_decimal(line, round_limbs, 1u);
+    mmgr_line_put(line, " limbs\n      of ");
+    mmgr_line_decimal(line, volumes, 1u);
+    mmgr_line_put(line,
                    (ruleset->kernels != 0) ? " volumes, T equals tower_lift on " : " volumes, T equals the oracle on ");
-    scriptura_decimal(line, lift_equal, 1u);
-    scriptura_text(line, ", T^-1 returns the source on ");
-    scriptura_decimal(line, lower_equal, 1u);
-    scriptura_text(line, ", T . T^-1 returns ");
-    scriptura_decimal(line, round_equal, 1u);
-    scriptura_text(line, " drawn crystals\n");
+    mmgr_line_decimal(line, lift_equal, 1u);
+    mmgr_line_put(line, ", T^-1 returns the source on ");
+    mmgr_line_decimal(line, lower_equal, 1u);
+    mmgr_line_put(line, ", T . T^-1 returns ");
+    mmgr_line_decimal(line, round_equal, 1u);
+    mmgr_line_put(line, " drawn crystals\n");
     sim_flush(results);
 }
 
@@ -260,29 +260,29 @@ static void tower_test_operation_stack(SimResults *results, const unsigned long 
     }
     sim_check(results, matched == volumes,
               "F . T^-1 equals F taken on tower_lower's samples: the block's sum and its energy along x");
-    scriptura_text(&results->line, "    F . T^-1, the block's sum and its energy along x: ");
-    scriptura_decimal(&results->line, steps.size(), 1u);
-    scriptura_text(&results->line, " steps in one program, a file of ");
-    scriptura_decimal(&results->line, operation.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs; equal to F on tower_lower's samples on ");
-    scriptura_decimal(&results->line, matched, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, volumes, 1u);
-    scriptura_text(&results->line, " volumes\n");
+    mmgr_line_put(&results->line, "    F . T^-1, the block's sum and its energy along x: ");
+    mmgr_line_decimal(&results->line, steps.size(), 1u);
+    mmgr_line_put(&results->line, " steps in one program, a file of ");
+    mmgr_line_decimal(&results->line, operation.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs; equal to F on tower_lower's samples on ");
+    mmgr_line_decimal(&results->line, matched, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, volumes, 1u);
+    mmgr_line_put(&results->line, " volumes\n");
     tower_test_free(&operation);
 }
 
 static void tower_test_block(SimResults *results, const unsigned long long extent[4], unsigned short *device_volume)
 {
-    ScripturaLine *const line = &results->line;
-    // every block here holds at most 105 samples
+    VerbaLinea *const line = &results->line;
+    // every block here contains at most 105 samples
     const unsigned int lanes = (unsigned int)(extent[0] * extent[1] * extent[2] * extent[3]);
     const unsigned int volumes = TOWER_TEST_VOLUMES;
-    scriptura_text(line, "  t x z x y x x = ");
+    mmgr_line_put(line, "  t x z x y x x = ");
     for (unsigned int axis = 0u; axis < 4u; axis += 1u)
     {
-        scriptura_decimal(line, extent[axis], 1u);
-        scriptura_text(line, (axis < 3u) ? " x " : "\n");
+        mmgr_line_decimal(line, extent[axis], 1u);
+        mmgr_line_put(line, (axis < 3u) ? " x " : "\n");
     }
 
     // the kernels' crystal and rebuilt samples of every volume
@@ -324,11 +324,11 @@ static void tower_test_block(SimResults *results, const unsigned long long exten
         oracle_equal += (equal != 0) ? 1u : 0u;
     }
     sim_check(results, oracle_equal == volumes, "the oracle's 5/3 equals tower_lift's crystal and returns the source");
-    scriptura_text(line, "    the oracle's 5/3 equals tower_lift and returns the source on ");
-    scriptura_decimal(line, oracle_equal, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, volumes, 1u);
-    scriptura_text(line, " volumes\n");
+    mmgr_line_put(line, "    the oracle's 5/3 equals tower_lift and returns the source on ");
+    mmgr_line_decimal(line, oracle_equal, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, volumes, 1u);
+    mmgr_line_put(line, " volumes\n");
 
     for (unsigned int ruleset = 0u; (kernels != 0) && (ruleset < TOWER_TEST_RULESETS); ruleset += 1u)
     {
@@ -392,14 +392,14 @@ static void tower_test_errors(SimResults *results)
     count = 2u;
     request.steps = steps_out;
     request.step_capacity = 3u;
-    int kept = 1;
+    int unchanged = 1;
     const int small =
         (tower_record_lower(&request) == TOWER_ERROR) && (count == 2u) && (error.kind == ENGINE_ERROR_REQUEST);
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        kept = kept && (steps_out[at].operation == ENGINE_RECORD_CONSTANT) && (steps_out[at].left == 7u);
+        unchanged = unchanged && (steps_out[at].operation == ENGINE_RECORD_CONSTANT) && (steps_out[at].left == 7u);
     }
-    sim_check(results, small && kept, "a capacity too small errors before a step is written");
+    sim_check(results, small && unchanged, "a capacity too small errors before a step is written");
     memset(&error, 0, sizeof(error));
     memcpy(request.extent, empty, sizeof(request.extent));
     request.steps = NULL;
@@ -428,7 +428,7 @@ int main(int count, char **arguments)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "  the two towers as record floors focused from a ruleset, read against tower_lift and"
                    " tower_lower's kernels and a host oracle\n");
     int ok = sim_job_submit(&results, "record_tower_test", count, arguments, TOWER_TEST_DECLARED);
@@ -442,8 +442,8 @@ int main(int count, char **arguments)
     unsigned short *device_volume = NULL;
     ok = ok && sim_status_check(&results, cudaMalloc((void **)&device_volume, (size_t)maximum * sizeof(unsigned short)),
                                 "the kernels' volume");
-    // a sweep whose frame passes the stack limit grows it, and the local memory that reserves is held until the limit
-    // is set back; cycle sets it back once each sweep ends. The limit after every block is the limit before them
+    // a sweep whose frame passes the stack limit grows it, and the local memory that reserves is reserved until the
+    // limit is set back; cycle sets it back once each sweep ends. The limit after every block is the limit before them
     size_t stack_before = 0u;
     ok = ok &&
          sim_status_check(&results, cudaDeviceGetLimit(&stack_before, cudaLimitStackSize), "the stack limit, before");
@@ -456,11 +456,11 @@ int main(int count, char **arguments)
          sim_status_check(&results, cudaDeviceGetLimit(&stack_after, cudaLimitStackSize), "the stack limit, after");
     sim_check(&results, (ok != 0) && (stack_after == stack_before),
               "every sweep gives its stack back: the limit after the blocks is the limit before them");
-    scriptura_text(&results.line, "  the stack limit: ");
-    scriptura_decimal(&results.line, stack_before, 1u);
-    scriptura_text(&results.line, " bytes a thread before the blocks, ");
-    scriptura_decimal(&results.line, stack_after, 1u);
-    scriptura_text(&results.line, " after them\n");
+    mmgr_line_put(&results.line, "  the stack limit: ");
+    mmgr_line_decimal(&results.line, stack_before, 1u);
+    mmgr_line_put(&results.line, " bytes a thread before the blocks, ");
+    mmgr_line_decimal(&results.line, stack_after, 1u);
+    mmgr_line_put(&results.line, " after them\n");
     sim_flush(&results);
     tower_test_errors(&results);
     cudaFree(device_volume);

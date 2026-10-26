@@ -12,13 +12,13 @@
 #include <string.h>
 
 // the most wide letters of a path, the longest a run's file is named under the top with a stream's name after it
-#define QRY_WIDE_LONGEST (QRY_WRITER_TOP_LONGEST + QRY_NAME_LONGEST + 2u)
+#define QRY_WIDE_MAX_LEN (QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u)
 
-// a path of UTF-8 as Windows' wide letters into `wide`, which holds QRY_WIDE_LONGEST: 1, or 0 where it is no
+// a path of UTF-8 as Windows' wide letters into `wide`, which has room for QRY_WIDE_MAX_LEN: 1, or 0 where it is no
 // UTF-8 or does not fit
 static int qry_wide(const char *path, wchar_t *wide)
 {
-    return MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, (int)QRY_WIDE_LONGEST) != 0;
+    return MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, (int)QRY_WIDE_MAX_LEN) != 0;
 }
 
 // the section's name, `Local\qry-` and the hash of the .qry's path in hex
@@ -50,7 +50,7 @@ QryShared *qry_writer_shared_made(const char *path, unsigned long long bytes)
 {
     char name[32];
     qry_shared_named(path, name);
-    // the region made whole, zeros, its bytes the system's to hold from here
+    // the region made whole, zeros, its bytes the system's to manage from here
     s_section = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD)(bytes >> 32u),
                                    (DWORD)(bytes & 0xffffffffull), name);
     if ((s_section == NULL) || (GetLastError() == ERROR_ALREADY_EXISTS))
@@ -68,7 +68,7 @@ void qry_writer_shared_released(QryShared *shared)
 
 long long qry_writer_file_made(const char *path)
 {
-    wchar_t wide[QRY_WIDE_LONGEST];
+    wchar_t wide[QRY_WIDE_MAX_LEN];
     const HANDLE file = qry_wide(path, wide) ? CreateFileW(wide, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
                                                            FILE_ATTRIBUTE_NORMAL, NULL)
                                              : INVALID_HANDLE_VALUE;
@@ -105,14 +105,14 @@ int qry_writer_file_closed(long long file)
 
 int qry_writer_file_removed(const char *path)
 {
-    wchar_t wide[QRY_WIDE_LONGEST];
+    wchar_t wide[QRY_WIDE_MAX_LEN];
     return qry_wide(path, wide) && (DeleteFileW(wide) != 0);
 }
 
 int qry_writer_file_placed(const char *beside, const char *placed)
 {
-    wchar_t wide_beside[QRY_WIDE_LONGEST];
-    wchar_t wide_placed[QRY_WIDE_LONGEST];
+    wchar_t wide_beside[QRY_WIDE_MAX_LEN];
+    wchar_t wide_placed[QRY_WIDE_MAX_LEN];
     const int named = qry_wide(beside, wide_beside) && qry_wide(placed, wide_placed);
     if (named && (MoveFileExW(wide_beside, wide_placed, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0))
     {
@@ -128,9 +128,9 @@ int qry_writer_file_placed(const char *beside, const char *placed)
 int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_length, const unsigned char *bytes,
                           unsigned long long size)
 {
-    char path[QRY_WRITER_TOP_LONGEST + QRY_NAME_LONGEST + 2u];
+    char path[QRY_WRITER_TOP_MAX_LEN + QRY_NAME_MAX_LEN + 2u];
     const size_t length = strlen(qry);
-    if ((length >= QRY_WRITER_TOP_LONGEST) || (name_length > QRY_NAME_LONGEST))
+    if ((length >= QRY_WRITER_TOP_MAX_LEN) || (name_length > QRY_NAME_MAX_LEN))
     {
         return 0;
     }
@@ -138,7 +138,7 @@ int qry_writer_stream_put(const char *qry, const char *name, unsigned int name_l
     path[length] = ':';
     memcpy(path + length + 1u, name, name_length);
     path[length + 1u + name_length] = '\0';
-    wchar_t wide[QRY_WIDE_LONGEST];
+    wchar_t wide[QRY_WIDE_MAX_LEN];
     const HANDLE file = qry_wide(path, wide)
                             ? CreateFileW(wide, GENERIC_WRITE, 0u, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL)
                             : INVALID_HANDLE_VALUE;
@@ -198,9 +198,24 @@ void qry_writer_raised(void)
     SetPriorityClass(GetCurrentProcess(), ABOVE_NORMAL_PRIORITY_CLASS);
 }
 
+// A process the system names no longer, or whose handle is signaled, has ended; one the writer may not open runs as far
+// as the writer can tell
+int qry_writer_process_ended(unsigned long long process)
+{
+    // a member's process number is the DWORD GetCurrentProcessId gave it, widened
+    const HANDLE opened = OpenProcess(SYNCHRONIZE, FALSE, (DWORD)process);
+    if (opened == NULL)
+    {
+        return GetLastError() == ERROR_INVALID_PARAMETER;
+    }
+    const int ended = WaitForSingleObject(opened, 0u) == WAIT_OBJECT_0;
+    CloseHandle(opened);
+    return ended;
+}
+
 unsigned long long qry_member_file_read(const char *path, unsigned char *bytes, unsigned long long room)
 {
-    wchar_t wide[QRY_WIDE_LONGEST];
+    wchar_t wide[QRY_WIDE_MAX_LEN];
     const HANDLE file = qry_wide(path, wide) ? CreateFileW(wide, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)
                                              : INVALID_HANDLE_VALUE;
@@ -241,7 +256,7 @@ QryShared *qry_member_shared(const char *path)
     {
         return NULL;
     }
-    // the view holds the section for as long as it is mapped
+    // the view maps the section for as long as it is mapped
     QryShared *const shared = (QryShared *)MapViewOfFile(section, FILE_MAP_ALL_ACCESS, 0u, 0u, 0u);
     CloseHandle(section);
     // a region whose whole the writer has not written yet is no run yet
@@ -278,7 +293,7 @@ unsigned long long qry_member_process(void)
 const unsigned char *qry_member_file_mapped(const char *path, unsigned long long *size)
 {
     static const unsigned char s_none[1] = {0u};
-    wchar_t wide[QRY_WIDE_LONGEST];
+    wchar_t wide[QRY_WIDE_MAX_LEN];
     const HANDLE file = qry_wide(path, wide) ? CreateFileW(wide, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
                                                            OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL)
                                              : INVALID_HANDLE_VALUE;
@@ -326,10 +341,10 @@ int qry_member_named(char *path, size_t room)
 
 int qry_member_program(char *path, size_t room)
 {
-    wchar_t wide[QRY_WIDE_LONGEST];
-    const DWORD length = GetModuleFileNameW(NULL, wide, QRY_WIDE_LONGEST);
+    wchar_t wide[QRY_WIDE_MAX_LEN];
+    const DWORD length = GetModuleFileNameW(NULL, wide, QRY_WIDE_MAX_LEN);
     // the room of a path is far below what an int counts
-    return (length != 0u) && (length < QRY_WIDE_LONGEST) &&
+    return (length != 0u) && (length < QRY_WIDE_MAX_LEN) &&
            (WideCharToMultiByte(CP_UTF8, 0, wide, -1, path, (int)room, NULL, NULL) != 0);
 }
 #endif

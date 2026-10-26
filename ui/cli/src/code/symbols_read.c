@@ -1,402 +1,305 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// symbols_read.c: each line of a file read for what it declares, by the shape a line takes in its file's language:
-// Python, Rust, script and C here, the rest in symbols_lines.c
+// symbols_read.c: a text's leaves, the tokens of the grammar of the plugin its extension opens it as or of the language
+// named, and a file's declarations read off them: every token whose name holds the segment `declaration` names a
+// declaration, its kind the rest of the name past that segment, as `identifier.declaration.function` names a function.
+// No language is read here but by its plugin's grammar and what its plugin says
+#include "../command_line/cells.h"
+#include "../editor/highlight.h"
 #include "../text/text.h"
 #include "symbols_internal.h"
 
-static void cli_python(CliPiece line, const CliOut *out)
+// the lines colored in one request
+#define CLI_SYMBOLS_LINES 256u
+
+// the longest state a request's last line ends in
+#define CLI_SYMBOLS_STATE 1024u
+
+// One file's leaves read: where its declarations go, and the line read
+typedef struct
 {
-    static const char *const s_async[1] = {"async"};
-    const CliPiece trimmed = cli_piece_trim_start(line);
-    const CliPiece rest = cli_piece_without(trimmed, s_async, 1u);
-    CliPiece after;
-    CliPiece name;
-    CliPiece tail;
-    if (cli_piece_after(rest, "def", &after))
+    CliDeclared each;
+    void *context;
+    unsigned int line;
+} CliSymbolsLine;
+
+const char *cli_symbols_declares(const char *name)
+{
+    static const char s_segment[] = "declaration.";
+    const unsigned long long size = sizeof(s_segment) - 1u;
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
+    unsigned long long from = 0ull;
+    while ((from + size) < length)
     {
-        if (cli_piece_name_at(after, 0, &name, &tail))
+        unsigned long long found = 0ull;
+        if (!cli_text_find(name + from, length - from, s_segment, size, &found))
         {
-            cli_piece_put(out, name, "function");
+            return NULL;
         }
+        const unsigned long long at = from + found;
+        if ((at == 0ull) || (name[at - 1u] == '.'))
+        {
+            return name + at + size;
+        }
+        from = at + 1ull;
     }
-    else if (cli_piece_after(trimmed, "class", &after))
-    {
-        if (cli_piece_name_at(after, 0, &name, &tail))
-        {
-            cli_piece_put(out, name, "class");
-        }
-    }
-    else if ((trimmed.length == line.length) && cli_piece_name_at(line, 0, &name, &tail))
-    {
-        // A constant: a name in capitals at the left edge, given a value
-        int capitals = 1;
-        int upper = 0;
-        for (unsigned long long at = 0ull; at < name.length; at += 1ull)
-        {
-            const char letter = name.at[at];
-            capitals = capitals && (((letter >= 'A') && (letter <= 'Z')) || ((letter >= '0') && (letter <= '9')) ||
-                                    (letter == '_'));
-            upper = upper || ((letter >= 'A') && (letter <= 'Z'));
-        }
-        const CliPiece value = cli_piece_trim_start(tail);
-        int assigned = 0;
-        if ((value.length != 0ull) && (value.at[0] == ':'))
-        {
-            // a type before the value: what follows its `=` must not open `==`; with no `=` it reads as given
-            const CliPiece typed = cli_piece_from(value, 1u);
-            const unsigned long long equals = cli_piece_find(typed, '=');
-            assigned = (equals >= typed.length) || !cli_piece_starts(cli_piece_from(typed, equals + 1u), "=");
-        }
-        else
-        {
-            assigned = cli_piece_starts(value, "=") && !cli_piece_starts(value, "==");
-        }
-        if (capitals && upper && assigned)
-        {
-            cli_piece_put(out, name, "constant");
-        }
-    }
+    return NULL;
 }
 
-static void cli_rust(CliPiece line, const CliOut *out)
+// each letter decoded as the colorer decodes it, one past U+FFFF taking two columns as UTF-16 counts them
+unsigned long long cli_symbols_byte_at(const char *line, unsigned long long size, unsigned int col,
+                                       unsigned long long *byte, unsigned int *at)
 {
-    static const char *const s_leads[3] = {"const", "async", "unsafe"};
-    static const char *const s_kinds[6][2] = {{"struct", "class"}, {"enum", "class"}, {"union", "class"},
-                                              {"trait", "class"},  {"type", "class"}, {"mod", "module"}};
-    static const char *const s_mut[1] = {"mut"};
-    CliPiece text = cli_piece_trim_start(line);
-    CliPiece rest;
-    CliPiece name;
-    CliPiece tail;
-    if (cli_piece_after(text, "pub", &rest))
+    while ((*at < col) && (*byte < size))
     {
-        text = rest;
-        if (cli_piece_starts(text, "("))
+        const unsigned char lead = (unsigned char)line[*byte];
+        const unsigned int length = (lead < 0x80u) ? 1u : (lead < 0xe0u) ? 2u : (lead < 0xf0u) ? 3u : 4u;
+        unsigned int letter = (length == 1u)   ? lead
+                              : (length == 2u) ? (lead & 0x1fu)
+                              : (length == 3u) ? (lead & 0x0fu)
+                                               : (lead & 0x07u);
+        for (unsigned int more = 1u; (more < length) && ((*byte + more) < size); more += 1u)
         {
-            const unsigned long long close = cli_piece_find(text, ')');
-            text = (close < text.length) ? cli_piece_trim_start(cli_piece_from(text, close + 1u))
-                                         : cli_piece_from(text, text.length);
+            letter = (letter << 6u) | ((unsigned char)line[*byte + more] & 0x3fu);
         }
+        *at += (letter >= 0x10000u) ? 2u : 1u;
+        *byte += length;
     }
-    if (cli_piece_starts(text, "macro_rules!"))
-    {
-        if (cli_piece_name_at(cli_piece_trim_start(cli_piece_from(text, 12u)), 0, &name, &tail))
-        {
-            cli_piece_put(out, name, "function");
-        }
-        return;
-    }
-    CliPiece leading = text;
-    for (;;)
-    {
-        const CliPiece before = leading;
-        leading = cli_piece_without(leading, s_leads, 3u);
-        if (cli_piece_after(leading, "extern", &rest))
-        {
-            if (cli_piece_starts(rest, "\""))
-            {
-                const CliPiece named = cli_piece_from(rest, 1u);
-                const unsigned long long close = cli_piece_find(named, '"');
-                leading = (close < named.length) ? cli_piece_trim_start(cli_piece_from(named, close + 1u))
-                                                 : cli_piece_from(named, named.length);
-            }
-            else
-            {
-                leading = rest;
-            }
-        }
-        if (leading.at == before.at)
-        {
-            break;
-        }
-    }
-    if (cli_piece_after(leading, "fn", &rest))
-    {
-        if (cli_piece_name_at(rest, 0, &name, &tail))
-        {
-            cli_piece_put(out, name, "function");
-        }
-        return;
-    }
-    for (unsigned int at = 0u; at < 6u; at += 1u)
-    {
-        if (cli_piece_after(text, s_kinds[at][0], &rest))
-        {
-            if (cli_piece_name_at(rest, 0, &name, &tail))
-            {
-                cli_piece_put(out, name, s_kinds[at][1]);
-            }
-            return;
-        }
-    }
-    static const char *const s_values[2] = {"const", "static"};
-    for (unsigned int at = 0u; at < 2u; at += 1u)
-    {
-        if (cli_piece_after(text, s_values[at], &rest))
-        {
-            if (cli_piece_name_at(cli_piece_without(rest, s_mut, 1u), 0, &name, &tail) &&
-                cli_piece_starts(cli_piece_trim_start(tail), ":"))
-            {
-                cli_piece_put(out, name, "constant");
-            }
-            return;
-        }
-    }
+    return (*byte < size) ? *byte : size;
 }
 
-static void cli_script(CliPiece line, const CliOut *out)
+// One line's leaves read: each run whose token names a declaration handed on, the run's text its name and the rest
+// of its token's name its kind
+static void cli_symbols_line(void *context, const CliLeaves *leaves)
 {
-    static const char *const s_leads[3] = {"export", "default", "async"};
-    static const char *const s_keeps[7] = {"if", "for", "while", "switch", "catch", "return", "function"};
-    static const char *const s_methods[4] = {"static", "async", "get", "set"};
-    static const char *const s_async[1] = {"async"};
-    const CliPiece trimmed = cli_piece_trim_start(line);
-    const int indented = trimmed.length != line.length;
-    CliPiece rest;
-    CliPiece name;
-    CliPiece tail;
-    if (cli_piece_after(cli_piece_without(trimmed, s_leads, 3u), "function", &rest))
+    CliSymbolsLine *const reading = (CliSymbolsLine *)context;
+    const char *const line = leaves->line;
+    const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL});
+    unsigned long long byte = 0ull;
+    unsigned int at = 0u;
+    for (unsigned int run = 0u; run < leaves->runs; run += 1u)
     {
-        while ((rest.length != 0ull) && (rest.at[0] == '*'))
+        const unsigned long long from = cli_symbols_byte_at(line, size, leaves->col[run], &byte, &at);
+        const unsigned long long to =
+            ((run + 1u) < leaves->runs) ? cli_symbols_byte_at(line, size, leaves->col[run + 1u], &byte, &at) : size;
+        const char *const kind = cli_symbols_declares(leaves->text + leaves->name_at[leaves->name[run]]);
+        if ((kind != NULL) && (kind[0] != '\0') && (to > from))
         {
-            rest = cli_piece_from(rest, 1u);
-        }
-        if (cli_piece_name_at(cli_piece_trim_start(rest), 1, &name, &tail))
-        {
-            cli_piece_put(out, name, "function");
-        }
-        return;
-    }
-    if (cli_piece_after(cli_piece_without(trimmed, s_leads, 2u), "class", &rest))
-    {
-        if (cli_piece_name_at(rest, 1, &name, &tail))
-        {
-            cli_piece_put(out, name, "class");
-        }
-        return;
-    }
-    if (!indented)
-    {
-        static const char *const s_declares[3] = {"const", "let", "var"};
-        const CliPiece declared = cli_piece_without(trimmed, s_leads, 1u);
-        for (unsigned int at = 0u; at < 3u; at += 1u)
-        {
-            if (!cli_piece_after(declared, s_declares[at], &rest))
-            {
-                continue;
-            }
-            if (cli_piece_name_at(rest, 1, &name, &tail))
-            {
-                const CliPiece given = cli_piece_trim_start(tail);
-                if (cli_piece_starts(given, "=") && !cli_piece_starts(cli_piece_from(given, 1u), "="))
-                {
-                    const CliPiece value =
-                        cli_piece_without(cli_piece_trim_start(cli_piece_from(given, 1u)), s_async, 1u);
-                    const unsigned long long close = cli_piece_find(value, ')');
-                    CliPiece called;
-                    CliPiece after_name;
-                    const int arrow =
-                        (cli_piece_starts(value, "(") && (close < value.length) &&
-                         cli_piece_starts(cli_piece_trim_start(cli_piece_from(value, close + 1u)), "=>")) ||
-                        (cli_piece_name_at(value, 1, &called, &after_name) &&
-                         cli_piece_starts(cli_piece_trim_start(after_name), "=>"));
-                    cli_piece_put(out, name, arrow ? "function" : "constant");
-                }
-            }
-            return;
-        }
-        return;
-    }
-    // A method: an indented name and its parameters, its body opening at the line's end
-    if (cli_piece_name_at(cli_piece_without(trimmed, s_methods, 4u), 1, &name, &tail) &&
-        !cli_piece_in(name, s_keeps, 7u))
-    {
-        const CliPiece parameters = cli_piece_trim_start(tail);
-        const CliPiece ending = cli_piece_trim_end(parameters);
-        const unsigned long long close = cli_piece_find(parameters, ')');
-        if (cli_piece_starts(parameters, "(") && (ending.length != 0ull) && (ending.at[ending.length - 1u] == '{') &&
-            (close < parameters.length) &&
-            cli_piece_equals(cli_piece_trim_end(cli_piece_trim_start(cli_piece_from(parameters, close + 1u))), "{"))
-        {
-            cli_piece_put(out, name, "method");
+            reading->each(reading->context, line + from, to - from, kind, reading->line);
         }
     }
+    reading->line += 1u;
 }
 
-static void cli_c(CliPiece line, const CliOut *out)
+// a language plugin's grammar noted where it has one, whether it names a declaration and whether its plugin says a
+// line's end outside brackets ends a statement, in the place of one of its id noted before, and one of its id that has
+// none taken out, so the plugin of each id that stands is the one read
+static void cli_symbols_grammar_noted(void *context, const CliPlugin *plugin)
 {
-    static const char *const s_keeps[12] = {"if", "for",     "while",  "switch", "return", "else",
-                                            "do", "typedef", "struct", "enum",   "union",  "sizeof"};
-    static const char *const s_typedef[1] = {"typedef"};
-    static const char *const s_kinds[4] = {"struct", "enum", "union", "class"};
-    CliPiece rest;
-    CliPiece name;
-    CliPiece tail;
-    if (cli_piece_starts(line, "#"))
+    CliSymbolsLanguages *const read = (CliSymbolsLanguages *)context;
+    CliJson json;
+    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &err_msg);
+    const char *const kind =
+        (root != CLI_JSON_NONE) ? cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL) : NULL;
+    const int language =
+        (root != CLI_JSON_NONE) &&
+        ((kind == NULL) || cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_CELLS_POOL}));
+    const int grammared = language && cli_json_is(&json, cli_json_member(&json, root, "grammar"), CFG_JSON_OBJECT);
+    const int line_ends_statement =
+        grammared && cli_json_is(&json, cli_json_member(&json, root, "lineEndsStatement"), CFG_JSON_TRUE);
+    cli_json_given(&json);
+    unsigned long long found = 0ull;
+    const int declares = grammared && cli_text_find(plugin->text, plugin->size, "declaration.", 12u, &found);
+    unsigned int at = 0u;
+    while ((at < read->grammars) &&
+           !cellul.eq(&(CatenaFinitaCfg){.src = read->grammar[at].id, .other = plugin->id, .cap = CLI_CELLS_POOL}))
     {
-        if (cli_piece_after(cli_piece_trim_start(cli_piece_from(line, 1u)), "define", &rest) &&
-            cli_piece_name_at(rest, 0, &name, &tail))
-        {
-            cli_piece_put(out, name, "constant");
-        }
+        at += 1u;
+    }
+    if (!grammared && (at < read->grammars))
+    {
+        read->grammar[at] = read->grammar[read->grammars - 1u];
+        read->grammars -= 1u;
         return;
     }
-    if ((line.length == 0ull) || cli_piece_space(line.at[0]))
-    {
-        return;
-    }
-    const CliPiece lead = cli_piece_without(line, s_typedef, 1u);
-    for (unsigned int at = 0u; at < 4u; at += 1u)
-    {
-        if (cli_piece_after(lead, s_kinds[at], &rest))
-        {
-            if (cli_piece_name_at(rest, 0, &name, &tail))
-            {
-                const CliPiece left = cli_piece_trim_end(cli_piece_trim_start(tail));
-                if ((left.length == 0ull) || cli_piece_equals(left, "{"))
-                {
-                    cli_piece_put(out, name, "class");
-                }
-            }
-            return;
-        }
-    }
-    // A function: words for its type, then its name and a parenthesis, at the left edge, not a statement, and either
-    // opening its body or running on to the next line
-    if (!cli_piece_name_at(line, 0, &name, &tail) || cli_piece_in(name, s_keeps, 12u))
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = plugin->id, .cap = CLI_CELLS_POOL});
+    if (!grammared || (at == CLI_SYMBOLS_GRAMMARS) || (length >= CLI_NAME_MAX_LEN))
     {
         return;
     }
-    const unsigned long long open = cli_piece_find(line, '(');
-    if (open >= line.length)
-    {
-        return;
-    }
-    const CliPiece whole_head = {line.at, open};
-    if ((cli_piece_find(whole_head, '=') < open) || (cli_piece_find(whole_head, ';') < open) ||
-        (cli_piece_find(whole_head, '"') < open))
-    {
-        return;
-    }
-    const CliPiece head = cli_piece_trim_end(whole_head);
-    unsigned long long start = head.length;
-    while ((start > 0ull) && (cli_piece_alnum(head.at[start - 1u]) || (head.at[start - 1u] == '_')))
-    {
-        start -= 1ull;
-    }
-    const CliPiece found = cli_piece_from(head, start);
-    if ((found.length == 0ull) || (start == 0ull) || ((found.at[0] >= '0') && (found.at[0] <= '9')))
-    {
-        return;
-    }
-    const CliPiece rest_of = cli_piece_from(line, open);
-    const CliPiece ending = cli_piece_trim_end(rest_of);
-    const int body = (ending.length != 0ull) && (ending.at[ending.length - 1u] == '{');
-    if (body || (cli_piece_find(rest_of, ';') >= rest_of.length))
-    {
-        cli_piece_put(out, found, "function");
-    }
+    memor.cpy(&(MemoriaCfg){.dst = read->grammar[at].id, .src = plugin->id, .bytes = (size_t)length + 1u});
+    read->grammar[at].key[0] = '\0';
+    read->grammar[at].stored = 0;
+    read->grammar[at].declares = declares;
+    read->grammar[at].line_ends_statement = line_ends_statement;
+    read->grammars += (at == read->grammars) ? 1u : 0u;
 }
 
-// The language of a file by its extension, in either case
-static unsigned int cli_language_of(const char *path)
+CliSymbolsLanguages *cli_symbols_languages_read(void)
 {
-    static const char *const s_extensions[] = {"py",  "pyi",  "rs",   "js", "mjs",      "cjs", "jsx",  "ts",
-                                               "tsx", "mts",  "cts",  "c",  "h",        "cc",  "cpp",  "cxx",
-                                               "hpp", "hh",   "hxx",  "cu", "cuh",      "sh",  "bash", "zsh",
-                                               "ps1", "psm1", "toml", "md", "markdown", "tex", "sty",  "cls"};
-    static const unsigned int s_languages[] = {
-        CLI_LANG_PYTHON,     CLI_LANG_PYTHON, CLI_LANG_RUST,     CLI_LANG_SCRIPT,   CLI_LANG_SCRIPT,
-        CLI_LANG_SCRIPT,     CLI_LANG_SCRIPT, CLI_LANG_SCRIPT,   CLI_LANG_SCRIPT,   CLI_LANG_SCRIPT,
-        CLI_LANG_SCRIPT,     CLI_LANG_C,      CLI_LANG_C,        CLI_LANG_C,        CLI_LANG_C,
-        CLI_LANG_C,          CLI_LANG_C,      CLI_LANG_C,        CLI_LANG_C,        CLI_LANG_C,
-        CLI_LANG_C,          CLI_LANG_SHELL,  CLI_LANG_SHELL,    CLI_LANG_SHELL,    CLI_LANG_POWERSHELL,
-        CLI_LANG_POWERSHELL, CLI_LANG_TOML,   CLI_LANG_MARKDOWN, CLI_LANG_MARKDOWN, CLI_LANG_TEX,
-        CLI_LANG_TEX,        CLI_LANG_TEX};
-    const char *const dot =
-        cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '.');
-    if ((dot == NULL) || (cellul.len(&(CatenaFinitaCfg){.src = dot + 1, .cap = CLI_CELLS_POOL}) >= 16u))
+    CliSymbolsLanguages *const read = g_cli_cells->persistent_buf_alloc(sizeof(CliSymbolsLanguages), NULL);
+    if (read != NULL)
     {
-        return CLI_LANG_NONE;
+        cli_plugins_languages(&read->languages);
+        read->grammars = 0u;
+        cli_plugins_each(cli_symbols_grammar_noted, read);
     }
-    char extension[16];
-    unsigned int length = 0u;
-    for (const char *at = dot + 1; at[0] != '\0'; at += 1)
+    return read;
+}
+
+void cli_symbols_languages_given(CliSymbolsLanguages *read)
+{
+    if (read != NULL)
     {
-        extension[length] = ((at[0] >= 'A') && (at[0] <= 'Z')) ? (char)(at[0] + 32) : at[0];
-        length += 1u;
+        cli_plugins_languages_given(&read->languages);
     }
-    extension[length] = '\0';
-    for (unsigned int at = 0u; at < (sizeof(s_extensions) / sizeof(s_extensions[0])); at += 1u)
+    g_cli_cells->persistent_buf_release(read, NULL);
+}
+
+// the place among `read`'s grammars of the language `id`, CLI_SYMBOLS_GRAMMARS where it is none whose grammar is read
+static unsigned int cli_symbols_grammar_named(const CliSymbolsLanguages *read, const char *id)
+{
+    for (unsigned int at = 0u; at < read->grammars; at += 1u)
     {
-        if (cellul.eq(&(CatenaFinitaCfg){.src = extension, .other = s_extensions[at], .cap = CLI_CELLS_POOL}))
+        if (cellul.eq(&(CatenaFinitaCfg){.src = read->grammar[at].id, .other = id, .cap = CLI_CELLS_POOL}))
         {
-            return s_languages[at];
+            return (read->grammar[at].stored >= 0) ? at : CLI_SYMBOLS_GRAMMARS;
         }
     }
-    return CLI_LANG_NONE;
+    return CLI_SYMBOLS_GRAMMARS;
+}
+
+// the place among `read`'s grammars of the language the file at `path` opens as, CLI_SYMBOLS_GRAMMARS where it opens
+// as none whose grammar is read
+static unsigned int cli_symbols_grammar_of(const CliSymbolsLanguages *read, const char *path)
+{
+    char id[CLI_NAME_MAX_LEN];
+    return cli_plugins_language_for(&read->languages, path, id) ? cli_symbols_grammar_named(read, id)
+                                                                : CLI_SYMBOLS_GRAMMARS;
+}
+
+int cli_symbols_reads_in(const CliSymbolsLanguages *read, const char *path)
+{
+    const unsigned int place = cli_symbols_grammar_of(read, path);
+    return (place != CLI_SYMBOLS_GRAMMARS) && read->grammar[place].declares;
+}
+
+int cli_symbols_line_ends_statement(const CliSymbolsLanguages *read, const char *id)
+{
+    const unsigned int place = cli_symbols_grammar_named(read, id);
+    return (place != CLI_SYMBOLS_GRAMMARS) && read->grammar[place].line_ends_statement;
 }
 
 int cli_symbols_reads(const char *path)
 {
-    return cli_language_of(path) != CLI_LANG_NONE;
+    CliSymbolsLanguages *const read = cli_symbols_languages_read();
+    const int reads = (read != NULL) && cli_symbols_reads_in(read, path);
+    cli_symbols_languages_given(read);
+    return reads;
 }
 
 void cli_symbols_declared(const char *path, const char *text, unsigned long long size, CliDeclared each, void *context)
 {
-    const unsigned int language = cli_language_of(path);
-    int fenced = 0;
-    unsigned long long at = 0ull;
-    CliOut out = {each, context, 0u};
-    while ((language != CLI_LANG_NONE) && (at < size))
+    CliSymbolsLanguages *const read = cli_symbols_languages_read();
+    if (read != NULL)
     {
-        unsigned long long end = at;
-        while ((end < size) && (text[end] != '\n'))
-        {
-            end += 1ull;
-        }
-        // a line as Rust's lines() gives it, its `\r` before `\n` left off
-        CliPiece line = {text + at, end - at};
-        line.length -= ((line.length != 0ull) && (line.at[line.length - 1u] == '\r')) ? 1ull : 0ull;
-        switch (language)
-        {
-        case CLI_LANG_PYTHON:
-            cli_python(line, &out);
-            break;
-        case CLI_LANG_RUST:
-            cli_rust(line, &out);
-            break;
-        case CLI_LANG_SCRIPT:
-            cli_script(line, &out);
-            break;
-        case CLI_LANG_C:
-            cli_c(line, &out);
-            break;
-        case CLI_LANG_SHELL:
-            cli_symbols_shell(line, &out);
-            break;
-        case CLI_LANG_POWERSHELL:
-            cli_symbols_powershell(line, &out);
-            break;
-        case CLI_LANG_TOML:
-            cli_symbols_toml(line, &out);
-            break;
-        case CLI_LANG_MARKDOWN:
-            if (cli_piece_starts(cli_piece_trim_start(line), "```"))
-            {
-                fenced = !fenced;
-            }
-            else if (!fenced)
-            {
-                cli_symbols_markdown(line, &out);
-            }
-            break;
-        default:
-            cli_symbols_tex(line, &out);
-            break;
-        }
-        out.line += 1u;
-        at = end + 1ull;
+        cli_symbols_declared_in(read, path, text, size, each, context);
     }
+    cli_symbols_languages_given(read);
+}
+
+void cli_symbols_declared_in(CliSymbolsLanguages *read, const char *path, const char *text, unsigned long long size,
+                             CliDeclared each, void *context)
+{
+    CliSymbolsLine reading = {each, context, 0u};
+    (void)cli_symbols_leaves_in(read, path, "root", text, size, cli_symbols_line, &reading);
+}
+
+// the leaves of `size` bytes of `text` read by the grammar at `place` among `read`'s, the first line starting in
+// `state`, each line's handed to `each`: 1, or 0 where the place is none or the cells cannot meet the text's copy
+static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, const char *state, const char *text,
+                                 unsigned long long size, CliLeavesEach each, void *context)
+{
+    if (place == CLI_SYMBOLS_GRAMMARS)
+    {
+        return 0;
+    }
+    CliSymbolsGrammar *const grammar = &read->grammar[place];
+    if (grammar->stored == 0)
+    {
+        char why[CLI_PATH_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        grammar->stored = cli_plugins_grammar_stored(grammar->id, grammar->key, &err_msg) ? 1 : -1;
+    }
+    // the text's lines in a cell of their own, each ended by a NUL in place of its line's end, its carriage return
+    // before it dropped
+    char *const lines = (grammar->stored == 1) ? g_cli_cells->persistent_buf_alloc(size + 1ull, NULL) : NULL;
+    if (lines == NULL)
+    {
+        return 0;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = lines, .src = text, .bytes = (size_t)size});
+    lines[size] = '\0';
+    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    {
+        if (lines[at] != '\n')
+        {
+            continue;
+        }
+        lines[at] = '\0';
+        if ((at != 0ull) && (lines[at - 1u] == '\r'))
+        {
+            lines[at - 1u] = '\0';
+        }
+    }
+    // the state the first line starts in, root where it is longer than a state is kept
+    const unsigned long long given = cellul.len(&(CatenaFinitaCfg){.src = state, .cap = CLI_CELLS_POOL});
+    char starting[CLI_SYMBOLS_STATE] = "root";
+    if ((given != 0ull) && (given < CLI_SYMBOLS_STATE))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = starting, .src = state, .bytes = (size_t)given + 1u});
+    }
+    unsigned long long at = 0ull;
+    int colored = 1;
+    while (colored && (at < size))
+    {
+        const char *batch[CLI_SYMBOLS_LINES];
+        unsigned int count = 0u;
+        while ((count < CLI_SYMBOLS_LINES) && (at < size))
+        {
+            batch[count] = lines + at;
+            count += 1u;
+            while ((at < size) && (text[at] != '\n'))
+            {
+                at += 1ull;
+            }
+            at += 1ull;
+        }
+        char ended_text[CLI_SYMBOLS_STATE];
+        VerbaLinea ended = {ended_text, sizeof(ended_text), 0ull};
+        char why[CLI_PATH_MAX_LEN];
+        VerbaLinea err_msg = {why, sizeof(why), 0ull};
+        colored = cli_highlight_leaves(grammar->key, starting, batch, count, each, context, &ended, &err_msg);
+        const unsigned long long length = mmgr_line_finish(&ended);
+        memor.cpy(&(MemoriaCfg){.dst = starting,
+                                .src = (length != 0ull) ? ended_text : "root",
+                                .bytes = (length != 0ull) ? (length + 1u) : 5u});
+    }
+    g_cli_cells->persistent_buf_release(lines, NULL);
+    return colored;
+}
+
+int cli_symbols_leaves_in(CliSymbolsLanguages *read, const char *path, const char *state, const char *text,
+                          unsigned long long size, CliLeavesEach each, void *context)
+{
+    return cli_symbols_leaves_at(read, cli_symbols_grammar_of(read, path), state, text, size, each, context);
+}
+
+int cli_symbols_language_leaves_in(CliSymbolsLanguages *read, const char *id, const char *state, const char *text,
+                                   unsigned long long size, CliLeavesEach each, void *context)
+{
+    return cli_symbols_leaves_at(read, cli_symbols_grammar_named(read, id), state, text, size, each, context);
 }

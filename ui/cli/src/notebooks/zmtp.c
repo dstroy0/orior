@@ -1,10 +1,10 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// zmtp.c: ZeroMQ's wire protocol, ZMTP 3.0 with its NULL mechanism, as a Jupyter kernel speaks it on the machine's own
-// loopback: the greeting, the READY command that names a socket's type, and messages of one or more frames. orior_cli is
-// the connecting side of each of a kernel's sockets, a DEALER to its ROUTERs, a SUB to its PUB and a REQ to its REP. A
-// SUB subscribes as ZMTP 3.0 has it, by a message whose first byte is 1, which a peer that speaks 3.1 takes from a 3.0
-// peer as well
+// zmtp.c: ZeroMQ's wire protocol, ZMTP 3.0 with its NULL mechanism, as a Jupyter kernel uses it on the machine's own
+// loopback: the greeting, the READY command that names a socket's type, and messages of one or more frames. orior_cli
+// is the connecting side of each of a kernel's sockets, a DEALER to its ROUTERs, a SUB to its PUB and a REQ to its REP.
+// A SUB subscribes as ZMTP 3.0 has it, by a message whose first byte is 1, which a peer that uses 3.1 takes from
+// a 3.0 peer as well
 #include "zmtp.h"
 
 #define CLI_ZMTP_MORE 0x01u
@@ -13,12 +13,9 @@
 
 #define CLI_ZMTP_COMMAND 0x04u
 
-// one frame written: its flags, its size, one byte or eight, and its body
-static int cli_zmtp_frame_written(const CliSocket *socket, const void *body, unsigned long long size,
-                                  unsigned int flags)
+// the head of a frame of `size` bytes with `flags` written into `head`, sized for 9: how many bytes it takes
+static unsigned int cli_zmtp_head(unsigned char *head, unsigned long long size, unsigned int flags)
 {
-    unsigned char head[9];
-    unsigned int length = 0u;
     if (size > 255ull)
     {
         head[0] = (unsigned char)(flags | CLI_ZMTP_LONG);
@@ -26,15 +23,20 @@ static int cli_zmtp_frame_written(const CliSocket *socket, const void *body, uns
         {
             head[1u + at] = (unsigned char)((size >> (56u - (8u * at))) & 0xffull);
         }
-        length = 9u;
+        return 9u;
     }
-    else
-    {
-        head[0] = (unsigned char)flags;
-        // a size at most 255 fits a byte
-        head[1] = (unsigned char)size;
-        length = 2u;
-    }
+    head[0] = (unsigned char)flags;
+    // a size at most 255 fits a byte
+    head[1] = (unsigned char)size;
+    return 2u;
+}
+
+// one frame of the greeting written: its flags, its size, one byte or eight, and its body
+static int cli_zmtp_frame_written(const CliSocket *socket, const void *body, unsigned long long size,
+                                  unsigned int flags)
+{
+    unsigned char head[9];
+    const unsigned int length = cli_zmtp_head(head, size, flags);
     return cli_socket_written(socket, head, length) && cli_socket_written(socket, body, size);
 }
 
@@ -44,7 +46,7 @@ static int cli_zmtp_frame_written(const CliSocket *socket, const void *body, uns
 #define CLI_ZMTP_FRAME_READ 1
 #define CLI_ZMTP_FRAME_PASSED 2
 
-// one frame read: its flags and its body into `body`, which holds `room`, its size into `size`: what the read came to
+// one frame read: its flags and its body into `body`, sized for `room`, its size into `size`: what the read came to
 static int cli_zmtp_frame_read(const CliSocket *socket, unsigned int *flags, unsigned char *body,
                                unsigned long long room, unsigned long long *size)
 {
@@ -95,7 +97,7 @@ static int cli_zmtp_frame_read(const CliSocket *socket, unsigned int *flags, uns
 }
 
 // the greeting: ZMTP 3, the NULL mechanism, and the READY command that names the socket's type
-static int cli_zmtp_greeted(const CliSocket *socket, const char *kind, CliLine *said)
+static int cli_zmtp_greeted(const CliSocket *socket, const char *kind, VerbaLinea *err_msg)
 {
     unsigned char greeting[64];
     memor.set(&(MemoriaCfg){.dst = greeting, .val = 0, .bytes = sizeof(greeting)});
@@ -107,24 +109,24 @@ static int cli_zmtp_greeted(const CliSocket *socket, const char *kind, CliLine *
     unsigned char theirs[64];
     if (!cli_socket_written(socket, greeting, sizeof(greeting)) || !cli_socket_read(socket, theirs, sizeof(theirs)))
     {
-        cli_line_text(said, "the kernel's greeting was not read");
+        mmgr_line_put(err_msg, "the kernel's greeting was not read");
         return 0;
     }
     if ((theirs[0] != 0xffu) || (theirs[9] != 0x7fu) || (theirs[10] < 3u))
     {
-        cli_line_text(said, "the peer speaks no ZMTP 3");
+        mmgr_line_put(err_msg, "the peer uses no ZMTP 3");
         return 0;
     }
     if (memor.cmp(&(MemoriaCfg){.src = &theirs[12], .other = "NULL", .bytes = 4u}) != 0)
     {
-        cli_line_text(said, "the peer asks for the ");
+        mmgr_line_put(err_msg, "the peer requests the ");
         unsigned int length = 0u;
         while ((length < 20u) && (theirs[12u + length] != 0u))
         {
             length += 1u;
         }
-        cli_line_counted(said, (const char *)&theirs[12], length);
-        cli_line_text(said, " mechanism, where orior_cli speaks NULL");
+        mmgr_line_put_n(err_msg, (const char *)&theirs[12], length);
+        mmgr_line_put(err_msg, " mechanism, where orior_cli supports NULL");
         return 0;
     }
     unsigned char ready[64];
@@ -138,7 +140,7 @@ static int cli_zmtp_greeted(const CliSocket *socket, const char *kind, CliLine *
     at += 11u;
     for (unsigned int byte = 0u; byte < 4u; byte += 1u)
     {
-        // a socket's type is a few letters, which a 32-bit length holds
+        // a socket's type is a few letters, which a 32-bit length stores
         ready[at++] = (unsigned char)((kind_length >> (24u - (8u * byte))) & 0xffu);
     }
     memor.cpy(&(MemoriaCfg){.dst = &ready[at], .src = kind, .bytes = kind_length});
@@ -151,19 +153,19 @@ static int cli_zmtp_greeted(const CliSocket *socket, const char *kind, CliLine *
         ((flags & CLI_ZMTP_COMMAND) == 0u) || (size < 6ull) ||
         (memor.cmp(&(MemoriaCfg){.src = answer, .other = "\x05READY", .bytes = 6u}) != 0))
     {
-        cli_line_text(said, "the peer answered the greeting with no READY");
+        mmgr_line_put(err_msg, "the peer answered the greeting with no READY");
         return 0;
     }
     return 1;
 }
 
-int cli_zmtp_connected(CliSocket *socket, const char *host, unsigned int port, const char *kind, CliLine *said)
+int cli_zmtp_connected(CliSocket *socket, const char *host, unsigned int port, const char *kind, VerbaLinea *err_msg)
 {
-    if (!cli_socket_connected(socket, host, port, said))
+    if (!cli_socket_connected(socket, host, port, err_msg))
     {
         return 0;
     }
-    if (!cli_zmtp_greeted(socket, kind, said))
+    if (!cli_zmtp_greeted(socket, kind, err_msg))
     {
         cli_socket_closed(socket);
         return 0;
@@ -177,17 +179,37 @@ int cli_zmtp_connected(CliSocket *socket, const char *host, unsigned int port, c
     return 1;
 }
 
-int cli_zmtp_sent(const CliSocket *socket, const CliZmtpFrame *frames, unsigned int count)
+unsigned char *cli_zmtp_message_made(const CliZmtpFrame *frames, unsigned int count, unsigned long long *size)
 {
+    unsigned long long total = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const unsigned int more = ((at + 1u) < count) ? CLI_ZMTP_MORE : 0u;
-        if (!cli_zmtp_frame_written(socket, frames[at].bytes, frames[at].size, more))
-        {
-            return 0;
-        }
+        total += ((frames[at].size > 255ull) ? 9ull : 2ull) + frames[at].size;
     }
-    return 1;
+    unsigned char *const message = g_cli_cells->persistent_buf_alloc(total, NULL);
+    if (message == NULL)
+    {
+        return NULL;
+    }
+    unsigned long long used = 0ull;
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        used += cli_zmtp_head(message + used, frames[at].size, ((at + 1u) < count) ? CLI_ZMTP_MORE : 0u);
+        // a frame's body is below the message's size, which a cell of it stores
+        memor.cpy(&(MemoriaCfg){.dst = message + used, .src = frames[at].bytes, .bytes = (size_t)frames[at].size});
+        used += frames[at].size;
+    }
+    *size = total;
+    return message;
+}
+
+int cli_zmtp_sent(const CliSocket *socket, const CliZmtpFrame *frames, unsigned int count)
+{
+    unsigned long long size = 0ull;
+    unsigned char *const message = cli_zmtp_message_made(frames, count, &size);
+    const int sent = (message != NULL) && cli_socket_written(socket, message, size);
+    g_cli_cells->persistent_buf_release(message, NULL);
+    return sent;
 }
 
 unsigned int cli_zmtp_received(const CliSocket *socket, unsigned char *room, unsigned long long room_size,

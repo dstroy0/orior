@@ -88,7 +88,7 @@ int hdf5_open(Hdf5File *file, const char *path, const EngineIngestTools *tools)
     const unsigned long long end = wraps ? ~0ull : ((stored_end + shift_up) - shift_down);
     if (end > file->file_bytes)
     {
-        return hdf5_error_number(file, "a truncated file; the superblock says it ends at byte", end);
+        return hdf5_error_number(file, "a truncated file; the superblock states it ends at byte", end);
     }
     file->base = place;
     file->root = root;
@@ -312,8 +312,8 @@ Hdf5Walk hdf5_object_fill(Hdf5File *file, Hdf5Object *object, Hdf5Cursor *cursor
     {
         return hdf5_walk_error(file, "a malformed fill value message");
     }
-    unsigned char *const kept = old ? object->old_fill : object->fill;
-    memcpy(kept, value, (size_t)((size < 8ull) ? size : 8ull));
+    unsigned char *const fill_value = old ? object->old_fill : object->fill;
+    memcpy(fill_value, value, (size_t)((size < 8ull) ? size : 8ull));
     object->has_fill = object->has_fill || !old;
     object->has_old_fill = object->has_old_fill || old;
     object->fill_bytes = old ? object->fill_bytes : size;

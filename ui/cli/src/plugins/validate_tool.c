@@ -10,7 +10,7 @@
 // the most tool plugins looked over
 #define CLI_VALIDATE_TOOLS (CLI_USER_PLUGINS + 256u)
 
-int cli_validate_holds(const CliJson *json, unsigned int array, const char *text, unsigned long long length)
+int cli_validate_in_array(const CliJson *json, unsigned int array, const char *text, unsigned long long length)
 {
     for (unsigned int index = 0u; cli_json_item(json, array, index) != CLI_JSON_NONE; index += 1u)
     {
@@ -120,7 +120,7 @@ static int tool_barriers(const CliJson *json, unsigned int array, CliTool *tool)
         if (!tool_string(json, one, "name", 1, &barrier->name) ||
             !tool_string(json, one, "about", 0, &barrier->about) ||
             !tool_strings(json, one, "kinds", 0, &barrier->kinds) ||
-            !tool_strings(json, one, "says", 0, &barrier->says) ||
+            !tool_strings(json, one, "phrases", 0, &barrier->phrases) ||
             !tool_strings(json, one, "not", 0, &barrier->unless) ||
             !tool_string(json, one, "lift", 1, &barrier->lift) ||
             !tool_count(json, one, "default", NULL, ~0ull, &barrier->start) ||
@@ -146,7 +146,7 @@ static int tool_flags(const CliJson *json, unsigned int array, CliTool *tool)
         if ((tool->flag_count == CLI_VALIDATE_FLAGS) || !cli_json_is(json, one, CFG_JSON_OBJECT) ||
             !tool_strings(json, one, "words", 1, &flag->words) ||
             !tool_count(json, one, "severity", NULL, 255ull, &severity) ||
-            !tool_string(json, one, "says", 1, &flag->says))
+            !tool_string(json, one, "message", 1, &flag->phrases))
         {
             return 0;
         }
@@ -195,12 +195,12 @@ static int tool_audit(const CliJson *json, unsigned int audit, CliTool *tool)
             return 0;
         }
     }
-    // an explanation is found by its key in the order a BTreeMap keeps them
+    // an explanation is found by its key in the order a BTreeMap orders them
     cli_json_sorted((CliJson *)json, tool->explains);
     return 1;
 }
 
-// the tool `root` says read into `tool`: 1, or 0 where it is no tool plugin, or not a Tool as serde reads one
+// the tool `root` declares read into `tool`: 1, or 0 where it is no tool plugin, or not a Tool as serde reads one
 static int tool_read(const CliJson *json, unsigned int root, CliTool *tool)
 {
     const char *kind = NULL;
@@ -232,7 +232,7 @@ static int tool_read(const CliJson *json, unsigned int root, CliTool *tool)
 typedef struct
 {
     const char *language;
-    char ids[CLI_VALIDATE_TOOLS][CLI_NAME_LONGEST];
+    char ids[CLI_VALIDATE_TOOLS][CLI_NAME_MAX_LEN];
     unsigned int places[CLI_VALIDATE_TOOLS];
     int checks[CLI_VALIDATE_TOOLS];
     unsigned int count;
@@ -245,7 +245,8 @@ typedef struct
 static CliToolLook s_look;
 static CliLock s_look_lock = CLI_LOCK_INIT;
 
-// a plugin looked at: a tool kept by its id, or, as one is read again, the tool at the place sought read into the room
+// a plugin looked at: a tool recorded by its id, or, as one is read again, the tool at the place sought read into the
+// room
 static void tool_looked(void *context, const CliPlugin *plugin)
 {
     CliToolLook *const look = (CliToolLook *)context;
@@ -255,11 +256,11 @@ static void tool_looked(void *context, const CliPlugin *plugin)
     {
         return;
     }
-    // the plugin's tree in a cell of its own sized to its text, the one before given back, held until the room is
+    // the plugin's tree in a cell of its own sized to its text, the one before given back, retained until the room is
     CliJson *const json = &g_cli_validate->json;
     cli_json_given(json);
-    char why[CLI_SAID_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_utf8_whole(plugin->text, plugin->size)
                                   ? cli_json_taken(json, plugin->text, plugin->size, 0u, 0ull, &unread)
                                   : CLI_JSON_NONE;
@@ -281,7 +282,7 @@ static void tool_looked(void *context, const CliPlugin *plugin)
     }
     if ((at == look->count) &&
         ((look->count == CLI_VALIDATE_TOOLS) ||
-         (cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_CELLS_POOL}) >= CLI_NAME_LONGEST)))
+         (cellul.len(&(CatenaFinitaCfg){.src = tool->id, .cap = CLI_CELLS_POOL}) >= CLI_NAME_MAX_LEN)))
     {
         return;
     }
@@ -293,12 +294,13 @@ static void tool_looked(void *context, const CliPlugin *plugin)
         look->count += 1u;
     }
     look->places[at] = place;
-    look->checks[at] = (look->language != NULL) &&
-                       cli_validate_holds(json, tool->languages, look->language,
-                                          cellul.len(&(CatenaFinitaCfg){.src = look->language, .cap = CLI_CELLS_POOL}));
+    look->checks[at] =
+        (look->language != NULL) &&
+        cli_validate_in_array(json, tool->languages, look->language,
+                              cellul.len(&(CatenaFinitaCfg){.src = look->language, .cap = CLI_CELLS_POOL}));
 }
 
-// every tool plugin looked over, each id's last kept, under the look's lock, which the caller gives back
+// every tool plugin looked over, each id's last recorded, under the look's lock, which the caller gives back
 static void tool_looked_over(const char *language)
 {
     cli_lock_take(&s_look_lock);
@@ -311,8 +313,8 @@ static void tool_looked_over(const char *language)
 
 int cli_validate_tool_for(const char *language, char *id)
 {
-    // each plugin is read into the validation's room, held for the look as a validation holds it
-    if (!cli_validate_held())
+    // each plugin is read into the validation's room, retained for the look as a validation retains it
+    if (!cli_validate_locked())
     {
         return 0;
     }

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// files_hits.c: the lines of one file that hold a search's query, the first place on each line it stands, at most
-// CLI_HITS_MOST of them, and the text of a found line as a hit keeps it
+// files_hits.c: the lines of one file that contain a search's query, the first place on each line it stands, at most
+// CLI_HITS_MOST of them, and the text of a found line as a hit retains it
 #include "../text/json_tree.h"
 #include "../text/regexp.h"
 #include "../text/sift.h"
@@ -9,7 +9,7 @@
 
 unsigned long long cli_hit_cut(const unsigned char *text, unsigned long long size)
 {
-    // where the last letter that is not whitespace ends, and where the last letter kept ends
+    // where the last letter that is not whitespace ends, and where the last letter retained ends
     unsigned long long trimmed = 0ull;
     unsigned long long most = size;
     unsigned int letters = 0u;
@@ -46,7 +46,7 @@ typedef struct
     unsigned int found;
 } CliHitting;
 
-// a place the sift found the query: a hit where it is the first on its line, a whole word where one is asked for
+// a place the sift found the query: a hit where it is the first on its line, a whole word where one is requested
 static void cli_hit_at(void *context, unsigned long long at)
 {
     CliHitting *const hitting = (CliHitting *)context;
@@ -138,9 +138,9 @@ static void cli_stepped(CliStep *step, const unsigned char *line, unsigned long 
     step->last = cli_regexp_lower(letter);
 }
 
-// the first place on the line the query stands in its lower case, a whole word where one is asked for: 1 with its
+// the first place on the line the query stands in its lower case, a whole word where one is requested: 1 with its
 // letter's place into `col`, or 0
-static int cli_line_holds(const unsigned char *line, unsigned long long size, const CliSought *sought,
+static int cli_line_match(const unsigned char *line, unsigned long long size, const CliSought *sought,
                           unsigned long long *col)
 {
     CliStep step = {0ull, 0ull, 0u};
@@ -201,7 +201,7 @@ void cli_files_hits_in(const unsigned char *bytes, unsigned long long size, cons
         }
         index += 1ull;
         unsigned long long col = 0ull;
-        if (cli_line_holds(bytes + start, length, sought, &col))
+        if (cli_line_match(bytes + start, length, sought, &col))
         {
             put(context, index, col, bytes + start, cli_hit_cut(bytes + start, length));
             found += 1u;

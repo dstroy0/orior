@@ -3,7 +3,7 @@
 // questions.cu: the values a case is made of, a run's blobs read as text, and the links and questions the stick's manifest lists
 #include "identity_internal.h"
 
-// the operations that transfer control or wait, which cubin_safe.h's rule 2 keeps off the part: a question holding
+// the operations that transfer control or wait, which cubin_safe.h's rule 2 blocks from the part: a question containing
 // one is not put to the part as written
 static const char *const s_control_or_wait[] = {"BRA",   "BRX",  "JMP",      "JMX",   "CALL", "RET",
                                                 "EXIT",  "BSSY", "BSYNC",    "BREAK", "BMOV", "WARPSYNC",
@@ -11,7 +11,7 @@ static const char *const s_control_or_wait[] = {"BRA",   "BRX",  "JMP",      "JM
                                                 "KILL",  "RPCMOV", "RETIRE", "PMTRIG"};
 
 // the latest blob of `name` in the run (qry_member.h) as text, empty where no run's writer runs or the run
-// holds none
+// contains none
 std::string run_blob_text(const char *name)
 {
     const unsigned char *bytes = NULL;
@@ -24,8 +24,8 @@ std::string run_blob_text(const char *name)
     return std::string(reinterpret_cast<const char *>(bytes), static_cast<size_t>(size));
 }
 
-// the file at `path` as the run holds it (qry_member_file): its latest blob, or the file where the run holds none; empty
-// where neither is there
+// the file at `path` as the run stores it (qry_member_file): its latest blob, or the file where the run stores none;
+// empty where neither is there
 std::string run_file_text(const std::string &path)
 {
     const unsigned char *bytes = NULL;
@@ -39,7 +39,7 @@ std::string run_file_text(const std::string &path)
     return text;
 }
 
-// `format` and what follows it added to the end of what `written` holds, as fprintf writes them
+// `format` and what follows it added to the end of what `written` contains, as fprintf writes them
 void run_print(RunWritten *written, const char *format, ...)
 {
     va_list values;
@@ -65,7 +65,7 @@ int run_closed(const RunWritten *written)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("orior_klq_identity: no query writer runs to write %s: %s names no .qry a writer holds open\n",
+        printf("orior_klq_identity: no query writer runs to write %s: %s names no .qry a writer has open\n",
                written->path.c_str(), QRY_ENVIRONMENT);
         return 0;
     }
@@ -78,7 +78,7 @@ int run_closed(const RunWritten *written)
     return qry_member_append(name.c_str(), written->text.data(), written->text.size(), QRY_ORDINARY) != 0;
 }
 
-// 1 where the link, as written or read as its kind, transfers control or waits, which cubin_safe.h's rule 2 keeps off
+// 1 where the link, as written or read as its kind, transfers control or waits, which cubin_safe.h's rule 2 blocks from
 // the part, EXIT alone excepted
 int rule_broken(const std::string &link)
 {
@@ -131,14 +131,14 @@ static std::string registers_named(const std::string &text)
     return named;
 }
 
-// each register `text` names, put down in `slot`
-static void slots_named(const std::string &text, const std::string &slot,
-                        std::vector<std::pair<std::string, std::string>> *slots)
+// each register `text` names, put down in `placeholders`
+static void placeholders_named(const std::string &text, const std::string &placeholder,
+                               std::vector<std::pair<std::string, std::string>> *placeholders)
 {
     static const std::regex s_named("\\b(UR[0-9]+|R[0-9]+|P[0-6])\\b");
     for (std::sregex_iterator walk(text.begin(), text.end(), s_named); walk != std::sregex_iterator(); ++walk)
     {
-        slots->push_back(std::make_pair(slot, walk->str()));
+        placeholders->push_back(std::make_pair(placeholder, walk->str()));
     }
 }
 
@@ -171,13 +171,13 @@ int link_read(const std::string &line, Link *link)
         return -1;
     }
     const std::string written = text;
-    link->slots.clear();
+    link->placeholders.clear();
     std::string guard;
     if (text[0] == '@')
     {
         const size_t space = text.find_first_of(" \t");
         guard = operand_kind(text.substr(0u, space)) + " ";
-        slots_named(text.substr(0u, space), "g", &link->slots);
+        placeholders_named(text.substr(0u, space), "g", &link->placeholders);
         text = trimmed(text.substr(space));
     }
     const size_t space = text.find_first_of(" \t");
@@ -187,12 +187,12 @@ int link_read(const std::string &line, Link *link)
         std::stringstream operands(text.substr(space));
         std::string piece;
         std::string joined;
-        unsigned int slot = 0u;
+        unsigned int placeholder = 0u;
         while (std::getline(operands, piece, ','))
         {
             joined += (joined.empty() ? "" : ", ") + operand_kind(trimmed(piece));
-            slots_named(piece, std::to_string(slot), &link->slots);
-            slot += 1u;
+            placeholders_named(piece, std::to_string(placeholder), &link->placeholders);
+            placeholder += 1u;
         }
         kind += " " + joined;
     }
@@ -305,7 +305,7 @@ int questions_read(const char *listing, const char *manifest, std::vector<Questi
         ended = ended || (read < 0);
         if (read > 0)
         {
-            // a link written more than once in a listing is held at its most basal position
+            // a link written more than once in a listing is recorded at its most basal position
             questions->back().exact[link.exact] += 1u;
             questions->back().links.insert(std::make_pair(link.exact, link));
             questions->back().chain.push_back(link);
@@ -318,8 +318,8 @@ int questions_read(const char *listing, const char *manifest, std::vector<Questi
 }
 
 // the context of the link at `position` in the question's chain: for each register it names, the nearest link before
-// it and the nearest after it that name the same register, each written as which side, the slot the link names it in,
-// the slot the other names it in, and the other's link. Nothing but the names the links share is read
+// it and the nearest after it that name the same register, each written as which side, the placeholder the link names
+// it in, the placeholder the other names it in, and the other's link. Nothing but the names the links share is read
 std::string member_context(const Question &question, const std::string &position)
 {
     size_t at = 0u;
@@ -333,7 +333,7 @@ std::string member_context(const Question &question, const std::string &position
     }
     std::set<std::string> entries;
     const Link &link = question.chain[at];
-    for (const auto &slot : link.slots)
+    for (const auto &placeholder : link.placeholders)
     {
         for (int side = 0; side < 2; side += 1)
         {
@@ -342,12 +342,12 @@ std::string member_context(const Question &question, const std::string &position
             {
                 const Link &other = question.chain[(size_t)walk];
                 int named = 0;
-                for (const auto &other_slot : other.slots)
+                for (const auto &other_placeholder : other.placeholders)
                 {
-                    if (other_slot.second == slot.second)
+                    if (other_placeholder.second == placeholder.second)
                     {
-                        entries.insert(std::string((side == 0) ? "before " : "after ") + slot.first + " " +
-                                       other_slot.first + " " + other.kind);
+                        entries.insert(std::string((side == 0) ? "before " : "after ") + placeholder.first + " " +
+                                       other_placeholder.first + " " + other.kind);
                         named = 1;
                     }
                 }
@@ -370,13 +370,13 @@ std::string member_context(const Question &question, const std::string &position
 std::vector<std::string> links_past(const Question &one, const Question &other)
 {
     std::vector<std::string> past;
-    for (const auto &held : one.exact)
+    for (const auto &entry : one.exact)
     {
-        const auto found = other.exact.find(held.first);
+        const auto found = other.exact.find(entry.first);
         const unsigned int there = (found == other.exact.end()) ? 0u : found->second;
-        for (unsigned int extra = there; extra < held.second; extra += 1u)
+        for (unsigned int extra = there; extra < entry.second; extra += 1u)
         {
-            past.push_back(held.first);
+            past.push_back(entry.first);
         }
     }
     return past;

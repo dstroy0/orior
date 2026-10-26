@@ -41,11 +41,12 @@ RUNNER="$(ls "$RUN"/*_ptx_probe.exe "$RUN"/*_ptx_probe 2>/dev/null | head -1)"
 [ -n "$RUNNER" ] || { echo "  no PTX probe in $RUN"; exit 1; }
 
 OBJECTS=()
-for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
-              "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$HERE/interface_sass_probe_unprinted.c" "$HERE"/interface_sass_probe_unprinted/*.c; do
-    object="$OUT/$(basename "$source" .c).o"
+for source in "$INTERFACE/interface.c" "$INTERFACE"/platform/*.c "$INTERFACE/interface_names.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c \
+              "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_write.c" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/cubin_safe/*.c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/tables/read.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_write.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_pattern.c" "$TOP/src/cu/transpiler/vendor_bin_layouts/container_layout.c" "$HERE/interface_sass_probe_unprinted.c" "$HERE"/interface_sass_probe_unprinted/*.c; do
+    object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_')"
+    object="${object%.c}.o"
     cc -std=c11 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$INTERFACE" -I "$KRS_C" \
-        -c "$source" -o "$object" || exit 1
+        "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
 cc -o "$OUT/interface_sass_probe_unprinted" "${OBJECTS[@]}" || exit 1

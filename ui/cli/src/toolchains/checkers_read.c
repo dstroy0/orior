@@ -37,7 +37,7 @@ static void cli_key(const char *path, char *key)
 
 unsigned int cli_checkers_file(CliFindings *findings, const char *path, int first)
 {
-    char key[CLI_PATH_LONGEST];
+    char key[CLI_PATH_MAX_LEN];
     cli_key(path, key);
     for (unsigned int at = 0u; at < findings->files; at += 1u)
     {
@@ -88,10 +88,10 @@ unsigned int cli_checkers_file(CliFindings *findings, const char *path, int firs
 
 unsigned int cli_checkers_file_of(const char *name, unsigned long long length)
 {
-    char given[CLI_PATH_LONGEST];
-    const unsigned long long kept = (length < CLI_PATH_LONGEST) ? length : (CLI_PATH_LONGEST - 1ull);
-    memor.cpy(&(MemoriaCfg){.dst = given, .src = name, .bytes = kept});
-    given[kept] = '\0';
+    char given[CLI_PATH_MAX_LEN];
+    const unsigned long long copied_len = (length < CLI_PATH_MAX_LEN) ? length : (CLI_PATH_MAX_LEN - 1ull);
+    memor.cpy(&(MemoriaCfg){.dst = given, .src = name, .bytes = copied_len});
+    given[copied_len] = '\0';
     const int input = (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "-", .cap = CLI_CELLS_POOL})) ||
                       (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "<stdin>", .cap = CLI_CELLS_POOL})) ||
                       (cellul.eq(&(CatenaFinitaCfg){.src = given, .other = "stdin", .cap = CLI_CELLS_POOL}));
@@ -100,7 +100,7 @@ unsigned int cli_checkers_file_of(const char *name, unsigned long long length)
         return cli_checkers_file(s_read->findings, s_read->path, 0);
     }
     const int absolute = (given[0] == '/') || (given[0] == '\\') || ((given[0] != '\0') && (given[1] == ':'));
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     if (absolute)
     {
         memor.cpy(&(MemoriaCfg){.dst = path,
@@ -121,44 +121,44 @@ void cli_checkers_finding_put(unsigned int file, const CliFinding *finding)
     {
         return;
     }
-    CliLine out = {findings->text + findings->used, CLI_CHECK_TEXT - findings->used, 0ull};
+    VerbaLinea out = {findings->text + findings->used, CLI_CHECK_TEXT - findings->used, 0ull};
     const unsigned long long line = (finding->line > 0ull) ? (finding->line - 1ull) : 0ull;
     const unsigned long long col = (finding->col > 0ull) ? (finding->col - 1ull) : 0ull;
-    cli_line_text(&out, "{\"range\":{\"start\":{\"line\":");
-    cli_line_decimal(&out, line, 0u);
-    cli_line_text(&out, ",\"character\":");
-    cli_line_decimal(&out, col, 0u);
-    cli_line_text(&out, "},\"end\":{\"line\":");
+    mmgr_line_put(&out, "{\"range\":{\"start\":{\"line\":");
+    mmgr_line_decimal(&out, line, 0u);
+    mmgr_line_put(&out, ",\"character\":");
+    mmgr_line_decimal(&out, col, 0u);
+    mmgr_line_put(&out, "},\"end\":{\"line\":");
     if (finding->has_end)
     {
-        cli_line_decimal(&out, (finding->end_line > 0ull) ? (finding->end_line - 1ull) : 0ull, 0u);
-        cli_line_text(&out, ",\"character\":");
-        cli_line_decimal(&out, (finding->end_col > 0ull) ? (finding->end_col - 1ull) : 0ull, 0u);
+        mmgr_line_decimal(&out, (finding->end_line > 0ull) ? (finding->end_line - 1ull) : 0ull, 0u);
+        mmgr_line_put(&out, ",\"character\":");
+        mmgr_line_decimal(&out, (finding->end_col > 0ull) ? (finding->end_col - 1ull) : 0ull, 0u);
     }
     else
     {
-        cli_line_decimal(&out, line, 0u);
-        cli_line_text(&out, ",\"character\":");
-        cli_line_decimal(&out, finding->col, 0u);
+        mmgr_line_decimal(&out, line, 0u);
+        mmgr_line_put(&out, ",\"character\":");
+        mmgr_line_decimal(&out, finding->col, 0u);
     }
-    cli_line_text(&out, "}},\"severity\":");
-    cli_line_decimal(&out, finding->severity, 0u);
-    cli_line_text(&out, ",\"message\":");
+    mmgr_line_put(&out, "}},\"severity\":");
+    mmgr_line_decimal(&out, finding->severity, 0u);
+    mmgr_line_put(&out, ",\"message\":");
     cli_json_quoted_lossy(&out, (const unsigned char *)finding->message, finding->message_length);
-    cli_line_text(&out, ",\"source\":");
+    mmgr_line_put(&out, ",\"source\":");
     cli_json_quoted(&out, s_read->name, cellul.len(&(CatenaFinitaCfg){.src = s_read->name, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&out, ",\"code\":");
+    mmgr_line_put(&out, ",\"code\":");
     cli_json_quoted_lossy(&out, (const unsigned char *)finding->code, finding->code_length);
-    cli_line_text(&out, ",\"data\":{\"orior\":");
-    cli_line_text(&out, finding->fixes);
-    cli_line_text(&out, "}}");
-    if (!cli_line_fits(&out))
+    mmgr_line_put(&out, ",\"data\":{\"orior\":");
+    mmgr_line_put(&out, finding->fixes);
+    mmgr_line_put(&out, "}}");
+    if (!mmgr_line_ok(&out))
     {
         return;
     }
     findings->file_of[findings->findings] = file;
     findings->start[findings->findings] = findings->used;
-    // a diagnostic is below CLI_CHECK_TEXT bytes, which an unsigned int holds
+    // a diagnostic is below CLI_CHECK_TEXT bytes, which an unsigned int represents
     findings->length[findings->findings] = (unsigned int)out.at;
     findings->used += (unsigned int)out.at;
     findings->findings += 1u;
@@ -200,21 +200,21 @@ static const char *cli_text(unsigned int node, const char *key, const char *othe
 // the checker's JSON read into a tree sized to it: its root, or CLI_JSON_NONE
 static unsigned int cli_json_of(const char *out, unsigned long long size)
 {
-    char why[CLI_NAME_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     return cli_json_taken(&s_read->json, out, size, 0u, 0ull, &unread);
 }
 
 // a place in ruff's findings, its row and column counted from one, written counted from zero as `{"line", "col"}`
-static void cli_place_written(CliLine *out, unsigned int place)
+static void cli_place_written(VerbaLinea *out, unsigned int place)
 {
     const unsigned long long row = cli_whole(place, "row", 1ull);
     const unsigned long long column = cli_whole(place, "column", 1ull);
-    cli_line_text(out, "{\"line\":");
-    cli_line_decimal(out, (row > 0ull) ? (row - 1ull) : 0ull, 0u);
-    cli_line_text(out, ",\"col\":");
-    cli_line_decimal(out, (column > 0ull) ? (column - 1ull) : 0ull, 0u);
-    cli_line_character(out, '}');
+    mmgr_line_put(out, "{\"line\":");
+    mmgr_line_decimal(out, (row > 0ull) ? (row - 1ull) : 0ull, 0u);
+    mmgr_line_put(out, ",\"col\":");
+    mmgr_line_decimal(out, (column > 0ull) ? (column - 1ull) : 0ull, 0u);
+    mmgr_line_ch(out, '}');
 }
 
 // ruff's findings, each with the fix it gives
@@ -229,33 +229,33 @@ static void cli_ruff_read(const char *out, unsigned long long size)
         const unsigned int end = cli_json_member(json, one, "end_location");
         const unsigned int fix = cli_json_member(json, one, "fix");
         const unsigned int edits = cli_json_member(json, fix, "edits");
-        CliLine fixes = {s_read->fixes, sizeof(s_read->fixes), 0ull};
+        VerbaLinea fixes = {s_read->fixes, sizeof(s_read->fixes), 0ull};
         if (cli_json_is(json, edits, CFG_JSON_ARRAY))
         {
             unsigned long long length = 0ull;
             const char *const title = cli_text(fix, "message", "Fix it as ruff does", &length);
-            cli_line_text(&fixes, "[{\"title\":");
+            mmgr_line_put(&fixes, "[{\"title\":");
             cli_json_quoted(&fixes, title, length);
-            cli_line_text(&fixes, ",\"edits\":[");
+            mmgr_line_put(&fixes, ",\"edits\":[");
             for (unsigned int edit = 0u; cli_json_item(json, edits, edit) != CLI_JSON_NONE; edit += 1u)
             {
                 const unsigned int one_edit = cli_json_item(json, edits, edit);
-                cli_line_text(&fixes, (edit != 0u) ? ",{\"from\":" : "{\"from\":");
+                mmgr_line_put(&fixes, (edit != 0u) ? ",{\"from\":" : "{\"from\":");
                 cli_place_written(&fixes, cli_json_member(json, one_edit, "location"));
-                cli_line_text(&fixes, ",\"to\":");
+                mmgr_line_put(&fixes, ",\"to\":");
                 cli_place_written(&fixes, cli_json_member(json, one_edit, "end_location"));
                 const char *const content = cli_text(one_edit, "content", "", &length);
-                cli_line_text(&fixes, ",\"text\":");
+                mmgr_line_put(&fixes, ",\"text\":");
                 cli_json_quoted(&fixes, content, length);
-                cli_line_character(&fixes, '}');
+                mmgr_line_ch(&fixes, '}');
             }
-            cli_line_text(&fixes, "]}]");
+            mmgr_line_put(&fixes, "]}]");
         }
         else
         {
-            cli_line_text(&fixes, "[]");
+            mmgr_line_put(&fixes, "[]");
         }
-        cli_line_closed(&fixes);
+        mmgr_line_finish(&fixes);
         unsigned long long name_length = 0ull;
         const char *const name = cli_text(one, "filename", "-", &name_length);
         CliFinding finding = {cli_whole(location, "row", 1ull),
@@ -268,7 +268,7 @@ static void cli_ruff_read(const char *out, unsigned long long size)
                               0ull,
                               NULL,
                               0ull,
-                              cli_line_fits(&fixes) ? s_read->fixes : "[]"};
+                              mmgr_line_ok(&fixes) ? s_read->fixes : "[]"};
         finding.message = cli_text(one, "message", "", &finding.message_length);
         finding.code = cli_text(one, "code", "", &finding.code_length);
         cli_checkers_finding_put(cli_checkers_file_of(name, name_length), &finding);
@@ -326,10 +326,10 @@ static void cli_shellcheck_read(const char *out, unsigned long long size)
         char code[32] = "";
         if (cli_json_is(json, cli_json_member(json, one, "code"), CFG_JSON_NUMBER))
         {
-            CliLine written = {code, sizeof(code), 0ull};
-            cli_line_text(&written, "SC");
-            cli_line_decimal(&written, cli_whole(one, "code", 0ull), 0u);
-            cli_line_closed(&written);
+            VerbaLinea written = {code, sizeof(code), 0ull};
+            mmgr_line_put(&written, "SC");
+            mmgr_line_decimal(&written, cli_whole(one, "code", 0ull), 0u);
+            mmgr_line_finish(&written);
         }
         const int has_end = cli_json_is(json, cli_json_member(json, one, "endLine"), CFG_JSON_NUMBER);
         CliFinding finding = {cli_whole(one, "line", 1ull),
@@ -378,7 +378,7 @@ void cli_checkers_read(const char *name, const char *reads, const char *out, uns
     }
     else
     {
-        // what it wrote, then, for a checker that writes its findings a line each, what it said
+        // what it wrote, then, for a checker that writes its findings a line each, what it printed
         cli_checkers_lines_read(out, out_size);
         if (cellul.eq(&(CatenaFinitaCfg){.src = reads, .other = "lines", .cap = CLI_CELLS_POOL}))
         {

@@ -5,7 +5,7 @@
 #include "../../../parsers/line_read.h"
 #include "krs_write_internal.h"
 
-// each form's cost as the part's .ksc keeps it: its encoding, its least launch m and its spread s
+// each form's cost as the part's .ksc stores it: its encoding, its least launch m and its spread s
 typedef struct
 {
     unsigned long long low;
@@ -27,7 +27,7 @@ unsigned int s_frame_forms;
 static KrsCost s_cost[KRS_FORMS];
 static unsigned int s_costs;
 
-// the lines the part's ruleset gave before this run, a word's line by its name, to keep where P6 does not separate
+// the lines the part's ruleset gave before this run, a word's line by its name, to retain where P6 does not separate
 static char s_given[KRS_FORMS][KRS_LINE * 2u];
 
 static char s_given_name[KRS_FORMS][KRS_NAME];
@@ -53,9 +53,9 @@ int krs_vendor_run(char *const *word)
     if (answer.output_bytes != 0ull)
     {
         printf("%s", s_output);
-        const unsigned long long kept =
+        const unsigned long long output_len =
             (answer.output_bytes < (sizeof(s_output) - 1u)) ? answer.output_bytes : (sizeof(s_output) - 1u);
-        qry_member_append(KRS_MACHINE_NAME, s_output, kept, QRY_ORDINARY);
+        qry_member_append(KRS_MACHINE_NAME, s_output, output_len, QRY_ORDINARY);
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
@@ -67,7 +67,7 @@ int krs_vendor_run(char *const *word)
 }
 
 // the forms the vendor's writer appended, the `size` bytes at `bytes` (forms_blob.h), read row by row into s_form, and
-// those answering a frame relation into s_frame_form. A row whose relation is none the ladder holds and no frame
+// those answering a frame relation into s_frame_form. A row whose relation is none the ladder satisfies and no frame
 // relation is left out. The count read into s_form
 unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
 {
@@ -98,11 +98,11 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
             const size_t marked = (predicate && (row.signed_read != 0u)) ? (sizeof(s_signed) - 1u) : 0u;
             if ((s_frame_forms < KRS_FRAME_FORMS) && ((relation + marked) < KRS_FRAME_RELATION))
             {
-                KrsFrameForm *const held = &s_frame_form[s_frame_forms];
-                memcpy(held->relation, row.relation, relation);
-                memcpy(held->relation + relation, s_signed, marked);
-                held->relation[relation + marked] = '\0';
-                memcpy(held->text, row.text, sizeof(row.text));
+                KrsFrameForm *const frame_form = &s_frame_form[s_frame_forms];
+                memcpy(frame_form->relation, row.relation, relation);
+                memcpy(frame_form->relation + relation, s_signed, marked);
+                frame_form->relation[relation + marked] = '\0';
+                memcpy(frame_form->text, row.text, sizeof(row.text));
                 s_frame_forms += 1u;
             }
             continue;
@@ -121,8 +121,8 @@ unsigned int krs_forms_read(const unsigned char *bytes, unsigned long long size)
     return s_forms;
 }
 
-// every form's cost the part's .ksc at `path` keeps, `run answers <least> cost <low> <high> <spread>`, into s_cost. The
-// count read, 0 where the file is not there
+// every form's cost the part's .ksc at `path` stores, `run answers <least> cost <low> <high> <spread>`, into s_cost.
+// The count read, 0 where the file is not there
 unsigned int krs_costs_read(const char *path)
 {
     s_costs = 0u;
@@ -131,14 +131,14 @@ unsigned int krs_costs_read(const char *path)
     ksc_read(&s_file, path);
     for (unsigned int at = 0u; (at < s_file.lines) && (s_costs < KRS_FORMS); at += 1u)
     {
-        KrsCost held;
+        KrsCost cost;
         const char *question = s_row.question;
         if (ksc_row_read(s_file.line[at], "run", &s_row) && (strcmp(s_row.answer, "answers") == 0) &&
-            line_letters(&question, "cost ") && line_number(&question, 1, &held.low) &&
-            line_number(&question, 1, &held.high) && line_number(&question, 1, &held.spread))
+            line_letters(&question, "cost ") && line_number(&question, 1, &cost.low) &&
+            line_number(&question, 1, &cost.high) && line_number(&question, 1, &cost.spread))
         {
-            held.least = s_row.value;
-            s_cost[s_costs] = held;
+            cost.least = s_row.value;
+            s_cost[s_costs] = cost;
             s_costs += 1u;
         }
     }
@@ -146,7 +146,7 @@ unsigned int krs_costs_read(const char *path)
     return s_costs;
 }
 
-// the cost kept for the form first seen as `low` and `high`, or NULL where none is kept
+// the cost stored for the form first seen as `low` and `high`, or NULL where none is stored
 static const KrsCost *krs_cost_of(unsigned long long low, unsigned long long high)
 {
     for (unsigned int at = 0u; at < s_costs; at += 1u)
@@ -212,9 +212,9 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
         int carries = 1;
         for (unsigned int place = 0u; place <= words; place += 1u)
         {
-            char held[8];
-            snprintf(held, sizeof(held), "{%u}", place);
-            carries = carries && (strstr(form->text, held) != NULL);
+            char place_text[8];
+            snprintf(place_text, sizeof(place_text), "{%u}", place);
+            carries = carries && (strstr(form->text, place_text) != NULL);
         }
         if (!carries)
         {
@@ -236,7 +236,7 @@ unsigned int krs_fewest_operands(const unsigned int *writer, unsigned int writer
 
 // The form P6 gives a word, of the `writers` forms in `writer`: c_1, the form of least m, where the next least m is
 // past it by more than s, the greatest spread of them. Its place in `writer`, or `writers` where a form has no cost
-// kept or the least do not separate, the survivors then one cost
+// stored or the least do not separate, the survivors then one cost
 unsigned int krs_ranked(const unsigned int *writer, unsigned int writers)
 {
     unsigned int first = writers;

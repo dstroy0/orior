@@ -11,10 +11,10 @@ REPOSITORY="$(cd "$TOP/.." && pwd)"
 source "$REPOSITORY/utils/maint/engine/build_stamp.sh"
 TOP="$REPOSITORY" build_stamp tessera_test
 
-SCRIPTURA="$TOP/cu/engine/runtime/scriptura"
+source "$TOP/cu/includes/file_defs/file_defs.sh"
 OBSIGNATIO="$TOP/cu/engine/runtime/obsignatio"
 OBSIGNATIO_CU="$TOP/cu/engine/runtime/obsignatio"
-INCLUDES=(-I "$TOP/cu/engine" -I "$MODULE" -I "$SCRIPTURA" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
+INCLUDES=(-I "$TOP/cu/engine" -I "$MODULE" "${FILE_DEFS_MMGR_FLAGS[@]}" -I "$OBSIGNATIO" -I "$OBSIGNATIO_CU")
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*)
         MSVC_BIN="$(ls -d "/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC"/*/bin/Hostx64/x64 2>/dev/null | tail -1)"
@@ -61,11 +61,11 @@ case "$(uname -s)" in
             # tessera_run are built and tested, and the two tests that take device memory are not
             build_device()
             {
-                c++ -O2 -Wall -Wextra "${INCLUDES[@]}" "$@" -ldl -lpthread
+                "$FILE_DEFS_CXX" -O2 -Wall -Wextra "${INCLUDES[@]}" "$@" -ldl -lpthread
             }
             build_seal()
             {
-                c++ -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -c -x c++ "$@"
+                "$FILE_DEFS_CXX" -std=c++17 -O2 -Wall -Wextra "${INCLUDES[@]}" -c -x c++ "$@"
             }
             DEVICE_TOOLCHAIN=0
         fi
@@ -115,7 +115,7 @@ if [ "${TESSERA_DEVICE:-1}" = "1" ]; then
     # the daemon, and the client against it end to end
     rm -f "$OUT/tessera_daemon$SUFFIX" "$OUT/tessera_job_test$SUFFIX"
     OBJECTS=()
-    for source in "$SCRIPTURA"/*.c "$MODULE"/tessera_ledger.c "$MODULE"/tessera_measure.c "$MODULE"/tessera_paths.c \
+    for source in "${FILE_DEFS_LINEA[@]}" "$MODULE"/tessera_ledger.c "$MODULE"/tessera_measure.c "$MODULE"/tessera_paths.c \
                   "$MODULE"/tessera_frame.c "$MODULE"/tessera_self.c "$MODULE"/tessera_client_{socket,jobs}.c \
                   "$MODULE"/tessera_daemon_{state,admission,peers,main}.c; do
         object="$OUT/$(basename "$source" .c)_tessera.$OBJECT"

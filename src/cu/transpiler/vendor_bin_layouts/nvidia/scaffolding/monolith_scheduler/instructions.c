@@ -28,7 +28,7 @@ static unsigned int scheduler_field(unsigned long long high, unsigned int first,
     return (unsigned int)((high >> (first - 64u)) & ((1ull << bits) - 1ull));
 }
 
-// the operation named `name`, kept in s_operation where it is not yet: its number, or SCHEDULER_OPERATIONS where the
+// the operation named `name`, stored in s_operation where it is not yet: its number, or SCHEDULER_OPERATIONS where the
 // table is full
 static unsigned int scheduler_operation(const char *name)
 {

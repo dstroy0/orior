@@ -12,7 +12,7 @@ static int tessera_self_report(TesseraClient *client)
         return 0;
     }
     TesseraFrame frame;
-    tessera_frame_start(client, &frame, TESSERA_ASK_MEASURED);
+    tessera_frame_start(client, &frame, TESSERA_REQUEST_MEASURED);
     frame.measured = used;
     return tessera_send(client, &frame);
 }
@@ -30,7 +30,7 @@ static void *tessera_self_run(void *argument)
             ((unsigned long long)until.tv_nsec) + (client->sweep_microseconds * 1000ull);
         // whole seconds of a sweep fit a time_t, and the remainder is below a billion nanoseconds
         until.tv_sec += (time_t)(nanoseconds / 1000000000ull);
-        // the remainder is below a billion, which a long holds
+        // the remainder is below a billion, which a long represents
         until.tv_nsec = (long)(nanoseconds % 1000000000ull);
         pthread_mutex_lock(&client->watch);
         int waited = 0;
@@ -53,7 +53,7 @@ static void tessera_self_begin(TesseraClient *client, const TesseraTicket *ticke
 #else
     // an admitted job on a paravirtual device reports its own bytes from now until it is released; a host job reports
     // its processors itself (tessera_job_report)
-    if ((ticket->asked == 0u) && (ticket->lost == 0u) && !client->measuring &&
+    if ((ticket->over_budget == 0u) && (ticket->lost == 0u) && !client->measuring &&
         !tessera_device_names_host(client->device) && tessera_self_paravirtual())
     {
         client->stopping = 0;
@@ -77,7 +77,7 @@ static void tessera_self_end(TesseraClient *client)
     pthread_mutex_unlock(&client->watch);
     pthread_join(client->measurer, NULL);
     client->measuring = 0;
-    // the last reading goes in before the release: the peak kept holds the whole run
+    // the last reading goes in before the release: the peak tracked covers the whole run
     tessera_self_report(client);
 #endif
 }
@@ -118,7 +118,7 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
         {
             return TESSERA_ERROR;
         }
-        if (frame.kind == TESSERA_TELL_GREW)
+        if (frame.kind == TESSERA_NOTICE_GREW)
         {
             ticket->grown_to = (frame.measured > ticket->grown_to) ? frame.measured : ticket->grown_to;
             continue;
@@ -126,22 +126,23 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
         client->identity = frame.identity;
         ticket->identity = frame.identity;
         ticket->last_peak = frame.measured;
-        if (frame.kind == TESSERA_TELL_ADMITTED)
+        if (frame.kind == TESSERA_NOTICE_ADMITTED)
         {
-            ticket->asked = 0u;
+            ticket->over_budget = 0u;
             ticket->granted = frame.bytes;
-            // the admission names the whole declaration: the bytes the process held as it asked, then the job's own
+            // the admission names the whole declaration: the bytes the process allocated as it requested, then the
+            // job's own
             ticket->standing = (frame.declared > client->declared) ? (frame.declared - client->declared) : 0ull;
             return 0L;
         }
-        if (frame.kind == TESSERA_TELL_ASKED)
+        if (frame.kind == TESSERA_NOTICE_OVER_BUDGET)
         {
-            ticket->asked = 1u;
+            ticket->over_budget = 1u;
             return 0L;
         }
-        if (frame.kind == TESSERA_TELL_LOST)
+        if (frame.kind == TESSERA_NOTICE_LOST)
         {
-            ticket->asked = 0u;
+            ticket->over_budget = 0u;
             ticket->lost = 1u;
             const int named = tessera_path_lost(client->device, frame.identity, &client->signum, ticket->lost_path,
                                                 ENGINE_PATH_CAPACITY);
@@ -152,17 +153,18 @@ static long tessera_decided(TesseraClient *client, TesseraTicket *ticket, unsign
     }
 }
 
-long tessera_job_submit(const TesseraJobAsk *ask, TesseraClient **client, TesseraTicket *ticket)
+long tessera_job_submit(const TesseraJobSubmit *submit, TesseraClient **client, TesseraTicket *ticket)
 {
     *client = NULL;
     memset(ticket, 0, sizeof(*ticket));
-    if (!TESSERA_CHECK((ask->declared != 0ull) && (ask->sweep_microseconds != 0ull) && (ask->override_budget <= 1u),
-                       ask, ask->error, ENGINE_ERROR_REQUEST))
+    if (!TESSERA_CHECK((submit->declared != 0ull) && (submit->sweep_microseconds != 0ull) &&
+                           (submit->override_budget <= 1u),
+                       submit, submit->error, ENGINE_ERROR_REQUEST))
     {
         return TESSERA_ERROR;
     }
     TesseraClient *const made = (TesseraClient *)calloc(1u, sizeof(TesseraClient));
-    if (!TESSERA_CHECK(made != NULL, ask, ask->error, ENGINE_ERROR_RESOURCE))
+    if (!TESSERA_CHECK(made != NULL, submit, submit->error, ENGINE_ERROR_RESOURCE))
     {
         return TESSERA_ERROR;
     }
@@ -174,13 +176,13 @@ long tessera_job_submit(const TesseraJobAsk *ask, TesseraClient **client, Tesser
     pthread_mutex_init(&made->watch, NULL);
     pthread_cond_init(&made->woken, NULL);
 #endif
-    memcpy(made->device, ask->device, TESSERA_DEVICE_BYTES);
-    made->luid = ask->luid;
-    made->signum = ask->signum;
-    made->declared = ask->declared;
-    made->sweep_microseconds = ask->sweep_microseconds;
+    memcpy(made->device, submit->device, TESSERA_DEVICE_BYTES);
+    made->luid = submit->luid;
+    made->signum = submit->signum;
+    made->declared = submit->declared;
+    made->sweep_microseconds = submit->sweep_microseconds;
     _Alignas(8) char endpoint[ENGINE_PATH_CAPACITY];
-    if (!TESSERA_CHECK(tessera_path_endpoint(ask->device, endpoint, ENGINE_PATH_CAPACITY), ask, ask->error,
+    if (!TESSERA_CHECK(tessera_path_endpoint(submit->device, endpoint, ENGINE_PATH_CAPACITY), submit, submit->error,
                        ENGINE_ERROR_REQUEST))
     {
         tessera_client_end(made);
@@ -188,34 +190,34 @@ long tessera_job_submit(const TesseraJobAsk *ask, TesseraClient **client, Tesser
     }
     const TesseraConnect outcome = tessera_connect(made, endpoint);
     const int connected =
-        (outcome == TESSERA_CONNECT_MADE) || ((outcome == TESSERA_CONNECT_ABSENT) && (ask->daemon_path != NULL) &&
-                                              tessera_spawn_and_connect(made, ask, endpoint));
-    if (!TESSERA_CHECK(connected, endpoint, ask->error, ENGINE_ERROR_RESOURCE))
+        (outcome == TESSERA_CONNECT_MADE) || ((outcome == TESSERA_CONNECT_ABSENT) && (submit->daemon_path != NULL) &&
+                                              tessera_spawn_and_connect(made, submit, endpoint));
+    if (!TESSERA_CHECK(connected, endpoint, submit->error, ENGINE_ERROR_RESOURCE))
     {
         tessera_client_end(made);
         return TESSERA_ERROR;
     }
     TesseraFrame frame;
-    tessera_frame_start(made, &frame, TESSERA_ASK_SUBMIT);
-    frame.override_budget = ask->override_budget;
-    frame.declared = ask->declared;
-    frame.holding_microseconds = ask->holding_microseconds;
-    frame.sweep_microseconds = ask->sweep_microseconds;
-    frame.idle_microseconds = ask->idle_microseconds;
-    // where no pid is measured from outside, the process reports the bytes it already holds as it asks; a host job
-    // stands on nothing, since the processors it uses are counted only once it runs
+    tessera_frame_start(made, &frame, TESSERA_REQUEST_SUBMIT);
+    frame.override_budget = submit->override_budget;
+    frame.declared = submit->declared;
+    frame.grace_microseconds = submit->grace_microseconds;
+    frame.sweep_microseconds = submit->sweep_microseconds;
+    frame.idle_microseconds = submit->idle_microseconds;
+    // where no pid is measured from outside, the process reports the bytes it already has allocated as it requests; a
+    // host job stands on nothing, since the processors it uses are counted only once it runs
     unsigned long long standing = 0ull;
-    if (!tessera_device_names_host(ask->device) && tessera_self_paravirtual() &&
-        tessera_self_measure(ask->luid, &standing))
+    if (!tessera_device_names_host(submit->device) && tessera_self_paravirtual() &&
+        tessera_self_measure(submit->luid, &standing))
     {
         frame.measured = standing;
     }
-    const unsigned long long asked_at = tessera_client_now();
+    const unsigned long long submitted_at = tessera_client_now();
     const unsigned long long deadline =
-        (ask->waiting_microseconds != 0ull) ? (asked_at + ask->waiting_microseconds) : 0ull;
-    const int sent = TESSERA_CHECK(tessera_send(made, &frame), made, ask->error, ENGINE_ERROR_RESOURCE);
-    const long decided = sent ? tessera_decided(made, ticket, deadline, ask->error) : TESSERA_ERROR;
-    ticket->waited = tessera_client_now() - asked_at;
+        (submit->waiting_microseconds != 0ull) ? (submitted_at + submit->waiting_microseconds) : 0ull;
+    const int sent = TESSERA_CHECK(tessera_send(made, &frame), made, submit->error, ENGINE_ERROR_RESOURCE);
+    const long decided = sent ? tessera_decided(made, ticket, deadline, submit->error) : TESSERA_ERROR;
+    ticket->waited = tessera_client_now() - submitted_at;
     if (decided == TESSERA_ERROR)
     {
         tessera_client_end(made);
@@ -228,12 +230,12 @@ long tessera_job_submit(const TesseraJobAsk *ask, TesseraClient **client, Tesser
 
 long tessera_job_override(TesseraClient *client, TesseraTicket *ticket, EngineError *error)
 {
-    if (!TESSERA_CHECK(ticket->asked != 0u, ticket, error, ENGINE_ERROR_REQUEST))
+    if (!TESSERA_CHECK(ticket->over_budget != 0u, ticket, error, ENGINE_ERROR_REQUEST))
     {
         return TESSERA_ERROR;
     }
     TesseraFrame frame;
-    tessera_frame_start(client, &frame, TESSERA_ASK_OVERRIDE);
+    tessera_frame_start(client, &frame, TESSERA_REQUEST_OVERRIDE);
     frame.override_budget = 1u;
     if (!TESSERA_CHECK(tessera_send(client, &frame), client, error, ENGINE_ERROR_RESOURCE))
     {
@@ -249,7 +251,7 @@ long tessera_job_override(TesseraClient *client, TesseraTicket *ticket, EngineEr
 
 long tessera_job_wait(TesseraClient *client, TesseraTicket *ticket, EngineError *error)
 {
-    if (!TESSERA_CHECK(ticket->asked != 0u, ticket, error, ENGINE_ERROR_REQUEST))
+    if (!TESSERA_CHECK(ticket->over_budget != 0u, ticket, error, ENGINE_ERROR_REQUEST))
     {
         return TESSERA_ERROR;
     }
@@ -261,15 +263,15 @@ long tessera_job_wait(TesseraClient *client, TesseraTicket *ticket, EngineError 
     return decided;
 }
 
-long tessera_job_precalc_kept(TesseraClient *client, EngineError *error)
+long tessera_job_precalc_saved(TesseraClient *client, EngineError *error)
 {
     TesseraFrame frame;
-    tessera_frame_start(client, &frame, TESSERA_ASK_PRECALC_KEPT);
+    tessera_frame_start(client, &frame, TESSERA_REQUEST_PRECALC_SAVED);
     const int sent = TESSERA_CHECK(tessera_send(client, &frame), client, error, ENGINE_ERROR_RESOURCE);
-    const int told = sent && TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE) &&
-                     TESSERA_CHECK(frame.kind == TESSERA_TELL_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
+    const int answered = sent && TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE) &&
+                         TESSERA_CHECK(frame.kind == TESSERA_NOTICE_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
     tessera_client_end(client);
-    return told ? 0L : TESSERA_ERROR;
+    return answered ? 0L : TESSERA_ERROR;
 }
 
 // 1 when a whole frame from the daemon waits to be read, read without blocking
@@ -290,18 +292,18 @@ static int tessera_waiting(TesseraClient *client)
 long tessera_job_report(TesseraClient *client, TesseraTicket *ticket, unsigned long long measured, EngineError *error)
 {
     TesseraFrame frame;
-    tessera_frame_start(client, &frame, TESSERA_ASK_MEASURED);
+    tessera_frame_start(client, &frame, TESSERA_REQUEST_MEASURED);
     frame.measured = measured;
     if (!TESSERA_CHECK(tessera_send(client, &frame), client, error, ENGINE_ERROR_RESOURCE))
     {
         return TESSERA_ERROR;
     }
-    // a report gets no answer, but the growth it shows is told back: each telling is read as it waits, and none is
+    // a report gets no answer, but the growth it shows is reported back: each report is read as it waits, and none is
     // left to fill the pipe while the daemon waits to write the next
     while (tessera_waiting(client))
     {
         if (!TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE) ||
-            !TESSERA_CHECK(frame.kind == TESSERA_TELL_GREW, &frame, error, ENGINE_ERROR_REQUEST))
+            !TESSERA_CHECK(frame.kind == TESSERA_NOTICE_GREW, &frame, error, ENGINE_ERROR_REQUEST))
         {
             return TESSERA_ERROR;
         }
@@ -314,17 +316,17 @@ long tessera_job_release(TesseraClient *client, TesseraTicket *ticket, EngineErr
 {
     tessera_self_end(client);
     TesseraFrame frame;
-    tessera_frame_start(client, &frame, TESSERA_ASK_RELEASE);
+    tessera_frame_start(client, &frame, TESSERA_REQUEST_RELEASE);
     int ok = TESSERA_CHECK(tessera_send(client, &frame), client, error, ENGINE_ERROR_RESOURCE);
     while (ok)
     {
         ok = TESSERA_CHECK(tessera_receive(client, &frame), client, error, ENGINE_ERROR_RESOURCE);
-        if (ok && (frame.kind == TESSERA_TELL_GREW))
+        if (ok && (frame.kind == TESSERA_NOTICE_GREW))
         {
             ticket->grown_to = (frame.measured > ticket->grown_to) ? frame.measured : ticket->grown_to;
             continue;
         }
-        ok = ok && TESSERA_CHECK(frame.kind == TESSERA_TELL_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
+        ok = ok && TESSERA_CHECK(frame.kind == TESSERA_NOTICE_RELEASED, &frame, error, ENGINE_ERROR_REQUEST);
         if (ok)
         {
             ticket->granted = frame.bytes;

@@ -3,7 +3,7 @@
 // noise_detector_structure.cu: structure
 #include "noise_detector_internal.h"
 
-// a 128 bit value times a factor, kept to 128 bits
+// a 128 bit value times a factor, limited to 128 bits
 __device__ static void noise_wide_scaled(unsigned long long low, unsigned long long high, unsigned long long factor,
                                          unsigned long long *scaled)
 {
@@ -46,7 +46,7 @@ __global__ static void noise_structure_kernel(const unsigned short *lanes, unsig
         }
         const unsigned long long apart = (own > beside) ? (own - beside) : (beside - own);
         // apart is at most 65535 T, below 2^32 for the frames the bound admits. Q fits one word; M is at most twice
-        // that, and each product below is kept to 128 bits as its low and high words
+        // that, and each product below is limited to 128 bits as its low and high words
         const unsigned long long along = apart * apart;
         const unsigned long long level = own + beside;
         const unsigned long long along_square[2] = {along * along, __umul64hi(along, along)};
@@ -186,7 +186,7 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
         free(sums);
         return NOISE_DETECTOR_ERROR;
     }
-    // the measurement's 28 exact integers are held off the stack
+    // the measurement's 28 exact integers are stored off the stack
     NoiseStructureMeasurement *const read = (NoiseStructureMeasurement *)malloc(sizeof(NoiseStructureMeasurement));
     if (!NOISE_DETECTOR_CHECK(read != NULL, &read, error, ENGINE_ERROR_RESOURCE))
     {
@@ -245,7 +245,7 @@ extern "C" long noise_structure_volume(const unsigned short *volume, const unsig
                      (orior_exact_add(&total_along, &along, &total_along) == ORIOR_EXACT_OK) &&
                      (orior_exact_add(&total_measured, &measured, &total_measured) == ORIOR_EXACT_OK);
         }
-        // q's slope with M held: Num = MM QY - MQ MY over Den = MM QQ - MQ^2
+        // q's slope with M fixed: Num = MM QY - MQ MY over Den = MM QQ - MQ^2
         formed = formed && (orior_exact_multiply(&centerd[0], &centerd[1], &denominator) == ORIOR_EXACT_OK) &&
                  (orior_exact_multiply(&centerd[2], &centerd[2], &term) == ORIOR_EXACT_OK) &&
                  (orior_exact_subtract(&denominator, &term, &denominator) == ORIOR_EXACT_OK) &&

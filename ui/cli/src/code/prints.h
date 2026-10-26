@@ -14,10 +14,10 @@
 // change of the tree `root` against its last commit added, by path and then line, each once, written as
 // `[{"path", "line", "text"}]`, the line counted from 0
 int cli_prints_line(const char *path, const char *text, unsigned long long length);
-int cli_prints_added(const char *root, CliLine *out, CliLine *said);
+int cli_prints_added(const char *root, VerbaLinea *out, VerbaLinea *err_msg);
 // the prints the lines `size` bytes of a unified diff with no lines of context put in, each by its path, its line in
-// the file as it stands and its text, written as cli_prints_added writes them; each 1, or 0 with why said where no room
-// for the prints is left
-int cli_prints_put_in(const char *diff, unsigned long long size, CliLine *out, CliLine *said);
+// the file as it stands and its text, written as cli_prints_added writes them; each 1, or 0 with why given where no
+// room for the prints is left
+int cli_prints_put_in(const char *diff, unsigned long long size, VerbaLinea *out, VerbaLinea *err_msg);
 
 #endif

@@ -7,19 +7,19 @@
 // asm_printer_ruleset_build's work past the schema and the scratch, word for word the host's (asm_printer_layout.cu
 // and asm_printer_program.cu): every word and part a lane can be written in, numbered in the order the host numbers
 // them, the lists the records' layout reads, the program's steps, fields and
-// tables. The host's map of words becomes a search of the words held, which gives each word the same number. The
+// tables. The host's map of words becomes a search of the words stored, which gives each word the same number. The
 // device runs it in one thread (codegen_rules.cu), since each word's number depends on every word before it;
 // keymath's encoding and key_schedule's layout of the program follow it as they do on the host. The memory is the
 // caller's: where a count passes its capacity the build ends full, and the caller grows the capacity and runs it again
 
 #include "asm_printer.h"
 
-// the fields as the program reads them: the part, the first lane, then each slot's word before, word after, number and
-// whether it has one
+// the fields as the program reads them: the part, the first lane, then each placeholder's word before, word after,
+// number and whether it has one
 #define ASM_PRINTER_FIELD_PART 0u
 #define ASM_PRINTER_FIELD_FIRST 1u
-#define ASM_PRINTER_FIELD_SLOT(slot_, which_) (2u + (4u * (slot_)) + (which_))
-#define ASM_PRINTER_FIELDS (2u + (4u * ASM_PRINTER_SLOTS))
+#define ASM_PRINTER_FIELD_PLACEHOLDER(placeholder_, which_) (2u + (4u * (placeholder_)) + (which_))
+#define ASM_PRINTER_FIELDS (2u + (4u * ASM_PRINTER_PLACEHOLDERS))
 
 // the tables: each part's pieces by part . 8 + piece, each word's length and first letter by its number, the letters
 // of every word end to end, ten to each power a digit is taken at, and a byte as itself
@@ -37,7 +37,7 @@ enum AsmPrinterTable
 // the rows a part takes in the pieces table, a power of two past its pieces
 #define ASM_PRINTER_PART_ROWS 8u
 
-// the widest word number, length and letter offset the tables hold, and the widest index a table takes from a 16-bit
+// the widest word number, length and letter offset the tables contain, and the widest index a table takes from a 16-bit
 // field or entry
 #define ASM_PRINTER_TABLE_BITS_MAX 16u
 
@@ -48,9 +48,9 @@ enum AsmPrinterTable
 // the digits of the target's hash as the note writes it, sixteen hexadecimal digits
 #define ASM_PRINTER_HASH_DIGITS 16u
 
-// how the build ended: every word, part, step and table laid out; a form given as a construct; a header that holds a
+// how the build ended: every word, part, step and table laid out; a form given as a construct; a header that contains a
 // byte 0; a bank that writes its register with other than one number; more words, letters or parts than the tables
-// hold; or a count past the caller's capacity
+// contain; or a count past the caller's capacity
 enum AsmPrinterCoreEnd
 {
     ASM_PRINTER_CORE_OK = 0,
@@ -68,21 +68,21 @@ struct AsmPrinterCoreText
     unsigned int length;
 };
 
-// the ruleset as the build reads it: every text's letters end to end, the texts, and the slots; each form's pieces
-// from form_piece_first[form] to form_piece_first[form + 1] of the texts and its slots from form_slot_first[form] to
-// form_slot_first[form + 1] of the slots, and 1 where it is given as a construct; each bank's pieces from
-// bank_piece_first[bank] and the count of its slots; each fixed register's text and the header's; the target's hash and
-// its compute capability and NVRTC's version as the note writes them
+// the ruleset as the build reads it: every text's letters end to end, the texts, and the placeholders; each form's
+// pieces from form_piece_first[form] to form_piece_first[form + 1] of the texts and its placeholders from
+// form_placeholder_first[form] to form_placeholder_first[form + 1] of the placeholders, and 1 where it is given as a
+// construct; each bank's pieces from bank_piece_first[bank] and the count of its placeholders; each fixed register's
+// text and the header's; the target's hash and its compute capability and NVRTC's version as the note writes them
 struct AsmPrinterCoreRules
 {
     const unsigned char *letters;
     const AsmPrinterCoreText *texts;
-    const unsigned int *slots;
+    const unsigned int *placeholders;
     unsigned int form_piece_first[OPCODE_COUNT + 1u];
-    unsigned int form_slot_first[OPCODE_COUNT + 1u];
+    unsigned int form_placeholder_first[OPCODE_COUNT + 1u];
     unsigned int form_construct[OPCODE_COUNT];
     unsigned int bank_piece_first[REGCLASS_COUNT];
-    unsigned int bank_slots[REGCLASS_COUNT];
+    unsigned int bank_placeholders[REGCLASS_COUNT];
     unsigned int fixed_text[PHYSREG_COUNT];
     unsigned int header_text;
     unsigned long long block_hash;
@@ -91,7 +91,7 @@ struct AsmPrinterCoreRules
 
 // The build: the ruleset it reads, the capacities of the caller's memory, and what it lays out there. The words, each
 // once, by their numbers, 0 the empty word: each word's first letter and length, and its letters end to end; the parts,
-// each once, ASM_PRINTER_PIECES words each, and each part's lanes; the lists as AsmPrinterRuleset holds them; the
+// each once, ASM_PRINTER_PIECES words each, and each part's lanes; the lists as AsmPrinterRuleset stores them; the
 // program's steps, fields, table values and tables, and the step it outputs; and how it ended and where
 struct AsmPrinterCoreBuild
 {
@@ -100,7 +100,7 @@ struct AsmPrinterCoreBuild
     unsigned int letter_capacity;
     unsigned int part_capacity;
     unsigned int form_part_capacity;
-    unsigned int slot_capacity;
+    unsigned int placeholder_capacity;
     unsigned int step_capacity;
     unsigned int table_capacity[ASM_PRINTER_TABLES];
     unsigned int words;
@@ -114,9 +114,9 @@ struct AsmPrinterCoreBuild
     unsigned int form_part_first[OPCODE_COUNT + 1u];
     unsigned int form_part_count;
     unsigned int *form_parts;
-    unsigned int form_slot_first[OPCODE_COUNT + 1u];
-    unsigned int slot_count;
-    unsigned int *slot_parameters;
+    unsigned int form_placeholder_first[OPCODE_COUNT + 1u];
+    unsigned int placeholder_count;
+    unsigned int *placeholder_parameters;
     unsigned int bank_before[REGCLASS_COUNT];
     unsigned int bank_after[REGCLASS_COUNT];
     unsigned int fixed_word[PHYSREG_COUNT];
@@ -148,9 +148,9 @@ CODEGEN_CORE unsigned int asm_printer_core_word(AsmPrinterCoreBuild *build, cons
         {
             continue;
         }
-        const unsigned char *const held = &build->word_letters[build->word_start[number]];
+        const unsigned char *const stored_letters = &build->word_letters[build->word_start[number]];
         unsigned int at = 0u;
-        while ((at < length) && (held[at] == letters[at]))
+        while ((at < length) && (stored_letters[at] == letters[at]))
         {
             at += 1u;
         }
@@ -188,9 +188,9 @@ CODEGEN_CORE unsigned int asm_printer_core_part(AsmPrinterCoreBuild *build, cons
 {
     for (unsigned int number = 0u; number < build->parts; number += 1u)
     {
-        const unsigned int *const held = &build->part_pieces[number * ASM_PRINTER_PIECES];
+        const unsigned int *const stored_pieces = &build->part_pieces[number * ASM_PRINTER_PIECES];
         unsigned int piece = 0u;
-        while ((piece < ASM_PRINTER_PIECES) && (held[piece] == part[piece]))
+        while ((piece < ASM_PRINTER_PIECES) && (stored_pieces[piece] == part[piece]))
         {
             piece += 1u;
         }
@@ -213,7 +213,7 @@ CODEGEN_CORE unsigned int asm_printer_core_part(AsmPrinterCoreBuild *build, cons
     return number;
 }
 
-// the least count of index bits that holds `count` rows, at least 1
+// the least count of index bits that represents `count` rows, at least 1
 CODEGEN_CORE unsigned int asm_printer_core_index_bits(unsigned long long count)
 {
     unsigned int bits = 1u;

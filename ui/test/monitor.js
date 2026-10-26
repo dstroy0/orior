@@ -23,9 +23,9 @@
   }
   const HELD = "held by the walker";
   const REFUSED = new Set([
-    "app_exit", "window_open", "window_act", "view_open", "link_open", "home_reveal", "templates_reveal",
+    "app_exit", "window_open", "window_act", "link_open", "home_reveal", "templates_reveal",
     "report_bug", "report_open", "report_error", "report_auto_set", "toolchain_install", "repo_clone", "clone_start",
-    "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_keep", "plugin_create", "project_create",
+    "remote_get", "remote_rejoin", "git_push", "git_pull", "git_fetch", "template_save", "plugin_create", "project_create",
     "walker_probe", "print_page", "container_act", "container_run",
   ]);
   // A plugin's call reaches the system itself, a dialog, the shell or the process; only events pass.

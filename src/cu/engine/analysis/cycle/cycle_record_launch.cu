@@ -5,13 +5,13 @@
 #include "cycle_record_internal.h"
 
 // The compiled program run resident. Its block is laid out for this run and sent to the device, and the program is
-// launched, then launched again from where its block says it stands, until every lane is done. The host reads the
-// block back only between launches, when it is sealed: a device block whose seal does not hold (written while no launch
-// held it), a launch that failed, or a launch that left the block anywhere but yielded or done errors on the run, and
-// the host's copy is left sealed at the fault with the error's module and site. It runs on as many thread blocks as the
-// device holds at once, or fewer where the lanes need fewer. A thread block takes the threads its registers' shared
-// memory holds, or where the lanes are few, their share of the device's processors in whole warps, so that a launch of
-// a few thousand lanes reaches every processor and not only a few thread blocks' worth.
+// launched, then launched again from where its block records it stands, until every lane is done. The host reads the
+// block back only between launches, when it is sealed: a device block whose seal does not match (written while no
+// launch referenced it), a launch that failed, or a launch that left the block anywhere but yielded or done errors on
+// the run, and the host's copy is left sealed at the fault with the error's module and site. It runs on as many thread
+// blocks as the device fits at once, or fewer where the lanes need fewer. A thread block takes the threads its
+// registers' shared memory fits, or where the lanes are few, their share of the device's processors in whole warps, so
+// that a launch of a few thousand lanes reaches every processor and not only a few thread blocks' worth.
 static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch program, EngineError *error)
 {
     const unsigned long long share = (program.count + record->processors - 1ull) / record->processors;
@@ -42,7 +42,7 @@ static int cycle_record_resident(const CycleRecord *record, CycleCompiledLaunch 
     block->ttl = ttl;
     block->wdt = wdt;
     block->lanes = program.count;
-    // a device address is held as a 64-bit word, as every word of the block is
+    // a device address is stored as a 64-bit word, as every word of the block is
     block->result = (unsigned long long)(uintptr_t)program.out;
     block->result_words = program.count * record->out_limbs;
     block->checksum = cycle_block_seal(block);
@@ -283,7 +283,7 @@ extern "C" long cycle_record_run(const CycleRecordRunRequest *request)
                 record->block->launches, record->block->checkin, record->block->runtime,
                 record->block->grant_threads);
     }
-    // the frame's reservation is given back whether the sweep held
+    // the frame's reservation is given back whether the sweep succeeded
     const int returned = cycle_stack_return(stack, request->device_out, error);
     ok =
         ok && returned &&
@@ -309,7 +309,7 @@ __device__ static int cycle_latch_valid(const unsigned int *record, unsigned int
     return (set_bits != 0u) ? 1 : 0;
 }
 
-// the latch over the records: each thread scans its lanes from its lowest and stops at the first whose output holds,
+// the latch over the records: each thread scans its lanes from its lowest and stops at the first whose output is true,
 // each warp takes the least of its threads' by a tree of shuffles, and each warp's goes to one atomic minimum over the
 // device. Every thread of a warp reaches the shuffles, the block being whole warps
 __global__ static void cycle_latch_kernel(const unsigned int *records, unsigned long long count, unsigned int out_limbs,
@@ -392,7 +392,7 @@ __device__ static unsigned int cycle_sum_limb(const unsigned int *record, unsign
 
 // the sum over the records: each thread takes `chunk` consecutive records and, limb by limb, adds the field's limb
 // into 64 bits for as long as its records stay in one run, then adds that total to the run's by one atomic add. The
-// pass past the last limb counts the fields whose sign bit is set. A run holds at most 2^32 records, and 2^32 limbs
+// pass past the last limb counts the fields whose sign bit is set. A run contains at most 2^32 records, and 2^32 limbs
 // fit 64 bits
 __global__ static void cycle_sum_kernel(const unsigned int *records, unsigned long long count,
                                         unsigned long long group, unsigned int out_limbs, unsigned int offset,
@@ -454,8 +454,8 @@ static void cycle_sum_subtract(unsigned int *sum, unsigned int limbs, unsigned i
     }
 }
 
-// the sum's device totals and negative counts, kept between calls and grown to the most bytes asked so far, so that a
-// sum asked once a sweep allocates nothing after the first
+// the sum's device totals and negative counts, retained between calls and grown to the most bytes requested so far, so
+// that a sum requested once a sweep allocates nothing after the first
 typedef struct
 {
     unsigned long long *totals;

@@ -25,8 +25,8 @@
 
 #define SASS_BRANCH_STEP 4u
 
-// one place a value sits: its first bit, how many bits it holds, what one of them counts, and 1 where the field holds
-// the value with every bit inverted
+// one place a value sits: its first bit, how many bits it contains, what one of them counts, and 1 where the field
+// contains the value with every bit inverted
 typedef struct
 {
     unsigned int first;
@@ -66,10 +66,10 @@ typedef struct
 
 #define SASS_LABEL_TOKEN 64u
 
-// the form whose own bits the encoding holds outside what it leaves open, and that form's places through `places`.
-// Of several: one that reads every field before one with a relocated label, whose field holds nothing; a label
-// before a number of the same operation; then the one leaving the fewest bits open. NULL where none holds it
-// the most forms one encoding is held by that the reader weighs
+// the form whose own bits the encoding carries outside what it leaves open, and that form's places through `places`.
+// Of several: one that reads every field before one with a relocated label, whose field contains nothing; a label
+// before a number of the same operation; then the one leaving the fewest bits open. NULL where none matches it
+// the most forms one encoding is matched by that the reader weighs
 #define SASS_HOLDERS 32u
 
 

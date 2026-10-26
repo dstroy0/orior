@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // catalog_test.c: the jobs' catalog's check: case names reads the line after the case, a build script is traced by
-// default and quiet where asked, short keeps the folder and the name, the driver's parts join its literals, and the
-// tree gives every group
+// default and quiet where requested, short retains the folder and the name, the driver's parts join its literals, and
+// the tree gives every group
 #include "../../../../../ui/cli/src/command_line/catalog_internal.h"
 #include "../../../../../ui/cli/src/runs/runner.h"
 #include "cli_check.h"
@@ -41,8 +41,8 @@ static const CliParam *catalog_param(unsigned int job, const char *key)
     return NULL;
 }
 
-// the line the job's step shows kept
-static void catalog_kept(void *context, const char *shown)
+// the line the job's step shows recorded
+static void catalog_line_capture(void *context, const char *shown)
 {
     (void)context;
     memor.cpy(&(MemoriaCfg){.dst = s_shown,
@@ -57,15 +57,15 @@ static int catalog_shown(const char *root, unsigned int job, const char *trace)
     cli_values_put(&s_values, CLI_TRACE, trace);
     s_shown[0] = '\0';
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    return cli_runner_shown(root, &s_catalog, job, &s_values, catalog_kept, NULL, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return cli_runner_shown(root, &s_catalog, job, &s_values, catalog_line_capture, NULL, &err_msg);
 }
 
-// a build script is traced by default and quiet where asked
+// a build script is traced by default and quiet where requested
 static void catalog_trace(void)
 {
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("catalog_trace", root);
     cli_full(root, "src", path);
     (void)query_folder_made(path);
@@ -103,7 +103,7 @@ static void catalog_tree(void)
 {
     static const char *const s_groups[10] = {"build", "protocol", "ingest", "run",      "render",
                                              "sim",   "view",     "stage",  "pipeline", "test"};
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     if (!cli_tree_found(root))
     {
         cli_check(1, "no tree is found, and no group is read");
@@ -122,7 +122,7 @@ static void catalog_tree(void)
         every &= found;
     }
     cli_check(every, "the tree gives a job of every group");
-    static CliCellsTally s_grown_cells = CLI_CELLS_TALLY("catalog_test_grown");
+    static CellOwner s_grown_cells = MMGR_CELL_OWNER("catalog_test_grown");
     CliCatalog grown;
     cli_catalog_growing(&grown, &s_grown_cells, 2048u);
     cli_catalog_read(root, &grown);
@@ -130,9 +130,9 @@ static void catalog_tree(void)
                      (grown.steps == s_catalog.steps) && (grown.args == s_catalog.args) &&
                      (grown.lists == s_catalog.lists) && (grown.used == s_catalog.used) &&
                      (memor.cmp(&(MemoriaCfg){.src = grown.text, .other = s_catalog.text, .bytes = grown.used}) == 0);
-    const unsigned long long holding = s_grown_cells.holds;
+    const unsigned long long in_use_during = s_grown_cells.in_use;
     cli_catalog_given(&grown);
-    cli_check(same && (holding > 0ull) && (s_grown_cells.holds == 0ull),
+    cli_check(same && (in_use_during > 0ull) && (s_grown_cells.in_use == 0ull),
               "a catalog that grows reads the tree as one handed its room does, and gives its cells back");
     const unsigned int run = cli_catalog_find(&s_catalog, "run/track_driver");
     const CliParam *const parts = (run != CLI_CATALOG_NONE) ? catalog_param(run, "run") : NULL;
@@ -144,13 +144,14 @@ static void catalog_tree(void)
                                               .cap = CLI_CELLS_POOL});
     }
     cli_check(track, "the driver's parts are read from its usage");
-    cli_check((g_cli_catalog_cells.holds == 0ull) && (g_cli_catalog_cells.hw != 0ull),
+    cli_check((g_cli_catalog_cells.in_use == 0ull) && (g_cli_catalog_cells.hw != 0ull),
               "the catalog's cells are each given back as the tree is read");
 }
 
 int main(void)
 {
-    char names[8][CLI_NAME_LONGEST];
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    char names[8][CLI_NAME_MAX_LEN];
     const unsigned int count =
         cli_catalog_case_names("case \"$SIM\" in\n    a|b_c|d) ;;\n    *) exit 2 ;;\nesac\n", "SIM", names, 8u);
     cli_check((count == 3u) && (cellul.eq(&(CatenaFinitaCfg){.src = names[0], .other = "a", .cap = CLI_CELLS_POOL})) &&
@@ -158,11 +159,11 @@ int main(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = names[2], .other = "d", .cap = CLI_CELLS_POOL})),
               "case names reads the line after the case");
     catalog_trace();
-    char shortened[CLI_PATH_LONGEST];
+    char shortened[CLI_PATH_MAX_LEN];
     cli_catalog_short("examples/cell_tracking/build_driver.sh", shortened);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = shortened, .other = "cell_tracking/build_driver.sh", .cap = CLI_CELLS_POOL}),
-              "short keeps the folder and the name");
+              "short retains the folder and the name");
     cli_catalog_short("src/build_engine.sh", shortened);
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = shortened, .other = "src/build_engine.sh", .cap = CLI_CELLS_POOL}),
               "of a path one folder deep");
@@ -172,7 +173,7 @@ int main(void)
     static const char s_source[] =
         "\"  --run names one part; the parts running in the order given: schedule, iapx-prove,\"\n"
         "            \" entropy, floor\\n\"";
-    char parts[8][CLI_NAME_LONGEST];
+    char parts[8][CLI_NAME_MAX_LEN];
     const unsigned int parts_count = cli_catalog_driver_parts(s_source, parts, 8u);
     cli_check((parts_count == 4u) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = parts[0], .other = "schedule", .cap = CLI_CELLS_POOL})) &&

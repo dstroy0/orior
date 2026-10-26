@@ -5,7 +5,9 @@
 // --rank reads the parquet files and ranks each query molecule's structures (src/rank)
 #include "../ingest/ingest.h"
 #include "../rank/rank.h"
-#include "../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <string.h>
@@ -19,7 +21,7 @@ int main(int count, char **arguments)
     const int rank = ((count == 5) || (count == 6)) && (strcmp(arguments[1], "--rank") == 0);
     if (!ingest && !rank)
     {
-        scriptura_text(&results.line, "usage: casmi_driver --ingest FILE.parquet SET\n"
+        mmgr_line_put(&results.line, "usage: casmi_driver --ingest FILE.parquet SET\n"
                                       "       casmi_driver --rank TRAIN.parquet CFG validate\n"
                                       "       casmi_driver --rank TRAIN.parquet CFG test TEST.parquet\n"
                                       "  --ingest: seal every member of the file, its footer and each leaf of each"

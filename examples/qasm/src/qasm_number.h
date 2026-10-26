@@ -12,13 +12,13 @@ extern "C"
 #endif
 
 // Exact qubits, ported from exact_qubits.py, mps_qubits.py, symbolic_qubits.py and boundary_lens.py, which sit beside
-// this header. An amplitude is an element of Q(sqrt2)[i] held as four exact rationals. H's 1/sqrt2 and T's
+// this header. An amplitude is an element of Q(sqrt2)[i] represented as four exact rationals. H's 1/sqrt2 and T's
 // (1 + i)/sqrt2 are carried exactly and never rounded. A value past the exact integer's width errors; it never wraps.
 
 // The widest dense state: 2^30 amplitudes. The index of an amplitude is an unsigned long long either way.
 #define QASM_DENSE_QUBITS_MAX 30u
 
-    // A rational as Python's Fraction keeps one: the denominator positive, no factor common to the two, and zero as
+    // A rational as Python's Fraction stores one: the denominator positive, no factor common to the two, and zero as
     // 0/1.
     typedef struct
     {
@@ -62,7 +62,7 @@ extern "C"
     extern const QasmNumber qasm_number_one;
     extern const QasmNumber qasm_number_minus_one;
     extern const QasmNumber qasm_number_i;
-    // 1/sqrt2, held as sqrt2/2
+    // 1/sqrt2, represented as sqrt2/2
     extern const QasmNumber qasm_number_half_sqrt2;
     // e^{i pi/4} = (1 + i)/sqrt2, the controlled-T phase, and its conjugate e^{-i pi/4}
     extern const QasmNumber qasm_number_eighth_turn;
@@ -131,9 +131,10 @@ extern "C"
     // symbolic_qubits' k_short: "p", "q i" or "p + q i", each part "p", "qsqrt2", "sqrt2" or "(p+qsqrt2)"
     long qasm_number_short_text(const QasmNumber *value, char *text, size_t capacity, EngineError *error);
 
-    // A field the chain runs over, unchanged: Q(sqrt2)[i] or its rational functions. An element slot is either filled
-    // with zero bytes or holds a live element. Copy and each operation write a slot of either kind, releasing what it
-    // held, and release frees what a slot holds and leaves it zero bytes. A result may alias an operand.
+    // A field the chain runs over, unchanged: Q(sqrt2)[i] or its rational functions. An element's storage is either
+    // filled with zero bytes or contains a live element. Copy and each operation write storage of either kind,
+    // releasing what it contained, and release frees what the storage contains and leaves it zero bytes. A result may
+    // alias an operand.
     typedef struct
     {
         size_t element_bytes;

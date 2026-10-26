@@ -9,11 +9,11 @@
 static uint64_t splitmix64(uint64_t *state)
 {
     *state += 0x9E3779B97F4A7C15ULL;
-    uint64_t held = *state;
+    uint64_t mixed = *state;
 
-    held = (held ^ (held >> 30)) * 0xBF58476D1CE4E5B9ULL;
-    held = (held ^ (held >> 27)) * 0x94D049BB133111EBULL;
-    return held ^ (held >> 31);
+    mixed = (mixed ^ (mixed >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    mixed = (mixed ^ (mixed >> 27)) * 0x94D049BB133111EBULL;
+    return mixed ^ (mixed >> 31);
 }
 
 static void fill_uniform(uint8_t *bytes, size_t length, uint64_t seed)
@@ -117,11 +117,11 @@ double bench_collision_entropy(const uint8_t *corpus, size_t length, size_t *dis
     {
         counts[corpus[at]] += 1u;
     }
-    for (size_t slot = 0u; slot < 256u; slot += 1u)
+    for (size_t index = 0u; index < 256u; index += 1u)
     {
-        if (counts[slot] != 0u)
+        if (counts[index] != 0u)
         {
-            const double share = (double)counts[slot] / (double)length;
+            const double share = (double)counts[index] / (double)length;
 
             squared += share * share;
             used += 1u;
@@ -162,9 +162,9 @@ BenchPeriod bench_recover_period(const uint8_t *corpus, size_t length)
     {
         counts[corpus[at]] += 1u;
     }
-    for (size_t slot = 0u; slot < 256u; slot += 1u)
+    for (size_t index = 0u; index < 256u; index += 1u)
     {
-        const double share = (double)counts[slot] / (double)length;
+        const double share = (double)counts[index] / (double)length;
 
         found.at_chance += share * share;
     }
@@ -238,13 +238,13 @@ BenchPeriod bench_recover_period(const uint8_t *corpus, size_t length)
 
 double bench_predicted_rate(double entropy, double anchors)
 {
-    double held = 1.0;
+    double rate = 1.0;
     double remaining = entropy * anchors;
 
     while (remaining >= 1.0)
     {
-        held *= 0.5;
+        rate *= 0.5;
         remaining -= 1.0;
     }
-    return held * (1.0 - (remaining * 0.6931472) + (remaining * remaining * 0.2402265));
+    return rate * (1.0 - (remaining * 0.6931472) + (remaining * remaining * 0.2402265));
 }

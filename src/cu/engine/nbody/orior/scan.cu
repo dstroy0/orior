@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -10,7 +10,7 @@
  * @brief The steering scan on a CUDA device, one alignment per thread over the whole object.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * THE SAME QUESTION EVERY SCAN ARM ANSWERS, MAPPED OVER THE DEVICE. Held at one needle offset, count
+ * THE SAME QUESTION EVERY SCAN ARM ANSWERS, MAPPED OVER THE DEVICE. Fixed at one needle offset, count
  * the alignments still standing whose corpus byte equals the needle byte. The vector arms widen one
  * compare; this one gives one alignment to each thread and adds a one where that alignment agrees and
  * stands. The reduction is a single atomic increment per agreeing thread, what the exact
@@ -126,7 +126,7 @@ extern "C" size_t orior_steer_truthy_after_cuda(const uint8_t *corpus, size_t al
                                                  uint8_t wanted, size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm was
-     * the one asked. The claim the counters carry is which arm RAN and not what it returned. */
+     * the one requested. The claim the counters carry is which arm RAN and not what it returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 

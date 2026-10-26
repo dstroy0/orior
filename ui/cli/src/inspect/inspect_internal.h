@@ -8,9 +8,9 @@
 
 #include "inspect.h"
 
-// The most a reading of one text holds, counted from the text as its cell is taken: its tokens, a token for each
+// The most a reading of one text contains, counted from the text as its cell is taken: its tokens, a token for each
 // name, number and other letter that is no space and one for each line; its lines; its comments, one for each letter
-// a comment opens with; the columns a painting holds; and the names a set holds, one for each name of the text
+// a comment opens with; the columns a painting contains; and the names a set contains, one for each name of the text
 typedef struct
 {
     unsigned int tokens;
@@ -22,7 +22,7 @@ typedef struct
 
 extern CliInspectMost g_cli_inspect_most;
 
-// the most tokens, lines and comments a reading holds, and the most columns a painting holds
+// the most tokens, lines and comments a reading contains, and the most columns a painting contains
 #define CLI_INSPECT_TOKENS (g_cli_inspect_most.tokens)
 #define CLI_INSPECT_LINES (g_cli_inspect_most.lines)
 #define CLI_INSPECT_COMMENTS (g_cli_inspect_most.comments)
@@ -36,13 +36,13 @@ typedef struct
     unsigned long long bytes;
 } CliInspectCarve;
 
-// the next list of a carving, `bytes` long, kept to eight bytes: its start, NULL where the carving only measures
+// the next list of a carving, `bytes` long, aligned to eight bytes: its start, NULL where the carving only measures
 // (inspect_reading.c)
 void *cli_inspect_carved(CliInspectCarve *carve, unsigned long long bytes);
 // the reading of `size` bytes of `text` in `language` taken, under the inspections' lock: its counts into
 // g_cli_inspect_most and every list a source of that language reads it into a part of one cell sized to them, 1, or
 // 0 where the cell cannot be taken; and the cell given back (inspect_reading.c)
-int cli_inspect_reading_held(const char *language, const char *text, unsigned long long size);
+int cli_inspect_reading_reserved(const char *language, const char *text, unsigned long long size);
 void cli_inspect_reading_given(void);
 // each source's lists carved for a reading, the scan's, the painting's and the sorting's for every language, the rest
 // for theirs (inspect_scan.c, inspect_paint.c, inspect.c, inspect_js_lex.c, inspect_js_parse.c, inspect_js_write.c,
@@ -59,20 +59,20 @@ void cli_inspect_py_parse_laid(CliInspectCarve *carve);
 void cli_inspect_py_sort_laid(CliInspectCarve *carve);
 void cli_inspect_py_unread_laid(CliInspectCarve *carve);
 
-// code no path reaches told as the text before the word that leaves the block, the word, and the text after; the
+// code no path reaches reported as the text before the word that leaves the block, the word, and the text after; the
 // words that leave a block in JavaScript are return, throw, break and continue and in Python return, raise, break and
-// continue, so the longest is continue, and the telling's room is the three and its 0
+// continue, so the longest is continue, and the report's room is the three and its 0
 #define CLI_INSPECT_UNREACHED_BEFORE "No path reaches this code: the `"
 #define CLI_INSPECT_UNREACHED_AFTER "` before it leaves the block."
-#define CLI_INSPECT_LEAVING_LONGEST "continue"
+#define CLI_INSPECT_LEAVING_MAX_LEN "continue"
 #define CLI_INSPECT_UNREACHED_ROOM                                                                                     \
-    ((sizeof(CLI_INSPECT_UNREACHED_BEFORE) - 1u) + (sizeof(CLI_INSPECT_LEAVING_LONGEST) - 1u) +                        \
+    ((sizeof(CLI_INSPECT_UNREACHED_BEFORE) - 1u) + (sizeof(CLI_INSPECT_LEAVING_MAX_LEN) - 1u) +                        \
      sizeof(CLI_INSPECT_UNREACHED_AFTER))
-_Static_assert((sizeof(CLI_INSPECT_LEAVING_LONGEST) >= sizeof("return")) &&
-                   (sizeof(CLI_INSPECT_LEAVING_LONGEST) >= sizeof("throw")) &&
-                   (sizeof(CLI_INSPECT_LEAVING_LONGEST) >= sizeof("break")) &&
-                   (sizeof(CLI_INSPECT_LEAVING_LONGEST) >= sizeof("raise")),
-               "CLI_INSPECT_LEAVING_LONGEST must be the longest word that leaves a block");
+_Static_assert((sizeof(CLI_INSPECT_LEAVING_MAX_LEN) >= sizeof("return")) &&
+                   (sizeof(CLI_INSPECT_LEAVING_MAX_LEN) >= sizeof("throw")) &&
+                   (sizeof(CLI_INSPECT_LEAVING_MAX_LEN) >= sizeof("break")) &&
+                   (sizeof(CLI_INSPECT_LEAVING_MAX_LEN) >= sizeof("raise")),
+               "CLI_INSPECT_LEAVING_MAX_LEN must be the longest word that leaves a block");
 
 // A reading of a text by its letters: the text and its size, where it stands, its line and its column in UTF-16 units
 typedef struct
@@ -122,8 +122,8 @@ extern int g_cli_inspect_over;
 // a reading begun at the start of `size` bytes of `src`; the letter where it stands, and `ahead` letters on,
 // CLI_INSPECT_END past the text's end; the letter where it stands taken, its line and column moved past it, the same
 // past the end, where nothing is taken; where it stands; a comment's span
-// kept from where it stands to the end of its line, before the line's end; a token put on the reading's tokens, its
-// span from `from` to where the reading stands; and a comment's span kept (inspect_scan.c)
+// recorded from where it stands to the end of its line, before the line's end; a token put on the reading's tokens, its
+// span from `from` to where the reading stands; and a comment's span recorded (inspect_scan.c)
 void cli_inspect_scan_begun(CliInspectScan *scan, const char *src, unsigned long long size);
 unsigned int cli_inspect_peek(const CliInspectScan *scan);
 unsigned int cli_inspect_peek_at(const CliInspectScan *scan, unsigned int ahead);
@@ -134,14 +134,14 @@ void cli_inspect_tok_put(const CliInspectScan *scan, unsigned char kind, unsigne
                          int field);
 void cli_inspect_comment_put(CliInspectPlace from, CliInspectPlace to);
 
-// whether a letter is alphabetic, alphanumeric or white as Rust's char says, ASCII and the letters of the Unicode
+// whether a letter is alphabetic, alphanumeric or white as Rust's char defines, ASCII and the letters of the Unicode
 // properties the regular expressions read (inspect_scan.c)
 int cli_inspect_alphabetic(unsigned int letter);
 int cli_inspect_alphanumeric(unsigned int letter);
 int cli_inspect_white(unsigned int letter);
 
 // a set's lists carved for a reading, its buckets twice the reading's names; a set made empty; a name put in it; and
-// whether it holds a name (inspect_scan.c)
+// whether it contains a name (inspect_scan.c)
 void cli_inspect_set_laid(CliInspectSet *set, CliInspectCarve *carve);
 void cli_inspect_set_cleared(CliInspectSet *set);
 void cli_inspect_set_put(CliInspectSet *set, const char *at, unsigned int size);
@@ -157,14 +157,14 @@ void cli_inspect_fold_put(CliParsed *parsed, unsigned int first, unsigned int la
 void cli_inspect_range_put(CliParsed *parsed, CliInspectPlace from, CliInspectPlace to);
 void cli_inspect_folds_done(CliParsed *parsed);
 
-// `size` bytes kept in the facts' pool: where they stand, empty where the pool is full and the facts marked full; the
+// `size` bytes stored in the facts' pool: where they stand, empty where the pool is full and the facts marked full; the
 // same of a text written into `line` and taken from it; a finding put on the facts, its fixes those put after it; a fix
 // put on the last finding, `title` its title; and an edit put on the last fix (inspect.c)
-CliInspectText cli_inspect_kept(CliFacts *facts, const char *text, unsigned long long size);
-CliInspectText cli_inspect_line_kept(CliFacts *facts, const CliLine *line);
+CliInspectText cli_inspect_text_stored(CliFacts *facts, const char *text, unsigned long long size);
+CliInspectText cli_inspect_line_stored(CliFacts *facts, const VerbaLinea *line);
 void cli_inspect_finding_put(CliFacts *facts, CliInspectPlace from, CliInspectPlace to, int severity,
-                             const CliLine *message, const char *code, const char *href);
-void cli_inspect_fix_put(CliFacts *facts, const CliLine *title);
+                             const VerbaLinea *message, const char *code, const char *href);
+void cli_inspect_fix_put(CliFacts *facts, const VerbaLinea *title);
 void cli_inspect_fix_titled(CliFacts *facts, const char *title);
 void cli_inspect_edit_put(CliFacts *facts, CliInspectPlace from, CliInspectPlace to, const char *text,
                           unsigned long long size);
@@ -175,31 +175,31 @@ unsigned int cli_inspect_name_put(CliFacts *facts, const char *name, unsigned lo
 
 // the body written again from its members' lines with the methods among them sorted by name, case aside and then by
 // their bytes: each member a run of lines, `firsts` to `lasts`, and its name where `names` gives one; the lines between
-// members stay as they were, and a method's slot takes the next method in the order of their names. Into `out`: 1, or
-// 0 where fewer than two methods are among them or they stand sorted already (inspect.c)
-// the physical lines of `size` bytes of `src`, split at each "\n" as Rust's str::split splits them, each where it
-// starts and where it ends, into `starts` and `ends`, which hold `most`: their count, at most `most`
+// members stay as they were, and a method's position takes the next method in the order of their names. Into `out`: 1,
+// or 0 where fewer than two methods are among them or they stand sorted already (inspect.c) the physical lines of
+// `size` bytes of `src`, split at each "\n" as Rust's str::split splits them, each where it starts and where it ends,
+// into `starts` and `ends`, sized for `most`: their count, at most `most`
 unsigned int cli_inspect_physical(const char *src, unsigned long long size, unsigned long long *starts,
                                   unsigned long long *ends, unsigned int most);
 int cli_inspect_sorted_body(const char *src, unsigned long long size, const unsigned long long *line_starts,
                             const unsigned long long *line_ends, const unsigned int *firsts, const unsigned int *lasts,
                             const char *const *names, const unsigned int *name_sizes, unsigned int members,
-                            CliLine *out);
+                            VerbaLinea *out);
 
 // the facts, the parse, the docstring and the sorted methods of Python (inspect_py_*.c) and of JavaScript
 // (inspect_js_*.c)
 void cli_inspect_py_facts(const char *src, unsigned long long size, CliFacts *facts);
 void cli_inspect_py_parse(const char *src, unsigned long long size, CliParsed *parsed);
 int cli_inspect_py_docstring(const char *src, unsigned long long size, unsigned int line, const char *form,
-                             CliInspectEdit *edit, CliLine *text, CliInspectPlace *summary, CliLine *said);
+                             CliInspectEdit *edit, VerbaLinea *text, CliInspectPlace *summary, VerbaLinea *err_msg);
 int cli_inspect_py_sort_methods(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                                CliLine *text, CliLine *said);
+                                VerbaLinea *text, VerbaLinea *err_msg);
 void cli_inspect_js_facts(const char *src, unsigned long long size, CliFacts *facts);
 void cli_inspect_js_parse(const char *src, unsigned long long size, CliParsed *parsed);
 int cli_inspect_js_docstring(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                             CliLine *text, CliInspectPlace *summary, CliLine *said);
+                             VerbaLinea *text, CliInspectPlace *summary, VerbaLinea *err_msg);
 int cli_inspect_js_sort_methods(const char *src, unsigned long long size, unsigned int line, CliInspectEdit *edit,
-                                CliLine *text, CliLine *said);
+                                VerbaLinea *text, VerbaLinea *err_msg);
 
 // a place among the facts' names that is none
 #define CLI_INSPECT_FULL 0xffffffffu

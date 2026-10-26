@@ -25,21 +25,21 @@ static void cargo_scanned(void)
     const unsigned int count = cli_cargo_scan(s_text);
     char tests[1024];
     char mods[1024];
-    CliLine test_line = {tests, sizeof(tests), 0ull};
-    CliLine mod_line = {mods, sizeof(mods), 0ull};
+    VerbaLinea test_line = {tests, sizeof(tests), 0ull};
+    VerbaLinea mod_line = {mods, sizeof(mods), 0ull};
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        const CliRustHeld *const held = &g_cli_cargo_scan.held[at];
-        const char *const inline_names = g_cli_cargo_scan.names + held->inline_names;
-        CliLine *const line = held->test ? &test_line : &mod_line;
-        cli_line_text(line, (line->at > 0ull) ? "|" : "");
-        cli_line_text(line, inline_names);
-        cli_line_text(line, (inline_names[0] != '\0') ? "::" : "");
-        cli_line_text(line, g_cli_cargo_scan.names + held->name);
-        if (held->test)
+        const CliRustItem *const item = &g_cli_cargo_scan.items[at];
+        const char *const inline_names = g_cli_cargo_scan.names + item->inline_names;
+        VerbaLinea *const line = item->test ? &test_line : &mod_line;
+        mmgr_line_put(line, (line->at > 0ull) ? "|" : "");
+        mmgr_line_put(line, inline_names);
+        mmgr_line_put(line, (inline_names[0] != '\0') ? "::" : "");
+        mmgr_line_put(line, g_cli_cargo_scan.names + item->name);
+        if (item->test)
         {
-            cli_line_character(line, ' ');
-            cli_line_decimal(line, held->line, 1u);
+            mmgr_line_ch(line, ' ');
+            mmgr_line_decimal(line, item->line, 1u);
         }
     }
     cli_check_text(tests, test_line.at, "tests::one 12|tests::two 15|tests::three 19|tests::deeper::four 26|five 31",
@@ -48,18 +48,18 @@ static void cargo_scanned(void)
     cli_check((g_cli_cargo_scan.token_room == g_cli_cargo_scan.token_count) && (g_cli_cargo_scan.token_count != 0u),
               "the tokens' cell is the size of their count");
     cli_cargo_scan_given();
-    cli_check(g_cli_cargo_cells.holds == 0ull, "and every cell of the search is given back");
+    cli_check(g_cli_cargo_cells.in_use == 0ull, "and every cell of the search is given back");
 }
 
 // a target written as `kind` or `kind:name`
-static void cargo_target(CliLine *out, const CliCargoTarget *target)
+static void cargo_target(VerbaLinea *out, const CliCargoTarget *target)
 {
     static const char *const s_kinds[3] = {"lib", "bin", "test"};
-    cli_line_text(out, s_kinds[(target->kind < 3u) ? target->kind : 0u]);
+    mmgr_line_put(out, s_kinds[(target->kind < 3u) ? target->kind : 0u]);
     if (target->name != NULL)
     {
-        cli_line_character(out, ':');
-        cli_line_text(out, target->name);
+        mmgr_line_ch(out, ':');
+        mmgr_line_put(out, target->name);
     }
 }
 
@@ -77,9 +77,9 @@ static void cargo_found(void)
         {"crate/src/main.rs", "#[test]\nfn in_main() {}\n"},
         {"crate/tests/whole.rs", "#[test]\nfn integration() {}\n"},
         {"crate/checks/named.rs", "#[test]\nfn listed() {}\n"}};
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_check_folder("cargo_found", dir);
     for (unsigned int at = 0u; at < 9u; at += 1u)
     {
@@ -92,18 +92,18 @@ static void cargo_found(void)
                                  cellul.len(&(CatenaFinitaCfg){.src = s_files[at][1], .cap = CLI_CELLS_POOL}));
     }
     cli_cargo_found(dir, &s_tests);
-    CliLine line = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea line = {s_out, sizeof(s_out), 0ull};
     for (unsigned int at = 0u; at < s_tests.count; at += 1u)
     {
         const CliCargoFound *const one = &s_tests.found[at];
-        cli_line_text(&line, (at > 0u) ? "\n" : "");
-        cli_line_text(&line, one->test.id);
-        cli_line_character(&line, ' ');
+        mmgr_line_put(&line, (at > 0u) ? "\n" : "");
+        mmgr_line_put(&line, one->test.id);
+        mmgr_line_ch(&line, ' ');
         cargo_target(&line, &one->target);
-        cli_line_character(&line, ' ');
-        cli_line_text(&line, one->full);
-        cli_line_character(&line, ' ');
-        cli_line_text(&line, (one->test.class_name != NULL) ? one->test.class_name : "-");
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, one->full);
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, (one->test.class_name != NULL) ? one->test.class_name : "-");
     }
     cli_check_text(s_out, line.at,
                    "crate/src/lib.rs::at_top lib at_top -\ncrate/src/parts/inner.rs::checks::deep lib "
@@ -113,13 +113,13 @@ static void cargo_found(void)
                    "a package's targets and modules give each test its name");
     cli_check((s_tests.count > 1u) && (s_tests.found[1].test.line == 3u), "and its line");
     cli_check((s_tests.room >= s_tests.count) && (s_tests.pieces != NULL) && (s_tests.pieces->next == NULL),
-              "the tests are held in a room grown to them, their texts in one piece");
+              "the tests are stored in a room grown to them, their texts in one piece");
     cli_cargo_tests_given(&s_tests);
-    cli_check((g_cli_cargo_cells.holds == 0ull) && (g_cli_cargo_cells.hw != 0ull),
+    cli_check((g_cli_cargo_cells.in_use == 0ull) && (g_cli_cargo_cells.hw != 0ull),
               "the search's cells are each given back as it ends");
     cli_check(cli_cargo_is_rust("crate/src/lib.rs::at_top") && cli_cargo_is_rust("crate/src/lib.rs") &&
                   !cli_cargo_is_rust("tests/test_a.py::test_one"),
-              "a Rust test and file are told from a Python one");
+              "a Rust test and file are distinguished from a Python one");
 }
 
 // the result `line` reads as, `name outcome`, into s_out, or "-" where it is none
@@ -128,35 +128,35 @@ static const char *cargo_result(const char *line)
     unsigned long long name = 0ull;
     unsigned long long size = 0ull;
     const char *outcome = NULL;
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     if (cli_cargo_result_line(line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}), &name, &size,
                               &outcome))
     {
-        cli_line_counted(&out, line + name, size);
-        cli_line_character(&out, ' ');
-        cli_line_text(&out, outcome);
+        mmgr_line_put_n(&out, line + name, size);
+        mmgr_line_ch(&out, ' ');
+        mmgr_line_put(&out, outcome);
     }
     else
     {
-        cli_line_character(&out, '-');
+        mmgr_line_ch(&out, '-');
     }
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_out;
 }
 
-// a failure told, `name: message @ path:line` put after the others on a line of its own
+// a failure reported, `name: message @ path:line` put after the others on a line of its own
 static void cargo_failure(void *context, const char *name, unsigned long long name_size, const char *message,
                           unsigned long long message_size, const char *path, long long line)
 {
-    CliLine *const out = context;
-    cli_line_text(out, (out->at > 0ull) ? "\n" : "");
-    cli_line_counted(out, name, name_size);
-    cli_line_text(out, ": ");
-    cli_line_counted(out, message, message_size);
-    cli_line_text(out, " @ ");
-    cli_line_text(out, (path != NULL) ? path : "-");
-    cli_line_character(out, ':');
-    cli_line_decimal(out, (line > 0ll) ? (unsigned long long)line : 0ull, 1u);
+    VerbaLinea *const out = context;
+    mmgr_line_put(out, (out->at > 0ull) ? "\n" : "");
+    mmgr_line_put_n(out, name, name_size);
+    mmgr_line_put(out, ": ");
+    mmgr_line_put_n(out, message, message_size);
+    mmgr_line_put(out, " @ ");
+    mmgr_line_put(out, (path != NULL) ? path : "-");
+    mmgr_line_ch(out, ':');
+    mmgr_line_decimal(out, (line > 0ll) ? (unsigned long long)line : 0ull, 1u);
 }
 
 // the harness's report gives each result and each failure its place
@@ -182,20 +182,21 @@ static void cargo_report(void)
         "----\n\nthread 'a::one' panicked at src\\a.rs:12:9:\nassertion `left == right` failed\n  left: 1\n right: "
         "2\nnote: run with `RUST_BACKTRACE=1`\n\n---- a::two stdout ----\nthread 'a::two' panicked at 'old words', "
         "src/a.rs:20:5\n\nfailures:\n    a::one\n    a::two\n";
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_cargo_failures_each(s_report, sizeof(s_report) - 1u, cargo_failure, &out);
     cli_check_text(s_out, out.at,
                    "a::one: assertion `left == right` failed\n  left: 1\n right: 2 @ src/a.rs:12\na::two: old words @ "
                    "src/a.rs:20",
                    "each failure's message and the place it panicked");
-    static const char s_said[] =
+    static const char s_build_output[] =
         "   Compiling thing v0.1.0\nerror[E0308]: mismatched types\n --> src/lib.rs:3:18\n  |\n";
     char error[256];
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     unsigned long long length = 0ull;
     long long line = 0ll;
     cli_check(
-        cli_cargo_build_error(s_said, sizeof(s_said) - 1u, error, sizeof(error), &length, path, &line) &&
+        cli_cargo_build_error(s_build_output, sizeof(s_build_output) - 1u, error, sizeof(error), &length, path,
+                              &line) &&
             (length == 30ull) &&
             (memor.cmp(&(MemoriaCfg){.src = error, .other = "error[E0308]: mismatched types", .bytes = 30u}) == 0) &&
             (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = "src/lib.rs", .cap = CLI_CELLS_POOL})) && (line == 3ll),
@@ -204,6 +205,7 @@ static void cargo_report(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     cargo_scanned();
     cargo_found();
     cargo_report();

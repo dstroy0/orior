@@ -3,24 +3,24 @@
 // deflate_tokens.c: matching, tokens and Huffman code lengths
 #include "deflate_internal.h"
 
-unsigned int deflate_length_slot(unsigned int length)
+unsigned int deflate_length_code(unsigned int length)
 {
-    unsigned int slot = DEFLATE_LENGTH_SLOTS - 1u;
-    while (deflate_length_base[slot] > length)
+    unsigned int code = DEFLATE_LENGTH_CODES - 1u;
+    while (deflate_length_base[code] > length)
     {
-        slot -= 1u;
+        code -= 1u;
     }
-    return slot;
+    return code;
 }
 
-unsigned int deflate_distance_slot(unsigned int distance)
+unsigned int deflate_distance_code(unsigned int distance)
 {
-    unsigned int slot = DEFLATE_DISTANCE_CODES - 1u;
-    while (deflate_distance_base[slot] > distance)
+    unsigned int code = DEFLATE_DISTANCE_CODES - 1u;
+    while (deflate_distance_base[code] > distance)
     {
-        slot -= 1u;
+        code -= 1u;
     }
-    return slot;
+    return code;
 }
 
 static unsigned long long deflate_key(const DeflateMatcher *matcher, unsigned long long at)
@@ -41,9 +41,9 @@ static void deflate_insert(DeflateMatcher *matcher, unsigned long long at)
     {
         return;
     }
-    const unsigned long long slot = deflate_key(matcher, at);
-    matcher->previous[at] = matcher->heads[slot];
-    matcher->heads[slot] = at + 1ull;
+    const unsigned long long code = deflate_key(matcher, at);
+    matcher->previous[at] = matcher->heads[code];
+    matcher->heads[code] = at + 1ull;
 }
 
 static unsigned long long deflate_find(const DeflateMatcher *matcher, unsigned long long at,

@@ -31,13 +31,13 @@ extern CliSconsFile g_cli_scons;
 extern CliLock g_cli_scons_lock;
 
 // the names SCons gives an SConstruct and an SConscript, an environment's methods, the construction variables an
-// environment holds most often, and the calls whose keyword arguments are construction variables (scons.c)
+// environment contains most often, and the calls whose keyword arguments are construction variables (scons.c)
 extern const char *const g_cli_scons_globals[76];
 extern const char *const g_cli_scons_methods[52];
 extern const char *const g_cli_scons_variables[44];
 extern const char *const g_cli_scons_setters[16];
 
-// `size` bytes of a file read, its bytes classed into `class_of`, which holds `size`: 1, or 0 where it is larger than
+// `size` bytes of a file read, its bytes classed into `class_of`, sized for `size`: 1, or 0 where it is larger than
 // CLI_SCONS_TEXT (scons.c)
 int cli_scons_read(const char *text, unsigned long long size, unsigned char *class_of);
 
@@ -75,8 +75,8 @@ void cli_scons_check(const char *root, const char *path, const char *text, unsig
 void cli_scons_given(const char *text, unsigned long long size,
                      void (*each)(void *context, const char *name, unsigned long long size), void *context);
 void cli_scons_complete(const char *text, unsigned long long size, unsigned long long at, CliCompletions *items);
-// the scons checks' own report, `<pool's bytes> <their mark> 0`, the most their rooms held of the cellblock at once,
-// written into `out` (scons_check.c)
-void cli_scons_cells_said(CliLine *out);
+// the scons checks' own report, `<pool's bytes> <their mark> 0`, the most their rooms occupied of the cellblock at
+// once, written into `out` (scons_check.c)
+void cli_scons_cells_usage_written(VerbaLinea *out);
 
 #endif

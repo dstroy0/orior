@@ -9,7 +9,7 @@ _Alignas(8) static const char s_daemon_usage[] = "  tessera daemon: --device <32
 _Alignas(8) static const
     char s_daemon_no_state[] = "  tessera daemon: no state directory could be made for this device\n";
 _Alignas(8) static const
-    char s_daemon_long_socket[] = "  tessera daemon: the socket path is longer than a Unix socket holds: ";
+    char s_daemon_long_socket[] = "  tessera daemon: the socket path is longer than a Unix socket allows: ";
 _Alignas(8) static const char s_daemon_unbound[] = "  tessera daemon: this socket could not be bound: ";
 _Alignas(8) static const char s_daemon_answered[] = "  tessera daemon: another daemon already answers at this socket: ";
 _Alignas(8) static const char s_daemon_unmeasured[] = "  tessera daemon: the device's memory could not be measured by "
@@ -80,7 +80,8 @@ int main(int count, char **arguments)
             return 1;
         }
         memcpy(address.sun_path, g_daemon.endpoint, strlen(g_daemon.endpoint) + 1u);
-        // the path names the device instead of the state: a daemon with another state, or systemd's socket, may hold it
+        // the path names the device instead of the state: a daemon with another state, or systemd's socket, may occupy
+        // it
         const int probe = socket(AF_UNIX, SOCK_STREAM, 0);
         const int answered = (probe >= 0) && (connect(probe, (const struct sockaddr *)&address, sizeof(address)) == 0);
         if (probe >= 0)

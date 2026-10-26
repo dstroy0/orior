@@ -8,8 +8,8 @@
 // A file changed in an archive is saved back into it: the archive is written anew beside the old one, each other
 // file's bytes as they were, the changed one deflated, and put in the old one's place.
 //
-// A zip's names are UTF-8 where its flag says so, and otherwise the old DOS page, 437; each name's own bytes go with
-// it, for the window to read in an encoding the reader chooses. Deflate, CRC-32, zip, tar and gzip are read and
+// A zip's names are UTF-8 where its flag specifies so, and otherwise the old DOS page, 437; each name's own bytes go
+// with it, for the window to read in an encoding the reader chooses. Deflate, CRC-32, zip, tar and gzip are read and
 // written here, with nothing from outside.
 //
 // A query run's .qry opens as a folder of its blobs, each name's blobs joined in the order handed into one file, a
@@ -62,7 +62,7 @@ typedef struct
     unsigned long long used;
 } CliMembers;
 
-// What an archive, or a folder within one, holds: each child's name, its path within the archive, whether it is a
+// What an archive, or a folder within one, contains: each child's name, its path within the archive, whether it is a
 // folder or an archive, and its name's own bytes, in hex, where they are not UTF-8
 typedef struct
 {
@@ -84,32 +84,32 @@ typedef struct
 
 // the kind of archive a file is by its name, CLI_ARCHIVE_NONE for none
 unsigned int cli_archive_kind_of(const char *name);
-// the CRC-32 of `size` bytes; the bytes deflated `data` holds into `out`, which holds `room`, their count into
-// `out_size` and the bytes of `data` it took into `used`: 1, or 0 with why said; `size` bytes of `data` deflated, in
+// the CRC-32 of `size` bytes; the bytes deflated `data` contains into `out`, sized for `room`, their count into
+// `out_size` and the bytes of `data` it took into `used`: 1, or 0 with why given; `size` bytes of `data` deflated, in
 // one block of the fixed codes, each run seen in the 32 KiB before it sent as a length and a distance back, into `out`,
-// which holds `room`: their count, or 0 where they do not fit (archive_deflate.c)
+// sized for `room`: their count, or 0 where they do not fit (archive_deflate.c)
 unsigned int cli_crc32(const unsigned char *bytes, unsigned long long size);
 int cli_inflate(const unsigned char *data, unsigned long long size, unsigned char *out, unsigned long long room,
-                unsigned long long *out_size, unsigned long long *used, CliLine *said);
+                unsigned long long *out_size, unsigned long long *used, VerbaLinea *err_msg);
 unsigned long long cli_deflate(const unsigned char *data, unsigned long long size, unsigned char *out,
                                unsigned long long room);
-// what a gzip holds, unzipped, into `out`, which holds `room`, its count into `out_size`: 1, or 0 with why said; and
+// what a gzip contains, unzipped, into `out`, sized for `room`, its count into `out_size`: 1, or 0 with why given; and
 // `size` bytes of `data` gzipped into `out`: their count, or 0 where they do not fit (archive_tar.c)
 int cli_gunzip(const unsigned char *bytes, unsigned long long size, unsigned char *out, unsigned long long room,
-               unsigned long long *out_size, CliLine *said);
+               unsigned long long *out_size, VerbaLinea *err_msg);
 unsigned long long cli_gzip(const unsigned char *data, unsigned long long size, unsigned char *out,
                             unsigned long long room);
 // `size` bytes read in the old DOS page, 437, written as UTF-8 after `out` (archive_zip.c)
-void cli_dos(const unsigned char *bytes, unsigned long long size, CliLine *out);
-// where a path of the tree runs into an archive: the archive's file into `file`, which holds CLI_PATH_LONGEST, and the
-// path's parts past it, joined by `/`, into `inner`, which holds CLI_PATH_LONGEST: 1, or 0 where the path runs into no
+void cli_dos(const unsigned char *bytes, unsigned long long size, VerbaLinea *out);
+// where a path of the tree runs into an archive: the archive's file into `file`, sized for CLI_PATH_MAX_LEN, and the
+// path's parts past it, joined by `/`, into `inner`, sized for CLI_PATH_MAX_LEN: 1, or 0 where the path runs into no
 // archive; the children of the folder of the tree `path` that is an archive or runs into one; the bytes of the file of
 // the tree `path` within an archive, into `out`; and `size` bytes of `data` saved as that file, the archive written
-// anew beside the old one and then put in its place. Each 1, or 0 with why said (archive_path.c)
+// anew beside the old one and then put in its place. Each 1, or 0 with why given (archive_path.c)
 int cli_archive_split(const char *root, const char *path, char *file, char *inner);
-int cli_archive_list(const char *root, const char *path, CliChildren *found, CliLine *said);
-int cli_archive_read(const char *root, const char *path, CliLine *out, CliLine *said);
+int cli_archive_list(const char *root, const char *path, CliChildren *found, VerbaLinea *err_msg);
+int cli_archive_read(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg);
 int cli_archive_write(const char *root, const char *path, const unsigned char *data, unsigned long long size,
-                      CliLine *said);
+                      VerbaLinea *err_msg);
 
 #endif

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -14,12 +14,12 @@
  * WHAT THIS PROVES. A single descent places at most ORIOR_STEER_ANCHORS probes and resets its
  * survivor vector to all standing on entry. That caps one descent at four conditions. The resume
  * member of OriorSteerDescent lifts the cap by composition: run a descent, then run the next over
- * the survivors the last one left. Each level reads only what its parent kept standing and the
+ * the survivors the last one left. Each level reads only what its parent left standing and the
  * depth is data-dependent and unbounded. This suite drives that composition and grades it against the
  * controls a recursive search needs.
  *
- *   POSITIVE CONTROL. A field with one planted occurrence over N alignments. A probe asks every
- *   survivor one yes-or-no question, whether its byte at one offset is the needle's, and keeps the
+ *   POSITIVE CONTROL. A field with one planted occurrence over N alignments. A probe poses every
+ *   survivor one yes-or-no question, whether its byte at one offset is the needle's, and retains the
  *   target's side. Sides that halved the survivors would take log2(N) probes, eleven with N past
  *   2000. The descent places the probe that prunes most and a side can be under half: a given
  *   target can take fewer; the run prints how many. Isolating the target composes past one
@@ -34,7 +34,7 @@
  *   no cheap condition errors, it does not answer.
  *
  *   ANYTIME. Stopped early, before the target is isolated, the survivor set is still a superset that
- *   contains the target. Containment holds at every level because a probe only ever turns an
+ *   contains the target. Containment is preserved at every level because a probe only ever turns an
  *   alignment off, never on.
  *
  *   COST. The read cost of the composition is the sum of the survivor counts down the levels, not the
@@ -168,8 +168,8 @@ static int o2_case_found_past_cap(void)
         return 1;
     }
 
-    // A binary field, where a probe keeps the survivors whose byte at one offset is the needle's,
-    // about half of them: isolating one of N alignments takes more probes than one descent holds.
+    // A binary field, where a probe retains the survivors whose byte at one offset is the needle's,
+    // about half of them: isolating one of N alignments takes more probes than one descent allows.
     uint64_t state = 0x0123456789ABCDEFULL;
     o2_fill(corpus, 2u, &state);
 

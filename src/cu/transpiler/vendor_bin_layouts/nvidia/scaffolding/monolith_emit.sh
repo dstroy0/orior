@@ -55,20 +55,20 @@ for source in "$CODEGEN_CU"/*.cu "$CODEGEN_CU_2"/*.cu "$CODEGEN_CU_2"/../file_de
     esac
     object="$OUT/$(basename "$source").o"
     if [ ! -f "$object" ] || [ "$source" -nt "$object" ]; then
-        c++ -std=c++17 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" \
+        "$FILE_DEFS_CXX" -std=c++17 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" \
             -I "$CODEGEN_CU_2" -I "$HERE" -x c++ -c "$source" -o "$object" || exit 1
     fi
     OBJECTS+=("$object")
 done
-for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
-    object="$OUT/$(basename "$source").o"
-    cc -std=c11 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" -c "$source" \
-        -o "$object" || exit 1
+for source in "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_machine/*.c "${FILE_DEFS_FORMATS[@]}" "${FILE_DEFS_LINEA[@]}" "$TOP"/src/cu/transpiler/vendor_bin_layouts/nvidia/sass_assemble/*.c; do
+    object="$OUT/$(printf '%s' "${source#"$TOP"/}" | tr '/' '_').o"
+    cc -std=c11 -O1 -w -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CUBIN" -I "$KRS_C" \
+        "${FILE_DEFS_MMGR_FLAGS[@]}" -c "$source" -o "$object" || exit 1
     OBJECTS+=("$object")
 done
-c++ -std=c++17 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" \
+"$FILE_DEFS_CXX" -std=c++17 -O1 -Wall -I "$TOP/src/cu/engine" -I "$TOP/src/cu/engine" -I "$CODEGEN" -I "$CODEGEN_CU" \
     -I "$CODEGEN_CU_2" -I "$CUBIN" -c "$TOP/src/cu/transpiler/vendor_bin_layouts/nvidia/scaffolding/monolith_emit.cpp" -o "$OUT/monolith_emit.o" || exit 1
-c++ -o "$OUT/monolith_emit" "$OUT/monolith_emit.o" "${OBJECTS[@]}" || exit 1
+"$FILE_DEFS_CXX" -o "$OUT/monolith_emit" "$OUT/monolith_emit.o" "${OBJECTS[@]}" || exit 1
 
 cd "$TOP" || exit 1
 "$OUT/monolith_emit" "build/monolith/emit/monolith_tagged.listing" all \

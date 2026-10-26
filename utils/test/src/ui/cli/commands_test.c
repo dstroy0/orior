@@ -8,11 +8,12 @@
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     static CliItem s_items[CLI_ITEMS_MOST];
-    static char s_words[CLI_MENUS_MOST][CLI_LABEL_LONGEST];
+    static char s_words[CLI_MENUS_MOST][CLI_LABEL_MAX_LEN];
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_commands_read(&said), "the menus read");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_commands_read(&err_msg), "the menus read");
     int once = 1;
     int commands_once = 1;
     int one_word = 1;
@@ -26,7 +27,7 @@ int main(void)
                 (!cellul.eq(&(CatenaFinitaCfg){.src = s_words[before], .other = s_words[menu], .cap = CLI_CELLS_POOL}));
         }
         const unsigned int items = cli_menu_items(menu, s_items, CLI_ITEMS_MOST);
-        char group[1][CLI_LABEL_LONGEST];
+        char group[1][CLI_LABEL_MAX_LEN];
         const int of_jobs = cli_menu_groups(menu, group, 1u) > 0u;
         for (unsigned int at = 0u; at < items; at += 1u)
         {
@@ -44,7 +45,7 @@ int main(void)
         }
     }
     cli_check(once, "no two menus share a word");
-    cli_check(commands_once, "no menu holds a command twice");
+    cli_check(commands_once, "no menu contains a command twice");
     cli_check(one_word, "every command is one word");
     cli_check(no_job, "no command of a menu of jobs reads as a job");
     // the words an item needs are its <word>s outside brackets, a choice among them one
@@ -56,15 +57,15 @@ int main(void)
         {"<file> <line> [condition [hits [message]]]", 2u},
         {"[folder]", 0u},
         {"<bar|menu|pane> <percent>", 2u},
-        {"[<from> [<words>]] <slot>", 1u},
+        {"[<from> [<words>]] <place>", 1u},
     };
     int counted = 1;
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
         CliItem item = {0};
-        CliLine args = {item.args, sizeof(item.args), 0ull};
-        cli_line_text(&args, s_needs[at].args);
-        (void)cli_line_closed(&args);
+        VerbaLinea args = {item.args, sizeof(item.args), 0ull};
+        mmgr_line_put(&args, s_needs[at].args);
+        (void)mmgr_line_finish(&args);
         counted &= cli_item_words_needed(&item) == s_needs[at].needed;
     }
     cli_check(counted, "an item needs each <word> of its args outside a bracket");

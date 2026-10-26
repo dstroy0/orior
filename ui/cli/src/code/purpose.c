@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// purpose.c: what a file says it is for, and the files of the tree that use it, read on the cores the work may take
+// purpose.c: what a file declares it is for, and the files of the tree that use it, read on the cores the work may take
 #include "purpose.h"
 #include "../command_line/cells.h"
 #include "../editor/files_internal.h"
@@ -121,46 +121,46 @@ int cli_purpose_uses(const char *text, unsigned long long size, const char *name
     return 0;
 }
 
-// `size` bytes read as UTF-8 into `text`, which holds CLI_PURPOSE_TEXT, each byte that starts no whole letter read as
+// `size` bytes read as UTF-8 into `text`, sized for CLI_PURPOSE_TEXT, each byte that starts no whole letter read as
 // U+FFFD, a 0 after them: their length
 static unsigned long long cli_text_of(const unsigned char *bytes, unsigned long long size, char *text)
 {
-    CliLine line = {text, CLI_PURPOSE_TEXT, 0ull};
+    VerbaLinea line = {text, CLI_PURPOSE_TEXT, 0ull};
     cli_lossy(&line, bytes, size);
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     return line.at;
 }
 
-int cli_purpose_said(const char *root, const char *path, CliLine *out, CliLine *said)
+int cli_purpose_written(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
 {
     static char s_text[(CLI_PURPOSE_HEAD * 3u) + 1u];
-    static char s_said[1u << 16u];
+    static char s_comment_buf[1u << 16u];
     static CliLock s_lock = CLI_LOCK_INIT;
-    char file[CLI_PATH_LONGEST];
-    if (!cli_inside(root, path, file, said))
+    char file[CLI_PATH_MAX_LEN];
+    if (!cli_inside(root, path, file, err_msg))
     {
         return 0;
     }
     unsigned long long size = 0ull;
-    const unsigned char *const bytes = cli_file_held(file, &size);
+    const unsigned char *const bytes = cli_file_read(file, &size);
     if (bytes == NULL)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
     const unsigned long long head = (size < CLI_PURPOSE_HEAD) ? size : CLI_PURPOSE_HEAD;
     cli_lock_take(&s_lock);
-    CliLine comment = {s_said, sizeof(s_said), 0ull};
+    VerbaLinea comment = {s_comment_buf, sizeof(s_comment_buf), 0ull};
     if ((head == 0ull) || (memor.chr(&(MemoriaCfg){.src = bytes, .val = 0, .bytes = head}) == NULL))
     {
-        CliLine text = {s_text, sizeof(s_text), 0ull};
+        VerbaLinea text = {s_text, sizeof(s_text), 0ull};
         cli_lossy(&text, bytes, head);
-        cli_line_closed(&text);
+        mmgr_line_finish(&text);
         cli_purpose_first_comment(file, s_text, text.at, &comment);
     }
     cli_file_let_go(bytes, size);
-    cli_json_quoted(out, s_said, comment.at);
+    cli_json_quoted(out, s_comment_buf, comment.at);
     cli_lock_give(&s_lock);
     return 1;
 }
@@ -175,14 +175,15 @@ typedef struct
 } CliPurposePart;
 
 // The search for users: the tree's files, the file used, its name and stem, the files that use it, the readers, and
-// how many have ended, and what the file says of itself; a cell taken with the users' lock and given back with it
+// how many have ended, and what the file declares about itself; a cell taken with the users' lock and given back with
+// it
 typedef struct
 {
-    char said[1u << 17u];
+    char comment_buf[1u << 17u];
     const char *root;
     const char *path;
-    char name[CLI_PATH_LONGEST];
-    char stem[CLI_PATH_LONGEST];
+    char name[CLI_PATH_MAX_LEN];
+    char stem[CLI_PATH_MAX_LEN];
     const CliFiles *files;
     unsigned char used[CLI_FILES_MOST];
     CliPurposePart part[CLI_PURPOSE_THREADS];
@@ -205,10 +206,10 @@ static void cli_part_read(CliPurposePart *part)
         {
             continue;
         }
-        char full[CLI_PATH_LONGEST];
+        char full[CLI_PATH_MAX_LEN];
         cli_full(s_users->root, other, full);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_held(full, &size);
+        const unsigned char *const bytes = cli_file_read(full, &size);
         if (bytes == NULL)
         {
             continue;
@@ -233,9 +234,9 @@ static void cli_part_thread(void *context)
 }
 
 // the users found written: the first CLI_PURPOSE_USERS by path, and how many in all
-static void cli_users_written(CliLine *out)
+static void cli_users_written(VerbaLinea *out)
 {
-    cli_line_text(out, "\"users\":[");
+    mmgr_line_put(out, "\"users\":[");
     unsigned int all = 0u;
     for (unsigned int index = 0u; (s_users->files != NULL) && (index < s_users->files->count); index += 1u)
     {
@@ -246,20 +247,20 @@ static void cli_users_written(CliLine *out)
         if (all < CLI_PURPOSE_USERS)
         {
             const char *const path = cli_files_at(s_users->files, index);
-            cli_line_text(out, (all != 0u) ? "," : "");
+            mmgr_line_put(out, (all != 0u) ? "," : "");
             cli_json_quoted(out, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
         }
         all += 1u;
     }
-    cli_line_text(out, "],\"all\":");
-    cli_line_decimal(out, all, 0u);
+    mmgr_line_put(out, "],\"all\":");
+    mmgr_line_decimal(out, all, 0u);
 }
 
-// the files of the tree that use the file at `path` found: 1, or 0 with why said
-static int cli_users_found(const char *root, const char *path, CliLine *said)
+// the files of the tree that use the file at `path` found: 1, or 0 with why given
+static int cli_users_found(const char *root, const char *path, VerbaLinea *err_msg)
 {
-    char file[CLI_PATH_LONGEST];
-    if (!cli_inside(root, path, file, said))
+    char file[CLI_PATH_MAX_LEN];
+    if (!cli_inside(root, path, file, err_msg))
     {
         return 0;
     }
@@ -282,7 +283,7 @@ static int cli_users_found(const char *root, const char *path, CliLine *said)
     }
     s_users->root = root;
     s_users->path = path;
-    s_users->files = cli_files_held(root);
+    s_users->files = cli_files_view(root);
     const unsigned int count = (s_users->files != NULL) ? s_users->files->count : 0u;
     const unsigned int cores = cli_cores_for_work();
     const unsigned int parts = (cores < 1u) ? 1u : ((cores > CLI_PURPOSE_THREADS) ? CLI_PURPOSE_THREADS : cores);
@@ -315,15 +316,15 @@ static int cli_users_found(const char *root, const char *path, CliLine *said)
     return 1;
 }
 
-// the users' lock taken and the search a cell under it: 1, or 0 with why said and the lock given back
-static int cli_users_held(CliLine *said)
+// the users' lock taken and the search a cell under it: 1, or 0 with why given and the lock given back
+static int cli_users_locked(VerbaLinea *err_msg)
 {
     cli_lock_take(&s_users_lock);
-    s_users = cli_cell_taken(sizeof(*s_users), "a search for users");
+    s_users = g_cli_cells->persistent_buf_alloc(sizeof(*s_users), NULL);
     if (s_users == NULL)
     {
         cli_lock_give(&s_users_lock);
-        cli_line_text(said, "a search for users could not be taken");
+        mmgr_line_put(err_msg, "a search for users could not be taken");
         return 0;
     }
     const CliWake woken = CLI_WAKE_INIT;
@@ -332,47 +333,47 @@ static int cli_users_held(CliLine *said)
     return 1;
 }
 
-// the search given back with the view of the tree's files it held, and the users' lock with it
+// the search given back with the view of the tree's files it retained, and the users' lock with it
 static void cli_users_released(void)
 {
     cli_files_let(s_users->files);
-    cli_cell_given(s_users);
+    g_cli_cells->persistent_buf_release(s_users, NULL);
     s_users = NULL;
     cli_lock_give(&s_users_lock);
 }
 
-int cli_purpose_users(const char *root, const char *path, CliLine *out, CliLine *said)
+int cli_purpose_users(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!cli_users_held(said))
+    if (!cli_users_locked(err_msg))
     {
         return 0;
     }
-    const int found = cli_users_found(root, path, said);
+    const int found = cli_users_found(root, path, err_msg);
     if (found)
     {
-        cli_line_character(out, '{');
+        mmgr_line_ch(out, '{');
         cli_users_written(out);
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
     cli_users_released();
     return found;
 }
 
-int cli_purpose(const char *root, const char *path, CliLine *out, CliLine *said)
+int cli_purpose(const char *root, const char *path, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    if (!cli_users_held(said))
+    if (!cli_users_locked(err_msg))
     {
         return 0;
     }
-    CliLine comment = {s_users->said, sizeof(s_users->said), 0ull};
-    const int found = cli_purpose_said(root, path, &comment, said) && cli_users_found(root, path, said);
+    VerbaLinea comment = {s_users->comment_buf, sizeof(s_users->comment_buf), 0ull};
+    const int found = cli_purpose_written(root, path, &comment, err_msg) && cli_users_found(root, path, err_msg);
     if (found)
     {
-        cli_line_text(out, "{\"said\":");
-        cli_line_counted(out, s_users->said, comment.at);
-        cli_line_character(out, ',');
+        mmgr_line_put(out, "{\"comment\":");
+        mmgr_line_put_n(out, s_users->comment_buf, comment.at);
+        mmgr_line_ch(out, ',');
         cli_users_written(out);
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
     cli_users_released();
     return found;

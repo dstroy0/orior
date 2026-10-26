@@ -1,17 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// qry_crystal.c: a finished run's .qry kept as the engine's crystal, .kcr, and read back out of it (qry_run.sh). The
+// qry_crystal.c: a finished run's .qry stored as the engine's crystal, .kcr, and read back out of it (qry_run.sh). The
 // .qry's bytes are the lanes of one axis, and the engine lifts, codes and seals them as it does any sample
 // (engine_ingest_set): every sample is checked against its seal and against the bytes it was made from before the call
-// returns, and then loaded again here and held to the .qry byte for byte. Nothing is let go before every one held.
+// returns, and then loaded again here and checked against the .qry byte for byte. Nothing is let go before every one
+// matched.
 //
 //     qry_crystal write <run .qry> <set folder>    the .qry's bytes, QRY_CRYSTAL_PART at a time, each the sample
 //                                                 part<n> of the set, at <set folder>/part<n>/part<n>.kcr
 //     qry_crystal read <set folder> <run .qry>     the set's samples loaded in order and their bytes joined into the
 //                                                 .qry
 //
-// The lifting runs on the device. Exit 0 where it was done and every sample held, 1 where it was not, 2 where the words
-// are none of the above
+// The lifting runs on the device. Exit 0 where it was done and every sample matched, 1 where it was not, 2 where the
+// words are none of the above
 #include "../../../engine/engine.h"
 
 #include <stdio.h>
@@ -26,15 +27,15 @@
 #define QRY_CRYSTAL_FOLDER_REMOVED(path_) rmdir(path_)
 #endif
 
-// the most bytes of the .qry one sample takes, which bounds what the device holds while it lifts one: two bytes a lane
+// the most bytes of the .qry one sample takes, which bounds what the device stores while it lifts one: two bytes a lane
 // and four a coefficient, with the tower's blocks beside them
 #define QRY_CRYSTAL_PART (256ull << 20u)
 
-// the most samples a set holds, and the source folder the samples are read from while the set is made, inside it
+// the most samples a set contains, and the source folder the samples are read from while the set is made, inside it
 #define QRY_CRYSTAL_PARTS 4096u
 #define QRY_CRYSTAL_SOURCE "source"
 
-static void qry_crystal_error_said(const char *what, const EngineError *error)
+static void qry_crystal_error_printed(const char *what, const EngineError *error)
 {
     fprintf(stderr, "qry_crystal: %s (kind %d, module %d, site %u, status %d)\n", what, (int)error->kind,
             (int)error->module, error->site, error->status);
@@ -46,7 +47,8 @@ static int qry_crystal_npy_written(const char *path, const unsigned char *bytes,
 {
     char header[160];
     int length = snprintf(header, sizeof(header), "{'descr': '|u1', 'fortran_order': False, 'shape': (%llu,), }", count);
-    // the header is padded with spaces to a line ending that leaves the data on a 64 byte boundary, as the format asks
+    // the header is padded with spaces to a line ending that leaves the data on a 64 byte boundary, as the format
+    // requires
     while (((10 + length + 1) % 64) != 0)
     {
         header[length] = ' ';
@@ -116,7 +118,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         free(bytes);
         return 0;
     }
-    // the samples lifted, coded and sealed on the device, each read back and held to its source by the engine
+    // the samples lifted, coded and sealed on the device, each read back and checked against its source by the engine
     EngineError error;
     memset(&error, 0, sizeof(error));
     static EngineSampleRecord s_records[QRY_CRYSTAL_PARTS];
@@ -128,9 +130,9 @@ static int qry_crystal_written(const char *qry, const char *set)
     whole = (engine_ingest_set(&ingest) != ENGINE_ERROR);
     if (!whole)
     {
-        qry_crystal_error_said("the engine did not make the set", &error);
+        qry_crystal_error_printed("the engine did not make the set", &error);
     }
-    // each sample loaded again and held to the .qry byte for byte
+    // each sample loaded again and checked against the .qry byte for byte
     FILE *const again = whole ? fopen(qry, "rb") : NULL;
     unsigned long long differ = 0ull;
     for (unsigned int part = 0u; whole && (part < parts); part += 1u)
@@ -154,7 +156,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         free(lanes);
         if (!whole)
         {
-            qry_crystal_error_said("a sample did not hold", &error);
+            qry_crystal_error_printed("a sample did not match", &error);
         }
     }
     if (again != NULL)
@@ -162,7 +164,7 @@ static int qry_crystal_written(const char *qry, const char *set)
         fclose(again);
     }
     free(bytes);
-    // the sources let go, whether the set held or not
+    // the sources let go, whether the set matched or not
     for (unsigned int part = 0u; part < parts; part += 1u)
     {
         char path[1200];
@@ -172,11 +174,11 @@ static int qry_crystal_written(const char *qry, const char *set)
     QRY_CRYSTAL_FOLDER_REMOVED(source);
     if (!whole || (differ != 0ull))
     {
-        fprintf(stderr, "qry_crystal: %s did not hold as the set %s: %llu bytes differ\n", qry, set, differ);
+        fprintf(stderr, "qry_crystal: %s did not match as the set %s: %llu bytes differ\n", qry, set, differ);
         return 0;
     }
-    printf("  qry_crystal: %s, %llu bytes in %u sample(s), kept as %llu bytes, every byte held\n", qry, total, parts,
-           report.crystal_bytes);
+    printf("  qry_crystal: %s, %llu bytes in %u sample(s), stored as %llu bytes, every byte matched\n", qry, total,
+           parts, report.crystal_bytes);
     return 1;
 }
 
@@ -198,12 +200,12 @@ static int qry_crystal_read(const char *set, const char *qry)
         char path[1200];
         snprintf(name, sizeof(name), "part%04u", parts);
         engine_sample_path(path, sizeof(path), set, name, ".kcr");
-        FILE *const held = fopen(path, "rb");
-        if (held == NULL)
+        FILE *const sample_file = fopen(path, "rb");
+        if (sample_file == NULL)
         {
             break;
         }
-        fclose(held);
+        fclose(sample_file);
         unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
         unsigned short *lanes = NULL;
         EngineSignum root;
@@ -216,7 +218,7 @@ static int qry_crystal_read(const char *set, const char *qry)
         bytes = (larger != NULL) ? larger : bytes;
         for (unsigned long long at = 0ull; whole && (at < count); at += 1ull)
         {
-            // a lane of an unsigned byte holds that byte
+            // a lane of an unsigned byte represents that byte
             bytes[at] = (unsigned char)lanes[at];
         }
         whole = whole && (fwrite(bytes, 1u, (size_t)count, file) == (size_t)count);
@@ -224,7 +226,7 @@ static int qry_crystal_read(const char *set, const char *qry)
         free(lanes);
         if (!whole)
         {
-            qry_crystal_error_said("a sample could not be loaded", &error);
+            qry_crystal_error_printed("a sample could not be loaded", &error);
         }
     }
     free(bytes);

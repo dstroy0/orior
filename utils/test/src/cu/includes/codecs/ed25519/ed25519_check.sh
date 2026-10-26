@@ -11,8 +11,11 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOP="$(cd "$HERE/../../../../../../.." && pwd)"
 OUT="$TOP/build/ed25519"
 mkdir -p "$OUT"
+source "$TOP/src/cu/includes/file_defs/file_defs.sh"
+# a program built before under the other name, with or without .exe, would be run in place of the one built here
+rm -f "$OUT/ed25519_check" "$OUT/ed25519_check.exe"
 
 "${CC:-cc}" -std=c11 -O2 -Wall -Wextra -o "$OUT/ed25519_check" "$HERE/ed25519_check.c" \
     "$TOP/src/cu/includes/codecs/ed25519/ed25519.c" "$TOP/src/cu/includes/codecs/sha512/sha512.c" \
-    "$TOP"/src/cu/engine/runtime/scriptura/*.c || exit 1
+    "${FILE_DEFS_MMGR_FLAGS[@]}" "${FILE_DEFS_LINEA[@]}" || exit 1
 "$OUT/ed25519_check"

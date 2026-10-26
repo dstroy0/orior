@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// symbols_table.c: the files the symbols' index holds, in a table whose room doubles as files are held, each found by
-// its path through a table of buckets twice its room, made again as it grows and as it is put together
+// symbols_table.c: the files the tree stores, in a table whose room doubles as files are stored, each found by its
+// path through a table of buckets twice its room, made again as it grows and as it is put together
 #include "../command_line/cells.h"
-#include "symbols_index.h"
+#include "symbols_tree.h"
 
-// the files the table's room is begun with, doubling as files are held, its paths' table twice as many buckets
+// the files the table's room is begun with, doubling as files are stored, its paths' table twice as many buckets
 #define CLI_SYMBOL_FILES_FIRST 256u
 
 // an empty bucket of the table of paths, and one whose file was let go
@@ -13,7 +13,7 @@
 
 #define CLI_BUCKET_GONE 0xffffffffu
 
-CliHeldFile *g_cli_symbol_files;
+CliSymbolFile *g_cli_symbol_files;
 unsigned int g_cli_symbol_file_count;
 static unsigned int s_file_room;
 static unsigned int *s_buckets;
@@ -29,15 +29,15 @@ static unsigned long long cli_hash(const char *path)
     return value;
 }
 
-// a file held's path, and its declarations
-const char *cli_held_path(const CliHeldFile *held)
+// a file stored's path, and its declarations
+const char *cli_symbol_file_path(const CliSymbolFile *branch)
 {
-    return held->cell + held->path;
+    return branch->cell + branch->path;
 }
 
-const CliSymbol *cli_held_symbols(const CliHeldFile *held)
+const CliSymbol *cli_symbol_file_symbols(const CliSymbolFile *branch)
 {
-    return (const CliSymbol *)(const void *)held->cell;
+    return (const CliSymbol *)(const void *)branch->cell;
 }
 
 unsigned int cli_symbols_file_of(const char *path)
@@ -49,12 +49,12 @@ unsigned int cli_symbols_file_of(const char *path)
     unsigned long long bucket = cli_hash(path) % s_bucket_room;
     for (unsigned int tried = 0u; (tried < s_bucket_room) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
     {
-        const unsigned int held = s_buckets[bucket];
-        if ((held != CLI_BUCKET_GONE) &&
+        const unsigned int place = s_buckets[bucket];
+        if ((place != CLI_BUCKET_GONE) &&
             (cellul.eq(&(CatenaFinitaCfg){
-                .src = cli_held_path(&g_cli_symbol_files[held - 1u]), .other = path, .cap = CLI_CELLS_POOL})))
+                .src = cli_symbol_file_path(&g_cli_symbol_files[place - 1u]), .other = path, .cap = CLI_CELLS_POOL})))
         {
-            return held - 1u;
+            return place - 1u;
         }
         bucket = (bucket + 1u) % s_bucket_room;
     }
@@ -71,7 +71,7 @@ void cli_symbols_bucket_put(const char *path, unsigned int file)
     s_buckets[bucket] = file + 1u;
 }
 
-// the paths' table emptied, then each file held put in it again
+// the paths' table emptied, then each file stored put in it again
 static void cli_buckets_made(void)
 {
     memor.set(&(MemoriaCfg){.dst = s_buckets, .val = 0, .bytes = (size_t)s_bucket_room * sizeof(unsigned int)});
@@ -79,33 +79,32 @@ static void cli_buckets_made(void)
     {
         if (g_cli_symbol_files[at].used)
         {
-            cli_symbols_bucket_put(cli_held_path(&g_cli_symbol_files[at]), at);
+            cli_symbols_bucket_put(cli_symbol_file_path(&g_cli_symbol_files[at]), at);
         }
     }
 }
 
-// the table of files' room doubled, and the paths' table with it, made again: 1, or 0 where it holds the most or a
+// the table of files' room doubled, and the paths' table with it, made again: 1, or 0 where it contains the most or a
 // cell is refused
 static int cli_files_grown(void)
 {
     const unsigned int doubled = (s_file_room == 0u) ? CLI_SYMBOL_FILES_FIRST : (s_file_room * 2u);
     const unsigned int room = (doubled < CLI_SYMBOL_FILES) ? doubled : CLI_SYMBOL_FILES;
-    CliHeldFile *const files =
+    CliSymbolFile *const files =
         (s_file_room < CLI_SYMBOL_FILES)
-            ? cli_cell_taken((unsigned long long)room * sizeof(CliHeldFile), "the files of the symbols' index")
+            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliSymbolFile), NULL)
             : NULL;
     unsigned int *const buckets =
-        (files != NULL) ? cli_cell_taken(2ull * room * sizeof(unsigned int), "the paths' table of the symbols' index")
-                        : NULL;
+        (files != NULL) ? g_cli_cells->persistent_buf_alloc(2ull * room * sizeof(unsigned int), NULL) : NULL;
     if (buckets == NULL)
     {
-        cli_cell_given(files);
+        g_cli_cells->persistent_buf_release(files, NULL);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){
-        .dst = files, .src = g_cli_symbol_files, .bytes = (size_t)g_cli_symbol_file_count * sizeof(CliHeldFile)});
-    cli_cell_given(g_cli_symbol_files);
-    cli_cell_given(s_buckets);
+        .dst = files, .src = g_cli_symbol_files, .bytes = (size_t)g_cli_symbol_file_count * sizeof(CliSymbolFile)});
+    g_cli_cells->persistent_buf_release(g_cli_symbol_files, NULL);
+    g_cli_cells->persistent_buf_release(s_buckets, NULL);
     g_cli_symbol_files = files;
     s_file_room = room;
     s_buckets = buckets;
@@ -116,7 +115,7 @@ static int cli_files_grown(void)
 
 void cli_symbols_let_go(unsigned int file)
 {
-    unsigned long long bucket = cli_hash(cli_held_path(&g_cli_symbol_files[file])) % s_bucket_room;
+    unsigned long long bucket = cli_hash(cli_symbol_file_path(&g_cli_symbol_files[file])) % s_bucket_room;
     for (unsigned int tried = 0u; (tried < s_bucket_room) && (s_buckets[bucket] != CLI_BUCKET_EMPTY); tried += 1u)
     {
         if (s_buckets[bucket] == (file + 1u))
@@ -126,29 +125,29 @@ void cli_symbols_let_go(unsigned int file)
         }
         bucket = (bucket + 1u) % s_bucket_room;
     }
-    cli_cell_given(g_cli_symbol_files[file].cell);
+    g_cli_cells->persistent_buf_release(g_cli_symbol_files[file].cell, NULL);
     g_cli_symbol_files[file].cell = NULL;
     g_cli_symbol_files[file].used = 0;
 }
 
-void cli_symbols_held_forgotten(void)
+void cli_symbols_tree_cleared(void)
 {
     for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
     {
-        cli_cell_given(g_cli_symbol_files[at].cell);
+        g_cli_cells->persistent_buf_release(g_cli_symbol_files[at].cell, NULL);
         g_cli_symbol_files[at].cell = NULL;
         g_cli_symbol_files[at].used = 0;
     }
     g_cli_symbol_file_count = 0u;
-    cli_cell_given(g_cli_symbol_files);
-    cli_cell_given(s_buckets);
+    g_cli_cells->persistent_buf_release(g_cli_symbol_files, NULL);
+    g_cli_cells->persistent_buf_release(s_buckets, NULL);
     g_cli_symbol_files = NULL;
     s_buckets = NULL;
     s_file_room = 0u;
     s_bucket_room = 0u;
 }
 
-// The table of files put together again: each held file moved to the front and the table of paths made again
+// The table of files put together again: each stored file moved to the front and the table of paths made again
 static void cli_compacted(void)
 {
     unsigned int files = 0u;

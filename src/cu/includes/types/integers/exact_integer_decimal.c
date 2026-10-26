@@ -16,7 +16,7 @@ static const uint32_t TEN_TO[LIMB_DECIMAL_DIGITS + 1u] = {
  * @param[in]     factor What to multiply by.
  * @return               1 where the product needs a limb past the width, 0 otherwise.
  * @note Walks `used` limbs and never the width.
- * @warning On a return of 1 `value` holds the low limbs of the product. Callers run this on a copy
+ * @warning On a return of 1 `value` contains the low limbs of the product. Callers run this on a copy
  *          they discard on error.
  */
 static int magnitude_multiply_small(uint32_t *value, size_t *used, uint32_t factor)
@@ -50,7 +50,7 @@ static int magnitude_multiply_small(uint32_t *value, size_t *used, uint32_t fact
  *                      where the sum reaches further [BORROWS].
  * @param[in]     added What to add.
  * @return              1 where a carry ran off the top limb, 0 otherwise.
- * @warning On a carry out of the top limb `value` holds the wrapped sum. Callers run this on a copy
+ * @warning On a carry out of the top limb `value` contains the wrapped sum. Callers run this on a copy
  *          they discard on error.
  */
 static int magnitude_add_small(uint32_t *value, size_t *used, uint32_t added)
@@ -82,7 +82,7 @@ static int magnitude_add_small(uint32_t *value, size_t *used, uint32_t added)
  * @param[in,out] used  A count of limbs at or above which every limb of `value` is zero [BORROWS].
  * @param[in]     power How many powers of ten to apply.
  * @return              1 where the product ran off the top limb, 0 otherwise.
- * @warning On a return of 1 `value` holds a wrapped product. Callers run this on a copy they
+ * @warning On a return of 1 `value` contains a wrapped product. Callers run this on a copy they
  *          discard on error.
  */
 static int magnitude_scale_by_ten(uint32_t *value, size_t *used, uint32_t power)
@@ -235,7 +235,7 @@ static OriorExactStatus decimal_layout(const char *text, size_t length, DecimalL
  * @note Takes nine digits a step. The magnitude is multiplied by 10^9 and the nine digits are added
  *       as one limb. A text overruns the width in nine digit steps exactly where it overruns one
  *       digit at a time, because every partial value is at most the finished one.
- * @warning On a return of 1 `value` holds a wrapped magnitude. Callers run this on a copy they
+ * @warning On a return of 1 `value` contains a wrapped magnitude. Callers run this on a copy they
  *          discard on error.
  */
 static int magnitude_accumulate_digits(uint32_t *value, size_t *used, const char *text, size_t from, size_t to)
@@ -278,7 +278,7 @@ static int magnitude_accumulate_digits(uint32_t *value, size_t *used, const char
  * @return                 ORIOR_EXACT_OK, ORIOR_EXACT_NOT_DECIMAL or ORIOR_EXACT_WILL_NOT_FIT.
  * @note The shared body of orior_exact_from_decimal and orior_exact_from_measured. One reading of
  *       the grammar serves both, and the two entries cannot accept different text.
- * @warning On an error `value` and `uncertainty` hold partial limbs. Both entries pass integers of
+ * @warning On an error `value` and `uncertainty` contain partial limbs. Both entries pass integers of
  *          their own and copy out only on ORIOR_EXACT_OK. An error leaves a caller's untouched.
  */
 static OriorExactStatus decimal_read(const char *text, size_t length, uint32_t digits, OriorExactInteger *value,

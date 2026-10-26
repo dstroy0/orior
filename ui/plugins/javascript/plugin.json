@@ -17,7 +17,21 @@
     ],
     "tokenizer": {
       "root": [
+        [
+          "^((?:export\\s+)?)(const|let|var)(\\s+)([A-Za-z_$][\\w$]*)(?=\\s*=(?!=)\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>)",
+          ["keyword","keyword","","identifier.declaration.function"]
+        ],
+        ["^((?:export\\s+)?)(const|let|var)(\\s+)([A-Za-z_$][\\w$]*)(?=\\s*=(?!=))",["keyword","keyword","","identifier.declaration.constant"]],
+        [
+          "^(\\s+)((?:(?:static|async|get|set)\\s+)*)(?!(?:if|for|while|switch|catch|return|function)(?![\\w$]))([A-Za-z_$][\\w$]*)(?=\\s*\\([^)]*\\)\\s*\\{\\s*$)",
+          ["","keyword","identifier.declaration.method"],
+          "@params"
+        ],
+        ["^(\\s+)(const|let|var)(\\s+)([A-Za-z_$][\\w$]*)(?=\\s*=(?!=))",["","keyword","","identifier.local"]],
+        ["(function)(?![\\w$])(\\s*\\**\\s*)([A-Za-z_$][\\w$]*)",["keyword","","identifier.declaration.function"],"@params"],
+        ["(class)(?![\\w$])(\\s+)([A-Za-z_$][\\w$]*)",["keyword","","identifier.declaration.class"]],
         {"include":"@whitespace"},
+        ["[A-Za-z_$][\\w$]*(?=\\s*\\()",{"cases":{"@words":"keyword","@default":"identifier.call"}}],
         ["[A-Za-z_$][\\w$]*",{"cases":{"@words":"keyword","@default":"identifier"}}],
         [
           "0[xX][\\da-fA-F_']+[uUlLzZ]*|0[bB][01_']+[uUlL]*|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?[fFuUlLjJ]*",
@@ -26,17 +40,43 @@
         ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
         ["'(?:[^'\\\\]|\\\\.)*'","string"],
         ["`","string","@template"],
-        ["[{}()[\\]]","@brackets"],
+        ["\\{","delimiter.bracket.region.open"],
+        ["\\}","delimiter.bracket.region.close"],
+        ["[(\\[]","delimiter.bracket.open"],
+        ["[)\\]]","delimiter.bracket.close"],
+        ["=(?![=>])","operator.assign"],
         ["[<>=!~?:&|+\\-*/^%]+","operator"],
-        ["[;,.]","delimiter"]
+        [";","delimiter.statement"],
+        [",","delimiter.separator"],
+        ["\\.","delimiter"]
+      ],
+      "params": [
+        {"include":"@whitespace"},
+        ["\\(","delimiter.bracket.parameter.open"],
+        ["\\)","delimiter.bracket.parameter.close","@pop"],
+        ["\\.\\.\\.","operator.rest"],
+        ["[A-Za-z_$][\\w$]*(?=\\s*[,)=])",{"cases":{"@words":"keyword","@default":"identifier.parameter"}}],
+        ["=","operator.assign","@value"],
+        [",","delimiter.separator"],
+        {"include":"@root"}
+      ],
+      "value": [
+        ["(?=[,)])","","@pop"],
+        ["[(\\[{]","delimiter.bracket.open","@nested"],
+        {"include":"@root"}
+      ],
+      "nested": [
+        ["[)\\]}]","delimiter.bracket.close","@pop"],
+        ["[(\\[{]","delimiter.bracket.open","@nested"],
+        {"include":"@root"}
       ],
       "template": [
         ["`","string","@pop"],
-        ["\\$\\{","delimiter.bracket","@inner"],
+        ["\\$\\{","delimiter.bracket.open","@inner"],
         ["\\\\.","string.escape"],
         ["[^`\\\\$]+|\\$","string"]
       ],
-      "inner": [["\\}","delimiter.bracket","@pop"],{"include":"@root"}],
+      "inner": [["\\}","delimiter.bracket.close","@pop"],{"include":"@root"}],
       "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"],["\\/\\/.*$","comment"]],
       "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
     }

@@ -4,12 +4,12 @@
 #include "../text/regexp.h"
 #include "git_internal.h"
 
-// the most columns the graph holds, the most words a search holds, and the most bytes of a commit's text searched
+// the most columns the graph has, the most words a search has, and the most bytes of a commit's text searched
 #define CLI_GIT_LANES 512u
 
 #define CLI_GIT_QUERY_WORDS 64u
 
-#define CLI_GIT_HELD (1u << 14u)
+#define CLI_GIT_GRAPH_TEXT_MAX (1u << 14u)
 
 // A column of the graph: the commit it waits for, a place in the graph's texts, and the color of its line
 typedef struct
@@ -20,17 +20,17 @@ typedef struct
 } CliLane;
 
 // `length` bytes of `text` put in lower case after `line`
-static void cli_lowered(CliLine *line, const char *text, unsigned long long length)
+static void cli_lowered(VerbaLinea *line, const char *text, unsigned long long length)
 {
-    static unsigned int s_letters[CLI_GIT_HELD];
-    const unsigned long long count = cli_regexp_letters(text, length, s_letters, CLI_GIT_HELD);
+    static unsigned int s_letters[CLI_GIT_GRAPH_TEXT_MAX];
+    const unsigned long long count = cli_regexp_letters(text, length, s_letters, CLI_GIT_GRAPH_TEXT_MAX);
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
         cli_utf8_put(line, cli_regexp_lower(s_letters[at]));
     }
 }
 
-// a stroke of the row of `drawn` kept: from column `from` to column `to`, in the row's top half or its bottom
+// a stroke of the row of `drawn` recorded: from column `from` to column `to`, in the row's top half or its bottom
 static void cli_stroke(CliGraph *found, CliDrawn *drawn, unsigned int from, unsigned int to, unsigned int half,
                        unsigned int color)
 {
@@ -64,7 +64,7 @@ static unsigned int cli_free(CliLane *lanes, unsigned int *count)
     return *count - 1u;
 }
 
-// Each commit given its column and the strokes of its row. Each column holds the commit it waits for, the next on its
+// Each commit given its column and the strokes of its row. Each column tracks the commit it waits for, the next on its
 // line, and the line's color. A commit takes the first column waiting for it, or the first free one where none waits,
 // a branch's newest commit; every other column waiting for it ends at it. Its first parent goes on in its column, or,
 // where another column already waits for that parent, joins that column; each further parent, a merge's, joins the
@@ -169,32 +169,32 @@ void cli_git_laid_out(CliGraph *found)
     }
 }
 
-// whether a commit's subject, author where `authors`, id and names, in lower case, hold each word of the query
-static int cli_held(const CliGraph *found, const CliDrawn *drawn, int authors, const char (*words)[CLI_NAME_LONGEST],
-                    unsigned int count)
+// whether a commit's subject, author where `authors`, id and names, in lower case, contain each word of the query
+static int cli_commit_matches(const CliGraph *found, const CliDrawn *drawn, int authors,
+                              const char (*words)[CLI_NAME_MAX_LEN], unsigned int count)
 {
-    static char s_held[CLI_GIT_HELD];
-    CliLine line = {s_held, sizeof(s_held), 0ull};
+    static char s_lower_text[CLI_GIT_GRAPH_TEXT_MAX];
+    VerbaLinea line = {s_lower_text, sizeof(s_lower_text), 0ull};
     const char *const subject = cli_git_text_of(&found->text, drawn->subject);
     const char *const author = authors ? cli_git_text_of(&found->text, drawn->author) : "";
     const char *const id = cli_git_text_of(&found->text, drawn->id);
     cli_lowered(&line, subject, cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&line, ' ');
+    mmgr_line_ch(&line, ' ');
     cli_lowered(&line, author, cellul.len(&(CatenaFinitaCfg){.src = author, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&line, ' ');
+    mmgr_line_ch(&line, ' ');
     cli_lowered(&line, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
-    cli_line_character(&line, ' ');
+    mmgr_line_ch(&line, ' ');
     for (unsigned int at = 0u; at < drawn->refs; at += 1u)
     {
         const char *const name = cli_git_text_of(&found->text, drawn->ref[at]);
-        cli_line_text(&line, (at != 0u) ? " " : "");
+        mmgr_line_put(&line, (at != 0u) ? " " : "");
         cli_lowered(&line, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         if (cellul.find(&(CatenaFinitaCfg){
-                .src = s_held, .cap = CLI_CELLS_POOL, .other = words[at], .other_cap = CLI_CELLS_POOL}) == NULL)
+                .src = s_lower_text, .cap = CLI_CELLS_POOL, .other = words[at], .other_cap = CLI_CELLS_POOL}) == NULL)
         {
             return 0;
         }
@@ -271,7 +271,7 @@ static int cli_drawn_put(CliGraph *found, const char *line, const char *stop)
 
 void cli_git_graph(const char *root, const char *query, int authors, CliGraph *found)
 {
-    static char s_words[CLI_GIT_QUERY_WORDS][CLI_NAME_LONGEST];
+    static char s_words[CLI_GIT_QUERY_WORDS][CLI_NAME_MAX_LEN];
     static CliLock s_lock = CLI_LOCK_INIT;
     found->count = 0u;
     found->strokes = 0u;
@@ -292,9 +292,9 @@ void cli_git_graph(const char *root, const char *query, int authors, CliGraph *f
         }
         if (end > word)
         {
-            CliLine line = {s_words[words], CLI_NAME_LONGEST, 0ull};
+            VerbaLinea line = {s_words[words], CLI_NAME_MAX_LEN, 0ull};
             cli_lowered(&line, word, (unsigned long long)(end - word));
-            cli_line_closed(&line);
+            mmgr_line_finish(&line);
             words += 1u;
         }
         word = end;
@@ -303,10 +303,10 @@ void cli_git_graph(const char *root, const char *query, int authors, CliGraph *f
     const char *const drawn[5] = {"log", "-n2000", "--all", "--date-order", s_format};
     const char *const searched[4] = {"log", "--all", "--date-order", s_format};
     CliGitGave *const gave = cli_git_taken();
-    const int asked = (words == 0u) ? cli_git_asked(root, drawn, 5u, gave) : cli_git_asked(root, searched, 4u, gave);
+    const int queried = (words == 0u) ? cli_git_query(root, drawn, 5u, gave) : cli_git_query(root, searched, 4u, gave);
     const char *line = gave->out;
     const char *const end = gave->out + gave->out_size;
-    while (asked && (line < end) && (found->count < CLI_GIT_GRAPH))
+    while (queried && (line < end) && (found->count < CLI_GIT_GRAPH))
     {
         const char *stop = line;
         while ((stop < end) && (stop[0] != '\n'))
@@ -315,11 +315,11 @@ void cli_git_graph(const char *root, const char *query, int authors, CliGraph *f
         }
         const char *const next = stop + 1;
         stop -= ((stop > line) && (stop[-1] == '\r')) ? 1 : 0;
-        // a commit the search does not find leaves its texts kept, and is taken back
+        // a commit the search does not find leaves its texts in place, and is taken back
         const unsigned long long used = found->text.used;
         if (cli_drawn_put(found, line, stop))
         {
-            if ((words == 0u) || cli_held(found, &found->item[found->count], authors, s_words, words))
+            if ((words == 0u) || cli_commit_matches(found, &found->item[found->count], authors, s_words, words))
             {
                 found->count += 1u;
             }

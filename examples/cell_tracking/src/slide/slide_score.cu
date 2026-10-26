@@ -50,10 +50,10 @@ typedef struct
 } ScoreSlideLevels;
 
 static int score_slide_frame(const AnswerKey *key, unsigned int time, const EngineBuffers *buffers,
-                             ScoreSlideResults *results, ScoreSlideLevels *kept)
+                             ScoreSlideResults *results, ScoreSlideLevels *levels)
 {
-    kept->levels = NULL;
-    kept->count = 0u;
+    levels->levels = NULL;
+    levels->count = 0u;
     unsigned int *const key_voxels = (unsigned int *)malloc(((size_t)key->node_count + 1u) * sizeof(unsigned int));
     unsigned int keys = 0u;
     for (unsigned int node = 0u; (key_voxels != NULL) && (node < key->node_count); node += 1u)
@@ -64,7 +64,7 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
         {
             continue;
         }
-        // the key holds every place on the grid. Each coordinate is non-negative and re-signs to unsigned int
+        // the key contains every place on the grid. Each coordinate is non-negative and re-signs to unsigned int
         // exactly
         key_voxels[keys] = ((((unsigned int)place[1] * buffers->height) + (unsigned int)place[2]) * buffers->width) +
                            (unsigned int)place[3];
@@ -118,10 +118,11 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
     }
     if (steps_succeeded)
     {
-        printf("    slide t=%u: %u key cells; the threshold at level %u of %u holds %u, %u alone; alone at some level "
-               "%u, at"
-               " the best single level %u; level:components:present:alone",
-               time, keys, threshold, top, present_at_threshold, alone_at_threshold, separable, best_alone);
+        printf(
+            "    slide t=%u: %u key cells; the threshold at level %u of %u captures %u, %u alone; alone at some level "
+            "%u, at"
+            " the best single level %u; level:components:present:alone",
+            time, keys, threshold, top, present_at_threshold, alone_at_threshold, separable, best_alone);
         for (unsigned int step = 0u; step < step_count; step += 1u)
         {
             const ScoreSlidePresence presence = score_slide_results(&partitions[(size_t)step * keys], keys, NULL);
@@ -135,22 +136,22 @@ static int score_slide_frame(const AnswerKey *key, unsigned int time, const Engi
         results->separable += separable;
         results->best_alone += best_alone;
         results->labelings += labelings;
-        kept->levels = (unsigned int *)malloc(((size_t)step_count + 1u) * sizeof(unsigned int));
+        levels->levels = (unsigned int *)malloc(((size_t)step_count + 1u) * sizeof(unsigned int));
     }
-    for (unsigned int step = 0u; (kept->levels != NULL) && (step < step_count); step += 1u)
+    for (unsigned int step = 0u; (levels->levels != NULL) && (step < step_count); step += 1u)
     {
-        kept->levels[step] = steps[step].level;
+        levels->levels[step] = steps[step].level;
     }
-    if (kept->levels != NULL)
+    if (levels->levels != NULL)
     {
-        kept->levels[step_count] = threshold;
-        kept->count = step_count + 1u;
+        levels->levels[step_count] = threshold;
+        levels->count = step_count + 1u;
     }
     free(key_voxels);
     free(steps);
     free(partitions);
     free(ever_alone);
-    return steps_succeeded && (kept->levels != NULL);
+    return steps_succeeded && (levels->levels != NULL);
 }
 
 typedef struct
@@ -192,11 +193,11 @@ static int score_code_descending(const void *left, const void *right)
     return (one < other) ? 1 : ((one > other) ? -1 : 0);
 }
 
-static int score_peak_levels(const EngineBuffers *buffers, const TreeFrame *frame, ScoreSlideLevels *kept)
+static int score_peak_levels(const EngineBuffers *buffers, const TreeFrame *frame, ScoreSlideLevels *levels)
 {
-    kept->count = 0u;
+    levels->count = 0u;
     // leaf_count widens from unsigned int to size_t; leaf_count + 1 cannot wrap before malloc sees it
-    kept->levels = (unsigned int *)malloc(((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
+    levels->levels = (unsigned int *)malloc(((size_t)frame->leaf_count + 1u) * sizeof(unsigned int));
     MaxTreeSlideStep no_step;
     unsigned int step_count = 0u;
     unsigned int threshold = 0u;
@@ -204,31 +205,31 @@ static int score_peak_levels(const EngineBuffers *buffers, const TreeFrame *fram
     memset(&error, 0, sizeof(error));
     const MaxTreeSlideRequest request = {
         .steps = &no_step, .step_capacity = 1u, .step_count = &step_count, .threshold = &threshold, .error = &error};
-    if ((kept->levels == NULL) || (max_tree_slide(&request) != 0L))
+    if ((levels->levels == NULL) || (max_tree_slide(&request) != 0L))
     {
-        if (kept->levels != NULL)
+        if (levels->levels != NULL)
         {
             track_error_report("peak levels", &error);
         }
-        free(kept->levels);
-        kept->levels = NULL;
+        free(levels->levels);
+        levels->levels = NULL;
         return 0;
     }
     for (unsigned int leaf = 0u; leaf < frame->leaf_count; leaf += 1u)
     {
-        kept->levels[leaf] = buffers->bodies[leaf].code;
+        levels->levels[leaf] = buffers->bodies[leaf].code;
     }
-    qsort(kept->levels, frame->leaf_count, sizeof(unsigned int), score_code_descending);
+    qsort(levels->levels, frame->leaf_count, sizeof(unsigned int), score_code_descending);
     for (unsigned int leaf = 0u; leaf < frame->leaf_count; leaf += 1u)
     {
-        if ((kept->count == 0u) || (kept->levels[kept->count - 1u] != kept->levels[leaf]))
+        if ((levels->count == 0u) || (levels->levels[levels->count - 1u] != levels->levels[leaf]))
         {
-            kept->levels[kept->count] = kept->levels[leaf];
-            kept->count += 1u;
+            levels->levels[levels->count] = levels->levels[leaf];
+            levels->count += 1u;
         }
     }
-    kept->levels[kept->count] = threshold;
-    kept->count += 1u;
+    levels->levels[levels->count] = threshold;
+    levels->count += 1u;
     return 1;
 }
 
@@ -243,7 +244,7 @@ typedef struct
 static unsigned int score_key_voxel(const ScoreKeyDivisions *divisions, unsigned int node)
 {
     const int *const place = &divisions->key->node_coordinates[(size_t)node * 4u];
-    // the key holds every place on the grid. Each coordinate is non-negative and re-signs to unsigned int exactly
+    // the key contains every place on the grid. Each coordinate is non-negative and re-signs to unsigned int exactly
     return ((((unsigned int)place[1] * divisions->height) + (unsigned int)place[2]) * divisions->width) +
            (unsigned int)place[3];
 }
@@ -517,7 +518,7 @@ ScoreSlideLevels slide_levels[2];
 memset(slide_levels, 0, sizeof(slide_levels));
 ScoreOverlapResults overlap;
 memset(&overlap, 0, sizeof(overlap));
-ok = ok && ((rules->overlap == 0) || (max_tree_keep_frames() != 0));
+ok = ok && ((rules->overlap == 0) || (max_tree_retain_frames() != 0));
 unsigned int *const key_successors = (rules->overlap != 0) ? score_key_successors(&key) : NULL;
 ok = ok && ((rules->overlap == 0) || (key_successors != NULL));
 const ScoreKeyDivisions key_divisions = {&key, key_successors, buffers.height, buffers.width};
@@ -540,11 +541,12 @@ slide_levels[1].count = 0u;
 
 if ((ok != 0) && (rules->slide != 0))
 {
-    printf("  %s: the slide, %u frames with key cells, %u key cells: the threshold holds %u, %u of them alone; alone at"
-           " some level %u; at each frame's best single level %u; %llu labelings, each proved against the tree's"
-           " count\n",
-           sample, slide.frames, slide.keys, slide.present_at_threshold, slide.alone_at_threshold, slide.separable,
-           slide.best_alone, slide.labelings);
+    printf(
+        "  %s: the slide, %u frames with key cells, %u key cells: the threshold captures %u, %u of them alone; alone at"
+        " some level %u; at each frame's best single level %u; %llu labelings, each proved against the tree's"
+        " count\n",
+        sample, slide.frames, slide.keys, slide.present_at_threshold, slide.alone_at_threshold, slide.separable,
+        slide.best_alone, slide.labelings);
 }
 if ((ok != 0) && (rules->overlap != 0))
 {
@@ -556,7 +558,7 @@ if ((ok != 0) && (rules->overlap != 0))
         overlap.mutual_at_threshold, overlap.best_mutual, overlap.mutual_differ);
     printf(
         "  %s: the event census at the earlier frame's threshold: %llu moves (1->1), %llu divisions (1->2), %llu merges"
-        " (2->1), %llu disappear (1->0), %llu appear (0->1); the key holds %llu divisions over these pairs: at the"
+        " (2->1), %llu disappear (1->0), %llu appear (0->1); the key contains %llu divisions over these pairs: at the"
         " threshold %llu parted (the parent's component overlaps the two daughters' distinct components), %llu caught"
         " (and it is 1->2); at each pair's best sampled threshold %llu present (parent and both daughters above the"
         " threshold), %llu apart (the daughters in two components), %llu parted, %llu caught\n",

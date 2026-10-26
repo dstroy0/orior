@@ -56,7 +56,7 @@ unsigned int stem_group_build(const StemMember *member, unsigned int count, unsi
     {
         return 0u;
     }
-    // the members in the rule's order, by insertion: a set holds few enough members for that
+    // the members in the rule's order, by insertion: a set contains few enough members for that
     unsigned int order[STEM_GROUP_MEMBERS];
     for (unsigned int at = 0u; at < count; at += 1u)
     {

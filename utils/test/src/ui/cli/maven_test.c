@@ -30,7 +30,7 @@ static char s_after[1u << 14u];
 // the findings of `text`, the POM at `path` of the tree at `root`, read into the shared tree: the array's node
 static unsigned int maven_checked(const char *root, const char *path, const char *text, const CliJson **json)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_build_check(root, path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), &out);
     unsigned int found = CLI_JSON_NONE;
     *json = cli_check_parsed(s_out, out.at, &found);
@@ -157,11 +157,11 @@ static const char *maven_set(const char *text, const char *key, const char *valu
 {
     static CliTextEdit s_edits[16];
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     s_after[0] = '\0';
     if (!cli_maven_set("/t/pom.xml", text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), key,
-                       value, &out, &said))
+                       value, &out, &err_msg))
     {
         return s_after;
     }
@@ -182,17 +182,17 @@ static const char *maven_set(const char *text, const char *key, const char *valu
                                     size};
         count += 1u;
     }
-    CliLine after = {s_after, sizeof(s_after), 0ull};
+    VerbaLinea after = {s_after, sizeof(s_after), 0ull};
     (void)cli_text_applied(text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), s_edits, count,
                            &after);
-    (void)cli_line_closed(&after);
+    (void)mmgr_line_finish(&after);
     return s_after;
 }
 
 // the compiler's settings are read and set
 static void maven_settings(void)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_maven_settings("/t", "/t/pom.xml", s_pom, sizeof(s_pom) - 1u, &out);
     unsigned int rows = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &rows);
@@ -214,7 +214,7 @@ static void maven_settings(void)
             .other = "    <junit.version>4.13</junit.version>\n    <maven.compiler.source>21</maven.compiler.source>\n"
                      "  </properties>",
             .other_cap = CLI_CELLS_POOL}) != NULL,
-        "a setting the POM does not hold is put among its properties");
+        "a setting the POM does not contain is put among its properties");
     static const char s_bare[] =
         "<project>\n  <modelVersion>4.0.0</modelVersion>\n  <artifactId>a</artifactId>\n</project>\n";
     cli_check(
@@ -229,12 +229,13 @@ static void maven_settings(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     maven_pom();
     maven_completes();
     maven_settings();
-    cli_check((g_cli_xml_cells.holds == 0ull) && (g_cli_xml_cells.hw != 0ull),
+    cli_check((g_cli_xml_cells.in_use == 0ull) && (g_cli_xml_cells.hw != 0ull),
               "every XML file read, a POM, its parents and the settings, is given back once it is read");
-    cli_check((g_cli_maven_model_cells.holds == 0ull) && (g_cli_maven_model_cells.hw != 0ull),
+    cli_check((g_cli_maven_model_cells.in_use == 0ull) && (g_cli_maven_model_cells.hw != 0ull),
               "and every model of what a POM gives its children");
     return cli_checked();
 }

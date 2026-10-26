@@ -57,28 +57,28 @@ int cli_go_package(const char *text, char *out)
         {
             word_end += 1;
         }
-        cli_scan_copied(word, (unsigned long long)(word_end - word), out, CLI_NAME_LONGEST);
+        cli_scan_copied(word, (unsigned long long)(word_end - word), out, CLI_NAME_MAX_LEN);
         return 1;
     }
     return 0;
 }
 
-// the text of the first element `tag` holds in an MSBuild project, trimmed: its start, its length into `length`, or
+// the text of the first element `tag` contains in an MSBuild project, trimmed: its start, its length into `length`, or
 // NULL where it has none
 static const char *cli_msbuild_value(const char *text, const char *tag, unsigned long long *length)
 {
-    char open[CLI_NAME_LONGEST];
-    char close[CLI_NAME_LONGEST];
-    CliLine opened = {open, sizeof(open), 0ull};
-    CliLine closed = {close, sizeof(close), 0ull};
-    cli_line_character(&opened, '<');
-    cli_line_text(&opened, tag);
-    cli_line_character(&opened, '>');
-    cli_line_text(&closed, "</");
-    cli_line_text(&closed, tag);
-    cli_line_character(&closed, '>');
-    cli_line_closed(&opened);
-    cli_line_closed(&closed);
+    char open[CLI_NAME_MAX_LEN];
+    char close[CLI_NAME_MAX_LEN];
+    VerbaLinea opened = {open, sizeof(open), 0ull};
+    VerbaLinea closed = {close, sizeof(close), 0ull};
+    mmgr_line_ch(&opened, '<');
+    mmgr_line_put(&opened, tag);
+    mmgr_line_ch(&opened, '>');
+    mmgr_line_put(&closed, "</");
+    mmgr_line_put(&closed, tag);
+    mmgr_line_ch(&closed, '>');
+    mmgr_line_finish(&opened);
+    mmgr_line_finish(&closed);
     const char *const found =
         cellul.find(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL, .other = open, .other_cap = CLI_CELLS_POOL});
     if (found == NULL)
@@ -132,7 +132,7 @@ int cli_dotnet_program(const char *project, const char *text, char *out)
     }
     if (named)
     {
-        cli_scan_copied(name, name_length, out, CLI_NAME_LONGEST);
+        cli_scan_copied(name, name_length, out, CLI_NAME_MAX_LEN);
         return 1;
     }
     // the project file's name without its extension
@@ -149,7 +149,7 @@ int cli_dotnet_program(const char *project, const char *text, char *out)
     cli_scan_copied(stem,
                     (dot != NULL) ? (unsigned long long)(dot - stem)
                                   : cellul.len(&(CatenaFinitaCfg){.src = stem, .cap = CLI_CELLS_POOL}),
-                    out, CLI_NAME_LONGEST);
+                    out, CLI_NAME_MAX_LEN);
     return stem[0] != '\0';
 }
 
@@ -200,7 +200,7 @@ int cli_keyword(const char *call, unsigned long long length, const char *key, ch
         {
             end += 1ull;
         }
-        cli_scan_copied(call + rest + 1ull, end - rest - 1ull, out, CLI_NAME_LONGEST);
+        cli_scan_copied(call + rest + 1ull, end - rest - 1ull, out, CLI_NAME_MAX_LEN);
         return 1;
     }
     return 0;
@@ -211,12 +211,12 @@ void cli_zig_exes(const char *text, CliNames *names)
     names->count = 0u;
     // each line up to its `//`, the lines joined by a newline, no longer than the text
     const unsigned long long room = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
-    char *const kept = cli_cell_taken_by(&g_cli_executables_cells, room, "a build.zig's code");
-    if (kept == NULL)
+    char *const code_cell = g_cli_cells->persistent_buf_alloc(room, &g_cli_executables_cells);
+    if (code_cell == NULL)
     {
         return;
     }
-    CliLine code = {kept, room, 0ull};
+    VerbaLinea code = {code_cell, room, 0ull};
     const char *line = text;
     for (int first = 1; line[0] != '\0'; first = 0)
     {
@@ -234,13 +234,13 @@ void cli_zig_exes(const char *text, CliNames *names)
                 break;
             }
         }
-        cli_line_text(&code, first ? "" : "\n");
-        cli_line_counted(&code, line, (unsigned long long)(end - line));
+        mmgr_line_put(&code, first ? "" : "\n");
+        mmgr_line_put_n(&code, line, (unsigned long long)(end - line));
         line = (stop[0] != '\0') ? (stop + 1) : stop;
     }
-    cli_line_closed(&code);
+    mmgr_line_finish(&code);
     CliCall *calls = NULL;
-    const unsigned int count = cli_calls_taken(kept, "addExecutable", &calls);
+    const unsigned int count = cli_calls_taken(code_cell, "addExecutable", &calls);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         const char *call = calls[at].text;
@@ -250,7 +250,7 @@ void cli_zig_exes(const char *text, CliNames *names)
             call += 1;
             length -= 1ull;
         }
-        char name[CLI_NAME_LONGEST];
+        char name[CLI_NAME_MAX_LEN];
         name[0] = '\0';
         if ((length > 0ull) && (call[0] == '"'))
         {
@@ -270,8 +270,8 @@ void cli_zig_exes(const char *text, CliNames *names)
             cli_names_put(names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), NULL);
         }
     }
-    cli_cell_given_by(&g_cli_executables_cells, calls);
-    cli_cell_given_by(&g_cli_executables_cells, kept);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code_cell, &g_cli_executables_cells);
 }
 
 int cli_spec_made(const char *text, char *exe, char *path)
@@ -289,18 +289,18 @@ int cli_spec_made(const char *text, char *exe, char *path)
     {
         named = cli_keyword(calls[at].text, calls[at].length, "name", exe);
     }
-    cli_cell_given_by(&g_cli_executables_cells, calls);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
     calls = NULL;
     found = found && named;
-    char folder[CLI_NAME_LONGEST];
+    char folder[CLI_NAME_MAX_LEN];
     int collected = 0;
     const unsigned int collects = found ? cli_calls_taken(code, "COLLECT", &calls) : 0u;
     for (unsigned int at = 0u; !collected && (at < collects); at += 1u)
     {
         collected = cli_keyword(calls[at].text, calls[at].length, "name", folder);
     }
-    cli_cell_given_by(&g_cli_executables_cells, calls);
-    cli_cell_given_by(&g_cli_executables_cells, code);
+    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
     if (!found)
     {
         return 0;
@@ -311,17 +311,17 @@ int cli_spec_made(const char *text, char *exe, char *path)
     {
         exe[length - 4ull] = '\0';
     }
-    char file[CLI_NAME_LONGEST];
+    char file[CLI_NAME_MAX_LEN];
     cli_program_file(exe, file);
-    CliLine line = {path, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, "dist/");
+    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, "dist/");
     if (collected)
     {
-        cli_line_text(&line, folder);
-        cli_line_character(&line, '/');
+        mmgr_line_put(&line, folder);
+        mmgr_line_ch(&line, '/');
     }
-    cli_line_text(&line, file);
-    cli_line_closed(&line);
+    mmgr_line_put(&line, file);
+    mmgr_line_finish(&line);
     return 1;
 }
 
@@ -331,10 +331,10 @@ void cli_npm_bins(const char *text, CliNames *names, int *module)
     *module = 0;
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const unsigned int package = cli_json_taken(
-        &json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), 0u, 0ull, &said);
+        &json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), 0u, 0ull, &err_msg);
     if ((package == CLI_JSON_NONE) || !cli_json_is(&json, package, CFG_JSON_OBJECT))
     {
         cli_json_given(&json);

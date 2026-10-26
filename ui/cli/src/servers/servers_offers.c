@@ -8,16 +8,16 @@
 // the most parameters of a signature written
 #define CLI_SERVERS_PARAMS 256u
 
-// what a server says of a signature or a parameter, from either of the shapes the protocol allows, its letters as
+// what a server reports of a signature or a parameter, from either of the shapes the protocol allows, its letters as
 // they are
-static void offers_documentation_of(const CliJson *json, unsigned int value, CliLine *out)
+static void offers_documentation_of(const CliJson *json, unsigned int value, VerbaLinea *out)
 {
     unsigned long long size = 0ull;
     const char *text = cli_json_string(json, value, &size);
     text = (text != NULL) ? text : cli_json_string(json, cli_json_member(json, value, "value"), &size);
     if (text != NULL)
     {
-        cli_line_counted(out, text, size);
+        mmgr_line_put_n(out, text, size);
     }
 }
 
@@ -52,7 +52,7 @@ static int offers_param_span(const CliJson *json, unsigned int param, const char
            (cli_servers_whole(json, second, none) != none);
 }
 
-void cli_servers_signature_of(const CliJson *json, unsigned int help, CliLine *out)
+void cli_servers_signature_of(const CliJson *json, unsigned int help, VerbaLinea *out)
 {
     const unsigned int all = cli_json_member(json, help, "signatures");
     const unsigned long long chosen = cli_servers_whole(json, cli_json_member(json, help, "activeSignature"), 0ull);
@@ -62,12 +62,12 @@ void cli_servers_signature_of(const CliJson *json, unsigned int help, CliLine *o
     const char *const label = cli_json_string(json, cli_json_member(json, one, "label"), &size);
     if (label == NULL)
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
         return;
     }
-    cli_line_text(out, "{\"label\":");
+    mmgr_line_put(out, "{\"label\":");
     cli_json_quoted(out, label, size);
-    cli_line_text(out, ",\"params\":[");
+    mmgr_line_put(out, ",\"params\":[");
     unsigned long long params = 0ull;
     const unsigned int parameters = cli_json_member(json, one, "parameters");
     for (unsigned int param = cli_json_is(json, parameters, CFG_JSON_ARRAY) ? json->node[parameters].first
@@ -78,37 +78,37 @@ void cli_servers_signature_of(const CliJson *json, unsigned int help, CliLine *o
         unsigned long long to = 0ull;
         if (offers_param_span(json, param, label, size, &from, &to))
         {
-            cli_line_text(out, (params > 0ull) ? ",[" : "[");
-            cli_line_decimal(out, from, 1u);
-            cli_line_character(out, ',');
-            cli_line_decimal(out, to, 1u);
-            cli_line_character(out, ']');
+            mmgr_line_put(out, (params > 0ull) ? ",[" : "[");
+            mmgr_line_decimal(out, from, 1u);
+            mmgr_line_ch(out, ',');
+            mmgr_line_decimal(out, to, 1u);
+            mmgr_line_ch(out, ']');
             params += 1ull;
         }
     }
     const unsigned long long none = ~0ull;
     unsigned long long active = cli_servers_whole(json, cli_json_member(json, one, "activeParameter"), none);
     active = (active != none) ? active : cli_servers_whole(json, cli_json_member(json, help, "activeParameter"), none);
-    cli_line_text(out, "],\"active\":");
+    mmgr_line_put(out, "],\"active\":");
     if (active < params)
     {
-        cli_line_decimal(out, active, 1u);
+        mmgr_line_decimal(out, active, 1u);
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"doc\":\"");
+    mmgr_line_put(out, ",\"doc\":\"");
     static char s_doc[1u << 16u];
-    CliLine doc = {s_doc, sizeof(s_doc), 0ull};
+    VerbaLinea doc = {s_doc, sizeof(s_doc), 0ull};
     offers_documentation_of(json, cli_json_member(json, one, "documentation"), &doc);
-    cli_json_escaped_lossy(out, (const unsigned char *)s_doc, cli_line_fits(&doc) ? doc.at : 0ull);
-    cli_line_text(out, "\",\"count\":");
-    cli_line_decimal(out, cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u, 1u);
-    cli_line_character(out, '}');
+    cli_json_escaped_lossy(out, (const unsigned char *)s_doc, mmgr_line_ok(&doc) ? doc.at : 0ull);
+    mmgr_line_put(out, "\",\"count\":");
+    mmgr_line_decimal(out, cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u, 1u);
+    mmgr_line_ch(out, '}');
 }
 
-int cli_servers_action_of(const CliJson *json, unsigned int one, const char *plugin, CliLine *out)
+int cli_servers_action_of(const CliJson *json, unsigned int one, const char *plugin, VerbaLinea *out)
 {
     unsigned long long size = 0ull;
     const char *const title = cli_json_string(json, cli_json_member(json, one, "title"), &size);
@@ -116,14 +116,14 @@ int cli_servers_action_of(const CliJson *json, unsigned int one, const char *plu
     {
         return 0;
     }
-    cli_line_text(out, "{\"title\":");
+    mmgr_line_put(out, "{\"title\":");
     cli_json_quoted(out, title, size);
     unsigned long long kind_size = 0ull;
     const char *const kind = cli_json_string(json, cli_json_member(json, one, "kind"), &kind_size);
-    cli_line_text(out, ",\"kind\":");
+    mmgr_line_put(out, ",\"kind\":");
     cli_json_quoted(out, (kind != NULL) ? kind : "", kind_size);
     const int preferred = cli_json_is(json, cli_json_member(json, one, "isPreferred"), CFG_JSON_TRUE);
-    cli_line_text(out, preferred ? ",\"preferred\":true,\"disabled\":" : ",\"preferred\":false,\"disabled\":");
+    mmgr_line_put(out, preferred ? ",\"preferred\":true,\"disabled\":" : ",\"preferred\":false,\"disabled\":");
     unsigned long long reason_size = 0ull;
     const char *const reason =
         cli_json_string(json, cli_json_member(json, cli_json_member(json, one, "disabled"), "reason"), &reason_size);
@@ -133,18 +133,18 @@ int cli_servers_action_of(const CliJson *json, unsigned int one, const char *plu
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"raw\":");
+    mmgr_line_put(out, ",\"raw\":");
     if (plugin != NULL)
     {
         // an action of a plugin's server carries the plugin's id, so carrying it out goes to that server
-        cli_line_text(out, "{\"orior_plugin\":");
-        cli_json_quoted(out, plugin, cellul.len(&(CatenaFinitaCfg){.src = plugin, .cap = CLI_NAME_LONGEST}));
-        cli_line_text(out, ",\"action\":");
+        mmgr_line_put(out, "{\"orior_plugin\":");
+        cli_json_quoted(out, plugin, cellul.len(&(CatenaFinitaCfg){.src = plugin, .cap = CLI_NAME_MAX_LEN}));
+        mmgr_line_put(out, ",\"action\":");
     }
     cli_json_write(json, one, out, 0u, 0);
-    cli_line_text(out, (plugin != NULL) ? "}}" : "}");
+    mmgr_line_put(out, (plugin != NULL) ? "}}" : "}");
     return 1;
 }
 

@@ -11,9 +11,9 @@
 // Every operation the compiler decides is a binary tree whose leaves are operands and whose nodes are the precepts
 // below. Nothing here comes apart further: each is a gate, a wire, an arithmetic node or a branch, and a target that
 // lacks one of these lacks the means to be compiled to at all. Everything above this file - a divide, a comparison,
-// a carry chain - is a tree over these and carries no new primitive. A target's ruleset says which subtrees it has a
-// single instruction for; the clock says which of those are worth taking. The alphabet itself is ours and no
-// target's: it is the irreducible set, and a part is never asked whether it agrees with it.
+// a carry chain - is a tree over these and carries no new primitive. A target's ruleset specifies which subtrees it has
+// a single instruction for; the clock shows which of those are worth taking. The alphabet itself is ours and no
+// target's: it is the irreducible set, and a part is never queried whether it agrees with it.
 //
 // The arity is how many children a node takes. No precept takes three, and the tree is binary for that reason.
 #define PRECEPTS(precept_)                                                                                             \
@@ -66,7 +66,7 @@ typedef struct
     unsigned char right;
 } PreceptNode;
 
-// the most nodes a tree holds, the Word's own count (word_web.h)
+// the most nodes a tree contains, the Word's own count (word_web.h)
 #define PRECEPT_NODES 12u
 
 // One precept written as a tree over the others: what a target that lacks it is given instead. These rewrites are
@@ -83,9 +83,9 @@ typedef struct
     PreceptNode node[8];
 } PreceptRewrite;
 
-// What this does not yet hold is the edge of the design instead of an omission: ADD, SUB and MUL over gates. An adder
-// is a rank of gates per bit, a multiply an adder a bit again, and their size is the register's width where a rewrite
-// below has a fixed count of nodes. A width-counted rewrite is a second kind of node and is not decided. Every
+// What this does not yet contain is the edge of the design instead of an omission: ADD, SUB and MUL over gates. An
+// adder is a rank of gates per bit, a multiply an adder a bit again, and their size is the register's width where a
+// rewrite below has a fixed count of nodes. A width-counted rewrite is a second kind of node and is not decided. Every
 // rewrite below is fixed arity and reads without a width
 static const PreceptRewrite s_precept_web[] = {
     // NOT a = a NAND a

@@ -5,7 +5,7 @@
 // each slice at the running sum rounded up to 256 bytes, and the pool is the sum rounded up to the 2 MiB page once:
 // a job knows the bytes it declares before any device work. Eight slices of none to 1,000 bytes are laid out at offsets
 // worked by hand; single slices on either side of a page round as worked by hand; a plan that would pass 2^62 bytes
-// is spoiled and names no pool, and its hold errors. The pool is held as one allocation: each take in the plan's
+// is spoiled and names no pool, and its reserve errors. The pool is reserved as one allocation: each take in the plan's
 // order returns the slice the plan laid out, a kernel writes each slice and another reads it back with nothing landing
 // between slices, a take past the pool errors and leaves the pool as it was, and a return gives every slice back.
 // The pool's cost is read through the counter tessera's daemon reads, for the tower's four buffers as one pool and as
@@ -57,8 +57,8 @@ static const unsigned long long s_device_pool_test_paged[DEVICE_POOL_TEST_PAGING
 
 #define DEVICE_POOL_TEST_TOWER_BUFFERS 4u
 
-// the most the test holds at once is the tower's four buffers as four allocations, each page-rounded: 6, 6 and 2 MiB
-// for the two small ones sharing a page
+// the most the test allocates at once is the tower's four buffers as four allocations, each page-rounded: 6, 6 and 2
+// MiB for the two small ones sharing a page
 #define DEVICE_POOL_TEST_DECLARED (16ull << 20u)
 
 #define DEVICE_POOL_TEST_SETTLE_MILLISECONDS 600u
@@ -123,7 +123,7 @@ static void device_pool_test_plan(SimResults *results)
     DevicePoolPlan maximum = {0ull, 0ull, 0};
     device_pool_plan_slice(&maximum, 1ull << 62u);
     sim_check(results, (maximum.spoiled == 0) && (device_pool_plan_bytes(&maximum) == (1ull << 62u)),
-              "a plan of 2^62 bytes holds, and is its own pool");
+              "a plan of 2^62 bytes is valid, and is its own pool");
     device_pool_plan_slice(&maximum, 1ull);
     sim_check(results,
               (maximum.spoiled != 0) && (maximum.bytes == (1ull << 62u)) && (maximum.slices == 1ull) &&
@@ -150,21 +150,21 @@ static void device_pool_test_reserve(SimResults *results)
     sim_check(results,
               device_pool_test_error(device_pool_reserve(&from_spoiled), &error) && (pool.base == &marker) &&
                   (pool.bytes == 7ull) && (pool.used == 3ull),
-              "a spoiled plan's hold errors, and the pool is left as it was");
+              "a spoiled plan's reserve errors, and the pool is left as it was");
     memset(&error, 0, sizeof(error));
     const DevicePoolReserveRequest planless = {NULL, &pool, &error};
     sim_check(results, device_pool_test_error(device_pool_reserve(&planless), &error) && (pool.base == &marker),
-              "a hold with no plan errors");
+              "a reserve with no plan errors");
     const DevicePoolReserveRequest unanswered = {&spoiled, &pool, NULL};
     sim_check(results, (device_pool_reserve(&unanswered) == DEVICE_POOL_ERROR) && (pool.base == &marker),
-              "a hold with no error to raise errors");
+              "a reserve with no error to raise errors");
     DevicePoolPlan empty = {0ull, 0ull, 0};
     memset(&error, 0, sizeof(error));
     const DevicePoolReserveRequest from_empty = {&empty, &pool, &error};
     sim_check(results,
               (device_pool_reserve(&from_empty) == 0L) && (pool.base == NULL) && (pool.bytes == 0ull) &&
                   (pool.used == 0ull) && (error.kind == ENGINE_ERROR_NONE),
-              "a plan of nothing holds an empty pool and allocates nothing");
+              "a plan of nothing reserves an empty pool and allocates nothing");
     device_pool_release(&pool);
 }
 
@@ -216,7 +216,7 @@ static void device_pool_test_slices(SimResults *results)
     sim_check(results,
               ok && (pool.base != NULL) && (pool.bytes == 2097152ull) && (pool.used == 0ull) &&
                   ((((uintptr_t)pool.base) % 256u) == 0u),
-              "the plan's pool is held as one allocation of 2 MiB on a 256-byte boundary, nothing taken");
+              "the plan's pool is reserved as one allocation of 2 MiB on a 256-byte boundary, nothing taken");
     if (!ok)
     {
         return;
@@ -235,7 +235,7 @@ static void device_pool_test_slices(SimResults *results)
               "each take in the plan's order returns the slice the plan laid out");
     // the pool is one page, 2 MiB
     int ran = taken && sim_status_check(results, cudaMemset(pool.base, 0, (size_t)pool.bytes), "the pool is zeroed");
-    // the last slice, 8 bytes on a 256-byte boundary, holds the kernels' count
+    // the last slice, 8 bytes on a 256-byte boundary, stores the kernels' count
     ran = ran && device_pool_test_marks(results, slice, (unsigned long long *)slice[DEVICE_POOL_TEST_SLICES - 1u]);
     unsigned char read[2560];
     ran = ran && sim_status_check(results, cudaMemcpy(read, pool.base, sizeof(read), cudaMemcpyDeviceToHost),
@@ -267,7 +267,7 @@ static void device_pool_test_slices(SimResults *results)
     sim_check(results,
               (device_pool_take(&rest) == 0L) && (last == (void *)(pool.base + DEVICE_POOL_TEST_NEXT)) &&
                   (pool.used == pool.bytes),
-              "a take of the rest of the pool is held, at the next 256-byte offset, and fills the pool");
+              "a take of the rest of the pool is granted, at the next 256-byte offset, and fills the pool");
     memset(&error, 0, sizeof(error));
     const DevicePoolTakeRequest full = {&pool, 1ull, &untouched, &error};
     sim_check(results,
@@ -310,10 +310,10 @@ static int device_pool_test_read(const DevicePoolTestCounter *counter, unsigned 
 static void device_pool_test_measurement(SimResults *results, const char *what, unsigned long long from,
                                          unsigned long long to)
 {
-    scriptura_text(&results->line, what);
+    mmgr_line_put(&results->line, what);
     // a difference of two readings of one process's device bytes, each below 2^40
-    scriptura_signed(&results->line, (long long)to - (long long)from);
-    scriptura_text(&results->line, " bytes\n");
+    mmgr_line_decimal_signed(&results->line, (long long)to - (long long)from);
+    mmgr_line_put(&results->line, " bytes\n");
 }
 
 static void device_pool_test_cost(SimResults *results)
@@ -366,7 +366,8 @@ static void device_pool_test_cost(SimResults *results)
     for (unsigned int at = 0u; (read != 0) && (at < DEVICE_POOL_TEST_TOWER_BUFFERS); at += 1u)
     {
         // each buffer is below 2^32 bytes
-        read = sim_status_check(results, cudaMalloc(&buffers[at], (size_t)buffer_bytes[at]), "a buffer is held apart");
+        read = sim_status_check(results, cudaMalloc(&buffers[at], (size_t)buffer_bytes[at]),
+                                "a buffer is allocated separately");
     }
     read = read && device_pool_test_read(&counter, &apart);
     for (unsigned int at = 0u; at < DEVICE_POOL_TEST_TOWER_BUFFERS; at += 1u)
@@ -375,20 +376,20 @@ static void device_pool_test_cost(SimResults *results)
     }
     tessera_measure_close(counter.measure);
     sim_check(results, read, "every reading of the device's counter is taken");
-    scriptura_text(&results->line, "  the tower's four buffers for 1,100,000 voxels: ");
-    scriptura_decimal(&results->line, plan.bytes, 1u);
-    scriptura_text(&results->line, " bytes planned, a pool of ");
-    scriptura_decimal(&results->line, pool_bytes, 1u);
-    scriptura_text(&results->line, "\n");
-    device_pool_test_measurement(results, "    held as one pool:         ", before, pooled);
+    mmgr_line_put(&results->line, "  the tower's four buffers for 1,100,000 voxels: ");
+    mmgr_line_decimal(&results->line, plan.bytes, 1u);
+    mmgr_line_put(&results->line, " bytes planned, a pool of ");
+    mmgr_line_decimal(&results->line, pool_bytes, 1u);
+    mmgr_line_put(&results->line, "\n");
+    device_pool_test_measurement(results, "    as one pool:", before, pooled);
     device_pool_test_measurement(results, "    the pool released:        ", pooled, freed);
-    device_pool_test_measurement(results, "    held as four allocations: ", freed, apart);
+    device_pool_test_measurement(results, "    as four allocations:", freed, apart);
     sim_flush(results);
     sim_check(results, read && (pooled >= before) && ((pooled - before) == pool_bytes),
               "the pool costs its plan's page-rounded bytes, to the byte");
     sim_check(results, read && (freed == before), "a release gives every page of the pool back");
     sim_check(results, read && (apart >= freed) && ((apart - freed) >= (pooled - before)),
-              "the pool costs no more than its four buffers held apart");
+              "the pool costs no more than its four buffers allocated separately");
 }
 
 int main(int count, char **arguments)
@@ -396,7 +397,7 @@ int main(int count, char **arguments)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    scriptura_text(&results.line,
+    mmgr_line_put(&results.line,
                    "  the device pool: a job's buffers as slices of one allocation, rounded to the page once\n");
     device_pool_test_plan(&results);
     if (sim_job_submit(&results, "device_pool_test", count, arguments, DEVICE_POOL_TEST_DECLARED) != 0)

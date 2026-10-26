@@ -3,7 +3,7 @@
 // asm_printer_layout.cu: the program and rulesets laid out, and the host's lists
 #include "asm_printer_internal.h"
 
-// the assembly printer's program, as the build kept it, encoded by keymath and laid out by key_schedule into
+// the assembly printer's program, as the build stored it, encoded by keymath and laid out by key_schedule into
 // `program`'s key and layout: 1 where they are, else 0 and why in `error`
 static int asm_printer_program_layout(AsmPrinterProgram *program, std::string *error_message)
 {
@@ -55,7 +55,7 @@ int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, co
     }
     if (header.find('\0') != std::string::npos)
     {
-        *error = "the header holds a byte 0";
+        *error = "the header contains a byte 0";
         return 0;
     }
     const unsigned int scratch_banks[3] = {REGCLASS_TEMPORARY, REGCLASS_WIDE, REGCLASS_PREDICATE};
@@ -81,7 +81,7 @@ int asm_printer_ruleset_build(const Ruleset *rules, const TargetInfo *target, co
         }
         step_capacity *= 2u;
     }
-    asm_printer_keep(&build, text_rules);
+    asm_printer_store(&build, text_rules);
     return asm_printer_program_layout(&text_rules->program, error);
 }
 
@@ -98,8 +98,8 @@ AsmPrinterLists asm_printer_lists(const AsmPrinterRuleset *text_rules)
     forms.part_lanes = text_rules->part_lanes.data();
     forms.form_part_first = text_rules->form_part_first.data();
     forms.form_parts = text_rules->form_parts.data();
-    forms.form_slot_first = text_rules->form_slot_first.data();
-    forms.slot_parameters = text_rules->slot_parameters.data();
+    forms.form_placeholder_first = text_rules->form_placeholder_first.data();
+    forms.placeholder_parameters = text_rules->placeholder_parameters.data();
     for (unsigned int bank = 0u; bank < REGCLASS_COUNT; bank += 1u)
     {
         forms.bank_before[bank] = text_rules->bank_before[bank];
@@ -140,7 +140,7 @@ int asm_printer_host(const AsmPrinterRuleset *text_rules, const std::vector<Mach
     }
     if (record_count >= ASM_PRINTER_LANES_MAX)
     {
-        *error_message = "the text holds more records than the assembly printer holds";
+        *error_message = "the text contains more records than the assembly printer supports";
         return 0;
     }
     std::vector<unsigned int> records((size_t)(record_count * ASM_PRINTER_RECORD_LIMBS), 0u);
@@ -156,7 +156,7 @@ int asm_printer_host(const AsmPrinterRuleset *text_rules, const std::vector<Mach
     }
     if ((lanes >= ASM_PRINTER_LANES_MAX) || (lanes == 0ull))
     {
-        *error_message = "the text holds more lanes than the assembly printer holds";
+        *error_message = "the text contains more lanes than the assembly printer supports";
         return 0;
     }
     std::vector<unsigned int> index;

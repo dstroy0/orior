@@ -69,7 +69,7 @@ static int writings_chain_read(const char **walk, WritingsNode *nodes, unsigned 
 
 // `writing`, a form as the search put it, written to `out` with its result register WRITINGS_RESULT and its two sources
 // WRITINGS_LEFT and WRITINGS_RIGHT replaced by `to`, `left` and `right`, each only where it is a whole register token.
-// 1, or 0 where `out` will not hold it
+// 1, or 0 where `out` will not fit it
 static int writings_put(const char *writing, const char *to, const char *left, const char *right, char *out,
                         size_t room)
 {
@@ -107,7 +107,7 @@ static int writings_put(const char *writing, const char *to, const char *left, c
     return 1;
 }
 
-// the first form the search found holding `precept`, by its number among the forms, or s_form_count where none does
+// the first form the search found containing `precept`, by its number among the forms, or s_form_count where none does
 static unsigned int writings_for(unsigned int precept)
 {
     unsigned int relation = s_relations;
@@ -117,7 +117,7 @@ static unsigned int writings_for(unsigned int precept)
     }
     for (unsigned int number = 0u; (relation < s_relations) && (number < s_form_count); number += 1u)
     {
-        if (s_ran[number] && s_holds[number][relation])
+        if (s_ran[number] && s_relation_agreed[number][relation])
         {
             return number;
         }
@@ -127,7 +127,7 @@ static unsigned int writings_for(unsigned int precept)
 
 // Every chain of the .kdm at `kdm` written into a cubin of its own in `into`, each node the first writing the search in
 // `folder` found for its precept, with <into>/list.txt and <into>/chains.txt beside them. A row's sixth column, a
-// verdict a descent gave it, is kept in chains.txt. 0, or 2 where nothing could be read or written
+// verdict a descent gave it, is recorded in chains.txt. 0, or 2 where nothing could be read or written
 int writings_chains_write(const char *pattern, const char *kernel_text, const char *machine, const char *folder,
                                  const char *kdm, const char *into)
 {
@@ -145,7 +145,7 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
     FILE *const list = fopen(path, "wb");
     snprintf(path, sizeof(path), "%s/chains.txt", into);
     FILE *const chains = fopen(path, "wb");
-    // the .kdm as the run holds it (kdm.h)
+    // the .kdm as the run stores it (kdm.h)
     static KdmFile s_rows;
     if ((list == NULL) || (chains == NULL) || !kdm_read(&s_rows, kdm) || (s_rows.lines == 0u))
     {
@@ -194,9 +194,9 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
                     sizeof(lines));
         }
         fits = fits && (snprintf(&lines[at], sizeof(lines) - at, WRITINGS_TAIL) < (int)(sizeof(lines) - at)) &&
-               writings_splice(s_kernel_text, lines, s_asking, sizeof(s_asking));
+               writings_splice(s_kernel_text, lines, s_query_text, sizeof(s_query_text));
         const unsigned int instructions =
-            fits ? sass_assemble_lines(&s_machine, s_asking, SASS_CONTROL_SAFE, s_code, sizeof(s_code)) : 0u;
+            fits ? sass_assemble_lines(&s_machine, s_query_text, SASS_CONTROL_SAFE, s_code, sizeof(s_code)) : 0u;
         char cubin[1024];
         snprintf(cubin, sizeof(cubin), "%s/chain_%05u.cubin", into, written);
         if ((instructions == 0u) || !writings_cubin(instructions, cubin))
@@ -212,8 +212,8 @@ int writings_chains_write(const char *pattern, const char *kernel_text, const ch
     kdm_free(&s_rows);
     fclose(list);
     fclose(chains);
-    printf("interface sass chains: %u chains of the .kdm read, %u written and held to cubin_safe, %u not written\n", read,
-           written, unwritten);
+    printf("interface sass chains: %u chains of the .kdm read, %u written and checked by cubin_safe, %u not written\n",
+           read, written, unwritten);
     return 0;
 }
 
@@ -265,7 +265,7 @@ int writings_chains_read(const char *folder, const char *record)
     writings_answers_read(answers, count, s_chain_answered, s_chain_ran, &ran, &refused);
     fclose(answers);
     unsigned int put[LADDER_ANCHOR_COUNT] = {0u};
-    unsigned int held[LADDER_ANCHOR_COUNT] = {0u};
+    unsigned int anchor_counts[LADDER_ANCHOR_COUNT] = {0u};
     fprintf(out, "# Chains run on the part\n\n");
     fprintf(out, "Written by `interface_sass_writings.sh` whole on every run. Every arrangement of the part's .kdm is "
                  "written node by node, each node the first writing `interface_sass_writings.md` found for its "
@@ -289,7 +289,7 @@ int writings_chains_read(const char *folder, const char *record)
             agreed += (s_chain_answered[number][at] == expected) ? 1u : 0u;
         }
         put[anchor] += 1u;
-        held[anchor] += (agreed == s_cases) ? 1u : 0u;
+        anchor_counts[anchor] += (agreed == s_cases) ? 1u : 0u;
         if (agreed != s_cases)
         {
             fprintf(out, "- %s `%s`: %u of %u cases\n", s_anchor_text[anchor], s_chain[number], agreed, s_cases);
@@ -302,8 +302,9 @@ int writings_chains_read(const char *folder, const char *record)
     {
         if (put[anchor] != 0u)
         {
-            fprintf(out, "| %s | %u | %u |\n", s_anchor_text[anchor], put[anchor], held[anchor]);
-            printf("  %-8s %u chains run, %u answering every case\n", s_anchor_text[anchor], put[anchor], held[anchor]);
+            fprintf(out, "| %s | %u | %u |\n", s_anchor_text[anchor], put[anchor], anchor_counts[anchor]);
+            printf("  %-8s %u chains run, %u answering every case\n", s_anchor_text[anchor], put[anchor],
+                   anchor_counts[anchor]);
         }
     }
     fclose(out);

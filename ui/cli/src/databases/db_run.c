@@ -1,13 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// db_run.c: a statement run on a connection: asked first where it writes every row of what it names, or where it writes
-// on a connection that matters and asks; then started on the query link, its first page of rows held and written, what
-// it did, what the server noted, the transaction's state, the session's zone, the object it shapes, and how long it
-// took
+// db_run.c: a statement run on a connection: confirmed first where it writes every row of what it names, or where it
+// writes on a connection that matters and confirms; then started on the query link, its first page of rows buffered and
+// written, what it did, what the server noted, the transaction's state, the session's zone, the object it shapes, and
+// how long it took
 #include "db_internal.h"
 #include "sql.h"
 
-// The running of one statement: its connection, the statement, the page of rows asked for, where the result goes, its
+// The running of one statement: its connection, the statement, the page of rows requested, where the result goes, its
 // tag and whether it has one, whether the statement gave rows and how many were written, the notices the server gave
 // written as a JSON array, and the transaction's state after it
 typedef struct
@@ -16,12 +16,12 @@ typedef struct
     const char *statement;
     unsigned long long size;
     unsigned long long page;
-    CliLine *out;
+    VerbaLinea *out;
     char tag[CLI_DB_TAG];
     int has_tag;
     int rows;
     char notices[CLI_DB_FIELD * 4u];
-    CliLine notices_line;
+    VerbaLinea notices_line;
     char transaction[16];
 } CliDbRunning;
 
@@ -29,12 +29,12 @@ typedef struct
 static void run_notice(void *context, const char *notice)
 {
     CliDbRunning *const running = (CliDbRunning *)context;
-    cli_line_text(&running->notices_line, (running->notices_line.at > 1ull) ? "," : "");
+    mmgr_line_put(&running->notices_line, (running->notices_line.at > 1ull) ? "," : "");
     cli_json_quoted_lossy(&running->notices_line, (const unsigned char *)notice,
                           cellul.len(&(CatenaFinitaCfg){.src = notice, .cap = CLI_CELLS_POOL}));
 }
 
-// the statement started on the query link, and its first page of rows held and written, or what it did
+// the statement started on the query link, and its first page of rows buffered and written, or what it did
 static int run_work(void *context, CliDbLink *link, CliDbFailure *failure)
 {
     CliDbRunning *const running = (CliDbRunning *)context;
@@ -50,21 +50,21 @@ static int run_work(void *context, CliDbLink *link, CliDbFailure *failure)
         memor.cpy(&(MemoriaCfg){.dst = running->tag,
                                 .src = head->tag,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = head->tag, .cap = CLI_CELLS_POOL}) + 1u});
-        cli_line_text(running->out, "\"rows\":[]");
+        mmgr_line_put(running->out, "\"rows\":[]");
     }
     else
     {
-        cli_line_text(running->out, "\"rows\":");
-        if (!cli_db_held_begun(running->open, link, running->page, running->out, &done, running->tag, failure))
+        mmgr_line_put(running->out, "\"rows\":");
+        if (!cli_db_results_begun(running->open, link, running->page, running->out, &done, running->tag, failure))
         {
             return 0;
         }
     }
     running->has_tag = done;
-    running->notices_line = (CliLine){running->notices, sizeof(running->notices), 0ull};
-    cli_line_character(&running->notices_line, '[');
+    running->notices_line = (VerbaLinea){running->notices, sizeof(running->notices), 0ull};
+    mmgr_line_ch(&running->notices_line, '[');
     cli_db_link_notices(link, run_notice, running);
-    cli_line_character(&running->notices_line, ']');
+    mmgr_line_ch(&running->notices_line, ']');
     memor.cpy(&(MemoriaCfg){
         .dst = running->transaction,
         .src = cli_db_link_transaction(link),
@@ -86,9 +86,9 @@ static int run_counted(void *context, const CliDbValue *values, unsigned int cou
     CliDbCounting *const counting = (CliDbCounting *)context;
     if (!counting->has_count && (count > 0u) && !values[0].null)
     {
-        CliLine line = {counting->count, sizeof(counting->count), 0ull};
+        VerbaLinea line = {counting->count, sizeof(counting->count), 0ull};
         cli_lossy(&line, (const unsigned char *)values[0].text, values[0].size);
-        cli_line_closed(&line);
+        mmgr_line_finish(&line);
         counting->has_count = 1;
     }
     return 1;
@@ -100,13 +100,13 @@ static int run_count_work(void *context, CliDbLink *link, CliDbFailure *failure)
     return cli_db_link_all(link, counting->query, counting->size, run_counted, counting, failure);
 }
 
-// whether running the statement asks first, and why, written into `out`: a write that reaches every row of what it
-// names, with their count, on every connection; and any statement that writes on a connection that matters and asks
-static int run_asks(CliDbOpen *open, const char *statement, unsigned long long size, CliLine *out)
+// whether running the statement confirms first, and why, written into `out`: a write that reaches every row of what it
+// names, with their count, on every connection; and any statement that writes on a connection that matters and confirms
+static int run_queries(CliDbOpen *open, const char *statement, unsigned long long size, VerbaLinea *out)
 {
     const unsigned int dialect = cli_sql_dialect(open->config.kind);
     char query[CLI_DB_FIELD];
-    CliLine counting_line = {query, sizeof(query), 0ull};
+    VerbaLinea counting_line = {query, sizeof(query), 0ull};
     if (cli_sql_unbounded(statement, size, dialect, &counting_line))
     {
         CliDbCounting counting = {query, counting_line.at, "", 0};
@@ -115,7 +115,7 @@ static int run_asks(CliDbOpen *open, const char *statement, unsigned long long s
         {
             counting.has_count = 0;
         }
-        cli_line_text(out, "{\"ask\":{\"why\":\"every row\",\"count\":");
+        mmgr_line_put(out, "{\"confirm\":{\"why\":\"every row\",\"count\":");
         if (counting.has_count)
         {
             cli_json_quoted_lossy(out, (const unsigned char *)counting.count,
@@ -123,23 +123,23 @@ static int run_asks(CliDbOpen *open, const char *statement, unsigned long long s
         }
         else
         {
-            cli_line_text(out, "null");
+            mmgr_line_put(out, "null");
         }
-        cli_line_text(out, open->config.matters ? ",\"matters\":true}}" : ",\"matters\":false}}");
+        mmgr_line_put(out, open->config.matters ? ",\"matters\":true}}" : ",\"matters\":false}}");
         return 1;
     }
     if (open->config.matters &&
         (!cellul.eq(&(CatenaFinitaCfg){.src = open->config.guard, .other = "read-only", .cap = CLI_CELLS_POOL})) &&
         cli_sql_changes(statement, size, dialect))
     {
-        cli_line_text(out, "{\"ask\":{\"why\":\"matters\",\"matters\":true}}");
+        mmgr_line_put(out, "{\"confirm\":{\"why\":\"matters\",\"matters\":true}}");
         return 1;
     }
     return 0;
 }
 
 int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, int answered, unsigned long long page,
-               CliLine *out, CliDbFailure *failure)
+               VerbaLinea *out, CliDbFailure *failure)
 {
     // the statement trimmed of its spaces, then of the semicolons at its end, then of the spaces before them
     unsigned long long start = 0ull;
@@ -165,12 +165,12 @@ int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, 
     }
     if (start == end)
     {
-        cli_db_failure_said(failure, "there is no statement to run");
+        cli_db_failure_set(failure, "there is no statement to run");
         return 0;
     }
     const char *const text = statement + start;
     const unsigned long long length = end - start;
-    if (!answered && run_asks(open, text, length, out))
+    if (!answered && run_queries(open, text, length, out))
     {
         return 1;
     }
@@ -179,31 +179,32 @@ int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, 
     const unsigned long long from = out->at;
     *running = (CliDbRunning){open, text, length, page, out, "", 0, 0, "", {NULL, 0ull, 0ull}, ""};
     const unsigned long long started = cli_clock_milliseconds();
-    cli_line_character(out, '{');
-    // the rows held are taken before the query link, as every reader of them takes the two, and kept through the run
-    cli_lock_take(&open->held_lock);
+    mmgr_line_ch(out, '{');
+    // the rows buffered are taken before the query link, as every reader of them takes the two, and retained through
+    // the run
+    cli_lock_take(&open->results_lock);
     const int ran = cli_db_with_query(open, run_work, running, failure);
     const unsigned long long took = cli_clock_milliseconds() - started;
-    char said[CLI_DB_TAG];
-    CliLine said_line = {said, sizeof(said), 0ull};
+    char tag_buf[CLI_DB_TAG];
+    VerbaLinea tag_line = {tag_buf, sizeof(tag_buf), 0ull};
     if (ran && running->has_tag)
     {
-        cli_line_text(&said_line, running->tag);
+        mmgr_line_put(&tag_line, running->tag);
     }
     else if (ran)
     {
-        cli_line_decimal(&said_line, open->held.rows, 1u);
-        cli_line_text(&said_line, "+ rows");
+        mmgr_line_decimal(&tag_line, open->results.rows, 1u);
+        mmgr_line_put(&tag_line, "+ rows");
     }
     else
     {
-        cli_db_failure_written(failure, &said_line);
+        cli_db_failure_written(failure, &tag_line);
     }
-    cli_line_closed(&said_line);
-    cli_db_remembered(open, text, length, took, said, !ran);
+    mmgr_line_finish(&tag_line);
+    cli_db_remembered(open, text, length, took, tag_buf, !ran);
     if (!ran)
     {
-        cli_lock_give(&open->held_lock);
+        cli_lock_give(&open->results_lock);
         out->at = from;
         return 0;
     }
@@ -215,28 +216,28 @@ int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, 
     {
         cli_db_zone_read(open);
     }
-    cli_line_text(out, ",\"columns\":");
+    mmgr_line_put(out, ",\"columns\":");
     if (running->rows)
     {
-        cli_line_character(out, '[');
-        for (unsigned int at = 0u; at < open->held.column_count; at += 1u)
+        mmgr_line_ch(out, '[');
+        for (unsigned int at = 0u; at < open->results.column_count; at += 1u)
         {
-            const CliDbColumn *const column = &open->held.columns[at];
-            cli_line_text(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
+            const CliDbColumn *const column = &open->results.columns[at];
+            mmgr_line_put(out, (at > 0u) ? ",{\"name\":" : "{\"name\":");
             cli_json_quoted_lossy(out, (const unsigned char *)column->name,
                                   cellul.len(&(CatenaFinitaCfg){.src = column->name, .cap = CLI_CELLS_POOL}));
-            cli_line_text(out, ",\"kind\":");
+            mmgr_line_put(out, ",\"kind\":");
             cli_json_quoted_lossy(out, (const unsigned char *)column->kind,
                                   cellul.len(&(CatenaFinitaCfg){.src = column->kind, .cap = CLI_CELLS_POOL}));
-            cli_line_text(out, column->numeric ? ",\"numeric\":true}" : ",\"numeric\":false}");
+            mmgr_line_put(out, column->numeric ? ",\"numeric\":true}" : ",\"numeric\":false}");
         }
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, ']');
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"done\":");
+    mmgr_line_put(out, ",\"done\":");
     if (running->has_tag)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)running->tag,
@@ -244,31 +245,31 @@ int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, 
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"notices\":");
-    cli_line_counted(out, running->notices_line.out, running->notices_line.at);
-    cli_line_text(out, ",\"transaction\":");
+    mmgr_line_put(out, ",\"notices\":");
+    mmgr_line_put_n(out, running->notices_line.out, running->notices_line.at);
+    mmgr_line_put(out, ",\"transaction\":");
     cli_json_quoted(out, running->transaction,
                     cellul.len(&(CatenaFinitaCfg){.src = running->transaction, .cap = CLI_CELLS_POOL}));
-    cli_line_text(out, ",\"zone\":");
-    char zone[CLI_NAME_LONGEST];
-    CliLine zone_line = {zone, sizeof(zone), 0ull};
+    mmgr_line_put(out, ",\"zone\":");
+    char zone[CLI_NAME_MAX_LEN];
+    VerbaLinea zone_line = {zone, sizeof(zone), 0ull};
     cli_db_zone(open, &zone_line);
     cli_json_quoted_lossy(out, (const unsigned char *)zone_line.out, zone_line.at);
-    cli_line_text(out, ",\"shaped\":");
+    mmgr_line_put(out, ",\"shaped\":");
     if (has_shaped)
     {
-        cli_line_text(out, "{\"verb\":");
+        mmgr_line_put(out, "{\"verb\":");
         cli_json_quoted_lossy(out, (const unsigned char *)shaped.verb,
                               cellul.len(&(CatenaFinitaCfg){.src = shaped.verb, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"kind\":");
+        mmgr_line_put(out, ",\"kind\":");
         cli_json_quoted_lossy(out, (const unsigned char *)shaped.kind,
                               cellul.len(&(CatenaFinitaCfg){.src = shaped.kind, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"name\":");
+        mmgr_line_put(out, ",\"name\":");
         cli_json_quoted_lossy(out, (const unsigned char *)shaped.name,
                               cellul.len(&(CatenaFinitaCfg){.src = shaped.name, .cap = CLI_CELLS_POOL}));
-        cli_line_text(out, ",\"on\":");
+        mmgr_line_put(out, ",\"on\":");
         if (shaped.has_on)
         {
             cli_json_quoted_lossy(out, (const unsigned char *)shaped.on,
@@ -276,17 +277,17 @@ int cli_db_run(CliDbOpen *open, const char *statement, unsigned long long size, 
         }
         else
         {
-            cli_line_text(out, "null");
+            mmgr_line_put(out, "null");
         }
-        cli_line_character(out, '}');
+        mmgr_line_ch(out, '}');
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_text(out, ",\"ms\":");
-    cli_line_decimal(out, took, 1u);
-    cli_line_character(out, '}');
-    cli_lock_give(&open->held_lock);
+    mmgr_line_put(out, ",\"ms\":");
+    mmgr_line_decimal(out, took, 1u);
+    mmgr_line_ch(out, '}');
+    cli_lock_give(&open->results_lock);
     return 1;
 }

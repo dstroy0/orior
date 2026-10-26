@@ -133,7 +133,7 @@ static unsigned int npy_zip_candidate(const ZipEntry *entry, const char *member)
 static void npy_zip_list(const EngineIngestTools *tools, const char *path, const char *member,
                          const ZipArchive *archive, unsigned long long matches)
 {
-    fprintf(stderr, "npy: %s holds %llu candidate arrays%s%s; name one as the member\n", path, matches,
+    fprintf(stderr, "npy: %s contains %llu candidate arrays%s%s; name one as the member\n", path, matches,
             (member != NULL) ? " named " : "", (member != NULL) ? member : "");
     unsigned long long at = 0ull;
     for (unsigned long long entry_index = 0ull; entry_index < archive->entries; entry_index += 1ull)

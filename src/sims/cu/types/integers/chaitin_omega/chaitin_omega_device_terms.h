@@ -17,7 +17,7 @@ static inline __device__ unsigned long long omega_device_count(const unsigned lo
 }
 
 // omega_unrank with the pending right parts on a stack; each application leaves one more. A term of at most
-// 60 bits leaves at most 15. The kernel's buffers hold shorts and the engine's pool long longs.
+// 60 bits leaves at most 15. The kernel's buffers store shorts and the engine's pool long longs.
 template <typename Token>
 static __device__ unsigned int omega_device_unrank(const unsigned long long *__restrict__ counts, unsigned int length,
                                                    unsigned long long index, Token *term)

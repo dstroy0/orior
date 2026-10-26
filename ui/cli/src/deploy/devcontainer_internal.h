@@ -8,7 +8,7 @@
 #include "devcontainer.h"
 
 // the longest text of one of a description's strings
-#define CLI_STRING_LONGEST 8192u
+#define CLI_STRING_MAX_LEN 8192u
 
 // What a description's variables read as: the tree, the tree's folder in the container
 typedef struct
@@ -18,25 +18,25 @@ typedef struct
 } CliPlanPlaces;
 
 // the description at `file` read and made plain JSON, its tokens read, and nothing yet found too long: 1, or 0 with
-// why said, the plain text and its tokens in cells sized to it; those cells given back once the plan is made; 1 where a
-// text of it did not fit what a plan keeps; and the cells the description holds
-int cli_plan_description_read(const char *file, CliLine *said);
+// why given, the plain text and its tokens in cells sized to it; those cells given back once the plan is made; 1 where
+// a text of it did not fit what a plan stores; and the cells the description occupies
+int cli_plan_description_read(const char *file, VerbaLinea *err_msg);
 void cli_plan_description_given(void);
 int cli_plan_overflowed(void);
-extern CliCellsTally g_cli_devcontainer_cells;
-// the string at token `value` decoded into `out`, which holds CLI_STRING_LONGEST: 1, or 0 where it is no string; the
+extern CellOwner g_cli_devcontainer_cells;
+// the string at token `value` decoded into `out`, sized for CLI_STRING_MAX_LEN: 1, or 0 where it is no string; the
 // member `name` of the description, and of the object at token `object` where it is a member found, 0 where none
 int cli_plan_string(unsigned int value, char *out);
 unsigned int cli_plan_member(const char *name);
 unsigned int cli_plan_member_of(unsigned int object, const char *name);
-// the strings a value holds: itself where it is one, else each of an array's that is a string; their count, each
+// the strings a value contains: itself where it is one, else each of an array's that is a string; their count, each
 // token into `tokens`
 unsigned int cli_plan_strings(unsigned int value, unsigned int *tokens, unsigned int room);
 // `text` put in the plan's texts, where it starts; and put at the end of `list`
 unsigned int cli_plan_put(CliPlan *plan, const char *text);
 void cli_plan_listed(CliPlan *plan, CliPlanList *list, const char *text);
-// `text` with the description's variables read into `out`, which holds CLI_STRING_LONGEST; `path` joined onto `base`
-// into `out`, which holds CLI_PATH_LONGEST
+// `text` with the description's variables read into `out`, sized for CLI_STRING_MAX_LEN; `path` joined onto `base`
+// into `out`, sized for CLI_PATH_MAX_LEN
 void cli_plan_expanded(const char *text, const CliPlanPlaces *places, char *out);
 void cli_plan_joined(const char *base, const char *path, char *out);
 // each member of the object at token `object` whose value is a string, its key and its value read in turn, put at

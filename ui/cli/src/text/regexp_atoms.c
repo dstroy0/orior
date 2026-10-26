@@ -4,7 +4,7 @@
 // a backreference, or an escape, which is a class item or one character
 #include "regexp_read_internal.h"
 
-// what an escape read is: a class item, one character, or a failure said
+// what an escape read is: a class item, one character, or a failure reported
 #define CLI_ESCAPE_ITEM 0
 
 #define CLI_ESCAPE_LETTER 1
@@ -36,7 +36,7 @@ static int cli_hex(CliRegexpReader *reader, unsigned int count, unsigned int *le
 }
 
 // An escape after its backslash, into `item` or `letter`: CLI_ESCAPE_ITEM, CLI_ESCAPE_LETTER, or CLI_ESCAPE_FAILED with
-// why said
+// why given
 static int cli_escape(CliRegexpReader *reader, int in_class, CliRegexpItem *item, unsigned int *letter)
 {
     unsigned int escaped = 0u;
@@ -95,7 +95,7 @@ static int cli_escape(CliRegexpReader *reader, int in_class, CliRegexpItem *item
                 cli_failed(reader, "an unclosed \\u{");
                 return CLI_ESCAPE_FAILED;
             }
-            // a code past what a character holds, or none, reads as `u`
+            // a code past what a character represents, or none, reads as `u`
             const int valid = (digits != 0ull) && (digits <= 6ull) && (code <= 0x10ffffull) &&
                               !((code >= 0xd800ull) && (code <= 0xdfffull));
             *letter = valid ? (unsigned int)code : 'u';
@@ -163,12 +163,12 @@ static int cli_escape(CliRegexpReader *reader, int in_class, CliRegexpItem *item
     return CLI_ESCAPE_LETTER;
 }
 
-// `item` added to the class's items: 1, or 0 with why said where a class holds as many as it can
+// `item` added to the class's items: 1, or 0 with why given where a class contains as many as it can
 static int cli_item_added(CliRegexpReader *reader, CliRegexpItem *items, unsigned int *count, CliRegexpItem item)
 {
     if (*count >= 256u)
     {
-        cli_failed(reader, "more items than a class holds");
+        cli_failed(reader, "more items than a class allows");
         return 0;
     }
     items[*count] = item;
@@ -255,7 +255,7 @@ static unsigned int cli_class(CliRegexpReader *reader)
     CliRegexp *const regexp = reader->regexp;
     if ((regexp->items + count) > CLI_REGEXP_ITEMS)
     {
-        return cli_failed(reader, "more class items than a pattern holds");
+        return cli_failed(reader, "more class items than a pattern allows");
     }
     const unsigned int made = cli_node(reader, CLI_REGEXP_CLASS);
     if (made != CLI_REGEXP_NONE)
@@ -307,7 +307,7 @@ static unsigned int cli_group(CliRegexpReader *reader)
     }
     if ((reader->groups + 1u) >= CLI_REGEXP_GROUPS)
     {
-        return cli_failed(reader, "more groups than a pattern holds");
+        return cli_failed(reader, "more groups than a pattern allows");
     }
     reader->groups += 1u;
     const unsigned int index = reader->groups;
@@ -379,7 +379,7 @@ unsigned int cli_atom(CliRegexpReader *reader)
             CliRegexp *const regexp = reader->regexp;
             if (regexp->items >= CLI_REGEXP_ITEMS)
             {
-                return cli_failed(reader, "more class items than a pattern holds");
+                return cli_failed(reader, "more class items than a pattern allows");
             }
             made = cli_node(reader, CLI_REGEXP_CLASS);
             if (made != CLI_REGEXP_NONE)

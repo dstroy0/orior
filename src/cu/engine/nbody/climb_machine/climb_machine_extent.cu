@@ -29,15 +29,15 @@ __global__ static void machine_extent_kernel(const unsigned int *run_start, cons
 
 extern "C" int climb_machine_extents(ClimbMachine *machine, const ClimbMachineExtentsRequest *request)
 {
-    const unsigned int slot = ((machine != NULL) && (request != NULL) && (request->extents != NULL))
-                                  ? machine_slot_of(machine, request->frame)
-                                  : CLIMB_MACHINE_EMPTY;
-    if (slot == CLIMB_MACHINE_EMPTY)
+    const unsigned int resident = ((machine != NULL) && (request != NULL) && (request->extents != NULL))
+                                      ? machine_resident_of(machine, request->frame)
+                                      : CLIMB_MACHINE_EMPTY;
+    if (resident == CLIMB_MACHINE_EMPTY)
     {
         return 0;
     }
-    const unsigned int leaves = machine->slot_leaves[slot];
-    const unsigned int runs = machine->slot_runs[slot];
+    const unsigned int leaves = machine->resident_leaves[resident];
+    const unsigned int runs = machine->resident_runs[resident];
     const unsigned int axes = CLIMB_MACHINE_EXTENT_FIELDS / 2u;
     // leaves widens from unsigned int to size_t before the multiply. Leaves * 6 cannot wrap in 32 bits
     const size_t fields = (size_t)leaves * CLIMB_MACHINE_EXTENT_FIELDS;
@@ -57,7 +57,7 @@ extern "C" int climb_machine_extents(ClimbMachine *machine, const ClimbMachineEx
                                       cudaMemcpyHostToDevice) == cudaSuccess);
     if (steps_succeeded && (runs != 0u))
     {
-        const size_t base = slot * machine->run_capacity;
+        const size_t base = resident * machine->run_capacity;
         machine_extent_kernel<<<(runs + CLIMB_MACHINE_BLOCK - 1u) / CLIMB_MACHINE_BLOCK, CLIMB_MACHINE_BLOCK>>>(
             &machine->run_start[base], &machine->run_length[base], &machine->run_leaf[base], runs, machine->geometry,
             device_extents);
@@ -79,22 +79,23 @@ extern "C" void climb_machine_close(ClimbMachine *machine)
     cudaFree(machine->scratch_labels);
     cudaFree(machine->positive);
     cudaFree(machine->row_first);
-    for (unsigned int slot = 0u; (machine->slot_leaf_bundles != NULL) && (slot < machine->capacity); slot += 1u)
+    for (unsigned int resident = 0u; (machine->resident_leaf_bundles != NULL) && (resident < machine->capacity);
+         resident += 1u)
     {
-        free(machine->slot_leaf_bundles[slot]);
-        free(machine->slot_bundle_first[slot]);
-        free(machine->slot_bundle_end[slot]);
-        free(machine->slot_contact_start[slot]);
-        free(machine->slot_contacts[slot]);
+        free(machine->resident_leaf_bundles[resident]);
+        free(machine->resident_bundle_first[resident]);
+        free(machine->resident_bundle_end[resident]);
+        free(machine->resident_contact_start[resident]);
+        free(machine->resident_contacts[resident]);
     }
-    free(machine->slot_frame);
-    free(machine->slot_leaves);
-    free(machine->slot_runs);
-    free(machine->slot_leaf_bundles);
-    free(machine->slot_bundle_first);
-    free(machine->slot_bundle_end);
-    free(machine->slot_contact_start);
-    free(machine->slot_contacts);
+    free(machine->resident_frame);
+    free(machine->resident_leaves);
+    free(machine->resident_runs);
+    free(machine->resident_leaf_bundles);
+    free(machine->resident_bundle_first);
+    free(machine->resident_bundle_end);
+    free(machine->resident_contact_start);
+    free(machine->resident_contacts);
     cudaFree(machine->run_start);
     cudaFree(machine->run_length);
     cudaFree(machine->run_leaf);
@@ -112,8 +113,8 @@ extern "C" void climb_machine_close(ClimbMachine *machine)
     cudaFree(machine->device_order);
     free(machine->leaf_counts);
     free(machine->pending);
-    free(machine->side_slots);
-    cudaFree(machine->device_side_slots);
+    free(machine->side_residents);
+    cudaFree(machine->device_side_residents);
     free(machine->climber_side);
     free(machine->climber_peak);
     free(machine->climber_entry_start);

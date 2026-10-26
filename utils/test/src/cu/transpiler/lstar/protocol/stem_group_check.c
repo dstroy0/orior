@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// stem_group_check.c: the stem membership rule held to what it says, on the three members order_check.py breaks
-// pairwise agreement with and on drawn sets
+// stem_group_check.c: the stem membership rule checked against what it specifies, on the three members order_check.py
+// breaks pairwise agreement with and on drawn sets
 //
 //   the three     sm_86 at 100 with a floor of 3, sm_87 at 104 and sm_89 at 108 with floors of 5. sm_87 agrees with
 //                 both others and they do not agree with each other. The rule anchors on sm_86, the finest, puts
@@ -20,10 +20,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -73,7 +73,7 @@ static void check_three(void)
     static const unsigned long long s_cost[3] = {100ull, 104ull, 108ull};
     static const unsigned long long s_floor[3] = {3ull, 5ull, 5ull};
     static const unsigned int s_orders[6][3] = {{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}};
-    unsigned int held = 0u;
+    unsigned int matched = 0u;
     for (unsigned int order = 0u; order < 6u; order += 1u)
     {
         StemMember member[3] = {0};
@@ -95,10 +95,10 @@ static void check_three(void)
         const int sm_86_anchors = (group[place[0]] == place[0]) && (group[place[1]] == place[0]);
         if ((groups == 2u) && sm_86_anchors && (group[place[2]] == place[2]))
         {
-            held += 1u;
+            matched += 1u;
         }
     }
-    check_that(held == 6u, "the three group as sm_86 with sm_87 and sm_89 alone, in all six orders");
+    check_that(matched == 6u, "the three group as sm_86 with sm_87 and sm_89 alone, in all six orders");
 }
 
 static void check_refused(void)
@@ -187,9 +187,9 @@ static void check_drawn(void)
             for (unsigned int at = count - 1u; at > 0u; at -= 1u)
             {
                 const unsigned int swap = check_draw(at + 1u);
-                const unsigned int held = at_then[at];
+                const unsigned int drawn = at_then[at];
                 at_then[at] = at_then[swap];
-                at_then[swap] = held;
+                at_then[swap] = drawn;
             }
             for (unsigned int at = 0u; at < count; at += 1u)
             {

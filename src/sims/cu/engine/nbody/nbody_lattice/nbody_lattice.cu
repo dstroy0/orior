@@ -72,11 +72,11 @@ static void lattice_camera(SimCamera *camera)
     camera->shot = 1ull;
 }
 
-static void lattice_print_rational(ScripturaLine *line, unsigned long long numerator, unsigned long long denominator)
+static void lattice_print_rational(VerbaLinea *line, unsigned long long numerator, unsigned long long denominator)
 {
     if (denominator == 0ull)
     {
-        scriptura_text(line, "   gone");
+        mmgr_line_put(line, "   gone");
         return;
     }
     sim_fraction_print(line, numerator, denominator, 3u);
@@ -84,76 +84,76 @@ static void lattice_print_rational(ScripturaLine *line, unsigned long long numer
 
 static void lattice_print_scene(SimResults *results, const SimScene *scene, const unsigned long long *truth)
 {
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  a synthetic n-body lattice under the camera law\n");
-    scriptura_text(line, "  ");
-    scriptura_decimal(line, scene->frames, 1u);
-    scriptura_text(line, " frames of ");
-    scriptura_decimal(line, scene->extent[0], 1u);
-    scriptura_text(line, " x ");
-    scriptura_decimal(line, scene->extent[1], 1u);
-    scriptura_text(line, " x ");
-    scriptura_decimal(line, scene->extent[2], 1u);
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, scene->bodies, 1u);
-    scriptura_text(line, " bodies (");
-    scriptura_decimal(line, LATTICE_FOUNDERS, 1u);
-    scriptura_text(line, " founders, ");
-    scriptura_decimal(line, LATTICE_DIVISIONS, 1u);
-    scriptura_text(line, " divisions)\n");
-    scriptura_text(line, "  body parent born ended  first centroid z, y, x (exact, truncated to 3 places)   mass\n");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  a synthetic n-body lattice under the camera law\n");
+    mmgr_line_put(line, "  ");
+    mmgr_line_decimal(line, scene->frames, 1u);
+    mmgr_line_put(line, " frames of ");
+    mmgr_line_decimal(line, scene->extent[0], 1u);
+    mmgr_line_put(line, " x ");
+    mmgr_line_decimal(line, scene->extent[1], 1u);
+    mmgr_line_put(line, " x ");
+    mmgr_line_decimal(line, scene->extent[2], 1u);
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, scene->bodies, 1u);
+    mmgr_line_put(line, " bodies (");
+    mmgr_line_decimal(line, LATTICE_FOUNDERS, 1u);
+    mmgr_line_put(line, " founders, ");
+    mmgr_line_decimal(line, LATTICE_DIVISIONS, 1u);
+    mmgr_line_put(line, " divisions)\n");
+    mmgr_line_put(line, "  body parent born ended  first centroid z, y, x (exact, truncated to 3 places)   mass\n");
     for (unsigned int index = 0u; index < scene->bodies; index += 1u)
     {
         const SimBody *const body = &scene->body[index];
         const unsigned long long *const field = &truth[((body->born * scene->bodies) + index) * SIM_TRUTH_FIELDS];
-        scriptura_text(line, "  ");
-        scriptura_decimal_columns(line, index, 4u);
-        scriptura_character(line, ' ');
+        mmgr_line_put(line, "  ");
+        mmgr_line_decimal_columns(line, index, 4u);
+        mmgr_line_ch(line, ' ');
         if (body->parent < 0ll)
         {
-            scriptura_text(line, "     -");
+            mmgr_line_put(line, "     -");
         }
         else
         {
             // a parent index is non-negative here
-            scriptura_decimal_columns(line, (unsigned long long)body->parent, 6u);
+            mmgr_line_decimal_columns(line, (unsigned long long)body->parent, 6u);
         }
-        scriptura_character(line, ' ');
-        scriptura_decimal_columns(line, body->born, 4u);
-        scriptura_character(line, ' ');
-        scriptura_decimal_columns(line, body->ended, 5u);
-        scriptura_text(line, "  ");
+        mmgr_line_ch(line, ' ');
+        mmgr_line_decimal_columns(line, body->born, 4u);
+        mmgr_line_ch(line, ' ');
+        mmgr_line_decimal_columns(line, body->ended, 5u);
+        mmgr_line_put(line, "  ");
         for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
         {
             lattice_print_rational(line, field[1u + axis], field[0]);
-            scriptura_text(line, (axis + 1u < SIM_AXES) ? ", " : "");
+            mmgr_line_put(line, (axis + 1u < SIM_AXES) ? ", " : "");
         }
-        scriptura_text(line, "   ");
-        scriptura_decimal(line, field[0], 1u);
-        scriptura_character(line, '\n');
+        mmgr_line_put(line, "   ");
+        mmgr_line_decimal(line, field[0], 1u);
+        mmgr_line_ch(line, '\n');
     }
 }
 
 static int lattice_write_npy(const char *path, const SimScene *scene, const unsigned short *lanes)
 {
     char head[128];
-    ScripturaLine line;
+    VerbaLinea line;
     line.out = head;
     line.capacity = sizeof(head);
     line.at = 0ull;
-    scriptura_text(&line, "{'descr': '<u2', 'fortran_order': False, 'shape': (");
-    scriptura_decimal(&line, scene->frames, 1u);
+    mmgr_line_put(&line, "{'descr': '<u2', 'fortran_order': False, 'shape': (");
+    mmgr_line_decimal(&line, scene->frames, 1u);
     for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
     {
-        scriptura_text(&line, ", ");
-        scriptura_decimal(&line, scene->extent[axis], 1u);
+        mmgr_line_put(&line, ", ");
+        mmgr_line_decimal(&line, scene->extent[axis], 1u);
     }
-    scriptura_text(&line, "), }");
+    mmgr_line_put(&line, "), }");
     while (((10ull + line.at + 1ull) % 64ull) != 0ull)
     {
-        scriptura_character(&line, ' ');
+        mmgr_line_ch(&line, ' ');
     }
-    scriptura_character(&line, '\n');
+    mmgr_line_ch(&line, '\n');
     FILE *const file = fopen(path, "wb");
     if (file == NULL)
     {
@@ -178,12 +178,12 @@ static int lattice_write_truth(const char *path, const SimScene *scene, const un
         return 0;
     }
     char text_buffer[256];
-    ScripturaLine line;
+    VerbaLinea line;
     line.out = text_buffer;
     line.capacity = sizeof(text_buffer);
     line.at = 0ull;
-    scriptura_text(&line, "frame\tbody\tparent\tmass\tsum_z\tsum_y\tsum_x\n");
-    int ok = scriptura_write(&line, file) != 0;
+    mmgr_line_put(&line, "frame\tbody\tparent\tmass\tsum_z\tsum_y\tsum_x\n");
+    int ok = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at)) != 0;
     for (unsigned long long frame = 0ull; ok && (frame < scene->frames); frame += 1ull)
     {
         for (unsigned int index = 0u; ok && (index < scene->bodies); index += 1u)
@@ -194,18 +194,18 @@ static int lattice_write_truth(const char *path, const SimScene *scene, const un
                 continue;
             }
             line.at = 0ull;
-            scriptura_decimal(&line, frame, 1u);
-            scriptura_character(&line, '\t');
-            scriptura_decimal(&line, index, 1u);
-            scriptura_character(&line, '\t');
-            scriptura_signed(&line, scene->body[index].parent);
+            mmgr_line_decimal(&line, frame, 1u);
+            mmgr_line_ch(&line, '\t');
+            mmgr_line_decimal(&line, index, 1u);
+            mmgr_line_ch(&line, '\t');
+            mmgr_line_decimal_signed(&line, scene->body[index].parent);
             for (unsigned int word = 0u; word < SIM_TRUTH_FIELDS; word += 1u)
             {
-                scriptura_character(&line, '\t');
-                scriptura_decimal(&line, field[word], 1u);
+                mmgr_line_ch(&line, '\t');
+                mmgr_line_decimal(&line, field[word], 1u);
             }
-            scriptura_character(&line, '\n');
-            ok = scriptura_write(&line, file) != 0;
+            mmgr_line_ch(&line, '\n');
+            ok = (mmgr_line_ok(&line) && (fwrite(line.out, 1u, mmgr_line_finish(&line), file) == line.at)) != 0;
         }
     }
     ok = (fclose(file) == 0) && ok;
@@ -235,29 +235,29 @@ static void lattice_moments(SimResults *results, const SimScene *scene, const Si
     // the first moment's magnitude is below 2^31 in this scene: its square fits 64 bits
     const unsigned long long first_square = (unsigned long long)(first * first);
     const unsigned long long apart = (second > expected) ? (second - expected) : (expected - second);
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  camera law over ");
-    scriptura_decimal(line, lanes_count, 1u);
-    scriptura_text(line, " lanes: gain ");
-    scriptura_decimal(line, camera->gain, 1u);
-    scriptura_text(line, ", read variance ");
-    scriptura_decimal(line, camera->read_square, 1u);
-    scriptura_text(line, ", offset ");
-    scriptura_decimal(line, camera->offset, 1u);
-    scriptura_text(line, ", fixed pattern 0 to ");
-    scriptura_decimal(line, camera->pattern_range, 1u);
-    scriptura_character(line, '\n');
-    scriptura_text(line, "    sum of residuals ");
-    scriptura_signed(line, first);
-    scriptura_text(line, " against a spread of sqrt(");
-    scriptura_decimal(line, expected, 1u);
-    scriptura_text(line, ")\n    sum of squared residuals ");
-    scriptura_decimal(line, second, 1u);
-    scriptura_text(line, " against the law's ");
-    scriptura_decimal(line, expected, 1u);
-    scriptura_text(line, " (ratio ");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  camera law over ");
+    mmgr_line_decimal(line, lanes_count, 1u);
+    mmgr_line_put(line, " lanes: gain ");
+    mmgr_line_decimal(line, camera->gain, 1u);
+    mmgr_line_put(line, ", read variance ");
+    mmgr_line_decimal(line, camera->read_square, 1u);
+    mmgr_line_put(line, ", offset ");
+    mmgr_line_decimal(line, camera->offset, 1u);
+    mmgr_line_put(line, ", fixed pattern 0 to ");
+    mmgr_line_decimal(line, camera->pattern_range, 1u);
+    mmgr_line_ch(line, '\n');
+    mmgr_line_put(line, "    sum of residuals ");
+    mmgr_line_decimal_signed(line, first);
+    mmgr_line_put(line, " against a spread of sqrt(");
+    mmgr_line_decimal(line, expected, 1u);
+    mmgr_line_put(line, ")\n    sum of squared residuals ");
+    mmgr_line_decimal(line, second, 1u);
+    mmgr_line_put(line, " against the law's ");
+    mmgr_line_decimal(line, expected, 1u);
+    mmgr_line_put(line, " (ratio ");
     sim_fraction_print(line, second, expected, 5u);
-    scriptura_text(line, ")\n");
+    mmgr_line_put(line, ")\n");
     sim_check(results, first_square <= (LATTICE_SIGMAS_SQUARED * expected),
               "the first moment lies within 5 sigma of 0");
     sim_check(results, (LATTICE_SECOND_MOMENT_PARTS * apart) <= expected,
@@ -331,9 +331,9 @@ int main(int count, char **arguments)
             place[2] = (long long)(voxel % scene.extent[2]);
             signal_differ += (sim_signal(&scene, index / voxels, place) != signal[index]) ? 1ull : 0ull;
         }
-        scriptura_text(&results.line, "  the device signal against the host's at every lane: ");
-        scriptura_decimal(&results.line, signal_differ, 1u);
-        scriptura_text(&results.line, " differ\n");
+        mmgr_line_put(&results.line, "  the device signal against the host's at every lane: ");
+        mmgr_line_decimal(&results.line, signal_differ, 1u);
+        mmgr_line_put(&results.line, " differ\n");
         sim_check(&results, signal_differ == 0ull, "the device signal equals the host's at every lane");
         sim_check(&results, clipped == 0ull, "no lane clipped to the u16 range");
         unsigned long long born_seen = 0ull;
@@ -375,22 +375,22 @@ int main(int count, char **arguments)
     if (ok && (out != NULL))
     {
         char path[1024];
-        ScripturaLine name;
+        VerbaLinea name;
         name.out = path;
         name.capacity = sizeof(path);
         name.at = 0ull;
-        scriptura_text(&name, out);
-        scriptura_text(&name, "/lattice.npy");
-        scriptura_finish(&name);
+        mmgr_line_put(&name, out);
+        mmgr_line_put(&name, "/lattice.npy");
+        mmgr_line_finish(&name);
         sim_check(&results, lattice_write_npy(path, &scene, lanes), "lattice.npy written");
         name.at = 0ull;
-        scriptura_text(&name, out);
-        scriptura_text(&name, "/truth.tsv");
-        scriptura_finish(&name);
+        mmgr_line_put(&name, out);
+        mmgr_line_put(&name, "/truth.tsv");
+        mmgr_line_finish(&name);
         sim_check(&results, lattice_write_truth(path, &scene, truth), "truth.tsv written");
-        scriptura_text(&results.line, "  wrote lattice.npy and truth.tsv to ");
-        scriptura_text(&results.line, out);
-        scriptura_character(&results.line, '\n');
+        mmgr_line_put(&results.line, "  wrote lattice.npy and truth.tsv to ");
+        mmgr_line_put(&results.line, out);
+        mmgr_line_ch(&results.line, '\n');
     }
 
     cudaFree(device_signal);

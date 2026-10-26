@@ -10,7 +10,7 @@
 #include "executables.h"
 
 // the cells the programs' scripts are read in (executables_scan.c)
-extern CliCellsTally g_cli_executables_cells;
+extern CellOwner g_cli_executables_cells;
 
 // the kinds of build script read here, and none
 enum
@@ -39,13 +39,13 @@ enum
 // One program a build script makes: its kind, its name, the script's path, and what its kind needs beyond the name: a
 // Go package's folder as `go build` takes it, the file a spec freezes by its path under the spec's folder, or a bin's
 // script by its path in the tree, in `detail`; whether a build.zig takes the optimize option; and a bin's builders, the
-// one taken unless told otherwise first, and whether its script is CommonJS
+// one taken unless instructed otherwise first, and whether its script is CommonJS
 typedef struct
 {
     unsigned int kind;
-    char name[CLI_NAME_LONGEST];
-    char script[CLI_PATH_LONGEST];
-    char detail[CLI_PATH_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
+    char script[CLI_PATH_MAX_LEN];
+    char detail[CLI_PATH_MAX_LEN];
     int optimize;
     const char *with[3];
     unsigned int withs;
@@ -65,7 +65,7 @@ typedef struct
 // room made among the programs found for one more, below CLI_EXECUTABLES_MOST: the list moved into a cell of twice
 // its room: 1, or 0 where there is none; the programs' places put in the order of their scripts and then their names,
 // the programs left where they are, none where the cellblock cannot meet them; and the programs' cells given back, the
-// list holding none (executables_found.c)
+// list containing none (executables_found.c)
 int cli_executables_room(CliExecutables *found);
 void cli_executables_ordered(CliExecutables *found);
 void cli_executables_given(CliExecutables *found);
@@ -73,18 +73,18 @@ void cli_executables_given(CliExecutables *found);
 // Names a script gives, each with a second text where its kind has one: a Go main's package, a bin's script
 typedef struct
 {
-    char name[CLI_EXECUTABLES_NAMES][CLI_NAME_LONGEST];
-    char value[CLI_EXECUTABLES_NAMES][CLI_PATH_LONGEST];
+    char name[CLI_EXECUTABLES_NAMES][CLI_NAME_MAX_LEN];
+    char value[CLI_EXECUTABLES_NAMES][CLI_PATH_MAX_LEN];
     unsigned int count;
 } CliNames;
 
 // the kind of build script a file's name is: CLI_KIND_NONE where it is none
 unsigned int cli_executables_kind_of(const char *name);
-// a name put after the names, with its second text, where the names hold it not already
+// a name put after the names, with its second text, where the names contain it not already
 void cli_names_put(CliNames *names, const char *name, unsigned long long length, const char *value);
 
 // whether a letter is ASCII's whitespace; `*length` bytes from `*text` trimmed of whitespace at either end; and
-// `length` bytes of `text` into `out`, which holds `room` (executables_scan.c)
+// `length` bytes of `text` into `out`, sized for `room` (executables_scan.c)
 int cli_scan_white(char letter);
 void cli_scan_trim(const char **text, unsigned long long *length);
 void cli_scan_copied(const char *text, unsigned long long length, char *out, unsigned long long room);
@@ -96,11 +96,11 @@ typedef struct
     unsigned long long length;
 } CliCall;
 
-// the readers of a script's text (executables_scan.c): a TOML value as text into `out`, which holds `room`; the
+// the readers of a script's text (executables_scan.c): a TOML value as text into `out`, sized for `room`; the
 // binaries of the package a Cargo.toml at `manifest` describes; a script's text with its comments taken out into
-// `out`, which holds `room`; the text inside each call of `command` in `code`, into `calls`, which holds `room`: their
+// `out`, sized for `room`; the text inside each call of `command` in `code`, into `calls`, sized for `room`: their
 // count, or, where `calls` is NULL, the count of them all; the names CMake's add_executable calls give and the name its
-// project() gives, into `out`, which holds CLI_NAME_LONGEST: 1, or 0 where it gives none; the same of Meson; the
+// project() gives, into `out`, sized for CLI_NAME_MAX_LEN: 1, or 0 where it gives none; the same of Meson; the
 // package a Go file's clause names; the program a .NET project builds; the string a call's `key` is set to; the names a
 // build.zig's addExecutable calls give; the program a PyInstaller spec freezes and its path under the spec's folder;
 // and the bins of a package.json
@@ -110,7 +110,7 @@ void cli_uncommented(const char *text, char quote, char *out, unsigned long long
 unsigned int cli_calls(const char *code, const char *command, CliCall *calls, unsigned int room);
 // a script's text with its comments taken out, in a cell no longer than the text, NULL where the cell is refused; and
 // the calls of `command` in `code` in a cell of their count into `*calls`: their count, 0 and NULL where `code` is
-// NULL, it holds none or the cell is refused. Each cell is given back to g_cli_executables_cells
+// NULL, it contains none or the cell is refused. Each cell is given back to g_cli_executables_cells
 char *cli_uncommented_taken(const char *text, char quote);
 unsigned int cli_calls_taken(const char *code, const char *command, CliCall **calls);
 void cli_cmake_targets(const char *text, const char *project, CliNames *names);
@@ -137,19 +137,19 @@ void cli_npm_bins(const char *text, CliNames *names, int *module);
 // cli_executables_walk_given
 typedef struct
 {
-    char (*pending)[CLI_PATH_LONGEST];
+    char (*pending)[CLI_PATH_MAX_LEN];
     unsigned int *depth;
     unsigned int pending_count;
     unsigned int pending_room;
     const char *folder;
     unsigned int at_depth;
-    char (*found)[CLI_PATH_LONGEST];
+    char (*found)[CLI_PATH_MAX_LEN];
     unsigned int found_count;
     unsigned int found_room;
     int main;
 } CliWalk;
 
-// `name` joined to `folder` into `out`, which holds CLI_PATH_LONGEST: 1, or 0 where it does not fit; whether a folder
+// `name` joined to `folder` into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 where it does not fit; whether a folder
 // is one a walk passes; the folders a walk has pending looked through in turn from `top`, each entry handed to
 // `each`, a folder whose entries set `main` put after those found; a folder put after those pending at `depth`, and a
 // path put after those found, each up to its most: 1, or 0 where it is past the most or its room is refused; a walk's
@@ -169,8 +169,8 @@ void cli_executables_read(const char *root, CliExecutables *found);
 void cli_go_mains(const char *module, const char *text, CliNames *mains);
 void cli_npm_builders(const char *folder, const char *script, CliExecutable *one);
 
-// the program's file name on this system into `out`, which holds CLI_NAME_LONGEST; the script's folder in the tree,
-// "." for the tree's own, into `out`, which holds CLI_PATH_LONGEST; the folder a CMake or Meson project's build of each
+// the program's file name on this system into `out`, sized for CLI_NAME_MAX_LEN; the script's folder in the tree,
+// "." for the tree's own, into `out`, sized for CLI_PATH_MAX_LEN; the folder a CMake or Meson project's build of each
 // configuration goes in, before the configuration's name; this machine's system and processor by Go's names; and the
 // first value of `key`, or `fallback` where it has none (executables_jobs.c)
 void cli_program_file(const char *name, char *out);
@@ -179,31 +179,31 @@ void cli_build_folder(const char *root, const char *script, const char *tool, ch
 void cli_go_host(const char **system, const char **processor);
 const char *cli_first(const CliValues *values, const char *key, const char *fallback);
 
-// the job that builds `exe` begun in the catalog, titled `title`, with what it says of itself: 1, or 0 where the
+// the job that builds `exe` begun in the catalog, titled `title`, with what it declares of itself: 1, or 0 where the
 // catalog is full; and its steps put on it, each with SOURCE_DATE_EPOCH set, then the program it made run as the job's
-// `then` asks (executables_steps.c)
+// `then` requests (executables_steps.c)
 int cli_executables_job_begun(const char *root, const CliExecutable *exe, const char *title, CliCatalog *catalog);
 void cli_executables_steps(const char *root, const CliExecutable *exe, CliCatalog *catalog);
 
 // what the program `name` of the toolchain `tool` writes for `args`, `count` of them, run in `folder` where it is
-// given, into `ran`: 1 where it ends well, or 0 with `name`, its first argument and what went wrong said
+// given, into `ran`: 1 where it ends well, or 0 with `name`, its first argument and what went wrong reported
 // (executables.c)
 int cli_executables_output(const char *tool, const char *name, const char *const *args, unsigned int count,
-                           const char *folder, CliRan *ran, CliLine *said);
+                           const char *folder, CliRan *ran, VerbaLinea *err_msg);
 
-// the program .NET's build made, from the last line it printed for the project `name`, into `out`, which holds
-// CLI_PATH_LONGEST: 1, or 0 with why said (executables.c)
-int cli_dotnet_artifact(const char *name, const CliLines *lines, char *out, CliLine *said);
+// the program .NET's build made, from the last line it printed for the project `name`, into `out`, sized for
+// CLI_PATH_MAX_LEN: 1, or 0 with why given (executables.c)
+int cli_dotnet_artifact(const char *name, const CliLines *lines, char *out, VerbaLinea *err_msg);
 
 // the file a CMake build in `build` made for target `name` in configuration `config`, as the reply of CMake's file
 // API names it, and the file Meson's build in `build` made for executable `name`, as `meson introspect` names it, each
-// into `out`, which holds CLI_PATH_LONGEST: 1, or 0 with why said (executables_cmake.c)
-int cli_cmake_artifact(const char *build, const char *name, const char *config, char *out, CliLine *said);
-int cli_meson_artifact(const char *build, const char *name, char *out, CliLine *said);
+// into `out`, sized for CLI_PATH_MAX_LEN: 1, or 0 with why given (executables_cmake.c)
+int cli_cmake_artifact(const char *build, const char *name, const char *config, char *out, VerbaLinea *err_msg);
+int cli_meson_artifact(const char *build, const char *name, char *out, VerbaLinea *err_msg);
 
 // the warnings file a PyInstaller build of the spec at `spec` wrote, read into a cell of its size given back to
 // g_cli_executables_cells, NULL where there is none or the cell is refused, with the spec's folder into `folder`,
-// which holds CLI_PATH_LONGEST; and each module that file says
+// which is sized for CLI_PATH_MAX_LEN; and each module that file imports
 // PyInstaller did not find handed to `each` with the text of the modules that import it, `A (top-level), B (delayed)`
 // (executables_advice.c)
 char *cli_pyinstaller_warn(const char *spec, char *folder);
@@ -212,7 +212,7 @@ void cli_pyinstaller_missing(const char *text,
                                           const char *importers, unsigned long long importers_length),
                              void *context);
 
-// the text of the file at `path` read whole into `bytes`, which holds `room`, ended by a 0: 1, or 0 where it could not
+// the text of the file at `path` read whole into `bytes`, sized for `room`, ended by a 0: 1, or 0 where it could not
 // be read; and read whole into a cell of its size and a 0 after it, given back to g_cli_executables_cells: the cell,
 // or NULL where it could not be read or the cell is refused
 int cli_text_read(const char *path, char *bytes, unsigned long long room);

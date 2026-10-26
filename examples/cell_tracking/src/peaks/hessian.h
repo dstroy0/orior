@@ -25,7 +25,7 @@ extern "C"
 #define HESSIAN_FACE_X_HIGH 0x20u
 
     // a difference is defined when every axis it reads has neither of its faces cutting the point's neighborhood; an
-    // undefined one is written as zero limbs, and the point's faces say which ones they are
+    // undefined one is written as zero limbs, and the point's faces specify which ones they are
     typedef struct
     {
         const unsigned int *device_residual;
@@ -39,8 +39,8 @@ extern "C"
         unsigned int *differences;
     } HessianRequest;
 
-    // each difference is limbs + 1 limbs wide, two's complement; `differences` holds count * HESSIAN_ENTRIES of them,
-    // point-major, then entry, then limb. Returns the count, or HESSIAN_ERROR
+    // each difference is limbs + 1 limbs wide, two's complement; `differences` contains count * HESSIAN_ENTRIES of
+    // them, point-major, then entry, then limb. Returns the count, or HESSIAN_ERROR
     long hessian_find(const HessianRequest *request);
 
 #ifdef __cplusplus

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // pg_rows.c: a PostgreSQL statement started by the simple query protocol and its rows read a page at a time, the
-// rest left to wait in the server; what the server said and noted read back; and a statement stopped by a cancel
+// rest left to wait in the server; what the server reported and noted read back; and a statement stopped by a cancel
 // request on a connection of its own
 #include "../text/json_tree.h"
 #include "pg_internal.h"
@@ -17,7 +17,7 @@ static unsigned long long rows_number(const unsigned char *at, unsigned int widt
     return value;
 }
 
-// the type name of the types a result most often holds, by their oid, and whether they are numbers: "" where orior
+// the type name of the types a result most often contains, by their oid, and whether they are numbers: "" where orior
 // names it by its oid
 static const char *rows_type_name(unsigned long long oid, int *numeric)
 {
@@ -59,24 +59,24 @@ static void rows_columns(CliPg *pg)
             (at < size) ? memor.chr(&(MemoriaCfg){.src = body + at, .val = 0, .bytes = (size_t)(size - at)}) : NULL;
         const unsigned long long end = (nul != NULL) ? (unsigned long long)(nul - body) : size;
         CliDbColumn *const column = &pg->head.columns[pg->head.column_count];
-        CliLine name = {column->name, sizeof(column->name), 0ull};
+        VerbaLinea name = {column->name, sizeof(column->name), 0ull};
         cli_lossy(&name, body + at, end - at);
-        cli_line_closed(&name);
+        mmgr_line_finish(&name);
         at = end + 1ull;
         const unsigned long long oid = (at + 10u <= size) ? rows_number(body + at + 6u, 4u) : 0ull;
         at += 18ull;
         const char *const kind = rows_type_name(oid, &column->numeric);
-        CliLine kind_line = {column->kind, sizeof(column->kind), 0ull};
+        VerbaLinea kind_line = {column->kind, sizeof(column->kind), 0ull};
         if (kind[0] == '\0')
         {
-            cli_line_text(&kind_line, "oid ");
-            cli_line_decimal(&kind_line, oid, 1u);
+            mmgr_line_put(&kind_line, "oid ");
+            mmgr_line_decimal(&kind_line, oid, 1u);
         }
         else
         {
-            cli_line_text(&kind_line, kind);
+            mmgr_line_put(&kind_line, kind);
         }
-        cli_line_closed(&kind_line);
+        mmgr_line_finish(&kind_line);
         pg->head.column_count += 1u;
     }
 }
@@ -110,9 +110,9 @@ static unsigned int rows_row(CliPg *pg)
 static void rows_tag(const CliPg *pg, char *tag)
 {
     const unsigned long long size = ((pg->size > 0u) && (pg->message[pg->size - 1u] == 0u)) ? pg->size - 1u : pg->size;
-    CliLine line = {tag, CLI_DB_TAG, 0ull};
+    VerbaLinea line = {tag, CLI_DB_TAG, 0ull};
     cli_lossy(&line, pg->message, size);
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 int cli_pg_start(CliPg *pg, const char *sql, unsigned long long size, CliDbFailure *failure)
@@ -157,11 +157,11 @@ int cli_pg_start(CliPg *pg, const char *sql, unsigned long long size, CliDbFailu
         }
         else if (kind == 'N')
         {
-            cli_pg_notice_kept(pg);
+            cli_pg_notice_stored(pg);
         }
         else if (kind == 'S')
         {
-            cli_pg_parameter_kept(pg, pg->message, pg->size);
+            cli_pg_parameter_stored(pg, pg->message, pg->size);
         }
         else if (kind == 'G')
         {
@@ -203,7 +203,7 @@ int cli_pg_start(CliPg *pg, const char *sql, unsigned long long size, CliDbFailu
     }
 }
 
-int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowTold told, void *context, int *done, char *tag,
+int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowFn each_row, void *context, int *done, char *tag,
                 CliDbFailure *failure)
 {
     unsigned long long read = 0ull;
@@ -227,7 +227,7 @@ int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowTold told, void *co
         {
             const unsigned int values = rows_row(pg);
             read += 1ull;
-            if (!told(context, pg->row, values))
+            if (!each_row(context, pg->row, values))
             {
                 return 1;
             }
@@ -241,7 +241,7 @@ int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowTold told, void *co
             }
             pg->row[0] = (CliDbValue){(const char *)pg->message, size, 0};
             read += 1ull;
-            if (!told(context, pg->row, 1u))
+            if (!each_row(context, pg->row, 1u))
             {
                 return 1;
             }
@@ -258,11 +258,11 @@ int cli_pg_rows(CliPg *pg, unsigned long long count, CliDbRowTold told, void *co
         }
         else if (kind == 'N')
         {
-            cli_pg_notice_kept(pg);
+            cli_pg_notice_stored(pg);
         }
         else if (kind == 'S')
         {
-            cli_pg_parameter_kept(pg, pg->message, pg->size);
+            cli_pg_parameter_stored(pg, pg->message, pg->size);
         }
         else if (kind == 'Z')
         {
@@ -312,7 +312,7 @@ int cli_pg_finish(CliPg *pg, char *tag, CliDbFailure *failure)
     return 1;
 }
 
-int cli_pg_all(CliPg *pg, const char *sql, unsigned long long size, CliDbRowTold told, void *context,
+int cli_pg_all(CliPg *pg, const char *sql, unsigned long long size, CliDbRowFn each_row, void *context,
                CliDbFailure *failure)
 {
     char tag[CLI_DB_TAG];
@@ -322,7 +322,7 @@ int cli_pg_all(CliPg *pg, const char *sql, unsigned long long size, CliDbRowTold
     }
     for (int done = !pg->head.rows; !done;)
     {
-        if (!cli_pg_rows(pg, 4096ull, told, context, &done, tag, failure))
+        if (!cli_pg_rows(pg, 4096ull, each_row, context, &done, tag, failure))
         {
             return 0;
         }

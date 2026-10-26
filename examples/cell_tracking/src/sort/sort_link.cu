@@ -14,23 +14,23 @@
 
 #if defined(_WIN32)
 #define SORT_SEEK _fseeki64
-#define SORT_TELL _ftelli64
+#define SORT_FTELL _ftelli64
 #else
 #define SORT_SEEK fseeko
-#define SORT_TELL ftello
+#define SORT_FTELL ftello
 #endif
 
 #define SORT_THREADS 256u
 
 // the gate reads two ways: forward, each prediction against the targets; backward, each target against the
-// predictions. A direction holds its places, their least lengths, their tie counts, the ties' offsets and the tie list
+// predictions. A direction stores its places, their least lengths, their tie counts, the ties' offsets and the tie list
 #define SORT_DIRECTIONS 2u
 
 #define SORT_SLICES_A_DIRECTION 5u
 
 #define SORT_SLICES (SORT_SLICES_A_DIRECTION * SORT_DIRECTIONS)
 
-// a tie list holds twice the capacity, and pass 2 fills it a batch of items at a time; one item's ties are at most the
+// a tie list stores twice the capacity, and pass 2 fills it a batch of items at a time; one item's ties are at most the
 // other frame's points, at most the capacity. Every batch takes at least one item
 #define SORT_LIST_CAPACITY(capacity_) (2ull * (unsigned long long)(capacity_))
 
@@ -182,7 +182,7 @@ static DevicePoolPlan sort_plan(unsigned long long capacity, EngineError *error,
     return plan;
 }
 
-// the pool only grows: a pair within the capacity it holds takes it as it is
+// the pool only grows: a pair within the capacity it has takes it as it is
 static int sort_reserve(unsigned int capacity)
 {
     SortResident *const resident = &s_sort_resident;
@@ -192,7 +192,7 @@ static int sort_reserve(unsigned int capacity)
     }
     device_pool_release(&resident->pool);
     memset(resident, 0, sizeof(*resident));
-    // the pair errors as a hold, and the pool's error is kept here and dropped
+    // the pair errors as a refusal, and the pool's error is recorded here and dropped
     EngineError error;
     memset(&error, 0, sizeof(error));
     DevicePoolTakeRequest takes[SORT_SLICES];
@@ -216,7 +216,7 @@ static int sort_reserve(unsigned int capacity)
 
 extern "C" unsigned long long sort_reserve_bytes(unsigned int maximum)
 {
-    // a frame past the matching's bound errors and holds nothing
+    // a frame past the matching's bound errors and stores nothing
     DevicePoolTakeRequest takes[SORT_SLICES];
     const DevicePoolPlan plan = sort_plan((maximum <= SORT_COUNT_MAX) ? maximum : 0u, NULL, takes);
     return device_pool_plan_bytes(&plan);
@@ -260,7 +260,7 @@ static int sort_links_reserve(SortLinks *links, unsigned int pairs)
     links->flags = (flags != NULL) ? flags : links->flags;
     const int ok = (source != NULL) && (target != NULL) && (cost != NULL) && (weight != NULL) && (component != NULL) &&
                    (flags != NULL);
-    // a capacity is kept only when every array reached it
+    // a capacity is retained only when every array reached it
     links->capacity = ok ? pairs : 0u;
     return ok;
 }
@@ -525,7 +525,7 @@ static int sort_gate(const SortPairRequest *request, SortLinks *links, SortScrat
         links->why = SORT_WHY_DEVICE;
         return 0;
     }
-    // each backward tie, a target naming a source, regrouped by the source with its targets kept in order
+    // each backward tie, a target naming a source, regrouped by the source with its targets retained in order
     for (unsigned int target = 0u; target < counts[1]; target += 1u)
     {
         for (unsigned int tie = 0u; tie < scratch->ties[1][target]; tie += 1u)
@@ -700,7 +700,7 @@ static int sort_match(const SortPairRequest *request, SortLinks *links, SortScra
 }
 
 // every two chosen links A -> A' and B -> B' in one component: their sources' difference dotted with their targets',
-// each axis weighted. Positive keeps their order, zero is level, negative crosses. Each difference is at most its
+// each axis weighted. Positive preserves their order, zero is level, negative crosses. Each difference is at most its
 // axis's span. Every term and the dot are at most 2^63 - 1 in size
 static int sort_cross(const SortPairRequest *request, SortLinks *links, SortScratch *scratch)
 {
@@ -747,7 +747,7 @@ static int sort_cross(const SortPairRequest *request, SortLinks *links, SortScra
                         (long long)request->target_places[(ENGINE_AXES * (size_t)links->target[b]) + axis];
                     dot += (long long)request->weights[axis] * (before * after);
                 }
-                links->kept += (dot > 0ll) ? 1ull : 0ull;
+                links->retained += (dot > 0ll) ? 1ull : 0ull;
                 links->level += (dot == 0ll) ? 1ull : 0ull;
                 links->crossed += (dot < 0ll) ? 1ull : 0ull;
             }
@@ -756,12 +756,12 @@ static int sort_cross(const SortPairRequest *request, SortLinks *links, SortScra
     return 1;
 }
 
-// everything a pair's run sets, cleared; the gate's pairs are kept
+// everything a pair's run sets, cleared; the gate's pairs are retained
 static void sort_links_clear(SortLinks *links)
 {
     links->components = 0u;
     links->chosen = 0u;
-    links->kept = 0ull;
+    links->retained = 0ull;
     links->level = 0ull;
     links->crossed = 0ull;
     links->why = SORT_WHY_NONE;
@@ -812,7 +812,7 @@ extern "C" long sort_link_pair(const SortPairRequest *request, SortLinks *links)
     return ok ? (long)links->chosen : SORT_ERROR;
 }
 
-// O7's second pass on one frame pair whose gate `links` holds, its sources, targets, costs and flags with the chosen
+// O7's second pass on one frame pair whose gate `links` contains, its sources, targets, costs and flags with the chosen
 // flag clear: the components, the weights K - cost, the matching and the crossings made again. The predictions are not
 // read. Returns the chosen links, or SORT_ERROR with `why` set
 static long sort_link_again(const SortPairRequest *request, SortLinks *links)
@@ -994,7 +994,7 @@ extern "C" int sort_points_max(const char *set, char *const *samples, unsigned i
 
 // a frame as the sort reads it: its points' voxels and places, the lag its .drift record carries the previous frame
 // onto it by, and for each point whether a chosen link reached it and that link's motion less the drift. As the
-// sources it also holds each point's prediction and flags, and with the still term each point's still place
+// sources it also stores each point's prediction and flags, and with the still term each point's still place
 typedef struct
 {
     unsigned int capacity;
@@ -1009,7 +1009,7 @@ typedef struct
     int *stills;
 } SortFrame;
 
-// with O7, `keys` holds each gate pair of the sample's first pass as its distance doubled, plus 1 when it is
+// with O7, `keys` contains each gate pair of the sample's first pass as its distance doubled, plus 1 when it is
 // first-rank, and `counts` the count they give, one entry a distinct distance
 typedef struct
 {
@@ -1033,7 +1033,7 @@ typedef struct
     unsigned long long gate;
     unsigned long long components;
     unsigned long long chosen;
-    unsigned long long kept;
+    unsigned long long retained;
     unsigned long long level;
     unsigned long long crossed;
     unsigned long long outside;
@@ -1097,9 +1097,9 @@ static int sort_words_reserve(SortWalk *walk, size_t words)
     return grown != NULL;
 }
 
-// O7: the pair's gate kept for the sample's count, each pair as its distance doubled, plus 1 when it is first-rank.
+// O7: the pair's gate retained for the sample's count, each pair as its distance doubled, plus 1 when it is first-rank.
 // Every distance is at most 2^63 - 1. Doubled it fits 64 bits
-static int sort_first_keep(SortWalk *walk)
+static int sort_first_retain(SortWalk *walk)
 {
     const SortLinks *const links = &walk->links;
     const size_t wanted = walk->key_count + (size_t)links->pairs;
@@ -1161,8 +1161,8 @@ static int sort_frame_read(FILE *points, FILE *drift, const unsigned int head[SO
 }
 
 // each source's prediction: its place, the drift onto the next frame, and the motion its chosen link brought, less
-// the drift then. A prediction outside the view is kept and flagged; one past 32 bits errors. With `still` set, each
-// source's still place too: its place and the drift alone, no motion; one past 32 bits errors as well
+// the drift then. A prediction outside the view is retained and flagged; one past 32 bits errors. With `still` set,
+// each source's still place too: its place and the drift alone, no motion; one past 32 bits errors as well
 static int sort_predict(const unsigned int head[SORT_POINTS_HEADER_WORDS], SortFrame *now, const SortFrame *next,
                         unsigned int still, SortResults *results)
 {
@@ -1176,14 +1176,14 @@ static int sort_predict(const unsigned int head[SORT_POINTS_HEADER_WORDS], SortF
             const size_t at = (ENGINE_AXES * (size_t)point) + axis;
             const long long predicted = (long long)now->places[at] + (long long)next->lag[axis] + now->motion[at];
             ok = ok && (predicted >= -0x80000000ll) && (predicted <= 0x7FFFFFFFll);
-            // a prediction held in [-2^31, 2^31) narrows to int exactly
+            // a prediction represented in [-2^31, 2^31) narrows to int exactly
             now->predictions[at] = ok ? (int)predicted : 0;
             flags |= ((predicted < 0ll) || (predicted >= extent[axis])) ? SORT_SOURCE_OUTSIDE : 0u;
             if (still != 0u)
             {
                 const long long stilled = (long long)now->places[at] + (long long)next->lag[axis];
                 ok = ok && (stilled >= -0x80000000ll) && (stilled <= 0x7FFFFFFFll);
-                // a still place held in [-2^31, 2^31) narrows to int exactly
+                // a still place represented in [-2^31, 2^31) narrows to int exactly
                 now->stills[at] = ok ? (int)stilled : 0;
             }
         }
@@ -1205,7 +1205,7 @@ static int sort_pair_write(FILE *file, SortWalk *walk, const SortFrame *now, con
         return 0;
     }
     unsigned int *word = walk->words;
-    const unsigned long long counted[3] = {links->kept, links->level, links->crossed};
+    const unsigned long long counted[3] = {links->retained, links->level, links->crossed};
     word[0] = now->count;
     word[1] = next->count;
     word[2] = links->pairs;
@@ -1281,13 +1281,13 @@ static void sort_error_print(const char *sample, unsigned int frame, const SortL
 // the file's place is its end: every frame read whole, and nothing past the last
 static int sort_at_end(FILE *file)
 {
-    const long long place = SORT_TELL(file);
+    const long long place = SORT_FTELL(file);
     const int ended = (place >= 0ll) && (SORT_SEEK(file, 0ll, SEEK_END) == 0);
-    return ended && (SORT_TELL(file) == place);
+    return ended && (SORT_FTELL(file) == place);
 }
 
 // the sample's first pass, written whole. With `first` set the header names O7's term, which the second pass makes
-// true, and every pair's gate is kept for O7's count
+// true, and every pair's gate is retained for O7's count
 static int sort_frames(const char *sample, const unsigned int weights[ENGINE_AXES], unsigned int still,
                        unsigned int first, FILE *points, FILE *drift, FILE *links_file, SortWalk *walk,
                        SortResults *results)
@@ -1328,7 +1328,7 @@ static int sort_frames(const char *sample, const unsigned int weights[ENGINE_AXE
         head[2],    head[3],
         weights[0], weights[1],
         weights[2], SORT_TERMS | ((still != 0u) ? SORT_TERM_STILL : 0u) | ((first != 0u) ? SORT_TERM_FIRST : 0u)};
-    // a head that errored has said why above; the header's write and frame 0's read each say their own
+    // a head that errored has reported why above; the header's write and frame 0's read each report their own
     const int headed = agree && weighed && sized;
     const int written = headed && sort_write(links_file, header, sizeof(header));
     ok = written && ((head[0] == 0u) || sort_frame_read(points, drift, head, 0u, &walk->frames[0]));
@@ -1365,10 +1365,10 @@ static int sort_frames(const char *sample, const unsigned int weights[ENGINE_AXE
             sort_error_print(sample, frame, &walk->links);
         }
         ok = ok && (chosen != SORT_ERROR) && sort_pair_write(links_file, walk, now, next);
-        const int counted = (ok == 0) || (first == 0u) || sort_first_keep(walk);
+        const int counted = (ok == 0) || (first == 0u) || sort_first_retain(walk);
         if (counted == 0)
         {
-            fprintf(stderr, "  sort: %s: frames %u and %u: O7's count could not hold the gate\n", sample, frame,
+            fprintf(stderr, "  sort: %s: frames %u and %u: O7's count could not store the gate\n", sample, frame,
                     frame + 1u);
         }
         ok = ok && counted;
@@ -1395,7 +1395,7 @@ static int sort_frames(const char *sample, const unsigned int weights[ENGINE_AXE
         results->gate += ok ? walk->links.pairs : 0ull;
         results->components += ok ? walk->links.components : 0ull;
         results->chosen += ok ? walk->links.chosen : 0ull;
-        results->kept += ok ? walk->links.kept : 0ull;
+        results->retained += ok ? walk->links.retained : 0ull;
         results->level += ok ? walk->links.level : 0ull;
         results->crossed += ok ? walk->links.crossed : 0ull;
         results->gate_microseconds += walk->links.gate_microseconds;
@@ -1430,7 +1430,7 @@ static int sort_count_find(const void *key, const void *entry)
     return (length < there) ? -1 : ((length > there) ? 1 : 0);
 }
 
-// O7's count over the sample's kept keys, sorted: each distinct distance with its pairs and first-rank pairs, in
+// O7's count over the sample's retained keys, sorted: each distinct distance with its pairs and first-rank pairs, in
 // ascending order, then pooled
 static int sort_first_count(SortWalk *walk, SortResults *results)
 {
@@ -1478,7 +1478,7 @@ static int sort_first_pair(const char *sample, unsigned int frame, const unsigne
                            SortResults *results)
 {
     SortLinks *const links = &walk->links;
-    const long long start = SORT_TELL(links_file);
+    const long long start = SORT_FTELL(links_file);
     unsigned int record[SORT_PAIR_WORDS];
     int ok = (start >= 0ll) && sort_read(links_file, record, sizeof(record)) && (record[0] == now->count) &&
              (record[1] == next->count);
@@ -1510,7 +1510,7 @@ static int sort_first_pair(const char *sample, unsigned int frame, const unsigne
     }
     // the components are the gate's, which the costs do not change
     ok = ok && (chosen != SORT_ERROR) && (links->components == record[3]);
-    const unsigned long long counted[3] = {links->kept, links->level, links->crossed};
+    const unsigned long long counted[3] = {links->retained, links->level, links->crossed};
     record[4] = links->chosen;
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
@@ -1536,7 +1536,7 @@ static int sort_first_pair(const char *sample, unsigned int frame, const unsigne
          (SORT_SEEK(links_file, 0ll, SEEK_CUR) == 0);
     results->components += ok ? links->components : 0ull;
     results->chosen += ok ? links->chosen : 0ull;
-    results->kept += ok ? links->kept : 0ull;
+    results->retained += ok ? links->retained : 0ull;
     results->level += ok ? links->level : 0ull;
     results->crossed += ok ? links->crossed : 0ull;
     results->match_microseconds += links->match_microseconds;
@@ -1566,7 +1566,7 @@ static int sort_first(const char *sample, const unsigned int weights[ENGINE_AXES
              ((head[0] == 0u) || sort_frame_read(points, drift, head, 0u, &walk->frames[0]));
     results->components = 0ull;
     results->chosen = 0ull;
-    results->kept = 0ull;
+    results->retained = 0ull;
     results->level = 0ull;
     results->crossed = 0ull;
     results->changed = 0ull;
@@ -1669,7 +1669,7 @@ extern "C" long sort_link_set(const SortRequest *request)
                " costs, its predictions the first pass's\n");
     }
     printf("  %-24s %6s %10s %s\n", "sample", "frames", "chosen",
-           "gate pairs, components, sources; kept, level,"
+           "gate pairs, components, sources; retained, level,"
            " crossed; outside, carried; gate us, match us");
     SortWalk walk;
     memset(&walk, 0, sizeof(walk));
@@ -1687,7 +1687,7 @@ extern "C" long sort_link_set(const SortRequest *request)
             continue;
         }
         printf("  %-24s %6llu %10llu %llu, %llu, %llu; %llu, %llu, %llu; %llu, %llu; %llu, %llu\n", sample,
-               results.frames, results.chosen, results.gate, results.components, results.sources, results.kept,
+               results.frames, results.chosen, results.gate, results.components, results.sources, results.retained,
                results.level, results.crossed, results.outside, results.carried, results.gate_microseconds,
                results.match_microseconds);
         if (request->first != 0u)
@@ -1703,7 +1703,7 @@ extern "C" long sort_link_set(const SortRequest *request)
         totals.gate += results.gate;
         totals.components += results.components;
         totals.chosen += results.chosen;
-        totals.kept += results.kept;
+        totals.retained += results.retained;
         totals.level += results.level;
         totals.crossed += results.crossed;
         totals.outside += results.outside;
@@ -1711,12 +1711,12 @@ extern "C" long sort_link_set(const SortRequest *request)
         totals.gate_microseconds += results.gate_microseconds;
         totals.match_microseconds += results.match_microseconds;
     }
-    printf(
-        "  sorted %u of %u samples: %llu frames, %llu frame pairs; %llu sources, %llu gate pairs, %llu components,"
-        " %llu chosen; %llu kept, %llu level, %llu crossed; %llu outside, %llu carried; gate %llu us, match %llu us\n",
-        request->count - failed, request->count, totals.frames, totals.pairs, totals.sources, totals.gate,
-        totals.components, totals.chosen, totals.kept, totals.level, totals.crossed, totals.outside, totals.carried,
-        totals.gate_microseconds, totals.match_microseconds);
+    printf("  sorted %u of %u samples: %llu frames, %llu frame pairs; %llu sources, %llu gate pairs, %llu components,"
+           " %llu chosen; %llu retained, %llu level, %llu crossed; %llu outside, %llu carried; gate %llu us, match "
+           "%llu us\n",
+           request->count - failed, request->count, totals.frames, totals.pairs, totals.sources, totals.gate,
+           totals.components, totals.chosen, totals.retained, totals.level, totals.crossed, totals.outside,
+           totals.carried, totals.gate_microseconds, totals.match_microseconds);
     if (request->first != 0u)
     {
         printf("  O7 over the samples sorted: %llu chosen flags changed from the first pass\n", totals.changed);

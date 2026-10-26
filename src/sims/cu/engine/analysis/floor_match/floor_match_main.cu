@@ -24,7 +24,7 @@ int main(int count, char **arguments)
     int ok = (lanes != NULL) && (crystal != NULL) && (corner != NULL) && (floor_values != NULL) && (work != NULL) &&
              (before != NULL) && (floor_host != NULL) && (planes != NULL) && (queries != NULL) && (matches != NULL) &&
              (reads != NULL) && (present != NULL) && (expected != NULL);
-    sim_check(&results, ok, "the host buffers are held");
+    sim_check(&results, ok, "the host buffers are allocated");
     ok = ok && sim_job_submit(&results, "floor_match", count, arguments, MATCH_DECLARED);
 
     SimScene scene;
@@ -121,7 +121,7 @@ int main(int count, char **arguments)
         }
     }
     sim_check(&results, ok && (bits_matched == (MATCH_FLOOR_VALUES * MATCH_BITS)),
-              "the 16 planes hold every bit of every floor-2 value");
+              "the 16 planes contain every bit of every floor-2 value");
 
     // the queries: values drawn at keyed positions of floor 2, then values drawn over the lane that floor 2 lacks
     unsigned long long distinct = 0ull;
@@ -223,26 +223,26 @@ int main(int count, char **arguments)
 
     const unsigned long long half = MATCH_SAMPLES / 2ull;
     const unsigned long long full = MATCH_BITS * MATCH_WORDS;
-    ScripturaLine *const line = &results.line;
-    scriptura_text(line, "  a: one 64^3 camera frame, n = ");
-    scriptura_decimal(line, MATCH_SAMPLES, 1u);
-    scriptura_text(line, " samples; floor 2, its 16^3 corner after two levels, m = ");
-    scriptura_decimal(line, MATCH_FLOOR_VALUES, 1u);
-    scriptura_text(line, " = n / 64 values, ");
-    scriptura_decimal(line, distinct, 1u);
-    scriptura_text(line, " distinct; equal to the host's lifting at ");
-    scriptura_decimal(line, equal, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, MATCH_FLOOR_VALUES, 1u);
-    scriptura_text(line, "\n  the index, built once: the lift read a's n samples and the planes floor 2's m values; ");
-    scriptura_decimal(line, MATCH_BITS, 1u);
-    scriptura_text(line, " planes of ");
-    scriptura_decimal(line, MATCH_WORDS, 1u);
-    scriptura_text(line, " words\n  a query reads no value: the and over the planes takes at most ");
-    scriptura_decimal(line, full, 1u);
-    scriptura_text(line, " plane words, and half of a is ");
-    scriptura_decimal(line, half, 1u);
-    scriptura_text(line, " samples\n");
+    VerbaLinea *const line = &results.line;
+    mmgr_line_put(line, "  a: one 64^3 camera frame, n = ");
+    mmgr_line_decimal(line, MATCH_SAMPLES, 1u);
+    mmgr_line_put(line, " samples; floor 2, its 16^3 corner after two levels, m = ");
+    mmgr_line_decimal(line, MATCH_FLOOR_VALUES, 1u);
+    mmgr_line_put(line, " = n / 64 values, ");
+    mmgr_line_decimal(line, distinct, 1u);
+    mmgr_line_put(line, " distinct; equal to the host's lifting at ");
+    mmgr_line_decimal(line, equal, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, MATCH_FLOOR_VALUES, 1u);
+    mmgr_line_put(line, "\n  the index, built once: the lift read a's n samples and the planes floor 2's m values; ");
+    mmgr_line_decimal(line, MATCH_BITS, 1u);
+    mmgr_line_put(line, " planes of ");
+    mmgr_line_decimal(line, MATCH_WORDS, 1u);
+    mmgr_line_put(line, " words\n  a query reads no value: the and over the planes takes at most ");
+    mmgr_line_decimal(line, full, 1u);
+    mmgr_line_put(line, " plane words, and half of a is ");
+    mmgr_line_decimal(line, half, 1u);
+    mmgr_line_put(line, " samples\n");
     match_print_side(line, "on floor 2", &sides[0]);
     match_print_side(line, "not on floor 2", &sides[1]);
     if (first_query_cell < MATCH_FLOOR_VALUES)
@@ -250,27 +250,27 @@ int main(int count, char **arguments)
         const unsigned long long z = first_query_cell / (MATCH_FLOOR_SIDE * MATCH_FLOOR_SIDE);
         const unsigned long long y = (first_query_cell / MATCH_FLOOR_SIDE) % MATCH_FLOOR_SIDE;
         const unsigned long long x = first_query_cell % MATCH_FLOOR_SIDE;
-        scriptura_text(line, "    the first query, x = ");
-        scriptura_decimal(line, queries[0], 1u);
-        scriptura_text(line, ": its first cell on floor 2 is (");
-        scriptura_decimal(line, z, 1u);
-        scriptura_text(line, ", ");
-        scriptura_decimal(line, y, 1u);
-        scriptura_text(line, ", ");
-        scriptura_decimal(line, x, 1u);
-        scriptura_text(line, "), centerd on a's (");
-        scriptura_decimal(line, 4ull * z, 1u);
-        scriptura_text(line, ", ");
-        scriptura_decimal(line, 4ull * y, 1u);
-        scriptura_text(line, ", ");
-        scriptura_decimal(line, 4ull * x, 1u);
-        scriptura_text(line, ")\n");
+        mmgr_line_put(line, "    the first query, x = ");
+        mmgr_line_decimal(line, queries[0], 1u);
+        mmgr_line_put(line, ": its first cell on floor 2 is (");
+        mmgr_line_decimal(line, z, 1u);
+        mmgr_line_put(line, ", ");
+        mmgr_line_decimal(line, y, 1u);
+        mmgr_line_put(line, ", ");
+        mmgr_line_decimal(line, x, 1u);
+        mmgr_line_put(line, "), centerd on a's (");
+        mmgr_line_decimal(line, 4ull * z, 1u);
+        mmgr_line_put(line, ", ");
+        mmgr_line_decimal(line, 4ull * y, 1u);
+        mmgr_line_put(line, ", ");
+        mmgr_line_decimal(line, 4ull * x, 1u);
+        mmgr_line_put(line, ")\n");
     }
     sim_check(&results, ok && (sides[0].matched == MATCH_QUERIES_EACH),
               "every value on floor 2 is found at exactly the positions the host's scan finds");
     sim_check(&results, ok && (sides[1].matched == MATCH_QUERIES_EACH) && (sides[1].found == 0ull),
               "every value not on floor 2 is found nowhere");
-    // the query kernel stops at the 16th plane. The reads hold by construction; the check records that the bound,
+    // the query kernel stops at the 16th plane. The reads are valid by construction; the check records that the bound,
     // 16 m / 32 plane words, sits below n / 2
     sim_check(&results, ok && (sides[0].maximum <= full) && (sides[1].maximum <= full) && (full < half),
               "no query reads more than 16 m / 32 plane words, below half of a");

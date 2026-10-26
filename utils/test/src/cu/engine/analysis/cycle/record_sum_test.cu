@@ -11,12 +11,14 @@
 // - random records of nine limbs, fields one bit wide, across two limbs, a whole limb, two hundred bits and the whole
 //   record, over runs of 1, 3, 1024 and every record;
 // - every field at its most negative and at its most positive, the sums' two ends.
-// A request whose sums cannot hold the run's total, whose count is not a whole number of runs, or whose run passes
+// A request whose sums cannot represent the run's total, whose count is not a whole number of runs, or whose run passes
 // 2^32 records errors on both routes before a record is read. The test is one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include <cuda_runtime.h>
@@ -56,7 +58,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } SumResults;
 
 static unsigned long long s_sum_state = 0x5EED5A1E5C0FFEE1ull;
@@ -75,9 +77,9 @@ static void sum_check(SumResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
-        scriptura_text(&results->line, what);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, what);
+        mmgr_line_ch(&results->line, '\n');
     }
 }
 
@@ -332,7 +334,7 @@ static void sum_records(SumResults *results)
     unsigned int *device_records = NULL;
     int ok = (records != NULL) && (device_sums != NULL) && (host_sums != NULL) &&
              (cudaMalloc((void **)&device_records, words * sizeof(unsigned int)) == cudaSuccess);
-    sum_check(results, ok, "the random records are held on the host and the device");
+    sum_check(results, ok, "the random records are allocated on the host and the device");
     const unsigned int offsets[SUM_TEST_FIELDS] = {0u, 5u, 30u, 32u, 7u, 0u};
     const unsigned int bits[SUM_TEST_FIELDS] = {1u, 31u, 34u, 32u, 200u, 32u * SUM_TEST_RECORD_LIMBS};
     const unsigned long long groups[SUM_TEST_GROUPS] = {1ull, 3ull, 1024ull, SUM_TEST_RECORDS};
@@ -433,12 +435,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     sum_check(&results, (admitted != 0) && (job.failures == 0ull),
               "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record sum test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record sum test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

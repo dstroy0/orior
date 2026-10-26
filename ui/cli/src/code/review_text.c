@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// review_text.c: the measures the review takes of a text: its whitespace at either end, the lines two texts hold
+// review_text.c: the measures the review takes of a text: its whitespace at either end, the lines two texts contain
 // alike, and whether a text calls a name
 #include "../editor/files_internal.h"
 #include "../text/json_tree.h"
@@ -16,7 +16,7 @@ typedef struct
     unsigned int most;
 } CliTextLines;
 
-// the lines `size` bytes of `text` can hold, its newlines and one, up to CLI_REVIEW_LINES
+// the lines `size` bytes of `text` can contain, its newlines and one, up to CLI_REVIEW_LINES
 static unsigned int text_lines_most(const char *text, unsigned long long size)
 {
     unsigned int most = 1u;
@@ -38,7 +38,7 @@ static void cli_lines_of(const char *text, unsigned long long size, CliTextLines
         const unsigned long long end = (newline != NULL) ? (unsigned long long)(newline - text) : size;
         unsigned long long length = end - at;
         length -= ((newline != NULL) && (length > 0ull) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
-        // a text is below CLI_REVIEW_KEPT bytes, which an unsigned int holds
+        // a text is below CLI_REVIEW_TEXTS_MAX bytes, which an unsigned int stores
         lines->start[lines->lines] = (unsigned int)at;
         lines->length[lines->lines] = (unsigned int)length;
         lines->lines += 1u;
@@ -69,12 +69,12 @@ int cli_review_share(const char *one, const char *other, unsigned long long *sam
 {
     const unsigned long long one_size = cellul.len(&(CatenaFinitaCfg){.src = one, .cap = CLI_CELLS_POOL});
     const unsigned long long other_size = cellul.len(&(CatenaFinitaCfg){.src = other, .cap = CLI_CELLS_POOL});
-    // both texts' lines, and a mark for each of the first's that one of the second's holds, in one cell
+    // both texts' lines, and a mark for each of the first's that one of the second's contains, in one cell
     const unsigned int one_most = text_lines_most(one, one_size);
     const unsigned int other_most = text_lines_most(other, other_size);
     const unsigned long long words = (2ull * one_most) + (2ull * other_most);
-    unsigned int *const cell = cli_cell_taken_by(&g_cli_review_cells, (words * sizeof(unsigned int)) + one_most,
-                                                 "the lines of two texts compared");
+    unsigned int *const cell =
+        g_cli_cells->persistent_buf_alloc((words * sizeof(unsigned int)) + one_most, &g_cli_review_cells);
     if (cell == NULL)
     {
         return 0;
@@ -106,8 +106,8 @@ int cli_review_share(const char *one, const char *other, unsigned long long *sam
             }
         }
     }
-    cli_cell_given_by(&g_cli_review_cells, cell);
-    // two texts of no lines hold all alike
+    g_cli_cells->persistent_buf_release(cell, &g_cli_review_cells);
+    // two texts of no lines contain all alike
     if (*longest == 0ull)
     {
         *same = 1ull;

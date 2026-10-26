@@ -18,11 +18,11 @@
 
 #include <stdint.h>
 
-// the job this process heads, held open as long as the process is: its closing as the process ends is what ends every
+// the job this process heads, open as long as the process is: its closing as the process ends is what ends every
 // member; NULL where none was made
 static HANDLE s_job;
 
-int cli_container_held(void)
+int cli_container_made(void)
 {
     if (s_job != NULL)
     {
@@ -49,16 +49,16 @@ int cli_container_held(void)
 int cli_started_outside(const char *const *words, unsigned int *id)
 {
     static char s_line[32768];
-    CliLine line = {s_line, sizeof(s_line), 0ull};
+    VerbaLinea line = {s_line, sizeof(s_line), 0ull};
     for (unsigned int at = 0u; words[at] != NULL; at += 1u)
     {
         const int quoted = (words[at][0] == '\0') || (words[at][cli_text_upto(words[at], " \t\"")] != '\0');
-        cli_line_text(&line, (at == 0u) ? "" : " ");
-        cli_line_text(&line, quoted ? "\"" : "");
-        cli_line_text(&line, words[at]);
-        cli_line_text(&line, quoted ? "\"" : "");
+        mmgr_line_put(&line, (at == 0u) ? "" : " ");
+        mmgr_line_put(&line, quoted ? "\"" : "");
+        mmgr_line_put(&line, words[at]);
+        mmgr_line_put(&line, quoted ? "\"" : "");
     }
-    if (cli_line_closed(&line) == 0ull)
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
@@ -238,23 +238,23 @@ unsigned long long cli_clock_milliseconds(void)
     return GetTickCount64();
 }
 
-int cli_raised_platform(const char *from, const char *to, CliLine *said)
+int cli_raised_platform(const char *from, const char *to, VerbaLinea *err_msg)
 {
-    char program[CLI_PATH_LONGEST];
-    char parameters[(2u * CLI_PATH_LONGEST) + 32u];
-    CliLine line = {parameters, sizeof(parameters), 0ull};
-    cli_line_text(&line, "write-raised \"");
-    cli_line_text(&line, from);
-    cli_line_text(&line, "\" \"");
-    cli_line_text(&line, to);
-    cli_line_character(&line, '"');
-    if (!cli_program_own(program, sizeof(program)) || (cli_line_closed(&line) == 0ull))
+    char program[CLI_PATH_MAX_LEN];
+    char parameters[(2u * CLI_PATH_MAX_LEN) + 32u];
+    VerbaLinea line = {parameters, sizeof(parameters), 0ull};
+    mmgr_line_put(&line, "write-raised \"");
+    mmgr_line_put(&line, from);
+    mmgr_line_put(&line, "\" \"");
+    mmgr_line_put(&line, to);
+    mmgr_line_ch(&line, '"');
+    if (!cli_program_own(program, sizeof(program)) || (mmgr_line_finish(&line) == 0ull))
     {
-        cli_line_text(said, "orior's own program could not be named");
+        mmgr_line_put(err_msg, "orior's own program could not be named");
         return 0;
     }
-    static wchar_t s_program[CLI_PATH_LONGEST];
-    static wchar_t s_parameters[(2u * CLI_PATH_LONGEST) + 32u];
+    static wchar_t s_program[CLI_PATH_MAX_LEN];
+    static wchar_t s_parameters[(2u * CLI_PATH_MAX_LEN) + 32u];
     MultiByteToWideChar(CP_UTF8, 0u, program, -1, s_program, (int)(sizeof(s_program) / sizeof(s_program[0])));
     MultiByteToWideChar(CP_UTF8, 0u, parameters, -1, s_parameters,
                         (int)(sizeof(s_parameters) / sizeof(s_parameters[0])));
@@ -271,13 +271,13 @@ int cli_raised_platform(const char *from, const char *to, CliLine *said)
         const DWORD error = GetLastError();
         if (error == ERROR_CANCELLED)
         {
-            cli_line_text(said, "the reader did not give the rights");
+            mmgr_line_put(err_msg, "the reader did not give the rights");
         }
         else
         {
-            cli_line_text(said, "the system's prompt for the rights failed (");
-            cli_line_decimal(said, error, 0u);
-            cli_line_character(said, ')');
+            mmgr_line_put(err_msg, "the system's prompt for the rights failed (");
+            mmgr_line_decimal(err_msg, error, 0u);
+            mmgr_line_ch(err_msg, ')');
         }
         return 0;
     }
@@ -287,11 +287,11 @@ int cli_raised_platform(const char *from, const char *to, CliLine *said)
     CloseHandle(info.hProcess);
     if (code != 0u)
     {
-        cli_line_text(said, "the raised write of ");
-        cli_line_text(said, to);
-        cli_line_text(said, " failed (");
-        cli_line_decimal(said, code, 0u);
-        cli_line_character(said, ')');
+        mmgr_line_put(err_msg, "the raised write of ");
+        mmgr_line_put(err_msg, to);
+        mmgr_line_put(err_msg, " failed (");
+        mmgr_line_decimal(err_msg, code, 0u);
+        mmgr_line_ch(err_msg, ')');
         return 0;
     }
     return 1;
@@ -309,13 +309,13 @@ static int cli_sockets_started(void)
     return s_started;
 }
 
-int cli_socket_connected(CliSocket *socket_held, const char *host, unsigned int port, CliLine *said)
+int cli_socket_connected(CliSocket *sock, const char *host, unsigned int port, VerbaLinea *err_msg)
 {
-    socket_held->handle = 0ull;
+    sock->handle = 0ull;
     char service[16];
-    CliLine service_line = {service, sizeof(service), 0ull};
-    cli_line_decimal(&service_line, port, 0u);
-    cli_line_closed(&service_line);
+    VerbaLinea service_line = {service, sizeof(service), 0ull};
+    mmgr_line_decimal(&service_line, port, 0u);
+    mmgr_line_finish(&service_line);
     ADDRINFOA hints;
     memor.set(&(MemoriaCfg){.dst = &hints, .val = 0, .bytes = sizeof(hints)});
     hints.ai_family = AF_UNSPEC;
@@ -323,10 +323,10 @@ int cli_socket_connected(CliSocket *socket_held, const char *host, unsigned int 
     ADDRINFOA *found = NULL;
     if (!cli_sockets_started() || (getaddrinfo(host, service, &hints, &found) != 0))
     {
-        cli_line_text(said, host);
-        cli_line_character(said, ':');
-        cli_line_text(said, service);
-        cli_line_text(said, ": the name was not found");
+        mmgr_line_put(err_msg, host);
+        mmgr_line_ch(err_msg, ':');
+        mmgr_line_put(err_msg, service);
+        mmgr_line_put(err_msg, ": the name was not found");
         return 0;
     }
     SOCKET made = INVALID_SOCKET;
@@ -342,28 +342,28 @@ int cli_socket_connected(CliSocket *socket_held, const char *host, unsigned int 
     freeaddrinfo(found);
     if (made == INVALID_SOCKET)
     {
-        cli_line_text(said, host);
-        cli_line_character(said, ':');
-        cli_line_text(said, service);
-        cli_line_text(said, ": the connection was refused");
+        mmgr_line_put(err_msg, host);
+        mmgr_line_ch(err_msg, ':');
+        mmgr_line_put(err_msg, service);
+        mmgr_line_put(err_msg, ": the connection was refused");
         return 0;
     }
     const BOOL no_delay = TRUE;
     setsockopt(made, IPPROTO_TCP, TCP_NODELAY, (const char *)&no_delay, sizeof(no_delay));
-    // a socket is a pointer's width, which an unsigned long long holds; one past it so that 0 stands for none
-    socket_held->handle = (unsigned long long)made + 1ull;
+    // a socket is a pointer's width, which an unsigned long long stores; one past it so that 0 stands for none
+    sock->handle = (unsigned long long)made + 1ull;
     return 1;
 }
 
-int cli_socket_written(const CliSocket *socket_held, const void *bytes, unsigned long long size)
+int cli_socket_written(const CliSocket *sock, const void *bytes, unsigned long long size)
 {
-    const SOCKET held = (SOCKET)(socket_held->handle - 1ull);
+    const SOCKET handle_at = (SOCKET)(sock->handle - 1ull);
     unsigned long long put = 0ull;
     while (put < size)
     {
         // a piece is at most a gibibyte, which an int counts
         const int piece = (int)(((size - put) < (1ull << 30u)) ? (size - put) : (1ull << 30u));
-        const int sent = send(held, (const char *)bytes + put, piece, 0);
+        const int sent = send(handle_at, (const char *)bytes + put, piece, 0);
         if (sent <= 0)
         {
             return 0;
@@ -373,14 +373,14 @@ int cli_socket_written(const CliSocket *socket_held, const void *bytes, unsigned
     return 1;
 }
 
-int cli_socket_read(const CliSocket *socket_held, void *bytes, unsigned long long size)
+int cli_socket_read(const CliSocket *sock, void *bytes, unsigned long long size)
 {
-    const SOCKET held = (SOCKET)(socket_held->handle - 1ull);
+    const SOCKET handle_at = (SOCKET)(sock->handle - 1ull);
     unsigned long long got = 0ull;
     while (got < size)
     {
         const int piece = (int)(((size - got) < (1ull << 30u)) ? (size - got) : (1ull << 30u));
-        const int read = recv(held, (char *)bytes + got, piece, 0);
+        const int read = recv(handle_at, (char *)bytes + got, piece, 0);
         if (read <= 0)
         {
             return 0;
@@ -390,11 +390,11 @@ int cli_socket_read(const CliSocket *socket_held, void *bytes, unsigned long lon
     return 1;
 }
 
-long long cli_socket_some(const CliSocket *socket_held, void *bytes, unsigned long long room)
+long long cli_socket_some(const CliSocket *sock, void *bytes, unsigned long long room)
 {
     // a piece is at most a gibibyte, which an int counts
     const int piece = (int)((room < (1ull << 30u)) ? room : (1ull << 30u));
-    const int read = recv((SOCKET)(socket_held->handle - 1ull), (char *)bytes, piece, 0);
+    const int read = recv((SOCKET)(sock->handle - 1ull), (char *)bytes, piece, 0);
     if (read > 0)
     {
         return read;
@@ -406,36 +406,36 @@ long long cli_socket_some(const CliSocket *socket_held, void *bytes, unsigned lo
     return (WSAGetLastError() == WSAETIMEDOUT) ? CLI_SOCKET_WAITED : CLI_SOCKET_FAILED;
 }
 
-void cli_socket_waited(const CliSocket *socket_held, unsigned int milliseconds)
+void cli_socket_waited(const CliSocket *sock, unsigned int milliseconds)
 {
     const DWORD wait = milliseconds;
-    setsockopt((SOCKET)(socket_held->handle - 1ull), SOL_SOCKET, SO_RCVTIMEO, (const char *)&wait, sizeof(wait));
+    setsockopt((SOCKET)(sock->handle - 1ull), SOL_SOCKET, SO_RCVTIMEO, (const char *)&wait, sizeof(wait));
 }
 
-void cli_socket_write_waited(const CliSocket *socket_held, unsigned int milliseconds)
+void cli_socket_write_waited(const CliSocket *sock, unsigned int milliseconds)
 {
     const DWORD wait = milliseconds;
-    setsockopt((SOCKET)(socket_held->handle - 1ull), SOL_SOCKET, SO_SNDTIMEO, (const char *)&wait, sizeof(wait));
+    setsockopt((SOCKET)(sock->handle - 1ull), SOL_SOCKET, SO_SNDTIMEO, (const char *)&wait, sizeof(wait));
 }
 
-void cli_socket_ended(const CliSocket *socket_held)
+void cli_socket_ended(const CliSocket *sock)
 {
-    if (socket_held->handle != 0ull)
+    if (sock->handle != 0ull)
     {
-        shutdown((SOCKET)(socket_held->handle - 1ull), SD_BOTH);
+        shutdown((SOCKET)(sock->handle - 1ull), SD_BOTH);
     }
 }
 
-void cli_socket_closed(CliSocket *socket_held)
+void cli_socket_closed(CliSocket *sock)
 {
-    if (socket_held->handle != 0ull)
+    if (sock->handle != 0ull)
     {
-        closesocket((SOCKET)(socket_held->handle - 1ull));
+        closesocket((SOCKET)(sock->handle - 1ull));
     }
-    socket_held->handle = 0ull;
+    sock->handle = 0ull;
 }
 
-int cli_port_free(unsigned int *port, CliLine *said)
+int cli_port_free(unsigned int *port, VerbaLinea *err_msg)
 {
     SOCKET made = cli_sockets_started() ? socket(AF_INET, SOCK_STREAM, IPPROTO_TCP) : INVALID_SOCKET;
     struct sockaddr_in address;
@@ -451,7 +451,7 @@ int cli_port_free(unsigned int *port, CliLine *said)
     }
     if (!bound)
     {
-        cli_line_text(said, "127.0.0.1: no port could be bound");
+        mmgr_line_put(err_msg, "127.0.0.1: no port could be bound");
         return 0;
     }
     *port = ntohs(address.sin_port);

@@ -7,8 +7,8 @@
 
 #include <string>
 
-// The folder `rest` names from the folder `ups` folders above the one holding the source file `file`, its separators
-// `/`: `file` itself where it holds no separator, so that the folder is read from where the process stands
+// The folder `rest` names from the folder `ups` folders above the one containing the source file `file`, its separators
+// `/`: `file` itself where it contains no separator, so that the folder is read from where the process stands
 static inline std::string tree_folder_from(const std::string &file, unsigned int ups, const char *rest)
 {
     std::string folder = file;

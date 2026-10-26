@@ -66,7 +66,7 @@ int cli_purpose_licensed(const char *text, unsigned long long length)
     return 0;
 }
 
-void cli_purpose_uncommented(const CliSpan *lines, unsigned int count, const char *mark, CliLine *out)
+void cli_purpose_uncommented(const CliSpan *lines, unsigned int count, const char *mark, VerbaLinea *out)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -84,8 +84,8 @@ void cli_purpose_uncommented(const CliSpan *lines, unsigned int count, const cha
         rest = cli_purpose_trimmed(rest);
         if (at != 0u)
         {
-            cli_line_character(out, '\n');
+            mmgr_line_ch(out, '\n');
         }
-        cli_line_counted(out, rest.at, rest.length);
+        mmgr_line_put_n(out, rest.at, rest.length);
     }
 }

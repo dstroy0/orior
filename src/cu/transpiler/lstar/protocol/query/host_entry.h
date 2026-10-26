@@ -8,7 +8,7 @@
 //   put   a word at an address
 //   read  a word at an address
 //
-// A store and a load. There is nothing under them and nothing between them and the part: no system is asked for
+// A store and a load. There is nothing under them and nothing between them and the part: no system is queried for
 // permission, no library is called, and no header of anybody's is included. This file includes nothing at all. A
 // compiler that has to be given an address and a word can be given them anywhere.
 //
@@ -17,35 +17,36 @@
 // it, and each is found the same way as anything else here.
 //
 // What is on the bus is not a third relation. It is these two put to the bus's own addresses: read the word a part
-// answers with, and read nothing where no part answers. Asking a system what it carries gets that system's opinion
-// of what it carries, which puts a third party in the loop, and its opinion is not the part's answer. The bus says
-// what is on it because the bus is asked.
+// answers with, and read nothing where no part answers. Querying a system what it carries gets that system's opinion
+// of what it carries, which puts a third party in the loop, and its opinion is not the part's answer. The bus reports
+// what is on it because the bus is queried.
 //
 // What an entry is not is a translator. A thing that turns a source into a coding is the part of the loop being
 // derived, and a word that went through one is that translator's answer and not the host's.
 
-// how wide a word is here. Every address is a word's worth apart, and how many places a word actually holds is a
-// thing the part is asked and not a thing this decides
+// how wide a word is here. Every address is a word's worth apart, and how many places a word actually contains is a
+// thing the part is queried and not a thing this decides
 #define HOST_WORD 4u
 
 // A read that comes back all ones is what a line gives a reader when nothing drove it: every wire floats and reads
-// high. It is not a word a part said
+// high. It is not a word a part reported
 #define HOST_NO_ANSWER 0xffffffffu
 
-// the two words an address is put. They share no bits: an address fixed at either is then told from one that holds
-#define HOST_ASKED_FIRST 0xa5a5a5a5u
-#define HOST_ASKED_THEN 0x5a5a5a5au
+// the two words an address is put. They share no bits: an address fixed at either is then distinguished from one that
+// retains
+#define HOST_PATTERN_FIRST 0xa5a5a5a5u
+#define HOST_PATTERN_THEN 0x5a5a5a5au
 
 // what an address turned out to be, once put words and read back
 typedef enum
 {
     // gave back every word it was given
-    HOST_HOLDS,
+    HOST_RETAINS,
     // gave back the same word whatever it was given
     HOST_FIXED,
     // gave back something else: something behind it decided the answer
     HOST_LIVE,
-    // gave back nothing a reader here can tell from nothing
+    // gave back nothing a reader here can distinguish from nothing
     HOST_NOTHING
 } HostAddressKind;
 
@@ -61,13 +62,13 @@ static inline unsigned int host_read(unsigned long long at)
     return *(volatile unsigned int *)(unsigned long long)at;
 }
 
-// the kind two read-backs name: `first` read after HOST_ASKED_FIRST was put, `then` after HOST_ASKED_THEN. This
+// the kind two read-backs name: `first` read after HOST_PATTERN_FIRST was put, `then` after HOST_PATTERN_THEN. This
 // reads no address; it takes the two words already read. A sizing register's own values can be put to it with no bus
 static inline unsigned int host_address_classify(unsigned int first, unsigned int then)
 {
-    if ((first == HOST_ASKED_FIRST) && (then == HOST_ASKED_THEN))
+    if ((first == HOST_PATTERN_FIRST) && (then == HOST_PATTERN_THEN))
     {
-        return HOST_HOLDS;
+        return HOST_RETAINS;
     }
     if ((first == HOST_NO_ANSWER) && (then == HOST_NO_ANSWER))
     {
@@ -81,21 +82,21 @@ static inline unsigned int host_address_classify(unsigned int first, unsigned in
     return HOST_LIVE;
 }
 
-// What the address at `at` turns out to be, through `read_back` holding what came back last. What was there first is
-// put back before this returns, since an address that holds may be something the part is using
-static inline unsigned int host_address_ask(unsigned long long at, unsigned int *read_back)
+// What the address at `at` turns out to be, through `read_back` containing what came back last. What was there first is
+// put back before this returns, since an address that retains may be something the part is using
+static inline unsigned int host_address_probe(unsigned long long at, unsigned int *read_back)
 {
-    const unsigned int held = host_read(at);
-    host_put(at, HOST_ASKED_FIRST);
+    const unsigned int saved = host_read(at);
+    host_put(at, HOST_PATTERN_FIRST);
     const unsigned int first = host_read(at);
-    host_put(at, HOST_ASKED_THEN);
+    host_put(at, HOST_PATTERN_THEN);
     const unsigned int then = host_read(at);
-    host_put(at, held);
+    host_put(at, saved);
     *read_back = then;
     return host_address_classify(first, then);
 }
 
-// the address bits a sizing register decodes, from the word it gives back when all ones are put to it: it holds the
+// the address bits a sizing register decodes, from the word it gives back when all ones are put to it: it contains the
 // high bits it owns and forces the low bits it decodes to zero. The count of those low zero bits is the region's
 // width. A readback of all ones decodes nothing and is width 0; a readback of zero decodes every bit
 static inline unsigned int host_width(unsigned int readback)
@@ -110,12 +111,12 @@ static inline unsigned int host_width(unsigned int readback)
 
 // the width the sizing register at `at` names: all ones put to it, the word it gives back read, what was there put
 // back. Memory reads 0 here, since memory gives back the ones it was put; a sizing register reads the region's width
-static inline unsigned int host_width_ask(unsigned long long at)
+static inline unsigned int host_width_probe(unsigned long long at)
 {
-    const unsigned int held = host_read(at);
+    const unsigned int saved = host_read(at);
     host_put(at, HOST_NO_ANSWER);
     const unsigned int readback = host_read(at);
-    host_put(at, held);
+    host_put(at, saved);
     return host_width(readback);
 }
 

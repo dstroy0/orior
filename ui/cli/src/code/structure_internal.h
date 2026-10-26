@@ -7,7 +7,7 @@
 
 #include "structure.h"
 
-// the most tokens and lines a side holds, the most steps an edit takes, and the most texts the names number; a text
+// the most tokens and lines a side contains, the most steps an edit takes, and the most texts the names number; a text
 // past them reads as too far apart
 #define CLI_STRUCTURE_TOKENS (1u << 18u)
 
@@ -17,7 +17,7 @@
 
 #define CLI_STRUCTURE_NAMES (1u << 20u)
 
-// the most edits either comparison makes before the texts read as too far apart, and the fewest tokens a line holds
+// the most edits either comparison makes before the texts read as too far apart, and the fewest tokens a line contains
 // for it to read as moved
 #define CLI_MOST_EDITS 3000u
 
@@ -50,10 +50,11 @@ typedef struct
     unsigned int line_name[CLI_STRUCTURE_LINES];
 } CliSide;
 
-// A step of an edit from one sequence to another: one kept, one taken out of the first, or one put in from the second
+// A step of an edit from one sequence to another: one unchanged, one taken out of the first, or one put in from the
+// second
 enum
 {
-    CLI_STEP_KEEP,
+    CLI_STEP_EQUAL,
     CLI_STEP_OUT,
     CLI_STEP_IN
 };
@@ -65,9 +66,9 @@ typedef struct
     unsigned int y;
 } CliStep;
 
-// the tokens of `size` bytes of `text`, line by line, into the side: 1, or 0 where it holds more than a side keeps
+// the tokens of `size` bytes of `text`, line by line, into the side: 1, or 0 where it contains more than a side stores
 int cli_structure_lex(const char *text, unsigned long long size, CliSide *side);
-// the shortest edit from `a` to `b`, the ends they share set aside first, into `steps`, which holds `room`: their
+// the shortest edit from `a` to `b`, the ends they share set aside first, into `steps`, sized for `room`: their
 // count, or CLI_STRUCTURE_NONE past CLI_MOST_EDITS or past the room
 unsigned int cli_structure_shortest(const unsigned int *a, unsigned int n, const unsigned int *b, unsigned int m,
                                     CliStep *steps, unsigned int room);
@@ -112,7 +113,7 @@ typedef struct
     unsigned int name;
 } CliNameBucket;
 
-// Everything one compare keeps, held under the compare's lock while it runs (structure_compare.c): with the band of
+// Everything one compare stores, guarded by the compare's lock while it runs (structure_compare.c): with the band of
 // Myers' frontier for each edit, and the names' buckets
 typedef struct
 {
@@ -164,6 +165,6 @@ void cli_structure_moved_marked(CliCompare *compare);
 void cli_structure_touched_marked(CliCompare *compare);
 void cli_structure_lines_kinded(CliCompare *compare);
 int cli_structure_mark_order(const void *one, const void *other);
-void cli_structure_written(const CliCompare *compare, unsigned int renames, CliLine *out);
+void cli_structure_written(const CliCompare *compare, unsigned int renames, VerbaLinea *out);
 
 #endif

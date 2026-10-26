@@ -6,7 +6,7 @@
 #include "../../integers/exact_record/exact_record.h"
 
 // The exact double on the device, as steps of a record program: a mantissa register m and an exponent register e,
-// the value m 2^e, each lane holding its own exponent. A product and a sum are exact: the sum lines the two mantissas
+// the value m 2^e, each lane carrying its own exponent. A product and a sum are exact: the sum lines the two mantissas
 // up by the lane's own power of two, the larger exponent's mantissa multiplied up to the smaller exponent. Only a cut
 // and a quotient drop bits, and each gives the pair below and above, the mantissa's floor and ceiling at the exponent
 // it gives, equal where nothing was dropped.
@@ -32,7 +32,7 @@ extern "C"
         unsigned int down;
         unsigned int up;
         unsigned int exponent;
-    } EdoubleRecordHeld;
+    } EdoubleRecordInterval;
 
     EdoubleRecord edouble_record_of(unsigned int mantissa, unsigned int exponent);
 
@@ -59,67 +59,69 @@ extern "C"
     // the mantissa cut to below 2^width: shifted down by k, the least k with |m| / 2^k below 2^width, and the floor and
     // ceiling at e + k; for |m| known below 2^(width + 2^range_bits - 1). A mantissa past 2^(width - 1) lands in
     // [2^(width - 1), 2^width], and each end's register is given width + 2 bits
-    EdoubleRecordHeld edouble_record_cut(ExactRecordProgram *program, EdoubleRecord value, unsigned int width,
-                                         unsigned int range_bits);
+    EdoubleRecordInterval edouble_record_cut(ExactRecordProgram *program, EdoubleRecord value, unsigned int width,
+                                             unsigned int range_bits);
 
     // a / b to `width` bits past b's mantissa, for b's mantissa nonzero and known below 2^divisor_bits: the floor and
     // ceiling of m_a 2^s / m_b, s = width + divisor_bits, at e_a - e_b - s
-    EdoubleRecordHeld edouble_record_quotient(ExactRecordProgram *program, EdoubleRecord a, EdoubleRecord b,
-                                              unsigned int width, unsigned int divisor_bits);
+    EdoubleRecordInterval edouble_record_quotient(ExactRecordProgram *program, EdoubleRecord a, EdoubleRecord b,
+                                                  unsigned int width, unsigned int divisor_bits);
 
     // the floor and ceiling of n / d, d nonzero: the quotient toward zero, less 1 where the remainder is below zero and
     // more 1 where it is above
     void edouble_record_floor_ceiling(ExactRecordProgram *program, unsigned int n, unsigned int d, unsigned int *floor,
                                       unsigned int *ceiling);
 
-    // ---- held values: every value between down 2^e and up 2^e, down <= up ----
+    // ---- bounded values: every value between down 2^e and up 2^e, down <= up ----
 
     // an exact value, both ends its mantissa
-    EdoubleRecordHeld edouble_record_held_of(EdoubleRecord value);
+    EdoubleRecordInterval edouble_record_interval_of(EdoubleRecord value);
 
-    EdoubleRecordHeld edouble_record_held_negate(ExactRecordProgram *program, EdoubleRecordHeld value);
+    EdoubleRecordInterval edouble_record_interval_negate(ExactRecordProgram *program, EdoubleRecordInterval value);
 
     // the ends' sums, exact, for exponents known to differ by less than 2^spread_bits
-    EdoubleRecordHeld edouble_record_held_sum(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
-                                              unsigned int spread_bits);
+    EdoubleRecordInterval edouble_record_interval_sum(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                      EdoubleRecordInterval b, unsigned int spread_bits);
 
-    EdoubleRecordHeld edouble_record_held_difference(ExactRecordProgram *program, EdoubleRecordHeld a,
-                                                     EdoubleRecordHeld b, unsigned int spread_bits);
+    EdoubleRecordInterval edouble_record_interval_difference(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                             EdoubleRecordInterval b, unsigned int spread_bits);
 
     // the least and the most of the four corner products, exact, whatever the signs
-    EdoubleRecordHeld edouble_record_held_product(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b);
+    EdoubleRecordInterval edouble_record_interval_product(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                          EdoubleRecordInterval b);
 
     // both ends cut by one shift, the larger end's: the lower end's floor and the upper end's ceiling below 2^width in
     // size, for both ends known below 2^(width + 2^range_bits - 1); each end's register given width + 2 bits
-    EdoubleRecordHeld edouble_record_held_cut(ExactRecordProgram *program, EdoubleRecordHeld value, unsigned int width,
-                                              unsigned int range_bits);
+    EdoubleRecordInterval edouble_record_interval_cut(ExactRecordProgram *program, EdoubleRecordInterval value,
+                                                      unsigned int width, unsigned int range_bits);
 
-    // a / b for b holding no 0 and both of b's ends below 2^divisor_bits: the least floor and the most ceiling of the
-    // four corners m_a 2^s / m_b, s = width + divisor_bits, at e_a - e_b - s
-    EdoubleRecordHeld edouble_record_held_quotient(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
-                                                   unsigned int width, unsigned int divisor_bits);
+    // a / b for b containing no 0 and both of b's ends below 2^divisor_bits: the least floor and the most ceiling of
+    // the four corners m_a 2^s / m_b, s = width + divisor_bits, at e_a - e_b - s
+    EdoubleRecordInterval edouble_record_interval_quotient(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                                           EdoubleRecordInterval b, unsigned int width,
+                                                           unsigned int divisor_bits);
 
-    // 1 where every value a holds lies above every value b holds: a's lower end above b's upper, exact
-    unsigned int edouble_record_held_above(ExactRecordProgram *program, EdoubleRecordHeld a, EdoubleRecordHeld b,
-                                           unsigned int spread_bits);
+    // 1 where every value a contains lies above every value b contains: a's lower end above b's upper, exact
+    unsigned int edouble_record_interval_above(ExactRecordProgram *program, EdoubleRecordInterval a,
+                                               EdoubleRecordInterval b, unsigned int spread_bits);
 
     // value 2^power for a constant power, exact: the exponent moved
-    EdoubleRecordHeld edouble_record_held_times_two_to(ExactRecordProgram *program, EdoubleRecordHeld value,
-                                                       long long power);
+    EdoubleRecordInterval edouble_record_interval_times_two_to(ExactRecordProgram *program, EdoubleRecordInterval value,
+                                                               long long power);
 
     // the value at the constant exponent `exponent`, outward: the lower end's floor and the upper end's ceiling of
     // each end times 2^(e - exponent), exact where e is the larger, each end's register wrapped to `bits` for ends the
-    // caller holds within [-2^(bits - 1), 2^(bits - 1)). Where the program does not know e, |e - exponent| lies below
+    // caller bounds within [-2^(bits - 1), 2^(bits - 1)). Where the program does not know e, |e - exponent| lies below
     // 2^range_bits
-    EdoubleRecordHeld edouble_record_held_at(ExactRecordProgram *program, EdoubleRecordHeld value, long long exponent,
-                                             unsigned int bits, unsigned int range_bits);
+    EdoubleRecordInterval edouble_record_interval_at(ExactRecordProgram *program, EdoubleRecordInterval value,
+                                                     long long exponent, unsigned int bits, unsigned int range_bits);
 
     // ---- balls: every value within the radius of the center, the radius never below zero ----
     //
     // A ball's product costs one product for its center and three for its radius, against the four corners and their
-    // order a held pair's takes. Only a read at an exponent drops bits, and it widens the radius by what it drops. Each
-    // read wraps the center and narrows the radius to the widths it is given, and gives the flag `fits`, 1 where both
-    // lay inside them: a run that holds every flag at 1 dropped nothing to a wrap. The quotient takes exponents the
+    // order a bounded pair's takes. Only a read at an exponent drops bits, and it widens the radius by what it drops.
+    // Each read wraps the center and narrows the radius to the widths it is given, and gives the flag `fits`, 1 where
+    // both lay inside them: a run that has every flag at 1 dropped nothing to a wrap. The quotient takes exponents the
     // program knows.
 
     typedef struct
@@ -161,7 +163,7 @@ extern "C"
     // a / b at the constant exponent `exponent`, its radius at `radius_exponent`, for every exponent known: the
     // center the quotient of the centers cut toward zero, and the radius the ceiling of
     // (|c_b| r_a + |c_a| r_b) / (|c_b| (|c_b| - r_b)) and one unit more; `fits` as the read gives it, and 0 where b's
-    // ball holds 0
+    // ball contains 0
     EdoubleRecordBall edouble_record_ball_quotient(ExactRecordProgram *program, EdoubleRecordBall a, EdoubleRecordBall b,
                                                    long long exponent, unsigned int bits, long long radius_exponent,
                                                    unsigned int radius_bits, unsigned int *fits);
@@ -171,7 +173,7 @@ extern "C"
 
     EdoubleRecord edouble_record_ball_up(ExactRecordProgram *program, EdoubleRecordBall value, unsigned int spread_bits);
 
-    // 1 where every value a holds lies above every value b holds, exact
+    // 1 where every value a contains lies above every value b contains, exact
     unsigned int edouble_record_ball_above(ExactRecordProgram *program, EdoubleRecordBall a, EdoubleRecordBall b,
                                            unsigned int spread_bits);
 

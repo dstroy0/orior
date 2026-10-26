@@ -97,9 +97,9 @@ __global__ static void cycle_sort_network_kernel(const unsigned int *records, un
                         {
                             for (unsigned int limb = 0u; limb < limbs; limb += 1u)
                             {
-                                const unsigned int held = keys[(entry * limbs) + limb];
+                                const unsigned int key_limb = keys[(entry * limbs) + limb];
                                 keys[(entry * limbs) + limb] = keys[(partner * limbs) + limb];
-                                keys[(partner * limbs) + limb] = held;
+                                keys[(partner * limbs) + limb] = key_limb;
                             }
                             const unsigned int place = places[entry];
                             places[entry] = places[partner];
@@ -112,7 +112,7 @@ __global__ static void cycle_sort_network_kernel(const unsigned int *records, un
         }
         for (unsigned int entry = threadIdx.x; entry < group; entry += blockDim.x)
         {
-            // the lanes are below 2^32: the request holds at most 2^32 records
+            // the lanes are below 2^32: the request contains at most 2^32 records
             order[first + entry] = (unsigned int)(first + places[entry]);
         }
         __syncthreads();
@@ -177,7 +177,7 @@ __global__ static void cycle_sort_count_kernel(const unsigned int *records, cons
 
 // the counts' exclusive prefix, in place, in the order digit by digit and thread by thread within a digit: one block,
 // each thread summing a stretch, the stretches' totals scanned in shared memory, and each stretch written from its
-// start. The totals are at most `count`, below 2^32 + 1, and a 64-bit running sum holds them
+// start. The totals are at most `count`, below 2^32 + 1, and a 64-bit running sum contains them
 __global__ static void cycle_sort_scan_kernel(unsigned int *counts, unsigned long long entries)
 {
     __shared__ unsigned long long totals[CYCLE_SORT_SCAN_THREADS];
@@ -212,8 +212,8 @@ __global__ static void cycle_sort_scan_kernel(unsigned int *counts, unsigned lon
     }
 }
 
-// each thread walks its stretch again in order and lays each lane at its digit's next place: lanes of one digit keep
-// the order they came in, thread by thread and within a thread
+// each thread walks its stretch again in order and lays each lane at its digit's next place: lanes of one digit
+// preserve the order they came in, thread by thread and within a thread
 __global__ static void cycle_sort_scatter_kernel(const unsigned int *records, const unsigned int *from,
                                                  unsigned int *to, unsigned long long count, unsigned long long group,
                                                  unsigned int out_limbs, unsigned int offset, unsigned int bits,
@@ -255,7 +255,7 @@ static unsigned int cycle_sort_bit_length(unsigned long long value)
 }
 
 // the radix sort: from the lanes in order, a stable pass a digit, the field's digits from its lowest and then the run
-// number's, so that the last pass groups the runs and each run keeps the field's order and, under it, the lanes'
+// number's, so that the last pass groups the runs and each run preserves the field's order and, under it, the lanes'
 static int cycle_sort_radix(const CycleRecordSortRequest *request, EngineError *error)
 {
     const unsigned long long count = request->count;

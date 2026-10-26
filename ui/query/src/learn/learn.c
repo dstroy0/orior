@@ -4,24 +4,24 @@
 // before the part by the airlock, the carrier with the part taken out popping each question's container and the cross
 // reading them against the vendor's disassembler, and fixed where a count of registers fixes it. `discover` seeds the
 // kernel's own form into the working set the first time and after that widens the forms the part has classified a
-// round; `seed` is a discover pass seeded as well from a listing of the vendor's compiler; `turns` asks the turns of
-// the forms a discover left; `registers` sets the runs those find to the two registers. `rounds` widens for a count of
-// rounds; `dry` puts every question to the dry carrier and holds each to the gate with the part taken out;
-// `enumerate` emits one slot's questions for the cross to read. This file reads a learn's words and gives what the
+// round; `seed` is a discover pass seeded as well from a listing of the vendor's compiler; `turns` requests the turns
+// of the forms a discover left; `registers` sets the runs those find to the two registers. `rounds` widens for a count
+// of rounds; `dry` puts every question to the dry carrier and checks each at the gate with the part taken out;
+// `enumerate` emits one place's questions for the cross to read. This file reads a learn's words and gives what the
 // passes share; learn_steps.c runs them
 #include "learn_internal.h"
 
 #include "../../../cli/src/text/text.h"
 #include <stdlib.h>
 
-int query_learn_step_read(const char *const *words, unsigned int count, QueryLearnStep *step, CliLine *said)
+int query_learn_step_read(const char *const *words, unsigned int count, QueryLearnStep *step, VerbaLinea *err_msg)
 {
     static const char *const s_usage = "learn takes discover|turns|registers|costs [--base <cu>], seed <listing.sass>, "
-                                       "rounds [<n>], dry [<n>], enumerate <slot> or clock [<from> [<words>]]";
+                                       "rounds [<n>], dry [<n>], enumerate <place> or clock [<from> [<words>]]";
     memor.set(&(MemoriaCfg){.dst = step, .val = 0, .bytes = sizeof(*step)});
     if (count == 0u)
     {
-        cli_line_text(said, s_usage);
+        mmgr_line_put(err_msg, s_usage);
         return 0;
     }
     const char *const first = words[0];
@@ -41,7 +41,7 @@ int query_learn_step_read(const char *const *words, unsigned int count, QueryLea
             step->base = words[2];
             return 1;
         }
-        cli_line_text(said, s_usage);
+        mmgr_line_put(err_msg, s_usage);
         return 0;
     }
     if ((cellul.eq(&(CatenaFinitaCfg){.src = first, .other = "seed", .cap = CLI_CELLS_POOL})) && (count >= 2u))
@@ -61,10 +61,10 @@ int query_learn_step_read(const char *const *words, unsigned int count, QueryLea
             const unsigned long rounds = strtoul(words[1], &end, 10);
             if ((end == words[1]) || (*end != '\0') || (rounds > 0xffffffffull))
             {
-                cli_line_text(said, s_usage);
+                mmgr_line_put(err_msg, s_usage);
                 return 0;
             }
-            // a count of rounds read under what an unsigned int holds
+            // a count of rounds read under what an unsigned int represents
             step->rounds = (unsigned int)rounds;
         }
         return 1;
@@ -82,7 +82,7 @@ int query_learn_step_read(const char *const *words, unsigned int count, QueryLea
         step->base = (count >= 3u) ? words[2] : QUERY_CLOCK_WORDS;
         return 1;
     }
-    cli_line_text(said, s_usage);
+    mmgr_line_put(err_msg, s_usage);
     return 0;
 }
 
@@ -112,26 +112,26 @@ unsigned int query_learn_lines(const QueryRun *run, const char *name)
     return lines;
 }
 
-int query_learn_carried(QueryContext *context, QueryRun *run, int lessons, CliLine *said)
+int query_learn_carried(QueryContext *context, QueryRun *run, int lessons, VerbaLinea *err_msg)
 {
-    char work[QUERY_PATH_LONGEST];
-    char folder[QUERY_PATH_LONGEST];
-    char forms_work[QUERY_PATH_LONGEST];
-    char forms[QUERY_PATH_LONGEST];
+    char work[QUERY_PATH_MAX_LEN];
+    char folder[QUERY_PATH_MAX_LEN];
+    char forms_work[QUERY_PATH_MAX_LEN];
+    char forms[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_LEARN_WORK, work);
     query_at(context, QUERY_LEARN_FOLDER, folder);
-    CliLine forms_work_line = {forms_work, sizeof(forms_work), 0ull};
-    cli_line_text(&forms_work_line, work);
-    cli_line_text(&forms_work_line, "/forms_work.txt");
-    cli_line_closed(&forms_work_line);
-    CliLine forms_line = {forms, sizeof(forms), 0ull};
-    cli_line_text(&forms_line, work);
-    cli_line_text(&forms_line, "/forms.txt");
-    cli_line_closed(&forms_line);
+    VerbaLinea forms_work_line = {forms_work, sizeof(forms_work), 0ull};
+    mmgr_line_put(&forms_work_line, work);
+    mmgr_line_put(&forms_work_line, "/forms_work.txt");
+    mmgr_line_finish(&forms_work_line);
+    VerbaLinea forms_line = {forms, sizeof(forms), 0ull};
+    mmgr_line_put(&forms_line, work);
+    mmgr_line_put(&forms_line, "/forms.txt");
+    mmgr_line_finish(&forms_line);
     const char *const files[4] = {forms_work, forms, "faulted.txt", "overseer.txt"};
-    char crystal[QUERY_PATH_LONGEST];
+    char crystal[QUERY_PATH_MAX_LEN];
     const int has_crystal = query_crystal(context->root, crystal, sizeof(crystal));
-    return query_run_carried(run, folder, files, lessons ? 4u : 3u, has_crystal ? crystal : NULL, said);
+    return query_run_carried(run, folder, files, lessons ? 4u : 3u, has_crystal ? crystal : NULL, err_msg);
 }
 
 void query_teacher_words(QueryWords *words, const char *machine, const QueryFiles *files, const char *writer)
@@ -144,7 +144,7 @@ void query_teacher_words(QueryWords *words, const char *machine, const QueryFile
     query_words_add(words, writer);
 }
 
-void query_verdicts_said(QueryContext *context, const QueryRun *run)
+void query_verdicts_print(QueryContext *context, const QueryRun *run)
 {
     unsigned long long dry_size = 0ull;
     char *const dry = query_writer_read_taken(&run->writer, "dry.txt", &dry_size);
@@ -216,17 +216,17 @@ void query_verdicts_said(QueryContext *context, const QueryRun *run)
         s_counts[place] = 1ull;
         verdicts += 1u;
     }
-    cli_cell_given_by(&g_query_cells, dry);
+    g_cli_cells->persistent_buf_release(dry, &g_query_cells);
     for (unsigned int place = 0u; place < verdicts; place += 1u)
     {
         char text[160];
-        CliLine line = {text, sizeof(text), 0ull};
-        cli_line_decimal_columns(&line, s_counts[place], 7u);
-        cli_line_character(&line, ' ');
-        cli_line_text(&line, s_verdicts[place]);
-        if (cli_line_closed(&line) != 0ull)
+        VerbaLinea line = {text, sizeof(text), 0ull};
+        mmgr_line_decimal_columns(&line, s_counts[place], 7u);
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, s_verdicts[place]);
+        if (mmgr_line_finish(&line) != 0ull)
         {
-            query_said(context, text);
+            query_print(context, text);
         }
     }
 }
@@ -234,8 +234,8 @@ void query_verdicts_said(QueryContext *context, const QueryRun *run)
 int query_bar0_driver_runs(void)
 {
     const char *const words[4] = {"sc.exe", "query", QUERY_LISTENER, NULL};
-    QueryProcess asked;
-    if (!query_process_start(&asked, words, NULL, QUERY_OUTPUT_PIPED))
+    QueryProcess child;
+    if (!query_process_start(&child, words, NULL, QUERY_OUTPUT_PIPED))
     {
         return 0;
     }
@@ -243,14 +243,14 @@ int query_bar0_driver_runs(void)
     unsigned long long length = 0ull;
     for (;;)
     {
-        const unsigned long long got = query_process_read(&asked, s_output + length, sizeof(s_output) - 1u - length);
+        const unsigned long long got = query_process_read(&child, s_output + length, sizeof(s_output) - 1u - length);
         if (got == 0ull)
         {
             break;
         }
         length += got;
     }
-    query_process_wait(&asked);
+    query_process_wait(&child);
     s_output[length] = '\0';
     return cellul.find(&(CatenaFinitaCfg){
                .src = s_output, .cap = CLI_CELLS_POOL, .other = "RUNNING", .other_cap = CLI_CELLS_POOL}) != NULL;

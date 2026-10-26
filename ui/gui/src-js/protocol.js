@@ -214,7 +214,7 @@ export function panelOf(blobs, shown = {}) {
 // traffic, latency, errors and saturation; with the time gone and the time left beside them. Traffic is
 // the answers a second over the last RATE_WINDOW_MS, a recent rate and not the run's average, since an
 // average over the whole run hides a slowdown. Latency is the last round's airlock, cross and carrier
-// times off the teacher's round line. Errors are the questions held off the part, refused, faulted, and
+// times off the teacher's round line. Errors are the questions blocked from the part, refused, faulted, and
 // the panics. Saturation is the questions asked and not yet answered. The time left is the rounds left
 // times the time the last rounds took. Nothing here touches the page.
 export const RATE_WINDOW_MS = 10000;
@@ -262,7 +262,7 @@ export function telemetryStep(telemetry, blob, atMs) {
   return telemetry;
 }
 
-// One console line more: a round's line gives the latency; a line saying a question was held off the part,
+// One console line more: a round's line gives the latency; a line saying a question was blocked from the part,
 // refused or faulted counts one error of its kind.
 export function telemetryLine(telemetry, text) {
   const round = ROUND_LINE.exec(text);
@@ -272,7 +272,7 @@ export function telemetryLine(telemetry, text) {
     telemetry.cross = Number(round[4]);
     telemetry.carrier = Number(round[5]);
   }
-  if (/\bheld (off|with|by)\b/.test(text)) {
+  if (/\bblocked (from|with|by)\b/.test(text)) {
     telemetry.held += 1;
   }
   if (/\brefused\b/.test(text)) {

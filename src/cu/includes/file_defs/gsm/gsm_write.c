@@ -5,12 +5,12 @@
 //     orior_gsm_write <part> <path.khw> <layout> <mnemonics> <machine writer>
 //
 // The face is relational (src/lng/transpiler_gsm_parser.md): a case is the operands and then the answer the relation
-// holds, 1,1->2. A form enters the part's machine file only where the part answered one relation on every case of it
+// is valid, 1,1->2. A form enters the part's machine file only where the part answered one relation on every case of it
 // (khw_write.c), and those cases are the ladder's (ladder.h), which the host computes. The vendor's writer (`machine
 // writer` above, run through the interface) reads the machine file and hands back each form that answered a relation
 // and whether the answers read a word signed; each relation so answered is written once, as every two-word case of it
-// the ladder holds, the answer read signed where the part's was. <part>.gsm is written beside the machine file, a case
-// a line in the ladder's order, and each word in decimal.
+// the ladder is valid, the answer read signed where the part's was. <part>.gsm is written beside the machine file, a
+// case a line in the ladder's order, and each word in decimal.
 //
 // It runs in a query run, the .qry QRY names (qry_member.h): the forms the vendor's writer hands back are the blob
 // GSM_FORMS_NAME of the run, and what it prints is handed to the run as GSM_MACHINE_NAME.
@@ -58,9 +58,9 @@ static int gsm_vendor_run(char *const *word)
     if (answer.output_bytes != 0ull)
     {
         printf("%s", s_output);
-        const unsigned long long kept =
+        const unsigned long long output_len =
             (answer.output_bytes < (sizeof(s_output) - 1u)) ? answer.output_bytes : (sizeof(s_output) - 1u);
-        qry_member_append(GSM_MACHINE_NAME, s_output, kept, QRY_ORDINARY);
+        qry_member_append(GSM_MACHINE_NAME, s_output, output_len, QRY_ORDINARY);
     }
     if ((ran != 0L) || (answer.ending != INTERFACE_ENDING_EXITED) || (answer.code != 0ull))
     {
@@ -72,7 +72,7 @@ static int gsm_vendor_run(char *const *word)
 }
 
 // the relations the forms the vendor's writer handed back, the `size` bytes at `bytes`, answered, into s_answered. A
-// line whose relation is none the ladder holds is left out. The count of forms read
+// line whose relation is none the ladder satisfies is left out. The count of forms read
 static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long long size)
 {
     char line[1024];
@@ -105,7 +105,7 @@ static unsigned int gsm_relations_read(const unsigned char *bytes, unsigned long
     return read;
 }
 
-// the folder `path` lies in, into `folder`, which holds `room`: "." where it names none
+// the folder `path` lies in, into `folder`, which has room for `room`: "." where it names none
 static void gsm_folder_of(const char *path, char *folder, size_t room)
 {
     const char *const slash = strrchr(path, '/');
@@ -131,10 +131,10 @@ int main(int count, char **word)
     QryShared *const run = qry_member_run();
     if (run == NULL)
     {
-        printf("  orior_gsm_write: no query writer runs: %s names no .qry a writer holds open\n", QRY_ENVIRONMENT);
+        printf("  orior_gsm_write: no query writer runs: %s names no .qry a writer has open\n", QRY_ENVIRONMENT);
         return 1;
     }
-    // the forms the vendor's writer hands, told from any handed before them by their sequence
+    // the forms the vendor's writer hands, distinguished from any handed before them by their sequence
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     unsigned long long before = 0ull;
@@ -173,19 +173,19 @@ int main(int count, char **word)
             relations += 1u;
             for (unsigned int at = 0u; at < LADDER_CASE_COUNT; at += 1u)
             {
-                const LadderQuestion *const held = &s_ladder_cases[at];
+                const LadderQuestion *const ladder_case = &s_ladder_cases[at];
                 unsigned int answer = 0u;
-                if ((held->anchor != anchor) || (held->words != 2u) ||
-                    !ladder_answer(anchor, held->word, held->words, &answer))
+                if ((ladder_case->anchor != anchor) || (ladder_case->words != 2u) ||
+                    !ladder_answer(anchor, ladder_case->word, ladder_case->words, &answer))
                 {
                     continue;
                 }
-                answer = (read_as != 0u) ? ladder_signed_answer(anchor, held->word) : answer;
+                answer = (read_as != 0u) ? ladder_signed_answer(anchor, ladder_case->word) : answer;
                 out = verba_numerus.u64(&(VerbaNumerusCfg){
-                    .out = s_out_bytes, .cap = room, .at = out, .val = (unsigned long long)(held->word[0])});
+                    .out = s_out_bytes, .cap = room, .at = out, .val = (unsigned long long)(ladder_case->word[0])});
                 out = verba_littera.ch(&(VerbaLitteraCfg){.out = s_out_bytes, .cap = room, .at = out, .ch = ','});
                 out = verba_numerus.u64(&(VerbaNumerusCfg){
-                    .out = s_out_bytes, .cap = room, .at = out, .val = (unsigned long long)(held->word[1])});
+                    .out = s_out_bytes, .cap = room, .at = out, .val = (unsigned long long)(ladder_case->word[1])});
                 out = verba_textus.put(&(VerbaTextusCfg){.out = s_out_bytes, .cap = room, .at = out, .text = "->"});
                 out = verba_numerus.u64(
                     &(VerbaNumerusCfg){.out = s_out_bytes, .cap = room, .at = out, .val = (unsigned long long)answer});

@@ -6,15 +6,15 @@
 
 #include "sim_camera_scene.h"
 
-// each of count electrons kept with chance numerator / 2^bits, bits 1 to 16: a word holds 64 / bits electrons' draws.
-// A counter's SIM_COUNTER_STRIDE words hold that many each
+// each of count electrons retained with chance numerator / 2^bits, bits 1 to 16: a word contains 64 / bits electrons'
+// draws. A counter's SIM_COUNTER_STRIDE words contain that many each
 static inline __host__ __device__ unsigned long long sim_thinned(unsigned long long key, unsigned long long counter,
                                                                  unsigned long long count, unsigned long long numerator,
                                                                  unsigned int bits)
 {
     const unsigned long long per_word = 64ull / bits;
     const unsigned long long mask = (1ull << bits) - 1ull;
-    unsigned long long kept = 0ull;
+    unsigned long long retained = 0ull;
     unsigned long long word = 0ull;
     for (unsigned long long done = 0ull; done < count; done += per_word)
     {
@@ -23,12 +23,12 @@ static inline __host__ __device__ unsigned long long sim_thinned(unsigned long l
         const unsigned long long taken = (left < per_word) ? left : per_word;
         for (unsigned long long electron = 0ull; electron < taken; electron += 1ull)
         {
-            kept += ((draw & mask) < numerator) ? 1ull : 0ull;
+            retained += ((draw & mask) < numerator) ? 1ull : 0ull;
             draw >>= bits;
         }
         word += 1ull;
     }
-    return kept;
+    return retained;
 }
 
 // a camera pixel's p, its gain's departure in units of 2^-gain_pattern_bits, 0 where the camera has no gain pattern
@@ -83,10 +83,10 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
         {
             count = 2ull * sim_poisson_four_cumulants(camera->key ^ SIM_SHOT_PURPOSE, counter, charge / 2ull);
         }
-        if (camera->keep_bits != 0u)
+        if (camera->thin_bits != 0u)
         {
             count =
-                sim_thinned(camera->key ^ SIM_THIN_PURPOSE, counter, count, camera->keep_numerator, camera->keep_bits);
+                sim_thinned(camera->key ^ SIM_THIN_PURPOSE, counter, count, camera->thin_numerator, camera->thin_bits);
         }
         if (camera->excess != 0u)
         {
@@ -128,8 +128,8 @@ static inline __host__ __device__ long long sim_value(const SimCamera *camera, u
 }
 
 // The terms a camera shares across voxels or carries across frames: an offset drawn per frame for each row, column
-// and plane, flicker octaves each held for 2^o frames, and spikes at a rational rate. Each is 0 unless its field is
-// set. With none of them set, a camera draws what it drew before they existed.
+// and plane, flicker octaves each sustained for 2^o frames, and spikes at a rational rate. Each is 0 unless its field
+// is set. With none of them set, a camera draws what it drew before they existed.
 static inline __host__ __device__ long long sim_shared(const SimCamera *camera, const SimScene *scene,
                                                        unsigned long long frame, const long long *place,
                                                        unsigned long long voxel, unsigned long long counter)
@@ -153,7 +153,7 @@ static inline __host__ __device__ long long sim_shared(const SimCamera *camera, 
     }
     for (unsigned int octave = 0u; (camera->flicker_square != 0ull) && (octave < camera->flicker_octaves); octave += 1u)
     {
-        // octave o's draw is held for 2^o frames: its counter changes only when frame >> o does
+        // octave o's draw is sustained for 2^o frames: its counter changes only when frame >> o does
         const unsigned long long index =
             ((((voxel * camera->flicker_octaves) + octave) * scene->frames) + (frame >> octave));
         shared += sim_centerd(camera->key ^ SIM_FLICKER_PURPOSE, index, camera->flicker_square);
@@ -198,7 +198,7 @@ static __global__ void sim_render_kernel(SimScene scene, SimCamera camera, unsig
         atomicAdd(clipped, 1ull);
     }
     const long long clamped = (value < 0ll) ? 0ll : ((value > SIM_LANE_MAX) ? SIM_LANE_MAX : value);
-    // held is clamped to the u16 lane's range just above
+    // the value is clamped to the u16 lane's range just above
     lanes[index] = (unsigned short)clamped;
     if (truth == NULL)
     {

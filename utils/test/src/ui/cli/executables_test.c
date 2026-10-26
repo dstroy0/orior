@@ -4,7 +4,7 @@
 // executables past imports, aliases and comments; Meson the executables written out; Zig the names of both forms of
 // its calls; a spec its file by whether it collects a folder; a package its bins by name; Go its main packages by
 // folder; .NET the program of an exe project, found in its lines; a tree a job for each program, titling the names it
-// shares; and a build says every command it runs by default and its own words where quiet
+// shares; and a build prints every command it runs by default and its own words where quiet
 #include "../../../../../ui/cli/src/command_line/catalog.h"
 #include "../../../../../ui/cli/src/programs/executables_internal.h"
 #include "cli_check.h"
@@ -25,8 +25,8 @@ static unsigned int s_count;
 // a file of the tree `dir` written at `path`, its folder made
 static void executables_put(const char *dir, const char *path, const char *text)
 {
-    char file[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
+    char file[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
     cli_full(dir, path, file);
     if (cli_path_parent(file, folder))
     {
@@ -35,19 +35,19 @@ static void executables_put(const char *dir, const char *path, const char *text)
     (void)query_file_written(file, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-// the names s_names holds, joined by `|`, each `name=value` where `values`, checked against `wanted`
+// the names s_names contains, joined by `|`, each `name=value` where `values`, checked against `wanted`
 static void executables_names_are(int values, const char *wanted, const char *what)
 {
     char out[1024];
-    CliLine line = {out, sizeof(out), 0ull};
+    VerbaLinea line = {out, sizeof(out), 0ull};
     for (unsigned int at = 0u; at < s_names.count; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, s_names.name[at]);
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, s_names.name[at]);
         if (values)
         {
-            cli_line_character(&line, '=');
-            cli_line_text(&line, s_names.value[at]);
+            mmgr_line_ch(&line, '=');
+            mmgr_line_put(&line, s_names.value[at]);
         }
     }
     cli_check_text(out, line.at, wanted, what);
@@ -56,8 +56,8 @@ static void executables_names_are(int values, const char *wanted, const char *wh
 // Cargo gives its named and found binaries
 static void executables_cargo(void)
 {
-    char dir[CLI_PATH_LONGEST];
-    char manifest[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char manifest[CLI_PATH_MAX_LEN];
     static const char s_manifest[] = "[package]\nname = \"tool\" # the package\n\n[[bin]]\nname = 'second'\npath = "
                                      "\"src/second.rs\"\n\n[dependencies]\nname = \"not this\"\n";
     cli_check_folder("executables_cargo", dir);
@@ -83,7 +83,7 @@ static void executables_scripts(void)
                                   "main.c)\nADD_EXECUTABLE ( \"tool\"\n  tool.c)\nadd_executable(other "
                                   "IMPORTED)\nadd_executable(short ALIAS tool)\nadd_executable(${NAME} "
                                   "x.c)\nadd_library(lib STATIC a.c)\n";
-    char project[CLI_NAME_LONGEST];
+    char project[CLI_NAME_MAX_LEN];
     cli_check(cli_cmake_project(s_cmake, project) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = project, .other = "demo", .cap = CLI_CELLS_POOL})),
               "CMake's project");
@@ -111,15 +111,15 @@ static void executables_scripts(void)
 // a spec gives its file by whether it collects a folder, and a package its bins by name
 static void executables_spec(void)
 {
-    char exe[CLI_NAME_LONGEST];
-    char path[CLI_PATH_LONGEST];
-    char file[CLI_NAME_LONGEST];
-    char wanted[CLI_PATH_LONGEST];
+    char exe[CLI_NAME_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
+    char file[CLI_NAME_MAX_LEN];
+    char wanted[CLI_PATH_MAX_LEN];
     cli_program_file("app", file);
-    CliLine line = {wanted, sizeof(wanted), 0ull};
-    cli_line_text(&line, "dist/");
-    cli_line_text(&line, file);
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    mmgr_line_put(&line, "dist/");
+    mmgr_line_put(&line, file);
+    (void)mmgr_line_finish(&line);
     cli_check(cli_spec_made("a = Analysis(['app.py'])\npyz = PYZ(a.pure)\nexe = EXE(pyz, a.scripts, a.binaries, "
                             "name='app', console=True)\n",
                             exe, path) &&
@@ -127,9 +127,9 @@ static void executables_spec(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = wanted, .cap = CLI_CELLS_POOL})),
               "a spec of one file");
     line.at = 0ull;
-    cli_line_text(&line, "dist/bundle/");
-    cli_line_text(&line, file);
-    (void)cli_line_closed(&line);
+    mmgr_line_put(&line, "dist/bundle/");
+    mmgr_line_put(&line, file);
+    (void)mmgr_line_finish(&line);
     cli_check(cli_spec_made("a = Analysis(['app.py'])\nexe = EXE(pyz, exclude_binaries=True, name=\"app\")\ncoll = "
                             "COLLECT(exe, a.binaries, name=\"bundle\")\n",
                             exe, path) &&
@@ -147,15 +147,15 @@ static void executables_spec(void)
     s_names.count = 0u;
     cli_npm_bins("{\"name\":\"lib\"}", &s_names, &module);
     cli_check(s_names.count == 0u, "and none where it has none");
-    cli_check((g_cli_executables_cells.holds == 0ull) && (g_cli_executables_cells.hw != 0ull),
+    cli_check((g_cli_executables_cells.in_use == 0ull) && (g_cli_executables_cells.hw != 0ull),
               "each script is read in cells given back as it is read");
 }
 
 // Go gives the main packages by folder
 static void executables_go(void)
 {
-    char dir[CLI_PATH_LONGEST];
-    char manifest[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char manifest[CLI_PATH_MAX_LEN];
     static const char s_module[] = "module example.com/top/thing\n\ngo 1.22\n";
     cli_check_folder("executables_go", dir);
     executables_put(dir, "go.mod", s_module);
@@ -175,7 +175,7 @@ static void executables_go(void)
 static void executables_dotnet(void)
 {
     static const char s_project[] = "app/Hello.csproj";
-    char out[CLI_PATH_LONGEST];
+    char out[CLI_PATH_MAX_LEN];
     cli_check(cli_dotnet_program(
                   s_project, "<Project><PropertyGroup><OutputType>Exe</OutputType></PropertyGroup></Project>", out) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = out, .other = "Hello", .cap = CLI_CELLS_POOL})),
@@ -187,27 +187,27 @@ static void executables_dotnet(void)
                   (cellul.eq(&(CatenaFinitaCfg){.src = out, .other = "Hello", .cap = CLI_CELLS_POOL})),
               "an assembly name made of properties passed over");
     cli_check(!cli_dotnet_program(s_project, "<OutputType>Library</OutputType>", out), "and none of a library");
-    char file[CLI_NAME_LONGEST];
-    char wanted[CLI_PATH_LONGEST];
+    char file[CLI_NAME_MAX_LEN];
+    char wanted[CLI_PATH_MAX_LEN];
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_program_file("Hello", file);
     static const char s_built[] = "  Hello -> C:/t/bin/Debug/net10.0/Hello.dll";
     cli_lines_put(&s_lines, s_built, sizeof(s_built) - 1u);
-    CliLine line = {wanted, sizeof(wanted), 0ull};
-    cli_line_text(&line, "C:/t/bin/Debug/net10.0/");
-    cli_line_text(&line, file);
-    (void)cli_line_closed(&line);
-    cli_check(cli_dotnet_artifact("Hello", &s_lines, out, &said) &&
+    VerbaLinea line = {wanted, sizeof(wanted), 0ull};
+    mmgr_line_put(&line, "C:/t/bin/Debug/net10.0/");
+    mmgr_line_put(&line, file);
+    (void)mmgr_line_finish(&line);
+    cli_check(cli_dotnet_artifact("Hello", &s_lines, out, &err_msg) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = out, .other = wanted, .cap = CLI_CELLS_POOL})),
               "the program beside the assembly built");
     static const char s_published[] = "  Hello -> C:/t/bin/Release/net10.0/win-x64/publish/";
     cli_lines_put(&s_lines, s_published, sizeof(s_published) - 1u);
     line.at = 0ull;
-    cli_line_text(&line, "C:/t/bin/Release/net10.0/win-x64/publish/");
-    cli_line_text(&line, file);
-    (void)cli_line_closed(&line);
-    cli_check(cli_dotnet_artifact("Hello", &s_lines, out, &said) &&
+    mmgr_line_put(&line, "C:/t/bin/Release/net10.0/win-x64/publish/");
+    mmgr_line_put(&line, file);
+    (void)mmgr_line_finish(&line);
+    cli_check(cli_dotnet_artifact("Hello", &s_lines, out, &err_msg) &&
                   (cellul.eq(&(CatenaFinitaCfg){.src = out, .other = wanted, .cap = CLI_CELLS_POOL})),
               "and in the folder published to, the last line first");
 }
@@ -220,7 +220,7 @@ static void executables_jobs(const char *dir)
     cli_executables_jobs(dir, &s_catalog);
 }
 
-// a line a step shows kept
+// a line a step shows recorded
 static void executables_line(void *context, const char *shown)
 {
     (void)context;
@@ -237,17 +237,17 @@ static void executables_line(void *context, const char *shown)
 static int executables_shown(const char *dir, const char *id)
 {
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     s_count = 0u;
     const unsigned int job = cli_catalog_find(&s_catalog, id);
     return (job != CLI_CATALOG_NONE) &&
-           cli_runner_shown(dir, &s_catalog, job, &s_values, executables_line, NULL, &said);
+           cli_runner_shown(dir, &s_catalog, job, &s_values, executables_line, NULL, &err_msg);
 }
 
 // a tree gives a job for each program and titles the names it shares
 static void executables_tree(void)
 {
-    char dir[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
     cli_check_folder("executables_tree", dir);
     executables_put(dir, "a/Cargo.toml", "[package]\nname = \"same\"\n");
     executables_put(dir, "a/src/main.rs", "fn main() {}\n");
@@ -259,13 +259,13 @@ static void executables_tree(void)
     executables_put(dir, "target/x/src/main.rs", "fn main() {}\n");
     executables_jobs(dir);
     char ids[1024];
-    CliLine line = {ids, sizeof(ids), 0ull};
+    VerbaLinea line = {ids, sizeof(ids), 0ull};
     for (unsigned int at = 0u; at < s_catalog.jobs; at += 1u)
     {
-        cli_line_text(&line, (at > 0u) ? "|" : "");
-        cli_line_text(&line, cli_catalog_at(&s_catalog, s_catalog.job[at].id));
-        cli_line_character(&line, ' ');
-        cli_line_text(&line, cli_catalog_at(&s_catalog, s_catalog.job[at].title));
+        mmgr_line_put(&line, (at > 0u) ? "|" : "");
+        mmgr_line_put(&line, cli_catalog_at(&s_catalog, s_catalog.job[at].id));
+        mmgr_line_ch(&line, ' ');
+        mmgr_line_put(&line, cli_catalog_at(&s_catalog, s_catalog.job[at].title));
     }
     cli_check_text(ids, line.at,
                    "executable/a/Cargo.toml:same a/same|executable/b/Cargo.toml:same b/same|executable/c/"
@@ -279,7 +279,7 @@ static void executables_tree(void)
                       .src = s_shown[2],
                       .other = "cmake -E touch build/cmake/c/Release/.cmake/api/v1/query/toolchains-v1",
                       .cap = CLI_CELLS_POOL}),
-                  "the compilers asked of CMake");
+                  "the compilers queried from CMake");
         cli_check(
             cellul.eq(&(CatenaFinitaCfg){.src = s_shown[3],
                                          .other = "cmake -S c -B build/cmake/c/Release -DCMAKE_BUILD_TYPE=Release",
@@ -304,10 +304,10 @@ static void executables_given(const char *trace, const char *key, const char *va
     }
 }
 
-// a build tool says every command it runs by default and its own words where quiet
+// a build tool prints every command it runs by default and its own words where quiet
 static void executables_trace(void)
 {
-    char dir[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
     cli_check_folder("executables_trace", dir);
     executables_put(dir, "Cargo.toml", "[package]\nname = \"tool\"\n");
     executables_put(dir, "src/main.rs", "fn main() {}\n");
@@ -371,7 +371,7 @@ static void executables_trace(void)
             cellul.eq(&(CatenaFinitaCfg){.src = s_shown[4],
                                          .other = "cmake --build build/cmake/c/Release --target cli --config Release",
                                          .cap = CLI_CELLS_POOL}),
-            "and quiet where asked");
+            "and quiet where requested");
     }
     executables_given(CLI_TRACE_VERBOSE, NULL, NULL);
     if (executables_shown(dir, "executable/g/go.mod:g") && (s_count > 0u))
@@ -386,8 +386,9 @@ static void executables_trace(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     // the check's folders sit inside the tree's repository, whose commit would date every step; a date already given
-    // is kept; the steps are therefore shown as they are outside any repository
+    // is retained; the steps are therefore shown as they are outside any repository
     (void)query_environment_set("SOURCE_DATE_EPOCH", "0");
     executables_cargo();
     executables_scripts();

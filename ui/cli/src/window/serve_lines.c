@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // serve_lines.c: the window answered over the standard input and output, as `orior_cli serve` answers a window over a
 // link: each line of input a call, `{id, name, args}`, answered on one of the server's call threads by a line `{id,
-// ok}` or `{id, error}` once it is ready, a line read waiting for a thread to be free; what the server tells sent as
+// ok}` or `{id, error}` once it is ready, a line read waiting for a thread to be free; what the server emits sent as
 // lines `{event, body}` as it comes, each line written whole; and, once the input ends, the calls made before it
 // answered, then every server and session ended
 #include "../command_line/cells.h"
@@ -12,9 +12,9 @@
 #define CLI_SERVE_CALLERS 8u
 #define CLI_SERVE_LINE (16ull << 20u)
 #define CLI_SERVE_ANSWER (16ull << 20u)
-#define CLI_SERVE_SAID (1ull << 16u)
+#define CLI_SERVE_ERR_MSG_MAX_LEN (1ull << 16u)
 
-// A call thread: whether it holds a call; the line it was handed, a cell given back once the call is answered, and its
+// A call thread: whether it has a call; the line it was handed, a cell given back once the call is answered, and its
 // size; and its thread
 typedef struct
 {
@@ -42,32 +42,32 @@ static void lines_sent(const char *line, unsigned long long size)
 }
 
 // `size` bytes of a line handed to the link as the line fills
-static int lines_link_put(void *context, const char *bytes, unsigned long long size)
+static int lines_link_put(void *context, const char *bytes, size_t size)
 {
     (void)context;
     s_link.write(s_link.context, bytes, size);
     return 1;
 }
 
-// what the server tells sent as a line `{event, body}`, written to the link a piece at a time and whole, no other
+// what the server emits sent as a line `{event, body}`, written to the link a piece at a time and whole, no other
 // line written between its pieces
-static void lines_told(void *context, const char *event, const char *body, unsigned long long size)
+static void lines_event_sent(void *context, const char *event, const char *body, unsigned long long size)
 {
     (void)context;
     char piece[4096];
     cli_lock_take(&s_output);
-    CliLine line = {piece, sizeof(piece), 0ull, lines_link_put, NULL, 0ull};
-    cli_line_text(&line, "{\"event\":");
+    VerbaLinea line = {piece, sizeof(piece), 0ull, lines_link_put, NULL, 0ull};
+    mmgr_line_put(&line, "{\"event\":");
     cli_json_quoted(&line, event, cellul.len(&(CatenaFinitaCfg){.src = event, .cap = CLI_CELLS_POOL}));
-    cli_line_text(&line, ",\"body\":");
-    cli_line_counted(&line, body, size);
-    cli_line_text(&line, "}\n");
-    (void)cli_line_flushed(&line);
+    mmgr_line_put(&line, ",\"body\":");
+    mmgr_line_put_n(&line, body, size);
+    mmgr_line_put(&line, "}\n");
+    (void)mmgr_line_flush(&line);
     cli_lock_give(&s_output);
 }
 
-// the call a caller holds answered, by the line `{id, ok}` or `{id, error}`, made in `answer` and with why it failed in
-// `why`, cells of CLI_SERVE_ANSWER and CLI_SERVE_SAID bytes or NULL where none could be taken
+// the call a caller has answered, by the line `{id, ok}` or `{id, error}`, made in `answer` and with why it failed in
+// `why`, cells of CLI_SERVE_ANSWER and CLI_SERVE_ERR_MSG_MAX_LEN bytes or NULL where none could be taken
 static void lines_answered(CliServeCaller *caller, char *answer, char *why)
 {
     unsigned long long id_at = 0ull;
@@ -77,7 +77,7 @@ static void lines_answered(CliServeCaller *caller, char *answer, char *why)
     unsigned long long args_at = 0ull;
     unsigned long long args_length = 0ull;
     const int has_id = cli_lsp_member(caller->line, caller->size, "id", &id_at, &id_length);
-    char name[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
     if (!cli_lsp_member(caller->line, caller->size, "name", &name_at, &name_length) ||
         !cli_lsp_string(caller->line + name_at, name_length, name, sizeof(name)))
     {
@@ -91,30 +91,30 @@ static void lines_answered(CliServeCaller *caller, char *answer, char *why)
         return;
     }
     static const char s_head[] = "{\"id\":";
-    CliLine out = {answer, CLI_SERVE_ANSWER, 0ull};
-    cli_line_text(&out, s_head);
-    cli_line_counted(&out, has_id ? caller->line + id_at : "null", has_id ? id_length : 4ull);
-    cli_line_text(&out, ",\"ok\":");
+    VerbaLinea out = {answer, CLI_SERVE_ANSWER, 0ull};
+    mmgr_line_put(&out, s_head);
+    mmgr_line_put_n(&out, has_id ? caller->line + id_at : "null", has_id ? id_length : 4ull);
+    mmgr_line_put(&out, ",\"ok\":");
     const unsigned long long head = out.at;
-    CliLine said = {why, CLI_SERVE_SAID, 0ull};
+    VerbaLinea err_msg = {why, CLI_SERVE_ERR_MSG_MAX_LEN, 0ull};
     const int answered =
-        cli_serve_call(name, has_args ? caller->line + args_at : "", has_args ? args_length : 0ull, &out, &said);
-    if (answered && cli_line_fits(&out))
+        cli_serve_call(name, has_args ? caller->line + args_at : "", has_args ? args_length : 0ull, &out, &err_msg);
+    if (answered && mmgr_line_ok(&out))
     {
         if (out.at == head)
         {
-            cli_line_text(&out, "null");
+            mmgr_line_put(&out, "null");
         }
-        cli_line_character(&out, '}');
+        mmgr_line_ch(&out, '}');
         lines_sent(answer, out.at);
         return;
     }
     out.at = 0ull;
-    cli_line_text(&out, s_head);
-    cli_line_counted(&out, has_id ? caller->line + id_at : "null", has_id ? id_length : 4ull);
-    cli_line_text(&out, ",\"error\":");
-    cli_json_quoted_lossy(&out, (const unsigned char *)why, cli_line_fits(&said) ? said.at : 0ull);
-    cli_line_character(&out, '}');
+    mmgr_line_put(&out, s_head);
+    mmgr_line_put_n(&out, has_id ? caller->line + id_at : "null", has_id ? id_length : 4ull);
+    mmgr_line_put(&out, ",\"error\":");
+    cli_json_quoted_lossy(&out, (const unsigned char *)why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
+    mmgr_line_ch(&out, '}');
     lines_sent(answer, out.at);
 }
 
@@ -130,12 +130,12 @@ static void lines_caller(void *context)
             cli_wake_wait(&s_wake, &s_lock);
         }
         cli_lock_give(&s_lock);
-        char *const answer = cli_cell_taken(CLI_SERVE_ANSWER, "a call's answer");
-        char *const why = cli_cell_taken(CLI_SERVE_SAID, "why a call failed");
+        char *const answer = g_cli_cells->persistent_buf_alloc(CLI_SERVE_ANSWER, NULL);
+        char *const why = g_cli_cells->persistent_buf_alloc(CLI_SERVE_ERR_MSG_MAX_LEN, NULL);
         lines_answered(caller, answer, why);
-        cli_cell_given(why);
-        cli_cell_given(answer);
-        cli_cell_given(caller->line);
+        g_cli_cells->persistent_buf_release(why, NULL);
+        g_cli_cells->persistent_buf_release(answer, NULL);
+        g_cli_cells->persistent_buf_release(caller->line, NULL);
         cli_lock_take(&s_lock);
         caller->size = 0ull;
         caller->busy = 0;
@@ -165,7 +165,7 @@ static void lines_handed(const char *line, unsigned long long size)
         if (at < s_started)
         {
             CliServeCaller *const caller = &s_caller[at];
-            caller->line = cli_cell_taken(size, "a call's line");
+            caller->line = g_cli_cells->persistent_buf_alloc(size, NULL);
             if (caller->line == NULL)
             {
                 break;
@@ -181,7 +181,7 @@ static void lines_handed(const char *line, unsigned long long size)
     cli_lock_give(&s_lock);
 }
 
-// a line of the standard input read into `line`, which holds `room`: its size, QRY_MEMBER_UNREAD once the input ends
+// a line of the standard input read into `line`, sized for `room`: its size, QRY_MEMBER_UNREAD once the input ends
 static unsigned long long lines_terminal_read(void *context, char *line, unsigned long long room)
 {
     (void)context;
@@ -204,29 +204,29 @@ void cli_serve(const char *root)
 void cli_serve_over(const char *root, const CliServeLink *link)
 {
     s_link = *link;
-    // a line of input is read whole or refused, so the room it is read into holds the most a line takes, a cell held
+    // a line of input is read whole or refused, so the room it is read into fits the most a line takes, a cell taken
     // while the server serves
-    char *const input = cli_cell_taken(CLI_SERVE_LINE, "the line a call is read in");
+    char *const input = g_cli_cells->persistent_buf_alloc(CLI_SERVE_LINE, NULL);
     if (input == NULL)
     {
         static const char s_roomless[] = "{\"error\":\"the room a call is read in could not be taken\"}";
-        lines_told(NULL, "refused", s_roomless, sizeof(s_roomless) - 1u);
+        lines_event_sent(NULL, "refused", s_roomless, sizeof(s_roomless) - 1u);
         return;
     }
-    char home[CLI_PATH_LONGEST];
-    char keeping[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char detached_dir[CLI_PATH_MAX_LEN];
     const int has_home = cli_home_folder(home);
     if (has_home)
     {
-        cli_full(home, "runs", keeping);
+        cli_full(home, "runs", detached_dir);
     }
-    cli_serve_begun(root, has_home ? keeping : NULL);
-    cli_serve_tell_to(lines_told, NULL);
+    cli_serve_begun(root, has_home ? detached_dir : NULL);
+    cli_serve_emit_set(lines_event_sent, NULL);
     cli_serve_watch();
-    char serving[CLI_PATH_LONGEST * 2u];
-    CliLine body = {serving, sizeof(serving), 0ull};
-    cli_line_text(&body, "{\"version\":\"" CLI_VERSION "\",\"root\":");
-    char tree[CLI_PATH_LONGEST];
+    char serving[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea body = {serving, sizeof(serving), 0ull};
+    mmgr_line_put(&body, "{\"version\":\"" CLI_VERSION "\",\"root\":");
+    char tree[CLI_PATH_MAX_LEN];
     if (cli_serve_root_now(tree))
     {
         cli_json_quoted_lossy(&body, (const unsigned char *)tree,
@@ -234,10 +234,10 @@ void cli_serve_over(const char *root, const CliServeLink *link)
     }
     else
     {
-        cli_line_text(&body, "null");
+        mmgr_line_put(&body, "null");
     }
-    cli_line_character(&body, '}');
-    lines_told(NULL, "serving", serving, body.at);
+    mmgr_line_ch(&body, '}');
+    lines_event_sent(NULL, "serving", serving, body.at);
     for (;;)
     {
         const unsigned long long size = s_link.read(s_link.context, input, CLI_SERVE_LINE);
@@ -245,12 +245,12 @@ void cli_serve_over(const char *root, const CliServeLink *link)
         {
             break;
         }
-        // a line longer than the input holds is refused whole, and none of it is read as a call
+        // a line longer than the input fits is refused whole, and none of it is read as a call
         if (size >= CLI_SERVE_LINE)
         {
             static const char s_long[] = "{\"error\":\"a call longer than the server reads: pass its text through a "
                                          "file\"}";
-            lines_told(NULL, "refused", s_long, sizeof(s_long) - 1u);
+            lines_event_sent(NULL, "refused", s_long, sizeof(s_long) - 1u);
             continue;
         }
         unsigned long long from = 0ull;
@@ -262,7 +262,7 @@ void cli_serve_over(const char *root, const CliServeLink *link)
             lines_handed(input + from, to - from);
         }
     }
-    cli_cell_given(input);
+    g_cli_cells->persistent_buf_release(input, NULL);
     // the calls made before the input ended are answered before the server ends
     cli_lock_take(&s_lock);
     for (unsigned int at = 0u; at < s_started; at += 1u)

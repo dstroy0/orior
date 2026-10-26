@@ -32,7 +32,7 @@ static void psi_series_upper(PsiValue *value, const PsiCase *psi_case, unsigned 
 // gamma^-n beta(k) - sum_(p>=2) eps_(k,p) - (gamma - 2) eps_(k,2) sum_p alpha_p - 2 rho > 0, every sum an upper bound
 static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     static PsiValue tails;
     static PsiValue alphas;
     static PsiValue remainder;
@@ -71,16 +71,16 @@ static void psi_separate_all_scales(SimResults *results, const PsiCase *psi_case
         wide_ok += (psi_value_sign(&slack, base) > 0) ? 1u : 0u;
     }
     sim_check(results, narrow_ok == last,
-              "the corrected bound keeps the supports apart with the narrow ramp at every k to depth");
+              "the corrected bound separates the supports with the narrow ramp at every k to depth");
     sim_check(results, wide_ok == 0u, "the corrected bound does not cover the paper's ramp at any k");
-    scriptura_text(line, "     every scale, k = 1 to ");
-    scriptura_decimal(line, last, 1u);
-    scriptura_text(line,
-                   ": |mu_k| >= g^-n beta(k) - sum eps_(k,p) keeps the supports apart with ramp g^-(beta(k+1)+2) on ");
-    scriptura_decimal(line, narrow_ok, 1u);
-    scriptura_text(line, ", with the paper's ramp g^-beta(k+1) on ");
-    scriptura_decimal(line, wide_ok, 1u);
-    scriptura_character(line, '\n');
+    mmgr_line_put(line, "     every scale, k = 1 to ");
+    mmgr_line_decimal(line, last, 1u);
+    mmgr_line_put(line,
+                   ": |mu_k| >= g^-n beta(k) - sum eps_(k,p) separates the supports with ramp g^-(beta(k+1)+2) on ");
+    mmgr_line_decimal(line, narrow_ok, 1u);
+    mmgr_line_put(line, ", with the paper's ramp g^-beta(k+1) on ");
+    mmgr_line_decimal(line, wide_ok, 1u);
+    mmgr_line_ch(line, '\n');
     sim_flush(results);
 }
 
@@ -106,21 +106,21 @@ static unsigned long long psi_gaps_shared(unsigned long long base, unsigned long
 
 static void psi_cover(SimResults *results, const PsiCase *psi_case)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const unsigned long long shifts = (2ull * psi_case->dimension) + 1ull;
     const unsigned long long allowed = psi_gaps_shared(psi_case->base, shifts);
     const unsigned long long crowded = psi_gaps_shared(psi_case->base, psi_case->base);
     sim_check(results, allowed == 1ull, "with m = 2n shifts no point sits in two gaps of one coordinate");
     sim_check(results, crowded == 2ull, "with m = gamma - 1 two shifts share a gap: gamma >= m + 2 is needed");
-    scriptura_text(line, "     the shifts: with m + 1 = ");
-    scriptura_decimal(line, shifts, 1u);
-    scriptura_text(line, " a point sits in at most ");
-    scriptura_decimal(line, allowed, 1u);
-    scriptura_text(line, " gap per coordinate, so at least m - n + 1 = ");
-    scriptura_decimal(line, shifts - psi_case->dimension, 1u);
-    scriptura_text(line, " of the shifts land it in a cube; with m + 1 = gamma, ");
-    scriptura_decimal(line, crowded, 1u);
-    scriptura_text(line, " shifts share a gap\n");
+    mmgr_line_put(line, "     the shifts: with m + 1 = ");
+    mmgr_line_decimal(line, shifts, 1u);
+    mmgr_line_put(line, " a point sits in at most ");
+    mmgr_line_decimal(line, allowed, 1u);
+    mmgr_line_put(line, " gap per coordinate, so at least m - n + 1 = ");
+    mmgr_line_decimal(line, shifts - psi_case->dimension, 1u);
+    mmgr_line_put(line, " of the shifts land it in a cube; with m + 1 = gamma, ");
+    mmgr_line_decimal(line, crowded, 1u);
+    mmgr_line_put(line, " shifts share a gap\n");
     sim_flush(results);
 }
 
@@ -129,9 +129,9 @@ int main(void)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    ScripturaLine *const line = &results.line;
-    scriptura_text(line, "  Kolmogorov's inner function psi, exactly (Braun and Griebel 2009, section 2)\n");
-    scriptura_text(
+    VerbaLinea *const line = &results.line;
+    mmgr_line_put(line, "  Kolmogorov's inner function psi, exactly (Braun and Griebel 2009, section 2)\n");
+    mmgr_line_put(
         line,
         "  grids in exact integers; depth in sparse sums of c g^-beta(L), the exponent an integer never expanded\n");
     sim_flush(&results);
@@ -153,20 +153,20 @@ int main(void)
     {
         const PsiCase *const psi_case = cases[shaped];
         psi_scale_open(psi_case, &scale);
-        scriptura_text(line, "\n  2. Koppen's psi, n = ");
-        scriptura_decimal(line, psi_case->dimension, 1u);
-        scriptura_text(line, ", gamma = ");
-        scriptura_decimal(line, psi_case->base, 1u);
-        scriptura_text(line, " (Theorem 2.1 asks gamma >= 2n + 2)\n");
+        mmgr_line_put(line, "\n  2. Koppen's psi, n = ");
+        mmgr_line_decimal(line, psi_case->dimension, 1u);
+        mmgr_line_put(line, ", gamma = ");
+        mmgr_line_decimal(line, psi_case->base, 1u);
+        mmgr_line_put(line, " (Theorem 2.1 requires gamma >= 2n + 2)\n");
         sim_flush(&results);
         for (unsigned long long tilt = psi_case->base - 2ull; tilt <= (psi_case->base - 1ull); tilt += 1ull)
         {
             psi_exhaustive(&results, psi_case, &scale, tilt, measured_widest);
             psi_all_scales(&results, psi_case, &scale, tilt, measured_widest);
         }
-        scriptura_text(line, "\n  3. Separation, n = ");
-        scriptura_decimal(line, psi_case->dimension, 1u);
-        scriptura_text(line, ": xi = sum_p alpha_p psi(x_p) on every point of D_k^n (Lemmas 3.4, 3.7, 3.8)\n");
+        mmgr_line_put(line, "\n  3. Separation, n = ");
+        mmgr_line_decimal(line, psi_case->dimension, 1u);
+        mmgr_line_put(line, ": xi = sum_p alpha_p psi(x_p) on every point of D_k^n (Lemmas 3.4, 3.7, 3.8)\n");
         sim_flush(&results);
         const unsigned int levels = (psi_case->dimension == 2ull) ? 3u : 2u;
         for (unsigned int level = 1u; level <= levels; level += 1u)

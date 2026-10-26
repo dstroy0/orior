@@ -78,7 +78,7 @@ void match_floor_host(const unsigned short *lanes, long long *work, long long *b
 }
 
 // the engine's floor 2: the tower lifts the whole frame, and the levels past floor 2 lift only its corner. The
-// corner of the crystal lowered as a tower of its own side is floor 2. The lowering holds every value in the lane.
+// corner of the crystal lowered as a tower of its own side is floor 2. The lowering confines every value to the lane.
 int match_floor_engine(SimResults *results, const unsigned short *device_lanes, int *crystal, int *corner,
                        unsigned short *floor_values)
 {
@@ -176,21 +176,21 @@ __global__ void match_query_kernel(const unsigned int *planes, const unsigned in
     reads[index] = (unsigned char)taken;
 }
 
-void match_print_side(ScripturaLine *line, const char *name, const MatchSide *side)
+void match_print_side(VerbaLinea *line, const char *name, const MatchSide *side)
 {
-    scriptura_text(line, "    ");
-    scriptura_text(line, name);
-    scriptura_text(line, ": ");
-    scriptura_decimal(line, side->matched, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, MATCH_QUERIES_EACH, 1u);
-    scriptura_text(line, " match sets equal the host's scan; positions found a query ");
+    mmgr_line_put(line, "    ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, ": ");
+    mmgr_line_decimal(line, side->matched, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, MATCH_QUERIES_EACH, 1u);
+    mmgr_line_put(line, " match sets equal the host's scan; positions found a query ");
     sim_fraction_print(line, side->found, MATCH_QUERIES_EACH, 2u);
-    scriptura_text(line, " on average, ");
-    scriptura_decimal(line, side->found_max, 1u);
-    scriptura_text(line, " at most; plane words read a query ");
+    mmgr_line_put(line, " on average, ");
+    mmgr_line_decimal(line, side->found_max, 1u);
+    mmgr_line_put(line, " at most; plane words read a query ");
     sim_fraction_print(line, side->total, MATCH_QUERIES_EACH, 2u);
-    scriptura_text(line, " on average, ");
-    scriptura_decimal(line, side->maximum, 1u);
-    scriptura_text(line, " at most\n");
+    mmgr_line_put(line, " on average, ");
+    mmgr_line_decimal(line, side->maximum, 1u);
+    mmgr_line_put(line, " at most\n");
 }

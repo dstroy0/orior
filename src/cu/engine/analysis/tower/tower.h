@@ -16,7 +16,7 @@ extern "C"
 // approximation coefficient at floor `floor` through `forward`, a permutation of [0, 1 << index_bits);
 // the high bits pass through. The map is a bijection on the coefficient word and tower_lower replays
 // its inverse in reverse order. This is the engine's nonlinear edge (kolmogorov_arnold.md) folded into
-// the reversible tower: the tower keeps the crystal exactly invertible, the edge makes it universal over
+// the reversible tower: the tower preserves the crystal exactly invertible, the edge makes it universal over
 // the coefficient alphabet. `floor` runs 0..floors: floor k acts on the approximation just before level
 // k's lifting, and floor == floors acts on the fully collapsed floor.
 #define TOWER_EDGE_INDEX_BITS_MAX 20u
@@ -48,13 +48,13 @@ extern "C"
 
     long tower_capacity(const unsigned long long extent[4], int **coefficients, EngineError *error);
 
-    // the device bytes the tower holds for a lattice of `lanes` values: its one pool, the coefficients and the scratch
-    // as ints beside the flag and the mismatch count, rounded to the page; 0 for no lanes or a count no pool could
-    // hold. The pool is kept at the most lanes asked. A job that lifts or lowers several lattices holds it for the
-    // largest.
+    // the device bytes the tower allocates for a lattice of `lanes` values: its one pool, the coefficients and the
+    // scratch as ints beside the flag and the mismatch count, rounded to the page; 0 for no lanes or a count no pool
+    // could use. The pool is retained at the most lanes requested. A job that lifts or lowers several lattices retains
+    // it for the largest.
     unsigned long long tower_reserve_bytes(unsigned long long lanes);
 
-    // frees the pool and the edge table the tower holds between calls
+    // frees the pool and the edge table the tower retains between calls
     void tower_resident_release(void);
 
     typedef struct
@@ -101,14 +101,14 @@ extern "C"
     // at a time, into a caller's program. A program runs T, T^-1, or an operation read through T^-1, as one stack on
     // the record machine, one block of the lattice to a lane. `rules` and `rule_count` are the ruleset; left zero, it
     // is the 5/3 tower_lift and tower_lower run as kernels. `extent` is the block's, t, z, y and x, and every
-    // position's register is named in that order: `in_registers` the register holding each value going in, any earlier
-    // step, and `out_registers` the register holding each value coming out. tower_record_lift leaves the crystal where
-    // tower_lift leaves its coefficients, each level's lows first along every axis and its highs after them;
-    // tower_record_lower leaves the samples. A weight other than 1 is a product by a constant, and a floor v / 2^k is
-    // EXACT_QUOTIENT(v - AND(v, 2^k - 1), 2^k), toward minus infinity as the kernels' shift; each constant is one step,
-    // laid out where it is first read. No edge is laid out. The steps go in at `*count`, which is left past them. With
-    // `steps` NULL nothing is written but the count and the out registers, which sizes a program before it is held;
-    // with `steps` set, a program past `step_capacity` errors and the count left where it was.
+    // position's register is named in that order: `in_registers` the register containing each value going in, any
+    // earlier step, and `out_registers` the register containing each value coming out. tower_record_lift leaves the
+    // crystal where tower_lift leaves its coefficients, each level's lows first along every axis and its highs after
+    // them; tower_record_lower leaves the samples. A weight other than 1 is a product by a constant, and a floor v /
+    // 2^k is EXACT_QUOTIENT(v - AND(v, 2^k - 1), 2^k), toward minus infinity as the kernels' shift; each constant is
+    // one step, laid out where it is first read. No edge is laid out. The steps go in at `*count`, which is left past
+    // them. With `steps` NULL nothing is written but the count and the out registers, which sizes a program before it
+    // is stored; with `steps` set, a program past `step_capacity` errors and the count left where it was.
     typedef struct
     {
         unsigned long long extent[4];

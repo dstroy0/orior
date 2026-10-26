@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -12,12 +12,12 @@
  * @date 2026-09-16
  *
  * @note The kernel's own contract is that every arm is sound. No arm can lose a true occurrence
- *       and every arm must return what the naive one returns. This driver asks that question at the
+ *       and every arm must return what the naive one returns. This driver poses that question at the
  *       lengths nobody searches with: none, one, and two. A needle of one byte puts all four anchors
  *       on the same offset, and a needle of no bytes has no offset to put them on at all.
  *
- * @note It links the kernel instead of restating it. A grader holding its own copy of the function
- *       it grades keeps passing forever after somebody repairs the original, the one way a
+ * @note It links the kernel instead of restating it. A grader containing its own copy of the function
+ *       it grades continues passing forever after somebody repairs the original, the one way a
  *       test can be worse than no test.
  *
  * @warning This is a negative control and it is expected to FAIL before the repair it accompanies.
@@ -122,9 +122,8 @@ int main(void)
         grade(label, orior_free(corpus, AGREEMENT_CORPUS_BYTES, needle, needle_len), expected);
 
         // A plan carrying no period and the corpus's own census. The dispatcher has a real
-        // decision to make instead of being steered by a degenerate one. The census replaced the
-        // entropy and distinct count the plan used to carry: the rule reads integer counts now and
-        // the engine holds no floating point value anywhere.
+        // decision to make instead of being steered by a degenerate one. The rule reads the census's
+        // integer counts, and the engine stores no floating point value anywhere.
         OriorFieldCensus census;
         orior_field_census(corpus, AGREEMENT_CORPUS_BYTES, &census);
         const OriorPlan plan = {.census = &census, .period = 0u};

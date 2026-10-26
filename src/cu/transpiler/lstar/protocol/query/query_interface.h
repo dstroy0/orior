@@ -3,17 +3,17 @@
 #ifndef QUERY_INTERFACE_H
 #define QUERY_INTERFACE_H
 
-// Asks put from inside the interface, at addresses nothing has said are safe.
+// Queries put from inside the interface, at addresses nothing has declared are safe.
 //
-// An address that refuses a read or a put ends the process that asked, and from inside one process that ending is
-// the last thing learned. The interface runs the asks in a probe it can lose: a walk of addresses goes to `query_walk`,
-// which answers each address in turn until one ends it, and the ending is that address's answer. The walk is put
-// again from the next address, in a fresh probe, until every address has an answer. Nothing is asked of a system
-// about what lies at an address: the address is asked, and it answers, holds, reads as a word, advances or ends the
-// asker.
+// An address that refuses a read or a put ends the process that issued, and from inside one process that ending is
+// the last thing learned. The interface runs the queries in a probe it can lose: a walk of addresses goes to
+// `query_walk`, which answers each address in turn until one ends it, and the ending is that address's answer. The walk
+// is put again from the next address, in a fresh probe, until every address has an answer. Nothing is queried of a
+// system about what lies at an address: the address is queried, and it answers, retains, reads as a word, advances or
+// ends the asker.
 
 #include "../../interface/interface.h"
-#include "query_ask.h"
+#include "query_put.h"
 
 // the most addresses one probe is given, which bounds the lines it writes back
 #define QUERY_INTERFACE_MOST 1024ull
@@ -38,13 +38,13 @@ typedef struct
     unsigned long long limit_microseconds;
 } QueryWalk;
 
-// What one program the interface walks reads and answers. `asks` is 1 where the program takes the qualifier before
-// the span and the turns and word after it, as query_walk does, and 0 where it takes the span alone. `read` reads a
-// probe's lines into `answers` from address `next` on and gives how many it answered in order. `ended` answers address
-// `next`, the one that ended its probe with `fault`
+// What one program the interface walks reads and answers. `takes_qualifier` is 1 where the program takes the qualifier
+// before the span and the turns and word after it, as query_walk does, and 0 where it takes the span alone. `read`
+// reads a probe's lines into `answers` from address `next` on and gives how many it answered in order. `ended` answers
+// address `next`, the one that ended its probe with `fault`
 typedef struct
 {
-    int asks;
+    int takes_qualifier;
     unsigned long long (*read)(const QueryWalk *walk, const char *lines, unsigned long long next,
                                unsigned long long given, void *answers);
     void (*ended)(const QueryWalk *walk, unsigned long long next, InterfaceFault fault, void *answers);
@@ -57,11 +57,11 @@ typedef struct
 int query_interface_run(const QueryWalk *walk, const QueryInterfaceDriver *driver, unsigned long long *probes,
                         EngineError *error);
 
-// `walk` put through the interface, one answer an address into `answers`, which holds `walk->count` of them. Every
-// answer carries its address, its bit and its kind; an address that ended its probe reads QUERY_ENDED with the fault
-// the interface named, and one whose probe ran out of time or exited on its own reads QUERY_ENDED with no fault. The
-// count of probes the walk ran, or 0 with the error raised where the interface itself failed or a probe wrote something
-// other than its lines
-unsigned long long query_interface_walk(const QueryWalk *walk, QueryAsk *answers, EngineError *error);
+// `walk` put through the interface, one answer an address into `answers`, which has room for `walk->count` of them.
+// Every answer carries its address, its bit and its kind; an address that ended its probe reads QUERY_ENDED with the
+// fault the interface named, and one whose probe ran out of time or exited on its own reads QUERY_ENDED with no fault.
+// The count of probes the walk ran, or 0 with the error raised where the interface itself failed or a probe wrote
+// something other than its lines
+unsigned long long query_interface_walk(const QueryWalk *walk, Query *answers, EngineError *error);
 
 #endif

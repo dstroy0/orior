@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // writer.c: the run's writer (qry_writer.c) from this process. The writer's process is started with the run's .qry
-// and the top of the tree, and stopped through the run: this process, a member of it, asks it to stop. Every record
+// and the top of the tree, and stopped through the run: this process, a member of it, requests it to stop. Every record
 // appended or read goes through the run this process is a member of (qry_member.h): an append is one write into this
 // process's ring, a read is the record where the writer put it. A program's output goes to the run as it comes, each
 // piece a record of `<name>.console`, and to this process's own output
@@ -16,15 +16,15 @@ static void query_writer_environment(const QueryWriter *writer)
     query_environment_set("PATH", writer->path);
 }
 
-int query_writer_start(const QueryWriter *writer, unsigned long long *process, CliLine *said)
+int query_writer_start(const QueryWriter *writer, unsigned long long *process, VerbaLinea *err_msg)
 {
     query_writer_environment(writer);
     const char *const words[4] = {writer->binary, writer->qry, writer->top, NULL};
     QueryProcess started;
     if (!query_process_start(&started, words, NULL, QUERY_OUTPUT_NONE))
     {
-        cli_line_text(said, "the run's writer did not start: ");
-        cli_line_text(said, writer->binary);
+        mmgr_line_put(err_msg, "the run's writer did not start: ");
+        mmgr_line_put(err_msg, writer->binary);
         return 0;
     }
     *process = started.process;
@@ -42,14 +42,14 @@ int query_writer_made(const QueryWriter *writer)
     {
         if (query_writer_runs(writer))
         {
-            // the line naming the run's database, said on the console of whatever started the run, for a reader of
+            // the line naming the run's database, printed on the console of whatever started the run, for a reader of
             // the run to find it by
-            char line[QUERY_PATH_LONGEST + 64u];
-            CliLine made = {line, sizeof(line), 0ull};
-            cli_line_text(&made, "  orior_qry_writer: the run of ");
-            cli_line_text(&made, writer->qry);
-            cli_line_text(&made, " is made\n");
-            if (cli_line_fits(&made))
+            char line[QUERY_PATH_MAX_LEN + 64u];
+            VerbaLinea made = {line, sizeof(line), 0ull};
+            mmgr_line_put(&made, "  orior_qry_writer: the run of ");
+            mmgr_line_put(&made, writer->qry);
+            mmgr_line_put(&made, " is made\n");
+            if (mmgr_line_ok(&made))
             {
                 query_terminal_written(0, line, made.at);
             }
@@ -73,7 +73,7 @@ static int query_writer_member_now(const QueryWriter *writer)
     return (path != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = writer->qry, .cap = CLI_CELLS_POOL}));
 }
 
-int query_writer_member_held(const QueryWriter *writer)
+int query_writer_is_member(const QueryWriter *writer)
 {
     // a process is a member of one run at a time: a writer that joined its run, whose place another run took since,
     // joins it again
@@ -89,17 +89,17 @@ void query_writer_parted(QueryWriter *writer)
     writer->member = 0;
 }
 
-int query_writer_stop(QueryWriter *writer, CliLine *said)
+int query_writer_stop(QueryWriter *writer, VerbaLinea *err_msg)
 {
-    if (query_writer_member_held(writer))
+    if (query_writer_is_member(writer))
     {
         qry_member_stopped();
         return 1;
     }
     if (qry_member_joined(writer->qry) == NULL)
     {
-        cli_line_text(said, "no writer runs ");
-        cli_line_text(said, writer->qry);
+        mmgr_line_put(err_msg, "no writer runs ");
+        mmgr_line_put(err_msg, writer->qry);
         return 0;
     }
     qry_member_stopped();
@@ -107,29 +107,29 @@ int query_writer_stop(QueryWriter *writer, CliLine *said)
     return 1;
 }
 
-// `what: this process is a member of no run` said where it is none: 1 where it is one
-static int query_writer_member(const QueryWriter *writer, const char *what, CliLine *said)
+// `what: this process is a member of no run` reported where it is none: 1 where it is one
+static int query_writer_member(const QueryWriter *writer, const char *what, VerbaLinea *err_msg)
 {
-    const int held = query_writer_member_held(writer);
-    if (!held)
+    const int is_member = query_writer_is_member(writer);
+    if (!is_member)
     {
-        cli_line_text(said, what);
-        cli_line_text(said, ": this process is a member of no run");
+        mmgr_line_put(err_msg, what);
+        mmgr_line_put(err_msg, ": this process is a member of no run");
     }
-    return held;
+    return is_member;
 }
 
 int query_writer_append(const QueryWriter *writer, const char *name, const void *bytes, unsigned long long size,
-                        unsigned int priority, CliLine *said)
+                        unsigned int priority, VerbaLinea *err_msg)
 {
-    if (!query_writer_member(writer, name, said))
+    if (!query_writer_member(writer, name, err_msg))
     {
         return 0;
     }
     if (qry_member_append(name, bytes, size, priority) == 0ull)
     {
-        cli_line_text(said, name);
-        cli_line_text(said, " was not appended to the run");
+        mmgr_line_put(err_msg, name);
+        mmgr_line_put(err_msg, " was not appended to the run");
         return 0;
     }
     // taken by the writer before this returns, so that what is appended is there for the next read and the next
@@ -139,45 +139,45 @@ int query_writer_append(const QueryWriter *writer, const char *name, const void 
 }
 
 int query_writer_file(const QueryWriter *writer, const char *path, const void *bytes, unsigned long long size,
-                      CliLine *said)
+                      VerbaLinea *err_msg)
 {
-    if (!query_writer_member(writer, path, said))
+    if (!query_writer_member(writer, path, err_msg))
     {
         return 0;
     }
     if (qry_member_filed(path, bytes, size) == 0ull)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, " was not written through the run's writer");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, " was not written through the run's writer");
         return 0;
     }
     qry_member_settled();
     return 1;
 }
 
-int query_writer_left(const QueryWriter *writer, const char *path, CliLine *said)
+int query_writer_left(const QueryWriter *writer, const char *path, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
     const unsigned char *const bytes = qry_member_file_mapped(path, &size);
     if (bytes == NULL)
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be read");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be read");
         return 0;
     }
-    const int filed = query_writer_file(writer, path, bytes, size, said);
+    const int filed = query_writer_file(writer, path, bytes, size, err_msg);
     qry_member_file_unmapped(bytes, size);
     return filed;
 }
 
 int query_writer_tee(const QueryWriter *writer, QueryContext *context, const char *name, const char *const *words,
-                     long long *code, CliLine *said)
+                     long long *code, VerbaLinea *err_msg)
 {
-    char console[QRY_NAME_LONGEST + 1u];
-    CliLine console_line = {console, sizeof(console), 0ull};
-    cli_line_text(&console_line, name);
-    cli_line_text(&console_line, ".console");
-    if ((cli_line_closed(&console_line) == 0ull) || !query_writer_member(writer, name, said))
+    char console[QRY_NAME_MAX_LEN + 1u];
+    VerbaLinea console_line = {console, sizeof(console), 0ull};
+    mmgr_line_put(&console_line, name);
+    mmgr_line_put(&console_line, ".console");
+    if ((mmgr_line_finish(&console_line) == 0ull) || !query_writer_member(writer, name, err_msg))
     {
         return 0;
     }
@@ -185,8 +185,8 @@ int query_writer_tee(const QueryWriter *writer, QueryContext *context, const cha
     QueryProcess child;
     if (!query_process_start(&child, words, context->root, QUERY_OUTPUT_PIPED))
     {
-        cli_line_text(said, words[0]);
-        cli_line_text(said, ": it could not be started");
+        mmgr_line_put(err_msg, words[0]);
+        mmgr_line_put(err_msg, ": it could not be started");
         return 0;
     }
     static char s_piece[65536];

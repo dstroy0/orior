@@ -5,7 +5,7 @@
 // with its prefix, is one token, and the names an f-string's or a t-string's fields read are tokens after it
 #include "inspect_py.h"
 
-// the most names one string's fields read that are kept
+// the most names one string's fields read that are recorded
 #define CLI_PY_FIELD_NAMES 4096u
 
 CliPyLine *g_cli_py_line;
@@ -31,7 +31,7 @@ static const char *const s_ops[47] = {"**=", "//=", ">>=", "<<=", "...", "->", "
 // the prefixes a string may have, in lower case
 static const char *const s_prefixes[13] = {"r", "u", "b", "f", "t", "br", "rb", "fr", "rf", "tr", "rt", "bt", "tb"};
 
-// the names a string's fields read, kept until the string's own token is put
+// the names a string's fields read, recorded until the string's own token is put
 static CliInspectTok s_field_names[CLI_PY_FIELD_NAMES];
 
 static int lex_name_start(unsigned int letter)
@@ -161,7 +161,7 @@ static void lex_string(CliInspectScan *scan, unsigned long long start, CliInspec
     }
 }
 
-// the logical line of the tokens from `first` put on the lines where it holds any
+// the logical line of the tokens from `first` put on the lines where it contains any
 static void lex_line_put(unsigned int indent, unsigned int *first)
 {
     if (g_cli_inspect_toks > *first)
@@ -200,7 +200,7 @@ static void lex_number(CliInspectScan *scan)
     cli_inspect_tok_put(scan, CLI_PY_NUMBER, start, from, 0);
 }
 
-// an operator, the longest that matches, else the one letter, from where the scan stands, the brackets' depth kept
+// an operator, the longest that matches, else the one letter, from where the scan stands, the brackets' depth tracked
 static void lex_operator(CliInspectScan *scan, int *depth)
 {
     const unsigned long long start = scan->pos;
@@ -415,7 +415,7 @@ int cli_py_head_is(const char *src, const CliPyLine *line, const char *word)
     return cli_py_is(src, head, word);
 }
 
-int cli_py_holds(const char *src, const CliInspectTok *toks, unsigned int count, const char *word)
+int cli_py_contains(const char *src, const CliInspectTok *toks, unsigned int count, const char *word)
 {
     for (unsigned int at = 0u; at < count; at += 1u)
     {

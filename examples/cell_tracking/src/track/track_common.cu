@@ -28,7 +28,7 @@ void track_error_report(const char *what, const EngineError *error)
     fprintf(stderr, "\n");
 }
 
-int track_frame_bodies(EngineBuffers *buffers, unsigned int slot, TreeFrame *frame)
+int track_frame_bodies(EngineBuffers *buffers, unsigned int buffer_at, TreeFrame *frame)
 {
     EngineBodiesRequest request;
     memset(&request, 0, sizeof(request));
@@ -41,8 +41,8 @@ int track_frame_bodies(EngineBuffers *buffers, unsigned int slot, TreeFrame *fra
     request.residual.unit_sweep = buffers->unit_sweep;
     request.capacity = buffers->peak_capacity;
     request.bodies = buffers->bodies;
-    request.labels = buffers->labels[slot];
-    request.positive_words = buffers->positive[slot];
+    request.labels = buffers->labels[buffer_at];
+    request.positive_words = buffers->positive[buffer_at];
     EngineError error;
     memset(&error, 0, sizeof(error));
     request.error = &error;
@@ -63,7 +63,8 @@ int track_frame_bodies(EngineBuffers *buffers, unsigned int slot, TreeFrame *fra
     return 1;
 }
 
-void track_group_voxels(EngineBuffers *buffers, unsigned int slot, const unsigned int *labels, const TreeFrame *frame)
+void track_group_voxels(EngineBuffers *buffers, unsigned int buffer_at, const unsigned int *labels,
+                        const TreeFrame *frame)
 {
     EngineGroupRequest request;
     memset(&request, 0, sizeof(request));
@@ -71,8 +72,8 @@ void track_group_voxels(EngineBuffers *buffers, unsigned int slot, const unsigne
     request.labels = labels;
     request.peaks = frame->peaks;
     request.leaf_count = frame->leaf_count;
-    request.leaf_at_peak = buffers->leaf_at_peak[slot];
-    request.start = buffers->leaf_start[slot];
-    request.grouped = buffers->leaf_voxels[slot];
+    request.leaf_at_peak = buffers->leaf_at_peak[buffer_at];
+    request.start = buffers->leaf_start[buffer_at];
+    request.grouped = buffers->leaf_voxels[buffer_at];
     engine_group_voxels(&request);
 }

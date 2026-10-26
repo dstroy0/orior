@@ -52,8 +52,8 @@ typedef struct
 extern CliGradleScript g_cli_gradle;
 extern CliLock g_cli_gradle_lock;
 
-// what the scripts read hold in the cellblock (gradle.c)
-extern CliCellsTally g_cli_gradle_cells;
+// what the scripts read occupy in the cellblock (gradle.c)
+extern CellOwner g_cli_gradle_cells;
 
 // the configurations Gradle's own plugins and the common ones of others declare, what a `dependencies` block calls
 // beside them, and the ends of the configurations a source set or a build variant declares (gradle.c)
@@ -62,8 +62,8 @@ extern const char *const g_cli_gradle_helpers[12];
 extern const char *const g_cli_gradle_suffixes[8];
 
 // each byte of the first `size` bytes of `text` classed; the script read: its classes, its blocks and its stray
-// braces, each a cell at the size the script gives, 1, or 0, nothing held, where it is larger than CLI_GRADLE_TEXT or
-// the cellblock cannot meet its cells; and the script read given back, its cells with it (gradle.c)
+// braces, each a cell at the size the script gives, 1, or 0, nothing allocated, where it is larger than CLI_GRADLE_TEXT
+// or the cellblock cannot meet its cells; and the script read given back, its cells with it (gradle.c)
 void cli_gradle_classes(const char *text, unsigned long long size, unsigned char *class_of);
 int cli_gradle_read(const char *text, unsigned long long size);
 void cli_gradle_released(void);
@@ -71,13 +71,13 @@ void cli_gradle_released(void);
 // the words a block of `size` bytes of `name` takes, into `count`
 const char *const *cli_gradle_block_words(const char *name, unsigned long long size, unsigned int *count);
 
-// the innermost block that holds byte `at`, CLI_GRADLE_BLOCKS where none does
+// the innermost block that contains byte `at`, CLI_GRADLE_BLOCKS where none does
 unsigned int cli_gradle_block_at(unsigned long long at);
 
 // whether a block's name is `name`
 int cli_gradle_block_named(const CliGradleBlock *block, const char *name);
 
-// each statement the block at `block` holds itself, not those of the blocks inside it, before `end`: its first word,
+// each statement the block at `block` contains itself, not those of the blocks inside it, before `end`: its first word,
 // where the word starts, and what follows it on its line, handed to `each`
 typedef void (*CliGradleStatement)(void *context, unsigned long long word, unsigned long long word_size,
                                    unsigned long long rest, unsigned long long rest_end);
@@ -85,15 +85,15 @@ void cli_gradle_statements(const CliBuildLines *lines, unsigned int block, unsig
                            CliGradleStatement each, void *context);
 
 // the configurations the script declares, by name in a `configurations` block, by `create`, `register` or
-// `maybeCreate`, and by Kotlin's `by configurations.creating`, kept in the script read
+// `maybeCreate`, and by Kotlin's `by configurations.creating`, stored in the script read
 void cli_gradle_declared(const CliBuildLines *lines);
 
 // whether `size` bytes of `word` are a configuration Gradle or the script declares
 int cli_gradle_known_configuration(const char *word, unsigned long long size);
 
-// the folder of the Gradle build the file at `path` belongs to: the nearest above it, in the tree, that holds a
+// the folder of the Gradle build the file at `path` belongs to: the nearest above it, in the tree, that contains a
 // settings script or a wrapper, a catalog's build being the one above its `gradle` folder; the file's own folder where
-// none does; into `out`, which holds CLI_PATH_LONGEST
+// none does; into `out`, sized for CLI_PATH_MAX_LEN
 void cli_gradle_build_root(const char *root, const char *path, char *out);
 
 // the most catalogs of a build's `gradle` folder
@@ -102,8 +102,8 @@ void cli_gradle_build_root(const char *root, const char *path, char *out);
 // The catalogs of a build: each one's accessor, its name before `.versions.toml`, and its path, sorted
 typedef struct
 {
-    char name[CLI_GRADLE_CATALOGS][CLI_NAME_LONGEST];
-    char path[CLI_GRADLE_CATALOGS][CLI_PATH_LONGEST];
+    char name[CLI_GRADLE_CATALOGS][CLI_NAME_MAX_LEN];
+    char path[CLI_GRADLE_CATALOGS][CLI_PATH_MAX_LEN];
     unsigned int count;
 } CliGradleCatalogs;
 

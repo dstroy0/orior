@@ -5,22 +5,22 @@
 
 static OriorExactInteger s_knf_body_departure[KNF_SCALES][KNF_BODIES];
 
-static void knf_print_share(ScripturaLine *line, const OriorExactInteger *part, const OriorExactInteger *whole)
+static void knf_print_share(VerbaLinea *line, const OriorExactInteger *part, const OriorExactInteger *whole)
 {
-    scriptura_character(line, ' ');
+    mmgr_line_ch(line, ' ');
     char text_buffer[32];
-    ScripturaLine cell;
+    VerbaLinea cell;
     cell.out = text_buffer;
     cell.capacity = sizeof(text_buffer);
     cell.at = 0ull;
     sim_ratio_print(&cell, part, whole, 3u);
-    scriptura_finish(&cell);
-    scriptura_text_columns(line, text_buffer, 9u);
+    mmgr_line_finish(&cell);
+    mmgr_line_put_columns(line, text_buffer, 9u);
 }
 
 static int knf_departure(SimResults *results, const KnfRecord *record, const unsigned short *boxes,
                          const SimScene *scene, const KnfBox *box, unsigned long long tag, unsigned int *map,
-                         unsigned int *slot, const char *name)
+                         unsigned int *cells, const char *name)
 {
     static const unsigned long long s_knf_tiles[KNF_SCALES] = {1ull, 2ull, 4ull, 8ull, 16ull, 32ull, 64ull};
     const unsigned long long side = record->side;
@@ -34,7 +34,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
     int between_identified[KNF_SCALES];
     OriorExactInteger free_sum;
     unsigned long long split_matches = 0ull;
-    unsigned long long kept_stored = 0ull;
+    unsigned long long stored_count = 0ull;
     for (unsigned int scale = 0u; scale < KNF_SCALES; scale += 1u)
     {
         const unsigned long long tile = s_knf_tiles[scale];
@@ -60,7 +60,7 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
             KnfEntangled drawn;
             OriorExactInteger total;
             OriorExactInteger running;
-            knf_inside_draw(map, slot, side, tile, sim_draw(KNF_KEY ^ KNF_NULL_PURPOSE, counter));
+            knf_inside_draw(map, cells, side, tile, sim_draw(KNF_KEY ^ KNF_NULL_PURPOSE, counter));
             knf_entangle(record, map, tile, boxes, &drawn);
             knf_exact_total(&drawn, &total);
             inside_identified[scale] = inside_identified[scale] && (orior_exact_compare(&total, &truth) < 0);
@@ -73,9 +73,9 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
                 sim_exact_sum(&body_sum[body], &share, &running);
                 body_sum[body] = running;
             }
-            knf_between_draw(map, slot, side, tile, sim_draw(KNF_KEY ^ KNF_NULL_PURPOSE, counter + KNF_DRAWS));
+            knf_between_draw(map, cells, side, tile, sim_draw(KNF_KEY ^ KNF_NULL_PURPOSE, counter + KNF_DRAWS));
             knf_entangle(record, map, tile, NULL, &drawn);
-            kept_stored += knf_wide_equal(&drawn.inside, &split.inside) ? 1ull : 0ull;
+            stored_count += knf_wide_equal(&drawn.inside, &split.inside) ? 1ull : 0ull;
             knf_exact_total(&drawn, &total);
             between_identified[scale] = between_identified[scale] && (orior_exact_compare(&total, &truth) < 0);
             sim_exact_sum(&between_sum, &total, &running);
@@ -92,36 +92,36 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         }
     }
     const OriorExactInteger *const universal = &inside_departure[KNF_SCALES - 1u];
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  ");
-    scriptura_text(line, name);
-    scriptura_text(line, ": the entangled entropy against the free null's mean ");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, ": the entangled entropy against the free null's mean ");
     OriorExactInteger scaled_truth;
     sim_exact_scaled(&truth, KNF_DRAWS, &scaled_truth);
     sim_ratio_print(line, &scaled_truth, &free_sum, 3u);
-    scriptura_text(line, ", identified ");
-    scriptura_text(line, (inside_identified[KNF_SCALES - 1u] != 0) ? "yes" : "no");
-    scriptura_text(line, "\n    the departure curve, as a share of the free null's departure (");
-    scriptura_decimal(line, KNF_DRAWS, 1u);
-    scriptura_text(line, " draws a tile size, E past every draw marked *)\n");
-    scriptura_text(line, "      tile    inside   between       sum\n");
+    mmgr_line_put(line, ", identified ");
+    mmgr_line_put(line, (inside_identified[KNF_SCALES - 1u] != 0) ? "yes" : "no");
+    mmgr_line_put(line, "\n    the departure curve, as a share of the free null's departure (");
+    mmgr_line_decimal(line, KNF_DRAWS, 1u);
+    mmgr_line_put(line, " draws a tile size, E past every draw marked *)\n");
+    mmgr_line_put(line, "      tile    inside   between       sum\n");
     for (unsigned int scale = 0u; scale < KNF_SCALES; scale += 1u)
     {
         OriorExactInteger both;
         sim_exact_sum(&inside_departure[scale], &between_departure[scale], &both);
-        scriptura_text(line, "    ");
-        scriptura_decimal_columns(line, s_knf_tiles[scale], 6u);
+        mmgr_line_put(line, "    ");
+        mmgr_line_decimal_columns(line, s_knf_tiles[scale], 6u);
         knf_print_share(line, &inside_departure[scale], universal);
-        scriptura_character(line, (inside_identified[scale] != 0) ? '*' : ' ');
+        mmgr_line_ch(line, (inside_identified[scale] != 0) ? '*' : ' ');
         knf_print_share(line, &between_departure[scale], universal);
-        scriptura_character(line, (between_identified[scale] != 0) ? '*' : ' ');
+        mmgr_line_ch(line, (between_identified[scale] != 0) ? '*' : ' ');
         knf_print_share(line, &both, universal);
-        scriptura_character(line, '\n');
+        mmgr_line_ch(line, '\n');
     }
     sim_check(results, split_matches == KNF_SCALES,
               "at every tile size the whole is its tiles plus its seams, exactly");
-    sim_check(results, kept_stored == (KNF_SCALES * KNF_DRAWS),
-              "a rigid move of whole tiles keeps every tile's inside exactly");
+    sim_check(results, stored_count == (KNF_SCALES * KNF_DRAWS),
+              "a rigid move of whole tiles preserves every tile's inside exactly");
     sim_check(results, inside_departure[0].sign == 0, "a tile of one voxel shuffles nothing: no departure");
     sim_check(results, between_departure[KNF_SCALES - 1u].sign == 0,
               "one tile moved whole moves nothing: no departure");
@@ -130,61 +130,61 @@ static int knf_departure(SimResults *results, const KnfRecord *record, const uns
         sim_flush(results);
         return inside_identified[KNF_SCALES - 1u];
     }
-    scriptura_text(
+    mmgr_line_put(
         line,
         "    each body's box (zmin..zmax, ymin..ymax, xmin..xmax over its life), its own inside curve as a share of\n");
-    scriptura_text(line, "    its free departure, and that departure as a share of the whole's\n");
-    scriptura_text(line, "      body parent  born ended  vy vx  box z      y      x           2        4        8      "
+    mmgr_line_put(line, "    its free departure, and that departure as a share of the whole's\n");
+    mmgr_line_put(line, "      body parent  born ended  vy vx  box z      y      x           2        4        8      "
                          " 16       32     share\n");
     for (unsigned int index = 0u; index < scene->bodies; index += 1u)
     {
         const SimBody *const body = &scene->body[index];
-        scriptura_text(line, "    ");
-        scriptura_decimal_columns(line, index, 6u);
-        scriptura_character(line, ' ');
+        mmgr_line_put(line, "    ");
+        mmgr_line_decimal_columns(line, index, 6u);
+        mmgr_line_ch(line, ' ');
         if (body->parent < 0ll)
         {
-            scriptura_text(line, "     -");
+            mmgr_line_put(line, "     -");
         }
         else
         {
             // a parent index is non-negative here
-            scriptura_decimal_columns(line, (unsigned long long)body->parent, 6u);
+            mmgr_line_decimal_columns(line, (unsigned long long)body->parent, 6u);
         }
-        scriptura_decimal_columns(line, body->born, 6u);
-        scriptura_decimal_columns(line, body->ended, 6u);
-        scriptura_character(line, ' ');
-        scriptura_text(line, (body->velocity[1] < 0ll) ? " " : "  ");
-        scriptura_signed(line, body->velocity[1]);
-        scriptura_text(line, (body->velocity[2] < 0ll) ? " " : "  ");
-        scriptura_signed(line, body->velocity[2]);
-        scriptura_text(line, "  ");
+        mmgr_line_decimal_columns(line, body->born, 6u);
+        mmgr_line_decimal_columns(line, body->ended, 6u);
+        mmgr_line_ch(line, ' ');
+        mmgr_line_put(line, (body->velocity[1] < 0ll) ? " " : "  ");
+        mmgr_line_decimal_signed(line, body->velocity[1]);
+        mmgr_line_put(line, (body->velocity[2] < 0ll) ? " " : "  ");
+        mmgr_line_decimal_signed(line, body->velocity[2]);
+        mmgr_line_put(line, "  ");
         if (box[index].filled == 0)
         {
-            scriptura_text(line, "never in view\n");
+            mmgr_line_put(line, "never in view\n");
             continue;
         }
         for (unsigned int axis = 0u; axis < SIM_AXES; axis += 1u)
         {
-            // a held box's bounds are non-negative and below the side
-            scriptura_decimal_columns(line, (unsigned long long)box[index].box[axis], 2u);
-            scriptura_character(line, '-');
-            scriptura_decimal_columns(line, (unsigned long long)box[index].box[SIM_AXES + axis], 2u);
-            scriptura_character(line, ' ');
+            // a filled box's bounds are non-negative and below the side
+            mmgr_line_decimal_columns(line, (unsigned long long)box[index].box[axis], 2u);
+            mmgr_line_ch(line, '-');
+            mmgr_line_decimal_columns(line, (unsigned long long)box[index].box[SIM_AXES + axis], 2u);
+            mmgr_line_ch(line, ' ');
         }
         for (unsigned int scale = 1u; scale + 1u < KNF_SCALES; scale += 1u)
         {
             knf_print_share(line, &s_knf_body_departure[scale][index], &s_knf_body_departure[KNF_SCALES - 1u][index]);
         }
         knf_print_share(line, &s_knf_body_departure[KNF_SCALES - 1u][index], universal);
-        scriptura_character(line, '\n');
+        mmgr_line_ch(line, '\n');
     }
     sim_flush(results);
     return inside_identified[KNF_SCALES - 1u];
 }
 
 static void knf_controls(SimResults *results, unsigned short *device_lanes, unsigned short *lanes, KnfRecord *record,
-                         unsigned int *map, unsigned int *slot)
+                         unsigned int *map, unsigned int *cells)
 {
     SimScene scene;
     memset(&scene, 0, sizeof(scene));
@@ -217,22 +217,22 @@ static void knf_controls(SimResults *results, unsigned short *device_lanes, unsi
         }
         projected += 1ull;
         identified +=
-            (knf_identified(record, map, slot, sim_draw(KNF_KEY ^ KNF_CONTROL_PURPOSE, KNF_CONTROLS + control)) != 0)
+            (knf_identified(record, map, cells, sim_draw(KNF_KEY ^ KNF_CONTROL_PURPOSE, KNF_CONTROLS + control)) != 0)
                 ? 1ull
                 : 0ull;
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  the null's own rate: ");
-    scriptura_decimal(line, KNF_CONTROLS, 1u);
-    scriptura_text(line,
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  the null's own rate: ");
+    mmgr_line_decimal(line, KNF_CONTROLS, 1u);
+    mmgr_line_put(line,
                    " volumes of 32^3 with every voxel drawn alike (no bodies, no ramp, no fixed pattern), each\n");
-    scriptura_text(line, "  against ");
-    scriptura_decimal(line, KNF_DRAWS, 1u);
-    scriptura_text(line, " free spatial draws: ");
-    scriptura_decimal(line, identified, 1u);
-    scriptura_text(line, " identified, where exchangeability bounds the rate by 1/");
-    scriptura_decimal(line, KNF_DRAWS + 1u, 1u);
-    scriptura_character(line, '\n');
+    mmgr_line_put(line, "  against ");
+    mmgr_line_decimal(line, KNF_DRAWS, 1u);
+    mmgr_line_put(line, " free spatial draws: ");
+    mmgr_line_decimal(line, identified, 1u);
+    mmgr_line_put(line, " identified, where exchangeability bounds the rate by 1/");
+    mmgr_line_decimal(line, KNF_DRAWS + 1u, 1u);
+    mmgr_line_ch(line, '\n');
     const unsigned long long scaled = (KNF_DRAWS + 1ull) * identified;
     const unsigned long long excess = (scaled > KNF_CONTROLS) ? (scaled - KNF_CONTROLS) : 0ull;
     sim_check(results, projected == KNF_CONTROLS, "every control volume renders and projects");
@@ -259,7 +259,7 @@ int main(int count, char **arguments)
     unsigned short *lanes = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
     unsigned short *moved = (unsigned short *)malloc((size_t)lanes_count * sizeof(unsigned short));
     unsigned int *map = (unsigned int *)malloc((size_t)voxels * sizeof(unsigned int));
-    unsigned int *slot = (unsigned int *)malloc((size_t)voxels * sizeof(unsigned int));
+    unsigned int *cells = (unsigned int *)malloc((size_t)voxels * sizeof(unsigned int));
     unsigned short *boxes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
     KnfRecord record;
     KnfRecord moved_record;
@@ -273,7 +273,7 @@ int main(int count, char **arguments)
     moved_record.cloud = (unsigned long long *)malloc((size_t)cloud_words * sizeof(unsigned long long));
     moved_record.centerd = (long long *)malloc((size_t)history_words * sizeof(long long));
     unsigned short *device_lanes = NULL;
-    int ok = (lanes != NULL) && (moved != NULL) && (map != NULL) && (slot != NULL) && (boxes != NULL) &&
+    int ok = (lanes != NULL) && (moved != NULL) && (map != NULL) && (cells != NULL) && (boxes != NULL) &&
              (record.history != NULL) && (record.cloud != NULL) && (record.centerd != NULL) &&
              (moved_record.history != NULL) && (moved_record.cloud != NULL) && (moved_record.centerd != NULL);
     sim_check(&results, ok, "host buffers");
@@ -283,15 +283,15 @@ int main(int count, char **arguments)
     ok = ok &&
          sim_status_check(&results, cudaMalloc((void **)&device_lanes, lanes_count * sizeof(unsigned short)), "lanes");
 
-    ScripturaLine *const line = &results.line;
-    scriptura_text(line,
+    VerbaLinea *const line = &results.line;
+    mmgr_line_put(line,
                    "  the knf's identity by spatial null permutation: the nbody lattice's law in a 64^3 cube over ");
-    scriptura_decimal(line, KNF_FRAMES, 1u);
-    scriptura_text(line, " frames,\n  ");
-    scriptura_decimal(line, KNF_WINDOWS, 1u);
-    scriptura_text(line, " windows of ");
-    scriptura_decimal(line, ENGINE_HISTORY_WINDOW, 1u);
-    scriptura_text(line, " transitions; a section is one voxel's windows, E couples each with its xyz neighbors\n");
+    mmgr_line_decimal(line, KNF_FRAMES, 1u);
+    mmgr_line_put(line, " frames,\n  ");
+    mmgr_line_decimal(line, KNF_WINDOWS, 1u);
+    mmgr_line_put(line, " windows of ");
+    mmgr_line_decimal(line, ENGINE_HISTORY_WINDOW, 1u);
+    mmgr_line_put(line, " transitions; a section is one voxel's windows, E couples each with its xyz neighbors\n");
     sim_flush(&results);
 
     unsigned long long clipped = 0ull;
@@ -308,7 +308,7 @@ int main(int count, char **arguments)
     {
         knf_boxes(&scene, box, boxes);
         ok = knf_project(&results, lanes, &record);
-        sim_check(&results, ok, "the lattice's knf projects, its parity law held at every voxel");
+        sim_check(&results, ok, "the lattice's knf projects, its parity law satisfied at every voxel");
     }
     if (ok)
     {
@@ -316,7 +316,7 @@ int main(int count, char **arguments)
         sim_flush(&results);
         knf_motions(&results, lanes, moved, &record, &moved_record, map);
         sim_flush(&results);
-        const int identified = knf_departure(&results, &record, boxes, &scene, box, 0ull, map, slot, "the lattice");
+        const int identified = knf_departure(&results, &record, boxes, &scene, box, 0ull, map, cells, "the lattice");
         sim_check(&results, identified, "the lattice's knf is identified past every free spatial draw");
     }
 
@@ -331,8 +331,8 @@ int main(int count, char **arguments)
     sim_check(&results, ok, "the same scene with no bodies renders and projects");
     if (ok)
     {
-        knf_departure(&results, &record, NULL, &empty, NULL, 1ull, map, slot, "the same camera and ramp, no bodies");
-        knf_controls(&results, device_lanes, lanes, &record, map, slot);
+        knf_departure(&results, &record, NULL, &empty, NULL, 1ull, map, cells, "the same camera and ramp, no bodies");
+        knf_controls(&results, device_lanes, lanes, &record, map, cells);
     }
 
     cudaFree(device_lanes);
@@ -343,7 +343,7 @@ int main(int count, char **arguments)
     free(record.cloud);
     free(record.history);
     free(boxes);
-    free(slot);
+    free(cells);
     free(map);
     free(moved);
     free(lanes);

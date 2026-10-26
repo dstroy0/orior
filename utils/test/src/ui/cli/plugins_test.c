@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins_test.c: the plugins' check: every bundled plugin reads and names itself, a file opens by its name, its path
-// or its extension, a name becomes an id, a plugin from nothing holds what was asked, a plugin from another takes its
-// grammar, and creating writes once and replaces only when asked
+// or its extension, a name becomes an id, a plugin from nothing contains what was requested, a plugin from another
+// takes its grammar, and creating writes once and replaces only when requested
 #include "../../../../../ui/cli/src/plugins/plugins.h"
 #include "../../../../../ui/cli/src/window/window.h"
 #include "cli_check.h"
@@ -19,15 +19,15 @@ static unsigned int plugins_read(const char *text, unsigned long long size)
 {
     cli_json_begun(&s_json, s_node, sizeof(s_node) / sizeof(s_node[0]), s_text, sizeof(s_text));
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    return cli_json_read(&s_json, text, size, s_token, sizeof(s_token) / sizeof(s_token[0]), &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return cli_json_read(&s_json, text, size, s_token, sizeof(s_token) / sizeof(s_token[0]), &err_msg);
 }
 
 // a member of a node of the tree written compact, checked against `wanted`
 static void plugins_member(unsigned int node, const char *wanted, const char *what)
 {
     char text[512];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     cli_json_write(&s_json, node, &line, 0u, 0);
     cli_check_text(text, line.at, wanted, what);
 }
@@ -77,14 +77,14 @@ static void plugins_bundled(void)
 // the language `path` opens as, the empty text where none
 static const char *plugins_of(const char *path)
 {
-    static char s_id[CLI_NAME_LONGEST];
+    static char s_id[CLI_NAME_MAX_LEN];
     return cli_plugins_language_for(&s_languages, path, s_id) ? s_id : "";
 }
 
 // the id a name becomes
 static const char *plugins_slug(const char *name)
 {
-    static char s_id[CLI_NAME_LONGEST];
+    static char s_id[CLI_NAME_MAX_LEN];
     cli_plugins_slug(name, s_id);
     return s_id;
 }
@@ -98,12 +98,12 @@ static unsigned int plugins_spec(void)
     return plugins_read(s_spec, sizeof(s_spec) - 1u);
 }
 
-// a plugin from nothing holds what was asked
+// a plugin from nothing contains what was requested
 static void plugins_from_nothing(void)
 {
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int plugin = cli_plugins_draft(&s_json, plugins_spec(), &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned int plugin = cli_plugins_draft(&s_json, plugins_spec(), &err_msg);
     cli_check(plugin != CLI_JSON_NONE, "a plugin is drafted");
     if (plugin == CLI_JSON_NONE)
     {
@@ -120,16 +120,16 @@ static void plugins_from_nothing(void)
     plugins_member(cli_json_item(&s_json, whitespace, 1u), "[\"\\\\{-\",\"comment\",\"@comment\"]",
                    "a block comment opens the comment state");
     plugins_member(cli_json_item(&s_json, whitespace, 2u), "[\"--.*$\",\"comment\"]", "a line comment runs to its end");
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_plugins_text_of(&s_json, plugin, &out);
     const unsigned long long text_size = out.at;
     char written[8192];
-    CliLine line = {written, sizeof(written), 0ull};
+    VerbaLinea line = {written, sizeof(written), 0ull};
     cli_json_write(&s_json, plugin, &line, 0u, 1);
     unsigned int root = CLI_JSON_NONE;
     const CliJson *const read = cli_check_parsed(s_out, text_size, &root);
     char again[8192];
-    CliLine again_line = {again, sizeof(again), 0ull};
+    VerbaLinea again_line = {again, sizeof(again), 0ull};
     cli_json_write(read, root, &again_line, 0u, 1);
     cli_check((line.at == again_line.at) &&
                   (memor.cmp(&(MemoriaCfg){.src = written, .other = again, .bytes = line.at}) == 0),
@@ -143,8 +143,8 @@ static void plugins_from_another(void)
         "{\"name\": \"Rusty\", \"extensions\": [\"rsy\"], \"from\": \"rust\", \"keywords\": [\"fn\"]}";
     static const char s_none[] = "{\"name\": \"x\", \"extensions\": [\"x\"], \"from\": \"nothing-here\"}";
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int plugin = cli_plugins_draft(&s_json, plugins_read(s_rusty, sizeof(s_rusty) - 1u), &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned int plugin = cli_plugins_draft(&s_json, plugins_read(s_rusty, sizeof(s_rusty) - 1u), &err_msg);
     if (plugin == CLI_JSON_NONE)
     {
         cli_check(0, "a plugin from another is drafted");
@@ -157,7 +157,7 @@ static void plugins_from_another(void)
     const unsigned int types = cli_json_member(&s_json, grammar, "types");
     cli_check(cli_json_is(&s_json, types, CFG_JSON_ARRAY) && (s_json.node[types].count > 10u),
               "and the other's grammar");
-    cli_check(cli_plugins_draft(&s_json, plugins_read(s_none, sizeof(s_none) - 1u), &said) == CLI_JSON_NONE,
+    cli_check(cli_plugins_draft(&s_json, plugins_read(s_none, sizeof(s_none) - 1u), &err_msg) == CLI_JSON_NONE,
               "a plugin from one not there is refused");
 }
 
@@ -169,41 +169,41 @@ static void plugins_counted(void *context, const char *name, int is_folder)
     *count += is_folder ? 1u : 0u;
 }
 
-// creating writes once and replaces only when asked
+// creating writes once and replaces only when requested
 static void plugins_creating(void)
 {
-    char dir[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("plugins", dir);
-    cli_check(cli_plugins_create_in(dir, &s_json, plugins_spec(), 0, folder, &said), "a plugin is created");
+    cli_check(cli_plugins_create_in(dir, &s_json, plugins_spec(), 0, folder, &err_msg), "a plugin is created");
     cli_full(folder, "plugin.json", path);
     cli_check(query_is_file(path), "with its plugin.json");
-    // the room holds the sample a plugin of one language is written with, a few hundred bytes, and its 0
+    // the room is sized for the sample a plugin of one language is written with, a few hundred bytes, and its 0
     static char s_sample[1u << 16u];
     cli_full(folder, "sample.toy", path);
     const unsigned long long size = qry_member_file_read(path, (unsigned char *)s_sample, sizeof(s_sample) - 1u);
     s_sample[(size == QRY_MEMBER_UNREAD) ? 0u : size] = '\0';
     cli_check(cellul.starts(&(CatenaFinitaCfg){.src = s_sample, .other = "-- Toy Lang", .cap = CLI_CELLS_POOL}),
               "and a sample in its language");
-    cli_check(!cli_plugins_create_in(dir, &s_json, plugins_spec(), 0, folder, &said), "it is not written over");
-    cli_check(cli_plugins_create_in(dir, &s_json, plugins_spec(), 1, folder, &said), "unless asked");
+    cli_check(!cli_plugins_create_in(dir, &s_json, plugins_spec(), 0, folder, &err_msg), "it is not written over");
+    cli_check(cli_plugins_create_in(dir, &s_json, plugins_spec(), 1, folder, &err_msg), "unless requested");
     unsigned int count = 0u;
     (void)query_folder_each(dir, plugins_counted, &count);
     cli_check(count == 1u, "and is one plugin");
     // answers read into a tree of their own size, starting from a plugin many times the room they take
     static const char s_from[] = "{\"name\": \"Snake\", \"extensions\": [\"snk\"], \"from\": \"python\"}";
     CliJson tight = {0};
-    const unsigned int answers = cli_json_taken(&tight, s_from, sizeof(s_from) - 1u, 0u, 0ull, &said);
-    said.at = 0ull;
-    cli_check(cli_plugins_create_in(dir, &tight, answers, 0, folder, &said),
-              "a plugin starts from another larger than the answers' own tree holds");
+    const unsigned int answers = cli_json_taken(&tight, s_from, sizeof(s_from) - 1u, 0u, 0ull, &err_msg);
+    err_msg.at = 0ull;
+    cli_check(cli_plugins_create_in(dir, &tight, answers, 0, folder, &err_msg),
+              "a plugin starts from another larger than the answers' own tree contains");
     cli_json_given(&tight);
 }
 
-// the plugin of the id looked for, as the plugins are handed on, kept where it is the reader's
+// the plugin of the id looked for, as the plugins are handed on, recorded where it is the reader's
 static void plugins_reader_found(void *context, const CliPlugin *plugin)
 {
     int *const found = context;
@@ -212,12 +212,12 @@ static void plugins_reader_found(void *context, const CliPlugin *plugin)
 }
 
 // a plugin just written in the plugins folder of orior's own folder is listed as the reader's, and the window's list
-// of plugins holds it
+// of plugins includes it
 static void plugins_reader(void)
 {
-    char home[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
-    char manifest[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    char manifest[CLI_PATH_MAX_LEN];
     cli_check_folder("plugins_reader_home", home);
     (void)query_environment_set("ORIOR_HOME", home);
     cli_full(home, "plugins/readers", folder);
@@ -236,16 +236,16 @@ static void plugins_reader(void)
     cli_check(answered &&
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = text, .cap = size, .other = "\"id\":\"readers\"", .other_cap = CLI_CELLS_POOL}) != NULL),
-              "and the window's list of plugins holds it");
+              "and the window's list of plugins includes it");
     cli_window_given(room);
 }
 
 // a script plugin's code read from each file its `main` names, in order, and a name that leaves its folder refused
 static void plugins_code(void)
 {
-    char home[CLI_PATH_LONGEST];
-    char folder[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("plugins_code_home", home);
     (void)query_environment_set("ORIOR_HOME", home);
     cli_full(home, "plugins/parts", folder);
@@ -262,11 +262,11 @@ static void plugins_code(void)
     cli_full(folder, "lib/two.js", path);
     (void)query_file_written(path, "const two = one + 1;", 20ull);
     char code[256];
-    CliLine out = {code, sizeof(code), 0ull};
-    char why[CLI_PATH_LONGEST * 2u];
-    CliLine said = {why, sizeof(why), 0ull};
-    const int read = cli_plugins_code_of("parts", &out, &said);
-    (void)cli_line_closed(&out);
+    VerbaLinea out = {code, sizeof(code), 0ull};
+    char why[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int read = cli_plugins_code_of("parts", &out, &err_msg);
+    (void)mmgr_line_finish(&out);
     cli_check(read && cellul.eq(&(CatenaFinitaCfg){
                           .src = code, .other = "const one = 1;\nconst two = one + 1;", .cap = sizeof(code)}),
               "a plugin's code is each file its `main` names, in order");
@@ -276,12 +276,13 @@ static void plugins_code(void)
     cli_full(folder, "plugin.json", path);
     (void)query_file_written(path, s_out, sizeof(s_out) - 1u);
     out.at = 0ull;
-    said.at = 0ull;
-    cli_check(!cli_plugins_code_of("parts", &out, &said), "and a file it names outside its folder is refused");
+    err_msg.at = 0ull;
+    cli_check(!cli_plugins_code_of("parts", &out, &err_msg), "and a file it names outside its folder is refused");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     plugins_bundled();
     plugins_reader();
     plugins_code();
@@ -305,9 +306,9 @@ int main(void)
               "of any language");
     cli_check((s_languages.count > 0u) && (s_languages.room >= s_languages.count) &&
                   (s_languages.room <= (2u * s_languages.count) + CLI_LANGUAGE_PAIRS_FIRST),
-              "the languages' keys are held in a room that grew to them and no further than twice");
+              "the languages' keys are stored in a room that grew to them and no further than twice");
     cli_plugins_languages_given(&s_languages);
-    cli_check((g_cli_plugins_cells.holds == 0ull) && (g_cli_plugins_cells.hw != 0ull),
+    cli_check((g_cli_plugins_cells.in_use == 0ull) && (g_cli_plugins_cells.hw != 0ull),
               "the plugins are read in cells each given back");
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = plugins_slug("Toy Lang"), .other = "toy-lang", .cap = CLI_CELLS_POOL}),

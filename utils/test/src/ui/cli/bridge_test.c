@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// bridge_test.c: the bridge's check: a pair keeps its verdict and every line under it, a map reads a name and its key
+// bridge_test.c: the bridge's check: a pair retains its verdict and every line under it, a map reads a name and its key
 // apart, and the tree gives the bridge
 #include "../../../../../ui/cli/src/editor/bridge.h"
 #include "cli_check.h"
@@ -11,7 +11,7 @@ static CliJson s_json;
 static CliJson *bridge_tree(void)
 {
     cli_json_given(&s_json);
-    cli_check(cli_json_held(&s_json, 1024u, 1ull << 16u, "a bridge check's tree"), "a check's tree is taken");
+    cli_check(cli_json_reserved(&s_json, 1024u, 1ull << 16u, "a bridge check's tree"), "a check's tree is taken");
     return &s_json;
 }
 
@@ -33,7 +33,7 @@ static int bridge_ends(const char *whole, const char *end)
                                          .cap = CLI_CELLS_POOL}));
 }
 
-// a pair keeps its verdict and every line under it
+// a pair retains its verdict and every line under it
 static void bridge_pair(void)
 {
     static const char s_klq[] = "klq L*\nkey word_copy\npair word_copy thread_idx_x\nopen 3\nqualifier_coherence\n"
@@ -84,7 +84,7 @@ static void bridge_map(void)
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = bridge_text(cli_json_member(json, body, "kind"), "rest"),
                                            .other = "nop",
                                            .cap = CLI_CELLS_POOL}),
-              "a name keeps its kind");
+              "a name retains its kind");
     const unsigned int breaks = cli_json_member(json, cli_json_member(json, names, "a"), "breaks");
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = bridge_text(cli_json_item(json, breaks, 0u), "rest"), .other = "b", .cap = CLI_CELLS_POOL}),
@@ -94,7 +94,7 @@ static void bridge_map(void)
 // the tree gives the bridge
 static void bridge_tree_read(void)
 {
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     if (!cli_tree_found(root))
     {
         cli_check(1, "no tree is found, and no bridge is read");
@@ -105,7 +105,7 @@ static void bridge_tree_read(void)
     const unsigned int bridge = cli_bridge_read(json, root);
     const unsigned int klq = cli_json_member(json, bridge, "klq");
     cli_check(cli_json_member(json, cli_json_member(json, klq, "keys"), "lane_open") != CLI_JSON_NONE,
-              "the tree's Lstar.klq holds lane_open");
+              "the tree's Lstar.klq contains lane_open");
     int mapped = 0;
     const unsigned int maps = cli_json_member(json, bridge, "maps");
     for (unsigned int at = 0u; cli_json_item(json, maps, at) != CLI_JSON_NONE; at += 1u)
@@ -130,6 +130,7 @@ static void bridge_tree_read(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     bridge_pair();
     bridge_map();
     bridge_tree_read();

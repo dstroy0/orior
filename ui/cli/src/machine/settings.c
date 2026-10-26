@@ -15,16 +15,16 @@ static const char *const s_systems[3] = {"windows", "linux", "macos"};
 
 // the settings a tree's file does not set, each a key or the start of keys where it ends in `.`: how the programs a
 // build makes are signed, the environment a tree's runs take, the checkers run as files change, the window's title
-// bar, whether orior_cli is held off the network, what each plugin may read, write and reach, and the cores kept for
-// the reader. Each runs a program, names the reader's own, lets orior_cli or a plugin reach out or takes the reader's
-// machine, and a tree cloned from anywhere would set it
-static const char *const s_tree_held[7] = {"signing.", "environment.",    "checkers",  "titlebar",
-                                           "network",  "plugins.allowed", "cores-kept"};
+// bar, whether orior_cli is blocked from the network, what each plugin may read, write and reach, and the cores
+// reserved for the reader. Each runs a program, names the reader's own, lets orior_cli or a plugin reach out or takes
+// the reader's machine, and a tree cloned from anywhere would set it
+static const char *const s_tree_scoped_keys[7] = {"signing.", "environment.",    "checkers",      "titlebar",
+                                                  "network",  "plugins.allowed", "cores-reserved"};
 
 // the most bytes of a settings file read
 #define CLI_SETTINGS_FILE (1u << 20u)
 
-CliCellsTally g_cli_settings_cells = CLI_CELLS_TALLY("cli_settings");
+CellOwner g_cli_settings_cells = MMGR_CELL_OWNER("cli_settings");
 
 const char *cli_settings_system(void)
 {
@@ -63,13 +63,14 @@ int cli_settings_is_file_key(const char *key)
     return found;
 }
 
-int cli_settings_held(const char *key)
+int cli_settings_tree_scoped(const char *key)
 {
     for (unsigned int at = 0u; at < 7u; at += 1u)
     {
-        const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = s_tree_held[at], .cap = CLI_CELLS_POOL});
-        if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = s_tree_held[at], .cap = CLI_CELLS_POOL})) ||
-            ((s_tree_held[at][length - 1ull] == '.') && cli_text_same(key, s_tree_held[at], length)))
+        const unsigned long long length =
+            cellul.len(&(CatenaFinitaCfg){.src = s_tree_scoped_keys[at], .cap = CLI_CELLS_POOL});
+        if ((cellul.eq(&(CatenaFinitaCfg){.src = key, .other = s_tree_scoped_keys[at], .cap = CLI_CELLS_POOL})) ||
+            ((s_tree_scoped_keys[at][length - 1ull] == '.') && cli_text_same(key, s_tree_scoped_keys[at], length)))
         {
             return 1;
         }
@@ -84,15 +85,15 @@ void cli_settings_home(char *out)
 #else
     static const char s_home[] = "HOME";
 #endif
-    if (!query_environment_read(s_home, out, CLI_PATH_LONGEST))
+    if (!query_environment_read(s_home, out, CLI_PATH_MAX_LEN))
     {
         out[0] = '\0';
     }
 }
 
 void cli_settings_expand(const char *text, unsigned long long length,
-                         int (*look)(void *context, const char *name, unsigned long long length, CliLine *out),
-                         void *context, CliLine *out)
+                         int (*look)(void *context, const char *name, unsigned long long length, VerbaLinea *out),
+                         void *context, VerbaLinea *out)
 {
     unsigned long long at = 0ull;
     while (at < length)
@@ -106,7 +107,7 @@ void cli_settings_expand(const char *text, unsigned long long length,
         {
             break;
         }
-        cli_line_counted(out, text + at, open - at);
+        mmgr_line_put_n(out, text + at, open - at);
         unsigned long long close = open + 2ull;
         while ((close < length) && (text[close] != '}'))
         {
@@ -114,25 +115,25 @@ void cli_settings_expand(const char *text, unsigned long long length,
         }
         if (close >= length)
         {
-            cli_line_counted(out, text + open, length - open);
+            mmgr_line_put_n(out, text + open, length - open);
             return;
         }
         const unsigned long long mark = out->at;
         if (!look(context, text + open + 2ull, close - open - 2ull, out))
         {
             out->at = mark;
-            cli_line_counted(out, text + open, close + 1ull - open);
+            mmgr_line_put_n(out, text + open, close + 1ull - open);
         }
         at = close + 1ull;
     }
-    cli_line_counted(out, text + at, length - at);
+    mmgr_line_put_n(out, text + at, length - at);
 }
 
-// `path` with each `.` taken out and each `..` taking out the folder before it, into `out`, which holds
-// CLI_PATH_LONGEST
+// `path` with each `.` taken out and each `..` taking out the folder before it, into `out`, sized for
+// CLI_PATH_MAX_LEN
 static void cli_tidy(const char *path, char *out)
 {
-    char parts[64][CLI_NAME_LONGEST];
+    char parts[64][CLI_NAME_MAX_LEN];
     unsigned int count = 0u;
     // the root the path starts at: a drive and its slash, or a slash
     unsigned long long root = 0ull;
@@ -161,41 +162,41 @@ static void cli_tidy(const char *path, char *out)
         }
         else if ((length != 0ull) && !here && (count < 64u))
         {
-            CliLine part = {parts[count], CLI_NAME_LONGEST, 0ull};
-            cli_line_counted(&part, at, length);
-            cli_line_closed(&part);
+            VerbaLinea part = {parts[count], CLI_NAME_MAX_LEN, 0ull};
+            mmgr_line_put_n(&part, at, length);
+            mmgr_line_finish(&part);
             count += 1u;
         }
         at = (stop[0] != '\0') ? (stop + 1) : stop;
     }
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
-    cli_line_counted(&line, path, root);
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put_n(&line, path, root);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        cli_line_text(&line, (at != 0u) ? "/" : "");
-        cli_line_text(&line, parts[at]);
+        mmgr_line_put(&line, (at != 0u) ? "/" : "");
+        mmgr_line_put(&line, parts[at]);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // what a file's `takes` names: the reader's home folder, or a variable of the system's environment
-static int cli_taken_look(void *context, const char *name, unsigned long long length, CliLine *out)
+static int cli_taken_look(void *context, const char *name, unsigned long long length, VerbaLinea *out)
 {
     (void)context;
-    char value[CLI_PATH_LONGEST];
+    char value[CLI_PATH_MAX_LEN];
     if ((length == 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "home", .bytes = 4u}) == 0))
     {
         cli_settings_home(value);
-        cli_line_text(out, value);
+        mmgr_line_put(out, value);
         return value[0] != '\0';
     }
     if ((length > 4ull) && (memor.cmp(&(MemoriaCfg){.src = name, .other = "env:", .bytes = 4u}) == 0))
     {
-        char variable[CLI_NAME_LONGEST];
-        CliLine line = {variable, sizeof(variable), 0ull};
-        cli_line_counted(&line, name + 4, length - 4ull);
-        cli_line_closed(&line);
-        if (query_environment_said(variable, out))
+        char variable[CLI_NAME_MAX_LEN];
+        VerbaLinea line = {variable, sizeof(variable), 0ull};
+        mmgr_line_put_n(&line, name + 4, length - 4ull);
+        mmgr_line_finish(&line);
+        if (query_environment_written(variable, out))
         {
             return 1;
         }
@@ -204,14 +205,14 @@ static int cli_taken_look(void *context, const char *name, unsigned long long le
 }
 
 // a problem put after the chain's
-static void cli_problem(CliChain *chain, const char *named, const char *said)
+static void cli_problem(CliChain *chain, const char *named, const char *detail)
 {
     if (chain->problems < CLI_SETTINGS_PROBLEMS)
     {
-        CliLine line = {chain->problem[chain->problems], CLI_PATH_LONGEST * 2u, 0ull};
-        cli_line_text(&line, named);
-        cli_line_text(&line, said);
-        cli_line_closed(&line);
+        VerbaLinea line = {chain->problem[chain->problems], CLI_PATH_MAX_LEN * 2u, 0ull};
+        mmgr_line_put(&line, named);
+        mmgr_line_put(&line, detail);
+        mmgr_line_finish(&line);
         chain->problems += 1u;
     }
 }
@@ -225,19 +226,19 @@ static void cli_shown(const char *path, const char *root, char *out)
                       ((path[length] == '/') || (path[length] == '\\') || (path[length] == '\0'));
     const char *from = under ? (path + length) : path;
     from += (under && ((from[0] == '/') || (from[0] == '\\'))) ? 1 : 0;
-    CliLine line = {out, CLI_PATH_LONGEST, 0ull};
+    VerbaLinea line = {out, CLI_PATH_MAX_LEN, 0ull};
     for (; from[0] != '\0'; from += 1)
     {
-        cli_line_character(&line, (under && (from[0] == '\\')) ? '/' : from[0]);
+        mmgr_line_ch(&line, (under && (from[0] == '\\')) ? '/' : from[0]);
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
 }
 
 // A file of a chain as the chain is walked: the path it is shown by, its text with its comments taken out, in a cell
 // no larger than the file, that text's bytes, and the nodes it is read into, its tokens and one over
 typedef struct
 {
-    char named[CLI_PATH_LONGEST];
+    char named[CLI_PATH_MAX_LEN];
     char *plain;
     unsigned long long size;
     unsigned int nodes;
@@ -249,11 +250,11 @@ typedef struct
 {
     CliChainFile file[CLI_SETTINGS_DEEPEST];
     unsigned int count;
-    char seen[CLI_SETTINGS_DEEPEST][CLI_PATH_LONGEST];
+    char seen[CLI_SETTINGS_DEEPEST][CLI_PATH_MAX_LEN];
 } CliChainWalk;
 
 // the files walked read into the chain's tree in the order walked, the tree in a cell of their nodes and bytes, the
-// tokens in a cell of the most one file holds; a problem where the cells are refused
+// tokens in a cell of the most one file contains; a problem where the cells are refused
 static void cli_chain_read(CliChain *chain, const CliChainWalk *walk)
 {
     unsigned int nodes = 0u;
@@ -269,19 +270,19 @@ static void cli_chain_read(CliChain *chain, const CliChainWalk *walk)
     {
         return;
     }
-    CfgJsonToken *const tokens = cli_cell_taken_by(
-        &g_cli_settings_cells, (unsigned long long)most * sizeof(CfgJsonToken), "a settings file's tokens");
-    if ((tokens == NULL) || !cli_json_held(&chain->json, nodes, text, "a chain of settings files"))
+    CfgJsonToken *const tokens =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CfgJsonToken), &g_cli_settings_cells);
+    if ((tokens == NULL) || !cli_json_reserved(&chain->json, nodes, text, "a chain of settings files"))
     {
-        cli_cell_given_by(&g_cli_settings_cells, tokens);
+        g_cli_cells->persistent_buf_release(tokens, &g_cli_settings_cells);
         cli_problem(chain, walk->file[0].named, ": the cells its chain is read into could not be taken");
         return;
     }
     for (unsigned int at = 0u; at < walk->count; at += 1u)
     {
         const CliChainFile *const file = &walk->file[at];
-        char why[CLI_PATH_LONGEST];
-        CliLine reason = {why, sizeof(why), 0ull};
+        char why[CLI_PATH_MAX_LEN];
+        VerbaLinea reason = {why, sizeof(why), 0ull};
         const unsigned int values = cli_json_read(&chain->json, file->plain, file->size, tokens, most, &reason);
         if (values == CLI_JSON_NONE)
         {
@@ -294,7 +295,7 @@ static void cli_chain_read(CliChain *chain, const CliChainWalk *walk)
         chain->values[chain->files] = values;
         chain->files += 1u;
     }
-    cli_cell_given_by(&g_cli_settings_cells, tokens);
+    g_cli_cells->persistent_buf_release(tokens, &g_cli_settings_cells);
 }
 
 void cli_settings_chain(const char *path, const char *root, CliChain *chain)
@@ -302,26 +303,26 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
     cli_json_begun(&chain->json, NULL, 0u, NULL, 0ull);
     chain->files = 0u;
     chain->problems = 0u;
-    CliChainWalk *const walk = cli_cell_taken_by(&g_cli_settings_cells, sizeof(*walk), "a chain of settings walked");
+    CliChainWalk *const walk = g_cli_cells->persistent_buf_alloc(sizeof(*walk), &g_cli_settings_cells);
     if (walk == NULL)
     {
         return;
     }
     walk->count = 0u;
-    char next[CLI_PATH_LONGEST];
+    char next[CLI_PATH_MAX_LEN];
     cli_tidy(path, next);
     int first = 1;
     int going = 1;
     while (going)
     {
-        char named[CLI_PATH_LONGEST];
+        char named[CLI_PATH_MAX_LEN];
         cli_shown(next, root, named);
         if (walk->count >= CLI_SETTINGS_DEEPEST)
         {
             cli_problem(chain, named, ": more than 16 files take one another, and those past them are not read");
             break;
         }
-        char full[CLI_PATH_LONGEST];
+        char full[CLI_PATH_MAX_LEN];
         if (!query_path_full(next, full, sizeof(full)))
         {
             memor.cpy(&(MemoriaCfg){.dst = full,
@@ -342,7 +343,7 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
                                 .src = full,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = full, .cap = CLI_CELLS_POOL}) + 1u});
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_held(next, &size);
+        const unsigned char *const bytes = cli_file_read(next, &size);
         if ((bytes == NULL) || (size > CLI_SETTINGS_FILE))
         {
             if (bytes != NULL)
@@ -357,32 +358,32 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
         }
         first = 0;
         // a file's text with its comments taken out is no longer than the file
-        char *const plain_text = cli_cell_taken_by(&g_cli_settings_cells, size + 1ull, "a settings file's text");
-        CliLine plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
+        char *const plain_text = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_settings_cells);
+        VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
         if (plain_text != NULL)
         {
             // the file's bytes are its text
             cli_plain_json((const char *)bytes, size, &plain);
         }
         cli_file_let_go(bytes, size);
-        char why[CLI_PATH_LONGEST];
-        CliLine reason = {why, sizeof(why), 0ull};
+        char why[CLI_PATH_MAX_LEN];
+        VerbaLinea reason = {why, sizeof(why), 0ull};
         CliJson own;
         cli_json_begun(&own, NULL, 0u, NULL, 0ull);
-        const unsigned int values = ((plain_text != NULL) && cli_line_fits(&plain))
+        const unsigned int values = ((plain_text != NULL) && mmgr_line_ok(&plain))
                                         ? cli_json_taken(&own, plain_text, plain.at, 0u, 0ull, &reason)
                                         : CLI_JSON_NONE;
         if ((values == CLI_JSON_NONE) || !cli_json_is(&own, values, CFG_JSON_OBJECT))
         {
-            cli_line_closed(&reason);
-            char said[CLI_PATH_LONGEST + 2u];
-            CliLine told = {said, sizeof(said), 0ull};
-            cli_line_text(&told, ": ");
-            cli_line_text(&told, why);
-            cli_line_closed(&told);
-            cli_problem(chain, named, (values == CLI_JSON_NONE) ? said : " is not an object of settings");
+            mmgr_line_finish(&reason);
+            char msg_buf[CLI_PATH_MAX_LEN + 2u];
+            VerbaLinea msg = {msg_buf, sizeof(msg_buf), 0ull};
+            mmgr_line_put(&msg, ": ");
+            mmgr_line_put(&msg, why);
+            mmgr_line_finish(&msg);
+            cli_problem(chain, named, (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
             cli_json_given(&own);
-            cli_cell_given_by(&g_cli_settings_cells, plain_text);
+            g_cli_cells->persistent_buf_release(plain_text, &g_cli_settings_cells);
             break;
         }
         CliChainFile *const walked = &walk->file[walk->count];
@@ -404,22 +405,22 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
         }
         if (going)
         {
-            char expanded[CLI_PATH_LONGEST];
-            CliLine line = {expanded, sizeof(expanded), 0ull};
+            char expanded[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {expanded, sizeof(expanded), 0ull};
             cli_settings_expand(taken, length, cli_taken_look, NULL, &line);
-            cli_line_closed(&line);
+            mmgr_line_finish(&line);
             const int absolute =
                 (expanded[0] == '/') || (expanded[0] == '\\') || ((expanded[0] != '\0') && (expanded[1] == ':'));
-            char folder[CLI_PATH_LONGEST];
-            char joined[CLI_PATH_LONGEST];
-            CliLine join = {joined, sizeof(joined), 0ull};
+            char folder[CLI_PATH_MAX_LEN];
+            char joined[CLI_PATH_MAX_LEN];
+            VerbaLinea join = {joined, sizeof(joined), 0ull};
             if (!absolute && cli_path_parent(next, folder))
             {
-                cli_line_text(&join, folder);
-                cli_line_character(&join, '/');
+                mmgr_line_put(&join, folder);
+                mmgr_line_ch(&join, '/');
             }
-            cli_line_text(&join, expanded);
-            cli_line_closed(&join);
+            mmgr_line_put(&join, expanded);
+            mmgr_line_finish(&join);
             cli_tidy(joined, next);
         }
         cli_json_given(&own);
@@ -427,25 +428,26 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
     cli_chain_read(chain, walk);
     for (unsigned int at = 0u; at < walk->count; at += 1u)
     {
-        cli_cell_given_by(&g_cli_settings_cells, walk->file[at].plain);
+        g_cli_cells->persistent_buf_release(walk->file[at].plain, &g_cli_settings_cells);
     }
-    cli_cell_given_by(&g_cli_settings_cells, walk);
+    g_cli_cells->persistent_buf_release(walk, &g_cli_settings_cells);
     // the files in the order they are taken, the one taken first
     for (unsigned int at = 0u; at < (chain->files / 2u); at += 1u)
     {
         const unsigned int other = chain->files - 1u - at;
-        char held[CLI_PATH_LONGEST];
+        char saved_path[CLI_PATH_MAX_LEN];
         memor.cpy(
-            &(MemoriaCfg){.dst = held,
+            &(MemoriaCfg){.dst = saved_path,
                           .src = chain->file[at],
                           .bytes = cellul.len(&(CatenaFinitaCfg){.src = chain->file[at], .cap = CLI_CELLS_POOL}) + 1u});
         memor.cpy(&(MemoriaCfg){
             .dst = chain->file[at],
             .src = chain->file[other],
             .bytes = cellul.len(&(CatenaFinitaCfg){.src = chain->file[other], .cap = CLI_CELLS_POOL}) + 1u});
-        memor.cpy(&(MemoriaCfg){.dst = chain->file[other],
-                                .src = held,
-                                .bytes = cellul.len(&(CatenaFinitaCfg){.src = held, .cap = CLI_CELLS_POOL}) + 1u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = chain->file[other],
+                          .src = saved_path,
+                          .bytes = cellul.len(&(CatenaFinitaCfg){.src = saved_path, .cap = CLI_CELLS_POOL}) + 1u});
         const unsigned int values = chain->values[at];
         chain->values[at] = chain->values[other];
         chain->values[other] = values;
@@ -454,21 +456,21 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
 
 void cli_settings_tree(const char *root, CliChain *chain)
 {
-    char tidy[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char tidy[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_tidy(root, tidy);
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, tidy);
-    cli_line_character(&line, '/');
-    cli_line_text(&line, CLI_SETTINGS_TREE);
-    cli_line_closed(&line);
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, tidy);
+    mmgr_line_ch(&line, '/');
+    mmgr_line_put(&line, CLI_SETTINGS_TREE);
+    mmgr_line_finish(&line);
     cli_settings_chain(path, tidy, chain);
 }
 
 void cli_settings_reader(CliChain *chain)
 {
-    char home[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char home[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     if (!cli_home_folder(home))
     {
         cli_json_begun(&chain->json, NULL, 0u, NULL, 0ull);
@@ -476,9 +478,9 @@ void cli_settings_reader(CliChain *chain)
         chain->problems = 0u;
         return;
     }
-    CliLine line = {path, sizeof(path), 0ull};
-    cli_line_text(&line, home);
-    cli_line_text(&line, "/settings.json");
-    cli_line_closed(&line);
+    VerbaLinea line = {path, sizeof(path), 0ull};
+    mmgr_line_put(&line, home);
+    mmgr_line_put(&line, "/settings.json");
+    mmgr_line_finish(&line);
     cli_settings_chain(path, NULL, chain);
 }

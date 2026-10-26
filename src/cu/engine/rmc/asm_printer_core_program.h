@@ -18,18 +18,22 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
     // the record's fields
     const unsigned int part = asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_PART, 0u);
     const unsigned int first = asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_FIRST, 0u);
-    unsigned int before[ASM_PRINTER_SLOTS];
-    unsigned int after[ASM_PRINTER_SLOTS];
-    unsigned int number[ASM_PRINTER_SLOTS];
-    unsigned int numbered[ASM_PRINTER_SLOTS];
-    for (unsigned int slot = 0u; slot < ASM_PRINTER_SLOTS; slot += 1u)
+    unsigned int before[ASM_PRINTER_PLACEHOLDERS];
+    unsigned int after[ASM_PRINTER_PLACEHOLDERS];
+    unsigned int number[ASM_PRINTER_PLACEHOLDERS];
+    unsigned int numbered[ASM_PRINTER_PLACEHOLDERS];
+    for (unsigned int placeholder = 0u; placeholder < ASM_PRINTER_PLACEHOLDERS; placeholder += 1u)
     {
-        before[slot] = asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_SLOT(slot, 0u), 0u);
-        after[slot] = asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_SLOT(slot, 1u), 0u);
-        number[slot] = asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_SLOT(slot, 2u), 0u);
-        numbered[slot] = asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_SLOT(slot, 3u), 0u);
+        before[placeholder] =
+            asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_PLACEHOLDER(placeholder, 0u), 0u);
+        after[placeholder] =
+            asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_PLACEHOLDER(placeholder, 1u), 0u);
+        number[placeholder] =
+            asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_PLACEHOLDER(placeholder, 2u), 0u);
+        numbered[placeholder] =
+            asm_printer_core_step(build, ENGINE_RECORD_FIELD, ASM_PRINTER_FIELD_PLACEHOLDER(placeholder, 3u), 0u);
     }
-    // the byte's place in its part, below 2^31 as the layout holds the lanes, kept to one word
+    // the byte's place in its part, below 2^31 as the layout bounds the lanes, limited to one word
     const unsigned int lane = asm_printer_core_step(build, ENGINE_RECORD_LANE, 0u, 0u);
     const unsigned int apart = asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, lane, first);
     const unsigned int place = asm_printer_core_step(build, ENGINE_RECORD_WRAP, apart, 32u);
@@ -43,10 +47,10 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
                                                                     asm_printer_core_constant(build, at));
         piece[at] = asm_printer_core_step(build, ENGINE_RECORD_TABLE, row, ASM_PRINTER_TABLE_PIECE);
     }
-    // each slot's number's digits: none where it has no number, else 1 and one more for each power of ten at or below
-    // it
-    unsigned int digits[ASM_PRINTER_SLOTS];
-    for (unsigned int slot = 0u; slot < ASM_PRINTER_SLOTS; slot += 1u)
+    // each placeholder's number's digits: none where it has no number, else 1 and one more for each power of ten at or
+    // below it
+    unsigned int digits[ASM_PRINTER_PLACEHOLDERS];
+    for (unsigned int placeholder = 0u; placeholder < ASM_PRINTER_PLACEHOLDERS; placeholder += 1u)
     {
         unsigned int counted = build->one;
         unsigned int power = 1u;
@@ -54,26 +58,27 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
         {
             power *= 10u;
             const unsigned int reached =
-                asm_printer_core_below(build, asm_printer_core_constant(build, power - 1u), number[slot]);
+                asm_printer_core_below(build, asm_printer_core_constant(build, power - 1u), number[placeholder]);
             counted = asm_printer_core_step(build, ENGINE_RECORD_SUM, counted, reached);
         }
-        digits[slot] = asm_printer_core_step(build, ENGINE_RECORD_PRODUCT, numbered[slot], counted);
+        digits[placeholder] = asm_printer_core_step(build, ENGINE_RECORD_PRODUCT, numbered[placeholder], counted);
     }
-    // the atoms in order, each a word by its number or a slot's digits, and its length
+    // the atoms in order, each a word by its number or a placeholder's digits, and its length
     unsigned int word[ASM_PRINTER_ATOMS];
     unsigned int length[ASM_PRINTER_ATOMS];
-    unsigned int slot_of[ASM_PRINTER_ATOMS];
+    unsigned int placeholder_of[ASM_PRINTER_ATOMS];
     int digited[ASM_PRINTER_ATOMS];
     for (unsigned int atom = 0u; atom < ASM_PRINTER_ATOMS; atom += 1u)
     {
-        const unsigned int slot = atom / 4u;
+        const unsigned int placeholder = atom / 4u;
         const unsigned int within = atom % 4u;
-        slot_of[atom] = slot;
+        placeholder_of[atom] = placeholder;
         digited[atom] = within == 2u;
-        word[atom] =
-            (within == 0u) ? piece[slot] : ((within == 1u) ? before[slot] : ((within == 3u) ? after[slot] : 0u));
+        word[atom] = (within == 0u)
+                         ? piece[placeholder]
+                         : ((within == 1u) ? before[placeholder] : ((within == 3u) ? after[placeholder] : 0u));
         length[atom] = (digited[atom] != 0)
-                           ? digits[slot]
+                           ? digits[placeholder]
                            : asm_printer_core_step(build, ENGINE_RECORD_TABLE, word[atom], ASM_PRINTER_TABLE_LENGTH);
     }
     // where each atom begins in the part's text, and past the last
@@ -107,12 +112,14 @@ CODEGEN_CORE unsigned int asm_printer_core_program(AsmPrinterCoreBuild *build)
         {
             // the digit at `offset` from the left is the number over ten to the digits left after it, modulo ten; a
             // place outside the atom reads some power, never 0, and its letter is not taken
-            const unsigned int slot = slot_of[atom];
-            const unsigned int last = asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, digits[slot], build->one);
+            const unsigned int placeholder = placeholder_of[atom];
+            const unsigned int last =
+                asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, digits[placeholder], build->one);
             const unsigned int exponent = asm_printer_core_step(build, ENGINE_RECORD_DIFFERENCE, last, offset);
             const unsigned int power =
                 asm_printer_core_step(build, ENGINE_RECORD_TABLE, exponent, ASM_PRINTER_TABLE_POWER);
-            const unsigned int shifted = asm_printer_core_step(build, ENGINE_RECORD_QUOTIENT, number[slot], power);
+            const unsigned int shifted =
+                asm_printer_core_step(build, ENGINE_RECORD_QUOTIENT, number[placeholder], power);
             const unsigned int digit = asm_printer_core_step(build, ENGINE_RECORD_REMAINDER, shifted, ten);
             letter = asm_printer_core_step(build, ENGINE_RECORD_SUM, digit, zero_letter);
         }
@@ -201,9 +208,9 @@ CODEGEN_CORE int asm_printer_core_ended(AsmPrinterCoreBuild *build, unsigned int
 }
 
 // Every word and part a lane the core decides can be written in, laid out before any lane is: each form's parts from
-// its pieces, its slots four to a part and one part for a form of none, each bank's words around its number, each held
-// register's word, the minus, the target's hash and the header, whole; then the program, its fields and its tables. 1
-// where it is laid out, else 0 and how it ended in `end`, ASM_PRINTER_CORE_FULL where a capacity was short
+// its pieces, its placeholders four to a part and one part for a form of none, each bank's words around its number,
+// each stored register's word, the minus, the target's hash and the header, whole; then the program, its fields and its
+// tables. 1 where it is laid out, else 0 and how it ended in `end`, ASM_PRINTER_CORE_FULL where a capacity was short
 CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
 {
     const AsmPrinterCoreRules *const rules = &build->rules;
@@ -213,7 +220,7 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
     build->letters = 0u;
     build->parts = 0u;
     build->form_part_count = 0u;
-    build->slot_count = 0u;
+    build->placeholder_count = 0u;
     build->step_count = 0u;
     const AsmPrinterCoreText *const header = &rules->texts[rules->header_text];
     for (unsigned int at = 0u; at < header->length; at += 1u)
@@ -231,32 +238,34 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
             return asm_printer_core_ended(build, ASM_PRINTER_CORE_CONSTRUCT);
         }
         const unsigned int pieces = rules->form_piece_first[form];
-        const unsigned int slot_first = rules->form_slot_first[form];
-        const unsigned int slots = rules->form_slot_first[form + 1u] - slot_first;
-        // the parts and the slots' parameters, a few hundred of each
+        const unsigned int placeholder_first = rules->form_placeholder_first[form];
+        const unsigned int placeholders = rules->form_placeholder_first[form + 1u] - placeholder_first;
+        // the parts and the placeholders' parameters, a few hundred of each
         build->form_part_first[form] = build->form_part_count;
-        build->form_slot_first[form] = build->slot_count;
-        if ((build->slot_capacity - build->slot_count) < slots)
+        build->form_placeholder_first[form] = build->placeholder_count;
+        if ((build->placeholder_capacity - build->placeholder_count) < placeholders)
         {
             build->full = 1;
             return asm_printer_core_ended(build, ASM_PRINTER_CORE_FULL);
         }
-        for (unsigned int slot = 0u; slot < slots; slot += 1u)
+        for (unsigned int placeholder = 0u; placeholder < placeholders; placeholder += 1u)
         {
-            build->slot_parameters[build->slot_count + slot] = rules->slots[slot_first + slot];
+            build->placeholder_parameters[build->placeholder_count + placeholder] =
+                rules->placeholders[placeholder_first + placeholder];
         }
-        build->slot_count += slots;
-        for (unsigned int first_slot = 0u; (first_slot == 0u) || (first_slot < slots); first_slot += ASM_PRINTER_SLOTS)
+        build->placeholder_count += placeholders;
+        for (unsigned int first_placeholder = 0u; (first_placeholder == 0u) || (first_placeholder < placeholders);
+             first_placeholder += ASM_PRINTER_PLACEHOLDERS)
         {
-            const unsigned int left = slots - first_slot;
-            const unsigned int taken = (left < ASM_PRINTER_SLOTS) ? left : ASM_PRINTER_SLOTS;
-            const int last = (first_slot + taken) == slots;
+            const unsigned int left = placeholders - first_placeholder;
+            const unsigned int taken = (left < ASM_PRINTER_PLACEHOLDERS) ? left : ASM_PRINTER_PLACEHOLDERS;
+            const int last = (first_placeholder + taken) == placeholders;
             unsigned int part[ASM_PRINTER_PIECES] = {0u};
-            for (unsigned int slot = 0u; slot < taken; slot += 1u)
+            for (unsigned int placeholder = 0u; placeholder < taken; placeholder += 1u)
             {
-                part[slot] = asm_printer_core_text(build, pieces + first_slot + slot);
+                part[placeholder] = asm_printer_core_text(build, pieces + first_placeholder + placeholder);
             }
-            part[taken] = last ? asm_printer_core_text(build, pieces + slots) : 0u;
+            part[taken] = last ? asm_printer_core_text(build, pieces + placeholders) : 0u;
             const unsigned int numbered = asm_printer_core_part(build, part);
             if (build->form_part_count >= build->form_part_capacity)
             {
@@ -272,10 +281,10 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
         }
     }
     build->form_part_first[OPCODE_COUNT] = build->form_part_count;
-    build->form_slot_first[OPCODE_COUNT] = build->slot_count;
+    build->form_placeholder_first[OPCODE_COUNT] = build->placeholder_count;
     for (unsigned int bank = 0u; bank < REGCLASS_COUNT; bank += 1u)
     {
-        if (rules->bank_slots[bank] != 1u)
+        if (rules->bank_placeholders[bank] != 1u)
         {
             return asm_printer_core_ended(build, ASM_PRINTER_CORE_BANK);
         }
@@ -308,7 +317,7 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
     {
         return asm_printer_core_ended(build, ASM_PRINTER_CORE_FULL);
     }
-    // each part's lanes, the lengths of its pieces, below 2^16 as the program's layout holds the letters
+    // each part's lanes, the lengths of its pieces, below 2^16 as the program's layout bounds the letters
     for (unsigned int part = 0u; part < build->parts; part += 1u)
     {
         unsigned int lanes = 0u;
@@ -336,16 +345,16 @@ CODEGEN_CORE int asm_printer_core_ruleset_build(AsmPrinterCoreBuild *build)
     build->field_offset[ASM_PRINTER_FIELD_PART] = 0u;
     build->field_bits[ASM_PRINTER_FIELD_FIRST] = ASM_PRINTER_FIRST_BITS;
     build->field_offset[ASM_PRINTER_FIELD_FIRST] = ASM_PRINTER_FIRST_AT;
-    for (unsigned int slot = 0u; slot < ASM_PRINTER_SLOTS; slot += 1u)
+    for (unsigned int placeholder = 0u; placeholder < ASM_PRINTER_PLACEHOLDERS; placeholder += 1u)
     {
-        const unsigned int base = ASM_PRINTER_SLOT_AT + (slot * ASM_PRINTER_SLOT_BITS);
+        const unsigned int base = ASM_PRINTER_PLACEHOLDER_AT + (placeholder * ASM_PRINTER_PLACEHOLDER_BITS);
         const unsigned int bits[4] = {ASM_PRINTER_WORD_BITS, ASM_PRINTER_WORD_BITS, ASM_PRINTER_NUMBER_BITS, 1u};
         const unsigned int at[4] = {base, base + ASM_PRINTER_WORD_BITS, base + (2u * ASM_PRINTER_WORD_BITS),
                                     base + (2u * ASM_PRINTER_WORD_BITS) + ASM_PRINTER_NUMBER_BITS};
         for (unsigned int which = 0u; which < 4u; which += 1u)
         {
-            build->field_bits[ASM_PRINTER_FIELD_SLOT(slot, which)] = bits[which];
-            build->field_offset[ASM_PRINTER_FIELD_SLOT(slot, which)] = at[which];
+            build->field_bits[ASM_PRINTER_FIELD_PLACEHOLDER(placeholder, which)] = bits[which];
+            build->field_offset[ASM_PRINTER_FIELD_PLACEHOLDER(placeholder, which)] = at[which];
         }
     }
     return 1;

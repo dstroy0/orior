@@ -7,22 +7,22 @@
 // the seen bits, each laid out in the rings unrolled beside a shuffle of the same block, which is which decided by a
 // keyed coin, or where balanced by a keyed deal of pi to A in exactly half the pairs, and written only to
 // blind_answer.txt. The coin is keyed by the block and the deal by the first block. A round from --blind-from deals its
-// own sides; the round from block 0 keeps the sides it was shown with
+// own sides; the round from block 0 retains the sides it was shown with
 int plane_blind(SimResults *results, const std::vector<unsigned long long> &sizes, unsigned long long seen,
                 unsigned int first, unsigned int pairs, int balanced, const std::string &directory)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const std::vector<unsigned long long> rings(
         sizes.begin(), sizes.begin() + (ptrdiff_t)std::min<size_t>(PLANE_BLIND_RINGS, sizes.size()));
     const unsigned long long block = plane_ring_total(rings);
     const unsigned long long needed = seen + ((first + pairs) * block);
     if ((first + pairs > PLANE_BLIND_MAX) || (needed + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
     {
-        scriptura_text(line, "  the blind pairs lie in the first ");
-        scriptura_decimal(line, PLANE_BLIND_MAX, 1u);
-        scriptura_text(line, " blocks and need an exact width of ");
-        scriptura_decimal(line, needed + PLANE_GUARD + 64ull, 1u);
-        scriptura_text(line, " bits\n");
+        mmgr_line_put(line, "  the blind pairs lie in the first ");
+        mmgr_line_decimal(line, PLANE_BLIND_MAX, 1u);
+        mmgr_line_put(line, " blocks and need an exact width of ");
+        mmgr_line_decimal(line, needed + PLANE_GUARD + 64ull, 1u);
+        mmgr_line_put(line, " bits\n");
         sim_check(results, 0, "the blind pairs fit the exact width");
         return 0;
     }
@@ -63,23 +63,23 @@ int plane_blind(SimResults *results, const std::vector<unsigned long long> &size
         ok = (fclose(answer) == 0) && ok;
     }
     sim_check(results, ok, "the blind pairs are drawn and their answer written");
-    scriptura_text(line, "  blind: ");
-    scriptura_decimal(line, pairs, 1u);
-    scriptura_text(line, " pairs, blind_<n>_A.png and blind_<n>_B.png, rings 0 to ");
-    scriptura_decimal(line, rings.size() - 1u, 1u);
-    scriptura_text(line, " unrolled; each pair is one unseen block of pi from bit ");
-    scriptura_decimal(line, seen + (first * block) + 1ull, 1u);
-    scriptura_text(line, " on and a shuffle of the same block; ");
-    scriptura_text(line, balanced ? "pi is A in exactly half the pairs, dealt by a keyed shuffle; " : "");
-    scriptura_text(line, "which is pi is in blind_answer.txt and nowhere else\n");
+    mmgr_line_put(line, "  blind: ");
+    mmgr_line_decimal(line, pairs, 1u);
+    mmgr_line_put(line, " pairs, blind_<n>_A.png and blind_<n>_B.png, rings 0 to ");
+    mmgr_line_decimal(line, rings.size() - 1u, 1u);
+    mmgr_line_put(line, " unrolled; each pair is one unseen block of pi from bit ");
+    mmgr_line_decimal(line, seen + (first * block) + 1ull, 1u);
+    mmgr_line_put(line, " on and a shuffle of the same block; ");
+    mmgr_line_put(line, balanced ? "pi is A in exactly half the pairs, dealt by a keyed shuffle; " : "");
+    mmgr_line_put(line, "which is pi is in blind_answer.txt and nowhere else\n");
     sim_flush(results);
     return ok;
 }
 
-// the funnels. A funnel's mouth is a run of two equal bits or more on rings 1 to PLANE_FUNNEL_MOUTH_LAST; each bar below
-// it is the widest run of the same bit among the cells whose parent lies under the bar above, and the funnel ends on
-// the ring where no such cell holds the bit. Its depth is how many bars it has below the mouth, the dense rings, two
-// bits or more to a pixel, included; three bars w0, w1, w2, each in turns, fit one ratio as w1^2 comes near w0 w2.
+// the funnels. A funnel's mouth is a run of two equal bits or more on rings 1 to PLANE_FUNNEL_MOUTH_LAST; each bar
+// below it is the widest run of the same bit among the cells whose parent lies under the bar above, and the funnel ends
+// on the ring where no such cell contains the bit. Its depth is how many bars it has below the mouth, the dense rings,
+// two bits or more to a pixel, included; three bars w0, w1, w2, each in turns, fit one ratio as w1^2 comes near w0 w2.
 #define PLANE_FUNNEL_MOUTH_LAST 8u
 
 #define PLANE_FUNNEL_FRESH_MAX 16u
@@ -290,7 +290,7 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
                                 const std::vector<unsigned char> &all, unsigned long long from, unsigned int blocks,
                                 unsigned int draws, const char *label)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const std::vector<unsigned long long> starts = plane_ring_starts(sizes);
     const unsigned long long block = plane_ring_total(sizes);
     PlaneFunnelMeasurement pi_total = {{0ull, 0ull, 0ull}};
@@ -318,15 +318,15 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
             }
         }
     }
-    scriptura_text(line, "  ");
-    scriptura_text(line, label);
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, blocks, 1u);
-    scriptura_text(line, " blocks from bit ");
-    scriptura_decimal(line, from + 1ull, 1u);
-    scriptura_text(line, " to ");
-    scriptura_decimal(line, from + (blocks * block), 1u);
-    scriptura_character(line, '\n');
+    mmgr_line_put(line, "  ");
+    mmgr_line_put(line, label);
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, blocks, 1u);
+    mmgr_line_put(line, " blocks from bit ");
+    mmgr_line_decimal(line, from + 1ull, 1u);
+    mmgr_line_put(line, " to ");
+    mmgr_line_decimal(line, from + (blocks * block), 1u);
+    mmgr_line_ch(line, '\n');
     for (unsigned int kind = 0u; kind < PLANE_FUNNEL_READINGS; kind += 1u)
     {
         std::vector<unsigned long long> band;
@@ -334,20 +334,20 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
         {
             band.push_back(drawn_total[draw].value[kind]);
         }
-        scriptura_text(line, "    ");
-        scriptura_text(line, s_plane_funnel_names[kind]);
-        scriptura_text(line, ", summed over the blocks: pi's ");
-        scriptura_decimal(line, pi_total.value[kind], 1u);
+        mmgr_line_put(line, "    ");
+        mmgr_line_put(line, s_plane_funnel_names[kind]);
+        mmgr_line_put(line, ", summed over the blocks: pi's ");
+        mmgr_line_decimal(line, pi_total.value[kind], 1u);
         plane_band_print(line, band, pi_total.value[kind]);
-        scriptura_text(line, "      each block, the draws of ");
-        scriptura_decimal(line, draws, 1u);
-        scriptura_text(line, " reaching pi's:");
+        mmgr_line_put(line, "      each block, the draws of ");
+        mmgr_line_decimal(line, draws, 1u);
+        mmgr_line_put(line, " reaching pi's:");
         for (unsigned int each = 0u; each < blocks; each += 1u)
         {
-            scriptura_character(line, ' ');
-            scriptura_decimal(line, reached[kind][each], 1u);
+            mmgr_line_ch(line, ' ');
+            mmgr_line_decimal(line, reached[kind][each], 1u);
         }
-        scriptura_character(line, '\n');
+        mmgr_line_ch(line, '\n');
         sim_flush(results);
     }
 }
@@ -357,18 +357,18 @@ static void plane_funnel_blocks(SimResults *results, const std::vector<unsigned 
 int plane_funnels(SimResults *results, const std::vector<unsigned long long> &sizes, unsigned long long seen,
                   unsigned int fresh, unsigned int draws, const std::string &directory)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const std::vector<unsigned long long> rings(
         sizes.begin(), sizes.begin() + (ptrdiff_t)std::min<size_t>(PLANE_BLIND_RINGS, sizes.size()));
     const unsigned long long block = plane_ring_total(rings);
     const unsigned long long needed = seen + ((PLANE_BLIND_SCORED + fresh) * block);
     if ((fresh > PLANE_FUNNEL_FRESH_MAX) || (needed + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
     {
-        scriptura_text(line, "  the funnels read at most ");
-        scriptura_decimal(line, PLANE_FUNNEL_FRESH_MAX, 1u);
-        scriptura_text(line, " fresh blocks and need an exact width of ");
-        scriptura_decimal(line, needed + PLANE_GUARD + 64ull, 1u);
-        scriptura_text(line, " bits\n");
+        mmgr_line_put(line, "  the funnels read at most ");
+        mmgr_line_decimal(line, PLANE_FUNNEL_FRESH_MAX, 1u);
+        mmgr_line_put(line, " fresh blocks and need an exact width of ");
+        mmgr_line_decimal(line, needed + PLANE_GUARD + 64ull, 1u);
+        mmgr_line_put(line, " bits\n");
         sim_check(results, 0, "the funnels' blocks fit the exact width");
         return 0;
     }
@@ -386,14 +386,14 @@ int plane_funnels(SimResults *results, const std::vector<unsigned long long> &si
     }
     if (ok)
     {
-        scriptura_text(line, "  the funnels: mouths of two bits or more on rings 1 to ");
-        scriptura_decimal(line, PLANE_FUNNEL_MOUTH_LAST, 1u);
-        scriptura_text(line, ", traced to ring ");
-        scriptura_decimal(line, rings.size() - 1u, 1u);
-        scriptura_text(line,
+        mmgr_line_put(line, "  the funnels: mouths of two bits or more on rings 1 to ");
+        mmgr_line_decimal(line, PLANE_FUNNEL_MOUTH_LAST, 1u);
+        mmgr_line_put(line, ", traced to ring ");
+        mmgr_line_decimal(line, rings.size() - 1u, 1u);
+        mmgr_line_put(line,
                        "; funnels_pi.png and funnels_shuffled.png are the first blind pair, the funnels from a mouth ");
-        scriptura_decimal(line, PLANE_FUNNEL_DRAWN_MOUTH, 1u);
-        scriptura_text(line, " bits wide or wider that reach the last ring in red\n");
+        mmgr_line_decimal(line, PLANE_FUNNEL_DRAWN_MOUTH, 1u);
+        mmgr_line_put(line, " bits wide or wider that reach the last ring in red\n");
         sim_flush(results);
         plane_funnel_blocks(results, rings, all, seen, PLANE_BLIND_SCORED, draws, "the six blind blocks");
         if (fresh > 0u)

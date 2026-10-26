@@ -1,6 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// broken.cu: the broken: ours held against the answer question by question, each place they part traced to the forms that wrote it
+// broken.cu: the broken: ours checked against the answer question by question, each place they part traced to the forms
+// that wrote it
 #include "identity_internal.h"
 
 // The answer and ours, question by question. nvcc's chain for a question of the stick is the answer; ours is the
@@ -10,12 +11,12 @@
 // nvcc makes it in fewer steps there is a fold the query has not learned, and where ours takes fewer, ours folds
 // further.
 //
-// The two chains are aligned link by link on their kinds, the longest run in common kept in order, and where they part
-// each link of ours is moved (nvcc writes its kind elsewhere in the question) or ours alone (nvcc writes nothing of its
-// kind there), each with the forms of the rulesets whose texts write it, and each link of nvcc's with nothing of ours
-// is written with its address. The run's blob broken.txt holds a question a group of lines, its verdict and the steps
-// of each, then each form whose links stand alone in a question nvcc makes in fewer steps, with its count of questions
-// and of links, the most questions first
+// The two chains are aligned link by link on their kinds, the longest run in common retained in order, and where they
+// part each link of ours is moved (nvcc writes its kind elsewhere in the question) or ours alone (nvcc writes nothing
+// of its kind there), each with the forms of the rulesets whose texts write it, and each link of nvcc's with nothing of
+// ours is written with its address. The run's blob broken.txt contains a question a group of lines, its verdict and the
+// steps of each, then each form whose links stand alone in a question nvcc makes in fewer steps, with its count of
+// questions and of links, the most questions first
 int identity_broken(const char *listing, const char *manifest, const std::string &folder,
                            const std::vector<std::string> &ours_paths, int count, char **files)
 {
@@ -59,7 +60,7 @@ int identity_broken(const char *listing, const char *manifest, const std::string
         const Question &answer = questions[found->second];
         const size_t rows = mine.chain.size();
         const size_t columns = answer.chain.size();
-        // the longest run of kinds the two chains hold in common, in order
+        // the longest run of kinds the two chains contain in common, in order
         std::vector<std::vector<unsigned int>> common(rows + 1u, std::vector<unsigned int>(columns + 1u, 0u));
         for (size_t row = rows; row-- > 0u;)
         {
@@ -70,8 +71,8 @@ int identity_broken(const char *listing, const char *manifest, const std::string
                                           : std::max(common[row + 1u][column], common[row][column + 1u]);
             }
         }
-        // the links each chain holds alone, and the stretches they part in, each running from one link in common to the
-        // next
+        // the links each chain contains alone, and the stretches they part in, each running from one link in common to
+        // the next
         std::vector<size_t> mine_only;
         std::vector<size_t> answer_only;
         std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> stretches(1u);
@@ -100,8 +101,8 @@ int identity_broken(const char *listing, const char *manifest, const std::string
             }
         }
         // a link of ours alone whose kind nvcc writes alone elsewhere in the question is moved, and the two stand for
-        // each other; what is left of a stretch is its own, and a stretch where ours holds more of its own links than
-        // nvcc's is where a fold takes steps away
+        // each other; what is left of a stretch is its own, and a stretch where ours contains more of its own links
+        // than nvcc's is where a fold takes steps away
         std::vector<int> moved(rows, 0);
         std::vector<int> paired(columns, 0);
         std::map<std::string, std::vector<size_t>> answer_kinds;
@@ -111,12 +112,12 @@ int identity_broken(const char *listing, const char *manifest, const std::string
         }
         for (const size_t row : mine_only)
         {
-            std::vector<size_t> &held = answer_kinds[mine.chain[row].kind];
-            if (!held.empty())
+            std::vector<size_t> &indices = answer_kinds[mine.chain[row].kind];
+            if (!indices.empty())
             {
                 moved[row] = 1;
-                paired[held.front()] = 1;
-                held.erase(held.begin());
+                paired[indices.front()] = 1;
+                indices.erase(indices.begin());
             }
         }
         std::vector<int> folding(rows, 0);
@@ -160,8 +161,8 @@ int identity_broken(const char *listing, const char *manifest, const std::string
             const std::string names = forms_writing(forms, link.kind);
             run_print(&file, "%s %s %s form %s%s\n", moved[row] ? "moved" : "ours", link.position.c_str(),
                       link.kind.c_str(), names.c_str(), folding[row] ? " fold" : "");
-            // only a link of a stretch where ours holds more of its own links than nvcc's, in a question nvcc makes in
-            // fewer steps, is a step a fold takes away
+            // only a link of a stretch where ours contains more of its own links than nvcc's, in a question nvcc makes
+            // in fewer steps, is a step a fold takes away
             if (!folding[row] || (columns >= rows))
             {
                 continue;

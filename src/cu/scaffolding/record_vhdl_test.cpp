@@ -8,9 +8,9 @@
 // device lays out its launch (record_image.h), its lanes run by the emitted cycle_program_unit as the device's resident
 // kernel runs them, and its records compared with the host's word for word; synthesis takes the program unit whole. Its
 // lines give the same input digests as the host test's. A program whose lane the code generator does not write is
-// counted as not supported instead of held or failed. Where a construction set is given, each program's lane is refined by
-// it (engine_table M23): split at the budgets the loop proposes, each schedule checked against the host, and the least
-// cost among those that pass kept.
+// counted as not supported instead of passed or failed. Where a construction set is given, each program's lane is
+// refined by it (engine_table M23): split at the budgets the loop proposes, each schedule checked against the host, and
+// the least cost among those that pass retained.
 #include "../includes/file_defs/krep/krep.h"
 #include "../../../utils/test/src/cu/engine/analysis/cycle/record_image.h"
 #include "vhdl_target.h"
@@ -77,7 +77,8 @@ static int vhdl_construction(const char *path, VhdlPlace *place)
     return 1;
 }
 
-// the memory a lane is synthesized over, in words: synthesis reads no image, and a small memory keeps the netlist small
+// the memory a lane is synthesized over, in words: synthesis reads no image, and a small memory retains the netlist
+// small
 #define VHDL_TEST_SYNTHESIS_WORDS 256u
 
 static void vhdl_check(VhdlResults *results, int passed, const std::string &what)
@@ -98,7 +99,7 @@ static int vhdl_write(const std::string &path, const std::string &text)
     return (fclose(file) == 0) && written;
 }
 
-// the number after `label` on the first line of `path` that holds it; 0 where none does
+// the number after `label` on the first line of `path` that contains it; 0 where none does
 static unsigned long long vhdl_after(const std::string &path, const char *label)
 {
     FILE *const file = fopen(path.c_str(), "rb");
@@ -117,7 +118,7 @@ static unsigned long long vhdl_after(const std::string &path, const char *label)
     return found;
 }
 
-// the lines of `path` that hold `label`
+// the lines of `path` that contain `label`
 static unsigned long long vhdl_lines(const std::string &path, const char *label)
 {
     FILE *const file = fopen(path.c_str(), "rb");
@@ -174,8 +175,8 @@ static void vhdl_synthesize(const VhdlPlace *place, VhdlTrial *trial)
     trial->synthesized = (status == 0) && (trial->cells != 0ull);
 }
 
-// `text` written as the work folder's program.vhd, run by GHDL under the bench over `image`, and where the place asks,
-// synthesized
+// `text` written as the work folder's program.vhd, run by GHDL under the bench over `image`, and where the place
+// requires, synthesized
 static void vhdl_try(const VhdlPlace *place, const std::string &text, const RecordImage *image, VhdlTrial *trial)
 {
     *trial = VhdlTrial{0, 0u, {}, 0ull, 0, 0ull, 0ull, 0ull, 0ull, 0ull};
@@ -285,8 +286,8 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     const int host_ran = ran == (long)HOST_TEST_LANES;
     const unsigned long long host_records_digest = host_ran ? host_digest(host_records.data(), record_words) : 0ull;
 
-    // the lane split at the two ends of what a construction set can ask: only where the lane must be split, and every
-    // form alone in a state of its own
+    // the lane split at the two ends of what a construction set can require: only where the lane must be split, and
+    // every form alone in a state of its own
     const ScheduleModel ends[2] = {{{}, 0u, SCHEDULE_UNBOUNDED, SCHEDULE_UNBOUNDED}, {{}, 1u, 1u, SCHEDULE_UNBOUNDED}};
     const char *const end_names[2] = {"split where it must be", "every form alone"};
     unsigned long long end_costs[2] = {0ull, 0ull};
@@ -313,8 +314,8 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
     // the refinement loop (engine_table M23), where a construction set was given: the generator is the schedule, its
     // knob the budget a state is split at, proposed from 1 and doubled until it passes twice the dearest form; the
     // critic is GHDL's run checked against the host on every lane and the cost measured. A budget whose lane is the
-    // text of one tried before is not tried again. A round is kept only where its lanes are the host's, and the best is
-    // the least cost among the kept
+    // text of one tried before is not tried again. A round is retained only where its lanes are the host's, and the
+    // best is the least cost among the retained
     if (place->constructed == 0)
     {
         host_free(&loaded);
@@ -343,16 +344,17 @@ static void vhdl_run(void *context, const HostProgram *program, int reuse, unsig
                "VHDL\n",
                what.c_str(), report.states, report.maximum, report.over,
                trial.read ? host_digest(trial.records.data(), record_words) : 0ull);
-        const int kept = vhdl_report(results, place, what, &trial, errors, host_ran, host_records);
-        if (kept && ((best_budget == 0u) || (trial.cost < best_cost)))
+        const int reported = vhdl_report(results, place, what, &trial, errors, host_ran, host_records);
+        if (reported && ((best_budget == 0u) || (trial.cost < best_cost)))
         {
             best_cost = trial.cost;
             best_budget = budget;
         }
     }
-    printf("  %s: the refinement loop kept budget %u at cost %llu over %u rounds; split where it must be costs %llu, "
-           "every form alone %llu\n",
-           name.c_str(), best_budget, best_cost, rounds, end_costs[0], end_costs[1]);
+    printf(
+        "  %s: the refinement loop retained budget %u at cost %llu over %u rounds; split where it must be costs %llu, "
+        "every form alone %llu\n",
+        name.c_str(), best_budget, best_cost, rounds, end_costs[0], end_costs[1]);
     host_free(&loaded);
 }
 

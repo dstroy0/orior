@@ -3,7 +3,7 @@
 // pi_tower_engine.cu: the engine, depth and requests
 #include "pi_tower_internal.h"
 
-// 13 and 14 on the engine: position 0 and Bailey's, and the tower's deepest resolution asked for. 15, a segment, is a
+// 13 and 14 on the engine: position 0 and Bailey's, and the tower's deepest resolution requested. 15, a segment, is a
 // request of its own (pi_tower_segment_request)
 void pi_tower_engine(SimResults *results, int count, char **arguments, const PiTowerTurn &turn, unsigned int depth)
 {
@@ -33,7 +33,7 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
         }
         return;
     }
-    scriptura_text(&results->line, "  on the engine, pi's hex digits by BBP, each term a lane of the record machine\n");
+    mmgr_line_put(&results->line, "  on the engine, pi's hex digits by BBP, each term a lane of the record machine\n");
     sim_flush(results);
     int published = 1;
     int finished = 1;
@@ -61,15 +61,15 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     const unsigned long long engine_cell = (ran != 0) ? pi_tower_bbp_cell(tower, run.sum, window) : 0ull;
     const unsigned long long exact_cell =
         pi_tower_word(pi_tower_quotient(turn.multiplier, pi_tower_power_two(turn.precision - depth)));
-    scriptura_text(&results->line, "    the cell at 2^");
-    scriptura_decimal(&results->line, depth, 1u);
-    scriptura_text(&results->line, ", its low 64 bits: engine 0x");
-    scriptura_hex(&results->line, engine_cell, 16u);
-    scriptura_text(&results->line, ", exact turn 0x");
-    scriptura_hex(&results->line, exact_cell, 16u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, "    the cell at 2^");
+    mmgr_line_decimal(&results->line, depth, 1u);
+    mmgr_line_put(&results->line, ", its low 64 bits: engine 0x");
+    mmgr_line_hex(&results->line, engine_cell, 16u);
+    mmgr_line_put(&results->line, ", exact turn 0x");
+    mmgr_line_hex(&results->line, exact_cell, 16u);
+    mmgr_line_ch(&results->line, '\n');
     sim_check(results, ran && run.finished && (certified >= window) && (engine_cell == exact_cell),
-              "the engine's cell at the deepest resolution asked for, its low 64 bits, is the exact turn's");
+              "the engine's cell at the deepest resolution requested, its low 64 bits, is the exact turn's");
     for (size_t at = 0u; at < plans.size(); at += 1u)
     {
         pi_tower_bbp_free(&plans[at]);
@@ -77,8 +77,8 @@ void pi_tower_engine(SimResults *results, int count, char **arguments, const PiT
     sim_flush(results);
 }
 
-// a resolution past the exact turn's: represented as (2, n), every part that does not ask for pi's bits printed exact, and
-// the depth-n turn summed on the engine sweep by sweep until every term is in or the run is stopped
+// a resolution past the exact turn's: represented as (2, n), every part that does not require pi's bits printed exact,
+// and the depth-n turn summed on the engine sweep by sweep until every term is in or the run is stopped
 void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWide &depth)
 {
     EngineError error;
@@ -97,15 +97,15 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
     {
         width += 1u;
     }
-    scriptura_text(&results->line, "  resolution (2, n): 2^n cells, n = ");
+    mmgr_line_put(&results->line, "  resolution (2, n): 2^n cells, n = ");
     pi_tower_print_decimal(&results->line, depth);
-    scriptura_text(&results->line, "\n    the turn's precision P = ");
+    mmgr_line_put(&results->line, "\n    the turn's precision P = ");
     pi_tower_print_decimal(&results->line, precision);
-    scriptura_text(&results->line, " bits; a host turn would need an exact width of ");
+    mmgr_line_put(&results->line, " bits; a host turn would need an exact width of ");
     pi_tower_print_decimal(&results->line, needed);
-    scriptura_text(&results->line, " bits, SIM_EXACT_LIMBS = 2^");
-    scriptura_decimal(&results->line, width, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, " bits, SIM_EXACT_LIMBS = 2^");
+    mmgr_line_decimal(&results->line, width, 1u);
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
     unsigned int window = 0u;
     const PiWide position = pi_tower_depth_position(depth, &window);
@@ -122,10 +122,10 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
         pi_tower_bbp_free(&bbp);
         return;
     }
-    scriptura_text(&results->line,
+    mmgr_line_put(&results->line,
                    "    the turn at depth n is alpha's bit n: its cell's low bits are the window from hex position ");
     pi_tower_print_decimal(&results->line, position);
-    scriptura_text(&results->line, ", on the engine\n");
+    mmgr_line_put(&results->line, ", on the engine\n");
     sim_flush(results);
     g_pi_tower_stopped = 0;
     void (*const was)(int) = signal(SIGINT, pi_tower_stop);
@@ -137,13 +137,13 @@ void pi_tower_deep(SimResults *results, int count, char **arguments, const PiWid
     pi_tower_bbp_print(results, &bbp, &run, certified);
     if ((run.finished != 0) && (certified >= window))
     {
-        scriptura_text(&results->line, "    the cell at 2^n, its low 64 bits: 0x");
-        scriptura_hex(&results->line, pi_tower_bbp_cell(&bbp, run.sum, window), 16u);
-        scriptura_character(&results->line, '\n');
+        mmgr_line_put(&results->line, "    the cell at 2^n, its low 64 bits: 0x");
+        mmgr_line_hex(&results->line, pi_tower_bbp_cell(&bbp, run.sum, window), 16u);
+        mmgr_line_ch(&results->line, '\n');
     }
     else if (run.finished == 0)
     {
-        scriptura_text(&results->line, "    stopped: no digit at depth n is printed until every term is summed\n");
+        mmgr_line_put(&results->line, "    stopped: no digit at depth n is printed until every term is summed\n");
     }
     sim_check(results, ran, "engine: every sweep the run made summed on the record machine");
     sim_check(results, (run.finished == 0) || (certified >= window),
@@ -169,7 +169,7 @@ static int pi_tower_digits(const char **text, PiWide *value)
     return read;
 }
 
-// n from the request, whole or as base^exponent, the base and its operation kept apart until n is formed; 0 where the
+// n from the request, whole or as base^exponent, the base and its operation stored apart until n is formed; 0 where the
 // text is neither, n is 0, or n outgrows the exact width
 int pi_tower_request(const char *text, PiWide *value)
 {
@@ -216,7 +216,7 @@ int pi_tower_resolution(const char *text, unsigned int *bits)
     {
         return 0;
     }
-    // at most 2^20. An unsigned int holds it
+    // at most 2^20. An unsigned int stores it
     *bits = (unsigned int)pi_tower_word(value);
     return 1;
 }

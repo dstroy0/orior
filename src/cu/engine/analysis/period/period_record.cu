@@ -94,8 +94,8 @@ static int period_program_load(const ExactRecordProgram *built, unsigned int mem
            (cycle_record_load(&program->layout, &program->record, error) != CYCLE_ERROR);
 }
 
-// [the voxel equals the voxel a lag on, and the pair stands where the axis's usable length holds it]: the lane's place
-// along the axis is its quotient by the stride, modulo the extent
+// [the voxel equals the voxel a lag on, and the pair stands where the axis's usable length contains it]: the lane's
+// place along the axis is its quotient by the stride, modulo the extent
 static int period_make_agree(PeriodRecordResident *resident, EngineError *error)
 {
     ExactRecordProgram built;
@@ -111,9 +111,9 @@ static int period_make_agree(PeriodRecordResident *resident, EngineError *error)
     const unsigned int usable = exact_record_read_unsigned(&built, usable_field, 2u);
     const unsigned int lane = exact_record_lane_below(&built, 32u);
     const unsigned int along = exact_record_remainder(&built, exact_record_quotient(&built, lane, stride), extent);
-    const unsigned int held = exact_record_above(&built, usable, along);
+    const unsigned int usable_lane = exact_record_above(&built, usable, along);
     const unsigned int same = exact_record_equal(&built, here, there);
-    const unsigned int agree = exact_record_product(&built, same, held);
+    const unsigned int agree = exact_record_product(&built, same, usable_lane);
     const unsigned int in_limbs[ENGINE_RECORD_MEMBERS_MAX] = {1u, 1u, PERIOD_RECORD_AGREE_LIMBS};
     const int ok = period_program_load(&built, 3u, &agree, 1u, in_limbs, &resident->agree, error);
     exact_record_close(&built);
@@ -126,7 +126,7 @@ static int period_make_agree(PeriodRecordResident *resident, EngineError *error)
 }
 
 // period_round: the 32-bit word (half xor key) times the first multiplier, xor itself shifted down 15, times the
-// second, xor itself shifted down 13, each product kept to its low 32 bits
+// second, xor itself shifted down 13, each product limited to its low 32 bits
 static unsigned int period_record_round(ExactRecordProgram *built, unsigned int half, unsigned int key)
 {
     const unsigned int first = exact_record_constant(built, PERIOD_RECORD_MIX_FIRST);
@@ -247,7 +247,7 @@ static DevicePoolPlan period_record_plan(unsigned long long voxels, EngineError 
     return plan;
 }
 
-// the pool grown to hold `voxels`; a pool that already holds them is kept as it is
+// the pool grown to contain `voxels`; a pool that already contains them is retained as it is
 static int period_record_reserve(unsigned long long voxels, EngineError *error)
 {
     PeriodRecordResident *const resident = &g_period_record;
@@ -428,8 +428,8 @@ extern "C" long period_record_read(const PeriodRequest *request)
     unsigned long long *const agreement = (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
     unsigned long long *const shuffled_agreement =
         (unsigned long long *)calloc(agreement_entries, sizeof(unsigned long long));
-    const size_t band_slots = (size_t)((draws != 0ull) ? (draws * lattice.rank) : 1ull);
-    PeriodMargin *const bands = (PeriodMargin *)calloc(band_slots, sizeof(PeriodMargin));
+    const size_t band_count = (size_t)((draws != 0ull) ? (draws * lattice.rank) : 1ull);
+    PeriodMargin *const bands = (PeriodMargin *)calloc(band_count, sizeof(PeriodMargin));
     unsigned long long band_counts[ENGINE_ARRAY_RANK] = {0ull};
     int ok = PERIOD_CHECK((histogram != NULL) && (agreement != NULL) && (shuffled_agreement != NULL) && (bands != NULL),
                           request, error, ENGINE_ERROR_RESOURCE) &&
@@ -438,7 +438,7 @@ extern "C" long period_record_read(const PeriodRequest *request)
     if (ok != 0)
     {
         const unsigned long long needed = (voxels + PERIOD_THREADS - 1ull) / PERIOD_THREADS;
-        // the block count is held below the record machine's block limit, far below 2^31
+        // the block count is bounded below the record machine's block limit, far below 2^31
         const unsigned int blocks = (unsigned int)((needed < 4096ull) ? needed : 4096ull);
         period_histogram_kernel<<<blocks, PERIOD_THREADS>>>(request->device_lanes, voxels, resident->histogram);
         ok = PERIOD_STATUS_CHECK(cudaGetLastError(), resident->histogram, error) &&

@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // deploy_tar.c: the tar stream a machine's files go in, written to a file: each file a ustar header and its bytes,
-// with its mode and the time given, a path longer than a ustar header holds in a PAX header before it, and two blocks
+// with its mode and the time given, a path longer than a ustar header fits in a PAX header before it, and two blocks
 // of zeros after the last
 #include "../command_line/cells.h"
 #include "cellularum_laboro/cellularum_laboro.h"
@@ -76,42 +76,42 @@ static int tar_put(const char *path, const void *bytes, unsigned long long size)
 // the PAX header that names a long path, written before its file
 static int tar_pax(const char *path, const char *name, unsigned long long time)
 {
-    char record[CLI_PATH_LONGEST + 16u];
-    CliLine record_line = {record, sizeof(record), 0ull};
-    cli_line_text(&record_line, " path=");
-    cli_line_text(&record_line, name);
-    cli_line_character(&record_line, '\n');
+    char record[CLI_PATH_MAX_LEN + 16u];
+    VerbaLinea record_line = {record, sizeof(record), 0ull};
+    mmgr_line_put(&record_line, " path=");
+    mmgr_line_put(&record_line, name);
+    mmgr_line_ch(&record_line, '\n');
     // the record's length counts the digits that write it
     unsigned long long length = record_line.at;
     for (;;)
     {
         char digits[24];
-        CliLine digits_line = {digits, sizeof(digits), 0ull};
-        cli_line_decimal(&digits_line, length, 1u);
+        VerbaLinea digits_line = {digits, sizeof(digits), 0ull};
+        mmgr_line_decimal(&digits_line, length, 1u);
         if (digits_line.at + record_line.at == length)
         {
             break;
         }
         length = digits_line.at + record_line.at;
     }
-    char pax[CLI_PATH_LONGEST + 48u];
-    CliLine pax_line = {pax, sizeof(pax), 0ull};
-    cli_line_decimal(&pax_line, length, 1u);
-    cli_line_counted(&pax_line, record, record_line.at);
+    char pax[CLI_PATH_MAX_LEN + 48u];
+    VerbaLinea pax_line = {pax, sizeof(pax), 0ull};
+    mmgr_line_decimal(&pax_line, length, 1u);
+    mmgr_line_put_n(&pax_line, record, record_line.at);
     unsigned char header[CLI_DEPLOY_BLOCK];
     tar_header(header, "PaxHeader", pax_line.at, 0644u, time, 'x');
-    return cli_line_fits(&pax_line) && tar_put(path, header, sizeof(header)) && tar_put(path, pax, pax_line.at);
+    return mmgr_line_ok(&pax_line) && tar_put(path, header, sizeof(header)) && tar_put(path, pax, pax_line.at);
 }
 
-// whether `name` is among the paths of `kept`, sorted by their bytes
-static int tar_kept(const char *name, const CliDeployPair *kept, unsigned int count)
+// whether `name` is among the paths of `preserved`, sorted by their bytes
+static int tar_is_preserved(const char *name, const CliDeployPair *preserved, unsigned int count)
 {
     unsigned int low = 0u;
     unsigned int high = count;
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        const int order = cli_deploy_order(kept[middle].path, name);
+        const int order = cli_deploy_order(preserved[middle].path, name);
         if (order == 0)
         {
             return 1;
@@ -122,33 +122,33 @@ static int tar_kept(const char *name, const CliDeployPair *kept, unsigned int co
     return 0;
 }
 
-int cli_deploy_tar(const char *path, const CliDeployPair *kept, unsigned int kept_count, unsigned long long time,
-                   CliLine *said)
+int cli_deploy_tar(const char *path, const CliDeployPair *preserved, unsigned int preserved_count,
+                   unsigned long long time, VerbaLinea *err_msg)
 {
     const CliDeployRun *const run = &g_cli_deploy;
     if (!cli_file_appended(path, "", 0ull, 1))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be written");
         return 0;
     }
     for (unsigned int index = 0u; index < run->sents; index += 1u)
     {
         const CliDeploySent *const file = &run->sent[index];
-        if (tar_kept(file->path, kept, kept_count))
+        if (tar_is_preserved(file->path, preserved, preserved_count))
         {
             continue;
         }
-        char full[(2u * CLI_PATH_LONGEST) + 2u];
-        CliLine full_line = {full, sizeof(full), 0ull};
+        char full[(2u * CLI_PATH_MAX_LEN) + 2u];
+        VerbaLinea full_line = {full, sizeof(full), 0ull};
         cli_deploy_full(index, &full_line);
-        cli_line_closed(&full_line);
+        mmgr_line_finish(&full_line);
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_held(full, &size);
+        const unsigned char *const bytes = cli_file_read(full, &size);
         if (bytes == NULL)
         {
-            cli_line_text(said, full);
-            cli_line_text(said, ": it could not be read");
+            mmgr_line_put(err_msg, full);
+            mmgr_line_put(err_msg, ": it could not be read");
             return 0;
         }
         unsigned char header[CLI_DEPLOY_BLOCK];
@@ -159,15 +159,15 @@ int cli_deploy_tar(const char *path, const CliDeployPair *kept, unsigned int kep
         cli_file_let_go(bytes, size);
         if (!written)
         {
-            cli_line_text(said, path);
-            cli_line_text(said, ": it could not be written");
+            mmgr_line_put(err_msg, path);
+            mmgr_line_put(err_msg, ": it could not be written");
             return 0;
         }
     }
     if (!cli_file_appended(path, s_zeros, sizeof(s_zeros), 0))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, ": it could not be written");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, ": it could not be written");
         return 0;
     }
     return 1;

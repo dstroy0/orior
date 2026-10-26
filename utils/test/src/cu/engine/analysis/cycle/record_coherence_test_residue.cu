@@ -5,7 +5,7 @@
 
 // A table step reads the low index_bits of its source's magnitude: -1 and 2^w - 1 read rows 1 and 2^b - 1. The
 // table does not commute with the wrap. Indexed by the two's complement residue x mod 2^b, which the and with 2^b - 1
-// gives never negative, it reads only bits the wrap to w >= b keeps and factors through every such projection: the
+// gives never negative, it reads only bits the wrap to w >= b retains and factors through every such projection: the
 // residue table on x and on x wrapped to w read one row on every lane. A wrap narrower than b drops bits the residue
 // reads and must break it on some lane, and the magnitude table must break at every width b or wider. Every read must
 // equal the row the host's own two's complement word names.
@@ -20,7 +20,7 @@ static void coherence_residue_table(CoherenceResults *results)
     CoherenceProgram *const program = (CoherenceProgram *)calloc(1u, sizeof(CoherenceProgram));
     if ((atoms == NULL) || (values == NULL) || (program == NULL))
     {
-        coherence_check(results, 0, "the residue table lanes are held");
+        coherence_check(results, 0, "the residue table lanes are allocated");
         free(atoms);
         free(values);
         free(program);
@@ -46,7 +46,7 @@ static void coherence_residue_table(CoherenceResults *results)
     const unsigned int residue = coherence_append(program, ENGINE_RECORD_AND, value, mask);
     coherence_output(program, coherence_append(program, ENGINE_RECORD_TABLE, residue, 0u));
     coherence_output(program, coherence_append(program, ENGINE_RECORD_TABLE, value, 0u));
-    // for each width, the residue table on x wrapped, then the magnitude table on x wrapped where the wrap keeps b
+    // for each width, the residue table on x wrapped, then the magnitude table on x wrapped where the wrap retains b
     // bits: a table's index_bits may not pass its source's width
     unsigned int residue_output[COHERENCE_TEST_WIDTHS];
     unsigned int magnitude_output[COHERENCE_TEST_WIDTHS];
@@ -100,17 +100,17 @@ static void coherence_residue_table(CoherenceResults *results)
             const long long residue_row = coherence_take(record, &steps[program->outputs[0]]);
             const long long magnitude_row = coherence_take(record, &steps[program->outputs[1]]);
             reckonings += 2ull;
-            // a signed word's two's complement: the cast keeps its bits, and the mask keeps the residue's
+            // a signed word's two's complement: the cast preserves its bits, and the mask retains the residue's
             reckoned += (residue_row == (long long)values[(unsigned long long)native & row_mask]) ? 1ull : 0ull;
             reckoned += (magnitude_row == (long long)values[coherence_magnitude(native) & row_mask]) ? 1ull : 0ull;
             for (unsigned int width = 0u; width < COHERENCE_TEST_WIDTHS; width += 1u)
             {
                 const unsigned int bits = s_coherence_widths[width];
-                // x as the wrap to w leaves it, from the host's word; the cast keeps the bits
-                const long long kept = coherence_reduce((unsigned long long)native, bits);
+                // x as the wrap to w leaves it, from the host's word; the cast preserves the bits
+                const long long reduced = coherence_reduce((unsigned long long)native, bits);
                 const long long wrapped_row = coherence_take(record, &steps[program->outputs[residue_output[width]]]);
                 reckonings += 1ull;
-                reckoned += (wrapped_row == (long long)values[(unsigned long long)kept & row_mask]) ? 1ull : 0ull;
+                reckoned += (wrapped_row == (long long)values[(unsigned long long)reduced & row_mask]) ? 1ull : 0ull;
                 if (bits >= COHERENCE_TEST_TABLE_BITS)
                 {
                     const long long wrapped_magnitude =
@@ -119,7 +119,7 @@ static void coherence_residue_table(CoherenceResults *results)
                     factored += (wrapped_row == residue_row) ? 1ull : 0ull;
                     reckonings += 1ull;
                     reckoned +=
-                        (wrapped_magnitude == (long long)values[coherence_magnitude(kept) & row_mask]) ? 1ull : 0ull;
+                        (wrapped_magnitude == (long long)values[coherence_magnitude(reduced) & row_mask]) ? 1ull : 0ull;
                     magnitude_breaks[width] += (wrapped_magnitude != magnitude_row) ? 1u : 0u;
                 }
                 else
@@ -133,38 +133,38 @@ static void coherence_residue_table(CoherenceResults *results)
         coherence_free(&loaded);
     }
     unsigned int magnitude_fewest = lanes;
-    scriptura_text(&results->line, "  residue table: 2^");
-    scriptura_decimal(&results->line, COHERENCE_TEST_TABLE_BITS, 1u);
-    scriptura_text(&results->line, " rows on x = f0 f1 + f2; indexed by x mod 2^");
-    scriptura_decimal(&results->line, COHERENCE_TEST_TABLE_BITS, 1u);
-    scriptura_text(&results->line, " it reads x's row after the wrap to");
+    mmgr_line_put(&results->line, "  residue table: 2^");
+    mmgr_line_decimal(&results->line, COHERENCE_TEST_TABLE_BITS, 1u);
+    mmgr_line_put(&results->line, " rows on x = f0 f1 + f2; indexed by x mod 2^");
+    mmgr_line_decimal(&results->line, COHERENCE_TEST_TABLE_BITS, 1u);
+    mmgr_line_put(&results->line, " it reads x's row after the wrap to");
     for (unsigned int width = 0u; width < COHERENCE_TEST_WIDTHS; width += 1u)
     {
         if (s_coherence_widths[width] >= COHERENCE_TEST_TABLE_BITS)
         {
-            scriptura_character(&results->line, ' ');
-            scriptura_decimal(&results->line, s_coherence_widths[width], 1u);
+            mmgr_line_ch(&results->line, ' ');
+            mmgr_line_decimal(&results->line, s_coherence_widths[width], 1u);
             magnitude_fewest =
                 (magnitude_breaks[width] < magnitude_fewest) ? magnitude_breaks[width] : magnitude_fewest;
         }
     }
-    scriptura_text(&results->line, " bits on ");
-    scriptura_decimal(&results->line, factored, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, factorings, 1u);
-    scriptura_text(&results->line, " lane-widths and breaks narrower on ");
-    scriptura_decimal(&results->line, narrow_breaks, 1u);
-    scriptura_text(&results->line, "; indexed by |x| mod 2^");
-    scriptura_decimal(&results->line, COHERENCE_TEST_TABLE_BITS, 1u);
-    scriptura_text(&results->line, " it breaks at each of those widths on at least ");
-    scriptura_decimal(&results->line, magnitude_fewest, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes; ");
-    scriptura_decimal(&results->line, reckoned, 1u);
-    scriptura_text(&results->line, " of ");
-    scriptura_decimal(&results->line, reckonings, 1u);
-    scriptura_text(&results->line, " reads are the host's row\n");
+    mmgr_line_put(&results->line, " bits on ");
+    mmgr_line_decimal(&results->line, factored, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, factorings, 1u);
+    mmgr_line_put(&results->line, " lane-widths and breaks narrower on ");
+    mmgr_line_decimal(&results->line, narrow_breaks, 1u);
+    mmgr_line_put(&results->line, "; indexed by |x| mod 2^");
+    mmgr_line_decimal(&results->line, COHERENCE_TEST_TABLE_BITS, 1u);
+    mmgr_line_put(&results->line, " it breaks at each of those widths on at least ");
+    mmgr_line_decimal(&results->line, magnitude_fewest, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes; ");
+    mmgr_line_decimal(&results->line, reckoned, 1u);
+    mmgr_line_put(&results->line, " of ");
+    mmgr_line_decimal(&results->line, reckonings, 1u);
+    mmgr_line_put(&results->line, " reads are the host's row\n");
     coherence_check(results, loads != 0, "the residue table program encodes, lays out and loads");
     coherence_check(results, words, "the residue table program's device records equal the host's word for word");
     coherence_check(results, (reckonings != 0ull) && (reckoned == reckonings),
@@ -207,12 +207,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     coherence_check(&results, (admitted != 0) && (job.failures == 0ull),
                     "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record coherence test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record coherence test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

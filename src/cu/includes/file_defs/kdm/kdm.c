@@ -80,30 +80,30 @@ int kdm_section_written_by(KdmFile *file, const char *part, const char *const *l
 {
     const unsigned int tail = kdm_tail_at(file);
     Who there;
-    const int there_held = (tail < file->lines) && kfile_lines_who_at(file, tail, &there);
+    const int there_has_who = (tail < file->lines) && kfile_lines_who_at(file, tail, &there);
     Who own;
-    int own_held = 0;
-    const int tail_own = (tail < file->lines) && kfile_lines_who_line(file->line[tail], &own, &own_held);
+    int own_has_who = 0;
+    const int tail_own = (tail < file->lines) && kfile_lines_who_line(file->line[tail], &own, &own_has_who);
     KdmFile written = {NULL, 0u, 0u};
     char first[KDM_OPERATOR + 8u];
     snprintf(first, sizeof(first), "kdm %s", part);
     const int headed = (file->lines != 0u) && (strncmp(file->line[0], "kdm ", 4u) == 0);
-    int held = kfile_lines_line_add(&written, headed ? file->line[0] : first) &&
-               ((count == 0u) || (kfile_lines_put_by(&written, written.lines, lines, count, who) != 0u));
-    if (held && (tail < file->lines) && !tail_own &&
-        (!there_held || (there.source != who.source) || (there.line != who.line) || (there.program != who.program)))
+    int ok = kfile_lines_line_add(&written, headed ? file->line[0] : first) &&
+             ((count == 0u) || (kfile_lines_put_by(&written, written.lines, lines, count, who) != 0u));
+    if (ok && (tail < file->lines) && !tail_own &&
+        (!there_has_who || (there.source != who.source) || (there.line != who.line) || (there.program != who.program)))
     {
         char code[WHO_CODE_LETTERS + 1u];
         char whose[WHO_CODE_LETTERS + 8u];
         who_code(there, code, sizeof(code));
-        snprintf(whose, sizeof(whose), "who %s", there_held ? code : "-");
-        held = kfile_lines_line_add(&written, whose);
+        snprintf(whose, sizeof(whose), "who %s", there_has_who ? code : "-");
+        ok = kfile_lines_line_add(&written, whose);
     }
-    for (unsigned int at = tail; held && (at < file->lines); at += 1u)
+    for (unsigned int at = tail; ok && (at < file->lines); at += 1u)
     {
-        held = kfile_lines_line_add(&written, file->line[at]);
+        ok = kfile_lines_line_add(&written, file->line[at]);
     }
-    if (!held)
+    if (!ok)
     {
         kfile_lines_free(&written);
         return 0;
@@ -155,7 +155,7 @@ int kdm_pipes_replaced_by(KdmFile *file, const char *const *comment, unsigned in
     {
         kfile_lines_line_drop(file, file->lines - 1u);
     }
-    const int held = (count == 0u) || (kfile_lines_put_by(file, file->lines, put, putting, who) != 0u);
+    const int ok = (count == 0u) || (kfile_lines_put_by(file, file->lines, put, putting, who) != 0u);
     free(put);
-    return held;
+    return ok;
 }

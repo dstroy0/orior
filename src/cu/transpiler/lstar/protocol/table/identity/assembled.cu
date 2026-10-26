@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // assembled.cu: texts of the vendor's language put into code by the vendor's writer, a member of the run started
-// through the interface; the identity holds no machine file and assembles nothing itself
+// through the interface; the identity contains no machine file and assembles nothing itself
 #include "identity_internal.h"
 
 // the blob the texts are handed in and the blob the vendor's writer hands their code back in
@@ -9,7 +9,7 @@
 
 #define ASSEMBLE_CODE "assembled.bin"
 
-// what the vendor's writer said while it assembled, kept for the reason where it did not
+// what the vendor's writer reported while it assembled, recorded for the reason where it did not
 static char s_writer_output[4096];
 
 std::vector<std::vector<unsigned char>> vendor_assembled(const char *machine, const std::vector<std::string> &texts)

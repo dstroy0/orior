@@ -93,7 +93,7 @@ static void order_omega(OrderResults *results)
     OrderStack stack = {(EngineRecordStep *)calloc(count, sizeof(EngineRecordStep)), 0u};
     if ((shuffled == NULL) || (forward == NULL) || (inverse == NULL) || (halt == NULL) || (stack.steps == NULL))
     {
-        order_check(results, 0, "the omega run is held");
+        order_check(results, 0, "the omega run is allocated");
         free(shuffled);
         free(forward);
         free(inverse);
@@ -242,39 +242,39 @@ static void order_omega(OrderResults *results)
             seen_true += ((up_flag == 0ll) || (meets != 0u)) ? 1u : 0u;
         }
     }
-    scriptura_text(&results->line, "  omega: pi of 2^16 states, a run of ");
-    scriptura_decimal(&results->line, ORDER_TEST_RUN, 1u);
-    scriptura_text(&results->line, " floors, ");
-    scriptura_decimal(&results->line, stack.count, 1u);
-    scriptura_text(&results->line, " steps, files ");
-    scriptura_decimal(&results->line, upward.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " and ");
-    scriptura_decimal(&results->line, downward.layout.file_limbs, 1u);
-    scriptura_text(&results->line, " limbs, ");
-    scriptura_decimal(&results->line, lanes, 1u);
-    scriptura_text(&results->line, " lanes\n    every window equals the CPU's walk on ");
-    scriptura_decimal(&results->line, windows_ok, 1u);
-    scriptura_text(&results->line, "; every orbit returns to its start on ");
-    scriptura_decimal(&results->line, cycles_closed, 1u);
-    scriptura_text(&results->line, "\n    decided (the cycle fits the run): ");
-    scriptura_decimal(&results->line, decided, 1u);
-    scriptura_text(&results->line, ", +omega is the cycle's or and meeting on ");
-    scriptura_decimal(&results->line, decided_ok, 1u);
-    scriptura_text(&results->line, ", -omega equals +omega on ");
-    scriptura_decimal(&results->line, mirrored, 1u);
-    scriptura_text(&results->line, "; halts ");
-    scriptura_decimal(&results->line, decided_halting, 1u);
-    scriptura_text(&results->line, ", runs forever ");
-    scriptura_decimal(&results->line, decided - decided_halting, 1u);
-    scriptura_text(&results->line, "\n    open (the cycle is longer than the run): ");
-    scriptura_decimal(&results->line, open, 1u);
-    scriptura_text(&results->line, ", a halt seen on ");
-    scriptura_decimal(&results->line, open_seen, 1u);
-    scriptura_text(&results->line, ", clear and halting past the run on ");
-    scriptura_decimal(&results->line, open_later, 1u);
-    scriptura_text(&results->line, ", clear and never halting on ");
-    scriptura_decimal(&results->line, open - open_seen - open_later, 1u);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, "  omega: pi of 2^16 states, a run of ");
+    mmgr_line_decimal(&results->line, ORDER_TEST_RUN, 1u);
+    mmgr_line_put(&results->line, " floors, ");
+    mmgr_line_decimal(&results->line, stack.count, 1u);
+    mmgr_line_put(&results->line, " steps, files ");
+    mmgr_line_decimal(&results->line, upward.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " and ");
+    mmgr_line_decimal(&results->line, downward.layout.file_limbs, 1u);
+    mmgr_line_put(&results->line, " limbs, ");
+    mmgr_line_decimal(&results->line, lanes, 1u);
+    mmgr_line_put(&results->line, " lanes\n    every window equals the CPU's walk on ");
+    mmgr_line_decimal(&results->line, windows_ok, 1u);
+    mmgr_line_put(&results->line, "; every orbit returns to its start on ");
+    mmgr_line_decimal(&results->line, cycles_closed, 1u);
+    mmgr_line_put(&results->line, "\n    decided (the cycle fits the run): ");
+    mmgr_line_decimal(&results->line, decided, 1u);
+    mmgr_line_put(&results->line, ", +omega is the cycle's or and meeting on ");
+    mmgr_line_decimal(&results->line, decided_ok, 1u);
+    mmgr_line_put(&results->line, ", -omega equals +omega on ");
+    mmgr_line_decimal(&results->line, mirrored, 1u);
+    mmgr_line_put(&results->line, "; halts ");
+    mmgr_line_decimal(&results->line, decided_halting, 1u);
+    mmgr_line_put(&results->line, ", runs forever ");
+    mmgr_line_decimal(&results->line, decided - decided_halting, 1u);
+    mmgr_line_put(&results->line, "\n    open (the cycle is longer than the run): ");
+    mmgr_line_decimal(&results->line, open, 1u);
+    mmgr_line_put(&results->line, ", a halt seen on ");
+    mmgr_line_decimal(&results->line, open_seen, 1u);
+    mmgr_line_put(&results->line, ", clear and halting past the run on ");
+    mmgr_line_decimal(&results->line, open_later, 1u);
+    mmgr_line_put(&results->line, ", clear and never halting on ");
+    mmgr_line_decimal(&results->line, open - open_seen - open_later, 1u);
+    mmgr_line_ch(&results->line, '\n');
     order_check(results, ran, "the window runs on the host and the device, both ways");
     order_check(results,
                 (ran != 0) && (memcmp(up_host, up_device, (size_t)lanes * up_limbs * sizeof(unsigned int)) == 0) &&
@@ -287,7 +287,7 @@ static void order_omega(OrderResults *results)
                 "flag is set exactly when the cycle meets the halt set");
     order_check(results, mirrored == decided, "where the cycle fits the run, -omega equals +omega");
     order_check(results, (decided_halting != 0u) && (decided_halting != decided),
-                "the decided lanes hold both answers, halting and running forever");
+                "the decided lanes contain both answers, halting and running forever");
     order_check(results, seen_true == open, "past the run, every set flag is a halt on the lane's own cycle");
     free(atoms);
     free(up_host);
@@ -328,12 +328,12 @@ int main(int count, char **arguments)
     sim_flush(&job);
     order_check(&results, (admitted != 0) && (job.failures == 0ull),
                 "tessera: the device's daemon admits the test's job and it releases");
-    scriptura_text(&results.line, "  record order test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  record order test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

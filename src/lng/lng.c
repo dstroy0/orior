@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lng.c: the three language tables read, and each held against the tree and against the others (lng.h)
+// lng.c: the three language tables read, and each checked against the tree and against the others (lng.h)
 #include "lng.h"
 
 #include "../cu/includes/file_defs/klang/klang.h"
@@ -46,7 +46,7 @@ static const char *const s_punctuators[LNG_PUNCTUATORS] = {
 static const char *const s_family[LNG_FAMILY][2] = {{"==0", "=="}, {"!=0", "!="}, {"<0", "<"}, {"-x", "-"}, {"~x", "~"},
                                                     {"!x", "!"},   {"?:", "?"},   {"*p", "*"}, {"*p=", "="}};
 
-// the operators a form is held to
+// the operators a form is checked against
 #define LNG_CHECKED 21u
 static const char *const s_checked[LNG_CHECKED] = {"+",  "-", "*",  "/",  "%",  "&",  "|",  "^", "<<", ">>", "<",
                                                    "<=", ">", ">=", "==", "!=", "&&", "||", "~", "!",  "?"};
@@ -61,7 +61,7 @@ static const char *const s_hol_as_c[LNG_HOL_AS_C] = {"f()", "(T)", "&&",    "||"
                                                      "//",  "T x", "const", "atomic()", "{}",   "==0",    "!=0",
                                                      "<0",  "?:",  "if",    "switch",   "goto", "return", "label:"};
 
-// the tables whose transitions are held across
+// the tables whose transitions are compared across
 static const char s_matrix[] = "the state-transition matrix";
 static const char s_high_energy_matrix[] = "the high-energy transition matrix";
 
@@ -71,7 +71,7 @@ static const char s_space[] = " \t\n\r\v\f\x1c\x1d\x1e\x1f";
 // the letters of a name the rulesets write
 static const char s_lower[] = "abcdefghijklmnopqrstuvwxyz_";
 
-// a set of texts for each key of a set: the set of `key` holds the keys, and `set` the set of each at its place
+// a set of texts for each key of a set: the set of `key` contains the keys, and `set` the set of each at its place
 typedef struct
 {
     LngList key;
@@ -80,7 +80,7 @@ typedef struct
 } LngSets;
 
 // `pointer`, or the run ended where the system gave no memory
-static void *lng_held(void *pointer)
+static void *lng_allocated(void *pointer)
 {
     if (pointer == NULL)
     {
@@ -93,7 +93,7 @@ static void *lng_held(void *pointer)
 // `length` letters at `text` copied into an allocation of their own, ended
 static char *lng_copy(const char *text, size_t length)
 {
-    char *const copy = (char *)lng_held(malloc(length + 1u));
+    char *const copy = (char *)lng_allocated(malloc(length + 1u));
     memcpy(copy, text, length);
     copy[length] = '\0';
     return copy;
@@ -107,7 +107,7 @@ static void lng_list_room(LngList *list)
         return;
     }
     const unsigned int room = (list->room == 0u) ? 16u : (list->room * 2u);
-    list->text = (char **)lng_held(realloc(list->text, (size_t)room * sizeof(char *)));
+    list->text = (char **)lng_allocated(realloc(list->text, (size_t)room * sizeof(char *)));
     list->room = room;
 }
 
@@ -136,11 +136,11 @@ void lng_list_printed(LngList *list, const char *format, ...)
     if (length < 0)
     {
         va_end(values);
-        lng_held(NULL);
+        lng_allocated(NULL);
         return;
     }
     // a printed length is not negative
-    char *const text = (char *)lng_held(malloc((size_t)length + 1u));
+    char *const text = (char *)lng_allocated(malloc((size_t)length + 1u));
     vsnprintf(text, (size_t)length + 1u, format, values);
     va_end(values);
     lng_list_room(list);
@@ -177,7 +177,7 @@ void lng_set_add(LngList *set, const char *text)
     }
 }
 
-// 1 where `set` holds `text`
+// 1 where `set` contains `text`
 static int lng_set_has(const LngList *set, const char *text)
 {
     unsigned int at = 0u;
@@ -217,7 +217,7 @@ char *lng_list_joined(const LngList *list, const char *between)
     {
         length += strlen(list->text[at]) + ((at == 0u) ? 0u : gap);
     }
-    char *const joined = (char *)lng_held(malloc(length + 1u));
+    char *const joined = (char *)lng_allocated(malloc(length + 1u));
     size_t written = 0u;
     for (unsigned int at = 0u; at < list->count; at += 1u)
     {
@@ -270,7 +270,7 @@ void lng_map_free(LngMap *map)
     lng_list_free(&map->value);
 }
 
-// the set `sets` holds for `key`, a set of none put for it where it holds none
+// the set `sets` stores for `key`, a set of none put for it where it contains none
 static LngList *lng_sets_at(LngSets *sets, const char *key)
 {
     unsigned int at = 0u;
@@ -281,7 +281,7 @@ static LngList *lng_sets_at(LngSets *sets, const char *key)
     if (sets->key.count == sets->room)
     {
         sets->room = (sets->room == 0u) ? 16u : (sets->room * 2u);
-        sets->set = (LngList *)lng_held(realloc(sets->set, (size_t)sets->room * sizeof(LngList)));
+        sets->set = (LngList *)lng_allocated(realloc(sets->set, (size_t)sets->room * sizeof(LngList)));
     }
     memmove(&sets->set[at + 1u], &sets->set[at], (size_t)(sets->key.count - at) * sizeof(LngList));
     memset(&sets->set[at], 0, sizeof(LngList));
@@ -289,14 +289,14 @@ static LngList *lng_sets_at(LngSets *sets, const char *key)
     return &sets->set[at];
 }
 
-// the set `sets` holds for `key`, or NULL where it holds none
+// the set `sets` stores for `key`, or NULL where it contains none
 static const LngList *lng_sets_get(const LngSets *sets, const char *key)
 {
     unsigned int at = 0u;
     return lng_set_find(&sets->key, key, &at) ? &sets->set[at] : NULL;
 }
 
-// everything `sets` holds let go
+// everything `sets` contains let go
 static void lng_sets_free(LngSets *sets)
 {
     for (unsigned int at = 0u; at < sets->key.count; at += 1u)
@@ -320,7 +320,7 @@ static int lng_one_of(const char *text, const char *const *texts, unsigned int c
     return found;
 }
 
-// the cells of `line`, each a text between two tabs, kept after `cells`
+// the cells of `line`, each a text between two tabs, appended to `cells`
 static void lng_cells(const char *line, LngList *cells)
 {
     const char *at = line;
@@ -336,7 +336,7 @@ static void lng_cells(const char *line, LngList *cells)
     }
 }
 
-// the words of `length` letters at `text` apart by space, kept after `tokens`
+// the words of `length` letters at `text` apart by space, appended to `tokens`
 static void lng_tokens(const char *text, size_t length, LngList *tokens)
 {
     size_t at = 0u;
@@ -383,7 +383,7 @@ void lng_table_read(const char *const *line, unsigned int lines, LngTable *table
         lng_cells(line[at], &cells);
         if (cells.count != table->head.count)
         {
-            lng_list_printed(defects, "line %u holds %u cells where the head holds %u", number, cells.count,
+            lng_list_printed(defects, "line %u has %u cells where the head has %u", number, cells.count,
                              table->head.count);
             lng_list_free(&cells);
             continue;
@@ -391,7 +391,7 @@ void lng_table_read(const char *const *line, unsigned int lines, LngTable *table
         if (table->rows == table->room)
         {
             table->room = (table->room == 0u) ? 64u : (table->room * 2u);
-            table->row = (char ***)lng_held(realloc(table->row, (size_t)table->room * sizeof(char **)));
+            table->row = (char ***)lng_allocated(realloc(table->row, (size_t)table->room * sizeof(char **)));
         }
         table->row[table->rows] = cells.text;
         table->rows += 1u;
@@ -488,14 +488,14 @@ void lng_table_check(const LngTable *table, const char *const *kinds, unsigned i
     {
         const char *const word = lng_cell_or_none(table, row, "word");
         const char *const kind = lng_cell_or_none(table, row, "kind");
-        LngList held = {NULL, 0u, 0u};
-        lng_list_printed(&held, "%s\x1f%s", word, kind);
-        if (lng_set_has(&seen, held.text[0]))
+        LngList found = {NULL, 0u, 0u};
+        lng_list_printed(&found, "%s\x1f%s", word, kind);
+        if (lng_set_has(&seen, found.text[0]))
         {
-            lng_list_printed(defects, "%s %s is held twice", word, kind);
+            lng_list_printed(defects, "%s %s is listed twice", word, kind);
         }
-        lng_set_add(&seen, held.text[0]);
-        lng_list_free(&held);
+        lng_set_add(&seen, found.text[0]);
+        lng_list_free(&found);
         if (!lng_one_of(kind, kinds, count))
         {
             lng_list_printed(defects, "%s has the kind %s, which no table names", word, kind);
@@ -507,16 +507,16 @@ void lng_table_check(const LngTable *table, const char *const *kinds, unsigned i
             if (!lng_one_of(column, s_not_operators, LNG_NOT_OPERATORS) && (cell[0] != '\0') &&
                 (strcmp(cell, "1") != 0))
             {
-                lng_list_printed(defects, "%s holds %s under %s, where an operator cell holds 1 or nothing", word, cell,
+                lng_list_printed(defects, "%s has %s under %s, where an operator cell has 1 or nothing", word, cell,
                                  column);
             }
         }
     }
     lng_list_free(&seen);
 
-    // each word whose row holds a complement, in the order the words first stand, and the last row of it
+    // each word whose row has a complement, in the order the words first stand, and the last row of it
     LngList order = {NULL, 0u, 0u};
-    unsigned int *const last = (unsigned int *)lng_held(calloc((size_t)table->rows + 1u, sizeof(unsigned int)));
+    unsigned int *const last = (unsigned int *)lng_allocated(calloc((size_t)table->rows + 1u, sizeof(unsigned int)));
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
         if (lng_cell_or_none(table, row, "complement")[0] == '\0')
@@ -554,7 +554,7 @@ void lng_table_check(const LngTable *table, const char *const *kinds, unsigned i
         LngList negated = {NULL, 0u, 0u};
         lng_operators_of(table, last[at], &mine);
         lng_operators_of(table, last[other], &theirs);
-        // an operator with no complement negates to nothing any set holds
+        // an operator with no complement negates to nothing any set contains
         int negates = 1;
         for (unsigned int one = 0u; one < mine.count; one += 1u)
         {
@@ -598,7 +598,7 @@ typedef struct
 
 void lng_table_findings(const LngTable *table, LngList *findings)
 {
-    LngGroup *const group = (LngGroup *)lng_held(calloc((size_t)table->rows + 1u, sizeof(LngGroup)));
+    LngGroup *const group = (LngGroup *)lng_allocated(calloc((size_t)table->rows + 1u, sizeof(LngGroup)));
     unsigned int groups = 0u;
     for (unsigned int row = 0u; row < table->rows; row += 1u)
     {
@@ -633,7 +633,7 @@ void lng_table_findings(const LngTable *table, LngList *findings)
         lng_list_free(&key);
         lng_list_add(&group[at].words, lng_cell_or_none(table, row, "word"));
     }
-    // the groups in the order of their words, a group whose words stand with another's kept after it
+    // the groups in the order of their words, a group whose words stand with another's placed after it
     for (unsigned int at = 1u; at < groups; at += 1u)
     {
         unsigned int place = at;
@@ -746,7 +746,7 @@ static int lng_braced_at(const char *text, size_t at, size_t *name, size_t *leng
     return 1;
 }
 
-// the names a token of a construct body uses, kept after `names`: the token where it is a name, or each name in
+// the names a token of a construct body uses, appended to `names`: the token where it is a name, or each name in
 // braces in it
 static void lng_braced_names(const char *token, LngList *names)
 {
@@ -774,7 +774,7 @@ static void lng_braced_names(const char *token, LngList *names)
     }
 }
 
-// every word of `name` put in `used` at `where`, where it holds none
+// every word of `name` put in `used` at `where`, where it contains none
 static void lng_use(LngMap *used, const char *name, const char *where)
 {
     LngList words = {NULL, 0u, 0u};
@@ -850,14 +850,14 @@ void lng_ruleset_words(const char *path, const char *const *line, unsigned int l
 }
 
 // Each line of `file` cut by the blocks of the ruleset's language (klang.h): what of the line stands inside a block's
-// text kept after `inside`, and what stands outside every block, its opener and its closer among the block, kept after
-// `outside`, a text each for every line, "" where the line holds none
+// text appended to `inside`, and what stands outside every block, its opener and its closer among the block, appended
+// to `outside`, a text each for every line, "" where the line contains none
 static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *outside)
 {
     // the lines joined, each ended by a newline, and where each starts
     static char s_text_bytes[QRY_WRITER_RING_BYTES / 2ull];
     size_t length = 0u;
-    size_t *const starts = (size_t *)lng_held(calloc((size_t)file->lines + 1u, sizeof(size_t)));
+    size_t *const starts = (size_t *)lng_allocated(calloc((size_t)file->lines + 1u, sizeof(size_t)));
     for (unsigned int at = 0u; at < file->lines; at += 1u)
     {
         starts[at] = length;
@@ -868,7 +868,7 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     }
     if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_text_bytes), .at = length}))
     {
-        lng_held(NULL);
+        lng_allocated(NULL);
     }
     KlangBlock *block = NULL;
     unsigned int blocks = 0u;
@@ -876,7 +876,7 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     KlangBlock found;
     while (klang_block_find(s_text_bytes, length, from, "krs", &found))
     {
-        block = (KlangBlock *)lng_held(realloc(block, ((size_t)blocks + 1u) * sizeof(KlangBlock)));
+        block = (KlangBlock *)lng_allocated(realloc(block, ((size_t)blocks + 1u) * sizeof(KlangBlock)));
         block[blocks] = found;
         blocks += 1u;
         from = found.closed;
@@ -927,7 +927,7 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
         if (!verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_in_bytes), .at = in}) ||
             !verba_finis.ok(&(VerbaFinisCfg){.cap = sizeof(s_out_bytes), .at = out}))
         {
-            lng_held(NULL);
+            lng_allocated(NULL);
         }
         lng_list_insert(inside, inside->count, s_in_bytes, in);
         lng_list_insert(outside, outside->count, s_out_bytes, out);
@@ -936,14 +936,14 @@ static void lng_block_parts(const KfileLines *file, LngList *inside, LngList *ou
     free(starts);
 }
 
-void lng_ruleset_lines(const KfileLines *file, LngList *kept)
+void lng_ruleset_lines(const KfileLines *file, LngList *lines)
 {
     LngList outside = {NULL, 0u, 0u};
-    lng_block_parts(file, kept, &outside);
+    lng_block_parts(file, lines, &outside);
     lng_list_free(&outside);
 }
 
-// every match of "folds the <fold> put for <put>" in `line`, the two kept after `folds` and `puts`
+// every match of "folds the <fold> put for <put>" in `line`, the two appended to `folds` and `puts`
 static void lng_folds(const char *line, LngList *folds, LngList *puts)
 {
     static const char s_folds[] = "folds the ";
@@ -978,8 +978,8 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
     {
         const char *const line = outside.text[at];
         Who who;
-        int held = 0;
-        if ((line[0] == '\0') || (line[0] == '#') || kfile_lines_who_line(line, &who, &held))
+        int named_found = 0;
+        if ((line[0] == '\0') || (line[0] == '#') || kfile_lines_who_line(line, &who, &named_found))
         {
             continue;
         }
@@ -1008,12 +1008,12 @@ void lng_ksc_words(const char *path, const KfileLines *file, LngMap *used)
             lng_folds(line, &folds, &puts);
             // the fourth word, its colon cut
             const size_t named = strlen(tokens.text[3]);
-            size_t kept = named;
-            while ((kept != 0u) && (tokens.text[3][kept - 1u] == ':'))
+            size_t count = named;
+            while ((count != 0u) && (tokens.text[3][count - 1u] == ':'))
             {
-                kept -= 1u;
+                count -= 1u;
             }
-            tokens.text[3][kept] = '\0';
+            tokens.text[3][count] = '\0';
             for (unsigned int fold = 0u; fold < folds.count; fold += 1u)
             {
                 lng_use(used, folds.text[fold], where.text[0]);
@@ -1057,7 +1057,7 @@ static void lng_ticked(const char *text, size_t length, LngList *set)
 }
 
 // the part of the `length` letters at `text` from past its `field`th `mark` to the next, or to their end: 1 with its
-// start and length, or 0 where they hold fewer marks
+// start and length, or 0 where they contain fewer marks
 static int lng_field(const char *text, size_t length, char mark, unsigned int field, size_t *start, size_t *size)
 {
     size_t at = 0u;
@@ -1097,15 +1097,15 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
     {
         const char *const newline = memchr(line, '\n', (size_t)(doings - line));
         const size_t length = (newline != NULL) ? (size_t)(newline - line) : (size_t)(doings - line);
-        char *const held = lng_copy(line, length);
+        char *const line_copy = lng_copy(line, length);
         size_t start = 0u;
         size_t size = 0u;
-        if ((strncmp(held, "| ", 2u) == 0) && (strstr(held, "---") == NULL) && (strstr(held, "| kind |") == NULL) &&
-            lng_field(held, length, '|', 2u, &start, &size))
+        if ((strncmp(line_copy, "| ", 2u) == 0) && (strstr(line_copy, "---") == NULL) &&
+            (strstr(line_copy, "| kind |") == NULL) && lng_field(line_copy, length, '|', 2u, &start, &size))
         {
-            lng_ticked(&held[start], size, thing);
+            lng_ticked(&line_copy[start], size, thing);
         }
-        free(held);
+        free(line_copy);
         line += length + 1u;
     }
     if (gluings > doings)
@@ -1123,18 +1123,18 @@ void lng_gnascor_lists(const char *text, LngList *thing, LngList *doing, LngList
 }
 
 // the operator a punctuator writes: a compound assignment its operator, every other punctuator itself
-static void lng_punctuator_kept(const char *punctuator, LngList *found)
+static void lng_punctuator_added(const char *punctuator, LngList *found)
 {
     const size_t length = strlen(punctuator);
     static const char *const s_compared[4] = {"<=", ">=", "==", "!="};
     if ((length > 1u) && (punctuator[length - 1u] == '=') && !lng_one_of(punctuator, s_compared, 4u))
     {
-        size_t kept = length;
-        while ((kept != 0u) && (punctuator[kept - 1u] == '='))
+        size_t length_used = length;
+        while ((length_used != 0u) && (punctuator[length_used - 1u] == '='))
         {
-            kept -= 1u;
+            length_used -= 1u;
         }
-        char *const operator_text = lng_copy(punctuator, kept);
+        char *const operator_text = lng_copy(punctuator, length_used);
         lng_set_add(found, operator_text);
         free(operator_text);
         return;
@@ -1188,7 +1188,7 @@ void lng_c_operators(const char *text, LngList *operators)
     const size_t length = strlen(text);
     // the text with each written newline a newline, then each note from `//` to the next backslash cut, then each
     // literal and name a space
-    char *const unescaped = (char *)lng_held(malloc(length + 1u));
+    char *const unescaped = (char *)lng_allocated(malloc(length + 1u));
     size_t size = 0u;
     for (size_t at = 0u; at < length; at += 1u)
     {
@@ -1198,8 +1198,8 @@ void lng_c_operators(const char *text, LngList *operators)
         at += newline ? 1u : 0u;
     }
     unescaped[size] = '\0';
-    char *const unnoted = (char *)lng_held(malloc(size + 1u));
-    size_t kept = 0u;
+    char *const unnoted = (char *)lng_allocated(malloc(size + 1u));
+    size_t copied = 0u;
     for (size_t at = 0u; at < size;)
     {
         if ((unescaped[at] == '/') && (unescaped[at + 1u] == '/'))
@@ -1207,14 +1207,14 @@ void lng_c_operators(const char *text, LngList *operators)
             at += 2u + strcspn(&unescaped[at + 2u], "\\");
             continue;
         }
-        unnoted[kept] = unescaped[at];
-        kept += 1u;
+        unnoted[copied] = unescaped[at];
+        copied += 1u;
         at += 1u;
     }
-    unnoted[kept] = '\0';
-    char *const stripped = (char *)lng_held(malloc(kept + 1u));
+    unnoted[copied] = '\0';
+    char *const stripped = (char *)lng_allocated(malloc(copied + 1u));
     size_t left = 0u;
-    for (size_t at = 0u; at < kept;)
+    for (size_t at = 0u; at < copied;)
     {
         const size_t literal = lng_literal_at(&unnoted[at]);
         stripped[left] = (literal != 0u) ? ' ' : unnoted[at];
@@ -1242,7 +1242,7 @@ void lng_c_operators(const char *text, LngList *operators)
             at += 1u;
             continue;
         }
-        lng_punctuator_kept(s_punctuators[which], &found);
+        lng_punctuator_added(s_punctuators[which], &found);
         at += strlen(s_punctuators[which]);
     }
     for (unsigned int at = 0u; at < found.count; at += 1u)
@@ -1396,7 +1396,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
         const unsigned int other = lng_row_of(transpiler, crossed, "thing");
         if (!lng_set_has(&words, crossed))
         {
-            lng_list_printed(defects, "%s crosses to %s, which the transpiler holds no word for", word, crossed);
+            lng_list_printed(defects, "%s crosses to %s, which the transpiler has no word for", word, crossed);
         }
         else if ((other != transpiler->rows) && ((strcmp(lng_cell_or_none(transpiler, other, "bits"), bits) != 0) ||
                                                  (strcmp(lng_cell_or_none(transpiler, other, "signed"), sign) != 0)))
@@ -1407,7 +1407,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
                              lng_cell_or_none(transpiler, other, "signed"));
         }
     }
-    LngList held = {NULL, 0u, 0u};
+    LngList found = {NULL, 0u, 0u};
     for (unsigned int row = 0u; row < hol->rows; row += 1u)
     {
         if (strcmp(lng_cell_or_none(hol, row, "kind"), "type") == 0)
@@ -1415,7 +1415,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
             LngList width = {NULL, 0u, 0u};
             lng_list_printed(&width, "%s\x1f%s", lng_cell_or_none(hol, row, "bits"),
                              lng_cell_or_none(hol, row, "signed"));
-            lng_set_add(&held, width.text[0]);
+            lng_set_add(&found, width.text[0]);
             lng_list_free(&width);
         }
     }
@@ -1426,7 +1426,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
         const char *const sign = lng_cell_or_none(transpiler, row, "signed");
         LngList width = {NULL, 0u, 0u};
         lng_list_printed(&width, "%s\x1f%s", bits, sign);
-        if (lng_one_of(bits, s_hol_bits, LNG_HOL_BITS) && !lng_set_has(&held, width.text[0]))
+        if (lng_one_of(bits, s_hol_bits, LNG_HOL_BITS) && !lng_set_has(&found, width.text[0]))
         {
             lng_list_printed(findings, "the transpiler's %s is %s bits signed %s, and no high order type is",
                              things.text[at], bits, sign);
@@ -1498,7 +1498,7 @@ void lng_hol_check(const LngTable *transpiler, const LngTable *hol, LngList *def
     lng_sets_free(&transpiler_means);
     lng_sets_free(&ops);
     lng_list_free(&hol_means);
-    lng_list_free(&held);
+    lng_list_free(&found);
     lng_list_free(&words);
     lng_list_free(&things);
 }
@@ -1585,7 +1585,7 @@ void lng_asm_check(const LngTable *table, LngList *defects, LngList *findings)
     }
 
     // each transition, its table, its past and its present apart by \x1f, which stands before every letter a cell
-    // holds: the keys stand in the order of the three; and the mnemonics each table names it by
+    // contains: the keys stand in the order of the three; and the mnemonics each table names it by
     LngSets named = {{NULL, 0u, 0u}, NULL, 0u};
     LngSets doing = {{NULL, 0u, 0u}, NULL, 0u};
     for (unsigned int row = 0u; row < table->rows; row += 1u)
@@ -1721,11 +1721,11 @@ typedef struct
     LngList *found;
 } LngWalk;
 
-// the entry `name` of the folder `folder`, a folder where `folder_held`: each file under it the walk seeks put in its
+// the entry `name` of the folder `folder`, a folder where `folder_exists`: each file under it the walk seeks put in its
 // set where it is a folder, or it where it is a file that ends in a suffix the walk seeks, as a path from the folder
 // the run stands in
 static void lng_files_under(const char *folder, const LngWalk *walk);
-static void lng_entry_taken(const char *folder, const char *name, int folder_held, const LngWalk *walk)
+static void lng_entry_taken(const char *folder, const char *name, int folder_exists, const LngWalk *walk)
 {
     if ((strcmp(name, ".") == 0) || (strcmp(name, "..") == 0))
     {
@@ -1734,11 +1734,11 @@ static void lng_entry_taken(const char *folder, const char *name, int folder_hel
     LngList path = {NULL, 0u, 0u};
     lng_list_printed(&path, "%s/%s", folder, name);
     const size_t length = strlen(name);
-    if (folder_held)
+    if (folder_exists)
     {
         lng_files_under(path.text[0], walk);
     }
-    for (unsigned int at = 0u; !folder_held && (at < walk->count); at += 1u)
+    for (unsigned int at = 0u; !folder_exists && (at < walk->count); at += 1u)
     {
         const size_t ending = strlen(walk->suffixes[at]);
         if ((length >= ending) && (strcmp(&name[length - ending], walk->suffixes[at]) == 0))
@@ -1754,7 +1754,7 @@ static void lng_files_under(const char *folder, const LngWalk *walk)
 {
     LngList pattern = {NULL, 0u, 0u};
     lng_list_printed(&pattern, "%s/*", folder);
-    // the entries asked for in large reads, without the short names nothing here reads
+    // the entries requested in large reads, without the short names nothing here reads
     WIN32_FIND_DATAA entry;
     const HANDLE search = FindFirstFileExA(pattern.text[0], FindExInfoBasic, &entry, FindExSearchNameMatch, NULL,
                                            FIND_FIRST_EX_LARGE_FETCH);
@@ -1783,10 +1783,10 @@ static void lng_files_under(const char *folder, const LngWalk *walk)
     {
         LngList path = {NULL, 0u, 0u};
         lng_list_printed(&path, "%s/%s", folder, entry->d_name);
-        struct stat held;
-        const int folder_held = (stat(path.text[0], &held) == 0) && S_ISDIR(held.st_mode);
+        struct stat status;
+        const int folder_exists = (stat(path.text[0], &status) == 0) && S_ISDIR(status.st_mode);
         lng_list_free(&path);
-        lng_entry_taken(folder, entry->d_name, folder_held, walk);
+        lng_entry_taken(folder, entry->d_name, folder_exists, walk);
     }
     closedir(directory);
 }

@@ -35,16 +35,16 @@ static int floor_fit(const unsigned long long *count, const unsigned long long *
     return ok;
 }
 
-static void floor_print_fit(ScripturaLine *line, const char *name, const FloorLine *fit)
+static void floor_print_fit(VerbaLinea *line, const char *name, const FloorLine *fit)
 {
-    scriptura_text(line, name);
-    scriptura_text(line, "slope ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, "slope ");
     sim_ratio_print(line, &fit->slope, &fit->denominator, 4u);
-    scriptura_text(line, ", intercept ");
+    mmgr_line_put(line, ", intercept ");
     sim_ratio_print(line, &fit->intercept, &fit->denominator, 3u);
-    scriptura_text(line, ", over ");
-    scriptura_decimal(line, fit->samples, 1u);
-    scriptura_text(line, " pairs\n");
+    mmgr_line_put(line, ", over ");
+    mmgr_line_decimal(line, fit->samples, 1u);
+    mmgr_line_put(line, " pairs\n");
 }
 
 static int floor_bins_open(SimResults *results, FloorBins *bins)
@@ -82,11 +82,11 @@ static void floor_bins_close(FloorBins *bins)
 }
 
 // The truth route's spreads, D^2 times a bound on its intercept's and its slope's variance (Derived). A pair whose
-// signal holds at S reads y = d^2, d = X' - X, X = offset + pattern + g Poisson(S) + read, the read
+// signal is constant at S reads y = d^2, d = X' - X, X = offset + pattern + g Poisson(S) + read, the read
 // Binomial(4 r^2, 1/2) - 2 r^2 with kappa4 = -r^2 / 2. The pattern cancels in d, sigma^2 = g^2 S + r^2,
 // k4 = kappa4(X) = g^4 S - r^2 / 2, kappa4(d) = 2 k4, and var(y) = v = 8 sigma^4 + 2 k4. Two pairs sharing a frame
 // have cov(y, y') = c = mu4 - sigma^4 = 2 sigma^4 + k4 >= 0, and pairs sharing none are independent. The bound
-// assumes pairs correlate only within one voxel's run of held pairs, and a run holds one level: each run carries one
+// assumes pairs correlate only within one voxel's run of static pairs, and a run has one level: each run carries one
 // weight, and a run of m pairs has variance m v + 2 (m - 1) c = m (v + 2 c) - 2 c <= m u, with
 // u = v + 2 c = 12 sigma^4 + 4 k4 = 12 (g^2 S + r^2)^2 + 4 g^4 S - 2 r^2. With N, A and B the counts' sums of 1, S
 // and S^2 and D = N B - A^2, the fit's intercept is a D = sum y (B - A S) and its slope b D = sum y (N S - A), and
@@ -163,7 +163,7 @@ static int floor_spreads(const unsigned long long *count, const SimCamera *camer
     return ok;
 }
 
-static void floor_print_correlation(ScripturaLine *line, const char *name, unsigned long long product,
+static void floor_print_correlation(VerbaLinea *line, const char *name, unsigned long long product,
                                     unsigned long long here)
 {
     // the product total was accumulated modulo 2^64 and its magnitude is below 2^63
@@ -172,14 +172,14 @@ static void floor_print_correlation(ScripturaLine *line, const char *name, unsig
     OriorExactInteger bottom;
     sim_exact_signed(&top, signed_product);
     sim_exact_unsigned(&bottom, here);
-    scriptura_text(line, name);
-    scriptura_text(line, "sum d d' ");
-    scriptura_signed(line, signed_product);
-    scriptura_text(line, ", over sum d^2 ");
-    scriptura_decimal(line, here, 1u);
-    scriptura_text(line, ": ");
+    mmgr_line_put(line, name);
+    mmgr_line_put(line, "sum d d' ");
+    mmgr_line_decimal_signed(line, signed_product);
+    mmgr_line_put(line, ", over sum d^2 ");
+    mmgr_line_decimal(line, here, 1u);
+    mmgr_line_put(line, ": ");
     sim_ratio_print(line, &top, &bottom, 4u);
-    scriptura_character(line, '\n');
+    mmgr_line_ch(line, '\n');
 }
 
 static void floor_transfer(SimResults *results, const SimScene *scene, const SimCamera *camera,
@@ -207,7 +207,7 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
     }
     unsigned long long *const count = (unsigned long long *)malloc(FLOOR_LEVELS * sizeof(unsigned long long));
     unsigned long long *const total = (unsigned long long *)malloc(FLOOR_LEVELS * sizeof(unsigned long long));
-    // the truth route's counts, kept for its spreads after the other routes reuse count
+    // the truth route's counts, retained for its spreads after the other routes reuse count
     unsigned long long *const truth_count = (unsigned long long *)malloc(FLOOR_LEVELS * sizeof(unsigned long long));
     ok = ok && (count != NULL) && (total != NULL) && (truth_count != NULL);
     FloorLine fit[FLOOR_ROUTES];
@@ -229,27 +229,27 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
     sim_check(results, spanned, "the truth route's levels span two: D = N B - A^2 > 0");
     if (ok)
     {
-        ScripturaLine *const line = &results->line;
-        scriptura_text(line, "  the photon transfer curve, frame differences d = I(t+1) - I(t) over ");
-        scriptura_decimal(line, coherence.pairs, 1u);
-        scriptura_text(line, " pairs; planted gain ");
-        scriptura_decimal(line, camera->gain, 1u);
-        scriptura_text(line, ", read variance ");
-        scriptura_decimal(line, camera->read_square, 1u);
-        scriptura_character(line, '\n');
-        scriptura_text(line, "    truth, motion removed exactly (signal unchanged), d^2 on S: law slope 2 g^2 = ");
-        scriptura_decimal(line, 2ull * camera->gain * camera->gain, 1u);
-        scriptura_text(line, ", intercept 2 r^2 = ");
-        scriptura_decimal(line, 2ull * camera->read_square, 1u);
-        scriptura_character(line, '\n');
+        VerbaLinea *const line = &results->line;
+        mmgr_line_put(line, "  the photon transfer curve, frame differences d = I(t+1) - I(t) over ");
+        mmgr_line_decimal(line, coherence.pairs, 1u);
+        mmgr_line_put(line, " pairs; planted gain ");
+        mmgr_line_decimal(line, camera->gain, 1u);
+        mmgr_line_put(line, ", read variance ");
+        mmgr_line_decimal(line, camera->read_square, 1u);
+        mmgr_line_ch(line, '\n');
+        mmgr_line_put(line, "    truth, motion removed exactly (signal unchanged), d^2 on S: law slope 2 g^2 = ");
+        mmgr_line_decimal(line, 2ull * camera->gain * camera->gain, 1u);
+        mmgr_line_put(line, ", intercept 2 r^2 = ");
+        mmgr_line_decimal(line, 2ull * camera->read_square, 1u);
+        mmgr_line_ch(line, '\n');
         floor_print_fit(line, "      ", &fit[0]);
-        scriptura_text(line, "    data only, every pair, d^2 on I(t) + I(t+1): law slope g = ");
-        scriptura_decimal(line, camera->gain, 1u);
-        scriptura_character(line, '\n');
+        mmgr_line_put(line, "    data only, every pair, d^2 on I(t) + I(t+1): law slope g = ");
+        mmgr_line_decimal(line, camera->gain, 1u);
+        mmgr_line_ch(line, '\n');
         floor_print_fit(line, "      ", &fit[1]);
-        scriptura_text(line, "    data only, neighbor coherence, (d - d')^2 on the four lanes' sum: law slope g = ");
-        scriptura_decimal(line, camera->gain, 1u);
-        scriptura_character(line, '\n');
+        mmgr_line_put(line, "    data only, neighbor coherence, (d - d')^2 on the four lanes' sum: law slope g = ");
+        mmgr_line_decimal(line, camera->gain, 1u);
+        mmgr_line_ch(line, '\n');
         floor_print_fit(line, "      ", &fit[2]);
 
         // the truth route's standard errors squared, SE^2 = V / D^2, from floor_spreads' bounds (Derived); every check
@@ -262,11 +262,11 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
         sim_check(results, spread, "the truth route's spreads were formed");
         if (spread != 0)
         {
-            scriptura_text(line, "      SE^2 bounded above: intercept ");
+            mmgr_line_put(line, "      SE^2 bounded above: intercept ");
             sim_ratio_print(line, &intercept_spread, &denominator_square, 8u);
-            scriptura_text(line, ", slope ");
+            mmgr_line_put(line, ", slope ");
             sim_ratio_print(line, &slope_spread, &denominator_square, 8u);
-            scriptura_character(line, '\n');
+            mmgr_line_ch(line, '\n');
         }
         OriorExactInteger law;
         OriorExactInteger scaled;
@@ -291,7 +291,7 @@ static void floor_transfer(SimResults *results, const SimScene *scene, const Sim
              (orior_exact_compare(&apart_square, &bound) >= 0);
         sim_check(results, ok, "the truth route's intercept stands at least 5 SE_a above 0: the read noise is there");
 
-        scriptura_text(line, "  the neighbor coherence of d (x against x + 1)\n");
+        mmgr_line_put(line, "  the neighbor coherence of d (x against x + 1)\n");
         floor_print_correlation(line, "    truth-static pairs: ", coherence.neighbor_product, coherence.square_here);
         floor_print_correlation(line, "    every pair:         ", coherence.neighbor_product_all,
                                 coherence.square_here_all);
@@ -326,7 +326,7 @@ int main(void)
     char line_buffer[SIM_LINE_CAPACITY];
     SimResults results;
     sim_open(&results, line_buffer);
-    scriptura_text(&results.line, "  the noise floor, measured on the camera law with the answer known\n");
+    mmgr_line_put(&results.line, "  the noise floor, measured on the camera law with the answer known\n");
 
     FloorStream *const streams = (FloorStream *)malloc(FLOOR_STREAMS * sizeof(FloorStream));
     unsigned int *const lengths = (unsigned int *)malloc(FLOOR_STREAMS * sizeof(unsigned int));

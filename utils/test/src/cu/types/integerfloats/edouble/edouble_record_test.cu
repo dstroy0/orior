@@ -2,26 +2,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // Proves edouble_record, the exact double on the device: one program over random lanes, a = m_a 2^e_a and
 // b = m_b 2^e_b with signed 12-bit mantissas and signed 4-bit exponents, run on the device and on the host, the two
-// agreeing word for word, and every output held against the exact integers of value 2^64, read on the host:
+// agreeing word for word, and every output checked against the exact integers of value 2^64, read on the host:
 // - a b and a + b equal to the exact product and sum;
 // - [a > b] equal to the exact order;
 // - the cut of a b to 8 bits: its ends below and above a b, one unit apart or equal where a b is whole there, each at
 //   most 2^8;
 // - a / b to 10 bits past b: its ends below and above a / b, one unit apart or equal where the quotient is whole.
-// A second program holds a = [m_a, m_a + d_a] 2^e_a and b likewise, b holding no 0:
-// - the held sum's ends the exact sums, and the held product's the least and the most corner;
-// - the held cut the lower end's floor and the upper end's ceiling, each at most 2^8;
-// - every corner quotient inside the held quotient, each end within one unit of one;
-// - held above, a's lower end over b's upper.
-// A third program holds its exponents as constants the program knows: the held sum in six steps, and reads at a known
-// exponent, lifted exact or the floor and ceiling below it, and at a lane's own exponent. A fourth holds balls: the sum
-// and product exact, the read holding the product's ball within a unit of each exponent, every corner quotient inside
-// the quotient's ball and the flag 0 where the divisor's ball holds 0, and the order.
-// The test is one job on the device's tessera daemon.
+// A second program takes intervals a = [m_a, m_a + d_a] 2^e_a and b likewise, b containing no 0:
+// - the interval sum's ends the exact sums, and the interval product's the least and the most corner;
+// - the interval cut the lower end's floor and the upper end's ceiling, each at most 2^8;
+// - every corner quotient inside the interval quotient, each end within one unit of one;
+// - interval above, a's lower end over b's upper.
+// A third program takes its exponents as constants the program knows: the interval sum in six steps, and reads at a
+// known exponent, lifted exact or the floor and ceiling below it, and at a lane's own exponent. A fourth takes balls:
+// the sum and product exact, the read containing the product's ball within a unit of each exponent, every corner
+// quotient inside the quotient's ball and the flag 0 where the divisor's ball contains 0, and the order. The test is
+// one job on the device's tessera daemon.
 #include "../../../../../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../../../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../../../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../../../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "../../../../../../../src/cu/includes/types/integerfloats/edouble/edouble_record.h"
 #include "../../../../../../../src/cu/includes/types/integers/exact_integer.h"
 #include "sim.h"
@@ -53,7 +55,7 @@ typedef struct
 {
     unsigned long long checks;
     unsigned long long failures;
-    ScripturaLine line;
+    VerbaLinea line;
 } EdoubleResults;
 
 static unsigned long long s_edouble_state = 0xED0B1E5EEDC0FFEEull;
@@ -72,18 +74,18 @@ static void edouble_check(EdoubleResults *results, int passed, const char *what)
     if (passed == 0)
     {
         results->failures += 1ull;
-        scriptura_text(&results->line, "  FAILED: ");
+        mmgr_line_put(&results->line, "  FAILED: ");
     }
     else
     {
-        scriptura_text(&results->line, "  ok     ");
+        mmgr_line_put(&results->line, "  ok     ");
     }
-    scriptura_text(&results->line, what);
-    scriptura_character(&results->line, '\n');
+    mmgr_line_put(&results->line, what);
+    mmgr_line_ch(&results->line, '\n');
 }
 
-// `bits` of two's complement at bit `offset` of `words`, as an exact integer; an output wider than the integer holds
-// reads as sign 2, which equals no worked-out value
+// `bits` of two's complement at bit `offset` of `words`, as an exact integer; an output wider than the integer
+// represents reads as sign 2, which equals no worked-out value
 static void edouble_at(const unsigned int *words, unsigned int offset, unsigned int bits, OriorExactInteger *value)
 {
     orior_exact_zero(value);
@@ -194,31 +196,31 @@ static int edouble_run(EdoubleResults *results, ExactRecordProgram *program, con
     EngineError error;
     if (edouble_load(program, outputs, output_count, &loaded, &error) == 0)
     {
-        scriptura_text(&results->line, "  the program did not load: module ");
-        scriptura_decimal(&results->line, (unsigned long long)error.module, 1u);
-        scriptura_text(&results->line, ", site ");
-        scriptura_decimal(&results->line, (unsigned long long)error.site, 1u);
+        mmgr_line_put(&results->line, "  the program did not load: module ");
+        mmgr_line_decimal(&results->line, (unsigned long long)error.module, 1u);
+        mmgr_line_put(&results->line, ", site ");
+        mmgr_line_decimal(&results->line, (unsigned long long)error.site, 1u);
         const char *const at = (const char *)error.evacaddr;
         const char *const first_step = (const char *)program->steps;
         const char *const first_output = (const char *)outputs;
         if ((at >= first_step) && (at < first_step + ((size_t)program->count * sizeof(EngineRecordStep))))
         {
             const unsigned int step = (unsigned int)((size_t)(at - first_step) / sizeof(EngineRecordStep));
-            scriptura_text(&results->line, ", step ");
-            scriptura_decimal(&results->line, (unsigned long long)step, 1u);
-            scriptura_text(&results->line, " operation ");
-            scriptura_decimal(&results->line, (unsigned long long)program->steps[step].operation, 1u);
-            scriptura_text(&results->line, " left ");
-            scriptura_decimal(&results->line, (unsigned long long)program->steps[step].left, 1u);
-            scriptura_text(&results->line, " right ");
-            scriptura_decimal(&results->line, (unsigned long long)program->steps[step].right, 1u);
+            mmgr_line_put(&results->line, ", step ");
+            mmgr_line_decimal(&results->line, (unsigned long long)step, 1u);
+            mmgr_line_put(&results->line, " operation ");
+            mmgr_line_decimal(&results->line, (unsigned long long)program->steps[step].operation, 1u);
+            mmgr_line_put(&results->line, " left ");
+            mmgr_line_decimal(&results->line, (unsigned long long)program->steps[step].left, 1u);
+            mmgr_line_put(&results->line, " right ");
+            mmgr_line_decimal(&results->line, (unsigned long long)program->steps[step].right, 1u);
         }
         else if ((at >= first_output) && (at < first_output + ((size_t)output_count * sizeof(unsigned int))))
         {
-            scriptura_text(&results->line, ", output ");
-            scriptura_decimal(&results->line, (unsigned long long)((size_t)(at - first_output) / sizeof(unsigned int)), 1u);
+            mmgr_line_put(&results->line, ", output ");
+            mmgr_line_decimal(&results->line, (unsigned long long)((size_t)(at - first_output) / sizeof(unsigned int)), 1u);
         }
-        scriptura_character(&results->line, '\n');
+        mmgr_line_ch(&results->line, '\n');
         return 0;
     }
     const unsigned int out_limbs = loaded.layout.out_limbs;
@@ -293,35 +295,46 @@ static int edouble_order_product(const OriorExactInteger *m, long long e, const 
     return ok;
 }
 
-// held values: a = [m_a, m_a + d_a] 2^e_a and b likewise, m signed 10 bits, d 3 bits and e signed 3 bits, b holding
-// no 0; their held sum, product, cut, quotient and order
-static void edouble_held_case(EdoubleResults *results)
+// interval values: a = [m_a, m_a + d_a] 2^e_a and b likewise, m signed 10 bits, d 3 bits and e signed 3 bits, b
+// containing no 0; their interval sum, product, cut, quotient and order
+static void edouble_interval_case(EdoubleResults *results)
 {
     ExactRecordProgram program;
     exact_record_open(&program);
-    EdoubleRecordHeld held[2];
+    EdoubleRecordInterval intervals[2];
     for (unsigned int side = 0u; side < 2u; side += 1u)
     {
         const unsigned int m = exact_record_read(&program, exact_record_field(&program, 10u), 0u);
         const unsigned int d = exact_record_read_unsigned(&program, exact_record_field(&program, 3u), 0u);
         const unsigned int e = exact_record_read(&program, exact_record_field(&program, 3u), 0u);
-        held[side].down = m;
-        held[side].up = exact_record_sum(&program, m, d);
-        held[side].exponent = e;
+        intervals[side].down = m;
+        intervals[side].up = exact_record_sum(&program, m, d);
+        intervals[side].exponent = e;
     }
-    const EdoubleRecordHeld sum = edouble_record_held_sum(&program, held[0], held[1], 3u);
-    const EdoubleRecordHeld product = edouble_record_held_product(&program, held[0], held[1]);
-    const EdoubleRecordHeld cut = edouble_record_held_cut(&program, product, 8u, 5u);
-    const EdoubleRecordHeld quotient = edouble_record_held_quotient(&program, held[0], held[1], 10u, 11u);
-    const unsigned int outputs[13] = {sum.down,      sum.up,        sum.exponent, product.down,  product.up,
-                                      product.exponent, cut.down,   cut.up,       cut.exponent,  quotient.down,
-                                      quotient.up,   quotient.exponent, edouble_record_held_above(&program, held[0], held[1], 3u)};
+    const EdoubleRecordInterval sum = edouble_record_interval_sum(&program, intervals[0], intervals[1], 3u);
+    const EdoubleRecordInterval product = edouble_record_interval_product(&program, intervals[0], intervals[1]);
+    const EdoubleRecordInterval cut = edouble_record_interval_cut(&program, product, 8u, 5u);
+    const EdoubleRecordInterval quotient =
+        edouble_record_interval_quotient(&program, intervals[0], intervals[1], 10u, 11u);
+    const unsigned int outputs[13] = {sum.down,
+                                      sum.up,
+                                      sum.exponent,
+                                      product.down,
+                                      product.up,
+                                      product.exponent,
+                                      cut.down,
+                                      cut.up,
+                                      cut.exponent,
+                                      quotient.down,
+                                      quotient.up,
+                                      quotient.exponent,
+                                      edouble_record_interval_above(&program, intervals[0], intervals[1], 3u)};
     for (unsigned int lane = 0u; lane < EDOUBLE_TEST_LANES; lane += 1u)
     {
         unsigned int atom = edouble_random();
         const long long mb = edouble_field(atom, 16u, 10u);
         const long long db = (long long)((atom >> 26u) & 7u);
-        // b holding 0 is moved to [1, 1 + d]
+        // b containing 0 is moved to [1, 1 + d]
         if ((mb <= 0) && ((mb + db) >= 0))
         {
             atom = (atom & ~(0x3FFu << 16u)) | (1u << 16u);
@@ -329,7 +342,7 @@ static void edouble_held_case(EdoubleResults *results)
         s_atoms[lane] = atom;
     }
     const int same = edouble_run(results, &program, outputs, 13u);
-    edouble_check(results, same, "held: one program, device = host word for word over 4096 lanes");
+    edouble_check(results, same, "interval: one program, device = host word for word over 4096 lanes");
     unsigned int sums = 0u;
     unsigned int products = 0u;
     unsigned int cuts = 0u;
@@ -361,13 +374,13 @@ static void edouble_held_case(EdoubleResults *results)
         {
             OriorExactInteger want;
             OriorExactInteger got;
-            int held_sum = ok;
+            int sum_ok = ok;
             for (unsigned int end = 0u; end < 2u; end += 1u)
             {
-                held_sum = held_sum && (orior_exact_add(&lifted[0][end], &lifted[1][end], &want) == ORIOR_EXACT_OK) &&
-                           edouble_lifted(&read[end], edouble_word(&read[2]), &got) && orior_exact_equal(&want, &got);
+                sum_ok = sum_ok && (orior_exact_add(&lifted[0][end], &lifted[1][end], &want) == ORIOR_EXACT_OK) &&
+                         edouble_lifted(&read[end], edouble_word(&read[2]), &got) && orior_exact_equal(&want, &got);
             }
-            sums += (unsigned int)held_sum;
+            sums += (unsigned int)sum_ok;
         }
         // the product's ends: the least and the most corner, exact
         long long corner_least = 0;
@@ -387,11 +400,11 @@ static void edouble_held_case(EdoubleResults *results)
             const long long down = edouble_word(&read[6]);
             const long long up = edouble_word(&read[7]);
             const long long unit = (k >= 0 && k < 62) ? (1ll << k) : 0;
-            int held_cut = ok && (unit != 0);
-            held_cut = held_cut && (down * unit <= corner_least) && (corner_least < (down + 1) * unit);
-            held_cut = held_cut && ((up - 1) * unit < corner_most) && (corner_most <= up * unit);
-            held_cut = held_cut && (down >= -256) && (up <= 256);
-            cuts += (unsigned int)held_cut;
+            int cut_ok = ok && (unit != 0);
+            cut_ok = cut_ok && (down * unit <= corner_least) && (corner_least < (down + 1) * unit);
+            cut_ok = cut_ok && ((up - 1) * unit < corner_most) && (corner_most <= up * unit);
+            cut_ok = cut_ok && (down >= -256) && (up <= 256);
+            cuts += (unsigned int)cut_ok;
         }
         // the quotient: every corner a_i / b_j inside it, and its ends one unit in from them fall outside one corner
         {
@@ -400,13 +413,13 @@ static void edouble_held_case(EdoubleResults *results)
             OriorExactInteger moved[2];
             OriorExactInteger one;
             edouble_small(&one, 1);
-            int held_quotient = ok && (orior_exact_add(&read[9], &one, &moved[0]) == ORIOR_EXACT_OK) &&
-                                (orior_exact_subtract(&read[10], &one, &moved[1]) == ORIOR_EXACT_OK);
+            int quotient_ok = ok && (orior_exact_add(&read[9], &one, &moved[0]) == ORIOR_EXACT_OK) &&
+                              (orior_exact_subtract(&read[10], &one, &moved[1]) == ORIOR_EXACT_OK);
             ends[0] = read[9];
             ends[1] = read[10];
             int down_tight = 0;
             int up_tight = 0;
-            for (unsigned int corner = 0u; held_quotient && (corner < 4u); corner += 1u)
+            for (unsigned int corner = 0u; quotient_ok && (corner < 4u); corner += 1u)
             {
                 OriorExactInteger numerator;
                 OriorExactInteger divisor;
@@ -417,17 +430,17 @@ static void edouble_held_case(EdoubleResults *results)
                 int high = 0;
                 int low_moved = 0;
                 int high_moved = 0;
-                held_quotient = held_quotient &&
-                                edouble_order_product(&ends[0], at, &divisor, e[1], &numerator, e[0], &low) &&
-                                edouble_order_product(&ends[1], at, &divisor, e[1], &numerator, e[0], &high) &&
-                                edouble_order_product(&moved[0], at, &divisor, e[1], &numerator, e[0], &low_moved) &&
-                                edouble_order_product(&moved[1], at, &divisor, e[1], &numerator, e[0], &high_moved);
+                quotient_ok = quotient_ok &&
+                              edouble_order_product(&ends[0], at, &divisor, e[1], &numerator, e[0], &low) &&
+                              edouble_order_product(&ends[1], at, &divisor, e[1], &numerator, e[0], &high) &&
+                              edouble_order_product(&moved[0], at, &divisor, e[1], &numerator, e[0], &low_moved) &&
+                              edouble_order_product(&moved[1], at, &divisor, e[1], &numerator, e[0], &high_moved);
                 // with b's corner above 0, down b <= a <= up b; below 0 the order turns
-                held_quotient = held_quotient && (positive ? ((low <= 0) && (high >= 0)) : ((low >= 0) && (high <= 0)));
+                quotient_ok = quotient_ok && (positive ? ((low <= 0) && (high >= 0)) : ((low >= 0) && (high <= 0)));
                 down_tight = down_tight || (positive ? (low_moved > 0) : (low_moved < 0));
                 up_tight = up_tight || (positive ? (high_moved < 0) : (high_moved > 0));
             }
-            quotients += (unsigned int)(held_quotient && down_tight && up_tight);
+            quotients += (unsigned int)(quotient_ok && down_tight && up_tight);
         }
         // a above b: a's lower end above b's upper
         {
@@ -435,14 +448,15 @@ static void edouble_held_case(EdoubleResults *results)
             ordered += (unsigned int)(ok && (edouble_word(&read[12]) == (above ? 1ll : 0ll)));
         }
     }
-    edouble_check(results, (same != 0) && (sums == EDOUBLE_TEST_LANES), "held: the sum's ends are the exact sums");
+    edouble_check(results, (same != 0) && (sums == EDOUBLE_TEST_LANES), "interval: the sum's ends are the exact sums");
     edouble_check(results, (same != 0) && (products == EDOUBLE_TEST_LANES),
-                  "held: the product's ends are the least and the most corner, exact");
+                  "interval: the product's ends are the least and the most corner, exact");
     edouble_check(results, (same != 0) && (cuts == EDOUBLE_TEST_LANES),
-                  "held: the cut gives the lower end's floor and the upper end's ceiling, each at most 2^8");
+                  "interval: the cut gives the lower end's floor and the upper end's ceiling, each at most 2^8");
     edouble_check(results, (same != 0) && (quotients == EDOUBLE_TEST_LANES),
-                  "held: every corner quotient lies inside, and each end is within one unit of one");
-    edouble_check(results, (same != 0) && (ordered == EDOUBLE_TEST_LANES), "held: above is a's lower end over b's upper");
+                  "interval: every corner quotient lies inside, and each end is within one unit of one");
+    edouble_check(results, (same != 0) && (ordered == EDOUBLE_TEST_LANES),
+                  "interval: above is a's lower end over b's upper");
     exact_record_close(&program);
 }
 
@@ -459,35 +473,35 @@ static long long edouble_ceiling_by(long long n, unsigned int k)
 }
 
 // exponents the program knows: a = [m_a, m_a + d_a] 2^3 and b = [m_b, m_b + d_b] 2^-5, m signed 10 bits and d 3 bits;
-// the held sum lifts a's side by the known 2^8 in six steps, and the held product's and the sum's reads at the known
-// exponents 2 and -7; and the read at -2 of [m_a, m_a + d_a] 2^e with the lane's own e, signed 3 bits
+// the interval sum lifts a's side by the known 2^8 in six steps, and the interval product's and the sum's reads at the
+// known exponents 2 and -7; and the read at -2 of [m_a, m_a + d_a] 2^e with the lane's own e, signed 3 bits
 static void edouble_known_case(EdoubleResults *results)
 {
     ExactRecordProgram program;
     exact_record_open(&program);
     const long long exponents[2] = {3ll, -5ll};
-    EdoubleRecordHeld held[2];
+    EdoubleRecordInterval intervals[2];
     for (unsigned int side = 0u; side < 2u; side += 1u)
     {
         const unsigned int m = exact_record_read(&program, exact_record_field(&program, 10u), 0u);
         const unsigned int d = exact_record_read_unsigned(&program, exact_record_field(&program, 3u), 0u);
         const unsigned int e = exact_record_read(&program, exact_record_field(&program, 3u), 0u);
-        held[side].down = m;
-        held[side].up = exact_record_sum(&program, m, d);
-        held[side].exponent = (side == 0u) ? e : 0u;
+        intervals[side].down = m;
+        intervals[side].up = exact_record_sum(&program, m, d);
+        intervals[side].exponent = (side == 0u) ? e : 0u;
     }
-    const EdoubleRecordHeld lane_held = held[0];
+    const EdoubleRecordInterval lane_interval = intervals[0];
     for (unsigned int side = 0u; side < 2u; side += 1u)
     {
-        held[side].exponent = exact_record_signed(&program, exponents[side]);
+        intervals[side].exponent = exact_record_signed(&program, exponents[side]);
     }
     const unsigned int before = program.count;
-    const EdoubleRecordHeld sum = edouble_record_held_sum(&program, held[0], held[1], 4u);
+    const EdoubleRecordInterval sum = edouble_record_interval_sum(&program, intervals[0], intervals[1], 4u);
     const unsigned int sum_steps = program.count - before;
-    const EdoubleRecordHeld product = edouble_record_held_product(&program, held[0], held[1]);
-    const EdoubleRecordHeld lifted = edouble_record_held_at(&program, sum, -7ll, 24u, 0u);
-    const EdoubleRecordHeld cut = edouble_record_held_at(&program, product, 2ll, 20u, 0u);
-    const EdoubleRecordHeld lane = edouble_record_held_at(&program, lane_held, -2ll, 20u, 3u);
+    const EdoubleRecordInterval product = edouble_record_interval_product(&program, intervals[0], intervals[1]);
+    const EdoubleRecordInterval lifted = edouble_record_interval_at(&program, sum, -7ll, 24u, 0u);
+    const EdoubleRecordInterval cut = edouble_record_interval_at(&program, product, 2ll, 20u, 0u);
+    const EdoubleRecordInterval lane = edouble_record_interval_at(&program, lane_interval, -2ll, 20u, 3u);
     const unsigned int outputs[15] = {sum.down,    sum.up,     sum.exponent,    product.down, product.up,
                                       product.exponent, lifted.down, lifted.up, lifted.exponent, cut.down,
                                       cut.up,      cut.exponent, lane.down,     lane.up,      lane.exponent};
@@ -497,7 +511,8 @@ static void edouble_known_case(EdoubleResults *results)
     }
     const int same = edouble_run(results, &program, outputs, 15u);
     edouble_check(results, same, "known exponents: one program, device = host word for word over 4096 lanes");
-    edouble_check(results, sum_steps <= 6u, "known exponents: the held sum takes six steps, no lane-side exponent work");
+    edouble_check(results, sum_steps <= 6u,
+                  "known exponents: the interval sum takes six steps, no lane-side exponent work");
     unsigned int sums = 0u;
     unsigned int products = 0u;
     unsigned int lifts = 0u;
@@ -539,9 +554,9 @@ static void edouble_known_case(EdoubleResults *results)
                                 (edouble_word(&read[14]) == -2));
     }
     edouble_check(results, (same != 0) && (sums == EDOUBLE_TEST_LANES),
-                  "known exponents: the held sum's ends are the exact sums at 2^-5");
+                  "known exponents: the interval sum's ends are the exact sums at 2^-5");
     edouble_check(results, (same != 0) && (products == EDOUBLE_TEST_LANES),
-                  "known exponents: the held product's ends are the least and the most corner at 2^-2");
+                  "known exponents: the interval product's ends are the least and the most corner at 2^-2");
     edouble_check(results, (same != 0) && (lifts == EDOUBLE_TEST_LANES), "the sum read at 2^-7 is the sum, exact");
     edouble_check(results, (same != 0) && (cuts == EDOUBLE_TEST_LANES),
                   "the product read at 2^2 is the lower end's floor and the upper end's ceiling");
@@ -602,7 +617,7 @@ static OriorExactInteger edouble_size(OriorExactInteger a)
 // balls at exponents the program knows, their fields laid end to end: a = C_a 2^2 within R_a 2^-1 and b = C_b 2^-3
 // within R_b 2^-4, C signed 10 bits
 // and R 4 and 3 bits; their sum and product exact, the product read at 2^1 within 2^-2, the quotient at 2^-6 within
-// 2^-8, and the order, each held against the exact integers of value 2^64
+// 2^-8, and the order, each checked against the exact integers of value 2^64
 static void edouble_ball_case(EdoubleResults *results)
 {
     ExactRecordProgram program;
@@ -669,7 +684,7 @@ static void edouble_ball_case(EdoubleResults *results)
             products += (unsigned int)(orior_exact_equal(&product_center, &want_center) &&
                                        orior_exact_equal(&product_radius, &want_radius));
         }
-        // the read: it holds the product's ball, |c' - c| + r <= r', and r' <= r + 2^1 + 2^-2
+        // the read: it contains the product's ball, |c' - c| + r <= r', and r' <= r + 2^1 + 2^-2
         {
             const OriorExactInteger center = edouble_value(edouble_word(&read[8]), 1);
             const OriorExactInteger radius = edouble_value(edouble_word(&read[9]), -2);
@@ -678,15 +693,15 @@ static void edouble_ball_case(EdoubleResults *results)
             reads += (unsigned int)((orior_exact_compare(&reach, &radius) <= 0) && (orior_exact_compare(&radius, &most) <= 0) &&
                                     (edouble_word(&read[10]) == 1));
         }
-        // the quotient: where b's ball holds no 0, every corner x / y lies within r' of q, |x - q y| <= r' |y| at
-        // 2^128; where it holds 0, the flag is 0
+        // the quotient: where b's ball contains no 0, every corner x / y lies within r' of q, |x - q y| <= r' |y| at
+        // 2^128; where it contains 0, the flag is 0
         {
             const int clear = (2 * ((cb < 0) ? -cb : cb)) > rb;
             const OriorExactInteger q = edouble_value(edouble_word(&read[11]), -6);
             const OriorExactInteger r = edouble_value(edouble_word(&read[12]), -8);
             const OriorExactInteger unit = edouble_value(1, 0);
-            int held = clear ? (edouble_word(&read[13]) == 1) : (edouble_word(&read[13]) == 0);
-            for (unsigned int corner = 0u; clear && held && (corner < 4u); corner += 1u)
+            int inside = clear ? (edouble_word(&read[13]) == 1) : (edouble_word(&read[13]) == 0);
+            for (unsigned int corner = 0u; clear && inside && (corner < 4u); corner += 1u)
             {
                 const OriorExactInteger x =
                     (corner / 2u) ? edouble_plus(center_a, radius_a) : edouble_minus(center_a, radius_a);
@@ -694,9 +709,9 @@ static void edouble_ball_case(EdoubleResults *results)
                     (corner % 2u) ? edouble_plus(center_b, radius_b) : edouble_minus(center_b, radius_b);
                 const OriorExactInteger gap = edouble_size(edouble_minus(edouble_times(x, unit), edouble_times(q, y)));
                 const OriorExactInteger allowed = edouble_times(r, edouble_size(y));
-                held = held && (gap.sign != 2) && (allowed.sign != 2) && (orior_exact_compare(&gap, &allowed) <= 0);
+                inside = inside && (gap.sign != 2) && (allowed.sign != 2) && (orior_exact_compare(&gap, &allowed) <= 0);
             }
-            quotients += (unsigned int)held;
+            quotients += (unsigned int)inside;
             cleared += (unsigned int)clear;
         }
         // above: a's lower end over b's upper
@@ -709,9 +724,9 @@ static void edouble_ball_case(EdoubleResults *results)
     edouble_check(results, (same != 0) && (products == EDOUBLE_TEST_LANES),
                   "balls: the product is c_a c_b within |c_a| r_b + |c_b| r_a + r_a r_b, exact");
     edouble_check(results, (same != 0) && (reads == EDOUBLE_TEST_LANES),
-                  "balls: the read at 2^1 holds the product's ball within a unit of each exponent, and fits");
+                  "balls: the read at 2^1 contains the product's ball within a unit of each exponent, and fits");
     edouble_check(results, (same != 0) && (quotients == EDOUBLE_TEST_LANES) && (cleared > EDOUBLE_TEST_LANES / 2u),
-                  "balls: every corner quotient lies in the quotient's ball, flagged 0 where b's ball holds 0");
+                  "balls: every corner quotient lies in the quotient's ball, flagged 0 where b's ball contains 0");
     edouble_check(results, (same != 0) && (ordered == EDOUBLE_TEST_LANES), "balls: above is a's lower end over b's upper");
     exact_record_close(&program);
 }
@@ -744,8 +759,9 @@ int main(int count, char **arguments)
                                                   exact_record_read(&program, fields[3], 0u));
         const EdoubleRecord product = edouble_record_product(&program, a, b);
         const EdoubleRecord sum = edouble_record_sum(&program, a, b, EDOUBLE_TEST_SPREAD);
-        const EdoubleRecordHeld cut = edouble_record_cut(&program, product, EDOUBLE_TEST_CUT, EDOUBLE_TEST_CUT_RANGE);
-        const EdoubleRecordHeld quotient =
+        const EdoubleRecordInterval cut =
+            edouble_record_cut(&program, product, EDOUBLE_TEST_CUT, EDOUBLE_TEST_CUT_RANGE);
+        const EdoubleRecordInterval quotient =
             edouble_record_quotient(&program, a, b, EDOUBLE_TEST_QUOTIENT, EDOUBLE_TEST_DIVISOR);
         const unsigned int outputs[11] = {product.mantissa,
                                                             product.exponent,
@@ -773,8 +789,8 @@ int main(int count, char **arguments)
         unsigned int exact_product = 0u;
         unsigned int exact_sum = 0u;
         unsigned int ordered = 0u;
-        unsigned int cut_held = 0u;
-        unsigned int quotient_held = 0u;
+        unsigned int cut_count = 0u;
+        unsigned int quotient_count = 0u;
         for (unsigned int lane = 0u; (same != 0) && (lane < EDOUBLE_TEST_LANES); lane += 1u)
         {
             const OriorExactInteger *const read = &s_read[(size_t)lane * 11u];
@@ -810,12 +826,13 @@ int main(int count, char **arguments)
                 const long long down = edouble_word(&read[5]);
                 const long long up = edouble_word(&read[6]);
                 const long long at = edouble_word(&read[7]);
-                int held = ok && edouble_lifted(&small, ea + eb, &exact) && edouble_lifted(&read[5], at, &low) &&
-                           edouble_lifted(&read[6], at, &high);
-                held = held && (orior_exact_compare(&low, &exact) <= 0) && (orior_exact_compare(&exact, &high) <= 0);
-                held = held && ((up - down) == ((orior_exact_equal(&low, &exact) != 0) ? 0ll : 1ll));
-                held = held && (down >= -(1ll << EDOUBLE_TEST_CUT)) && (up <= (1ll << EDOUBLE_TEST_CUT));
-                cut_held += (unsigned int)held;
+                int exact_ok = ok && edouble_lifted(&small, ea + eb, &exact) && edouble_lifted(&read[5], at, &low) &&
+                               edouble_lifted(&read[6], at, &high);
+                exact_ok =
+                    exact_ok && (orior_exact_compare(&low, &exact) <= 0) && (orior_exact_compare(&exact, &high) <= 0);
+                exact_ok = exact_ok && ((up - down) == ((orior_exact_equal(&low, &exact) != 0) ? 0ll : 1ll));
+                exact_ok = exact_ok && (down >= -(1ll << EDOUBLE_TEST_CUT)) && (up <= (1ll << EDOUBLE_TEST_CUT));
+                cut_count += (unsigned int)exact_ok;
             }
             // the quotient: down b <= a <= up b where b > 0, turned where b < 0, at q's exponent; each side times 2^64
             {
@@ -827,29 +844,30 @@ int main(int count, char **arguments)
                 const long long up = edouble_word(&read[9]);
                 const long long at = edouble_word(&read[10]);
                 edouble_small(&unit, 1);
-                int held = ok && edouble_lifted(&read[8], at, &got) &&
-                           (orior_exact_multiply(&got, &value_b, &low) == ORIOR_EXACT_OK) &&
-                           edouble_lifted(&read[9], at, &other) &&
-                           (orior_exact_multiply(&other, &value_b, &high) == ORIOR_EXACT_OK) &&
-                           edouble_lifted(&value_a, 0ll, &lifted_a);
+                int exact_ok = ok && edouble_lifted(&read[8], at, &got) &&
+                               (orior_exact_multiply(&got, &value_b, &low) == ORIOR_EXACT_OK) &&
+                               edouble_lifted(&read[9], at, &other) &&
+                               (orior_exact_multiply(&other, &value_b, &high) == ORIOR_EXACT_OK) &&
+                               edouble_lifted(&value_a, 0ll, &lifted_a);
                 const int turned = (mb < 0);
                 const OriorExactInteger *const below = turned ? &high : &low;
                 const OriorExactInteger *const above = turned ? &low : &high;
-                held = held && (orior_exact_compare(below, &lifted_a) <= 0) && (orior_exact_compare(&lifted_a, above) <= 0);
-                held = held && ((up - down) == ((orior_exact_equal(&low, &lifted_a) != 0) ? 0ll : 1ll));
-                quotient_held += (unsigned int)held;
+                exact_ok = exact_ok && (orior_exact_compare(below, &lifted_a) <= 0) &&
+                           (orior_exact_compare(&lifted_a, above) <= 0);
+                exact_ok = exact_ok && ((up - down) == ((orior_exact_equal(&low, &lifted_a) != 0) ? 0ll : 1ll));
+                quotient_count += (unsigned int)exact_ok;
             }
         }
         edouble_check(&results, (same != 0) && (exact_product == EDOUBLE_TEST_LANES), "a b is the exact product");
         edouble_check(&results, (same != 0) && (exact_sum == EDOUBLE_TEST_LANES),
                       "a + b is the exact sum, the mantissas lined up by each lane's own power of two");
         edouble_check(&results, (same != 0) && (ordered == EDOUBLE_TEST_LANES), "[a > b] is the exact order");
-        edouble_check(&results, (same != 0) && (cut_held == EDOUBLE_TEST_LANES),
+        edouble_check(&results, (same != 0) && (cut_count == EDOUBLE_TEST_LANES),
                       "the cut of a b to 8 bits lies below and above it, one unit apart or equal where whole");
-        edouble_check(&results, (same != 0) && (quotient_held == EDOUBLE_TEST_LANES),
+        edouble_check(&results, (same != 0) && (quotient_count == EDOUBLE_TEST_LANES),
                       "a / b to 10 bits past b lies below and above it, one unit apart or equal where whole");
         exact_record_close(&program);
-        edouble_held_case(&results);
+        edouble_interval_case(&results);
         edouble_known_case(&results);
         edouble_ball_case(&results);
     }
@@ -858,12 +876,12 @@ int main(int count, char **arguments)
     edouble_check(&results, (admitted != 0) && (job.failures == 0ull),
                   "tessera: the device's daemon admits the test's job and it releases");
 
-    scriptura_text(&results.line, "  edouble record test: ");
-    scriptura_decimal(&results.line, results.checks, 1u);
-    scriptura_text(&results.line, " checks, ");
-    scriptura_decimal(&results.line, results.failures, 1u);
-    scriptura_text(&results.line, " failed\n");
-    scriptura_write(&results.line, stdout);
+    mmgr_line_put(&results.line, "  edouble record test: ");
+    mmgr_line_decimal(&results.line, results.checks, 1u);
+    mmgr_line_put(&results.line, " checks, ");
+    mmgr_line_decimal(&results.line, results.failures, 1u);
+    mmgr_line_put(&results.line, " failed\n");
+    (void)(mmgr_line_ok(&results.line) && (fwrite(results.line.out, 1u, mmgr_line_finish(&results.line), stdout) == results.line.at));
     free(results.line.out);
     return (results.failures == 0ull) ? 0 : 1;
 }

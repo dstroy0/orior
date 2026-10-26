@@ -10,7 +10,7 @@
  * @param[in]  field                 Passed to the oracle untouched [BORROWS].
  * @param[in]  length                Positions in the population.
  * @param[out] class_of_position     Which class each position fell in [BORROWS].
- * @param[out] members_in_class      How many positions each class holds [BORROWS].
+ * @param[out] members_in_class      How many positions each class contains [BORROWS].
  * @param[out] rarity_place_of_class Where each class sits in the rarity order [BORROWS].
  * @return                           Classes surviving the merges.
  *
@@ -33,7 +33,7 @@ static size_t field_number_classes(OriorSameAt same_in_field, const void *field,
         rarity_place_of_class[at] = 0u;
     }
 
-    // CLASSES ARE CONNECTED COMPONENTS AND NOT FIRST MATCHES. THIS KEEPS IT SOUND FOR A
+    // CLASSES ARE CONNECTED COMPONENTS AND NOT FIRST MATCHES. THIS RETAINS IT SOUND FOR A
     // PREDICATE THAT IS NOT TRANSITIVE. Soundness needs agreement to imply a shared rank. It does
     // NOT need a shared rank to imply agreement. The labeling must be a superset of the
     // relation, and the smallest superset that is an equivalence is the transitive closure.
@@ -60,7 +60,7 @@ static size_t field_number_classes(OriorSameAt same_in_field, const void *field,
                 theirs = class_of_position[theirs];
             }
 
-            // Already one class. The predicate can say nothing new about this pair. The only
+            // Already one class. The predicate can determine nothing new about this pair. The only
             // saving available, and a real one on a chained field.
             if (mine == theirs)
             {
@@ -98,7 +98,7 @@ static size_t field_number_classes(OriorSameAt same_in_field, const void *field,
 
     // THE CLASS COUNT IS UNBOUNDED AND ONLY THE OUTPUT RANK IS CLAMPED, the whole point of
     // carrying these buffers. Classes are ordered by rarity across every one of them and the clamp
-    // is applied at relabel time. A field of a thousand classes keeps its 255 rarest apart and
+    // is applied at relabel time. A field of a thousand classes retains its 255 rarest apart and
     // merges the commonest into rank 255.
     //
     // The rarest class is the best probe the steering has.
@@ -140,7 +140,7 @@ static size_t field_number_classes(OriorSameAt same_in_field, const void *field,
  * @brief Clamps one class's rarity place into a byte rank.
  *
  * @param[in] place Where the class sits in the rarity order.
- * @return          The place, or 255 where it sits past the last rank a byte can hold.
+ * @return          The place, or 255 where it sits past the last rank a byte can represent.
  *
  * @note Merging costs discrimination and never soundness. One class takes one place across the
  *       whole population. Symbol agreement still implies rank agreement after the clamp, and
@@ -166,7 +166,7 @@ int orior_field_project(const OriorFieldProjection *args)
 
     // Class labels are stored as uint32_t positions. A field wider than that would alias two
     // positions onto one label and merge classes the oracle never joined. It errors. The cast
-    // widens a 32 bit constant into size_t, which holds it on every target this builds for.
+    // widens a 32 bit constant into size_t, which represents it on every target this builds for.
     if (args->length > (size_t)UINT32_MAX)
     {
         return 0;
@@ -176,8 +176,8 @@ int orior_field_project(const OriorFieldProjection *args)
     // to reach `length` or a field of singletons writes past their end.
     if (args->classes_length < args->length)
     {
-        // WRITES NOTHING, LIKE EVERY OTHER ERROR HERE. Fail closed says a request that cannot be met
-        // changes no state: a caller cannot tell an errored zero from a measured zero. No error
+        // WRITES NOTHING, LIKE EVERY OTHER ERROR HERE. Fail closed states a request that cannot be met
+        // changes no state: a caller cannot distinguish an errored zero from a measured zero. No error
         // touches `distinct` and the return value is the only thing to read.
         return 0;
     }
@@ -193,7 +193,7 @@ int orior_field_project(const OriorFieldProjection *args)
 
     if (args->distinct != NULL)
     {
-        // CLASSES AND NOT SLOTS EVER OPENED. The count is the classes surviving the merges and not the
+        // CLASSES AND NOT ENTRIES EVER OPENED. The count is the classes surviving the merges and not the
         // labels discovery opened: a chained field whose every position carries one rank counts one,
         // however many labels discovery opened on the way. A caller reads this to decide whether
         // a projection is worth running. A healthy number on a collapsed field sends them onto a
@@ -228,7 +228,7 @@ int orior_field_pair_project(const OriorFieldPairProjection *args)
 
     // Class labels are stored as uint32_t positions. A joint field wider than that would alias two
     // positions onto one label and merge classes the oracle never joined. It errors. The cast
-    // widens a 32 bit constant into size_t, which holds it on every target this builds for.
+    // widens a 32 bit constant into size_t, which represents it on every target this builds for.
     if (length > (size_t)UINT32_MAX)
     {
         return 0;

@@ -88,10 +88,10 @@ CliShape cli_document_shape_of(const CliLines *lines)
     return shape;
 }
 
-void cli_document_units_written(CliLine *out, const unsigned short *units, unsigned long long count)
+void cli_document_units_written(VerbaLinea *out, const unsigned short *units, unsigned long long count)
 {
     char bytes[8];
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
         unsigned int letter = units[at];
@@ -105,11 +105,11 @@ void cli_document_units_written(CliLine *out, const unsigned short *units, unsig
         {
             letter = 0xfffdu;
         }
-        CliLine one = {bytes, sizeof(bytes), 0ull};
+        VerbaLinea one = {bytes, sizeof(bytes), 0ull};
         cli_utf8_put(&one, letter);
         cli_json_escaped_lossy(out, (const unsigned char *)bytes, one.at);
     }
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
 }
 
 // A text's lines joined, each ended by "\n", and the unit each starts at, the units' count last
@@ -174,7 +174,7 @@ static int cli_whole(const unsigned short *line, unsigned long long length, unsi
     return !before && !after;
 }
 
-// the matches found, held until the search is known to be this side's, and the most bytes of them written
+// the matches found, buffered until the search is known to be this side's, and the most bytes of them written
 #define CLI_FIND_MATCHES (1u << 20u)
 #define CLI_FIND_WRITTEN (1u << 24u)
 
@@ -187,13 +187,13 @@ typedef struct
 } CliFindRoom;
 
 // the search of `size` units sought through the room's lines joined, each match handed to `each`: 1, or 0 with why
-// said where the page searches itself
+// given where the page searches itself
 static int cli_found_each(CliFindRoom *room, const CliCensus *census, unsigned long long size,
                           const CliDocSought *sought, unsigned long long most, CliFound3 each, void *context,
-                          CliLine *said);
+                          VerbaLinea *err_msg);
 
 int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, unsigned long long most, CliFound3 each,
-                           void *context, CliLine *said)
+                           void *context, VerbaLinea *err_msg)
 {
     int ascii = 1;
     for (const char *at = sought->query; at[0] != '\0'; at += 1)
@@ -202,13 +202,13 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     }
     if (sought->regex || (!sought->match_case && !ascii))
     {
-        cli_line_text(said, CLI_PAGE_OWN);
+        mmgr_line_put(err_msg, CLI_PAGE_OWN);
         return 0;
     }
-    CliFindRoom *const room = cli_cell_taken(sizeof(*room), "a search of a text");
+    CliFindRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), NULL);
     if (room == NULL)
     {
-        cli_line_text(said, "the text could not be searched: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");
         return 0;
     }
     unsigned long long size = 0ull;
@@ -232,7 +232,7 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     {
         newline = newline || (room->wanted[at] == '\n');
     }
-    // the search reads the text's kept census, with the newline the join puts after each line, and folded as the
+    // the search reads the text's stored census, with the newline the join puts after each line, and folded as the
     // search folds where it runs without case
     CliCensus census = lines->census;
     census.occurrences['\n'] += lines->lines;
@@ -245,8 +245,8 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
         census = folded;
     }
     const int done = (size == 0ull) || newline || !cli_joined_of(lines, &room->joined) ||
-                     cli_found_each(room, &census, size, sought, most, each, context, said);
-    cli_cell_given(room);
+                     cli_found_each(room, &census, size, sought, most, each, context, err_msg);
+    g_cli_cells->persistent_buf_release(room, NULL);
     return done;
 }
 
@@ -319,7 +319,7 @@ static void cli_found_at(void *context, unsigned long long byte)
 
 static int cli_found_each(CliFindRoom *room, const CliCensus *census, unsigned long long size,
                           const CliDocSought *sought, unsigned long long most, CliFound3 each, void *context,
-                          CliLine *said)
+                          VerbaLinea *err_msg)
 {
     // a search without case folds the room's units and the needle's first, each unit to the one the page's search
     // folds it to, so the sift reads them as they are: the units searched as their bytes, the needle's laid the same
@@ -341,7 +341,7 @@ static int cli_found_each(CliFindRoom *room, const CliCensus *census, unsigned l
                                  (const unsigned char *)room->wanted, size * 2ull, 0, cli_found_at, &walk);
     if (walk.own)
     {
-        cli_line_text(said, CLI_PAGE_OWN);
+        mmgr_line_put(err_msg, CLI_PAGE_OWN);
         return 0;
     }
     for (unsigned long long one = 0ull; (one < walk.found) && (one < CLI_FIND_MATCHES); one += 1ull)
@@ -354,41 +354,41 @@ static int cli_found_each(CliFindRoom *room, const CliCensus *census, unsigned l
 // A match written as `[line, from, to]`, a comma before it where it is not the first
 typedef struct
 {
-    CliLine *out;
+    VerbaLinea *out;
     unsigned long long written;
 } CliMatchesOut;
 
 static void cli_match_written(void *context, unsigned long long line, unsigned long long from, unsigned long long to)
 {
     CliMatchesOut *const matches = (CliMatchesOut *)context;
-    cli_line_text(matches->out, (matches->written != 0ull) ? ",[" : "[");
-    cli_line_decimal(matches->out, line, 0u);
-    cli_line_character(matches->out, ',');
-    cli_line_decimal(matches->out, from, 0u);
-    cli_line_character(matches->out, ',');
-    cli_line_decimal(matches->out, to, 0u);
-    cli_line_character(matches->out, ']');
+    mmgr_line_put(matches->out, (matches->written != 0ull) ? ",[" : "[");
+    mmgr_line_decimal(matches->out, line, 0u);
+    mmgr_line_ch(matches->out, ',');
+    mmgr_line_decimal(matches->out, from, 0u);
+    mmgr_line_ch(matches->out, ',');
+    mmgr_line_decimal(matches->out, to, 0u);
+    mmgr_line_ch(matches->out, ']');
     matches->written += 1ull;
 }
 
-int cli_document_find_in(const CliLines *lines, const CliDocSought *sought, unsigned long long most, CliLine *out,
-                         CliLine *said)
+int cli_document_find_in(const CliLines *lines, const CliDocSought *sought, unsigned long long most, VerbaLinea *out,
+                         VerbaLinea *err_msg)
 {
-    char *const text = cli_cell_taken(CLI_FIND_WRITTEN, "the matches of a search written");
+    char *const text = g_cli_cells->persistent_buf_alloc(CLI_FIND_WRITTEN, NULL);
     if (text == NULL)
     {
-        cli_line_text(said, "the matches could not be written: the cells cannot meet them");
+        mmgr_line_put(err_msg, "the matches could not be written: the cells cannot meet them");
         return 0;
     }
-    CliLine written = {text, CLI_FIND_WRITTEN, 0ull};
+    VerbaLinea written = {text, CLI_FIND_WRITTEN, 0ull};
     CliMatchesOut matches = {&written, 0ull};
-    const int found = cli_document_find_each(lines, sought, most, cli_match_written, &matches, said);
+    const int found = cli_document_find_each(lines, sought, most, cli_match_written, &matches, err_msg);
     if (found)
     {
-        cli_line_character(out, '[');
-        cli_line_counted(out, text, written.at);
-        cli_line_character(out, ']');
+        mmgr_line_ch(out, '[');
+        mmgr_line_put_n(out, text, written.at);
+        mmgr_line_ch(out, ']');
     }
-    cli_cell_given(text);
+    g_cli_cells->persistent_buf_release(text, NULL);
     return found;
 }

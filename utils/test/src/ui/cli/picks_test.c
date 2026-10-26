@@ -1,14 +1,14 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// picks_test.c: the picker's check: a list held answers its best rows first, and in its order where none is asked;
-// and a list of many rows matches over the cores as it would on one
+// picks_test.c: the picker's check: a list stored answers its best rows first, and in its order where none is
+// requested; and a list of many rows matches over the cores as it would on one
 #include "../../../../../ui/cli/src/editor/files.h"
 #include "../../../../../ui/cli/src/editor/picks.h"
 #include "cli_check.h"
 
 #include <stdlib.h>
 
-// the rows of a list held
+// the rows of a list stored
 #define PICKS_MANY 20000u
 
 static char s_out[1u << 20u];
@@ -36,15 +36,15 @@ static double picks_fuzzy(const char *query, const char *text)
     return cli_files_fuzzy(query, text, 0ull, &score, s_hits, &count) ? score : -1.0;
 }
 
-// a list held answers its best rows first, and in its order where none is asked
+// a list stored answers its best rows first, and in its order where none is requested
 static void picks_few(void)
 {
     static const char *const s_rows[4] = {"alpha beta", "gamma", "alphabet", "beta"};
-    const unsigned long long id = cli_picks_hold("alpha beta\ngamma\nalphabet\nbeta", 30ull);
+    const unsigned long long id = cli_picks_store("alpha beta\ngamma\nalphabet\nbeta", 30ull);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_picks_find(id, "", 3ull, &out, &said), "a list held answers");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_picks_find(id, "", 3ull, &out, &err_msg), "a list stored answers");
     unsigned int found = CLI_JSON_NONE;
     const CliJson *json = cli_check_parsed(s_out, out.at, &found);
     int in_order = (json->node[found].count == 3u);
@@ -54,7 +54,7 @@ static void picks_few(void)
     }
     cli_check(in_order, "with no query its first rows, in order");
     out.at = 0ull;
-    (void)cli_picks_find(id, "beta", 10ull, &out, &said);
+    (void)cli_picks_find(id, "beta", 10ull, &out, &err_msg);
     json = cli_check_parsed(s_out, out.at, &found);
     cli_check(picks_number(json, cli_json_item(json, found, 0u), "at") == 3.0,
               "the row that is the query itself first");
@@ -71,22 +71,22 @@ static void picks_few(void)
     cli_check(scored, "each row is scored as Go to File scores it");
     cli_picks_forget(id);
     out.at = 0ull;
-    said.at = 0ull;
-    cli_check(!cli_picks_find(id, "beta", 10ull, &out, &said), "a list let go answers no more");
+    err_msg.at = 0ull;
+    cli_check(!cli_picks_find(id, "beta", 10ull, &out, &err_msg), "a list let go answers no more");
 }
 
 // a row of the many
 static void picks_row(unsigned int at, char *text, unsigned long long room)
 {
-    CliLine line = {text, room, 0ull};
-    cli_line_text(&line, "test_case_");
-    cli_line_decimal(&line, at, 1u);
-    cli_line_character(&line, '_');
-    cli_line_decimal(&line, (at * 7919u) % PICKS_MANY, 1u);
-    cli_line_text(&line, " tests/test_part_");
-    cli_line_decimal(&line, at % 300u, 1u);
-    cli_line_text(&line, ".py");
-    (void)cli_line_closed(&line);
+    VerbaLinea line = {text, room, 0ull};
+    mmgr_line_put(&line, "test_case_");
+    mmgr_line_decimal(&line, at, 1u);
+    mmgr_line_ch(&line, '_');
+    mmgr_line_decimal(&line, (at * 7919u) % PICKS_MANY, 1u);
+    mmgr_line_put(&line, " tests/test_part_");
+    mmgr_line_decimal(&line, at % 300u, 1u);
+    mmgr_line_put(&line, ".py");
+    (void)mmgr_line_finish(&line);
 }
 
 // a list of many rows matches over the cores as it would on one
@@ -95,14 +95,14 @@ static void picks_many(void)
     static char s_texts[PICKS_MANY * 64u];
     static unsigned int s_at[PICKS_MANY];
     static double s_score[PICKS_MANY];
-    CliLine texts = {s_texts, sizeof(s_texts), 0ull};
+    VerbaLinea texts = {s_texts, sizeof(s_texts), 0ull};
     unsigned int alone = 0u;
     for (unsigned int at = 0u; at < PICKS_MANY; at += 1u)
     {
         char row[64];
         picks_row(at, row, sizeof(row));
-        cli_line_text(&texts, (at > 0u) ? "\n" : "");
-        cli_line_text(&texts, row);
+        mmgr_line_put(&texts, (at > 0u) ? "\n" : "");
+        mmgr_line_put(&texts, row);
         const double score = picks_fuzzy("case12", row);
         if (score >= 0.0)
         {
@@ -119,11 +119,11 @@ static void picks_many(void)
         }
     }
     alone = (alone < 200u) ? alone : 200u;
-    const unsigned long long id = cli_picks_hold(s_texts, texts.at);
+    const unsigned long long id = cli_picks_store(s_texts, texts.at);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    (void)cli_picks_find(id, "case12", 200ull, &out, &said);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    (void)cli_picks_find(id, "case12", 200ull, &out, &err_msg);
     unsigned int found = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &found);
     int same = (json->node[found].count == alone);
@@ -138,6 +138,7 @@ static void picks_many(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     picks_few();
     picks_many();
     return cli_checked();

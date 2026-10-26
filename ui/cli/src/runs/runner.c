@@ -24,8 +24,8 @@ void cli_command_word(CliCommand *command, const char *word)
     cli_words_put(&command->words, word);
 }
 
-// a text kept among the command's: where it starts, NULL where it does not fit
-static const char *cli_kept(CliCommand *command, const char *text)
+// a text stored among the command's: where it starts, NULL where it does not fit
+static const char *cli_text_stored(CliCommand *command, const char *text)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}) + 1ull;
     if ((command->used + size) > CLI_COMMAND_TEXT)
@@ -46,7 +46,7 @@ void cli_command_set(CliCommand *command, const char *name, const char *value)
     {
         if (cellul.eq(&(CatenaFinitaCfg){.src = command->setting[at].name, .other = name, .cap = CLI_CELLS_POOL}))
         {
-            command->setting[at].value = (value != NULL) ? cli_kept(command, value) : NULL;
+            command->setting[at].value = (value != NULL) ? cli_text_stored(command, value) : NULL;
             return;
         }
     }
@@ -55,7 +55,8 @@ void cli_command_set(CliCommand *command, const char *name, const char *value)
         command->words.full = 1;
         return;
     }
-    const CliSetting setting = {cli_kept(command, name), (value != NULL) ? cli_kept(command, value) : NULL};
+    const CliSetting setting = {cli_text_stored(command, name),
+                                (value != NULL) ? cli_text_stored(command, value) : NULL};
     command->setting[command->settings] = setting;
     command->settings += (setting.name != NULL) ? 1u : 0u;
 }
@@ -89,18 +90,18 @@ void cli_lines_put(CliLines *lines, const char *text, unsigned long long length)
     if ((lines->count >= CLI_LINES_MOST) || ((lines->used + length + 1ull) > CLI_LINES_TEXT))
     {
         // the oldest half let go, the newer moved down
-        const unsigned int kept = lines->count / 2u;
-        const unsigned int from = lines->start[lines->count - kept];
-        for (unsigned int at = 0u; at < kept; at += 1u)
+        const unsigned int half = lines->count / 2u;
+        const unsigned int from = lines->start[lines->count - half];
+        for (unsigned int at = 0u; at < half; at += 1u)
         {
-            lines->start[at] = lines->start[lines->count - kept + at] - from;
+            lines->start[at] = lines->start[lines->count - half + at] - from;
         }
         for (unsigned int byte = from; byte < lines->used; byte += 1u)
         {
             lines->text[byte - from] = lines->text[byte];
         }
         lines->used -= from;
-        lines->count = kept;
+        lines->count = half;
         if ((lines->used + length + 1ull) > CLI_LINES_TEXT)
         {
             lines->count = 0u;
@@ -123,17 +124,17 @@ const char *cli_lines_at(const CliLines *lines, unsigned int index)
 // a file in a folder joined, `under` and `name`, where it is a file: 1, its path into `path`
 static int cli_found_in(const char *under, const char *name, char *path)
 {
-    CliLine line = {path, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, under);
-    cli_line_text(&line, name);
-    return (cli_line_closed(&line) != 0ull) && query_is_file(path);
+    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, under);
+    mmgr_line_put(&line, name);
+    return (mmgr_line_finish(&line) != 0ull) && query_is_file(path);
 }
 
 // The bash that runs the tree's scripts. On Windows that is Git's, found beside git itself, because the bash System32
 // offers is WSL's and reads none of these paths
-int cli_runner_bash(char *path, CliLine *said)
+int cli_runner_bash(char *path, VerbaLinea *err_msg)
 {
-    if (query_environment_read("ORIOR_BASH", path, CLI_PATH_LONGEST) || cli_toolchains_chosen_program("bash", path))
+    if (query_environment_read("ORIOR_BASH", path, CLI_PATH_MAX_LEN) || cli_toolchains_chosen_program("bash", path))
     {
         return 1;
     }
@@ -143,11 +144,11 @@ int cli_runner_bash(char *path, CliLine *said)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "bash", .cap = CLI_CELLS_POOL}) + 1u});
     return 1;
 #else
-    static char s_folders[256][CLI_PATH_LONGEST];
+    static char s_folders[256][CLI_PATH_MAX_LEN];
     const unsigned int count = cli_path_folders(s_folders, 256u);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        char git[CLI_PATH_LONGEST];
+        char git[CLI_PATH_MAX_LEN];
         if (!cli_found_in(s_folders[at], "\\git.exe", git))
         {
             continue;
@@ -172,7 +173,7 @@ int cli_runner_bash(char *path, CliLine *said)
     static const char *const s_bases[3] = {"ProgramFiles", "ProgramW6432", "LOCALAPPDATA"};
     for (unsigned int at = 0u; at < 3u; at += 1u)
     {
-        char base[CLI_PATH_LONGEST];
+        char base[CLI_PATH_MAX_LEN];
         if (query_environment_read(s_bases[at], base, sizeof(base)) &&
             (cli_found_in(base, "\\Git\\bin\\bash.exe", path) ||
              cli_found_in(base, "\\Programs\\Git\\bin\\bash.exe", path)))
@@ -180,14 +181,14 @@ int cli_runner_bash(char *path, CliLine *said)
             return 1;
         }
     }
-    cli_line_text(said, "no Git bash found: install Git for Windows, or name a bash in ORIOR_BASH");
+    mmgr_line_put(err_msg, "no Git bash found: install Git for Windows, or name a bash in ORIOR_BASH");
     return 0;
 #endif
 }
 
 void cli_runner_python(char *path)
 {
-    if (query_environment_read("ORIOR_PYTHON", path, CLI_PATH_LONGEST) || cli_toolchains_chosen_program("python", path))
+    if (query_environment_read("ORIOR_PYTHON", path, CLI_PATH_MAX_LEN) || cli_toolchains_chosen_program("python", path))
     {
         return;
     }
@@ -202,25 +203,25 @@ void cli_runner_python(char *path)
 #endif
 }
 
-int cli_runner_built(const char *root, const char *name, char *path, CliLine *said)
+int cli_runner_built(const char *root, const char *name, char *path, VerbaLinea *err_msg)
 {
-    CliLine line = {path, CLI_PATH_LONGEST, 0ull};
-    cli_line_text(&line, root);
-    cli_line_text(&line, "/build/");
-    cli_line_text(&line, name);
+    VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+    mmgr_line_put(&line, root);
+    mmgr_line_put(&line, "/build/");
+    mmgr_line_put(&line, name);
 #if defined(_WIN32)
-    cli_line_text(&line, ".exe");
+    mmgr_line_put(&line, ".exe");
 #endif
-    if ((cli_line_closed(&line) != 0ull) && query_is_file(path))
+    if ((mmgr_line_finish(&line) != 0ull) && query_is_file(path))
     {
         return 1;
     }
-    cli_line_text(said, "no ");
-    cli_line_text(said, name);
+    mmgr_line_put(err_msg, "no ");
+    mmgr_line_put(err_msg, name);
 #if defined(_WIN32)
-    cli_line_text(said, ".exe");
+    mmgr_line_put(err_msg, ".exe");
 #endif
-    cli_line_text(said, " under build/: run its build job first");
+    mmgr_line_put(err_msg, " under build/: run its build job first");
     return 0;
 }
 
@@ -229,7 +230,7 @@ static int cli_space(char letter)
     return (letter == ' ') || ((letter >= '\t') && (letter <= '\r'));
 }
 
-int cli_runner_shell_words(const char *text, CliWords *words, CliLine *said)
+int cli_runner_shell_words(const char *text, CliWords *words, VerbaLinea *err_msg)
 {
     static char s_word[CLI_WORDS_TEXT];
     static CliLock s_lock = CLI_LOCK_INIT;
@@ -280,8 +281,8 @@ int cli_runner_shell_words(const char *text, CliWords *words, CliLine *said)
     if (quote != '\0')
     {
         cli_lock_give(&s_lock);
-        cli_line_text(said, "a quote is left open in: ");
-        cli_line_text(said, text);
+        mmgr_line_put(err_msg, "a quote is left open in: ");
+        mmgr_line_put(err_msg, text);
         return 0;
     }
     if (started)
@@ -297,7 +298,7 @@ static int cli_runner_text_words(const char *variable, char *text, size_t room, 
 
 int cli_runner_program_words(const char *variable, CliWords *words)
 {
-    static char s_text[QUERY_ENVIRONMENT_LONGEST];
+    static char s_text[QUERY_ENVIRONMENT_MAX_LEN];
     static CliLock s_text_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_text_lock);
     const int words_read = cli_runner_text_words(variable, s_text, sizeof(s_text), words);
@@ -305,7 +306,7 @@ int cli_runner_program_words(const char *variable, CliWords *words)
     return words_read;
 }
 
-// the program `variable` names, read into `text`, which holds `room`, as its words put into `words`: 1, or 0
+// the program `variable` names, read into `text`, sized for `room`, as its words put into `words`: 1, or 0
 // where it is not set or names none
 static int cli_runner_text_words(const char *variable, char *text, size_t room, CliWords *words)
 {
@@ -329,9 +330,9 @@ static int cli_runner_text_words(const char *variable, char *text, size_t room, 
         cli_words_put(words, from);
         return 1;
     }
-    char unsaid[CLI_PATH_LONGEST];
-    CliLine said = {unsaid, sizeof(unsaid), 0ull};
-    return cli_runner_shell_words(from, words, &said) && (words->count != 0u);
+    char err_buf[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {err_buf, sizeof(err_buf), 0ull};
+    return cli_runner_shell_words(from, words, &err_msg) && (words->count != 0u);
 }
 
 // the first value of `key` that is not empty, NULL where it has none
@@ -363,12 +364,12 @@ int cli_runner_runs(const CliCatalog *catalog, const CliStep *step, const CliVal
     return 1;
 }
 
-int cli_runner_check(const CliCatalog *catalog, unsigned int job, const CliValues *values, CliLine *said)
+int cli_runner_check(const CliCatalog *catalog, unsigned int job, const CliValues *values, VerbaLinea *err_msg)
 {
-    const CliJob *const held = &catalog->job[job];
-    for (unsigned int at = 0u; at < held->params; at += 1u)
+    const CliJob *const job_at = &catalog->job[job];
+    for (unsigned int at = 0u; at < job_at->params; at += 1u)
     {
-        const CliParam *const param = &catalog->param[held->param_first + at];
+        const CliParam *const param = &catalog->param[job_at->param_first + at];
         const char *const key = cli_catalog_at(catalog, param->key);
         unsigned int count = 0u;
         const unsigned int *const items = cli_values_of(values, key, &count);
@@ -379,8 +380,8 @@ int cli_runner_check(const CliCatalog *catalog, unsigned int job, const CliValue
         }
         if (param->required && !given)
         {
-            cli_line_text(said, key);
-            cli_line_text(said, " needs a value");
+            mmgr_line_put(err_msg, key);
+            mmgr_line_put(err_msg, " needs a value");
             return 0;
         }
         if ((!cellul.eq(&(CatenaFinitaCfg){.src = param->kind, .other = "choice", .cap = CLI_CELLS_POOL})) &&
@@ -401,10 +402,10 @@ int cli_runner_check(const CliCatalog *catalog, unsigned int job, const CliValue
             }
             if (!among)
             {
-                cli_line_text(said, value);
-                cli_line_text(said, " is not one of ");
-                cli_line_text(said, key);
-                cli_line_text(said, "'s values");
+                mmgr_line_put(err_msg, value);
+                mmgr_line_put(err_msg, " is not one of ");
+                mmgr_line_put(err_msg, key);
+                mmgr_line_put(err_msg, "'s values");
                 return 0;
             }
         }

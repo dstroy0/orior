@@ -11,7 +11,7 @@
 // the words a mode's program is given after its folder, added to `words`: the mode's own targets, or the words given
 void query_targets(const QueryContext *context, const QueryPairsMode *mode, QueryWords *words)
 {
-    char path[QUERY_PATH_LONGEST];
+    char path[QUERY_PATH_MAX_LEN];
     if (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "queue", .cap = CLI_CELLS_POOL}))
     {
         query_at(context, QUERY_PAIRS_STICK "/measuring_stick.tsv", path);
@@ -65,74 +65,74 @@ void query_kernel_words(QueryWords *words, const char *part, const QueryFiles *f
 }
 
 int query_judged(QueryContext *context, const QueryPairsMode *mode, const char *identity, const char *folder,
-                 CliLine *said)
+                 VerbaLinea *err_msg)
 {
-    char work[QUERY_PATH_LONGEST];
-    char out[QUERY_PATH_LONGEST];
-    char engine[QUERY_PATH_LONGEST];
+    char work[QUERY_PATH_MAX_LEN];
+    char out[QUERY_PATH_MAX_LEN];
+    char engine[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_PAIRS_WORK, work);
     query_pairs_in(work, mode->mode, out);
     query_at(context, QUERY_PAIRS_STICK "/engine", engine);
     if (!query_folder_made(out))
     {
-        cli_line_text(said, out);
-        cli_line_text(said, " could not be made");
+        mmgr_line_put(err_msg, out);
+        mmgr_line_put(err_msg, " could not be made");
         return -1;
     }
     static QueryRun s_run;
-    if (!query_context_started(context, &s_run, folder, said))
+    if (!query_context_started(context, &s_run, folder, err_msg))
     {
         return -1;
     }
     static QueryFiles s_files;
     query_files_of(context->root, mode->part, &s_files);
-    static char s_writer[QUERY_PATH_LONGEST];
+    static char s_writer[QUERY_PATH_MAX_LEN];
     long long code = -1ll;
-    int whole = query_context_tool(context, "orior_khw_machine_write", s_writer, said);
+    int whole = query_context_tool(context, "orior_khw_machine_write", s_writer, err_msg);
     if (whole && query_kernel_handed(mode->mode))
     {
-        // the kernel the system accepted, handed to the run by the vendor's writer for the frame's asks
+        // the kernel the system accepted, handed to the run by the vendor's writer for the frame's queries
         static QueryWords s_kernel;
         memor.set(&(MemoriaCfg){.dst = &s_kernel, .val = 0, .bytes = sizeof(s_kernel)});
         query_words_add(&s_kernel, s_writer);
         query_kernel_words(&s_kernel, mode->part, &s_files);
-        whole = query_context_teed(context, &s_run, "orior_khw_machine_write", s_kernel.word, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_khw_machine_write", s_kernel.word, &code, err_msg);
         if (whole && (code != 0ll))
         {
-            cli_line_text(said, "the vendor's writer handed the run no kernel");
+            mmgr_line_put(err_msg, "the vendor's writer handed the run no kernel");
             whole = 0;
         }
     }
-    char host_answers[QUERY_PATH_LONGEST];
-    char overseer[QUERY_PATH_LONGEST];
+    char host_answers[QUERY_PATH_MAX_LEN];
+    char overseer[QUERY_PATH_MAX_LEN];
     query_pairs_in(work, "host_answers.txt", host_answers);
     query_pairs_in(work, "overseer.txt", overseer);
-    char run_folder[QUERY_PATH_LONGEST];
+    char run_folder[QUERY_PATH_MAX_LEN];
     query_at(context, folder, run_folder);
-    char crystal[QUERY_PATH_LONGEST];
+    char crystal[QUERY_PATH_MAX_LEN];
     const int has_crystal = query_crystal(context->root, crystal, sizeof(crystal));
     const char *const carried[3] = {host_answers, overseer, "faulted.txt"};
-    whole = whole && query_run_carried(&s_run, run_folder, carried, 3u, has_crystal ? crystal : NULL, said);
+    whole = whole && query_run_carried(&s_run, run_folder, carried, 3u, has_crystal ? crystal : NULL, err_msg);
     const unsigned char *bytes = NULL;
     unsigned long long size = 0ull;
     if (whole && (!cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "frame", .cap = CLI_CELLS_POOL})) &&
         (!cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "fixed", .cap = CLI_CELLS_POOL})) &&
         !query_writer_latest(&s_run.writer, "host_answers.txt", &bytes, &size))
     {
-        cli_line_text(said, "no host answers: run orior_cli protocol pairs stick first");
+        mmgr_line_put(err_msg, "no host answers: run orior_cli protocol pairs stick first");
         whole = 0;
     }
-    whole = whole && query_pairs_configs(context, &s_run, mode->part, said);
+    whole = whole && query_pairs_configs(context, &s_run, mode->part, err_msg);
     if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "cost", .cap = CLI_CELLS_POOL})))
     {
-        char kdm[QUERY_PATH_LONGEST];
+        char kdm[QUERY_PATH_MAX_LEN];
         query_part_file(context, mode->part, ".kdm", kdm);
         const char *const read[1] = {kdm};
-        whole = query_run_read(&s_run, read, 1u, said);
+        whole = query_run_read(&s_run, read, 1u, err_msg);
     }
     static QueryWords s_words;
     memor.set(&(MemoriaCfg){.dst = &s_words, .val = 0, .bytes = sizeof(s_words)});
-    char ksc[QUERY_PATH_LONGEST];
+    char ksc[QUERY_PATH_MAX_LEN];
     query_part_file(context, mode->part, ".ksc", ksc);
     query_words_add(&s_words, mode->mode);
     query_words_add(&s_words, engine);
@@ -146,40 +146,40 @@ int query_judged(QueryContext *context, const QueryPairsMode *mode, const char *
         // part's clock beside the arrangements
         const char *const placed[8] = {s_writer,          mode->part,      s_files.machine, s_files.layout,
                                        s_files.mnemonics, "krs_forms.bin", "krs",           NULL};
-        whole = query_context_teed(context, &s_run, "orior_khw_machine_write", placed, &code, said);
+        whole = query_context_teed(context, &s_run, "orior_khw_machine_write", placed, &code, err_msg);
         if (whole && (code != 0ll))
         {
-            cli_line_text(said, "the vendor's writer placed no forms");
+            mmgr_line_put(err_msg, "the vendor's writer placed no forms");
             whole = 0;
         }
         query_words_add(&s_words, "krs_forms.bin");
     }
     query_words_add(&s_words, "--");
-    whole = whole && query_pairs_carry(context, mode->part, mode->dry, &s_words, said) &&
-            query_identity_ran(context, &s_run, identity, s_words.word, s_words.count, &code, said);
+    whole = whole && query_pairs_carry(context, mode->part, mode->dry, &s_words, err_msg) &&
+            query_identity_ran(context, &s_run, identity, s_words.word, s_words.count, &code, err_msg);
     if (whole && (code != 0ll))
     {
-        return query_context_ended(context, &s_run, said) ? 1 : -1;
+        return query_context_ended(context, &s_run, err_msg) ? 1 : -1;
     }
     if (whole && (cellul.eq(&(CatenaFinitaCfg){.src = mode->mode, .other = "pair", .cap = CLI_CELLS_POOL})) &&
         query_writer_latest(&s_run.writer, "log", &bytes, &size))
     {
-        static char s_decoder[QUERY_PATH_LONGEST];
-        char klq[QUERY_PATH_LONGEST];
+        static char s_decoder[QUERY_PATH_MAX_LEN];
+        char klq[QUERY_PATH_MAX_LEN];
         query_at(context, QUERY_TABLE "/Lstar.klq", klq);
         const char *const decoded[5] = {s_decoder, s_run.writer.qry, engine, klq, NULL};
-        whole = query_context_tool(context, "orior_klq_decoder", s_decoder, said) &&
-                query_context_teed(context, &s_run, "orior_klq_decoder", decoded, &code, said);
+        whole = query_context_tool(context, "orior_klq_decoder", s_decoder, err_msg) &&
+                query_context_teed(context, &s_run, "orior_klq_decoder", decoded, &code, err_msg);
     }
-    if (!query_context_ended(context, &s_run, said) || !whole)
+    if (!query_context_ended(context, &s_run, err_msg) || !whole)
     {
         return -1;
     }
-    // an exit code is far below what an int holds
+    // an exit code is far below what an int represents
     return (int)code;
 }
 
-// what the walk for a read-back listing in the engine's folder keeps: whether one `.dis` stands there
+// what the walk for a read-back listing in the engine's folder records: whether one `.dis` stands there
 static void query_dis_found(void *context, const char *name, int is_folder)
 {
     const char *const dot =
@@ -190,15 +190,15 @@ static void query_dis_found(void *context, const char *name, int is_folder)
 }
 
 int query_stick_sliced(QueryContext *context, const QueryPairsMode *mode, const char *identity, const char *folder,
-                       CliLine *said)
+                       VerbaLinea *err_msg)
 {
-    char stick[QUERY_PATH_LONGEST];
-    char work[QUERY_PATH_LONGEST];
-    char klq[QUERY_PATH_LONGEST];
-    char sass[QUERY_PATH_LONGEST];
-    char tsv[QUERY_PATH_LONGEST];
-    char cu[QUERY_PATH_LONGEST];
-    char engine[QUERY_PATH_LONGEST];
+    char stick[QUERY_PATH_MAX_LEN];
+    char work[QUERY_PATH_MAX_LEN];
+    char klq[QUERY_PATH_MAX_LEN];
+    char sass[QUERY_PATH_MAX_LEN];
+    char tsv[QUERY_PATH_MAX_LEN];
+    char cu[QUERY_PATH_MAX_LEN];
+    char engine[QUERY_PATH_MAX_LEN];
     query_at(context, QUERY_PAIRS_STICK, stick);
     query_at(context, QUERY_PAIRS_WORK, work);
     query_at(context, QUERY_TABLE "/Lstar.klq", klq);
@@ -207,17 +207,17 @@ int query_stick_sliced(QueryContext *context, const QueryPairsMode *mode, const 
     query_pairs_in(stick, "measuring_stick.cu", cu);
     query_pairs_in(stick, "engine", engine);
     static QueryRun s_run;
-    if (!query_context_started(context, &s_run, folder, said))
+    if (!query_context_started(context, &s_run, folder, err_msg))
     {
         return -1;
     }
     long long code = -1ll;
     int stopped = 0;
-    int whole = query_pairs_configs(context, &s_run, mode->part, said);
+    int whole = query_pairs_configs(context, &s_run, mode->part, err_msg);
     const char *const sliced[6] = {"slice", sass, tsv, cu, work, engine};
-    whole = whole && query_identity_ran(context, &s_run, identity, sliced, 6u, &code, said);
+    whole = whole && query_identity_ran(context, &s_run, identity, sliced, 6u, &code, err_msg);
     stopped = whole && (code != 0ll);
-    whole = whole && !stopped && query_host_answered(context, &s_run, work, said);
+    whole = whole && !stopped && query_host_answered(context, &s_run, work, err_msg);
     static QueryWords s_read;
     memor.set(&(MemoriaCfg){.dst = &s_read, .val = 0, .bytes = sizeof(s_read)});
     query_words_add(&s_read, "read");
@@ -231,17 +231,18 @@ int query_stick_sliced(QueryContext *context, const QueryPairsMode *mode, const 
     {
         query_words_add(&s_read, mode->words[at]);
     }
-    whole = whole && !stopped && query_identity_ran(context, &s_run, identity, s_read.word, s_read.count, &code, said);
+    whole =
+        whole && !stopped && query_identity_ran(context, &s_run, identity, s_read.word, s_read.count, &code, err_msg);
     stopped = stopped || (whole && (code != 0ll));
     const char *const permuted[4] = {"permute", sass, tsv, work};
-    whole = whole && !stopped && query_identity_ran(context, &s_run, identity, permuted, 4u, &code, said);
+    whole = whole && !stopped && query_identity_ran(context, &s_run, identity, permuted, 4u, &code, err_msg);
     stopped = stopped || (whole && (code != 0ll));
     int read_back = 0;
     query_folder_each(engine, query_dis_found, &read_back);
     if (whole && !stopped && read_back)
     {
         const char *const known[5] = {"known", sass, tsv, work, engine};
-        whole = query_identity_ran(context, &s_run, identity, known, 5u, &code, said);
+        whole = query_identity_ran(context, &s_run, identity, known, 5u, &code, err_msg);
         stopped = whole && (code != 0ll);
         static QueryWords s_broken;
         memor.set(&(MemoriaCfg){.dst = &s_broken, .val = 0, .bytes = sizeof(s_broken)});
@@ -261,16 +262,16 @@ int query_stick_sliced(QueryContext *context, const QueryPairsMode *mode, const 
             }
         }
         whole = whole && !stopped &&
-                query_identity_ran(context, &s_run, identity, s_broken.word, s_broken.count, &code, said);
+                query_identity_ran(context, &s_run, identity, s_broken.word, s_broken.count, &code, err_msg);
     }
     else if (whole && !stopped)
     {
         code = 0ll;
     }
-    if (!query_context_ended(context, &s_run, said) || !whole)
+    if (!query_context_ended(context, &s_run, err_msg) || !whole)
     {
         return -1;
     }
-    // a step that did not end clean ends the mode with exit 1; an exit code is far below what an int holds
+    // a step that did not end clean ends the mode with exit 1; an exit code is far below what an int represents
     return stopped ? 1 : (int)code;
 }

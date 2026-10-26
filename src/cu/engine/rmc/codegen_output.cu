@@ -34,10 +34,10 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     forms.form_part_first =
         codegen_device_copy(&memory, text_rules->form_part_first.data(), text_rules->form_part_first.size());
     forms.form_parts = codegen_device_copy(&memory, text_rules->form_parts.data(), text_rules->form_parts.size());
-    forms.form_slot_first =
-        codegen_device_copy(&memory, text_rules->form_slot_first.data(), text_rules->form_slot_first.size());
-    forms.slot_parameters =
-        codegen_device_copy(&memory, text_rules->slot_parameters.data(), text_rules->slot_parameters.size());
+    forms.form_placeholder_first = codegen_device_copy(&memory, text_rules->form_placeholder_first.data(),
+                                                       text_rules->form_placeholder_first.size());
+    forms.placeholder_parameters = codegen_device_copy(&memory, text_rules->placeholder_parameters.data(),
+                                                       text_rules->placeholder_parameters.size());
     unsigned long long *const record_counts = codegen_device_take<unsigned long long>(&memory, item_count);
     unsigned long long *const record_first = codegen_device_take<unsigned long long>(&memory, item_count);
     if (memory.ok != 0)
@@ -50,8 +50,9 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     codegen_device_read(&memory, summary, device_summary, CODEGEN_SUMMARY);
     if ((memory.ok != 0) && ((summary[CODEGEN_BROKEN] != 0u) || (record_count >= ASM_PRINTER_LANES_MAX)))
     {
-        *error_message = (summary[CODEGEN_BROKEN] != 0u) ? "a form breaks the lane"
-                                                   : "the text holds more records than the assembly printer holds";
+        *error_message = (summary[CODEGEN_BROKEN] != 0u)
+                             ? "a form breaks the lane"
+                             : "the text contains more records than the assembly printer supports";
         return 0;
     }
     unsigned int *const records = codegen_device_take<unsigned int>(&memory, record_count * ASM_PRINTER_RECORD_LIMBS);
@@ -68,7 +69,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
     const unsigned long long lanes = codegen_device_scan(&memory, record_lanes, lane_first, record_count);
     if ((memory.ok != 0) && ((lanes >= ASM_PRINTER_LANES_MAX) || (lanes == 0ull)))
     {
-        *error_message = "the text holds more lanes than the assembly printer holds";
+        *error_message = "the text contains more lanes than the assembly printer supports";
         return 0;
     }
     unsigned int *const index = codegen_device_take<unsigned int>(&memory, lanes);
@@ -84,7 +85,7 @@ static int codegen_device_written(DeviceArena *device_arena, const EngineRecordL
         return 0;
     }
     // the assembly printer laid out by the device and checked against the host's word for word, then run by the record
-    // machine, a lane a byte; its output's offset read before the layout, which the record holds its own of, is given
+    // machine, a lane a byte; its output's offset read before the layout, which the record stores its own of, is given
     // back
     EngineRecordLayout text_layout{};
     if (asm_printer_program_placed(text_rules, &text_layout, error_message) == 0)
@@ -156,7 +157,7 @@ static std::string layout_error(int keymath, const LayoutEnd *ended)
                                                      : "keymath errored step " + at;
     }
     return (ended->end == KEY_SCHEDULE_CORE_STEP)   ? "key_schedule errored step " + at
-           : (ended->end == KEY_SCHEDULE_CORE_FILE) ? "the program's registers are more limbs than the file holds"
+           : (ended->end == KEY_SCHEDULE_CORE_FILE) ? "the program's registers are more limbs than the file contains"
                                                     : "the program's outputs are more bits than a record counts";
 }
 
@@ -171,15 +172,15 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
                         DeviceRecordStep **device_steps, unsigned int **device_values, unsigned long long *value_count,
                         std::string *error)
 {
-    int asked = (request->steps != NULL) && (request->count != 0u) && (request->outputs != NULL) &&
+    int valid = (request->steps != NULL) && (request->count != 0u) && (request->outputs != NULL) &&
                 (request->output_count != 0u) && (request->output_count <= request->count) &&
                 (request->members != 0u) && (request->members <= ENGINE_RECORD_MEMBERS_MAX) &&
                 (request->in_limbs != NULL) && ((request->tables != NULL) || (request->table_count == 0u));
-    for (unsigned int member = 0u; (asked != 0) && (member < request->members); member += 1u)
+    for (unsigned int member = 0u; (valid != 0) && (member < request->members); member += 1u)
     {
-        asked = request->in_limbs[member] != 0u;
+        valid = request->in_limbs[member] != 0u;
     }
-    if (asked == 0)
+    if (valid == 0)
     {
         *error = "the request is not a program keymath and key_schedule take";
         return 0;
@@ -191,7 +192,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
     }
     const unsigned int count = request->count;
     // each table's values in device memory, one after another, and its descriptor pointing at them there; a table
-    // indexed by more bits than a table holds, or with no values, errors on whole, as keymath could not lay out the
+    // indexed by more bits than a table supports, or with no values, errors on whole, as keymath could not lay out the
     // key's values
     std::vector<EngineRecordTable> tables(request->table_count);
     std::vector<unsigned long long> table_first(request->table_count);
@@ -203,7 +204,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         if ((tables[table].index_bits > ENGINE_RECORD_TABLE_INDEX_BITS_MAX) || (tables[table].values == NULL))
         {
             *error =
-                "table " + std::to_string(table) + " is indexed by more bits than a table holds, or has no values";
+                "table " + std::to_string(table) + " is indexed by more bits than a table supports, or has no values";
             return 0;
         }
         table_first[table] = words;
@@ -309,7 +310,7 @@ static int layout_steps(DeviceArena *memory, const LayoutRequest *request, Engin
         *error = layout_error(0, &ended);
         return 0;
     }
-    // the sizes as key_schedule_record_layout lays it out; the layout held the file to ENGINE_RECORD_LIMBS_MAX limbs
+    // the sizes as key_schedule_record_layout lays it out; the layout limited the file to ENGINE_RECORD_LIMBS_MAX limbs
     // and the record's bits to a 31-bit count
     memset(layout, 0, sizeof(*layout));
     layout->steps = count;
@@ -361,7 +362,8 @@ int layout_device(const LayoutRequest *request, EngineRecordLayout *layout, std:
         }
         if (ok == 0)
         {
-            *error = (memory.ok != 0) ? "the host could not hold the layout read back" : "the device errored on a call";
+            *error =
+                (memory.ok != 0) ? "the host could not store the layout read back" : "the device errored on a call";
             free(device_layout.step_table);
             free(device_layout.table_values);
             device_layout = EngineRecordLayout{};

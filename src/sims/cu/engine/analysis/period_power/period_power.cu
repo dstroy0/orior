@@ -85,15 +85,15 @@ int main(void)
     ok = ok && sim_job_submit(&results, "period_power", 0, NULL, voxels * sizeof(unsigned short));
     ok = ok && sim_status_check(&results, cudaMalloc((void **)&device_lanes, voxels * sizeof(unsigned short)), "lanes");
 
-    ScripturaLine *const line = &results.line;
-    scriptura_text(line, "  the period reading's power: a planted period ");
-    scriptura_decimal(line, POWER_PERIOD, 1u);
-    scriptura_text(
+    VerbaLinea *const line = &results.line;
+    mmgr_line_put(line, "  the period reading's power: a planted period ");
+    mmgr_line_decimal(line, POWER_PERIOD, 1u);
+    mmgr_line_put(
         line, " along x of 32 x 64 x 64 under the camera law (signal 200 e, read variance 3, fixed pattern 0 to 8)\n");
-    scriptura_text(line, "  each column over ");
-    scriptura_decimal(line, POWER_VOLUMES, 1u);
-    scriptura_text(line, " volumes; the plant adds 0 to the amplitude electrons by phase\n");
-    scriptura_text(line,
+    mmgr_line_put(line, "  each column over ");
+    mmgr_line_decimal(line, POWER_VOLUMES, 1u);
+    mmgr_line_put(line, " volumes; the plant adds 0 to the amplitude electrons by phase\n");
+    mmgr_line_put(line,
                    "  draws  amplitude  x reads 5  x reads 10 or 15  x reads another  z or y reads one (of 64)\n");
     for (unsigned int counts = 0u; ok && (counts < POWER_DRAW_COUNTS); counts += 1u)
     {
@@ -127,13 +127,13 @@ int main(void)
                     result.false_other_axes += (measurement.axis[1].period != 0ull) ? 1ull : 0ull;
                 }
             }
-            scriptura_decimal_columns(line, draws, 7u);
-            scriptura_decimal_columns(line, amplitude[level], 11u);
-            scriptura_decimal_columns(line, result.found, 11u);
-            scriptura_decimal_columns(line, result.found_multiple, 16u);
-            scriptura_decimal_columns(line, result.found_elsewhere, 17u);
-            scriptura_decimal_columns(line, result.false_other_axes, 18u);
-            scriptura_character(line, '\n');
+            mmgr_line_decimal_columns(line, draws, 7u);
+            mmgr_line_decimal_columns(line, amplitude[level], 11u);
+            mmgr_line_decimal_columns(line, result.found, 11u);
+            mmgr_line_decimal_columns(line, result.found_multiple, 16u);
+            mmgr_line_decimal_columns(line, result.found_elsewhere, 17u);
+            mmgr_line_decimal_columns(line, result.false_other_axes, 18u);
+            mmgr_line_ch(line, '\n');
             sim_flush(&results);
             const unsigned long long axes = 2ull * POWER_VOLUMES;
             const unsigned long long scaled = (draws + 1ull) * result.false_other_axes;

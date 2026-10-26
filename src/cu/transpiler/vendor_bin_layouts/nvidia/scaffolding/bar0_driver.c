@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // bar0_driver.c: a read-only kernel driver that maps the GPU's BAR0 register aperture and hands its 32-bit registers
 // back to the userspace reader by IOCTL (mmio.h, mmio_read.c). It is the kernel half of the most direct listen the run
-// channel has on the part: where NVML's Xid stamp and the System log report a fault second-hand and late, BAR0 holds
+// channel has on the part: where NVML's Xid stamp and the System log report a fault second-hand and late, BAR0 records
 // the part's own state first, the PGRAPH exception registers an out-of-range register warp exception among them.
 //
 // The physical base and size of the aperture are read at load from the driver's own service key, Bar0Base and Bar0Size
 // under its Parameters (install_bar0.ps1 writes them from the range Windows assigned the card). The aperture is mapped
 // PAGE_READONLY | PAGE_NOCACHE: the mapping itself refuses a write, the driver unable to write the part whatever an
-// IOCTL asks, matching the run channel's rule that the part is listened to and never written. Only reads are exposed,
-// each bounded to the mapped aperture.
+// IOCTL requests, matching the run channel's rule that the part is listened to and never written. Only reads are
+// exposed, each bounded to the mapped aperture.
 //
 // The driver is a software driver, bound to no device: it maps a fixed physical range and does not attach to the PCI
 // stack; it does not contend with the vendor's own driver for the part. It is loaded on demand and unloaded when its
@@ -108,7 +108,7 @@ static NTSTATUS bar0_open(PDEVICE_OBJECT device, PIRP irp)
 }
 
 // One control request answered: the extent of the mapped aperture, or a read of 32-bit registers from it, bounded to
-// the aperture and refused where it would reach past it. METHOD_BUFFERED: the system buffer holds the request on entry
+// the aperture and refused where it would reach past it. METHOD_BUFFERED: the system buffer stores the request on entry
 // and the reply on exit, the request copied out before the reply overwrites it
 static NTSTATUS bar0_control(PDEVICE_OBJECT device, PIRP irp)
 {

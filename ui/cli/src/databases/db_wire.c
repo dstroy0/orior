@@ -3,7 +3,7 @@
 // db_wire.c: a database server's failure made of a message alone, and written as the reader reads it
 #include "db_wire.h"
 
-void cli_db_failure_said(CliDbFailure *failure, const char *message)
+void cli_db_failure_set(CliDbFailure *failure, const char *message)
 {
     memor.set(&(MemoriaCfg){.dst = failure, .val = 0, .bytes = sizeof(*failure)});
     memor.cpy(&(MemoriaCfg){.dst = failure->message,
@@ -11,23 +11,23 @@ void cli_db_failure_said(CliDbFailure *failure, const char *message)
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = message, .cap = CLI_CELLS_POOL}) + 1u});
 }
 
-void cli_db_failure_written(const CliDbFailure *failure, CliLine *out)
+void cli_db_failure_written(const CliDbFailure *failure, VerbaLinea *out)
 {
-    cli_line_text(out, failure->message);
+    mmgr_line_put(out, failure->message);
     if (failure->code[0] != '\0')
     {
-        cli_line_text(out, " (");
-        cli_line_text(out, failure->code);
-        cli_line_character(out, ')');
+        mmgr_line_put(out, " (");
+        mmgr_line_put(out, failure->code);
+        mmgr_line_ch(out, ')');
     }
     if (failure->detail[0] != '\0')
     {
-        cli_line_character(out, '\n');
-        cli_line_text(out, failure->detail);
+        mmgr_line_ch(out, '\n');
+        mmgr_line_put(out, failure->detail);
     }
     if (failure->hint[0] != '\0')
     {
-        cli_line_character(out, '\n');
-        cli_line_text(out, failure->hint);
+        mmgr_line_ch(out, '\n');
+        mmgr_line_put(out, failure->hint);
     }
 }

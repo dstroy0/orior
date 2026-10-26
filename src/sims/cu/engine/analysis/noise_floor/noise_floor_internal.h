@@ -32,13 +32,13 @@
 
 #define FLOOR_FOUNDERS 8u
 
-// the static pairs' neighbor correlation is held within 5 / sqrt(N) of 0, this squared times N. A frame difference
+// the static pairs' neighbor correlation is bounded within 5 / sqrt(N) of 0, this squared times N. A frame difference
 // shares a frame with the next. Over 23 frame pairs a voxel the product sum spreads by sqrt(1.478) of an
 // independent one's, and the tolerance is about 4.1 standard errors
 #define FLOOR_CORRELATION_RANGE_SQUARED 25ll
 
-// the truth route's slope and intercept are held within 5 standard errors of the law, this squared, and the intercept
-// at least 5 above 0
+// the truth route's slope and intercept are bounded within 5 standard errors of the law, this squared, and the
+// intercept at least 5 above 0
 #define FLOOR_ERROR_RANGE_SQUARED 25ull
 
 typedef struct

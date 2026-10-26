@@ -38,8 +38,8 @@ static void levels_overlap_agree(LevelsResults *results, unsigned int case_numbe
     static unsigned int earlier_node[LEVELS_TEST_VOXELS_MAX];
     static unsigned int later_node[LEVELS_TEST_VOXELS_MAX];
     static unsigned long long direct[LEVELS_TEST_VOXELS_MAX * LEVELS_TEST_VOXELS_MAX];
-    static unsigned int asked_earlier[LEVELS_TEST_VOXELS_MAX * LEVELS_TEST_VOXELS_MAX];
-    static unsigned int asked_later[LEVELS_TEST_VOXELS_MAX * LEVELS_TEST_VOXELS_MAX];
+    static unsigned int queried_earlier[LEVELS_TEST_VOXELS_MAX * LEVELS_TEST_VOXELS_MAX];
+    static unsigned int queried_later[LEVELS_TEST_VOXELS_MAX * LEVELS_TEST_VOXELS_MAX];
     static unsigned long long sums[LEVELS_TEST_VOXELS_MAX * LEVELS_TEST_VOXELS_MAX];
     const unsigned int plane = earlier->height * earlier->width;
     for (unsigned int level = 1u; level <= earlier->levels; level += 1u)
@@ -76,22 +76,22 @@ static void levels_overlap_agree(LevelsResults *results, unsigned int case_numbe
                 }
                 direct[(earlier_label[voxel] * later_marks) + later_label[target]] += 1ull;
             }
-            unsigned int asked = 0u;
+            unsigned int queried = 0u;
             for (unsigned int one = 0u; one < earlier_marks; one += 1u)
             {
                 for (unsigned int other = 0u; other < later_marks; other += 1u)
                 {
-                    asked_earlier[asked] = earlier_node[one];
-                    asked_later[asked] = later_node[other];
-                    asked += 1u;
+                    queried_earlier[queried] = earlier_node[one];
+                    queried_later[queried] = later_node[other];
+                    queried += 1u;
                 }
             }
             EngineError error;
             memset(&error, 0, sizeof(error));
-            const MaxTreeOverlapSumsRequest request = {earlier_nodes, later_nodes, pairs, asked_earlier,
-                                                       asked_later,   asked,       sums,  &error};
-            int passed = (max_tree_overlap_sums(&request) == (long)asked);
-            for (unsigned int query = 0u; (passed != 0) && (query < asked); query += 1u)
+            const MaxTreeOverlapSumsRequest request = {earlier_nodes, later_nodes, pairs, queried_earlier,
+                                                       queried_later, queried,     sums,  &error};
+            int passed = (max_tree_overlap_sums(&request) == (long)queried);
+            for (unsigned int query = 0u; (passed != 0) && (query < queried); query += 1u)
             {
                 passed = (sums[query] == direct[query]) ? passed : 0;
             }
@@ -132,7 +132,7 @@ static void levels_case(LevelsResults *results, unsigned int case_number, const 
     if ((counted >= 0L) && (later_counted >= 0L))
     {
         levels_check(results, levels_nodes_valid(earlier, &earlier_nodes) && levels_nodes_valid(later, &later_nodes),
-                     "nodes nest in DFS order, rise in level and hold their voxels' ranks", case_number, 0u);
+                     "nodes nest in DFS order, rise in level and carry their voxels' ranks", case_number, 0u);
         for (unsigned int level = 1u; level <= earlier->levels; level += 1u)
         {
             const unsigned int marks = levels_flood(earlier, level, label);

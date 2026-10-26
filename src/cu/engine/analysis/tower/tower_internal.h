@@ -60,8 +60,8 @@ unsigned int tower_blocks(unsigned long long count);
 
 std::vector<TowerStep> tower_floors(const unsigned long long *extent);
 
-// the coefficients, the scratch, the flag and the mismatch count are slices of one pool, sized for the most lanes asked
-// so far; the edge table grows apart, only when an edge is laid out
+// the coefficients, the scratch, the flag and the mismatch count are slices of one pool, sized for the most lanes
+// requested so far; the edge table grows apart, only when an edge is laid out
 struct TowerResident
 {
     DevicePool pool;
@@ -84,8 +84,8 @@ DevicePoolPlan tower_plan(size_t lanes, EngineError *error, DevicePoolTakeReques
 
 unsigned long long tower_lanes(const unsigned long long *extent);
 
-// the record floors' writer: every step is counted, and written only where the caller's program is held. Each
-// constant is laid out once, where it is first read, and its register kept beside its value.
+// the record floors' writer: every step is counted, and written only where the caller's program is allocated. Each
+// constant is laid out once, where it is first read, and its register stored beside its value.
 struct TowerRecordBuilder
 {
     EngineRecordStep *steps;

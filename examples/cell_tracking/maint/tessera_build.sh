@@ -6,7 +6,7 @@
 # sims/cu/sim_job.cu). TESSERA_INCLUDES are the headers the program and sim_job.cu read. tessera_build compiles the
 # client objects the program links and the seal its job's signum is taken with, and builds the daemon beside the
 # program, where the program starts it when none answers. It reads TOP, OUT, EXTENSION, HOST_FLAGS, GENCODE and
-# INCLUDES, takes a suffix for its objects and then the scriptura objects the daemon links, and sets the arrays
+# INCLUDES, takes a suffix for its objects and then the line's objects the daemon links, and sets the arrays
 # TESSERA_OBJECTS and TESSERA_SEAL. tessera_run_build, after it, builds tessera_run beside the daemon.
 TESSERA_INCLUDES=(-I "$ENGINE/../../sims/cu" -I "$ENGINE/runtime/daemon" -I "$ENGINE/runtime/obsignatio"
                   -I "$ENGINE/../../cu/engine/runtime/obsignatio")
@@ -15,7 +15,7 @@ tessera_build()
 {
     local suffix="$1"
     shift
-    local scriptura_objects=("$@")
+    local linea_objects=("$@")
     local daemon_directory="$ENGINE/runtime/daemon"
     local includes=("${INCLUDES[@]}" "${TESSERA_INCLUDES[@]}")
     local daemon_objects=()
@@ -65,17 +65,17 @@ tessera_build()
     done
     rm -f "$daemon"
     nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$daemon" "${daemon_objects[@]}" \
-        "${scriptura_objects[@]}" "${TESSERA_SEAL[@]}" "${daemon_libraries[@]}"
+        "${linea_objects[@]}" "${TESSERA_SEAL[@]}" "${daemon_libraries[@]}"
     [ -f "$daemon" ] || { echo "  build failed: the tessera daemon did not link"; return 1; }
 }
 
 # tessera_run_build builds tessera_run, the host job's wrapper, beside the daemon tessera_build made, from the same
-# client objects and seal. It takes the same suffix and scriptura objects.
+# client objects and seal. It takes the same suffix and the line's objects.
 tessera_run_build()
 {
     local suffix="$1"
     shift
-    local scriptura_objects=("$@")
+    local linea_objects=("$@")
     local includes=("${INCLUDES[@]}" "${TESSERA_INCLUDES[@]}")
     local name
     local object
@@ -108,6 +108,6 @@ tessera_run_build()
         run_objects+=("$object")
     done
     nvcc "${HOST_FLAGS[@]}" "${GENCODE[@]}" "${long_paths[@]}" -o "$run" "${run_objects[@]}" "${TESSERA_OBJECTS[@]}" \
-        "${scriptura_objects[@]}" "${TESSERA_SEAL[@]}" "${run_libraries[@]}"
+        "${linea_objects[@]}" "${TESSERA_SEAL[@]}" "${run_libraries[@]}"
     [ -f "$run" ] || { echo "  build failed: tessera_run did not link"; return 1; }
 }

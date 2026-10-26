@@ -9,13 +9,13 @@
 // first, `src/files.rs::listing::name`, and runs by the name the harness gives it, `files::listing::name`.
 //
 // A run gives each target its own cargo test, every target's at once, with the words rust-analyzer gives an editor
-// for a test: the package by its name, the target, `--no-fail-fast`, and the names of the tests asked of it given to
-// the harness with `--exact`, or none where every test of it is asked, with `--show-output`, and `--include-ignored`
-// where each test is asked by its name. The harness's own report is read, and RUSTC_BOOTSTRAP is not set for its report
-// in JSON: Cargo builds every crate again for it, and again for the next build without it. Each result is passed on as
-// the harness prints it, and each failure's message and the line it failed at as its process ends, from the panic it
-// reports; a target whose build fails fails each of its tests with the compiler's first error (cargo_scan.c,
-// cargo_targets.c, cargo_found.c, cargo_run.c, cargo_binary.c)
+// for a test: the package by its name, the target, `--no-fail-fast`, and the names of the tests requested of it given
+// to the harness with `--exact`, or none where every test of it is requested, with `--show-output`, and
+// `--include-ignored` where each test is requested by its name. The harness's own report is read, and RUSTC_BOOTSTRAP
+// is not set for its report in JSON: Cargo builds every crate again for it, and again for the next build without it.
+// Each result is passed on as the harness prints it, and each failure's message and the line it failed at as its
+// process ends, from the panic it reports; a target whose build fails fails each of its tests with the compiler's first
+// error (cargo_scan.c, cargo_targets.c, cargo_found.c, cargo_run.c, cargo_binary.c)
 #ifndef CARGO_TESTS_H
 #define CARGO_TESTS_H
 
@@ -51,7 +51,7 @@ typedef struct
 // the bytes of a piece of the tests' texts, past which a text longer takes a piece of its own size
 #define CLI_CARGO_PIECE (64ull << 10u)
 
-// A piece of the tests' texts: the piece put before it, the bytes put in it and those it holds, and its bytes
+// A piece of the tests' texts: the piece put before it, the bytes put in it and those it contains, and its bytes
 typedef struct CliCargoPieceStruct
 {
     struct CliCargoPieceStruct *next;
@@ -76,14 +76,14 @@ typedef struct
 // whether `id`, a test's name or a file's path, is of Rust (cargo_found.c)
 int cli_cargo_is_rust(const char *id);
 // the Rust tests of the tree at `root` into `tests`, package by package in the order of their manifests' paths, those
-// it held before given back; and the tests' cells given back, the tests left empty
+// it contained before given back; and the tests' cells given back, the tests left empty
 void cli_cargo_found(const char *root, CliCargoTests *tests);
 void cli_cargo_tests_given(CliCargoTests *tests);
 // how many cargo tests a run of `given`, `count` tests by their names or files by their paths, starts (cargo_run.c)
 unsigned int cli_cargo_targets_given(const char *root, const char *const *given, unsigned int count);
 // the program that runs the test `id` and the name the harness gives it, built as cargo test builds it, with the
-// package's folder for it to run in, for a debugger to start it: each into what holds CLI_PATH_LONGEST, 1, or 0 with
-// why said (cargo_binary.c)
-int cli_cargo_binary(const char *root, const char *id, char *program, char *full, char *package, CliLine *said);
+// package's folder for it to run in, for a debugger to start it: each into what is sized for CLI_PATH_MAX_LEN, 1, or 0
+// with why given (cargo_binary.c)
+int cli_cargo_binary(const char *root, const char *id, char *program, char *full, char *package, VerbaLinea *err_msg);
 
 #endif

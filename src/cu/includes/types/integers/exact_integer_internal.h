@@ -6,7 +6,7 @@
 
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -26,7 +26,7 @@
 /** @brief Bits per limb. */
 #define LIMB_BITS 32u
 
-/** @brief The base a limb counts in, held as 64 bit, wide enough that two limbs multiply cleanly. */
+/** @brief The base a limb counts in, stored as 64 bit, wide enough that two limbs multiply cleanly. */
 #define LIMB_BASE ((uint64_t)1u << LIMB_BITS)
 
 /** @brief Everything below the limb boundary, for taking the low half of a 64 bit accumulator. */
@@ -39,7 +39,7 @@
 
 // A call's width-sized working copies are one block, placed at compile time: on the stack while the width is at most
 // ORIOR_EXACT_STACK_LIMBS, from the heap beyond it. No width is bounded by a stack. A block from the heap that
-// cannot be held errors as ORIOR_EXACT_WILL_NOT_FIT.
+// cannot be allocated errors as ORIOR_EXACT_WILL_NOT_FIT.
 #if (ORIOR_EXACT_LIMBS) <= (ORIOR_EXACT_STACK_LIMBS)
 #define EXACT_SCRATCH(name_, count_)                                                                                   \
     uint32_t name_##_on_stack[count_];                                                                                 \
@@ -86,7 +86,7 @@ void limbs_long_product(uint32_t *result, const uint32_t *left, size_t left_coun
 
 int limbs_product(uint32_t *result, const uint32_t *left, size_t left_count, const uint32_t *right, size_t right_count);
 
-// A ring element modulo 2^n + 1, n = 32 limbs, is limbs + 1 words holding a value from 0 to 2^n. In this ring 2 is a
+// A ring element modulo 2^n + 1, n = 32 limbs, is limbs + 1 words containing a value from 0 to 2^n. In this ring 2 is a
 // root of unity (2^(2n) = 1). Every twiddle of the transform is a shift, and nothing is rounded.
 #define TRANSFORM_BASE_LIMBS 64u
 

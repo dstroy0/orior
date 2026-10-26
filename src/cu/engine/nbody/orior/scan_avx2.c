@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -10,8 +10,8 @@
  * @brief The steering scan under AVX2, thirty-two alignments per compare.
  * @author dstroy0 (Douglas Quigg) <dquigg123@gmail.com>
  *
- * WHY THIS SHAPE VECTORIZES AT ALL. Every hot loop in the steering engine asks the same question:
- * held at one needle offset, does `corpus[at + offset]` equal `needle[offset]`, for consecutive
+ * WHY THIS SHAPE VECTORIZES AT ALL. Every hot loop in the steering engine tests the same question:
+ * fixed at one needle offset, does `corpus[at + offset]` equal `needle[offset]`, for consecutive
  * `at`. The needle byte is fixed across the whole sweep. It broadcasts once. The corpus side is a
  * sliding window read at unit stride. That is one wide load against one broadcast register, and it
  * answers thirty-two alignments in the instruction where the portable arm answers one.
@@ -23,10 +23,10 @@
  * WHAT THIS ARM IS NOT ALLOWED TO DO. It returns the portable arm's count or it has a defect. There
  * is no tolerance, no reordering that changes an answer, and no fast path that is right most of the
  * time: the value is an integer count of alignments and the two arms agree exactly or one is wrong.
- * That is the contract src/cu/includes/types/integers/arm.h states for the exact arms and it is kept here for the same
- * reason.
+ * That is the contract src/cu/includes/types/integers/arm.h states for the exact arms and it is retained here for the
+ * same reason.
  *
- * @note Asks the processor at run time and not the build. A binary compiled with AVX2 available
+ * @note Queries the processor at run time and not the build. A binary compiled with AVX2 available
  *       still runs on machines without it, and calling in would raise an illegal instruction.
  * @note Two detection paths, both arms of the gate defined. MSVC has no __builtin_cpu_supports and
  *       takes __cpuidex; GCC and Clang have the builtin.
@@ -41,7 +41,7 @@
 
 #if defined(_MSC_VER)
 #include <intrin.h>
-/** @brief Set where this translation unit can ask the processor about AVX2. */
+/** @brief Set where this translation unit can query the processor about AVX2. */
 #define ORIOR_STEER_AVX2_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
 #define ORIOR_STEER_AVX2_CAN_DETECT 1
@@ -100,7 +100,7 @@ size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, c
                                       size_t offset)
 {
     /* Counted before the argument check. A caller passing nothing still records that this arm
-     * was the one asked. The claim the counters carry is which arm RAN and not what it returned. */
+     * was the one requested. The claim the counters carry is which arm RAN and not what it returned. */
     orior_steer_scan_calls += 1u;
     orior_steer_wide_calls += 1u;
 
@@ -125,7 +125,7 @@ size_t orior_steer_truthy_after_avx2(const uint8_t *corpus, size_t alignments, c
 
         /* An alive flag is zero or non-zero. The mask of alignments still standing is the
          * complement of "equals zero". Testing against zero and complementing instead of testing
-         * against one keeps this correct if a caller ever stores a flag other than one. */
+         * against one retains this correct if a caller ever stores a flag other than one. */
         const __m256i refuted = _mm256_cmpeq_epi8(standing_bytes, zero);
         const __m256i alive_mask = _mm256_andnot_si256(refuted, _mm256_set1_epi8((char)0xFF));
 

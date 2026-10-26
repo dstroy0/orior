@@ -18,7 +18,7 @@
 // and the word of ones that a rewrite needs and no operand carries. 24 symbols and 13 places is 24^13, or 8.76e17,
 // which sits inside an unsigned long long. Every tree in either web is one 8-byte number.
 //
-// This buys no bytes. web_check measures both and the node lists win at this size - 21 trees hold 32 nodes
+// This buys no bytes. web_check measures both and the node lists win at this size - 21 trees contain 32 nodes
 // between them, three bytes each, against eight bytes a tree for the numbers - because most words are a single node
 // and a tree has to reach five before a number pays for itself. It buys one form per tree. A node list
 // carries an ordering the tree does not have: the same tree written by two hands numbers its nodes differently, and
@@ -26,8 +26,8 @@
 // subtree where their numbers are equal, a compare in place of a walk, and a .kdm keyed on subtrees rests on that,
 // as does the compiler reading its own trees.
 // Past 13 places the number outgrows an unsigned long long, and the container changes where the encoding does not.
-// The engine already holds an exact integer of any width - OriorExactInteger in
-// src/cu/includes/types/integers/exact_integer_api.h, limbs least significant first with the sign held apart -
+// The engine already supports an exact integer of any width - OriorExactInteger in
+// src/cu/includes/types/integers/exact_integer_api.h, limbs least significant first with the sign stored apart -
 // and a tree's number in base TREE_SYMBOLS is written into one the same way it is written into a word here.
 //
 // Nothing reaches for it yet, and this is the size where that stops being true: a fixed-arity tree never passes 5

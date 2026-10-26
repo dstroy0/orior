@@ -3,7 +3,7 @@
 // cli_bench.c: the command line's common paths timed over a corpus, the tree's own C: each file read, read as UTF-8,
 // counted in UTF-16 units, decoded to letters, searched for a needle, sifted for it, its facts set in the tree's
 // index, parsed, its declarations read, its lines colored with the C grammar; the corpus's paths sorted; the tree's
-// JSON read and written again; and the tree searched. Each is run `repeat` times and the best time kept; a row is
+// JSON read and written again; and the tree searched. Each is run `repeat` times and the best time recorded; a row is
 // written for each as `name<tab>bytes<tab>microseconds<tab>megabytes a second`, the corpus and the repeats first.
 // The corpus is a file of paths, one a line; the tree's top is the second argument
 #include "../../../../../../ui/cli/src/code/symbols.h"
@@ -21,20 +21,20 @@
 #include <stdlib.h>
 
 #define BENCH_FILES 4096u
-#define BENCH_NEEDLE "cli_cell_given"
+#define BENCH_NEEDLE "persistent_buf_release"
 #define BENCH_RUNS (1u << 20u)
 #define BENCH_LINES (1u << 17u)
 #define BENCH_FOLDS (1u << 16u)
 #define BENCH_RANGES (1u << 18u)
 
-static char (*s_paths)[CLI_PATH_LONGEST];
+static char (*s_paths)[CLI_PATH_MAX_LEN];
 static unsigned int s_count;
 static unsigned int s_repeat = 5u;
-static char s_root[CLI_PATH_LONGEST];
+static char s_root[CLI_PATH_MAX_LEN];
 
-static BenchHeld *s_held;
+static BenchFile *s_corpus;
 
-// what a pass over the corpus does with one kept file, its bytes counted into the pass's sum
+// what a pass over the corpus does with one loaded file, its bytes counted into the pass's sum
 typedef void (*BenchEach)(const char *path, const unsigned char *bytes, unsigned long long size, void *context);
 
 void bench_row(const char *name, BenchMeasure measure)
@@ -45,7 +45,7 @@ void bench_row(const char *name, BenchMeasure measure)
     fflush(stdout);
 }
 
-// `each` run over every kept file `s_repeat` times: the bytes and the least time
+// `each` run over every loaded file `s_repeat` times: the bytes and the least time
 static BenchMeasure bench_pass(BenchEach each, void *context)
 {
     BenchMeasure measure = {0ull, ~0ull};
@@ -55,10 +55,10 @@ static BenchMeasure bench_pass(BenchEach each, void *context)
         const unsigned long long began = cli_clock_microseconds();
         for (unsigned int at = 0u; at < s_count; at += 1u)
         {
-            if (s_held[at].bytes != NULL)
+            if (s_corpus[at].bytes != NULL)
             {
-                each(s_paths[at], s_held[at].bytes, s_held[at].size, context);
-                bytes += s_held[at].size;
+                each(s_paths[at], s_corpus[at].bytes, s_corpus[at].size, context);
+                bytes += s_corpus[at].size;
             }
         }
         const unsigned long long took = cli_clock_microseconds() - began;
@@ -68,13 +68,13 @@ static BenchMeasure bench_pass(BenchEach each, void *context)
     return measure;
 }
 
-static void each_held(const char *path, const unsigned char *bytes, unsigned long long size, void *context)
+static void each_read(const char *path, const unsigned char *bytes, unsigned long long size, void *context)
 {
     (void)bytes;
     (void)size;
     (void)context;
     unsigned long long read = 0ull;
-    const unsigned char *const again = cli_file_held(path, &read);
+    const unsigned char *const again = cli_file_read(path, &read);
     cli_file_let_go(again, read);
 }
 
@@ -84,7 +84,7 @@ static void each_utf8(const char *path, const unsigned char *bytes, unsigned lon
     (void)size;
     (void)context;
     unsigned long long read = 0ull;
-    const unsigned char *const again = cli_file_held_utf8(path, &read);
+    const unsigned char *const again = cli_file_read_utf8(path, &read);
     cli_file_let_go(again, read);
 }
 
@@ -123,11 +123,11 @@ static void each_sift(const char *path, const unsigned char *bytes, unsigned lon
 }
 
 // the corpus joined into one text of `whole` bytes and sifted for the needle twice over, `s_repeat` times each, the
-// least time of each kept: once with each window counted for its plan, and once planned from the text's census, counted
-// once as a text kept in lines keeps it. The rows "sift whole" and "sift kept"
+// least time of each recorded: once with each window counted for its plan, and once planned from the text's census,
+// counted once as a text stored in lines stores it. The rows "sift whole" and "sift stored"
 static void bench_sift_whole(unsigned long long whole)
 {
-    unsigned char *const text = cli_cell_taken(whole + 1ull, "the corpus as one text");
+    unsigned char *const text = g_cli_cells->persistent_buf_alloc(whole + 1ull, NULL);
     if (text == NULL)
     {
         return;
@@ -135,17 +135,17 @@ static void bench_sift_whole(unsigned long long whole)
     unsigned long long used = 0ull;
     for (unsigned int at = 0u; at < s_count; at += 1u)
     {
-        if (s_held[at].bytes != NULL)
+        if (s_corpus[at].bytes != NULL)
         {
-            memor.cpy(&(MemoriaCfg){.dst = text + used, .src = s_held[at].bytes, .bytes = s_held[at].size});
-            used += s_held[at].size;
+            memor.cpy(&(MemoriaCfg){.dst = text + used, .src = s_corpus[at].bytes, .bytes = s_corpus[at].size});
+            used += s_corpus[at].size;
         }
     }
     CliCensus census;
     memor.set(&(MemoriaCfg){.dst = &census, .val = 0, .bytes = sizeof(census)});
     cli_sift_census_counted(&census, text, used);
     BenchMeasure counted = {used, ~0ull};
-    BenchMeasure kept = {used, ~0ull};
+    BenchMeasure stored = {used, ~0ull};
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
     {
         unsigned long long sum = 0ull;
@@ -158,11 +158,11 @@ static void bench_sift_whole(unsigned long long whole)
         (void)cli_sift_find_all_with(&census, text, used, (const unsigned char *)BENCH_NEEDLE,
                                      sizeof(BENCH_NEEDLE) - 1u, 0, sift_found, &sum);
         took = cli_clock_microseconds() - began;
-        kept.least = (took < kept.least) ? took : kept.least;
+        stored.least = (took < stored.least) ? took : stored.least;
     }
-    cli_cell_given(text);
+    g_cli_cells->persistent_buf_release(text, NULL);
     bench_row("sift whole", counted);
-    bench_row("sift kept", kept);
+    bench_row("sift stored", stored);
 }
 
 static void each_facts(const char *path, const unsigned char *bytes, unsigned long long size, void *context)
@@ -216,7 +216,7 @@ typedef struct
     const char *key;
     char *copy;
     const char **lines;
-    CliLine out;
+    VerbaLinea out;
     unsigned long long colored;
 } BenchColoring;
 
@@ -237,44 +237,45 @@ static void each_color(const char *path, const unsigned char *bytes, unsigned lo
             coloring->lines[count] = coloring->copy + at + 1ull;
         }
     }
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     coloring->out.at = 0ull;
-    coloring->colored +=
-        (unsigned long long)cli_highlight_color(coloring->key, "", coloring->lines, count + 1u, &coloring->out, &said);
+    coloring->colored += (unsigned long long)cli_highlight_color(coloring->key, "", coloring->lines, count + 1u,
+                                                                 &coloring->out, &err_msg);
 }
 
-BenchMeasure bench_colored(const char *key, const BenchHeld *held, unsigned int count, unsigned int repeat,
+BenchMeasure bench_colored(const char *key, const BenchFile *files, unsigned int count, unsigned int repeat,
                            unsigned long long largest)
 {
-    (void)held;
+    (void)files;
     (void)count;
     (void)repeat;
-    BenchColoring coloring = {key,
-                              cli_cell_taken(largest + 1ull, "a file's lines copied"),
-                              cli_cell_taken((unsigned long long)BENCH_LINES * sizeof(const char *), "line starts"),
-                              {NULL, 0ull, 0ull},
-                              0ull};
-    (void)cli_line_growing(&coloring.out, 1ull << 22u, "the colored runs");
+    BenchColoring coloring = {
+        key,
+        g_cli_cells->persistent_buf_alloc(largest + 1ull, NULL),
+        g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(const char *), NULL),
+        {NULL, 0ull, 0ull},
+        0ull};
+    (void)cli_growing_line_made(&coloring.out, 1ull << 22u);
     const BenchMeasure measure = bench_pass(each_color, &coloring);
-    cli_cell_given(coloring.out.out);
-    cli_cell_given(coloring.copy);
-    cli_cell_given(coloring.lines);
+    g_cli_cells->persistent_buf_release(coloring.out.out, NULL);
+    g_cli_cells->persistent_buf_release(coloring.copy, NULL);
+    g_cli_cells->persistent_buf_release(coloring.lines, NULL);
     return measure;
 }
 
-// the corpus read: each line of `list` a path, kept whole
+// the corpus read: each line of `list` a path, loaded whole
 static int bench_corpus(const char *list)
 {
     unsigned long long size = 0ull;
-    const unsigned char *const text = cli_file_held(list, &size);
+    const unsigned char *const text = cli_file_read(list, &size);
     if (text == NULL)
     {
         fprintf(stderr, "the corpus list %s was not read\n", list);
         return 0;
     }
-    s_paths = cli_cell_taken((unsigned long long)BENCH_FILES * CLI_PATH_LONGEST, "the corpus's paths");
-    s_held = cli_cell_taken((unsigned long long)BENCH_FILES * sizeof(BenchHeld), "the corpus held");
+    s_paths = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FILES * CLI_PATH_MAX_LEN, NULL);
+    s_corpus = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FILES * sizeof(BenchFile), NULL);
     unsigned long long start = 0ull;
     for (unsigned long long at = 0ull; (at <= size) && (s_count < BENCH_FILES); at += 1ull)
     {
@@ -284,11 +285,11 @@ static int bench_corpus(const char *list)
         }
         unsigned long long end = at;
         end -= ((end > start) && (text[end - 1ull] == '\r')) ? 1ull : 0ull;
-        if ((end > start) && (end - start < CLI_PATH_LONGEST))
+        if ((end > start) && (end - start < CLI_PATH_MAX_LEN))
         {
             memor.cpy(&(MemoriaCfg){.dst = s_paths[s_count], .src = text + start, .bytes = end - start});
             s_paths[s_count][end - start] = '\0';
-            s_held[s_count].bytes = cli_file_held_utf8(s_paths[s_count], &s_held[s_count].size);
+            s_corpus[s_count].bytes = cli_file_read_utf8(s_paths[s_count], &s_corpus[s_count].size);
             s_count += 1u;
         }
         start = at + 1ull;
@@ -297,26 +298,26 @@ static int bench_corpus(const char *list)
     return s_count > 0u;
 }
 
-// the C grammar of the tree's plugin kept under bench-c: 1, or 0
-static int bench_grammar_kept(void)
+// the C grammar of the tree's plugin cached under bench-c: 1, or 0
+static int bench_grammar_cached(void)
 {
-    char path[CLI_PATH_LONGEST];
+    char path[CLI_PATH_MAX_LEN];
     cli_full(s_root, "ui/plugins/c/plugin.json", path);
     unsigned long long size = 0ull;
-    const unsigned char *const text = cli_file_held(path, &size);
+    const unsigned char *const text = cli_file_read(path, &size);
     if (text == NULL)
     {
         return 0;
     }
     CliJson json;
-    char why[CLI_SAID_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &said);
-    const int kept =
-        (root != CLI_JSON_NONE) && cli_highlight_keep("bench-c", &json, cli_json_member(&json, root, "grammar"), &said);
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned int root = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &err_msg);
+    const int cached = (root != CLI_JSON_NONE) &&
+                       cli_highlight_store("bench-c", &json, cli_json_member(&json, root, "grammar"), &err_msg);
     cli_json_given(&json);
     cli_file_let_go(text, size);
-    return kept;
+    return cached;
 }
 
 // the tree's JSON, the C plugin and the toolchains, read into trees and written again, `s_repeat` times each
@@ -333,23 +334,23 @@ static BenchMeasure bench_json(BenchMeasure *write)
         unsigned long long took_write = 0ull;
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
-            char path[CLI_PATH_LONGEST];
+            char path[CLI_PATH_MAX_LEN];
             cli_full(s_root, s_files[at], path);
             unsigned long long size = 0ull;
-            const unsigned char *const text = cli_file_held(path, &size);
+            const unsigned char *const text = cli_file_read(path, &size);
             if (text == NULL)
             {
                 continue;
             }
-            CliLine out;
-            (void)cli_line_growing(&out, size + 1024ull, "the JSON written again");
-            char why[CLI_SAID_LONGEST];
-            CliLine said = {why, sizeof(why), 0ull};
+            VerbaLinea out;
+            (void)cli_growing_line_made(&out, size + 1024ull);
+            char why[CLI_ERR_MSG_MAX_LEN];
+            VerbaLinea err_msg = {why, sizeof(why), 0ull};
             for (unsigned int times = 0u; times < 20u; times += 1u)
             {
                 CliJson json;
                 const unsigned long long began = cli_clock_microseconds();
-                const unsigned int root = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &said);
+                const unsigned int root = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &err_msg);
                 const unsigned long long read = cli_clock_microseconds();
                 out.at = 0ull;
                 cli_json_write(&json, root, &out, 0u, 0);
@@ -358,7 +359,7 @@ static BenchMeasure bench_json(BenchMeasure *write)
                 cli_json_given(&json);
                 bytes += size;
             }
-            cli_cell_given(out.out);
+            g_cli_cells->persistent_buf_release(out.out, NULL);
             cli_file_let_go(text, size);
         }
         measure.bytes = bytes;
@@ -373,18 +374,18 @@ static BenchMeasure bench_json(BenchMeasure *write)
 static BenchMeasure bench_sorted(void)
 {
     BenchMeasure measure = {0ull, ~0ull};
-    char (*const copy)[CLI_PATH_LONGEST] =
-        cli_cell_taken((unsigned long long)s_count * CLI_PATH_LONGEST, "paths sorted");
+    char (*const copy)[CLI_PATH_MAX_LEN] =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)s_count * CLI_PATH_MAX_LEN, NULL);
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
     {
-        memor.cpy(&(MemoriaCfg){.dst = copy, .src = s_paths, .bytes = (unsigned long long)s_count * CLI_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = copy, .src = s_paths, .bytes = (unsigned long long)s_count * CLI_PATH_MAX_LEN});
         const unsigned long long began = cli_clock_microseconds();
         cli_paths_sorted(copy, s_count);
         const unsigned long long took = cli_clock_microseconds() - began;
-        measure.bytes = (unsigned long long)s_count * CLI_PATH_LONGEST;
+        measure.bytes = (unsigned long long)s_count * CLI_PATH_MAX_LEN;
         measure.least = (took < measure.least) ? took : measure.least;
     }
-    cli_cell_given(copy);
+    g_cli_cells->persistent_buf_release(copy, NULL);
     return measure;
 }
 
@@ -399,8 +400,8 @@ static BenchMeasure bench_cells(void)
         const unsigned long long began = cli_clock_microseconds();
         for (unsigned int turn = 0u; turn < BENCH_CELL_TURNS; turn += 1u)
         {
-            void *const cell = cli_cell_taken(4096ull, "a bench cell");
-            cli_cell_given(cell);
+            void *const cell = g_cli_cells->persistent_buf_alloc(4096ull, NULL);
+            g_cli_cells->persistent_buf_release(cell, NULL);
         }
         const unsigned long long took = cli_clock_microseconds() - began;
         measure.bytes = (unsigned long long)BENCH_CELL_TURNS * 4096ull;
@@ -411,6 +412,7 @@ static BenchMeasure bench_cells(void)
 
 int main(int argc, char **argv)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     if (argc < 3)
     {
         fprintf(stderr, "cli_bench <corpus list> <tree> [repeat]\n");
@@ -429,17 +431,17 @@ int main(int argc, char **argv)
     unsigned long long largest = 0ull;
     for (unsigned int at = 0u; at < s_count; at += 1u)
     {
-        whole += s_held[at].size;
-        largest = (s_held[at].size > largest) ? s_held[at].size : largest;
+        whole += s_corpus[at].size;
+        largest = (s_corpus[at].size > largest) ? s_corpus[at].size : largest;
     }
     printf("corpus\t%llu\t%u\t%u\n", whole, s_count, s_repeat);
-    bench_row("held", bench_pass(each_held, NULL));
+    bench_row("cell-read", bench_pass(each_read, NULL));
     bench_row("utf8", bench_pass(each_utf8, NULL));
     unsigned long long sum = 0ull;
     bench_row("units", bench_pass(each_units, &sum));
-    unsigned int *const letters = cli_cell_taken((largest + 1ull) * sizeof(unsigned int), "a file's letters");
+    unsigned int *const letters = g_cli_cells->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), NULL);
     bench_row("letters", bench_pass(each_letters, letters));
-    cli_cell_given(letters);
+    g_cli_cells->persistent_buf_release(letters, NULL);
     sum = 0ull;
     bench_row("find", bench_pass(each_find, &sum));
     sum = 0ull;
@@ -447,34 +449,34 @@ int main(int argc, char **argv)
     bench_sift_whole(whole);
     bench_row("facts", bench_pass(each_facts, NULL));
     cli_inspect_tree_cleared();
-    s_runs = cli_cell_taken((unsigned long long)BENCH_RUNS * sizeof(CliInspectRun), "the parse's runs");
-    s_line_first = cli_cell_taken((unsigned long long)BENCH_LINES * sizeof(unsigned int), "the parse's lines");
-    s_line_runs = cli_cell_taken((unsigned long long)BENCH_LINES * sizeof(unsigned int), "the parse's line runs");
-    s_fold_first = cli_cell_taken((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), "the parse's folds");
-    s_fold_last = cli_cell_taken((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), "the parse's fold ends");
-    s_ranges = cli_cell_taken((unsigned long long)BENCH_RANGES * sizeof(CliInspectSpan), "the parse's ranges");
+    s_runs = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_RUNS * sizeof(CliInspectRun), NULL);
+    s_line_first = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), NULL);
+    s_line_runs = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_LINES * sizeof(unsigned int), NULL);
+    s_fold_first = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), NULL);
+    s_fold_last = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_FOLDS * sizeof(unsigned int), NULL);
+    s_ranges = g_cli_cells->persistent_buf_alloc((unsigned long long)BENCH_RANGES * sizeof(CliInspectSpan), NULL);
     sum = 0ull;
     bench_row("parse", bench_pass(each_parse, &sum));
     sum = 0ull;
     bench_row("symbols", bench_pass(each_symbols, &sum));
-    if (bench_grammar_kept())
+    if (bench_grammar_cached())
     {
-        bench_row("color", bench_colored("bench-c", s_held, s_count, s_repeat, largest));
+        bench_row("color", bench_colored("bench-c", s_corpus, s_count, s_repeat, largest));
     }
-    bench_rules(s_root, s_held, s_count, s_repeat, largest);
+    bench_rules(s_root, s_corpus, s_count, s_repeat, largest);
     BenchMeasure written;
     const BenchMeasure read = bench_json(&written);
     bench_row("json-read", read);
     bench_row("json-write", written);
     bench_row("sorted", bench_sorted());
-    const BenchCorpus corpus = {s_root, s_paths, s_held, s_count, whole, s_repeat};
+    const BenchCorpus corpus = {s_root, s_paths, s_corpus, s_count, whole, s_repeat};
     bench_row("cells-live", bench_cells());
-    bench_row("held-2", bench_held_by(&corpus, 2u, 0));
-    bench_row("read-1", bench_held_by(&corpus, 1u, 1));
-    bench_row("read-2", bench_held_by(&corpus, 2u, 1));
-    bench_row("read-4", bench_held_by(&corpus, 4u, 1));
-    bench_row("held-4", bench_held_by(&corpus, 4u, 0));
-    bench_row("held-8", bench_held_by(&corpus, 8u, 0));
+    bench_row("cell-read-2", bench_files_read_by(&corpus, 2u, 0));
+    bench_row("read-1", bench_files_read_by(&corpus, 1u, 1));
+    bench_row("read-2", bench_files_read_by(&corpus, 2u, 1));
+    bench_row("read-4", bench_files_read_by(&corpus, 4u, 1));
+    bench_row("cell-read-4", bench_files_read_by(&corpus, 4u, 0));
+    bench_row("cell-read-8", bench_files_read_by(&corpus, 8u, 0));
     bench_row("picked", bench_picked(&corpus));
     bench_row("search", bench_search(&corpus, BENCH_NEEDLE));
     bench_row("search-none", bench_search(&corpus, "zzqqxx_nowhere"));

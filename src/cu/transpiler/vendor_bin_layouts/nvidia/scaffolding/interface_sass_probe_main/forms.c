@@ -42,7 +42,7 @@ int sass_list(SassProbe *probe, const char *name, SassListing *listing)
     return 1;
 }
 
-// each instruction of the listing whose operation is not yet kept, kept
+// each instruction of the listing whose operation is not yet stored, stored
 void sass_operations_take(SassProbe *probe, const SassListing *listing)
 {
     for (unsigned int number = 0u; number < listing->count; number += 1u)
@@ -51,9 +51,9 @@ void sass_operations_take(SassProbe *probe, const SassListing *listing)
         // the key is the low 12 bits of the word, which fit an unsigned int
         const unsigned int key = (unsigned int)(instruction->low & SASS_OPERATION_MASK);
         int known = 0;
-        for (unsigned int kept = 0u; kept < probe->operations; kept += 1u)
+        for (unsigned int taken = 0u; taken < probe->operations; taken += 1u)
         {
-            known = known || (probe->operation[kept].key == key);
+            known = known || (probe->operation[taken].key == key);
         }
         if (!known && (probe->operations < SASS_OPERATIONS))
         {
@@ -77,8 +77,8 @@ static unsigned int sass_operation_count(const SassListing *listing, const char 
     return found;
 }
 
-// the operations the form's listing holds more of than the kernel's, each once with how many more, and those it holds
-// fewer of
+// the operations the form's listing contains more of than the kernel's, each once with how many more, and those it
+// contains fewer of
 void sass_form_print(const char *name, const SassListing *form, const SassListing *kernel_listing)
 {
     printf("form %s:", name);

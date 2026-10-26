@@ -10,26 +10,26 @@
 static char s_out[1u << 16u];
 
 // each piece of a review written, `path name how from` with `from` `-` where it has none, `|` between them
-static void review_pieces(const CliJson *json, unsigned int review, CliLine *line)
+static void review_pieces(const CliJson *json, unsigned int review, VerbaLinea *line)
 {
     const unsigned int pieces = cli_json_member(json, review, "pieces");
     for (unsigned int at = 0u; cli_json_item(json, pieces, at) != CLI_JSON_NONE; at += 1u)
     {
         const unsigned int piece = cli_json_item(json, pieces, at);
         const char *const from = cli_json_string(json, cli_json_member(json, piece, "from"), NULL);
-        cli_line_text(line, (at > 0u) ? "|" : "");
-        cli_line_text(line, cli_check_member_text(piece, "path"));
-        cli_line_character(line, ' ');
-        cli_line_text(line, cli_check_member_text(piece, "name"));
-        cli_line_character(line, ' ');
-        cli_line_text(line, cli_check_member_text(piece, "how"));
-        cli_line_character(line, ' ');
-        cli_line_text(line, (from != NULL) ? from : "-");
+        mmgr_line_put(line, (at > 0u) ? "|" : "");
+        mmgr_line_put(line, cli_check_member_text(piece, "path"));
+        mmgr_line_ch(line, ' ');
+        mmgr_line_put(line, cli_check_member_text(piece, "name"));
+        mmgr_line_ch(line, ' ');
+        mmgr_line_put(line, cli_check_member_text(piece, "how"));
+        mmgr_line_ch(line, ' ');
+        mmgr_line_put(line, (from != NULL) ? from : "-");
     }
 }
 
 // a JSON member of a node written compact into `line`
-static void review_member(const CliJson *json, unsigned int node, const char *name, CliLine *line)
+static void review_member(const CliJson *json, unsigned int node, const char *name, VerbaLinea *line)
 {
     cli_json_write(json, cli_json_member(json, node, name), line, 0u, 0);
 }
@@ -38,7 +38,7 @@ static void review_member(const CliJson *json, unsigned int node, const char *na
 static unsigned int review_of(const char *const *paths, const char *const *was, const char *const *now,
                               unsigned int count, const CliJson **json)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_review_files(paths, was, now, count, &out);
     unsigned int review = CLI_JSON_NONE;
     *json = cli_check_parsed(s_out, out.at, &review);
@@ -59,7 +59,7 @@ static void review_change(void)
     const CliJson *json = NULL;
     const unsigned int review = review_of(s_paths, s_was, s_now, 3u, &json);
     char text[1024];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     review_pieces(json, review, &line);
     cli_check_text(text, line.at,
                    "a.py main changed -|a.py helper changed -|b.py other changed -|b.py moving moved a.py",
@@ -87,12 +87,12 @@ static void review_change(void)
 static void review_added(void)
 {
     static const char *const s_paths[1] = {"c.rs"};
-    static const char *const s_was[1] = {"fn gone() {\n}\n\nfn kept() {\n}\n"};
-    static const char *const s_now[1] = {"fn kept() {\n}\n\nfn fresh() {\n    let a = 1;\n}\n"};
+    static const char *const s_was[1] = {"fn gone() {\n}\n\nfn stays() {\n}\n"};
+    static const char *const s_now[1] = {"fn stays() {\n}\n\nfn fresh() {\n    let a = 1;\n}\n"};
     const CliJson *json = NULL;
     unsigned int review = review_of(s_paths, s_was, s_now, 1u, &json);
     char text[1024];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     review_pieces(json, review, &line);
     cli_check_text(text, line.at, "c.rs gone removed -|c.rs fresh added -", "a declaration added or taken out is one");
     line.at = 0ull;
@@ -104,11 +104,11 @@ static void review_added(void)
     review = review_of(s_moved_paths, s_moved_was, s_moved_now, 2u, &json);
     line.at = 0ull;
     review_pieces(json, review, &line);
-    cli_check_text(text, line.at, "e.py f moved d.py", "two of three lines kept is a move");
+    cli_check_text(text, line.at, "e.py f moved d.py", "two of three lines retained is a move");
 }
 
 // git run in `root` with `count` words after it, what it wrote into `out` where it is not NULL
-static void review_git(const char *root, const char *const *words, unsigned int count, CliLine *out)
+static void review_git(const char *root, const char *const *words, unsigned int count, VerbaLinea *out)
 {
     const char *line[8] = {"git"};
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -118,11 +118,11 @@ static void review_git(const char *root, const char *const *words, unsigned int 
     line[count + 1u] = NULL;
     CliRan *const ran = cli_ran_taken();
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_ran(line, root, NULL, 0u, ran, &said) && (ran->code == 0), words[0]);
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_ran(line, root, NULL, 0u, ran, &err_msg) && (ran->code == 0), words[0]);
     for (unsigned long long at = 0ull; (out != NULL) && (at < ran->out_size) && (ran->out[at] > ' '); at += 1ull)
     {
-        cli_line_character(out, ran->out[at]);
+        mmgr_line_ch(out, ran->out[at]);
     }
     cli_ran_given(ran);
 }
@@ -140,8 +140,8 @@ static void review_commit(void)
     static const char s_one[] = "def one():\n    return 1\n";
     static const char s_two[] = "def one():\n    return two()\n\n\ndef two():\n    return 2\n";
     static const char s_three[] = "def one():\n    return 3\n";
-    char root[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("review_commit", root);
     cli_full(root, "a.py", path);
     review_git(root, s_init, 2u, NULL);
@@ -153,13 +153,13 @@ static void review_commit(void)
     (void)query_file_written(path, s_two, sizeof(s_two) - 1u);
     review_git(root, s_second, 4u, NULL);
     char id[128];
-    CliLine id_line = {id, sizeof(id), 0ull};
+    VerbaLinea id_line = {id, sizeof(id), 0ull};
     review_git(root, s_head, 2u, &id_line);
-    (void)cli_line_closed(&id_line);
+    (void)mmgr_line_finish(&id_line);
     char why[512];
-    CliLine said = {why, sizeof(why), 0ull};
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_review(root, id, &out, &said), "a commit is reviewed");
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_review(root, id, &out, &err_msg), "a commit is reviewed");
     unsigned int review = CLI_JSON_NONE;
     const CliJson *json = cli_check_parsed(s_out, out.at, &review);
     cli_check((cellul.eq(&(CatenaFinitaCfg){
@@ -168,7 +168,7 @@ static void review_commit(void)
                       .src = cli_check_member_text(review, "subject"), .other = "second", .cap = CLI_CELLS_POOL})),
               "with who made it and its subject");
     char text[1024];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     review_pieces(json, review, &line);
     cli_check_text(text, line.at, "a.py one changed -|a.py two added -", "against its parent");
     line.at = 0ull;
@@ -176,7 +176,7 @@ static void review_commit(void)
     cli_check_text(text, line.at, "[[0,1]]", "the caller before what it calls");
     (void)query_file_written(path, s_three, sizeof(s_three) - 1u);
     out.at = 0ull;
-    (void)cli_review(root, NULL, &out, &said);
+    (void)cli_review(root, NULL, &out, &err_msg);
     json = cli_check_parsed(s_out, out.at, &review);
     cli_check(cli_json_is(json, cli_json_member(json, review, "by"), CFG_JSON_NULL), "the tree's change has no maker");
     line.at = 0ull;
@@ -186,10 +186,11 @@ static void review_commit(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     review_change();
     review_added();
     review_commit();
-    cli_check((g_cli_review_cells.holds == 0ull) && (g_cli_review_cells.hw != 0ull),
-              "every text's lines compared are given back, the most they held marked");
+    cli_check((g_cli_review_cells.in_use == 0ull) && (g_cli_review_cells.hw != 0ull),
+              "every text's lines compared are given back, the most they used marked");
     return cli_checked();
 }

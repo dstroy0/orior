@@ -2873,7 +2873,7 @@ product	0	-	-	0
 who 01ed0b8901ed000018dec80268c27cdc
 
 # operations the system writes on the FMA pipe in place of the integer pipe: the operation, its
-# writing there, and the lane it moves in, one whose integer pipe holds the first number of
+# writing there, and the lane it moves in, one whose integer pipe carries the first number of
 # operations or more and the second more than its FMA pipe.
 pipe IADD3.X IMAD.X 0 4
 pipe MOV IMAD.MOV.U32 5 2

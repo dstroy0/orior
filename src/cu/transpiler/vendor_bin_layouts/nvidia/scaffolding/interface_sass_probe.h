@@ -4,15 +4,15 @@
 #ifndef INTERFACE_SASS_PROBE_H
 #define INTERFACE_SASS_PROBE_H
 
-// The SASS probe (engine_table.md item 11(f)(a)): the device's machine code found by asking its disassembler, so that
+// The SASS probe (engine_table.md item 11(f)(a)): the device's machine code found by querying its disassembler, so that
 // a ruleset of SASS can be written from what the probes saw. interface_ptx_probe assembles each membership question's
 // kernel, the forms of ptx.krs, into a cubin, and the kernel with no body into another; nvdisasm lists each, and the
-// operations a question's listing holds past the kernel's are its forms' machine code. Then each operation seen, keyed
-// by the low 12 bits of its encoding, is decoded with each of its 128 bits turned over, one nvdisasm --binary for all
-// 129 encodings: a bit that changes a register operand is that operand's field, one that changes the operation's name
-// is the operation's, one the disassembler refuses is an encoding the part lacks, and one that changes nothing in the
-// text is either control (the stall, yield and barriers the scheduler sets) or unused. Every process is run through the
-// interface, whose runner loses nothing when the disassembler fails
+// operations a question's listing contains past the kernel's are its forms' machine code. Then each operation seen,
+// keyed by the low 12 bits of its encoding, is decoded with each of its 128 bits turned over, one nvdisasm --binary for
+// all 129 encodings: a bit that changes a register operand is that operand's field, one that changes the operation's
+// name is the operation's, one the disassembler refuses is an encoding the part lacks, and one that changes nothing in
+// the text is either control (the stall, yield and barriers the scheduler sets) or unused. Every process is run through
+// the interface, whose runner loses nothing when the disassembler fails
 #include "../../../../includes/file_defs/qry/writer/qry_member.h"
 #include "../../../lstar/interface/interface.h"
 #include "../sass_machine.h"
@@ -20,13 +20,13 @@
 #include <stdio.h>
 #include "../../../../includes/parsers/who.h"
 
-// the longest instruction text kept, and the most instructions a listing holds
+// the longest instruction text stored, and the most instructions a listing contains
 #define SASS_TEXT 192u
 #define SASS_LISTING_LIMIT 4096u
-// the most operands an instruction's text holds, and the longest each is kept
+// the most operands an instruction's text contains, and the longest each is stored
 #define SASS_OPERANDS 8u
 #define SASS_OPERAND_TEXT 64u
-// the most questions and the most operations the probe keeps, and the longest question name
+// the most questions and the most operations the probe stores, and the longest question name
 #define SASS_QUESTIONS 256u
 #define SASS_OPERATIONS 512u
 #define SASS_NAME 160u
@@ -34,14 +34,14 @@
 #define SASS_BITS 128u
 #define SASS_ENCODINGS (SASS_BITS + 1u)
 // how many times widening walks out a bit, each round over what the round before found. Two, because the field the
-// lane is short of is the kind of an operand, and a register and a number in one slot are two bits apart through the
+// lane is short of is the kind of an operand, and a register and a number in one field are two bits apart through the
 // constant between them (sass_machine_widen)
 #define SASS_WIDEN_ROUNDS 2u
 // every value of SASS_OPERATION_MASK (sass_machine.h) is a question the sweep puts to the disassembler, and the
 // search is unbounded by any compiler's output
 
 // one instruction as the disassembler printed it: its address, its text without the ending ';', and its encoding, the
-// low word holding the operation and its operands, the high word more operands and the control, both 0 where the
+// low word containing the operation and its operands, the high word more operands and the control, both 0 where the
 // listing gave no encoding
 typedef struct
 {
@@ -82,12 +82,13 @@ typedef struct
 // reader can see, or refused. The third prunes - an encoding the decoder names but that no run will
 // take is illegal on its own, however well it decoded
 #define SASS_CLASSES(class_)                                                                                           \
-    class_(ANSWERS, "answers", "the question was put and the answer came back as the question says")                   \
-    class_(NOTHING, "nothing", "the question was taken and left nothing a reader here can see")                        \
-    class_(ILLEGAL, "illegal", "the question was refused: the system will not take it as it stands")                   \
-    class_(FOLDS, "folds",                                                                                             \
-           "the compiler answered but folded the operand the question varied away, so the answer names a form of its " \
-           "own and not the operator")
+    class_(ANSWERS, "answers", "the question was put and the answer came back as the question specifies")              \
+        class_(NOTHING, "nothing", "the question was taken and left nothing a reader here can see")                    \
+            class_(ILLEGAL, "illegal", "the question was refused: the system will not take it as it stands")           \
+                class_(FOLDS, "folds",                                                                                 \
+                       "the compiler answered but folded the operand the question varied away, so the answer names a " \
+                       "form of its "                                                                                  \
+                       "own and not the operator")
 
 #define SASS_CHANNEL_NAMED(name_, text_, why_) SASS_CHANNEL_##name_,
 #define SASS_CLASS_NAMED(name_, text_, why_) SASS_CLASS_##name_,
@@ -112,46 +113,47 @@ typedef struct
     char question[SASS_TEXT];
 } SassClassed;
 
-// one question and its answer kept for the .ksc (interface_sass_probe_class.c)
+// one question and its answer stored for the .ksc (interface_sass_probe_class.c)
 void sass_class_take(unsigned int channel, unsigned int answered, const char *question, unsigned int word);
 
-// one more question counted on a channel, its text not kept: the decode channel puts tens of thousands of these and
+// one more question counted on a channel, its text not stored: the decode channel puts tens of thousands of these and
 // only the count of each class is worth writing
 void sass_class_count(unsigned int channel, unsigned int answered);
 
-// two writings the system answers alike, held in the .ksc: an operation the compiler wrote where the ruleset holds the
-// other, each giving the same machine code. A reading in one is the ruleset's form in the other
+// two writings the system answers alike, recorded in the .ksc: an operation the compiler wrote where the ruleset
+// contains the other, each giving the same machine code. A reading in one is the ruleset's form in the other
 void sass_equal_take(const char *one, const char *other);
 
-// 1 where `one` and `other` are held equal, in either order
-int sass_equal_held(const char *one, const char *other);
+// 1 where `one` and `other` are recorded equal, in either order
+int sass_equal_known(const char *one, const char *other);
 
-// an operation the system writes on the FMA pipe in place of the integer pipe, held in the part's .kdm: the operation,
-// its writing there, and the lane it moves in, one whose integer pipe holds `least` operations or more and `over` more
-// than its FMA pipe. A pipe already held for `operation` is replaced
+// an operation the system writes on the FMA pipe in place of the integer pipe, recorded in the part's .kdm: the
+// operation, its writing there, and the lane it moves in, one whose integer pipe carries `least` operations or more and
+// `over` more than its FMA pipe. A pipe already recorded for `operation` is replaced
 void sass_pipe_take(const char *operation, const char *writing, unsigned int least, unsigned int over);
 
-// 1 where a pipe is held for `operation`, its writing in `writing`, of SASS_TEXT, and its lane in `least` and `over`
-int sass_pipe_held(const char *operation, char *writing, unsigned int *least, unsigned int *over);
+// 1 where a pipe is recorded for `operation`, its writing in `writing`, of SASS_TEXT, and its lane in `least` and
+// `over`
+int sass_pipe_found(const char *operation, char *writing, unsigned int *least, unsigned int *over);
 
-// the pipes of `machines`/<part>.kdm taken beside those held, as the run holds it (kdm.h): 1, or 0 where there is no
-// such file
+// the pipes of `machines`/<part>.kdm taken beside those recorded, as the run stores it (kdm.h): 1, or 0 where there is
+// no such file
 int sass_pipe_read(const char *machines, const char *part);
 
-// `machines`/<part>.kdm handed back to the run's writer with the pipes held in place of those it held, at the end of
-// its tail under a who line of `who` (kdm.h): 1, or 0 with the reason printed
+// `machines`/<part>.kdm handed back to the run's writer with the pipes recorded in place of those it contained, at the
+// end of its tail under a who line of `who` (kdm.h): 1, or 0 with the reason printed
 int sass_pipe_write_by(const char *machines, const char *part, Who who);
 
 // sass_pipe_write_by, the who the code that calls it
 #define sass_pipe_write(machines_, part_) sass_pipe_write_by((machines_), (part_), WHO_HERE)
 
-// `machines`/<part>.ksc read back into the classification in place of the questions and counts it held, as the run
-// holds it (ksc.h), for a later pass to add to in place of overwriting it: its folds among them, and its equal writings
-// beside those already taken. 1, or 0 where there is no such file (a first run has none)
+// `machines`/<part>.ksc read back into the classification in place of the questions and counts it contained, as the run
+// stores it (ksc.h), for a later pass to add to in place of overwriting it: its folds among them, and its equal
+// writings beside those already taken. 1, or 0 where there is no such file (a first run has none)
 int sass_class_read(const char *machines, const char *part);
 
-// every kept question on `channel` of class `answered` that opens with `opening` taken out, and its count: a pass that
-// asks a question again drops what an earlier pass found of it before taking what it finds itself
+// every recorded question on `channel` of class `answered` that opens with `opening` taken out, and its count: a pass
+// that queries a question again drops what an earlier pass found of it before taking what it finds itself
 void sass_class_drop(unsigned int channel, unsigned int answered, const char *opening);
 
 // the system's classification handed to the run's writer as `machines`/<part>.ksc, every line after its first under a
@@ -161,7 +163,7 @@ int sass_class_write_by(const char *machines, const char *part, Who who);
 // sass_class_write_by, the who the code that calls it
 #define sass_class_write(machines_, part_) sass_class_write_by((machines_), (part_), WHO_HERE)
 
-// one operation the listings hold, keyed by the low 12 bits of its encoding: the first instruction seen with it
+// one operation the listings contain, keyed by the low 12 bits of its encoding: the first instruction seen with it
 typedef struct
 {
     unsigned int key;
@@ -174,7 +176,7 @@ typedef struct
 {
     const char *folder;
     const char *prober;
-    // what every cubin our assembler wrote is held to on the host before it runs (cubin_safe.h)
+    // what every cubin our assembler wrote is checked against on the host before it runs (cubin_safe.h)
     const SassMachine *machine;
     char architecture[16];
     unsigned int questions;
@@ -188,40 +190,41 @@ typedef struct
 // (sass_output): its exit status, or -1 where it did not exit, with how it ended printed
 int sass_run(char *const *command, const char *output_path);
 
-// the cubin at `path`, which our assembler wrote, held to cubin_safe against the probe's machine and, where it holds,
-// run on the device through interface_ptx_probe over one case, its answer into `answered`: 1, or 0 with the reason
-// printed, where it was held off the part or did not run (interface_sass_probe_ask.c)
+// the cubin at `path`, which our assembler wrote, checked against cubin_safe for the probe's machine and, where it
+// passes, run on the device through interface_ptx_probe over one case, its answer into `answered`: 1, or 0 with the
+// reason printed, where it was blocked from the part or did not run (interface_sass_probe_query/)
 int sass_cubin_answer(SassProbe *probe, const char *path, char *answered, size_t room);
 
 // the cubin at `path` run as sass_cubin_answer runs one, where NVIDIA's toolchain made it and our assembler wrote none
-// of it: it is not held to cubin_safe
+// of it: it is not checked against cubin_safe
 int sass_cubin_answer_toolchain(SassProbe *probe, const char *path, char *answered, size_t room);
 
-// 1 where the cubin at `path` reads and holds to cubin_safe against the probe's machine, or 0 with the rule it broke
+// 1 where the cubin at `path` reads and satisfies cubin_safe against the probe's machine, or 0 with the rule it broke
 // printed: nothing our assembler wrote goes to the part unread
 int sass_cubin_safe(const SassProbe *probe, const char *path);
 
-// every question of the interface's own put to the part in code no toolchain wrote, `asked` counting them: how many the
-// part answered as the question says
-unsigned int sass_cubin_asks(SassProbe *probe, const SassMachine *machine, unsigned int *asked);
+// every question of the interface's own put to the part in code no toolchain wrote, `queried` counting them: how many
+// the part answered as the question specifies
+unsigned int sass_cubin_queries(SassProbe *probe, const SassMachine *machine, unsigned int *queried);
 
-// every pair of codings weighed against each other in the part's own clock, `asked` counting the pairs: how many
+// every pair of codings weighed against each other in the part's own clock, `queried` counting the pairs: how many
 // gave a reading that stands above the noise
-unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, unsigned int *asked);
+unsigned int sass_cubin_prefers(SassProbe *probe, const SassMachine *machine, unsigned int *queried);
 
-// How the part loops, asked of the part (engine_plan.md, "A loop is learned by asking"). Every form `machine` holds is
-// put in loop_back_if's place with its operands filled by their kinds, at the end of a body that counts the case's
-// first word down with word_add and sets the flag with test_word_nonzero. A form that comes back to the label on the
-// flag answers that word and one that falls through answers 1; 2 is asked first and the forms that answer it are asked
-// every other count. Those that answer every count are timed and walked (sass_loop_walk), and the cheapest is printed
-// as the part's loop_back_if. `asked` counts the forms put: how many came back on every count
-unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsigned int *asked);
+// How the part loops, queried of the part (engine_plan.md, "A loop is learned by querying"). Every form `machine`
+// contains is put in loop_back_if's place with its operands filled by their kinds, at the end of a body that counts the
+// case's first word down with word_add and sets the flag with test_word_nonzero. A form that comes back to the label on
+// the flag answers that word and one that falls through answers 1; 2 is queried first and the forms that answer it are
+// queried every other count. Those that answer every count are timed and walked (sass_loop_walk), and the cheapest is
+// printed as the part's loop_back_if. `queried` counts the forms put: how many came back on every count
+unsigned int sass_cubin_loops(SassProbe *probe, const SassMachine *machine, unsigned int *queried);
 
 // the output of the last process sass_run ran
 const char *sass_output(void);
 
-// a listing read from a disassembler's output: each line holding an address, "/*0000*/", is an instruction, and a line
-// holding only "/* 0x... */" after one is its encoding's high word. 0 where the listing is longer than it holds
+// a listing read from a disassembler's output: each line containing an address, "/*0000*/", is an instruction, and a
+// line containing only "/* 0x... */" after one is its encoding's high word. 0 where the listing is longer than it
+// allows
 int sass_listing_read(const char *output, SassListing *listing);
 
 void sass_parts_read(const char *text, SassParts *parts);
@@ -240,12 +243,12 @@ void sass_machine_listing(SassMachine *machine, const SassListing *listing);
 // Every form reachable from the listings a bit at a time, taken into `machine` as a form of its own: a form's 128
 // bits are turned over and decoded, and a decode the disassembler names whole is an instruction the compiler never
 // wrote and the part still answers for. This is how a name reaches the machine without being guessed:
-// ISETP.EQ.U32.AND, ISETP.EQ.U32.AND.EX and ISETP.LT.AND are each one bit from a comparison the listings did hold,
+// ISETP.EQ.U32.AND, ISETP.EQ.U32.AND.EX and ISETP.LT.AND are each one bit from a comparison the listings did contain,
 // and sass.krs names all three only because the compiler read zero and below off the negations instead.
 //
 // A form found this way is widened in turn, for SASS_WIDEN_ROUNDS rounds. The reach is what one bit at a time gets
 // to through forms, in place of what one bit gets to. The kind of an operand is a field of more than one bit: a
-// register in a slot and a number in that slot are two bits apart, through the constant in that slot which lies
+// register in a field and a number in that field are two bits apart, through the constant in that field which lies
 // between them. One round reaches the constant; the next reaches the number. The operation's name does not decide
 // this, because a form is its operation and its operands' kinds together -- both SHF.L.U32 forms carry that name,
 // and the assembler puts a number in a different place for each.
@@ -253,27 +256,27 @@ void sass_machine_listing(SassMachine *machine, const SassListing *listing);
 // The rounds are bounded and the walk is not run to its own end, which was measured and does not close: see
 // sass_machine_widen for the reading and why taking the whole component is worse than taking this much of it.
 //
-// Two things a widened form is not. It is decodable without being run: only a question that assembles one and runs it says
-// the part executes it. And its operand bits are the ones the form it came from held, which the new operation may
-// read as something else - PLOP3.LUT is one bit from SHF.L.U32, and it decodes with a register standing where a
+// Two things a widened form is not. It is decodable without being run: only a question that assembles one and runs it
+// shows the part executes it. And its operand bits are the ones the form it came from carried, which the new operation
+// may read as something else - PLOP3.LUT is one bit from SHF.L.U32, and it decodes with a register standing where a
 // predicate belongs: its form carries that kind and no predicate operation can be written from it. An operation
-// reached this way is the part saying the encoding is legal, not a form ready to assemble from. The count taken
+// reached this way is the part reporting the encoding is legal, not a form ready to assemble from. The count taken
 unsigned int sass_machine_widen(SassMachine *machine, const char *architecture, const char *folder);
 
-// Every operation the part has a coding for, asked of its disassembler without starting from anything a compiler
+// Every operation the part has a coding for, queried of its disassembler without starting from anything a compiler
 // wrote.
 //
-// Widening asks what lies one bit from a form some compiler emitted, which bounds the search by what a compiler
+// Widening queries what lies one bit from a form some compiler emitted, which bounds the search by what a compiler
 // happens to write. The encoding's own structure lifts that bound. The low 12 bits of the low word key the
 // operation and its operands' kinds, and the probe already found that much: 4096 questions reach every operation
 // the disassembler will name. The carrier for all of them is a form the part ran, with its key cut out and each key
-// in turn put back, which leaves every bit that is not the key holding what a real instruction held.
+// in turn put back, which leaves every bit that is not the key containing what a real instruction contained.
 //
 // What comes back is read exactly the way widening reads it: every operation the disassembler names whole, with
-// every operand a kind the assembler can place, is one to keep, and a form already held is found by its operation
+// every operand a kind the assembler can place, is one to retain, and a form already stored is found by its operation
 // and kinds and taken no second time. The operand bits belong to the carrier and not to the operation they now sit
 // under, the same
-// caveat widening carries; sass_machine_fields finds each kept form's fields afterward by turning its own bits. The
+// caveat widening carries; sass_machine_fields finds each retained form's fields afterward by turning its own bits. The
 // count of forms this added
 unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, const char *folder);
 
@@ -281,8 +284,8 @@ unsigned int sass_machine_sweep(SassMachine *machine, const char *architecture, 
 // `folder`/machine: 1, or 0 where a form's fields were not found or the file was not written
 int sass_machine_fields(SassMachine *machine, const char *architecture, const char *folder);
 
-// the machine file the tree holds for this part, in `machines`, checked against the one this run learned: 1 where the two
-// agree, or where the tree holds none for this part; 0 where they differ, with what to do printed
+// the machine file the tree contains for this part, in `machines`, checked against the one this run learned: 1 where
+// the two agree, or where the tree contains none for this part; 0 where they differ, with what to do printed
 int sass_machine_same(const SassMachine *machine, const char *machines);
 
 // how a check of the assembler came out: how many instructions were written back, how many of them the assembler
@@ -305,10 +308,10 @@ unsigned int sass_machine_check(const SassMachine *machine, const SassListing *l
                                 const char *folder, SassCheck *tally, unsigned int report);
 
 // a listing's own output turned back into the text it was written from, one instruction or label a line, into `text`,
-// which holds `room` letters: how many were written
+// which has room for `room` letters: how many were written
 unsigned int sass_text_read(const char *output, const char *kernel, char *text, unsigned int room);
 
-// the listing of `name` in `folder` turned back into the text it was written from, into `text`, and kept beside it as
+// the listing of `name` in `folder` turned back into the text it was written from, into `text`, and stored beside it as
 // <name>.text: how many letters, 0 where the listing was not read
 unsigned int sass_cubin_text(const char *folder, const char *name, char *text, unsigned int room);
 
@@ -326,7 +329,7 @@ int sass_cubin_from_text(const SassMachine *machine, const char *folder, const c
 // with. This is how a SASS program is put together, and why sass.krs gives program_unit as an error without that
 // being a gap: the resident is 110 instructions of PTX the part's compiler turns into SASS that already runs, and
 // re-deriving it from a ruleset would throw that away. The lane is the part we write; the resident is the part we
-// ask for and keep
+// request and retain
 int sass_cubin_lane_into(const SassMachine *machine, const char *folder, const char *text, const char *into);
 
 // the kernel `name` in `folder` written again out of its own listing, as <name>_written.cubin

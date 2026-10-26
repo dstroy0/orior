@@ -212,7 +212,7 @@ static int krep_members_write(FILE *crystal, const EngineSideBytes *side, Engine
 {
     const size_t leaves = (size_t)side->leaves;
     return KREP_IO(krep_words_write(crystal, side->pixel_at, leaves) != 0, side->pixel_at, error) &&
-           KREP_IO(krep_words_write(crystal, side->pixel_kept, leaves) != 0, side->pixel_kept, error) &&
+           KREP_IO(krep_words_write(crystal, side->pixel_stored, leaves) != 0, side->pixel_stored, error) &&
            KREP_IO(krep_words_write(crystal, side->byte_start, leaves + 1u) != 0, side->byte_start, error) &&
            KREP_IO(krep_words_write(crystal, side->name_start, leaves + 1u) != 0, side->name_start, error) &&
            KREP_IO(krep_words_write(crystal, side->member_crc, leaves) != 0, side->member_crc, error) &&
@@ -288,18 +288,18 @@ static int krep_members_read(FILE *crystal, const unsigned long long head[KREP_C
     const size_t leaves = (size_t)head[KREP_HEAD_LEAVES];
     side->leaves = head[KREP_HEAD_LEAVES];
     side->pixel_at = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
-    side->pixel_kept = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
+    side->pixel_stored = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
     side->byte_start = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
     side->name_start = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
     side->member_crc = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
     side->member_bytes = (unsigned long long *)calloc(leaves + 1u, sizeof(unsigned long long));
     side->names = (char *)malloc((size_t)head[KREP_HEAD_NAMES_BYTES] + 1u);
-    return KREP_CHECK((side->pixel_at != NULL) && (side->pixel_kept != NULL) && (side->byte_start != NULL) &&
+    return KREP_CHECK((side->pixel_at != NULL) && (side->pixel_stored != NULL) && (side->byte_start != NULL) &&
                           (side->name_start != NULL) && (side->member_crc != NULL) && (side->member_bytes != NULL) &&
                           (side->names != NULL),
                       side, error, ENGINE_ERROR_RESOURCE) &&
            KREP_IO(krep_words_read(crystal, side->pixel_at, leaves) != 0, side->pixel_at, error) &&
-           KREP_IO(krep_words_read(crystal, side->pixel_kept, leaves) != 0, side->pixel_kept, error) &&
+           KREP_IO(krep_words_read(crystal, side->pixel_stored, leaves) != 0, side->pixel_stored, error) &&
            KREP_IO(krep_words_read(crystal, side->byte_start, leaves + 1u) != 0, side->byte_start, error) &&
            KREP_IO(krep_words_read(crystal, side->name_start, leaves + 1u) != 0, side->name_start, error) &&
            KREP_CHECK((side->byte_start[leaves] == head[KREP_HEAD_SIDE_BYTES]) &&

@@ -236,7 +236,7 @@ static int sass_operation_relative(const char *operation)
 
 // A relative target in `text`, which the disassembler prints as the address it lands on, written as its distance from
 // the instruction after the one at `address`, where the encoding counts it from. One encoding decoded at two addresses
-// prints two targets and holds one distance: read as an address, every bit turned would move the target, since each
+// prints two targets and encodes one distance: read as an address, every bit turned would move the target, since each
 // turned encoding lies at an address of its own
 static void sass_target_relative(char *text, unsigned long long address)
 {

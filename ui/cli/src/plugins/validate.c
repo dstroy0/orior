@@ -10,10 +10,10 @@
 CliValidateRoom *g_cli_validate;
 static CliLock s_validate_lock = CLI_LOCK_INIT;
 
-int cli_validate_held(void)
+int cli_validate_locked(void)
 {
     cli_lock_take(&s_validate_lock);
-    g_cli_validate = cli_cell_taken(sizeof(*g_cli_validate), "a file validated");
+    g_cli_validate = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_validate), NULL);
     if (g_cli_validate == NULL)
     {
         cli_lock_give(&s_validate_lock);
@@ -30,8 +30,8 @@ void cli_validate_released(void)
 {
     cli_json_given(&g_cli_validate->json);
     cli_json_given(&g_cli_validate->manifest);
-    cli_cell_given(g_cli_validate->output);
-    cli_cell_given(g_cli_validate);
+    g_cli_cells->persistent_buf_release(g_cli_validate->output, NULL);
+    g_cli_cells->persistent_buf_release(g_cli_validate, NULL);
     g_cli_validate = NULL;
     cli_lock_give(&s_validate_lock);
 }
@@ -71,44 +71,44 @@ unsigned int cli_validate_grown_keys(unsigned int *keys)
     return count;
 }
 
-// the folder above `path`, nearest first, that holds one of the files the tool's run names as marking a project,
-// into `project`, which holds CLI_PATH_LONGEST: 1, or 0 where none does
+// the folder above `path`, nearest first, that contains one of the files the tool's run names as marking a project,
+// into `project`, sized for CLI_PATH_MAX_LEN: 1, or 0 where none does
 static int validate_project_of(const char *path, char *project)
 {
     const CliJson *const json = &g_cli_validate->json;
     const unsigned int marks = g_cli_validate->tool.project;
-    char here[CLI_PATH_LONGEST];
-    char above[CLI_PATH_LONGEST];
+    char here[CLI_PATH_MAX_LEN];
+    char above[CLI_PATH_MAX_LEN];
     int has = cli_path_parent(path, here);
     while (has)
     {
         for (unsigned int index = 0u; cli_json_item(json, marks, index) != CLI_JSON_NONE; index += 1u)
         {
-            char marked[CLI_PATH_LONGEST];
+            char marked[CLI_PATH_MAX_LEN];
             cli_full(here, cli_json_string(json, cli_json_item(json, marks, index), NULL), marked);
             if (query_is_file(marked))
             {
-                memor.cpy(&(MemoriaCfg){.dst = project, .src = here, .bytes = CLI_PATH_LONGEST});
+                memor.cpy(&(MemoriaCfg){.dst = project, .src = here, .bytes = CLI_PATH_MAX_LEN});
                 return 1;
             }
         }
         has = cli_path_parent(here, above);
-        memor.cpy(&(MemoriaCfg){.dst = here, .src = above, .bytes = CLI_PATH_LONGEST});
+        memor.cpy(&(MemoriaCfg){.dst = here, .src = above, .bytes = CLI_PATH_MAX_LEN});
     }
     return 0;
 }
 
-// a check said as `{"settings", "seconds", "errors", "barriers"}`, a comma before it where it is not the first
-static void validate_check_said(const CliWords *words, unsigned int from, unsigned int settings, double seconds,
-                                const int *hit, unsigned int hits)
+// a check written as `{"settings", "seconds", "errors", "barriers"}`, a comma before it where it is not the first
+static void validate_check_printed(const CliWords *words, unsigned int from, unsigned int settings, double seconds,
+                                   const int *hit, unsigned int hits)
 {
-    CliLine out = {g_cli_validate->checks + g_cli_validate->checks_size,
-                   CLI_VALIDATE_CHECKS_TEXT - g_cli_validate->checks_size, 0ull};
+    VerbaLinea out = {g_cli_validate->checks + g_cli_validate->checks_size,
+                      CLI_VALIDATE_CHECKS_TEXT - g_cli_validate->checks_size, 0ull};
     const CliProverMessages *const messages = &g_cli_validate->last;
-    cli_line_text(&out, (g_cli_validate->checks_size > 0ull) ? ",{\"settings\":[" : "{\"settings\":[");
+    mmgr_line_put(&out, (g_cli_validate->checks_size > 0ull) ? ",{\"settings\":[" : "{\"settings\":[");
     for (unsigned int at = 0u; at < settings; at += 1u)
     {
-        cli_line_text(&out, (at > 0u) ? "," : "");
+        mmgr_line_put(&out, (at > 0u) ? "," : "");
         cli_json_quoted(&out, words->word[from + at],
                         cellul.len(&(CatenaFinitaCfg){.src = words->word[from + at], .cap = CLI_CELLS_POOL}));
     }
@@ -117,33 +117,33 @@ static void validate_check_said(const CliWords *words, unsigned int from, unsign
     {
         errors += (messages->message[at].severity == 1u) ? 1ull : 0ull;
     }
-    cli_line_text(&out, "],\"seconds\":");
+    mmgr_line_put(&out, "],\"seconds\":");
     cli_json_double(&out, seconds);
-    cli_line_text(&out, ",\"errors\":");
-    cli_line_decimal(&out, errors, 1u);
-    cli_line_text(&out, ",\"barriers\":[");
+    mmgr_line_put(&out, ",\"errors\":");
+    mmgr_line_decimal(&out, errors, 1u);
+    mmgr_line_put(&out, ",\"barriers\":[");
     const CliTool *const tool = &g_cli_validate->tool;
     for (unsigned int at = 0u; at < hits; at += 1u)
     {
-        // a name the one before it said is said once
+        // a name the one before it wrote is written once
         if ((at > 0u) && (cellul.eq(&(CatenaFinitaCfg){.src = tool->barriers[hit[at]].name,
                                                        .other = tool->barriers[hit[at - 1u]].name,
                                                        .cap = CLI_CELLS_POOL})))
         {
             continue;
         }
-        cli_line_text(&out, (at > 0u) ? "," : "");
+        mmgr_line_put(&out, (at > 0u) ? "," : "");
         cli_json_quoted(&out, tool->barriers[hit[at]].name,
                         cellul.len(&(CatenaFinitaCfg){.src = tool->barriers[hit[at]].name, .cap = CLI_CELLS_POOL}));
     }
-    cli_line_text(&out, "]}");
-    if (cli_line_fits(&out))
+    mmgr_line_put(&out, "]}");
+    if (mmgr_line_ok(&out))
     {
         g_cli_validate->checks_size += out.at;
     }
 }
 
-// the limits that stop the check grown a step, each as far as its ceiling, its stops at the ceiling kept: 1 where
+// the limits that stop the check grown a step, each as far as its ceiling, its stops at the ceiling retained: 1 where
 // any moved
 static int validate_grown(const int *hit, unsigned int hits)
 {
@@ -176,7 +176,7 @@ static int validate_grown(const int *hit, unsigned int hits)
 
 // the options the grown limits set, by their names, each limit's barrier lifting by `-D<name>=...`, a later of one
 // name standing for an earlier, into `names` and `values`: their count
-static unsigned int validate_options(char (*names)[CLI_NAME_LONGEST], unsigned long long *values)
+static unsigned int validate_options(char (*names)[CLI_NAME_MAX_LEN], unsigned long long *values)
 {
     const CliTool *const tool = &g_cli_validate->tool;
     unsigned int keys[CLI_VALIDATE_BARRIERS];
@@ -189,7 +189,7 @@ static unsigned int validate_options(char (*names)[CLI_NAME_LONGEST], unsigned l
         {
             continue;
         }
-        char name[CLI_NAME_LONGEST];
+        char name[CLI_NAME_MAX_LEN];
         const char *const equal = cellul.chr(&(CatenaFinitaCfg){.src = lift + 2, .cap = CLI_CELLS_POOL, .byte = '='});
         const size_t length = (equal != NULL) ? (size_t)(equal - lift - 2)
                                               : cellul.len(&(CatenaFinitaCfg){.src = lift + 2, .cap = CLI_CELLS_POOL});
@@ -220,13 +220,13 @@ static unsigned int validate_options(char (*names)[CLI_NAME_LONGEST], unsigned l
 }
 
 // the checks run on a copy of the file at `copy`, each barrier that stops one grown a step and the copy checked again,
-// until none stops it, none moves, one runs out of time, or CLI_VALIDATE_CHECKS have run: 1, or 0 with why said
+// until none stops it, none moves, one runs out of time, or CLI_VALIDATE_CHECKS have run: 1, or 0 with why given
 static int validate_checks_run(const char *text, unsigned long long size, const char *program, const char *copy,
-                               const char *project, CliLine *said)
+                               const char *project, VerbaLinea *err_msg)
 {
     static CliWords s_words;
     static int s_hit[CLI_VALIDATE_MESSAGES];
-    static char s_names[CLI_VALIDATE_BARRIERS][CLI_NAME_LONGEST];
+    static char s_names[CLI_VALIDATE_BARRIERS][CLI_NAME_MAX_LEN];
     unsigned long long values[CLI_VALIDATE_BARRIERS];
     for (unsigned int check = 0u; check < CLI_VALIDATE_CHECKS; check += 1u)
     {
@@ -236,21 +236,21 @@ static int validate_checks_run(const char *text, unsigned long long size, const 
         {
             names[at] = s_names[at];
         }
-        CliLine own = {g_cli_validate->own, CLI_VALIDATE_OWN, 0ull};
+        VerbaLinea own = {g_cli_validate->own, CLI_VALIDATE_OWN, 0ull};
         const unsigned long long copied = cli_validate_copy_of(text, size, names, values, options, &own);
-        g_cli_validate->own_size = cli_line_fits(&own) ? own.at : 0ull;
+        g_cli_validate->own_size = mmgr_line_ok(&own) ? own.at : 0ull;
         if ((copied > CLI_VALIDATE_COPY) || !query_file_written(copy, g_cli_validate->copy, copied))
         {
-            cli_line_text(said, copy);
-            cli_line_text(said, ": it could not be written");
+            mmgr_line_put(err_msg, copy);
+            mmgr_line_put(err_msg, ": it could not be written");
             return 0;
         }
         unsigned int from = 0u;
         unsigned int settings = 0u;
-        char dir[CLI_PATH_LONGEST];
+        char dir[CLI_PATH_MAX_LEN];
         double seconds = 0.0;
-        if (!cli_validate_command_for(program, copy, project, &s_words, &from, &settings, dir, said) ||
-            !cli_validate_checked(&s_words, dir, &seconds, said))
+        if (!cli_validate_command_for(program, copy, project, &s_words, &from, &settings, dir, err_msg) ||
+            !cli_validate_checked(&s_words, dir, &seconds, err_msg))
         {
             return 0;
         }
@@ -273,7 +273,7 @@ static int validate_checks_run(const char *text, unsigned long long size, const 
                 hits += 1u;
             }
         }
-        validate_check_said(&s_words, from, settings, seconds, s_hit, hits);
+        validate_check_printed(&s_words, from, settings, seconds, s_hit, hits);
         if (g_cli_validate->late || (hits == 0u) || !validate_grown(s_hit, hits))
         {
             break;
@@ -282,8 +282,9 @@ static int validate_checks_run(const char *text, unsigned long long size, const 
     return 1;
 }
 
-// the validation with the file's text read, under the room's lock: 1, or 0 with why said
-static int validate_text(const char *path, const char *text, unsigned long long size, CliLine *report, CliLine *said)
+// the validation with the file's text read, under the room's lock: 1, or 0 with why given
+static int validate_text(const char *path, const char *text, unsigned long long size, VerbaLinea *report,
+                         VerbaLinea *err_msg)
 {
     const CliTool *const tool = &g_cli_validate->tool;
     CliJson *const json = &g_cli_validate->manifest;
@@ -302,27 +303,27 @@ static int validate_text(const char *path, const char *text, unsigned long long 
     }
     if (chain == CLI_JSON_NONE)
     {
-        cli_line_text(said, "the toolchain manifest has no ");
-        cli_line_text(said, tool->toolchain);
+        mmgr_line_put(err_msg, "the toolchain manifest has no ");
+        mmgr_line_put(err_msg, tool->toolchain);
         return 0;
     }
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_LONGEST] = cli_toolchains_path_taken(&count);
-    cli_toolchains_find(json, chain, (const char (*)[CLI_PATH_LONGEST])folders, count, &g_cli_validate->found);
-    cli_cell_given(folders);
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+    cli_toolchains_find(json, chain, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &g_cli_validate->found);
+    g_cli_cells->persistent_buf_release(folders, NULL);
     if (!g_cli_validate->found.has_program)
     {
         const char *const name = cli_json_string(json, cli_json_member(json, chain, "name"), NULL);
-        cli_line_text(said, (name != NULL) ? name : tool->toolchain);
-        cli_line_text(said, " is not found: File, Toolchains opens its install page or takes its folder");
+        mmgr_line_put(err_msg, (name != NULL) ? name : tool->toolchain);
+        mmgr_line_put(err_msg, " is not found: File, Toolchains opens its install page or takes its folder");
         return 0;
     }
-    char project[CLI_PATH_LONGEST];
+    char project[CLI_PATH_MAX_LEN];
     const int has_project = validate_project_of(path, project);
     if (!cli_validate_code_of(text, size))
     {
-        cli_line_text(said, path);
-        cli_line_text(said, " is larger than orior_cli holds");
+        mmgr_line_put(err_msg, path);
+        mmgr_line_put(err_msg, " is larger than orior_cli supports");
         return 0;
     }
     cli_validate_words_of();
@@ -337,9 +338,9 @@ static int validate_text(const char *path, const char *text, unsigned long long 
         lines += (text[at] == '\n') ? 1ull : 0ull;
     }
     g_cli_validate->lines = lines + (((size > 0ull) && (text[size - 1ull] != '\n')) ? 1ull : 0ull);
-    char folder[CLI_PATH_LONGEST];
-    char copy_name[CLI_PATH_LONGEST];
-    char copy[CLI_PATH_LONGEST];
+    char folder[CLI_PATH_MAX_LEN];
+    char copy_name[CLI_PATH_MAX_LEN];
+    char copy[CLI_PATH_MAX_LEN];
     const char *const named =
         cli_text_last(path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}), '/');
 #if defined(_WIN32)
@@ -356,13 +357,13 @@ static int validate_text(const char *path, const char *text, unsigned long long 
     const size_t stem = ((dot != NULL) && (dot > base))
                             ? (size_t)(dot - base)
                             : cellul.len(&(CatenaFinitaCfg){.src = base, .cap = CLI_CELLS_POOL});
-    CliLine copy_line = {copy_name, sizeof(copy_name), 0ull};
-    cli_line_character(&copy_line, '.');
-    cli_line_counted(&copy_line, base, stem);
-    cli_line_text(&copy_line, ".validate.");
-    cli_line_decimal(&copy_line, cli_process_own(), 1u);
-    cli_line_text(&copy_line, ".lean");
-    cli_line_closed(&copy_line);
+    VerbaLinea copy_line = {copy_name, sizeof(copy_name), 0ull};
+    mmgr_line_ch(&copy_line, '.');
+    mmgr_line_put_n(&copy_line, base, stem);
+    mmgr_line_put(&copy_line, ".validate.");
+    mmgr_line_decimal(&copy_line, cli_process_own(), 1u);
+    mmgr_line_put(&copy_line, ".lean");
+    mmgr_line_finish(&copy_line);
     if (cli_path_parent(path, folder))
     {
         cli_full(folder, copy_name, copy);
@@ -372,7 +373,7 @@ static int validate_text(const char *path, const char *text, unsigned long long 
         memor.cpy(&(MemoriaCfg){.dst = copy, .src = copy_name, .bytes = sizeof(copy)});
     }
     const int ran =
-        validate_checks_run(text, size, g_cli_validate->found.program, copy, has_project ? project : NULL, said);
+        validate_checks_run(text, size, g_cli_validate->found.program, copy, has_project ? project : NULL, err_msg);
     (void)query_removed(copy);
     if (!ran)
     {
@@ -382,11 +383,11 @@ static int validate_text(const char *path, const char *text, unsigned long long 
     return 1;
 }
 
-int cli_validated(const char *id, const char *path, CliLine *report, CliLine *said)
+int cli_validated(const char *id, const char *path, VerbaLinea *report, VerbaLinea *err_msg)
 {
-    if (!cli_validate_held())
+    if (!cli_validate_locked())
     {
-        cli_line_text(said, "the file could not be validated: the cells cannot meet it");
+        mmgr_line_put(err_msg, "the file could not be validated: the cells cannot meet it");
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = g_cli_validate->has_grown, .val = 0, .bytes = sizeof(g_cli_validate->has_grown)});
@@ -403,21 +404,21 @@ int cli_validated(const char *id, const char *path, CliLine *report, CliLine *sa
     int validated = 0;
     if (!cli_validate_tool_read(id))
     {
-        cli_line_text(said, "no tool plugin is ");
-        cli_line_text(said, id);
+        mmgr_line_put(err_msg, "no tool plugin is ");
+        mmgr_line_put(err_msg, id);
     }
     else
     {
         unsigned long long size = 0ull;
-        const unsigned char *const bytes = cli_file_held(path, &size);
+        const unsigned char *const bytes = cli_file_read(path, &size);
         if ((bytes == NULL) || !cli_utf8_whole((const char *)bytes, size))
         {
-            cli_line_text(said, path);
-            cli_line_text(said, ": it could not be read");
+            mmgr_line_put(err_msg, path);
+            mmgr_line_put(err_msg, ": it could not be read");
         }
         else
         {
-            validated = validate_text(path, (const char *)bytes, size, report, said);
+            validated = validate_text(path, (const char *)bytes, size, report, err_msg);
         }
         if (bytes != NULL)
         {

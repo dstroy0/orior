@@ -4,8 +4,8 @@
 // name as unittest and as pytest give it
 #include "test_runs_internal.h"
 
-// whether `length` bytes from `start` of `text` hold `part`
-static int python_holds(const char *text, unsigned long long length, const char *part)
+// whether `length` bytes from `start` of `text` contain `part`
+static int python_contains(const char *text, unsigned long long length, const char *part)
 {
     const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = part, .cap = CLI_CELLS_POOL});
     for (unsigned long long at = 0ull; at + size <= length; at += 1ull)
@@ -55,7 +55,8 @@ int cli_test_pytest_line(const char *line, unsigned long long size, unsigned lon
         }
         const unsigned long long after = at + length;
         const int ends = (after == size) || (line[after] == ' ') || (line[after] == '[');
-        if (python_holds(line + start, end - start, "::") && !python_holds(line + start, end - start, " ") && ends)
+        if (python_contains(line + start, end - start, "::") && !python_contains(line + start, end - start, " ") &&
+            ends)
         {
             *id = start;
             *id_size = end - start;
@@ -126,8 +127,8 @@ int cli_test_unittest_line(const char *line, unsigned long long size, char *id, 
 
 void cli_test_dotted(CliWords *words, const char *id)
 {
-    char dotted[CLI_PATH_LONGEST * 2u];
-    CliLine line = {dotted, sizeof(dotted), 0ull};
+    char dotted[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {dotted, sizeof(dotted), 0ull};
     const char *const path =
         cellul.find(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
     unsigned long long module = (path != NULL) ? (unsigned long long)(path - id)
@@ -138,20 +139,20 @@ void cli_test_dotted(CliWords *words, const char *id)
     }
     for (unsigned long long at = 0ull; at < module; at += 1ull)
     {
-        cli_line_character(&line, ((id[at] == '/') || (id[at] == '\\')) ? '.' : id[at]);
+        mmgr_line_ch(&line, ((id[at] == '/') || (id[at] == '\\')) ? '.' : id[at]);
     }
     for (const char *rest = path; rest != NULL;)
     {
         rest += 2;
         const char *const next = cellul.find(
             &(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL, .other = "::", .other_cap = CLI_CELLS_POOL});
-        cli_line_character(&line, '.');
-        cli_line_counted(&line, rest,
-                         (next != NULL) ? (unsigned long long)(next - rest)
-                                        : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}));
+        mmgr_line_ch(&line, '.');
+        mmgr_line_put_n(&line, rest,
+                        (next != NULL) ? (unsigned long long)(next - rest)
+                                       : cellul.len(&(CatenaFinitaCfg){.src = rest, .cap = CLI_CELLS_POOL}));
         rest = next;
     }
-    cli_line_closed(&line);
+    mmgr_line_finish(&line);
     cli_words_put(words, dotted);
 }
 
@@ -182,14 +183,14 @@ int cli_test_unittest_id(const char *dotted, unsigned long long length, char *id
     {
         return 0;
     }
-    CliLine line = {id, room, 0ull};
+    VerbaLinea line = {id, room, 0ull};
     for (unsigned long long at = 0ull; at + 1ull < class_start; at += 1ull)
     {
-        cli_line_character(&line, (dotted[at] == '.') ? '/' : dotted[at]);
+        mmgr_line_ch(&line, (dotted[at] == '.') ? '/' : dotted[at]);
     }
-    cli_line_text(&line, ".py::");
-    cli_line_counted(&line, dotted + class_start, class_end - class_start);
-    cli_line_text(&line, "::");
-    cli_line_counted(&line, dotted + class_end + 1ull, length - class_end - 1ull);
-    return cli_line_closed(&line) != 0ull;
+    mmgr_line_put(&line, ".py::");
+    mmgr_line_put_n(&line, dotted + class_start, class_end - class_start);
+    mmgr_line_put(&line, "::");
+    mmgr_line_put_n(&line, dotted + class_end + 1ull, length - class_end - 1ull);
+    return mmgr_line_finish(&line) != 0ull;
 }

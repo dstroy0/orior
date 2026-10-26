@@ -10,9 +10,8 @@
 # cannot be made. These are the hardest assertions in the suite and the counts below are derived
 # from the tree at run time.
 #
-# Every count this file asserts on is measured when the test runs. A constant would have been
-# correct on the day it was written and wrong on the day the tree moved, and the whole reason the
-# structural stage needed repairing is that nobody had measured it outside orior.
+# Every count this file asserts on is measured when the test runs. A constant is correct on the day
+# it is written and wrong on the day the tree moves.
 
 import os
 import re
@@ -52,7 +51,6 @@ class LinkTargetsThatAreNotPaths(unittest.TestCase):
         self.assertFalse(docs_check.path_candidate("@subpage porting"))
 
     def test_declarator_syntax_is_not_a_path(self):
-        # The three targets that produced the three non-Doxygen breaking findings, verbatim.
         for target in (
             "uint8_t slot, HttpReq *req",
             "const char *user, const uint8_t *blob, size_t len",
@@ -61,8 +59,7 @@ class LinkTargetsThatAreNotPaths(unittest.TestCase):
             self.assertFalse(docs_check.path_candidate(target), target)
 
     def test_declarator_with_no_pointer_star_is_not_a_path(self):
-        # The parameter list neither the star rule nor the keyword rule reaches. Nothing in the five
-        # trees measured has this shape, and it is covered because the next example written will.
+        # The parameter list neither the star rule nor the keyword rule reaches.
         self.assertFalse(docs_check.path_candidate("uint8_t slot, size_t len"))
 
     def test_type_keyword_head_is_not_a_path(self):
@@ -81,7 +78,7 @@ class LinkTargetsThatAreNotPaths(unittest.TestCase):
 
 
 class LinksStillChecked(unittest.TestCase):
-    """The rule still doing the job it was written for. A repair that turns a check off is not one."""
+    """The rule doing the job it is for. A repair that turns a check off is not one."""
 
     def setUp(self):
         self.here = os.path.join(HERE, "sample.md")
@@ -129,24 +126,17 @@ class StandardsPassTheirOwnStructuralStage(unittest.TestCase):
     A gate that flags the standard it enforces is wrong by construction. This is the slice of that
     test belonging to dead_links. The em dash findings in both documents come from a different
     stage and are a decision for the author of those documents. They are reported and not
-    asserted on. There are 43 of them at the time of writing, 24 in code-documentation/SKILL.md and
-    19 in code-comments/SKILL.md, and code-documentation section 109 bans the em dash by name.
+    asserted on, and code-documentation section 109 bans the em dash by name.
     """
 
-    def skill_files(self):
-        base = os.environ.get("PROSE_STANDARDS_DIR", "")
-        if not base:
-            return []
-        found = [
-            os.path.join(base, one, "SKILL.md")
-            for one in ("code-documentation", "code-comments")
-        ]
-        return [one for one in found if os.path.isfile(one)]
+    def standard_files(self):
+        found = [os.environ.get(name, "") for name in ("PROSE_STANDARD_DOCUMENTATION", "PROSE_STANDARD_COMMENTS")]
+        return [one for one in found if one and os.path.isfile(one)]
 
     def test_no_dead_link_findings_in_either_standard(self):
-        files = self.skill_files()
+        files = self.standard_files()
         if not files:
-            self.skipTest("PROSE_STANDARDS_DIR does not name the two standards")
+            self.skipTest("PROSE_STANDARD_DOCUMENTATION and PROSE_STANDARD_COMMENTS do not name the two standards")
         for path in files:
             with open(path, encoding="utf-8", errors="replace") as handle:
                 lines = handle.read().splitlines()

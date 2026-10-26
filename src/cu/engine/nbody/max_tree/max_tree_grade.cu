@@ -78,17 +78,17 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
     const unsigned int height = request->height;
     const unsigned int width = request->width;
     const size_t voxels = (size_t)depth * height * width;
-    const unsigned int held = (request->limbs != 0u) ? request->limbs : ENGINE_RESIDUAL_LIMBS;
-    const int whole = (held == ENGINE_RESIDUAL_LIMBS) ? 1 : 0;
-    const int asked =
+    const unsigned int limb_count = (request->limbs != 0u) ? request->limbs : ENGINE_RESIDUAL_LIMBS;
+    const int whole = (limb_count == ENGINE_RESIDUAL_LIMBS) ? 1 : 0;
+    const int valid =
         MAX_TREE_CHECK(request->device_residual != NULL, &request->device_residual, error, ENGINE_ERROR_REQUEST) &&
-        MAX_TREE_CHECK((held <= ENGINE_RESIDUAL_LIMBS) &&
-                           ((whole != 0) || ((request->grade == 0u) && (g_max_tree_resident.keeping == 0))),
+        MAX_TREE_CHECK((limb_count <= ENGINE_RESIDUAL_LIMBS) &&
+                           ((whole != 0) || ((request->grade == 0u) && (g_max_tree_resident.retaining_frames == 0))),
                        &request->limbs, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK((request->capacity == 0u) || (request->bodies != NULL), &request->bodies, error,
                        ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK((voxels != 0u) && ((voxels * 3u) < 0xFFFFFFFFull), &request->depth, error, ENGINE_ERROR_REQUEST);
-    if (asked == 0)
+    if (valid == 0)
     {
         return MAX_TREE_ERROR;
     }
@@ -109,9 +109,9 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
         max_tree_iota_kernel<<<spread, MAX_TREE_BLOCK>>>(count, order.Current());
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), order.Current(), error);
     }
-    for (unsigned int limb = 0u; (ok != 0) && (limb < held); limb += 1u)
+    for (unsigned int limb = 0u; (ok != 0) && (limb < limb_count); limb += 1u)
     {
-        max_tree_code_gather_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, held, order.Current(), count, limb,
+        max_tree_code_gather_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, limb_count, order.Current(), count, limb,
                                                                 keys.Current());
         size_t bytes = resident->scratch_bytes;
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), keys.Current(), error) &&
@@ -122,7 +122,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
     unsigned int *const ranks = keys.Alternate();
     if (ok != 0)
     {
-        max_tree_code_flags_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, held, order.Current(), count, flags);
+        max_tree_code_flags_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, limb_count, order.Current(), count, flags);
         size_t bytes = resident->scratch_bytes;
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), flags, error) &&
              MAX_TREE_STATUS_CHECK(cub::DeviceScan::InclusiveSum(resident->scratch, bytes, flags, ranks, items), ranks,
@@ -130,7 +130,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
     }
     if (ok != 0)
     {
-        max_tree_code_scatter_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, held, order.Current(), ranks, count,
+        max_tree_code_scatter_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, limb_count, order.Current(), ranks, count,
                                                                  resident->code);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->code, error);
     }
@@ -219,7 +219,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
 
     if (ok != 0)
     {
-        max_tree_mark_kernel<<<chunk_spread, MAX_TREE_BLOCK>>>(residual, held, resident->code, resident->ranges,
+        max_tree_mark_kernel<<<chunk_spread, MAX_TREE_BLOCK>>>(residual, limb_count, resident->code, resident->ranges,
                                                                resident->label, resident->best, count, 0u,
                                                                resident->at_chunk, NULL, NULL);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->at_chunk, error);
@@ -242,7 +242,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
                                      resident->bodies, error);
     if (ok != 0)
     {
-        max_tree_mark_kernel<<<chunk_spread, MAX_TREE_BLOCK>>>(residual, held, resident->code, resident->ranges,
+        max_tree_mark_kernel<<<chunk_spread, MAX_TREE_BLOCK>>>(residual, limb_count, resident->code, resident->ranges,
                                                                resident->label, resident->best, count, 1u,
                                                                resident->at_chunk, resident->partner, resident->bodies);
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->bodies, error);
@@ -256,7 +256,7 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
         if (request->positive_words != NULL)
         {
             max_tree_pack_kernel<<<(words + MAX_TREE_BLOCK - 1u) / MAX_TREE_BLOCK, MAX_TREE_BLOCK>>>(
-                residual, held, count, words, resident->packed);
+                residual, limb_count, count, words, resident->packed);
         }
         ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->bodies, error);
     }
@@ -278,25 +278,25 @@ extern "C" long max_tree_objects(const MaxTreeObjectsRequest *request)
                                                  cudaMemcpyDeviceToHost),
                                       request->bodies, error));
     max_tree_stage(7u, &stage_mark);
-    const unsigned int keep_slot = resident->kept_current ^ 1u;
-    if ((ok != 0) && (resident->keeping != 0))
+    const unsigned int frame_place = resident->frame_current ^ 1u;
+    if ((ok != 0) && (resident->retaining_frames != 0))
     {
-        resident->kept_ready[keep_slot] = 0u;
-        ok = MAX_TREE_STATUS_CHECK(cudaMemcpy(resident->kept_code[keep_slot], resident->code,
+        resident->frame_ready[frame_place] = 0u;
+        ok = MAX_TREE_STATUS_CHECK(cudaMemcpy(resident->frame_code[frame_place], resident->code,
                                               voxels * sizeof(unsigned int), cudaMemcpyDeviceToDevice),
-                                   resident->kept_code[keep_slot], error) &&
-             MAX_TREE_STATUS_CHECK(cudaMemset(resident->kept_values[keep_slot], 0,
+                                   resident->frame_code[frame_place], error) &&
+             MAX_TREE_STATUS_CHECK(cudaMemset(resident->frame_values[frame_place], 0,
                                               ((size_t)top + 1u) * ENGINE_RESIDUAL_LIMBS * sizeof(unsigned int)),
-                                   resident->kept_values[keep_slot], error);
+                                   resident->frame_values[frame_place], error);
     }
-    if ((ok != 0) && (resident->keeping != 0))
+    if ((ok != 0) && (resident->retaining_frames != 0))
     {
         max_tree_code_values_kernel<<<spread, MAX_TREE_BLOCK>>>(residual, order.Current(), flags, resident->code, count,
-                                                                resident->kept_values[keep_slot]);
-        ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->kept_values[keep_slot], error);
-        resident->kept_top[keep_slot] = top;
-        resident->kept_ready[keep_slot] = (unsigned int)ok;
-        resident->kept_current = keep_slot;
+                                                                resident->frame_values[frame_place]);
+        ok = MAX_TREE_STATUS_CHECK(cudaGetLastError(), resident->frame_values[frame_place], error);
+        resident->frame_top[frame_place] = top;
+        resident->frame_ready[frame_place] = (unsigned int)ok;
+        resident->frame_current = frame_place;
     }
     if (request->level_code != NULL)
     {

@@ -67,7 +67,7 @@ static char *run_command_line(const char *program, char *const *words, int count
 }
 
 // a program named with no folder, found along PATH as the shell that started this process finds it; CreateProcess
-// alone looks in the system folders first, where "bash" is WSL's. The program as named where PATH does not hold it
+// alone looks in the system folders first, where "bash" is WSL's. The program as named where PATH does not contain it
 static const char *run_program_found(const char *program, char *found, size_t capacity)
 {
     const char *const path = getenv("PATH");
@@ -75,7 +75,7 @@ static const char *run_program_found(const char *program, char *found, size_t ca
     {
         return program;
     }
-    // the capacity is a buffer size this file holds, which a DWORD counts on every Windows target
+    // the capacity is a buffer size this file allocates, which a DWORD counts on every Windows target
     const DWORD length = SearchPathA(path, program, ".exe", (DWORD)capacity, found, NULL);
     return ((length != 0u) && (length < capacity)) ? found : program;
 }
@@ -171,7 +171,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     JOBOBJECT_BASIC_LIMIT_INFORMATION limits;
     memset(&limits, 0, sizeof(limits));
     limits.LimitFlags = JOB_OBJECT_LIMIT_AFFINITY;
-    // the mask holds the first sixty-four processors, which the machine word holds whole
+    // the mask covers the first sixty-four processors, which the machine word represents whole
     limits.Affinity = (ULONG_PTR)mask;
     const int limited = (child->job != NULL) &&
                         SetInformationJobObject(child->job, JobObjectBasicLimitInformation, &limits, sizeof(limits));
@@ -203,7 +203,7 @@ int run_start(RunChild *child, char *const *words, int count, unsigned long long
     // a job the command cannot join is not measured: the command still runs on the processors given
     if (!limited || !AssignProcessToJobObject(child->job, started.hProcess))
     {
-        // the mask holds the first sixty-four processors, which the machine word holds whole
+        // the mask covers the first sixty-four processors, which the machine word represents whole
         SetProcessAffinityMask(started.hProcess, (DWORD_PTR)mask);
         if (child->job != NULL)
         {

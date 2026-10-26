@@ -56,7 +56,7 @@ static int pi_tower_bbp_term_build(PiTowerBbp *bbp, EngineError *error)
     const unsigned int position = pi_tower_constant(&steps, bbp->position);
     const unsigned int exponent = pi_tower_step(&steps, ENGINE_RECORD_DIFFERENCE, position, index);
     const unsigned int nibbles = (bbp->position_bits + 3u) / 4u;
-    // 16^nibbles stands above every exponent. A quotient by any lower power of 16 keeps a whole nibble to index by
+    // 16^nibbles stands above every exponent. A quotient by any lower power of 16 leaves a whole nibble to index by
     const unsigned int above = pi_tower_constant(&steps, pi_tower_power_two(4u * nibbles));
     const unsigned int guarded = pi_tower_step(&steps, ENGINE_RECORD_SUM, exponent, above);
     const unsigned int eight = pi_tower_step(&steps, ENGINE_RECORD_CONSTANT, 8u, 0u);
@@ -130,7 +130,7 @@ static int pi_tower_bbp_tail_build(PiTowerBbp *bbp, EngineError *error)
         fraction[kind] = pi_tower_step(&steps, ENGINE_RECORD_QUOTIENT, unit, below);
     }
     pi_tower_bbp_combine(&steps, fraction, bbp->fraction_bits);
-    // 16^v for every v the tail's field can hold
+    // 16^v for every v the tail's field can represent
     const unsigned int rows = 1u << bbp->tail_bits;
     const unsigned int out_bits = (4u * (rows - 1u)) + 1u;
     const unsigned int row_limbs = (out_bits + 31u) / 32u;
@@ -166,8 +166,8 @@ PiWide pi_tower_bbp_error(const PiTowerBbp *bbp)
     return pi_tower_sum(pi_tower_product(lanes, pi_tower_unsigned(4ull)), pi_tower_unsigned(1ull));
 }
 
-// the run at hex position d, from d alone: W holds PI_TOWER_BBP_CERTIFIED bits past the error with PI_TOWER_BBP_GUARD
-// to spare, and the tail runs until 16^T >= 2^(W + 8)
+// the run at hex position d, from d alone: W contains PI_TOWER_BBP_CERTIFIED bits past the error with
+// PI_TOWER_BBP_GUARD to spare, and the tail runs until 16^T >= 2^(W + 8)
 int pi_tower_bbp_plan(PiTowerBbp *bbp, const PiWide &position, unsigned long long lanes, EngineError *error)
 {
     memset(bbp, 0, sizeof(*bbp));
@@ -207,7 +207,7 @@ int pi_tower_bbp_plan(PiTowerBbp *bbp, const PiWide &position, unsigned long lon
     return 1;
 }
 
-// the device bytes a run holds: its lanes' inputs, two buffers of sums, the pair program's index, the total, and the
+// the device bytes a run occupies: its lanes' inputs, two buffers of sums, the pair program's index, the total, and the
 // three programs' step tables and lookup tables
 unsigned long long pi_tower_bbp_bytes(const PiTowerBbp *bbp)
 {
@@ -319,29 +319,29 @@ void pi_tower_bbp_progress(SimResults *results, const PiTowerBbp *bbp, const PiT
     // a run's seconds are non-negative and far below 2^64 microseconds. The floor fits the word
     const unsigned long long micros = (unsigned long long)(run->seconds * 1000000.0);
     const PiWide left = pi_tower_difference(bbp->terms, pi_tower_unsigned(run->done));
-    scriptura_text(&results->line, "    ");
+    mmgr_line_put(&results->line, "    ");
     pi_tower_print_decimal(&results->line, pi_tower_unsigned(run->done));
-    scriptura_text(&results->line, " of ");
+    mmgr_line_put(&results->line, " of ");
     pi_tower_print_decimal(&results->line, bbp->terms);
-    scriptura_text(&results->line, " terms in ");
-    scriptura_decimal(&results->line, run->sweeps, 1u);
-    scriptura_text(&results->line, " cycles and ");
+    mmgr_line_put(&results->line, " terms in ");
+    mmgr_line_decimal(&results->line, run->sweeps, 1u);
+    mmgr_line_put(&results->line, " cycles and ");
     sim_fraction_print(&results->line, micros, 1000000ull, 3u);
-    scriptura_text(&results->line, " s, ");
+    mmgr_line_put(&results->line, " s, ");
     pi_tower_print_exponent(&results->line,
                             pi_tower_product(pi_tower_unsigned(run->done), pi_tower_unsigned(1000000ull)),
                             pi_tower_unsigned((micros == 0ull) ? 1ull : micros));
-    scriptura_text(&results->line, " terms a second");
+    mmgr_line_put(&results->line, " terms a second");
     if ((left.sign != 0) && (run->done != 0ull))
     {
         // the years left: left . micros / (done . 10^6 . 31557600)
-        scriptura_text(&results->line, "; ");
+        mmgr_line_put(&results->line, "; ");
         pi_tower_print_exponent(&results->line, left, pi_tower_unsigned(1ull));
-        scriptura_text(&results->line, " left, ");
+        mmgr_line_put(&results->line, " left, ");
         pi_tower_print_exponent(&results->line, pi_tower_product(left, pi_tower_unsigned(micros)),
                                 pi_tower_product(pi_tower_unsigned(run->done), pi_tower_unsigned(31557600000000ull)));
-        scriptura_text(&results->line, " years at this rate");
+        mmgr_line_put(&results->line, " years at this rate");
     }
-    scriptura_character(&results->line, '\n');
+    mmgr_line_ch(&results->line, '\n');
     sim_flush(results);
 }

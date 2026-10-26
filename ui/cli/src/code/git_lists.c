@@ -4,7 +4,7 @@
 // commit left it, who made a commit, and the files a commit changed
 #include "git_internal.h"
 
-// the commits a list asks git for, as git is given the count
+// the commits a list requests from git, as git is given the count
 #define CLI_GIT_LIMIT "-n200"
 
 // the commit lines `id\x1fwhen\x1fsubject` of what git wrote put after those found
@@ -43,7 +43,7 @@ static void cli_commits_of(const char *out, unsigned long long size, CliCommits 
 }
 
 // What makes a commit the same as another under another id, its author, the time the author made it and its message,
-// for each commit found elsewhere, and whether one of the branch's own is the same, held under the lock
+// for each commit found elsewhere, and whether one of the branch's own is the same, guarded by the lock
 typedef struct
 {
     CliGitText made;
@@ -99,7 +99,7 @@ static void cli_records(const char *out, unsigned long long size,
     }
 }
 
-// a commit found elsewhere kept, its subject the first line of its message
+// a commit found elsewhere stored, its subject the first line of its message
 static void cli_elsewhere_each(const char *id, unsigned long long id_length, long long when, const char *made,
                                unsigned long long made_length)
 {
@@ -164,7 +164,7 @@ void cli_git_elsewhere(const char *root, CliCommits *found)
     const char *const theirs[8] = {"log",  "--branches",  "--remotes",   "--not",
                                    "HEAD", "--no-merges", CLI_GIT_LIMIT, s_format};
     CliGitGave *const gave = cli_git_taken();
-    if (cli_git_asked(root, theirs, 8u, gave))
+    if (cli_git_query(root, theirs, 8u, gave))
     {
         cli_records(gave->out, gave->out_size, cli_elsewhere_each);
     }
@@ -174,18 +174,18 @@ void cli_git_elsewhere(const char *root, CliCommits *found)
         oldest = ((at == 0u) || (s_elsewhere.found.item[at].when < oldest)) ? s_elsewhere.found.item[at].when : oldest;
     }
     char since[64];
-    CliLine line = {since, sizeof(since), 0ull};
-    cli_line_text(&line, "--since=@");
+    VerbaLinea line = {since, sizeof(since), 0ull};
+    mmgr_line_put(&line, "--since=@");
     if (oldest < 0ll)
     {
-        cli_line_character(&line, '-');
+        mmgr_line_ch(&line, '-');
     }
     // the oldest time's size, its sign written apart
-    cli_line_decimal(&line, (unsigned long long)((oldest < 0ll) ? -oldest : oldest), 1u);
-    cli_line_closed(&line);
+    mmgr_line_decimal(&line, (unsigned long long)((oldest < 0ll) ? -oldest : oldest), 1u);
+    mmgr_line_finish(&line);
     const char *const ours[5] = {"log", "HEAD", "--no-merges", since, s_format};
-    // where the branch's own commits cannot be read, no commit is said to be elsewhere: each would be
-    const int read = (s_elsewhere.found.count != 0u) && cli_git_asked(root, ours, 5u, gave);
+    // where the branch's own commits cannot be read, no commit is reported to be elsewhere: each would be
+    const int read = (s_elsewhere.found.count != 0u) && cli_git_query(root, ours, 5u, gave);
     if (read)
     {
         cli_records(gave->out, gave->out_size, cli_ours_each);
@@ -200,31 +200,32 @@ void cli_git_elsewhere(const char *root, CliCommits *found)
         }
         const char *const id = cli_git_text_of(&s_elsewhere.found.text, one->id);
         const char *const subject = cli_git_text_of(&s_elsewhere.found.text, one->subject);
-        CliCommit *const kept = &found->item[found->count];
+        CliCommit *const commit = &found->item[found->count];
         found->count += 1u;
-        kept->id = cli_git_text_put(&found->text, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
-        kept->when = one->when;
-        kept->subject = cli_git_text_put(&found->text, subject,
-                                         cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}));
+        commit->id =
+            cli_git_text_put(&found->text, id, cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_CELLS_POOL}));
+        commit->when = one->when;
+        commit->subject = cli_git_text_put(&found->text, subject,
+                                           cellul.len(&(CatenaFinitaCfg){.src = subject, .cap = CLI_CELLS_POOL}));
     }
     cli_git_text_given(&s_elsewhere.found.text);
     cli_git_text_given(&s_elsewhere.made);
     cli_lock_give(&s_elsewhere_lock);
 }
 
-int cli_git_commits(const char *root, const char *file, CliCommits *found, CliLine *said)
+int cli_git_commits(const char *root, const char *file, CliCommits *found, VerbaLinea *err_msg)
 {
     found->count = 0u;
     cli_git_text_begun(&found->text);
-    char folder[CLI_PATH_LONGEST];
-    char shown[CLI_PATH_LONGEST];
-    if (!cli_git_beside(root, file, folder, shown, said))
+    char folder[CLI_PATH_MAX_LEN];
+    char shown[CLI_PATH_MAX_LEN];
+    if (!cli_git_beside(root, file, folder, shown, err_msg))
     {
         return 0;
     }
     const char *const args[6] = {"log", "--follow", CLI_GIT_LIMIT, "--format=%H%x1f%ct%x1f%s", "--", shown};
     CliGitGave *const gave = cli_git_taken();
-    if (cli_git_asked(folder, args, 6u, gave))
+    if (cli_git_query(folder, args, 6u, gave))
     {
         cli_commits_of(gave->out, gave->out_size, found);
     }
@@ -232,78 +233,78 @@ int cli_git_commits(const char *root, const char *file, CliCommits *found, CliLi
     return 1;
 }
 
-// git asked to show `what` of the file at `shown` from `folder`, `what` before the colon: what it wrote into `out`, 1,
+// git run to show `what` of the file at `shown` from `folder`, `what` before the colon: what it wrote into `out`, 1,
 // or 0 where it could not
-static int cli_shown(const char *folder, const char *what, const char *shown, CliLine *out)
+static int cli_shown(const char *folder, const char *what, const char *shown, VerbaLinea *out)
 {
-    char named[CLI_PATH_LONGEST + CLI_NAME_LONGEST];
-    CliLine line = {named, sizeof(named), 0ull};
-    cli_line_text(&line, what);
-    cli_line_character(&line, ':');
-    cli_line_text(&line, shown);
-    if (cli_line_closed(&line) == 0ull)
+    char named[CLI_PATH_MAX_LEN + CLI_NAME_MAX_LEN];
+    VerbaLinea line = {named, sizeof(named), 0ull};
+    mmgr_line_put(&line, what);
+    mmgr_line_ch(&line, ':');
+    mmgr_line_put(&line, shown);
+    if (mmgr_line_finish(&line) == 0ull)
     {
         return 0;
     }
     const char *const args[2] = {"show", named};
     CliGitGave *const gave = cli_git_taken();
-    const int found = cli_git_asked(folder, args, 2u, gave);
+    const int found = cli_git_query(folder, args, 2u, gave);
     if (found)
     {
-        cli_line_counted(out, gave->out, gave->out_size);
+        mmgr_line_put_n(out, gave->out, gave->out_size);
     }
     cli_git_given(gave);
     return found;
 }
 
-int cli_git_text_at(const char *root, const char *file, const char *id, CliLine *out, CliLine *said)
+int cli_git_text_at(const char *root, const char *file, const char *id, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char folder[CLI_PATH_LONGEST];
-    char shown[CLI_PATH_LONGEST];
-    if (!cli_git_beside(root, file, folder, shown, said))
+    char folder[CLI_PATH_MAX_LEN];
+    char shown[CLI_PATH_MAX_LEN];
+    if (!cli_git_beside(root, file, folder, shown, err_msg))
     {
         return 0;
     }
     if (!cli_git_is_id(id))
     {
-        cli_line_text(said, id);
-        cli_line_text(said, " is not a commit");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is not a commit");
         return 0;
     }
     if (!cli_shown(folder, id, shown, out))
     {
-        cli_line_text(said, file);
-        cli_line_text(said, " is not in ");
-        cli_line_text(said, id);
+        mmgr_line_put(err_msg, file);
+        mmgr_line_put(err_msg, " is not in ");
+        mmgr_line_put(err_msg, id);
         return 0;
     }
     return 1;
 }
 
-int cli_git_text_before(const char *root, const char *file, const char *id, CliLine *out)
+int cli_git_text_before(const char *root, const char *file, const char *id, VerbaLinea *out)
 {
-    char folder[CLI_PATH_LONGEST];
-    char shown[CLI_PATH_LONGEST];
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    char parent[CLI_NAME_LONGEST];
-    CliLine line = {parent, sizeof(parent), 0ull};
-    cli_line_text(&line, id);
-    cli_line_text(&line, "^1");
-    return cli_git_is_id(id) && (cli_line_closed(&line) != 0ull) && cli_git_beside(root, file, folder, shown, &said) &&
-           cli_shown(folder, parent, shown, out);
+    char folder[CLI_PATH_MAX_LEN];
+    char shown[CLI_PATH_MAX_LEN];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char parent[CLI_NAME_MAX_LEN];
+    VerbaLinea line = {parent, sizeof(parent), 0ull};
+    mmgr_line_put(&line, id);
+    mmgr_line_put(&line, "^1");
+    return cli_git_is_id(id) && (mmgr_line_finish(&line) != 0ull) &&
+           cli_git_beside(root, file, folder, shown, &err_msg) && cli_shown(folder, parent, shown, out);
 }
 
-int cli_git_head_text(const char *root, const char *file, CliLine *out)
+int cli_git_head_text(const char *root, const char *file, VerbaLinea *out)
 {
-    char folder[CLI_PATH_LONGEST];
-    char shown[CLI_PATH_LONGEST];
-    char why[CLI_NAME_LONGEST];
-    CliLine said = {why, sizeof(why), 0ull};
-    return cli_git_beside(root, file, folder, shown, &said) && cli_shown(folder, "HEAD", shown, out);
+    char folder[CLI_PATH_MAX_LEN];
+    char shown[CLI_PATH_MAX_LEN];
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    return cli_git_beside(root, file, folder, shown, &err_msg) && cli_shown(folder, "HEAD", shown, out);
 }
 
-int cli_git_made_by(const char *root, const char *id, CliLine *name, CliLine *subject)
+int cli_git_made_by(const char *root, const char *id, VerbaLinea *name, VerbaLinea *subject)
 {
     if (!cli_git_is_id(id))
     {
@@ -311,7 +312,7 @@ int cli_git_made_by(const char *root, const char *id, CliLine *name, CliLine *su
     }
     const char *const args[4] = {"log", "-1", "--format=%an%x00%s", id};
     CliGitGave *const gave = cli_git_taken();
-    int found = cli_git_asked(root, args, 4u, gave);
+    int found = cli_git_query(root, args, 4u, gave);
     const char *from = gave->out;
     const char *to = gave->out + gave->out_size;
     while ((to > from) && ((to[-1] == ' ') || ((to[-1] >= '\t') && (to[-1] <= '\r'))))
@@ -326,38 +327,38 @@ int cli_git_made_by(const char *root, const char *id, CliLine *name, CliLine *su
     found = found && (zero < to);
     if (found)
     {
-        cli_line_counted(name, from, (unsigned long long)(zero - from));
-        cli_line_counted(subject, zero + 1, (unsigned long long)(to - zero - 1));
+        mmgr_line_put_n(name, from, (unsigned long long)(zero - from));
+        mmgr_line_put_n(subject, zero + 1, (unsigned long long)(to - zero - 1));
     }
     cli_git_given(gave);
     return found;
 }
 
-int cli_git_touched(const char *root, const char *id, CliTouchedList *found, CliLine *said)
+int cli_git_touched(const char *root, const char *id, CliTouchedList *found, VerbaLinea *err_msg)
 {
     found->count = 0u;
     cli_git_text_begun(&found->text);
     if (!cli_git_is_id(id))
     {
-        cli_line_text(said, id);
-        cli_line_text(said, " is not a commit");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is not a commit");
         return 0;
     }
-    char parent[CLI_NAME_LONGEST];
-    CliLine line = {parent, sizeof(parent), 0ull};
-    cli_line_text(&line, id);
-    cli_line_text(&line, "^1");
-    cli_line_closed(&line);
+    char parent[CLI_NAME_MAX_LEN];
+    VerbaLinea line = {parent, sizeof(parent), 0ull};
+    mmgr_line_put(&line, id);
+    mmgr_line_put(&line, "^1");
+    mmgr_line_finish(&line);
     const char *const verify[4] = {"rev-parse", "-q", "--verify", parent};
     CliGitGave *const gave = cli_git_taken();
-    const int from = cli_git_asked(root, verify, 4u, gave);
+    const int from = cli_git_query(root, verify, 4u, gave);
     const char *const args[9] = {
         "diff-tree", "-r", "-M", "--name-status", "-z", "--relative", "--no-commit-id", from ? parent : "--root", id};
-    if (!cli_git_asked(root, args, 9u, gave))
+    if (!cli_git_query(root, args, 9u, gave))
     {
         cli_git_given(gave);
-        cli_line_text(said, id);
-        cli_line_text(said, " is not a commit");
+        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, " is not a commit");
         return 0;
     }
     // the fields of what git wrote, the empty ones passed

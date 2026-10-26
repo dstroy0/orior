@@ -19,7 +19,7 @@ typedef struct
     unsigned int depth;
 } CliCompact;
 
-static int cli_compact_value(CliCompact *read, CliLine *out);
+static int cli_compact_value(CliCompact *read, VerbaLinea *out);
 
 // the whitespace JSON allows passed over
 static void cli_compact_white(CliCompact *read)
@@ -56,19 +56,19 @@ static unsigned int cli_compact_hex(const CliCompact *read, unsigned long long a
 }
 
 // a letter written as JSON writes it inside a string
-static void cli_compact_letter(CliLine *out, unsigned int letter)
+static void cli_compact_letter(VerbaLinea *out, unsigned int letter)
 {
     char bytes[8];
-    CliLine line = {bytes, sizeof(bytes), 0ull};
+    VerbaLinea line = {bytes, sizeof(bytes), 0ull};
     cli_utf8_put(&line, letter);
     cli_json_escaped_lossy(out, (const unsigned char *)bytes, line.at);
 }
 
 // a string, the read at its opening quote, written again: 1, or 0 where it is not one serde_json reads
-static int cli_compact_string(CliCompact *read, CliLine *out)
+static int cli_compact_string(CliCompact *read, VerbaLinea *out)
 {
     read->at += 1ull;
-    cli_line_character(out, '"');
+    mmgr_line_ch(out, '"');
     unsigned long long from = read->at;
     while (read->at < read->size)
     {
@@ -80,7 +80,7 @@ static int cli_compact_string(CliCompact *read, CliLine *out)
         if (letter == '"')
         {
             read->at += 1ull;
-            cli_line_character(out, '"');
+            mmgr_line_ch(out, '"');
             return 1;
         }
         if (letter < 0x20u)
@@ -174,7 +174,7 @@ static unsigned long long cli_compact_digits(const CliCompact *read, unsigned lo
 
 // a number written again as serde_json reads it: an integer that fits 64 bits as that integer, -0 and any other as
 // a float: 1, or 0 where it is not a JSON number or its float is out of range
-static int cli_compact_number(CliCompact *read, CliLine *out)
+static int cli_compact_number(CliCompact *read, VerbaLinea *out)
 {
     const unsigned long long start = read->at;
     const int negative = (read->text[read->at] == '-');
@@ -220,13 +220,13 @@ static int cli_compact_number(CliCompact *read, CliLine *out)
     }
     if (fits && !negative)
     {
-        cli_line_decimal(out, value, 1u);
+        mmgr_line_decimal(out, value, 1u);
         return 1;
     }
     if (fits && (value != 0ull) && (value <= 9223372036854775808ull))
     {
-        cli_line_character(out, '-');
-        cli_line_decimal(out, value, 1u);
+        mmgr_line_ch(out, '-');
+        mmgr_line_decimal(out, value, 1u);
         return 1;
     }
     char copy[1024];
@@ -249,7 +249,7 @@ static int cli_compact_number(CliCompact *read, CliLine *out)
 }
 
 // the members of an object or the items of an array, the read at its opening, written again
-static int cli_compact_many(CliCompact *read, CliLine *out, int object)
+static int cli_compact_many(CliCompact *read, VerbaLinea *out, int object)
 {
     if (read->depth >= CLI_COMPACT_DEPTH)
     {
@@ -257,7 +257,7 @@ static int cli_compact_many(CliCompact *read, CliLine *out, int object)
     }
     read->depth += 1u;
     const char close = object ? '}' : ']';
-    cli_line_character(out, object ? '{' : '[');
+    mmgr_line_ch(out, object ? '{' : '[');
     read->at += 1ull;
     cli_compact_white(read);
     int first = 1;
@@ -271,7 +271,7 @@ static int cli_compact_many(CliCompact *read, CliLine *out, int object)
             }
             read->at += 1ull;
             cli_compact_white(read);
-            cli_line_character(out, ',');
+            mmgr_line_ch(out, ',');
         }
         first = 0;
         if (object)
@@ -286,7 +286,7 @@ static int cli_compact_many(CliCompact *read, CliLine *out, int object)
                 return 0;
             }
             read->at += 1ull;
-            cli_line_character(out, ':');
+            mmgr_line_ch(out, ':');
         }
         if (!cli_compact_value(read, out))
         {
@@ -300,11 +300,11 @@ static int cli_compact_many(CliCompact *read, CliLine *out, int object)
     }
     read->at += 1ull;
     read->depth -= 1u;
-    cli_line_character(out, close);
+    mmgr_line_ch(out, close);
     return 1;
 }
 
-static int cli_compact_value(CliCompact *read, CliLine *out)
+static int cli_compact_value(CliCompact *read, VerbaLinea *out)
 {
     cli_compact_white(read);
     if (read->at >= read->size)
@@ -319,7 +319,7 @@ static int cli_compact_value(CliCompact *read, CliLine *out)
             (memor.cmp(&(MemoriaCfg){.src = read->text + read->at, .other = words[word], .bytes = length}) == 0))
         {
             read->at += length;
-            cli_line_text(out, words[word]);
+            mmgr_line_put(out, words[word]);
             return 1;
         }
     }
@@ -339,7 +339,7 @@ static int cli_compact_value(CliCompact *read, CliLine *out)
     return 0;
 }
 
-int cli_json_compacted(const char *text, unsigned long long size, CliLine *out)
+int cli_json_compacted(const char *text, unsigned long long size, VerbaLinea *out)
 {
     const unsigned long long from = out->at;
     CliCompact read = {text, size, 0ull, 0u};
@@ -356,7 +356,7 @@ int cli_json_compacted(const char *text, unsigned long long size, CliLine *out)
 unsigned long long cli_json_value_end(const char *text, unsigned long long size, unsigned long long at)
 {
     CliCompact read = {text, size, at, 0u};
-    CliLine none = {NULL, 0ull, 0ull};
+    VerbaLinea none = {NULL, 0ull, 0ull};
     cli_compact_white(&read);
     return cli_compact_value(&read, &none) ? read.at : at;
 }

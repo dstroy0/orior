@@ -44,7 +44,7 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
 {
     for (int given = 0; given < count; given += 1)
     {
-        HeldSet set;
+        LanguageSet set;
         const RulesetSchema *const schema = code_generator(files[given]).schema();
         std::string paths[RULESET_PATHS_MAX];
         const unsigned int paths_count = ruleset_paths(schema, ruleset_folder() + "/" + schema->file, paths);
@@ -71,10 +71,10 @@ int forms_read(int count, char **files, std::vector<std::pair<std::string, std::
         // the row's choice, whichever way it went
         for (unsigned int at = 0u; at < paths_count; at += 1u)
         {
-            // each file as the run holds it (ruleset_bytes_read)
-            std::string held;
-            ruleset_bytes_read(paths[at], &held);
-            std::stringstream file(held);
+            // each file as the run stores it (ruleset_bytes_read)
+            std::string form_line;
+            ruleset_bytes_read(paths[at], &form_line);
+            std::stringstream file(form_line);
             std::string line;
             while (std::getline(file, line))
             {
@@ -126,7 +126,7 @@ static std::set<std::string> context_entries(const std::string &context)
 }
 
 // a verdict over the carriers given, written after them: the first case one carrier's two questions answer apart, or
-// the count of cases alike. 1 where it closed, 0 where it stayed open over cases asked, -1 where nothing was asked
+// the count of cases alike. 1 where it closed, 0 where it stayed open over cases queried, -1 where nothing was queried
 static int carriers_verdict(RunWritten *file, const std::vector<const Carrier *> &carriers,
                             const std::map<std::string, std::vector<std::string>> &answers,
                             std::string (*text)(const Carrier &))
@@ -216,7 +216,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
             answers[number].push_back(word);
         }
     }
-    // members the same make the identity the same, and the carriers of one identity are told apart by address: the
+    // members the same make the identity the same, and the carriers of one identity are distinguished by address: the
     // position of each in the chain, the most basal member first
     std::map<std::string, std::vector<Carrier>> carried;
     std::istringstream sliced(run_blob_text("slices.txt"));
@@ -235,7 +235,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     }
     if (carried.empty())
     {
-        printf("  %s/slices.txt holds no slice\n", folder.c_str());
+        printf("  %s/slices.txt contains no slice\n", folder.c_str());
         return 1;
     }
     std::vector<std::pair<std::string, std::vector<Carrier>>> addressed;
@@ -266,19 +266,19 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     {
         return 1;
     }
-    std::istringstream held(run_file_text(klq));
-    std::stringstream kept;
-    while (std::getline(held, line) && (line.rfind("slice_identity ", 0u) != 0u))
+    std::istringstream stream(run_file_text(klq));
+    std::stringstream copy;
+    while (std::getline(stream, line) && (line.rfind("slice_identity ", 0u) != 0u))
     {
-        kept << line << "\n";
+        copy << line << "\n";
     }
     RunWritten file = {klq, 1, std::string()};
-    run_print(&file, "%s", kept.str().c_str());
+    run_print(&file, "%s", copy.str().c_str());
     unsigned int number = 0u;
     unsigned int contexts = 0u;
     unsigned int closed = 0u;
     unsigned int open = 0u;
-    unsigned int unasked = 0u;
+    unsigned int unqueried = 0u;
     unsigned int many = 0u;
     unsigned int split = 0u;
     unsigned int flagged = 0u;
@@ -334,7 +334,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
         {
             const Carrier &basal = *place.second[0];
             run_print(&file, "context %s\n", carrier_text(basal).c_str());
-            // an entry both members hold is written once, and one a member alone holds is written under its side
+            // an entry both members contain is written once, and one a member alone contains is written under its side
             const std::set<std::string> first_entries = context_entries(basal.first_context);
             const std::set<std::string> second_entries = context_entries(basal.second_context);
             for (const std::string &entry : first_entries)
@@ -356,7 +356,7 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
             contexts += 1u;
             closed += (verdict == 1) ? 1u : 0u;
             open += (verdict == 0) ? 1u : 0u;
-            unasked += (verdict == -1) ? 1u : 0u;
+            unqueried += (verdict == -1) ? 1u : 0u;
             verdicts[0] |= (verdict == 1);
             verdicts[1] |= (verdict == 0);
         }
@@ -376,14 +376,15 @@ int identity_read(const std::string &folder, const std::string &klq, int count, 
     printf("  %s: %u identities in %u contexts, %u identities in more than one, %u closed in one context and open in "
            "another\n",
            klq.c_str(), number, contexts, many, split);
-    printf("  contexts: %u closed, %u open over the cases asked, %u asked of nothing; %u links a rule keeps off the part, "
+    printf("  contexts: %u closed, %u open over the cases queried, %u queried of nothing; %u links a rule blocks from "
+           "the part, "
            "%u forms written beside them\n",
-           closed, open, unasked, flagged, formed);
+           closed, open, unqueried, flagged, formed);
     return 0;
 }
 
 // the files `given` names, a folder standing for every .dis file in it by name: a folder of the engine's writing of the
-// stick holds more files than one command line can name
+// stick contains more files than one command line can name
 std::vector<std::string> candidate_paths(const std::vector<std::string> &given)
 {
     std::vector<std::string> paths;
@@ -394,16 +395,16 @@ std::vector<std::string> candidate_paths(const std::vector<std::string> &given)
             paths.push_back(path);
             continue;
         }
-        std::vector<std::string> held;
+        std::vector<std::string> found_paths;
         for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(path))
         {
             if (entry.path().extension() == ".dis")
             {
-                held.push_back(entry.path().generic_string());
+                found_paths.push_back(entry.path().generic_string());
             }
         }
-        std::sort(held.begin(), held.end());
-        paths.insert(paths.end(), held.begin(), held.end());
+        std::sort(found_paths.begin(), found_paths.end());
+        paths.insert(paths.end(), found_paths.begin(), found_paths.end());
     }
     return paths;
 }

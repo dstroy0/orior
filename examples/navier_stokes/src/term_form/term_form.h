@@ -1,11 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// term_form.h: an exact polynomial in terms with rational coefficients, e held apart at a rational power
+// term_form.h: an exact polynomial in terms with rational coefficients, e stored apart at a rational power
 #ifndef TERM_FORM_H
 #define TERM_FORM_H
 
-// An term is a number held apart and never evaluated: w(z_c) and w'(z_c) for the Kummer solution, z_c^h, E1(x). e is
-// held apart from every term: each term carries its own rational power of e, and e^p e^q is e^(p+q) exactly;
+// An term is a number stored apart and never evaluated: w(z_c) and w'(z_c) for the Kummer solution, z_c^h, E1(x). e is
+// stored apart from every term: each term carries its own rational power of e, and e^p e^q is e^(p+q) exactly;
 // e^(-1/s_c), e^N and e^(-n/b) are one number at three powers. A form is a sum of rational coefficients times e^q times
 // products of terms. The exponent of term i in a term is entry i of its power, trailing zeros dropped; one product has
 // one key.
@@ -33,9 +33,9 @@ struct TermKeyOrder
 // the exact integer 1
 OriorExactInteger term_form_unit(void);
 
-// A form holds exact integers, entry i the numerator of the term at the program's slot i, over one positive
-// denominator. A slot is a key, a power of e and the terms' powers, numbered as the program first meets it; every form
-// in a run shares the numbering. The denominator and the entries share no factor, and the last entry is not 0.
+// A form contains exact integers, entry i the numerator of the term at the program's index i, over one positive
+// denominator. An index is a key, a power of e and the terms' powers, numbered as the program first meets it; every
+// form in a run shares the numbering. The denominator and the entries share no factor, and the last entry is not 0.
 struct TermForm
 {
     std::vector<OriorExactInteger> magnitude;
@@ -55,7 +55,7 @@ TermForm term_form_difference(const TermForm &left, const TermForm &right);
 TermForm term_form_scaled(const TermForm &form, SimRational factor);
 TermForm term_form_product(const TermForm &left, const TermForm &right);
 
-// the form under the relation share (1 + e^ratio) = 1: every term holding share whose power of e is a whole positive
+// the form under the relation share (1 + e^ratio) = 1: every term containing share whose power of e is a whole positive
 // multiple of `ratio` has e^ratio share replaced by 1 - share until none does. The powers of e in the form are the
 // ratio's own.
 TermForm term_form_unit_reduced(const TermForm &form, SimRational ratio, unsigned int share);
@@ -69,7 +69,7 @@ typedef struct
     std::vector<std::string> names;
 } TermBook;
 
-// the number of the term named `name`, a new one where the book does not hold it
+// the number of the term named `name`, a new one where the book does not contain it
 unsigned int term_book_id(TermBook *book, const std::string &name);
 
 // a rational as text for an term's name: p/q, or both parts' limbs in hex where a part passes a word
@@ -87,32 +87,32 @@ SimRational term_form_largest(const TermForm &form);
 // the coefficient of the term that is the term `term` alone, e^0
 SimRational term_form_coefficient_of(const TermForm &form, unsigned int term);
 
-// the number of distinct powers of e the form holds
+// the number of distinct powers of e the form contains
 size_t term_form_e_count(const TermForm &form);
 
 // the form written whole to `file`, one term per line: numerator/denominator in decimal, e^(q) where q is not 0, and
 // each term by its name, ^k where its power passes 1
 void term_form_write(FILE *file, const TermForm &form, const std::vector<std::string> &names);
 
-// the number of terms the form holds
+// the number of terms the form contains
 size_t term_form_terms(const TermForm &form);
 
-// the slots holding a term, in key order
-std::vector<unsigned int> term_form_slots(const TermForm &form);
+// the indices containing a term, in key order
+std::vector<unsigned int> term_form_indices(const TermForm &form);
 
-// 1 where the form holds a term at `slot`
-int term_form_holds(const TermForm &form, unsigned int slot);
+// 1 where the form contains a term at `term_at`
+int term_form_has(const TermForm &form, unsigned int term_at);
 
-// the key at `slot`, a slot some form holds
-const TermKey &term_form_key_at(unsigned int slot);
+// the key at `term_at`, an index some form contains
+const TermKey &term_form_key_at(unsigned int term_at);
 
-// the coefficient at `slot` in lowest terms, 0 where the form holds no term there
-SimRational term_form_coefficient_at(const TermForm &form, unsigned int slot);
+// the coefficient at `term_at` in lowest terms, 0 where the form contains no term there
+SimRational term_form_coefficient_at(const TermForm &form, unsigned int term_at);
 
-// the key at `slot` as text: "1", or e^(q) and each term by its name, ^k where its power passes 1
-std::string term_form_key_text(unsigned int slot, const std::vector<std::string> &names);
+// the key at `term_at` as text: "1", or e^(q) and each term by its name, ^k where its power passes 1
+std::string term_form_key_text(unsigned int term_at, const std::vector<std::string> &names);
 
-// the entries the form's array holds, its zeros counted
+// the entries the form's array contains, its zeros counted
 size_t term_form_entries(const TermForm &form);
 
 // the most bits any entry or the denominator takes

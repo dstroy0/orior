@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // ed25519.c: Ed25519 as RFC 8032 states it. A field element of GF(2^255 - 19) is sixteen limbs of 16 bits in signed
 // 64-bit words, the limbs carried as the curve's arithmetic needs; a point is its extended coordinates X, Y, Z and T.
-// A signed word shifted right keeps its sign, as every compiler the tree builds with shifts it
+// A signed word shifted right preserves its sign, as every compiler the tree builds with shifts it
 #include "ed25519.h"
 
 #include "../sha512/sha512.h"
@@ -73,30 +73,30 @@ static void ed25519_swapped(Ed25519Field one, Ed25519Field other, long long swap
 // a field element reduced whole and written as 32 bytes, low byte first
 static void ed25519_packed(unsigned char out[32], const Ed25519Field in)
 {
-    Ed25519Field held;
+    Ed25519Field field;
     Ed25519Field less;
-    ed25519_set(held, in);
-    ed25519_carried(held);
-    ed25519_carried(held);
-    ed25519_carried(held);
+    ed25519_set(field, in);
+    ed25519_carried(field);
+    ed25519_carried(field);
+    ed25519_carried(field);
     for (unsigned int pass = 0u; pass < 2u; pass += 1u)
     {
-        less[0] = held[0] - 0xffedll;
+        less[0] = field[0] - 0xffedll;
         for (unsigned int at = 1u; at < (ED25519_LIMBS - 1u); at += 1u)
         {
-            less[at] = held[at] - 0xffffll - ((less[at - 1u] >> 16) & 1ll);
+            less[at] = field[at] - 0xffffll - ((less[at - 1u] >> 16) & 1ll);
             less[at - 1u] &= 0xffffll;
         }
-        less[15] = held[15] - 0x7fffll - ((less[14] >> 16) & 1ll);
+        less[15] = field[15] - 0x7fffll - ((less[14] >> 16) & 1ll);
         const long long borrowed = (less[15] >> 16) & 1ll;
         less[14] &= 0xffffll;
-        ed25519_swapped(held, less, 1ll - borrowed);
+        ed25519_swapped(field, less, 1ll - borrowed);
     }
     for (unsigned int at = 0u; at < ED25519_LIMBS; at += 1u)
     {
-        // a reduced limb holds 16 bits, its two bytes kept apart
-        out[2u * at] = (unsigned char)(held[at] & 0xffll);
-        out[(2u * at) + 1u] = (unsigned char)((held[at] >> 8) & 0xffll);
+        // a reduced limb contains 16 bits, its two bytes separated apart
+        out[2u * at] = (unsigned char)(field[at] & 0xffll);
+        out[(2u * at) + 1u] = (unsigned char)((field[at] >> 8) & 0xffll);
     }
 }
 
@@ -174,33 +174,33 @@ static void ed25519_square(Ed25519Field out, const Ed25519Field in)
 // the inverse, `in` raised to 2^255 - 21
 static void ed25519_inverse(Ed25519Field out, const Ed25519Field in)
 {
-    Ed25519Field held;
-    ed25519_set(held, in);
+    Ed25519Field field;
+    ed25519_set(field, in);
     for (int bit = 253; bit >= 0; bit -= 1)
     {
-        ed25519_square(held, held);
+        ed25519_square(field, field);
         if ((bit != 2) && (bit != 4))
         {
-            ed25519_mul(held, held, in);
+            ed25519_mul(field, field, in);
         }
     }
-    ed25519_set(out, held);
+    ed25519_set(out, field);
 }
 
 // `in` raised to 2^252 - 3, the step of a square root
 static void ed25519_root_step(Ed25519Field out, const Ed25519Field in)
 {
-    Ed25519Field held;
-    ed25519_set(held, in);
+    Ed25519Field field;
+    ed25519_set(field, in);
     for (int bit = 250; bit >= 0; bit -= 1)
     {
-        ed25519_square(held, held);
+        ed25519_square(field, field);
         if (bit != 1)
         {
-            ed25519_mul(held, held, in);
+            ed25519_mul(field, field, in);
         }
     }
-    ed25519_set(out, held);
+    ed25519_set(out, field);
 }
 
 // the point `one` made the sum of it and `other`, both in extended coordinates
@@ -253,7 +253,7 @@ static void ed25519_point_packed(unsigned char out[32], Ed25519Field point[4])
     ed25519_mul(x, point[0], inverse);
     ed25519_mul(y, point[1], inverse);
     ed25519_packed(out, y);
-    // the parity is one bit, which the top of a byte holds
+    // the parity is one bit, which the top of a byte stores
     out[31] ^= (unsigned char)(ed25519_parity(x) << 7);
 }
 
@@ -448,8 +448,8 @@ static int ed25519_below_order(const unsigned char scalar[32])
     return 0;
 }
 
-int ed25519_holds(const unsigned char public_key[ED25519_PUBLIC_BYTES], const void *message, size_t bytes,
-                  const unsigned char signature[ED25519_SIGNATURE_BYTES])
+int ed25519_verify(const unsigned char public_key[ED25519_PUBLIC_BYTES], const void *message, size_t bytes,
+                   const unsigned char signature[ED25519_SIGNATURE_BYTES])
 {
     Ed25519Field negated[4];
     Ed25519Field point[4];

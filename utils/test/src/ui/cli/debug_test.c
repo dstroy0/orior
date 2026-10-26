@@ -19,33 +19,33 @@ static CliJson *s_read;
 static unsigned int debug_read(CliJson *to, const char *text)
 {
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (s_read != NULL)
     {
         cli_json_given(s_read);
     }
     s_read = to;
     return cli_json_taken(to, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), 64u, 4096ull,
-                          &said);
+                          &err_msg);
 }
 
 // node `node` of `json` written compact, its keys in order, into s_out
 static const char *debug_written(const CliJson *json, unsigned int node)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_json_write(json, node, &out, 0u, 1);
-    (void)cli_line_closed(&out);
+    (void)mmgr_line_finish(&out);
     return s_out;
 }
 
 // a function's bytecode is read with its lines
 static void debug_bytecode(void)
 {
-    char dir[CLI_PATH_LONGEST];
-    char file[CLI_PATH_LONGEST];
-    char python[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char file[CLI_PATH_MAX_LEN];
+    char python[CLI_PATH_MAX_LEN];
     char why[1024];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check_folder("debug_bytecode", dir);
     cli_full(dir, "a.py", file);
     static const char s_area[] = "x = 1\n\n\ndef area(width, height):\n    return width * height\n";
@@ -53,16 +53,16 @@ static void debug_bytecode(void)
     cli_runner_python(python);
     const char *const version[3] = {python, "--version", NULL};
     CliRan *const ran = cli_ran_taken();
-    const int has_python = cli_ran(version, NULL, NULL, 0u, ran, &said) && (ran->code == 0ll);
+    const int has_python = cli_ran(version, NULL, NULL, 0u, ran, &err_msg) && (ran->code == 0ll);
     cli_ran_given(ran);
     if (!has_python)
     {
         cli_check(1, "no Python to compile the function with");
         return;
     }
-    CliLine out = {s_out, sizeof(s_out), 0ull};
-    said.at = 0ull;
-    cli_check(cli_debug_bytecode(dir, file, 4u, &out, &said), "a function's bytecode is read");
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    err_msg.at = 0ull;
+    cli_check(cli_debug_bytecode(dir, file, 4u, &out, &err_msg), "a function's bytecode is read");
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &read);
     const char *const name = cli_json_string(json, cli_json_item(json, read, 0u), NULL);
@@ -82,10 +82,11 @@ static void debug_bytecode(void)
               "its name, and an instruction of its line");
 }
 
-// whether the processes listed hold `pid` with a line it started with: its line into `line`, which holds `room`
+// whether the processes listed contain `pid` with a line it started with: its line into `line`, which is sized for
+// `room`
 static int debug_listed(unsigned long long pid, char *line, unsigned long long room)
 {
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_debug_processes(&out);
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_out, out.at, &read);
@@ -122,21 +123,21 @@ static void debug_processes(void)
 {
 #if defined(_WIN32)
     const char *const words[8] = {"cmd", "/c", "ping", "-n", "4", "127.0.0.1", ">NUL", NULL};
-    static const char s_held[] = "127.0.0.1";
+    static const char s_expected[] = "127.0.0.1";
 #else
     const char *const words[3] = {"sleep", "3", NULL};
-    static const char s_held[] = "3";
+    static const char s_expected[] = "3";
 #endif
     CliSpawned child;
     char why[1024];
     char line[4096];
-    CliLine said = {why, sizeof(why), 0ull};
-    cli_check(cli_spawn(&child, words, NULL, NULL, 0u, 1, &said), "a process is started");
-    const unsigned long long held = g_cli_debug_processes_cells.holds;
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_check(cli_spawn(&child, words, NULL, NULL, 0u, 1, &err_msg), "a process is started");
+    const unsigned long long in_use_before = g_cli_debug_processes_cells.in_use;
     const unsigned long long began = cli_clock_milliseconds();
     int listed = debug_listed(child.id, line, sizeof(line));
     const unsigned long long took = cli_clock_milliseconds() - began;
-    cli_check((g_cli_debug_processes_cells.holds == held) && (g_cli_debug_processes_cells.hw > 0ull),
+    cli_check((g_cli_debug_processes_cells.in_use == in_use_before) && (g_cli_debug_processes_cells.hw > 0ull),
               "the processes are listed in cells of their own, given back once written");
     // on Linux a process takes its name as its program starts and its line an instant after, once the system has laid
     // the program out: the list is read again until the line shows
@@ -150,7 +151,7 @@ static void debug_processes(void)
     cli_spawn_closed(&child);
     cli_check(listed &&
                   (cellul.find(&(CatenaFinitaCfg){
-                       .src = line, .cap = CLI_CELLS_POOL, .other = s_held, .other_cap = CLI_CELLS_POOL}) != NULL),
+                       .src = line, .cap = CLI_CELLS_POOL, .other = s_expected, .other_cap = CLI_CELLS_POOL}) != NULL),
               "the machine's processes, with the lines they started with");
     cli_check(took < 2000ull, "quick enough for a picker");
 }
@@ -184,7 +185,7 @@ static void debug_arguments(void)
     static const char s_frame[] = "{\"id\":7,\"name\":\"main\",\"source\":{\"path\":\"/t/a.c\"},\"line\":6,\"column\":"
                                   "13,\"instructionPointerReference\":\"0x1000\"}";
     json = cli_check_parsed(s_frame, sizeof(s_frame) - 1u, &read);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_debug_frame_written(json, read, NULL, NULL, &out);
     cli_check_text(s_out, out.at,
                    "{\"id\":7,\"name\":\"main\",\"path\":\"/t/a.c\",\"line\":5,\"col\":12,\"ip\":\"0x1000\"}",
@@ -198,7 +199,7 @@ static void debug_breakpoints(void)
                                   "\"line\":11,\"log\":\"x is {x}\"}]";
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_given, sizeof(s_given) - 1u, &read);
-    CliLine out = {s_out, sizeof(s_out), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
     cli_debug_breakpoints_written(json, read, &out);
     cli_check_text(s_out, out.at,
                    "[{\"line\":5},{\"line\":10,\"condition\":\"x > 2\",\"hitCondition\":\">= 3\"},{\"line\":12,"
@@ -232,7 +233,7 @@ static void debug_stepping(void)
             .src = debug_written(&to, cli_json_member(&to, arguments, "rules")),
             .other = "[{\"include\":false,\"module\":\"requests\"},{\"include\":false,\"path\":\"**/vendor/**\"}]",
             .cap = CLI_CELLS_POOL}),
-        "and skips what it is told, a module or a path");
+        "and skips what it is given, a module or a path");
     static const char s_native[] = "{\"mine_only\":false,\"skip\":[\"^std::\",\"^boost::\"]}";
     json = cli_check_parsed(s_native, sizeof(s_native) - 1u, &read);
     arguments = debug_read(&to, "{\"program\":\"a.exe\",\"initCommands\":[\"x\"]}");
@@ -241,7 +242,7 @@ static void debug_stepping(void)
                   .src = debug_written(&to, cli_json_member(&to, arguments, "initCommands")),
                   .other = "[\"x\",\"settings set target.process.thread.step-avoid-regexp ^std::|^boost::\"]",
                   .cap = CLI_CELLS_POOL}),
-              "lldb avoids the patterns it is told");
+              "lldb avoids the patterns it is given");
 }
 
 // a place's breakpoints grow in a cell as they come, the tree it starts with is a cell of its own, and both go back
@@ -262,13 +263,13 @@ static void debug_places(void)
     unsigned int read = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_start, sizeof(s_start) - 1u, &read);
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (place != NULL)
     {
-        (void)cli_debug_planned(place, ".", json, read, CLI_JSON_NONE, &s_plan, &said);
+        (void)cli_debug_planned(place, ".", json, read, CLI_JSON_NONE, &s_plan, &err_msg);
     }
     cli_check((place != NULL) && (place->placed_count == 100u) && (place->placed_room == 128u) &&
-                  (place->placed[99] == 99ll) && (place->start.nodes_most != 0u) && (g_cli_debug_cells.holds != 0ull),
+                  (place->placed[99] == 99ll) && (place->start.nodes_most != 0u) && (g_cli_debug_cells.in_use != 0ull),
               "its breakpoints grow as they come, and its start is a tree of its own");
     cli_lock_take(&g_cli_debug.lock);
     if (place != NULL)
@@ -277,7 +278,7 @@ static void debug_places(void)
     }
     cli_lock_give(&g_cli_debug.lock);
     cli_check((place != NULL) && !place->taken && (place->placed == NULL) && (place->start.nodes_most == 0u) &&
-                  (g_cli_debug_cells.holds == 0ull),
+                  (g_cli_debug_cells.in_use == 0ull),
               "and all of it goes back as the place is freed");
 }
 
@@ -324,6 +325,7 @@ static void debug_manifest(void)
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     debug_bytecode();
     debug_processes();
     debug_arguments();

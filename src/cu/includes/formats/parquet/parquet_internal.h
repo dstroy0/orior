@@ -24,7 +24,7 @@
 #define PARQUET_TRAILER_BYTES 8u
 
 // the most leaves a schema and row groups a footer may name, a leaf's dotted path with its terminator, the most
-// bytes a footer may hold, and the deepest a schema and a skipped Thrift value may nest
+// bytes a footer may contain, and the deepest a schema and a skipped Thrift value may nest
 #define PARQUET_LEAVES_MOST 64u
 #define PARQUET_ROW_GROUPS_MOST 256u
 #define PARQUET_PATH_BYTES 128u
@@ -32,9 +32,9 @@
 #define PARQUET_SCHEMA_DEPTH_MOST 16u
 #define PARQUET_THRIFT_DEPTH_MOST 16u
 
-// a level is at most the schema's depth and the leaf's own one, and is kept in a byte
+// a level is at most the schema's depth and the leaf's own one, and is stored in a byte
 _Static_assert((PARQUET_SCHEMA_DEPTH_MOST + 1u) <= UCHAR_MAX,
-               "PARQUET_SCHEMA_DEPTH_MOST: a definition or repetition level must fit the byte it is kept in");
+               "PARQUET_SCHEMA_DEPTH_MOST: a definition or repetition level must fit the byte it is stored in");
 
 // Thrift compact protocol type codes. A struct field's code 0 is the stop byte
 #define PARQUET_THRIFT_STOP 0u
@@ -103,7 +103,7 @@ typedef struct
     ParquetChunk chunk[PARQUET_LEAVES_MOST];
 } ParquetRowGroup;
 
-// the footer as this reader keeps it, and where its bytes sit in the file. Large: it is held on the heap
+// the footer as this reader stores it, and where its bytes sit in the file. Large: it is allocated on the heap
 typedef struct
 {
     unsigned long long rows;
@@ -136,7 +136,7 @@ typedef struct
     unsigned long long rows;
 } ParquetColumn;
 
-// a cursor over bytes held in memory. Any overrun sets broken, and every later read returns zero
+// a cursor over bytes stored in memory. Any overrun sets broken, and every later read returns zero
 typedef struct
 {
     const unsigned char *bytes;

@@ -16,7 +16,7 @@
 // whole cell again. The 27 cells read the samples within 10 of the body's cell. A body another body reaches there does
 // not translate alone: the camera law's bodies are run again with no noise, and three of them are set apart along z,
 // with the noise and without it, where every step is clear and a tolerance of 0 must find every one. The hits, the
-// false candidates and the plane words read are counted at every tolerance. Every candidate set is held to the
+// false candidates and the plane words read are counted at every tolerance. Every candidate set is checked against the
 // host's scan.
 #include "sim_camera.h"
 
@@ -87,7 +87,7 @@
 
 #define TRACK_THREADS 256ull
 
-static_assert(TRACK_WORDS <= 1024ull, "one block holds a query, one thread a word");
+static_assert(TRACK_WORDS <= 1024ull, "one block handles a query, one thread a word");
 
 static_assert((TRACK_FLOOR_VALUES % TRACK_THREADS) == 0ull, "the plane kernel's blocks are whole warps");
 
@@ -156,7 +156,7 @@ typedef struct
     unsigned int *reads;
 } TrackDevice;
 
-// what the sim puts on the device at once: the longest scene's frames, the tower's two kept coefficient arrays,
+// what the sim puts on the device at once: the longest scene's frames, the tower's two retained coefficient arrays,
 // floor 2 and its planes for every frame, the queries, and each query's candidate word and reads for every word
 #define TRACK_DECLARED                                                                                                 \
     ((TRACK_FRAMES_MAX * TRACK_SAMPLES * sizeof(unsigned short)) + (2ull * TRACK_SAMPLES * sizeof(int)) +              \

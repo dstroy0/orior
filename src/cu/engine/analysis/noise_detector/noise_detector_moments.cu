@@ -9,7 +9,7 @@
 // fits a word; frames past the last whole block are not read.
 static long noise_moments_sample(const unsigned short *volume, const unsigned long long extent[4],
                                  NoiseMomentCell cells[NOISE_LEVEL_BINS], unsigned long long *ceiling,
-                                 unsigned long long *kept, unsigned long long *left_out, EngineError *error)
+                                 unsigned long long *sampled, unsigned long long *left_out, EngineError *error)
 {
     const unsigned long long frames = extent[0];
     const unsigned long long voxels = extent[1] * extent[2] * extent[3];
@@ -19,8 +19,8 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
     const unsigned long long spread = ((voxels != 0ull) && (frames <= (~0ull / voxels))) ? (frames * voxels) : ~0ull;
     // a block's |S1| is at most half its frames and each power at most its frames times the range to that power:
     // S4 bounds every product the cells sum but S2^2, which they sum wide; sumS4 is at most the sample's voxel-frames
-    // times the range to the fourth, and the values at most the voxel-frames times the lane's top; the quiet mask holds
-    // to 65536 frames
+    // times the range to the fourth, and the values at most the voxel-frames times the lane's top; the quiet mask
+    // stores to 65536 frames
     const int bounded = (blocks != 0ull) && (frames <= 65536ull) && (voxels != 0ull) && (spread != ~0ull) &&
                         (spread <= (NOISE_SIGNED_TOP / fourth)) && (spread <= (NOISE_SIGNED_TOP / NOISE_LANE_TOP));
     if (!NOISE_DETECTOR_CHECK(bounded, extent, error, ENGINE_ERROR_REQUEST))
@@ -28,7 +28,7 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
         return NOISE_DETECTOR_ERROR;
     }
     memset(cells, 0, (size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
-    *kept = 0ull;
+    *sampled = 0ull;
     *left_out = 0ull;
     unsigned char *const mask = (unsigned char *)malloc((size_t)voxels);
     int ok = NOISE_DETECTOR_CHECK(mask != NULL, &mask, error, ENGINE_ERROR_RESOURCE) &&
@@ -89,7 +89,7 @@ static long noise_moments_sample(const unsigned short *volume, const unsigned lo
                 *left_out += 1ull;
                 continue;
             }
-            *kept += 1ull;
+            *sampled += 1ull;
             // the center is a lane. It re-signs to unsigned int exactly
             const unsigned int summed_bin = (unsigned int)center >> (NOISE_LEVEL_BIN_SHIFT - 1u);
             NoiseMomentCell *const cell =
@@ -169,17 +169,17 @@ extern "C" long noise_moments_set(const NoiseSetRequest *request)
         unsigned long long extent[4] = {0ull, 0ull, 0ull, 0ull};
         unsigned short *volume = NULL;
         unsigned long long ceiling = 0ull;
-        unsigned long long kept = 0ull;
+        unsigned long long sampled = 0ull;
         unsigned long long left_out = 0ull;
         ok = NOISE_DETECTOR_CHECK(request->load(request->set, name, extent, &volume, error) == 0L, name, error,
                                   ENGINE_ERROR_REQUEST) &&
-             (noise_moments_sample(volume, extent, cells, &ceiling, &kept, &left_out, error) == 0L);
+             (noise_moments_sample(volume, extent, cells, &ceiling, &sampled, &left_out, error) == 0L);
         free(volume);
         ok = ok && NOISE_DETECTOR_IO(noise_moments_rows(table, name, cells) != 0, table, error);
         if (ok != 0)
         {
-            printf("  %-24s static means up to %llu; %llu blocks kept, %llu left out past %llu of their mean\n", name,
-                   ceiling, kept, left_out, NOISE_MOMENT_RANGE);
+            printf("  %-24s static means up to %llu; %llu blocks retained, %llu left out past %llu of their mean\n",
+                   name, ceiling, sampled, left_out, NOISE_MOMENT_RANGE);
             fflush(stdout);
         }
     }
@@ -275,7 +275,7 @@ static int noise_moments_cumulant(const NoiseMomentCell *cell, unsigned int orde
         ok = quotient.limb[limb] == 0u;
     }
     ok = ok && (quotient.limb[1] < 0x80000000u);
-    // the magnitude is below 2^63 by the test above; the sign is held apart
+    // the magnitude is below 2^63 by the test above; the sign is stored apart
     *thousandths =
         ok ? ((long long)(((unsigned long long)quotient.limb[1] << 32u) | quotient.limb[0]) * (long long)quotient.sign)
            : 0ll;
@@ -291,13 +291,13 @@ extern "C" long noise_moments_volume(const unsigned short *volume, const unsigne
     }
     NoiseMomentCell *const cells = (NoiseMomentCell *)malloc((size_t)NOISE_LEVEL_BINS * sizeof(NoiseMomentCell));
     unsigned long long ceiling = 0ull;
-    unsigned long long kept = 0ull;
+    unsigned long long sampled = 0ull;
     unsigned long long left_out = 0ull;
     int ok = NOISE_DETECTOR_CHECK((volume != NULL) && (extent != NULL) && (cumulants != NULL), volume, error,
                                   ENGINE_ERROR_REQUEST) &&
              NOISE_DETECTOR_CHECK(cells != NULL, &cells, error, ENGINE_ERROR_RESOURCE) &&
-             (noise_moments_sample(volume, extent, cells, &ceiling, &kept, &left_out, error) == 0L);
-    // every bin pooled: each pooled sum is a sum over the sample's blocks, which the pass's bound already holds
+             (noise_moments_sample(volume, extent, cells, &ceiling, &sampled, &left_out, error) == 0L);
+    // every bin pooled: each pooled sum is a sum over the sample's blocks, which the pass's bound already enforces
     NoiseMomentCell pooled;
     memset(&pooled, 0, sizeof(pooled));
     for (unsigned int level_bin = 0u; ok && (level_bin < NOISE_LEVEL_BINS); level_bin += 1u)

@@ -1,12 +1,12 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// debug_bytecode.c: the bytecode of the function of a Python file that holds a line, as the tree's Python compiles it,
-// read by a shim given to that Python as its input: the file, then the line, counted from 1, its words
+// debug_bytecode.c: the bytecode of the function of a Python file that contains a line, as the tree's Python compiles
+// it, read by a shim given to that Python as its input: the file, then the line, counted from 1, its words
 #include "../command_line/cells.h"
 #include "../tests/test_runs.h"
 #include "debug_internal.h"
 
-// the shim that writes the bytecode of the function that holds a line of a Python file
+// the shim that writes the bytecode of the function that contains a line of a Python file
 static const char s_shim[] =
     "\n"
     "import dis, json, sys\n"
@@ -27,9 +27,9 @@ static const char s_shim[] =
     "print(json.dumps({\"name\": best.co_qualname if hasattr(best, \"co_qualname\") else best.co_name, "
     "\"instructions\": out}))\n";
 
-// the last line of what the shim wrote to its errors, the whole trimmed first, into `said`; where it wrote none, that
-// the bytecode could not be read
-static void bytecode_failed(const CliRan *ran, CliLine *said)
+// the last line of what the shim wrote to its errors, the whole trimmed first, into `err_msg`; where it wrote none,
+// that the bytecode could not be read
+static void bytecode_failed(const CliRan *ran, VerbaLinea *err_msg)
 {
     unsigned long long start = 0ull;
     unsigned long long end = ran->err_size;
@@ -45,7 +45,7 @@ static void bytecode_failed(const CliRan *ran, CliLine *said)
     }
     if (end == start)
     {
-        cli_line_text(said, "the bytecode could not be read");
+        mmgr_line_put(err_msg, "the bytecode could not be read");
         return;
     }
     unsigned long long last = end;
@@ -54,22 +54,22 @@ static void bytecode_failed(const CliRan *ran, CliLine *said)
         last -= 1ull;
     }
     const unsigned long long stop = ((end > last) && (ran->err[end - 1ull] == '\r')) ? end - 1ull : end;
-    cli_lossy(said, (const unsigned char *)ran->err + last, stop - last);
+    cli_lossy(err_msg, (const unsigned char *)ran->err + last, stop - last);
 }
 
 // an instruction the shim wrote, written as the window reads one
-static void bytecode_instruction(const CliJson *json, unsigned int one, CliLine *out)
+static void bytecode_instruction(const CliJson *json, unsigned int one, VerbaLinea *out)
 {
     unsigned long long line = 0ull;
     unsigned long long name_size = 0ull;
     unsigned long long argument_size = 0ull;
     const char *const name = cli_json_string(json, cli_json_member(json, one, "name"), &name_size);
     const char *const argument = cli_json_string(json, cli_json_member(json, one, "argument"), &argument_size);
-    char text[CLI_NAME_LONGEST * 4u];
-    CliLine joined = {text, sizeof(text), 0ull};
-    cli_line_counted(&joined, (name != NULL) ? name : "", (name != NULL) ? name_size : 0ull);
-    cli_line_character(&joined, ' ');
-    cli_line_counted(&joined, (argument != NULL) ? argument : "", (argument != NULL) ? argument_size : 0ull);
+    char text[CLI_NAME_MAX_LEN * 4u];
+    VerbaLinea joined = {text, sizeof(text), 0ull};
+    mmgr_line_put_n(&joined, (name != NULL) ? name : "", (name != NULL) ? name_size : 0ull);
+    mmgr_line_ch(&joined, ' ');
+    mmgr_line_put_n(&joined, (argument != NULL) ? argument : "", (argument != NULL) ? argument_size : 0ull);
     unsigned long long start = 0ull;
     unsigned long long end = joined.at;
     while ((start < end) &&
@@ -82,10 +82,10 @@ static void bytecode_instruction(const CliJson *json, unsigned int one, CliLine 
     {
         end -= 1ull;
     }
-    cli_line_text(out, "{\"address\":");
+    mmgr_line_put(out, "{\"address\":");
     // the offset as JSON writes it, quoted as the window reads an address
     char offset[64];
-    CliLine offset_line = {offset, sizeof(offset), 0ull};
+    VerbaLinea offset_line = {offset, sizeof(offset), 0ull};
     const unsigned int offset_node = cli_json_member(json, one, "offset");
     if (offset_node != CLI_JSON_NONE)
     {
@@ -93,55 +93,55 @@ static void bytecode_instruction(const CliJson *json, unsigned int one, CliLine 
     }
     else
     {
-        cli_line_text(&offset_line, "null");
+        mmgr_line_put(&offset_line, "null");
     }
     cli_json_quoted_lossy(out, (const unsigned char *)offset_line.out, offset_line.at);
-    cli_line_text(out, ",\"text\":");
+    mmgr_line_put(out, ",\"text\":");
     cli_json_quoted_lossy(out, (const unsigned char *)text + start, end - start);
-    cli_line_text(out, ",\"bytes\":\"\",\"symbol\":\"\",\"line\":");
+    mmgr_line_put(out, ",\"bytes\":\"\",\"symbol\":\"\",\"line\":");
     if (cli_debug_unsigned(json, cli_json_member(json, one, "line"), &line))
     {
-        cli_line_decimal(out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
+        mmgr_line_decimal(out, ((line > 0ull) ? line - 1ull : 0ull) & 0xffffffffull, 1u);
     }
     else
     {
-        cli_line_text(out, "null");
+        mmgr_line_put(out, "null");
     }
-    cli_line_character(out, '}');
+    mmgr_line_ch(out, '}');
 }
 
-int cli_debug_bytecode(const char *root, const char *path, unsigned int line, CliLine *out, CliLine *said)
+int cli_debug_bytecode(const char *root, const char *path, unsigned int line, VerbaLinea *out, VerbaLinea *err_msg)
 {
-    char python[CLI_PATH_LONGEST];
+    char python[CLI_PATH_MAX_LEN];
     if (!cli_test_python(python))
     {
-        cli_line_text(said, "No Python is found to read the bytecode: File, Toolchains finds one");
+        mmgr_line_put(err_msg, "No Python is found to read the bytecode: File, Toolchains finds one");
         return 0;
     }
     char number[32];
-    CliLine line_text = {number, sizeof(number), 0ull};
-    cli_line_decimal(&line_text, (unsigned long long)line + 1ull, 1u);
-    cli_line_closed(&line_text);
+    VerbaLinea line_text = {number, sizeof(number), 0ull};
+    mmgr_line_decimal(&line_text, (unsigned long long)line + 1ull, 1u);
+    mmgr_line_finish(&line_text);
     const char *const words[5] = {python, "-", path, number, NULL};
-    char why[CLI_SAID_LONGEST];
-    CliLine unsaid = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea err_buf = {why, sizeof(why), 0ull};
     CliRan *const ran = cli_ran_taken();
-    if (!cli_ran_fed(words, root, NULL, 0u, s_shim, sizeof(s_shim) - 1u, ran, &unsaid))
+    if (!cli_ran_fed(words, root, NULL, 0u, s_shim, sizeof(s_shim) - 1u, ran, &err_buf))
     {
         cli_ran_given(ran);
-        cli_line_text(said, python);
-        cli_line_text(said, ": ");
-        cli_line_counted(said, unsaid.out, unsaid.at);
+        mmgr_line_put(err_msg, python);
+        mmgr_line_put(err_msg, ": ");
+        mmgr_line_put_n(err_msg, err_buf.out, err_buf.at);
         return 0;
     }
     if (ran->code != 0ll)
     {
-        bytecode_failed(ran, said);
+        bytecode_failed(ran, err_msg);
         cli_ran_given(ran);
         return 0;
     }
     CliJson json;
-    const unsigned int value = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, said);
+    const unsigned int value = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, err_msg);
     cli_ran_given(ran);
     if (value == CLI_JSON_NONE)
     {
@@ -151,15 +151,15 @@ int cli_debug_bytecode(const char *root, const char *path, unsigned int line, Cl
     const unsigned int instructions = cli_json_member(&json, value, "instructions");
     unsigned long long name_size = 0ull;
     const char *const name = cli_json_string(&json, cli_json_member(&json, value, "name"), &name_size);
-    cli_line_character(out, '[');
+    mmgr_line_ch(out, '[');
     cli_json_quoted_lossy(out, (const unsigned char *)((name != NULL) ? name : ""), (name != NULL) ? name_size : 0ull);
-    cli_line_text(out, ",[");
+    mmgr_line_put(out, ",[");
     for (unsigned int at = 0u; cli_json_item(&json, instructions, at) != CLI_JSON_NONE; at += 1u)
     {
-        cli_line_text(out, (at > 0u) ? "," : "");
+        mmgr_line_put(out, (at > 0u) ? "," : "");
         bytecode_instruction(&json, cli_json_item(&json, instructions, at), out);
     }
-    cli_line_text(out, "]]");
+    mmgr_line_put(out, "]]");
     cli_json_given(&json);
     return 1;
 }

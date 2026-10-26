@@ -10,9 +10,39 @@
 
 import { asked, invoke, listen } from "./bridge.js";
 import { wordAt } from "./editor/document.js";
+import { openersOf } from "./editor/folding.js";
 
 let tabsOf = () => [];
 let painted = () => {};
+
+// The view a served tab rests on, told once the view rests, before its parse and its hints are asked
+// for: its first and last lines and the lines opening the regions its first stands inside, outermost
+// first, as the sticky lines read them, VIEW_OPENERS at most. A server given the tab's file as the
+// tree's slice for its view is given the slice of this one, and a parse and hints read of the last
+// are asked for again.
+const VIEW_OPENERS = 64;
+
+async function viewed(tab, from, to) {
+  const s = tab.session;
+  if (!tab.served || !s) {
+    return;
+  }
+  const openers = openersOf(s.doc, from, s.indent.size, VIEW_OPENERS).map((line) => s.base + line);
+  const view = `${s.base + from}|${s.base + to}|${openers.join()}`;
+  if (tab.viewTold !== view) {
+    tab.viewTold = view;
+    tab.viewing = invoke("lsp_view", { path: tab.file, first: s.base + from, last: s.base + to, openers }).catch(() => false);
+    if (await tab.viewing) {
+      if (s.highlight.parse && !s.highlight.parse.whole) {
+        s.highlight.parse.stale = true;
+      }
+      if (s.hints) {
+        s.hints.stale = true;
+      }
+    }
+  }
+  await tab.viewing;
+}
 
 // Inlay hints: the types and the parameter names a server writes in a served tab's text, asked for
 // the lines shown and HINTS_AROUND on each side, once typing and scrolling rest, and again after the
@@ -32,6 +62,7 @@ export function hintsShown(tab, from, to) {
   window.clearTimeout(tab.hinting);
   tab.hinting = window.setTimeout(async () => {
     await flush(tab);
+    await viewed(tab, from, to);
     const low = Math.max(0, from - HINTS_AROUND);
     const high = Math.min(s.doc.count - 1, to + HINTS_AROUND);
     const turn = (tab.hintsAsked = (tab.hintsAsked ?? 0) + 1);
@@ -102,6 +133,7 @@ export function parseShown(tab, from, to) {
 async function parseNow(tab, from, to) {
   const s = tab.session;
   await flush(tab);
+  await viewed(tab, from, to);
   classNames ??= await invoke("parse_classes").catch(() => null);
   const version = s.doc.id;
   const told = tab.told;
@@ -302,7 +334,7 @@ export function serveAgain() {
 // Gives a served tab's language the server's hover and completion, over the language's own, and the
 // tab of a file orior_gui reads itself, a build file or JSON, the completions orior_gui gives it. A language
 // set again, as a plugin read again sets it, is given them again.
-// What the tree's index of declarations says of a word: each declaration of that name, its kind and
+// What the tree's declarations say of a word: each declaration of that name, its kind and
 // where it is, as a hover's parts; none where the word is not declared in the tree.
 const TREE_HOVER_MOST = 6;
 async function treeHover(word) {
@@ -325,7 +357,7 @@ export function wrap(tab) {
   s.language = Object.assign(Object.create(own), {
     served: true,
     // The tree answers first and at once: the language's own hover, else the declarations of the word
-    // under the pointer that the tree's index holds. The server's answer, where a server holds the file,
+    // under the pointer that the tree holds. The server's answer, where a server holds the file,
     // comes later as `more`, and nothing waits on it.
     async hover(doc, p) {
       const later = flush(tab)

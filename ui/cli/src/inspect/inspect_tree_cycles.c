@@ -23,8 +23,8 @@ typedef struct
     unsigned int *waiting;
     unsigned int *way;
     unsigned int round;
-    unsigned int *said;
-    unsigned int said_round;
+    unsigned int *visited;
+    unsigned int visit_round;
     unsigned int import;
 } CliTreeCycles;
 
@@ -54,8 +54,8 @@ static void cycles_gathered(void)
             s_walk.edge_first[file] = s_walk.edges_used;
             s_walk.edges[file] = 0u;
         }
-        const CliTreeFile *const held = &CLI_TREE_FILE(file);
-        for (unsigned int import = 0u; held->used && (import < held->facts.imports); import += 1u)
+        const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
+        for (unsigned int import = 0u; tree_file->used && (import < tree_file->facts.imports); import += 1u)
         {
             s_walk.import = import;
             cli_tree_targets(file, import, cycles_edge, &file);
@@ -87,9 +87,9 @@ static unsigned int cycles_path_back(unsigned int from, unsigned int to)
             }
             for (unsigned int low = 0u; low < count / 2u; low += 1u)
             {
-                const unsigned int kept = s_walk.way[low];
+                const unsigned int pivot = s_walk.way[low];
                 s_walk.way[low] = s_walk.way[count - 1u - low];
-                s_walk.way[count - 1u - low] = kept;
+                s_walk.way[count - 1u - low] = pivot;
             }
             return count;
         }
@@ -109,13 +109,13 @@ static unsigned int cycles_path_back(unsigned int from, unsigned int to)
 }
 
 // a name of the way, numbered from 1, put on the message
-static void cycles_named(CliLine *message, unsigned int number, unsigned int file)
+static void cycles_named(VerbaLinea *message, unsigned int number, unsigned int file)
 {
-    cli_line_text(message, (number > 1u) ? "\n" : "");
-    cli_line_decimal(message, number, 1u);
-    cli_line_text(message, ". `");
-    cli_line_counted(message, CLI_TREE_FILE(file).path, CLI_TREE_FILE(file).path_size);
-    cli_line_character(message, '`');
+    mmgr_line_put(message, (number > 1u) ? "\n" : "");
+    mmgr_line_decimal(message, number, 1u);
+    mmgr_line_put(message, ". `");
+    mmgr_line_put_n(message, CLI_TREE_FILE(file).path, CLI_TREE_FILE(file).path_size);
+    mmgr_line_ch(message, '`');
 }
 
 // the opening of a finding's message, before the way
@@ -123,7 +123,8 @@ static void cycles_named(CliLine *message, unsigned int number, unsigned int fil
 
 // the finding that the import at `import` of the file at `file` leads back round by the way of `count` files, in a
 // message sized to their paths, handed to `each`
-static void cycles_said(unsigned int file, unsigned int import, unsigned int count, CliTreeSaid each, void *context)
+static void cycles_reported(unsigned int file, unsigned int import, unsigned int count, CliTreeFindingFn each,
+                            void *context)
 {
     // each name of the way its path, its number, a newline, a dot, a space and two quotes
     unsigned long long size = sizeof(CLI_CYCLES_OPENING) + CLI_TREE_FILE(file).path_size + 32ull;
@@ -131,34 +132,34 @@ static void cycles_said(unsigned int file, unsigned int import, unsigned int cou
     {
         size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ull;
     }
-    char *const text = cli_cell_taken(size, "an import cycle's message");
+    char *const text = g_cli_cells->persistent_buf_alloc(size, NULL);
     if (text == NULL)
     {
         return;
     }
-    CliLine message = {text, size, 0ull};
-    cli_line_text(&message, CLI_CYCLES_OPENING);
+    VerbaLinea message = {text, size, 0ull};
+    mmgr_line_put(&message, CLI_CYCLES_OPENING);
     cycles_named(&message, 1u, file);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         cycles_named(&message, at + 2u, s_walk.way[at]);
     }
     const CliFacts *const facts = &CLI_TREE_FILE(file).facts;
-    if (cli_line_fits(&message))
+    if (mmgr_line_ok(&message))
     {
         each(context, file, facts->import[import].from, facts->import[import].to, "import-cycle", &message);
     }
-    cli_cell_given(text);
+    g_cli_cells->persistent_buf_release(text, NULL);
 }
 
 // the imports of the file at `file` that lead back round to it, each handed to `each`
-static void cycles_of(unsigned int file, CliTreeSaid each, void *context)
+static void cycles_of(unsigned int file, CliTreeFindingFn each, void *context)
 {
-    s_walk.said_round += 1u;
+    s_walk.visit_round += 1u;
     for (unsigned int edge = 0u; edge < s_walk.edges[file]; edge += 1u)
     {
         const unsigned int import = s_walk.edge_import[s_walk.edge_first[file] + edge];
-        if (s_walk.said[import] == s_walk.said_round)
+        if (s_walk.visited[import] == s_walk.visit_round)
         {
             continue;
         }
@@ -167,12 +168,12 @@ static void cycles_of(unsigned int file, CliTreeSaid each, void *context)
         {
             continue;
         }
-        s_walk.said[import] = s_walk.said_round;
-        cycles_said(file, import, count, each, context);
+        s_walk.visited[import] = s_walk.visit_round;
+        cycles_reported(file, import, count, each, context);
     }
 }
 
-void cli_tree_cycles(CliTreeSaid each, void *context)
+void cli_tree_cycles(CliTreeFindingFn each, void *context)
 {
     // the edges counted, and the most imports one file has
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
@@ -181,12 +182,12 @@ void cli_tree_cycles(CliTreeSaid each, void *context)
     unsigned long long imports = 1ull;
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        const CliTreeFile *const held = &CLI_TREE_FILE(file);
-        imports = (held->used && (held->facts.imports > imports)) ? held->facts.imports : imports;
+        const CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
+        imports = (tree_file->used && (tree_file->facts.imports > imports)) ? tree_file->facts.imports : imports;
     }
     const unsigned long long files = g_cli_tree_files + 1ull;
     unsigned int *const cell =
-        cli_cell_taken(((6ull * files) + (2ull * edges) + imports) * sizeof(unsigned int), "the tree's imports walked");
+        g_cli_cells->persistent_buf_alloc(((6ull * files) + (2ull * edges) + imports) * sizeof(unsigned int), NULL);
     if (cell == NULL)
     {
         return;
@@ -199,8 +200,8 @@ void cli_tree_cycles(CliTreeSaid each, void *context)
     s_walk.seen = s_walk.came + files;
     s_walk.waiting = s_walk.seen + files;
     s_walk.way = s_walk.waiting + files;
-    s_walk.said = s_walk.way + files;
-    s_walk.edge_import = s_walk.said + imports;
+    s_walk.visited = s_walk.way + files;
+    s_walk.edge_import = s_walk.visited + imports;
     s_walk.edge_target = s_walk.edge_import + edges;
     cycles_gathered();
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
@@ -210,6 +211,6 @@ void cli_tree_cycles(CliTreeSaid each, void *context)
             cycles_of(file, each, context);
         }
     }
-    cli_cell_given(cell);
+    g_cli_cells->persistent_buf_release(cell, NULL);
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
 }

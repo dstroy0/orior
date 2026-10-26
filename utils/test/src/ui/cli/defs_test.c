@@ -7,18 +7,19 @@
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     static char s_read[1u << 22u];
     static const char *const s_exts[4] = {"g", "gsm", "krs", "kcr"};
     static const char *const s_columns[5] = {"where", "who", "kind", "form", "gloss"};
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     if (!cli_tree_found(root))
     {
         cli_check(1, "no tree is found here, and the definitions are not read");
         return cli_checked();
     }
-    CliLine out = {s_read, sizeof(s_read), 0ull};
+    VerbaLinea out = {s_read, sizeof(s_read), 0ull};
     cli_defs_read(root, &out);
-    cli_check((g_cli_defs_cells.holds == 0ull) && (g_cli_defs_cells.hw > 0ull),
+    cli_check((g_cli_defs_cells.in_use == 0ull) && (g_cli_defs_cells.hw > 0ull),
               "the definitions are read through cells of their size, each given back");
     unsigned int read = 0u;
     const CliJson *const json = cli_check_parsed(s_read, out.at, &read);
@@ -43,11 +44,11 @@ int main(void)
                    (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = s_columns[column], .cap = CLI_CELLS_POOL}));
         }
         char what[64];
-        CliLine line = {what, sizeof(what), 0ull};
-        cli_line_text(&line, "the ");
-        cli_line_text(&line, s_exts[ext]);
-        cli_line_text(&line, " table has its five columns");
-        (void)cli_line_closed(&line);
+        VerbaLinea line = {what, sizeof(what), 0ull};
+        mmgr_line_put(&line, "the ");
+        mmgr_line_put(&line, s_exts[ext]);
+        mmgr_line_put(&line, " table has its five columns");
+        (void)mmgr_line_finish(&line);
         cli_check(same, what);
     }
     const unsigned int head = cli_json_member(json, read, "head");
@@ -67,6 +68,6 @@ int main(void)
                                           .other = "gnascor_asm_lng.tsv",
                                           .cap = CLI_CELLS_POOL}));
     }
-    cli_check(asm_table, "the languages hold gnascor_asm_lng.tsv");
+    cli_check(asm_table, "the languages include gnascor_asm_lng.tsv");
     return cli_checked();
 }

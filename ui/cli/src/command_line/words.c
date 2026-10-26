@@ -20,20 +20,20 @@ void cli_words_put(CliWords *words, const char *word)
     words->used += (unsigned int)size;
 }
 
-void cli_utf8_put(CliLine *line, unsigned int letter)
+void cli_utf8_put(VerbaLinea *line, unsigned int letter)
 {
     if (letter < 0x80u)
     {
         // below 0x80 a letter is its one byte
-        cli_line_character(line, (char)letter);
+        mmgr_line_ch(line, (char)letter);
         return;
     }
     const unsigned int bytes = (letter < 0x800u) ? 2u : (letter < 0x10000u) ? 3u : 4u;
     static const unsigned int s_marks[5] = {0x00u, 0x00u, 0xc0u, 0xe0u, 0xf0u};
-    // each byte is the letter's bits in turn under its UTF-8 mark, which a char holds
-    cli_line_character(line, (char)(s_marks[bytes] | (letter >> (6u * (bytes - 1u)))));
+    // each byte is the letter's bits in turn under its UTF-8 mark, which a char stores
+    mmgr_line_ch(line, (char)(s_marks[bytes] | (letter >> (6u * (bytes - 1u)))));
     for (unsigned int place = bytes - 1u; place > 0u; place -= 1u)
     {
-        cli_line_character(line, (char)(0x80u | ((letter >> (6u * (place - 1u))) & 0x3fu)));
+        mmgr_line_ch(line, (char)(0x80u | ((letter >> (6u * (place - 1u))) & 0x3fu)));
     }
 }

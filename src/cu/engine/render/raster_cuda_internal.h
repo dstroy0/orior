@@ -6,7 +6,7 @@
 
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -18,7 +18,7 @@
  * every alignment is independent until it reduces into a pixel. Nothing is tiled and nothing is
  * staged in shared memory, because each thread reads a handful of bytes and writes one value.
  *
- * WHY THIS AGREES WITH THE HOST BYTE FOR BYTE. Three properties hold it together. The value a thread
+ * WHY THIS AGREES WITH THE HOST BYTE FOR BYTE. Three properties bind it together. The value a thread
  * computes is integer arithmetic on the same inputs. No rounding can differ. The cell a thread
  * targets comes from integer division and a permutation, neither of which depends on which thread
  * runs. And the reduction is a minimum or a maximum, both associative and commutative. The

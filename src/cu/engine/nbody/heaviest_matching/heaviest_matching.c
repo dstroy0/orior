@@ -47,19 +47,19 @@ static void matching_heap_swap(MatchingHeap *heap, int left, int right)
 
 static void matching_heap_push(MatchingHeap *heap, long long distance, int node)
 {
-    int slot = heap->size;
-    heap->distance[slot] = distance;
-    heap->node[slot] = node;
+    int heap_at = heap->size;
+    heap->distance[heap_at] = distance;
+    heap->node[heap_at] = node;
     heap->size += 1;
-    while (slot > 0)
+    while (heap_at > 0)
     {
-        const int parent = (slot - 1) / 2;
-        if (matching_heap_before(heap, slot, parent) == 0)
+        const int parent = (heap_at - 1) / 2;
+        if (matching_heap_before(heap, heap_at, parent) == 0)
         {
             break;
         }
-        matching_heap_swap(heap, slot, parent);
-        slot = parent;
+        matching_heap_swap(heap, heap_at, parent);
+        heap_at = parent;
     }
 }
 
@@ -70,12 +70,12 @@ static void matching_heap_pop(MatchingHeap *heap, long long *distance, int *node
     heap->size -= 1;
     heap->distance[0] = heap->distance[heap->size];
     heap->node[0] = heap->node[heap->size];
-    int slot = 0;
+    int heap_at = 0;
     for (;;)
     {
-        const int left = (2 * slot) + 1;
+        const int left = (2 * heap_at) + 1;
         const int right = left + 1;
-        int first = slot;
+        int first = heap_at;
         if ((left < heap->size) && (matching_heap_before(heap, left, first) != 0))
         {
             first = left;
@@ -84,12 +84,12 @@ static void matching_heap_pop(MatchingHeap *heap, long long *distance, int *node
         {
             first = right;
         }
-        if (first == slot)
+        if (first == heap_at)
         {
             break;
         }
-        matching_heap_swap(heap, slot, first);
-        slot = first;
+        matching_heap_swap(heap, heap_at, first);
+        heap_at = first;
     }
 }
 
@@ -136,11 +136,11 @@ static long matching_component(const HeaviestMatchingRequest *args, const unsign
     for (unsigned int member = 0u; member < member_count; member += 1u)
     {
         const unsigned int pair = members[member];
-        const unsigned int slot = args->before_count + args->after[pair];
-        if (local[slot] < 0)
+        const unsigned int heap_at = args->before_count + args->after[pair];
+        if (local[heap_at] < 0)
         {
             afters += 1;
-            local[slot] = befores + afters;
+            local[heap_at] = befores + afters;
         }
     }
     const int nodes = befores + afters + 2;

@@ -6,6 +6,7 @@
 
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, treeRowShown } from "../../gui/src-js/edit.js";
+import { showPane } from "../../gui/src-js/explorer.js";
 import { shownCard } from "../../gui/src-js/purpose.js";
 import { togglePane } from "../../gui/src-js/sides.js";
 import { showView } from "../../gui/src-js/views.js";
@@ -43,6 +44,8 @@ test("the pointer resting on a file shows what its first comment says and the fi
   await invoke("file_write", { path: "card_main.js", text: 'import { one } from "./card_lib.js";\n' });
   showView("edit");
   togglePane(true, { take: false, pin: true });
+  // the pane shows the folder, whichever group a file before this one left it on
+  showPane("folder");
   await ui.hover(await settledRow("card_lib.js"));
   await ui.waitFor(() => cardOf("card_lib.js")?.querySelector(".file-card-user"), 5000);
   const card = shownCard();
@@ -61,6 +64,7 @@ test("the pointer resting on a file shows what its first comment says and the fi
 test("a file with no comment at its head says so, and the card goes when the pointer leaves", async () => {
   // the file the card opened takes the window's edges: the explorer is shown again
   togglePane(true, { take: false, pin: true });
+  showPane("folder");
   await ui.hover(await settledRow("card_main.js"));
   await ui.waitFor(() => cardOf("card_main.js")?.querySelector(".file-card-head"), 5000);
   assert.equal(shownCard().querySelector(".file-card-said").textContent, "No comment at its head says what it is for.");

@@ -124,18 +124,18 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     }
     EngineError *const error = request->error;
     const MaxTreeResident *const resident = &g_max_tree_resident;
-    int asked = MAX_TREE_CHECK((request->step_count != NULL) && (request->steps != NULL), request, error,
+    int valid = MAX_TREE_CHECK((request->step_count != NULL) && (request->steps != NULL), request, error,
                                ENGINE_ERROR_REQUEST) &&
                 MAX_TREE_CHECK((request->probe_count == 0u) || (request->probe_voxels != NULL), &request->probe_voxels,
                                error, ENGINE_ERROR_REQUEST) &&
                 MAX_TREE_CHECK((resident->code != NULL) && (resident->top != 0u) && (resident->last_depth != 0u),
                                resident, error, ENGINE_ERROR_REQUEST);
-    for (unsigned int probe = 0u; (asked != 0) && (probe < request->probe_count); probe += 1u)
+    for (unsigned int probe = 0u; (valid != 0) && (probe < request->probe_count); probe += 1u)
     {
-        asked = MAX_TREE_CHECK(request->probe_voxels[probe] < resident->voxels, &request->probe_voxels[probe], error,
+        valid = MAX_TREE_CHECK(request->probe_voxels[probe] < resident->voxels, &request->probe_voxels[probe], error,
                                ENGINE_ERROR_REQUEST);
     }
-    if (asked == 0)
+    if (valid == 0)
     {
         return MAX_TREE_ERROR;
     }
@@ -222,12 +222,12 @@ extern "C" long max_tree_slide(const MaxTreeSlideRequest *request)
     return 0L;
 }
 
-extern "C" int max_tree_keep_frames(void)
+extern "C" int max_tree_retain_frames(void)
 {
     MaxTreeResident *const resident = &g_max_tree_resident;
-    if (resident->keeping == 0)
+    if (resident->retaining_frames == 0)
     {
-        resident->keeping = 1;
+        resident->retaining_frames = 1;
         max_tree_release_resident(resident);
     }
     return 1;

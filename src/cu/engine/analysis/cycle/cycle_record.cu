@@ -21,11 +21,11 @@ extern "C" const EngineProgramBlock *cycle_record_block(const CycleRecord *recor
 }
 
 // the compiled program's registers laid out in shared memory: a thread's places a word each and the file's signs a byte
-// each, for as many threads as one thread block's shared memory holds beside the kernel's own, a whole number of warps
-// up to CYCLE_BLOCK where a warp fits. A program written as PTX that calls nothing holds its registers itself and takes
-// no places, and runs CYCLE_BLOCK threads a thread block. The kernel is let take that much and prefers shared memory to
-// L1, and the device is asked how many such thread blocks it holds at once. 0 where not one thread's registers fit or
-// the runtime errors on any of it, which leaves the program on the interpreter
+// each, for as many threads as one thread block's shared memory fits beside the kernel's own, a whole number of warps
+// up to CYCLE_BLOCK where a warp fits. A program written as PTX that calls nothing allocates its registers itself and
+// takes no places, and runs CYCLE_BLOCK threads a thread block. The kernel is let take that much and prefers shared
+// memory to L1, and the device is queried how many such thread blocks it fits at once. 0 where not one thread's
+// registers fit or the runtime errors on any of it, which leaves the program on the interpreter
 static int cycle_record_share(CycleRecord *record, size_t kernel_bytes)
 {
     int device = 0;
@@ -77,16 +77,16 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     {
         return CYCLE_ERROR;
     }
-    int asked = CYCLE_CHECK((layout != NULL) && (record_out != NULL), layout, error, ENGINE_ERROR_REQUEST) &&
+    int valid = CYCLE_CHECK((layout != NULL) && (record_out != NULL), layout, error, ENGINE_ERROR_REQUEST) &&
                 CYCLE_CHECK((layout->step_table != NULL) && (layout->steps != 0u) &&
                                 (layout->file_limbs <= ENGINE_RECORD_LIMBS_MAX) && (layout->out_limbs != 0u) &&
                                 (layout->members != 0u) && (layout->members <= ENGINE_RECORD_MEMBERS_MAX),
                             layout, error, ENGINE_ERROR_REQUEST);
-    for (unsigned int member = 0u; (asked != 0) && (member < layout->members); member += 1u)
+    for (unsigned int member = 0u; (valid != 0) && (member < layout->members); member += 1u)
     {
-        asked = CYCLE_CHECK(layout->in_limbs[member] != 0u, &layout->in_limbs[member], error, ENGINE_ERROR_REQUEST);
+        valid = CYCLE_CHECK(layout->in_limbs[member] != 0u, &layout->in_limbs[member], error, ENGINE_ERROR_REQUEST);
     }
-    if (asked == 0)
+    if (valid == 0)
     {
         return CYCLE_ERROR;
     }
@@ -112,7 +112,7 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
                                 record->device_tables, error);
     }
     // the block lies in device memory, where the program's thread blocks check in without leaving the device; the host
-    // keeps its own copy, read back once each launch has ended
+    // retains its own copy, read back once each launch has ended
     record->block = (EngineProgramBlock *)calloc(1u, sizeof(EngineProgramBlock));
     ok = ok && CYCLE_CHECK(record->block != NULL, &record->block, error, ENGINE_ERROR_RESOURCE) &&
          CYCLE_STATUS_CHECK(cudaMalloc((void **)&record->device_block, sizeof(EngineProgramBlock)),
@@ -179,11 +179,11 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     }
     if ((cycle_environment_set("CYCLE_RECORD_INTERPRET") == 0) && (compiled == 0))
     {
-        // every call above held, and an error the runtime still holds is the attempt's own: the interpreter runs in
-        // its place, and the error is dropped before a run reads the runtime's last error as its own
+        // every call above succeeded, and an error the runtime still retains is the attempt's own: the interpreter runs
+        // in its place, and the error is dropped before a run reads the runtime's last error as its own
         cudaGetLastError();
     }
-    // a host program holds no device grant: its thread blocks are the host's threads, of one thread each
+    // a host program has no device grant: its thread blocks are the host's threads, of one thread each
     const int host = (record->compiled != 0u) && (record->host_program != NULL);
     record->threads = (host != 0) ? 1u : record->threads;
     cudaFuncAttributes attributes;
@@ -195,18 +195,18 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
         record->registers = (unsigned long long)attributes.numRegs;
         record->local_bytes = (unsigned long long)attributes.localSizeBytes;
     }
-    // a compiled program whose registers shared memory cannot hold runs on the interpreter
+    // a compiled program whose registers shared memory cannot fit runs on the interpreter
     record->compiled =
         ((host != 0) || ((attributed != 0) && cycle_record_share(record, attributes.sharedSizeBytes))) ? 1u : 0u;
     if ((cycle_environment_set("CYCLE_RECORD_REPORT") != 0) && (host != 0))
     {
-        fprintf(stderr, "  cycle: the program holds %u places a thread, and runs on the host's threads\n",
+        fprintf(stderr, "  cycle: the program uses %u places a thread, and runs on the host's threads\n",
                 record->places);
     }
     else if ((cycle_environment_set("CYCLE_RECORD_REPORT") != 0) && (record->compiled != 0u))
     {
         fprintf(stderr,
-                "  cycle: the program holds %llu registers a thread, a %llu-byte local frame and %u places a "
+                "  cycle: the program uses %llu registers a thread, a %llu-byte local frame and %u places a "
                 "thread in shared memory: %u threads a thread block in %llu bytes, %llu thread blocks at once\n",
                 record->registers, record->local_bytes, record->places, record->threads, record->shared_bytes,
                 record->resident);
@@ -215,7 +215,7 @@ extern "C" long cycle_record_load(const EngineRecordLayout *layout, CycleRecord 
     {
         fprintf(stderr,
                 "  cycle: a program of %u places a thread runs on the interpreter (shared memory does not "
-                "hold one thread's)\n",
+                "fit one thread's)\n",
                 record->places);
     }
     // a grant the runtime could not read is left 0, and its error is dropped as the attempt's own
@@ -235,7 +235,7 @@ extern "C" void cycle_record_release(CycleRecord *record)
     cudaFree(record->device_tables);
     cudaFree(record->hot);
     cudaFree(record->device_block);
-    // the record gives back its hold on the program it loaded, compiled or left on the interpreter after
+    // the record gives back its reference to the program it loaded, compiled or left on the interpreter after
     cycle_program_release(record->kernel);
     cycle_host_program_release(record->host_program);
     free(record->block);

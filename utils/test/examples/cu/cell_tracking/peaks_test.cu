@@ -31,8 +31,7 @@
 #define PEAKS_TEST_DECLARED                                                                                            \
     ((unsigned long long)PEAKS_TEST_VOXELS_MAX * ((2ull * PEAKS_TEST_LIMBS_MAX) + 4ull) * sizeof(unsigned int))
 
-static_assert(ORIOR_EXACT_LIMBS >= PEAKS_TEST_LIMBS_MAX,
-              "peaks_test: the exact integer must hold the widest residual");
+static_assert(ORIOR_EXACT_LIMBS >= PEAKS_TEST_LIMBS_MAX, "peaks_test: the exact integer must fit the widest residual");
 
 static const unsigned int PEAKS_TEST_EXTENT[PEAKS_TEST_EXTENTS][3] = {
     {6u, 10u, 12u}, {1u, 1u, 1u}, {3u, 1u, 7u}, {16u, 32u, 32u}};
@@ -186,9 +185,10 @@ static void peaks_test_prove(SimResults *results, PeaksTestField *field, const c
     field->expected_count = peaks_test_expected(field, field->expected);
     const size_t bytes = (size_t)field->voxels * limbs * sizeof(unsigned int);
     unsigned int *device = NULL;
-    int ok = sim_status_check(results, cudaMalloc((void **)&device, bytes), "the residual is held on the device") &&
-             sim_status_check(results, cudaMemcpy(device, field->residual, bytes, cudaMemcpyHostToDevice),
-                              "the residual reaches the device");
+    int ok =
+        sim_status_check(results, cudaMalloc((void **)&device, bytes), "the residual is allocated on the device") &&
+        sim_status_check(results, cudaMemcpy(device, field->residual, bytes, cudaMemcpyHostToDevice),
+                         "the residual reaches the device");
     unsigned int *const voxels = (unsigned int *)malloc(((size_t)field->expected_count + 1u) * sizeof(unsigned int));
     unsigned int *const levels =
         (unsigned int *)malloc(((size_t)field->expected_count * limbs + 1u) * sizeof(unsigned int));
@@ -214,22 +214,22 @@ static void peaks_test_prove(SimResults *results, PeaksTestField *field, const c
                                                 limbs * sizeof(unsigned int)) == 0);
     }
     sim_check(results, agree, name);
-    scriptura_text(&results->line, "  ");
-    scriptura_text(&results->line, name);
-    scriptura_text(&results->line, ": ");
-    scriptura_decimal(&results->line, limbs, 1u);
-    scriptura_text(&results->line, " limbs, ");
-    scriptura_decimal(&results->line, field->depth, 1u);
-    scriptura_character(&results->line, 'x');
-    scriptura_decimal(&results->line, field->height, 1u);
-    scriptura_character(&results->line, 'x');
-    scriptura_decimal(&results->line, field->width, 1u);
-    scriptura_text(&results->line, ", ");
-    scriptura_decimal(&results->line, field->expected_count, 1u);
-    scriptura_text(&results->line, " points on the host, ");
+    mmgr_line_put(&results->line, "  ");
+    mmgr_line_put(&results->line, name);
+    mmgr_line_put(&results->line, ": ");
+    mmgr_line_decimal(&results->line, limbs, 1u);
+    mmgr_line_put(&results->line, " limbs, ");
+    mmgr_line_decimal(&results->line, field->depth, 1u);
+    mmgr_line_ch(&results->line, 'x');
+    mmgr_line_decimal(&results->line, field->height, 1u);
+    mmgr_line_ch(&results->line, 'x');
+    mmgr_line_decimal(&results->line, field->width, 1u);
+    mmgr_line_put(&results->line, ", ");
+    mmgr_line_decimal(&results->line, field->expected_count, 1u);
+    mmgr_line_put(&results->line, " points on the host, ");
     // an error is -1 and is shown as the widest word, never as a count
-    scriptura_decimal(&results->line, (found >= 0L) ? (unsigned long long)found : ~0ull, 1u);
-    scriptura_text(&results->line, " on the device\n");
+    mmgr_line_decimal(&results->line, (found >= 0L) ? (unsigned long long)found : ~0ull, 1u);
+    mmgr_line_put(&results->line, " on the device\n");
     sim_flush(results);
     free(voxels);
     free(levels);
@@ -244,7 +244,7 @@ static void peaks_test_hessians(SimResults *results, unsigned int width_at)
         PeaksTestField field;
         const int ok = peaks_test_reserve(&field, PEAKS_TEST_EXTENT[extent][0], PEAKS_TEST_EXTENT[extent][1],
                                           PEAKS_TEST_EXTENT[extent][2], limbs);
-        sim_check(results, ok, "the field is held on the host");
+        sim_check(results, ok, "the field is allocated on the host");
         const unsigned long long key = 0x7EA45ull + ((unsigned long long)width_at * PEAKS_TEST_EXTENTS) + extent;
         for (unsigned int voxel = 0u; ok && (voxel < field.voxels); voxel += 1u)
         {
@@ -263,7 +263,7 @@ static void peaks_test_uniform(SimResults *results, unsigned int limbs, unsigned
 {
     PeaksTestField field;
     const int ok = peaks_test_reserve(&field, 5u, 7u, 9u, limbs);
-    sim_check(results, ok, "the uniform field is held on the host");
+    sim_check(results, ok, "the uniform field is allocated on the host");
     for (unsigned int voxel = 0u; ok && (voxel < field.voxels); voxel += 1u)
     {
         unsigned int *const residual = &field.residual[(size_t)voxel * limbs];
@@ -285,7 +285,7 @@ static void peaks_test_errors(SimResults *results)
 {
     unsigned int *device = NULL;
     const int ok = sim_status_check(results, cudaMalloc((void **)&device, PEAKS_TEST_LIMBS_MAX * sizeof(unsigned int)),
-                                    "one voxel is held on the device");
+                                    "one voxel is allocated on the device");
     const PeaksRequest none = {NULL, 1u, 1u, 1u, 1u, 0u, NULL, NULL};
     const PeaksRequest flat = {device, 0u, 1u, 1u, 1u, 0u, NULL, NULL};
     const PeaksRequest narrow = {device, 1u, 1u, 1u, 0u, 0u, NULL, NULL};

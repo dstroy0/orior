@@ -52,7 +52,7 @@ void knf_entangle(const KnfRecord *record, const unsigned int *map, unsigned lon
 }
 
 // a null draw that shuffles the knf's sections inside each tile of the given side, and moves nothing across a seam
-void knf_inside_draw(unsigned int *map, unsigned int *slot, unsigned long long side, unsigned long long tile,
+void knf_inside_draw(unsigned int *map, unsigned int *cells, unsigned long long side, unsigned long long tile,
                      unsigned long long key)
 {
     const unsigned long long voxels = side * side * side;
@@ -69,7 +69,7 @@ void knf_inside_draw(unsigned int *map, unsigned int *slot, unsigned long long s
         {
             for (unsigned long long tile_column = 0ull; tile_column < across; tile_column += 1ull)
             {
-                unsigned long long slot_count = 0ull;
+                unsigned long long cell_count = 0ull;
                 for (unsigned long long depth = tile_depth * tile; depth < (tile_depth + 1ull) * tile; depth += 1ull)
                 {
                     for (unsigned long long row = tile_row * tile; row < (tile_row + 1ull) * tile; row += 1ull)
@@ -78,18 +78,18 @@ void knf_inside_draw(unsigned int *map, unsigned int *slot, unsigned long long s
                              column += 1ull)
                         {
                             // a voxel index is below 2^18 here
-                            slot[slot_count] = (unsigned int)((((depth * side) + row) * side) + column);
-                            slot_count += 1ull;
+                            cells[cell_count] = (unsigned int)((((depth * side) + row) * side) + column);
+                            cell_count += 1ull;
                         }
                     }
                 }
-                for (unsigned long long remaining = slot_count; remaining > 1ull; remaining -= 1ull)
+                for (unsigned long long remaining = cell_count; remaining > 1ull; remaining -= 1ull)
                 {
                     const unsigned long long pick = sim_draw_below(key, counter, remaining);
                     counter += 1ull;
-                    const unsigned int kept = map[slot[remaining - 1ull]];
-                    map[slot[remaining - 1ull]] = map[slot[pick]];
-                    map[slot[pick]] = kept;
+                    const unsigned int chosen = map[cells[remaining - 1ull]];
+                    map[cells[remaining - 1ull]] = map[cells[pick]];
+                    map[cells[pick]] = chosen;
                 }
             }
         }
@@ -97,7 +97,7 @@ void knf_inside_draw(unsigned int *map, unsigned int *slot, unsigned long long s
 }
 
 // the inverse draw: whole tiles move rigidly to shuffled places, and nothing inside a tile moves against its own
-void knf_between_draw(unsigned int *map, unsigned int *slot, unsigned long long side, unsigned long long tile,
+void knf_between_draw(unsigned int *map, unsigned int *cells, unsigned long long side, unsigned long long tile,
                       unsigned long long key)
 {
     const unsigned long long across = side / tile;
@@ -105,14 +105,14 @@ void knf_between_draw(unsigned int *map, unsigned int *slot, unsigned long long 
     for (unsigned long long index = 0ull; index < tiles; index += 1ull)
     {
         // a tile index is below 2^18 here
-        slot[index] = (unsigned int)index;
+        cells[index] = (unsigned int)index;
     }
     for (unsigned long long remaining = tiles; remaining > 1ull; remaining -= 1ull)
     {
         const unsigned long long pick = sim_draw_below(key, remaining, remaining);
-        const unsigned int kept = slot[remaining - 1ull];
-        slot[remaining - 1ull] = slot[pick];
-        slot[pick] = kept;
+        const unsigned int chosen = cells[remaining - 1ull];
+        cells[remaining - 1ull] = cells[pick];
+        cells[pick] = chosen;
     }
     for (unsigned long long depth = 0ull; depth < side; depth += 1ull)
     {
@@ -122,7 +122,7 @@ void knf_between_draw(unsigned int *map, unsigned int *slot, unsigned long long 
             {
                 const unsigned long long place =
                     ((((depth / tile) * across) + (row / tile)) * across) + (column / tile);
-                const unsigned long long source = slot[place];
+                const unsigned long long source = cells[place];
                 const unsigned long long source_depth = ((source / (across * across)) * tile) + (depth % tile);
                 const unsigned long long source_row = (((source / across) % across) * tile) + (row % tile);
                 const unsigned long long source_column = ((source % across) * tile) + (column % tile);
@@ -134,7 +134,7 @@ void knf_between_draw(unsigned int *map, unsigned int *slot, unsigned long long 
     }
 }
 
-int knf_identified(const KnfRecord *record, unsigned int *map, unsigned int *slot, unsigned long long key_base)
+int knf_identified(const KnfRecord *record, unsigned int *map, unsigned int *cells, unsigned long long key_base)
 {
     KnfEntangled whole;
     knf_entangle(record, NULL, record->side, NULL, &whole);
@@ -143,7 +143,7 @@ int knf_identified(const KnfRecord *record, unsigned int *map, unsigned int *slo
     int wins = 1;
     for (unsigned int draw = 0u; draw < KNF_DRAWS; draw += 1u)
     {
-        knf_inside_draw(map, slot, record->side, record->side, sim_draw(key_base, draw));
+        knf_inside_draw(map, cells, record->side, record->side, sim_draw(key_base, draw));
         KnfEntangled drawn;
         knf_entangle(record, map, record->side, NULL, &drawn);
         OriorExactInteger total;
@@ -235,15 +235,16 @@ void knf_one_bit(SimResults *results, const unsigned short *lanes, const KnfReco
         agree += (same == predicted) ? 1ull : 0ull;
         unchanged += (same != 0) ? 1ull : 0ull;
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(line, "  one bit: the host's walk equals the knf at every voxel; of ");
-    scriptura_decimal(line, KNF_FLIPS, 1u);
-    scriptura_text(line, " single flipped bits, ");
-    scriptura_decimal(line, unchanged, 1u);
-    scriptura_text(line, " leave the knf unchanged, and the window rule names ");
-    scriptura_decimal(line, agree, 1u);
-    scriptura_text(line, " of them exactly\n");
-    sim_check(results, agree == KNF_FLIPS, "a flipped bit leaves the knf unchanged exactly when the window rule says");
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(line, "  one bit: the host's walk equals the knf at every voxel; of ");
+    mmgr_line_decimal(line, KNF_FLIPS, 1u);
+    mmgr_line_put(line, " single flipped bits, ");
+    mmgr_line_decimal(line, unchanged, 1u);
+    mmgr_line_put(line, " leave the knf unchanged, and the window rule names ");
+    mmgr_line_decimal(line, agree, 1u);
+    mmgr_line_put(line, " of them exactly\n");
+    sim_check(results, agree == KNF_FLIPS,
+              "a flipped bit leaves the knf unchanged exactly when the window rule specifies");
 }
 
 static void knf_motion_place(unsigned long long side, unsigned int motion, const unsigned long long *shift,
@@ -267,8 +268,8 @@ void knf_motions(SimResults *results, const unsigned short *lanes, unsigned shor
     knf_entangle(record, NULL, side, NULL, &whole);
     unsigned long long projected = 0ull;
     unsigned long long carried = 0ull;
-    unsigned long long kept = 0ull;
-    unsigned long long cloud_kept = 0ull;
+    unsigned long long retained = 0ull;
+    unsigned long long cloud_count = 0ull;
     for (unsigned int motion = 0u; motion < KNF_MOTIONS; motion += 1u)
     {
         unsigned long long shift[SIM_AXES];
@@ -310,27 +311,27 @@ void knf_motions(SimResults *results, const unsigned short *lanes, unsigned shor
         carried += (differ == 0ull) ? 1ull : 0ull;
         KnfEntangled turned;
         knf_entangle(moved_record, NULL, side, NULL, &turned);
-        kept += knf_wide_equal(&turned.inside, &whole.inside) ? 1ull : 0ull;
-        cloud_kept += (memcmp(moved_record->cloud, record->cloud,
-                              (size_t)(KNF_WINDOWS * KNF_WINDOWS) * sizeof(unsigned long long)) == 0)
-                          ? 1ull
-                          : 0ull;
+        retained += knf_wide_equal(&turned.inside, &whole.inside) ? 1ull : 0ull;
+        cloud_count += (memcmp(moved_record->cloud, record->cloud,
+                               (size_t)(KNF_WINDOWS * KNF_WINDOWS) * sizeof(unsigned long long)) == 0)
+                           ? 1ull
+                           : 0ull;
     }
-    ScripturaLine *const line = &results->line;
-    scriptura_text(
+    VerbaLinea *const line = &results->line;
+    mmgr_line_put(
         line,
         "  the exact motions (6 axis orders x 8 reflections, each with a keyed torus translation), the data moved\n");
-    scriptura_text(line, "  over xyz and projected again: the knf carried as a whole on ");
-    scriptura_decimal(line, carried, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, KNF_MOTIONS, 1u);
-    scriptura_text(line, ", its entangled entropy unchanged on ");
-    scriptura_decimal(line, kept, 1u);
-    scriptura_text(line, ", its cloud unchanged on ");
-    scriptura_decimal(line, cloud_kept, 1u);
-    scriptura_character(line, '\n');
-    sim_check(results, projected == KNF_MOTIONS, "every moved volume projects, its parity law held");
+    mmgr_line_put(line, "  over xyz and projected again: the knf carried as a whole on ");
+    mmgr_line_decimal(line, carried, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, KNF_MOTIONS, 1u);
+    mmgr_line_put(line, ", its entangled entropy unchanged on ");
+    mmgr_line_decimal(line, retained, 1u);
+    mmgr_line_put(line, ", its cloud unchanged on ");
+    mmgr_line_decimal(line, cloud_count, 1u);
+    mmgr_line_ch(line, '\n');
+    sim_check(results, projected == KNF_MOTIONS, "every moved volume projects, its parity law satisfied");
     sim_check(results, carried == KNF_MOTIONS, "the knf of the moved data is the moved knf, from every exact angle");
-    sim_check(results, kept == KNF_MOTIONS, "the entangled entropy reads the same from every exact angle");
-    sim_check(results, cloud_kept == KNF_MOTIONS, "the cloud reads the same from every exact angle");
+    sim_check(results, retained == KNF_MOTIONS, "the entangled entropy reads the same from every exact angle");
+    sim_check(results, cloud_count == KNF_MOTIONS, "the cloud reads the same from every exact angle");
 }

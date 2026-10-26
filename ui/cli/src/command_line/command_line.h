@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// command_line.h: the command line: the window's menus as words. `orior_cli <menu> <command>` is the command of that menu,
-// `orior_cli <menu> <job>` the job of a menu of jobs, and the help is the menus listed.
+// command_line.h: the command line: the window's menus as words. `orior_cli <menu> <command>` is the command of that
+// menu, `orior_cli <menu> <job>` the job of a menu of jobs, and the help is the menus listed.
 //
 // A command the terminal can do, starting a job, listing, showing, the bridge, the keys and the version, runs here.
 // Every other acts in the window, and the words come to the window to open with the command to run in it. Every job
@@ -24,12 +24,12 @@ typedef struct
 {
     int window;
     int code;
-    char root[CLI_PATH_LONGEST];
+    char root[CLI_PATH_MAX_LEN];
     int has_root;
-    char remote[CLI_PATH_LONGEST];
+    char remote[CLI_PATH_MAX_LEN];
     int has_remote;
-    char menu[CLI_NAME_LONGEST];
-    char command[CLI_NAME_LONGEST];
+    char menu[CLI_NAME_MAX_LEN];
+    char command[CLI_NAME_MAX_LEN];
     unsigned int args;
     unsigned int arg_at[CLI_LAUNCH_ARGS];
     char text[CLI_LAUNCH_TEXT];
@@ -40,14 +40,14 @@ typedef struct
 // window to open for one that acts there, into `outcome`
 void cli_command_line_run(const char *const *given, unsigned int count, CliOutcome *outcome);
 // the words that name a launch's command, as the command line takes them, written into `out`
-void cli_launch_words(const CliOutcome *launch, CliLine *out);
+void cli_launch_words(const CliOutcome *launch, VerbaLinea *out);
 // the word `at` of a launch's command
 const char *cli_launch_arg(const CliOutcome *launch, unsigned int at);
 // the tree a command works on: the folder `named` names, else the one the tree's marker is found above, made the
-// tree whose tools come first, into `root`, which holds CLI_PATH_LONGEST: 1, or 0 with why said
-int cli_command_line_tree(const char *named, char *root, CliLine *said);
+// tree whose tools come first, into `root`, sized for CLI_PATH_MAX_LEN: 1, or 0 with why given
+int cli_command_line_tree(const char *named, char *root, VerbaLinea *err_msg);
 // the console let go where this process is the only one on it: the console Windows opens for a console program started
-// from outside a terminal; started from a terminal, the process keeps the terminal's console; elsewhere nothing
+// from outside a terminal; started from a terminal, the process retains the terminal's console; elsewhere nothing
 // (platform/windows.c, platform/posix.c)
 void cli_console_let_go(void);
 

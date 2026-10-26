@@ -11,16 +11,16 @@ static const char s_input[] = "{\"id\":1,\"name\":\"file_read\",\"args\":{\"path
                               "{\"id\":3,\"name\":\"file_write\",\"args\":{\"path\":\"b.txt\",\"text\":\"two\\n\"}}\n"
                               "{\"id\":4,\"name\":\"notebook_read\",\"args\":{\"path\":\"c.ipynb\"}}\n";
 
-// a notebook of one cell whose source is kept as two lines
+// a notebook of one cell whose source is stored as two lines
 static const char s_notebook[] =
     "{\"cells\":[{\"cell_type\":\"code\",\"source\":[\"a = 1\\n\",\"b = 2\"],\"metadata\":{},\"outputs\":[],"
     "\"execution_count\":null}],\"metadata\":{},\"nbformat\":4,\"nbformat_minor\":5}";
 static unsigned long long s_read;
-static char s_heard[1u << 20u];
-static unsigned long long s_heard_at;
+static char s_written[1u << 20u];
+static unsigned long long s_written_at;
 static CliLock s_lock = CLI_LOCK_INIT;
-static char s_told[1u << 16u];
-static unsigned long long s_told_at;
+static char s_events[1u << 16u];
+static unsigned long long s_events_at;
 static int s_ended;
 
 // base64 round-trips every length
@@ -32,11 +32,11 @@ static void serve_base64(void)
         unsigned char bytes[40];
         for (unsigned int at = 0u; at < length; at += 1u)
         {
-            // a byte of the pattern, its low eight bits kept
+            // a byte of the pattern, its low eight bits retained
             bytes[at] = (unsigned char)((at * 37u + 11u) & 0xffu);
         }
         char text[64];
-        CliLine line = {text, sizeof(text), 0ull};
+        VerbaLinea line = {text, sizeof(text), 0ull};
         cli_base64(&line, bytes, length);
         unsigned char back[40];
         unsigned long long size = 0ull;
@@ -45,7 +45,7 @@ static void serve_base64(void)
     }
     cli_check(round, "base64 round-trips every length");
     char text[16];
-    CliLine line = {text, sizeof(text), 0ull};
+    VerbaLinea line = {text, sizeof(text), 0ull};
     cli_base64(&line, (const unsigned char *)"orior", 5ull);
     cli_check_text(text, line.at, "b3Jpb3I=", "and writes the standard's letters");
 }
@@ -58,17 +58,17 @@ static void serve_names(void)
     const CliJson *const json = cli_check_parsed(s_args, sizeof(s_args) - 1u, &object);
     const CliServeArgs args = {json, object};
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     int with_errors = 0;
-    cli_check(cli_serve_bool(&args, "with_errors", &with_errors, &said) && with_errors, "with_errors is withErrors");
-    const char *const path = cli_serve_string(&args, "path", &said);
+    cli_check(cli_serve_bool(&args, "with_errors", &with_errors, &err_msg) && with_errors, "with_errors is withErrors");
+    const char *const path = cli_serve_string(&args, "path", &err_msg);
     cli_check((path != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = path, .other = "a", .cap = CLI_CELLS_POOL})),
               "a name of one word is itself");
     cli_check(cli_serve_arg(&args, "repo") == CLI_JSON_NONE, "a name not given is none");
 }
 
-// the strings of an array read into a cell of their count, the position after the last null, `most` of them at the most, and
-// the cell given back
+// the strings of an array read into a cell of their count, the position after the last null, `most` of them at the
+// most, and the cell given back
 static void serve_strings(void)
 {
     static const char s_args[] = "{\"paths\": [\"a\", \"b\", \"c\"], \"bad\": [\"a\", 1]}";
@@ -76,20 +76,22 @@ static void serve_strings(void)
     const CliJson *const json = cli_check_parsed(s_args, sizeof(s_args) - 1u, &object);
     const CliServeArgs args = {json, object};
     char why[256];
-    CliLine said = {why, sizeof(why), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const char **items = NULL;
     unsigned int count = 0u;
-    cli_check(cli_serve_strings_taken(&args, "paths", 8u, &items, &count, &said) && (count == 3u) &&
+    cli_check(cli_serve_strings_taken(&args, "paths", 8u, &items, &count, &err_msg) && (count == 3u) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = items[2], .other = "c", .cap = CLI_CELLS_POOL}) &&
-                  (items[3] == NULL) && (g_cli_serve_strings_cells.holds != 0ull),
+                  (items[3] == NULL) && (g_cli_serve_strings_cells.in_use != 0ull),
               "the strings of an array are read into a cell of their count");
     cli_serve_strings_given(items);
-    cli_check(cli_serve_strings_taken(&args, "paths", 2u, &items, &count, &said) && (count == 2u) && (items[2] == NULL),
-              "and no more than the most asked");
+    cli_check(cli_serve_strings_taken(&args, "paths", 2u, &items, &count, &err_msg) && (count == 2u) &&
+                  (items[2] == NULL),
+              "and no more than the most requested");
     cli_serve_strings_given(items);
-    cli_check(!cli_serve_strings_taken(&args, "bad", 8u, &items, &count, &said), "an array not all strings is refused");
+    cli_check(!cli_serve_strings_taken(&args, "bad", 8u, &items, &count, &err_msg),
+              "an array not all strings is refused");
     cli_serve_strings_given(items);
-    cli_check(g_cli_serve_strings_cells.holds == 0ull, "and each cell is given back");
+    cli_check(g_cli_serve_strings_cells.in_use == 0ull, "and each cell is given back");
 }
 
 // a line of the input read, QRY_MEMBER_UNREAD once it ends
@@ -104,21 +106,21 @@ static unsigned long long serve_line_read(void *context, char *line, unsigned lo
     const char *const end = memor.chr(&(MemoriaCfg){.src = s_input + s_read, .val = '\n', .bytes = size - s_read});
     // a line ends inside the input, at or past where the read stands
     const unsigned long long length = (end != NULL) ? (unsigned long long)(end - (s_input + s_read)) : size - s_read;
-    const unsigned long long kept = (length < room) ? length : room;
-    memor.cpy(&(MemoriaCfg){.dst = line, .src = s_input + s_read, .bytes = kept});
+    const unsigned long long copy_len = (length < room) ? length : room;
+    memor.cpy(&(MemoriaCfg){.dst = line, .src = s_input + s_read, .bytes = copy_len});
     s_read += length + 1ull;
-    return kept;
+    return copy_len;
 }
 
-// what the server writes kept
+// what the server writes recorded
 static void serve_written(void *context, const char *bytes, unsigned long long size)
 {
     (void)context;
     cli_lock_take(&s_lock);
-    if (s_heard_at + size < sizeof(s_heard))
+    if (s_written_at + size < sizeof(s_written))
     {
-        memor.cpy(&(MemoriaCfg){.dst = s_heard + s_heard_at, .src = bytes, .bytes = size});
-        s_heard_at += size;
+        memor.cpy(&(MemoriaCfg){.dst = s_written + s_written_at, .src = bytes, .bytes = size});
+        s_written_at += size;
     }
     cli_lock_give(&s_lock);
 }
@@ -127,13 +129,15 @@ static void serve_written(void *context, const char *bytes, unsigned long long s
 // CLI_JSON_NONE where none does
 static unsigned int serve_line(unsigned int id, const CliJson **json)
 {
-    for (unsigned long long at = 0ull; at < s_heard_at;)
+    for (unsigned long long at = 0ull; at < s_written_at;)
     {
-        const char *const end = memor.chr(&(MemoriaCfg){.src = s_heard + at, .val = '\n', .bytes = s_heard_at - at});
-        // a line ends inside what was heard, at or past its start
-        const unsigned long long length = (end != NULL) ? (unsigned long long)(end - (s_heard + at)) : s_heard_at - at;
+        const char *const end =
+            memor.chr(&(MemoriaCfg){.src = s_written + at, .val = '\n', .bytes = s_written_at - at});
+        // a line ends inside what was received, at or past its start
+        const unsigned long long length =
+            (end != NULL) ? (unsigned long long)(end - (s_written + at)) : s_written_at - at;
         unsigned int line = CLI_JSON_NONE;
-        *json = cli_check_parsed(s_heard + at, length, &line);
+        *json = cli_check_parsed(s_written + at, length, &line);
         at += length + 1ull;
         const unsigned int number = cli_json_member(*json, line, "id");
         const int answers = cli_json_is(*json, number, CFG_JSON_NUMBER) && ((*json)->node[number].length == 1u) &&
@@ -149,8 +153,8 @@ static unsigned int serve_line(unsigned int id, const CliJson **json)
 // calls over lines are answered by id
 static void serve_lines(void)
 {
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("serve", dir);
     cli_full(dir, "src/cu/engine", path);
     (void)query_folder_made(path);
@@ -166,7 +170,7 @@ static void serve_lines(void)
     unsigned int line = serve_line(0u, &json);
     cli_check(cellul.eq(&(CatenaFinitaCfg){
                   .src = cli_check_member_text(line, "event"), .other = "serving", .cap = CLI_CELLS_POOL}),
-              "the server says it serves first");
+              "the server reports it serves first");
     line = serve_line(1u, &json);
     cli_check(cellul.starts(&(CatenaFinitaCfg){.src = cli_check_member_text(cli_json_member(json, line, "ok"), "text"),
                                                .other = "one",
@@ -177,7 +181,7 @@ static void serve_lines(void)
                                              .cap = CLI_CELLS_POOL,
                                              .other = "nothing_at_all",
                                              .other_cap = CLI_CELLS_POOL}) != NULL,
-              "a call of no name says so");
+              "a call of no name reports so");
     line = serve_line(3u, &json);
     cli_check(cli_json_is(json, cli_json_member(json, line, "ok"), CFG_JSON_NULL),
               "a call that answers nothing is null");
@@ -193,55 +197,55 @@ static void serve_lines(void)
               "a notebook is read into a tree sized to it, a cell's lines joined");
 }
 
-// an event the server tells kept as its name, a space and its body on a line, and whether a run ended
-static void serve_told(void *context, const char *event, const char *body, unsigned long long size)
+// an event the server sends recorded as its name, a space and its body on a line, and whether a run ended
+static void serve_event_capture(void *context, const char *event, const char *body, unsigned long long size)
 {
     (void)context;
     cli_lock_take(&s_lock);
-    CliLine line = {s_told + s_told_at, sizeof(s_told) - s_told_at, 0ull};
-    cli_line_text(&line, event);
-    cli_line_character(&line, ' ');
-    cli_line_counted(&line, body, size);
-    cli_line_character(&line, '\n');
-    s_told_at += cli_line_fits(&line) ? line.at : 0ull;
+    VerbaLinea line = {s_events + s_events_at, sizeof(s_events) - s_events_at, 0ull};
+    mmgr_line_put(&line, event);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_put_n(&line, body, size);
+    mmgr_line_ch(&line, '\n');
+    s_events_at += mmgr_line_ok(&line) ? line.at : 0ull;
     s_ended |= cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "run-end", .cap = CLI_CELLS_POOL});
     cli_lock_give(&s_lock);
 }
 
-// where `text` first stands among what the server told, past the told text's end where it never does
-static unsigned long long serve_told_at(const char *text)
+// where `text` first stands among what the server sent, past the sent text's end where it never does
+static unsigned long long serve_event_at(const char *text)
 {
     const char *const found = cellul.find(
-        &(CatenaFinitaCfg){.src = s_told, .cap = CLI_CELLS_POOL, .other = text, .other_cap = CLI_CELLS_POOL});
-    // a find inside the told text, at or past its start
-    return (found != NULL) ? (unsigned long long)(found - s_told) : s_told_at + 1ull;
+        &(CatenaFinitaCfg){.src = s_events, .cap = CLI_CELLS_POOL, .other = text, .other_cap = CLI_CELLS_POOL});
+    // a find inside the sent text, at or past its start
+    return (found != NULL) ? (unsigned long long)(found - s_events) : s_events_at + 1ull;
 }
 
-// a job started here tells its start, its lines gathered into arrays after it, and its end after them, each
+// a job started here sends its start, its lines gathered into arrays after it, and its end after them, each
 // gathering given back
 static void serve_jobs(void)
 {
-    char dir[CLI_PATH_LONGEST];
-    char path[CLI_PATH_LONGEST];
+    char dir[CLI_PATH_MAX_LEN];
+    char path[CLI_PATH_MAX_LEN];
     cli_check_folder("serve_jobs", dir);
     cli_full(dir, "src/cu/engine", path);
     (void)query_folder_made(path);
     cli_full(dir, "src/cu/engine/engine_config.h", path);
     (void)query_file_written(path, "// marks the tree\n", 18ull);
-    cli_full(dir, "src/build_say.sh", path);
-    (void)query_file_written(path, "#!/usr/bin/env bash\necho first_said\necho second_said\n", 52ull);
+    cli_full(dir, "src/build_echo.sh", path);
+    (void)query_file_written(path, "#!/usr/bin/env bash\necho first_line\necho second_line\n", 52ull);
     cli_serve_begun(dir, NULL);
-    cli_serve_tell_to(serve_told, NULL);
-    static const char s_args[] = "{\"job\": \"build/src/build_say.sh\", "
+    cli_serve_emit_set(serve_event_capture, NULL);
+    static const char s_args[] = "{\"job\": \"build/src/build_echo.sh\", "
                                  "\"values\": {\"arguments\": [\"\"], \"trace\": [\"quiet\"]}}";
     unsigned int object = CLI_JSON_NONE;
     const CliJson *const json = cli_check_parsed(s_args, sizeof(s_args) - 1u, &object);
     const CliServeArgs args = {json, object};
     char run[32];
     char why[512];
-    CliLine out = {run, sizeof(run), 0ull};
-    CliLine said = {why, sizeof(why), 0ull};
-    const int started = cli_serve_job_start("build/src/build_say.sh", &args, &out, &said);
+    VerbaLinea out = {run, sizeof(run), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int started = cli_serve_job_start("build/src/build_echo.sh", &args, &out, &err_msg);
     int ended = 0;
     for (unsigned int wait = 0u; started && !ended && (wait < 600u); wait += 1u)
     {
@@ -252,18 +256,19 @@ static void serve_jobs(void)
     }
     cli_check(started && ended, "a job started here ends");
     cli_lock_take(&s_lock);
-    const unsigned long long start = serve_told_at("run-start ");
-    const unsigned long long first = serve_told_at("first_said");
-    const unsigned long long second = serve_told_at("second_said");
-    const unsigned long long end = serve_told_at("run-end ");
+    const unsigned long long start = serve_event_at("run-start ");
+    const unsigned long long first = serve_event_at("first_line");
+    const unsigned long long second = serve_event_at("second_line");
+    const unsigned long long end = serve_event_at("run-end ");
     cli_lock_give(&s_lock);
-    cli_check((start < first) && (first < second) && (second < end) && (end < s_told_at),
-              "its start is told first, its lines after it in order, and its end last");
-    cli_check(g_cli_serve_gathering_cells.holds == 0ull, "and its gathering is given back");
+    cli_check((start < first) && (first < second) && (second < end) && (end < s_events_at),
+              "its start is sent first, its lines after it in order, and its end last");
+    cli_check(g_cli_serve_gathering_cells.in_use == 0ull, "and its gathering is given back");
 }
 
 int main(void)
 {
+    (void)cli_cells_made(CLI_CELLS_POOL);
     serve_base64();
     serve_names();
     serve_strings();

@@ -137,7 +137,7 @@ OBSIGNATIO_SHARED static inline void obsignatio_compress(const unsigned int *cha
     {
         message[word] = block[word];
     }
-    // the counter splits into its low and high 32-bit halves, each kept whole
+    // the counter splits into its low and high 32-bit halves, each preserved whole
     unsigned int state[OBSIGNATIO_BLOCK_WORDS] = {chaining[0],           chaining[1],
                                                   chaining[2],           chaining[3],
                                                   chaining[4],           chaining[5],
@@ -268,7 +268,7 @@ OBSIGNATIO_SHARED static inline void obsignatio_root(const ObsignatioNode *node,
         const unsigned int take = (remain < OBSIGNATIO_BLOCK_BYTES) ? (unsigned int)remain : OBSIGNATIO_BLOCK_BYTES;
         for (unsigned int byte = 0u; byte < take; byte += 1u)
         {
-            // a word shifted down to its low byte keeps only that byte
+            // a word shifted down to its low byte retains only that byte
             out[start + byte] = (unsigned char)(words[byte / 4u] >> (8u * (byte % 4u)));
         }
     }
@@ -405,8 +405,8 @@ static inline const char *obsignatio_context_of(ObsignatioLevel level)
     }
 }
 
-// a level's key, the signum of its context in the context mode, into `key`, which holds OBSIGNATIO_KEY_BYTES: 1, or 0
-// for no level
+// a level's key, the signum of its context in the context mode, into `key`, which has room for OBSIGNATIO_KEY_BYTES: 1,
+// or 0 for no level
 static inline int obsignatio_host_level_key(ObsignatioLevel level, unsigned char *key)
 {
     const char *const context = obsignatio_context_of(level);

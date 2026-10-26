@@ -39,7 +39,7 @@ void run_pause(unsigned long long microseconds)
     struct timespec pause;
     // whole seconds of a pause fit a time_t
     pause.tv_sec = (time_t)(microseconds / RUN_MILLION);
-    // the remainder is below a billion nanoseconds, which a long holds
+    // the remainder is below a billion nanoseconds, which a long represents
     pause.tv_nsec = (long)((microseconds % RUN_MILLION) * 1000ull);
     nanosleep(&pause, NULL);
 #endif
@@ -91,21 +91,22 @@ int run_arguments(int count, char **arguments, RunRequest *request)
         at += 2;
     }
     request->command = at + 1;
-    // a job asks its processors, or is the child of a tessera_run that holds the ticket: one or the other
-    const int asks = request->processors != 0ull;
+    // a job requests its processors, or is the child of a tessera_run that has the ticket: one or the other
+    const int requests_processors = request->processors != 0ull;
     const int is_child = request->parent != NULL;
-    return (at < count) && (request->command < count) && (asks != is_child) && !(is_child && request->child);
+    return (at < count) && (request->command < count) && (requests_processors != is_child) &&
+           !(is_child && request->child);
 }
 
 // this program's own path and its length, or 0 where it cannot be read whole
 size_t run_own_path(char *path, size_t capacity)
 {
 #if defined(_WIN32)
-    // the capacity is a buffer size this file holds, which a DWORD counts on every Windows target
+    // the capacity is a buffer size this file allocates, which a DWORD counts on every Windows target
     const size_t length = (size_t)GetModuleFileNameA(NULL, path, (DWORD)capacity);
 #else
     const ssize_t read = readlink("/proc/self/exe", path, capacity - 1u);
-    // a failed read is -1 and is held as no length at all
+    // a failed read is -1 and is recorded as no length at all
     const size_t length = (read > 0) ? (size_t)read : 0u;
 #endif
     if ((length == 0u) || (length >= capacity))
@@ -167,7 +168,7 @@ int run_signum(const RunRequest *request, char **arguments, int count, EngineSig
     return ok;
 }
 
-// a text and a suffix as one path, 0 where the capacity does not hold it
+// a text and a suffix as one path, 0 where the capacity does not fit it
 int run_path_joined(const char *first, const char *second, char *path, size_t capacity)
 {
     const int written = snprintf(path, capacity, "%s%s", first, second);

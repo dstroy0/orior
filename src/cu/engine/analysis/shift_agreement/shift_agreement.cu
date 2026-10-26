@@ -269,11 +269,11 @@ int agreement_launched(void)
     return (cudaGetLastError() == cudaSuccess) ? 1 : 0;
 }
 
-// one slot for every power of two from 1 to the longest axis, held at its logarithm: every padded length a run can
-// ask has its slot, and no length is turned away
+// one entry for every power of two from 1 to the longest axis, indexed at its logarithm: every padded length a run can
+// request has its entry, and no length is turned away
 #define SHIFT_AGREEMENT_TABLES 24u
 static_assert((1u << (SHIFT_AGREEMENT_TABLES - 1u)) == SHIFT_AGREEMENT_LONGEST_AXIS,
-              "shift_agreement: one table slot for every power of two to the longest axis");
+              "shift_agreement: one table entry for every power of two to the longest axis");
 
 static AxisTables s_axis_tables[SHIFT_AGREEMENT_TABLES];
 
@@ -294,7 +294,7 @@ const AxisTables *axis_tables(unsigned int length)
     {
         logarithm += 1u;
     }
-    // a length that is not a power of two to the longest axis has no slot, and the run errors on it
+    // a length that is not a power of two to the longest axis has no entry, and the run errors on it
     if ((logarithm == SHIFT_AGREEMENT_TABLES) || ((1u << logarithm) != length))
     {
         return NULL;

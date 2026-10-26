@@ -12,8 +12,8 @@
 #define CLI_RESTARTS_MOST 64u
 
 // How often a supervised process may die and be started again: at most `most` deaths in any span of `within`
-// milliseconds, the deaths' moments kept oldest first. One past that is stopped and said, as a supervisor of Erlang's
-// stops a child that fails faster than starting it again can help
+// milliseconds, the deaths' moments stored oldest first. One past that is stopped and reported, as a supervisor of
+// Erlang's stops a child that fails faster than starting it again can help
 typedef struct
 {
     unsigned int most;
@@ -22,10 +22,10 @@ typedef struct
     unsigned int deaths;
 } CliRestarts;
 
-// the processes the system lists, a cell counted to `tally`, their count into `count`, listed again in a cell twice as
+// the processes the system lists, a cell counted to `owner`, their count into `count`, listed again in a cell twice as
 // large while a list fills its cell, up to CLI_PROCESSES_MOST: the cell, or NULL with none counted where the cellblock
 // could not meet it
-CliProcess *cli_processes_taken(CliCellsTally *tally, unsigned int *count);
+CliProcess *cli_processes_taken(CellOwner *owner, unsigned int *count);
 // 1 where the process `id` is `root` or stands under it in the tree `parents` gives, `count` of them
 int cli_under(unsigned int root, unsigned int id, const CliProcess *parents, unsigned int count);
 // the processes under `root` in the tree `parents` gives, by child and parent, each once, children after their

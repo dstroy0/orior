@@ -71,7 +71,7 @@ size_t magnitude_used(const uint32_t *value)
  *
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
- * @return          1 where the sum needs more limbs than the width holds, 0 otherwise.
+ * @return          1 where the sum needs more limbs than the width contains, 0 otherwise.
  * @note left + right reaches 2^ORIOR_EXACT_BITS exactly where left exceeds 2^ORIOR_EXACT_BITS - 1
  *       - right, and that bound is ~right limb by limb. The test is then a comparison from the top
  *       limb down, which settles at the first limb that differs. For two values well inside the
@@ -106,7 +106,7 @@ static void magnitude_add(const uint32_t *left, const uint32_t *right, uint32_t 
     for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
         const uint64_t total = (uint64_t)left[at] + (uint64_t)right[at] + carry;
-        // Explicit narrowing to a limb. The high half is the carry and is kept.
+        // Explicit narrowing to a limb. The high half is the carry and is retained.
         result[at] = (uint32_t)(total & LIMB_MASK);
         carry = total >> LIMB_BITS;
     }
@@ -125,7 +125,7 @@ static void magnitude_subtract(const uint32_t *left, const uint32_t *right, uint
     uint64_t borrow = 0u;
     for (size_t at = 0u; at < (size_t)ORIOR_EXACT_LIMBS; at++)
     {
-        // LIMB_BASE keeps the arithmetic non negative before the narrowing below. No unsigned
+        // LIMB_BASE maintains the arithmetic non negative before the narrowing below. No unsigned
         // wrap has to be reasoned about at the point the limb is stored.
         const uint64_t total = LIMB_BASE + (uint64_t)left[at] - (uint64_t)right[at] - borrow;
         result[at] = (uint32_t)(total & LIMB_MASK);
@@ -162,8 +162,8 @@ int orior_exact_compare(const OriorExactInteger *left, const OriorExactInteger *
  *
  * @param[in,out] result Integer whose limbs are already set [BORROWS].
  * @param[in]     sign   Sign to apply where the magnitude is not zero.
- * @note Zero always ends up carrying sign 0, which keeps a negative zero from ever existing and
- *       keeps two zeros comparing equal.
+ * @note Zero always ends up carrying sign 0, which prevents a negative zero from ever existing and
+ *       makes two zeros comparing equal.
  */
 void settle_sign(OriorExactInteger *result, int32_t sign)
 {

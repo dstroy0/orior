@@ -14,7 +14,7 @@ typedef struct
     const unsigned long long *edge_ends;
 } AnswerKeyTruth;
 
-long node_slot_of(const AnswerKey *key, long long identity);
+long node_index_of(const AnswerKey *key, long long identity);
 
 int answer_key_build(const AnswerKeyTruth *truth, AnswerKey *key);
 

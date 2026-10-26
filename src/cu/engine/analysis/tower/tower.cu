@@ -188,7 +188,7 @@ __global__ void tower_narrow_kernel(const int *rebuilt, unsigned long long count
     {
         const int value = rebuilt[index];
         wide |= ((value & ~0xFFFF) != 0) ? 1u : 0u;
-        // the value is masked to its low 16 bits, which an unsigned short holds exactly
+        // the value is masked to its low 16 bits, which an unsigned short represents exactly
         to[index] = (unsigned short)((unsigned int)value & 0xFFFFu);
     }
     if (wide != 0u)

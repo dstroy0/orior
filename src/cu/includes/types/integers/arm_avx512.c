@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 /*
  *
- * Every use falls under AGPL-3.0-or-later unless you hold explicit permission, which is either a
+ * Every use falls under AGPL-3.0-or-later unless you have explicit permission, which is either a
  * negotiated commercial licensing contract or an educator's license issued to you personally.
  */
 /**
@@ -13,10 +13,10 @@
  * @note No machine in this project has AVX-512. This arm has never been run. It is compiled for
  *       the target and its emitted instructions are read by utils/maint/engine/verify_arm_asm.sh, which
  *       confirms zmm registers and vpcmpeqd against a mask. That rules out a silent fallback to
- *       scalar code. It says nothing about behavior, and the arm's name carries that.
+ *       scalar code. It states nothing about behavior, and the arm's name carries that.
  * @note The name reads avx512-unrun for exactly that reason. A row of results should not be able to
  *       show this arm beside a run one without the difference being visible in the row itself.
- * @note Detection asks for AVX-512F and AVX-512BW together, because the masked load the equality
+ * @note Detection requires AVX-512F and AVX-512BW together, because the masked load the equality
  *       tail uses is a BW instruction and a part with F alone would fault on it.
  * @note AVX-512 comparison does not produce a vector of all-ones lanes the way AVX2 does. It writes
  *       a mask register, one bit per lane, and the comparison is against 0xFFFF for sixteen lanes.
@@ -36,7 +36,7 @@
 
 #if defined(_MSC_VER)
 #include <intrin.h>
-/** @brief Set where this translation unit can ask the processor about AVX-512. */
+/** @brief Set where this translation unit can query the processor about AVX-512. */
 #define ORIOR_AVX512_CAN_DETECT 1
 #elif defined(__GNUC__) || defined(__clang__)
 #define ORIOR_AVX512_CAN_DETECT 1
@@ -44,7 +44,7 @@
 #define ORIOR_AVX512_CAN_DETECT 0
 #endif
 
-/** @brief Limbs compared per AVX-512 instruction. 512 bits holds sixteen 32 bit limbs. */
+/** @brief Limbs compared per AVX-512 instruction. 512 bits contains sixteen 32 bit limbs. */
 #define ORIOR_AVX512_LANES 16u
 
 /** @brief Every lane set. A full block of matching limbs compares equal to this. */
@@ -84,7 +84,7 @@ static int avx512_present(void)
  * @param[in] right Second magnitude [BORROWS].
  * @return          1 where every limb matches, 0 otherwise.
  * @note Walks from the top limb down. A value scaled to 1024 decimal digits carries hundreds of
- *       trailing zero digits. The low limbs are zero on both sides and hold no information.
+ *       trailing zero digits. The low limbs are zero on both sides and carry no information.
  */
 static int avx512_magnitude_equal(const uint32_t *left, const uint32_t *right)
 {
@@ -120,7 +120,7 @@ static int avx512_magnitude_equal(const uint32_t *left, const uint32_t *right)
  * @param[in] left  First magnitude [BORROWS].
  * @param[in] right Second magnitude [BORROWS].
  * @return          -1 where left is smaller, 1 where it is larger, 0 where they are equal.
- * @note The mask marks which lanes differ and not which of them sits highest. The block holding the
+ * @note The mask marks which lanes differ and not which of them sits highest. The block containing the
  *       highest difference is found with the mask and then walked backward one limb at a time, which
  *       runs at most sixteen scalar steps, once per comparison.
  */
@@ -157,7 +157,7 @@ static int avx512_magnitude_compare(const uint32_t *left, const uint32_t *right)
 }
 
 /**
- * @brief Whether two integers hold the same value, sign included.
+ * @brief Whether two integers have the same value, sign included.
  *
  * @param[in] left  First integer [BORROWS].
  * @param[in] right Second integer [BORROWS].

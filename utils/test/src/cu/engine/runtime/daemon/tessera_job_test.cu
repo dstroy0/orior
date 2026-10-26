@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // tessera end to end: the client against the built daemon on this device. The client starts the daemon when no
-// daemon answers. Every job is reserved its declaration over the bytes its process already held as it asked, which
-// the daemon measures and tells on admission; the test keeps its first job's memory: every later job's process
-// stands on it. A job declaring less than it then holds is admitted on its declaration and told it grew; its peak
-// is kept under its signum. The same signum declaring four times that peak is asked, and admitted on the override.
-// Declaring within the peak it is admitted at once. Declaring over it again with no answer, it is held past its
-// holding time and lost, its ticket naming the lost and found place; the precalc kept there releases it. Its ticket
-// is sealed with the precalc note in it. Once the daemon has gone, the history it sealed is damaged by one byte, cut
-// short, and stripped of its seal, and each time no daemon will start on it; restored, it starts and the kept peak
-// is still there. The damage is done in $TESSERA_STATE, which run.sh points at a scratch directory.
+// daemon answers. Every job is reserved its declaration over the bytes its process already occupied as it requested,
+// which the daemon measures and reports on admission; the test retains its first job's memory: every later job's
+// process stands on it. A job declaring less than it then occupies is admitted on its declaration and informed it grew;
+// its peak is recorded under its signum. The same signum declaring four times that peak is prompted, and admitted on
+// the override. Declaring within the peak it is admitted at once. Declaring over it again with no answer, it is
+// reserved past its grace time and lost, its ticket naming the lost and found place; the precalc saved there releases
+// it. Its ticket is sealed with the precalc note in it. Once the daemon has gone, the history it sealed is damaged by
+// one byte, cut short, and stripped of its seal, and each time no daemon will start on it; restored, it starts and the
+// recorded peak is still there. The damage is done in $TESSERA_STATE, which run.sh points at a scratch directory.
 #include "../../../../../../../src/cu/engine/runtime/obsignatio/obsignatio.h"
 #include "../../../../../../../src/cu/engine/runtime/daemon/tessera.h"
 
@@ -76,7 +76,7 @@ static int job_daemon_gone(const unsigned char *device)
         return 0;
     }
 #else
-    // the daemon holds its state's lock while it lives; a socket systemd holds outlives it: the lock is asked
+    // the daemon acquires its state's lock while it lives; a socket systemd owns outlives it: the lock is queried
     char state[ENGINE_PATH_CAPACITY];
     const int named = tessera_path_state(device, state, ENGINE_PATH_CAPACITY) &&
                       (snprintf(endpoint, sizeof(endpoint), "%s/daemon.lock", state) < (int)sizeof(endpoint));
@@ -85,7 +85,7 @@ static int job_daemon_gone(const unsigned char *device)
         return 0;
     }
 #endif
-    // the daemon ends once it has held no job for its idle time; ten seconds is five of them
+    // the daemon ends once it has had no job for its idle time; ten seconds is five of them
     for (unsigned int tries = 0u; tries < 100u; tries += 1u)
     {
 #if defined(_WIN32)
@@ -170,7 +170,7 @@ static int job_ticket_sealed(const char *lost_path)
         passed = sscanf(pair, "%2x", &value) == 1;
         signum[byte] = (unsigned char)value;
     }
-    const char note[] = "precalc kept\n";
+    const char note[] = "precalc saved\n";
     passed = passed && (body >= (sizeof(note) - 1u)) &&
              (memcmp(text + body - (sizeof(note) - 1u), note, sizeof(note) - 1u) == 0);
     EngineError error;
@@ -196,35 +196,35 @@ int main(int count, char **arguments)
     }
     EngineError error;
     memset(&error, 0, sizeof(error));
-    TesseraJobAsk ask;
-    memset(&ask, 0, sizeof(ask));
-    memcpy(ask.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
+    TesseraJobSubmit submit;
+    memset(&submit, 0, sizeof(submit));
+    memcpy(submit.device, properties.uuid.bytes, TESSERA_DEVICE_BYTES);
     unsigned long long luid = 0ull;
 #if defined(_WIN32)
     memcpy(&luid, properties.luid, sizeof(luid));
 #endif
-    ask.luid = luid;
-    // a signum of this run alone: the history holds nothing for it before its first job
+    submit.luid = luid;
+    // a signum of this run alone: the history contains nothing for it before its first job
     const unsigned long long made = job_wall();
     for (unsigned int at = 0u; at < ENGINE_SIGNUM_BYTES; at += 1u)
     {
-        ask.signum.bytes[at] = (unsigned char)((made >> (8u * (at % 8u))) ^ (0xA5u + at));
+        submit.signum.bytes[at] = (unsigned char)((made >> (8u * (at % 8u))) ^ (0xA5u + at));
     }
-    ask.declared = JOB_TEST_DECLARED;
-    ask.holding_microseconds = 400000ull;
-    ask.sweep_microseconds = 20000ull;
-    ask.idle_microseconds = 2000000ull;
-    ask.daemon_path = arguments[1];
-    ask.error = &error;
+    submit.declared = JOB_TEST_DECLARED;
+    submit.grace_microseconds = 400000ull;
+    submit.sweep_microseconds = 20000ull;
+    submit.idle_microseconds = 2000000ull;
+    submit.daemon_path = arguments[1];
+    submit.error = &error;
 
     // 1: admitted on its declaration, then grows past it
     TesseraClient *client = NULL;
     TesseraTicket ticket;
-    long answer = tessera_job_submit(&ask, &client, &ticket);
-    job_check((answer == 0L) && (ticket.asked == 0u) && (ticket.lost == 0u) &&
+    long answer = tessera_job_submit(&submit, &client, &ticket);
+    job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.lost == 0u) &&
                   (ticket.granted == (ticket.standing + JOB_TEST_DECLARED)),
-              "a job never seen is admitted on its declaration over what its process held");
-    printf("  its process held %llu bytes as it asked\n", ticket.standing);
+              "a job never seen is admitted on its declaration over what its process occupied");
+    printf("  its process occupied %llu bytes as it requested\n", ticket.standing);
     void *device_memory = NULL;
     job_check(cudaMalloc(&device_memory, JOB_TEST_BYTES) == cudaSuccess, "the job takes device memory");
     job_check(cudaMemset(device_memory, 1, JOB_TEST_BYTES) == cudaSuccess, "the job touches it");
@@ -232,50 +232,51 @@ int main(int count, char **arguments)
     job_sleep_milliseconds(400u);
     answer = (client != NULL) ? tessera_job_release(client, &ticket, &error) : -1L;
     job_check(answer == 0L, "the job releases");
-    job_check(ticket.grown_to >= JOB_TEST_BYTES, "a job holding more than it declared is told it grew");
+    job_check(ticket.grown_to >= JOB_TEST_BYTES, "a job occupying more than it declared is informed it grew");
     job_check(ticket.last_peak >= JOB_TEST_BYTES, "its release reports the peak measured by its pid");
     const unsigned long long peak = ticket.last_peak;
     printf("  declared %llu, grew to %llu, peak %llu\n", JOB_TEST_DECLARED, ticket.grown_to, peak);
 
-    // 2: over its signum's peak it is asked, and the override admits it
-    ask.declared = 4ull * peak;
-    answer = tessera_job_submit(&ask, &client, &ticket);
-    job_check((answer == 0L) && (ticket.asked != 0u), "declaring four times the kept peak is asked");
-    job_check((answer == 0L) && (ticket.last_peak == peak), "the ask names the kept peak");
+    // 2: over its signum's peak it is prompted, and the override admits it
+    submit.declared = 4ull * peak;
+    answer = tessera_job_submit(&submit, &client, &ticket);
+    job_check((answer == 0L) && (ticket.over_budget != 0u), "declaring four times the recorded peak is prompted");
+    job_check((answer == 0L) && (ticket.last_peak == peak), "the prompt names the recorded peak");
     answer = (answer == 0L) ? tessera_job_override(client, &ticket, &error) : -1L;
-    job_check((answer == 0L) && (ticket.asked == 0u) && (ticket.granted == (ticket.standing + (4ull * peak))),
-              "the override admits it on its declaration over what its process held");
+    job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.granted == (ticket.standing + (4ull * peak))),
+              "the override admits it on its declaration over what its process occupied");
     job_check((answer == 0L) && (ticket.standing >= JOB_TEST_BYTES),
-              "the memory its process kept from the first job is measured as standing");
+              "the memory its process retained from the first job is measured as standing");
     printf("  standing on the first job's memory: %llu bytes\n", ticket.standing);
     answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;
     job_check(answer == 0L, "the overridden job releases");
 
     // 3: within its peak it is admitted at once
-    ask.declared = peak;
-    answer = tessera_job_submit(&ask, &client, &ticket);
-    job_check((answer == 0L) && (ticket.asked == 0u) && (ticket.granted == (ticket.standing + peak)),
-              "declaring the kept peak is admitted, over what its process held");
+    submit.declared = peak;
+    answer = tessera_job_submit(&submit, &client, &ticket);
+    job_check((answer == 0L) && (ticket.over_budget == 0u) && (ticket.granted == (ticket.standing + peak)),
+              "declaring the recorded peak is admitted, over what its process occupied");
     answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;
     job_check(answer == 0L, "that job releases");
 
-    // 4: over it with no answer, held past its holding time and lost, then released by the precalc kept
-    ask.declared = 4ull * peak;
-    answer = tessera_job_submit(&ask, &client, &ticket);
-    job_check((answer == 0L) && (ticket.asked != 0u), "over the peak again is asked");
+    // 4: over it with no answer, reserved past its grace time and lost, then released by the precalc saved
+    submit.declared = 4ull * peak;
+    answer = tessera_job_submit(&submit, &client, &ticket);
+    job_check((answer == 0L) && (ticket.over_budget != 0u), "over the peak again is prompted");
     answer = (answer == 0L) ? tessera_job_wait(client, &ticket, &error) : -1L;
     job_check((answer == 0L) && (ticket.lost != 0u) && (ticket.lost_path[0] != '\0'),
-              "unanswered past its holding time, it is lost and its ticket names the lost and found place");
+              "unanswered past its grace time, it is lost and its ticket names the lost and found place");
     printf("  lost and found: %s\n", ticket.lost_path);
-    answer = (answer == 0L) ? tessera_job_precalc_kept(client, &error) : -1L;
-    job_check(answer == 0L, "the precalc kept in lost and found releases the job");
+    answer = (answer == 0L) ? tessera_job_precalc_saved(client, &error) : -1L;
+    job_check(answer == 0L, "the precalc saved in lost and found releases the job");
     job_check((answer == 0L) && job_ticket_sealed(ticket.lost_path),
               "the lost ticket is sealed with the precalc note in it");
 
-    // 5: the history is sealed; damaged, cut short or unsealed, no daemon starts on it; restored, the peak is kept
+    // 5: the history is sealed; damaged, cut short or unsealed, no daemon starts on it; restored, the peak is retained
     char state[ENGINE_PATH_CAPACITY];
     char history[ENGINE_PATH_CAPACITY];
-    const int placed = (getenv("TESSERA_STATE") != NULL) && tessera_path_state(ask.device, state, ENGINE_PATH_CAPACITY);
+    const int placed =
+        (getenv("TESSERA_STATE") != NULL) && tessera_path_state(submit.device, state, ENGINE_PATH_CAPACITY);
     const int named = placed ? snprintf(history, sizeof(history), "%s%shistory", state,
 #if defined(_WIN32)
                                         "\\"
@@ -287,36 +288,37 @@ int main(int count, char **arguments)
     // a non-negative length is compared whole against the capacity
     const int scratch = placed && (named > 0) && ((size_t)named < sizeof(history));
     job_check(scratch, "the history checks run in a scratch $TESSERA_STATE");
-    job_check(scratch && job_daemon_gone(ask.device), "the daemon ends once it has held no job for its idle time");
+    job_check(scratch && job_daemon_gone(submit.device), "the daemon ends once it has had no job for its idle time");
     unsigned long long length = 0ull;
     unsigned char *const sealed = scratch ? job_file_read(history, &length) : NULL;
     job_check((sealed != NULL) && (length > OBSIGNATIO_SIGNUM_BYTES) &&
                   (((length - OBSIGNATIO_SIGNUM_BYTES) % (ENGINE_SIGNUM_BYTES + 16u)) == 0ull),
               "the history on disk is whole records and a seal");
-    ask.declared = peak;
+    submit.declared = peak;
     if (sealed != NULL)
     {
         unsigned char *const damaged = (unsigned char *)malloc((size_t)length);
         memcpy(damaged, sealed, (size_t)length);
         // one byte of the first record's peak
         damaged[ENGINE_SIGNUM_BYTES] ^= 0x01u;
-        job_check(job_file_write(history, damaged, length) && (tessera_job_submit(&ask, &client, &ticket) != 0L),
+        job_check(job_file_write(history, damaged, length) && (tessera_job_submit(&submit, &client, &ticket) != 0L),
                   "a history damaged by one byte errors, and no daemon starts on it");
-        job_check(job_file_write(history, sealed, length - 1ull) && (tessera_job_submit(&ask, &client, &ticket) != 0L),
+        job_check(job_file_write(history, sealed, length - 1ull) &&
+                      (tessera_job_submit(&submit, &client, &ticket) != 0L),
                   "a history cut short by one byte errors");
         job_check(job_file_write(history, sealed, length - OBSIGNATIO_SIGNUM_BYTES) &&
-                      (tessera_job_submit(&ask, &client, &ticket) != 0L),
+                      (tessera_job_submit(&submit, &client, &ticket) != 0L),
                   "a history with no seal errors");
         free(damaged);
-        // a signum the history had lost would be admitted on its declaration; only the kept peak asks this
-        ask.declared = 4ull * peak;
-        answer = job_file_write(history, sealed, length) ? tessera_job_submit(&ask, &client, &ticket) : -1L;
-        job_check((answer == 0L) && (ticket.asked != 0u) && (ticket.last_peak == peak),
-                  "restored, the daemon starts on it and asks over the peak it kept");
+        // a signum the history had lost would be admitted on its declaration; only the recorded peak prompts this
+        submit.declared = 4ull * peak;
+        answer = job_file_write(history, sealed, length) ? tessera_job_submit(&submit, &client, &ticket) : -1L;
+        job_check((answer == 0L) && (ticket.over_budget != 0u) && (ticket.last_peak == peak),
+                  "restored, the daemon starts on it and prompts over the peak it recorded");
         if ((answer != 0L) || (ticket.last_peak != peak))
         {
-            printf("  restored submit: answer %ld, asked %u, last peak %llu, error site %u status %d\n", answer,
-                   ticket.asked, ticket.last_peak, error.site, error.status);
+            printf("  restored submit: answer %ld, prompted %u, last peak %llu, error site %u status %d\n", answer,
+                   ticket.over_budget, ticket.last_peak, error.site, error.status);
         }
         answer = (answer == 0L) ? tessera_job_override(client, &ticket, &error) : -1L;
         answer = (answer == 0L) ? tessera_job_release(client, &ticket, &error) : -1L;

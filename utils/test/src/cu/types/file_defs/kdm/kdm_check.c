@@ -1,22 +1,23 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// kdm_check.c: the .kdm's reader and writer (kdm.h, kfile_lines.h) and the block rule (klang.h) held to what their
-// users read of them, on a .kdm this check writes and on a part's own
+// kdm_check.c: the .kdm's reader and writer (kdm.h, kfile_lines.h) and the block rule (klang.h) checked against what
+// their users read of them, on a .kdm this check writes and on a part's own
 //
 //   rows       a row is read with its five fields, and a descent's with its verdict; a comment, the head of the rows,
 //              a who line and a line of a block are no row
 //   blocks     a block of a language ends at its own closer alone: a closer of another language, a parenthesis and a
 //              closer of a block inside it of the same language end nothing; a block never closed is none
 //   section    the section written again goes after a who line of the code that wrote it, and the tail stands as the
-//              file held it, the who in force over it written again before it
+//              file stored it, the who in force over it written again before it
 //   pipes      the pipes and their comment let go and put again at the end, after a who line of the code that put them
-//   whole      a file written whole again keeps the who of each line it held, and a line it did not goes under the
+//   whole      a file written whole again retains the who of each line it contained, and a line it did not goes under
+//   the
 //              writer's (kfile_lines_written_by)
-//   put        a file handed to the run is read as the run holds it and is not on the disk while the run runs; once
+//   put        a file handed to the run is read as the run stores it and is not on the disk while the run runs; once
 //              the run ends it is in its place (chain_check.sh); a file the run reads from the disk is the run's after,
 //              read from memory
-//   a part's   the section of the part's .kdm named on the command line written again as it holds it leaves the file as
-//   file       it was, a who line after its first line
+//   a part's   the section of the part's .kdm named on the command line written again as it contains it leaves the file
+//   as file       it was, a who line after its first line
 //
 //     kdm_check <folder> [<a part's .kdm>]
 //
@@ -33,10 +34,10 @@
 static unsigned int s_checks = 0u;
 static unsigned int s_failed = 0u;
 
-static void check_that(int held, const char *what)
+static void check_that(int passed, const char *what)
 {
     s_checks += 1u;
-    if (held == 0)
+    if (passed == 0)
     {
         s_failed += 1u;
         printf("  FAILED: %s\n", what);
@@ -65,8 +66,8 @@ static const char *joined(const KdmFile *file, unsigned int from, char *bytes, s
     return bytes;
 }
 
-// 1 where the block of `lang` found in `text` holds `inside`
-static int block_holds(const char *text, const char *lang, const char *inside)
+// 1 where the block of `lang` found in `text` contains `inside`
+static int block_contains(const char *text, const char *lang, const char *inside)
 {
     KlangBlock block;
     return klang_block_find(text, strlen(text), 0u, lang, &block) &&
@@ -129,10 +130,10 @@ int main(int count, char **words)
     unsigned int past = 0u;
     check_that(kfile_lines_block_lines(&s_file, "krs", 0u, &first, &past) && (first == 6u) && (past == 11u),
                "a block's lines run to its own closer, past the closer of the block inside it");
-    check_that(block_holds("a __gsm__( x )__krs__ ) y )__gsm__ b", "gsm", " x )__krs__ ) y "),
+    check_that(block_contains("a __gsm__( x )__krs__ ) y )__gsm__ b", "gsm", " x )__krs__ ) y "),
                "a closer of another language and a parenthesis end no block");
-    check_that(block_holds("__c__(f(x))__c__", "c", "f(x)"), "a block ends at its closer alone");
-    check_that(block_holds("__krs__(a __krs__(b)__krs__ c)__krs__ d", "krs", "a __krs__(b)__krs__ c"),
+    check_that(block_contains("__c__(f(x))__c__", "c", "f(x)"), "a block ends at its closer alone");
+    check_that(block_contains("__krs__(a __krs__(b)__krs__ c)__krs__ d", "krs", "a __krs__(b)__krs__ c"),
                "a block inside a block of the same language is counted");
     KlangBlock block;
     check_that(!klang_block_find("__krs__( never closed", 21u, 0u, "krs", &block) &&
@@ -178,7 +179,7 @@ int main(int count, char **words)
              code);
     text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
-               "and the who line before the tail is kept as the tail's own, not written twice");
+               "and the who line before the tail is retained as the tail's own, not written twice");
 
     const char *const comment[1] = {"# the pipes"};
     const char *const pipes[1] = {"pipe IADD3 IADD3 8 1"};
@@ -206,14 +207,15 @@ int main(int count, char **words)
     check_that(kdm_read(&s_file, path) && (s_file.lines == 18u), "and read back, line for line");
     kdm_free(&s_file);
 
-    // a file written whole again: each line it held keeps its who, and a line it did not goes under the writer's
-    const char *const held[4] = {"kdm part", "# a comment", "add\t1\tadd(w0, w1)\t-\t0", "sub\t1\tsub(w0, w1)\t-\t0"};
+    // a file written whole again: each line it contained retains its who, and a line it did not goes under the writer's
+    const char *const part_lines[4] = {"kdm part", "# a comment", "add\t1\tadd(w0, w1)\t-\t0",
+                                       "sub\t1\tsub(w0, w1)\t-\t0"};
     for (unsigned int at = 0u; at < 4u; at += 1u)
     {
-        kfile_lines_line_add(&s_file, held[at]);
+        kfile_lines_line_add(&s_file, part_lines[at]);
     }
     const Who whole = WHO_HERE;
-    check_that(kfile_lines_written_by(&s_file, 1u, held, 4u, whole) && (s_file.lines == 4u),
+    check_that(kfile_lines_written_by(&s_file, 1u, part_lines, 4u, whole) && (s_file.lines == 4u),
                "a file written again as it was is the same lines, no who line put");
     const char *const changed[4] = {"kdm part", "# a comment", "add\t1\tadd(w0, w1)\t2/1\t3",
                                     "sub\t1\tsub(w0, w1)\t-\t0"};
@@ -229,15 +231,15 @@ int main(int count, char **words)
              code);
     text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
-               "the changed line goes under a who line of the writer's, and the line after it keeps none, as before");
+               "the changed line goes under a who line of the writer's, and the line after it retains none, as before");
     const Who later_whole = WHO_HERE;
     check_that(kfile_lines_written_by(&s_file, 1u, changed, 4u, later_whole), "and is written again by another");
     text = joined(&s_file, 0u, s_text_bytes, sizeof(s_text_bytes));
     check_that((text != NULL) && (strcmp(text, expected) == 0),
-               "the line it held keeps the who that wrote it, not the later writer's");
+               "the line it contained retains the who that wrote it, not the later writer's");
     kdm_free(&s_file);
 
-    // a file the run writes is the run's while the run runs: read as the run holds it, not on the disk, and in its
+    // a file the run writes is the run's while the run runs: read as the run stores it, not on the disk, and in its
     // place once the run ends, which chain_check.sh looks for. Its text names this run's .qry, which no other run's
     // file names
     char put_path[1024];
@@ -245,18 +247,18 @@ int main(int count, char **words)
     char put_text[1200];
     snprintf(put_text, sizeof(put_text), "kdm put\n# %s\n", qry_member_path());
     check_that(qry_member_filed(put_path, put_text, strlen(put_text)) != 0ull, "a file is handed to the run");
-    const unsigned char *put_held = NULL;
+    const unsigned char *put_bytes = NULL;
     unsigned long long put_size = 0ull;
-    check_that(qry_member_file_blob(put_path, &put_held, &put_size) && (put_size == strlen(put_text)) &&
-                   (memcmp(put_held, put_text, (size_t)put_size) == 0),
-               "and read back as the run holds it");
+    check_that(qry_member_file_blob(put_path, &put_bytes, &put_size) && (put_size == strlen(put_text)) &&
+                   (memcmp(put_bytes, put_text, (size_t)put_size) == 0),
+               "and read back as the run stores it");
     unsigned long long disk_size = 0ull;
-    const unsigned char *const disk_held = qry_member_file_mapped(put_path, &disk_size);
-    const int on_disk =
-        (disk_held != NULL) && (disk_size == strlen(put_text)) && (memcmp(disk_held, put_text, (size_t)disk_size) == 0);
-    if (disk_held != NULL)
+    const unsigned char *const disk_bytes = qry_member_file_mapped(put_path, &disk_size);
+    const int on_disk = (disk_bytes != NULL) && (disk_size == strlen(put_text)) &&
+                        (memcmp(disk_bytes, put_text, (size_t)disk_size) == 0);
+    if (disk_bytes != NULL)
     {
-        qry_member_file_unmapped(disk_held, disk_size);
+        qry_member_file_unmapped(disk_bytes, disk_size);
     }
     check_that(!on_disk, "and not on the disk while the run runs");
 
@@ -265,19 +267,19 @@ int main(int count, char **words)
         check_that(kdm_read(&s_file, words[2]) && (s_file.lines != 0u), "a part's .kdm reads");
         // read once from the disk, the file is the run's: every read of it after is from memory
         const char *const part_name = qry_member_file_name(words[2]);
-        const unsigned char *part_held = NULL;
+        const unsigned char *part_bytes = NULL;
         unsigned long long part_size = 0ull;
-        check_that((part_name != NULL) && qry_member_blob(part_name, &part_held, &part_size, NULL) &&
+        check_that((part_name != NULL) && qry_member_blob(part_name, &part_bytes, &part_size, NULL) &&
                        (part_size != 0ull),
-                   "and once read from the disk, the run holds it, and reads it from memory after");
+                   "and once read from the disk, the run stores it, and reads it from memory after");
         const char *const before = joined(&s_file, 0u, s_before_bytes, sizeof(s_before_bytes));
         const unsigned int lines = s_file.lines;
         const unsigned int tail = kdm_tail_at(&s_file);
-        const char **const held = (const char **)calloc((size_t)tail + 1u, sizeof(char *));
+        const char **const part_lines = (const char **)calloc((size_t)tail + 1u, sizeof(char *));
         unsigned int section_lines = 0u;
-        for (unsigned int at = 1u; (held != NULL) && (at < tail); at += 1u)
+        for (unsigned int at = 1u; (part_lines != NULL) && (at < tail); at += 1u)
         {
-            held[section_lines] = s_file.line[at];
+            part_lines[section_lines] = s_file.line[at];
             section_lines += 1u;
         }
         // the section's lines stand in the file until it is written again: they are copied first
@@ -286,7 +288,7 @@ int main(int count, char **words)
         for (unsigned int at = 0u; at < section_lines; at += 1u)
         {
             copied = verba_textus.put(&(VerbaTextusCfg){
-                .out = s_copied_bytes, .cap = sizeof(s_copied_bytes), .at = copied, .text = held[at]});
+                .out = s_copied_bytes, .cap = sizeof(s_copied_bytes), .at = copied, .text = part_lines[at]});
             copied = verba_littera.ch(
                 &(VerbaLitteraCfg){.out = s_copied_bytes, .cap = sizeof(s_copied_bytes), .at = copied, .ch = '\n'});
         }
@@ -306,10 +308,10 @@ int main(int count, char **words)
                          (strcmp(after + first_line + strlen(head), before + first_line) == 0);
         printf("  %s: %u lines, a section of %u written again, %s\n", words[2], lines, section_lines,
                same ? "as it was with a who line after its first" : "DIFFERING");
-        check_that(same, "a part's section written again as it holds it leaves it as it was, a who line after its "
+        check_that(same, "a part's section written again as it contains it leaves it as it was, a who line after its "
                          "first");
         free(cut);
-        free(held);
+        free(part_lines);
         kdm_free(&s_file);
     }
 

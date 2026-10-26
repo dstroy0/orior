@@ -142,13 +142,13 @@ extern "C" long max_tree_bind(const MaxTreeBindRequest *request)
     }
     EngineError *const error = request->error;
     const size_t voxels = (size_t)request->depth * request->height * request->width;
-    const int asked =
+    const int valid =
         MAX_TREE_CHECK(request->residual != NULL, &request->residual, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK(request->bound != NULL, &request->bound, error, ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK((request->level_count == 0u) || (request->levels != NULL), &request->levels, error,
                        ENGINE_ERROR_REQUEST) &&
         MAX_TREE_CHECK((voxels != 0u) && ((voxels * 3u) < 0xFFFFFFFFull), &request->depth, error, ENGINE_ERROR_REQUEST);
-    if (asked == 0)
+    if (valid == 0)
     {
         return MAX_TREE_ERROR;
     }

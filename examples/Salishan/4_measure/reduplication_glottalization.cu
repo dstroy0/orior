@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 //
 // How a glottalized resonant fares under reduplication, language by language, tallied and read exact on the record
-// machine and set against the survey that asked.
+// machine and set against the survey that posed the question.
 //
 //   Usage:  reduplication_glottalization <input> <output>
 //
@@ -21,7 +21,7 @@
 //   digits    the record_stages.h program, for each share I / T printed.
 // Marking a paper's first verdict is the host's, and every count, sum, product and comparison is the machine's.
 //
-// The input is what reduplication_glottalization.py writes. The output holds every language's I, S, papers,
+// The input is what reduplication_glottalization.py writes. The output contains every language's I, S, papers,
 // reading and Table 4 class.
 //
 // Checks:
@@ -34,7 +34,9 @@
 #include "../../../src/cu/engine/analysis/cycle/cycle.h"
 #include "../../../src/cu/engine/analysis/key_schedule/key_schedule.h"
 #include "../../../src/cu/engine/analysis/keymath/keymath.h"
-#include "../../../src/cu/engine/runtime/scriptura/scriptura.h"
+#include "verba_scribo/verba_linea.h"
+#include <stdio.h>
+#include <string.h>
 #include "sim.h"
 
 #include "record_stages.h"
@@ -180,7 +182,7 @@ int main(int count, char **arguments)
         return 2;
     }
 
-    // the tally program: each language's verdicts, padded to the longest run with lanes that hold no bit
+    // the tally program: each language's verdicts, padded to the longest run with lanes that contain no bit
     size_t run = 1u;
     for (size_t at = 0u; at < languages.size(); at += 1u)
     {

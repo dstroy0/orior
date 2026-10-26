@@ -4,12 +4,12 @@
 // settings.json its machine's, each with where it stands; and a kind of file's settings, each set aside
 #include "settings_internal.h"
 
-// the parts, their values and the kinds' settings, as settings_layers.c keeps them under its lock
+// the parts, their values and the kinds' settings, as settings_layers.c stores them under its lock
 static CliPart *s_parts_of;
 static CliPartValue *s_values_of;
 static CliKindSet *s_kinds_of;
 
-void cli_settings_parts_kept(CliPart *parts, CliPartValue *values, CliKindSet *kinds)
+void cli_settings_parts_stored(CliPart *parts, CliPartValue *values, CliKindSet *kinds)
 {
     s_parts_of = parts;
     s_values_of = values;
@@ -20,13 +20,13 @@ void cli_settings_parts_kept(CliPart *parts, CliPartValue *values, CliKindSet *k
 static void cli_file_problem(CliLayers *layers, const char *file, const char *first, const char *second,
                              const char *third)
 {
-    char problem[CLI_PATH_LONGEST * 2u];
-    CliLine line = {problem, sizeof(problem), 0ull};
-    cli_line_text(&line, file);
-    cli_line_text(&line, first);
-    cli_line_text(&line, second);
-    cli_line_text(&line, third);
-    cli_line_closed(&line);
+    char problem[CLI_PATH_MAX_LEN * 2u];
+    VerbaLinea line = {problem, sizeof(problem), 0ull};
+    mmgr_line_put(&line, file);
+    mmgr_line_put(&line, first);
+    mmgr_line_put(&line, second);
+    mmgr_line_put(&line, third);
+    mmgr_line_finish(&line);
     cli_settings_problem(layers, problem);
 }
 
@@ -79,7 +79,7 @@ unsigned int cli_settings_file_parts(CliLayers *layers, const CliChain *chain, u
                 cli_file_problem(layers, name, ": ", key, " is an object of settings");
             }
         }
-        else if (of_tree && cli_settings_held(key))
+        else if (of_tree && cli_settings_tree_scoped(key))
         {
             cli_file_problem(layers, name, ": ", key, " is the reader's own to set, and a tree's file does not set it");
         }
@@ -99,15 +99,15 @@ unsigned int cli_settings_file_parts(CliLayers *layers, const CliChain *chain, u
             const char *const key = json->text + json->node[member].key;
             if (cli_settings_is_file_key(key))
             {
-                char said[CLI_NAME_LONGEST * 2u];
-                CliLine line = {said, sizeof(said), 0ull};
-                cli_line_text(&line, ": ");
-                cli_line_text(&line, layers->system);
-                cli_line_text(&line, " sets ");
-                cli_line_closed(&line);
-                cli_file_problem(layers, name, said, key, ", which a file sets outside a system's part");
+                char msg_buf[CLI_NAME_MAX_LEN * 2u];
+                VerbaLinea line = {msg_buf, sizeof(msg_buf), 0ull};
+                mmgr_line_put(&line, ": ");
+                mmgr_line_put(&line, layers->system);
+                mmgr_line_put(&line, " sets ");
+                mmgr_line_finish(&line);
+                cli_file_problem(layers, name, msg_buf, key, ", which a file sets outside a system's part");
             }
-            else if (of_tree && cli_settings_held(key))
+            else if (of_tree && cli_settings_tree_scoped(key))
             {
                 cli_file_problem(layers, name, ": ", key,
                                  " is the reader's own to set, and a tree's file does not set it");

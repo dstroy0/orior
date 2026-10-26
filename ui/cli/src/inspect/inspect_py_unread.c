@@ -1,17 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // inspect_py_unread.c: the names a Python function sets and never reads: each name set by an assignment of it alone,
-// by `with ... as` or by `except ... as`, directly in the function, and read nowhere in it or in what it holds. A name
-// that starts with an underscore, is declared global or nonlocal, or sits in a function that reads its locals whole,
-// is left alone
+// by `with ... as` or by `except ... as`, directly in the function, and read nowhere in it or in what it contains. A
+// name that starts with an underscore, is declared global or nonlocal, or sits in a function that reads its locals
+// whole, is left alone
 #include "../text/json_tree.h"
 #include "inspect_py.h"
 
 // the most offsets of a statement's tokens that set a name, which are no reads
 #define CLI_PY_SKIPS 4096u
 
-// how a set name's fix takes it out: it has none; `as name` taken out; `name =` taken out and its value kept; the line
-// that sets it taken out
+// how a set name's fix takes it out: it has none; `as name` taken out; `name =` taken out and its value retained; the
+// line that sets it taken out
 #define CLI_PY_FIX_NONE 0u
 #define CLI_PY_FIX_AS 1u
 #define CLI_PY_FIX_VALUE 2u
@@ -140,7 +140,7 @@ static void unread_set(const CliInspectTok *tok, unsigned int fix, CliInspectPla
     }
 }
 
-// an offset that sets a name, and so is no read, kept
+// an offset that sets a name, and so is no read, recorded
 static void unread_skip(unsigned int offset)
 {
     if (s_skips < CLI_PY_SKIPS)
@@ -171,7 +171,7 @@ static void unread_as(const char *src, const CliInspectTok *toks, unsigned int c
 }
 
 // the names a statement of `count` tokens sets that may go unread noted, and the offsets of its tokens that set them,
-// which are no reads, kept in s_skip
+// which are no reads, recorded in s_skip
 static void unread_setting(const char *src, unsigned long long size, const CliInspectTok *toks, unsigned int count,
                            int lone, const CliPyLine *line)
 {
@@ -214,7 +214,7 @@ static void unread_setting(const char *src, unsigned long long size, const CliIn
             CliInspectPlace to = toks[0].from;
             if ((equals == 1u) && lone && !annotated)
             {
-                const int calls = cli_py_holds(src, &toks[last + 1u], count - last - 1u, "(");
+                const int calls = cli_py_contains(src, &toks[last + 1u], count - last - 1u, "(");
                 fix = calls ? CLI_PY_FIX_VALUE : CLI_PY_FIX_LINE;
                 if (calls)
                 {
@@ -327,24 +327,24 @@ static void unread_reported(const char *src, const PySet *set, CliFacts *facts)
 {
     const char *const name = src + set->tok.start;
     const unsigned int length = set->tok.end - set->tok.start;
-    char message[CLI_NAME_LONGEST * 2u];
-    CliLine said = {message, sizeof(message), 0ull};
-    cli_line_character(&said, '`');
-    cli_line_counted(&said, name, length);
-    cli_line_text(&said, "` is set and never read.");
-    cli_inspect_finding_put(facts, set->tok.from, set->tok.to, CLI_INSPECT_WARNING, &said, "unread", NULL);
+    char message[CLI_NAME_MAX_LEN * 2u];
+    VerbaLinea msg = {message, sizeof(message), 0ull};
+    mmgr_line_ch(&msg, '`');
+    mmgr_line_put_n(&msg, name, length);
+    mmgr_line_put(&msg, "` is set and never read.");
+    cli_inspect_finding_put(facts, set->tok.from, set->tok.to, CLI_INSPECT_WARNING, &msg, "unread", NULL);
     if (set->fix == CLI_PY_FIX_NONE)
     {
         return;
     }
-    char title[CLI_NAME_LONGEST * 2u];
-    CliLine titled = {title, sizeof(title), 0ull};
-    cli_line_text(&titled, (set->fix == CLI_PY_FIX_AS)      ? "Take out `as "
+    char title[CLI_NAME_MAX_LEN * 2u];
+    VerbaLinea titled = {title, sizeof(title), 0ull};
+    mmgr_line_put(&titled, (set->fix == CLI_PY_FIX_AS)      ? "Take out `as "
                            : (set->fix == CLI_PY_FIX_VALUE) ? "Take out `"
                                                             : "Take out the line that sets ");
-    cli_line_counted(&titled, name, length);
-    cli_line_text(&titled, (set->fix == CLI_PY_FIX_AS)      ? "`"
-                           : (set->fix == CLI_PY_FIX_VALUE) ? " =` and keep its value"
+    mmgr_line_put_n(&titled, name, length);
+    mmgr_line_put(&titled, (set->fix == CLI_PY_FIX_AS)      ? "`"
+                           : (set->fix == CLI_PY_FIX_VALUE) ? " =` and retain its value"
                                                             : "");
     cli_inspect_fix_put(facts, &titled);
     cli_inspect_edit_put(facts, set->from, set->to, "", 0ull);

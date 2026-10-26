@@ -9,33 +9,33 @@
 #include "comms.h"
 
 // the most parts, listeners and channels, and the places each of their tables is first taken with; how many of each
-// channel's last messages are kept, and the bytes past which a body kept among them is said by its size
+// channel's last messages are stored, and the bytes past which a body stored among them is given by its size
 #define CLI_COMMS_PARTS 256u
 #define CLI_COMMS_LISTENERS 512u
 #define CLI_COMMS_CHANNELS 256u
 #define CLI_COMMS_FIRST 8u
-#define CLI_COMMS_KEPT 20u
-#define CLI_COMMS_KEPT_BODY 2048u
+#define CLI_COMMS_STORED_MAX 20u
+#define CLI_COMMS_STORED_BODY_MAX 2048u
 
-// the cells the comms layer holds: its tables, each part's grants, and each message kept (comms.c)
-extern CliCellsTally g_cli_comms_cells;
+// the cells the comms layer owns: its tables, each part's grants, and each message stored (comms.c)
+extern CellOwner g_cli_comms_cells;
 
 // A part: whether the place is taken, its key, its name, the process it was given, whether the door takes its key
-// from any process, its grants to listen and to speak, both in one cell of their count, `listen` its first byte and
-// `speak` past the grants to listen, and how many messages it said and had refused
+// from any process, its grants to listen and to send, both in one cell of their count, `listen` its first byte and
+// `send_grant` past the grants to listen, and how many messages it sent and had refused
 typedef struct
 {
     int taken;
     char key[CLI_COMMS_KEY];
-    char name[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
     int has_process;
     unsigned int process;
-    int held;
-    char (*listen)[CLI_NAME_LONGEST];
+    int persistent;
+    char (*listen)[CLI_NAME_MAX_LEN];
     unsigned int listens;
-    char (*speak)[CLI_NAME_LONGEST];
-    unsigned int speaks;
-    unsigned long long said;
+    char (*send_grant)[CLI_NAME_MAX_LEN];
+    unsigned int send_grants;
+    unsigned long long sent_count;
     unsigned long long refused;
 } CliCommsPart;
 
@@ -45,31 +45,32 @@ typedef struct
 {
     int taken;
     unsigned int part;
-    char pattern[CLI_NAME_LONGEST];
+    char pattern[CLI_NAME_MAX_LEN];
     int queued;
-    CliCommsHeard heard;
+    CliCommsRecvFn recv;
     void *context;
 } CliCommsListener;
 
-// A message kept as a channel's last, in a cell of its size, `from` its first byte: the part that said it, ended by a
-// 0, and its body after, whole where it is shorter than CLI_COMMS_KEPT_BODY and else said by its size, `size` bytes
+// A message stored as a channel's last, in a cell of its size, `from` its first byte: the part that sent it, ended by a
+// 0, and its body after, whole where it is shorter than CLI_COMMS_STORED_BODY_MAX and else given by its size, `size`
+// bytes
 typedef struct
 {
     char *from;
     const char *body;
     unsigned long long size;
-} CliCommsKept;
+} CliCommsStoredMsg;
 
 // A channel's traffic: its name, how many messages and bytes it carried, the bytes that went through the transfer
 // layer, how many messages it refused, and its last messages, oldest first from `first`
 typedef struct
 {
-    char name[CLI_NAME_LONGEST];
+    char name[CLI_NAME_MAX_LEN];
     unsigned long long messages;
     unsigned long long bytes;
     unsigned long long transferred;
     unsigned long long refused;
-    CliCommsKept last[CLI_COMMS_KEPT];
+    CliCommsStoredMsg last[CLI_COMMS_STORED_MAX];
     unsigned int first;
     unsigned int count;
 } CliCommsTraffic;

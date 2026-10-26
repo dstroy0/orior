@@ -44,11 +44,18 @@ test("a file dropped on a folder is copied into it behind the window, its bar on
   await invoke("file_write_any", { path: source, text: "a line of the dropped file\n".repeat(400000) });
   const active = editing().active;
   const folder = middle(rowOf("src"));
-  // Each step of the copy as the window hears it, and whether its bar stood on the status bar once the window's own
-  // listener had taken the step: this listener may run before it, so the bar is read a task later.
+  // Each step of the copy as the window hears it, and whether its bar stood on the status bar as the step came or once
+  // the window's own listener had taken it: this listener may run before that one, so the bar is read a task later
+  // too, and the steps may come in one batch, the last taking the bar away before that task runs.
   const heard = [];
   let hearing = true;
-  await listen("bring-progress", ({ payload }) => hearing && setTimeout(() => heard.push({ ...payload, shown: status.reads.has(payload.path) }), 0));
+  await listen("bring-progress", ({ payload }) => {
+    if (!hearing) {
+      return;
+    }
+    const standing = status.reads.has(payload.path);
+    setTimeout(() => heard.push({ ...payload, shown: standing || status.reads.has(payload.path) }), 0);
+  });
   await invoke("plugin:event|emit", { event: "tauri://drag-drop", payload: { paths: [source], position: { x: folder.x * devicePixelRatio, y: folder.y * devicePixelRatio } } });
   await ui.waitFor(() => document.getElementById("status-said").textContent.includes("Copied src/large.txt into the tree"), 10000);
   hearing = false;

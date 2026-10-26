@@ -8,8 +8,8 @@
 // compiler on the device): each step's term and width, read from its operation and its operands' in step order, and
 // each register's linear form, which narrows the width where it is tighter. The host's keymath_record_encode runs it
 // and lays out the key; the device runs it in one thread, since each step reads the steps before it. A linear form's
-// terms are held in an arena the caller gives, each form a run of it; an arena too small for the forms is reported, and
-// the caller gives a larger one and runs the encoding again, which decides the same
+// terms are stored in an arena the caller gives, each form a run of it; an arena too small for the forms is reported,
+// and the caller gives a larger one and runs the encoding again, which decides the same
 
 #include "../../engine_config.h"
 
@@ -34,8 +34,8 @@
 // arena runs again with one twice the size, which decides the same
 #define KEYMATH_ARENA_PER_STEP 8u
 
-// how an encode ends: every step held; a step errored, or a step's table, or an output, the one at `at`; or the arena
-// too small for the forms
+// how an encode ends: every step succeeded; a step errored, or a step's table, or an output, the one at `at`; or the
+// arena too small for the forms
 enum KeymathCoreEnd
 {
     KEYMATH_CORE_OK = 0,
@@ -75,7 +75,7 @@ struct KeymathCoreArena
 
 // an encode: its steps and the fields', members' and tables' sizes it reads, its outputs; each step's term, 1 where
 // its register is never negative, and its form, in step order; the arena; KEYMATH_BOUND_LIMBS words a form's bound is
-// summed in, the caller's, since they are past what a device thread's stack holds; and where it ended, and at what
+// summed in, the caller's, since they are past what a device thread's stack fits; and where it ended, and at what
 struct KeymathCoreEncode
 {
     const EngineRecordStep *steps;
@@ -239,7 +239,7 @@ KEYMATH_CORE int keymath_core_affine_scale(KeymathCoreArena *arena, const Keymat
     return ok;
 }
 
-// a magnitude of at most 2^62 shifted up by `shift` bits, added into the bound's limbs; the bound holds the sum
+// a magnitude of at most 2^62 shifted up by `shift` bits, added into the bound's limbs; the bound contains the sum
 KEYMATH_CORE void keymath_core_add_shifted(unsigned int *bound, unsigned long long magnitude, unsigned long long shift)
 {
     const unsigned int part = (unsigned int)(shift % 32ull);

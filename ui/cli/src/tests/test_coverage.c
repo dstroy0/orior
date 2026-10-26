@@ -1,15 +1,16 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // test_coverage.c: a run's coverage: the shim pytest runs under, which marks each line of the tree's files that runs
-// and writes them with the lines each file could run, and what the run's processes wrote, put together by file and told
+// and writes them with the lines each file could run, and what the run's processes wrote, put together by file and
+// reported
 #include "../command_line/cells.h"
 #include "test_runs_internal.h"
 
 #include "../text/text.h"
 #include <stdlib.h>
 
-// the bytes the coverage told is begun to be written in, doubling as it fills
-#define CLI_COVER_TOLD_FIRST (1u << 16u)
+// the bytes the coverage reported is begun to be written in, doubling as it fills
+#define CLI_COVER_EVENT_INIT_CAP (1u << 16u)
 
 const char g_cli_test_shim[] =
     "\n"
@@ -120,7 +121,7 @@ static void cover_counted(const char *text, unsigned long long size, CliCoverCou
     counts->bytes += size;
 }
 
-// the next part of a cell, `bytes` long, taken from `*at`, its start kept on a word's boundary: its start
+// the next part of a cell, `bytes` long, taken from `*at`, its start aligned to a word's boundary: its start
 static void *cover_part(unsigned char **at, unsigned long long bytes)
 {
     void *const part = *at;
@@ -135,7 +136,7 @@ static int cover_room_taken(const CliCoverCounts *counts)
     const unsigned long long lines = counts->numbers + 1ull;
     const unsigned long long bytes = (files * (sizeof(unsigned long long) + sizeof(unsigned int))) +
                                      (lines * sizeof(CliCoverLine)) + counts->bytes + 1ull + (4ull * 8ull);
-    unsigned char *const cell = cli_cell_taken(bytes, "a run's coverage");
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
     if (cell == NULL)
     {
         return 0;
@@ -144,7 +145,7 @@ static int cover_room_taken(const CliCoverCounts *counts)
     s_cover->room = cell;
     s_cover->names = cover_part(&at, files * sizeof(unsigned long long));
     s_cover->order = cover_part(&at, files * sizeof(unsigned int));
-    // the counts are of files read whole into memory, which an unsigned int's worth of files and lines holds
+    // the counts are of files read whole into memory, which an unsigned int's worth of files and lines represents
     s_cover->files_most = (unsigned int)files;
     s_cover->lines = cover_part(&at, lines * sizeof(CliCoverLine));
     s_cover->lines_most = (unsigned int)lines;
@@ -172,14 +173,14 @@ static void cover_white(CliCoverRead *read)
 }
 
 // a JSON string at the reading, read into `out` as its letters: 1, or 0 where it is none
-static int cover_string(CliCoverRead *read, CliLine *out)
+static int cover_string(CliCoverRead *read, VerbaLinea *out)
 {
     cover_white(read);
     if ((read->at >= read->size) || (read->text[read->at] != '"'))
     {
         return 0;
     }
-    char quoted[CLI_PATH_LONGEST + 2u];
+    char quoted[CLI_PATH_MAX_LEN + 2u];
     const unsigned long long start = read->at;
     read->at += 1ull;
     while ((read->at < read->size) && (read->text[read->at] != '"'))
@@ -196,11 +197,11 @@ static int cover_string(CliCoverRead *read, CliLine *out)
     memor.cpy(&(MemoriaCfg){.dst = quoted, .src = read->text + start, .bytes = length});
     CliJsonNode node[1];
     CfgJsonToken token[1];
-    char letters[CLI_PATH_LONGEST + 2u];
+    char letters[CLI_PATH_MAX_LEN + 2u];
     CliJson json;
     cli_json_begun(&json, node, 1u, letters, sizeof(letters));
-    char why[CLI_SAID_LONGEST];
-    CliLine unread = {why, sizeof(why), 0ull};
+    char why[CLI_ERR_MSG_MAX_LEN];
+    VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int root = cli_json_read(&json, quoted, length, token, 1u, &unread);
     unsigned long long size = 0ull;
     const char *const value = cli_json_string(&json, root, &size);
@@ -208,7 +209,7 @@ static int cover_string(CliCoverRead *read, CliLine *out)
     {
         return 0;
     }
-    cli_line_counted(out, value, size);
+    mmgr_line_put_n(out, value, size);
     return 1;
 }
 
@@ -254,8 +255,8 @@ static void cover_skipped(CliCoverRead *read)
         {
             if (first == '{')
             {
-                char key[CLI_PATH_LONGEST];
-                CliLine line = {key, sizeof(key), 0ull};
+                char key[CLI_PATH_MAX_LEN];
+                VerbaLinea line = {key, sizeof(key), 0ull};
                 (void)cover_string(read, &line);
                 cover_white(read);
                 read->at += 1ull;
@@ -270,8 +271,8 @@ static void cover_skipped(CliCoverRead *read)
     }
     if (first == '"')
     {
-        char ignored[CLI_PATH_LONGEST];
-        CliLine line = {ignored, sizeof(ignored), 0ull};
+        char ignored[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {ignored, sizeof(ignored), 0ull};
         (void)cover_string(read, &line);
         return;
     }
@@ -326,11 +327,11 @@ static void cover_lines(CliCoverRead *read, unsigned int file, unsigned int coul
     read->at += 1ull;
 }
 
-// one coverage file a process wrote, JSON whole and an object, each file it names kept with the lines it marks
+// one coverage file a process wrote, JSON whole and an object, each file it names recorded with the lines it marks
 static void cover_read(const char *text, unsigned long long size)
 {
     char tiny[1];
-    CliLine checked = {tiny, sizeof(tiny), 0ull};
+    VerbaLinea checked = {tiny, sizeof(tiny), 0ull};
     CliCoverRead read = {text, size, 0ull};
     cover_white(&read);
     if (!cli_json_compacted(text, size, &checked) || (read.at >= size) || (text[read.at] != '{'))
@@ -341,8 +342,8 @@ static void cover_read(const char *text, unsigned long long size)
     cover_white(&read);
     while ((read.at < size) && (text[read.at] != '}'))
     {
-        char name[CLI_PATH_LONGEST];
-        CliLine line = {name, sizeof(name), 0ull};
+        char name[CLI_PATH_MAX_LEN];
+        VerbaLinea line = {name, sizeof(name), 0ull};
         (void)cover_string(&read, &line);
         for (unsigned long long at = 0ull; at < line.at; at += 1ull)
         {
@@ -359,9 +360,9 @@ static void cover_read(const char *text, unsigned long long size)
             while ((read.at < size) && (text[read.at] != '}'))
             {
                 char key[16];
-                CliLine key_line = {key, sizeof(key), 0ull};
+                VerbaLinea key_line = {key, sizeof(key), 0ull};
                 (void)cover_string(&read, &key_line);
-                cli_line_closed(&key_line);
+                mmgr_line_finish(&key_line);
                 cover_white(&read);
                 read.at += 1ull;
                 const int ran = (cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "ran", .cap = CLI_CELLS_POOL}));
@@ -411,7 +412,7 @@ static int cover_file_order(const void *left, const void *right)
                           s_cover->text + s_cover->names[*(const unsigned int *)right]);
 }
 
-// whether a file's lines, from `from` to `to` in the lines marked, hold the line `line` as one that could run
+// whether a file's lines, from `from` to `to` in the lines marked, contain the line `line` as one that could run
 static int cover_could(unsigned int from, unsigned int to, unsigned int line)
 {
     for (unsigned int at = from; at < to; at += 1u)
@@ -425,14 +426,14 @@ static int cover_could(unsigned int from, unsigned int to, unsigned int line)
 }
 
 // a file's lines written: those that ran, where it could run them, and those it could run that did not, in order
-static void cover_file_written(CliLine *out, unsigned int from, unsigned int to)
+static void cover_file_written(VerbaLinea *out, unsigned int from, unsigned int to)
 {
     unsigned int could_from = from;
     while ((could_from < to) && (s_cover->lines[could_from].could == 0u))
     {
         could_from += 1u;
     }
-    cli_line_text(out, ",\"ran\":[");
+    mmgr_line_put(out, ",\"ran\":[");
     int first = 1;
     for (unsigned int at = from; at < could_from; at += 1u)
     {
@@ -440,12 +441,12 @@ static void cover_file_written(CliLine *out, unsigned int from, unsigned int to)
         const int again = (at > from) && (s_cover->lines[at - 1u].line == line);
         if (!again && ((could_from == to) || cover_could(could_from, to, line)))
         {
-            cli_line_text(out, first ? "" : ",");
-            cli_line_decimal(out, line, 1u);
+            mmgr_line_put(out, first ? "" : ",");
+            mmgr_line_decimal(out, line, 1u);
             first = 0;
         }
     }
-    cli_line_text(out, "],\"missed\":[");
+    mmgr_line_put(out, "],\"missed\":[");
     first = 1;
     for (unsigned int at = could_from; at < to; at += 1u)
     {
@@ -457,15 +458,15 @@ static void cover_file_written(CliLine *out, unsigned int from, unsigned int to)
         }
         if (!ran)
         {
-            cli_line_text(out, first ? "" : ",");
-            cli_line_decimal(out, line, 1u);
+            mmgr_line_put(out, first ? "" : ",");
+            mmgr_line_decimal(out, line, 1u);
             first = 0;
         }
     }
-    cli_line_text(out, "]}");
+    mmgr_line_put(out, "]}");
 }
 
-void cli_test_coverage_told(CliTestRun *run)
+void cli_test_coverage_emitted(CliTestRun *run)
 {
     static CliLock s_cover_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_cover_lock);
@@ -503,8 +504,8 @@ void cli_test_coverage_told(CliTestRun *run)
         }
         cli_test_file_let_go(text, size);
     }
-    CliLine out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if ((s_cover->files > 0u) && cli_line_growing(&out, CLI_COVER_TOLD_FIRST, "a run's coverage told"))
+    VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
+    if ((s_cover->files > 0u) && cli_growing_line_made(&out, CLI_COVER_EVENT_INIT_CAP))
     {
         qsort(s_cover->lines, s_cover->line_count, sizeof(s_cover->lines[0]), cover_line_order);
         for (unsigned int file = 0u; file < s_cover->files; file += 1u)
@@ -512,9 +513,9 @@ void cli_test_coverage_told(CliTestRun *run)
             s_cover->order[file] = file;
         }
         qsort(s_cover->order, s_cover->files, sizeof(s_cover->order[0]), cover_file_order);
-        cli_line_text(&out, "{\"kind\":\"coverage\",\"run\":");
-        cli_line_decimal(&out, run->number, 1u);
-        cli_line_text(&out, ",\"files\":[");
+        mmgr_line_put(&out, "{\"kind\":\"coverage\",\"run\":");
+        mmgr_line_decimal(&out, run->number, 1u);
+        mmgr_line_put(&out, ",\"files\":[");
         for (unsigned int at = 0u; at < s_cover->files; at += 1u)
         {
             const unsigned int file = s_cover->order[at];
@@ -528,20 +529,20 @@ void cli_test_coverage_told(CliTestRun *run)
             {
                 to += 1u;
             }
-            cli_line_text(&out, (at > 0u) ? ",{\"file\":" : "{\"file\":");
+            mmgr_line_put(&out, (at > 0u) ? ",{\"file\":" : "{\"file\":");
             const char *const name = s_cover->text + s_cover->names[file];
             cli_json_quoted_lossy(&out, (const unsigned char *)name,
                                   cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
             cover_file_written(&out, from, to);
         }
-        cli_line_text(&out, "]}");
-        if (cli_line_fits(&out))
+        mmgr_line_put(&out, "]}");
+        if (mmgr_line_ok(&out))
         {
-            run->tell.told(run->tell.context, out.out, out.at);
+            run->sink.emit(run->sink.context, out.out, out.at);
         }
     }
-    cli_cell_given(out.out);
-    cli_cell_given(s_cover->room);
+    g_cli_cells->persistent_buf_release(out.out, NULL);
+    g_cli_cells->persistent_buf_release(s_cover->room, NULL);
     s_cover->room = NULL;
     s_cover = NULL;
     cli_lock_give(&s_cover_lock);

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // regexp_read.c: a pattern read into nodes: alternation, sequence, quantifiers, escapes, classes and atoms, as
 // JavaScript's syntax writes them; and each alternation's first characters and each repeat's one way filled in once
-// the pattern is read
+// the pattern is read. Each read takes a reader of its own from the cells, as patterns are read on many threads
+#include "../command_line/cells.h"
 #include "regexp_match_internal.h"
 #include "regexp_read_internal.h"
 
@@ -30,17 +31,17 @@ unsigned long long cli_regexp_letters(const char *text, unsigned long long size,
     return count;
 }
 
-// `/<source>/: <why> at <place>` said: CLI_REGEXP_FAILED
+// `/<source>/: <why> at <place>` reported: CLI_REGEXP_FAILED
 unsigned int cli_failed(CliRegexpReader *reader, const char *why)
 {
     if (!reader->failed)
     {
-        cli_line_character(reader->said, '/');
-        cli_line_text(reader->said, reader->source);
-        cli_line_text(reader->said, "/: ");
-        cli_line_text(reader->said, why);
-        cli_line_text(reader->said, " at ");
-        cli_line_decimal(reader->said, reader->at, 0u);
+        mmgr_line_ch(reader->err_msg, '/');
+        mmgr_line_put(reader->err_msg, reader->source);
+        mmgr_line_put(reader->err_msg, "/: ");
+        mmgr_line_put(reader->err_msg, why);
+        mmgr_line_put(reader->err_msg, " at ");
+        mmgr_line_decimal(reader->err_msg, reader->at, 0u);
     }
     reader->failed = 1;
     return CLI_REGEXP_FAILED;
@@ -74,14 +75,14 @@ int cli_eat(CliRegexpReader *reader, unsigned int wanted)
     return 0;
 }
 
-// a node of `kind` made, its fields zero but its group none: its index, or CLI_REGEXP_FAILED where the pattern holds
+// a node of `kind` made, its fields zero but its group none: its index, or CLI_REGEXP_FAILED where the pattern contains
 // as many as it can
 unsigned int cli_node(CliRegexpReader *reader, unsigned int kind)
 {
     CliRegexp *const regexp = reader->regexp;
     if (regexp->nodes >= CLI_REGEXP_NODES)
     {
-        return cli_failed(reader, "more nodes than a pattern holds");
+        return cli_failed(reader, "more nodes than a pattern allows");
     }
     const unsigned int made = regexp->nodes;
     memor.set(&(MemoriaCfg){.dst = &regexp->node[made], .val = 0, .bytes = sizeof(regexp->node[made])});
@@ -97,7 +98,7 @@ unsigned int cli_parented(CliRegexpReader *reader, unsigned int kind, const unsi
     CliRegexp *const regexp = reader->regexp;
     if ((regexp->parts + count) > CLI_REGEXP_PARTS)
     {
-        return cli_failed(reader, "more parts than a pattern holds");
+        return cli_failed(reader, "more parts than a pattern allows");
     }
     const unsigned int made = cli_node(reader, kind);
     if (made == CLI_REGEXP_FAILED)
@@ -122,7 +123,7 @@ int cli_number(CliRegexpReader *reader, unsigned int *value)
         read = (read * 10ull) + (letter - '0');
         reader->at += 1u;
     }
-    // a count past what an unsigned int holds is read as the most
+    // a count past what an unsigned int represents is read as the most
     *value = (read < CLI_REGEXP_UNBOUNDED) ? (unsigned int)read : (CLI_REGEXP_UNBOUNDED - 1u);
     return reader->at != start;
 }
@@ -213,7 +214,7 @@ static unsigned int cli_sequence(CliRegexpReader *reader)
         }
         if (count >= CLI_REGEXP_LEVEL_MOST)
         {
-            return cli_failed(reader, "more parts than a sequence holds");
+            return cli_failed(reader, "more parts than a sequence allows");
         }
         parts[count] = quantified;
         count += 1u;
@@ -238,7 +239,7 @@ unsigned int cli_alternation(CliRegexpReader *reader)
         }
         if (count >= CLI_REGEXP_LEVEL_MOST)
         {
-            return cli_failed(reader, "more alternatives than an alternation holds");
+            return cli_failed(reader, "more alternatives than an alternation allows");
         }
         options[count] = option;
         count += 1u;
@@ -318,35 +319,50 @@ void cli_regexp_roomed(CliRegexp *regexp, CliRegexpRoom *room)
     regexp->part_first = room->part_first;
 }
 
-int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, CliLine *said)
+// the pattern `source` with `flags` read into `regexp` by `reader`, made empty: 1, or 0 with why given
+static int cli_regexp_read_by(CliRegexpReader *reader, CliRegexp *regexp, const char *source, const char *flags,
+                              VerbaLinea *err_msg)
 {
-    static CliRegexpReader s_reader;
-    memor.set(&(MemoriaCfg){.dst = &s_reader, .val = 0, .bytes = sizeof(s_reader)});
-    s_reader.length = cli_regexp_letters(source, cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}),
-                                         s_reader.letters, CLI_REGEXP_LETTERS);
-    s_reader.unicode = cellul.chr(&(CatenaFinitaCfg){.src = flags, .cap = CLI_CELLS_POOL, .byte = 'u'}) != NULL;
-    s_reader.regexp = regexp;
-    s_reader.source = source;
-    s_reader.said = said;
+    reader->length = cli_regexp_letters(source, cellul.len(&(CatenaFinitaCfg){.src = source, .cap = CLI_CELLS_POOL}),
+                                        reader->letters, CLI_REGEXP_LETTERS);
+    reader->unicode = cellul.chr(&(CatenaFinitaCfg){.src = flags, .cap = CLI_CELLS_POOL, .byte = 'u'}) != NULL;
+    reader->regexp = regexp;
+    reader->source = source;
+    reader->err_msg = err_msg;
     regexp->nodes = 0u;
     regexp->items = 0u;
     regexp->parts = 0u;
     regexp->fold = cellul.chr(&(CatenaFinitaCfg){.src = flags, .cap = CLI_CELLS_POOL, .byte = 'i'}) != NULL;
-    const unsigned int root = cli_alternation(&s_reader);
+    const unsigned int root = cli_alternation(reader);
     if (root == CLI_REGEXP_FAILED)
     {
         return 0;
     }
-    if (s_reader.at < s_reader.length)
+    if (reader->at < reader->length)
     {
-        cli_failed(&s_reader, "an unmatched )");
+        cli_failed(reader, "an unmatched )");
         return 0;
     }
     regexp->root = root;
-    regexp->groups = s_reader.groups;
+    regexp->groups = reader->groups;
     cli_filled(regexp, root);
     regexp->first = cli_regexp_first_of(regexp, root);
     cli_ascii_known(regexp);
     regexp->anchored = cli_anchored(regexp, root);
     return 1;
+}
+
+int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, VerbaLinea *err_msg)
+{
+    // patterns are read on many threads at once, each by a reader in a cell of its own
+    CliRegexpReader *const reader = g_cli_cells->persistent_buf_alloc(sizeof(CliRegexpReader), NULL);
+    if (reader == NULL)
+    {
+        mmgr_line_put(err_msg, "the pattern could not be read: the cells cannot meet it");
+        return 0;
+    }
+    mmgr_zero_buf(reader, sizeof(*reader));
+    const int read = cli_regexp_read_by(reader, regexp, source, flags, err_msg);
+    g_cli_cells->persistent_buf_release(reader, NULL);
+    return read;
 }

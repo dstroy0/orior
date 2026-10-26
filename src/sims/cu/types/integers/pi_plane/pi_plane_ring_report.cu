@@ -8,29 +8,29 @@
 int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, unsigned int draws, unsigned int blind,
                 unsigned int blind_first, int balanced, unsigned int funnels, const std::string &directory)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const std::vector<unsigned long long> sizes = plane_ring_sizes(bits, PLANE_BITS_MAX);
     const unsigned long long total = plane_ring_total(sizes);
     if ((sizes.size() < 2u) || (total + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS))
     {
-        scriptura_text(line, "  the rings need ");
-        scriptura_decimal(line, total, 1u);
-        scriptura_text(line, " bits and a wider exact integer\n");
+        mmgr_line_put(line, "  the rings need ");
+        mmgr_line_decimal(line, total, 1u);
+        mmgr_line_put(line, " bits and a wider exact integer\n");
         sim_check(results, 0, "the rings fit the exact width");
         return 0;
     }
     std::vector<unsigned char> ring_bits(bits.begin(), bits.begin() + (ptrdiff_t)std::min<size_t>(bits.size(), total));
     // the bits are unsigned int wide, and the total is at most PLANE_BITS_MAX
     int ok = (ring_bits.size() == total) || plane_bits(results, (unsigned int)total, &ring_bits);
-    scriptura_text(line, "  the rings: ring k holds floor(pi 2^k) bits,");
+    mmgr_line_put(line, "  the rings: ring k contains floor(pi 2^k) bits,");
     for (const unsigned long long size : sizes)
     {
-        scriptura_character(line, ' ');
-        scriptura_decimal(line, size, 1u);
+        mmgr_line_ch(line, ' ');
+        mmgr_line_decimal(line, size, 1u);
     }
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, total, 1u);
-    scriptura_text(line, " bits in all\n");
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, total, 1u);
+    mmgr_line_put(line, " bits in all\n");
     const PlaneTurn turn = plane_turn(ring_bits);
     std::vector<unsigned char> drawn;
     plane_shuffle(ring_bits, 0u, &drawn);
@@ -58,31 +58,31 @@ int plane_rings(SimResults *results, const std::vector<unsigned char> &bits, uns
         agree_band.push_back(drawn_measurement.agree);
         run_band.push_back(drawn_measurement.run);
     }
-    scriptura_text(line, "  each bit against the bit at its angle one ring in: ");
-    scriptura_decimal(line, measurement.agree, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, measurement.pairs, 1u);
-    scriptura_text(line, " agree");
+    mmgr_line_put(line, "  each bit against the bit at its angle one ring in: ");
+    mmgr_line_decimal(line, measurement.agree, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, measurement.pairs, 1u);
+    mmgr_line_put(line, " agree");
     plane_band_print(line, agree_band, measurement.agree);
-    scriptura_text(line, "  the longest chain of equal bits running outward: ");
-    scriptura_decimal(line, measurement.run, 1u);
-    scriptura_text(line, " rings, ending on ring ");
-    scriptura_decimal(line, measurement.run_ring, 1u);
-    scriptura_text(line, " at place ");
-    scriptura_decimal(line, measurement.run_place, 1u);
+    mmgr_line_put(line, "  the longest chain of equal bits running outward: ");
+    mmgr_line_decimal(line, measurement.run, 1u);
+    mmgr_line_put(line, " rings, ending on ring ");
+    mmgr_line_decimal(line, measurement.run_ring, 1u);
+    mmgr_line_put(line, " at place ");
+    mmgr_line_decimal(line, measurement.run_place, 1u);
     plane_band_print(line, run_band, measurement.run);
-    scriptura_text(line, "  the pictures pi_rings.png (true radius 2^(k - 1)), pi_rings_center.png (rings 0 to ");
-    scriptura_decimal(line, center - 1u, 1u);
-    scriptura_text(line, " at twice the size) and pi_rings_unrolled.png (ring k as row k), each with its shuffle\n");
+    mmgr_line_put(line, "  the pictures pi_rings.png (true radius 2^(k - 1)), pi_rings_center.png (rings 0 to ");
+    mmgr_line_decimal(line, center - 1u, 1u);
+    mmgr_line_put(line, " at twice the size) and pi_rings_unrolled.png (ring k as row k), each with its shuffle\n");
     sim_flush(results);
 
     // the spirals, on the bits the pictures showed and on pi's next block of as many bits, which no picture showed
     plane_ring_spiral_read(results, sizes, ring_bits, draws, "the rings' bits");
     if (2ull * total + PLANE_GUARD + 64ull > ORIOR_EXACT_BITS)
     {
-        scriptura_text(line, "  the next block needs an exact width of ");
-        scriptura_decimal(line, (2ull * total) + PLANE_GUARD + 64ull, 1u);
-        scriptura_text(line, " bits, not read\n");
+        mmgr_line_put(line, "  the next block needs an exact width of ");
+        mmgr_line_decimal(line, (2ull * total) + PLANE_GUARD + 64ull, 1u);
+        mmgr_line_put(line, " bits, not read\n");
         sim_flush(results);
         return 1;
     }
@@ -182,18 +182,18 @@ unsigned int plane_number(int count, char **arguments, const char *name, unsigne
     return fallback;
 }
 
-void plane_line_print(ScripturaLine *line, const PlaneLine &found)
+void plane_line_print(VerbaLinea *line, const PlaneLine &found)
 {
-    scriptura_decimal(line, found.length, 1u);
-    scriptura_text(line, " bits along (");
-    scriptura_signed(line, found.step.row);
-    scriptura_text(line, ", ");
-    scriptura_signed(line, found.step.column);
-    scriptura_text(line, ") from bit ");
-    scriptura_signed(line, found.start);
+    mmgr_line_decimal(line, found.length, 1u);
+    mmgr_line_put(line, " bits along (");
+    mmgr_line_decimal_signed(line, found.step.row);
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal_signed(line, found.step.column);
+    mmgr_line_put(line, ") from bit ");
+    mmgr_line_decimal_signed(line, found.start);
 }
 
-void plane_band_print(ScripturaLine *line, std::vector<unsigned long long> band, unsigned long long measurement)
+void plane_band_print(VerbaLinea *line, std::vector<unsigned long long> band, unsigned long long measurement)
 {
     std::sort(band.begin(), band.end());
     unsigned long long reached = 0ull;
@@ -201,15 +201,15 @@ void plane_band_print(ScripturaLine *line, std::vector<unsigned long long> band,
     {
         reached += (each >= measurement) ? 1ull : 0ull;
     }
-    scriptura_text(line, "; the draws: least ");
-    scriptura_decimal(line, band.front(), 1u);
-    scriptura_text(line, ", median ");
-    scriptura_decimal(line, band[band.size() / 2u], 1u);
-    scriptura_text(line, ", most ");
-    scriptura_decimal(line, band.back(), 1u);
-    scriptura_text(line, "; ");
-    scriptura_decimal(line, reached, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, band.size(), 1u);
-    scriptura_text(line, " reach pi's\n");
+    mmgr_line_put(line, "; the draws: least ");
+    mmgr_line_decimal(line, band.front(), 1u);
+    mmgr_line_put(line, ", median ");
+    mmgr_line_decimal(line, band[band.size() / 2u], 1u);
+    mmgr_line_put(line, ", most ");
+    mmgr_line_decimal(line, band.back(), 1u);
+    mmgr_line_put(line, "; ");
+    mmgr_line_decimal(line, reached, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, band.size(), 1u);
+    mmgr_line_put(line, " reach pi's\n");
 }

@@ -3,7 +3,7 @@
 // pi_plane_rings.cu: rings, turns and spirals
 #include "pi_plane_internal.h"
 
-// ring k holds floor(pi 2^k) bits, floor(pi 2^(k + 1)) = 2 floor(pi 2^k) + pi's bit k + 1; the rings that fit most
+// ring k contains floor(pi 2^k) bits, floor(pi 2^(k + 1)) = 2 floor(pi 2^k) + pi's bit k + 1; the rings that fit most
 std::vector<unsigned long long> plane_ring_sizes(const std::vector<unsigned char> &bits, unsigned long long maximum)
 {
     std::vector<unsigned long long> sizes;
@@ -302,7 +302,7 @@ static unsigned long long plane_ring_spirals(const std::vector<unsigned long lon
 void plane_ring_spiral_read(SimResults *results, const std::vector<unsigned long long> &sizes,
                             const std::vector<unsigned char> &block, unsigned int draws, const char *label)
 {
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     long long slope = 0ll;
     unsigned long long agree = 0ull;
     const unsigned long long excess = plane_ring_spirals(sizes, block.data(), &slope, &agree);
@@ -319,25 +319,25 @@ void plane_ring_spiral_read(SimResults *results, const std::vector<unsigned long
     }
     unsigned long long pairs = 0ull;
     const unsigned long long radial = plane_ring_slope(sizes, block.data(), 0ll, &pairs);
-    scriptura_text(line, "  ");
-    scriptura_text(line, label);
-    scriptura_text(line, ": the radial agreement ");
-    scriptura_decimal(line, radial, 1u);
-    scriptura_text(line, " of ");
-    scriptura_decimal(line, pairs, 1u);
-    scriptura_text(line, "; the best spiral, slope ");
-    scriptura_signed(line, slope);
-    scriptura_text(line, ", agrees on ");
-    scriptura_decimal(line, agree, 1u);
+    mmgr_line_put(line, "  ");
+    mmgr_line_put(line, label);
+    mmgr_line_put(line, ": the radial agreement ");
+    mmgr_line_decimal(line, radial, 1u);
+    mmgr_line_put(line, " of ");
+    mmgr_line_decimal(line, pairs, 1u);
+    mmgr_line_put(line, "; the best spiral, slope ");
+    mmgr_line_decimal_signed(line, slope);
+    mmgr_line_put(line, ", agrees on ");
+    mmgr_line_decimal(line, agree, 1u);
     plane_band_print(line, agree_band, agree);
-    scriptura_text(line, "  ");
-    scriptura_text(line, label);
-    scriptura_text(line, ": the spirals' excess over every slope from -");
-    scriptura_decimal(line, PLANE_RING_SLOPES, 1u);
-    scriptura_text(line, " to ");
-    scriptura_decimal(line, PLANE_RING_SLOPES, 1u);
-    scriptura_text(line, ", ");
-    scriptura_decimal(line, excess, 1u);
+    mmgr_line_put(line, "  ");
+    mmgr_line_put(line, label);
+    mmgr_line_put(line, ": the spirals' excess over every slope from -");
+    mmgr_line_decimal(line, PLANE_RING_SLOPES, 1u);
+    mmgr_line_put(line, " to ");
+    mmgr_line_decimal(line, PLANE_RING_SLOPES, 1u);
+    mmgr_line_put(line, ", ");
+    mmgr_line_decimal(line, excess, 1u);
     plane_band_print(line, excess_band, excess);
     sim_flush(results);
 }

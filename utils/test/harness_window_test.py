@@ -4,10 +4,11 @@
 a window of the run's own, started on a copy of ui/test/fixtures/tree with a home of its own, its page loaded fresh
 for each file, and every press, key, drag and wheel sent as real input. The window is driven through its debugging
 port where its web view is WebView2, on Windows, and through WebDriver where it is WebKitGTK, on Linux; --docker runs
-the suite in the harness's Linux image on this machine.
+the suite in the harness's Linux image on this machine. On macOS, where the web view is WKWebView, the window is driven
+through Appium's Mac2 driver by the tests of ui/test/appium, through its accessibility tree (harness_appium.py).
 
-    harness.py window test [--only TEXT]... [--driver cdp|webdriver] [--docker] [--sanitize address|thread]
-                           [--monitor N] [--monitors] [--no-servers] [--keep-window] [--stop-servers]
+    harness.py window test [--only TEXT]... [--driver cdp|webdriver|appium] [--docker] [--sanitize address|thread]
+                           [--monitor N] [--monitors] [--no-servers] [--keep-window] [--stop-servers] [--trees FOLDER]
 
 --sanitize builds the window's C side and links the window under that sanitizer, with clang's runtime, and the window
 runs with its reports written to sanitizer.<pid> in the run's folder; a report fails the run. On Windows the released
@@ -33,6 +34,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 from utils.tools import findroot  # noqa: E402
 
+import harness_appium  # noqa: E402
 import harness_cdp  # noqa: E402
 import harness_input  # noqa: E402
 import harness_page  # noqa: E402
@@ -132,7 +134,7 @@ class Report:
 def options_of(words):
     parser = argparse.ArgumentParser(prog="harness.py window test", add_help=True)
     parser.add_argument("--only", action="append", default=[], help="the test files whose paths hold this text")
-    parser.add_argument("--driver", choices=("cdp", "webdriver"), default="cdp" if os.name == "nt" else "webdriver")
+    parser.add_argument("--driver", choices=("cdp", "webdriver", "appium"), default="cdp" if os.name == "nt" else "appium" if sys.platform == "darwin" else "webdriver")
     parser.add_argument("--docker", action="store_true", help="the suite in the harness's Linux image on this machine")
     parser.add_argument("--sanitize", choices=("address", "thread"), default="", help="the window built and run under this sanitizer, its reports in the run's folder")
     parser.add_argument("--monitor", type=int, default=int(os.environ.get("ORIOR_TEST_MONITOR") or 0), help="the display's number, as the system's settings give it")
@@ -141,6 +143,7 @@ def options_of(words):
     parser.add_argument("--keep-window", action="store_true")
     parser.add_argument("--debugger", action="store_true", help="on Windows, the window run under cdb: where it faults, every thread's stack goes to the run's window.log")
     parser.add_argument("--stop-servers", action="store_true", help="every test server taken away")
+    parser.add_argument("--trees", default="", help="the folder the run's tree is copied into, where the run's folder lies on a share each file's open crosses: the container's own disk")
     return parser.parse_args(words)
 
 
@@ -240,16 +243,24 @@ def told_servers(names, read):
 
 
 def version_of(program):
-    try:
-        out = subprocess.run([program, "--version"], stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace", timeout=20)
-        text = out.stdout or out.stderr
-        return text.strip().splitlines()[0] if text.strip() else ""
-    except (OSError, subprocess.TimeoutExpired) as error:
-        return "--version did not run: %s" % error
+    """The first line `program` gives its version in: asked with --version, and with -v where that fails, as Poppler's
+    programs take it."""
+    said = ""
+    for asked in ("--version", "-v"):
+        try:
+            out = subprocess.run([program, asked], stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace", timeout=20)
+        except (OSError, subprocess.TimeoutExpired) as error:
+            return "%s did not run: %s" % (asked, error)
+        text = (out.stdout or out.stderr).strip()
+        said = text.splitlines()[0] if text else ""
+        if out.returncode == 0:
+            return said
+    return said
 
 
-def environment(run, tree):
-    """The system read: an outcome for each program the tests drive, for the run's folder, and for the display."""
+def environment(run, tree, trees):
+    """The system read: an outcome for each program the tests drive, for the run's folder, and for the display; the
+    run's tree lies in the run's folder, or in `trees` where one is named."""
     outcomes = []
     posix = os.name != "nt"
     for row in table(PROGRAMS_TABLE):
@@ -265,8 +276,9 @@ def environment(run, tree):
         outcomes.append(harness_page.Outcome("the run's folder is writable", True))
     except OSError as error:
         outcomes.append(harness_page.Outcome("the run's folder is writable", False, 0, "%s: %s" % (run, error)))
-    inside = os.path.abspath(tree).startswith(os.path.abspath(run))
-    outcomes.append(harness_page.Outcome("the tests write into the run's own copy of the tree", inside, 0, "" if inside else "%s lies outside %s" % (tree, run)))
+    holder = trees or run
+    inside = os.path.abspath(tree).startswith(os.path.abspath(holder))
+    outcomes.append(harness_page.Outcome("the tests write into the run's own copy of the tree", inside, 0, "" if inside else "%s lies outside %s" % (tree, holder)))
     if posix and sys.platform != "darwin":
         display = os.environ.get("DISPLAY", "")
         outcomes.append(harness_page.Outcome("a display is set", bool(display), 0, display or "DISPLAY is not set"))
@@ -432,7 +444,9 @@ def inside_container(passed):
     words = " ".join("'%s'" % word.replace("'", "'\\''") for word in passed if word != "--docker")
     sync = "rsync -a --checksum --no-times --delete --exclude /test/runs --exclude /cli/target --exclude /gui/src-tauri/target --exclude __pycache__ /host/ui/ /top/ui/"
     sync += " && rsync -a --checksum --no-times --delete --exclude __pycache__ /host/utils/ /top/utils/ && mkdir -p /top/src && rsync -a --checksum --no-times --delete /host/src/cu/ /top/src/cu/ && cp /host/bin_names.tsv /top/bin_names.tsv"
-    run = "dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' orior-watch python3 /top/utils/test/harness.py window test --driver webdriver --no-servers %s" % words
+    # the run's folder is the host's, reached over the share Docker mounts it through; the tree the window works on lies
+    # on the volume, where a file's open is the image's own system's
+    run = "dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24 -dpi 96' orior-watch python3 /top/utils/test/harness.py window test --driver webdriver --no-servers --trees /top/build/ui_test/trees %s" % words
     return (sync + " && " + run).strip()
 
 
@@ -504,11 +518,18 @@ def cmd_window_test(a):
             print("  %s  %dx%d at %d,%d" % (device, right - left, bottom - top, left, top))
         return 0
     tests = ["src/" + file for file in files_under(os.path.join(SUITE, "src"), ".test.js") if not options.only or any(only in file for only in options.only)]
+    if options.only and not tests:
+        print("no test file under ui/test/src has a path holding %s" % " or ".join(options.only))
+        return 1
     needed = harness_servers.reached_in([os.path.join(SUITE, file) for file in tests])
     if options.docker:
         return run_in_docker(words, needed)
     run = os.path.join(RUNS, stamp())
     tree = os.path.join(run, "tree")
+    if options.trees:
+        # the trees of the runs before taken away: one run's tree stands in the folder at a time
+        shutil.rmtree(options.trees, ignore_errors=True)
+        tree = os.path.join(options.trees, os.path.basename(run), "tree")
     os.makedirs(run, exist_ok=True)
     report = Report()
     env = [("ORIOR_TEST_HTTP", harness_servers.echo_server())]
@@ -545,9 +566,9 @@ def cmd_window_test(a):
     code = 1
     try:
         print("guest", flush=True)
-        report.files.append(("the system", environment(run, tree), []))
-        print("window, through %s" % ("WebDriver" if options.driver == "webdriver" else "the debugging port"), flush=True)
-        if tests:
+        report.files.append(("the system", environment(run, tree, options.trees), []))
+        print("window, through %s" % {"webdriver": "WebDriver", "appium": "Appium's Mac2 driver"}.get(options.driver, "the debugging port"), flush=True)
+        if tests or options.driver == "appium":
             drive(options, run, tree, env, benched, report)
         if not options.only:
             untested(report)
@@ -564,7 +585,8 @@ def cmd_window_test(a):
 def drive(options, run, tree, env, benched, report):
     """The window built and started on the run's tree, the files run in it, and the window ended."""
     gui_name = bin_named("gui")
-    told = env + [("ORIOR_TEST_HOME", os.path.join(run, "home")), ("ORIOR_TEST_TREE", tree)]
+    # the driver told too, for a test whose steps only the debugging port takes as often as it sends them
+    told = env + [("ORIOR_TEST_HOME", os.path.join(run, "home")), ("ORIOR_TEST_TREE", tree), ("ORIOR_TEST_DRIVER", options.driver)]
     extra = [("ORIOR_SSH", value) for key, value in env if key == "ORIOR_TEST_SSH"] + sanitizer_settings(options.sanitize, run)
     tests = ["src/" + file for file in files_under(os.path.join(SUITE, "src"), ".test.js") if not options.only or any(only in file for only in options.only)]
     try:
@@ -573,6 +595,17 @@ def drive(options, run, tree, env, benched, report):
         if benched:
             bench_placed(tree)
         os.makedirs(os.path.join(run, "home"), exist_ok=True)
+        if options.driver == "appium":
+            # the page's own files run in no page here: the window is driven through its accessibility tree by the
+            # tests of ui/test/appium
+            app = harness_appium.application(window_built(gui_name))
+            environment = dict([("ORIOR_HOME", os.path.join(run, "home")), ("ORIOR_ROOT", tree), ("ORIOR_NO_REPORTS", "1")] + list(extra))
+            driven = harness_appium.Driven(run)
+            try:
+                harness_appium.run_files(driven, app, environment, tree, options.only, report, harness_page.Outcome)
+            finally:
+                driven.close()
+            return
         if options.driver == "webdriver":
             program = harness_webdriver.build(gui_name, options.sanitize)
             told.append(("ORIOR_TEST_PROGRAM", program))

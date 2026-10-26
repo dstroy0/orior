@@ -17,7 +17,7 @@ static int cli_same_pixel(const unsigned char *row, unsigned long long a, unsign
     return memor.cmp(&(MemoriaCfg){.src = row + (a * pixel), .other = row + (b * pixel), .bytes = pixel}) == 0;
 }
 
-void cli_print_compress(const CliPixels *page, CliLine *out)
+void cli_print_compress(const CliPixels *page, VerbaLinea *out)
 {
     const unsigned long long line = page->width * page->channels;
     const unsigned long long pixel = page->channels;
@@ -32,7 +32,7 @@ void cli_print_compress(const CliPixels *page, CliLine *out)
             repeat += 1ull;
         }
         // a count of at most 256 written less one as a byte
-        cli_line_character(out, (char)(unsigned char)(repeat - 1ull));
+        mmgr_line_ch(out, (char)(unsigned char)(repeat - 1ull));
         unsigned long long x = 0ull;
         while (x < page->width)
         {
@@ -43,8 +43,8 @@ void cli_print_compress(const CliPixels *page, CliLine *out)
                 {
                     run += 1ull;
                 }
-                cli_line_character(out, (char)(unsigned char)(run - 1ull));
-                cli_line_counted(out, (const char *)(row + (x * pixel)), pixel);
+                mmgr_line_ch(out, (char)(unsigned char)(run - 1ull));
+                mmgr_line_put_n(out, (const char *)(row + (x * pixel)), pixel);
                 x += run;
             }
             else
@@ -56,8 +56,8 @@ void cli_print_compress(const CliPixels *page, CliLine *out)
                     run += 1ull;
                 }
                 // a run of different pixels written as 257 less its length, a byte
-                cli_line_character(out, (char)(unsigned char)((run == 1ull) ? 0ull : (257ull - run)));
-                cli_line_counted(out, (const char *)(row + (x * pixel)), run * pixel);
+                mmgr_line_ch(out, (char)(unsigned char)((run == 1ull) ? 0ull : (257ull - run)));
+                mmgr_line_put_n(out, (const char *)(row + (x * pixel)), run * pixel);
                 x += run;
             }
         }
@@ -65,9 +65,9 @@ void cli_print_compress(const CliPixels *page, CliLine *out)
     }
 }
 
-void cli_print_pwg_begin(CliLine *out)
+void cli_print_pwg_begin(VerbaLinea *out)
 {
-    cli_line_text(out, "RaS2");
+    mmgr_line_put(out, "RaS2");
 }
 
 // a number put in a head at `at` as its four bytes, the high first
@@ -80,7 +80,7 @@ static void cli_put(unsigned char *head, unsigned int at, unsigned long long val
     }
 }
 
-void cli_print_pwg_page(CliLine *out, const CliPixels *page, const CliPrintLayout *layout, unsigned int dpi,
+void cli_print_pwg_page(VerbaLinea *out, const CliPixels *page, const CliPrintLayout *layout, unsigned int dpi,
                         unsigned int count)
 {
     unsigned char head[CLI_PWG_HEAD];
@@ -113,19 +113,19 @@ void cli_print_pwg_page(CliLine *out, const CliPixels *page, const CliPrintLayou
     memor.cpy(&(MemoriaCfg){.dst = head + 1732u,
                             .src = media,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = media, .cap = CLI_CELLS_POOL})});
-    cli_line_counted(out, (const char *)head, sizeof(head));
+    mmgr_line_put_n(out, (const char *)head, sizeof(head));
     cli_print_compress(page, out);
 }
 
-void cli_print_urf_begin(CliLine *out, unsigned int count)
+void cli_print_urf_begin(VerbaLinea *out, unsigned int count)
 {
     unsigned char head[4];
-    cli_line_counted(out, "UNIRAST", 8u);
+    mmgr_line_put_n(out, "UNIRAST", 8u);
     cli_put(head, 0u, count);
-    cli_line_counted(out, (const char *)head, 4u);
+    mmgr_line_put_n(out, (const char *)head, 4u);
 }
 
-void cli_print_urf_page(CliLine *out, const CliPixels *page, unsigned int dpi)
+void cli_print_urf_page(VerbaLinea *out, const CliPixels *page, unsigned int dpi)
 {
     unsigned char head[32];
     memor.set(&(MemoriaCfg){.dst = head, .val = 0, .bytes = sizeof(head)});
@@ -137,6 +137,6 @@ void cli_print_urf_page(CliLine *out, const CliPixels *page, unsigned int dpi)
     cli_put(head, 12u, page->width);
     cli_put(head, 16u, page->height);
     cli_put(head, 20u, dpi);
-    cli_line_counted(out, (const char *)head, sizeof(head));
+    mmgr_line_put_n(out, (const char *)head, sizeof(head));
     cli_print_compress(page, out);
 }

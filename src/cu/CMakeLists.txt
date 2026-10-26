@@ -19,9 +19,12 @@ endif()
 
 # MMgr, built as orior builds it: its suites left to its own runs, embedded_types taken from the tree's copy, and its
 # objects plain ones, since orior's library is linked by the window's linker, which reads no LLVM bitcode. orior_mmgr
-# builds the modules of its host environment, the ones ui/cli/build.sh joins to the command line's objects
+# builds the modules of its host environment, the ones ui/cli/build.sh joins to the command line's objects. Every
+# cellblock takes its spinlock around each entry and lists the owners that took a cell from it
 set(MMGR_BUILD_TESTS OFF)
 set(MMGR_LTO OFF)
+set(MMGR_ENABLE_LOCK ON)
+set(MMGR_ENABLE_OWNERS ON)
 set(FETCHCONTENT_SOURCE_DIR_EMBEDDED_TYPES "${CMAKE_CURRENT_SOURCE_DIR}/includes/embedded_types")
 add_subdirectory(includes/mmgr)
 get_property(ORIOR_MMGR_MODULES GLOBAL PROPERTY MMGR_TARGETS_host)

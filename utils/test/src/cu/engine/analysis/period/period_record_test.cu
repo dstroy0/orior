@@ -34,7 +34,7 @@
 #define RECORD_TEST_TIMED_YX 640ull
 
 // the most the test puts on the device at once: the timed lattice's lanes, both routes' pools, and 8 MiB for the
-// record programs' compiled modules beside them. It stays under the job's kept peak, which the daemon holds a
+// record programs' compiled modules beside them. It stays under the job's recorded peak, which the daemon checks a
 // declaration to
 #define RECORD_TEST_DECLARED(voxels_, entries_)                                                                        \
     (((voxels_) * sizeof(unsigned short)) + period_reserve_bytes((voxels_), (entries_)) +                             \
@@ -202,9 +202,9 @@ static void record_shape(SimResults *results, const RecordShape *shape)
     const unsigned long long voxels = shape->extent[0] * shape->extent[1] * shape->extent[2];
     unsigned short *const lanes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
     unsigned short *device_lanes = NULL;
-    int ok = (lanes != NULL) && sim_status_check(results,
-                                                  cudaMalloc((void **)&device_lanes, voxels * sizeof(unsigned short)),
-                                                  "the shape's lanes are held on the device");
+    int ok = (lanes != NULL) &&
+             sim_status_check(results, cudaMalloc((void **)&device_lanes, voxels * sizeof(unsigned short)),
+                              "the shape's lanes are allocated on the device");
     if (ok != 0)
     {
         record_fill(shape, lanes);
@@ -305,7 +305,7 @@ static void record_shape(SimResults *results, const RecordShape *shape)
                 }
             }
         }
-        // the reading's band holds, axis by axis, the draws' heights that are not zero, sorted by period_select
+        // the reading's band contains, axis by axis, the draws' heights that are not zero, sorted by period_select
         int band_same = drawn_same;
         for (unsigned int axis = 0u; (band_same != 0) && (axis < 3u); axis += 1u)
         {
@@ -318,7 +318,7 @@ static void record_shape(SimResults *results, const RecordShape *shape)
         snprintf(what, sizeof(what), "%llu x %llu x %llu: every draw's heights are the host's line by line null",
                  shape->extent[0], shape->extent[1], shape->extent[2]);
         sim_check(results, drawn_same, what);
-        snprintf(what, sizeof(what), "%llu x %llu x %llu: the reading's band holds the draws' heights",
+        snprintf(what, sizeof(what), "%llu x %llu x %llu: the reading's band contains the draws' heights",
                  shape->extent[0], shape->extent[1], shape->extent[2]);
         sim_check(results, band_same, what);
     }
@@ -335,9 +335,9 @@ static void record_timed(SimResults *results)
     const unsigned long long voxels = shape.extent[0] * shape.extent[1] * shape.extent[2];
     unsigned short *const lanes = (unsigned short *)malloc((size_t)voxels * sizeof(unsigned short));
     unsigned short *device_lanes = NULL;
-    int ok = (lanes != NULL) && sim_status_check(results,
-                                                  cudaMalloc((void **)&device_lanes, voxels * sizeof(unsigned short)),
-                                                  "the timed lattice is held on the device");
+    int ok = (lanes != NULL) &&
+             sim_status_check(results, cudaMalloc((void **)&device_lanes, voxels * sizeof(unsigned short)),
+                              "the timed lattice is allocated on the device");
     if (ok != 0)
     {
         record_fill(&shape, lanes);
@@ -370,15 +370,15 @@ static void record_timed(SimResults *results)
         spent[route] = record_now() - began;
     }
     sim_check(results, done[0] && done[1] && done[2] && done[3], "30 x 640 x 640: every route runs");
-    ScripturaLine *const line = &results->line;
+    VerbaLinea *const line = &results->line;
     const char *const names[4] = {"period_read", "period_record_read", "period_draw", "period_record_draw"};
     for (unsigned int route = 0u; route < 4u; route += 1u)
     {
-        scriptura_text(line, "  30 x 640 x 640: ");
-        scriptura_text(line, names[route]);
-        scriptura_text(line, " ");
-        scriptura_decimal(line, spent[route], 1u);
-        scriptura_text(line, " us\n");
+        mmgr_line_put(line, "  30 x 640 x 640: ");
+        mmgr_line_put(line, names[route]);
+        mmgr_line_put(line, " ");
+        mmgr_line_decimal(line, spent[route], 1u);
+        mmgr_line_put(line, " us\n");
     }
     cudaFree(device_lanes);
     free(lanes);

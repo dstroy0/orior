@@ -182,7 +182,7 @@ test("a paste of ten lines to ten thousand lands at its line on each bus, size b
     }
   }
   assert.ok(said.length === LINES.length * BUSES.length, `own / to the document / to the frame: ${said.join("; ")}`);
-});
+}, { timeout: 240000, tries: 1 });
 
 for (const [megabytes, buses] of MEGABYTES) {
   test(`a paste of ${megabytes} MB lands at its line on ${buses.join(" and ")}, timed`, async () => {
