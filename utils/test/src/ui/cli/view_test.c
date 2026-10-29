@@ -290,6 +290,16 @@ int main(void)
                   frame_has("\"cursor\":{\"line\":1,\"col\":8}"),
               "the completion's text replaces the prefix, the cursor after it");
     cli_check(cli_view_changed_taken(s_key2) && !cli_view_changed_taken(s_key2), "the change is reported once");
+    const CliViewInput placed = {CLI_VIEW_PLACE, NULL, NULL, 0ull, 0u, 0ull, 7ull, 0u, 0, 0ull, 0u, 0u, 0};
+    CliPlace placed_cursor;
+    CliPlace placed_anchor;
+    cli_check(cli_view_input(s_key2, &placed, &why) && cli_view_cursor(s_key2, &placed_cursor, &placed_anchor) &&
+                  (placed_cursor.line == 0ull) && (placed_cursor.col == 7ull) && (placed_anchor.col == 7ull),
+              "a place input puts the cursor at the line and unit");
+    const CliViewInput placed_far = {CLI_VIEW_PLACE, NULL, NULL, 0ull, 0u, 9ull, 90ull, 0u, 0, 0ull, 0u, 0u, 0};
+    cli_check(cli_view_input(s_key2, &placed_far, &why) && cli_view_cursor(s_key2, &placed_cursor, &placed_anchor) &&
+                  (placed_cursor.line == 2ull) && (placed_cursor.col == 0ull),
+              "a place past the text is cut to its last line and that line's end");
     char full[CLI_PATH_MAX_LEN];
     cli_check(!cli_view_served(s_key2, full) && cli_view_served_set(s_key2, "/tree/check/words.txt") && cli_view_served(s_key2, full) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "/tree/check/words.txt", .cap = sizeof(full)}),

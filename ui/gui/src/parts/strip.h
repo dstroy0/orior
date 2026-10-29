@@ -38,11 +38,17 @@ typedef struct
     int side;
 } GuiTool;
 
-// The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none
+// the mark's side in the page's pixels and how far in from the button's corner it stands
+#define GUI_STRIP_MARK 6
+#define GUI_STRIP_MARK_IN 7
+
+// The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none; and
+// whether the Problems tool is marked, as it is while errors stand
 typedef struct
 {
     int pointed;
     int shown;
+    int problems_marked;
 } GuiStrip;
 
 // a strip pointing at and showing no tool
@@ -64,7 +70,7 @@ int gui_strip_keyed(GuiStrip *strip, const char *name);
 // the tool `at` shown, or closed where it was the one shown; a tool that opens a menu changes nothing
 void gui_strip_toggled(GuiStrip *strip, unsigned int at);
 // the strip drawn: its tint and the frame's gap's, and each tool's button, the one shown on its ground in signal,
-// the one pointed on the pointed ground
+// the one pointed on the pointed ground, and the Problems tool's mark in the error's color while it is marked
 void gui_strip_drawn(GuiRaster *raster, GuiIcons *icons, const GuiPalette *palette, const GuiFrame *frame,
                      const GuiStrip *strip);
 #endif

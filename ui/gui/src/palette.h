@@ -27,7 +27,8 @@ typedef struct
 // among the text, a fold's, the line of a widget over the text and the grounds of find's matches, the current one's
 // stronger; the minimap's selection, its match, its slider and the slider dragged; the shown tab's ground and the
 // line along it; the ground of the strip's tool whose window shows, the signal at a share; the side pane's ground,
-// the ink at half; the eight colors a file's mark takes; and its tokens, `token_count` of them
+// the ink at half; a diagnostic's error, warning and note colors; the eight colors a file's mark takes; and its
+// tokens, `token_count` of them
 typedef struct
 {
     GuiColor ground;
@@ -70,6 +71,9 @@ typedef struct
     GuiColor tab_line;
     GuiColor strip_on;
     GuiColor side_ground;
+    GuiColor error;
+    GuiColor warning;
+    GuiColor note;
     GuiColor mark[GUI_MARKS];
     const GuiTokenColor *token;
     unsigned int token_count;

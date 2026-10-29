@@ -16,14 +16,16 @@
 #include "document.h"
 
 // what the window sends: a key, text typed, the pointer, a scroll, the view's size, and a completion accepted, whose
-// `text` replaces the `column` units before the cursor; the pointer's events; the tab's width in cells where nothing
-// sets the indentation; and the milliseconds within which edits of one kind undo as one step
+// `text` replaces the `column` units before the cursor, and a place, the cursor put at the line `row` and the unit
+// `column`; the pointer's events; the tab's width in cells where nothing sets the indentation; and the milliseconds
+// within which edits of one kind undo as one step
 #define CLI_VIEW_KEY 0u
 #define CLI_VIEW_TEXT 1u
 #define CLI_VIEW_POINTER 2u
 #define CLI_VIEW_SCROLL 3u
 #define CLI_VIEW_SIZE 4u
 #define CLI_VIEW_COMPLETE 5u
+#define CLI_VIEW_PLACE 6u
 #define CLI_VIEW_POINTER_DOWN 0u
 #define CLI_VIEW_POINTER_MOVED 1u
 #define CLI_VIEW_POINTER_UP 2u

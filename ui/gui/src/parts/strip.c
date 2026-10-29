@@ -177,5 +177,14 @@ void gui_strip_drawn(GuiRaster *raster, GuiIcons *icons, const GuiPalette *palet
             gui_raster_masked(raster, mask, button.x + ((button.width - (int)icon) / 2), button.y + ((button.height - (int)icon) / 2),
                               color, on);
         }
+        // the Problems tool's mark, a dot in the error's color at the button's top right corner
+        if (strip->problems_marked && cellul.eq(&(CatenaFinitaCfg){.src = s_tools[at].name, .other = "problems", .cap = 32ull}))
+        {
+            const int mark = gui_scaled(GUI_STRIP_MARK, scale);
+            const int in = gui_scaled(GUI_STRIP_MARK_IN, scale);
+            const GuiRect dot = {button.x + button.width - in - mark, button.y + in, mark, mark};
+            // the dot's corners round by half its side, the dot a circle
+            gui_raster_rounded(raster, gui_rect_met(dot, on), (unsigned int)(mark / 2), palette->error);
+        }
     }
 }

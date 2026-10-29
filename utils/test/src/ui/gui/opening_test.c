@@ -486,14 +486,44 @@ int main(void)
                   cellul.eq(&(CatenaFinitaCfg){.src = window.tab[window.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
               "a file pressed in the tree opens as a tab");
 
+    // the problems pane: a file's diagnostics come as an event, the strip's Problems tool is marked while an error
+    // stands, the tool pressed shows the pane in the side, and a diagnostic's row pressed opens its file at its place
+    static const char s_diagnostics[] =
+        "{\"path\":\"ui/gui/src/raster.c\",\"items\":[{\"from\":{\"line\":13,\"col\":4},\"to\":{\"line\":13,\"col\":18},\"severity\":1,\"message\":\"a test's error\"}]}";
+    gui_link_emitted(&window.link, "lsp-diagnostics", s_diagnostics, sizeof(s_diagnostics) - 1u);
+    waited(&window, &count, 50ull);
+    cli_check((window.problems.files == 1u) && (window.problems.errors == 1u) && window.strip.problems_marked,
+              "a file's diagnostics event is taken and the Problems tool marked");
+    int problems_tool = -1;
+    for (unsigned int at = 0u; at < gui_strip_tools(); at += 1u)
+    {
+        // the tools are fewer than an int counts
+        problems_tool = cellul.eq(&(CatenaFinitaCfg){.src = gui_strip_tool(at)->name, .other = "problems", .cap = 32ull}) ? (int)at : problems_tool;
+    }
+    cli_check(problems_tool >= 0, "the strip has the Problems tool");
+    // the tool is among the tools
+    const GuiRect problems_button = gui_strip_button(&window.frame, (unsigned int)problems_tool);
+    gui_window_pressed(&window, problems_button.x + 10, problems_button.y + 10, 0u);
+    cli_check((window.strip.shown == problems_tool) && (window.frame.side.width > 0), "the Problems tool pressed shows its pane in the side");
+    gui_window_drawn(&window);
+    cli_check(gui_problems_rows(&window.problems) == 2u, "the pane lists the file and its diagnostic");
+    const GuiRect problem_row = gui_problems_row_rect(&window.problems, &window.frame, 1u);
+    gui_editor_made(&window.editor);
+    gui_window_pressed(&window, problem_row.x + 40, problem_row.y + 5, 0u);
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = window.tab[window.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}) &&
+                  cursor_came_at(&window, &count, 13ull, 4ull),
+              "a diagnostic's row pressed opens its file at its place");
+    gui_window_pressed(&window, explorer_button.x + 10, explorer_button.y + 10, 0u);
+    cli_check(window.strip.shown == 0, "the explorer's tool pressed shows the tree again");
+
     // the tabs and the one shown are kept in orior's folder, the checks' own, as the page keeps them, and a window
     // started again on the tree brings them back with the one shown
     cli_check(kept_came(&window, &count, picked) && kept_came(&window, &count, "active"), "the tabs and the one shown are kept in orior's folder");
     static GuiWindow again;
     cli_check(gui_window_begun(&again, woken, &count, &why) && gui_window_sized(&again, 800u, 500u, 1.0f), "a window begins again");
     gui_window_started(&again);
-    cli_check(tabs_came(&again, &count, 2u) && (again.active >= 0) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = again.tab[again.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
+    cli_check(tabs_came(&again, &count, 3u) && (again.active >= 0) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = again.tab[again.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}),
               "the window started again brings the kept tabs back and shows the one kept shown");
     cli_check(lines_came(&again, &count), "the tab brought back shows its lines");
     gui_window_ended(&again);

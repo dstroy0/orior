@@ -2162,6 +2162,14 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
         const CliPlace from = {view->cursor.line, view->cursor.col - back};
         taken = view_edited(view, from, view->cursor, input->text, input->length, CLI_VIEW_KIND_NONE, err_msg);
     }
+    else if (input->kind == CLI_VIEW_PLACE)
+    {
+        // the cursor placed at the line `row` and the unit `column`, each cut to the text, the top following it
+        const unsigned long long lines = view_lines(view);
+        const unsigned long long line = (input->row < lines) ? input->row : ((lines > 0ull) ? lines - 1ull : 0ull);
+        const unsigned long long length = view_length(view, line);
+        view_moved(view, (CliPlace){line, (input->column < length) ? input->column : length}, 0, 0);
+    }
     // a paged text's pages are told where the view stands and cache the lines about it
     if (view->paged)
     {

@@ -15,6 +15,7 @@
 #include "parts/hover.h"
 #include "parts/menubar.h"
 #include "parts/minimap.h"
+#include "parts/problems.h"
 #include "parts/signature.h"
 #include "parts/statusbar.h"
 #include "parts/strip.h"
@@ -44,7 +45,9 @@
 // where none is, whether the completion is to be asked for as the next frame comes, whether that ask was forced by
 // the keys, whether each panel's ask is to be made again with the server once its answer without the server comes,
 // whether the server is to be told the text as the next frame comes, an input having changed it, and the cursor's
-// place the signature was last asked at; when the view's rows last moved, 0 once the
+// place the signature was last asked at; the problems pane, the ticket of the tree's check asked for, and the place
+// the shown file's cursor is to be put at as its next frame comes, where one is wanted; when the view's rows last
+// moved, 0 once the
 // server was told the view they rest at, whether it was told, and the top and rows it was told; the claim and
 // whether its slides ran at the last tick, the view told the editor's size as they stop; the
 // catalog of commands the menu bar reads, parsed into a JSON tree of its own once it came; the tree's name shown in the bar;
@@ -83,6 +86,10 @@ typedef struct
     int signature_again;
     int told_wanted;
     GuiPlace signature_place;
+    GuiProblems problems;
+    unsigned long long asked_check;
+    GuiPlace place_wanted;
+    int place_pending;
     unsigned long long view_moved_ms;
     int view_told;
     unsigned long long view_told_top;

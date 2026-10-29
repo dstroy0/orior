@@ -53,6 +53,14 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
         mmgr_line_put(err_msg, "the completion's cells could not be taken");
         return 0;
     }
+    if (!gui_problems_made(&window->problems))
+    {
+        gui_suggest_given(&window->suggest);
+        gui_explorer_given(&window->explorer);
+        gui_minimap_given(&window->minimap);
+        mmgr_line_put(err_msg, "the problems' cells could not be taken");
+        return 0;
+    }
     if (!gui_glyphs_made(&window->glyphs, err_msg))
     {
         return 0;
@@ -88,7 +96,16 @@ void gui_window_ended(GuiWindow *window)
     gui_hover_given(&window->hover);
     gui_suggest_given(&window->suggest);
     gui_signature_given(&window->signature);
+    gui_problems_given(&window->problems);
     gui_raster_given(&window->raster);
+}
+
+// whether the strip's tool shown is named `name`
+static int window_tool_named(const GuiWindow *window, const char *name)
+{
+    // the tool shown is among the tools
+    return (window->strip.shown >= 0) &&
+           cellul.eq(&(CatenaFinitaCfg){.src = gui_strip_tool((unsigned int)window->strip.shown)->name, .other = name, .cap = 32ull});
 }
 
 // the rows the editor shows, and the columns
@@ -279,6 +296,34 @@ static void window_view_moved(GuiWindow *window)
     if (!window->view_told || (window->view_told_top != window->editor.top) || (window->view_told_rows != window_rows(window)))
     {
         window->view_moved_ms = cli_clock_milliseconds();
+    }
+}
+
+// the shown view's cursor put at `line`, `col`, the view following it
+static void window_placed(GuiWindow *window, unsigned long long line, unsigned long long col)
+{
+    char more[64];
+    VerbaLinea text = {more, sizeof(more), 0ull};
+    mmgr_line_put(&text, ",\"row\":");
+    mmgr_line_decimal(&text, line, 1u);
+    mmgr_line_put(&text, ",\"column\":");
+    mmgr_line_decimal(&text, col, 1u);
+    (void)mmgr_line_finish(&text);
+    window_view_input(window, CLI_VIEW_PLACE, more);
+}
+
+// the file at `path` opened as a tab shown with its cursor at `line`, `col`: at once where its view is shown,
+// else as its view's next frame comes
+static void window_opened_at(GuiWindow *window, const char *path, unsigned long long line, unsigned long long col)
+{
+    window->place_wanted = (GuiPlace){line, col};
+    window->place_pending = 1;
+    gui_window_file_opened(window, path);
+    if (window->viewed && (window->active >= 0) &&
+        cellul.eq(&(CatenaFinitaCfg){.src = window->tab[window->active].path, .other = path, .cap = CLI_PATH_MAX_LEN}))
+    {
+        window->place_pending = 0;
+        window_placed(window, line, col);
     }
 }
 
@@ -1378,6 +1423,12 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
         {
             window_frame_taken(window, &json, root);
             window_map_asked(window);
+            // a place wanted, as a problem's row picked it, is put as the view's first frame comes
+            if (window->place_pending)
+            {
+                window->place_pending = 0;
+                window_placed(window, window->place_wanted.line, window->place_wanted.col);
+            }
             // the completion waits for the frame that places the cursor after the key typed; a signature shown
             // follows the cursor, asked again as the cursor leaves the place it was asked at
             if (window->told_wanted)
@@ -1441,6 +1492,24 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
              cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "command", .cap = 64ull}))
     {
         window_commanded(window, &json, root);
+    }
+    else if ((ticket == 0ull) && (root != CLI_JSON_NONE) &&
+             cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "lsp-diagnostics", .cap = 64ull}))
+    {
+        // a file's diagnostics come as its server or a checker reports them; the strip's Problems tool is marked
+        // while errors stand
+        (void)gui_problems_put(&window->problems, &json, root);
+        window->strip.problems_marked = window->problems.errors > 0u;
+    }
+    else if ((ticket == 0ull) && (root != CLI_JSON_NONE) &&
+             cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "tree-check", .cap = 64ull}))
+    {
+        gui_problems_checking(&window->problems, gui_answer_member_whole(&json, root, "done", 0ull),
+                              gui_answer_member_whole(&json, root, "total", 0ull));
+    }
+    else if ((ticket != 0ull) && (ticket == window->asked_check))
+    {
+        window->asked_check = 0ull;
     }
     if (ok)
     {
@@ -1531,6 +1600,10 @@ void gui_window_drawn(GuiWindow *window)
     // cut round, and the holes the parts shown over the work make in it while the claim holds
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
+    // the shown file's diagnostics underlined on the rows drawn
+    const unsigned int code_size = (unsigned int)(((float)GUI_CODE_SIZE * frame->scale) + 0.5f);
+    gui_problems_underlined(&window->problems, window->path, &window->editor, raster, palette, frame->editor,
+                            gui_glyphs_cell(&window->glyphs, code_size), frame->scale);
     gui_minimap_drawn(&window->minimap, raster, palette, &window->editor, frame->map, frame->scale, window_on_screen(window));
     if (!gui_rect_empty(frame->side) && (window->strip.shown >= 0))
     {
@@ -1539,6 +1612,10 @@ void gui_window_drawn(GuiWindow *window)
         gui_explorer_drawn(&window->explorer, raster, &window->glyphs, &window->icons, palette, frame, tool->label,
                            cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ull}), window->title,
                            window->path);
+        if (window_tool_named(window, "problems"))
+        {
+            gui_problems_drawn(&window->problems, raster, &window->glyphs, palette, frame);
+        }
     }
     gui_raster_corners_cut(raster, frame->inside, frame->radius, palette->ground);
     GuiRect holes[4];
@@ -1638,7 +1715,9 @@ void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
     // the wheel over the side scrolls the explorer's rows; over the editor or the map, the text
     if (gui_rect_holds(window->frame.side, x, y))
     {
-        window->owed = gui_explorer_wheeled(&window->explorer, &window->frame, rows) || window->owed;
+        const int moved = window_tool_named(window, "problems") ? gui_problems_wheeled(&window->problems, &window->frame, rows)
+                                                                : gui_explorer_wheeled(&window->explorer, &window->frame, rows);
+        window->owed = moved || window->owed;
         return;
     }
     // the wheel over the completion's list scrolls its rows
@@ -1741,6 +1820,27 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
         window_sided(window);
         return;
     }
+    // a press in the problems pane starts or stops the tree's check, closes or opens a file's rows, or opens a file
+    // at a diagnostic's place
+    GuiProblemPick problem;
+    if (window_tool_named(window, "problems") && gui_problems_pressed(&window->problems, &window->frame, x, y, &problem))
+    {
+        window->owed = 1;
+        window_claimed(window, 0);
+        if ((problem.kind == GUI_PROBLEMS_PICK_CHECK) || (problem.kind == GUI_PROBLEMS_PICK_STOP))
+        {
+            char args_text[8];
+            VerbaLinea args = {args_text, sizeof(args_text), 0ull};
+            mmgr_line_put(&args, "{}");
+            window->asked_check =
+                window_called(window, 0, (problem.kind == GUI_PROBLEMS_PICK_CHECK) ? "problems_check" : "problems_check_stop", &args);
+        }
+        else if (problem.kind == GUI_PROBLEMS_PICK_OPEN)
+        {
+            window_opened_at(window, problem.path, problem.line, problem.col);
+        }
+        return;
+    }
     // a press in the side opens or closes a folder, asking for its listing the first time, or opens a file
     GuiPick pick;
     if (gui_explorer_pressed(&window->explorer, &window->frame, x, y, &pick))
@@ -1819,7 +1919,8 @@ void gui_window_moved(GuiWindow *window, int x, int y)
     {
         window->owed = 1;
     }
-    if (gui_explorer_moved(&window->explorer, &window->frame, x, y))
+    if (window_tool_named(window, "problems") ? gui_problems_moved(&window->problems, &window->frame, x, y)
+                                              : gui_explorer_moved(&window->explorer, &window->frame, x, y))
     {
         window->owed = 1;
     }
