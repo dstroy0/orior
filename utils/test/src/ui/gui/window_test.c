@@ -170,6 +170,18 @@ int main(void)
     gui_window_wheel(&window, 400, 20, 1);
     cli_check(window.editor.top == 1ull, "the wheel over the bar scrolls nothing");
 
+    // the window's icon: the eye in the text's color with its own alpha, clear at a corner
+    GuiRaster icon;
+    cli_check(gui_window_icon(&window, &icon, 32u) && (icon.width == 32u), "the window's icon is made at its size");
+    unsigned int inked = 0u;
+    for (unsigned int at_pixel = 0u; at_pixel < 32u * 32u; at_pixel += 1u)
+    {
+        inked += (GUI_ALPHA_OF(icon.pixels[at_pixel]) != 0u) ? 1u : 0u;
+    }
+    cli_check((inked > 50u) && (GUI_ALPHA_OF(icon.pixels[0]) == 0u) && ((icon.pixels[(16u * 32u) + 16u] & 0x00ffffffu) == (palette->text & 0x00ffffffu)),
+              "the icon's pixels are the text's color with the eye's cover as their alpha");
+    gui_raster_given(&icon);
+
     cli_check(gui_window_sized(&window, 640u, 400u, 1.0f), "the window sized again remakes its raster");
     cli_check((window.raster.width == 640u) && (window.frame.bar.width == 640), "the parts follow the new size");
 

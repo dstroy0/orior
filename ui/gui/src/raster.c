@@ -412,6 +412,16 @@ void gui_raster_masked(GuiRaster *raster, const GuiMask *mask, int x, int y, Gui
     }
 }
 
+void gui_raster_stenciled(GuiRaster *raster, const GuiMask *mask, GuiColor color)
+{
+    const unsigned long long pixels = (unsigned long long)mask->width * mask->height;
+    const unsigned int most = (raster->width * raster->height < pixels) ? raster->width * raster->height : (unsigned int)pixels;
+    for (unsigned int at = 0u; at < most; at += 1u)
+    {
+        raster->pixels[at] = ((GuiColor)mask->cover[at] << 24u) | (color & 0x00ffffffu);
+    }
+}
+
 // the 4 by 4 ordered threshold at x, y, 0 to 15, as the page's shader orders it: the pixel's own parity across and
 // down weighs most, its pair's parity the rest
 static unsigned int raster_ordered(int x, int y)

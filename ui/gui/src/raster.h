@@ -84,6 +84,9 @@ void gui_raster_line(GuiRaster *raster, int x0, int y0, int x1, int y1, GuiColor
 // `mask` laid with its top left at x, y, each pixel blended in `color` by its coverage and the color's alpha, no
 // further than `clip` and the raster
 void gui_raster_masked(GuiRaster *raster, const GuiMask *mask, int x, int y, GuiColor color, GuiRect clip);
+// the raster made `mask`'s picture in `color`: each pixel the color with the mask's cover as its alpha, straight
+// over nothing, the raster's size the mask's, for an icon the system takes with its own alpha
+void gui_raster_stenciled(GuiRaster *raster, const GuiMask *mask, GuiColor color);
 // a dot about x, y of `radius`, each in pixels, soft-edged: each pixel takes `color` by the color's alpha and the
 // pixel's share inside the dot, a pixel-wide ramp from all of it at the dot's edge to none a pixel out, the share
 // dithered by a 4 by 4 ordered threshold below one level of 255, which puts a share between two levels down as both

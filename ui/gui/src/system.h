@@ -68,6 +68,10 @@ void gui_system_wake(GuiSystem *system);
 void gui_system_tick(GuiSystem *system, unsigned long long after);
 // the window minimized, maximized or restored, or asked to close
 void gui_system_act(GuiSystem *system, unsigned int act);
+// the window's icon given to the system as `title_icon` and `taskbar_icon`, each a raster of the icon's pixels with
+// their own alpha, straight, the system copying them: the title's and the taskbar's icon on Windows, _NET_WM_ICON on
+// X11
+void gui_system_icon(GuiSystem *system, const GuiRaster *title_icon, const GuiRaster *taskbar_icon);
 // where the window stands, in the system's own pixels, and whether it fills its monitor; and the scale the system
 // draws it at, 1 at 96 dots an inch
 void gui_system_placed(const GuiSystem *system, CliWindowPlace *place);

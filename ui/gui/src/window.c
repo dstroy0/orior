@@ -597,10 +597,12 @@ static void window_names_given(GuiWindow *window, unsigned int at)
 }
 
 // the tree's session and the explorer's group written to orior's folder under the keys the page keeps them by, once
-// the tree's kept tabs are back: the tabs' paths in order, the one shown, and the strip's side tool shown
+// the tree's kept tabs are back: the tabs' paths in order, the one shown, and the strip's side tool shown; a window
+// with no tabs and no session known writes nothing, which keeps a session the folder holds from being written over
+// by a read that failed to bring it
 static void window_kept(GuiWindow *window)
 {
-    if (!window->restored || (window->root[0] == '\0'))
+    if (!window->restored || (window->root[0] == '\0') || (!window->session_known && (window->tabs == 0u)))
     {
         return;
     }
@@ -687,6 +689,19 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
                      gui_ground_laid(&window->ground, width, height, scale, window->palette, cli_clock_milliseconds());
     window_view_sized(window);
     return made;
+}
+
+int gui_window_icon(GuiWindow *window, GuiRaster *icon, unsigned int size)
+{
+    // the eye's line at the size, no thinner than a pixel
+    const float stroke = GUI_EYE_STROKE * (float)size / GUI_EYE_SIDE;
+    const GuiMask *const eye = gui_icon(&window->icons, "eye", size, (stroke < 1.0f) ? 1.0f : stroke);
+    if ((eye == NULL) || (eye->cover == NULL) || !gui_raster_made(icon, size, size))
+    {
+        return 0;
+    }
+    gui_raster_stenciled(icon, eye, window->palette->text);
+    return 1;
 }
 
 void gui_window_shown(GuiWindow *window, int shown)
@@ -956,6 +971,8 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         gui_minimap_cleared(&window->minimap);
         window_panels_hidden(window);
         window_claimed(window, 0);
+        // the last tab closed is the session's own change: kept, tabs or none
+        window->session_known = 1;
         window_kept(window);
         return;
     }
@@ -1136,6 +1153,7 @@ static void window_restored(GuiWindow *window, const CliJson *json, unsigned int
     mmgr_line_put(&keyed, window->root);
     unsigned long long size = 0ull;
     const char *const session = (mmgr_line_finish(&keyed) != 0ull) ? cli_json_string(json, cli_json_member(json, root, key), &size) : NULL;
+    window->session_known = (session != NULL);
     if (session != NULL)
     {
         char err_text[256];

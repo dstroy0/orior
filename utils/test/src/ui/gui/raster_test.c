@@ -143,6 +143,12 @@ int main(void)
     gui_raster_line(&raster, 0, 0, 3, 3, ink);
     cli_check(raster.pixels[(2u * 8u) + 2u] == 0xff102030u, "a diagonal colors the pixels it crosses");
 
+    const unsigned char stencil_cover[32] = {0u, 255u, 128u, 0u};
+    const GuiMask stencil = {8u, 4u, 0, 0, (unsigned char *)stencil_cover};
+    gui_raster_stenciled(&raster, &stencil, GUI_RGB(0x10u, 0x20u, 0x30u));
+    cli_check((raster.pixels[0] == 0x00102030u) && (raster.pixels[1u] == 0xff102030u) && (raster.pixels[2u] == 0x80102030u),
+              "a stencil lays the color with the mask's cover as each pixel's alpha");
+
     gui_raster_filled(&raster, whole, black);
     gui_raster_dotted(&raster, 4.0f, 2.0f, 1.5f, white);
     cli_check(red_of(raster.pixels[(2u * 8u) + 4u]) >= 254u, "a dot's middle takes the whole color, within the dither");

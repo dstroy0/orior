@@ -9,8 +9,11 @@
 // the window's size where none is kept, in the system's pixels
 #define GUI_FIRST_WIDTH 1440u
 #define GUI_FIRST_HEIGHT 920u
-// the monitors read at the most
+// the monitors read at the most; and the icon's sides in pixels, the small one the title's and the large one the
+// taskbar's and the switcher's
 #define GUI_MONITORS 16u
+#define GUI_ICON_SMALL 32u
+#define GUI_ICON_LARGE 128u
 
 static GuiWindow s_window;
 static GuiSystem *s_system;
@@ -165,6 +168,15 @@ int main(void)
         gui_window_ended(&s_window);
         cli_window_ended();
         return 1;
+    }
+    // the window's icon, the eye at the title's size and the taskbar's, the system taking its own copies
+    GuiRaster small;
+    GuiRaster large;
+    if (gui_window_icon(&s_window, &small, GUI_ICON_SMALL) && gui_window_icon(&s_window, &large, GUI_ICON_LARGE))
+    {
+        gui_system_icon(s_system, &small, &large);
+        gui_raster_given(&large);
+        gui_raster_given(&small);
     }
     gui_window_started(&s_window);
     gui_system_run(s_system);

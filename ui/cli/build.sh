@@ -63,8 +63,8 @@ fi
 # ORIOR_SANITIZE=address or thread builds every object and link under that sanitizer, with frame pointers kept for
 # its stacks and the code position-independent, since the sanitizer's constructors keep every object's sections in
 # the window's shared library, into build/cli/<target>-<sanitizer> beside the plain build; the window's build links
-# the same. Every report is recoverable, so a program run with halting off tells each one and goes on, and the
-# bundler runs so here
+# the same. Every report is recoverable: a program run with halting off tells each one and goes on, and the
+# bundler here runs with halting off
 SANITIZE="${ORIOR_SANITIZE:-}"
 SANITIZE_WORDS=()
 if [ -n "$SANITIZE" ]; then
@@ -75,7 +75,7 @@ if [ -n "$SANITIZE" ]; then
     export TSAN_OPTIONS="halt_on_error=0${TSAN_OPTIONS:+:$TSAN_OPTIONS}"
 fi
 
-# MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with, so a CLI source
+# MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with: a CLI source
 # reaching a module header sees the layouts the module was compiled to; each cellblock keeps its high-water mark, in
 # the CLI's objects and in MMgr's alike, since the mark is a member of every cellblock's state, and each takes its
 # spinlock and lists its owners, as src/cu/CMakeLists.txt builds MMgr
@@ -154,7 +154,7 @@ mmgr_built() {
     mkdir -p "$TOP/build/orior_cmake"
     vector_words_of "$target"
     # a cache configured for another compiler goes first: CMake re-runs its configure when the compiler changes and
-    # that re-run drops the flags given on the command line, so MMgr's host entries go unbuilt
+    # that re-run drops the flags given on the command line, which leaves MMgr's host entries unbuilt
     local cached
     cached="$(sed -n 's/^CMAKE_C_COMPILER:[A-Z]*=//p' "$into/CMakeCache.txt" 2>/dev/null)"
     if [ -n "$cached" ] && [ "$cached" != "$CC" ] && [ "$cached" != "$(command -v "$CC" 2>/dev/null)" ]; then
@@ -213,7 +213,7 @@ compiled() {
 }
 
 # the objects after `listed`, each as a path from the tree's top, one a line into the file `listed`, which a program
-# run from the top takes as @listed, so no command line grows past what Windows takes
+# run from the top takes as @listed, which keeps every command line inside what Windows takes
 listed_into() {
     local listed="$1"
     shift
@@ -269,10 +269,10 @@ if [ "$LIBRARY" = 1 ]; then
 fi
 # the window: its own sources, the system's body for the target among them, compiled as the command line's are and
 # linked with the same objects and the system's own libraries; on Windows a program of the windows subsystem entered
-# at main, so no console opens with it
+# at main, which opens no console with it
 if [ "$WINDOW" = 1 ]; then
     case "$TARGET" in
-        *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
+        *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -ldwmapi -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
         *darwin*) echo "  build failed: the window has no body for $TARGET"; exit 1 ;;
         *) BODY="system_x11.c"; GUI_LIBRARIES=(-lX11) ;;
     esac

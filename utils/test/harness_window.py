@@ -271,6 +271,39 @@ def cmd_bench(a):
     return harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, "frame_bench"])
 
 
+def orior_home():
+    """orior's own folder, where it keeps its state: ORIOR_HOME where set, else the user's roaming folder on Windows and
+    ~/.orior elsewhere."""
+    if os.environ.get("ORIOR_HOME"):
+        return os.environ["ORIOR_HOME"]
+    if os.name == "nt":
+        return os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "orior")
+    return os.path.join(os.path.expanduser("~"), ".orior")
+
+
+def cmd_session(a):
+    """The tree's kept session in orior's state written as given: the tabs in order and the one shown, under the key
+    the window and the page keep it by, the rest of the state left as it stands; or read and printed where no tabs
+    are given."""
+    import json
+
+    path = os.path.join(orior_home(), "state.json")
+    key = "session." + os.path.normpath(ROOT)
+    state = {}
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as kept:
+            state = json.load(kept)
+    if not a.tabs:
+        print(json.dumps(state.get(key), indent=2))
+        return 0
+    active = a.active or a.tabs[-1]
+    state[key] = {"tabs": list(a.tabs), "main": list(a.tabs), "active": active, "split": None, "groups": []}
+    with open(path, "w", encoding="utf-8") as kept:
+        json.dump(state, kept, indent=2)
+    print("kept %d tabs for %s, %s shown, in %s" % (len(a.tabs), ROOT, active, path))
+    return 0
+
+
 def cmd_watch(a):
     if not windows_only():
         return 1
@@ -1173,6 +1206,10 @@ def register(sub):
     p.set_defaults(fn=cmd_check)
     p = window.add_parser("bench", help="the frame bench: a monitor-sized frame of the window drawn without a display, timed")
     p.set_defaults(fn=cmd_bench)
+    p = window.add_parser("session", help="the tree's kept session in orior's state: written from the tabs given, or printed")
+    p.add_argument("tabs", nargs="*", help="the tabs' paths from the tree's top, in order")
+    p.add_argument("--active", help="the tab shown; the last given where none")
+    p.set_defaults(fn=cmd_session)
 
     p = window.add_parser("watch", help="started alone with its output kept, ended after --seconds where it still runs")
     p.add_argument("--seconds", type=int, default=25)

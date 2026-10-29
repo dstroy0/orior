@@ -17,8 +17,9 @@ static CellOwner s_owner = MMGR_CELL_OWNER("gui_icons");
 #define ICONS_STEP 0.5f
 #define ICONS_PATHS 3u
 
-// An icon's shape: its name, its paths, its dots as `fills` triples of center x, center y and radius, and whether it
-// is the cog, drawn from its teeth
+// An icon's shape: its name, its paths, its dots as `fills` triples of center x, center y and radius, whether it is
+// the cog, drawn from its teeth; its own box, left, top, width and height in its units, where it is not drawn on the
+// square of sixteen, the box fitted to the square and centered; and a closed path filled whole, where it has one
 typedef struct
 {
     const char *name;
@@ -26,7 +27,59 @@ typedef struct
     const float *fill;
     unsigned int fills;
     int cog;
+    const float *box;
+    const char *filled;
 } GuiIconShape;
+
+// the eye of the wordmark, the page's line art: each stroke the center line of one line of the drawing, and the
+// iris its one filled shape, in the drawing's own units within its box
+static const char s_eye_strokes[] =
+    "M164.8 30.5L164.2 32.8L164.5 65M136.5 42.2L140.5 68M191.5 42.8L188.5 63L188 67L188.2 68.2"
+    "M113.2 55.2L113.8 58.2L119.8 74.8M215.5 55.8L208.5 75M231.5 71.2L225.7 82.2L224.5 83.5"
+    "M96.8 71.5L103.1 82.8L103.2 84.2M83.8 87.2L89 93.8M244.8 87.2L239.2 93.8M256.2 101.2L252.8 105.2"
+    "M72.8 102L75.8 105.5M164.8 106L164.5 107.5"
+    "M164.5 107.5L162.4 109.2L141 146.5L140.6 148.2L141.3 149.3L147.8 149.5L149.8 150"
+    "M164.5 107.5L166.6 109.2L187.1 144.8L188.5 148.8M164.8 127L164.5 127.8"
+    "M164.2 128L162.4 129.8L153.9 144.5L152.9 146.5L152.5 148.8"
+    "M164.8 128L166.4 129.5L173.7 142L176.2 146.8L176.8 149M77.8 136.5L76.2 138.1L64.8 145.8L61 147.2"
+    "M250.2 136.5L251.5 137.9L262 145L268.5 148.8"
+    "M60.8 147L61.9 143.9L65.5 139.5L71 133.5L83.2 121.8L97.2 110.5L104.2 105.7L113 100.6L121 96.4L128 93.4L141.5 89.1"
+    "L147.5 87.7L160 86L172 86L184 87.6L196.2 90.9L203.8 93.6L210 96.5L217.8 100.6L226 105.7L240.8 116.9L253.4 128.8"
+    "L267.6 144.5L268.7 147L268.8 148.8"
+    "M60.5 147.2L59.2 150.8M152.2 149L150 150M152.5 149L155 149.5L176.5 149.2"
+    "M188.2 149L187 149.5L181.2 149.5L179.2 150M188.8 149L189.8 149.2M268.8 149L269 150.8"
+    "M75.5 149.2L64.8 150.8L59.5 151M177 149.2L178.5 149.5L179 150M252.5 149.2L263.2 150.8L268.8 151"
+    "M149.8 150.2L148.9 153.2L141.2 166.5L140.6 168.5L141.1 169.6L187.9 169.6L188.4 168.5L187.8 166.5L180.2 153.5L179.2 150.2"
+    "M59.2 151.2L59.2 152.5L59.7 154L61.8 156.2M269 151.2L269.2 151.8M272.2 151.8L269.5 152"
+    "M269.2 152.2L268.8 154M268.5 154.2L263 155.4L251.5 159.8M268.8 154.5L267.9 157.5L265.8 160.2"
+    "M62.2 156.2L63.8 155.5L65.2 155.7L75.5 159.4L76.8 159.5M62 156.5L63 159.2L65 161.2"
+    "M265.2 160.2L262.5 161.1L253.2 167.7L241 175.2L230 180.8L215.8 186.6L199 191.4L197.5 192.2"
+    "M265.5 160.5L264.9 162.8L263.8 164.5L251.8 177.1L240.5 187.1L227.5 196.6L214.5 204.2L202.5 209.7L189 214L182.5 215.1L181 214.8"
+    "M65.5 161.2L68.8 162.3L84.8 172.1L96.2 178.1L113.2 185.1L125.2 188.8L128.8 190.2"
+    "M65.2 161.5L65.7 163.2L66.9 165.2L78.8 177.2L88.5 185.8L103 196.6L115.5 204L127.8 209.6L140.5 213.7L142.8 214.1L144.5 213.8"
+    "M38.8 168.5L43.8 174L52.5 182.6L53.8 185M290 169L277.1 183.2L276 185.5M53.5 185.2L50 189.5"
+    "M54 185.2L56.8 186.5L69.2 197.2L70.5 199.2M275.8 185.8L273 187.2L261.8 196.9L260.4 198.2L259.8 199.8"
+    "M276 185.8L279.8 189.5M129 190.5L131 190.4L141.5 192.6L144.2 192"
+    "M128.8 190.8L129.5 194.5L132.8 200.5L137.2 206L143.2 211L144.8 213.5"
+    "M197 192.2L195.2 192.2L184.2 193.8L181 193.2"
+    "M197.2 192.5L196.5 196L191.9 203.2L187.5 207.8L181.8 211.9L180 214.5M70.2 199.5L69.2 201.2L64 207.8"
+    "M70.8 199.5L72.8 200.1L74.2 201.1L87 210L88.5 211.8"
+    "M259.5 200L258 200.3L256.2 201.3L243 210.5L241.2 212.2M259.8 200L265.8 207.8M146 200.8L150 204.8"
+    "M180.2 201L176.5 204.8M88.8 212L91.8 213L109 222.5M88.5 212.2L87.5 214.8L80.2 227.2"
+    "M241 212.5L238.8 213.2L229 218.6L222.5 221.7L220.8 223.2M241.2 212.5L249.2 227.2"
+    "M145 213.8L153.5 215.9L159.2 216.8L170.5 216.5L173.5 216.2L180 214.5"
+    "M181.2 214.2L181.5 214L181.5 214.5M180 214.5L181 214.8"
+    "M109.2 222.8L112 223.4L126 228.7L133.8 230.8L135.2 231.8M109 223L108.3 225.8L100.2 248.2"
+    "M220.5 223.5L217.5 224L205 228.6L197 230.7L194.5 232M220.8 223.8L227.7 243.5L228.9 246.5L229.8 247.5"
+    "M135.2 231.8L139 231.9L142 232.6L151.5 234L162.5 234.6L164.2 235.2M135.2 231.8L130.5 263.2"
+    "M194.5 232L192.8 231.8L180.8 233.8L166.8 234.8L164.5 235.2M194.5 232L199 263"
+    "M164.5 235.5L164.2 276.5L164.8 278.8";
+static const char s_eye_iris[] =
+    "M163 209.4L158.8 208.9L155.5 207.9L151.2 205.4L145.4 199.5L142.6 194.8L145.2 192.1L159 193.6L176.2 193.6L180.2 193.1"
+    "L183.1 196L180.9 199.8L175.2 205.4L173 206.9L167.5 208.9L163 209.4Z";
+static const float s_eye_box[4] = {36.8f, 28.5f, 255.2f, 252.2f};
+// the eye's line in its units, as the page strokes it
+#define ICONS_EYE_STROKE 2.2f
 
 static const float s_more_dots[] = {3.5f, 8.0f, 1.2f, 8.0f, 8.0f, 1.2f, 12.5f, 8.0f, 1.2f};
 static const float s_problems_dots[] = {8.0f, 11.1f, 0.9f};
@@ -79,17 +132,28 @@ static const GuiIconShape s_shapes[] = {
     {"check", {"M3.6 2.6h8.8a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H3.6a1 1 0 0 1-1-1V3.6a1 1 0 0 1 1-1z", "M5.4 8.3l1.9 1.9 3.5-4", NULL}, NULL, 0u, 0},
     {"hammer", {"M6.4 4.6 9.6 1.4l4.9 4.9-3.2 3.2z", "M8 6.2 2.2 12a1.1 1.1 0 0 0 1.6 1.6L9.6 7.8", NULL}, NULL, 0u, 0},
     {"wrench", {"M10.8 2.2a3.2 3.2 0 0 0-3.9 4.3L2.4 11a1.5 1.5 0 0 0 2.1 2.1l4.5-4.5a3.2 3.2 0 0 0 4.3-3.9l-2 2-1.9-.6-.6-1.9z", NULL, NULL}, NULL, 0u, 0},
+    {"eye", {s_eye_strokes, NULL, NULL}, NULL, 0u, 0, s_eye_box, s_eye_iris},
 };
 #define ICONS_COUNT (sizeof(s_shapes) / sizeof(s_shapes[0]))
 
+// the most corners a filled shape has, and the samples across and down a pixel its cover is read from
+#define ICONS_CORNERS 256u
+#define ICONS_SAMPLES 4u
+
 // The pen a path is drawn with: the cover it draws into, floats of 0 to 1 a pixel of the square, the square's side,
-// the pixels a unit takes and the line's half width in pixels; where the pen stands and where its subpath began, in
-// units; and the second control point of the last curve, for a smooth curve to mirror, where the last part was one
+// the pixels a unit takes, the units the shape's box starts at and the pixels the box stands in from the square's
+// top left, and the line's half width in pixels; where the pen stands and where its subpath began, in units; the
+// second control point of the last curve, for a smooth curve to mirror, where the last part was one; and the
+// corners gathered while a shape is filled, in pixels, in place of lines drawn, NULL while it draws
 typedef struct
 {
     float *cover;
     unsigned int side;
     float scale;
+    float left;
+    float top;
+    float pad_x;
+    float pad_y;
     float radius;
     float x;
     float y;
@@ -98,7 +162,20 @@ typedef struct
     float control_x;
     float control_y;
     int has_control;
+    float *corner;
+    unsigned int corners;
 } GuiPen;
+
+// a place in units as pixels of the square across and down
+static float pen_px(const GuiPen *pen, float x)
+{
+    return ((x - pen->left) * pen->scale) + pen->pad_x;
+}
+
+static float pen_py(const GuiPen *pen, float y)
+{
+    return ((y - pen->top) * pen->scale) + pen->pad_y;
+}
 
 // a capsule of `radius` pixels about the line from x0, y0 to x1, y1 in pixels laid on the cover: each pixel's share
 // the distance left from its middle to the capsule's edge, clamped, where that is more than the pixel has; a capsule
@@ -134,6 +211,17 @@ static void pen_capsule(GuiPen *pen, float x0, float y0, float x1, float y1, flo
     }
 }
 
+// a corner gathered at x, y in units while a shape is filled
+static void pen_cornered(GuiPen *pen, float x, float y)
+{
+    if (pen->corners < ICONS_CORNERS)
+    {
+        pen->corner[pen->corners * 2u] = pen_px(pen, x);
+        pen->corner[(pen->corners * 2u) + 1u] = pen_py(pen, y);
+        pen->corners += 1u;
+    }
+}
+
 // the pen moved to x, y in units, a subpath begun there
 static void pen_moved(GuiPen *pen, float x, float y)
 {
@@ -141,14 +229,96 @@ static void pen_moved(GuiPen *pen, float x, float y)
     pen->y = y;
     pen->start_x = x;
     pen->start_y = y;
+    if (pen->corner != NULL)
+    {
+        pen_cornered(pen, x, y);
+    }
 }
 
-// a line drawn from the pen to x, y in units, the pen left at its end
+// a line drawn from the pen to x, y in units, the pen left at its end; a corner gathered in its place while a shape
+// is filled
 static void pen_drawn(GuiPen *pen, float x, float y)
 {
-    pen_capsule(pen, pen->x * pen->scale, pen->y * pen->scale, x * pen->scale, y * pen->scale, pen->radius);
+    if (pen->corner != NULL)
+    {
+        pen_cornered(pen, x, y);
+    }
+    else
+    {
+        pen_capsule(pen, pen_px(pen, pen->x), pen_py(pen, pen->y), pen_px(pen, x), pen_py(pen, y), pen->radius);
+    }
     pen->x = x;
     pen->y = y;
+}
+
+// the shape of the pen's gathered corners filled: each pixel of the shape's box covered by the share of its samples
+// inside the shape, a sample inside where the edges cross a ray from it an odd count of times, where that is more
+// than the pixel has
+static void pen_filled(GuiPen *pen)
+{
+    if (pen->corners < 3u)
+    {
+        return;
+    }
+    float least_x = pen->corner[0];
+    float most_x = pen->corner[0];
+    float least_y = pen->corner[1];
+    float most_y = pen->corner[1];
+    for (unsigned int at = 1u; at < pen->corners; at += 1u)
+    {
+        const float x = pen->corner[at * 2u];
+        const float y = pen->corner[(at * 2u) + 1u];
+        least_x = (x < least_x) ? x : least_x;
+        most_x = (x > most_x) ? x : most_x;
+        least_y = (y < least_y) ? y : least_y;
+        most_y = (y > most_y) ? y : most_y;
+    }
+    // the square's side is far inside what an int represents
+    const int side = (int)pen->side;
+    const int left = (int)floorf(least_x);
+    const int right = (int)ceilf(most_x);
+    const int top = (int)floorf(least_y);
+    const int bottom = (int)ceilf(most_y);
+    const float step = 1.0f / (float)ICONS_SAMPLES;
+    for (int y = (top < 0) ? 0 : top; (y <= bottom) && (y < side); y += 1)
+    {
+        for (int x = (left < 0) ? 0 : left; (x <= right) && (x < side); x += 1)
+        {
+            unsigned int inside = 0u;
+            for (unsigned int row = 0u; row < ICONS_SAMPLES; row += 1u)
+            {
+                const float sample_y = (float)y + (((float)row + 0.5f) * step);
+                for (unsigned int column = 0u; column < ICONS_SAMPLES; column += 1u)
+                {
+                    const float sample_x = (float)x + (((float)column + 0.5f) * step);
+                    unsigned int crossings = 0u;
+                    for (unsigned int at = 0u; at < pen->corners; at += 1u)
+                    {
+                        const unsigned int next = (at + 1u) % pen->corners;
+                        const float x0 = pen->corner[at * 2u];
+                        const float y0 = pen->corner[(at * 2u) + 1u];
+                        const float x1 = pen->corner[next * 2u];
+                        const float y1 = pen->corner[(next * 2u) + 1u];
+                        if (((y0 > sample_y) != (y1 > sample_y)) && (sample_x < x0 + ((sample_y - y0) * (x1 - x0) / (y1 - y0))))
+                        {
+                            crossings += 1u;
+                        }
+                    }
+                    inside += crossings & 1u;
+                }
+            }
+            if (inside != 0u)
+            {
+                // the pixel lies on the square: its place is not negative
+                float *const had = &pen->cover[((unsigned int)y * pen->side) + (unsigned int)x];
+                const float share = (float)inside / (float)(ICONS_SAMPLES * ICONS_SAMPLES);
+                if (share > *had)
+                {
+                    *had = share;
+                }
+            }
+        }
+    }
 }
 
 // a cubic curve drawn from the pen through its control points x1, y1 and x2, y2 to x, y, as lines between points
@@ -518,7 +688,15 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
     memor.set(&(MemoriaCfg){.dst = &pen, .val = 0, .bytes = sizeof(pen)});
     pen.cover = floats;
     pen.side = size;
-    pen.scale = (float)size / GUI_ICON_UNITS;
+    // a shape on its own box is fitted to the square by the box's longer side and centered along its shorter
+    const float box_wide = (shape->box != NULL) ? shape->box[2] : GUI_ICON_UNITS;
+    const float box_tall = (shape->box != NULL) ? shape->box[3] : GUI_ICON_UNITS;
+    const float longer = (box_wide > box_tall) ? box_wide : box_tall;
+    pen.scale = (float)size / longer;
+    pen.left = (shape->box != NULL) ? shape->box[0] : 0.0f;
+    pen.top = (shape->box != NULL) ? shape->box[1] : 0.0f;
+    pen.pad_x = (longer - box_wide) * pen.scale / 2.0f;
+    pen.pad_y = (longer - box_tall) * pen.scale / 2.0f;
     pen.radius = stroke / 2.0f;
     if (shape->cog)
     {
@@ -534,7 +712,16 @@ static int icons_drawn(const GuiIconShape *shape, unsigned int size, float strok
     for (unsigned int dot = 0u; dot < shape->fills; dot += 1u)
     {
         const float *const fill = &shape->fill[dot * 3u];
-        pen_capsule(&pen, fill[0] * pen.scale, fill[1] * pen.scale, fill[0] * pen.scale, fill[1] * pen.scale, fill[2] * pen.scale);
+        pen_capsule(&pen, pen_px(&pen, fill[0]), pen_py(&pen, fill[1]), pen_px(&pen, fill[0]), pen_py(&pen, fill[1]), fill[2] * pen.scale);
+    }
+    if (shape->filled != NULL)
+    {
+        float corners[ICONS_CORNERS * 2u];
+        pen.corner = corners;
+        pen.corners = 0u;
+        pen_path(&pen, shape->filled);
+        pen_filled(&pen);
+        pen.corner = NULL;
     }
     for (unsigned long long at = 0ull; at < pixels; at += 1ull)
     {

@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_windows.c: the window on Windows. A popup window with a sizing frame whose non-client area is nothing, so the
 // client is the whole window and the system still drags, snaps and resizes it by what the window answers to the
-// hit test; the raster blitted into the client as a top-down 32-bit bitmap; the thread woken by a message posted to
-// the window; the scale read from the window's monitor, per monitor
+// hit test, the compositor rounding its corners and drawing its one-pixel border; the raster blitted into the client
+// as a top-down 32-bit bitmap, a frame drawn at each size the system drags it to and at each tick, inside the
+// system's own drag loop too; the thread woken by a message posted to the window; the scale read from the window's
+// monitor, per monitor
 #define _WIN32_WINNT 0x0A00
 #define UNICODE
 #define _UNICODE
@@ -13,6 +15,7 @@
 
 #include <windows.h>
 
+#include <dwmapi.h>
 #include <windowsx.h>
 
 static CellOwner s_owner = MMGR_CELL_OWNER("gui_system");
@@ -190,6 +193,28 @@ static LRESULT system_hit_code(unsigned int hit)
     return (hit < 13u) ? s_codes[hit] : HTCLIENT;
 }
 
+// the window's one-pixel border colored for `active`: the system's accent while the window is active and the user
+// shows the accent on borders, as the system's own windows do, else the compositor's default for the state
+static void system_border_colored(HWND window, int active)
+{
+    COLORREF color = DWMWA_COLOR_DEFAULT;
+    DWORD prevalence = 0u;
+    DWORD bytes = sizeof(prevalence);
+    if (active && (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\DWM", L"ColorPrevalence",
+                                RRF_RT_REG_DWORD, NULL, &prevalence, &bytes) == ERROR_SUCCESS) &&
+        (prevalence != 0u))
+    {
+        DWORD accent = 0u;
+        BOOL opaque = FALSE;
+        if (DwmGetColorizationColor(&accent, &opaque) == S_OK)
+        {
+            // the accent comes as alpha, red, green and blue bytes from the top; a COLORREF holds red in its low byte
+            color = RGB((accent >> 16u) & 0xffu, (accent >> 8u) & 0xffu, accent & 0xffu);
+        }
+    }
+    DwmSetWindowAttribute(window, DWMWA_BORDER_COLOR, &color, sizeof(color));
+}
+
 static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, LPARAM low)
 {
     GuiSystem *const system = (GuiSystem *)GetWindowLongPtrW(window, GWLP_USERDATA);
@@ -202,6 +227,14 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     case WM_NCCALCSIZE:
         // the client is the whole window
         return (wide != 0u) ? 0 : DefWindowProcW(window, message, wide, low);
+    case WM_NCACTIVATE:
+        // the window taking or losing the focus: its border colored for the state, and the system told not to paint
+        // its own frame over the client, which -1 in place of the update region does
+        system_border_colored(window, wide != 0u);
+        return DefWindowProcW(window, message, wide, (LPARAM)-1);
+    case WM_NCPAINT:
+        // there is no non-client area to paint
+        return 0;
     case WM_NCHITTEST:
     {
         POINT at = {GET_X_LPARAM(low), GET_Y_LPARAM(low)};
@@ -219,6 +252,9 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
             // the client's sides, as the message carries them, are not negative
             system->events->sized(system->context, (unsigned int)LOWORD(low), (unsigned int)HIWORD(low),
                                   system_scale_of(window));
+            // the frame at the new size is drawn here: while the system drags the window's edge it runs a loop of
+            // its own, and the run loop's idle does not come until the drag ends
+            system->events->idle(system->context);
         }
         return 0;
     case WM_DPICHANGED:
@@ -289,6 +325,8 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
         {
             KillTimer(window, GUI_TICK_TIMER);
             system->events->ticked(system->context);
+            // the frame the tick owes is drawn here, which keeps the ground moving while the system drags the window
+            system->events->idle(system->context);
         }
         return 0;
     case WM_CLOSE:
@@ -397,6 +435,9 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
     SetWindowLongPtrW(system->window, GWLP_USERDATA, (LONG_PTR)system);
     // the frame's change is taken up now the client is the whole window
     SetWindowPos(system->window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    // the compositor rounds the window's corners and draws its one-pixel border in the system's color
+    const DWM_WINDOW_CORNER_PREFERENCE corners = DWMWCP_ROUND;
+    DwmSetWindowAttribute(system->window, DWMWA_WINDOW_CORNER_PREFERENCE, &corners, sizeof(corners));
     ShowWindow(system->window, place->maximized ? SW_SHOWMAXIMIZED : SW_SHOW);
     return system;
 }
@@ -481,6 +522,63 @@ void gui_system_tick(GuiSystem *system, unsigned long long after)
     }
     // a wait is far inside what the timer's milliseconds hold
     SetTimer(system->window, GUI_TICK_TIMER, (after > USER_TIMER_MAXIMUM) ? USER_TIMER_MAXIMUM : (UINT)after, NULL);
+}
+
+// an icon made from `raster`'s pixels with their alpha: a 32-bit section the pixels are copied into and an empty mask
+static HICON system_icon_made(const GuiRaster *raster)
+{
+    BITMAPV5HEADER header;
+    memor.set(&(MemoriaCfg){.dst = &header, .val = 0, .bytes = sizeof(header)});
+    header.bV5Size = sizeof(header);
+    // a raster's sides are far inside what a LONG represents; a negative height lays the rows top down
+    header.bV5Width = (LONG)raster->width;
+    header.bV5Height = -(LONG)raster->height;
+    header.bV5Planes = 1;
+    header.bV5BitCount = 32;
+    header.bV5Compression = BI_BITFIELDS;
+    header.bV5RedMask = 0x00ff0000u;
+    header.bV5GreenMask = 0x0000ff00u;
+    header.bV5BlueMask = 0x000000ffu;
+    header.bV5AlphaMask = 0xff000000u;
+    void *bits = NULL;
+    HBITMAP color = CreateDIBSection(NULL, (const BITMAPINFO *)&header, DIB_RGB_COLORS, &bits, NULL, 0u);
+    if ((color == NULL) || (bits == NULL))
+    {
+        return NULL;
+    }
+    memor.cpy(&(MemoriaCfg){.dst = bits, .src = raster->pixels, .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
+    HBITMAP mask = CreateBitmap((int)raster->width, (int)raster->height, 1u, 1u, NULL);
+    ICONINFO info;
+    info.fIcon = TRUE;
+    info.xHotspot = 0u;
+    info.yHotspot = 0u;
+    info.hbmMask = mask;
+    info.hbmColor = color;
+    HICON icon = CreateIconIndirect(&info);
+    DeleteObject(color);
+    if (mask != NULL)
+    {
+        DeleteObject(mask);
+    }
+    return icon;
+}
+
+void gui_system_icon(GuiSystem *system, const GuiRaster *title_icon, const GuiRaster *taskbar_icon)
+{
+    if (system->window == NULL)
+    {
+        return;
+    }
+    HICON title = system_icon_made(title_icon);
+    HICON taskbar = system_icon_made(taskbar_icon);
+    if (title != NULL)
+    {
+        SendMessageW(system->window, WM_SETICON, ICON_SMALL, (LPARAM)title);
+    }
+    if (taskbar != NULL)
+    {
+        SendMessageW(system->window, WM_SETICON, ICON_BIG, (LPARAM)taskbar);
+    }
 }
 
 void gui_system_act(GuiSystem *system, unsigned int act)

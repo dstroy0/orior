@@ -60,6 +60,8 @@
 // made the tree's, what orior's folder keeps, the view's open, the memory reading and the map's lines, each 0 where
 // none is, whether the map is wanted again as its answer comes, when the memory was last asked and the bytes it
 // answered, and the sequence of the last frame taken; whether the tree's kept tabs are back, the session kept again
+// only after, and whether a session for the tree is known, read from the folder or made by the tabs' own changes,
+// without which no tabs are kept over whatever the folder holds; the session kept again
 // only after; whether the CLI's editor view is open on the shown file, whether the pointer drags in it, and the
 // presses counted, when and where the last was; whether a frame is owed; and the control pressed, for the system to
 // act on, GUI_HIT_CLIENT where none
@@ -126,6 +128,7 @@ typedef struct
     unsigned long long memory_bytes;
     unsigned long long frame_seq;
     int restored;
+    int session_known;
     int viewed;
     int dragging;
     unsigned int clicks;
@@ -184,4 +187,7 @@ void gui_window_ticked(GuiWindow *window);
 unsigned long long gui_window_due(const GuiWindow *window);
 // the window gone off the screen, `shown` 0, its ground's clock standing still, or back on it, 1, a frame owed
 void gui_window_shown(GuiWindow *window, int shown);
+// the window's icon, the wordmark's eye in the text's color, made into `icon` at `size` pixels a side with its own
+// alpha, for the system to take: 1, or 0 where the eye could not be drawn or the raster made; given back as a raster
+int gui_window_icon(GuiWindow *window, GuiRaster *icon, unsigned int size);
 #endif

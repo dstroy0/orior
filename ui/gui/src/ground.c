@@ -107,6 +107,7 @@ void gui_ground_drawn(GuiGround *ground, const GuiPalette *palette, unsigned lon
     // a raster's sides are far inside what an int represents
     gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
     ground->drawn_at = seconds;
+    ground->shows_at = lattice_shown_after(seconds, seconds);
     ground->frames += 1u;
     if (!ground->laid)
     {
@@ -148,10 +149,9 @@ unsigned long long gui_ground_due(const GuiGround *ground, unsigned long long no
     {
         return 0ull;
     }
-    const double seconds = gui_ground_seconds(ground, now);
-    const double soonest = lattice_shown_after(ground->drawn_at, seconds);
-    // the wait in whole milliseconds, at least one, is far inside what an unsigned long long holds
-    const double wait = (soonest - seconds) * 1000.0;
+    // the wait until the moment found as the ground was drawn, in whole milliseconds, at least one, is far inside
+    // what an unsigned long long holds
+    const double wait = (ground->shows_at - gui_ground_seconds(ground, now)) * 1000.0;
     return (wait < 1.0) ? 1ull : (unsigned long long)wait;
 }
 

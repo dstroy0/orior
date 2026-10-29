@@ -35,6 +35,21 @@ int main(void)
     cli_check((at(square, 8u, 8u) == 0u) && (at(square, 4u, 8u) == 255u) && (at(square, 8u, 11u) == 255u),
               "a square's middle is clear and its sides are covered");
 
+    // the eye on its own box: its strokes drawn, its iris filled whole at its middle, and the square's corners clear
+    const GuiMask *const eye = gui_icon(&icons, "eye", 64u, 1.0f);
+    cli_check((eye != NULL) && (eye->width == 64u), "the eye is drawn on its square");
+    cli_check(at(eye, 31u, 43u) > 200u, "the iris is filled at its middle");
+    cli_check((at(eye, 0u, 0u) == 0u) && (at(eye, 63u, 63u) == 0u), "the square's corners outside the eye are clear");
+    unsigned int covered = 0u;
+    for (unsigned int y = 0u; y < 64u; y += 1u)
+    {
+        for (unsigned int x = 0u; x < 64u; x += 1u)
+        {
+            covered += (at(eye, x, y) != 0u) ? 1u : 0u;
+        }
+    }
+    cli_check((covered > 300u) && (covered < 3000u), "the eye's strokes cover a part of the square and no more");
+
     const GuiMask *const dots = gui_icon(&icons, "more", 16u, 2.0f);
     cli_check((at(dots, 8u, 8u) > 200u) && (at(dots, 3u, 8u) > 200u) && (at(dots, 12u, 8u) > 200u) && (at(dots, 5u, 8u) == 0u),
               "the filled dots are covered and the gaps between them clear");

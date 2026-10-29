@@ -21,7 +21,8 @@
 // The ground: its raster, the ground color with the dots over it; its `slot` of the lattice; the size and scale it is
 // laid out for and whether it is; the shades its dots take; its clock, when it began, the milliseconds lost to every
 // stretch it was kept still and when the stretch holding it now began, 0 while none does; the loop's moment it was
-// last drawn at, in seconds; and how many times it has been drawn
+// last drawn at, in seconds, and the moment the loop next shows a change after it, found once as it is drawn; and
+// how many times it has been drawn
 typedef struct
 {
     GuiRaster raster;
@@ -35,6 +36,7 @@ typedef struct
     unsigned long long lost_ms;
     unsigned long long held_since_ms;
     double drawn_at;
+    double shows_at;
     unsigned int frames;
 } GuiGround;
 

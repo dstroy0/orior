@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // icons.h: the window's icons, the shapes the page's chrome is read by, a folder for the files, a branch for git, a
 // bell for notifications, each a path on a square of sixteen units drawn in one line with round ends and joins, its
-// filled parts dots; an icon drawn once at a pixel size and line width and kept in a cache of coverage masks (icons.c)
+// filled parts dots, and the wordmark's eye on its own box with its iris filled; an icon drawn once at a pixel size
+// and line width and kept in a cache of coverage masks (icons.c)
 #ifndef GUI_ICONS_H
 #define GUI_ICONS_H
 #include "raster.h"
@@ -13,6 +14,10 @@
 #define GUI_ICON_SLOTS 64u
 #define GUI_ICON_UNITS 16.0f
 #define GUI_ICON_STROKE 1.1f
+// the eye's box in its own units, its longer side, and its line in those units as the page strokes it: a line's
+// width in pixels at a size is the stroke by the size over the side, and no thinner than a pixel
+#define GUI_EYE_SIDE 255.2f
+#define GUI_EYE_STROKE 2.2f
 
 // A cache entry: whether it is in use, its key (the icon, the pixel size and the line width), and the coverage mask,
 // allocated in a cell of its own

@@ -448,6 +448,37 @@ void gui_system_wake(GuiSystem *system)
     (void)write(system->wake_pipe[1], &one, 1u);
 }
 
+// `raster`'s pixels put after `at` of `data` as the icon property lays them, the width, the height and then each
+// pixel as a word: the words put
+static unsigned long system_icon_put(unsigned long *data, const GuiRaster *raster)
+{
+    data[0] = raster->width;
+    data[1] = raster->height;
+    const unsigned long pixels = (unsigned long)raster->width * raster->height;
+    for (unsigned long at = 0ul; at < pixels; at += 1ul)
+    {
+        data[2ul + at] = raster->pixels[at];
+    }
+    return 2ul + pixels;
+}
+
+void gui_system_icon(GuiSystem *system, const GuiRaster *title_icon, const GuiRaster *taskbar_icon)
+{
+    const unsigned long words = 4ul + ((unsigned long)title_icon->width * title_icon->height) + ((unsigned long)taskbar_icon->width * taskbar_icon->height);
+    unsigned long *const data = g_cli_cells->persistent_buf_alloc(words * sizeof(*data), &s_owner);
+    if (data == NULL)
+    {
+        return;
+    }
+    const unsigned long put = system_icon_put(data, title_icon);
+    (void)system_icon_put(data + put, taskbar_icon);
+    const Atom icon = XInternAtom(system->display, "_NET_WM_ICON", False);
+    // the words are far fewer than an int counts
+    XChangeProperty(system->display, system->window, icon, XA_CARDINAL, 32, PropModeReplace, (const unsigned char *)data, (int)words);
+    XFlush(system->display);
+    g_cli_cells->persistent_buf_release(data, &s_owner);
+}
+
 void gui_system_act(GuiSystem *system, unsigned int act)
 {
     if (act == GUI_ACT_MINIMIZE)
