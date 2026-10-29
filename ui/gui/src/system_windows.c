@@ -184,24 +184,26 @@ static float system_scale_of(HWND window)
     return (float)GetDpiForWindow(window) / 96.0f;
 }
 
-// the raster shown blitted into `context`
-static void system_blitted(GuiSystem *system, HDC context)
+// the raster shown blitted into `context`, its `rows` rows from the row `from`, as a bitmap of those rows alone
+static void system_blitted(GuiSystem *system, HDC context, unsigned int from, unsigned int rows)
 {
     const GuiRaster *const raster = system->shown;
-    if ((raster == NULL) || (raster->pixels == NULL))
+    if ((raster == NULL) || (raster->pixels == NULL) || (from >= raster->height) || (rows == 0u))
     {
         return;
     }
+    const unsigned int count = (rows < raster->height - from) ? rows : raster->height - from;
     BITMAPINFO info;
     memor.set(&(MemoriaCfg){.dst = &info, .val = 0, .bytes = sizeof(info)});
     info.bmiHeader.biSize = sizeof(info.bmiHeader);
     // a raster's sides are far inside what a LONG represents; a negative height lays the rows top down
     info.bmiHeader.biWidth = (LONG)raster->width;
-    info.bmiHeader.biHeight = -(LONG)raster->height;
+    info.bmiHeader.biHeight = -(LONG)count;
     info.bmiHeader.biPlanes = 1;
     info.bmiHeader.biBitCount = 32;
     info.bmiHeader.biCompression = BI_RGB;
-    SetDIBitsToDevice(context, 0, 0, raster->width, raster->height, 0, 0, 0u, raster->height, raster->pixels, &info,
+    // the row's place is far inside what an int represents
+    SetDIBitsToDevice(context, 0, (int)from, raster->width, count, 0, 0, 0u, count, &raster->pixels[from * raster->width], &info,
                       DIB_RGB_COLORS);
 }
 
@@ -293,7 +295,7 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     {
         PAINTSTRUCT paint;
         HDC context = BeginPaint(window, &paint);
-        system_blitted(system, context);
+        system_blitted(system, context, 0u, (system->shown != NULL) ? system->shown->height : 0u);
         EndPaint(window, &paint);
         return 0;
     }
@@ -523,8 +525,21 @@ void gui_system_present(GuiSystem *system, const GuiRaster *raster)
 {
     system->shown = raster;
     HDC context = GetDC(system->window);
-    system_blitted(system, context);
+    system_blitted(system, context, 0u, raster->height);
     ReleaseDC(system->window, context);
+    system->presented_ms = cli_clock_milliseconds();
+}
+
+void gui_system_present_part(GuiSystem *system, const GuiRaster *raster, GuiRect part)
+{
+    system->shown = raster;
+    if (!gui_rect_empty(part) && (part.y >= 0))
+    {
+        // the part's rows are not negative where it is not empty
+        HDC context = GetDC(system->window);
+        system_blitted(system, context, (unsigned int)part.y, (unsigned int)part.height);
+        ReleaseDC(system->window, context);
+    }
     system->presented_ms = cli_clock_milliseconds();
 }
 

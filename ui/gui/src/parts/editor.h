@@ -3,13 +3,18 @@
 // editor.h: the editor part: the lines of the open file the CLI handed, each with its number and its runs, a column
 // then the index of the token's name, the folds that open on them, and the names the file's grammar gives its tokens;
 // drawn row by row from the view's top in the code face, each run in its token's color, the line numbers in a gutter,
-// a tab laid out to its stop; the view's top moved by the wheel inside the file; and the cursor, selection and bracket
-// pair a view's frame places (editor.c)
+// a tab laid out to its stop; the view's top moved by the wheel inside the file; the cursor, selection and bracket
+// pair a view's frame places; and the caret, drawn over the frame last of all with the pixels under it kept, which
+// its breath's steps put back and draw it over again alone (editor.c)
 #ifndef GUI_PARTS_EDITOR_H
 #define GUI_PARTS_EDITOR_H
 #include "../../../cli/src/text/json_tree.h"
 #include "../glyphs.h"
 #include "../palette.h"
+
+// the pixels kept under the caret at the most: a caret two of the page's pixels wide over a row at any scale the
+// window takes fits
+#define GUI_CARET_UNDER_MOST 1024u
 
 // the code's size and its line's height in the page's pixels, --code-size and --code-line; a tab's stop every so many
 // columns; and the gutter's padding, after the numbers as --ed-num pads them and before them
@@ -79,7 +84,8 @@ typedef struct
 // them, each after the one before it among the lines shown, their texts in one cell and their runs in another; the
 // folds that open on them, in a cell, with their closers' texts in another; the grammar's names, their texts in one
 // cell and where each starts in another; the cursor and the anchor the selection runs from, where a view's frame gave
-// them, and the caret's ink, 0 to 255 of its color, which the window sets before drawing where its breath stands; the bracket
+// them, the caret's ink, 0 to 255 of its color, which the window sets before drawing where its breath stands, the
+// caret's rectangle as last drawn, whether the pixels under it are kept and those pixels, row after row; the bracket
 // pair at the cursor, where the frame gave one; find as the frame shows it, with the matches among the lines
 // stored, each a line, a from and a to column, in a cell; and the indentation the frame gave, tabs 1, spaces 0 or
 // -1 where nothing set it, and its step
@@ -103,6 +109,9 @@ typedef struct
     GuiPlace cursor;
     GuiPlace anchor;
     unsigned int caret_ink;
+    GuiRect caret_rect;
+    int caret_kept;
+    GuiColor caret_under[GUI_CARET_UNDER_MOST];
     int has_pair;
     GuiPlace pair[2];
     GuiFind find;
@@ -154,6 +163,15 @@ int gui_editor_place_rect(const GuiEditor *editor, GuiRect place, float cell, fl
 void gui_editor_scrolled(GuiEditor *editor, long long delta, unsigned int rows);
 // the gutter's width for the file's line count, at the code cell `cell` and `scale`
 int gui_editor_gutter(const GuiEditor *editor, float cell, float scale);
+// the caret's rectangle in the editor drawn at `place` and `scale`, two of the page's pixels wide on the cursor's
+// cell, cut to the text's columns: empty where no cursor stands, find holds the keys or the cursor's row is out of
+// view
+GuiRect gui_editor_caret_rect(const GuiEditor *editor, GuiGlyphs *glyphs, GuiRect place, float scale);
+// the caret drawn over the frame at `caret` at the ink the editor holds, the pixels under it kept where its
+// rectangle's pixels fit the room kept for them; and the caret drawn again at the ink the editor holds now, the pixels
+// kept put back first: each answers the caret's rectangle, the latter empty where none was kept
+GuiRect gui_editor_caret_drawn(GuiEditor *editor, GuiRaster *raster, const GuiPalette *palette, GuiRect caret);
+GuiRect gui_editor_caret_redrawn(GuiEditor *editor, GuiRaster *raster, const GuiPalette *palette);
 // the color of the token named by the index `name` among the grammar's names, the editor's text color where no name
 // has the index
 GuiColor gui_editor_color(const GuiEditor *editor, const GuiPalette *palette, unsigned int name);

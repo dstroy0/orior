@@ -67,7 +67,8 @@ static float system_scale_of(Display *display, int screen)
 }
 
 // the raster shown put into the window
-static void system_put(GuiSystem *system)
+// the raster shown put into the window, its `rows` rows from the row `from`
+static void system_put(GuiSystem *system, unsigned int from, unsigned int rows)
 {
     const GuiRaster *const raster = system->shown;
     if ((raster == NULL) || (raster->pixels == NULL))
@@ -93,7 +94,8 @@ static void system_put(GuiSystem *system)
     image.blue_mask = 0x0000fful;
     XInitImage(&image);
     GC context = XCreateGC(system->display, system->window, 0ul, NULL);
-    XPutImage(system->display, system->window, context, &image, 0, 0, 0, 0, raster->width, raster->height);
+    // the rows are inside the raster, whose sides are far inside what an int represents
+    XPutImage(system->display, system->window, context, &image, 0, (int)from, 0, (int)from, raster->width, rows);
     XFreeGC(system->display, context);
     XFlush(system->display);
 }
@@ -216,7 +218,7 @@ static void system_event(GuiSystem *system, XEvent *event)
     case Expose:
         if (event->xexpose.count == 0)
         {
-            system_put(system);
+            system_put(system, 0u, (system->shown != NULL) ? system->shown->height : 0u);
         }
         break;
     case ConfigureNotify:
@@ -452,7 +454,20 @@ void gui_system_closed(GuiSystem *system)
 void gui_system_present(GuiSystem *system, const GuiRaster *raster)
 {
     system->shown = raster;
-    system_put(system);
+    system_put(system, 0, raster->height);
+    system->presented_ms = cli_clock_milliseconds();
+}
+
+void gui_system_present_part(GuiSystem *system, const GuiRaster *raster, GuiRect part)
+{
+    system->shown = raster;
+    if (!gui_rect_empty(part) && (part.y >= 0) && (part.y < (int)raster->height))
+    {
+        // the part's rows are inside the raster, and far inside what an unsigned int counts
+        const unsigned int from = (unsigned int)part.y;
+        const unsigned int rows = ((unsigned int)part.height < raster->height - from) ? (unsigned int)part.height : raster->height - from;
+        system_put(system, from, rows);
+    }
     system->presented_ms = cli_clock_milliseconds();
 }
 

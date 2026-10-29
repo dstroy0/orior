@@ -775,7 +775,12 @@ void gui_window_ticked(GuiWindow *window)
     const unsigned long long now = cli_clock_milliseconds();
     (void)gui_claim_stepped(&window->claim, now);
     const int moving = gui_claim_moving(&window->claim, now);
-    window_claim_laid(window);
+    // the frame laid for the claim's numbers while a slide moves and as it comes to rest; a tick with the claim at
+    // rest owes nothing for it
+    if (moving || window->claim_moving)
+    {
+        window_claim_laid(window);
+    }
     if (window->claim_moving && !moving)
     {
         // the slides at rest, the view is told the editor's size and the map its span
@@ -783,10 +788,8 @@ void gui_window_ticked(GuiWindow *window)
         window_map_asked(window);
     }
     window->claim_moving = moving;
-    // the ground where its loop shows a change, the caret where its ink has changed, and the menus where a rest has
-    // ended
+    // the ground where its loop shows a change, and the menus where a rest has ended
     window->owed = gui_ground_ticked(&window->ground, window->palette, now) || window->owed;
-    window->owed = (window_caret_ink(window, now) != window->caret_ink) || window->owed;
     window->owed = gui_menubar_ticked(&window->menubar, &window->glyphs, &window->frame, now) || window->owed;
     // the hover's rest and linger, and the signature's wait
     int ask = 0;
@@ -803,6 +806,44 @@ void gui_window_ticked(GuiWindow *window)
     {
         window_view_told(window);
     }
+    // the caret where its ink has changed: where nothing else owes a frame, the caret drawn again pays it alone
+    const int caret_changed = window_caret_ink(window, now) != window->caret_ink;
+    window->caret_alone = caret_changed && !window->owed && !moving;
+    window->owed = caret_changed || window->owed;
+}
+
+// whether a panel or a menu lies over `caret`, which keeps the caret from being drawn over them
+static int window_caret_covered(const GuiWindow *window, GuiRect caret)
+{
+    if (window->hover.shown && !gui_rect_empty(gui_rect_met(window->hover.rect, caret)))
+    {
+        return 1;
+    }
+    if (window->suggest.open && !gui_rect_empty(gui_rect_met(window->suggest.rect, caret)))
+    {
+        return 1;
+    }
+    if (window->signature.shown && !gui_rect_empty(gui_rect_met(window->signature.rect, caret)))
+    {
+        return 1;
+    }
+    for (unsigned int level = 0u; level < window->menubar.levels; level += 1u)
+    {
+        if (!gui_rect_empty(gui_rect_met(window->menubar.menu[level].rect, caret)))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+GuiRect gui_window_caret_drawn(GuiWindow *window)
+{
+    window->owed = 0;
+    window->caret_alone = 0;
+    window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
+    window->editor.caret_ink = window->caret_ink;
+    return gui_editor_caret_redrawn(&window->editor, &window->raster, window->palette);
 }
 
 // the milliseconds until the view's rest is told, 0 where no telling waits
@@ -1696,6 +1737,7 @@ void gui_window_drawn(GuiWindow *window)
     const GuiPalette *const palette = window->palette;
     GuiRaster *const raster = &window->raster;
     window->owed = 0;
+    window->caret_alone = 0;
     if (raster->pixels == NULL)
     {
         return;
@@ -1711,12 +1753,9 @@ void gui_window_drawn(GuiWindow *window)
         gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
         ground = NULL;
     }
-    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it and the caret
-    // at the ink its breath stands at, the corners cut round, and the holes the parts shown over the work make in it
-    // while the claim holds
+    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, the corners
+    // cut round, and the holes the parts shown over the work make in it while the claim holds
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
-    window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
-    window->editor.caret_ink = window->caret_ink;
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
     // the shown file's diagnostics underlined on the rows drawn
     const unsigned int code_size = (unsigned int)(((float)GUI_CODE_SIZE * frame->scale) + 0.5f);
@@ -1764,6 +1803,19 @@ void gui_window_drawn(GuiWindow *window)
     gui_statusbar_drawn(raster, &window->glyphs, &window->icons, palette, frame, &status);
     // the menus open go over every part
     gui_menubar_menus_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
+    // the caret last, at the ink its breath stands at, where no panel or menu lies over it: drawn over the frame
+    // whole, its breath's steps draw it again alone
+    window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
+    window->editor.caret_ink = window->caret_ink;
+    const GuiRect caret = gui_editor_caret_rect(&window->editor, &window->glyphs, frame->editor, frame->scale);
+    if (!gui_rect_empty(caret) && !window_caret_covered(window, caret))
+    {
+        (void)gui_editor_caret_drawn(&window->editor, raster, palette, caret);
+    }
+    else
+    {
+        window->editor.caret_kept = 0;
+    }
 }
 
 unsigned int gui_window_hit(const GuiWindow *window, int x, int y)

@@ -533,6 +533,77 @@ int gui_editor_units_text(const GuiEditor *editor, unsigned long long line, unsi
     return 0;
 }
 
+GuiRect gui_editor_caret_rect(const GuiEditor *editor, GuiGlyphs *glyphs, GuiRect place, float scale)
+{
+    const GuiRect none = {0, 0, 0, 0};
+    if (!editor->has_cursor || (editor->find.open && editor->find.focus) || gui_rect_empty(place))
+    {
+        return none;
+    }
+    const unsigned int size = (unsigned int)(((float)GUI_CODE_SIZE * scale) + 0.5f);
+    const float cell = gui_glyphs_cell(glyphs, size);
+    const int gutter = gui_editor_gutter(editor, cell, scale);
+    const GuiRect text_clip = gui_rect_met(place, (GuiRect){place.x + gutter, place.y, place.width - gutter, place.height});
+    GuiRect at;
+    if (!gui_editor_place_rect(editor, place, cell, scale, editor->cursor.line, editor->cursor.col, &at))
+    {
+        return none;
+    }
+    return gui_rect_met((GuiRect){at.x, at.y, gui_scaled(2, scale), at.height}, text_clip);
+}
+
+// the caret's color at `ink`'s share of its alpha: a byte's share of a byte, rounded, is a byte
+static GuiColor editor_caret_color(const GuiPalette *palette, unsigned int ink)
+{
+    return GUI_RGBA(GUI_RED_OF(palette->caret), GUI_GREEN_OF(palette->caret), GUI_BLUE_OF(palette->caret),
+                    ((GUI_ALPHA_OF(palette->caret) * ink) + 127u) / 255u);
+}
+
+GuiRect gui_editor_caret_drawn(GuiEditor *editor, GuiRaster *raster, const GuiPalette *palette, GuiRect caret)
+{
+    editor->caret_kept = 0;
+    if (gui_rect_empty(caret))
+    {
+        return caret;
+    }
+    // the rectangle's sides are not negative where it is not empty
+    const unsigned int wide = (unsigned int)caret.width;
+    const unsigned int tall = (unsigned int)caret.height;
+    if (wide * tall <= GUI_CARET_UNDER_MOST)
+    {
+        for (unsigned int row = 0u; row < tall; row += 1u)
+        {
+            memor.cpy(&(MemoriaCfg){.dst = &editor->caret_under[row * wide],
+                                    .src = &raster->pixels[(((unsigned int)caret.y + row) * raster->width) + (unsigned int)caret.x],
+                                    .bytes = wide * sizeof(GuiColor)});
+        }
+        editor->caret_rect = caret;
+        editor->caret_kept = 1;
+    }
+    gui_raster_filled(raster, caret, editor_caret_color(palette, editor->caret_ink));
+    return caret;
+}
+
+GuiRect gui_editor_caret_redrawn(GuiEditor *editor, GuiRaster *raster, const GuiPalette *palette)
+{
+    if (!editor->caret_kept)
+    {
+        return (GuiRect){0, 0, 0, 0};
+    }
+    const GuiRect caret = editor->caret_rect;
+    // the rectangle's sides are not negative, the rectangle kept being drawn
+    const unsigned int wide = (unsigned int)caret.width;
+    const unsigned int tall = (unsigned int)caret.height;
+    for (unsigned int row = 0u; row < tall; row += 1u)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = &raster->pixels[(((unsigned int)caret.y + row) * raster->width) + (unsigned int)caret.x],
+                                .src = &editor->caret_under[row * wide],
+                                .bytes = wide * sizeof(GuiColor)});
+    }
+    gui_raster_filled(raster, caret, editor_caret_color(palette, editor->caret_ink));
+    return caret;
+}
+
 int gui_editor_place_rect(const GuiEditor *editor, GuiRect place, float cell, float scale, unsigned long long line,
                           unsigned long long col, GuiRect *rect)
 {
@@ -906,15 +977,6 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
         if (editor->find.open)
         {
             editor_matches_drawn(editor, held, line, raster, palette, row_rect, text_x, cell, 1, scale, text_clip);
-        }
-        if (editor->has_cursor && (editor->caret_ink != 0u) && (line == editor->cursor.line) && !(editor->find.open && editor->find.focus))
-        {
-            const int caret_x = (int)roundf(text_x + ((float)editor_cell_of(editor, held, editor->cursor.col) * cell));
-            // the caret's color at the ink's share of its alpha: a byte's share of a byte, rounded, is a byte
-            const GuiColor inked = GUI_RGBA(GUI_RED_OF(palette->caret), GUI_GREEN_OF(palette->caret), GUI_BLUE_OF(palette->caret),
-                                            ((GUI_ALPHA_OF(palette->caret) * editor->caret_ink) + 127u) / 255u);
-            gui_raster_filled(raster, gui_rect_met((GuiRect){caret_x, row_rect.y, gui_scaled(2, scale), line_tall}, text_clip),
-                              inked);
         }
     }
     if (editor->find.open)

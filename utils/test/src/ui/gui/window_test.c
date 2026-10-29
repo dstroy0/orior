@@ -173,6 +173,24 @@ int main(void)
     window.caret_since_ms = cli_clock_milliseconds() - GUI_CARET_BREATH;
     gui_window_drawn(&window);
     cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is at full ink again as the next breath begins");
+    // a tick that changes the caret's ink alone owes the caret drawn again by itself: its rows alone are to be
+    // shown again, and the pixels beside it stand
+    const GuiColor beside = at(&window, first_cell.x + 20, first_cell.y + 5);
+    // the ground kept still, which keeps its loop from owing a frame of its own at the tick
+    gui_ground_held(&window.ground, 1, cli_clock_milliseconds());
+    window.caret_since_ms = cli_clock_milliseconds() - rest - (GUI_CARET_SLIDE / 2ull);
+    gui_window_ticked(&window);
+    cli_check(window.owed && window.caret_alone, "a tick through the slide with nothing else owed owes the caret alone");
+    const GuiRect redrawn = gui_window_caret_drawn(&window);
+    cli_check(!gui_rect_empty(redrawn) && (redrawn.y == first_cell.y) && (redrawn.height == first_cell.height) && !window.owed &&
+                  !window.caret_alone,
+              "the caret drawn again answers its rows and pays the frame owed");
+    cli_check((at(&window, first_cell.x, first_cell.y + 5) != palette->caret) && (at(&window, first_cell.x + 20, first_cell.y + 5) == beside),
+              "the caret stands dimmer and the pixels beside it as they were");
+    window.owed = 1;
+    window.caret_since_ms = cli_clock_milliseconds() - rest - GUI_CARET_SLIDE - 10ull;
+    gui_window_ticked(&window);
+    cli_check(window.owed && !window.caret_alone, "a tick with a frame owed already owes the frame whole");
     window.editor.has_cursor = 0;
     gui_window_wheel(&window, 300, 300, 1);
     cli_check(window.editor.top == 1ull, "the wheel over the editor scrolls it a line");

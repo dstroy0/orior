@@ -61,6 +61,8 @@ void gui_system_pumped(GuiSystem *system);
 void *gui_system_native(const GuiSystem *system);
 // `raster` shown in the client, and shown again as the system asks for the client to be painted
 void gui_system_present(GuiSystem *system, const GuiRaster *raster);
+// the rows of `raster` that `part` spans shown again in the client, the rest standing as last shown
+void gui_system_present_part(GuiSystem *system, const GuiRaster *raster, GuiRect part);
 // the window's thread woken, from any thread
 void gui_system_wake(GuiSystem *system);
 // a tick asked for `after` milliseconds from now, on the window's thread, one at a time, the last asked the one that

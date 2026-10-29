@@ -150,7 +150,21 @@ int main(void)
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     const int caret_x = text_x + (int)(3.0f * cell + 0.5f);
-    cli_check(raster.pixels[(10u * 320u) + (unsigned int)caret_x] == palette->caret, "the caret stands after the third cell");
+    const GuiColor under_caret = raster.pixels[(10u * 320u) + (unsigned int)caret_x];
+    const GuiRect caret = gui_editor_caret_rect(&editor, &glyphs, place, 1.0f);
+    cli_check((caret.x == caret_x) && (caret.width == 2) && (caret.height == GUI_CODE_LINE), "the caret's rectangle stands after the third cell");
+    cli_check(!gui_rect_empty(gui_editor_caret_drawn(&editor, &raster, palette, caret)) && editor.caret_kept &&
+                  (raster.pixels[(10u * 320u) + (unsigned int)caret_x] == palette->caret),
+              "the caret drawn stands after the third cell");
+    editor.caret_ink = 0u;
+    cli_check(!gui_rect_empty(gui_editor_caret_redrawn(&editor, &raster, palette)) &&
+                  (raster.pixels[(10u * 320u) + (unsigned int)caret_x] == under_caret),
+              "the caret drawn again at no ink puts the pixels under it back");
+    editor.caret_ink = 255u;
+    cli_check(raster.pixels[(10u * 320u) + (unsigned int)caret_x] != palette->caret &&
+                  !gui_rect_empty(gui_editor_caret_redrawn(&editor, &raster, palette)) &&
+                  (raster.pixels[(10u * 320u) + (unsigned int)caret_x] == palette->caret),
+              "the caret drawn again at full ink stands again");
     cli_check(raster.pixels[(10u * 320u) + (unsigned int)text_x + 1u] == palette->selection,
               "the selection's ground fills the cells selected");
     cli_check(raster.pixels[(30u * 320u) + (unsigned int)text_x + 1u] == bare, "a row outside the selection keeps the ground");
