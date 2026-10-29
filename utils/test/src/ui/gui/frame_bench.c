@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_bench.c: the frame bench, run by `harness.py window bench`: the window begun without a system, sized to a
 // monitor at the scale of one with the explorer's side shown and a text of many lines in the editor, its frame drawn
-// many times and timed; and a blend of the whole raster at half alpha, timed alone, the one blend every drawing
-// goes through
+// many times and timed, then drawn again with no text, the text's own cost the difference; each part of the frame
+// drawn alone and timed, the ground's copy, the editor's ground, the editor's text, the explorer, the tabs, the map,
+// the glass panes and the work's corners; and a blend of the whole raster at half alpha, timed alone, the one blend
+// every drawing goes through
+#include "../../../../../ui/gui/src/parts/chrome.h"
+#include "../../../../../ui/gui/src/parts/glass.h"
 #include "../../../../../ui/gui/src/window.h"
 
 #include <stdio.h>
@@ -17,6 +21,93 @@
 static void woken(void *context)
 {
     (void)context;
+}
+
+// a part's drawing, run `BENCH_FRAMES` times on `window` and its milliseconds a run printed under `name`
+typedef void (*BenchPart)(GuiWindow *window);
+
+static void bench_timed(const char *name, BenchPart part, GuiWindow *window)
+{
+    const unsigned long long began = cli_clock_milliseconds();
+    for (unsigned int run = 0u; run < BENCH_FRAMES; run += 1u)
+    {
+        part(window);
+    }
+    const unsigned long long took = cli_clock_milliseconds() - began;
+    printf("  %s: %.2f ms\n", name, (double)took / (double)BENCH_FRAMES);
+}
+
+static void part_frame(GuiWindow *window)
+{
+    gui_window_drawn(window);
+}
+
+static void part_ground_copied(GuiWindow *window)
+{
+    memor.cpy(&(MemoriaCfg){.dst = window->raster.pixels,
+                            .src = window->ground.raster.pixels,
+                            .bytes = (unsigned long long)window->raster.width * window->raster.height * sizeof(GuiColor)});
+}
+
+static void part_editor_ground(GuiWindow *window)
+{
+    gui_raster_filled(&window->raster, window->frame.editor, window->palette->editor_ground);
+}
+
+static void part_editor(GuiWindow *window)
+{
+    gui_editor_drawn(&window->editor, &window->raster, &window->glyphs, window->palette, window->frame.editor, window->frame.scale);
+}
+
+static void part_explorer(GuiWindow *window)
+{
+    gui_explorer_drawn(&window->explorer, &window->raster, &window->glyphs, &window->icons, window->palette, &window->frame,
+                       gui_strip_tool(0u)->label, 1, window->title, window->path);
+}
+
+static void part_tabs(GuiWindow *window)
+{
+    gui_tabs_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->tab, window->tabs, window->active);
+}
+
+static void part_map(GuiWindow *window)
+{
+    gui_minimap_drawn(&window->minimap, &window->raster, window->palette, &window->editor, window->frame.map, window->frame.scale, 60.0f);
+}
+
+static void part_glass(GuiWindow *window)
+{
+    gui_strip_drawn(&window->raster, &window->icons, window->palette, &window->frame, &window->strip);
+    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title);
+    const GuiStatus status = {"ui/gui/src/raster.c", 1, 3ull, 4ull, 3ull, 4ull, 0, 0, 4u, 100000000ull};
+    gui_statusbar_drawn(&window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
+}
+
+static void part_strip(GuiWindow *window)
+{
+    gui_strip_drawn(&window->raster, &window->icons, window->palette, &window->frame, &window->strip);
+}
+
+static void part_bar(GuiWindow *window)
+{
+    gui_bar_drawn(&window->raster, &window->glyphs, window->palette, &window->frame, window->title);
+}
+
+static void part_status(GuiWindow *window)
+{
+    const GuiStatus status = {"ui/gui/src/raster.c", 1, 3ull, 4ull, 3ull, 4ull, 0, 0, 4u, 100000000ull};
+    gui_statusbar_drawn(&window->raster, &window->glyphs, &window->icons, window->palette, &window->frame, &status);
+}
+
+static void part_grain(GuiWindow *window)
+{
+    gui_raster_grained(&window->raster, window->frame.bar, window->frame.pane_radius, gui_grain(), GUI_GRAIN_TILE);
+}
+
+static void part_corners(GuiWindow *window)
+{
+    const GuiUnder tinted = {&window->ground.raster, window->palette->glass};
+    gui_raster_corners_cut(&window->raster, window->frame.inside, window->frame.radius, tinted);
 }
 
 int main(void)
@@ -51,6 +142,31 @@ int main(void)
         gui_window_drawn(&window);
     }
     const unsigned long long frames_took = cli_clock_milliseconds() - frames_began;
+    printf("frame: %.2f ms over %u frames at %u by %u\n", (double)frames_took / (double)BENCH_FRAMES, BENCH_FRAMES, BENCH_WIDTH, BENCH_HEIGHT);
+    printf("the frame's parts, each drawn alone:\n");
+    bench_timed("the ground copied", part_ground_copied, &window);
+    bench_timed("the editor's ground", part_editor_ground, &window);
+    bench_timed("the editor's text", part_editor, &window);
+    bench_timed("the explorer", part_explorer, &window);
+    bench_timed("the tabs", part_tabs, &window);
+    bench_timed("the map", part_map, &window);
+    bench_timed("the glass panes", part_glass, &window);
+    bench_timed("  the strip", part_strip, &window);
+    bench_timed("  the bar", part_bar, &window);
+    bench_timed("  the status bar", part_status, &window);
+    bench_timed("  the bar's grain alone", part_grain, &window);
+    bench_timed("the work's corners", part_corners, &window);
+    // the same frame with the editor holding no lines: the text's own cost is the difference
+    gui_editor_given(&window.editor);
+    gui_editor_made(&window.editor);
+    const unsigned long long bare_began = cli_clock_milliseconds();
+    for (unsigned int frame = 0u; frame < BENCH_FRAMES; frame += 1u)
+    {
+        part_frame(&window);
+    }
+    const unsigned long long bare_took = cli_clock_milliseconds() - bare_began;
+    printf("frame with no text: %.2f ms, the text %.2f ms of the frame\n", (double)bare_took / (double)BENCH_FRAMES,
+           ((double)frames_took - (double)bare_took) / (double)BENCH_FRAMES);
     const GuiRect whole = {0, 0, (int)BENCH_WIDTH, (int)BENCH_HEIGHT};
     const unsigned long long fills_began = cli_clock_milliseconds();
     for (unsigned int fill = 0u; fill < BENCH_FILLS; fill += 1u)
@@ -58,7 +174,6 @@ int main(void)
         gui_raster_filled(&window.raster, whole, GUI_RGBA(0x80u, 0x40u, 0xc0u, 0x80u));
     }
     const unsigned long long fills_took = cli_clock_milliseconds() - fills_began;
-    printf("frame: %.2f ms over %u frames at %u by %u\n", (double)frames_took / (double)BENCH_FRAMES, BENCH_FRAMES, BENCH_WIDTH, BENCH_HEIGHT);
     printf("blend of the whole raster: %.2f ms over %u fills\n", (double)fills_took / (double)BENCH_FILLS, BENCH_FILLS);
     gui_window_ended(&window);
     return 0;

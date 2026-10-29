@@ -137,9 +137,18 @@ void gui_raster_filled(GuiRaster *raster, GuiRect rect, GuiColor color)
 }
 
 // how much of the pixel at x, y of `rect` lies inside its corners' arcs of `radius`, 0 to 1: 1 away from the corners,
-// and in a corner's square the distance left from the pixel's middle to the arc, clamped
+// read in whole pixels with no square root, and in a corner's square the distance left from the pixel's middle to
+// the arc, clamped
 static float raster_corner_share(GuiRect rect, unsigned int radius, int x, int y)
 {
+    // the corners' squares are radius by radius, which an int holds
+    const int side = (int)radius;
+    const int in_corner_column = (x < rect.x + side) || (x >= rect.x + rect.width - side);
+    const int in_corner_row = (y < rect.y + side) || (y >= rect.y + rect.height - side);
+    if (!in_corner_column || !in_corner_row)
+    {
+        return 1.0f;
+    }
     const float reach = (float)radius;
     const float left = (float)rect.x + reach;
     const float right = (float)(rect.x + rect.width) - reach;
@@ -167,8 +176,16 @@ void gui_raster_rounded(GuiRaster *raster, GuiRect rect, unsigned int radius, Gu
         gui_raster_filled(raster, rect, color);
         return;
     }
+    // the rows between the corners' squares are filled whole through the fill's own loop; the rows through the
+    // squares pixel by pixel, each by its share inside the arcs
+    const int side = (int)radius;
+    gui_raster_filled(raster, (GuiRect){rect.x, rect.y + side, rect.width, rect.height - (2 * side)}, color);
     for (int y = on.y; y < on.y + on.height; y += 1)
     {
+        if ((y >= rect.y + side) && (y < rect.y + rect.height - side))
+        {
+            continue;
+        }
         for (int x = on.x; x < on.x + on.width; x += 1)
         {
             const float share = raster_corner_share(rect, radius, x, y);
@@ -427,19 +444,31 @@ void gui_raster_grained(GuiRaster *raster, GuiRect rect, unsigned int radius, co
         return;
     }
     const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);
+    // the corners' squares are radius by radius, which an int holds; a row through them reads each pixel's share
+    // inside the arcs, every other row lays the grain whole
+    const int side = (int)radius;
     for (int y = on.y; y < on.y + on.height; y += 1)
     {
-        // the pixel lies on the raster: its coordinates are not negative
-        const unsigned char *const row = alpha + (((unsigned int)y % tile) * tile);
+        // the pixel lies on the raster: its coordinates are not negative; the tile's row and the column it starts
+        // at are read once a row and the column counted on, wrapping at the tile's side
+        const unsigned char *const tile_row = alpha + (((unsigned int)y % tile) * tile);
+        unsigned int column = (unsigned int)on.x % tile;
+        const int through_corners = (side > 0) && ((y < rect.y + side) || (y >= rect.y + rect.height - side));
+        GuiColor *pixel = &raster->pixels[((unsigned int)y * raster->width) + (unsigned int)on.x];
         for (int x = on.x; x < on.x + on.width; x += 1)
         {
-            const float share = (radius == 0u) ? 1.0f : raster_corner_share(rect, radius, x, y);
-            const unsigned int grain = row[(unsigned int)x % tile];
-            if ((share > 0.0f) && (grain != 0u))
+            unsigned int grain = tile_row[column];
+            column = (column + 1u == tile) ? 0u : column + 1u;
+            if ((grain != 0u) && through_corners)
             {
                 // a byte by a factor from 0 to 1, rounded, is a byte
-                raster_put(raster, x, y, white, (unsigned int)(((float)grain * share) + 0.5f));
+                grain = (unsigned int)(((float)grain * raster_corner_share(rect, radius, x, y)) + 0.5f);
             }
+            if (grain != 0u)
+            {
+                *pixel = raster_blended(*pixel, white, grain);
+            }
+            pixel += 1;
         }
     }
 }
