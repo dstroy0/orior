@@ -19,8 +19,8 @@
 #define GUI_GUTTER_AFTER 20
 #define GUI_GUTTER_BEFORE 8
 
-// A line held: its number in the file, where its text starts among the part's bytes and its length, and where its runs
-// start among the part's runs and how many pairs they are
+// A line stored: its number in the file, where its text starts among the part's bytes and its length, and where its
+// runs start among the part's runs and how many pairs they are
 typedef struct
 {
     unsigned long long number;
@@ -30,7 +30,7 @@ typedef struct
     unsigned int run_count;
 } GuiLine;
 
-// A fold that opens on a line held: that line, the last it hides, whether it shows the line it closes on after what it
+// A fold that opens on a line stored: that line, the last it hides, whether it shows the line it closes on after what it
 // hides and whether the view holds it closed, and that line's text, its blanks left off, where it starts among the
 // part's closers and its length
 typedef struct
@@ -75,12 +75,12 @@ typedef struct
 #define GUI_FIND_TOGGLE 26
 #define GUI_FIND_COUNT 88
 
-// The editor: the line at the view's top and how many lines the file has; the lines held, from `from`, `count` of
+// The editor: the line at the view's top and how many lines the file has; the lines stored, from `from`, `count` of
 // them, each after the one before it among the lines shown, their texts in one cell and their runs in another; the
 // folds that open on them, in a cell, with their closers' texts in another; the grammar's names, their texts in one
 // cell and where each starts in another; the cursor and the anchor the selection runs from, where a view's frame gave
 // them; the bracket pair at the cursor, where the frame gave one; find as the frame shows it, with the matches among
-// the lines held, each a line, a from and a to column, in a cell; and the indentation the frame gave, tabs 1, spaces
+// the lines stored, each a line, a from and a to column, in a cell; and the indentation the frame gave, tabs 1, spaces
 // 0 or -1 where nothing set it, and its step
 typedef struct
 {
@@ -117,9 +117,9 @@ void gui_editor_given(GuiEditor *editor);
 void gui_editor_shaped(GuiEditor *editor, unsigned long long lines);
 // the grammar's names kept from the array `names` of `json`, each a string: 1, or 0 where a cell could not be taken
 int gui_editor_named(GuiEditor *editor, const CliJson *json, unsigned int names);
-// the lines of the answer `read` of `json`, `{"lines", "colors"}`, kept as the lines from `from`, in place of those
-// held: 1, or 0 where a cell could not be taken, the part then holding none; and the runs of the array `colors`,
-// each `{"from", "runs"}`, put on the lines held
+// the lines of the answer `read` of `json`, `{"lines", "colors"}`, stored as the lines from `from`, in place of those
+// stored before: 1, or 0 where a cell could not be allocated, the part then storing none; and the runs of the array
+// `colors`, each `{"from", "runs"}`, applied to the lines stored
 int gui_editor_lines_put(GuiEditor *editor, const CliJson *json, unsigned int read, unsigned long long from);
 int gui_editor_colored(GuiEditor *editor, const CliJson *json, unsigned int colors);
 // `length` bytes of a file's whole text kept as its lines from the first, split as the CLI splits a file, at each
@@ -147,7 +147,7 @@ int gui_editor_gutter(const GuiEditor *editor, float cell, float scale);
 // the color of the token named by the index `name` among the grammar's names, the editor's text color where no name
 // has the index
 GuiColor gui_editor_color(const GuiEditor *editor, const GuiPalette *palette, unsigned int name);
-// the editor drawn in `place` on `raster` at `scale`: the ground, then each row from the view's top a line held, the
+// the editor drawn in `place` on `raster` at `scale`: the ground, then each row from the view's top a line stored, the
 // current line's ground or the selection's, the matches' grounds, its number in the gutter with a mark where it opens
 // a fold closed, its runs in their colors, the folded mark and the closer's text after a line that opens a fold
 // closed, a box around each bracket of the pair and around the current match, the caret, and find's bar at the top

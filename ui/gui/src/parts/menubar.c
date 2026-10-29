@@ -715,7 +715,7 @@ int gui_menubar_moved(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *fr
     return changed;
 }
 
-// a key's name read: whether Alt is held and the key's own name, the other modifiers left on it
+// a key's name parsed: whether Alt is down and the key's own name, the other modifiers left on it
 static const char *menubar_key_read(const char *name, int *alt, int *modded)
 {
     *alt = 0;

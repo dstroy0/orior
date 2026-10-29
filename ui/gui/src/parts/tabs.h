@@ -9,7 +9,7 @@
 #include "../glyphs.h"
 #include "../palette.h"
 
-// the tabs held at the most; and the sizes in the page's pixels: a tab's text size, its padding at its left and its
+// the most tabs the array holds; and the sizes in the page's pixels: a tab's text size, its padding at its left and its
 // right, the gap between its name and its close mark, its corner radius, the line along the shown tab's top and left,
 // and the close mark's padding each side
 #define GUI_TABS_MOST 32u
@@ -22,13 +22,17 @@
 #define GUI_TAB_CLOSE_PAD 5
 
 // A tab: the file's path from the tree's top, the key its branch is stored under, whether the editor's view is open
-// on it, and whether its lines end in a carriage return and a newline
+// on it, whether its lines end in a carriage return and a newline, the ticket of its open in flight, 0 for none, and
+// the names its grammar gives its tokens, `names_size` bytes of the array's JSON in a cell, NULL where none came
 typedef struct
 {
     char path[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
     int viewed;
     int crlf;
+    unsigned long long asked_open;
+    char *names;
+    unsigned long long names_size;
 } GuiTab;
 
 // the name a tab shows, the last part of its path, into `name`, its length

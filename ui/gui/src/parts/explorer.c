@@ -270,7 +270,7 @@ int gui_explorer_hit(const GuiExplorer *explorer, const GuiFrame *frame, int x, 
     {
         return 0;
     }
-    // the pixel stands below the rows' top, so the row counted is not negative
+    // the pixel stands below the rows' top: the row counted is not negative
     const unsigned int at = (unsigned int)((y - top) / gui_scaled(GUI_EXPLORER_ROW, frame->scale)) + explorer->scroll;
     if (at >= gui_explorer_rows(explorer))
     {
@@ -414,7 +414,7 @@ static void explorer_arrow_drawn(GuiRaster *raster, int x, int y, int side, int 
     }
 }
 
-// a baseline that centres a face's letters in a row from `top`, `tall` pixels
+// a baseline that centers a face's letters in a row from `top`, `tall` pixels
 static int explorer_baseline(GuiGlyphs *glyphs, unsigned int face, unsigned int size, int top, int tall)
 {
     const float ascent = gui_glyphs_ascent(glyphs, face, size);

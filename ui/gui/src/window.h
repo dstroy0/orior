@@ -38,14 +38,16 @@
 
 // The window: its frame, raster, glyphs, icons, palette, editor, minimap, menu bar, strip, explorer and link; the
 // claim and whether its slides ran at the last tick, the view told the editor's size as they stop; the
-// catalog of commands the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar;
-// the files open as tabs, how many, the one shown, -1 for none, and the one shown before it, -1 for none; the shown
-// file's path and the key it is stored under; whether the window is maximized; the tickets of the calls in flight,
-// the launch command, the root, the catalog, a whole path made the tree's, the open, the view's open, the memory
-// reading and the map's lines, each 0 where none is, whether the map is wanted again as its answer comes, when the
-// memory was last asked and the bytes it answered, and the sequence of the last frame taken; whether the CLI's editor
-// view is open on the shown file, whether the pointer drags in it, and the presses counted, when and where the last
-// was; whether a frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT where none
+// catalog of commands the menu bar reads, parsed into a JSON tree of its own once it came; the tree's name shown in the bar;
+// the tree's root as the CLI names it, empty where none is open; the files open as tabs, how many, the one shown, -1
+// for none, and the one shown before it, -1 for none; the shown file's path and the key it is stored under; whether
+// the window is maximized; the tickets of the calls in flight, the launch command, the root, the catalog, a whole path
+// made the tree's, what orior's folder keeps, the view's open, the memory reading and the map's lines, each 0 where
+// none is, whether the map is wanted again as its answer comes, when the memory was last asked and the bytes it
+// answered, and the sequence of the last frame taken; whether the tree's kept tabs are back, the session kept again
+// only after; whether the CLI's editor view is open on the shown file, whether the pointer drags in it, and the
+// presses counted, when and where the last was; whether a frame is owed; and the control pressed, for the system to
+// act on, GUI_HIT_CLIENT where none
 typedef struct
 {
     GuiFrame frame;
@@ -64,6 +66,7 @@ typedef struct
     CliJson catalog;
     int cataloged;
     char title[CLI_NAME_MAX_LEN];
+    char root[CLI_PATH_MAX_LEN];
     GuiTab tab[GUI_TABS_MOST];
     unsigned int tabs;
     int active;
@@ -75,7 +78,7 @@ typedef struct
     unsigned long long asked_root;
     unsigned long long asked_catalog;
     unsigned long long asked_relative;
-    unsigned long long asked_open;
+    unsigned long long asked_state;
     unsigned long long asked_view;
     unsigned long long asked_memory;
     unsigned long long asked_map;
@@ -83,6 +86,7 @@ typedef struct
     unsigned long long memory_ms;
     unsigned long long memory_bytes;
     unsigned long long frame_seq;
+    int restored;
     int viewed;
     int dragging;
     unsigned int clicks;
@@ -113,7 +117,7 @@ void gui_window_drawn(GuiWindow *window);
 // where the pointer at x, y stands
 unsigned int gui_window_hit(const GuiWindow *window, int x, int y);
 // the wheel turned `rows` rows, down where positive, with the pointer at x, y, over the editor or the map; a button
-// pressed at x, y with the modifiers `mods` held, as system.h names them; the pointer moved to x, y; the button let go;
+// pressed at x, y with the modifier keys `mods` down, as system.h names them; the pointer moved to x, y; the button let go;
 // a key pressed, named as the page's editor names it; and `size` bytes of text typed
 void gui_window_wheel(GuiWindow *window, int x, int y, int rows);
 void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods);

@@ -35,8 +35,8 @@ struct GuiSystem
     unsigned int mods;
 };
 
-// the modifiers held, as system.h names them: read from the keys' own messages as they come, so a key message
-// posted to the window carries the modifiers posted before it, and from the keyboard's state as the window takes
+// the modifier keys down, as system.h names them: read from the keys' own messages as they come, which gives a key
+// message posted to the window the modifiers posted before it, and from the keyboard's state as the window takes
 // the focus
 static unsigned int system_mods(const GuiSystem *system)
 {
@@ -49,7 +49,7 @@ static unsigned int system_mods_of_keyboard(void)
            ((GetKeyState(VK_MENU) < 0) ? GUI_MOD_ALT : 0u);
 }
 
-// a modifier key's message taken into the modifiers held: 1 where the key is one, else 0
+// a modifier key's message applied to the modifier keys down: 1 where the key is a modifier, else 0
 static int system_modifier_keyed(GuiSystem *system, WPARAM key, int down)
 {
     const unsigned int bit = ((key == VK_SHIFT) || (key == VK_LSHIFT) || (key == VK_RSHIFT))       ? GUI_MOD_SHIFT
@@ -103,7 +103,7 @@ static int system_key_named(WPARAM key, char *name, unsigned long long room)
     return 0;
 }
 
-// a key pressed handed to the window with the modifiers held before its name
+// a key press passed to the window, the modifier keys down written before its name
 static void system_key_pressed(GuiSystem *system, WPARAM key)
 {
     char own[32];
@@ -123,7 +123,7 @@ static void system_key_pressed(GuiSystem *system, WPARAM key)
 }
 
 // a character typed handed to the window as UTF-8, a surrogate pair joined across its two messages; a control
-// character and one typed with the control key held are keys, not text
+// character and one typed with the control key down are keys, not text
 static void system_char_typed(GuiSystem *system, WPARAM unit)
 {
     if ((unit < 0x20u) || (unit == 0x7fu) || ((system->mods & (GUI_MOD_CONTROL | GUI_MOD_ALT)) != 0u))
@@ -312,7 +312,7 @@ static BOOL CALLBACK system_monitor_seen(HMONITOR monitor, HDC context, LPRECT r
     {
         return TRUE;
     }
-    // a monitor's area is the part the taskbar leaves, so a window fitted to it keeps its foot in view; its sides are
+    // a monitor's area is the part the taskbar leaves: a window fitted to it has its foot in view; its sides are
     // not negative
     const CliWindowArea area = {info.rcWork.left, info.rcWork.top, (unsigned int)(info.rcWork.right - info.rcWork.left),
                                 (unsigned int)(info.rcWork.bottom - info.rcWork.top)};
@@ -396,8 +396,9 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
     return system;
 }
 
-// one message taken: a key pressed with control or alt held is a key, not text, so no character is made of it; the
-// character a key makes is queued behind the messages posted already, which would put it past the modifiers' release
+// one message dispatched: a key pressed with control or alt down is a key, not text, and is not translated to a
+// character; the character a key makes is queued behind the messages posted already, which would put it past the
+// modifiers' release
 static void system_message_taken(GuiSystem *system, MSG *message)
 {
     const int keyed = (message->message == WM_KEYDOWN) || (message->message == WM_KEYUP) ||

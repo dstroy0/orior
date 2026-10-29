@@ -83,7 +83,7 @@ static GuiColor raster_blended(GuiColor ground, GuiColor color, unsigned int sha
 // the pixel at x, y of a rectangle known to lie on the raster blended with `color` by `share` of 255
 static void raster_put(GuiRaster *raster, int x, int y, GuiColor color, unsigned int share)
 {
-    // the pixel's place is on the raster, so its coordinates are not negative
+    // the pixel lies on the raster: its coordinates are not negative
     GuiColor *const at = &raster->pixels[((unsigned int)y * raster->width) + (unsigned int)x];
     *at = raster_blended(*at, color, share);
 }

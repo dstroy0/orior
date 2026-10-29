@@ -30,7 +30,7 @@
 #define CLI_VIEW_JOINED 1200ull
 
 // One input: its kind; a key's name; `length` bytes of text typed; the pointer's event, its row from the view's top and
-// its column in cells, how many presses in a row it is and whether Shift is held; a scroll's top line; a size's rows
+// its column in cells, how many presses in a row it is and whether Shift is down; a scroll's top line; a size's rows
 // and columns; and whether the pointer stands in the gutter, where a press toggles the fold at its row
 typedef struct
 {
@@ -50,8 +50,8 @@ typedef struct
 } CliViewInput;
 
 // a view opened on the text stored under `key`, its indentation the `.editorconfig` files above the file at `path`
-// give it, in place of a view open on the key: 1, or 0 where no text is stored under the key or no more views can be
-// held; and the view closed, its steps given back
+// give it, in place of a view open on the key: 1, or 0 where no text is stored under the key or the views table is
+// full; and the view closed, its steps freed
 int cli_view_opened(const char *key, const char *path);
 void cli_view_closed(const char *key);
 // `input` taken by the view under `key`: 1, or 0 with why given where no view is open under the key or an edit could

@@ -18,7 +18,7 @@ void gui_editor_made(GuiEditor *editor)
     memor.set(&(MemoriaCfg){.dst = editor, .val = 0, .bytes = sizeof(*editor)});
 }
 
-// the lines held let go, with the folds that open on them, find's query and the matches
+// the lines stored freed, with the folds that open on them, find's query and the matches
 static void editor_lines_given(GuiEditor *editor)
 {
     g_cli_cells->persistent_buf_release(editor->line, &s_owner);
@@ -137,7 +137,7 @@ static unsigned int editor_runs_of(const CliJson *json, unsigned int colors, uns
         const unsigned int lines = cli_json_is(json, runs, CFG_JSON_ARRAY) ? json->node[runs].count : 0u;
         if ((line >= start) && (line < start + lines))
         {
-            // the last range to color a line is the one that stands
+            // the last range to color a line wins
             found = cli_json_item(json, runs, (unsigned int)(line - start));
         }
     }
@@ -422,7 +422,7 @@ void gui_editor_scrolled(GuiEditor *editor, long long delta, unsigned int rows)
     const unsigned long long last = (editor->lines != 0ull) ? editor->lines - 1ull : 0ull;
     if (delta < 0ll)
     {
-        // a move up is at most the top, so it reads as the lines above the top
+        // a move up is clamped to the top: it is the count of lines above the top
         const unsigned long long up = (unsigned long long)(-delta);
         editor->top = (up > editor->top) ? 0ull : editor->top - up;
         return;
@@ -774,7 +774,7 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
     const GuiPlace selected_from = anchored ? editor->anchor : editor->cursor;
     const GuiPlace selected_to = anchored ? editor->cursor : editor->anchor;
     const int selected = editor->has_cursor && ((selected_from.line != selected_to.line) || (selected_from.col != selected_to.col));
-    // the first row drawn is the first line held at or below the view's top
+    // the first row drawn is the first line stored at or below the view's top
     unsigned int start = 0u;
     while ((start < editor->count) && (editor->line[start].number < editor->top))
     {

@@ -17,7 +17,7 @@ static CellOwner s_owner = MMGR_CELL_OWNER("gui_icons");
 #define ICONS_STEP 0.5f
 #define ICONS_PATHS 3u
 
-// An icon's shape: its name, its paths, its dots as `fills` triples of centre x, centre y and radius, and whether it
+// An icon's shape: its name, its paths, its dots as `fills` triples of center x, center y and radius, and whether it
 // is the cog, drawn from its teeth
 typedef struct
 {
@@ -124,7 +124,7 @@ static void pen_capsule(GuiPen *pen, float x0, float y0, float x1, float y1, flo
             const float clamped = (along < 0.0f) ? 0.0f : ((along > 1.0f) ? 1.0f : along);
             const float away = hypotf(from_x - (clamped * run_x), from_y - (clamped * run_y));
             const float share = radius + 0.5f - away;
-            // the pixel lies on the square, so its place is not negative
+            // the pixel lies on the square: its place is not negative
             float *const had = &pen->cover[((unsigned int)y * pen->side) + (unsigned int)x];
             if (share > *had)
             {
@@ -189,7 +189,7 @@ static float pen_angle(float ux, float uy, float vx, float vy)
 }
 
 // an elliptical arc drawn from the pen to x, y with radii rx, ry turned by `turn` degrees, the larger arc where
-// `large` is set and the one that sweeps clockwise where `sweep` is, as the path language's arc, its centre found
+// `large` is set and the one that sweeps clockwise where `sweep` is, as the path language's arc, its center found
 // from its ends and the arc walked in steps
 static void pen_arced(GuiPen *pen, float rx, float ry, float turn, int large, int sweep, float x, float y)
 {

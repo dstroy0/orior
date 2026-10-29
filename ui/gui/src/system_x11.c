@@ -8,8 +8,8 @@
 
 #include "../../cli/src/command_line/cli_internal.h"
 
-// the tree names a structure Atom in its engine's headers, which the CLI's headers reach, so X's atom goes by X11Atom
-// here, in X's own headers and in this file alike
+// the tree names a structure Atom in its engine's headers, which the CLI's headers include; X's Atom is renamed
+// X11Atom here, in X's own headers and in this file alike
 #define Atom X11Atom
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -115,15 +115,15 @@ static void system_moveresize(GuiSystem *system, int root_x, int root_y, long di
     XFlush(system->display);
 }
 
-// the modifiers held in an event's state, as system.h names them
+// the modifier keys down in an event's state, as system.h names them
 static unsigned int system_mods(unsigned int state)
 {
     return ((state & ShiftMask) ? GUI_MOD_SHIFT : 0u) | ((state & ControlMask) ? GUI_MOD_CONTROL : 0u) |
            ((state & Mod1Mask) ? GUI_MOD_ALT : 0u);
 }
 
-// a key pressed handed to the window: a key with a name of the page's editor's, with the modifiers held before it,
-// and a letter typed as text where the key stands for one and no control is held
+// a key press passed to the window: a key with a name of the page's editor's, the modifier keys down written before
+// it, and a letter typed as text where the key maps to one and the control key is not down
 static void system_key_pressed(GuiSystem *system, XKeyEvent *event)
 {
     static const struct

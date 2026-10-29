@@ -15,7 +15,7 @@
 #include "../icons.h"
 #include "../palette.h"
 
-// the nodes held at the most and the bytes their paths take at the most; no row; and the sizes in the page's pixels:
+// the most nodes the cells hold and the most bytes their paths take; no row; and the sizes in the page's pixels:
 // the explorer's head, the line over the pane and the pane's head, a row, a row's padding at the left, a guide's
 // width, the arrow's box, the icon's box and the gap after it, the head's text size, a row's and a mark's, and the
 // arrow's side

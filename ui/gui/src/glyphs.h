@@ -20,8 +20,8 @@
 // the glyphs kept drawn at once; past three quarters of them every one is let go and drawn again as it is asked for
 #define GUI_GLYPH_SLOTS 4096u
 
-// A glyph kept: whether its slot is used, the face, glyph and pixel size that key it, its advance in pixels, and its
-// mask, the cover in a cell of its own, NULL where it has no pixels
+// A cache entry: whether it is in use, its key (the face, the glyph and the pixel size), the glyph's advance in
+// pixels, and the coverage mask, allocated in a cell of its own, NULL where the glyph has no pixels
 typedef struct
 {
     int used;
@@ -33,7 +33,7 @@ typedef struct
 } GuiCachedGlyph;
 
 // The glyphs: each face as read and whether it was, the file each was read from, the outline a glyph is drawn through,
-// and the slots the glyphs drawn are kept in, how many of them used
+// and the cache's entries, one rasterized glyph each, with how many of them are in use
 typedef struct
 {
     CliFont face[GUI_FACES];

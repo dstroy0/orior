@@ -64,7 +64,7 @@ static int glyphs_face_read(GuiGlyphs *glyphs, unsigned int face, const char *pa
     return 1;
 }
 
-// every glyph kept let go, its cover given back, and every slot freed
+// the cache emptied: every entry's coverage mask freed and every entry marked unused
 static void glyphs_emptied(GuiGlyphs *glyphs)
 {
     for (unsigned int at = 0u; at < GUI_GLYPH_SLOTS; at += 1u)
@@ -142,8 +142,8 @@ unsigned int gui_face_had(const GuiGlyphs *glyphs, unsigned int face)
     return ((face < GUI_FACES) && glyphs->has[face]) ? face : GUI_FACE_CODE;
 }
 
-// the slot the glyph keyed by `face`, `glyph` and `size` is kept in, or a free one for it, every slot let go first
-// where three quarters are used
+// the cache entry keyed by `face`, `glyph` and `size`, or an unused entry for it; the cache is emptied first when
+// three quarters of its entries are in use
 static GuiCachedGlyph *glyphs_slot(GuiGlyphs *glyphs, unsigned int face, unsigned int glyph, unsigned int size)
 {
     const unsigned int start = ((face * 31u) + (glyph * 7u) + (size * 131u)) % GUI_GLYPH_SLOTS;

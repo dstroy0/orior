@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // opening_test.c: the window opening a file through the CLI, no system under it: the CLI's side begun on the tree the
 // check runs in, a file of the tree opened by its path from the tree's top and by its whole path, its lines held
-// and the first drawn; and a door command to open a file, as the CLI emits one, taken the same way and answered
+// and the first drawn; a door command to open a file, as the CLI emits one, taken the same way and answered; the
+// tabs and the one shown kept in orior's folder, the checks' own, and brought back by a window started again
+#include "../../../../../ui/cli/src/command_line/file_writing.h"
+#include "../../../../../ui/cli/src/machine/state.h"
+#include "../../../../../ui/cli/src/text/text.h"
 #include "../../../../../ui/gui/src/window.h"
 #include "../cli/cli_check.h"
 
@@ -106,6 +110,55 @@ static int rows_came(GuiWindow *window, Woken *count)
         cli_lock_give(&count->lock);
         gui_window_drained(window);
         if (gui_explorer_rows(&window->explorer) > 0u)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the window's thread draining each wake until what orior's folder keeps names `needle`, or five seconds pass
+static int kept_came(GuiWindow *window, Woken *count, const char *needle)
+{
+    char folder[CLI_PATH_MAX_LEN];
+    if (!cli_home_folder(folder))
+    {
+        return 0;
+    }
+    const unsigned long long wanted = cellul.len(&(CatenaFinitaCfg){.src = needle, .cap = CLI_PATH_MAX_LEN});
+    for (unsigned int left = 500u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        VerbaLinea line;
+        if (!cli_growing_line_made(&line, 4096u))
+        {
+            return 0;
+        }
+        unsigned long long at = 0ull;
+        const int found = cli_state_read(folder, &line) && mmgr_line_ok(&line) && cli_text_find(line.out, line.at, needle, wanted, &at);
+        g_cli_cells->persistent_buf_release(line.out, NULL);
+        if (found)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the window's thread draining each wake until the tree's kept tabs are back and `tabs` of them stand, or five
+// seconds pass
+static int tabs_came(GuiWindow *window, Woken *count, unsigned int tabs)
+{
+    for (unsigned int left = 500u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        if (window->restored && (window->tabs == tabs))
         {
             return 1;
         }
@@ -250,6 +303,18 @@ int main(void)
     cli_check((window.tabs == 2u) && lines_came(&window, &count) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = window.tab[window.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
               "a file pressed in the tree opens as a tab");
+
+    // the tabs and the one shown are kept in orior's folder, the checks' own, as the page keeps them, and a window
+    // started again on the tree brings them back with the one shown
+    cli_check(kept_came(&window, &count, picked) && kept_came(&window, &count, "active"), "the tabs and the one shown are kept in orior's folder");
+    static GuiWindow again;
+    cli_check(gui_window_begun(&again, woken, &count, &why) && gui_window_sized(&again, 800u, 500u, 1.0f), "a window begins again");
+    gui_window_started(&again);
+    cli_check(tabs_came(&again, &count, 2u) && (again.active >= 0) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = again.tab[again.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
+              "the window started again brings the kept tabs back and shows the one kept shown");
+    cli_check(lines_came(&again, &count), "the tab brought back shows its lines");
+    gui_window_ended(&again);
 
     gui_window_ended(&window);
     cli_window_ended();

@@ -41,6 +41,11 @@ CLI_NAME="$(awk -F'\t' '$1 == "cli" { print $2 }' "$TOP/bin_names.tsv")"
 LIBRARY="$TOP/build/cli/$HOST/lib$CLI_NAME.a"
 RUN="$TOP/build/gui_test"
 mkdir -p "$RUN"
+# the checks keep what they keep in a folder of their own, made fresh each run: nothing of the reader's is read or
+# written
+export ORIOR_HOME="$RUN/home"
+rm -rf "$ORIOR_HOME"
+mkdir -p "$ORIOR_HOME"
 
 # the window's modules a check may reach: every source but the program's own and the other systems' bodies
 MODULES=()

@@ -44,9 +44,9 @@ typedef struct
     int slider_tall;
 } GuiMapPlace;
 
-// The minimap: the lines held, from `from`, `count` of them, each line's first bar's index among the bars with one
-// index more where the bars end, and the bars; whether the lines held are stale; the view's top the map last stood
-// beside and how many rows above the slider the map began, kept so the map stands still while the view does; the
+// The minimap: the lines stored, from `from`, `count` of them, each line's first bar's index among the bars with one
+// index more where the bars end, and the bars; whether the lines stored are stale; the view's top the map last stood
+// beside and how many rows above the slider the map began, stored so the map stands still while the view does; the
 // place it last stood at; and the drag, whether one runs, where it began and the view's top then
 typedef struct
 {
@@ -65,20 +65,20 @@ typedef struct
     unsigned long long drag_top;
 } GuiMinimap;
 
-// a map holding nothing, its cells taken: 1, or 0 where they could not be; its cells given back; and the lines held
-// dropped, the map stale and its hold on the view's top let go, as a tab is shown
+// a map with no lines, its cells allocated: 1, or 0 where they could not be; its cells freed; and the lines stored
+// dropped, the map stale and the view's top it stood beside forgotten, as a tab is shown
 int gui_minimap_made(GuiMinimap *map);
 void gui_minimap_given(GuiMinimap *map);
 void gui_minimap_cleared(GuiMinimap *map);
-// the lines of the answer `root` of `json`, `{"from", "bars"}`, kept in place of those held, each line's bars `[start,
-// width, name]`, the map stale no more: 1, or 0 where the answer is no such object
+// the lines of the answer `root` of `json`, `{"from", "bars"}`, stored in place of those stored before, each line's
+// bars `[start, width, name]`, the map stale no more: 1, or 0 where the answer is no such object
 int gui_minimap_put(GuiMinimap *map, const CliJson *json, unsigned int root);
 // the map placed in `place` at `scale` beside the view of `editor`, which shows `on_screen` lines: its rows, the line
 // at its first row and the slider
 void gui_minimap_placed(GuiMinimap *map, GuiRect place, float scale, const GuiEditor *editor, float on_screen);
 // the lines the map placed stands for, first and last: 1, or 0 where the text has none
 int gui_minimap_span(const GuiMinimap *map, unsigned long long *first, unsigned long long *last);
-// whether the lines held are those from `first` to `last` and not stale
+// whether the lines stored are those from `first` to `last` and not stale
 int gui_minimap_current(const GuiMinimap *map, unsigned long long first, unsigned long long last);
 // the map drawn in `place` at `scale`: the editor's ground and the line along its left; then, while the text has lines,
 // the selection's rows, the matches' rows, each line's bars in their tokens' colors, the slider, and the overview strip

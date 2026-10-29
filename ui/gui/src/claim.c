@@ -259,7 +259,7 @@ void gui_claim_moved(GuiClaim *claim, int x, int y, unsigned int zone, int over_
         // a pointer come into the corner fast shows the ghost once it has settled
         claim->near_due = now + (2ull * GUI_CLAIM_SPAN);
     }
-    // a pointer passing through starts its rest again with each move, so the rest begins once it slows
+    // a pointer passing through restarts its rest timer with each move: the rest begins once it slows
     if ((zone != claim->zone_now) || passing)
     {
         claim->zone_now = zone;

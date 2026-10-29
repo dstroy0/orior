@@ -4,16 +4,22 @@
 // to read whole alike, and is shown through the CLI's editor view, which answers each input with the frame drawn; the
 // walk's colors come as branch-colors events. The minimap's lines are asked of editor_view_map for the span the map
 // stands for, after a frame moves the span or a key, text or the walk's colors make the lines held stale, one ask in
-// flight at a time
+// flight at a time. What the tree keeps, its tabs and the one shown and the explorer's group, is read from orior's
+// folder as the root comes, under the keys the page keeps them by, and written back as they change
 #include "window.h"
 
+#include "../../cli/src/command_line/file_writing.h"
 #include "../../cli/src/editor/view.h"
 #include "answer.h"
 #include "parts/chrome.h"
 #include "system.h"
 
-// the head of the key a file opened is stored under
+// the head of the key a file opened is stored under; the keys orior's folder keeps a tree's session and the explorer's
+// group under, the tree's root after the session's; and the bytes the session is written in before it grows
 #define GUI_OPEN_KEY_HEAD "window:"
+#define GUI_KEPT_SESSION "orior.session."
+#define GUI_KEPT_GROUP "orior.panes.group"
+#define GUI_KEPT_FIRST 4096u
 
 int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, VerbaLinea *err_msg)
 {
@@ -54,6 +60,11 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
 void gui_window_ended(GuiWindow *window)
 {
     gui_link_ended(&window->link);
+    for (unsigned int at = 0u; at < window->tabs; at += 1u)
+    {
+        g_cli_cells->persistent_buf_release(window->tab[at].names, NULL);
+        window->tab[at].names = NULL;
+    }
     gui_editor_given(&window->editor);
     if (window->cataloged)
     {
@@ -235,8 +246,146 @@ static void window_listing_asked(GuiWindow *window, const char *dir)
     }
 }
 
-// the work's inside laid again as the strip's tool shown has a side or not, the view told the editor's size, and the
-// top folder's listing asked for the first time the side shows
+// the tab whose open is in flight under `ticket`, or -1
+static int window_tab_by_ticket(const GuiWindow *window, unsigned long long ticket)
+{
+    for (unsigned int at = 0u; at < window->tabs; at += 1u)
+    {
+        if (window->tab[at].asked_open == ticket)
+        {
+            // the tabs are fewer than an int counts
+            return (int)at;
+        }
+    }
+    return -1;
+}
+
+// the tab whose key is `length` bytes of `key`, or -1
+static int window_tab_by_key(const GuiWindow *window, const char *key, unsigned long long length)
+{
+    for (unsigned int at = 0u; at < window->tabs; at += 1u)
+    {
+        const GuiTab *const tab = &window->tab[at];
+        if ((cellul.len(&(CatenaFinitaCfg){.src = tab->key, .cap = sizeof(tab->key)}) == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = tab->key, .other = key, .bytes = length}) == 0))
+        {
+            // the tabs are fewer than an int counts
+            return (int)at;
+        }
+    }
+    return -1;
+}
+
+// the JSON text of the array `names` of `json`, the grammar's token names, stored in the tab `at`, replacing the
+// text stored before
+static void window_names_kept(GuiWindow *window, unsigned int at, const CliJson *json, unsigned int names)
+{
+    GuiTab *const tab = &window->tab[at];
+    g_cli_cells->persistent_buf_release(tab->names, NULL);
+    tab->names = NULL;
+    tab->names_size = 0ull;
+    VerbaLinea line;
+    if (!cli_growing_line_made(&line, GUI_KEPT_FIRST))
+    {
+        return;
+    }
+    cli_json_write(json, names, &line, 0u, 0);
+    if (!mmgr_line_ok(&line))
+    {
+        g_cli_cells->persistent_buf_release(line.out, NULL);
+        return;
+    }
+    tab->names = line.out;
+    tab->names_size = line.at;
+}
+
+// the tab `at`'s names given to the editor, where any came
+static void window_names_given(GuiWindow *window, unsigned int at)
+{
+    const GuiTab *const tab = &window->tab[at];
+    if (tab->names == NULL)
+    {
+        return;
+    }
+    char err_text[256];
+    VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
+    CliJson json;
+    const unsigned int names = cli_json_taken(&json, tab->names, tab->names_size, 0u, 0ull, &err_msg);
+    if (names != CLI_JSON_NONE)
+    {
+        (void)gui_editor_named(&window->editor, &json, names);
+        cli_json_given(&json);
+    }
+}
+
+// the tree's session and the explorer's group written to orior's folder under the keys the page keeps them by, once
+// the tree's kept tabs are back: the tabs' paths in order, the one shown, and the strip's side tool shown
+static void window_kept(GuiWindow *window)
+{
+    if (!window->restored || (window->root[0] == '\0'))
+    {
+        return;
+    }
+    VerbaLinea session;
+    VerbaLinea args;
+    if (!cli_growing_line_made(&session, GUI_KEPT_FIRST))
+    {
+        return;
+    }
+    if (!cli_growing_line_made(&args, GUI_KEPT_FIRST))
+    {
+        g_cli_cells->persistent_buf_release(session.out, NULL);
+        return;
+    }
+    // the session as the page keeps it: the tabs, the same as the main side's, the one shown, no split and no groups
+    mmgr_line_put(&session, "{\"tabs\":[");
+    for (unsigned int at = 0u; at < window->tabs; at += 1u)
+    {
+        mmgr_line_put(&session, (at > 0u) ? "," : "");
+        cli_json_quoted(&session, window->tab[at].path, cellul.len(&(CatenaFinitaCfg){.src = window->tab[at].path, .cap = CLI_PATH_MAX_LEN}));
+    }
+    mmgr_line_put(&session, "],\"main\":[");
+    for (unsigned int at = 0u; at < window->tabs; at += 1u)
+    {
+        mmgr_line_put(&session, (at > 0u) ? "," : "");
+        cli_json_quoted(&session, window->tab[at].path, cellul.len(&(CatenaFinitaCfg){.src = window->tab[at].path, .cap = CLI_PATH_MAX_LEN}));
+    }
+    mmgr_line_put(&session, "],\"active\":");
+    if (window->active >= 0)
+    {
+        cli_json_quoted(&session, window->path, cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
+    }
+    else
+    {
+        mmgr_line_put(&session, "null");
+    }
+    mmgr_line_put(&session, ",\"split\":null,\"groups\":[]}");
+    char key[CLI_PATH_MAX_LEN + 32u];
+    VerbaLinea keyed = {key, sizeof(key), 0ull};
+    mmgr_line_put(&keyed, GUI_KEPT_SESSION);
+    mmgr_line_put(&keyed, window->root);
+    mmgr_line_put(&args, "{\"changes\":{");
+    cli_json_quoted(&args, key, mmgr_line_finish(&keyed) != 0ull ? keyed.at : 0ull);
+    mmgr_line_ch(&args, ':');
+    cli_json_quoted(&args, session.out, mmgr_line_ok(&session) ? session.at : 0ull);
+    if (window_side_shown(window))
+    {
+        // the tool shown is among the tools
+        const GuiTool *const tool = gui_strip_tool((unsigned int)window->strip.shown);
+        mmgr_line_put(&args, ",\"" GUI_KEPT_GROUP "\":");
+        cli_json_quoted(&args, tool->name, cellul.len(&(CatenaFinitaCfg){.src = tool->name, .cap = 32ull}));
+    }
+    mmgr_line_put(&args, "}}");
+    if (mmgr_line_ok(&args) && mmgr_line_ok(&session))
+    {
+        (void)window_called(window, 1, "state_write", &args);
+    }
+    g_cli_cells->persistent_buf_release(session.out, NULL);
+    g_cli_cells->persistent_buf_release(args.out, NULL);
+}
+
+// the work's inside laid again as the strip's tool shown has a side or not, the view told the editor's size, the top
+// folder's listing asked for the first time the side shows, and the group shown kept
 static void window_sided(GuiWindow *window)
 {
     const int side = window_side_shown(window);
@@ -247,6 +396,7 @@ static void window_sided(GuiWindow *window)
     {
         window_listing_asked(window, "");
     }
+    window_kept(window);
 }
 
 int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height, float scale)
@@ -392,9 +542,12 @@ static void window_tab_taken(GuiWindow *window, unsigned int at)
     window->viewed = tab->viewed;
     window->frame_seq = 0ull;
     window->menubar.has_editor = 1;
+    gui_editor_given(&window->editor);
     gui_editor_made(&window->editor);
+    window_names_given(window, at);
     gui_minimap_cleared(&window->minimap);
     window->owed = 1;
+    window_kept(window);
 }
 
 void gui_window_tab_shown(GuiWindow *window, unsigned int at)
@@ -404,7 +557,7 @@ void gui_window_tab_shown(GuiWindow *window, unsigned int at)
         return;
     }
     window_tab_taken(window, at);
-    // the view open on the file answers its frame as it is told the editor's size
+    // the view open on the file returns a frame when it is sent the editor's size
     if (window->viewed)
     {
         window_view_sized(window);
@@ -428,6 +581,7 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         (void)window_called(window, 1, "editor_view_close", &args);
     }
     (void)window_called(window, 1, "document_release", &args);
+    g_cli_cells->persistent_buf_release(tab->names, NULL);
     for (unsigned int after = at + 1u; after < window->tabs; after += 1u)
     {
         window->tab[after - 1u] = window->tab[after];
@@ -444,20 +598,24 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         window->viewed = 0;
         window->frame_seq = 0ull;
         window->menubar.has_editor = 0;
+        gui_editor_given(&window->editor);
         gui_editor_made(&window->editor);
         gui_minimap_cleared(&window->minimap);
         window_claimed(window, 0);
+        window_kept(window);
         return;
     }
     if ((int)at == window->active)
     {
         window->active = -1;
         gui_window_tab_shown(window, (at < window->tabs) ? at : window->tabs - 1u);
+        return;
     }
-    else if ((int)at < window->active)
+    if ((int)at < window->active)
     {
         window->active -= 1;
     }
+    window_kept(window);
 }
 
 // the file at `length` bytes of `path`, a path from the tree's top, opened as a tab shown: its tab where it is open
@@ -487,6 +645,9 @@ static void window_branch_opened(GuiWindow *window, const char *path, unsigned l
     mmgr_line_put_n(&key, path, length);
     (void)mmgr_line_finish(&key);
     tab->viewed = 0;
+    tab->crlf = 0;
+    tab->names = NULL;
+    tab->names_size = 0ull;
     window->tabs += 1u;
     window_tab_taken(window, window->tabs - 1u);
     char text[(2u * CLI_PATH_MAX_LEN) + 128u];
@@ -498,7 +659,7 @@ static void window_branch_opened(GuiWindow *window, const char *path, unsigned l
     mmgr_line_put(&args, ",\"first\":0,\"last\":");
     mmgr_line_decimal(&args, window_rows(window), 1u);
     mmgr_line_put(&args, ",\"columns\":0}");
-    window->asked_open = window_called(window, 1, "branch_open", &args);
+    tab->asked_open = window_called(window, 1, "branch_open", &args);
 }
 
 void gui_window_file_opened(GuiWindow *window, const char *path)
@@ -544,45 +705,115 @@ static void window_titled(GuiWindow *window, const char *root, unsigned long lon
     (void)mmgr_line_finish(&title);
 }
 
-// the open's answer taken: the grammar's names kept, and the text, read whole or paged, shown through the CLI's
-// editor view, opened on it sized to the editor
-static void window_opened(GuiWindow *window, const CliJson *json, unsigned int root)
+// the open's answer for the tab `at` taken: the grammar's names kept with the tab and given to the editor where the
+// tab is shown, and the text, read whole or paged, shown through the CLI's editor view, opened on it sized to the
+// editor
+static void window_opened(GuiWindow *window, const CliJson *json, unsigned int root, unsigned int at)
 {
+    GuiTab *const tab = &window->tab[at];
+    // the tabs are fewer than an int counts
+    const int shown = (int)at == window->active;
     const unsigned int names = cli_json_member(json, root, "names");
     if (names != CLI_JSON_NONE)
     {
-        (void)gui_editor_named(&window->editor, json, names);
+        window_names_kept(window, at, json, names);
+        if (shown)
+        {
+            (void)gui_editor_named(&window->editor, json, names);
+        }
     }
     const int paged = gui_answer_member_true(json, root, "windowed") &&
                       cli_json_is(json, cli_json_member(json, root, "shape"), CFG_JSON_OBJECT);
     // a text read whole says how its lines end: a carriage return before a newline, as the text or as its escape
     unsigned long long text_length = 0ull;
     const char *const whole = cli_json_string(json, cli_json_member(json, root, "text"), &text_length);
-    if ((whole != NULL) && (window->active >= 0))
+    if (whole != NULL)
     {
         int crlf = 0;
-        for (unsigned long long at = 0ull; (at + 1ull < text_length) && !crlf; at += 1ull)
+        for (unsigned long long each = 0ull; (each + 1ull < text_length) && !crlf; each += 1ull)
         {
-            crlf = ((whole[at] == '\r') && (whole[at + 1ull] == '\n')) ||
-                   ((whole[at] == '\\') && (whole[at + 1ull] == 'r') && (at + 3ull < text_length) && (whole[at + 2ull] == '\\') && (whole[at + 3ull] == 'n'));
+            crlf = ((whole[each] == '\r') && (whole[each + 1ull] == '\n')) ||
+                   ((whole[each] == '\\') && (whole[each + 1ull] == 'r') && (each + 3ull < text_length) && (whole[each + 2ull] == '\\') && (whole[each + 3ull] == 'n'));
         }
-        window->tab[window->active].crlf = crlf;
+        tab->crlf = crlf;
     }
     if (paged || (whole != NULL))
     {
         char text[(2u * CLI_PATH_MAX_LEN) + 128u];
         VerbaLinea args = {text, sizeof(text), 0ull};
         mmgr_line_put(&args, "{\"key\":");
-        cli_json_quoted(&args, window->key, cellul.len(&(CatenaFinitaCfg){.src = window->key, .cap = sizeof(window->key)}));
+        cli_json_quoted(&args, tab->key, cellul.len(&(CatenaFinitaCfg){.src = tab->key, .cap = sizeof(tab->key)}));
         mmgr_line_put(&args, ",\"path\":");
-        cli_json_quoted(&args, window->path, cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
+        cli_json_quoted(&args, tab->path, cellul.len(&(CatenaFinitaCfg){.src = tab->path, .cap = sizeof(tab->path)}));
         mmgr_line_put(&args, ",\"rows\":");
         mmgr_line_decimal(&args, window_rows(window), 1u);
         mmgr_line_put(&args, ",\"columns\":");
         mmgr_line_decimal(&args, window_columns(window), 1u);
         mmgr_line_ch(&args, '}');
-        window->asked_view = window_called(window, 1, "editor_view_open", &args);
+        const unsigned long long ticket = window_called(window, 1, "editor_view_open", &args);
+        window->asked_view = shown ? ticket : window->asked_view;
     }
+}
+
+// what orior's folder keeps for the tree taken, the answer `root` of `json`: the explorer's group shown as the
+// strip's tool of that name with its side, and the tree's session, its tabs opened in order and the one shown; the
+// session is kept again from here on
+static void window_restored(GuiWindow *window, const CliJson *json, unsigned int root)
+{
+    unsigned long long length = 0ull;
+    const char *const group = cli_json_string(json, cli_json_member(json, root, GUI_KEPT_GROUP), &length);
+    for (unsigned int at = 0u; (group != NULL) && (at < gui_strip_tools()); at += 1u)
+    {
+        const GuiTool *const tool = gui_strip_tool(at);
+        if (tool->side && (cellul.len(&(CatenaFinitaCfg){.src = tool->name, .cap = 32ull}) == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = tool->name, .other = group, .bytes = length}) == 0))
+        {
+            // the tools are fewer than an int counts
+            window->strip.shown = (int)at;
+            window_sided(window);
+        }
+    }
+    char key[CLI_PATH_MAX_LEN + 32u];
+    VerbaLinea keyed = {key, sizeof(key), 0ull};
+    mmgr_line_put(&keyed, GUI_KEPT_SESSION);
+    mmgr_line_put(&keyed, window->root);
+    unsigned long long size = 0ull;
+    const char *const session = (mmgr_line_finish(&keyed) != 0ull) ? cli_json_string(json, cli_json_member(json, root, key), &size) : NULL;
+    if (session != NULL)
+    {
+        char err_text[256];
+        VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
+        CliJson kept;
+        const unsigned int object = cli_json_taken(&kept, session, size, 0u, 0ull, &err_msg);
+        if (object != CLI_JSON_NONE)
+        {
+            const unsigned int tabs = cli_json_member(&kept, object, "tabs");
+            const unsigned int count = cli_json_is(&kept, tabs, CFG_JSON_ARRAY) ? kept.node[tabs].count : 0u;
+            for (unsigned int at = 0u; at < count; at += 1u)
+            {
+                unsigned long long path_length = 0ull;
+                const char *const path = cli_json_string(&kept, cli_json_item(&kept, tabs, at), &path_length);
+                char copied[CLI_PATH_MAX_LEN];
+                VerbaLinea line = {copied, sizeof(copied), 0ull};
+                mmgr_line_put_n(&line, (path != NULL) ? path : "", (path != NULL) ? path_length : 0ull);
+                if ((path != NULL) && (mmgr_line_finish(&line) != 0ull))
+                {
+                    gui_window_file_opened(window, copied);
+                }
+            }
+            unsigned long long active_length = 0ull;
+            const char *const active = cli_json_string(&kept, cli_json_member(&kept, object, "active"), &active_length);
+            char shown[CLI_PATH_MAX_LEN];
+            VerbaLinea line = {shown, sizeof(shown), 0ull};
+            mmgr_line_put_n(&line, (active != NULL) ? active : "", (active != NULL) ? active_length : 0ull);
+            if ((active != NULL) && (mmgr_line_finish(&line) != 0ull))
+            {
+                gui_window_file_opened(window, shown);
+            }
+            cli_json_given(&kept);
+        }
+    }
+    window->restored = 1;
 }
 
 // a frame of the view taken, where it is the open file's and no older than the last taken
@@ -685,6 +916,26 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
         if (tree != NULL)
         {
             window_titled(window, tree, length);
+            VerbaLinea kept = {window->root, sizeof(window->root), 0ull};
+            mmgr_line_put_n(&kept, tree, length);
+            (void)mmgr_line_finish(&kept);
+            // what the folder keeps for the tree is asked once the tree is known
+            char args_text[8];
+            VerbaLinea args = {args_text, sizeof(args_text), 0ull};
+            mmgr_line_put(&args, "{}");
+            window->asked_state = window_called(window, 1, "state_read", &args);
+        }
+    }
+    else if ((ticket != 0ull) && (ticket == window->asked_state))
+    {
+        window->asked_state = 0ull;
+        if (ok && (root != CLI_JSON_NONE) && cli_json_is(&json, root, CFG_JSON_OBJECT))
+        {
+            window_restored(window, &json, root);
+        }
+        else
+        {
+            window->restored = 1;
         }
     }
     else if ((ticket != 0ull) && (ticket == window->asked_catalog))
@@ -710,12 +961,14 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
                                  cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
         }
     }
-    else if ((ticket != 0ull) && (ticket == window->asked_open))
+    else if ((ticket != 0ull) && (window_tab_by_ticket(window, ticket) >= 0))
     {
-        window->asked_open = 0ull;
+        // the tab is among the tabs
+        const unsigned int at = (unsigned int)window_tab_by_ticket(window, ticket);
+        window->tab[at].asked_open = 0ull;
         if (root != CLI_JSON_NONE)
         {
-            window_opened(window, &json, root);
+            window_opened(window, &json, root, at);
         }
     }
     else if ((ticket != 0ull) && (ticket == window->asked_map))
@@ -733,9 +986,20 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     }
     else if ((ticket != 0ull) && (root != CLI_JSON_NONE) && window_is_frame(&json, root))
     {
+        // a frame of any tab's view says its view is open; the shown tab's is drawn
         window->asked_view = (ticket == window->asked_view) ? 0ull : window->asked_view;
-        window_frame_taken(window, &json, root);
-        window_map_asked(window);
+        unsigned long long length = 0ull;
+        const char *const key = cli_json_string(&json, cli_json_member(&json, root, "key"), &length);
+        const int at = (key != NULL) ? window_tab_by_key(window, key, length) : -1;
+        if (at >= 0)
+        {
+            window->tab[at].viewed = 1;
+        }
+        if ((at >= 0) && (at == window->active))
+        {
+            window_frame_taken(window, &json, root);
+            window_map_asked(window);
+        }
     }
     else if ((ticket != 0ull) && (ticket == window->asked_memory))
     {
@@ -754,10 +1018,15 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     {
         unsigned long long length = 0ull;
         const char *const key = cli_json_string(&json, cli_json_member(&json, root, "key"), &length);
-        if ((key != NULL) && (length == cellul.len(&(CatenaFinitaCfg){.src = window->key, .cap = sizeof(window->key)})) &&
-            (memor.cmp(&(MemoriaCfg){.src = key, .other = window->key, .bytes = length}) == 0))
+        const int at = (key != NULL) ? window_tab_by_key(window, key, length) : -1;
+        const unsigned int names = cli_json_member(&json, root, "names");
+        if ((at >= 0) && (names != CLI_JSON_NONE))
         {
-            const unsigned int names = cli_json_member(&json, root, "names");
+            // the tab is among the tabs
+            window_names_kept(window, (unsigned int)at, &json, names);
+        }
+        if ((at >= 0) && (at == window->active))
+        {
             if (names != CLI_JSON_NONE)
             {
                 (void)gui_editor_named(&window->editor, &json, names);

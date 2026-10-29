@@ -17,9 +17,9 @@
 #include "editorconfig.h"
 #include "pages.h"
 
-// the views held at the most, the edits a step holds at the most before it closes, the kinds of edit, the lines read
-// about the cursor each way for the bracket pair at it, the room for the state the first of them is entered in, and
-// the language's pairs and quotes held at the most and the room for its pattern of a line that opens a block
+// the size of the views table, the most edits a step holds before it closes, the kinds of edit, the lines read
+// about the cursor each way for the bracket pair at it, the room for the state the first of them is entered in, the
+// most pairs and quotes a language has, and the room for its pattern of a line that opens a block
 #define CLI_VIEWS 64u
 #define CLI_VIEW_STEP_EDITS 256u
 #define CLI_VIEW_PAIR_LINES 3000ull
@@ -74,13 +74,13 @@ typedef struct
 // lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its pattern of a
 // line that opens a block, as its plugin names them, in units; its top, rows and columns; the cursor and the anchor;
 // the column the cursor keeps as it moves up and down, in cells; the indentation; the frames written; the steps, in a
-// cell of their own, how many are held and how many of them are done, those past the done ones being undone; the folds
+// cell of their own, how many are stored and how many of them are done, those past the done ones being undone; the folds
 // closed, in a cell of their own in the order of their first lines, how many and the room; find: whether its bar is
 // open and whether the keys are its own, its query in a cell of its own, in units, its length, the room and where its
 // cursor stands, whether it seeks a pattern, with case and whole words, whether the matches are to be found anew, the
 // matches, each a line, a from and a to column, in a cell of their own, how many and the room, and the current one, -1
 // for none; and the line read last, its units in a cell of the view's own, the room it has, which line it is and
-// whether it is known, so a line's units are read once for the moves along it
+// whether it is known: a line's units are read once for the moves along it
 typedef struct
 {
     int used;
@@ -189,8 +189,8 @@ static unsigned int view_letter_of(const CliJson *json, unsigned int node)
     return ((text != NULL) && (length != 0ull)) ? cli_text_letter(text, length, 0ull, &took) : 0u;
 }
 
-// the pairs, quotes and pattern of the plugin whose id is sought read into the view: a plugin naming none of them
-// takes the brackets, the two quotes and the pattern of an opener at a line's end
+// the pairs, quotes and pattern of the plugin whose id is sought read into the view; where the plugin names none,
+// the defaults apply: the brackets, the two quotes and the pattern of an opener at a line's end
 static void view_plugin_read(void *context, const CliPlugin *plugin)
 {
     CliViewPluginSought *const sought = context;
@@ -578,7 +578,7 @@ static void view_folds_edited(CliView *view, const CliEdit *edit)
         CliViewFold fold = view->fold[at];
         if (edit->to.line < fold.first)
         {
-            // a fold below the edit stands past the lines it takes out, so the move stays in the text
+            // a fold below the edit stands past the lines it takes out: the move stays in the text
             fold.first = fold.first + added - removed;
             fold.last = fold.last + added - removed;
         }
@@ -1898,7 +1898,7 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
     return view_edited(view, from, to, text, length, kind, err_msg);
 }
 
-// a key's name read: the modifiers held into `mod`, `shift` and `alt`, and the key's own name
+// a key's name parsed: the modifier keys down into `mod`, `shift` and `alt`, and the key's own name
 static const char *view_key_read(const char *name, int *mod, int *shift, int *alt)
 {
     *mod = 0;
@@ -1995,7 +1995,7 @@ static int view_keyed(CliView *view, const char *given, VerbaLinea *err_msg)
     }
     else if (view_named(name, "PageUp") || view_named(name, "PageDown"))
     {
-        // a page is the rows less one, so the last row seen stays in view
+        // a page is the rows less one: the last row seen stays in view
         const unsigned long long by = rows - 1u;
         const int up = view_named(name, "PageUp");
         view_vertical(view, up ? -(long long)by : (long long)by, shift);
@@ -2151,7 +2151,7 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
             view_followed(view);
         }
     }
-    // a paged text's pages told where the view stands, so they keep the lines about it
+    // a paged text's pages are told where the view stands and cache the lines about it
     if (view->paged)
     {
         const unsigned long long rows = (view->rows != 0u) ? view->rows : 1ull;
@@ -2266,8 +2266,8 @@ typedef struct
     unsigned long long count;
 } CliViewFoldsSeen;
 
-// a fold of the text kept among those seen where it opens on one of the frame's rows; the texts' lock is held, so no
-// line is read here
+// a fold of the text stored among those seen where it opens on one of the frame's rows; the texts' lock is taken
+// here, and no line is read under it
 static void view_fold_seen(void *context, unsigned long long first, unsigned long long last, int shown)
 {
     CliViewFoldsSeen *const folds = context;

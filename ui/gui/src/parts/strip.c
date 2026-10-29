@@ -142,7 +142,7 @@ void gui_strip_drawn(GuiRaster *raster, GuiIcons *icons, const GuiPalette *palet
                      const GuiStrip *strip)
 {
     // the strip's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the
-    // radius; the frame's gap column is glass whether or not the claim holds
+    // radius; the frame's gap column is glass whether the claim holds or not
     const GuiRect pane = gui_rect_met(frame->strip_slat, frame->strip);
     gui_raster_rounded(raster, pane, frame->pane_radius, palette->glass);
     gui_raster_filled(raster, frame->gap, palette->glass);

@@ -13,7 +13,7 @@
 #define GUI_ACT_MINIMIZE 0u
 #define GUI_ACT_MAXIMIZE 1u
 #define GUI_ACT_CLOSE 2u
-// the pointer's events: moved, a button pressed, a button let go; and the modifiers held, as bits
+// the pointer's events: moved, a button pressed, a button let go; and the modifier keys down, as bits
 #define GUI_POINTER_MOVED 0u
 #define GUI_POINTER_DOWN 1u
 #define GUI_POINTER_UP 2u
@@ -25,8 +25,8 @@
 typedef struct GuiSystem GuiSystem;
 
 // Where the system hands the window its events, each with the context given at the opening: the client sized, with
-// the scale the system draws at; the pointer at x, y of the client, the button 0 for the left, with the modifiers
-// held; the wheel turned `rows` rows, down where positive; a key pressed, named as the page's editor names a key,
+// the scale the system draws at; the pointer at x, y of the client, the button 0 for the left, with the modifier keys
+// down; the wheel turned `rows` rows, down where positive; a key pressed, named as the page's editor names a key,
 // `Mod+Shift+Left`, Mod the control key, Alt and Shift before the key's own name; `size` bytes of text typed as
 // UTF-8; the thread woken by another; the system asking to close; where the pointer at x, y stands, as window.h names
 // the places, for the system's own drag and resize; the queue empty, where a frame owed is drawn and presented; and

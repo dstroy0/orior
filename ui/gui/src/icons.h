@@ -7,14 +7,15 @@
 #define GUI_ICONS_H
 #include "raster.h"
 
-// the icons kept drawn at once; once every slot is used every one is let go and drawn again as it is asked for; the
-// units an icon's square is drawn on; and the width of an icon's line in those units, as the page draws them
+// the cache's entries, one rasterized icon each; when every entry is in use the cache is emptied and icons are
+// rasterized again on demand; the units of an icon's square; and the width of an icon's line in those units, as the
+// page draws them
 #define GUI_ICON_SLOTS 64u
 #define GUI_ICON_UNITS 16.0f
 #define GUI_ICON_STROKE 1.1f
 
-// An icon kept: whether its slot is used, the icon, pixel size and line width that key it, and its mask, the cover in
-// a cell of its own
+// A cache entry: whether it is in use, its key (the icon, the pixel size and the line width), and the coverage mask,
+// allocated in a cell of its own
 typedef struct
 {
     int used;
@@ -24,7 +25,7 @@ typedef struct
     GuiMask mask;
 } GuiKeptIcon;
 
-// The icons: the slots the icons drawn are kept in, how many of them used
+// The icons: the cache's entries and how many of them are in use
 typedef struct
 {
     GuiKeptIcon slot[GUI_ICON_SLOTS];
