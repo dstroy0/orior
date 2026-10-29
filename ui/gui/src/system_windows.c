@@ -4,8 +4,8 @@
 // client is the whole window and the system still drags, snaps and resizes it by what the window answers to the
 // hit test, the compositor rounding its corners and drawing its one-pixel border; the raster blitted into the client
 // as a top-down 32-bit bitmap, a frame drawn at each size the system drags it to and at each tick, inside the
-// system's own drag loop too; the thread woken by a message posted to the window; the scale read from the window's
-// monitor, per monitor
+// system's own drag loop too, and a tick coming no sooner than the monitor's next refresh after the last frame; the
+// thread woken by a message posted to the window; the scale and the refresh rate read from the window's monitor
 #define _WIN32_WINNT 0x0A00
 #define UNICODE
 #define _UNICODE
@@ -36,7 +36,28 @@ struct GuiSystem
     int closed;
     unsigned short high_surrogate;
     unsigned int mods;
+    unsigned long long presented_ms;
+    unsigned int frame_ms;
 };
+
+// the milliseconds of one refresh of `window`'s monitor, whole, at least one; 1000 / 60 where the monitor does not
+// say its rate
+static unsigned int system_frame_ms_of(HWND window)
+{
+    MONITORINFOEXW info;
+    memor.set(&(MemoriaCfg){.dst = &info, .val = 0, .bytes = sizeof(info)});
+    info.cbSize = sizeof(info);
+    DEVMODEW mode;
+    memor.set(&(MemoriaCfg){.dst = &mode, .val = 0, .bytes = sizeof(mode)});
+    mode.dmSize = sizeof(mode);
+    unsigned int hertz = 60u;
+    if (GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), (MONITORINFO *)&info) &&
+        EnumDisplaySettingsW(info.szDevice, ENUM_CURRENT_SETTINGS, &mode) && (mode.dmDisplayFrequency > 1u))
+    {
+        hertz = mode.dmDisplayFrequency;
+    }
+    return (1000u + hertz - 1u) / hertz;
+}
 
 // the modifier keys down, as system.h names them: read from the keys' own messages as they come, which gives a key
 // message posted to the window the modifiers posted before it, and from the keyboard's state as the window takes
@@ -262,8 +283,12 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
         const RECT *const suggested = (const RECT *)low;
         SetWindowPos(window, NULL, suggested->left, suggested->top, suggested->right - suggested->left,
                      suggested->bottom - suggested->top, SWP_NOZORDER | SWP_NOACTIVATE);
+        system->frame_ms = system_frame_ms_of(window);
         return 0;
     }
+    case WM_DISPLAYCHANGE:
+        system->frame_ms = system_frame_ms_of(window);
+        return 0;
     case WM_PAINT:
     {
         PAINTSTRUCT paint;
@@ -433,6 +458,7 @@ GuiSystem *gui_system_opened(const CliWindowPlace *place, const char *title, con
         return NULL;
     }
     SetWindowLongPtrW(system->window, GWLP_USERDATA, (LONG_PTR)system);
+    system->frame_ms = system_frame_ms_of(system->window);
     // the frame's change is taken up now the client is the whole window
     SetWindowPos(system->window, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
     // the compositor rounds the window's corners and draws its one-pixel border in the system's color
@@ -499,6 +525,7 @@ void gui_system_present(GuiSystem *system, const GuiRaster *raster)
     HDC context = GetDC(system->window);
     system_blitted(system, context);
     ReleaseDC(system->window, context);
+    system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_wake(GuiSystem *system)
@@ -520,8 +547,12 @@ void gui_system_tick(GuiSystem *system, unsigned long long after)
         KillTimer(system->window, GUI_TICK_TIMER);
         return;
     }
+    // no sooner than the monitor's next refresh after the last frame presented
+    const unsigned long long since = cli_clock_milliseconds() - system->presented_ms;
+    const unsigned long long until_refresh = (since < system->frame_ms) ? system->frame_ms - since : 0ull;
+    const unsigned long long wait = (after > until_refresh) ? after : until_refresh;
     // a wait is far inside what the timer's milliseconds hold
-    SetTimer(system->window, GUI_TICK_TIMER, (after > USER_TIMER_MAXIMUM) ? USER_TIMER_MAXIMUM : (UINT)after, NULL);
+    SetTimer(system->window, GUI_TICK_TIMER, (wait > USER_TIMER_MAXIMUM) ? USER_TIMER_MAXIMUM : (UINT)wait, NULL);
 }
 
 // an icon made from `raster`'s pixels with their alpha: a 32-bit section the pixels are copied into and an empty mask

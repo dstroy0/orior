@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // system_x11.c: the window on X11. A window with its decorations taken off through the Motif hints, moved and resized
 // by the window manager through _NET_WM_MOVERESIZE as the pointer presses on the caption or a border; the raster put
-// into the window as a 32-bit image; the thread woken through a pipe the loop waits on beside the display's
-// connection; the scale read from the screen's size in millimetres; the screen the one area
+// into the window as a 32-bit image, a tick coming no sooner than the screen's next refresh after it; the thread
+// woken through a pipe the loop waits on beside the display's connection; the scale read from the screen's size in
+// millimetres; the screen the one area
 #include "system.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -26,6 +27,8 @@ static CellOwner s_owner = MMGR_CELL_OWNER("gui_system");
 #define GUI_WHEEL_ROWS 3
 #define GUI_MOTIF_HINTS_DECORATIONS 2ul
 #define GUI_MOVERESIZE_MOVE 8l
+// the milliseconds of one refresh of the screen, taken as 60 a second: the core protocol carries no rate
+#define GUI_FRAME_MS 17ull
 
 struct GuiSystem
 {
@@ -38,6 +41,7 @@ struct GuiSystem
     int wake_pipe[2];
     int closed;
     unsigned long long tick_due;
+    unsigned long long presented_ms;
     unsigned int width;
     unsigned int height;
     Atom delete_window;
@@ -404,7 +408,16 @@ void gui_system_run(GuiSystem *system)
 
 void gui_system_tick(GuiSystem *system, unsigned long long after)
 {
-    system->tick_due = (after != 0ull) ? cli_clock_milliseconds() + after : 0ull;
+    if (after == 0ull)
+    {
+        system->tick_due = 0ull;
+        return;
+    }
+    // no sooner than the screen's next refresh after the last frame presented
+    const unsigned long long now = cli_clock_milliseconds();
+    const unsigned long long since = now - system->presented_ms;
+    const unsigned long long until_refresh = (since < GUI_FRAME_MS) ? GUI_FRAME_MS - since : 0ull;
+    system->tick_due = now + ((after > until_refresh) ? after : until_refresh);
 }
 
 void gui_system_pumped(GuiSystem *system)
@@ -440,6 +453,7 @@ void gui_system_present(GuiSystem *system, const GuiRaster *raster)
 {
     system->shown = raster;
     system_put(system);
+    system->presented_ms = cli_clock_milliseconds();
 }
 
 void gui_system_wake(GuiSystem *system)

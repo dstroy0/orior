@@ -64,7 +64,7 @@ void gui_system_present(GuiSystem *system, const GuiRaster *raster);
 // the window's thread woken, from any thread
 void gui_system_wake(GuiSystem *system);
 // a tick asked for `after` milliseconds from now, on the window's thread, one at a time, the last asked the one that
-// comes; 0 asks for none
+// comes, and no sooner than the display's next refresh after the last frame presented; 0 asks for none
 void gui_system_tick(GuiSystem *system, unsigned long long after);
 // the window minimized, maximized or restored, or asked to close
 void gui_system_act(GuiSystem *system, unsigned int act);
