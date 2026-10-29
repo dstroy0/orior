@@ -42,14 +42,26 @@ test("a twin holds the same text and language with selections of its own, and le
   assert.ok(!first.shared);
 });
 
-test("a region read from the indent is folded to its last line", () => {
-  const session = new Session("def f():\n    x\n    y\nz", null);
-  assert.ok(session.opens(0));
-  assert.equal(session.endOf(0), 2);
+test("a region orior's side folds is folded to the last line its fold hides, and shows the line it closes on", () => {
+  const session = new Session("f {\n    x\n    g {\n        y\n    }\n}\nz", null);
+  assert.ok(!session.opens(0), "a text reads no folds of its own");
+  session.highlight.folded(0, [[0, 5, 1], [2, 4, 1]]);
+  assert.ok(session.opens(0) && session.opens(2));
+  assert.equal(session.endOf(0), 5);
   session.fold(0);
-  assert.equal(session.folded.get(0), 2);
-  session.fold(3);
-  assert.ok(!session.folded.has(3), "a line that opens nothing does not fold");
+  assert.equal(session.folded.get(0), 5);
+  assert.ok(session.shows(0), "the closing line drawn after what the fold hides");
+  session.fold(6);
+  assert.ok(!session.folded.has(6), "a line that opens nothing does not fold");
+  assert.deepEqual(session.openersOf(3, 10), [0, 2], "the regions a line stands inside, the outermost first");
+  assert.deepEqual(session.openersOf(3, 1), [2], "the innermost alone");
+});
+
+test("orior's side's folds go with their lines through an edit until it hands them on again", () => {
+  const session = new Session("f {\n    x\n}\nz", null);
+  session.highlight.folded(0, [[0, 2, 1]]);
+  session.doc.change([{ from: { line: 0, col: 0 }, to: { line: 0, col: 0 }, text: "a\n" }]);
+  assert.deepEqual([...session.highlight.folds], [[1, [3, true]]]);
 });
 
 test("a large file's window grows above and below, and lets lines go, every place moving with the lines above it", () => {

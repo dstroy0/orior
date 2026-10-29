@@ -15,4 +15,16 @@ test("Expand Selection takes in the word at the cursor and Shrink Selection give
   assert.equal(marked(), "f(a|b)");
 });
 
+test("the bracket before the cursor pairs with the one it closes, lines apart, and a bracket in a string is passed over", async () => {
+  const view = await given('f(a, ")",\n  {b: 1})|');
+  await ui.waitFor(() => view.bracketPair() !== null, 5000, "the pair, as orior's side reads it off the branch");
+  assert.deepEqual(view.bracketPair(), [{ line: 1, col: 8 }, { line: 0, col: 1 }]);
+});
+
+test("a bracket that starts at the cursor pairs where none ends at it", async () => {
+  const view = await given("f|(a, b)");
+  await ui.waitFor(() => view.bracketPair() !== null, 5000, "the pair, as orior's side reads it off the branch");
+  assert.deepEqual(view.bracketPair(), [{ line: 0, col: 1 }, { line: 0, col: 6 }]);
+});
+
 test("the window is put back as the file found it", putBackAsFound);

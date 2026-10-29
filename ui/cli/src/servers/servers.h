@@ -106,10 +106,12 @@ int cli_servers_act(const char *tree, const char *path, const char *raw, unsigne
 
 // the lines `from` to `to` of the parse of `path`, orior's own or its server's semantic tokens, and its folds,
 // `{"whole", "from", "lines", "folds"}` or `null`; the spans that contain `from` to `to` and are more than it, the
-// least first; the hints its server writes on the lines `from` to `to`; and the parses that came from servers
-// forgotten, for each to be requested again. Each 1, or 0 with why given (servers_parse.c)
+// least first, the parse's where it reads the file whole, else the tree's read off the branch under `key`, NULL for
+// none, or the text the servers were told; the hints its server writes on the lines `from` to `to`; and the parses
+// that came from servers forgotten, for each to be requested again. Each 1, or 0 with why given (servers_parse.c)
 int cli_servers_colors(const char *path, unsigned int from, unsigned int to, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_servers_spans(const char *path, CliTextPlace from, CliTextPlace to, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_servers_spans(const char *path, const char *key, CliTextPlace from, CliTextPlace to, VerbaLinea *out,
+                      VerbaLinea *err_msg);
 int cli_servers_hints(const char *path, unsigned int from, unsigned int to, VerbaLinea *out, VerbaLinea *err_msg);
 void cli_servers_forget_tokens(void);
 

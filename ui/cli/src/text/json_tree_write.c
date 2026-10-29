@@ -99,22 +99,51 @@ unsigned long long cli_lossy_letter(const unsigned char *text, unsigned long lon
     return bytes;
 }
 
+// the whole letters of `text` from `from` to before `to` put on `out` together where they fit or the line hands its
+// bytes on; else as many whole letters as fit and the line filled, as a letter at a time leaves it
+static void cli_lossy_run_put(VerbaLinea *out, const unsigned char *text, unsigned long long from,
+                              unsigned long long to)
+{
+    // a byte of the line is held back for the terminator
+    const unsigned long long room = (out->at < out->capacity) ? (out->capacity - out->at - 1ull) : 0ull;
+    unsigned long long fits = to;
+    if ((out->flush == NULL) && ((to - from) > room))
+    {
+        // the letters that fit end where the next begins: a byte that continues a letter begins none
+        fits = from + room;
+        while ((fits > from) && ((text[fits] & 0xc0u) == 0x80u))
+        {
+            fits -= 1ull;
+        }
+    }
+    mmgr_line_put_n(out, (const char *)(text + from), fits - from);
+    mmgr_line_put_n(out, (const char *)(text + fits), to - fits);
+}
+
 void cli_lossy(VerbaLinea *out, const unsigned char *text, unsigned long long length)
 {
+    // the letters from `run` on put together once a byte that starts none, written as U+FFFD, or the end comes
+    unsigned long long run = 0ull;
     unsigned long long at = 0ull;
     while (at < length)
     {
-        const unsigned long long bytes = cli_sequence(text, length, at);
-        if (bytes == 0ull)
+        if (text[at] < 0x80u)
         {
-            mmgr_line_put(out, "\xef\xbf\xbd");
             at += 1ull;
             continue;
         }
-        // a letter's bytes, each a char of the line
-        mmgr_line_put_n(out, (const char *)(text + at), bytes);
+        const unsigned long long bytes = cli_sequence(text, length, at);
+        if (bytes == 0ull)
+        {
+            cli_lossy_run_put(out, text, run, at);
+            mmgr_line_put(out, "\xef\xbf\xbd");
+            at += 1ull;
+            run = at;
+            continue;
+        }
         at += bytes;
     }
+    cli_lossy_run_put(out, text, run, length);
 }
 
 void cli_json_quoted_lossy(VerbaLinea *out, const unsigned char *text, unsigned long long length)

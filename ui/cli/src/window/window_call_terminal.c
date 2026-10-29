@@ -208,8 +208,7 @@ static int terminal_folder_of(const char *url, char *folder)
     {
         const int escaped = (at[0] == '%') && (terminal_hex_of(at[1]) < 16u) && (terminal_hex_of(at[2]) < 16u);
         // two hexadecimal digits make a byte, below 256
-        mmgr_line_ch(&decoded,
-                     escaped ? (char)((terminal_hex_of(at[1]) << 4u) | terminal_hex_of(at[2])) : at[0]);
+        mmgr_line_ch(&decoded, escaped ? (char)((terminal_hex_of(at[1]) << 4u) | terminal_hex_of(at[2])) : at[0]);
         at += escaped ? 2 : 0;
     }
     if (mmgr_line_finish(&decoded) == 0ull)
@@ -280,8 +279,8 @@ static int terminal_local_started(CliTerminal *terminal, const char *at, unsigne
         count += 1u;
     }
     words[word] = NULL;
-    // orior's own folder comes last: `orior` runs in the terminal where no other is installed, and shadows no program of
-    // the reader's
+    // orior's own folder comes last: `orior` runs in the terminal where no other is installed, and shadows no program
+    // of the reader's
     cli_toolchains_run_path(s_path, sizeof(s_path));
     if (cli_program_own(s_program, sizeof(s_program)))
     {
@@ -304,13 +303,15 @@ static int terminal_local_started(CliTerminal *terminal, const char *at, unsigne
     // bash says the folder it stands in before each prompt, as OSC 7, where nothing of the reader's already sets what
     // it does before a prompt: the window keeps the folder to open in again
     const size_t shell_length = cellul.len(&(CatenaFinitaCfg){.src = s_shell, .cap = CLI_CELLS_POOL});
-    const int bash = !named && (CLI_TERMINAL_WINDOWS || !own_shell ||
-                                ((shell_length >= 4u) && cellul.eq(&(CatenaFinitaCfg){.src = s_shell + shell_length - 4u,
-                                                                                      .other = "bash",
-                                                                                      .cap = CLI_CELLS_POOL})));
+    const int bash =
+        !named &&
+        (CLI_TERMINAL_WINDOWS || !own_shell ||
+         ((shell_length >= 4u) &&
+          cellul.eq(&(CatenaFinitaCfg){.src = s_shell + shell_length - 4u, .other = "bash", .cap = CLI_CELLS_POOL})));
     if (bash && !query_environment_read("PROMPT_COMMAND", s_prompt, sizeof(s_prompt)))
     {
-        settings[count] = (CliSetting){"PROMPT_COMMAND", "printf '\\033]7;file://%s%s\\007' \"${HOSTNAME:-}\" \"$PWD\""};
+        settings[count] =
+            (CliSetting){"PROMPT_COMMAND", "printf '\\033]7;file://%s%s\\007' \"${HOSTNAME:-}\" \"$PWD\""};
         count += 1u;
     }
     // the shell, and every program run in it, joins the door with the key it is started with
@@ -401,7 +402,7 @@ static int terminal_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     else
     {
         started = cli_link_address(&address) ? terminal_linked_started(terminal, &address, at, wide, tall, err_msg)
-                                              : terminal_local_started(terminal, at, wide, tall, err_msg);
+                                             : terminal_local_started(terminal, at, wide, tall, err_msg);
     }
     if (started)
     {
@@ -435,9 +436,9 @@ static int terminal_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     (void)out;
     unsigned long long id = 0ull;
     unsigned long long length = 0ull;
-    const char *const text =
-        cli_serve_whole(args, "id", &id, err_msg) ? cli_json_string(args->json, cli_serve_arg(args, "text"), &length)
-                                                  : NULL;
+    const char *const text = cli_serve_whole(args, "id", &id, err_msg)
+                                 ? cli_json_string(args->json, cli_serve_arg(args, "text"), &length)
+                                 : NULL;
     if (text == NULL)
     {
         mmgr_line_put(err_msg, (err_msg->at == 0ull) ? "text: a terminal is written text" : "");

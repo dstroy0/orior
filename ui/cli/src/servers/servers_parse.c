@@ -526,7 +526,8 @@ static void parse_spans_written(const CliInspectSpan *spans, unsigned int count,
     mmgr_line_ch(out, ']');
 }
 
-int cli_servers_spans(const char *path, CliTextPlace from, CliTextPlace to, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_servers_spans(const char *path, const char *key, CliTextPlace from, CliTextPlace to, VerbaLinea *out,
+                      VerbaLinea *err_msg)
 {
     cli_servers_reading_locked(&s_reading);
     const CliInspectPlace start = {from.line, from.col};
@@ -545,5 +546,5 @@ int cli_servers_spans(const char *path, CliTextPlace from, CliTextPlace to, Verb
         return 1;
     }
     parse_released();
-    return (found >= 0) && cli_servers_selection(path, from, to, out, err_msg);
+    return (found >= 0) && cli_servers_selection(path, key, from, to, out, err_msg);
 }

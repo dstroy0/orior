@@ -176,6 +176,50 @@ static unsigned long long cli_lowered(const char *prefix, const char *text, unsi
     return mmgr_line_finish(&line);
 }
 
+// an extension in ASCII lower case, as to_ascii_lowercase reads it, into `key`, sized for CLI_NAME_MAX_LEN: its length
+static unsigned long long cli_extension_key(const char *text, unsigned long long length, char *key)
+{
+    VerbaLinea line = {key, CLI_NAME_MAX_LEN, 0ull};
+    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    {
+        mmgr_line_ch(&line, ((text[at] >= 'A') && (text[at] <= 'Z')) ? (char)(text[at] + 32) : text[at]);
+    }
+    return mmgr_line_finish(&line);
+}
+
+// The folders a plugin stands for as they are listed: the languages they are mapped into, the plugin's `each` in its
+// tree, the tree the tables are read from, and the plugin's id
+typedef struct
+{
+    CliLanguages *languages;
+    const CliJson *json;
+    unsigned int each;
+    const char *tree;
+    const char *id;
+} CliFoldersMapped;
+
+// a folder that is one of the plugin's languages, its name an extension mapped to `<id>:<name>`
+static void cli_folder_mapped(void *context, const char *name, int is_folder)
+{
+    const CliFoldersMapped *const mapped = (const CliFoldersMapped *)context;
+    if (!is_folder || !cli_plugins_folder_stands(mapped->json, mapped->each, mapped->tree, name))
+    {
+        return;
+    }
+    char language[CLI_NAME_MAX_LEN];
+    VerbaLinea line = {language, sizeof(language), 0ull};
+    mmgr_line_put(&line, mapped->id);
+    mmgr_line_ch(&line, ':');
+    mmgr_line_put(&line, name);
+    char key[CLI_NAME_MAX_LEN];
+    const unsigned long long key_length =
+        cli_extension_key(name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), key);
+    if ((mmgr_line_finish(&line) != 0ull) && (key_length != 0ull))
+    {
+        cli_mapped(mapped->languages, key, key_length, language);
+    }
+}
+
 // A language plugin's keys mapped to its id
 static void cli_language_each(void *context, const CliPlugin *plugin)
 {
@@ -220,13 +264,7 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
             }
             else if (list == 0u)
             {
-                // an extension in ASCII lower case, as to_ascii_lowercase reads it
-                VerbaLinea line = {key, sizeof(key), 0ull};
-                for (unsigned long long at = 0ull; at < length; at += 1ull)
-                {
-                    mmgr_line_ch(&line, ((text[at] >= 'A') && (text[at] <= 'Z')) ? (char)(text[at] + 32) : text[at]);
-                }
-                key_length = mmgr_line_finish(&line);
+                key_length = cli_extension_key(text, length, key);
             }
             else
             {
@@ -236,6 +274,24 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
             {
                 cli_mapped(languages, key, key_length, id);
             }
+        }
+    }
+    // a plugin standing for each folder of the tree that holds its table
+    const unsigned int each = cli_json_member(&json, root, "each");
+    char tree[CLI_PATH_MAX_LEN];
+    char folder[CLI_PATH_MAX_LEN];
+    unsigned long long folder_length = 0ull;
+    const char *const named_folder = cli_json_string(&json, cli_json_member(&json, each, "folder"), &folder_length);
+    if ((named_folder != NULL) && cli_plugins_tree(tree))
+    {
+        VerbaLinea line = {folder, sizeof(folder), 0ull};
+        mmgr_line_put(&line, tree);
+        mmgr_line_ch(&line, '/');
+        mmgr_line_put_n(&line, named_folder, folder_length);
+        CliFoldersMapped mapped = {languages, &json, each, tree, id};
+        if (mmgr_line_finish(&line) != 0ull)
+        {
+            (void)query_folder_each(folder, cli_folder_mapped, &mapped);
         }
     }
     cli_json_given(&json);

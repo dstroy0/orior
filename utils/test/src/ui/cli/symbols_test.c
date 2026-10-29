@@ -185,8 +185,8 @@ static void symbols_signature_held(const char *path, const char *text, unsigned 
 }
 
 // a call's signature from the tree: its name's declarations in its language in order of fit, each argument's type
-// from a parameter, a local, a literal and the tree against each parameter's, and a bracket in a string not
-// counted
+// from a parameter, a local, a literal and the tree and whether it mirrors its parameter's node, and a bracket in a
+// string not counted
 static void symbols_signature(void)
 {
     static const char *const s_paths[4] = {"lib.c", "other.c", "lib.py", "served.c"};
@@ -512,6 +512,22 @@ static void symbols_spanned_in(const char *path, const char *text, unsigned int 
     cli_check_text(s_out, out.at, wanted, what);
 }
 
+// the bracket pair at the place `line`, `col` of `text`, the file at `path`, its first line starting at its grammar's
+// root, written `line:col-line:col`, the bracket at the place first, empty where none stands there, checked against
+// `wanted`
+static void symbols_paired(const char *path, const char *text, unsigned int line, unsigned int col, const char *wanted,
+                           const char *what)
+{
+    CliSymbolPlace pair[2] = {{0u, 0u}, {0u, 0u}};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    if (cli_symbols_pair(path, "root", text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
+                         (CliSymbolPlace){line, col}, pair))
+    {
+        symbols_span_capture(&out, pair[0], pair[1]);
+    }
+    cli_check_text(s_out, out.at, wanted, what);
+}
+
 // the spans around the place `line`, `col` of the usages' src/u/use.c, checked against `wanted`
 static void symbols_spanned(unsigned int line, unsigned int col, const char *wanted, const char *what)
 {
@@ -648,6 +664,15 @@ static void symbols_usages(void)
                        "1:8-1:12|1:4-1:19|0:13-2:12|0:12-2:12|0:0-2:12|0:0-5:0",
                        "a block by indent: its statement ended at its line's end, the block to its last line of code, "
                        "and the function with its head");
+    static const char s_use[] =
+        "#include \"shape.h\"\nint total(int n)\n{\n    int w = area(n) + SIDES;\n    return w + area(1);\n}\n";
+    symbols_paired("src/u/use.c", s_use, 1u, 10u, "1:9-1:15", "the bracket that ends at a place pairs with its close");
+    symbols_paired("src/u/use.c", s_use, 1u, 15u, "1:15-1:9", "one that starts at it where none ends at it");
+    symbols_paired("src/u/use.c", s_use, 2u, 1u, "2:0-5:0", "a region's brackets lines apart");
+    symbols_paired("src/u/use.c", s_use, 3u, 2u, "", "and a place at no bracket has no pair");
+    symbols_paired("src/u/pair.c", "f(a, \")\");\n", 0u, 2u, "0:1-0:8", "a bracket in a string is passed over");
+    symbols_paired("src/u/calc.py", "def total(n):\n    w = area(n) + 1\n    return w\n\nx = 2\n", 0u, 13u, "",
+                   "a region a mark of no letters closes has no pair");
     symbols_called(0, "src/u/use.c", 3u, "src/u/use.c:1:4-9:total[]", "the function a line of a body stands in");
     symbols_called(1, "src/u/area.c", 1u, "src/u/use.c:1:4-9:total[3:12,4:15]",
                    "a function's callers, each with its calls of it, a static of the same name's caller set aside");

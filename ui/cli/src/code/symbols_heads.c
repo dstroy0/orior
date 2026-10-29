@@ -87,8 +87,7 @@ static void cli_type_literal(const CliLeafRead *read, unsigned int from, CliSymb
     unsigned long long is = CLI_LEAF_NUMBER | CLI_LEAF_STRING;
     int seen = 0;
     int passed = 0;
-    for (; (leaf < read->count) && (read->leaf[leaf].line == line) && ((read->leaf[leaf].is & ends) == 0u);
-         leaf += 1u)
+    for (; (leaf < read->count) && (read->leaf[leaf].line == line) && ((read->leaf[leaf].is & ends) == 0u); leaf += 1u)
     {
         const unsigned long long one = read->leaf[leaf].is;
         if ((one & (CLI_LEAF_BLANK | CLI_LEAF_COMMENT)) != 0u)
@@ -301,8 +300,8 @@ static void cli_head_label(const CliLeafRead *read, unsigned int close, CliSymbo
         if ((text[byte] == '\r') || (text[byte] == '\n'))
         {
             const unsigned long long broken = byte;
-            while ((byte < to) && ((text[byte] == ' ') || (text[byte] == '\t') || (text[byte] == '\r') ||
-                                   (text[byte] == '\n')))
+            while ((byte < to) &&
+                   ((text[byte] == ' ') || (text[byte] == '\t') || (text[byte] == '\r') || (text[byte] == '\n')))
             {
                 byte += 1ull;
             }
@@ -399,8 +398,8 @@ static int cli_head_params(const CliLeafRead *read, const char *name, unsigned l
     return 1;
 }
 
-int cli_symbols_head_read(CliSymbolsLanguages *languages, const char *root, const char *name,
-                          unsigned long long length, CliSymbolHead *head)
+int cli_symbols_head_read(CliSymbolsLanguages *languages, const char *root, const char *name, unsigned long long length,
+                          CliSymbolHead *head)
 {
     char full[CLI_PATH_MAX_LEN];
     cli_full(root, head->path, full);

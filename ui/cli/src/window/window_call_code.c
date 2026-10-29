@@ -3,8 +3,8 @@
 // window_call_code.c: the window's calls on code and orior's own lists: the languages orior's inspections read and
 // the classes a parse names, a docstring drawn up, a class's methods sorted, a paragraph filled, whether orior_cli
 // reads a file itself, the checkers the manifest knows, the languages a formatter formats, the plugins and a plugin's
-// code, a plugin drafted from the generator's answers and written, the menus, and the shell line that brings the tree's
-// dev container up
+// code, a plugin drafted from the generator's answers with its sample colored by its grammar, and written, the menus,
+// and the shell line that brings the tree's dev container up
 #include "../builds/builds.h"
 #include "../code/schema.h"
 #include "../command_line/cells.h"
@@ -12,12 +12,18 @@
 #include "../comms/link.h"
 #include "../deploy/devcontainer.h"
 #include "../editor/fill.h"
+#include "../editor/highlight.h"
 #include "../inspect/inspect.h"
 #include "../plugins/plugins.h"
 #include "../text/edits.h"
 #include "../toolchains/format.h"
 #include "../toolchains/toolchains.h"
 #include "window_internal.h"
+
+// a drafted plugin's sample: the most bytes and lines it takes, and the key its grammar is stored under to color it
+#define CODE_SAMPLE_BYTES 2048u
+#define CODE_SAMPLE_LINES 8u
+#define CODE_SAMPLE_GRAMMAR "plugin-draft"
 
 // the languages orior's own inspections read, by the editor's names for them
 static int code_inspect_languages(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
@@ -275,7 +281,70 @@ static int code_plugin_code(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     return read;
 }
 
-// the plugin the generator's answers `spec` request, as its file would contain it
+// The runs of a draft's sample as they are written: how many lines' runs, and where
+typedef struct
+{
+    unsigned int written;
+    VerbaLinea *out;
+} CodeSampleRuns;
+
+// one line of a draft's sample colored: its runs written as `[column, name, column, name, ...]`, after a comma past the
+// first line
+static void code_sample_line(void *context, const CliLeaves *leaves)
+{
+    CodeSampleRuns *const runs = (CodeSampleRuns *)context;
+    mmgr_line_put(runs->out, (runs->written != 0u) ? "," : "");
+    cli_highlight_runs_written(leaves, runs->out);
+    runs->written += 1u;
+}
+
+// the sample a draft of a plugin opens with, colored by the draft's own grammar, written into `out` as `{"lines",
+// "names", "runs"}`, the names `[""]` and no runs where the grammar does not read
+static void code_sample_colored(const CliJson *json, unsigned int plugin, VerbaLinea *out)
+{
+    char text[CODE_SAMPLE_BYTES];
+    VerbaLinea sample = {text, sizeof(text), 0ull};
+    cli_plugins_sample_of(json, plugin, &sample);
+    const unsigned long long size = mmgr_line_finish(&sample);
+    const char *line[CODE_SAMPLE_LINES];
+    unsigned int count = 0u;
+    mmgr_line_put(out, "{\"lines\":[");
+    // each line ended by its newline, which is put out of it as the NUL it ends with
+    for (unsigned long long at = 0ull, start = 0ull; (at < size) && (count < CODE_SAMPLE_LINES); at += 1ull)
+    {
+        if (text[at] == '\n')
+        {
+            text[at] = '\0';
+            mmgr_line_put(out, (count != 0u) ? "," : "");
+            cli_json_quoted(out, text + start, at - start);
+            line[count] = text + start;
+            count += 1u;
+            start = at + 1ull;
+        }
+    }
+    char why[CLI_PATH_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    char ended[CLI_NAME_MAX_LEN];
+    VerbaLinea state = {ended, sizeof(ended), 0ull};
+    const unsigned int grammar = cli_json_member(json, plugin, "grammar");
+    const int stored = (grammar != CLI_JSON_NONE) && cli_highlight_store(CODE_SAMPLE_GRAMMAR, json, grammar, &err_msg);
+    mmgr_line_put(out, "],\"names\":");
+    if (!stored || !cli_highlight_names_written(CODE_SAMPLE_GRAMMAR, out))
+    {
+        mmgr_line_put(out, "[\"\"]");
+    }
+    mmgr_line_put(out, ",\"runs\":[");
+    CodeSampleRuns runs = {0u, out};
+    if (stored)
+    {
+        (void)cli_highlight_leaves(CODE_SAMPLE_GRAMMAR, "root", line, count, 1, code_sample_line, &runs, &state,
+                                   &err_msg);
+    }
+    mmgr_line_put(out, "]}");
+}
+
+// the plugin the generator's answers `spec` request, as its file would contain it, and the sample it opens with
+// colored by its grammar: `{"text", "sample"}`
 static int code_plugin_draft(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     CliJson tree = {0};
@@ -286,9 +355,13 @@ static int code_plugin_draft(const CliServeArgs *args, VerbaLinea *out, VerbaLin
         char piece[4096];
         CliJsonQuoting quoting;
         VerbaLinea text;
+        mmgr_line_put(out, "{\"text\":");
         cli_json_quoting_begun(&quoting, out, &text, piece, sizeof(piece));
         cli_plugins_text_of(&tree, plugin, &text);
         cli_json_quoting_ended(&quoting, &text);
+        mmgr_line_put(out, ",\"sample\":");
+        code_sample_colored(&tree, plugin, out);
+        mmgr_line_ch(out, '}');
     }
     cli_json_given(&tree);
     return plugin != CLI_JSON_NONE;

@@ -79,8 +79,8 @@ int cli_qry_standing(const char *path, unsigned long long *panicked);
 // `{"runs": [{"path", "folder", "size", "changed", "live", "panicked"}...], "folders": [{"folder", "lessons":
 // [{"cause", "carrier", "stand_in"}...]}...]}` (qry_listed.c)
 void cli_qry_listed(const char *root, VerbaLinea *out);
-// a file the watch of the tree at `root` saw written, `length` bytes of its path from the top of the tree: where it is a
-// run, its folder put among the tree's folders of runs; and the watch's changes lost, so the tree is walked again for
+// a file the watch of the tree at `root` saw written, `length` bytes of its path from the top of the tree: where it is
+// a run, its folder put among the tree's folders of runs; and the watch's changes lost, so the tree is walked again for
 // its folders of runs at its next listing (qry_listed.c)
 void cli_qry_run_written(const char *root, const char *path, unsigned long long length);
 void cli_qry_runs_lost(const char *root);

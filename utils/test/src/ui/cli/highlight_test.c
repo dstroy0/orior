@@ -4,7 +4,8 @@
 // line is colored by its rules, each token a run of its own; a state carries to the next line; columns count as the
 // page counts them; a rule reads
 // its groups and a grammar its includes; what matches no rule has no token; a grammar's leaves are handed over a line
-// at a time; a language plugin's grammar is stored under its id's key from its plugin.json; and the C, Python, Rust and
+// at a time; colorings run at once, beside one another and within one another, and a grammar stored again while one
+// reads it; a language plugin's grammar is stored under its id's key from its plugin.json; and the C, Python, Rust and
 // JavaScript plugins' grammars name a function's parameters, their types and a body's locals
 #include "../../../../../ui/cli/src/editor/highlight.h"
 #include "../../../../../ui/cli/src/plugins/plugins.h"
@@ -186,6 +187,148 @@ static void highlight_leaves(void)
               "a plugin there is none of is refused with why");
 }
 
+// Work done beside a coloring under way, on a thread of its own: what it does, the lock and wake its end is told
+// under, 1 where it ended and did what it does, -1 where it ended and did not, 0 before it ends, and the leaves it
+// colored
+static int (*s_aside_work)(void);
+static CliLock s_aside_lock = CLI_LOCK_INIT;
+static CliWake s_aside_wake = CLI_WAKE_INIT;
+static int s_aside_ended;
+static char s_aside_leaves[256];
+
+// a line colored by the grammar `test` beside a coloring under way: 1 where it colored
+static int highlight_aside_colored(void)
+{
+    static const char *const s_lines[1] = {"if (x)"};
+    char ended[64];
+    char why[256];
+    VerbaLinea out = {s_aside_leaves, sizeof(s_aside_leaves), 0ull};
+    VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int colored =
+        cli_highlight_leaves("test", "root", s_lines, 1u, 0, highlight_leaves_capture, &out, &ended_line, &err_msg);
+    (void)mmgr_line_finish(&out);
+    return colored;
+}
+
+// a grammar that names every word `word`
+static const char s_words[] = "{\"tokenizer\": {\"root\": [[\"[a-z]+\", \"word\"], [\"\\\\s+\", \"\"]]}}";
+
+// the grammar `swapped` stored again beside a coloring that reads it, another in its place: 1 where it was stored
+static int highlight_aside_stored(void)
+{
+    return highlight_grammar_store("swapped", s_words, sizeof(s_words) - 1u, NULL);
+}
+
+// the aside's work done and its end told
+static void highlight_aside(void *context)
+{
+    (void)context;
+    const int done = s_aside_work();
+    cli_lock_take(&s_aside_lock);
+    s_aside_ended = done ? 1 : -1;
+    cli_wake_all(&s_aside_wake);
+    cli_lock_give(&s_aside_lock);
+}
+
+// the first line of a coloring captured, and the aside's work started on a thread of its own and waited for, five
+// seconds at the most, before the coloring goes on; each line after captured alone
+static void highlight_waiting(void *context, const CliLeaves *leaves)
+{
+    highlight_leaves_capture(context, leaves);
+    static CliThread s_thread = {highlight_aside, NULL, CLI_PRIORITY_WORK};
+    cli_lock_take(&s_aside_lock);
+    const int first = s_aside_ended == 0;
+    const unsigned long long until = cli_clock_milliseconds() + 5000ull;
+    if (first && cli_thread_started(&s_thread))
+    {
+        for (unsigned long long now = cli_clock_milliseconds(); (s_aside_ended == 0) && (now < until);
+             now = cli_clock_milliseconds())
+        {
+            (void)cli_wake_wait_for(&s_aside_wake, &s_aside_lock, until - now);
+        }
+    }
+    s_aside_ended = (first && (s_aside_ended == 0)) ? -2 : s_aside_ended;
+    cli_lock_give(&s_aside_lock);
+}
+
+// two lines of the grammar under `key` colored, the aside's work `work` done beside the first, their leaves into
+// `leaves`, `room` bytes: 1 where they colored and the aside ended while the first waited and did its work
+static int highlight_beside(const char *key, int (*work)(void), char *leaves, unsigned long long room)
+{
+    static const char *const s_lines[2] = {"if (x)", "if (x)"};
+    char ended[64];
+    char why[256];
+    VerbaLinea out = {leaves, room, 0ull};
+    VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    s_aside_work = work;
+    s_aside_ended = 0;
+    const int handed =
+        cli_highlight_leaves(key, "root", s_lines, 2u, 0, highlight_waiting, &out, &ended_line, &err_msg);
+    (void)mmgr_line_finish(&out);
+    return handed && (s_aside_ended == 1);
+}
+
+// a line colored and leaves captured on the same thread as a coloring under way hands them on, the one under way going
+// on in its own room
+static void highlight_nested(void *context, const CliLeaves *leaves)
+{
+    highlight_leaves_capture(context, leaves);
+    if (s_aside_leaves[0] == '\0')
+    {
+        (void)highlight_aside_colored();
+    }
+}
+
+// colorings run at once: one colors while another waits on it in its first line, and each colors as it would alone; a
+// grammar stored again while a coloring reads it leaves that coloring reading the one it found, the next reading the
+// new one; and a coloring begun within another on the same thread leaves the other going on as it was
+static void highlight_at_once(void)
+{
+    static const char s_both[] = "0 keyword|2 |3 delimiter.bracket|4 identifier|5 delimiter.bracket/";
+    char leaves[512];
+    s_aside_leaves[0] = '\0';
+    const int beside = highlight_beside("test", highlight_aside_colored, leaves, sizeof(leaves));
+    cli_check(beside && cellul.eq(&(CatenaFinitaCfg){.src = s_aside_leaves, .other = s_both, .cap = CLI_CELLS_POOL}),
+              "a line is colored while a coloring under way waits on it");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = leaves,
+                                           .other = "0 keyword|2 |3 delimiter.bracket|4 identifier|5 "
+                                                    "delimiter.bracket/0 keyword|2 |3 delimiter.bracket|4 "
+                                                    "identifier|5 delimiter.bracket/",
+                                           .cap = CLI_CELLS_POOL}),
+              "and the coloring under way goes on as it would alone");
+    char runs[256];
+    const int stored = highlight_grammar_store("swapped", s_grammar, sizeof(s_grammar) - 1u, NULL);
+    const int swapped = stored && highlight_beside("swapped", highlight_aside_stored, leaves, sizeof(leaves));
+    cli_check(swapped && cellul.eq(&(CatenaFinitaCfg){.src = leaves,
+                                                      .other = "0 keyword|2 |3 delimiter.bracket|4 identifier|5 "
+                                                               "delimiter.bracket/0 keyword|2 |3 delimiter.bracket|4 "
+                                                               "identifier|5 delimiter.bracket/",
+                                                      .cap = CLI_CELLS_POOL}),
+              "a grammar stored again while a coloring reads it, that coloring reads the one it found to its end");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = highlight_line("swapped", "if x", "root", runs, sizeof(runs)),
+                                           .other = "0 word|2 |3 word",
+                                           .cap = CLI_CELLS_POOL}),
+              "and the next coloring reads the grammar stored in its place");
+    static const char *const s_lines[2] = {"a /* open", "still */ b"};
+    char ended[64];
+    char why[256];
+    VerbaLinea out = {leaves, sizeof(leaves), 0ull};
+    VerbaLinea ended_line = {ended, sizeof(ended), 0ull};
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    s_aside_leaves[0] = '\0';
+    const int nested =
+        cli_highlight_leaves("test", "root", s_lines, 2u, 0, highlight_nested, &out, &ended_line, &err_msg);
+    (void)mmgr_line_finish(&out);
+    cli_check(nested && cellul.eq(&(CatenaFinitaCfg){.src = s_aside_leaves, .other = s_both, .cap = CLI_CELLS_POOL}) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = leaves,
+                                               .other = "0 identifier|1 |2 comment|4 comment/0 comment|6 comment|8 "
+                                                        "|9 identifier/",
+                                               .cap = CLI_CELLS_POOL}),
+              "a coloring begun within another on its thread colors, and the other goes on in its own room");
+}
+
 // the line `text` colored by the grammar of the plugin `id` from root, checked against `wanted`
 static void highlight_plugin_line(const char *id, const char *text, const char *wanted, const char *what)
 {
@@ -243,18 +386,18 @@ static void highlight_declarations(void)
 {
     highlight_plugin_line("c", "static int add(const char *name, unsigned int count);",
                           "0 keyword|6 |7 type|10 |11 identifier.declaration.function|14 "
-                          "delimiter.bracket.parameter.open|15 keyword|20 |21 type.string|25 |26 operator.memory|27 "
+                          "delimiter.bracket.parameter.depth.open|15 keyword|20 |21 type.string|25 |26 operator.memory|27 "
                           "identifier.parameter|31 delimiter.separator|32 |33 type.number|41 |42 type.number|45 |46 "
-                          "identifier.parameter|51 delimiter.bracket.parameter.close|52 delimiter.statement",
+                          "identifier.parameter|51 delimiter.bracket.parameter.depth.close|52 delimiter.statement",
                           "C's prototype names its parameters and their types");
     highlight_plugin_line("c", "    unsigned int total = 0u;",
                           "0 |4 type.number|12 |13 type.number|16 |17 identifier.local|22 |23 operator.assign|24 |25 "
                           "number|26 number.suffix|27 delimiter.statement",
                           "a C local and its type");
     highlight_plugin_line("python", "def total(first: int, second=\"x\"):",
-                          "0 keyword|3 |4 identifier.declaration.function|9 delimiter.bracket.parameter.open|10 "
+                          "0 keyword|3 |4 identifier.declaration.function|9 delimiter.bracket.parameter.depth.open|10 "
                           "identifier.parameter|15 delimiter|16 |17 type.number|20 delimiter.separator|21 |22 "
-                          "identifier.parameter|28 operator.assign|29 string|32 delimiter.bracket.parameter.close|33 "
+                          "identifier.parameter|28 operator.assign|29 string|32 delimiter.bracket.parameter.depth.close|33 "
                           "operator.region.open|34 delimiter.statement",
                           "Python's head names its parameters and an annotation's type, the colon that ends its line a "
                           "region's opening, and the line's end its statement's");
@@ -266,21 +409,21 @@ static void highlight_declarations(void)
                           "0 |4 identifier.local|9 |10 operator.assign|11 |12 number|13 delimiter.statement",
                           "and one without");
     highlight_plugin_line("rust", "fn add(name: &str, count: u32) -> u32 {",
-                          "0 keyword|2 |3 identifier.declaration.function|6 delimiter.bracket.parameter.open|7 "
+                          "0 keyword|2 |3 identifier.declaration.function|6 delimiter.bracket.parameter.depth.open|7 "
                           "identifier.parameter|11 delimiter|12 |13 operator.memory|14 type.string|17 "
                           "delimiter.separator|18 |19 identifier.parameter|24 delimiter|25 |26 type.number|29 "
-                          "delimiter.bracket.parameter.close|30 |31 operator|33 |34 type|37 |38 "
-                          "delimiter.bracket.region.open",
+                          "delimiter.bracket.parameter.depth.close|30 |31 operator|33 |34 type|37 |38 "
+                          "delimiter.bracket.region.depth.open",
                           "Rust's head names its parameters and their types");
     highlight_plugin_line("rust", "    let mut total: u64 = 0;",
                           "0 |4 keyword|7 |8 keyword|12 identifier.local|17 delimiter|18 |19 type.number|22 |23 "
                           "operator.assign|24 |25 number|26 delimiter.statement",
                           "a Rust local and its type");
     highlight_plugin_line("javascript", "function add(name, count = 1) {",
-                          "0 keyword|8 |9 identifier.declaration.function|12 delimiter.bracket.parameter.open|13 "
+                          "0 keyword|8 |9 identifier.declaration.function|12 delimiter.bracket.parameter.depth.open|13 "
                           "identifier.parameter|17 delimiter.separator|18 |19 identifier.parameter|24 |25 "
-                          "operator.assign|26 |27 number|28 delimiter.bracket.parameter.close|29 |30 "
-                          "delimiter.bracket.region.open",
+                          "operator.assign|26 |27 number|28 delimiter.bracket.parameter.depth.close|29 |30 "
+                          "delimiter.bracket.region.depth.open",
                           "JavaScript's head names its parameters");
     highlight_plugin_line("javascript", "  const total = 4;",
                           "0 |2 keyword|7 |8 identifier.local|13 |14 operator.assign|15 |16 number|17 "
@@ -353,6 +496,7 @@ int main(void)
                                                .cap = CLI_CELLS_POOL}),
               "a hundred grammars are stored, each under its key");
     highlight_leaves();
+    highlight_at_once();
     highlight_indent();
     highlight_declarations();
     static const char s_bad[] = "{\"tokenizer\": {\"root\": [[{\"pattern\": \"(?<=a)b\"}, \"x\"]]}}";

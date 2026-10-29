@@ -276,7 +276,7 @@ void cli_clipboard_emptied(void)
 #define CLI_X11_NAMED 8u
 
 static const char *const s_atom_names[CLI_X11_NAMED] = {
-    "CLIPBOARD",     "UTF8_STRING", "TARGETS", "INCR", "text/uri-list", "x-special/gnome-copied-files",
+    "CLIPBOARD",       "UTF8_STRING", "TARGETS", "INCR", "text/uri-list", "x-special/gnome-copied-files",
     "ORIOR_CLIPBOARD", "TEXT",
 };
 
@@ -364,7 +364,8 @@ static int x11_received(const CliX11 *x11, void *bytes, unsigned long long size,
     return 1;
 }
 
-// `size` bytes the server sends passed over, read through `room`, sized for `room_size`: 1, or 0 where they did not come
+// `size` bytes the server sends passed over, read through `room`, sized for `room_size`: 1, or 0 where they did not
+// come
 static int x11_passed(const CliX11 *x11, unsigned long long size, unsigned char *room, unsigned long long room_size)
 {
     while (size > 0ull)
@@ -736,8 +737,7 @@ static int x11_property_put(const CliX11 *x11, unsigned int window, unsigned int
     request[19] = 0u;
     // the units of the bytes are below what 32 bits count, as a piece is
     x11_put32(request + 20, (unsigned int)(size / (format / 8u)));
-    return x11_sent(x11, request, sizeof(request)) && x11_sent(x11, bytes, size) &&
-           x11_sent(x11, s_pad, padded - size);
+    return x11_sent(x11, request, sizeof(request)) && x11_sent(x11, bytes, size) && x11_sent(x11, s_pad, padded - size);
 }
 
 // the property `property` of `window` deleted
@@ -800,7 +800,8 @@ static int x11_property_taken(const CliX11 *x11, VerbaLinea *out, unsigned int *
         }
         *type = x11_get32(reply + 8);
         const unsigned long long after = x11_get32(reply + 12);
-        const unsigned long long bytes = (unsigned long long)x11_get32(reply + 16) * ((reply[1] != 0u) ? reply[1] / 8u : 1u);
+        const unsigned long long bytes =
+            (unsigned long long)x11_get32(reply + 16) * ((reply[1] != 0u) ? reply[1] / 8u : 1u);
         mmgr_line_put_n(out, (const char *)s_piece, (bytes < got) ? bytes : got);
         *size += (bytes < got) ? bytes : got;
         if (after == 0ull)
@@ -812,8 +813,8 @@ static int x11_property_taken(const CliX11 *x11, VerbaLinea *out, unsigned int *
     return x11_property_deleted(x11, x11->window, x11->atom[CLI_X11_PROPERTY]);
 }
 
-// the clipboard's content as `target` read into `out`, a content sent in pieces read piece by piece as INCR sends it: 1,
-// or 0 where its owner has none as `target` or does not answer in time
+// the clipboard's content as `target` read into `out`, a content sent in pieces read piece by piece as INCR sends it:
+// 1, or 0 where its owner has none as `target` or does not answer in time
 static int x11_converted(const CliX11 *x11, unsigned int target, VerbaLinea *out)
 {
     unsigned char request[24];
@@ -892,11 +893,12 @@ static CliWake s_started = CLI_WAKE_INIT;
 static unsigned int owner_content_of(unsigned int target)
 {
     const unsigned int *const atom = s_owner.x11.atom;
-    const int text = (target == atom[CLI_X11_UTF8]) || (target == atom[CLI_X11_TEXT]) || (target == CLI_X11_ATOM_STRING);
-    const unsigned int place = text                           ? CLI_X11_OWNED_TEXT
-                               : (target == atom[CLI_X11_URIS]) ? CLI_X11_OWNED_URIS
+    const int text =
+        (target == atom[CLI_X11_UTF8]) || (target == atom[CLI_X11_TEXT]) || (target == CLI_X11_ATOM_STRING);
+    const unsigned int place = text                               ? CLI_X11_OWNED_TEXT
+                               : (target == atom[CLI_X11_URIS])   ? CLI_X11_OWNED_URIS
                                : (target == atom[CLI_X11_COPIED]) ? CLI_X11_OWNED_COPIED
-                                                                : 3u;
+                                                                  : 3u;
     return ((place < 3u) && (s_owner.content[place] != NULL)) ? place : 3u;
 }
 
@@ -985,8 +987,8 @@ static void owner_requested(const unsigned char *request)
 // lock
 static void owner_piece_sent(const unsigned char *event)
 {
-    const int deleted = (event[16] == 1u) && (x11_get32(event + 4) == s_owner.requestor) &&
-                        (x11_get32(event + 8) == s_owner.property);
+    const int deleted =
+        (event[16] == 1u) && (x11_get32(event + 4) == s_owner.requestor) && (x11_get32(event + 8) == s_owner.property);
     if (!s_owner.sending || !deleted)
     {
         return;
@@ -1053,8 +1055,8 @@ static void owner_run(void *context)
     cli_lock_give(&s_lock);
 }
 
-// `size` bytes of `bytes` taken into a cell of their own as the content at `place`: 1, or 0 where no cell could be taken;
-// under the lock
+// `size` bytes of `bytes` taken into a cell of their own as the content at `place`: 1, or 0 where no cell could be
+// taken; under the lock
 static int owner_content_put(unsigned int place, const char *bytes, unsigned long long size)
 {
     char *const cell = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
@@ -1156,8 +1158,8 @@ int cli_clipboard_files_put(const char *const *paths, unsigned int count, int cu
     return owned;
 }
 
-// the files GNOME's copied-files target holds, `size` bytes of `list`, its first line `cut` or `copy`, handed to `each`,
-// 1 in `cut` where they were cut: how many
+// the files GNOME's copied-files target holds, `size` bytes of `list`, its first line `cut` or `copy`, handed to
+// `each`, 1 in `cut` where they were cut: how many
 static unsigned int clipboard_copied_read(const char *list, unsigned long long size,
                                           void (*each)(void *context, const char *path), void *context, int *cut)
 {

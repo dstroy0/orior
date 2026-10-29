@@ -21,12 +21,53 @@
 // the file at `path` opened as the paged text `key`, its index read on a thread of its own; its shape as it stands
 // written as `{"lines", "indexed", "size"}`: 1, or 0 with why given. The shape of the text under `key`; its lines from
 // `from` to before `to`, once the index has read as far as `to` or the whole file, as far as the text contains them,
-// written as a JSON array of strings; and the text let go
+// written as a JSON array of strings, each cut after its first `*cut` letters where `cut` is given and not 0, `*cut`
+// left 0 where no line was longer, and where `lengths` is given each line's whole length in the page's units, UTF-16's,
+// written into it as a JSON array of numbers; and the text let go
 int cli_pages_open(const char *key, const char *path, VerbaLinea *out, VerbaLinea *err_msg);
 int cli_pages_shape(const char *key, VerbaLinea *out, VerbaLinea *err_msg);
-int cli_pages_read(const char *key, unsigned long long from, unsigned long long to, VerbaLinea *out,
-                   VerbaLinea *err_msg);
+int cli_pages_read(const char *key, unsigned long long from, unsigned long long to, unsigned long long *cut,
+                   VerbaLinea *out, VerbaLinea *lengths, VerbaLinea *err_msg);
 void cli_pages_release(const char *key);
+
+// A view of a paged text as the page reports it, each frame it moves and once as it rests: the line at its top, the
+// rows it shows, the letters across it reaches, the lines the minimap stands beside from `map_from` to before `map_to`,
+// the lines the page holds from `held_from` to before `held_to`, cut after `held_cut` letters, 0 where whole, and the
+// letters a row holds where it wraps its lines, each line as many rows as those letters fill, 0 where it does not
+typedef struct
+{
+    unsigned long long top;
+    unsigned long long rows;
+    unsigned long long columns;
+    unsigned long long map_from;
+    unsigned long long map_to;
+    unsigned long long held_from;
+    unsigned long long held_to;
+    unsigned long long held_cut;
+    unsigned long long width;
+} CliPagesView;
+
+// The lines a view is answered: from `from` to before `to`, none where they are the same, cut after `cut` letters, 0
+// where whole; and the lines the page keeps, from `keep_from` to before `keep_to`, those it holds outside them let go
+typedef struct
+{
+    unsigned long long from;
+    unsigned long long to;
+    unsigned long long cut;
+    unsigned long long keep_from;
+    unsigned long long keep_to;
+} CliPagesPlaced;
+
+// the view `view` of the paged text under `key` placed into `placed`, the view kept as the last reported. A view
+// reported where it was reported last, or more than CLI_PAGE_STILL milliseconds after the last report, rests: its rows
+// whole where the page does not hold them whole, then the lines it keeps whole, CLI_PAGE_NEAR about its rows and the
+// minimap's, a step of CLI_PAGE_REST_BYTES at a time. Any other moves: its rows where it will stand a report later at
+// the step it moved since the last, and where it stands where that step is no more than its rows, CLI_PAGE_EDGE about
+// them, cut at its reach. Nothing where the page holds those already. A step of lines toward the ends of the page's is
+// no more than CLI_PAGE_REST_BYTES of their bytes reach, one at the least; and a view that wraps its lines is placed the
+// lines its rows take of those about them, each line as many rows as its letters fill at the view's width, a step as it
+// moves no more than fill the rows placed. 1, or 0 where none is stored under the key
+int cli_pages_viewed(const char *key, const CliPagesView *view, CliPagesPlaced *placed);
 // how many lines the paged text under `key` contains as far as its index has read, into `lines`, and whether the index
 // is whole, into `whole`: 1, or 0 where none is stored under the key; and its lines from `from` to before `to` as far
 // as the index has read, as the walk of its colors reads them: each written as UTF-8 and ended by a NUL into a cell

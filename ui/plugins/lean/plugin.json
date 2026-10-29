@@ -9,6 +9,7 @@
   "quotes": ["\""],
   "indentAfter": "(?::=|\\bwhere|\\bby|\\bdo|\\bthen|\\belse|=>|[{[(⟨])\\s*(?:--.*)?$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "abbrev", "at", "attribute", "axiom", "by", "calc", "class", "coinductive", "decreasing_by", "def",
       "deriving", "do", "elab", "else", "end", "example", "export", "extends", "for", "from", "fun", "have", "if",

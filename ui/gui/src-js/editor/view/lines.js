@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { cmp, isWordChar, pos, same, wordAt } from "../document.js";
-import { caret, empty, endOfSel, SPANS_WAIT, startOf } from "../view.js";
+import { caret, empty, endOfSel, startOf } from "../view.js";
 
 // Lines.
 
@@ -209,143 +209,50 @@ export function addCursor(direction) {
   this.select([...sels, added], added);
 }
 
-// The bracket at or before the primary cursor and the one it pairs with, outside strings and
-// comments, or null.
-// The bracket pair at the cursor, read once for each state of the text and place of the cursor: a
-// scroll asks for it every frame, and its answer stays until either moves.
+// The bracket pair at the cursor as orior's side reads it off the branch, by the roles the grammar names, its lines the
+// file's, asked once for each state of the text and each place of the cursor in the file: a frame asks for it every
+// frame, and its answer stays until either moves, none until it comes. One is asked at a time: a cursor moved on while
+// one is asked has the place it stands asked once that answer comes, the places it passed meanwhile never asked. A
+// paged file's window asks for none while it moves, its lines cut short or its view not yet at rest.
 export function bracketPair() {
   const s = this.s;
   const head = this.primary().head;
-  const key = [s.doc.id, s.doc.count, s.base, head.line, head.col].join("|");
+  const moving = Boolean(s.window && (s.window.cut || !s.window.paged?.resting));
+  const key = [s.doc.id, s.base + head.line, head.col, moving].join("|");
   if (this.pairKept?.session !== s || this.pairKept.key !== key) {
-    this.pairKept = { session: s, key, pair: this.bracketPairNow() };
+    this.pairKept = { session: s, key, pair: null, asked: false };
   }
-  return this.pairKept.pair;
-}
-
-export function bracketPairNow() {
-  const s = this.s;
-  const head = this.primary().head;
-  const pairs = { "(": ")", "[": "]", "{": "}" };
-  const back = { ")": "(", "]": "[", "}": "{" };
-  const plain = (line, col) => !/t-comment|t-string/.test(s.highlight.classAt(line, col));
-  const text = s.doc.line(head.line);
-  for (const col of [head.col - 1, head.col]) {
-    const char = text[col];
-    if (!(char in pairs || char in back) || !plain(head.line, col)) {
-      continue;
-    }
-    const forward = char in pairs;
-    const mate = forward ? pairs[char] : back[char];
-    let depth = 0;
-    let line = head.line;
-    let at = col;
-    const limit = 3000;
-    for (let seen = 0; seen < limit && line >= 0 && line < s.doc.count; ) {
-      const row = s.doc.line(line);
-      for (; at >= 0 && at < row.length; at += forward ? 1 : -1) {
-        const found = row[at];
-        if ((found === char || found === mate) && plain(line, at)) {
-          depth += found === char ? 1 : -1;
-          if (depth === 0) {
-            return [pos(head.line, col), pos(line, at)];
-          }
+  const kept = this.pairKept;
+  if (!moving && !kept.asked && !this.pairAsked) {
+    kept.asked = true;
+    this.pairAsked = this.pairOf(s, head)
+      .then((pair) => {
+        if (this.pairKept === kept && pair) {
+          kept.pair = pair;
         }
-      }
-      line += forward ? 1 : -1;
-      seen += 1;
-      at = forward ? 0 : s.doc.line(line).length - 1;
-    }
+      })
+      .finally(() => {
+        this.pairAsked = null;
+        this.schedule();
+      });
   }
-  return null;
+  return kept.pair?.map((at) => pos(at.line - s.base, at.col)) ?? null;
 }
 
-// Extend Selection: the primary selection grows to the next span that holds it, the word, the inside
-// of the string it is in, the string, the inside of the brackets around it, the brackets, its whole
-// lines, then the whole text; and, where the file has a parse, each span of the parse between them,
-// its statements and its blocks among them. Shrink Selection takes each step back.
+// Extend Selection: the primary selection grows to the least span orior's side reads off the text that holds it and
+// is more than it: the leaf it stands in, each bracket pair around it, inside its brackets and with them, the
+// statement it stands in among a region's, each region with its head, and the whole text, each by the roles its
+// grammar names; or each span of the file's parse, where one reads it whole. Shrink Selection takes each step back.
 export async function expandSelection() {
   const s = this.s;
   const sel = this.primary();
-  const asked = [cmp(sel.anchor, sel.head) <= 0 ? sel.anchor : sel.head, cmp(sel.anchor, sel.head) <= 0 ? sel.head : sel.anchor];
-  // The tree's spans are taken where they come within SPANS_WAIT; past it the editor's own spans below answer alone,
-  // so the selection grows at once whatever the parse's state.
-  const parsed = await Promise.race([this.spansOf(s, asked[0], asked[1]), new Promise((done) => window.setTimeout(() => done([]), SPANS_WAIT))]);
+  const [from, to] = cmp(sel.anchor, sel.head) <= 0 ? [sel.anchor, sel.head] : [sel.head, sel.anchor];
+  const found = await this.spansOf(s, from, to);
   if (this.s !== s || this.primary() !== sel) {
     return;
   }
-  const [from, to] = cmp(sel.anchor, sel.head) <= 0 ? [sel.anchor, sel.head] : [sel.head, sel.anchor];
   const holds = (span) => cmp(span[0], from) <= 0 && cmp(to, span[1]) <= 0 && (cmp(span[0], from) < 0 || cmp(to, span[1]) < 0);
-  const spans = [];
-  const word = wordAt(s.doc, from);
-  if (word && from.line === to.line) {
-    spans.push([word.from, word.to]);
-  }
-  // The string the selection is in, on its line: inside its quotes, then with them.
-  if (from.line === to.line) {
-    const text = s.doc.line(from.line);
-    const quoted = /(["'`])(?:\\.|(?!\1).)*\1/g;
-    for (let found = quoted.exec(text); found; found = quoted.exec(text)) {
-      const start = found.index;
-      const end = start + found[0].length;
-      if (start <= from.col && to.col <= end) {
-        spans.push([pos(from.line, start + 1), pos(from.line, end - 1)], [pos(from.line, start), pos(from.line, end)]);
-      }
-    }
-  }
-  // The brackets around it, found outward from both ends, past comments and strings.
-  const plain = (line, col) => !/t-comment|t-string/.test(s.highlight.classAt(line, col));
-  const opens = { "(": ")", "[": "]", "{": "}" };
-  const closes = { ")": "(", "]": "[", "}": "{" };
-  let depth = {};
-  let open = null;
-  for (let line = from.line, col = from.col - 1, seen = 0; line >= 0 && seen < 4000 && !open; seen += 1) {
-    const text = s.doc.line(line);
-    for (; col >= 0; col -= 1) {
-      const char = text[col];
-      if (char in closes && plain(line, col)) {
-        depth[char] = (depth[char] ?? 0) + 1;
-      } else if (char in opens && plain(line, col)) {
-        if (depth[opens[char]]) {
-          depth[opens[char]] -= 1;
-        } else {
-          open = { at: pos(line, col), char };
-          break;
-        }
-      }
-    }
-    line -= 1;
-    col = line >= 0 ? s.doc.line(line).length - 1 : -1;
-  }
-  if (open) {
-    const mate = opens[open.char];
-    let level = 0;
-    let close = null;
-    for (let line = to.line, col = to.col, seen = 0; line < s.doc.count && seen < 4000 && !close; seen += 1) {
-      const text = s.doc.line(line);
-      for (; col < text.length; col += 1) {
-        const char = text[col];
-        if (char === open.char && plain(line, col)) {
-          level += 1;
-        } else if (char === mate && plain(line, col)) {
-          if (level) {
-            level -= 1;
-          } else {
-            close = pos(line, col);
-            break;
-          }
-        }
-      }
-      line += 1;
-      col = 0;
-    }
-    if (close) {
-      spans.push([pos(open.at.line, open.at.col + 1), close], [open.at, pos(close.line, close.col + 1)]);
-    }
-  }
-  const lastLine = to.col === 0 && to.line > from.line ? to.line - 1 : to.line;
-  spans.push([pos(from.line, 0), pos(lastLine, s.doc.line(lastLine).length)], [pos(0, 0), s.doc.end()]);
-  spans.push(...parsed.map(([start, end]) => [pos(start.line, start.col), pos(end.line, end.col)]));
+  const spans = found.map(([start, end]) => [pos(start.line, start.col), pos(end.line, end.col)]);
   const next = spans.filter(holds).sort((a, b) => cmp(b[0], a[0]) || cmp(a[1], b[1]))[0];
   if (!next) {
     return;
@@ -370,9 +277,13 @@ export function shrinkSelection() {
   this.grownTo = { anchor: back.anchor, head: back.head };
 }
 
-export function jumpBracket() {
-  const pair = this.bracketPair();
-  if (pair) {
+// The cursor taken past the bracket the one at it pairs with, once orior's side answers where the pair is not come yet.
+export async function jumpBracket() {
+  const s = this.s;
+  const head = this.primary().head;
+  const asked = this.bracketPair() ? null : await this.pairOf(s, head);
+  const pair = asked?.map((at) => pos(at.line - s.base, at.col)) ?? this.bracketPair();
+  if (pair && this.s === s && same(this.primary().head, head)) {
     const to = pair[1];
     this.select([caret(pos(to.line, to.col + 1))]);
   }

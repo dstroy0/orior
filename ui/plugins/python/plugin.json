@@ -61,8 +61,8 @@
           "0[xX][\\da-fA-F_']+[uUlLzZ]*|0[bB][01_']+[uUlL]*|(?:\\d[\\d_']*)?\\.?\\d[\\d_']*(?:[eE][+-]?\\d+)?[fFuUlLjJ]*",
           "number"
         ],
-        ["[(\\[{]","delimiter.bracket.open","@nested"],
-        ["[)\\]}]","delimiter.bracket.close"],
+        ["[(\\[{]","delimiter.bracket.depth.open","@nested"],
+        ["[)\\]}]","delimiter.bracket.depth.close"],
         ["=(?!=)","operator.assign"],
         ["[<>=!~:&|+\\-*/^%@]+","operator"],
         [";","delimiter.statement"],
@@ -72,8 +72,8 @@
       "params": [
         ["\\s+",""],
         ["#.*$","comment"],
-        ["\\(","delimiter.bracket.parameter.open"],
-        ["\\)","delimiter.bracket.parameter.close","@pop"],
+        ["\\(","delimiter.bracket.parameter.depth.open"],
+        ["\\)","delimiter.bracket.parameter.depth.close","@pop"],
         ["\\*{1,2}","operator.rest"],
         ["[A-Za-z_]\\w*(?=\\s*[:=,)])",{"cases":{"@words":"keyword","@default":"identifier.parameter"}}],
         [":","delimiter","@annotation"],
@@ -87,13 +87,13 @@
         ["(?:int|float|complex|bool)(?![\\w.])","type.number"],
         ["(?:str|bytes)(?![\\w.])","type.string"],
         ["[A-Za-z_][\\w.]*","type"],
-        ["\\[","delimiter.bracket.open","@arguments"],
+        ["\\[","delimiter.bracket.depth.open","@arguments"],
         ["\\|","operator"]
       ],
       "arguments": [
         ["\\s+",""],
-        ["\\]","delimiter.bracket.close","@pop"],
-        ["\\[","delimiter.bracket.open","@arguments"],
+        ["\\]","delimiter.bracket.depth.close","@pop"],
+        ["\\[","delimiter.bracket.depth.open","@arguments"],
         ["(?:int|float|complex|bool)(?![\\w.])","type.number"],
         ["(?:str|bytes)(?![\\w.])","type.string"],
         ["[A-Za-z_][\\w.]*","type"],
@@ -105,7 +105,7 @@
         {"include":"@code"}
       ],
       "nested": [
-        ["[)\\]}]","delimiter.bracket.close","@pop"],
+        ["[)\\]}]","delimiter.bracket.depth.close","@pop"],
         {"include":"@code"}
       ],
       "long2": [["\"\"\"","string","@pop"],["[^\"\\\\]+|\\\\.|\"","string"]],

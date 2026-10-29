@@ -5,6 +5,7 @@
 // marks of the cells run, and the map beside them.
 
 import { breakpointsOf } from "../debug.js";
+import { partsOf } from "../editor/tokens.js";
 import { escapeHtml, markdownHtml } from "../markdown.js";
 import { coloredHtml } from "../screen.js";
 import { breaksKey, cellFile, cellName, element, ENDS, LONG, staleBy, state } from "../notebook.js";
@@ -15,16 +16,10 @@ function codeHtml(session, breaks = null) {
   const doc = session.doc;
   const rows = [];
   for (let line = 0; line < doc.count; line += 1) {
-    const text = doc.line(line);
-    const runs = session.highlight?.runsOf?.(line) ?? [[0, ""]];
     let html = "";
-    runs.forEach(([start, name], index) => {
-      const end = runs[index + 1]?.[0] ?? text.length;
-      if (end > start) {
-        const part = escapeHtml(text.slice(start, end));
-        html += name ? `<span class="${name}">${part}</span>` : part;
-      }
-    });
+    for (const [name, part] of partsOf(doc.line(line), session.highlight?.runsOf?.(line) ?? [[0, ""]])) {
+      html += name ? `<span class="${name}">${escapeHtml(part)}</span>` : escapeHtml(part);
+    }
     rows.push(breaks?.has(line) ? `<span class="nb-break-line">${html || " "}</span>` : html || " ");
   }
   return rows.join("\n");

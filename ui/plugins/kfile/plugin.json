@@ -1,0 +1,39 @@
+{
+  "id": "kfile",
+  "name": "k-file",
+  "version": "1.0.0",
+  "kind": "language",
+  "each": {
+    "folder": "src/cu/includes/file_defs",
+    "table": "{name}/{name}.oracle.tsv",
+    "unless": {"column": "where", "match": "^head \\d"},
+    "except": ["g", "gsm"]
+  },
+  "pairs": ["()", "[]", "{}"],
+  "quotes": ["\""],
+  "grammar": {
+    "perLine": true,
+    "keywords": {
+      "table": "src/cu/includes/file_defs/{name}/{name}.oracle.tsv", "columns": ["form"],
+      "match": "^\\s*([A-Za-z_][\\w-]*)"
+    },
+    "commentMarks": {
+      "table": "src/cu/includes/file_defs/{name}/{name}.oracle.tsv", "columns": ["form"],
+      "rows": {"column": "kind", "match": "^comment$"}, "match": "^#"
+    },
+    "tokenizer": {
+      "root": [
+        [{"words": "commentMarks", "before": "^\\s*", "after": ".*$"}, "comment"],
+        ["^(\\s*)([A-Za-z_][\\w-]*)", ["", {"cases": {"@keywords": "keyword", "@default": "identifier"}}]],
+        ["<[^>\\s]*>", "type"],
+        ["\\{[^}\\s]*\\}", "variable"],
+        ["-?\\d+(?:\\/\\d+)?\\b", "number"],
+        ["->|x>|\\*>|[=:|]", "operator"],
+        ["\"[^\"]*\"", "string"],
+        ["[A-Za-z_][\\w.$%-]*", "identifier"],
+        ["\\s+", ""],
+        [".", "delimiter"]
+      ]
+    }
+  }
+}

@@ -410,10 +410,9 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
     }
     cli_lock_take(&s_letting_lock);
     s_wait[checker].waiting = 1;
-    memor.cpy(&(MemoriaCfg){
-        .dst = s_wait[checker].key,
-        .src = sliced->key,
-        .bytes = cellul.len(&(CatenaFinitaCfg){.src = sliced->key, .cap = CLI_CELLS_POOL}) + 1u});
+    memor.cpy(&(MemoriaCfg){.dst = s_wait[checker].key,
+                            .src = sliced->key,
+                            .bytes = cellul.len(&(CatenaFinitaCfg){.src = sliced->key, .cap = CLI_CELLS_POOL}) + 1u});
     s_wait[checker].signals = 0u;
     s_wait[checker].gathering = 1;
     s_wait[checker].gathered.at = 0u;
@@ -454,9 +453,8 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
 
 // one file checked by the checker `checker` a window of its slices at a time, its `size` bytes of `text` as the disk
 // stores them, then let go where the check still opens it and its diagnostics, every window's, retained and passed on
-static void check_one_sliced(unsigned int checker, const char *path, const char *uri, const char *key,
-                             const char *text, unsigned long long size, const CliServersWaiting *one,
-                             const CliServersSink *sink)
+static void check_one_sliced(unsigned int checker, const char *path, const char *uri, const char *key, const char *text,
+                             unsigned long long size, const CliServersWaiting *one, const CliServersSink *sink)
 {
     CliServersCheckSliced sliced = {checker, path, uri, key, one, sink, 0, 0, {NULL, 0ull, 0ull, NULL, NULL, 0ull}, 0};
     cli_lock_take(&s_letting_lock);
@@ -470,8 +468,7 @@ static void check_one_sliced(unsigned int checker, const char *path, const char 
     mmgr_line_ch(&sliced.all, '[');
     // the server waited on while the file is sliced, from its first window to its letting go
     cli_servers_ask_begun(one->server);
-    const int cut =
-        made && cli_servers_slices_cut(sink->tree, path, text, size, check_one_window, &sliced, &err_msg);
+    const int cut = made && cli_servers_slices_cut(sink->tree, path, text, size, check_one_window, &sliced, &err_msg);
     // the file let go before its gathering ends, so what its server gives as it closes is the clearing let go
     cli_lock_take(&g_cli_servers_check_open_lock);
     const int ours = cli_servers_check_open(uri);

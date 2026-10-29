@@ -1,0 +1,26 @@
+{
+  "id": "gsm",
+  "name": "gsm",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["gsm"],
+  "comments": {},
+  "pairs": ["[]"],
+  "quotes": [],
+  "grammar": {
+    "perLine": true,
+    "mnemonics": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["mnemonic"], "match": "^[A-Za-z_]\\w*$"},
+    "states": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["past", "present"], "match": "^[A-Za-z_]\\w*$"},
+    "arrows": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["arrow"], "skip": "^(?:[A-Za-z_]\\w*|-)?$"},
+    "tokenizer": {
+      "root": [
+        [{"words": "arrows"}, "operator"],
+        ["[A-Za-z_]\\w*", {"cases": {"@mnemonics": "keyword", "@states": "type", "@default": "identifier"}}],
+        ["\\|", "operator"],
+        ["[[\\],]", "delimiter"],
+        ["\\d+", "number"],
+        ["\\s+", ""]
+      ]
+    }
+  }
+}

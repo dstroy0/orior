@@ -11,11 +11,15 @@
 //                           `api` names
 //   extensions              the file extensions it opens, without the dot
 //   names                   the whole names of the files it opens beside them, where it has any
+//   each                    { folder, table, unless, except }: the plugin a language of its own for each folder of
+//                           `folder` in the tree holding `table`, `{name}` in it the folder's name, opening the
+//                           folder's name as an extension as the language `<id>:<name>`
 //   comments                { line, block: [open, close] }, either left out where it has none
 //   pairs, quotes           the brackets it closes and the quotes it pairs
 //   indentAfter             a pattern a line ends with to indent the next deeper
 //   grammar                 lists of words by name and the tokenizer, as editor/tokens.js reads one; a pattern is
-//                           a string, or { pattern, flags } where it takes flags
+//                           a string, or { pattern, flags } where it takes flags; a list may be read from a table of
+//                           the tree and a pattern may be a list's words (cli_plugins_grammar_whole)
 //   hovers                  a word and the text hovering it shows, where it has any
 //   snippets                { label, body } for the completion list, `${1:name}` a stop in a body
 //   reads, writes           for a script plugin, the patterns of the tree's files it reads and writes, `*` any
@@ -106,6 +110,23 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg);
 // its whole name where a plugin names it, by a plugin's pattern of paths where one takes it, and by its extension where
 // neither does. 1, or 0 where none does
 int cli_plugins_language_for(const CliLanguages *languages, const char *path, char *id);
+// the tree a plugin's tables are read from, as the window opens it; and that tree into `tree`, sized for
+// CLI_PATH_MAX_LEN: 1, or 0 where none is open (plugins_tables.c)
+void cli_plugins_set_tree(const char *root);
+int cli_plugins_tree(char *tree);
+// The grammar at `grammar` in `json` made whole into `out` as JSON, before the colorer stores it: each word list a
+// table of the tree `tree` fills, `{"table", "columns", "rows": {"column", "match", "skip"}, "match", "skip"}`, read
+// from the table, `{name}` in its path `name`: the cell of each row `rows` keeps in each of `columns`, the first group
+// of `match` or its whole match, none `skip` matches, none where the table does not read; and each rule whose pattern
+// is a word list, `{"words", "before", "after"}`, given the list's words, escaped, the longest first, between `before`
+// and `after` as its pattern, a rule whose list has none left out. 1, or 0 with why given (plugins_tables.c)
+int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const char *tree, const char *name,
+                              VerbaLinea *out, VerbaLinea *err_msg);
+// whether the folder `name` is one of the languages of the plugin whose `each`, `{"folder", "table", "unless":
+// {"column", "match"}, "except"}`, is at `each` in `json`: its table read from the folder of that name in `folder` of
+// the tree `tree`, no row's cell in `unless`'s column matched by its pattern, and the name not among `except`
+// (plugins_tables.c)
+int cli_plugins_folder_stands(const CliJson *json, unsigned int each, const char *tree, const char *name);
 // the code the script plugin `id` runs into `out`: the file its plugin.json names as `main`, or each of a list of them
 // there in order, joined by a line's end, plugin.js where it names none, in the plugin's own folder, or the code built
 // into the program for one that comes with orior. A name that leaves the folder is refused. 1, or 0 with why given
@@ -124,8 +145,11 @@ void cli_plugins_slug(const char *name, char *id);
 // there, or CLI_JSON_NONE with why given (plugins_draft.c)
 unsigned int cli_plugins_draft(CliJson *json, unsigned int spec, VerbaLinea *err_msg);
 unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigned int spec, VerbaLinea *err_msg);
-// a plugin as its file lays out it: each value on one line where it fits in 110 characters (plugins_text.c)
+// a plugin as its file lays out it: each value on one line where it fits in 110 characters; and a few lines in its
+// language to open and try, a comment, a keyword, a type, a constant, a string and a number, each where the plugin has
+// one, each ended by "\n" (plugins_text.c)
 void cli_plugins_text_of(const CliJson *json, unsigned int plugin, VerbaLinea *out);
+void cli_plugins_sample_of(const CliJson *json, unsigned int plugin, VerbaLinea *out);
 // the plugin the answers request written under `dir`, in a folder of its id, with a sample file beside it, the folder
 // into `folder`, sized for CLI_PATH_MAX_LEN: a plugin of that id already there is retained unless `replace`. And the
 // same under the reader's plugins folder. 1, or 0 with why given

@@ -14,6 +14,7 @@
     ["^()alias\\s+([A-Za-z_]\\w*)", "constant"]
   ],
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif",
       "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or",

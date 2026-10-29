@@ -38,8 +38,8 @@ export function signatureOpen() {
 
 // The tree's signature for the call the cursor is in, worked out on the window's side off the lines of the text it holds
 // down to the cursor's line, once the changes written before are: the call's name, its arguments with their types, and
-// every declaration of the name in the tree in order of fit; null where the cursor stands in no call or the text is held
-// nowhere.
+// every declaration of the name in the tree in order of fit; null where the cursor stands in no call or the text mirrors
+// no branch.
 function treeSignature(found) {
   const { s, head } = found;
   const held = s.doc.held;

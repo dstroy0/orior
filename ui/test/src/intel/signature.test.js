@@ -47,7 +47,7 @@ test("the declaration the tree gives first is shown with the argument the cursor
   });
 });
 
-test("the call is asked of the window's side by the held text's key, with the file and the cursor's place", async () => {
+test("the call is asked of the window's side by the branch's key, with the file and the cursor's place", async () => {
   calls.answer("branch_signature", () => null);
   const view = await given("def run():\n    x = 1\n    total(x, |");
   await inTab(view, async () => {

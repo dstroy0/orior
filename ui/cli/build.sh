@@ -6,8 +6,10 @@
 # plugins, toolchains.json and commands.json; then every source is compiled for the target, 16 at once, each only
 # where it changed since its object was made. The compiler is CC where it is set, else clang; a musl target is linked
 # whole, with no library left to load. `build.sh library [target]` archives the same objects, but the program's entry,
-# into build/cli/<target>/lib$CLI_NAME.a, and $CLI_NAME.lib beside it for an MSVC target, for the window to link. MMgr is
-# built for each target by orior's CMake into build/orior_cmake/<target>, and the objects of its modules join the CLI's.
+# into build/cli/<target>/lib$CLI_NAME.a, and $CLI_NAME.lib beside it for an MSVC target, for the checks to link.
+# `build.sh window [target]` builds the window, ui/gui/src, with the same objects into build/cli/<target>/$GUI_NAME.
+# MMgr is built for each target by orior's CMake into build/orior_cmake/<target>, and the objects of its modules join
+# the CLI's.
 set -u
 # A build is a guest of the machine: it runs niced, below the window and the host's own work, which take the
 # processor back from it the moment they want it.
@@ -90,11 +92,16 @@ case "$(uname -s)" in
     *) HOST="$(uname -m)-unknown-linux-gnu" ;;
 esac
 LIBRARY=0
+WINDOW=0
 if [ "${1:-}" = "library" ]; then
     LIBRARY=1
     shift
+elif [ "${1:-}" = "window" ]; then
+    WINDOW=1
+    shift
 fi
 TARGET="${1:-$HOST}"
+GUI_NAME="$(bin_named gui)"
 
 SOURCES=()
 while IFS= read -r source; do
@@ -258,6 +265,30 @@ if [ "$LIBRARY" = 1 ]; then
         || { echo "  build failed: the library was not archived"; exit 1; }
     case "$TARGET" in *msvc*) cp "$OUT/lib$CLI_NAME.a" "$OUT/$CLI_NAME.lib" ;; esac
     echo "  built ${OUT#"$TOP/"}/lib$CLI_NAME.a"
+    exit 0
+fi
+# the window: its own sources, the system's body for the target among them, compiled as the command line's are and
+# linked with the same objects and the system's own libraries; on Windows a program of the windows subsystem entered
+# at main, so no console opens with it
+if [ "$WINDOW" = 1 ]; then
+    case "$TARGET" in
+        *windows*) BODY="system_windows.c"; GUI_LIBRARIES=(-lgdi32 -Wl,/SUBSYSTEM:WINDOWS,/ENTRY:mainCRTStartup) ;;
+        *darwin*) echo "  build failed: the window has no body for $TARGET"; exit 1 ;;
+        *) BODY="system_x11.c"; GUI_LIBRARIES=(-lX11) ;;
+    esac
+    GUI_SOURCES=()
+    while IFS= read -r source; do
+        case "$source" in
+            */system_*.c) [ "$(basename "$source")" = "$BODY" ] && GUI_SOURCES+=("$source") ;;
+            *) GUI_SOURCES+=("$source") ;;
+        esac
+    done < <(find "$TOP/ui/gui/src" -name '*.c' | sort)
+    compiled "$TARGET" "$OUT/window_objects" "${GUI_SOURCES[@]}"
+    listed_into "$OUT/$GUI_NAME.objects" "${OBJECTS[@]}" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}"
+    ( cd "$TOP" && "$CC" "--target=$TARGET" "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$GUI_NAME$SUFFIX" \
+        "@${OUT#"$TOP/"}/$GUI_NAME.objects" "${LIBRARIES[@]}" "${GUI_LIBRARIES[@]}" ) \
+        || { echo "  build failed: $GUI_NAME did not link"; exit 1; }
+    echo "  built ${OUT#"$TOP/"}/$GUI_NAME$SUFFIX"
     exit 0
 fi
 listed_into "$OUT/$CLI_NAME.objects" "$OUT/orior_cli.o" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}"

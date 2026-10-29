@@ -23,8 +23,8 @@
         ["'[^']*'","string"],
         ["\\b(?:true|false)\\b","keyword"],
         ["[+-]?\\d[\\d_:.eE+\\-TZ]*","number"],
-        ["[{\\[]","delimiter.bracket.open"],
-        ["[}\\]]","delimiter.bracket.close"],
+        ["[{\\[]","delimiter.bracket.depth.open"],
+        ["[}\\]]","delimiter.bracket.depth.close"],
         ["[,=]","delimiter"],
         ["[^\\s#;\"'{}[\\],=]+|\\s+",""]
       ]

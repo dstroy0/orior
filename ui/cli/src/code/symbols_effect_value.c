@@ -40,10 +40,11 @@ static long long cli_effect_number(const CliEffectToken *token)
     for (unsigned long long at = 0ull; at < token->length; at += 1ull)
     {
         const char letter = token->text[at];
-        const unsigned long long digit = ((letter >= '0') && (letter <= '9'))   ? (unsigned long long)(letter - '0')
-                                         : ((letter >= 'a') && (letter <= 'z')) ? (unsigned long long)(letter - 'a' + 10)
-                                         : ((letter >= 'A') && (letter <= 'Z')) ? (unsigned long long)(letter - 'A' + 10)
-                                                                                : 64ull;
+        const unsigned long long digit =
+            ((letter >= '0') && (letter <= '9'))   ? (unsigned long long)(letter - '0')
+            : ((letter >= 'a') && (letter <= 'z')) ? (unsigned long long)(letter - 'a' + 10)
+            : ((letter >= 'A') && (letter <= 'Z')) ? (unsigned long long)(letter - 'A' + 10)
+                                                   : 64ull;
         if (digit < token->base)
         {
             value = (value * token->base) + digit;
@@ -62,8 +63,8 @@ static CliEffectToken *cli_effect_tokens_of(const CliEffect *effect, unsigned in
     for (unsigned int at = 0u; (tokens != NULL) && (at < count); at += 1u)
     {
         const CliEffectValueLeaf *const leaf = &effect->value_leaf[first + at];
-        tokens[at] =
-            (CliEffectToken){cli_effect_text(effect, leaf->text), leaf->length, leaf->is, leaf->binds, leaf->base, leaf->does};
+        tokens[at] = (CliEffectToken){
+            cli_effect_text(effect, leaf->text), leaf->length, leaf->is, leaf->binds, leaf->base, leaf->does};
     }
     return tokens;
 }
@@ -99,7 +100,8 @@ static void cli_effect_called_put(CliEffectCalled *called, const CliEffectToken 
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = called->token, .bytes = called->count * sizeof(CliEffectToken)});
-        memor.cpy(&(MemoriaCfg){.dst = places, .src = called->joined_at, .bytes = called->count * sizeof(unsigned int)});
+        memor.cpy(
+            &(MemoriaCfg){.dst = places, .src = called->joined_at, .bytes = called->count * sizeof(unsigned int)});
         g_cli_cells->persistent_buf_release(called->token, NULL);
         g_cli_cells->persistent_buf_release(called->joined_at, NULL);
         called->token = grown;
@@ -224,8 +226,8 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
             quoting = 1;
             continue;
         }
-        const unsigned int param = ((leaf->is & CLI_LEAF_NAME) != 0u) ? cli_effect_parameter(effect, &macro, leaf)
-                                                                       : CLI_EFFECT_ARGUMENTS;
+        const unsigned int param =
+            ((leaf->is & CLI_LEAF_NAME) != 0u) ? cli_effect_parameter(effect, &macro, leaf) : CLI_EFFECT_ARGUMENTS;
         const int rest = macro.rest && ((leaf->is & CLI_LEAF_REST) != 0u);
         // the leaves this one stands for: the argument at the parameter's place, the arguments past them with the
         // commas between, or itself
@@ -270,8 +272,8 @@ static long long cli_effect_called(CliEffectReading *reading, unsigned int macro
         called.token[at].text =
             (called.joined_at[at] == 0xffffffffu) ? called.token[at].text : (called.joined.out + called.joined_at[at]);
     }
-    const long long result = called.refused ? 0ll : cli_effect_value(effect, called.token, called.count,
-                                                                     reading->through + 1u);
+    const long long result =
+        called.refused ? 0ll : cli_effect_value(effect, called.token, called.count, reading->through + 1u);
     g_cli_cells->persistent_buf_release(called.token, NULL);
     g_cli_cells->persistent_buf_release(called.joined_at, NULL);
     g_cli_cells->persistent_buf_release(called.joined.out, NULL);

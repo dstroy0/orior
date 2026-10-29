@@ -1,6 +1,6 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window_call_text.c: the window's calls on a text held as a branch opened it (window_call_branch.c): its changes
+// window_call_text.c: the window's calls on a text stored as a branch opened it (window_call_branch.c): its changes
 // written as the page makes them, the text let go, its gutter's marks against the last commit and find's matches in
 // it; two texts compared by structure; and a file anywhere on the machine read or written as the reader chose it
 #include "../code/structure.h"
@@ -110,7 +110,7 @@ static int text_document_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLi
     {
         edits_count += text_items(args->json, change);
     }
-    // a cell is taken for one of each where the page sent none, so a taken cell is never of no bytes
+    // a cell is taken for one of each where the page sent none: a taken cell is never of no bytes
     CliEdit *const edit_of =
         g_cli_cells->persistent_buf_alloc((edits_count + 1ull) * sizeof(*edit_of), &g_cli_window_text_cells);
     const CliEdit **const change_of =
@@ -227,8 +227,7 @@ static int text_document_find(const CliServeArgs *args, VerbaLinea *out, VerbaLi
     const CliDocSought read = {query,
                                cli_json_is(args->json, cli_json_member(args->json, sought, "regex"), CFG_JSON_TRUE),
                                cli_json_is(args->json, cli_json_member(args->json, sought, "case"), CFG_JSON_TRUE),
-                               cli_json_is(args->json, cli_json_member(args->json, sought, "word"), CFG_JSON_TRUE),
-                               cli_json_is(args->json, cli_json_member(args->json, sought, "unicode"), CFG_JSON_TRUE)};
+                               cli_json_is(args->json, cli_json_member(args->json, sought, "word"), CFG_JSON_TRUE)};
     return cli_document_find(key, &read, most, out, err_msg);
 }
 

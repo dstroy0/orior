@@ -266,7 +266,8 @@ static int cli_reading_one(CliSymbolsReading *reading, const char *root, const c
     // the file read into the reading's one cell, reused from file to file, so a reading takes a cell a growth and not
     // one a file
     unsigned long long mapped_size = 0ull;
-    const int mapped = cli_file_read_whole(full, cli_file_roomed, reading, &mapped_size) && (reading->file_bytes != NULL);
+    const int mapped =
+        cli_file_read_whole(full, cli_file_roomed, reading, &mapped_size) && (reading->file_bytes != NULL);
     const unsigned long long read = mapped ? mapped_size : QRY_MEMBER_UNREAD;
     s_read_count = 0u;
     s_read_used = 0u;
@@ -479,8 +480,7 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
                       ? length
                       : 0ull;
     }
-    s_listing =
-        (languages != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(*s_listing) + listed, NULL) : NULL;
+    s_listing = (languages != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(*s_listing) + listed, NULL) : NULL;
     if (s_listing == NULL)
     {
         cli_symbols_languages_given(languages);

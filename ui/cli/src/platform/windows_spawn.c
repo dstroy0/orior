@@ -368,9 +368,9 @@ int cli_spawn_terminal(CliSpawned *spawned, const char *const *words, const char
     startup.StartupInfo.hStdError = INVALID_HANDLE_VALUE;
     PROCESS_INFORMATION process;
     memor.set(&(MemoriaCfg){.dst = &process, .val = 0, .bytes = sizeof(process)});
-    made = made && CreateProcessW(NULL, s_wide, NULL, NULL, FALSE,
-                                  EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT, s_block,
-                                  (folder != NULL) ? s_folder : NULL, &startup.StartupInfo, &process);
+    made = made &&
+           CreateProcessW(NULL, s_wide, NULL, NULL, FALSE, EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
+                          s_block, (folder != NULL) ? s_folder : NULL, &startup.StartupInfo, &process);
     const DWORD error = GetLastError();
     if (listed)
     {

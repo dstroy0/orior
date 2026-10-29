@@ -40,10 +40,10 @@
         ["\"(?:[^\"\\\\]|\\\\.)*\"","string"],
         ["'(?:[^'\\\\]|\\\\.)*'","string"],
         ["`","string","@template"],
-        ["\\{","delimiter.bracket.region.open"],
-        ["\\}","delimiter.bracket.region.close"],
-        ["[(\\[]","delimiter.bracket.open"],
-        ["[)\\]]","delimiter.bracket.close"],
+        ["\\{","delimiter.bracket.region.depth.open"],
+        ["\\}","delimiter.bracket.region.depth.close"],
+        ["[(\\[]","delimiter.bracket.depth.open"],
+        ["[)\\]]","delimiter.bracket.depth.close"],
         ["=(?![=>])","operator.assign"],
         ["[<>=!~?:&|+\\-*/^%]+","operator"],
         [";","delimiter.statement"],
@@ -52,8 +52,8 @@
       ],
       "params": [
         {"include":"@whitespace"},
-        ["\\(","delimiter.bracket.parameter.open"],
-        ["\\)","delimiter.bracket.parameter.close","@pop"],
+        ["\\(","delimiter.bracket.parameter.depth.open"],
+        ["\\)","delimiter.bracket.parameter.depth.close","@pop"],
         ["\\.\\.\\.","operator.rest"],
         ["[A-Za-z_$][\\w$]*(?=\\s*[,)=])",{"cases":{"@words":"keyword","@default":"identifier.parameter"}}],
         ["=","operator.assign","@value"],
@@ -62,21 +62,21 @@
       ],
       "value": [
         ["(?=[,)])","","@pop"],
-        ["[(\\[{]","delimiter.bracket.open","@nested"],
+        ["[(\\[{]","delimiter.bracket.depth.open","@nested"],
         {"include":"@root"}
       ],
       "nested": [
-        ["[)\\]}]","delimiter.bracket.close","@pop"],
-        ["[(\\[{]","delimiter.bracket.open","@nested"],
+        ["[)\\]}]","delimiter.bracket.depth.close","@pop"],
+        ["[(\\[{]","delimiter.bracket.depth.open","@nested"],
         {"include":"@root"}
       ],
       "template": [
         ["`","string","@pop"],
-        ["\\$\\{","delimiter.bracket.open","@inner"],
+        ["\\$\\{","delimiter.bracket.depth.open","@inner"],
         ["\\\\.","string.escape"],
         ["[^`\\\\$]+|\\$","string"]
       ],
-      "inner": [["\\}","delimiter.bracket.close","@pop"],{"include":"@root"}],
+      "inner": [["\\}","delimiter.bracket.depth.close","@pop"],{"include":"@root"}],
       "whitespace": [["\\s+",""],["\\/\\*","comment","@comment"],["\\/\\/.*$","comment"]],
       "comment": [["[^/*]+","comment"],["\\*\\/","comment","@pop"],["[/*]","comment"]]
     }

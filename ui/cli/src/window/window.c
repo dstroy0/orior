@@ -187,16 +187,21 @@ void cli_window_ended(void)
 static CliServeAnswer window_answer_of(const char *name)
 {
     static const CliWindowTable s_tables[] = {
-        {g_cli_window_home_calls, &g_cli_window_home_count}, {g_cli_window_places_calls, &g_cli_window_places_count},
-        {g_cli_window_net_calls, &g_cli_window_net_count},   {g_cli_window_report_calls, &g_cli_window_report_count},
-        {g_cli_window_text_calls, &g_cli_window_text_count}, {g_cli_window_branch_calls, &g_cli_window_branch_count},
+        {g_cli_window_home_calls, &g_cli_window_home_count},
+        {g_cli_window_places_calls, &g_cli_window_places_count},
+        {g_cli_window_net_calls, &g_cli_window_net_count},
+        {g_cli_window_report_calls, &g_cli_window_report_count},
+        {g_cli_window_text_calls, &g_cli_window_text_count},
+        {g_cli_window_branch_calls, &g_cli_window_branch_count},
         {g_cli_window_code_calls, &g_cli_window_code_count},
-        {g_cli_window_tree_calls, &g_cli_window_tree_count}, {g_cli_window_memory_calls, &g_cli_window_memory_count},
+        {g_cli_window_tree_calls, &g_cli_window_tree_count},
+        {g_cli_window_memory_calls, &g_cli_window_memory_count},
         {g_cli_window_machine_calls, &g_cli_window_machine_count},
         {g_cli_window_scrollback_calls, &g_cli_window_scrollback_count},
         {g_cli_window_terminal_calls, &g_cli_window_terminal_count},
         {g_cli_window_clipboard_calls, &g_cli_window_clipboard_count},
         {g_cli_window_view_calls, &g_cli_window_view_count},
+        {g_cli_window_editor_calls, &g_cli_window_editor_count},
     };
     for (unsigned int table = 0u; table < sizeof(s_tables) / sizeof(s_tables[0]); table += 1u)
     {

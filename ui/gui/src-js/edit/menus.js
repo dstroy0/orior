@@ -3,6 +3,7 @@
 
 import { invoke, viewOpen } from "../bridge.js";
 import { Session } from "../editor/session.js";
+import { hearBranches } from "../editor/tokens.js";
 import { Editor } from "../editor/view.js";
 import { serve, spansOf, stopServing } from "../servers.js";
 import { findUsages, moved, quickFix, renameSymbol } from "../intel.js";
@@ -15,7 +16,8 @@ import { say } from "../statusbar.js";
 import { extOf, show, state } from "../edit.js";
 import { compareFiles } from "./compare.js";
 import { drawCrumbs, goToDefinition } from "./crumbs.js";
-import { load, openFile, openInSplit, splitEditor, splittable } from "./open.js";
+import { letMirrorGo, mirror } from "./held.js";
+import { keyFor, load, openFile, openInSplit, splitEditor, splittable, VIEW_LINES } from "./open.js";
 import { backupKey, forgetBackup } from "./places.js";
 import { holdMemory } from "./refactor.js";
 import { saveActive } from "./save.js";
@@ -389,12 +391,37 @@ export async function viewSession(path) {
     return tab.session.twin();
   }
   const outside = /^(?:[A-Za-z]:[\\/]|\/|\\\\)/.test(path);
-  const text = outside ? await invoke("file_read_any", { path }) : (await invoke("file_read", { path })).text;
-  return new Session(text ?? "", state.known.languageOf(path), { readOnly: true });
+  if (outside) {
+    // A file outside the tree is a branch on the window's side too, made empty and given the text it was read with,
+    // and the view's session its mirror until the view drops it.
+    const text = (await invoke("file_read_any", { path })) ?? "";
+    const language = state.known.languageOf(path);
+    const session = new Session(text, language, { readOnly: true });
+    const key = keyFor(path);
+    await hearBranches();
+    const made = invoke("branch_new", { key, id: language?.id ?? "" }).then((one) => one && session.highlight.put(0, one.colors ?? [], one.names));
+    mirror(session, key, null, text ? [{ from: { line: 0, col: 0 }, to: { line: 0, col: 0 }, text }] : null, made);
+    session.release = () => letMirrorGo(session);
+    return session;
+  }
+  // A file of the tree is a branch on the window's side as a file opened is, colored there, and the view's session its
+  // mirror until the view drops it; one too large to read whole shows nothing, as file_read gives it no text.
+  const key = keyFor(path);
+  await hearBranches();
+  const opened = await invoke("branch_open", { key, path, first: 0, last: VIEW_LINES });
+  if (opened.windowed) {
+    invoke("pages_release", { key }).catch(() => {});
+  }
+  const session = new Session(opened.text ?? "", state.known.languageOf(path), { readOnly: true });
+  if (!opened.windowed && opened.names) {
+    mirror(session, key, opened);
+    session.release = () => letMirrorGo(session);
+  }
+  return session;
 }
 
 // An editor in `host` for a view over the editor, its edits told as a tab's are.
 export function viewEditor(host) {
-  const { onEdit, pasteAs, spansOf, onShown, onChange } = state.editorHooks;
-  return new Editor(host, { onEdit, pasteAs, spansOf, onShown, onChange: (s) => onChange(s.of ?? s), statusHost: document.createElement("div") });
+  const { onEdit, pasteAs, spansOf, pairOf, onShown, onChange } = state.editorHooks;
+  return new Editor(host, { onEdit, pasteAs, spansOf, pairOf, onShown, onChange: (s) => onChange(s.of ?? s), statusHost: document.createElement("div") });
 }

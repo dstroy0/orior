@@ -17,4 +17,23 @@ extern CellOwner g_cli_defs_cells;
 // "columns", "rows"}, "header"}...], "head": {"bytes", "magic", "version"} or null, "languages": [table...]}`
 void cli_defs_read(const char *root, VerbaLinea *out);
 
+// the most cells of a table's line read, those past it left out
+#define CLI_DEFS_CELLS 32u
+
+// One line of a table: its cells between tabs, where each starts and its length, and how many
+typedef struct
+{
+    const char *cell[CLI_DEFS_CELLS];
+    unsigned long long length[CLI_DEFS_CELLS];
+    unsigned int count;
+} CliDefsLine;
+
+// what each line of a table is handed to, `named` 1 for the line that names its columns
+typedef void (*CliDefsLineEach)(void *context, const CliDefsLine *line, int named);
+
+// the tab separated table at `path` read: its first line that is not a comment, naming its columns, handed to `each`
+// with `named` 1, then each line after it that is not a comment with `named` 0: 1, or 0 where it could not be read or
+// names no columns
+int cli_defs_lines(const char *path, CliDefsLineEach each, void *context);
+
 #endif

@@ -52,8 +52,6 @@ export const WRAPS_KEPT = 200000;
 
 // How round a selection's corners are, in pixels.
 export const SELECTION_ROUND = 4;
-// How long Expand Selection waits on the tree's spans, in milliseconds, before the editor's own answer alone.
-export const SPANS_WAIT = 250;
 
 // Rows are placed from an origin, a row near the screen and a whole number of ORIGIN_ROWS from
 // the first, and never from the first row itself. A row of a long file placed from the first stands
@@ -138,30 +136,24 @@ export const FLICK_KEY = "orior.flick-scroll";
 export const STICKY_KEY = "orior.sticky";
 export const WRAP_KEY = "orior.word-wrap";
 
-// Bracket pairs colored by depth: the setting's key, the most lines a text has for its brackets to be
-// colored, the most lines read in one frame to learn a line's depth, and the tokens whose brackets
-// do not count.
+// Bracket pairs colored by depth: the setting's key.
 export const BRACKETS_KEY = "orior.brackets";
-export const BRACKETS_LINES = 200000;
-export const BRACKETS_READ = 20000;
-export const UNBRACKETED = /\bt-(?:comment|string|regexp)/;
 export const SHOWN = 10000;
 // A row is drawn as far as the view reaches across, to the end of the step it reaches into, so that
 // a scroll across draws the rows again only as it passes into the next: a line of tens of thousands
 // of characters lays out what can be seen, and not the rest. The step is in characters.
-export const REACH_STEP = 128;
+export const REACH_STEP = 64;
 // The rows a view draws are those in sight first, then out from them a slice of DRAW_SLICE rows at a
-// time, as a large file is read, to DRAWN_MOST rows at the most.
+// time, as a large file is read, to DRAWN_MOST rows at the most, and DRAWN_PAGED for a file held as
+// pages, whose window moves under the view and whose rows are drawn again as it does.
 export const DRAW_SLICE = 32;
 export const DRAWN_MOST = 1200;
+export const DRAWN_PAGED = 120;
 const sessionIds = new WeakMap();
 let sessionsSeen = 0;
 
 // The most rows whose markup is kept; past it the kept rows are let go and made again as they show.
 export const ROWS_KEPT = 5000;
-
-// A line of closing brackets alone, with the commas, semicolons and spaces that may follow them.
-export const CLOSER = /^\s*[\])}]+[\])};,\s]*$/;
 
 // What is not drawn: the keys of the settings that mark spaces, tabs and line ends, and that hide
 // comments, and the most lines a text has for its lines of comments alone to go out of sight.
@@ -273,7 +265,7 @@ export function parseSnippet(body) {
 
 export class Editor {
   // The status line goes in `statusHost` where one is given, and under the editor where not.
-  constructor(host, { onCursor, onChange, onEdit, pasteAs, onChangeMark, onHistory, onGroup, onShown, spansOf, statusHost = null } = {}) {
+  constructor(host, { onCursor, onChange, onEdit, pasteAs, onChangeMark, onHistory, onGroup, onShown, spansOf, pairOf, statusHost = null } = {}) {
     this.host = host;
     this.onGroup = onGroup ?? (() => {});
     this.onChangeMark = onChangeMark ?? (() => {});
@@ -284,6 +276,7 @@ export class Editor {
     this.pasteAs = pasteAs ?? (() => null);
     this.onShown = onShown ?? (() => {});
     this.spansOf = spansOf ?? (async () => []);
+    this.pairOf = pairOf ?? (async () => null);
     host.classList.add("ed");
     this.gutter = div("ed-gutter");
     this.gutterRows = div("ed-gutter-rows");

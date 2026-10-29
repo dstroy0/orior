@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins_test.c: the plugins' check: every bundled plugin reads and names itself, a file opens by its name, its path
 // or its extension, a name becomes an id, a plugin from nothing contains what was requested, a plugin from another
-// takes its grammar, and creating writes once and replaces only when requested
+// takes its grammar, creating writes once and replaces only when requested, a grammar is made whole from the tree's
+// tables, and a plugin stands for each folder holding its table
+#include "../../../../../ui/cli/src/editor/highlight.h"
 #include "../../../../../ui/cli/src/plugins/plugins.h"
 #include "../../../../../ui/cli/src/window/window.h"
 #include "cli_check.h"
@@ -47,7 +49,8 @@ static void plugins_bundled(void)
         if ((kind != NULL) && (cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "language", .cap = CLI_CELLS_POOL})))
         {
             static const char *const s_keys[3] = {"extensions", "names", "paths"};
-            int any = 0;
+            // a language opens files by their extensions, names or paths, or stands for the folders of its `each`
+            int any = cli_json_is(&s_json, cli_json_member(&s_json, root, "each"), CFG_JSON_OBJECT);
             for (unsigned int key = 0u; key < 3u; key += 1u)
             {
                 const unsigned int list = cli_json_member(&s_json, root, s_keys[key]);
@@ -280,6 +283,100 @@ static void plugins_code(void)
     cli_check(!cli_plugins_code_of("parts", &out, &err_msg), "and a file it names outside its folder is refused");
 }
 
+// `text` written to the file `name` of the folder `folder`, the folders it lies in made
+static void plugins_written(const char *folder, const char *name, const char *text)
+{
+    char path[CLI_PATH_MAX_LEN];
+    cli_full(folder, name, path);
+    char *slash = path + cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
+    while ((slash > path) && (slash[-1] != '/'))
+    {
+        slash -= 1;
+    }
+    if (slash > path)
+    {
+        slash[-1] = '\0';
+        query_folder_made(path);
+        slash[-1] = '/';
+    }
+    (void)query_file_written(path, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
+}
+
+// a grammar made whole: each list a table fills read from it by its rows and patterns, `{name}` in a table's path the
+// folder's name, a table that does not read giving no words, and a rule whose pattern is a list given its words, a rule
+// whose list has none left out
+static void plugins_tables(void)
+{
+    char tree[CLI_PATH_MAX_LEN];
+    cli_check_folder("plugins_tables_tree", tree);
+    plugins_written(tree, "lng/words.tsv",
+                    "# the words of the check\nword\tkind\tarrow\nalpha\ttype\t->\nbeta\tplain\t-\ngamma-x\ttype\tx>\n"
+                    "\tplain\t\n");
+    static const char s_grammar[] =
+        "{\"types\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], \"rows\": {\"column\": \"kind\", \"match\": "
+        "\"^type$\"}, \"match\": \"^[a-z]+\"}, \"others\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], "
+        "\"rows\": {\"column\": \"kind\", \"skip\": \"^type$\"}}, \"arrows\": {\"table\": \"lng/{name}.tsv\", "
+        "\"columns\": [\"arrow\"], \"skip\": \"^(?:[a-z]+|-)?$\"}, \"none\": {\"table\": \"lng/missing.tsv\", "
+        "\"columns\": [\"word\"]}, \"tokenizer\": {\"root\": [[{\"words\": \"arrows\", \"before\": \"\\\\s\", "
+        "\"after\": \"$\"}, \"operator\"], [{\"words\": \"none\"}, \"keyword\"], [\"[a-z]+\", \"identifier\"]]}}";
+    const unsigned int grammar = plugins_read(s_grammar, sizeof(s_grammar) - 1u);
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    const int whole = cli_plugins_grammar_whole(&s_json, grammar, tree, "words", &out, &err_msg);
+    cli_check(whole, "a grammar is made whole from the tree's tables");
+    cli_check_text(s_out, out.at,
+                   "{\"types\":[\"alpha\",\"gamma\"],\"others\":[\"beta\"],\"arrows\":[\"->\",\"x>\"],\"none\":[],"
+                   "\"tokenizer\":{\"root\":[[\"\\\\s(?:->|x>)$\",\"operator\"],[\"[a-z]+\",\"identifier\"]]}}",
+                   "its lists read by their rows and patterns, and a rule of a list's words, one of no words left out");
+}
+
+// a plugin standing for each folder holding its table: one whose table's rows `unless` matches, one `except` names
+// and one holding no table left out, and the language of one that stands colored by its own table's words
+static void plugins_folders(void)
+{
+    char home[CLI_PATH_MAX_LEN];
+    char tree[CLI_PATH_MAX_LEN];
+    cli_check_folder("plugins_folders_home", home);
+    cli_check_folder("plugins_folders_tree", tree);
+    (void)query_environment_set("ORIOR_HOME", home);
+    plugins_written(home, "plugins/folders/plugin.json",
+                    "{\"id\": \"folders\", \"name\": \"Folders\", \"version\": \"1.0.0\", \"kind\": \"language\", "
+                    "\"each\": {\"folder\": \"defs\", \"table\": \"{name}/{name}.table.tsv\", \"unless\": {\"column\": "
+                    "\"where\", \"match\": \"^head \\\\d\"}, \"except\": [\"gamma\"]}, \"grammar\": {\"keywords\": "
+                    "{\"table\": \"defs/{name}/{name}.table.tsv\", \"columns\": [\"form\"], \"match\": \"^([a-z]+)\"}, "
+                    "\"tokenizer\": {\"root\": [[\"[a-z]+\", {\"cases\": {\"@keywords\": \"keyword\", \"@default\": "
+                    "\"identifier\"}}], [\"\\\\s+\", \"\"]]}}}");
+    plugins_written(tree, "defs/alpha/alpha.table.tsv", "where\tform\nline 1\tgo <x>\n");
+    plugins_written(tree, "defs/beta/beta.table.tsv", "where\tform\nhead 0\tmagic\n");
+    plugins_written(tree, "defs/gamma/gamma.table.tsv", "where\tform\nline 1\tgo <x>\n");
+    char empty[CLI_PATH_MAX_LEN];
+    cli_full(tree, "defs/delta", empty);
+    query_folder_made(empty);
+    cli_plugins_set_tree(tree);
+    cli_plugins_languages(&s_languages);
+    cli_check(
+        cellul.eq(&(CatenaFinitaCfg){.src = plugins_of("x/one.alpha"), .other = "folders:alpha", .cap = CLI_CELLS_POOL}),
+        "a plugin stands for a folder holding its table, the folder's name its extension");
+    cli_check((plugins_of("x/one.beta")[0] == '\0') && (plugins_of("x/one.gamma")[0] == '\0') &&
+                  (plugins_of("x/one.delta")[0] == '\0'),
+              "and for none whose rows `unless` matches, none `except` names and none holding no table");
+    cli_plugins_languages_given(&s_languages);
+    char key[CLI_NAME_MAX_LEN];
+    char why[256];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const int stored = cli_plugins_grammar_stored("folders:alpha", key, &err_msg);
+    cli_check(stored && cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "plugin:folders:alpha", .cap = CLI_CELLS_POOL}),
+              "its language's grammar is stored under the plugin and the folder");
+    const char *const lines[1] = {"go x"};
+    VerbaLinea out = {s_out, sizeof(s_out), 0ull};
+    err_msg.at = 0ull;
+    cli_check(stored && cli_highlight_color(key, "root", lines, 1u, &out, &err_msg) &&
+                  (cellul.find(&(CatenaFinitaCfg){
+                       .src = s_out, .cap = out.at, .other = "\"keyword\"", .other_cap = CLI_CELLS_POOL}) != NULL),
+              "and colors a word of the folder's own table as a keyword");
+}
+
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
@@ -321,5 +418,7 @@ int main(void)
     plugins_from_nothing();
     plugins_from_another();
     plugins_creating();
+    plugins_tables();
+    plugins_folders();
     return cli_checked();
 }

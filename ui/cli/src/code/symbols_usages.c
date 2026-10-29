@@ -431,8 +431,7 @@ static int usages_across(CliUsages *usages, const char *path, const char *define
 // about in the file at `path`, handed on, that file walked where it is not `path`: 1, 0 where its walk notes none
 // there, as for a define the compile database gives, or -1 with why given
 static int usages_definition_handed(CliUsages *usages, const char *path, const char *defined, unsigned int line,
-                                    CliHeld held, void *held_context, CliUsage each, void *context,
-                                    VerbaLinea *err_msg)
+                                    CliHeld held, void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
 {
     if (!cellul.eq(&(CatenaFinitaCfg){.src = path, .other = defined, .cap = CLI_CELLS_POOL}))
     {
@@ -512,8 +511,8 @@ static int usages_read(CliUsages *usages, const char *path, const char *text, un
 
 // the usages of the name at `line`, `col` of the tree's file at `path`, or its definition in effect alone where
 // `definition` is 1, as cli_symbols_usages and cli_symbols_definition answer
-static int usages_asked(const char *path, unsigned int line, unsigned int col, int across, int definition,
-                        CliHeld held, void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
+static int usages_asked(const char *path, unsigned int line, unsigned int col, int across, int definition, CliHeld held,
+                        void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
     int mapped = 0;

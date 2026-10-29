@@ -7,7 +7,7 @@
 // text read a window at a time placing colors by the file's lines, the runs of the lines near the view alone kept, and a
 // print's colors read in their classes.
 
-import { Highlight } from "../../../gui/src-js/editor/tokens.js";
+import { classed, Highlight, partsOf } from "../../../gui/src-js/editor/tokens.js";
 
 const { test, assert } = window.__harness;
 
@@ -15,9 +15,9 @@ const NAMES = ["", "comment", "identifier"];
 
 const docOf = (lines) => ({ lines, get count() { return this.lines.length; }, line(at) { return this.lines[at]; } });
 
-test("a held text's lines show the runs orior's side hands, each name drawn in its classes", () => {
+test("a mirror's lines show the runs orior's side hands, each name drawn in its classes", () => {
   const tokens = new Highlight(docOf(["/* a", "b"]), null);
-  tokens.held("tokens#runs", NAMES, [{ from: 0, runs: [[0, 1], [0, 2]] }]);
+  tokens.mirrors("tokens#runs", NAMES, [{ from: 0, runs: [[0, 1], [0, 2]] }]);
   try {
     assert.equal(tokens.classAt(0, 2), "t-comment");
     assert.equal(tokens.classAt(1, 0), "t-identifier");
@@ -30,7 +30,7 @@ test("a held text's lines show the runs orior's side hands, each name drawn in i
 
 test("colors worked out before a change land where their lines moved, a line it wrote left out", () => {
   const tokens = new Highlight(docOf(["a", "b", "x", "y", "z"]), null);
-  tokens.held("tokens#moved", NAMES, []);
+  tokens.mirrors("tokens#moved", NAMES, []);
   try {
     tokens.changed([{ from: { line: 0, col: 0 }, to: { line: 0, col: 1 }, text: "a\nb" }]);
     tokens.put(0, [{ from: 0, runs: [[0, 1], [0, 2], [0, 1]] }]);
@@ -46,7 +46,7 @@ test("colors worked out before a change land where their lines moved, a line it 
 
 test("a line a change wrote shows the runs of the line it began on until its own come", () => {
   const tokens = new Highlight(docOf(["/* a", "b"]), null);
-  tokens.held("tokens#carried", NAMES, [{ from: 0, runs: [[0, 1], [0, 2]] }]);
+  tokens.mirrors("tokens#carried", NAMES, [{ from: 0, runs: [[0, 1], [0, 2]] }]);
   try {
     tokens.changed([{ from: { line: 0, col: 4 }, to: { line: 0, col: 4 }, text: "c\nd" }]);
     assert.equal(tokens.classAt(0, 0), "t-comment", "the line the change began on keeps its runs");
@@ -59,7 +59,7 @@ test("a line a change wrote shows the runs of the line it began on until its own
 
 test("a change of many lines is taken whole, the lines after it moved down past it", () => {
   const tokens = new Highlight(docOf(["a", "b"]), null);
-  tokens.held("tokens#many", NAMES, [{ from: 0, runs: [[0, 1], [0, 2]] }]);
+  tokens.mirrors("tokens#many", NAMES, [{ from: 0, runs: [[0, 1], [0, 2]] }]);
   try {
     const count = 300000;
     tokens.changed([{ from: { line: 0, col: 1 }, to: { line: 0, col: 1 }, text: "\n".repeat(count - 1) }]);
@@ -72,7 +72,7 @@ test("a change of many lines is taken whole, the lines after it moved down past 
 
 test("a text read a window at a time places colors by the file's lines, those outside the window left out", () => {
   const tokens = new Highlight(docOf(["a", "b", "c", "d"]), null, null, () => 100);
-  tokens.held("tokens#window", NAMES, [{ from: 99, runs: [[0, 1], [0, 2], [0, 1]] }]);
+  tokens.mirrors("tokens#window", NAMES, [{ from: 99, runs: [[0, 1], [0, 2], [0, 1]] }]);
   try {
     assert.equal(tokens.cached(-1), null, "a line above the window is left out");
     assert.equal(tokens.classAt(0, 0), "t-identifier", "the file's line 100 is the window's first");
@@ -89,7 +89,7 @@ test("a text read a window at a time places colors by the file's lines, those ou
 test("the page keeps the runs of the lines near its view alone, letting go of the rest as it asks for those it lacks", () => {
   const tokens = new Highlight(docOf(Array.from({ length: 1000 }, () => "a")), null);
   const colored = Array.from({ length: 1000 }, () => [0, 2]);
-  tokens.held("tokens#near", NAMES, [{ from: 0, runs: colored }]);
+  tokens.mirrors("tokens#near", NAMES, [{ from: 0, runs: colored }]);
   try {
     tokens.shown(500, 509);
     assert.equal(tokens.cached(0) !== null && tokens.cached(999) !== null, true, "a view whose lines and those near it have runs asks for nothing");
@@ -107,13 +107,19 @@ test("the page keeps the runs of the lines near its view alone, letting go of th
 
 test("a print's colors, asked of orior's side, are read in their classes by the line the page counts", () => {
   const tokens = new Highlight(docOf(["a", "b"]), null, null, () => 10);
-  tokens.held("tokens#print", NAMES, []);
+  tokens.mirrors("tokens#print", NAMES, []);
   try {
     const given = tokens.classedFrom([{ from: 10, runs: [[0, 1], [0, 2]] }]);
     assert.deepEqual([given.get(0), given.get(1)], [[[0, "t-comment"]], [[0, "t-identifier"]]]);
   } finally {
     tokens.letGo();
   }
+});
+
+test("a line's runs as they came are read in their names' classes, and its text cut at them, a run that takes no letter left out", () => {
+  assert.deepEqual(classed([0, 1, 4, 2], ["", "t-a", "t-b"]), [[0, "t-a"], [4, "t-b"]]);
+  assert.deepEqual(partsOf("int x;", [[0, "t-keyword"], [3, ""], [3, ""], [4, "t-identifier"], [5, ""]]), [["t-keyword", "int"], ["", " "], ["t-identifier", "x"], ["", ";"]]);
+  assert.deepEqual(partsOf("", [[0, ""]]), [], "an empty line has no parts");
 });
 
 test("a text with no grammar is one uncolored run a line", () => {

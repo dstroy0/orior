@@ -78,7 +78,8 @@ static int scrollback_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
         {
             cli_temporary_file_let_go(&free_place->lines);
         }
-        mmgr_line_put(err_msg, (free_place == NULL) ? "every scrollback is taken" : "a scrollback's file could not be made");
+        mmgr_line_put(err_msg,
+                      (free_place == NULL) ? "every scrollback is taken" : "a scrollback's file could not be made");
     }
     cli_lock_give(&s_lock);
     return whole;
@@ -98,7 +99,8 @@ typedef struct
 static void scrollback_flushed(CliScrollbackKeep *keep)
 {
     CliScrollback *const scrollback = keep->scrollback;
-    keep->written = keep->written && cli_temporary_file_written(&scrollback->lines, scrollback->end, s_piece, keep->piece);
+    keep->written =
+        keep->written && cli_temporary_file_written(&scrollback->lines, scrollback->end, s_piece, keep->piece);
     scrollback->end += keep->piece;
     keep->piece = 0ull;
     const unsigned long long first = scrollback->count - keep->starts;

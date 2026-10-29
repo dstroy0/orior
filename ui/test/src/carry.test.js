@@ -8,7 +8,8 @@
 import { invoke } from "../../gui/src-js/bridge.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
 import { runCommand } from "../../gui/src-js/menubar.js";
-import { loadPlugins } from "../../gui/src-js/plugins.js";
+import { loadPlugins, setPluginOn } from "../../gui/src-js/plugins.js";
+import { running } from "../../gui/src-js/scripts.js";
 import { ownItem } from "../../gui/src-js/settings.js";
 import { showView } from "../../gui/src-js/views.js";
 
@@ -89,4 +90,7 @@ test("a plugin keeps settings of its own, and they travel with it", async () => 
   const sent = JSON.parse(await invoke("file_read_any", { path: `${root}/carried_plugin.json` }));
   assert.equal(JSON.parse(sent.files[`plugin_settings/${id}.json`]).count, 5);
   assert.ok(sent.files[`plugins/${id}/plugin.js`].includes("orior.settings.read"), "and the plugin with them");
+  // the plugin the test wrote turned off, so none of it runs on after the test
+  setPluginOn(id, false);
+  await ui.waitFor(() => !running().has(id), 5000, "the plugin stopped");
 });

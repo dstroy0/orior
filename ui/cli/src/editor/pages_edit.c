@@ -292,9 +292,9 @@ static CliLines cli_block_of(const CliPageLines *lines, unsigned char *storage)
             block.unit[block.used] =
                 (unsigned short)((letter > 0xffffu) ? (0xd800u + ((letter - 0x10000u) >> 10u)) : letter);
             cli_lines_census_put(&block, block.unit[block.used]);
-            block.unit[block.used + 1ull] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
             if (need == 2ull)
             {
+                block.unit[block.used + 1ull] = (unsigned short)(0xdc00u + ((letter - 0x10000u) & 0x3ffu));
                 cli_lines_census_put(&block, block.unit[block.used + 1ull]);
             }
             block.used += need;

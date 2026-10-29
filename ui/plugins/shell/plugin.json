@@ -30,10 +30,10 @@
         ["[A-Za-z_][\\w.-]*",{"cases":{"@words":"keyword","@builtins":"predefined","@default":""}}],
         ["-{1,2}[A-Za-z][\\w-]*","attribute.name"],
         ["\\d+","number"],
-        ["\\{","delimiter.bracket.region.open"],
-        ["\\}","delimiter.bracket.region.close"],
-        ["[(\\[]","delimiter.bracket.open"],
-        ["[)\\]]","delimiter.bracket.close"],
+        ["\\{","delimiter.bracket.region.depth.open"],
+        ["\\}","delimiter.bracket.region.depth.close"],
+        ["[(\\[]","delimiter.bracket.depth.open"],
+        ["[)\\]]","delimiter.bracket.depth.close"],
         ["[<>=!&|;]+","operator"]
       ],
       "string": [

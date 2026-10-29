@@ -66,7 +66,8 @@ static void recv_diagnostics(const CliServersSink *sink, const char *params, uns
     all = sliced ? mapped : all;
     char key[CLI_PATH_MAX_LEN];
     cli_lsp_key_of(uri, uri_size, key);
-    if ((recv_empty_array(all, all_length) && cli_servers_letting_go(key)) || cli_servers_gathered(key, all, all_length))
+    if ((recv_empty_array(all, all_length) && cli_servers_letting_go(key)) ||
+        cli_servers_gathered(key, all, all_length))
     {
         g_cli_cells->persistent_buf_release(mapped, NULL);
         return;

@@ -5,6 +5,8 @@
 // menu does: its kind changed, moved, its outputs cleared, deleted.
 
 import { blurCell, cellFile, cellOf, drawNotebook, element, focusCell, state } from "../notebook.js";
+import { letMirrorGo } from "../edit/held.js";
+import { mirrorNewCell } from "./mirror.js";
 import { drawMarks, drawOutputs } from "./draw.js";
 import { debugCell, runCell } from "./kernel.js";
 
@@ -12,6 +14,7 @@ import { debugCell, runCell } from "./kernel.js";
 export function addBar(book, after) {
   const add = (kind) => {
     const made = cellOf(book, { cell_type: kind, source: "", metadata: {} });
+    mirrorNewCell(book, made);
     const index = after ? book.cells.indexOf(after) + 1 : book.cells.length;
     book.cells.splice(index, 0, made);
     book.changed = true;
@@ -91,6 +94,7 @@ function deleteCell(book, cell) {
     blurCell(book);
   }
   book.cells = book.cells.filter((one) => one !== cell);
+  letMirrorGo(cell.session);
   if (cell.runs.length) {
     cell.gone = true;
     book.gone.push(cell);

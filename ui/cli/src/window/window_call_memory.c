@@ -363,7 +363,8 @@ static int memory_servers_unneeded_stop(const CliServeArgs *args, VerbaLinea *ou
             const char *const tool = s_reading.part[at].server;
             for (unsigned int server = 0u; (tool[0] != '\0') && (server < servers) && (stopping == 0u); server += 1u)
             {
-                if (cellul.eq(&(CatenaFinitaCfg){.src = s_servers[server].tool, .other = tool, .cap = CLI_CELLS_POOL}) &&
+                if (cellul.eq(
+                        &(CatenaFinitaCfg){.src = s_servers[server].tool, .other = tool, .cap = CLI_CELLS_POOL}) &&
                     !memory_tool_among(tool, s_kept, kept))
                 {
                     s_stopping[0] = s_servers[server].tool;
@@ -395,5 +396,4 @@ const CliServeCall g_cli_window_memory_calls[] = {
     {"memory_usage", memory_usage},
     {"servers_unneeded_stop", memory_servers_unneeded_stop},
 };
-const unsigned int g_cli_window_memory_count =
-    sizeof(g_cli_window_memory_calls) / sizeof(g_cli_window_memory_calls[0]);
+const unsigned int g_cli_window_memory_count = sizeof(g_cli_window_memory_calls) / sizeof(g_cli_window_memory_calls[0]);

@@ -5,9 +5,9 @@
 // ask, and a file the tree's check slices waits on it until the check lets the file go. A watcher lets it go once
 // nothing waits on it, no slice owes its diagnostics, the tree's check is not running and it has been quiet for as long
 // as its asks of the last minute earn it: CLI_SERVERS_QUIET_LEAST, and CLI_SERVERS_QUIET_EACH more for each ask,
-// CLI_SERVERS_QUIET_MOST at most. It is ended with no file closed, so what it published stands. The next slice of a file
-// it was given starts it again, the file opened with its stored slice and the editor's text, the language each sliced
-// file opened as stored by its key
+// CLI_SERVERS_QUIET_MOST at most. It is ended with no file closed, so what it published stands. The next slice of a
+// file it was given starts it again, the file opened with its stored slice and the editor's text, the language each
+// sliced file opened as stored by its key
 #include "../command_line/cells.h"
 #include "servers_internal.h"
 
@@ -120,8 +120,8 @@ static void keep_asked(const CliLsp *server, int waits)
             one->asked[one->asks % CLI_SERVERS_ASKS] = now;
             one->asks += 1ull;
         }
-        one->waits = (waits > 0) ? (one->waits + 1u) : (((waits < 0) && (one->waits > 0u)) ? (one->waits - 1u)
-                                                                                            : one->waits);
+        one->waits =
+            (waits > 0) ? (one->waits + 1u) : (((waits < 0) && (one->waits > 0u)) ? (one->waits - 1u) : one->waits);
         one->quiet_from = now;
     }
     cli_lock_give(&g_cli_servers.lock);
@@ -217,7 +217,8 @@ CliLsp *cli_servers_owner_started(const char *path)
             cli_servers_id_of(spec, path, language, id);
         }
         // a server that could not be given the file answers none about it
-        if ((server != NULL) && ((text == NULL) || !cli_servers_slice_sent(server, root, path, id, text, size, &err_msg)))
+        if ((server != NULL) &&
+            ((text == NULL) || !cli_servers_slice_sent(server, root, path, id, text, size, &err_msg)))
         {
             cli_lsp_unref(server);
             server = NULL;

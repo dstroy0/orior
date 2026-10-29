@@ -306,8 +306,9 @@ void cli_servers_diagnostic_of(const CliJson *json, unsigned int one, VerbaLinea
 int cli_servers_found_of(const CliJson *json, unsigned int location, const char *tree, VerbaLinea *out);
 
 // whether the server's capabilities name `name` as on, as neither absent, null nor false; and the spans of the
-// editor's text of `path` that contain `from` to `to` and are more than it, the least first, the tree's, written as
-// `[[from, to]]`, `[]` where the editor holds no text of it or its grammar names none: 1, or 0 with why given
+// editor's text of `path` that contain `from` to `to` and are more than it, the least first, the tree's, read off the
+// branch under `key` where one is stored and `key` is not NULL, else off the text the servers were told, written as
+// `[[from, to]]`, `[]` where neither holds a text of it or its grammar names none: 1, or 0 with why given
 // (servers_hints.c)
 int cli_servers_capable(CliLsp *server, const char *name);
 // whether the member `inner` of the capability `name` is true
@@ -316,7 +317,8 @@ int cli_servers_capable_true(CliLsp *server, const char *name, const char *inner
 void cli_servers_member_written(const CliJson *json, unsigned int node, const char *name, VerbaLinea *out);
 // whether the server runs the command `command` itself, as its executeCommandProvider lists it
 int cli_servers_capable_command(CliLsp *server, const char *command);
-int cli_servers_selection(const char *path, CliTextPlace from, CliTextPlace to, VerbaLinea *out, VerbaLinea *err_msg);
+int cli_servers_selection(const char *path, const char *key, CliTextPlace from, CliTextPlace to, VerbaLinea *out,
+                          VerbaLinea *err_msg);
 
 // the hash of `size` bytes of `text`, FNV-1a over its bytes, to determine whether what was read of a text is still
 // what it reads (servers_parse.c)

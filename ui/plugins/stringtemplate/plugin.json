@@ -15,6 +15,7 @@
     ["^()import\\s+\"([^\"]+)\"", "module"]
   ],
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": ["import", "group", "delimiters", "default", "true", "false", "key", "implements"],
     "functions": ["if", "else", "elseif", "endif", "first", "last", "rest", "trunc", "strip", "length", "strlen", "reverse", "super", "i", "i0", "trim", "wrap", "anchor", "separator", "format", "null"],
     "tokenizer": {

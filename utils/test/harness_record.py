@@ -5,10 +5,13 @@ the recording slid through a frame at a time.
 
     harness.py window record                           the window window.pid names, for --for milliseconds
     harness.py window record --port P --trigger JS     the expression run on the page once the recording runs
+    harness.py window record --port P --drag 60        the editor's scrollbar dragged by its thumb once the recording runs
     harness.py window record --start --for 4000        the suite's build started on the fixture tree and recorded
                                                        from before its first frame
     harness.py window slide                            the last recording, every frame, each against the one before
     harness.py window slide REC --from 0.4 --to 1.2 --crop 0,0,400,200 --scale 3
+    harness.py window frames [VIDEO] [--text L,T,R,B] [--thumb X]  each frame's text blank, plain or colored, and where
+                                                       it stood still as the scrollbar's thumb moved
 
 record grabs the screen through the Desktop Duplication API, ffmpeg's ddagrab, at --rate frames a second: the window's
 rectangle of the display it stands on, or with --start the whole display the window is placed on, the window's
@@ -33,6 +36,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 RECORDINGS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "build", "harness", "recordings")
 SLIDE = os.path.join(os.path.dirname(RECORDINGS), "slide")
+FRAMES = os.path.join(os.path.dirname(RECORDINGS), "frames.tsv")
 # How long the recording may take to give its first frame, in seconds.
 FIRST_FRAME_S = 15
 # The width a frame is read at to measure how far it differs from the one before, and the difference, of 255, a frame
@@ -128,6 +132,22 @@ def even(number):
     return number - number % 2
 
 
+def color_grabbed(device):
+    """ddagrab's format and the filters after it: each frame holds the colors the display's SDR content has, as a
+    picture of the screen does: where the display composes in advanced color, the frames are taken in linear scRGB, SDR
+    white at the level the system sets, brought back to 1.0 and written in sRGB; the 8 bits ddagrab gives there would be
+    the linear values written as sRGB, every color lightened and washed toward white. Elsewhere its 8 bits are the
+    screen's."""
+    import harness_win32 as win
+
+    advanced, white = win.sdr_white(device)
+    if not advanced:
+        return "", "hwdownload,format=bgra"
+    scale = 1.0 / white
+    srgb = "zscale=transferin=linear:transfer=iec61966-2-1:primariesin=709:primaries=709:rangein=full:range=full"
+    return ":output_fmt=rgbaf16", "hwdownload,format=rgbaf16le,format=gbrpf32le,colorchannelmixer=rr=%.6f:gg=%.6f:bb=%.6f,%s,format=bgr0" % (scale, scale, scale, srgb)
+
+
 def recording_started(command):
     """ffmpeg started on `command`, and the process once its first frame is written, or None where none came."""
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
@@ -207,8 +227,9 @@ def cmd_window_record(a):
         print("no display output holds the window")
         return 1
     x, y, width, height = grabbed
-    source = "ddagrab=output_idx=%d:framerate=%d:offset_x=%d:offset_y=%d:video_size=%dx%d:draw_mouse=%d" % (output[0], a.rate, x, y, width, height, 0 if a.no_pointer else 1)
-    command = [program, "-hide_banner", "-loglevel", "error", "-stats", "-stats_period", "0.05", "-f", "lavfi", "-i", source, "-vf", "hwdownload,format=bgra", "-c:v", "libx264rgb", "-qp", "0", "-preset", "ultrafast", "-t", "%.3f" % (a.seconds_for / 1000.0), "-y", path]
+    grab_format, filters = color_grabbed(output[1])
+    source = "ddagrab=output_idx=%d:framerate=%d:offset_x=%d:offset_y=%d:video_size=%dx%d:draw_mouse=%d%s" % (output[0], a.rate, x, y, width, height, 0 if a.no_pointer else 1, grab_format)
+    command = [program, "-hide_banner", "-loglevel", "error", "-stats", "-stats_period", "0.05", "-f", "lavfi", "-i", source, "-vf", filters, "-c:v", "libx264rgb", "-qp", "0", "-preset", "ultrafast", "-t", "%.3f" % (a.seconds_for / 1000.0), "-y", path]
     process = recording_started(command)
     if not process:
         return 1
@@ -226,6 +247,18 @@ def cmd_window_record(a):
             conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
             conn.call("Runtime.enable", timeout=10)
             conn.evaluate(a.trigger, timeout=10)
+        if a.port and a.drag:
+            import harness_cdp
+            import harness_input
+
+            conn = harness_cdp.Connection(harness_cdp.window_page(a.port))
+            conn.call("Runtime.enable", timeout=10)
+            where = hw.thumb_of(conn)
+            if where:
+                x, y = where["x"], where["y"]
+                for to in (where["bottom"], where["top"], where["y"]):
+                    harness_input.perform(conn, {"op": "drag", "x": x, "y": y, "toX": x, "toY": to, "steps": a.drag}, None)
+                    y = to
         process.wait(timeout=a.seconds_for / 1000.0 + 30)
     finally:
         if process.poll() is None:
@@ -365,14 +398,133 @@ def clip_written(program, recording, path, a, crop, first_ms, last_ms):
     return made.returncode == 0
 
 
+def video_size(program, video):
+    """A video's width and height in pixels, as ffmpeg reads its first video stream, or None."""
+    said = subprocess.run([program, "-hide_banner", "-i", video], stdin=subprocess.DEVNULL, capture_output=True, text=True, errors="replace").stderr
+    found = re.search(r"Video:.*?(\d{2,5})x(\d{2,5})", said)
+    return (int(found.group(1)), int(found.group(2))) if found else None
+
+
+def thumb_runs(bright):
+    """The bright runs down a column a thumb's length long, (first, last) each: the scrollbar's arrows and the dots of
+    the ground behind it are shorter."""
+    import numpy
+
+    lit = numpy.flatnonzero(bright)
+    if not lit.size:
+        return []
+    breaks = numpy.flatnonzero(numpy.diff(lit) > 1)
+    firsts = numpy.concatenate(([lit[0]], lit[breaks + 1]))
+    lasts = numpy.concatenate((lit[breaks], [lit[-1]]))
+    return [(int(first), int(last)) for first, last in zip(firsts, lasts) if 10 <= last - first + 1 <= 150]
+
+
+def thumb_column(profiles, width):
+    """The column of the scrollbar's thumb among `profiles`, each frame's brightness down every column of its right
+    fifth: the column whose one bright run of a thumb's length moves most often from one frame looked at to the next,
+    the leftmost of those, a part of the window that stands still holding a run that never moves; -1 where none
+    moves."""
+    import numpy
+
+    left = width - profiles[0].shape[1]
+    moved = numpy.zeros(profiles[0].shape[1], dtype=numpy.int32)
+    before = [None] * profiles[0].shape[1]
+    for profile in profiles[:: max(1, len(profiles) // 120)]:
+        bright = profile > 120
+        for column in range(bright.shape[1]):
+            runs = thumb_runs(bright[:, column])
+            now = runs[0] if len(runs) == 1 else None
+            moved[column] += (now is not None) and (before[column] is not None) and (now != before[column])
+            before[column] = now
+    if moved.max() == 0:
+        return -1
+    return left + int(numpy.flatnonzero(moved == moved.max())[0])
+
+
+def cmd_window_frames(a):
+    """A recording, or any video of the window, read a frame at a time with the scrollbar's thumb as the compass: where
+    the thumb stands, whether the text moved from the frame before, and whether the text is blank, plain or colored;
+    the frames the thumb moved in and the text did not, and those the text moved in and the thumb did not, counted. Each
+    frame to build/harness/frames.tsv."""
+    import numpy
+
+    program = ffmpeg()
+    if not program:
+        print("no ffmpeg on the PATH or among winget's packages: winget install Gyan.FFmpeg puts one where this finds it")
+        return 1
+    video = a.recording or latest_recording()
+    size = video_size(program, video) if video and os.path.isfile(video) else None
+    if not size:
+        print("no video at %s" % (video or RECORDINGS))
+        return 1
+    width, height = size
+    left, top, right, bottom = [int(one) for one in a.text.split(",")] if a.text else (width // 10, height * 9 // 100, width * 88 // 100, height * 94 // 100)
+    reader = subprocess.Popen([program, "-hide_banner", "-loglevel", "error", "-i", video, "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE)
+    frame_bytes = width * height * 3
+    side = width - width // 5
+    rows = []
+    profiles = []
+    before = None
+    while True:
+        raw = reader.stdout.read(frame_bytes)
+        if len(raw) < frame_bytes:
+            break
+        whole = numpy.frombuffer(raw, numpy.uint8).reshape(height, width, 3)
+        profiles.append(whole[:, side:].max(axis=2))
+        text = whole[top:bottom, left:right].astype(numpy.int16)
+        high = text.max(axis=2)
+        ink = high > 110
+        hued = ink & ((high - text.min(axis=2)) > 40)
+        inked = int(ink.sum())
+        share = float(hued.sum()) / max(1, inked)
+        kind = "blank" if inked < ink.size // 500 else ("colored" if share > 0.12 else "plain")
+        moved = float(numpy.abs(text - before).mean()) if before is not None else 0.0
+        before = text
+        rows.append([kind, share, moved])
+    reader.wait()
+    if not rows:
+        print("no frame read of %s" % video)
+        return 1
+    column = a.thumb if a.thumb else thumb_column(profiles, width)
+    rate = a.rate
+    thumbs = []
+    for profile in profiles:
+        runs = thumb_runs(profile[:, column - side] > 120) if column >= side else []
+        thumbs.append((runs[0][0] + runs[0][1]) / 2.0 if len(runs) == 1 else -1.0)
+    stalls = bursts = slid = 0
+    marks = []
+    with open(FRAMES, "w", encoding="utf-8") as out:
+        out.write("frame\tms\tthumb\tthumb_moved\ttext\thued\ttext_moved\n")
+        for at, (kind, share, moved) in enumerate(rows):
+            thumb_moved = thumbs[at] - thumbs[at - 1] if at and thumbs[at] >= 0 and thumbs[at - 1] >= 0 else 0.0
+            sliding = abs(thumb_moved) >= 0.5
+            text_moved = moved > 1.0
+            slid += sliding
+            stalls += sliding and not text_moved
+            bursts += text_moved and not sliding and at > 0
+            marks.append("." if kind == "blank" else kind[0])
+            out.write("%d\t%.0f\t%.1f\t%.1f\t%s\t%.2f\t%.2f\n" % (at, at * 1000.0 / rate, thumbs[at], thumb_moved, kind, share, moved))
+    kinds = {kind: sum(1 for row in rows if row[0] == kind) for kind in ("blank", "plain", "colored")}
+    print("%s: %d frames, the thumb in column %d" % (os.path.basename(video), len(rows), column))
+    print("  text blank in %d, plain in %d, colored in %d" % (kinds["blank"], kinds["plain"], kinds["colored"]))
+    print("  the thumb moved in %d; of those the text stood still in %d; the text moved with the thumb still in %d" % (slid, stalls, bursts))
+    print("  each frame, . blank, p plain, c colored:")
+    for at in range(0, len(marks), 60):
+        print("    " + "".join(marks[at : at + 60]))
+    print("  each frame: build/harness/frames.tsv")
+    return 0
+
+
 def register(window):
-    """The record and slide commands, added to the window group."""
+    """The record, slide and frames commands, added to the window group."""
     p = window.add_parser("record", help="the window recorded as a video at the display's rate, lossless, to build/harness/recordings")
     p.add_argument("--id", type=int, default=0, help="the process; window.pid's where none")
     p.add_argument("--for", dest="seconds_for", type=int, default=3000, help="milliseconds")
     p.add_argument("--rate", type=int, default=60, help="frames a second")
     p.add_argument("--port", type=int, default=0, help="the window's debugging port, for --trigger")
     p.add_argument("--trigger", default="", help="an expression run on the page once the recording runs")
+    p.add_argument("--drag", type=int, default=0, help="the editor's scrollbar dragged by its thumb to the bottom, the top and back once the recording "
+                                                       "runs, this many moves each way, through --port")
     p.add_argument("--start", action="store_true", help="the suite's build started on the fixture tree and recorded from before its first frame")
     p.add_argument("--display", default="", help="a display recorded whole, by its number or its device name, with no window of its own")
     p.add_argument("--no-pointer", action="store_true", help="the pointer left out of the frames")
@@ -389,3 +541,11 @@ def register(window):
     p.add_argument("--all", action="store_true", help="every frame listed, and not only those that differ from the one before")
     p.add_argument("--slower", type=int, default=1, help="clip.mp4 played this many times slower")
     p.set_defaults(fn=cmd_window_slide)
+
+    p = window.add_parser("frames", help="a recording or any video of the window read a frame at a time, the scrollbar's thumb as the compass: "
+                                         "the text blank, plain or colored, and where it stood still as the thumb moved, to build/harness/frames.tsv")
+    p.add_argument("recording", nargs="?", default="", help="the video; the last recorded where none")
+    p.add_argument("--text", default="", help="LEFT,TOP,RIGHT,BOTTOM of the text in each frame; the frame's middle where none")
+    p.add_argument("--thumb", type=int, default=0, help="the column the scrollbar's thumb runs down; found where none")
+    p.add_argument("--rate", type=float, default=60.0, help="the video's frames a second, for each frame's time")
+    p.set_defaults(fn=cmd_window_frames)

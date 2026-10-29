@@ -24,8 +24,8 @@
         ["\\\\(?:[A-Za-z@]+|.)","keyword"],
         ["\\$\\$?","number","@math"],
         ["\\\\\\[|\\\\\\(","number","@math"],
-        ["[{\\[]","delimiter.bracket.open"],
-        ["[}\\]]","delimiter.bracket.close"],
+        ["[{\\[]","delimiter.bracket.depth.open"],
+        ["[}\\]]","delimiter.bracket.depth.close"],
         ["[&~^_]","operator"],
         ["[^\\\\$%{}[\\]&~^_]+",""]
       ],

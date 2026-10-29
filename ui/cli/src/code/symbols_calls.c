@@ -71,8 +71,8 @@ static int calls_is_call(const CliLeafRead *read, unsigned int leaf)
 static CliCallsFunction calls_function_at(const CliCallsFile *file, unsigned int at)
 {
     CliCallsFunction one;
-    memor.cpy(&(MemoriaCfg){
-        .dst = &one, .src = file->functions.out + ((size_t)at * sizeof(one)), .bytes = sizeof(one)});
+    memor.cpy(
+        &(MemoriaCfg){.dst = &one, .src = file->functions.out + ((size_t)at * sizeof(one)), .bytes = sizeof(one)});
     return one;
 }
 
@@ -128,8 +128,9 @@ static void calls_functions_read(CliCallsFile *file)
 // text or its language is none read here, or -1 where the cells cannot meet it
 static int calls_file_read(CliCallsFile *file, const char *path, CliHeld held, void *held_context)
 {
-    *file = (CliCallsFile){NULL, 0ull, 0, NULL, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0,
-                           {NULL, 0ull, 0ull, NULL, NULL, 0ull}, 0u};
+    *file = (CliCallsFile){
+        NULL, 0ull, 0, NULL, {NULL, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL}, 0, {NULL, 0ull, 0ull, NULL, NULL, 0ull},
+        0u};
     char *const given = (held != NULL) ? held(held_context, path, &file->size) : NULL;
     file->mapped = given == NULL;
     file->text = given;
@@ -362,13 +363,13 @@ int cli_symbols_callers(const char *path, unsigned int line, CliHeld held, void 
                     : 1;
         // the usages of each file stand together, in the order of their lines
         unsigned int first = 0u;
-        for (unsigned int next = 1u; (found == 1) && mmgr_line_ok(&usages.found) && (next <= usages.count);
-             next += 1u)
+        for (unsigned int next = 1u; (found == 1) && mmgr_line_ok(&usages.found) && (next <= usages.count); next += 1u)
         {
-            const int same = (next < usages.count) &&
-                             cellul.eq(&(CatenaFinitaCfg){.src = usages.paths.out + calls_found_at(&usages, next).path,
-                                                          .other = usages.paths.out + calls_found_at(&usages, first).path,
-                                                          .cap = CLI_CELLS_POOL});
+            const int same =
+                (next < usages.count) &&
+                cellul.eq(&(CatenaFinitaCfg){.src = usages.paths.out + calls_found_at(&usages, next).path,
+                                             .other = usages.paths.out + calls_found_at(&usages, first).path,
+                                             .cap = CLI_CELLS_POOL});
             if (!same)
             {
                 found = calls_callers_of(&usages, first, next, held, held_context, each, context) ? 1 : -1;

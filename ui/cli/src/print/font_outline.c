@@ -348,6 +348,14 @@ void cli_font_rasterize(const CliContours *contours, CliMask *mask, float *cover
     const int rows = top - (int)floorf(min_y);
     const unsigned long long width = (unsigned long long)((span > 1) ? span : 1) + 1ull;
     const unsigned long long height = (unsigned long long)((rows > 1) ? rows : 1);
+    if (cover == NULL)
+    {
+        mask->width = width;
+        mask->height = height;
+        mask->left = left;
+        mask->top = top;
+        return;
+    }
     if (((width * height) + 4ull) > room)
     {
         return;

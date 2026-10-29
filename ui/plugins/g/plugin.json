@@ -1,0 +1,78 @@
+{
+  "id": "g",
+  "name": "g",
+  "version": "1.0.0",
+  "kind": "language",
+  "extensions": ["g"],
+  "comments": {"line": "//", "block": ["/*", "*/"]},
+  "pairs": ["()", "[]", "{}"],
+  "quotes": ["\""],
+  "indentAfter": "[{[(]\\s*$",
+  "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
+    "c11": [
+      "auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern",
+      "float", "for", "goto", "if", "inline", "int", "long", "register", "restrict", "return", "short", "signed",
+      "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while",
+      "_Alignas", "_Alignof", "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary", "_Noreturn",
+      "_Static_assert", "_Thread_local"
+    ],
+    "typeWords": {
+      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "kind", "match": "^type$"},
+      "match": "^[A-Za-z_]\\w*$"
+    },
+    "opWords": {
+      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "kind", "match": "^core op$"},
+      "match": "^[A-Za-z_]\\w*$"
+    },
+    "plainWords": {
+      "table": "src/lng/gnascor_hol_lng.tsv", "columns": ["word"], "rows": {"column": "kind", "skip": "^(?:type|core op)$"},
+      "match": "^[A-Za-z_]\\w*$"
+    },
+    "mnemonics": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["mnemonic"], "match": "^[A-Za-z_]\\w*$"},
+    "states": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["past", "present"], "match": "^[A-Za-z_]\\w*$"},
+    "arrows": {"table": "src/lng/gnascor_asm_lng.tsv", "columns": ["arrow"], "skip": "^(?:[A-Za-z_]\\w*|-)?$"},
+    "tokenizer": {
+      "root": [
+        ["__gsm__\\(", {"token": "keyword", "next": "@gsm"}],
+        ["^\\s*#\\s*\\w+", "keyword.directive"],
+        ["@[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)*", "tag"],
+        ["\\?[A-Za-z_]\\w*", "attribute.name"],
+        ["\\(\\$[^)]*\\)", "number.cost"],
+        [
+          "[A-Za-z_]\\w*",
+          {"cases": {
+            "@typeWords": "type", "@c11": "keyword", "@opWords": "predefined", "@plainWords": "keyword",
+            "@default": "identifier"
+          }}
+        ],
+        {"include": "@whitespace"},
+        ["\\d+[uUlL]*", "number"],
+        ["\"([^\"\\\\]|\\\\.)*\"", "string"],
+        ["'([^'\\\\]|\\\\.)*'", "string"],
+        ["[{}()[\\]]", "@brackets"],
+        ["[<>=!~?:&|+\\-*/^%]+", "operator"],
+        ["[;,.]", "delimiter"]
+      ],
+      "whitespace": [
+        ["\\s+", ""],
+        ["\\/\\*", "comment", "@comment"],
+        ["\\/\\/.*$", "comment"]
+      ],
+      "comment": [
+        ["[^/*]+", "comment"],
+        ["\\*\\/", "comment", "@pop"],
+        ["[/*]", "comment"]
+      ],
+      "gsm": [
+        ["\\)", {"token": "keyword", "next": "@pop"}],
+        [{"words": "arrows"}, "operator"],
+        ["[A-Za-z_]\\w*", {"cases": {"@mnemonics": "keyword", "@states": "type", "@default": "identifier"}}],
+        ["\\|", "operator"],
+        ["[[\\],]", "delimiter"],
+        ["\\d+", "number"],
+        ["\\s+", ""]
+      ]
+    }
+  }
+}

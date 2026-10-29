@@ -22,7 +22,6 @@ the page throws, or a module of the window has no test file."""
 
 import argparse
 import hashlib
-import json
 import os
 import shutil
 import socket
@@ -47,6 +46,9 @@ RUNS = findroot.at("build", "ui_test", "runs")
 BENCH_FOLDER = findroot.at("build", "ui_test", "bench")
 QRY_FOLDER = findroot.at("build", "ui_test", "qry")
 APP_TARGET = findroot.at("build", "cargo", "app")
+# the profile the window the suites drive is built in, the release build with the developer's options on
+# (.cargo/config.toml), and the folder under a target folder it is built into
+APP_PROFILE = "developer"
 WINDOW_FILES = findroot.at("ui", "gui", "src-js")
 PROGRAMS_TABLE = findroot.at("utils", "test", "window_programs.tsv")
 BENCH_TABLE = findroot.at("utils", "test", "window_bench.tsv")
@@ -293,24 +295,18 @@ def free_port():
         return one.getsockname()[1]
 
 
-def browser_arguments(port):
-    with open(findroot.at("ui", "gui", "src-tauri", "tauri.conf.json"), encoding="utf-8") as settings:
-        given = json.load(settings)["app"]["windows"][0].get("additionalBrowserArgs", "")
-    return ("%s --remote-debugging-port=%d" % (given, port)).strip()
-
-
 def window_built(gui_name, sanitizer=""):
-    """The window built into build/cargo/app, apart from the released one, under `sanitizer` where one is named and
-    into a target folder of that sanitizer's own; or the program ORIOR_TEST_GUI names."""
+    """The window built in APP_PROFILE into build/cargo/app, apart from the released one, under `sanitizer` where one is
+    named and into a target folder of that sanitizer's own; or the program ORIOR_TEST_GUI names."""
     given = os.environ.get("ORIOR_TEST_GUI")
     if given and os.path.isfile(given):
         return given
     target = APP_TARGET + ("-" + sanitizer if sanitizer else "")
     env = dict(os.environ, **harness_webdriver.sanitizer_build_env(sanitizer))
-    built = subprocess.run(["cargo", "build", "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", target], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
+    built = subprocess.run(["cargo", "build", "--profile", APP_PROFILE, "--manifest-path", findroot.at("ui", "gui", "src-tauri", "Cargo.toml"), "--target-dir", target], cwd=ROOT, env=env, stdin=subprocess.DEVNULL)
     if built.returncode != 0:
         raise RuntimeError("the window did not build")
-    return os.path.join(target, "debug", gui_name + (".exe" if os.name == "nt" else ""))
+    return os.path.join(target, APP_PROFILE, gui_name + (".exe" if os.name == "nt" else ""))
 
 
 def test_windows_ended(program):
@@ -368,14 +364,14 @@ class Window:
         # Under cdb the window runs as it would alone, the debugger quiet on the C++ exceptions the web view's host
         # raises and resumes, and on a fault it writes the faulting thread's stack with its lines, then every
         # thread's, into the window's log, and ends the window.
+        import harness_window
+
         command = [program]
         if debugger:
-            import harness_window
-
             symbols = ";".join([os.path.dirname(program), os.path.join(ROOT, "build", "cargo", "release")])
             command = [harness_window.CDB, "-y", symbols, "-g", "-G", "-c", ".lines; sxd eh; sxd clr; sxi ld; sxi ud; g; !analyze -v; r; k 40; ~*kc 15; q", program]
         env = dict(os.environ)
-        env.update({"ORIOR_HOME": os.path.join(run, "home"), "ORIOR_ROOT": tree, "ORIOR_NO_REPORTS": "1", "GIT_CONFIG_COUNT": "2", "GIT_CONFIG_KEY_0": "commit.gpgsign", "GIT_CONFIG_VALUE_0": "false", "GIT_CONFIG_KEY_1": "tag.gpgsign", "GIT_CONFIG_VALUE_1": "false", "WEBVIEW2_USER_DATA_FOLDER": os.path.join(run, "webview"), "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS": browser_arguments(self.port)})
+        env.update({"ORIOR_HOME": os.path.join(run, "home"), "ORIOR_ROOT": tree, "ORIOR_NO_REPORTS": "1", "GIT_CONFIG_COUNT": "2", "GIT_CONFIG_KEY_0": "commit.gpgsign", "GIT_CONFIG_VALUE_0": "false", "GIT_CONFIG_KEY_1": "tag.gpgsign", "GIT_CONFIG_VALUE_1": "false", "WEBVIEW2_USER_DATA_FOLDER": os.path.join(run, "webview"), "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS": harness_window.browser_arguments(self.port)})
         env.update(dict(extra))
         self.log = open(os.path.join(run, "window.log"), "wb")
         self.process = subprocess.Popen(command, cwd=tree, env=env, stdin=subprocess.DEVNULL, stdout=self.log, stderr=self.log)
@@ -607,7 +603,7 @@ def drive(options, run, tree, env, benched, report):
                 driven.close()
             return
         if options.driver == "webdriver":
-            program = harness_webdriver.build(gui_name, options.sanitize)
+            program = harness_webdriver.build(gui_name, APP_PROFILE, options.sanitize)
             told.append(("ORIOR_TEST_PROGRAM", program))
             driven = harness_webdriver.start(program, run, tree, extra)
             try:
@@ -622,7 +618,7 @@ def drive(options, run, tree, env, benched, report):
         import harness_window
 
         harness_window.windows_ended()
-        test_windows_ended(os.path.join(APP_TARGET + ("-" + options.sanitize if options.sanitize else ""), "debug", gui_name + ".exe"))
+        test_windows_ended(os.path.join(APP_TARGET + ("-" + options.sanitize if options.sanitize else ""), APP_PROFILE, gui_name + ".exe"))
         program = window_built(gui_name, options.sanitize)
         told.append(("ORIOR_TEST_PROGRAM", program))
         window = Window(program, run, tree, extra, debugger=options.debugger)
@@ -643,6 +639,15 @@ def drive(options, run, tree, env, benched, report):
     finally:
         harness_input.stop_started()
         if options.keep_window:
+            # the window handed on as a person's own: its calls no longer watched, and its controls close, minimize and
+            # maximize it and its links and pickers open as they do outside a run
+            try:
+                kept = harness_cdp.Connection(window.page)
+                kept.call("Runtime.enable", timeout=10)
+                kept.evaluate("import(location.origin + '/bridge.js').then((bridge) => bridge.watchCalls(null))", timeout=10)
+                kept.close()
+            except (RuntimeError, TimeoutError, ConnectionError, OSError) as error:
+                print("  the kept window's calls are still watched: %s" % error, flush=True)
             print("  the window is kept open on port %d" % window.port, flush=True)
         else:
             window.close()

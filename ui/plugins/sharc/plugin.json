@@ -9,6 +9,7 @@
   "quotes": ["\"","'"],
   "indentAfter": "(?::|\\bdo\\b.*\\buntil\\b.*)\\s*(?://.*)?$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "ignoreCase": true,
     "words": [
       "abs", "and", "ashift", "bclr", "bit", "bitrev", "bset", "btgl", "btst", "by", "call", "cjump", "clip", "clr",

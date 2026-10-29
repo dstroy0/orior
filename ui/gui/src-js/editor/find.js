@@ -6,16 +6,18 @@
 import { cmp, pos } from "./document.js";
 
 const MOST = 20000;
-// A text held on the window's side is searched there, by its sift: Horspool's shifts within one of the
-// sift's windows and the sift's plan past it. The matches are drawn once the answer comes, and a search
-// the sift does not run as the page does, a pattern or one without case outside ASCII, stays the page's.
-let elsewhere = null;
+// Every search runs on the window's side, over the branch a text is held as or the pages a paged file is: by its sift,
+// Horspool's shifts within one of the sift's windows and the sift's plan past it, where the query is sought as it is,
+// and by the regular expressions the colorer reads where it is a pattern. The matches are drawn once the answer comes,
+// each in the file's lines, a paged file's window placed among them.
+let searching = null;
 
-// Gives find the way to search a text held on the window's side: `given(doc, sought, most)` answers a
-// promise of the matches as [line, from col, to col], or of null where the search is the page's, or
-// null where the text is not held.
+// Gives find the way to search on the window's side: `given.search(s, sought, most)` answers a promise of the matches
+// in the file's lines as [line, from col, to col], or of null where the query does not read as a pattern, or null
+// where the text of the session `s` is held nowhere; `given.reach(s, line)` answers a promise of the file's line `line`
+// brought into the window of a paged session `s`.
 export function findWith(given) {
-  elsewhere = given;
+  searching = given;
 }
 
 function element(tag, props = {}, ...children) {
@@ -72,8 +74,7 @@ export class Find {
     this.more.addEventListener("click", () => this.showReplace(this.replaceRow.hidden));
     editor.host.append(this.bar);
     this.query.addEventListener("input", () => {
-      this.refresh();
-      this.jump(true);
+      this.refresh()?.then((found) => found && this.jump(true));
     });
     this.query.addEventListener("keydown", (event) => this.key(event, false));
     this.replacement.addEventListener("keydown", (event) => this.key(event, true));
@@ -152,7 +153,7 @@ export class Find {
     this.ed.focus();
   }
 
-  // The query as a pattern, or null where it is empty or does not compile.
+  // The query as a pattern, for a replacement's groups, or null where it is empty or does not compile.
   pattern(global = true) {
     const text = this.query.value;
     if (!text) {
@@ -175,48 +176,47 @@ export class Find {
     return null;
   }
 
+  // The search asked of the window's side for the bar as it is set, the matches drawn kept until its answer comes: a
+  // promise of whether the answer was the last asked, or null where nothing is asked.
   refresh() {
     const ed = this.ed;
     this.asking = null;
     if (!this.shown || !ed.s) {
       this.matches = [];
-      return;
+      return null;
     }
-    const pattern = this.pattern();
-    this.bar.dataset.bad = String(Boolean(this.query.value) && !pattern);
-    const doc = ed.doc;
-    const sought = { query: this.query.value, regex: this.options.regex, case: this.options.case, word: this.options.word, unicode: Boolean(pattern?.unicode) };
-    const asked = pattern && doc.held ? elsewhere?.(doc, sought, MOST) : null;
-    if (asked) {
-      // The matches already drawn stay until the answer comes.
-      this.asking = asked;
-      asked.then((found) => {
-        if (this.asking !== asked) {
-          return;
-        }
-        this.asking = null;
-        this.found(found ? found.map(([line, from, to]) => ({ from: pos(line, from), to: pos(line, to) })) : this.scan(doc, pattern));
-      });
-      return;
+    const sought = { query: this.query.value, regex: this.options.regex, case: this.options.case, word: this.options.word };
+    const asked = sought.query ? searching?.search(ed.s, sought, MOST) : null;
+    if (!asked) {
+      this.bar.dataset.bad = "false";
+      this.found([]);
+      return null;
     }
-    this.found(pattern ? this.scan(doc, pattern) : []);
+    this.asking = asked;
+    return asked.then((found) => {
+      if (this.asking !== asked) {
+        return false;
+      }
+      this.asking = null;
+      this.bar.dataset.bad = String(!found);
+      this.found((found ?? []).map(([line, from, to]) => ({ from: pos(line, from), to: pos(line, to) })));
+      return true;
+    });
   }
 
-  // The page's own search: each line of `doc` in turn, at most MOST matches.
-  scan(doc, pattern) {
-    const matches = [];
-    for (let line = 0; line < doc.count && matches.length < MOST; line += 1) {
-      const text = doc.line(line);
-      pattern.lastIndex = 0;
-      for (let found = pattern.exec(text); found; found = pattern.exec(text)) {
-        if (!found[0].length) {
-          pattern.lastIndex += 1;
-          continue;
-        }
-        matches.push({ from: pos(line, found.index), to: pos(line, found.index + found[0].length) });
-      }
+  // The file's line of the session's first: a paged session's window's, 0 for a text held whole.
+  base() {
+    return this.ed.s?.base ?? 0;
+  }
+
+  // A match placed in the session's lines, or null where it stands outside a paged session's window.
+  placed(match) {
+    const base = this.base();
+    const line = match.from.line - base;
+    if (line < 0 || match.to.line - base >= this.ed.s.doc.count) {
+      return null;
     }
-    return matches;
+    return { from: pos(line, match.from.col), to: pos(match.to.line - base, match.to.col) };
   }
 
   found(matches) {
@@ -226,14 +226,18 @@ export class Find {
     this.ed.schedule();
   }
 
-  // The match at or after the primary selection's start, or with `fromStart` off after its end.
+  // The match at or after the primary selection's start, or with `fromStart` off after its end, each in the file's
+  // lines.
   nearest(fromStart, direction = 1) {
     if (!this.matches.length) {
       return -1;
     }
     const primary = this.ed.primary();
-    const start = cmp(primary.anchor, primary.head) < 0 ? primary.anchor : primary.head;
-    const end = cmp(primary.anchor, primary.head) < 0 ? primary.head : primary.anchor;
+    const base = this.base();
+    const anchor = pos(primary.anchor.line + base, primary.anchor.col);
+    const head = pos(primary.head.line + base, primary.head.col);
+    const start = cmp(anchor, head) < 0 ? anchor : head;
+    const end = cmp(anchor, head) < 0 ? head : anchor;
     if (direction > 0) {
       const at = fromStart ? start : end;
       const found = this.matches.findIndex((match) => cmp(match.from, at) >= 0);
@@ -259,35 +263,50 @@ export class Find {
     }
   }
 
+  // The current match in the session's lines, null where there is none or it stands outside a paged session's window.
   current() {
-    return this.matches[this.index] ?? null;
+    const match = this.matches[this.index];
+    return match ? this.placed(match) : null;
   }
 
-  // The matches that fall on lines from first to last.
+  // The matches that fall on the session's lines from first to last, in those lines.
   between(first, last) {
+    const base = this.base();
     let low = 0;
     let high = this.matches.length;
     while (low < high) {
       const mid = (low + high) >> 1;
-      if (this.matches[mid].to.line < first) {
+      if (this.matches[mid].to.line < first + base) {
         low = mid + 1;
       } else {
         high = mid;
       }
     }
     const out = [];
-    for (let index = low; index < this.matches.length && this.matches[index].from.line <= last; index += 1) {
-      out.push(this.matches[index]);
+    for (let index = low; index < this.matches.length && this.matches[index].from.line <= last + base; index += 1) {
+      const placed = this.placed(this.matches[index]);
+      if (placed) {
+        out.push(placed);
+      }
     }
     return out;
   }
 
-  jump(fromStart) {
-    const match = this.current();
-    if (!match) {
+  // The current match selected and shown, a paged session's window brought to it first where it stands outside it.
+  async jump(fromStart) {
+    const at = this.matches[this.index];
+    if (!at) {
       return;
     }
     const ed = this.ed;
+    const s = ed.s;
+    if (!this.placed(at)) {
+      await searching?.reach(s, at.from.line);
+    }
+    const match = ed.s === s && this.matches[this.index] === at ? this.placed(at) : null;
+    if (!match) {
+      return;
+    }
     ed.setSelections([{ anchor: match.from, head: match.to, goal: null }]);
     ed.moved();
     ed.reveal(true);
@@ -331,11 +350,13 @@ export class Find {
     this.step(1);
   }
 
+  // Every match the session's lines hold replaced: a paged session's window's alone.
   replaceAll() {
-    if (!this.matches.length) {
+    const placed = this.between(0, this.ed.s.doc.count - 1);
+    if (!placed.length) {
       return;
     }
-    const edits = this.matches.map((match) => ({ from: match.from, to: match.to, text: this.replacementFor(match) }));
+    const edits = placed.map((match) => ({ from: match.from, to: match.to, text: this.replacementFor(match) }));
     this.ed.change(edits, null);
   }
 }

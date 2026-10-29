@@ -9,6 +9,7 @@
   "quotes": ["\"","'"],
   "indentAfter": "[{[(]\\s*$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "abstract", "annotation", "as", "break", "by", "catch", "class", "companion", "const", "constructor", "continue", "crossinline",
       "data", "do", "else", "enum", "external", "false", "final", "finally", "for", "fun", "get", "if", "import", "in", "infix", "init",

@@ -12,8 +12,11 @@ export function unit() {
 // the hints drawn before it.
 export function vcolOf(text, col, line = -1) {
   const size = this.s.indent.size;
-  let v = 0;
-  for (let index = 0; index < col && index < text.length; index += 1) {
+  // each col before the line's first tab is a column of its own
+  const tab = text.indexOf("\t");
+  const plain = Math.min(col, text.length, tab < 0 ? Infinity : tab);
+  let v = plain;
+  for (let index = plain; index < col && index < text.length; index += 1) {
     v += text[index] === "\t" ? size - (v % size) : 1;
   }
   return line < 0 ? v : v + this.hintShift(line, col);
@@ -134,21 +137,13 @@ export function setWrap(on) {
   this.schedule();
 }
 
-// The markup of one row: its line's, and where the line is wrapped, the part of it the row holds,
-// the line's markup moved left by the cols before the row and cut at the row's end.
+// The markup of one row: its line's, and where the line is wrapped, the part of it the row holds.
 export function rowCell(row) {
   const rows = this.rows();
   const line = rows.lineOf(row);
-  const html = this.rowHtml(line);
   const start = rows.startOf(row);
   const end = rows.endOf(row);
-  if (start === 0 && end < 0) {
-    return html;
-  }
-  const text = this.doc.line(line);
-  const shift = this.vcolOf(text, start, line) * this.cw;
-  const width = end < 0 ? null : this.vcolOf(text, end, line) * this.cw - shift;
-  return `<span class="ed-seg"${width === null ? "" : ` style="width:${width}px"`}><span style="margin-left:${-shift}px">${html}</span></span>`;
+  return start === 0 && end < 0 ? this.rowHtml(line) : this.partCell(line, start, end);
 }
 
 // The runs of lines that hold a comment alone, by the language's own marks: a line that
@@ -228,7 +223,9 @@ export function widest() {
     this.widestWait = window.setTimeout(() => {
       this.later("widest", () => {
         if (this.s?.doc === doc) {
-          this.widestCache = this.widthOf(doc.lines);
+          // a file held as pages keeps the widest any of its windows held, so the space never narrows under the view
+          const width = this.widthOf(doc.lines);
+          this.widestCache = this.s.window?.paged ? Math.max(this.widestCache, width) : width;
           this.schedule();
         }
       });
@@ -280,16 +277,42 @@ export function shrunk(session, count, above) {
   this.schedule();
 }
 
-// A paged file's window put elsewhere in the file: the view shows it afresh.
+// A paged file's window put elsewhere in the file: the view shows it afresh. Where `holdLine` read the line the view
+// stands on, as a window put where a moving view went, the view stays on that line and the rows drawn stay as they
+// are, each drawn again from the window's lines as the next frame reaches it, and none cleared before then: a view gone
+// on past the window keeps its last frame until the window comes to it.
 export function replaced(session) {
   if (session !== this.s) {
     return;
   }
+  // the markup and the breaks kept for the lines the window held go with them
+  this.rowsKept = null;
+  this.wraps = null;
+  const kept = this.heldLine;
   this.heldLine = undefined;
+  // the space across as wide as the widest line any window of the file has held, so it neither widens nor narrows
+  // as the window moves, a window of cut lines measured by their whole lengths
+  const lengths = session.window?.lengths;
+  const width = lengths ? Math.min(SHOWN, lengths.reduce((most, length) => Math.max(most, length), 0)) : this.widthOf(session.doc.lines);
+  this.widestCache = Math.max(this.widestCache ?? 0, width);
+  if (kept !== undefined) {
+    session.top = kept - session.base;
+    this.rowsKey = "";
+    this.widestOf = session.doc;
+    this.widestAt = session.doc.id;
+    this.drawn = null;
+    this.size();
+    // the scroll stands where the view stood unless the padding above the window changed by other than the lines read
+    const want = this.pad + session.top * LINE;
+    if (Math.abs(want - this.scroller.scrollTop) >= 1) {
+      this.place(session.top * LINE);
+    }
+    this.schedule();
+    return;
+  }
   for (const layer of [this.textLayer, this.underLayer, this.gutterLayer]) {
     layer.clear();
   }
-  this.widestCache = this.widthOf(session.doc.lines);
   this.s = null;
   session.view = null;
   this.show(session);
@@ -316,6 +339,7 @@ export function keepLine() {
   if (by) {
     this.scroller.scrollTop = want;
     this.placedTop = this.scroller.scrollTop;
+    this.lastTop = this.scroller.scrollTop;
     if (this.glide) {
       this.glide.to += by;
       this.glide.at += by;

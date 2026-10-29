@@ -44,13 +44,14 @@ async function scrolledThrough(path, seconds) {
     assert.ok(await invoke("qry_ready", { path: `${root}/${relative}` }), "the run's writer came ready");
     await joinRun(relative);
     await ui.browserTrace();
-    // Each frame as it begins: where the view stands, the rows the text layer has written, and, for a
-    // few lines on screen, whether each is drawn with a color.
+    // Each frame as it begins: where the view stands in the file, the window a paged file holds moving under it
+    // without moving it, the rows the text layer has written, and, for a few lines on screen, whether each is drawn
+    // with a color.
     let sampling = true;
     const sample = () => {
       const first = Math.floor(seen(view) / lineHeight());
       const lines = [first + 2, first + 12, first + 22].filter((line) => line < view.s.doc.count);
-      frames.push({ at: traceTime(), y: seen(view), writes: view.textLayer.writes, colored: lines.map((line) => [line, /class="t-/.test(view.rowNode(line)?.innerHTML ?? "")]) });
+      frames.push({ at: traceTime(), y: seen(view) + view.s.base * lineHeight(), writes: view.textLayer.writes, colored: lines.map((line) => [line, /class="t-/.test(view.rowNode(line)?.innerHTML ?? "")]) });
       if (sampling) {
         requestAnimationFrame(sample);
       }

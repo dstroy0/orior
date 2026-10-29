@@ -12,6 +12,7 @@
 // answers do, and writes it to the reader's plugins folder, as `orior_gui file new-plugin` does.
 
 import { invoke } from "./bridge.js";
+import { classed, classOf, partsOf } from "./editor/tokens.js";
 import { languageFromText, loadPlugins, onPlugins, openerOf, pluginReadings, setPluginOn } from "./plugins.js";
 import { allowPlugin, askedMore, asksText } from "./scripts.js";
 
@@ -247,27 +248,20 @@ const listOf = (text) =>
     .map((word) => word.trim())
     .filter(Boolean);
 
-// Lines that show each kind of thing a plugin colors, as plugins.rs writes beside a new one.
-function sampleOf(plugin) {
-  const lines = [];
-  const { line, block } = plugin.comments ?? {};
-  if (line) {
-    lines.push(`${line} ${plugin.name ?? "this file"} opens in this plugin`);
-  }
-  if (Array.isArray(block) && block.length === 2) {
-    lines.push(`${block[0]} a block comment ${block[1]}`);
-  }
-  const first = (name) => (Array.isArray(plugin.grammar?.[name]) ? plugin.grammar[name][0] : undefined);
-  const keyword = first("keywords") ?? first("words") ?? "word";
-  const quote = plugin.quotes?.[0] ?? '"';
-  lines.push(`${keyword} ${first("types") ?? "Type"} name = ${first("constants") ?? "42"};`);
-  lines.push(`${keyword} text = ${quote}a string${quote}, count = 0x2a + 1.5e3;`);
-  return lines;
-}
-
-// `lines`, a line a row.
-function colored(lines) {
-  return lines.map((text) => element("div", { textContent: text || " " }));
+// The sample orior's side writes beside a new plugin, colored there by the plugin's grammar, `{ lines, names, runs }`: a
+// line a row, each run of a line, a column then a name, drawn in its name's classes.
+function colored(sample) {
+  const classes = (sample?.names ?? [""]).map(classOf);
+  return (sample?.lines ?? []).map((text, at) => {
+    const row = element("div");
+    for (const [name, part] of partsOf(text, classed(sample.runs?.[at] ?? [], classes))) {
+      row.append(element("span", { className: name, textContent: part }));
+    }
+    if (!row.childNodes.length) {
+      row.textContent = text || " ";
+    }
+    return row;
+  });
 }
 
 export function showGenerator(sheet, args = []) {
@@ -329,12 +323,12 @@ export function showGenerator(sheet, args = []) {
     if (mine !== asked) {
       return;
     }
-    text.textContent = written;
+    text.textContent = written.text;
     try {
-      const plugin = JSON.parse(written);
+      JSON.parse(written.text);
       // read as a language, so a pattern that does not read is said
-      languageFromText(written);
-      sample.replaceChildren(...colored(sampleOf(plugin)));
+      languageFromText(written.text);
+      sample.replaceChildren(...colored(written.sample));
       said.textContent = "";
       create.disabled = false;
     } catch (error) {

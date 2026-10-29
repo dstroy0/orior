@@ -131,6 +131,34 @@ test("a rest in the controls' corner drops the three controls alone, a ghost of 
   await ui.waitFor(() => revealed() === "", 3000, "the reveal let go");
 });
 
+test("a rest within three gaps of the controls' corner, on the work's border, brings the controls, and the ghost stays while the pointer wanders there", async () => {
+  await editingHello();
+  const x = window.innerWidth - 40;
+  await ui.hover({ x, y: GAP * 2 + 4 });
+  await ui.waitFor(() => document.body.hasAttribute("data-near"), 3000, "the ghost as the pointer nears");
+  // the pointer wanders a few pixels at a time, as a hand holding it still does, and the ghost stays through it
+  let gone = 0;
+  for (let step = 0; step < 8; step += 1) {
+    await ui.hover({ x: x + (step % 2 ? 3 : -3), y: GAP * 2 + 4 + (step % 3) });
+    await ui.rest(20);
+    gone += document.body.hasAttribute("data-near") || revealed() === "controls" ? 0 : 1;
+  }
+  assert.equal(gone, 0, "the ghost never went while the pointer wandered in the corner");
+  await ui.waitFor(() => revealed() === "controls", 3000, "a rest on the border at the corner brings the controls");
+  await ui.hover(middle());
+  await ui.waitFor(() => revealed() === "", 3000, "the reveal let go");
+});
+
+test("a rest within three gaps of the head and the foot, on the work's border, brings their parts as a rest in the gap does", async () => {
+  await editingHello();
+  await restedAt(middle().x, GAP * 2 + 4, "top");
+  await ui.hover(middle());
+  await ui.waitFor(() => revealed() === "", 3000, "the bar let go");
+  await restedAt(middle().x, window.innerHeight - (GAP * 2 + 4), "bottom");
+  await ui.hover(middle());
+  await ui.waitFor(() => revealed() === "", 3000, "the status bar let go");
+});
+
 test("a rest at another edge while one edge's part is out sends that part away first, and brings the other once it has gone", async () => {
   await editingHello();
   await restedAt(middle().x, 4, "top");

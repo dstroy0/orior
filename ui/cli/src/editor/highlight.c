@@ -16,6 +16,24 @@ static CliGrammarRoom *s_read;
 // 1 where what is read does not fit the room
 static int s_full;
 
+// the grammar's brackets, each pair two letters, the one that opens and the one that closes; none where it has none;
+// and the name the grammar's `bracketToken` gives a bracket's token, `delimiter.bracket` where it gives none
+static unsigned int s_brackets;
+static char s_bracket_name[CLI_NAME_MAX_LEN];
+
+// the name of a bracket's token, written into `out`, followed by `.` and `role` where `role` is not empty
+static void cli_bracket_named(const char *role, char *out)
+{
+    VerbaLinea line = {out, CLI_NAME_MAX_LEN, 0ull};
+    mmgr_line_put(&line, s_bracket_name);
+    if (role[0] != '\0')
+    {
+        mmgr_line_ch(&line, '.');
+        mmgr_line_put(&line, role);
+    }
+    (void)mmgr_line_finish(&line);
+}
+
 // `length` bytes of `text` put among the grammar's texts, lower case where `lower` is 1: where they start
 static unsigned int cli_text(CliGrammar *grammar, const char *text, unsigned long long length, int lower)
 {
@@ -44,11 +62,11 @@ static unsigned int cli_text(CliGrammar *grammar, const char *text, unsigned lon
     return at;
 }
 
-// The place of a token's name among the names, added where it is new; a bracket's name is `delimiter.bracket`
+// The place of a token's name among the names, added where it is new; a bracket's name is the grammar's bracket name
 static unsigned int cli_name_of(CliGrammar *grammar, const char *name)
 {
     const char *const named = (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "@brackets", .cap = CLI_CELLS_POOL}))
-                                  ? "delimiter.bracket"
+                                  ? s_bracket_name
                                   : name;
     for (unsigned int at = 0u; at < grammar->names; at += 1u)
     {
@@ -82,6 +100,82 @@ static unsigned int cli_token_made(CliGrammar *grammar, unsigned int kind, unsig
     return grammar->tokens - 1u;
 }
 
+// a case put at `place` among the grammar's cases: `size` bytes of `key` naming `name`
+static void cli_case_put(CliGrammar *grammar, unsigned int place, const char *key, unsigned long long size,
+                         const char *name)
+{
+    const CliHighlightCase entry = {cli_text(grammar, key, size, 0),
+                                    cli_token_made(grammar, CLI_TOKEN_NAME, cli_name_of(grammar, name)),
+                                    CLI_HIGHLIGHT_NONE, 0};
+    grammar->cases[place] = entry;
+}
+
+// the pair at `item` of the grammar's brackets, `*pair`, and the bytes its first letter takes, `*first`, and its second,
+// `*second`: 1 where it is two letters that differ, else 0
+static int cli_pair_split(const CliJson *json, unsigned int item, const char **pair, unsigned long long *first,
+                          unsigned long long *second)
+{
+    unsigned long long size = 0ull;
+    *pair = cli_json_string(json, item, &size);
+    unsigned int opens = 0u;
+    unsigned int closes = 0u;
+    *first = (*pair != NULL) ? cli_lossy_letter((const unsigned char *)*pair, size, 0ull, &opens) : 0ull;
+    *second = (*first < size) ? cli_lossy_letter((const unsigned char *)*pair, size, *first, &closes) : 0ull;
+    return ((*first + *second) == size) && (*second != 0ull) && (opens != closes);
+}
+
+// the token `@brackets` names: a bracket the grammar's brackets give as a pair's first letter the grammar's bracket
+// name with `.open`, one they give as its second that name with `.close`, and any other that name, the name alone
+// where no pair of two letters of its own gives one
+static unsigned int cli_brackets_token(CliGrammar *grammar, const CliJson *json)
+{
+    char opens[CLI_NAME_MAX_LEN];
+    char closes[CLI_NAME_MAX_LEN];
+    cli_bracket_named("open", opens);
+    cli_bracket_named("close", closes);
+    const unsigned int listed =
+        cli_json_is(json, s_brackets, CFG_JSON_ARRAY) ? json->node[s_brackets].first : CLI_JSON_NONE;
+    unsigned int pairs = 0u;
+    for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
+    {
+        const char *pair = NULL;
+        unsigned long long first = 0ull;
+        unsigned long long second = 0ull;
+        pairs += cli_pair_split(json, item, &pair, &first, &second) ? 1u : 0u;
+    }
+    if (pairs == 0u)
+    {
+        return cli_token_made(grammar, CLI_TOKEN_NAME, cli_name_of(grammar, s_bracket_name));
+    }
+    const unsigned int made = cli_token_made(grammar, CLI_TOKEN_CASES, 0u);
+    const unsigned int count = (2u * pairs) + 1u;
+    if ((made == CLI_HIGHLIGHT_NONE) || ((grammar->case_count + count) > s_read->tokens_most))
+    {
+        s_full = 1;
+        return made;
+    }
+    const unsigned int first_case = grammar->case_count;
+    grammar->case_count += count;
+    grammar->token[made].first = first_case;
+    grammar->token[made].count = count;
+    unsigned int place = first_case;
+    for (unsigned int item = listed; item != CLI_JSON_NONE; item = json->node[item].next)
+    {
+        const char *pair = NULL;
+        unsigned long long first = 0ull;
+        unsigned long long second = 0ull;
+        if (!cli_pair_split(json, item, &pair, &first, &second))
+        {
+            continue;
+        }
+        cli_case_put(grammar, place, pair, first, opens);
+        cli_case_put(grammar, place + 1u, pair + first, second, closes);
+        place += 2u;
+    }
+    cli_case_put(grammar, place, "@default", 8ull, s_bracket_name);
+    return made;
+}
+
 // the token a value writes into `token`, none for null: 1, or 0 with why given
 static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int value, unsigned int *token,
                         VerbaLinea *err_msg)
@@ -92,6 +186,11 @@ static int cli_token_of(CliGrammar *grammar, const CliJson *json, unsigned int v
         return 1;
     }
     const char *const name = cli_json_string(json, value, NULL);
+    if ((name != NULL) && cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "@brackets", .cap = CLI_CELLS_POOL}))
+    {
+        *token = cli_brackets_token(grammar, json);
+        return 1;
+    }
     if (name != NULL)
     {
         *token = cli_token_made(grammar, CLI_TOKEN_NAME, cli_name_of(grammar, name));
@@ -469,6 +568,19 @@ int cli_highlight_read(const CliJson *json, unsigned int def, CliGrammarRoom *ro
     s_full = 0;
     grammar->ignore_case = cli_json_is(json, cli_json_member(json, def, "ignoreCase"), CFG_JSON_TRUE);
     grammar->per_line = cli_json_is(json, cli_json_member(json, def, "perLine"), CFG_JSON_TRUE);
+    s_brackets = cli_json_member(json, def, "brackets");
+    unsigned long long bracket_size = 0ull;
+    const char *const bracket_name = cli_json_string(json, cli_json_member(json, def, "bracketToken"), &bracket_size);
+    VerbaLinea bracket_line = {s_bracket_name, sizeof(s_bracket_name), 0ull};
+    if ((bracket_name != NULL) && (bracket_size != 0ull))
+    {
+        mmgr_line_put_n(&bracket_line, bracket_name, bracket_size);
+    }
+    else
+    {
+        mmgr_line_put(&bracket_line, "delimiter.bracket");
+    }
+    (void)mmgr_line_finish(&bracket_line);
     cli_words_read(grammar, json, def);
     const unsigned int tokenizer = cli_json_member(json, def, "tokenizer");
     if (!cli_json_is(json, tokenizer, CFG_JSON_OBJECT))

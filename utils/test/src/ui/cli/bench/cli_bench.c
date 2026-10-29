@@ -101,6 +101,15 @@ static void each_letters(const char *path, const unsigned char *bytes, unsigned 
     (void)cli_regexp_letters((const char *)bytes, size, letters, size);
 }
 
+// the file read as UTF-8 a byte that starts no letter at a time read as U+FFFD, into the line `context` from its start
+static void each_lossy(const char *path, const unsigned char *bytes, unsigned long long size, void *context)
+{
+    (void)path;
+    VerbaLinea *const line = context;
+    line->at = 0ull;
+    cli_lossy(line, bytes, size);
+}
+
 static void each_find(const char *path, const unsigned char *bytes, unsigned long long size, void *context)
 {
     (void)path;
@@ -322,9 +331,45 @@ static int bench_grammar_cached(void)
 
 // the tree's JSON, the C plugin and the toolchains, read into trees and written again, `s_repeat` times each
 // the tree's JSON read into trees and written again, 20 times a file: the read's measure, and the write's into `write`
+// the tree's JSON the JSON passes read
+static const char *const s_json_files[2] = {"ui/plugins/c/plugin.json", "ui/cli/toolchains.json"};
+
+// the tree's JSON files' tokens counted, as a tree read from one is sized, each file 200 times a repeat, the counts
+// summed into `sum`: the measure
+static BenchMeasure bench_json_tokens(unsigned long long *sum)
+{
+    BenchMeasure measure = {0ull, ~0ull};
+    for (unsigned int round = 0u; round < s_repeat; round += 1u)
+    {
+        unsigned long long bytes = 0ull;
+        unsigned long long took = 0ull;
+        for (unsigned int at = 0u; at < 2u; at += 1u)
+        {
+            char path[CLI_PATH_MAX_LEN];
+            cli_full(s_root, s_json_files[at], path);
+            unsigned long long size = 0ull;
+            const unsigned char *const text = cli_file_read(path, &size);
+            if (text == NULL)
+            {
+                continue;
+            }
+            const unsigned long long began = cli_clock_microseconds();
+            for (unsigned int times = 0u; times < 200u; times += 1u)
+            {
+                *sum += cli_json_tokens_counted((const char *)text, size);
+            }
+            took += cli_clock_microseconds() - began;
+            bytes += 200ull * size;
+            cli_file_let_go(text, size);
+        }
+        measure.bytes = bytes;
+        measure.least = (took < measure.least) ? took : measure.least;
+    }
+    return measure;
+}
+
 static BenchMeasure bench_json(BenchMeasure *write)
 {
-    static const char *const s_files[2] = {"ui/plugins/c/plugin.json", "ui/cli/toolchains.json"};
     BenchMeasure measure = {0ull, ~0ull};
     *write = measure;
     for (unsigned int round = 0u; round < s_repeat; round += 1u)
@@ -335,7 +380,7 @@ static BenchMeasure bench_json(BenchMeasure *write)
         for (unsigned int at = 0u; at < 2u; at += 1u)
         {
             char path[CLI_PATH_MAX_LEN];
-            cli_full(s_root, s_files[at], path);
+            cli_full(s_root, s_json_files[at], path);
             unsigned long long size = 0ull;
             const unsigned char *const text = cli_file_read(path, &size);
             if (text == NULL)
@@ -442,6 +487,11 @@ int main(int argc, char **argv)
     unsigned int *const letters = g_cli_cells->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), NULL);
     bench_row("letters", bench_pass(each_letters, letters));
     g_cli_cells->persistent_buf_release(letters, NULL);
+    // each byte that starts no letter written as U+FFFD's three bytes at the most
+    char *const lossy_cell = g_cli_cells->persistent_buf_alloc((3ull * largest) + 1ull, NULL);
+    VerbaLinea lossy = {lossy_cell, (3ull * largest) + 1ull, 0ull};
+    bench_row("lossy", bench_pass(each_lossy, &lossy));
+    g_cli_cells->persistent_buf_release(lossy_cell, NULL);
     sum = 0ull;
     bench_row("find", bench_pass(each_find, &sum));
     sum = 0ull;
@@ -468,6 +518,8 @@ int main(int argc, char **argv)
     const BenchMeasure read = bench_json(&written);
     bench_row("json-read", read);
     bench_row("json-write", written);
+    sum = 0ull;
+    bench_row("json-tokens", bench_json_tokens(&sum));
     bench_row("sorted", bench_sorted());
     const BenchCorpus corpus = {s_root, s_paths, s_corpus, s_count, whole, s_repeat};
     bench_row("cells-live", bench_cells());

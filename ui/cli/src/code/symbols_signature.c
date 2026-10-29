@@ -198,7 +198,8 @@ static void cli_signature_tree_type(CliSymbolsLanguages *languages, CliSymbolSig
     for (unsigned int file = 0u; !seen && (file < g_cli_symbol_file_count); file += 1u)
     {
         const CliSymbolFile *const branch = &g_cli_symbol_files[file];
-        const int spoken = branch->used && cli_signature_language_is(languages, signature, cli_symbol_file_path(branch));
+        const int spoken =
+            branch->used && cli_signature_language_is(languages, signature, cli_symbol_file_path(branch));
         for (unsigned int each = 0u; !seen && spoken && (each < branch->count); each += 1u)
         {
             const CliSymbol *const symbol = &cli_symbol_file_symbols(branch)[each];
@@ -256,8 +257,8 @@ static void cli_signature_tree_type(CliSymbolsLanguages *languages, CliSymbolSig
 // the type of the argument at `argument`: a literal's where every leaf of it is a number's or every one a string's,
 // and for one name its declaration's, the last parameter or local of that name before the call among the leaves
 // handed, else the tree's; none for any other
-static void cli_signature_typed(CliSymbolsLanguages *languages, const CliLeafRead *read,
-                                CliSymbolSignature *signature, unsigned int argument)
+static void cli_signature_typed(CliSymbolsLanguages *languages, const CliLeafRead *read, CliSymbolSignature *signature,
+                                unsigned int argument)
 {
     CliSymbolCall *const call = &signature->call;
     CliSymbolType *const type = &call->type[argument];
@@ -272,8 +273,8 @@ static void cli_signature_typed(CliSymbolsLanguages *languages, const CliLeafRea
     }
     if ((first < last) && ((is & (CLI_LEAF_NUMBER | CLI_LEAF_STRING)) != 0u))
     {
-        memor.cpy(&(MemoriaCfg){
-            .dst = type->text, .src = ((is & CLI_LEAF_NUMBER) != 0u) ? "number" : "string", .bytes = 7u});
+        memor.cpy(
+            &(MemoriaCfg){.dst = type->text, .src = ((is & CLI_LEAF_NUMBER) != 0u) ? "number" : "string", .bytes = 7u});
         type->is = is & (CLI_LEAF_NUMBER | CLI_LEAF_STRING);
         return;
     }
@@ -308,7 +309,8 @@ static void cli_signature_heads(CliSymbolsLanguages *languages, CliSymbolSignatu
     for (unsigned int file = 0u; file < g_cli_symbol_file_count; file += 1u)
     {
         const CliSymbolFile *const branch = &g_cli_symbol_files[file];
-        const int spoken = branch->used && cli_signature_language_is(languages, signature, cli_symbol_file_path(branch));
+        const int spoken =
+            branch->used && cli_signature_language_is(languages, signature, cli_symbol_file_path(branch));
         for (unsigned int each = 0u; spoken && (each < branch->count); each += 1u)
         {
             const CliSymbol *const symbol = &cli_symbol_file_symbols(branch)[each];
@@ -469,8 +471,7 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
     CliLeafRead read;
     const int kept = cli_symbols_leaves_kept(languages, path, state, text, size, &read);
     CliSymbolCall *const call = &signature->call;
-    const int called =
-        kept && cli_signature_call(&read, cli_signature_cursor(text, size, line, col), line, call);
+    const int called = kept && cli_signature_call(&read, cli_signature_cursor(text, size, line, col), line, call);
     if (called)
     {
         cli_signature_arguments(&read, line, call);

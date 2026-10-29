@@ -11,7 +11,7 @@ build/harness/motion/<stamp>/ beside the recording itself, recording.json.
     harness.py window motion --edges top,left --rounds 3 --keep-window
     harness.py window motion --read build/harness/motion/<stamp>    a recording kept, read and reported again
 
-The claim holds while the editor has the keys, so a file of the tree is opened and the editor pressed first. Then,
+The claim holds while the editor has the keys. A file of the tree is opened and the editor pressed first. Then,
 --rounds times, for each edge of --edges: the pointer rests in the edge's gap until its part has come and the work has
 taken its room, and moves to the middle of the work until the part has gone. Last, the pointer rests on the head and
 moves from it straight to the left edge's gap, the switch from one edge to another. Each step is marked on the
@@ -75,7 +75,7 @@ def waited_for(conn, expression, seconds, what):
 
 
 def claimed(conn):
-    """A file opened and the editor pressed, so the claim holds; the middle of the work, where the pointer rests
+    """A file opened and the editor pressed, the claim holding; the middle of the work, where the pointer rests
     between steps."""
     conn.evaluate("(async () => { const { openFile } = await import('/edit.js'); await openFile(%s); return true; })()" % json.dumps(OPENED), timeout=30)
     waited_for(conn, "!!document.querySelector('#mode-edit .editor')?.getClientRects().length", 15, "the editor")
@@ -134,7 +134,7 @@ def started(run, monitor):
     os.makedirs(os.path.join(run, "home"), exist_ok=True)
     harness_window.windows_ended()
     gui_name = suite.bin_named("gui")
-    suite.test_windows_ended(os.path.join(suite.APP_TARGET, "debug", gui_name + ".exe"))
+    suite.test_windows_ended(os.path.join(suite.APP_TARGET, suite.APP_PROFILE, gui_name + ".exe"))
     program = suite.window_built(gui_name)
     window = suite.Window(program, run, tree, [])
     window.placed(monitor)

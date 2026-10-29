@@ -140,8 +140,8 @@ static unsigned int cli_flags_word(const char *name, unsigned long long name_len
             return at;
         }
     }
-    CliDefineWord *const words = cli_compile_room(s_kept.word, s_kept.words, &s_kept.word_room,
-                                                  sizeof(CliDefineWord), CLI_FLAGS_DISTINCT, "the distinct defines");
+    CliDefineWord *const words = cli_compile_room(s_kept.word, s_kept.words, &s_kept.word_room, sizeof(CliDefineWord),
+                                                  CLI_FLAGS_DISTINCT, "the distinct defines");
     const unsigned int named = (words != NULL) ? cli_flags_text_put(name, name_length) : CLI_JSON_NONE;
     const unsigned int valued = (named != CLI_JSON_NONE) ? cli_flags_text_put(value, value_length) : CLI_JSON_NONE;
     if (valued == CLI_JSON_NONE)
@@ -202,8 +202,7 @@ static void cli_flags_define(CliFlagsReading *reading, const char *define, unsig
 
 // an include folder or file of the entry, `length` bytes, of `kind`, made whole from the entry's own folder where it
 // is named from it, its slashes made `/`, put after the entry's others
-static void cli_flags_include(CliFlagsReading *reading, const char *named, unsigned long long length,
-                              unsigned int kind)
+static void cli_flags_include(CliFlagsReading *reading, const char *named, unsigned long long length, unsigned int kind)
 {
     if ((length == 0ull) || (length >= CLI_PATH_MAX_LEN))
     {
@@ -226,9 +225,9 @@ static void cli_flags_include(CliFlagsReading *reading, const char *named, unsig
     {
         whole[at] = (whole[at] == '\\') ? '/' : whole[at];
     }
-    CliIncludeWord *const includes = cli_compile_room(s_kept.include, s_kept.includes, &s_kept.include_room,
-                                                      sizeof(CliIncludeWord), CLI_FLAGS_INCLUDES,
-                                                      "the include folders and files");
+    CliIncludeWord *const includes =
+        cli_compile_room(s_kept.include, s_kept.includes, &s_kept.include_room, sizeof(CliIncludeWord),
+                         CLI_FLAGS_INCLUDES, "the include folders and files");
     const unsigned int put =
         (includes != NULL)
             ? cli_flags_text_put(whole, cellul.len(&(CatenaFinitaCfg){.src = whole, .cap = CLI_CELLS_POOL}))
@@ -254,10 +253,14 @@ typedef struct
 
 // the flags read, longest first where one begins another
 static const CliFlagWord s_flags[] = {
-    {"-idirafter", 10ull, CLI_INCLUDE_AFTER}, {"-isystem", 8ull, CLI_INCLUDE_SYSTEM},
-    {"-include", 8ull, CLI_INCLUDE_FORCED},   {"-iquote", 7ull, CLI_INCLUDE_QUOTE},
-    {"/FI", 3ull, CLI_INCLUDE_FORCED},        {"-I", 2ull, CLI_INCLUDE_FOLDER},
-    {"/I", 2ull, CLI_INCLUDE_FOLDER},         {"-D", 2ull, CLI_JSON_NONE},
+    {"-idirafter", 10ull, CLI_INCLUDE_AFTER},
+    {"-isystem", 8ull, CLI_INCLUDE_SYSTEM},
+    {"-include", 8ull, CLI_INCLUDE_FORCED},
+    {"-iquote", 7ull, CLI_INCLUDE_QUOTE},
+    {"/FI", 3ull, CLI_INCLUDE_FORCED},
+    {"-I", 2ull, CLI_INCLUDE_FOLDER},
+    {"/I", 2ull, CLI_INCLUDE_FOLDER},
+    {"-D", 2ull, CLI_JSON_NONE},
     {"/D", 2ull, CLI_JSON_NONE},
 };
 
@@ -443,9 +446,9 @@ static void cli_flags_given_put(CliFlagsReading *reading, const CliDefineNode *n
         {
             continue;
         }
-        CliDefineNodeGiven *const given = cli_compile_room(s_kept.given, s_kept.givens, &s_kept.given_room,
-                                                           sizeof(CliDefineNodeGiven), CLI_FLAGS_GIVEN,
-                                                           "the defines given");
+        CliDefineNodeGiven *const given =
+            cli_compile_room(s_kept.given, s_kept.givens, &s_kept.given_room, sizeof(CliDefineNodeGiven),
+                             CLI_FLAGS_GIVEN, "the defines given");
         if (given == NULL)
         {
             reading->refused = 1;
@@ -461,8 +464,7 @@ static void cli_flags_given_put(CliFlagsReading *reading, const CliDefineNode *n
 // the lock; an entry of a file read before passed over
 static void cli_flags_entries(CliFlagsReading *reading, const CliJson *json, unsigned int entries)
 {
-    for (unsigned int item = 0u; !reading->refused && (cli_json_item(json, entries, item) != CLI_JSON_NONE);
-         item += 1u)
+    for (unsigned int item = 0u; !reading->refused && (cli_json_item(json, entries, item) != CLI_JSON_NONE); item += 1u)
     {
         const unsigned int entry = cli_json_item(json, entries, item);
         char path[CLI_PATH_MAX_LEN];
@@ -474,8 +476,8 @@ static void cli_flags_entries(CliFlagsReading *reading, const CliJson *json, uns
         int seen = 0;
         for (unsigned int at = 0u; !seen && (at < s_kept.files); at += 1u)
         {
-            seen = cellul.eq(&(CatenaFinitaCfg){
-                .src = cli_flags_text(s_kept.file[at].path), .other = path, .cap = CLI_CELLS_POOL});
+            seen = cellul.eq(
+                &(CatenaFinitaCfg){.src = cli_flags_text(s_kept.file[at].path), .other = path, .cap = CLI_CELLS_POOL});
         }
         CliDefineNode *const files = seen ? NULL
                                           : cli_compile_room(s_kept.file, s_kept.files, &s_kept.file_room,
@@ -596,10 +598,10 @@ static void cli_flags_read(const char *root)
     cli_compile_inputs_given(&inputs);
     CliStamped stamped = {"", 0ull};
     const int there = cli_compile_stamped(path, &stamped);
-    const int same = cellul.eq(&(CatenaFinitaCfg){.src = s_kept.root, .other = root, .cap = CLI_CELLS_POOL}) &&
-                     cellul.eq(&(CatenaFinitaCfg){
-                         .src = s_kept.database.path, .other = stamped.path, .cap = CLI_CELLS_POOL}) &&
-                     (s_kept.database.time == stamped.time) && (s_kept.text.out != NULL);
+    const int same =
+        cellul.eq(&(CatenaFinitaCfg){.src = s_kept.root, .other = root, .cap = CLI_CELLS_POOL}) &&
+        cellul.eq(&(CatenaFinitaCfg){.src = s_kept.database.path, .other = stamped.path, .cap = CLI_CELLS_POOL}) &&
+        (s_kept.database.time == stamped.time) && (s_kept.text.out != NULL);
     if (same)
     {
         return;

@@ -167,5 +167,28 @@ typedef void (*CliSpanned)(void *context, CliSymbolPlace from, CliSymbolPlace to
 // (symbols_spans.c)
 int cli_symbols_spans(const char *path, const char *text, unsigned long long size, CliSymbolPlace from,
                       CliSymbolPlace to, CliSpanned each, void *context, VerbaLinea *err_msg);
+// the bracket pair at `at` in `size` bytes of `text`, the editor's text of the tree's file at `path`, the first line
+// starting in its grammar's `state`: the bracket that ends at the place, else the one that starts at it, into `pair[0]`
+// and the bracket it pairs with into `pair[1]`, each a leaf that opens or closes by the roles its grammar names and
+// neither a string's nor a comment's, paired as the spans pair them: 1, or 0 where no bracket of a pair stands there,
+// a pair a mark of no letters closes none, or the cells cannot meet the text's leaves (symbols_spans.c)
+int cli_symbols_pair(const char *path, const char *state, const char *text, unsigned long long size, CliSymbolPlace at,
+                     CliSymbolPlace *pair);
+// the roles a token's name gives it as a text is walked, read off its segments as a leaf's are: it opens a region, it
+// closes one, or it closes a bracket pair, ends a statement or parts one; it is a bare name, nothing more; it declares
+// a local, or a parameter; it ends a statement or is a directive's; it is an operator on memory that binds no two
+// values, the name after it one reached through it; and it opens a pair whose depth it counts, or closes one; none for
+// a string's or a comment's (symbols_leaves.c)
+#define CLI_ROLE_REGION_OPENS 0x01u
+#define CLI_ROLE_REGION_CLOSES 0x02u
+#define CLI_ROLE_CLOSING 0x04u
+#define CLI_ROLE_NAME 0x08u
+#define CLI_ROLE_LOCAL 0x10u
+#define CLI_ROLE_PARAMETER 0x20u
+#define CLI_ROLE_ENDS 0x40u
+#define CLI_ROLE_REACHES 0x80u
+#define CLI_ROLE_DEPTH_OPENS 0x100u
+#define CLI_ROLE_DEPTH_CLOSES 0x200u
+unsigned int cli_symbols_name_roles(const char *name);
 
 #endif

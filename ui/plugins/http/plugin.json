@@ -9,6 +9,7 @@
   "quotes": ["\""],
   "indentAfter": "[{[(]\\s*$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "perLine": true,
     "tokenizer": {
       "root": [

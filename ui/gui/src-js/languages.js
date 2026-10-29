@@ -1,7 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// The editor's languages, each built from the tables the tree holds and from nothing written here.
+// The hover and the completion of the languages the tree's tables define, each from those tables and from nothing
+// written here; their colors are orior's side's, by the plugins kfile, gsm and g, whose words the same tables give.
 //
 // A k-file that is text is read a line at a time, and the first word of a line names the line: the
 // oracle table's forms give those words, and each form's gloss is what hovering one shows. .gsm takes
@@ -10,16 +11,10 @@
 // opens in the binary view. Every other language is a plugin, as plugins.js reads them.
 
 import { pos, wordAt, wordBefore } from "./editor/document.js";
-import { compile } from "./editor/tokens.js";
 import { languageForExtension, languageForName, languageForPath } from "./plugins.js";
 
-const C11 = [
-  "auto", "break", "case", "char", "const", "continue", "default", "do", "double", "else", "enum", "extern",
-  "float", "for", "goto", "if", "inline", "int", "long", "register", "restrict", "return", "short", "signed",
-  "sizeof", "static", "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while",
-  "_Alignas", "_Alignof", "_Atomic", "_Bool", "_Complex", "_Generic", "_Imaginary", "_Noreturn",
-  "_Static_assert", "_Thread_local",
-];
+// C11's words, as the g plugin's grammar lists them.
+const c11 = () => languageForExtension("g")?.grammar?.def?.c11 ?? [];
 
 const BRACKETS = ["()", "[]", "{}"];
 
@@ -66,32 +61,14 @@ function snippet(form) {
     .replace(/\\t/g, "\t");
 }
 
+// A k-file's language, `kfile:<ext>` as orior's side colors it.
 function lineLanguage(type) {
   const table = type.table;
   const rows = table.rows.map((row) => rowOf(table, row));
-  const keywords = unique(rows.map((row) => opening(row.form)));
   const commented = rows.some((row) => row.kind === "comment" && row.form.startsWith("#"));
-  const grammar = compile({
-    keywords,
-    perLine: true,
-    tokenizer: {
-      root: [
-        ...(commented ? [[/^\s*#.*$/, "comment"]] : []),
-        [/^(\s*)([A-Za-z_][\w-]*)/, ["", { cases: { "@keywords": "keyword", "@default": "identifier" } }]],
-        [/<[^>\s]*>/, "type"],
-        [/\{[^}\s]*\}/, "variable"],
-        [/-?\d+(?:\/\d+)?\b/, "number"],
-        [/->|x>|\*>|[=:|]/, "operator"],
-        [/"[^"]*"/, "string"],
-        [/[A-Za-z_][\w.$%-]*/, "identifier"],
-        [/\s+/, ""],
-        [/./, "delimiter"],
-      ],
-    },
-  });
   return {
-    id: type.ext,
-    grammar,
+    id: `kfile:${type.ext}`,
+    grammar: null,
     comments: commented ? { line: "#" } : {},
     pairs: BRACKETS,
     quotes: ['"'],
@@ -140,21 +117,6 @@ function gsmWords(asm) {
   };
 }
 
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-function gsmRules(words) {
-  const arrows = words.arrows.length ? [[new RegExp(words.arrows.map(escape).join("|")), "operator"]] : [];
-  // The arrows first, because x> opens with a letter the word rule would otherwise take.
-  return [
-    ...arrows,
-    [/[A-Za-z_]\w*/, { cases: { "@mnemonics": "keyword", "@states": "type", "@default": "identifier" } }],
-    [/\|/, "operator"],
-    [/[[\],]/, "delimiter"],
-    [/\d+/, "number"],
-    [/\s+/, ""],
-  ];
-}
-
 function gsmHover(gsmType, asm, words, doc, at) {
   const word = wordAt(doc, at);
   const table = gsmType?.table;
@@ -190,7 +152,7 @@ function gsmLanguage(gsmType, asm) {
     words,
     language: {
       id: "gsm",
-      grammar: compile({ ...words, perLine: true, tokenizer: { root: gsmRules(words) } }),
+      grammar: null,
       comments: {},
       pairs: ["[]"],
       quotes: [],
@@ -212,46 +174,11 @@ function gLanguage(gType, gsmType, hol, asm, gsm) {
   const typeWords = unique(hol.rows.filter((r) => single(r) && cell(r, "kind") === "type").map((r) => cell(r, "word")));
   const opWords = unique(hol.rows.filter((r) => single(r) && cell(r, "kind") === "core op").map((r) => cell(r, "word")));
   const plainWords = unique(hol.rows.filter((r) => single(r) && !["type", "core op"].includes(cell(r, "kind"))).map((r) => cell(r, "word")));
-  const grammar = compile({
-    ...gsm,
-    c11: C11,
-    typeWords,
-    opWords,
-    plainWords,
-    tokenizer: {
-      root: [
-        [/__gsm__\(/, { token: "keyword", next: "@gsm" }],
-        [/^\s*#\s*\w+/, "keyword.directive"],
-        [/@[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/, "tag"],
-        [/\?[A-Za-z_]\w*/, "attribute.name"],
-        [/\(\$[^)]*\)/, "number.cost"],
-        [/[A-Za-z_]\w*/, { cases: { "@typeWords": "type", "@c11": "keyword", "@opWords": "predefined", "@plainWords": "keyword", "@default": "identifier" } }],
-        { include: "@whitespace" },
-        [/\d+[uUlL]*/, "number"],
-        [/"([^"\\]|\\.)*"/, "string"],
-        [/'([^'\\]|\\.)*'/, "string"],
-        [/[{}()[\]]/, "@brackets"],
-        [/[<>=!~?:&|+\-*/^%]+/, "operator"],
-        [/[;,.]/, "delimiter"],
-      ],
-      whitespace: [
-        [/\s+/, ""],
-        [/\/\*/, "comment", "@comment"],
-        [/\/\/.*$/, "comment"],
-      ],
-      comment: [
-        [/[^/*]+/, "comment"],
-        [/\*\//, "comment", "@pop"],
-        [/[/*]/, "comment"],
-      ],
-      gsm: [[/\)/, { token: "keyword", next: "@pop" }], ...gsmRules(gsm)],
-    },
-  });
   const gTable = gType?.table;
   const byKind = (kind) => (gTable ? gTable.rows.filter((row) => rowOf(gTable, row).kind === kind) : []);
   return {
     id: "g",
-    grammar,
+    grammar: null,
     comments: { line: "//", block: ["/*", "*/"] },
     pairs: BRACKETS,
     quotes: ['"'],
@@ -301,7 +228,7 @@ function gLanguage(gType, gsmType, hol, asm, gsm) {
         ...typeWords.map((w) => make(w, "type", "type")),
         ...opWords.map((w) => make(w, "operator", "core op")),
         ...plainWords.map((w) => make(w, "keyword", "plain")),
-        ...C11.map((w) => make(w, "keyword", "C11")),
+        ...c11().map((w) => make(w, "keyword", "C11")),
       ];
     },
   };

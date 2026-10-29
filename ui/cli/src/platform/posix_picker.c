@@ -253,8 +253,8 @@ static unsigned int dbus_u32_of(const unsigned char *bytes, unsigned long long a
 // the bytes a value of the type `code` aligns to
 static unsigned long long dbus_alignment_of(char code)
 {
-    return ((code == 'y') || (code == 'g') || (code == 'v'))                   ? 1ull
-           : ((code == 'n') || (code == 'q'))                                  ? 2ull
+    return ((code == 'y') || (code == 'g') || (code == 'v'))                                     ? 1ull
+           : ((code == 'n') || (code == 'q'))                                                    ? 2ull
            : ((code == 'x') || (code == 't') || (code == 'd') || (code == '(') || (code == '{')) ? 8ull
                                                                                                  : 4ull;
 }
@@ -297,8 +297,8 @@ static int dbus_value_passed(const unsigned char *bytes, unsigned long long size
     }
     if ((code == 's') || (code == 'o') || (code == 'g'))
     {
-        const unsigned long long length =
-            (code == 'g') ? ((*at < size) ? bytes[*at] : 0ull) : ((*at + 4ull <= size) ? dbus_u32_of(bytes, *at) : 0ull);
+        const unsigned long long length = (code == 'g') ? ((*at < size) ? bytes[*at] : 0ull)
+                                                        : ((*at + 4ull <= size) ? dbus_u32_of(bytes, *at) : 0ull);
         *at += ((code == 'g') ? 1ull : 4ull) + length + 1ull;
         *type += 1;
         return *at <= size;
@@ -346,8 +346,8 @@ static int dbus_value_passed(const unsigned char *bytes, unsigned long long size
     return basic && (*at <= size);
 }
 
-// the next message the bus sends read into `room` bytes of `bytes`, its head's fields this file reads into `message`: 1,
-// or 0 where the connection is gone or the message does not fit
+// the next message the bus sends read into `room` bytes of `bytes`, its head's fields this file reads into `message`:
+// 1, or 0 where the connection is gone or the message does not fit
 static int dbus_message_read(int socket, unsigned char *bytes, unsigned long long room, CliDbusMessage *message)
 {
     if (!dbus_received(socket, bytes, 16ull) || (bytes[0] != 'l'))
@@ -441,8 +441,8 @@ static int dbus_connected(void)
     VerbaLinea named = {path, sizeof(path), 0ull};
     if (query_environment_read("DBUS_SESSION_BUS_ADDRESS", address, sizeof(address)))
     {
-        const char *const at_path = cellul.find(
-            &(CatenaFinitaCfg){.src = address, .cap = sizeof(address), .other = "path=", .other_cap = 8u});
+        const char *const at_path =
+            cellul.find(&(CatenaFinitaCfg){.src = address, .cap = sizeof(address), .other = "path=", .other_cap = 8u});
         const char *const at_abstract = cellul.find(
             &(CatenaFinitaCfg){.src = address, .cap = sizeof(address), .other = "abstract=", .other_cap = 16u});
         const char *const from = (at_path != NULL) ? at_path + 5 : ((at_abstract != NULL) ? at_abstract + 9 : NULL);
@@ -503,8 +503,8 @@ static int dbus_connected(void)
         authorized = dbus_received(bus, answer + got, 1ull);
         got += 1ull;
     }
-    authorized = authorized && (got >= 2ull) && (answer[0] == 'O') && (answer[1] == 'K') &&
-                 dbus_sent(bus, "BEGIN\r\n", 7ull);
+    authorized =
+        authorized && (got >= 2ull) && (answer[0] == 'O') && (answer[1] == 'K') && dbus_sent(bus, "BEGIN\r\n", 7ull);
     if (!authorized)
     {
         close(bus);
@@ -529,11 +529,11 @@ static int dbus_uri_path(const char *uri, char *path, size_t room)
         unsigned int low = 16u;
         if (at[0] == '%')
         {
-            high = ((at[1] >= '0') && (at[1] <= '9')) ? (unsigned int)(at[1] - '0')
+            high = ((at[1] >= '0') && (at[1] <= '9'))   ? (unsigned int)(at[1] - '0')
                    : ((at[1] >= 'A') && (at[1] <= 'F')) ? (unsigned int)(at[1] - 'A') + 10u
                    : ((at[1] >= 'a') && (at[1] <= 'f')) ? (unsigned int)(at[1] - 'a') + 10u
                                                         : 16u;
-            low = ((at[2] >= '0') && (at[2] <= '9')) ? (unsigned int)(at[2] - '0')
+            low = ((at[2] >= '0') && (at[2] <= '9'))   ? (unsigned int)(at[2] - '0')
                   : ((at[2] >= 'A') && (at[2] <= 'F')) ? (unsigned int)(at[2] - 'A') + 10u
                   : ((at[2] >= 'a') && (at[2] <= 'f')) ? (unsigned int)(at[2] - 'a') + 10u
                                                        : 16u;

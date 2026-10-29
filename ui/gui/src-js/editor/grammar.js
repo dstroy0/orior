@@ -34,7 +34,9 @@ function noteKinds(action) {
 }
 
 // The class names of a token: "number.cost" is t-number and t-number-cost. A color given to
-// number reaches every kind of number.
+// number reaches every kind of number. A token whose name counts the depth of a pair, a segment
+// `depth` and the depth last, takes t-depth and t-depth-<depth> as well, the classes the stylesheet
+// colors a pair's depth by, so no rule of it reads a class name's letters.
 export function classOf(token) {
   if (!token) {
     return "";
@@ -43,6 +45,10 @@ export function classOf(token) {
   if (found === undefined) {
     const parts = token.split(".");
     found = parts.map((_, index) => `t-${parts.slice(0, index + 1).join("-")}`).join(" ");
+    const depth = parts.at(-1);
+    if (parts.indexOf("depth") >= 0 && parts.indexOf("depth") < parts.length - 1 && /^\d+$/.test(depth)) {
+      found += ` t-depth t-depth-${depth}`;
+    }
     classes.set(token, found);
   }
   return found;

@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 // What the editor draws in its gutter: the mark of a line added, changed, or with lines taken out above or below it,
-// and Line History's date on the first line of each run a commit left; and in its text, each bracket in the color of
-// how deep it stands.
+// and Line History's date on the first line of each run a commit left; and in its text, a row written again into the
+// node it is held in, and each bracket orior's side names with its depth in the color of that depth.
 
+import { classOf } from "../../../../gui/src-js/editor/grammar.js";
 import { given, putBackAsFound } from "../../../menus.js";
 
-const { test, assert } = window.__harness;
+const { test, assert, ui } = window.__harness;
 
 test("a line added or changed has its bar, and lines taken out a wedge above, or below the last line", async () => {
   const view = await given("a\nb\nc");
@@ -45,26 +46,100 @@ test("a commit's date stands on the first line of the run it left, and a line no
   }
 });
 
-test("each depth of nested brackets has a color no other depth has, a bracket and the one that closes it the same", async () => {
+test("a row written again is put into the node it is held in, its spans given the classes and the text its markup draws, those it held kept", async () => {
+  const view = await given("total = 1\ncount = 'two' + 3\n");
+  await ui.waitFor(() => view.s.highlight.runsOf(1).some(([, cls]) => cls), 5000, "the given file's colors");
+  const node = document.createElement("div");
+  node.innerHTML = view.rowHtml(0);
+  const held = [...node.children];
+  assert.ok(view.rowPatched(node, view.rows().rowOf(1)), "a row of colored text is put in place");
+  const drawn = document.createElement("div");
+  drawn.innerHTML = view.rowHtml(1);
+  const spans = (host) => [...host.children].map((span) => [span.className, span.textContent]);
+  assert.equal(node.textContent, drawn.textContent);
+  assert.deepEqual(spans(node), spans(drawn));
+  assert.ok(held.length > 0 && held.every((span, at) => node.children[at] === span || at >= node.children.length), "the spans the node held kept");
+});
+
+test("a row put into a node that held a hint and a fold's mark keeps neither's width nor its fold in the spans it gives the row", async () => {
+  const view = await given("total = 1\ncount = 'two' + 3\n");
+  await ui.waitFor(() => view.s.highlight.runsOf(1).some(([, cls]) => cls), 5000, "the given file's colors");
+  const node = document.createElement("div");
+  node.innerHTML = '<span class="ed-hint" style="width:40px">value:</span><span class="ed-folded" data-fold="3">⋯</span>';
+  assert.ok(view.rowPatched(node, view.rows().rowOf(1)), "the row put in place");
+  const drawn = document.createElement("div");
+  drawn.innerHTML = view.rowHtml(1);
+  assert.equal(node.innerHTML, drawn.innerHTML);
+});
+
+test("a wrapped line's row written again is put into the node it is held in, its part's width and spans as its markup draws them, the spans it held kept", async () => {
+  const view = await given(`${"total = 'two' + 12345; ".repeat(40)}\ncount = 3\n`);
+  await ui.waitFor(() => view.s.highlight.runsOf(0).some(([, cls]) => cls), 5000, "the given file's colors");
+  const was = view.wrapOn;
+  try {
+    view.setWrap(true);
+    const rows = view.rows();
+    const first = rows.rowOf(0);
+    assert.ok(rows.lastRowOf(0) >= first + 2, "the long line wraps");
+    const node = document.createElement("div");
+    node.innerHTML = view.rowCell(first + 1);
+    const held = [...node.querySelectorAll("span")];
+    assert.ok(view.rowPatched(node, first + 2), "a wrapped line's row is put in place");
+    const drawn = document.createElement("div");
+    drawn.innerHTML = view.rowCell(first + 2);
+    const shape = (host) => [host.textContent, ...[...host.querySelectorAll("*")].map((one) => [one.tagName, one.className, one.style.width, one.children.length ? "" : one.textContent])];
+    assert.deepEqual(shape(node), shape(drawn));
+    assert.ok(held.some((span) => node.contains(span)), "the spans the node held kept");
+    const whole = document.createElement("div");
+    whole.innerHTML = view.rowCell(first);
+    assert.ok(view.rowPatched(whole, rows.rowOf(1)), "a row of a line that does not wrap put into a node a wrapped row held");
+    drawn.innerHTML = view.rowCell(rows.rowOf(1));
+    assert.deepEqual(shape(whole), shape(drawn));
+  } finally {
+    view.setWrap(was);
+  }
+});
+
+test("a wrapped line longer than a row not wrapped is drawn across draws each of its cols in its rows, to the line's end", async () => {
+  const end = "the line's end";
+  const view = await given(`${"total = 'two' + 12345; ".repeat(500)}${end}\ncount = 3\n`);
+  const was = view.wrapOn;
+  try {
+    view.setWrap(true);
+    const rows = view.rows();
+    const drawn = document.createElement("div");
+    let line = "";
+    for (let row = rows.rowOf(0); row <= rows.lastRowOf(0); row += 1) {
+      drawn.innerHTML = view.rowCell(row);
+      line += drawn.textContent;
+    }
+    assert.ok(line === view.s.doc.line(0), `the rows' text the line's: ${line.length} of its ${view.s.doc.line(0).length} letters, ending ${line.slice(-20)}`);
+    const node = document.createElement("div");
+    node.innerHTML = view.rowCell(rows.rowOf(0));
+    assert.ok(view.rowPatched(node, rows.lastRowOf(0)), "the line's last row put in place");
+    assert.ok(node.textContent.endsWith(end), `the last row ends the line: ${node.textContent.slice(-40)}`);
+  } finally {
+    view.setWrap(was);
+  }
+});
+
+test("a bracket named with the depth its pair stands at takes that depth's color, each depth its own, where bracket pairs are colored", async () => {
   const view = await given("");
-  view.change([{ from: { line: 0, col: 0 }, to: view.doc.end(), text: "(((())))\n{{{{}}}}[[[[]]]]" }], null);
   const was = view.bracketsOn;
+  const colorOf = (depth) => {
+    const span = document.createElement("span");
+    span.className = classOf(`delimiter.bracket.depth.open.${depth}`);
+    view.host.append(span);
+    const color = getComputedStyle(span).color;
+    span.remove();
+    return color;
+  };
   try {
     view.setBrackets(true);
-    const depths = (line) => [...view.rowHtml(line).matchAll(/class="ed-br" style="--depth:(\d+)"/g)].map((found) => Number(found[1]));
-    const nest = [0, 1, 2, 3, 3, 2, 1, 0];
-    assert.deepEqual(depths(0), nest);
-    assert.deepEqual(depths(1), [...nest, ...nest]);
-    const colors = [0, 1, 2, 3, 4, 5, 6, 7].map((depth) => {
-      const span = document.createElement("span");
-      span.className = "ed-br";
-      span.style.setProperty("--depth", String(depth));
-      view.host.append(span);
-      const color = getComputedStyle(span).color;
-      span.remove();
-      return color;
-    });
-    assert.equal(new Set(colors).size, colors.length, `eight depths, eight colors: ${colors.join(", ")}`);
+    const colors = [0, 1, 2, 3, 4, 5, 6, 7, 10, 11].map(colorOf);
+    assert.equal(new Set(colors).size, colors.length, `each depth a color of its own: ${colors.join(", ")}`);
+    view.setBrackets(false);
+    assert.equal(new Set([0, 1, 2, 3].map(colorOf)).size, 1, "no depth's color where bracket pairs are not colored");
   } finally {
     view.setBrackets(was);
   }

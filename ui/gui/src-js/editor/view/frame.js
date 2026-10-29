@@ -5,7 +5,10 @@ import { isWordChar, pos, same, wordAt } from "../document.js";
 import { selectionPath } from "../shape.js";
 import { status, write } from "../../status.js";
 import { enter, leave } from "../../trace.js";
-import { BREAK_STRIP, DRAWN_MOST, empty, endOfSel, escapeHtml, historyChars, LINE, ORIGIN_ROWS, PAD, RTL, SELECTION_ROUND, startOf } from "../view.js";
+import { BREAK_STRIP, DRAWN_MOST, DRAWN_PAGED, empty, endOfSel, escapeHtml, historyChars, LINE, ORIGIN_ROWS, PAD, RTL, SELECTION_ROUND, startOf } from "../view.js";
+
+// The most rows a paged file's view draws ahead of where it heads as it scrolls.
+const LEAD_PAGED = 16;
 
 // A frame drawn, it and each of its stages traced where the window is joined to a run.
 export function paint() {
@@ -62,20 +65,34 @@ export function painted() {
   const height = this.viewSize().height;
   // The rows past each edge of the screen, more of them the way the view heads the faster it
   // goes. The page's own scroll never shows a row before a frame draws it.
-  const lead = 2 + Math.min(80, Math.ceil((status.scroll.speed * 48) / LINE));
-  const first = Math.max(0, Math.floor(top / LINE) - (status.scroll.heading < 0 ? lead : 2));
-  const last = Math.min(rows.size - 1, Math.ceil((top + height) / LINE) + (status.scroll.heading > 0 ? lead : 2));
+  // A file held as pages whose view reaches past the lines its window holds keeps its last frame where it was drawn
+  // until the window comes to the view, so no row stands blank and no part of the view is torn from the rest; the
+  // minimap goes on with the view.
+  if (this.heldFrame === s && this.pastWindow(scrolledTop)) {
+    this.minimap.paint(scrolledTop);
+    this.mapTop = scrolledTop;
+    return;
+  }
+  this.heldFrame = s;
+  // A paged file's window holds the view and a margin about it, so it draws fewer rows ahead than a text read whole;
+  // and none past its edges where its view has moved farther than its height since the frame before, as a drag of the
+  // scrollbar moves it, the rows about a view that leaps never shown.
+  const file = s.base + top / LINE;
+  const leaps = s.window?.paged && this.drawnFileTop !== undefined && Math.abs(file - this.drawnFileTop) * LINE > height;
+  this.drawnFileTop = file;
+  const edge = leaps ? 0 : 2;
+  const lead = edge + (leaps ? 0 : Math.min(s.window?.paged ? LEAD_PAGED : 80, Math.ceil((status.scroll.speed * 48) / LINE)));
+  const first = Math.max(0, Math.floor(top / LINE) - (status.scroll.heading < 0 ? lead : edge));
+  const last = Math.min(rows.size - 1, Math.ceil((top + height) / LINE) + (status.scroll.heading > 0 ? lead : edge));
   if (rows.size) {
     const shownCall = enter("shown");
     this.onShown(s, rows.lineOf(first), rows.lineOf(last));
     leave(shownCall);
   }
   // The origin moves only once the rows drawn have left the two spans of ORIGIN_ROWS below it. A
-  // new origin moves every row, and the layers that place a row once as they make it start over.
+  // new origin moves every row, each layer placing its rows again where they stand from it.
   if (first < this.originRow || first >= this.originRow + 2 * ORIGIN_ROWS) {
     this.originRow = Math.floor(first / ORIGIN_ROWS) * ORIGIN_ROWS;
-    this.textLayer.clear();
-    this.gutterLayer.clear();
   }
   const spaceWidth = this.spaceWidth;
   const focused = this.hasFocus();
@@ -133,7 +150,7 @@ export function painted() {
   const rowsCall = enter("rows");
   for (let row = first; row <= last; row += 1) {
     const line = rows.lineOf(row);
-    text.set(row, ["ed-row", this.rowCell(row)]);
+    text.set(row, ["ed-row", this.rowCell(row), (node) => this.rowPatched(node, row)]);
     if (caretLines.has(line)) {
       band(row, this.box("ed-current", 0, this.yOf(row), spaceWidth));
     }
@@ -215,7 +232,7 @@ export function painted() {
   // is drawn again from the text as it stands as it comes into sight.
   const drawnFor = this.drawnFor();
   const was = this.drawn?.for === drawnFor && this.drawn.from <= last + 1 && this.drawn.to >= first - 1 ? this.drawn : null;
-  const half = Math.floor((DRAWN_MOST - (last - first + 1)) / 2);
+  const half = Math.floor(((s.window?.paged ? DRAWN_PAGED : DRAWN_MOST) - (last - first + 1)) / 2);
   this.drawn = { for: drawnFor, from: Math.max(Math.min(first, was?.from ?? first), first - half), to: Math.min(Math.max(last, was?.to ?? last), last + half, rows.size - 1) };
   const drawn = this.drawn;
   this.textLayer.draw(text, rowTop, (row) => row >= drawn.from && row <= drawn.to);

@@ -1,12 +1,13 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // highlight_line.c: a line colored by a grammar: its tokens as runs, each a column in UTF-16 units and the place of
-// its name, running to the next run's column or the line's end, and the state the line ends in. Run under the lock
-// the grammar is stored under
+// its name, running to the next run's column or the line's end, and the state the line ends in. Run on any thread with
+// no lock held, each coloring in a room of its own and the grammar held for it until it ends
 #include "highlight_internal.h"
 
-// the room the coloring under way works in, the one the keeper handed it
-static CliHighlightRoom *s_room;
+// the room the coloring under way on this thread works in, the one the keeper handed it, that of a coloring it was
+// begun within put back as it ends
+static _Thread_local CliHighlightRoom *t_room;
 
 // One line's work: its letters, how many are colored, its runs, the states stacked, each stacked state's place among
 // the grammar's states, found once as it is stacked, and root's place; each stacked state's indent, that of the
@@ -28,10 +29,10 @@ typedef struct
 // `lower` is 1: their length
 static unsigned long long cli_text_of(unsigned long long from, unsigned long long to, char *out, int lower)
 {
-    VerbaLinea line = {out, (4ull * s_room->most) + 1ull, 0ull};
+    VerbaLinea line = {out, (4ull * t_room->most) + 1ull, 0ull};
     for (unsigned long long at = from; at < to; at += 1ull)
     {
-        const unsigned int letter = lower ? cli_regexp_lower(s_room->letters[at]) : s_room->letters[at];
+        const unsigned int letter = lower ? cli_regexp_lower(t_room->letters[at]) : t_room->letters[at];
         // an ASCII letter is its own byte; the rest take the UTF-8 writer
         if ((letter < 128u) && (line.at < line.capacity))
         {
@@ -61,9 +62,9 @@ static unsigned int cli_resolve(const CliGrammar *grammar, unsigned int token, u
     }
     // the matched text as UTF-8, and the key the word lists are searched with: the text itself, or lowered where the
     // grammar sets case aside
-    const unsigned long long text_length = cli_text_of(from, to, s_room->picked, 0);
-    const char *const key = grammar->ignore_case ? s_room->key : s_room->picked;
-    const unsigned long long key_length = grammar->ignore_case ? cli_text_of(from, to, s_room->key, 1) : text_length;
+    const unsigned long long text_length = cli_text_of(from, to, t_room->picked, 0);
+    const char *const key = grammar->ignore_case ? t_room->key : t_room->picked;
+    const unsigned long long key_length = grammar->ignore_case ? cli_text_of(from, to, t_room->key, 1) : text_length;
     unsigned int fallback = CLI_HIGHLIGHT_NONE;
     for (unsigned int at = token_at->first; at < (token_at->first + token_at->count); at += 1u)
     {
@@ -83,7 +84,7 @@ static unsigned int cli_resolve(const CliGrammar *grammar, unsigned int token, u
         {
             // the case's text is terminated and the matched text contains no terminator, so a compare over the matched
             // text's length with the byte after it distinguishes the two in one pass
-            hit = (memor.cmp(&(MemoriaCfg){.src = name, .other = s_room->picked, .bytes = text_length}) == 0) &&
+            hit = (memor.cmp(&(MemoriaCfg){.src = name, .other = t_room->picked, .bytes = text_length}) == 0) &&
                   (name[text_length] == '\0');
         }
         if (hit)
@@ -98,21 +99,21 @@ static unsigned int cli_resolve(const CliGrammar *grammar, unsigned int token, u
 // it, and the run before taken off where it starts at the same column, a mark never
 static void cli_push(CliColoring *coloring, unsigned long long at, unsigned int name)
 {
-    const unsigned int col = s_room->cols[at];
-    if ((coloring->runs != 0u) && (name == 0u) && (s_room->run_name[coloring->runs - 1u] == 0u))
+    const unsigned int col = t_room->cols[at];
+    if ((coloring->runs != 0u) && (name == 0u) && (t_room->run_name[coloring->runs - 1u] == 0u))
     {
         return;
     }
-    if ((coloring->runs > coloring->marked) && (s_room->run_col[coloring->runs - 1u] == col))
+    if ((coloring->runs > coloring->marked) && (t_room->run_col[coloring->runs - 1u] == col))
     {
         coloring->runs -= 1u;
-        if ((coloring->runs != 0u) && (name == 0u) && (s_room->run_name[coloring->runs - 1u] == 0u))
+        if ((coloring->runs != 0u) && (name == 0u) && (t_room->run_name[coloring->runs - 1u] == 0u))
         {
             return;
         }
     }
-    s_room->run_col[coloring->runs] = col;
-    s_room->run_name[coloring->runs] = name;
+    t_room->run_col[coloring->runs] = col;
+    t_room->run_name[coloring->runs] = name;
     coloring->runs += 1u;
 }
 
@@ -120,8 +121,8 @@ static void cli_push(CliColoring *coloring, unsigned long long at, unsigned int 
 // place of
 static void cli_mark(CliColoring *coloring, unsigned int col, unsigned int name)
 {
-    s_room->run_col[coloring->runs] = col;
-    s_room->run_name[coloring->runs] = name;
+    t_room->run_col[coloring->runs] = col;
+    t_room->run_name[coloring->runs] = name;
     coloring->runs += 1u;
     coloring->marked = coloring->runs;
 }
@@ -144,7 +145,13 @@ static void cli_step(const CliGrammar *grammar, CliColoring *coloring, const cha
         coloring->depth = (coloring->depth > 1u) ? 1u : coloring->depth;
         return;
     }
-    const char *name = next;
+    // `@pop@<state>` leaves the state entered last and enters `<state>` in its place
+    static const char s_switch[] = "@pop@";
+    const int switching =
+        (cellul.len(&(CatenaFinitaCfg){.src = next, .cap = CLI_CELLS_POOL}) >= (sizeof(s_switch) - 1u)) &&
+        (memor.cmp(&(MemoriaCfg){.src = next, .other = s_switch, .bytes = sizeof(s_switch) - 1u}) == 0);
+    coloring->depth -= (switching && (coloring->depth > 1u)) ? 1u : 0u;
+    const char *name = switching ? (next + sizeof(s_switch) - 1u) : next;
     while (name[0] == '@')
     {
         name += 1;
@@ -152,7 +159,7 @@ static void cli_step(const CliGrammar *grammar, CliColoring *coloring, const cha
     if (coloring->depth < CLI_HIGHLIGHT_STACK)
     {
         const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
-        memor.cpy(&(MemoriaCfg){.dst = s_room->stack[coloring->depth], .src = name, .bytes = length + 1u});
+        memor.cpy(&(MemoriaCfg){.dst = t_room->stack[coloring->depth], .src = name, .bytes = length + 1u});
         coloring->state_at[coloring->depth] = cli_highlight_state(grammar, name, length);
         coloring->indent_at[coloring->depth] = coloring->statement;
         coloring->depth += 1u;
@@ -192,7 +199,7 @@ static int cli_tried(const CliGrammar *grammar, unsigned int rule, const CliColo
 {
     CliRegexp pattern;
     cli_highlight_pattern(grammar, &grammar->rule[rule], &pattern);
-    return cli_regexp_match_into(&pattern, s_room->letters, coloring->letters, at, found);
+    return cli_regexp_match_into(&pattern, t_room->letters, coloring->letters, at, found);
 }
 
 // the match of a rule taken at `at`: each group's token put where its group stands, or the whole match's token; the
@@ -242,9 +249,9 @@ static void cli_line_indented(const CliGrammar *grammar, CliColoring *coloring)
     }
     unsigned long long indent = 0ull;
     for (unsigned long long at = 0ull;
-         (at < coloring->letters) && ((s_room->letters[at] == ' ') || (s_room->letters[at] == '\t')); at += 1ull)
+         (at < coloring->letters) && ((t_room->letters[at] == ' ') || (t_room->letters[at] == '\t')); at += 1ull)
     {
-        indent = (s_room->letters[at] == '\t') ? (((indent / grammar->tab) + 1ull) * grammar->tab) : (indent + 1ull);
+        indent = (t_room->letters[at] == '\t') ? (((indent / grammar->tab) + 1ull) * grammar->tab) : (indent + 1ull);
     }
     while ((coloring->depth > 1u) && (cli_top_close(grammar, coloring) != CLI_HIGHLIGHT_NONE) &&
            (indent <= coloring->indent_at[coloring->depth - 1u]))
@@ -263,26 +270,25 @@ static void cli_line_indented(const CliGrammar *grammar, CliColoring *coloring)
 static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *coloring)
 {
     coloring->letters = cli_regexp_letters(line, cellul.len(&(CatenaFinitaCfg){.src = line, .cap = CLI_CELLS_POOL}),
-                                           s_room->letters, s_room->most);
+                                           t_room->letters, t_room->most);
     coloring->runs = 0u;
     coloring->marked = 0u;
     unsigned int col = 0u;
-    unsigned long long length = coloring->letters;
     for (unsigned long long at = 0ull; at < coloring->letters; at += 1ull)
     {
-        s_room->cols[at] = col;
-        length = ((length == coloring->letters) && (col >= CLI_HIGHLIGHT_MAX_LEN)) ? at : length;
-        col += (s_room->letters[at] >= 0x10000u) ? 2u : 1u;
+        t_room->cols[at] = col;
+        col += (t_room->letters[at] >= 0x10000u) ? 2u : 1u;
     }
-    s_room->cols[coloring->letters] = col;
-    length = ((length == coloring->letters) && (col >= CLI_HIGHLIGHT_MAX_LEN)) ? coloring->letters : length;
+    t_room->cols[coloring->letters] = col;
+    // the line colored whole, left to right, so the state it ends in is the one its last letter leaves
+    const unsigned long long length = coloring->letters;
     if (grammar->indents)
     {
         cli_line_indented(grammar, coloring);
     }
     CliRegexpSpan found[CLI_REGEXP_GROUPS + 1u];
     const CliHighlightList *rules = cli_rules(grammar, coloring, 1);
-    const unsigned int *const letters = s_room->letters;
+    const unsigned int *const letters = t_room->letters;
     unsigned long long at = 0ull;
     unsigned int stalled = 0u;
     while (at < length)
@@ -343,10 +349,6 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
             stalled = 0u;
         }
     }
-    if (length < coloring->letters)
-    {
-        cli_push(coloring, length, 0u);
-    }
     // A rule that matches nothing at the line's end and changes the state or names a token still applies there, once:
     // it is how a state that lasts to the end of its line ends, and a mark at a line's end is put
     const CliHighlightList *const ending = cli_rules(grammar, coloring, 0);
@@ -361,7 +363,7 @@ static void cli_line(const CliGrammar *grammar, const char *line, CliColoring *c
         {
             if (name != 0u)
             {
-                cli_mark(coloring, s_room->cols[coloring->letters], name);
+                cli_mark(coloring, t_room->cols[coloring->letters], name);
             }
             if (rule->next != CLI_HIGHLIGHT_NONE)
             {
@@ -393,7 +395,7 @@ static void cli_state_written(const CliGrammar *grammar, const CliColoring *colo
     for (unsigned int at = 0u; at < coloring->depth; at += 1u)
     {
         mmgr_line_put(line, (at != 0u) ? "/" : "");
-        mmgr_line_put(line, s_room->stack[at]);
+        mmgr_line_put(line, t_room->stack[at]);
         const unsigned int state = coloring->state_at[at];
         if ((state != CLI_HIGHLIGHT_NONE) && (grammar->state[state].close != CLI_HIGHLIGHT_NONE))
         {
@@ -446,7 +448,7 @@ static void cli_stacked(const CliGrammar *grammar, CliColoring *coloring, const 
         }
         if (coloring->depth < CLI_HIGHLIGHT_STACK)
         {
-            VerbaLinea name = {s_room->stack[coloring->depth], CLI_NAME_MAX_LEN, 0ull};
+            VerbaLinea name = {t_room->stack[coloring->depth], CLI_NAME_MAX_LEN, 0ull};
             mmgr_line_put_n(&name, from, length);
             mmgr_line_finish(&name);
             coloring->state_at[coloring->depth] = cli_highlight_state(grammar, from, length);
@@ -465,7 +467,7 @@ static void cli_stacked(const CliGrammar *grammar, CliColoring *coloring, const 
 // a grammar that starts every line in root ends each line there, and the next starts where it ended
 static void cli_rooted(CliColoring *coloring)
 {
-    memor.cpy(&(MemoriaCfg){.dst = s_room->stack[0],
+    memor.cpy(&(MemoriaCfg){.dst = t_room->stack[0],
                             .src = "root",
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = "root", .cap = CLI_CELLS_POOL}) + 1u});
     coloring->state_at[0] = coloring->root;
@@ -473,10 +475,11 @@ static void cli_rooted(CliColoring *coloring)
 }
 
 void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, const char *state,
-                             const char *const *lines, unsigned int count, int ends, CliLeavesEach each,
-                             void *context, VerbaLinea *ended)
+                             const char *const *lines, unsigned int count, int ends, CliLeavesEach each, void *context,
+                             VerbaLinea *ended)
 {
-    s_room = room;
+    CliHighlightRoom *const before = t_room;
+    t_room = room;
     CliColoring coloring;
     cli_stacked(grammar, &coloring, state);
     for (unsigned int line = 0u; line < count; line += 1u)
@@ -490,25 +493,26 @@ void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, 
         // end for each
         if (ends && ((line + 1u) == count))
         {
-            cli_closed(grammar, &coloring, s_room->cols[coloring.letters]);
+            cli_closed(grammar, &coloring, t_room->cols[coloring.letters]);
         }
         char state[CLI_HIGHLIGHT_STACK * 4u];
         VerbaLinea state_line = {state, sizeof(state), 0ull};
         cli_state_written(grammar, &coloring, &state_line);
         // a state longer than its room is read as root, as a request's last line's is
         const char *const ended = (mmgr_line_finish(&state_line) != 0ull) ? state : "root";
-        const CliLeaves leaves = {lines[line],   coloring.runs, s_room->run_col, s_room->run_name,
-                                  grammar->name, grammar->text, ended};
+        const CliLeaves leaves = {lines[line],   coloring.runs, t_room->run_col, t_room->run_name,
+                                  grammar->name, grammar->text, ended,           t_room->cols[coloring.letters]};
         each(context, &leaves);
     }
     cli_state_written(grammar, &coloring, ended);
-    s_room = NULL;
+    t_room = before;
 }
 
 void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, const char *state, const char *const *lines,
                          unsigned int count, VerbaLinea *out)
 {
-    s_room = room;
+    CliHighlightRoom *const before = t_room;
+    t_room = room;
     CliColoring coloring;
     cli_stacked(grammar, &coloring, state);
     mmgr_line_put(out, "{\"names\":[");
@@ -520,7 +524,7 @@ void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, cons
     }
     mmgr_line_put(out, "],\"runs\":[");
     // the state each line ends in, as JSON, among the room's endings
-    VerbaLinea endings = {s_room->endings, s_room->endings_size, 0ull};
+    VerbaLinea endings = {t_room->endings, t_room->endings_size, 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
     {
         if (grammar->per_line && (each != 0u))
@@ -532,9 +536,9 @@ void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, cons
         for (unsigned int run = 0u; run < coloring.runs; run += 1u)
         {
             mmgr_line_put(out, (run != 0u) ? ",[" : "[");
-            mmgr_line_decimal(out, s_room->run_col[run], 1u);
+            mmgr_line_decimal(out, t_room->run_col[run], 1u);
             mmgr_line_ch(out, ',');
-            mmgr_line_decimal(out, s_room->run_name[run], 1u);
+            mmgr_line_decimal(out, t_room->run_name[run], 1u);
             mmgr_line_ch(out, ']');
         }
         mmgr_line_ch(out, ']');
@@ -547,7 +551,7 @@ void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, cons
         cli_json_quoted(&endings, ended, length);
     }
     mmgr_line_put(out, "],\"states\":[");
-    mmgr_line_put_n(out, s_room->endings, mmgr_line_ok(&endings) ? endings.at : 0ull);
+    mmgr_line_put_n(out, t_room->endings, mmgr_line_ok(&endings) ? endings.at : 0ull);
     mmgr_line_put(out, "]}");
-    s_room = NULL;
+    t_room = before;
 }

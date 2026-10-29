@@ -9,29 +9,27 @@
 // server serves it, and hears the inspections' findings.
 
 import { asked, invoke, listen } from "./bridge.js";
+import { along, sendChanges } from "./edit/held.js";
 import { wordAt } from "./editor/document.js";
-import { openersOf } from "./editor/folding.js";
+import { after } from "./paged.js";
 
 let tabsOf = () => [];
 let painted = () => {};
 
 // The view a served tab rests on, told once the view rests, before its parse and its hints are asked
-// for: its first and last lines and the lines opening the regions its first stands inside, outermost
-// first, as the sticky lines read them, VIEW_OPENERS at most. A server given the tab's file as the
-// tree's slice for its view is given the slice of this one, and a parse and hints read of the last
-// are asked for again.
-const VIEW_OPENERS = 64;
-
+// for: its first and last lines, and the branch on orior's side the tab mirrors, whose regions give the
+// lines opening those its first stands inside. A server given the tab's file as the tree's slice for its
+// view is given the slice of this one, and a parse and hints read of the last are asked for again.
 async function viewed(tab, from, to) {
   const s = tab.session;
-  if (!tab.served || !s) {
+  const key = s?.highlight.key;
+  if (!tab.served || !s || !key) {
     return;
   }
-  const openers = openersOf(s.doc, from, s.indent.size, VIEW_OPENERS).map((line) => s.base + line);
-  const view = `${s.base + from}|${s.base + to}|${openers.join()}`;
+  const view = `${s.base + from}|${s.base + to}`;
   if (tab.viewTold !== view) {
     tab.viewTold = view;
-    tab.viewing = invoke("lsp_view", { path: tab.file, first: s.base + from, last: s.base + to, openers }).catch(() => false);
+    tab.viewing = invoke("lsp_view", { path: tab.file, key, first: s.base + from, last: s.base + to }).catch(() => false);
     if (await tab.viewing) {
       if (s.highlight.parse && !s.highlight.parse.whole) {
         s.highlight.parse.stale = true;
@@ -161,16 +159,36 @@ async function parseNow(tab, from, to) {
   s.view?.schedule();
 }
 
-// The spans of a served or an inspected tab that hold `from` to `to` and are more than it, the least
-// first, for Expand Selection.
+// The spans of a tab's text that hold `from` to `to` and are more than it, the least first, for Expand Selection:
+// read on orior's side off the branch the tab mirrors, once every change sent before is written to it, or off the
+// parse of a served or an inspected tab, once it is told the text.
 export async function spansOf(tab, from, to) {
   const s = tab?.session;
-  if (!(tab?.served || tab?.inspected) || !s || s.window) {
+  const held = s?.doc.held;
+  if (!s || s.window || !held) {
     return [];
   }
   await flush(tab);
-  const found = await asked("parse_spans", { path: tab.file, from: { line: s.base + from.line, col: from.col }, to: { line: s.base + to.line, col: to.col } }).catch(() => []);
+  sendChanges(s.doc);
+  const place = (at) => ({ line: s.base + at.line, col: at.col });
+  const found = await along(held, () => asked("parse_spans", { path: tab.file, key: held.key, from: place(from), to: place(to) })).catch(() => []);
   return (found ?? []).map(([start, end]) => [{ line: start.line - s.base, col: start.col }, { line: end.line - s.base, col: end.col }]);
+}
+
+// The bracket pair at `head` in a tab's text, read on orior's side off the branch the tab mirrors or the paged file's,
+// by the roles its grammar names, once every change sent before is written: the bracket that ends at the cursor, else
+// the one that starts at it, and the one it pairs with, each by its line in the file; null where no bracket of a pair
+// stands there.
+export async function pairOf(tab, head) {
+  const s = tab?.session;
+  const held = s?.doc.held ?? s?.window?.paged;
+  if (!held || (s.doc.held && !held.ready)) {
+    return null;
+  }
+  sendChanges(s.doc);
+  const ask = () => invoke("branch_pair", { key: held.key, path: tab.file, line: s.base + head.line, col: head.col });
+  // a paged file's pair is a read of it, waiting for the edits sent before it and holding back none of its reports
+  return (s.doc.held ? along(held, ask) : after(held, ask)).catch(() => null);
 }
 
 // The checkers the reader names, as checkers.rs in the command line's crate runs them, kept by

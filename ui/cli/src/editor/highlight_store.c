@@ -1,13 +1,27 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // highlight_store.c: the grammars stored, each a cell of its own under its key, given back when a grammar is put in its
-// place; a grammar read, and lines colored by the grammar stored under a key, each in a room of one cell given back
-// before the call returns. The cells are the one cellblock's, counted to the grammars' own mark, which their report
-// gives
+// place; a grammar read, and lines colored by the grammar stored under a key. The lock is held to find the grammar and
+// to store one, never as lines are colored: a coloring holds the grammar it reads by a count in the grammar's cell and
+// works in a room it claims by a mark, so as many colorings run at once as threads ask for them. The cells are the one
+// cellblock's, counted to the grammars' own mark, which their report gives
 #include "highlight_internal.h"
+
+#include <stdatomic.h>
 
 // the grammars the list of those stored is begun with, doubling as every place is taken
 #define CLI_GRAMMARS_FIRST 16u
+
+// A grammar's cell begins with its head: how many colorings read the grammar, raised under the lock as each finds it
+// and lowered with no lock held as each ends, and above them the mark that the grammar was put out of its place by
+// another stored under its key, the cell given back by the last coloring to end, or at once where none reads it. The
+// grammar's parts follow the head, which takes a whole word
+#define CLI_GRAMMAR_PUT_OUT (1ull << 63u)
+typedef struct
+{
+    _Atomic unsigned long long readers;
+} CliGrammarHead;
+#define CLI_GRAMMAR_HEAD ((sizeof(CliGrammarHead) + 7ull) & ~7ull)
 
 // A grammar stored: its key, its cell and the cell's bytes, and its parts there
 typedef struct
@@ -30,6 +44,36 @@ static CellOwner s_owner = MMGR_CELL_OWNER("cli_grammars");
 void cli_highlight_cells_usage_written(VerbaLinea *out)
 {
     cli_cells_owner_usage_written(&s_owner, out);
+}
+
+// the head of the grammar whose cell is `region`
+static CliGrammarHead *cli_grammar_head(unsigned char *region)
+{
+    return (CliGrammarHead *)(void *)region;
+}
+
+// the grammar whose cell is `region` put out of its place: its cell given back at once where no coloring reads it, else
+// by the last to end; under the lock
+static void cli_grammar_put_out(unsigned char *region)
+{
+    const unsigned long long readers =
+        atomic_fetch_or_explicit(&cli_grammar_head(region)->readers, CLI_GRAMMAR_PUT_OUT, memory_order_acq_rel);
+    if (readers == 0ull)
+    {
+        g_cli_cells->persistent_buf_release(region, &s_owner);
+    }
+}
+
+// a coloring's reading of the grammar whose cell is `region` ended, the cell given back where it was the last to read
+// one put out of its place
+static void cli_grammar_let_go(unsigned char *region)
+{
+    const unsigned long long readers =
+        atomic_fetch_sub_explicit(&cli_grammar_head(region)->readers, 1ull, memory_order_acq_rel);
+    if (readers == (CLI_GRAMMAR_PUT_OUT | 1ull))
+    {
+        g_cli_cells->persistent_buf_release(region, &s_owner);
+    }
 }
 
 // a part's bytes rounded up to a whole word
@@ -123,8 +167,8 @@ static int cli_grammars_grown(void)
     return 1;
 }
 
-// the grammar at `def` read into `room` and stored under `key` in a cell of its own, the cell of one stored
-// there before given back first: 1, or 0 with why given
+// the grammar at `def` read into `room` and stored under `key` in a cell of its own, one stored there before put out of
+// its place first: 1, or 0 with why given
 static int cli_grammar_stored(const char *key, const CliJson *json, unsigned int def, CliGrammarRoom *room,
                               VerbaLinea *err_msg)
 {
@@ -146,7 +190,7 @@ static int cli_grammar_stored(const char *key, const CliJson *json, unsigned int
     }
     if (entry_at != s_grammar_room)
     {
-        g_cli_cells->persistent_buf_release(s_grammars[entry_at].region, &s_owner);
+        cli_grammar_put_out(s_grammars[entry_at].region);
         s_grammars[entry_at].used = 0;
         free_at = entry_at;
     }
@@ -161,19 +205,20 @@ static int cli_grammar_stored(const char *key, const CliJson *json, unsigned int
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
         return 0;
     }
-    unsigned char *const region = g_cli_cells->persistent_buf_alloc(size, &s_owner);
+    unsigned char *const region = g_cli_cells->persistent_buf_alloc(CLI_GRAMMAR_HEAD + size, &s_owner);
     if (region == NULL)
     {
         mmgr_line_put(err_msg, "the grammars stored take more than orior_cli supports");
         return 0;
     }
+    atomic_init(&cli_grammar_head(region)->readers, 0ull);
     CliGrammarEntry *const grammar = &s_grammars[free_at];
     memor.cpy(&(MemoriaCfg){.dst = grammar->key,
                             .src = key,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u});
     grammar->region = region;
     grammar->size = size;
-    cli_copied(&s_read, region, &grammar->grammar);
+    cli_copied(&s_read, region + CLI_GRAMMAR_HEAD, &grammar->grammar);
     grammar->used = 1;
     return 1;
 }
@@ -264,15 +309,12 @@ static unsigned long long cli_coloring_parts(CliHighlightRoom *room, unsigned ch
     return at;
 }
 
-// the coloring room retained, and its cell
-static CliHighlightRoom s_coloring;
-static unsigned char *s_coloring_cell;
-
-// the coloring room for `count` lines: the retained one where it fits the longest line's letters, a line's letters
-// being no more than its bytes nor than a line is read to, and the count; else one taken at twice both, the one
-// retained before given back. The room is one cell, sized on a first pass over its parts and placed in on a second: the
-// room, or NULL where the cellblock cannot meet it; under the lock
-static CliHighlightRoom *cli_coloring_roomed(const char *const *lines, unsigned int count)
+// the room of a coloring of `count` lines, taken in one cell as the coloring begins, as wide as the longest line's
+// letters, a line's letters being no more than its bytes nor than a line is read to, sized on a first pass over its
+// parts and placed in on a second: the room, its cell into `*cell` for the coloring to give back as it ends, or NULL
+// where the cellblock cannot meet it
+static CliHighlightRoom *cli_coloring_roomed(CliHighlightRoom *room, unsigned char **cell, const char *const *lines,
+                                             unsigned int count)
 {
     unsigned long long most = 0ull;
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -280,26 +322,17 @@ static CliHighlightRoom *cli_coloring_roomed(const char *const *lines, unsigned 
         const unsigned long long bytes = cellul.len(&(CatenaFinitaCfg){.src = lines[at], .cap = CLI_CELLS_POOL});
         most = (bytes > most) ? bytes : most;
     }
-    most = (most < CLI_HIGHLIGHT_LETTERS) ? most : CLI_HIGHLIGHT_LETTERS;
-    if ((s_coloring_cell != NULL) && (most <= s_coloring.most) && (count <= s_coloring.count))
-    {
-        return &s_coloring;
-    }
-    CliHighlightRoom room;
-    room.most = (most * 2ull < CLI_HIGHLIGHT_LETTERS) ? most * 2ull : CLI_HIGHLIGHT_LETTERS;
-    room.count = (unsigned long long)count * 2ull;
+    room->most = (most < CLI_HIGHLIGHT_LETTERS) ? most : CLI_HIGHLIGHT_LETTERS;
+    room->count = count;
     // each line's ending, and the byte the endings reserve back for their terminator
-    room.endings_size = (room.count * CLI_HIGHLIGHT_ENDING) + 1ull;
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(cli_coloring_parts(&room, NULL), &s_owner);
-    if (cell == NULL)
+    room->endings_size = (room->count * CLI_HIGHLIGHT_ENDING) + 1ull;
+    *cell = g_cli_cells->persistent_buf_alloc(cli_coloring_parts(room, NULL), &s_owner);
+    if (*cell == NULL)
     {
         return NULL;
     }
-    (void)cli_coloring_parts(&room, cell);
-    g_cli_cells->persistent_buf_release(s_coloring_cell, &s_owner);
-    s_coloring_cell = cell;
-    s_coloring = room;
-    return &s_coloring;
+    (void)cli_coloring_parts(room, *cell);
+    return room;
 }
 
 int cli_highlight_store(const char *key, const CliJson *json, unsigned int def, VerbaLinea *err_msg)
@@ -345,27 +378,20 @@ static unsigned int cli_grammar_entry_of(const char *key)
     return entry_at;
 }
 
-// the lines colored with the grammar stored under `key`, as `colored` says where they go: 1, or 0 with why given
+// the lines colored with the grammar stored under `key`, as `colored` says where they go, the lock held to find the
+// grammar and count the coloring among its readers alone, and the lines colored in a room claimed with no lock held: 1,
+// or 0 with why given
 static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
     const unsigned int entry_at = cli_grammar_entry_of(key);
-    int roomed = 0;
     const int has_entry = entry_at != s_grammar_room;
+    unsigned char *const region = has_entry ? s_grammars[entry_at].region : NULL;
+    CliGrammar grammar;
     if (has_entry)
     {
-        CliHighlightRoom *const room = cli_coloring_roomed(colored->lines, colored->count);
-        roomed = (room != NULL);
-        if (roomed && (colored->each != NULL))
-        {
-            cli_highlight_leaves_of(&s_grammars[entry_at].grammar, room, colored->state, colored->lines,
-                                    colored->count, colored->ends, colored->each, colored->context, colored->ended);
-        }
-        else if (roomed)
-        {
-            cli_highlight_lines(&s_grammars[entry_at].grammar, room, colored->state, colored->lines, colored->count,
-                                colored->out);
-        }
+        grammar = s_grammars[entry_at].grammar;
+        (void)atomic_fetch_add_explicit(&cli_grammar_head(region)->readers, 1ull, memory_order_relaxed);
     }
     cli_lock_give(&s_lock);
     if (!has_entry)
@@ -374,7 +400,21 @@ static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *e
         mmgr_line_put(err_msg, key);
         return 0;
     }
-    if (!roomed)
+    CliHighlightRoom taken;
+    unsigned char *cell = NULL;
+    CliHighlightRoom *const room = cli_coloring_roomed(&taken, &cell, colored->lines, colored->count);
+    if ((room != NULL) && (colored->each != NULL))
+    {
+        cli_highlight_leaves_of(&grammar, room, colored->state, colored->lines, colored->count, colored->ends,
+                                colored->each, colored->context, colored->ended);
+    }
+    else if (room != NULL)
+    {
+        cli_highlight_lines(&grammar, room, colored->state, colored->lines, colored->count, colored->out);
+    }
+    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    cli_grammar_let_go(region);
+    if (room == NULL)
     {
         mmgr_line_put(err_msg, "the coloring could not be taken");
         return 0;
@@ -417,6 +457,33 @@ int cli_highlight_names_written(const char *key, VerbaLinea *out)
     return has_entry;
 }
 
+unsigned int cli_highlight_names_each(const char *key, CliNameEach each, void *context)
+{
+    cli_lock_take(&s_lock);
+    const unsigned int entry_at = cli_grammar_entry_of(key);
+    const CliGrammar *const grammar = (entry_at != s_grammar_room) ? &s_grammars[entry_at].grammar : NULL;
+    const unsigned int names = (grammar != NULL) ? grammar->names : 0u;
+    for (unsigned int at = 0u; at < names; at += 1u)
+    {
+        each(context, at, grammar->text + grammar->name[at]);
+    }
+    cli_lock_give(&s_lock);
+    return names;
+}
+
+void cli_highlight_runs_written(const CliLeaves *leaves, VerbaLinea *out)
+{
+    mmgr_line_ch(out, '[');
+    for (unsigned int run = 0u; run < leaves->runs; run += 1u)
+    {
+        mmgr_line_put(out, (run != 0u) ? "," : "");
+        mmgr_line_decimal(out, leaves->col[run], 1u);
+        mmgr_line_ch(out, ',');
+        mmgr_line_decimal(out, leaves->name[run], 1u);
+    }
+    mmgr_line_ch(out, ']');
+}
+
 unsigned int cli_highlight_state(const CliGrammar *grammar, const char *name, unsigned long long length)
 {
     for (unsigned int at = 0u; at < grammar->states; at += 1u)
@@ -439,7 +506,7 @@ int cli_highlight_has_word(const CliGrammar *grammar, const CliHighlightList *li
     while (low < high)
     {
         const unsigned int middle = low + ((high - low) / 2u);
-        // the stored word is terminated and `word` contains no terminator within its length, so a compare over `length`
+        // the stored word is terminated and `word` contains no terminator within its length: a compare over `length`
         // bytes orders a shorter stored word by its terminator, and a longer one by the byte after `length`
         const char *const word_at = grammar->text + grammar->word[list->first + middle];
         int order = memor.cmp(&(MemoriaCfg){.src = word_at, .other = word, .bytes = length});

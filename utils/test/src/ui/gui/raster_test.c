@@ -1,0 +1,85 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// raster_test.c: the raster's check: a raster made is clear, a fill colors its rectangle and nothing about it, is
+// clipped to the raster and blends by its alpha, a mask blends by its coverage inside the clip, two rectangles meet in
+// their overlap, a rounded fill leaves its corners short and a line colors its ends
+#include "../../../../../ui/gui/src/raster.h"
+#include "../cli/cli_check.h"
+
+// the red channel of a pixel
+static unsigned int red_of(GuiColor color)
+{
+    return (color >> 16u) & 0xffu;
+}
+
+int main(void)
+{
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    GuiRaster raster;
+    cli_check(gui_raster_made(&raster, 8u, 4u), "a raster of eight by four is made");
+    cli_check((raster.width == 8u) && (raster.height == 4u), "a raster made keeps its size");
+    cli_check((raster.pixels[0] == 0u) && (raster.pixels[31] == 0u), "a raster made is clear");
+
+    const GuiColor ink = GUI_RGB(0x10u, 0x20u, 0x30u);
+    gui_raster_filled(&raster, (GuiRect){2, 1, 3, 2}, ink);
+    cli_check(raster.pixels[(1u * 8u) + 2u] == 0xff102030u, "a fill colors its top left pixel, opaque");
+    cli_check(raster.pixels[(2u * 8u) + 4u] == 0xff102030u, "a fill colors its bottom right pixel");
+    cli_check((raster.pixels[(1u * 8u) + 1u] == 0u) && (raster.pixels[(1u * 8u) + 5u] == 0u) &&
+                  (raster.pixels[2u] == 0u) && (raster.pixels[(3u * 8u) + 2u] == 0u),
+              "a fill leaves the pixels about its rectangle");
+
+    const GuiColor black = GUI_RGB(0u, 0u, 0u);
+    gui_raster_filled(&raster, (GuiRect){-2, -2, 100, 100}, black);
+    cli_check((raster.pixels[0] == 0xff000000u) && (raster.pixels[31] == 0xff000000u),
+              "a fill past the raster's edges is clipped to the raster");
+    gui_raster_filled(&raster, (GuiRect){0, 0, 8, 4}, GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u));
+    cli_check(red_of(raster.pixels[0]) == 0x80u, "a half-clear white over black is mid gray");
+
+    unsigned char cover[4] = {255u, 0u, 128u, 64u};
+    const GuiMask mask = {2u, 2u, 0, 0, cover};
+    const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);
+    const GuiRect whole = {0, 0, 8, 4};
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_masked(&raster, &mask, 3, 1, white, whole);
+    cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a pixel a mask covers whole takes the color whole");
+    cli_check(raster.pixels[(1u * 8u) + 4u] == 0xff000000u, "a pixel a mask leaves bare keeps its ground");
+    cli_check(red_of(raster.pixels[(2u * 8u) + 3u]) == 0x80u, "a pixel a mask covers by half takes half the color");
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_masked(&raster, &mask, 3, 1, white, (GuiRect){4, 0, 4, 4});
+    cli_check(raster.pixels[(1u * 8u) + 3u] == 0xff000000u, "a mask draws nothing outside the clip");
+    cli_check(raster.pixels[(1u * 8u) + 4u] == 0xff000000u, "a mask's bare pixel inside the clip stays bare");
+    gui_raster_masked(&raster, &mask, -1, -1, white, whole);
+    cli_check(red_of(raster.pixels[0]) == 0x40u, "a mask partly off the raster draws the pixel of it that is on");
+
+    GuiRect met = gui_rect_met(whole, (GuiRect){5, 2, 10, 10});
+    cli_check((met.x == 5) && (met.y == 2) && (met.width == 3) && (met.height == 2),
+              "two rectangles meet in their overlap");
+    met = gui_rect_met((GuiRect){0, 0, 2, 2}, (GuiRect){5, 5, 1, 1});
+    cli_check(gui_rect_empty(met), "rectangles apart meet in none");
+    cli_check(gui_rect_holds(whole, 7, 3) && !gui_rect_holds(whole, 8, 3), "a rectangle holds its last pixel, not the one after");
+
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_rounded(&raster, whole, 2u, white);
+    cli_check(raster.pixels[0] != 0xffffffffu, "a rounded fill leaves its corner pixel short of the color");
+    cli_check(raster.pixels[0] != 0xff000000u, "a rounded fill covers its corner pixel in part");
+    cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a rounded fill colors its middle whole");
+    cli_check(raster.pixels[3u] == 0xffffffffu, "a rounded fill colors its top edge between the corners whole");
+
+    gui_raster_filled(&raster, whole, white);
+    gui_raster_corners_cut(&raster, whole, 2u, black);
+    cli_check(red_of(raster.pixels[0]) < red_of(raster.pixels[1u]), "a corner cut takes more ground at the corner pixel than beside it");
+    cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a corner cut leaves the middle");
+    cli_check((raster.pixels[1u] != 0xffffffffu) && (raster.pixels[1u] != 0xff000000u), "a corner cut blends along the arc");
+
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_line(&raster, 0, 3, 7, 3, ink);
+    cli_check((raster.pixels[(3u * 8u) + 0u] == 0xff102030u) && (raster.pixels[(3u * 8u) + 7u] == 0xff102030u),
+              "a line colors both its ends");
+    cli_check(raster.pixels[(2u * 8u) + 3u] == 0xff000000u, "a line colors nothing off its path");
+    gui_raster_line(&raster, 0, 0, 3, 3, ink);
+    cli_check(raster.pixels[(2u * 8u) + 2u] == 0xff102030u, "a diagonal colors the pixels it crosses");
+
+    gui_raster_given(&raster);
+    cli_check(raster.pixels == NULL, "a raster given back holds no pixels");
+    return cli_checked();
+}

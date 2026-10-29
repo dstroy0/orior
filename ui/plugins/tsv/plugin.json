@@ -9,14 +9,19 @@
   "quotes": [],
   "indentAfter": "[{[(]\\s*$",
   "grammar": {
-    "perLine": true,
     "tokenizer": {
-      "root": [["^#.*$","comment"],["[^\\t]+","identifier"],["\\t","delimiter","@c1"]],
-      "c1": [["[^\\t]+","type"],["\\t","delimiter","@c2"]],
-      "c2": [["[^\\t]+","variable"],["\\t","delimiter","@c3"]],
-      "c3": [["[^\\t]+","string"],["\\t","delimiter","@c4"]],
-      "c4": [["[^\\t]+","keyword"],["\\t","delimiter","@c5"]],
-      "c5": [["[^\\t]+","number"],["\\t","delimiter","@c1"]]
+      "root": [["^\\s*#.*$","comment"],["^[ \\t]+",""],["[^\\t]+","identifier.region.open","@block"],["\\t","delimiter","@c1"]],
+      "block": [{"include":"@root"}],
+      "c1": [["[^\\t]+","type"],["\\t","delimiter","@pop@c2"],["$","","@pop"]],
+      "c2": [["[^\\t]+","variable"],["\\t","delimiter","@pop@c3"],["$","","@pop"]],
+      "c3": [["[^\\t]+","string"],["\\t","delimiter","@pop@c4"],["$","","@pop"]],
+      "c4": [["[^\\t]+","keyword"],["\\t","delimiter","@pop@c5"],["$","","@pop"]],
+      "c5": [["[^\\t]+","number"],["\\t","delimiter","@pop@c1"],["$","","@pop"]]
+    },
+    "indent": {
+      "states": {"block": "delimiter.region.close"},
+      "skip": "^\\s*$",
+      "begins": ["root", "block"]
     }
   }
 }

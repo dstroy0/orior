@@ -4216,9 +4216,75 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 
 /* A bracket's pair colored by how deep it stands, each depth a color of its own: the first depth's hue
  * turned by the golden angle once for each depth, which never comes back to a hue it gave, at the
- * scheme's one lightness and chroma. */
-.ed-br {
+ * scheme's one lightness and chroma. A token whose pairs count depth is named by orior's side with the
+ * depth it stands at last, and takes the classes t-depth and t-depth-<depth>, where the editor colors
+ * bracket pairs. Each rule reads a class, never a class name's letters. */
+.ed[data-brackets] .t-depth {
   color: oklch(var(--ed-bracket-lightness) var(--ed-bracket-chroma) calc(var(--ed-bracket-hue) + var(--depth) * 137.508));
+}
+
+.ed .t-depth-0 {
+  --depth: 0;
+}
+
+.ed .t-depth-1 {
+  --depth: 1;
+}
+
+.ed .t-depth-2 {
+  --depth: 2;
+}
+
+.ed .t-depth-3 {
+  --depth: 3;
+}
+
+.ed .t-depth-4 {
+  --depth: 4;
+}
+
+.ed .t-depth-5 {
+  --depth: 5;
+}
+
+.ed .t-depth-6 {
+  --depth: 6;
+}
+
+.ed .t-depth-7 {
+  --depth: 7;
+}
+
+.ed .t-depth-8 {
+  --depth: 8;
+}
+
+.ed .t-depth-9 {
+  --depth: 9;
+}
+
+.ed .t-depth-10 {
+  --depth: 10;
+}
+
+.ed .t-depth-11 {
+  --depth: 11;
+}
+
+.ed .t-depth-12 {
+  --depth: 12;
+}
+
+.ed .t-depth-13 {
+  --depth: 13;
+}
+
+.ed .t-depth-14 {
+  --depth: 14;
+}
+
+.ed .t-depth-15 {
+  --depth: 15;
 }
 
 /* Line History: the date and author of the commit that last changed a line, on the first line of each
@@ -4694,6 +4760,21 @@ body[data-solo] [data-solo-tool] > .dock-sash {
 /* A bare name stands a step below the text's white, so the colored kinds read against it. */
 .t-identifier {
   color: var(--t-identifier);
+}
+/* The names a grammar's roles tell apart take the colors of the kinds they are: a call and a function's declaration a
+   function's, a parameter a parameter's, a local a variable's, and a declared struct, enum or union a type's. */
+.t-identifier-call,
+.t-identifier-declaration-function {
+  color: var(--t-function);
+}
+.t-identifier-parameter {
+  color: var(--t-parameter);
+}
+.t-identifier-local {
+  color: var(--t-variable);
+}
+.t-identifier-declaration-class {
+  color: var(--t-type);
 }
 /* The operators that reach memory, *, &, . and ->, every one an address at bottom, stand apart from
    the arithmetic, logical and bitwise ones. */

@@ -9,6 +9,7 @@
   "quotes": ["\"","'"],
   "indentAfter": "(?:^\\s*(?:def|class|module|if|unless|elsif|else|while|until|for|case|when|begin|rescue|ensure)\\b.*|\\bdo(?:\\s*\\|[^|]*\\|)?|[{[(])\\s*(?:#.*)?$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "BEGIN", "END", "alias", "and", "begin", "break", "case", "class", "def", "defined?", "do", "else", "elsif",
       "end", "ensure", "for", "if", "in", "module", "next", "not", "or", "redo", "rescue", "retry", "return",

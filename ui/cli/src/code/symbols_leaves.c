@@ -151,12 +151,38 @@ static void cli_leaf_of(const char *name, CliLeaf *leaf)
                   : cli_leaf_segment_is(name, from, size, "call")              ? CLI_LEAF_CALL
                   : cli_leaf_segment_is(name, from, size, "assign")            ? CLI_LEAF_ASSIGN
                   : cli_leaf_segment_is(name, from, size, "function")          ? CLI_LEAF_FUNCTION
+                  : cli_leaf_segment_is(name, from, size, "depth")             ? CLI_LEAF_DEPTH
                                                                                : 0u;
         }
         segment += 1u;
         from = to + 1ull;
     }
     leaf->is = is;
+}
+
+unsigned int cli_symbols_name_roles(const char *name)
+{
+    CliLeaf leaf;
+    cli_leaf_of(name, &leaf);
+    if ((leaf.is & (CLI_LEAF_STRING | CLI_LEAF_COMMENT)) != 0u)
+    {
+        return 0u;
+    }
+    const int region = (leaf.is & CLI_LEAF_REGION) != 0u;
+    const int opens = (leaf.is & CLI_LEAF_OPEN) != 0u;
+    const int closes = (leaf.is & CLI_LEAF_CLOSE) != 0u;
+    const int parts = (leaf.is & (CLI_LEAF_STATEMENT | CLI_LEAF_SEPARATOR)) != 0u;
+    const int named = (leaf.is & CLI_LEAF_NAME) != 0u;
+    const int ends = (leaf.is & (CLI_LEAF_STATEMENT | CLI_LEAF_DIRECTIVE)) != 0u;
+    const int depth = (leaf.is & CLI_LEAF_DEPTH) != 0u;
+    return ((region && opens) ? CLI_ROLE_REGION_OPENS : 0u) | ((region && closes) ? CLI_ROLE_REGION_CLOSES : 0u) |
+           ((depth && opens) ? CLI_ROLE_DEPTH_OPENS : 0u) | ((depth && closes) ? CLI_ROLE_DEPTH_CLOSES : 0u) |
+           ((closes || parts) ? CLI_ROLE_CLOSING : 0u) | ((leaf.is == CLI_LEAF_NAME) ? CLI_ROLE_NAME : 0u) |
+           ((named && ((leaf.is & CLI_LEAF_LOCAL) != 0u)) ? CLI_ROLE_LOCAL : 0u) |
+           ((named && ((leaf.is & CLI_LEAF_PARAMETER) != 0u)) ? CLI_ROLE_PARAMETER : 0u) | (ends ? CLI_ROLE_ENDS : 0u) |
+           ((((leaf.is & CLI_LEAF_MEMORY) != 0u) && (leaf.binds == 0u) && ((leaf.is & CLI_LEAF_UNARY) == 0u))
+                ? CLI_ROLE_REACHES
+                : 0u);
 }
 
 // the leaves' room twice what it was, or CLI_LEAVES_FIRST where it has none: 1, or 0 where the cells cannot meet it

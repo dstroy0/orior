@@ -77,10 +77,14 @@ int cli_font_i16(const CliFont *font, unsigned long long at);
 void cli_font_outline(const CliFont *font, unsigned int glyph, const float *matrix, unsigned int depth,
                       CliContours *out);
 // `contours`, in pixels with y going up from the baseline, drawn as coverage into `mask`, its cover in `cover`, which
-// sized for `room`; a mask too large for the room drawn as none
+// sized for `room`; a mask too large for the room drawn as none; and with `cover` NULL the mask measured alone, its
+// size and place set and nothing drawn, so a cover of `width` by `height` and four more can be taken for it
 void cli_font_rasterize(const CliContours *contours, CliMask *mask, float *cover, unsigned long long room);
-// the monospace fonts orior_cli draws with, regular, bold, italic and bold italic, the first found of those the editor
-// uses and those each system has, each path into `paths`, each sized for CLI_PATH_MAX_LEN, empty where it has none
+// the first family of `families`, `count` of them, whose regular face the system's font folders hold, each family its
+// files regular, bold, italic and bold italic, an empty name for a face it lacks: each face's path into `paths`, which
+// is sized for four of CLI_PATH_MAX_LEN, empty where the family or the face is not found; and the monospace fonts
+// orior_cli draws with, the first found of those the editor uses and those each system has
+void cli_font_found(const char *const (*families)[4], unsigned int count, char (*paths)[CLI_PATH_MAX_LEN]);
 void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN]);
 
 #endif

@@ -9,10 +9,19 @@ export function size() {
   const rows = this.rows();
   // A file held as pages is scrolled as the whole file: the lines above the window and below it
   // stand as padding, and the scroll and the scrollbar stay where they are as the window slides.
+  // The space stands for the file's lines from the window's anchor, twice PAGED_PAD of them at the
+  // most: the window moving within it moves no line on the screen, and the anchor moves only where
+  // the window leaves the space, about the window, the view kept on its line.
   const s = this.s;
   if (s?.window?.paged) {
-    this.pad = Math.min(s.base, PAGED_PAD) * LINE;
-    this.below = Math.min(s.window.after, PAGED_PAD) * LINE;
+    const total = s.base + s.doc.count + s.window.after;
+    const space = 2 * PAGED_PAD;
+    const anchor = s.window.anchor;
+    if (anchor === undefined || s.base < anchor || s.base + s.doc.count > anchor + space) {
+      s.window.anchor = Math.max(0, Math.min(s.base + Math.floor(s.doc.count / 2) - PAGED_PAD, total - space));
+    }
+    this.pad = (s.base - s.window.anchor) * LINE;
+    this.below = Math.max(0, Math.min(total, s.window.anchor + space) - s.base - s.doc.count) * LINE;
   } else {
     this.pad = 0;
     this.below = 0;
@@ -40,6 +49,25 @@ export function viewSize() {
 // How far the view is scrolled from the first row read, in pixels.
 export function scrollY() {
   return this.scroller.scrollTop - this.pad;
+}
+
+// How far the view is scrolled from the first row read, as the last scroll event read it: no read of the page's
+// layout, so a frame's work that asks it after the page was drawn lays nothing out again.
+export function scrollYKnown() {
+  return (this.lastTop ?? this.scroller.scrollTop) - this.pad;
+}
+
+// Whether the view scrolled to `top`, the scroller's own, reaches past the lines a paged file's window holds into
+// lines it has not read.
+export function pastWindow(top = this.scroller.scrollTop) {
+  const s = this.s;
+  if (!s?.window?.paged) {
+    return false;
+  }
+  const y = top - this.pad;
+  const first = Math.floor(y / LINE);
+  const last = Math.ceil((y + this.viewSize().height) / LINE) - 1;
+  return (first < 0 && s.base > 0) || (last > this.rows().size - 1 && s.window.after > 0);
 }
 
 // How many rows the scrolling space stands for: those read, and while a file is still being
@@ -255,6 +283,11 @@ export function readSettings() {
     this.host.dataset.comments = "hidden";
   } else {
     delete this.host.dataset.comments;
+  }
+  if (this.bracketsOn) {
+    this.host.dataset.brackets = "";
+  } else {
+    delete this.host.dataset.brackets;
   }
   this.columnMode = localStorage.getItem(COLUMN_KEY) === "true";
   this.smoothOn = smoothScrolling();

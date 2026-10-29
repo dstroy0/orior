@@ -45,6 +45,24 @@ async function closed(path) {
   await ui.waitFor(() => !closer(), 30000, `${path} closed`);
 }
 
+// Every call about a document's branch answered: its changes sent, as they go out a moment after the event that
+// made them, and the calls before them done.
+async function settled(doc) {
+  await new Promise((rest) => setTimeout(rest, 50));
+  await doc.held?.chain;
+}
+
+// Whether the branch under `key` is gone from the window's side, as closing its tab lets it go, within 5 s.
+async function released(key) {
+  for (let tries = 0; tries < 100; tries += 1) {
+    if (await invoke("document_edit", { key, changes: [] }).then(() => false, () => true)) {
+      return true;
+    }
+    await new Promise((rest) => setTimeout(rest, 50));
+  }
+  return false;
+}
+
 async function measured() {
   // what the page keeps, its garbage collected first
   await ui.gc();
@@ -53,7 +71,8 @@ async function measured() {
   // sets: the pool is committed whole as the window starts and its pages come into the working set as cells are
   // first touched, which is no growth
   const part = (name) => read.parts.find((one) => one.name === name)?.commit ?? 0;
-  return { own: part("orior_gui"), view: part("web view"), all: read.commit };
+  // the page's own script heap beside them, to tell its growth from the web view's beneath it
+  return { own: part("orior_gui"), view: part("web view"), all: read.commit, heap: performance.memory?.usedJSHeapSize ?? 0 };
 }
 
 test("a ten-megabyte file opened, pasted into, undone and closed ten times leaves the window holding no more than once", async () => {
@@ -75,12 +94,18 @@ test("a ten-megabyte file opened, pasted into, undone and closed ten times leave
     await ui.waitFor(() => doc.count > before + 1000, 120000, `round ${round} pasted`);
     view.undo();
     await ui.waitFor(() => doc.count === before, 30000, `round ${round} undone`);
+    // a round measured once its work is done: the paste and the undo answered on the window's side, and the branch
+    // let go there after the tab closes
+    await settled(doc);
+    const key = doc.held?.key;
     await closed(name);
+    assert.ok(!key || (await released(key)), `round ${round}: the branch let go on the window's side`);
     rounds.push(await measured());
   }
   const first = rounds[0];
   const last = rounds[rounds.length - 1];
-  const said = rounds.map((one, at) => `${at}: own ${(one.own / 1048576).toFixed(0)} MB, web view ${(one.view / 1048576).toFixed(0)} MB, all ${(one.all / 1048576).toFixed(0)} MB`).join("\n");
+  // every round on one line, as a failure is told in its first lines
+  const said = rounds.map((one, at) => `${at}: own ${(one.own / 1048576).toFixed(0)}, view ${(one.view / 1048576).toFixed(0)}, heap ${(one.heap / 1048576).toFixed(0)}`).join("; ");
   const grew = last.own - first.own;
   assert.ok(grew < SLACK, `the window's own process grew ${(grew / 1048576).toFixed(0)} MB over ${ROUNDS} rounds:\n${said}`);
   const viewGrew = last.view - first.view;
@@ -115,8 +140,7 @@ test("a large text is held on the window's side, each change follows it there, a
   await ui.type("put in\n");
   // Each change has gone to the window's side, once the calls about the text are answered, and the text
   // there is the page's, line for line and unit for unit.
-  await new Promise((rest) => setTimeout(rest, 50));
-  await held.chain;
+  await settled(s.doc);
   const shape = await invoke("document_edit", { key: held.key, changes: [] });
   assert.deepEqual(shape, { lines: s.doc.count, units: s.doc.lines.reduce((sum, line) => sum + line.length, 0) });
   const head = (await invoke("file_head", { path: "held/held.py" })).split(/\r?\n/);
@@ -144,12 +168,5 @@ test("a large text is held on the window's side, each change follows it there, a
     const at = box ? document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) : null;
     throw new Error(`${error.message}; the close at ${box ? `${Math.round(box.left)},${Math.round(box.top)} ${Math.round(box.width)}x${Math.round(box.height)}` : "nowhere"}, shown ${closer()?.checkVisibility()}, under it ${at?.outerHTML.slice(0, 160)}; sheet ${document.querySelector("dialog[open]")?.textContent.slice(0, 200)}; status ${document.getElementById("status-said")?.textContent}`);
   });
-  let gone = false;
-  for (let tries = 0; tries < 30 && !gone; tries += 1) {
-    gone = await invoke("document_edit", { key: held.key, changes: [] }).then(() => false, () => true);
-    if (!gone) {
-      await new Promise((rest) => setTimeout(rest, 100));
-    }
-  }
-  assert.ok(gone, "no text is held under its key");
+  assert.ok(await released(held.key), "no branch is stored under its key");
 });

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { wordBefore } from "../document.js";
-import { openersOf } from "../folding.js";
 import { enter, leave } from "../../trace.js";
 import { icon } from "../../icons.js";
 import { empty, endOfSel, LINE, PAD, startOf, STICKY_KEY, STICKY_MOST } from "../view.js";
@@ -102,8 +101,8 @@ export function setSticky(on) {
   this.schedule();
 }
 
-// The regions the top row stands inside are read from the lines above it each time the top row or
-// the text changes, and never from the whole text, which a file of any size keeps cheap.
+// The regions the top row stands inside are the session's folds that hold it, found again each time the top row, the
+// text or the folds change.
 export function drawSticky(rows, top, left = this.scroller.scrollLeft) {
   const s = this.s;
   if (!this.stickyOn) {
@@ -112,13 +111,13 @@ export function drawSticky(rows, top, left = this.scroller.scrollLeft) {
     return;
   }
   const firstRow = Math.floor(top / LINE);
-  const heldFor = `${s.doc.id}|${firstRow}|${rows.size}|${s.indent.size}`;
+  const heldFor = `${s.doc.id}|${firstRow}|${rows.size}|${s.highlight.foldsCame}`;
   let held = this.stickyHeldFor === heldFor ? this.stickyHeld : [];
   // The held lines cover rows of their own, and they hold the regions of the row under them.
   for (let pass = 0; pass < 3 && this.stickyHeldFor !== heldFor; pass += 1) {
     const line = rows.lineOf(Math.min(rows.size - 1, firstRow + held.length));
     const openersCall = enter("openers");
-    const next = openersOf(s.doc, line, s.indent.size, STICKY_MOST);
+    const next = s.openersOf(line, STICKY_MOST);
     leave(openersCall);
     if (next.join() === held.join()) {
       break;

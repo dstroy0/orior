@@ -20,6 +20,7 @@
     ["^(\\s*)-\\s+(?:import_playbook|import_tasks|include_tasks|include_role|import_role):\\s*(.+?)\\s*$", "module"]
   ],
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "perLine": true,
     "tokenizer": {
       "root": [

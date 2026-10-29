@@ -4,7 +4,7 @@
 import { indentOf } from "../folding.js";
 import { calm, nextSlice, status } from "../../status.js";
 import { authorsShown } from "../../authors.js";
-import { BRACKETS_KEY, BRACKETS_LINES, BRACKETS_READ, BREAK_STRIP, COMMENTS_KEY, DRAW_SLICE, DRAWN_MOST, empty, escapeHtml, historyChars, LINE, marked, MARKS_KEY, PAD, PAST_KEY, REACH_STEP, ROWS_KEPT, SHOWN, UNBRACKETED } from "../view.js";
+import { BRACKETS_KEY, BREAK_STRIP, COMMENTS_KEY, DRAW_SLICE, DRAWN_MOST, DRAWN_PAGED, empty, escapeHtml, historyChars, LINE, marked, MARKS_KEY, PAD, PAST_KEY, REACH_STEP, ROWS_KEPT, SHOWN } from "../view.js";
 
 // What the rows drawn were drawn in: the session and the origin. Drawn in any other, a row out of
 // sight is let go.
@@ -32,7 +32,9 @@ export async function drawOutward() {
       const rows = this.rows();
       const canAbove = drawn.from > 0;
       const canBelow = drawn.to < rows.size - 1;
-      if ((!canAbove && !canBelow) || drawn.to - drawn.from + 1 >= DRAWN_MOST) {
+      // a file held as pages draws out no more than DRAWN_PAGED rows, and none while its view moves
+      const paged = Boolean(this.s.window?.paged);
+      if ((!canAbove && !canBelow) || drawn.to - drawn.from + 1 >= (paged ? DRAWN_PAGED : DRAWN_MOST) || (paged && status.scroll.speed > 0)) {
         return;
       }
       const goBelow = nextSlice({ canAbove, canBelow, moving: status.scroll.speed > 0, heading: status.scroll.heading, below }) === "below";
@@ -41,7 +43,7 @@ export async function drawOutward() {
       const to = goBelow ? Math.min(rows.size - 1, drawn.to + DRAW_SLICE) : drawn.from - 1;
       const parts = new Map();
       for (let row = from; row <= to; row += 1) {
-        parts.set(row, ["ed-row", this.rowCell(row)]);
+        parts.set(row, ["ed-row", this.rowCell(row), (node) => this.rowPatched(node, row)]);
       }
       this.textLayer.extend(parts, (row) => this.yOf(row));
       drawn.from = Math.min(drawn.from, from);
@@ -61,8 +63,6 @@ export function schedule() {
   }
 }
 
-// Bracket pairs: each bracket outside a comment or a string colored by how deep it stands, the
-// depth at the start of each line kept on the session until an edit reaches it.
 // How many columns past its line's end a cursor stands: an empty selection at the end with its
 // column beyond it, where the setting lets cursors past line ends or the selection is a column
 // selection's.
@@ -128,70 +128,89 @@ export function setCommentsHidden(on) {
   this.schedule();
 }
 
+// Bracket pairs colored by the depth orior's side names each at, or not: the stylesheet colors them where the host
+// carries the setting.
 export function setBrackets(on) {
   this.bracketsOn = on;
   localStorage.setItem(BRACKETS_KEY, String(on));
-  this.textLayer.clear();
-  this.schedule();
-}
-
-// The depth at the end of a line that starts at `depth`, a closing bracket never taking it below 0; null where the
-// line's runs, which say which brackets are no string's or comment's, have not come.
-export function bracketEnd(line, depth) {
-  const text = this.s.doc.line(line);
-  const runs = this.s.highlight.cached(line);
-  if (!runs) {
-    return null;
+  if (on) {
+    this.host.dataset.brackets = "";
+  } else {
+    delete this.host.dataset.brackets;
   }
-  for (let index = 0; index < runs.length; index += 1) {
-    const [start, name] = runs[index];
-    if (UNBRACKETED.test(name)) {
-      continue;
-    }
-    const end = runs[index + 1]?.[0] ?? text.length;
-    for (let at = start; at < end; at += 1) {
-      const char = text[at];
-      if (char === "(" || char === "[" || char === "{") {
-        depth += 1;
-      } else if ((char === ")" || char === "]" || char === "}") && depth > 0) {
-        depth -= 1;
-      }
-    }
-  }
-  return depth;
-}
-
-// The depth at the start of a line, or null where it is too far below what is read to read now, or a line above it
-// has no runs yet.
-export function depthAt(line) {
-  const s = this.s;
-  if (!s.depths) {
-    s.depths = [0];
-  }
-  let at = s.depths.length - 1;
-  if (line - at > BRACKETS_READ) {
-    return null;
-  }
-  for (; at < line; at += 1) {
-    const end = this.bracketEnd(at, s.depths[at]);
-    if (end === null) {
-      return null;
-    }
-    s.depths[at + 1] = end;
-  }
-  return s.depths[line];
 }
 
 // How many characters across a row is drawn to: as far as the view reaches, to the end of the step
-// of REACH_STEP it reaches into.
+// of REACH_STEP it reaches into; and as far with the view scrolled `left` pixels across.
 export function reach() {
+  return this.reachAt(this.leftNow ?? this.scroller.scrollLeft);
+}
+
+// How many cols of the line `text` its rows draw: where lines wrap the whole line, each row drawing its own cols, and
+// else as far as the view reaches across, at most SHOWN.
+export function shownOf(text) {
+  return this.wrapOn ? text.length : Math.min(text.length, SHOWN, this.reach());
+}
+
+export function reachAt(left) {
   if (this.wrapOn) {
     return Infinity;
   }
-  const seen = Math.ceil(((this.leftNow ?? this.scroller.scrollLeft) + this.viewSize().width) / this.cw);
-  return (Math.floor(seen / REACH_STEP) + 2) * REACH_STEP;
+  const seen = Math.ceil((left + this.viewSize().width) / this.cw);
+  return (Math.floor(seen / REACH_STEP) + 1) * REACH_STEP;
 }
 
+// The pieces a line's row is drawn from, in order: runs of the line's text, `[from, to, key]`, from its col `from` to
+// before `to` in the colors of the classes `key`, empty for none; and markup that stands between them, `[-1, -1,
+// html]`: a hint before the text from its col on, the mark at the line's end, a fold and the text it closes at. The
+// pieces of a line not folded are kept while what they are made from stays, as a wrapped line's rows read them one
+// after the next.
+export function rowPieces(line) {
+  const s = this.s;
+  const text = s.doc.line(line);
+  const runs = s.highlight.runsOf(line);
+  const shown = this.shownOf(text);
+  const folded = s.folded.has(line);
+  const made = [s, line, text, runs, s.hints?.byLine.get(line) ?? null, this.hintKinds.parameter, this.hintKinds.type, this.marksOn, line + 1 < s.doc.count, shown];
+  const kept = this.piecesKept;
+  if (!folded && kept?.made.every((part, at) => part === made[at])) {
+    return kept.pieces;
+  }
+  const hints = this.hintsOn(line);
+  let hinted = 0;
+  const pieces = [];
+  const hintsTo = (col) => {
+    while (hints && hinted < hints.length && hints[hinted].col <= col) {
+      pieces.push([-1, -1, this.hintHtml(hints[hinted])]);
+      hinted += 1;
+    }
+  };
+  for (let index = 0; index < runs.length; index += 1) {
+    const [start, name] = runs[index];
+    const end = Math.min(runs[index + 1]?.[0] ?? shown, shown);
+    let from = start;
+    while (from < end) {
+      hintsTo(from);
+      const cut = hints && hinted < hints.length && hints[hinted].col < end ? hints[hinted].col : end;
+      pieces.push([from, cut, name]);
+      from = cut;
+    }
+  }
+  hintsTo(Infinity);
+  if (this.marksOn && line + 1 < s.doc.count) {
+    pieces.push([-1, -1, '<span class="ed-eol">¬</span>']);
+  }
+  if (s.folded.has(line) && s.endOf(line) >= 0) {
+    const end = s.folded.get(line);
+    pieces.push([-1, -1, `<span class="ed-folded" data-fold="${line}">⋯</span>${s.shows(line) ? escapeHtml(s.doc.line(end).trim()) : ""}`]);
+  }
+  this.piecesKept = folded ? null : { made, pieces };
+  return pieces;
+}
+
+// The markup of a line's row, each run of its text with colors an element of its own. A row's markup is kept while its
+// text, its colors, its hints and its marks are the ones it was made from, so that a scroll makes only the rows that
+// come into view; a folded row reads the line its fold closes at, and is made each time.
 export function rowHtml(line) {
   const s = this.s;
   // A text shown in the colors its codes set draws each line as they made it.
@@ -199,14 +218,9 @@ export function rowHtml(line) {
     return (s.colored[line] ?? "") + (s.folded.has(line) && s.endOf(line) >= 0 ? `<span class="ed-folded" data-fold="${line}">⋯</span>` : "");
   }
   const text = s.doc.line(line);
-  const runs = s.highlight.runsOf(line);
-  const shown = Math.min(text.length, SHOWN, this.reach());
-  let depth = this.bracketsOn && s.doc.count <= BRACKETS_LINES && s.language ? this.depthAt(line) : null;
-  // A row's markup is kept while its text, its colors, its depth, its hints and its marks are the
-  // ones it was made from, so that a scroll makes only the rows that come into view. A folded row
-  // reads the line its fold closes at, and is made each time.
+  const shown = this.shownOf(text);
   const folded = s.folded.has(line);
-  const made = [text, runs, depth, s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, shown];
+  const made = [text, s.highlight.runsOf(line), s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, shown];
   if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_KEPT) {
     this.rowsKept = { session: s, rows: new Map() };
   }
@@ -215,72 +229,160 @@ export function rowHtml(line) {
     return kept.html;
   }
   const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
-  // The hints drawn before each col, each before the text from its col on.
-  const hints = this.hintsOn(line);
-  let hinted = 0;
-  const hintsTo = (col) => {
-    let out = "";
-    while (hints && hinted < hints.length && hints[hinted].col <= col) {
-      out += this.hintHtml(hints[hinted]);
-      hinted += 1;
-    }
-    return out;
-  };
-  const pieces = [];
-  for (let index = 0; index < runs.length; index += 1) {
-    const [start, name] = runs[index];
-    const end = Math.min(runs[index + 1]?.[0] ?? shown, shown);
-    let from = start;
-    while (from < end) {
-      const before = hintsTo(from);
-      const cut = hints && hinted < hints.length && hints[hinted].col < end ? hints[hinted].col : end;
-      pieces.push([from, cut, name, before]);
-      from = cut;
-    }
-  }
   let html = "";
-  for (const [start, end, name, before] of pieces) {
-    html += before;
-    let part;
-    if (depth === null || UNBRACKETED.test(name)) {
-      part = escaped(text.slice(start, end));
-    } else {
-      part = "";
-      let from = start;
-      for (let at = start; at < end; at += 1) {
-        const char = text[at];
-        const opens = char === "(" || char === "[" || char === "{";
-        const closes = char === ")" || char === "]" || char === "}";
-        if (!opens && !closes) {
-          continue;
-        }
-        if (closes && depth > 0) {
-          depth -= 1;
-        }
-        part += `${escaped(text.slice(from, at))}<span class="ed-br" style="--depth:${depth}">${char}</span>`;
-        if (opens) {
-          depth += 1;
-        }
-        from = at + 1;
-      }
-      part += escaped(text.slice(from, end));
-    }
-    html += name ? `<span class="${name}">${part}</span>` : part;
-  }
-  html += hintsTo(Infinity);
-  if (this.marksOn && line + 1 < s.doc.count) {
-    html += '<span class="ed-eol">¬</span>';
-  }
-  if (s.folded.has(line) && s.endOf(line) >= 0) {
-    html += `<span class="ed-folded" data-fold="${line}">⋯</span>`;
-    const end = s.folded.get(line);
-    const closed = this.closedEnd(line, end);
-    if (closed !== end) {
-      html += escapeHtml(s.doc.line(closed).trim());
-    }
+  for (const [from, to, key] of this.rowPieces(line)) {
+    html += from < 0 ? key : key ? `<span class="${key}">${escaped(text.slice(from, to))}</span>` : escaped(text.slice(from, to));
   }
   if (!folded) {
     this.rowsKept.rows.set(line, { made, html });
+  }
+  return html;
+}
+
+// The row `row` put into `node`, the one it is held in, in place: its runs as runsPut puts them, a wrapped line's row
+// in its part as wide as the row's cols, the spans a row held in its part or out of one taken in or out with it; true
+// where it was put, and false where its markup alone draws it: a wrapped line's row whose line holds a tab, a text in
+// the colors its codes set, marks shown, or a hint, a mark or a fold among its runs.
+export function rowPatched(node, row) {
+  const rows = this.rows();
+  const s = this.s;
+  if (s.colored || this.marksOn) {
+    return false;
+  }
+  const line = rows.lineOf(row);
+  const pieces = this.rowPieces(line);
+  if (pieces.some(([from]) => from < 0)) {
+    return false;
+  }
+  const text = s.doc.line(line);
+  const start = rows.startOf(row);
+  const end = rows.endOf(row);
+  const held = node.firstChild;
+  const segment = held?.nodeType === Node.ELEMENT_NODE && held.className === "ed-seg" && !held.nextSibling ? held : null;
+  if (start === 0 && end < 0) {
+    if (segment) {
+      node.replaceChildren(...segment.childNodes);
+    }
+    runsPut(node, text, pieces, 0, Infinity);
+    return true;
+  }
+  if (text.includes("\t")) {
+    return false;
+  }
+  let part = segment;
+  if (!part) {
+    part = document.createElement("span");
+    part.className = "ed-seg";
+    part.append(...node.childNodes);
+    node.append(part);
+  }
+  const width = end < 0 ? "" : `${(this.vcolOf(text, end, line) - this.vcolOf(text, start, line)) * this.cw}px`;
+  if (part.style.width !== width) {
+    part.style.width = width;
+  }
+  const shown = this.shownOf(text);
+  runsPut(part, text, pieces, start, end < 0 ? shown : Math.min(end, shown));
+  return true;
+}
+
+// The runs of `pieces`, runs of a line's text alone in the order of their cols, that stand in its cols `from` to before
+// `to`, each cut to them, put into `host` in place: each run with colors the span standing at its place, given its
+// class and its text where they differ, each run without colors a text, and spans made or let go only where the runs
+// come to more or fewer than `host` holds. A span is taken for a run only where its class is all it carries, so no
+// hint's width or fold's line stays on a run's span.
+function runsPut(host, text, pieces, from, to) {
+  // the first run that reaches past `from`
+  let low = 0;
+  let high = pieces.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (pieces[middle][1] <= from) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  let child = host.firstChild;
+  for (let at = low; at < pieces.length && pieces[at][0] < to; at += 1) {
+    const [start, end, key] = pieces[at];
+    const part = text.slice(Math.max(start, from), Math.min(end, to));
+    const spanned = child?.nodeType === Node.ELEMENT_NODE && child.attributes.length === 1 && child.firstChild?.nodeType === Node.TEXT_NODE && !child.firstChild.nextSibling;
+    if (key && spanned) {
+      if (child.className !== key) {
+        child.className = key;
+      }
+      if (child.firstChild.data !== part) {
+        child.firstChild.data = part;
+      }
+      child = child.nextSibling;
+    } else if (!key && child?.nodeType === Node.TEXT_NODE) {
+      if (child.data !== part) {
+        child.data = part;
+      }
+      child = child.nextSibling;
+    } else if (key) {
+      const span = document.createElement("span");
+      span.className = key;
+      span.textContent = part;
+      host.insertBefore(span, child);
+    } else {
+      host.insertBefore(document.createTextNode(part), child);
+    }
+  }
+  while (child) {
+    const next = child.nextSibling;
+    child.remove();
+    child = next;
+  }
+}
+
+// The markup of the row of a wrapped line that holds its cols from `start` to before `end`, `end` below 0 for the
+// line's end, in a cell as wide as those cols: the runs of its text that stand in them, each cut to them, and the
+// markup that stands between runs there, the marks at the line's end with its last row. A line with a tab, or a text
+// shown in the colors its codes set, is drawn whole in the row and moved left by the cols before it, its tabs standing
+// where the line sets them. A row's markup is kept as a line's is.
+export function partCell(line, start, end) {
+  const s = this.s;
+  const text = s.doc.line(line);
+  const shown = this.shownOf(text);
+  const folded = s.folded.has(line);
+  const made = [text, s.highlight.runsOf(line), s.hints?.byLine.get(line) ?? null, this.marksOn, line + 1 < s.doc.count, this.hintKinds.parameter, this.hintKinds.type, shown, end, this.cw];
+  if (this.rowsKept?.session !== s || this.rowsKept.rows.size > ROWS_KEPT) {
+    this.rowsKept = { session: s, rows: new Map() };
+  }
+  const key = `${line}:${start}`;
+  const kept = folded ? null : this.rowsKept.rows.get(key);
+  if (kept && kept.made.every((part, at) => part === made[at])) {
+    return kept.html;
+  }
+  let html;
+  if (s.colored || text.includes("\t")) {
+    const shift = this.vcolOf(text, start, line) * this.cw;
+    const width = end < 0 ? null : this.vcolOf(text, end, line) * this.cw - shift;
+    html = `<span class="ed-seg"${width === null ? "" : ` style="width:${width}px"`}><span style="margin-left:${-shift}px">${this.rowHtml(line)}</span></span>`;
+  } else {
+    const escaped = this.marksOn ? (part) => marked(escapeHtml(part)) : escapeHtml;
+    const stop = end < 0 ? shown : Math.min(end, shown);
+    // the col the text drawn so far reaches: markup between runs stands there
+    let at = 0;
+    let inside = "";
+    for (const [from, to, key] of this.rowPieces(line)) {
+      if (from < 0) {
+        inside += at >= start && (at < stop || end < 0) ? key : "";
+        continue;
+      }
+      at = to;
+      const first = Math.max(from, start);
+      const last = Math.min(to, stop);
+      if (last > first) {
+        inside += key ? `<span class="${key}">${escaped(text.slice(first, last))}</span>` : escaped(text.slice(first, last));
+      }
+    }
+    const width = end < 0 ? null : (this.vcolOf(text, end, line) - this.vcolOf(text, start, line)) * this.cw;
+    html = `<span class="ed-seg"${width === null ? "" : ` style="width:${width}px"`}>${inside}</span>`;
+  }
+  if (!folded) {
+    this.rowsKept.rows.set(key, { made, html });
   }
   return html;
 }

@@ -9,6 +9,7 @@
   "quotes": ["\""],
   "indentAfter": "^\\s*\\.subckt\\b.*$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "ignoreCase": true,
     "words": [
       "ac", "dc", "tran", "op", "noise", "tf", "dec", "oct", "lin", "list", "uic", "startup", "steady", "nodiscard",

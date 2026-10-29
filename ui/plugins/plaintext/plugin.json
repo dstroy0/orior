@@ -8,5 +8,15 @@
   "pairs": [],
   "quotes": [],
   "indentAfter": "[{[(]\\s*$",
-  "grammar": null
+  "grammar": {
+    "tokenizer": {
+      "root": [["^\\s*\\S.*", "text.region.open", "@block"]],
+      "block": [{"include": "@root"}]
+    },
+    "indent": {
+      "states": {"block": "text.region.close"},
+      "skip": "^\\s*$",
+      "begins": ["root", "block"]
+    }
+  }
 }

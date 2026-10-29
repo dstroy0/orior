@@ -49,7 +49,7 @@
         ],
         [
           "(^\\s*#\\s*)(define)(\\s+)([A-Za-z_]\\w*)(\\()",
-          ["keyword.directive","keyword.directive.define","","identifier.declaration.constant","delimiter.bracket.parameter.open"],
+          ["keyword.directive","keyword.directive.define","","identifier.declaration.constant","delimiter.bracket.parameter.depth.open"],
           "@macro"
         ],
         ["(^\\s*#\\s*)(define)(\\s+)([A-Za-z_]\\w*)",["keyword.directive","keyword.directive.define","","identifier.declaration.constant"],"@body"],
@@ -66,10 +66,10 @@
         {"include":"@numeral"},
         ["[uUL]?\"","string","@string"],
         ["'(?:[^'\\\\]|\\\\.)*'","string"],
-        ["\\{","delimiter.bracket.region.open"],
-        ["\\}","delimiter.bracket.region.close"],
-        ["[(\\[]","delimiter.bracket.open"],
-        ["[)\\]]","delimiter.bracket.close"],
+        ["\\{","delimiter.bracket.region.depth.open"],
+        ["\\}","delimiter.bracket.region.depth.close"],
+        ["[(\\[]","delimiter.bracket.depth.open"],
+        ["[)\\]]","delimiter.bracket.depth.close"],
         {"include":"@operators"},
         [";","delimiter.statement"],
         [",","delimiter.separator"]
@@ -109,8 +109,8 @@
       ],
       "params": [
         {"include":"@whitespace"},
-        ["\\(","delimiter.bracket.parameter.open"],
-        ["\\)","delimiter.bracket.parameter.close","@popall"],
+        ["\\(","delimiter.bracket.parameter.depth.open"],
+        ["\\)","delimiter.bracket.parameter.depth.close","@popall"],
         ["char\\b(?=\\s*\\*)","type.string"],
         ["void(?=\\s*\\))","keyword"],
         [
@@ -121,8 +121,8 @@
         ["\\*|&","operator.memory"],
         ["\\.\\.\\.","delimiter.rest"],
         [",","delimiter.separator"],
-        ["\\[","delimiter.bracket.open"],
-        ["\\]","delimiter.bracket.close"],
+        ["\\[","delimiter.bracket.depth.open"],
+        ["\\]","delimiter.bracket.depth.close"],
         ["\\d+","number"]
       ],
       "numeral": [
@@ -137,7 +137,7 @@
         ["[A-Za-z_]\\w*","identifier.parameter"],
         ["\\.\\.\\.","delimiter.rest"],
         [",","delimiter.separator"],
-        ["\\)","delimiter.bracket.parameter.close","@body"]
+        ["\\)","delimiter.bracket.parameter.depth.close","@body"]
       ],
       "body": [
         ["\\\\$","keyword.directive.continued","@body"],
@@ -166,8 +166,8 @@
         {"include":"@whitespace"},
         ["[A-Za-z_]\\w*",{"cases":{"@types":"type","@words":"keyword","@default":"identifier"}}],
         {"include":"@numeral"},
-        ["\\(","delimiter.bracket.open"],
-        ["\\)","delimiter.bracket.close"],
+        ["\\(","delimiter.bracket.depth.open"],
+        ["\\)","delimiter.bracket.depth.close"],
         {"include":"@operators"},
         [",","delimiter.separator"]
       ],

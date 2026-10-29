@@ -9,6 +9,7 @@
   "quotes": ["\"","'"],
   "indentAfter": "^\\s*(?:function|if|elseif|else|for|parfor|while|switch|case|otherwise|try|catch|classdef|properties|methods|events|enumeration|arguments|spmd)\\b.*$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "arguments", "break", "case", "catch", "classdef", "continue", "else", "elseif", "end", "enumeration",
       "events", "for", "function", "global", "if", "methods", "otherwise", "parfor", "persistent", "properties",

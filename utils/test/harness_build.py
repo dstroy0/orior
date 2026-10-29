@@ -62,9 +62,11 @@ def cmd_build_gui(a):
 
     if os.name == "nt":
         harness_window.windows_ended()
+    import harness_cli
+
     log = os.path.join(BUILD, "gui_build.log")
     with open(log, "wb") as out:
-        built = subprocess.run(["cargo", "build", "--release", "--manifest-path", os.path.join(ROOT, "ui", "gui", "src-tauri", "Cargo.toml")], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
+        built = subprocess.run([harness_cli.bash(), os.path.join(ROOT, "ui", "cli", "build.sh"), "window"], cwd=ROOT, stdout=out, stderr=subprocess.STDOUT)
     if built.returncode != 0:
         print("\n".join(grep(log, r"^error", 5)))
         print(tail(log, 3), end="")
@@ -248,7 +250,7 @@ def cmd_source_format(a):
     os.makedirs(OUT, exist_ok=True)
     files = sorted(os.path.join(folder, name) for top in ("ui/cli/src", "ui/query/src") for folder, _, names in os.walk(os.path.join(ROOT, *top.split("/"))) for name in names if name.endswith((".c", ".h")))
     before = {path: digest(path) for path in files}
-    # a batch at a time, since every file on one command line passes the length Windows takes
+    # a few at a time, since every file on one command line passes the length Windows takes
     for at in range(0, len(files), FORMAT_BATCH):
         subprocess.run(["clang-format", "-i", *files[at:at + FORMAT_BATCH]], check=True)
     changed = [path for path in files if digest(path) != before[path]]
@@ -261,7 +263,7 @@ def cmd_source_format(a):
 
 PAGE = os.path.join(ROOT, "ui", "gui", "src-js")
 
-# the characters and words after which a / opens a regular expression rather than divides
+# the characters and words after which a / opens a regular expression
 REGEX_AFTER = set("(,=:[!&|?{};+-*%~^<>")
 REGEX_AFTER_WORDS = ("return", "typeof", "case", "of", "in", "delete", "void", "throw", "new", "else", "do")
 
@@ -385,7 +387,7 @@ def page_exports(path):
 
 
 def bound_names(listed):
-    """The names a parameter list or a destructuring binds: a default's value and a renamed key are read, not bound."""
+    """The names a parameter list or a destructuring binds: a default's value and a renamed key are read and not bound."""
     listed = re.sub(r"=[^,{}\[\]]*", "", listed)
     listed = re.sub(r"[A-Za-z_$][\w$]*\s*:", "", listed)
     return set(re.findall(r"[A-Za-z_$][\w$]*", listed))
@@ -393,7 +395,7 @@ def bound_names(listed):
 
 def family_of(path, files):
     """The split a module belongs to: `run` for run.js and for run/panel.js where run.js is named too, else the module
-    alone. Only a split's own modules are held to each other's top-level names; two other modules may share a name."""
+    alone. Only a split's own modules are checked against each other's top-level names; two other modules may share a name."""
     stem = os.path.splitext(path)[0]
     folder = os.path.dirname(path)
     return folder if folder + ".js" in files else stem

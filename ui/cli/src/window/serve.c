@@ -10,6 +10,7 @@
 #include "../debug/debug.h"
 #include "../editor/files.h"
 #include "../machine/reach.h"
+#include "../plugins/plugins.h"
 #include "../toolchains/toolchains.h"
 #include "serve_internal.h"
 
@@ -36,6 +37,7 @@ void cli_serve_begun(const char *root, const char *detached_dir)
     if (root != NULL)
     {
         cli_toolchains_set_tree(root);
+        cli_plugins_set_tree(root);
     }
 }
 
@@ -238,6 +240,7 @@ int cli_serve_root_set(const char *path, VerbaLinea *out, VerbaLinea *err_msg)
     const int command_line = g_cli_serve.has_command_line;
     cli_lock_give(&g_cli_serve.lock);
     cli_toolchains_set_tree(full);
+    cli_plugins_set_tree(full);
     // the folders mounted beside one tree are its own; another tree mounts its own; a server answers for the tree it
     // started in, another tree starting its own as its files open
     if (moved)

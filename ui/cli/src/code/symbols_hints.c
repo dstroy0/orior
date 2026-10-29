@@ -109,8 +109,8 @@ static void hints_arguments(const CliLeafRead *read, unsigned int open, const Cl
         const unsigned int last = hints_next(read, first + 1u);
         unsigned long long length = 0ull;
         const char *const text = (first < leaf) ? cli_leaf_text(read, first, &length) : "";
-        const int alone = (last >= leaf) && (length == (name_to - name_from)) &&
-                          cli_text_same(text, head->label + name_from, length);
+        const int alone =
+            (last >= leaf) && (length == (name_to - name_from)) && cli_text_same(text, head->label + name_from, length);
         if ((argument < head->params) && (first < leaf) && (name_to > name_from) && !alone)
         {
             each(context, read->leaf[first].line, hints_col(read, first), head->label + name_from, name_to - name_from);

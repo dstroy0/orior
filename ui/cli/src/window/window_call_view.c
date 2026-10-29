@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window_call_view.c: a page the tree holds opened in a window of its own: the window's label, its title and the address
-// it loads from in the window's `view` scheme, which Windows reaches as an http host and the other platforms by the
-// scheme's own name; and each file a page window asks for served from under the tree and nothing outside it, read
+// window_call_view.c: a page the tree holds opened in a window of its own: the window's label, its title and the
+// address it loads from in the window's `view` scheme, which Windows reaches as an http host and the other platforms by
+// the scheme's own name; and each file a page window asks for served from under the tree and nothing outside it, read
 // where it lies, or over the link where the tree is on another machine
 #include "../comms/link.h"
 #include "../text/base64.h"
@@ -109,8 +109,7 @@ static int view_window(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     const char *const path = cli_serve_string(args, "path", err_msg);
     CliLinkAddress address;
     const int linked = (path != NULL) && cli_link_address(&address);
-    if ((path == NULL) ||
-        (!linked && (!cli_serve_root(root, err_msg) || !cli_inside(root, path, full, err_msg))))
+    if ((path == NULL) || (!linked && (!cli_serve_root(root, err_msg) || !cli_inside(root, path, full, err_msg))))
     {
         return 0;
     }
@@ -164,8 +163,8 @@ static void view_linked_served(const char *path, const char *media_type, CliWind
         answered ? g_cli_cells->persistent_buf_alloc(((read.at / 4ull) * 3ull) + 3ull, NULL) : NULL;
     unsigned long long size = 0ull;
     // the answer is a JSON string of base64, whose letters need no escape, its quotes about it
-    const int decoded = (bytes != NULL) &&
-                        cli_unbase64(read.out + 1, read.at - 2ull, bytes, ((read.at / 4ull) * 3ull) + 3ull, &size);
+    const int decoded =
+        (bytes != NULL) && cli_unbase64(read.out + 1, read.at - 2ull, bytes, ((read.at / 4ull) * 3ull) + 3ull, &size);
     if (decoded)
     {
         served(context, 200u, media_type, bytes, size);
@@ -192,8 +191,8 @@ void cli_window_view_served(const char *path, unsigned long long size, CliWindow
         const int escaped = (path[at] == '%') && (at + 2ull < size) && (view_hex_of(path[at + 1ull]) < 16u) &&
                             (view_hex_of(path[at + 2ull]) < 16u);
         // two hexadecimal digits make a byte, below 256
-        mmgr_line_ch(&named, escaped ? (char)((view_hex_of(path[at + 1ull]) << 4u) | view_hex_of(path[at + 2ull]))
-                                     : path[at]);
+        mmgr_line_ch(&named,
+                     escaped ? (char)((view_hex_of(path[at + 1ull]) << 4u) | view_hex_of(path[at + 2ull])) : path[at]);
         at += escaped ? 2ull : 0ull;
     }
     char why[CLI_PATH_MAX_LEN + 64u];

@@ -41,6 +41,7 @@ import { writeWithCare } from "./rights.js";
 import { syncPlugins } from "./scripts.js";
 import { togglePane } from "./sides.js";
 import { onOverBudget } from "./statusbar.js";
+import { findPaged, inWindow, jumpPaged } from "./paged.js";
 import { compareWithClipboard, conflicted, openMerge } from "./edit/compare.js";
 import { checkShown, drawCrumbs, goToDefinition, tidy } from "./edit/crumbs.js";
 import { drawBinary, drawDefs } from "./edit/defs.js";
@@ -86,9 +87,7 @@ export const state = {
   // The tabs by when each was last shown, and the walk Last Editor is on while Ctrl is held.
   used: [],
   cycle: null,
-  // Each file's text as the last commit left it, as it is being read or once it is: null for none.
-  heads: new Map(),
-  // How many times the last commit's files were forgotten, for a text held on the window's side to know
+  // How many times the last commit's files were forgotten, for a branch on the window's side to know
   // to read its file as the commit holds it again.
   headsAge: 0,
   // How many files the system clipboard holds, for the tree's Paste.
@@ -250,15 +249,21 @@ export function drawEmpty(shown) {
 export async function startEdit(defs) {
   document.querySelector("#mode-edit .desk").dataset.tabs = sideTabs() ? "side" : "row";
   new ResizeObserver(() => rowOverflowing()).observe(document.getElementById("tabs"));
-  // Find on a text held on the window's side runs there; a search it does not run as the page does answers null, and
-  // the page runs it.
-  findWith((doc, sought, most) => {
-    const held = doc.held;
-    if (!held?.ready) {
-      return null;
-    }
-    sendChanges(doc);
-    return along(held, () => invoke("document_find", { key: held.key, sought, most })).catch(() => null);
+  // Find runs on the window's side: over the branch a text is held as, once the changes before it have gone there, and
+  // over the pages a paged file is held as, the window brought to a match outside it.
+  findWith({
+    search: (s, sought, most) => {
+      if (s.window?.paged) {
+        return findPaged(s, sought, most).catch(() => null);
+      }
+      const held = s.doc.held;
+      if (!held?.ready) {
+        return null;
+      }
+      sendChanges(s.doc);
+      return along(held, () => invoke("document_find", { key: held.key, sought, most })).catch(() => null);
+    },
+    reach: (s, line) => (s.window?.paged && !inWindow(s, line) ? jumpPaged(s, line) : Promise.resolve()),
   });
   onOverBudget(holdMemory);
   // The changes not saved are kept at once as the window closes, is hidden or loses the keys, and not

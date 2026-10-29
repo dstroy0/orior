@@ -11,7 +11,7 @@ import { allowPlugin, running, stopPlugin, syncPlugins } from "../../gui/src-js/
 import { invoke, watchCalls } from "../../gui/src-js/bridge.js";
 import { setReduceMotion } from "../../gui/src-js/motion.js";
 import { editing, openFile } from "../../gui/src-js/edit.js";
-import { loadPlugins } from "../../gui/src-js/plugins.js";
+import { loadPlugins, setPluginOn } from "../../gui/src-js/plugins.js";
 import { showView } from "../../gui/src-js/views.js";
 
 const { test, assert, ui, calls } = window.__harness;
@@ -44,8 +44,12 @@ const STUCK = `orior.on("open", ({ path }) => {
 
 `;
 
+// The plugins the file writes, each turned off as it ends.
+const installed = new Set();
+
 // Writes a script plugin of the reader's, asking for what `asks` names: reads, writes and reaches.
 async function plugin(id, name, code, asks = {}) {
+  installed.add(id);
   const home = await invoke("home_folder");
   await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.json`, text: JSON.stringify({ id, name, version: "1.0.0", kind: "script", api: 1, ...asks }) });
   await invoke("file_write_any", { path: `${home}/plugins/${id}/plugin.js`, text: code });
@@ -172,4 +176,9 @@ test("a plugin's panel is drawn still where less motion is asked for", async () 
   } finally {
     setReduceMotion(false);
   }
+});
+
+test("the plugins the file wrote are turned off, none of them running on after it", async () => {
+  installed.forEach((id) => setPluginOn(id, false));
+  await ui.waitFor(() => [...installed].every((id) => !running().has(id)), 5000, "the file's plugins stopped");
 });

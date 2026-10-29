@@ -90,23 +90,32 @@ export class Minimap {
     // The view's line in the whole file. Lines read in above the view leave it where it is.
     const fileTop = (s?.base ?? 0) + viewRow;
     let start = 0;
-    if (this.held && this.held.session === s && this.held.fileTop === fileTop) {
-      // The view has not moved in the file since the map last stood: the map stands where it did
-      // beside it, however many lines have been read in around it since.
-      start = viewRow - this.held.offset;
-    } else if (s?.window) {
-      // A file held as pages: the map stands where the view stands in the whole file, its line
-      // count as counted when the file opened, and not in the window held now.
+    if (s?.window) {
+      // A file held as pages: the map stands where the view stands in the whole file, its line count as the index
+      // counts it, and not in the window held now, so the slider moves with the view as the window moves under it.
+      // The map's rows above or below the window stand empty until the window comes to them.
       const total = ed.linesInFile();
       const ratio = Math.min(1, Math.max(0, fileTop / Math.max(1, total - onScreen)));
       start = Math.round(ratio * Math.max(0, total - fit)) - s.base;
-    } else if (rows.size > fit) {
-      start = Math.round(Math.min(1, scrollTop / range) * (rows.size - fit));
+    } else {
+      if (this.held && this.held.session === s && this.held.fileTop === fileTop) {
+        // The view has not moved since the map last stood: the map stands where it did beside it.
+        start = viewRow - this.held.offset;
+      } else if (rows.size > fit) {
+        start = Math.round(Math.min(1, scrollTop / range) * (rows.size - fit));
+      }
+      start = Math.round(Math.max(0, Math.min(Math.max(0, rows.size - fit), start)));
     }
-    start = Math.round(Math.max(0, Math.min(Math.max(0, rows.size - fit), start)));
     this.held = { session: s, fileTop, offset: viewRow - start };
     const sliderTop = (viewRow - start) * ROW;
     return { rows, fit, start, range, onScreen, sliderTop, sliderHeight: Math.max(8, onScreen * ROW) };
+  }
+
+  // The lines of the file the map stands beside, from and to before, the view where its last scroll left it.
+  fileSpan() {
+    const ed = this.ed;
+    const { start, fit } = this.geometry(ed.lastTop ?? ed.scroller.scrollTop);
+    return [ed.s.base + start, ed.s.base + start + fit];
   }
 
   paint(scrollTop = this.ed.scroller.scrollTop) {
@@ -126,7 +135,9 @@ export class Minimap {
       return;
     }
     const { rows, fit, start, sliderTop, sliderHeight } = this.geometry(scrollTop);
-    const end = Math.min(rows.size, start + fit);
+    // the rows of the map the window holds: a paged file's map reaches past the window on either side
+    const first = Math.max(0, start);
+    const end = Math.max(first, Math.min(rows.size, start + fit));
     const size = s.indent.size;
     const doc = s.doc;
     const marks = this.colorOf("ed-mini-sel");
@@ -137,27 +148,28 @@ export class Minimap {
         continue;
       }
       context.fillStyle = marks;
-      const top = Math.max(start, rows.rowOf(from.line));
+      const top = Math.max(first, rows.rowOf(from.line));
       const bottom = Math.min(end - 1, rows.rowOf(to.line));
       if (bottom >= top) {
         context.fillRect(0, (top - start) * ROW, width, (bottom - top + 1) * ROW);
       }
     }
-    if (ed.find.shown) {
+    if (ed.find.shown && end > first) {
       context.fillStyle = this.colorOf("ed-mini-match");
-      for (const match of ed.find.between(rows.lineOf(start), rows.lineOf(end - 1))) {
+      for (const match of ed.find.between(rows.lineOf(first), rows.lineOf(end - 1))) {
         context.fillRect(0, (rows.rowOf(match.from.line) - start) * ROW, width, ROW);
       }
     }
     // The lines, from the map's own canvas of them, which keeps the rows in view drawn. A scroll moves
     // what it holds and draws only the rows that come into view; a change to the text, its folding,
-    // the colors, the detail or the map's size draws every row in view again.
+    // the colors, the runs that come for its lines, the detail or the map's size draws every row in
+    // view again.
     const lines = this.linesCanvas(Math.round(width * ratio), Math.round(height * ratio));
     const pen = lines.getContext("2d");
     const kept = this.linesFor;
-    const key = [s.doc.id, s.foldings, s.base, rows.size, this.colorsMade, lines.width, lines.height].join("|");
+    const key = [s.doc.id, s.foldings, s.base, rows.size, this.colorsMade, s.highlight.came, lines.width, lines.height].join("|");
     const moved = kept && kept.session === s && kept.key === key ? start - kept.start : null;
-    let from = start;
+    let from = first;
     let to = end;
     if (moved !== null && Math.abs(moved) < fit) {
       if (moved !== 0) {
@@ -168,7 +180,7 @@ export class Minimap {
         pen.drawImage(lines, 0, -moved * ROW * ratio);
         pen.globalCompositeOperation = "source-over";
         if (moved > 0) {
-          from = Math.max(start, end - moved);
+          from = Math.max(first, end - moved);
           pen.clearRect(0, (from - start) * ROW * ratio, lines.width, lines.height);
         } else {
           to = Math.min(end, start - moved);
@@ -184,6 +196,17 @@ export class Minimap {
     this.linesFor = { session: s, key, start };
     pen.setTransform(ratio, 0, 0, ratio, 0, 0);
     pen.globalAlpha = 0.8;
+    // Each word a bar on the path of its color, every path filled once: the canvas takes a fill a color and not a
+    // fill a word.
+    const paths = new Map();
+    const bar = (color, x, y, wide) => {
+      let path = paths.get(color);
+      if (!path) {
+        path = new Path2D();
+        paths.set(color, path);
+      }
+      path.rect(MARGIN + x * CHAR, y, wide * CHAR, ROW - 0.5);
+    };
     for (let row = from; row < to; row += 1) {
       const line = rows.lineOf(row);
       const text = doc.line(line);
@@ -193,7 +216,7 @@ export class Minimap {
       let index = 0;
       for (let run = 0; run < runs.length && v < WIDEST; run += 1) {
         const stop = runs[run + 1]?.[0] ?? text.length;
-        pen.fillStyle = this.colorOf(runs[run][1] || "t-plain");
+        const color = this.colorOf(runs[run][1] || "t-plain");
         let begun = -1;
         for (; index < stop && v < WIDEST; index += 1) {
           const char = text[index];
@@ -202,15 +225,19 @@ export class Minimap {
             begun = v;
           }
           if (blank && begun >= 0) {
-            pen.fillRect(MARGIN + begun * CHAR, y, (v - begun) * CHAR, ROW - 0.5);
+            bar(color, begun, y, v - begun);
             begun = -1;
           }
           v += char === "\t" ? size - (v % size) : 1;
         }
         if (begun >= 0) {
-          pen.fillRect(MARGIN + begun * CHAR, y, (v - begun) * CHAR, ROW - 0.5);
+          bar(color, begun, y, v - begun);
         }
       }
+    }
+    for (const [color, path] of paths) {
+      pen.fillStyle = color;
+      pen.fill(path);
     }
     pen.globalAlpha = 1;
     context.setTransform(1, 0, 0, 1, 0, 0);
@@ -255,7 +282,7 @@ export class Minimap {
     }
     if (ed.find.shown) {
       context.fillStyle = this.colorOf("ed-mini-match");
-      for (const match of ed.find.matches) {
+      for (const match of ed.find.between(0, s.doc.count - 1)) {
         context.fillRect(left + 4, yOf(match.from.line), STRIP - 4, tall);
       }
     }
@@ -291,7 +318,9 @@ export class Minimap {
     }
     const startY = event.clientY;
     const startTop = ed.scroller.scrollTop;
-    const span = Math.max(1, (Math.min(found.rows.size, found.fit) - found.onScreen) * ROW);
+    // the slider's run down the map, the rows the map stands for counted in the whole file where it is held as pages
+    const all = ed.s.window ? ed.linesInFile() : found.rows.size;
+    const span = Math.max(1, (Math.min(all, found.fit) - found.onScreen) * ROW);
     this.dragging = true;
     const move = (moved) => {
       ed.scroller.scrollTop = startTop + ((moved.clientY - startY) * found.range) / span;

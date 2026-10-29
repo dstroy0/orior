@@ -110,7 +110,7 @@ export function placeOf(piece, doc, base = 0) {
 }
 
 function letGo() {
-  state.sessions.forEach((session) => session.of && session.drop());
+  state.sessions.forEach((session) => session.drop());
   Object.assign(state, { editors: [], sessions: [] });
 }
 
@@ -127,9 +127,7 @@ async function drawPiece(piece, at, holder, drawn) {
     return null;
   });
   if (!session || !state.board || drawn !== state.drawn) {
-    if (session?.of) {
-      session.drop();
-    }
+    session?.drop();
     return;
   }
   state.sessions.push(session);

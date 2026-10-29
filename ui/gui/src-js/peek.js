@@ -28,7 +28,7 @@ const where = (place) => `${place.path}:${place.line + 1}`;
 // Closes the peek, and lets go of the views of the files it showed.
 export function closePeek() {
   state.panel?.remove();
-  state.sessions.forEach((session) => session.of && session.drop());
+  state.sessions.forEach((session) => session.drop());
   Object.assign(state, { panel: null, editor: null, sessions: new Map(), places: [], shown: -1 });
 }
 

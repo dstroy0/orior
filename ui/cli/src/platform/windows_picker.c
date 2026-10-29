@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// windows_picker.c: the system's picker on Windows, its common item dialog: a file to open, a folder, or a file to save,
-// shown on a thread of its own in a single-threaded apartment, as the dialog must be, while the caller waits
+// windows_picker.c: the system's picker on Windows, its common item dialog: a file to open, a folder, or a file to
+// save, shown on a thread of its own in a single-threaded apartment, as the dialog must be, while the caller waits
 #include "../command_line/cli_internal.h"
 
 #if defined(_WIN32)

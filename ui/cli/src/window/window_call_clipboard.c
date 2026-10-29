@@ -1,7 +1,7 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// window_call_clipboard.c: the window's calls on the system's clipboard: its text, read here so that the page never asks
-// the reader for leave to read it, and put here so that the page never asks for leave to write it; and files and
+// window_call_clipboard.c: the window's calls on the system's clipboard: its text, read here so that the page never
+// asks the reader for leave to read it, and put here so that the page never asks for leave to write it; and files and
 // folders of the tree put on it cut or copied, for another window of orior or the system's file manager to paste, and
 // those it holds pasted into a folder of the tree, moved where they were cut. A cut the clipboard does not say is known
 // to the window it was made in alone, by the paths it put; files are cut, copied and pasted on this machine only
@@ -68,8 +68,8 @@ static void clipboard_file_kept(void *context, const char *path)
     files->used += size;
 }
 
-// the files the clipboard holds read into s_files, under the lock: 1 where they were cut, by what the clipboard says or,
-// where it does not say, by whether this window cut the same files
+// the files the clipboard holds read into s_files, under the lock: 1 where they were cut, by what the clipboard says
+// or, where it does not say, by whether this window cut the same files
 static int clipboard_files_read(void)
 {
     s_files.used = 0ull;
@@ -224,9 +224,8 @@ static int clipboard_files_paste(const CliServeArgs *args, VerbaLinea *out, Verb
 }
 
 const CliServeCall g_cli_window_clipboard_calls[] = {
-    {"clip_read", clipboard_read},          {"clip_write", clipboard_write},
-    {"clip_files", clipboard_files},        {"files_copy", clipboard_files_copy},
-    {"files_paste", clipboard_files_paste},
+    {"clip_read", clipboard_read},        {"clip_write", clipboard_write},        {"clip_files", clipboard_files},
+    {"files_copy", clipboard_files_copy}, {"files_paste", clipboard_files_paste},
 };
 const unsigned int g_cli_window_clipboard_count =
     sizeof(g_cli_window_clipboard_calls) / sizeof(g_cli_window_clipboard_calls[0]);

@@ -10,7 +10,8 @@ import { caret, empty, endOfSel, OPERATOR_END, startOf } from "../view.js";
 // old text to the new and answers the selections, or, left out, every selection is carried.
 export function change(edits, kind, place) {
   const s = this.s;
-  if (s.readOnly) {
+  // a paged file's window of lines cut at the view's reach takes no edit until the view rests and its lines come whole
+  if (s.readOnly || s.window?.cut) {
     return false;
   }
   const before = this.copySelections();

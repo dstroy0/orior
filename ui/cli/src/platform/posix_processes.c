@@ -250,7 +250,8 @@ static int processes_proc_read(unsigned int pid, const char *file, char *out)
 int cli_process_memory(unsigned int pid, CliProcessMemory *memory)
 {
     cli_lock_take(&s_lock);
-    const int read = processes_proc_read(pid, "/smaps_rollup", s_line) && processes_proc_read(pid, "/status", s_command);
+    const int read =
+        processes_proc_read(pid, "/smaps_rollup", s_line) && processes_proc_read(pid, "/status", s_command);
     if (read)
     {
         memory->working = processes_kilobytes(s_line, "Private_Clean:") + processes_kilobytes(s_line, "Private_Dirty:");

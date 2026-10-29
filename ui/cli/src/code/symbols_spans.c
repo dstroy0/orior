@@ -335,3 +335,57 @@ int cli_symbols_spans(const char *path, const char *text, unsigned long long siz
     }
     return !refused;
 }
+
+// whether the leaf `leaf` of `read` is a bracket of a pair: a leaf of one byte or more that opens or closes
+static int spans_bracket(const CliLeafRead *read, unsigned int leaf)
+{
+    return (leaf < read->count) && (read->leaf[leaf].to > read->leaf[leaf].from) &&
+           (cli_leaf_has(read, leaf, CLI_LEAF_OPEN) || cli_leaf_has(read, leaf, CLI_LEAF_CLOSE));
+}
+
+// the bracket of `read` that ends at the byte `byte`, else the one that starts at it, `read->count` where neither does
+static unsigned int spans_bracket_at(const CliLeafRead *read, unsigned long long byte)
+{
+    unsigned int low = 0u;
+    unsigned int high = read->count;
+    while (low < high)
+    {
+        const unsigned int middle = low + ((high - low) / 2u);
+        if (read->leaf[middle].from < byte)
+        {
+            low = middle + 1u;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    if ((low > 0u) && (read->leaf[low - 1u].to == byte) && spans_bracket(read, low - 1u))
+    {
+        return low - 1u;
+    }
+    return ((low < read->count) && (read->leaf[low].from == byte) && spans_bracket(read, low)) ? low : read->count;
+}
+
+int cli_symbols_pair(const char *path, const char *state, const char *text, unsigned long long size, CliSymbolPlace at,
+                     CliSymbolPlace *pair)
+{
+    CliSymbolsLanguages *const languages = cli_symbols_languages_read();
+    CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL};
+    const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, state, text, size, &read);
+    const unsigned int bracket = leaved ? spans_bracket_at(&read, spans_byte_of(text, size, at)) : read.count;
+    const int opens = (bracket < read.count) && cli_leaf_has(&read, bracket, CLI_LEAF_OPEN);
+    const unsigned int mate = (bracket >= read.count) ? read.count
+                              : opens                 ? spans_closing(&read, bracket)
+                                                      : spans_opening(&read, bracket);
+    const int paired = spans_bracket(&read, mate);
+    if (paired)
+    {
+        const CliSpans spans = {&read, size, 0ull, 0ull, NULL, NULL};
+        pair[0] = spans_place(&spans, bracket, read.leaf[bracket].from);
+        pair[1] = spans_place(&spans, mate, read.leaf[mate].from);
+    }
+    cli_symbols_leaves_given(&read);
+    cli_symbols_languages_given(languages);
+    return paired;
+}

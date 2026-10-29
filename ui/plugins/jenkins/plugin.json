@@ -15,6 +15,7 @@
     ["^(\\s*)(?:def|void|String|boolean|int)\\s+([A-Za-z_]\\w*)\\s*\\(", "function"]
   ],
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "as", "assert", "break", "case", "catch", "class", "continue", "def", "default", "do", "else", "false", "final", "finally",
       "for", "if", "import", "in", "instanceof", "new", "null", "return", "static", "switch", "this", "throw", "true", "try",

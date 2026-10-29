@@ -9,6 +9,7 @@
   "quotes": ["\"","'","`"],
   "indentAfter": "[{[(]\\s*(?:#.*)?$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": ["if", "else", "repeat", "while", "function", "for", "in", "next", "break", "return", "switch", "library", "require"],
     "types": ["numeric", "character", "logical", "integer", "complex", "double", "raw", "list", "data.frame", "matrix", "factor", "environment"],
     "constants": [

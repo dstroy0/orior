@@ -1,14 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // plugins_grammar.c: a language plugin's grammar stored for the colorer under `plugin:<id>`, read from the plugin.json
-// of the plugin of that id that stands, the reader's in place of one that comes with orior, and read again only where
-// that text changed
+// of the plugin of that id that stands, the reader's in place of one that comes with orior, made whole from the tree's
+// tables, and stored again only where the whole grammar changed. A language `<id>:<name>` is the plugin `<id>`'s for
+// the folder `<name>`
 #include "../command_line/cells.h"
+#include "../command_line/file_writing.h"
 #include "../editor/highlight.h"
 #include "plugins.h"
 
-// the plugins whose grammars' stamps the list's room is begun with before it doubles
+// the plugins whose grammars' stamps the list's room is begun with before it doubles, and the bytes a whole grammar is
+// begun to be written in, doubling as it is
 #define CLI_PLUGIN_GRAMMARS_FIRST 16u
+#define CLI_PLUGIN_GRAMMAR_FIRST 4096u
 
 // A plugin whose grammar is stored: its id, and the stamp of the plugin.json it was read from
 typedef struct
@@ -44,16 +48,17 @@ static int cli_grammars_grown(void)
     return 1;
 }
 
-// The plugin sought: its id; whether one of that id was found, and the stamp of the last, the one that stands; and on
-// the pass that stores it, the key, whether it was stored, and why where it was not
+// The plugin sought: its id, and the folder its language stands for, empty for none; the tree its tables are read
+// from; whether one of that id was found and its grammar made whole, the last, the one that stands, written into
+// `whole`; and why where it was not
 typedef struct
 {
     const char *id;
+    const char *name;
+    const char *tree;
     int found;
-    unsigned long long stamp;
-    const char *key;
-    int store;
-    int stored;
+    int made;
+    VerbaLinea *whole;
     VerbaLinea *err_msg;
 } CliGrammarSought;
 
@@ -68,8 +73,7 @@ static unsigned long long cli_grammar_stamp(const char *text, unsigned long long
     return stamp;
 }
 
-// a plugin of the id sought: its stamp noted, or on the pass that stores, its grammar stored where it is the one that
-// stands
+// a plugin of the id sought, its grammar made whole in the place of one made before: the last stands
 static void cli_grammar_each(void *context, const CliPlugin *plugin)
 {
     CliGrammarSought *const sought = (CliGrammarSought *)context;
@@ -77,29 +81,46 @@ static void cli_grammar_each(void *context, const CliPlugin *plugin)
     {
         return;
     }
-    const unsigned long long stamp = cli_grammar_stamp(plugin->text, plugin->size);
-    if (!sought->store)
-    {
-        sought->found = 1;
-        sought->stamp = stamp;
-        return;
-    }
-    if (stamp != sought->stamp)
-    {
-        return;
-    }
+    sought->found = 1;
+    sought->whole->at = 0ull;
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, sought->err_msg);
     const unsigned int grammar = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "grammar") : CLI_JSON_NONE;
-    if ((root != CLI_JSON_NONE) && (grammar == CLI_JSON_NONE))
+    const int has_grammar = cli_json_is(&json, grammar, CFG_JSON_OBJECT);
+    if ((root != CLI_JSON_NONE) && !has_grammar)
     {
         mmgr_line_put(sought->err_msg, "the plugin ");
         mmgr_line_put(sought->err_msg, sought->id);
         mmgr_line_put(sought->err_msg, " has no grammar");
     }
-    sought->stored = (grammar != CLI_JSON_NONE) && cli_highlight_store(sought->key, &json, grammar, sought->err_msg);
+    sought->made =
+        has_grammar &&
+        cli_plugins_grammar_whole(&json, grammar, sought->tree, sought->name, sought->whole, sought->err_msg) &&
+        mmgr_line_ok(sought->whole);
+    // the plugin's pairs written into its grammar as the brackets the grammar's `@brackets` names, before its last brace
+    const unsigned int pairs = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "pairs") : CLI_JSON_NONE;
+    if (sought->made && cli_json_is(&json, pairs, CFG_JSON_ARRAY) && (sought->whole->at > 2ull) &&
+        (sought->whole->out[sought->whole->at - 1ull] == '}'))
+    {
+        sought->whole->at -= 1ull;
+        mmgr_line_put(sought->whole, ",\"brackets\":");
+        cli_json_write(&json, pairs, sought->whole, 0u, 0);
+        mmgr_line_ch(sought->whole, '}');
+        sought->made = mmgr_line_ok(sought->whole);
+    }
     cli_json_given(&json);
+}
+
+// the whole grammar `whole` stored under `key`: 1, or 0 with why given
+static int cli_grammar_whole_stored(const char *key, const VerbaLinea *whole, VerbaLinea *err_msg)
+{
+    CliJson json;
+    cli_json_begun(&json, NULL, 0u, NULL, 0ull);
+    const unsigned int grammar = cli_json_taken(&json, whole->out, whole->at, 0u, 0ull, err_msg);
+    const int stored = (grammar != CLI_JSON_NONE) && cli_highlight_store(key, &json, grammar, err_msg);
+    cli_json_given(&json);
+    return stored;
 }
 
 int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
@@ -107,27 +128,48 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
     VerbaLinea named = {key, CLI_NAME_MAX_LEN, 0ull};
     mmgr_line_put(&named, "plugin:");
     mmgr_line_put(&named, id);
-    if (mmgr_line_finish(&named) == 0ull)
+    // the plugin's id, and the folder its language stands for after a colon
+    char plugin_id[CLI_NAME_MAX_LEN];
+    VerbaLinea split = {plugin_id, sizeof(plugin_id), 0ull};
+    const char *name = id;
+    while ((*name != '\0') && (*name != ':'))
+    {
+        name += 1;
+    }
+    // the colon lies at or after the id's first letter
+    mmgr_line_put_n(&split, id, (unsigned long long)(name - id));
+    name = (*name == ':') ? (name + 1) : name;
+    VerbaLinea whole;
+    if ((mmgr_line_finish(&named) == 0ull) || (mmgr_line_finish(&split) == 0ull))
     {
         mmgr_line_put(err_msg, "a plugin's id is longer than orior_cli supports");
         return 0;
     }
+    if (!cli_growing_line_made(&whole, CLI_PLUGIN_GRAMMAR_FIRST))
+    {
+        mmgr_line_put(err_msg, "a plugin's grammar could not be given a cell to be made whole in");
+        return 0;
+    }
+    char tree[CLI_PATH_MAX_LEN];
+    if (!cli_plugins_tree(tree))
+    {
+        tree[0] = '\0';
+    }
     cli_lock_take(&s_lock);
-    CliGrammarSought sought = {id, 0, 0ull, key, 0, 0, err_msg};
+    CliGrammarSought sought = {plugin_id, name, tree, 0, 0, &whole, err_msg};
     cli_plugins_each(cli_grammar_each, &sought);
+    const unsigned long long stamp = cli_grammar_stamp(whole.out, whole.at);
     unsigned int at = 0u;
     while ((at < s_grammar_count) &&
            !cellul.eq(&(CatenaFinitaCfg){.src = s_grammars[at].id, .other = id, .cap = CLI_CELLS_POOL}))
     {
         at += 1u;
     }
-    int stored = sought.found && (at < s_grammar_count) && (s_grammars[at].stamp == sought.stamp);
-    if (sought.found && !stored)
+    int stored = sought.made && (at < s_grammar_count) && (s_grammars[at].stamp == stamp);
+    if (sought.made && !stored)
     {
-        sought.store = 1;
-        cli_plugins_each(cli_grammar_each, &sought);
-        stored = sought.stored;
-        // a grammar whose stamp the cells cannot hold is read again the next time it is sought
+        stored = cli_grammar_whole_stored(key, &whole, err_msg);
+        // a grammar whose stamp the cells cannot hold is made whole again the next time it is sought
         if (stored && (at == s_grammar_count) && ((s_grammar_count < s_grammar_room) || cli_grammars_grown()))
         {
             memor.cpy(&(MemoriaCfg){.dst = s_grammars[at].id,
@@ -137,14 +179,15 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
         }
         if (stored && (at < s_grammar_count))
         {
-            s_grammars[at].stamp = sought.stamp;
+            s_grammars[at].stamp = stamp;
         }
     }
     cli_lock_give(&s_lock);
+    g_cli_cells->persistent_buf_release(whole.out, NULL);
     if (!sought.found)
     {
         mmgr_line_put(err_msg, "no plugin is named ");
-        mmgr_line_put(err_msg, id);
+        mmgr_line_put(err_msg, plugin_id);
     }
     return stored;
 }

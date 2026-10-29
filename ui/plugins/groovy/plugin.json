@@ -9,6 +9,7 @@
   "quotes": ["\"","'"],
   "indentAfter": "[{[(]\\s*$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "abstract", "as", "assert", "boolean", "break", "byte", "case", "catch", "char", "class", "continue", "def", "default", "do",
       "double", "else", "enum", "extends", "false", "final", "finally", "float", "for", "if", "implements", "import", "in",

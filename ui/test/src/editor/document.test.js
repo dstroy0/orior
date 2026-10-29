@@ -40,10 +40,11 @@ function textOfLines(count) {
   return parts.join("");
 }
 
+// The lines that fit in `bytes`, so a text of 1 MB is no larger than a file the editor opens whole.
 function textOfBytes(bytes) {
   const parts = [];
   let size = 0;
-  for (let number = 0; size < bytes; number += 1) {
+  for (let number = 0; size + lineOf(number).length <= bytes; number += 1) {
     const line = lineOf(number);
     parts.push(line);
     size += line.length;

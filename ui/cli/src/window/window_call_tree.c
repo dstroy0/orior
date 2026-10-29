@@ -160,8 +160,8 @@ static int tree_window_named(const char *root, const char *remote, const char **
 
 // another window opened, a program of its own with its own tabs, terminals and servers, on the tree `root` names, else
 // on the tree on another machine `remote` names or the one the link is open to, else on the tree open here, to run the
-// menus' command `words` names once its page is up; started outside the window's container, the reader's to keep as this
-// window closes
+// menus' command `words` names once its page is up; started outside the window's container, the reader's to keep as
+// this window closes
 static int tree_window_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     (void)out;
@@ -211,13 +211,9 @@ static int tree_launch_take(const CliServeArgs *args, VerbaLinea *out, VerbaLine
 }
 
 const CliServeCall g_cli_window_tree_calls[] = {
-    {"root_now", tree_root_now},
-    {"root", tree_root},
-    {"tree_inside", tree_inside},
-    {"launch_take", tree_launch_take},
-    {"link_address", tree_link_address},
-    {"link_standing", tree_link_standing},
-    {"link_drop", tree_link_drop},
-    {"window_open", tree_window_open},
+    {"root_now", tree_root_now},         {"root", tree_root},
+    {"tree_inside", tree_inside},        {"launch_take", tree_launch_take},
+    {"link_address", tree_link_address}, {"link_standing", tree_link_standing},
+    {"link_drop", tree_link_drop},       {"window_open", tree_window_open},
 };
 const unsigned int g_cli_window_tree_count = sizeof(g_cli_window_tree_calls) / sizeof(g_cli_window_tree_calls[0]);

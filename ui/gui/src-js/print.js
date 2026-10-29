@@ -11,6 +11,7 @@
 // printed.
 
 import { invoke } from "./bridge.js";
+import { partsOf } from "./editor/tokens.js";
 import { say } from "./statusbar.js";
 
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" };
@@ -56,16 +57,10 @@ export function printed(s, title, runsOf = (line) => s.highlight.runsOf(line)) {
   const width = String(s.base + last + 1).length;
   const rows = [];
   for (let line = first; line <= last; line += 1) {
-    const text = s.doc.line(line);
-    const runs = runsOf(line);
     let code = "";
-    runs.forEach(([start, name], index) => {
-      const end = runs[index + 1]?.[0] ?? text.length;
-      if (end > start) {
-        const part = escape(text.slice(start, end));
-        code += name ? `<span style="${styleOf(name)}">${part}</span>` : part;
-      }
-    });
+    for (const [name, part] of partsOf(s.doc.line(line), runsOf(line))) {
+      code += name ? `<span style="${styleOf(name)}">${escape(part)}</span>` : escape(part);
+    }
     rows.push(`<div class="row"><span class="n">${String(s.base + line + 1).padStart(width)}</span><span class="c">${code || " "}</span></div>`);
   }
   const ink = getComputedStyle(probe).getPropertyValue("--ed-fg").trim() || "#222";

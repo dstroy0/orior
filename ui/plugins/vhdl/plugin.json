@@ -9,6 +9,7 @@
   "quotes": ["\""],
   "indentAfter": "(?:\\b(?:is|begin|then|else|loop|generate|record|units|protected)|=>|\\()\\s*(?:--.*)?$",
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "ignoreCase": true,
     "words": [
       "abs", "access", "after", "alias", "all", "and", "architecture", "array", "assert", "assume", "attribute",

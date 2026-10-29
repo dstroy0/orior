@@ -252,9 +252,9 @@ int cli_temporary_file_made(CliTemporaryFile *file)
         return 0;
     }
     // shared so that the system deletes it as it is let go, or as the process ends however it ends
-    const HANDLE made = CreateFileA(path, GENERIC_READ | GENERIC_WRITE,
-                                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, CREATE_NEW,
-                                    FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+    const HANDLE made =
+        CreateFileA(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                    CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
     // a handle is a pointer's width, which an unsigned long long stores
     file->handle = (made != INVALID_HANDLE_VALUE) ? (unsigned long long)(uintptr_t)made : 0ull;
     return made != INVALID_HANDLE_VALUE;

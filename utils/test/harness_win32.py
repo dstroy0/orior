@@ -373,6 +373,70 @@ def window_rect(handle):
     return rect.left, rect.top, rect.right, rect.bottom
 
 
+class KeyInput(ctypes.Structure):
+    _fields_ = [("kind", wintypes.DWORD), ("key", wintypes.WORD), ("scan", wintypes.WORD), ("flags", wintypes.DWORD),
+                ("time", wintypes.DWORD), ("extra", ctypes.POINTER(ctypes.c_ulong)), ("padding", ctypes.c_ubyte * 8)]
+
+
+INPUT_KEYBOARD = 1
+KEYEVENTF_KEYUP = 2
+VK_OF = {"Left": 0x25, "Right": 0x27, "Up": 0x26, "Down": 0x28, "Home": 0x24, "End": 0x23, "PageUp": 0x21, "PageDown": 0x22,
+         "Backspace": 0x08, "Delete": 0x2E, "Enter": 0x0D, "Tab": 0x09, "Escape": 0x1B, "Space": 0x20, "Insert": 0x2D,
+         "[": 0xDB, "]": 0xDD, "/": 0xBF, "\\": 0xDC, ".": 0xBE, ",": 0xBC}
+VK_SHIFT, VK_CONTROL, VK_MENU = 0x10, 0x11, 0x12
+
+
+WM_KEYDOWN, WM_KEYUP, WM_CHAR = 0x0100, 0x0101, 0x0102
+WM_MOUSEMOVE, WM_LBUTTONDOWN, WM_LBUTTONUP = 0x0200, 0x0201, 0x0202
+MK_LBUTTON = 0x0001
+
+
+def pointer_sent(handle, x, y, down, up, moved=()):
+    """A press at x, y of the window's client posted to its queue where `down`, the moves `moved` after it with the
+    button down, and the release where `up`."""
+    import time
+
+    place = (y << 16) | (x & 0xFFFF)
+    if down:
+        user32.PostMessageW(handle, WM_LBUTTONDOWN, MK_LBUTTON, place)
+    for to_x, to_y in moved:
+        time.sleep(0.02)
+        user32.PostMessageW(handle, WM_MOUSEMOVE, MK_LBUTTON, (to_y << 16) | (to_x & 0xFFFF))
+        x, y = to_x, to_y
+    if up:
+        time.sleep(0.02)
+        user32.PostMessageW(handle, WM_LBUTTONUP, 0, (y << 16) | (x & 0xFFFF))
+
+
+def keys_sent(handle, names):
+    """The keys `names` posted to the window's own queue, each named as the page's editor names a key, Mod+Shift+Z or
+    Right, the modifiers posted down before the key and up after it; one character posted as the character typed. The
+    window reads the modifiers off the messages. No focus is needed and nothing reaches another window."""
+    import time
+
+    for name in names:
+        parts = name.split("+")
+        key = parts.pop() or "+"
+        held = [VK_CONTROL for part in parts if part in ("Mod", "Ctrl")] + [VK_MENU for part in parts if part == "Alt"]
+        held += [VK_SHIFT for part in parts if part == "Shift"]
+        for modifier in held:
+            user32.PostMessageW(handle, WM_KEYDOWN, modifier, 0)
+        if key in VK_OF:
+            user32.PostMessageW(handle, WM_KEYDOWN, VK_OF[key], 0)
+            user32.PostMessageW(handle, WM_KEYUP, VK_OF[key], 0)
+        elif len(key) == 1 and not held:
+            user32.PostMessageW(handle, WM_CHAR, ord(key), 0)
+        elif len(key) == 1:
+            user32.PostMessageW(handle, WM_KEYDOWN, ord(key.upper()), 0)
+            user32.PostMessageW(handle, WM_KEYUP, ord(key.upper()), 0)
+        else:
+            raise SystemExit("no key is named %s" % name)
+        for modifier in reversed(held):
+            user32.PostMessageW(handle, WM_KEYUP, modifier, 0)
+        time.sleep(0.02)
+    return True
+
+
 def window_moved(handle, left, top):
     """The window shown normal and moved to (left, top), its size kept, and maximized again where it was."""
     maximized = user32.IsZoomed(handle)
@@ -396,6 +460,63 @@ def displays():
 
     user32.EnumDisplayMonitors(None, None, ENUM_MONITORS(seen), 0)
     return found
+
+
+class DisplayConfigHeader(ctypes.Structure):
+    _fields_ = [("kind", ctypes.c_uint32), ("size", ctypes.c_uint32), ("adapter_low", ctypes.c_uint32), ("adapter_high", ctypes.c_int32), ("id", ctypes.c_uint32)]
+
+
+class DisplayConfigSourceName(ctypes.Structure):
+    _fields_ = [("header", DisplayConfigHeader), ("device", ctypes.c_wchar * 32)]
+
+
+class DisplayConfigAdvancedColor(ctypes.Structure):
+    _fields_ = [("header", DisplayConfigHeader), ("value", ctypes.c_uint32), ("encoding", ctypes.c_uint32), ("bits", ctypes.c_uint32)]
+
+
+class DisplayConfigWhiteLevel(ctypes.Structure):
+    _fields_ = [("header", DisplayConfigHeader), ("level", ctypes.c_uint32)]
+
+
+# QueryDisplayConfig's active paths, and the kinds of DisplayConfigGetDeviceInfo asked: a source's GDI name, a target's
+# advanced color state and its white level for SDR content. A path is 72 bytes, its source's adapter and id at 0 and 8
+# and its target's at 20 and 28; a mode is 64 bytes and is not read.
+QDC_ONLY_ACTIVE_PATHS = 2
+GET_SOURCE_NAME = 1
+GET_ADVANCED_COLOR_INFO = 9
+GET_SDR_WHITE_LEVEL = 11
+PATH_BYTES = 72
+MODE_BYTES = 64
+
+
+def sdr_white(device):
+    """How a display composes SDR content, for the display named `device` as \\\\.\\DISPLAY1: (advanced color on, the
+    linear scRGB value SDR white stands at, 1.0 being 80 nits). Off, or where the system cannot be asked, (False, 1.0)."""
+    paths_count = ctypes.c_uint32()
+    modes_count = ctypes.c_uint32()
+    if user32.GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, ctypes.byref(paths_count), ctypes.byref(modes_count)) != 0:
+        return False, 1.0
+    paths = ctypes.create_string_buffer(PATH_BYTES * paths_count.value)
+    modes = ctypes.create_string_buffer(MODE_BYTES * modes_count.value)
+    if user32.QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS, ctypes.byref(paths_count), paths, ctypes.byref(modes_count), modes, None) != 0:
+        return False, 1.0
+    for index in range(paths_count.value):
+        at = index * PATH_BYTES
+        source_low, source_high, source_id = struct.unpack_from("<Iii", paths, at)
+        target_low, target_high, target_id = struct.unpack_from("<Iii", paths, at + 20)
+        name = DisplayConfigSourceName()
+        name.header = DisplayConfigHeader(GET_SOURCE_NAME, ctypes.sizeof(name), source_low, source_high, source_id)
+        if user32.DisplayConfigGetDeviceInfo(ctypes.byref(name)) != 0 or name.device.lower() != device.lower():
+            continue
+        color = DisplayConfigAdvancedColor()
+        color.header = DisplayConfigHeader(GET_ADVANCED_COLOR_INFO, ctypes.sizeof(color), target_low, target_high, target_id)
+        white = DisplayConfigWhiteLevel()
+        white.header = DisplayConfigHeader(GET_SDR_WHITE_LEVEL, ctypes.sizeof(white), target_low, target_high, target_id)
+        if user32.DisplayConfigGetDeviceInfo(ctypes.byref(color)) != 0 or user32.DisplayConfigGetDeviceInfo(ctypes.byref(white)) != 0:
+            return False, 1.0
+        # advanced color enabled is the value's second bit; the white level is 1000 for 80 nits
+        return bool(color.value & 2), white.level / 1000.0
+    return False, 1.0
 
 
 def screen_pixels(left, top, width, height):

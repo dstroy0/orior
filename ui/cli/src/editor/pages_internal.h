@@ -7,10 +7,12 @@
 
 #include "pages.h"
 
-// how many lines apart the index records the byte a line starts at, and the most it records; how many lines find and a
-// save read at a time; the most pieces of a text; the most lines and bytes one reading gives; and the most bytes of
-// text find searches at a time, its units and its search each taking cells of several times that
+// how many lines apart the index records the byte a line starts at, and how many bytes apart at the most, so a reading
+// of a file of long lines starts near the lines it reads; the most starts it records; how many lines find and a save
+// read at a time; the most pieces of a text; the most lines and bytes one reading gives; and the most bytes of text
+// find searches at a time, its units and its search each taking cells of several times that
 #define CLI_PAGE_STEP 1024ull
+#define CLI_PAGE_SPAN (64ull * 1024ull)
 #define CLI_PAGE_STARTS (1u << 20u)
 #define CLI_PAGE_BLOCK 16384ull
 #define CLI_PAGE_PIECES 65536u
@@ -21,12 +23,27 @@
 // the end of the shadow's name, after a dot and the file's name, beside the file
 #define CLI_PAGE_SHADOW ".~"
 
-// The index of a file's lines as far as it has been read: the byte each CLI_PAGE_STEP-th line starts at, a cell of
-// `starts_most` of them sized to the file and no more than CLI_PAGE_STARTS, how many lines there are, whether it is
-// whole, whether its reading is going on or is to stop, and the file it reads
+// A view's placing (cli_pages_viewed): the lines about a moving view's rows it is answered, and one more for each
+// SPREAD lines of the step it moved, as far as its next step can differ from the last, no more than the lines a step
+// reads; the lines about a resting view's rows and the minimap's it keeps; the bytes of whole lines a step toward those
+// reads, 16 lines at the least; the most lines it keeps; and the milliseconds within which a report follows the last
+// for the view to be moving at the step between them
+#define CLI_PAGE_EDGE 8ull
+#define CLI_PAGE_SPREAD 4ull
+#define CLI_PAGE_NEAR 100ull
+#define CLI_PAGE_REST_BYTES (128ull * 1024ull)
+#define CLI_PAGE_REST_LEAST 16ull
+#define CLI_PAGE_KEPT 2000ull
+#define CLI_PAGE_STILL 100ull
+
+// The index of a file's lines as far as it has been read: the byte a line starts at, recorded CLI_PAGE_STEP lines or
+// CLI_PAGE_SPAN bytes after the one recorded before, whichever comes first, and the line each is, in order, each a cell
+// of `starts_most` sized to the file and no more than CLI_PAGE_STARTS; how many lines there are, whether it is whole,
+// whether its reading is going on or is to stop, and the file it reads
 typedef struct
 {
     unsigned long long *start;
+    unsigned long long *line;
     unsigned long long starts_most;
     unsigned long long starts;
     unsigned long long lines;
@@ -51,8 +68,9 @@ typedef struct
 
 // A paged text, a cell of its own, taken as it is opened and given back once it is let go and its index has stopped,
 // as many stored as the cells meet: the next stored, its key, its file and the shadow beside it the lines written over
-// it are put after, the shadow's bytes, the file's size and the end of line its first line ends with, its index, and
-// its pieces, a cell of CLI_PAGE_PIECES
+// it are put after, the shadow's bytes, the file's size and the end of line its first line ends with, its index, its
+// pieces, a cell of CLI_PAGE_PIECES, and the view the page reported last: whether it has reported one, the line at its
+// top and the millisecond it was reported
 typedef struct CliPaged
 {
     struct CliPaged *next;
@@ -65,6 +83,9 @@ typedef struct CliPaged
     CliPageIndex index;
     CliPagePiece *piece;
     unsigned int pieces;
+    int viewed;
+    unsigned long long view_top;
+    unsigned long long view_at;
 } CliPaged;
 
 // Lines a reading of a text gives, each where it starts in the text and its bytes: one cell containing the starts, the

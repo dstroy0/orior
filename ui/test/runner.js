@@ -159,6 +159,8 @@
     let moveDue = false;
     let moves = 0;
     while (performance.now() < until) {
+      // a part the claim takes off its edge again while the press waits is brought back again
+      await edgeRested(elementOf(target));
       const node = elementOf(target);
       const box = node.getBoundingClientRect();
       if (box.bottom < 0 || box.top > innerHeight || box.right < 0 || box.left > innerWidth) {
@@ -326,11 +328,11 @@
   // What a held call's error says, for a test that sets those errors aside.
   harness.held = HELD;
 
-  // The memory after each test, the system's account of the app and the cellblock's own, a row of
-  // memory.tsv beside the run's report: the test, the bytes in RAM and reserved over every process,
-  // the app's own process's, the cellblock's pool and its two peaks, and the share of the app's
-  // reserved bytes the pool accounts for.
-  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\towners"];
+  // The memory each test leaves, its garbage collected, the system's account of the app and the
+  // cellblock's own, a row of memory.tsv beside the run's report: the test, the bytes in RAM and
+  // reserved over every process, the app's own process's, the cellblock's pool and its two peaks, the
+  // share of the app's reserved bytes the pool accounts for, and the page's script heap.
+  const memoryRows = ["test\tworking\tcommit\town_working\town_commit\tpool\tpersistent\ttemporary\taccounted\towners\theap"];
   // The rows the files before this one wrote, read once, so the table runs across the whole run and
   // not the last file alone.
   let kept_before = null;
@@ -354,7 +356,8 @@
     // the window's own process by its name: the parts stand largest first, and the web view is the largest
     const own = read.parts.find((one) => one.name === "orior_gui") ?? { working: 0, commit: 0 };
     const accounted = own.commit > 0 ? (cells.pool / own.commit).toFixed(3) : "";
-    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, owners].join("\t"));
+    const heap = performance.memory?.usedJSHeapSize ?? "";
+    memoryRows.push([name, read.working, read.commit, own.working, own.commit, cells.pool, cells.persistent, cells.temporary, accounted, owners, heap].join("\t"));
     await invoke("file_write_any", { path: `${String(home).replace(/\\/g, "/")}/../memory.tsv`, text: `${memoryRows.join("\n")}\n` }).catch(() => {});
   }
 
@@ -364,6 +367,8 @@
     await harness.watching;
     const tests = harness.tests.splice(0);
     const results = [];
+    // a file's first test, as every test after it, starts with the page's garbage collected
+    await ui.gc().catch(() => {});
     for (const one of tests) {
       const started = performance.now();
       // Each run's failure is kept, so a test that fails for one reason first and for another on its
@@ -390,7 +395,6 @@
             break;
           }
         } finally {
-          await memorySampled(one.name);
           await ui.focusTold(true).catch(() => {});
           document.querySelectorAll("dialog[open]").forEach((one) => one.close());
           try {
@@ -404,6 +408,10 @@
               await frame();
             }
           }
+          // The next test starts on a page whose garbage is collected, so the row reads what this one
+          // left behind and not what it let go.
+          await ui.gc().catch(() => {});
+          await memorySampled(one.name);
         }
       }
     }

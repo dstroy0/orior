@@ -110,7 +110,7 @@ static const char *cli_first(const CliJson *json, unsigned int plugin, const cha
 
 // A few lines in the new language to open and try: a comment, a keyword, a type, a constant, a string and a number,
 // each where the plugin has one
-static void cli_sample_of(const CliJson *json, unsigned int plugin, VerbaLinea *out)
+void cli_plugins_sample_of(const CliJson *json, unsigned int plugin, VerbaLinea *out)
 {
     const unsigned int comments = cli_json_member(json, plugin, "comments");
     const char *const line = cli_json_string(json, cli_json_member(json, comments, "line"), NULL);
@@ -206,7 +206,7 @@ static int plugins_written(const char *dir, const CliJson *json, unsigned int pl
     {
         VerbaLinea sample_text;
         (void)cli_growing_line_made(&sample_text, CLI_PLUGIN_TEXT_FIRST);
-        cli_sample_of(json, plugin, &sample_text);
+        cli_plugins_sample_of(json, plugin, &sample_text);
         const int sampled = (mmgr_line_finish(&sample_name) != 0ull) && mmgr_line_ok(&sample_text) &&
                             query_file_written(sample, sample_text.out, sample_text.at);
         g_cli_cells->persistent_buf_release(sample_text.out, NULL);

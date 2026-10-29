@@ -6,6 +6,7 @@
 // and stopped; the checkers named; a plugin's server started and stopped, queried, notified, and its own request
 // answered; and a plugin's secrets stored in the system's keychain of the machine its server runs on, and read back.
 // Each path is written as it stands in the tree
+#include "../editor/document.h"
 #include "../editor/files.h"
 #include "serve_internal.h"
 
@@ -71,36 +72,23 @@ static int lsp_change(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     return 1;
 }
 
-// the view the page rests on: its first and last lines and the lines its sticky lines hold, each opening a region its
-// first line stands inside, outermost first
+// the view the page rests on: its first and last lines, the lines opening the regions its first line stands inside,
+// outermost first, read off the branch under `key` as its lines were colored
 static int lsp_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
     char root[CLI_PATH_MAX_LEN];
     char full[CLI_PATH_MAX_LEN];
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
-    if (!lsp_file(args, root, full, err_msg) || !cli_serve_whole(args, "first", &first, err_msg) ||
+    const char *const key = cli_serve_string(args, "key", err_msg);
+    if ((key == NULL) || !lsp_file(args, root, full, err_msg) || !cli_serve_whole(args, "first", &first, err_msg) ||
         !cli_serve_whole(args, "last", &last, err_msg))
     {
         return 0;
     }
     unsigned int opener[CLI_SERVE_LSP_OPENERS];
-    unsigned int openers = 0u;
-    const unsigned int given = cli_serve_arg(args, "openers");
-    const CliJson *const json = args->json;
-    for (unsigned int one = cli_json_is(json, given, CFG_JSON_ARRAY) ? json->node[given].first : CLI_JSON_NONE;
-         (one != CLI_JSON_NONE) && (openers < CLI_SERVE_LSP_OPENERS); one = json->node[one].next)
-    {
-        const unsigned long long none = ~0ull;
-        const unsigned long long line = cli_servers_whole(json, one, none);
-        // a line of a text the page holds is below 2^32
-        if (line < (unsigned long long)CLI_SLICE_NOWHERE)
-        {
-            opener[openers] = (unsigned int)line;
-            openers += 1u;
-        }
-    }
     // a line of a text the page holds is below 2^32
+    const unsigned int openers = cli_document_openers(key, (unsigned int)first, opener, CLI_SERVE_LSP_OPENERS);
     return cli_servers_view(full, (unsigned int)first, (unsigned int)last, opener, openers, out, err_msg);
 }
 
@@ -254,8 +242,9 @@ static int parse_spans_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     char full[CLI_PATH_MAX_LEN];
     CliTextPlace from = {0u, 0u};
     CliTextPlace to = {0u, 0u};
+    const char *const key = cli_serve_string_or(args, "key", NULL);
     return lsp_file(args, root, full, err_msg) && cli_serve_place(args, "from", &from, err_msg) &&
-           cli_serve_place(args, "to", &to, err_msg) && cli_servers_spans(full, from, to, out, err_msg);
+           cli_serve_place(args, "to", &to, err_msg) && cli_servers_spans(full, key, from, to, out, err_msg);
 }
 
 static int lsp_hints_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)

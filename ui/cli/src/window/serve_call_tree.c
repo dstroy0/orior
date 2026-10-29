@@ -310,8 +310,8 @@ static int symbols_signature(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     tree_symbols_refreshed(root);
     // a line and a column of a text the page holds are below 2^32
     return cli_symbols_signature(path, cli_serve_string_or(args, "state", "root"), text,
-                                 cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}),
-                                 (unsigned int)line, (unsigned int)col, out, err_msg);
+                                 cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), (unsigned int)line,
+                                 (unsigned int)col, out, err_msg);
 }
 
 static int tree_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)

@@ -22,6 +22,9 @@ test("the commits' menus, from the command line: a revision opened, compared, it
     assert.ok(newest && older, "two revisions of hello.py");
     await press("commit-open", "hello.py", older.id.slice(0, 7));
     await ui.waitFor(() => editing().active === `hello.py@${older.id}`, 5000, "hello.py as the older revision left it");
+    const revision = editing().editor.s;
+    assert.ok(revision.highlight.key, "the revision a branch on the window's side");
+    await ui.waitFor(() => revision.highlight.runsOf(0).some(([, cls]) => cls), 5000, "and colored there");
     await press("commit-compare", "hello.py", older.id.slice(0, 7));
     await ui.waitFor(() => document.querySelector("#mode-edit .desk .diff-button"), 5000, "the revision beside the file");
     closeDiff();

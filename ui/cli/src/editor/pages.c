@@ -23,19 +23,22 @@ static void pages_cells_given(CliPaged *one)
 {
     g_cli_cells->persistent_buf_release(one->piece, NULL);
     g_cli_cells->persistent_buf_release(one->index.start, NULL);
+    g_cli_cells->persistent_buf_release(one->index.line, NULL);
     one->piece = NULL;
     one->index.start = NULL;
+    one->index.line = NULL;
 }
 
 static int pages_cells_taken(CliPaged *one, unsigned long long size)
 {
-    // a file of `size` bytes has no more than size + 1 lines, so the index contains no more than size / CLI_PAGE_STEP +
-    // 2 starts
-    const unsigned long long starts = (size / CLI_PAGE_STEP) + 2ull;
+    // a file of `size` bytes has no more than size + 1 lines, so the index contains no more than size / CLI_PAGE_STEP
+    // starts recorded by their lines, size / CLI_PAGE_SPAN by their bytes, and the first
+    const unsigned long long starts = (size / CLI_PAGE_STEP) + (size / CLI_PAGE_SPAN) + 2ull;
     one->index.starts_most = (starts < CLI_PAGE_STARTS) ? starts : CLI_PAGE_STARTS;
     one->index.start = g_cli_cells->persistent_buf_alloc(one->index.starts_most * sizeof(one->index.start[0]), NULL);
+    one->index.line = g_cli_cells->persistent_buf_alloc(one->index.starts_most * sizeof(one->index.line[0]), NULL);
     one->piece = g_cli_cells->persistent_buf_alloc(CLI_PAGE_PIECES * sizeof(one->piece[0]), NULL);
-    const int taken = (one->index.start != NULL) && (one->piece != NULL);
+    const int taken = (one->index.start != NULL) && (one->index.line != NULL) && (one->piece != NULL);
     if (!taken)
     {
         pages_cells_given(one);
@@ -130,9 +133,13 @@ static void cli_index_read(void *context)
             }
             // a newline found lies in the chunk, at or past `at`
             at = offset + (unsigned long long)(newline - chunk) + 1ull;
-            if (((lines % CLI_PAGE_STEP) == 0ull) && (index->starts < index->starts_most))
+            // the line starting here recorded CLI_PAGE_STEP lines or CLI_PAGE_SPAN bytes after the last recorded
+            const unsigned long long last = index->starts - 1ull;
+            const int far = ((lines - index->line[last]) >= CLI_PAGE_STEP) || ((at - index->start[last]) >= CLI_PAGE_SPAN);
+            if (far && (index->starts < index->starts_most))
             {
                 index->start[index->starts] = at;
+                index->line[index->starts] = lines;
                 index->starts += 1ull;
             }
             lines += 1ull;
@@ -221,6 +228,7 @@ int cli_page_open_reading(const char *key, const char *path, int behind, VerbaLi
         return 0;
     }
     one->index.start[0] = 0ull;
+    one->index.line[0] = 0ull;
     one->index.starts = 1ull;
     one->index.lines = 1ull;
     one->index.reading = 1;
@@ -277,17 +285,38 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
     {
         return 1;
     }
+    // the last start the index records at or before `from`, and the bytes a line takes there, as far as the next start
+    // recorded says
     cli_lock_take(&g_cli_index_lock);
-    const unsigned long long step = from / CLI_PAGE_STEP;
-    const int indexed = step < one->index.starts;
-    const unsigned long long start = indexed ? one->index.start[step] : 0ull;
+    const CliPageIndex *const index = &one->index;
+    unsigned long long low = 0ull;
+    unsigned long long high = index->starts;
+    while ((high - low) > 1ull)
+    {
+        const unsigned long long middle = low + ((high - low) / 2ull);
+        if (index->line[middle] <= from)
+        {
+            low = middle;
+        }
+        else
+        {
+            high = middle;
+        }
+    }
+    const int indexed = index->starts != 0ull;
+    const unsigned long long start = indexed ? index->start[low] : 0ull;
+    const unsigned long long first_line = indexed ? index->line[low] : 0ull;
+    const unsigned long long each = ((low + 1ull) < index->starts)
+                                        ? ((index->start[low + 1ull] - start) / (index->line[low + 1ull] - first_line))
+                                        : 0ull;
     cli_lock_give(&g_cli_index_lock);
     if (!indexed)
     {
         mmgr_line_put(err_msg, "the index has not read that far yet");
         return 0;
     }
-    // The lines from the step's start stored in a cell: a window of the file from there, doubled while it contains
+    // The lines from the start stored in a cell: a window of the file from there, as many bytes as the lines requested
+    // take where the index says how long its lines run and CLI_PAGE_CHUNK where it does not, doubled while it contains
     // neither the newlines the lines requested end at nor the file's end
     unsigned long long whole = 0ull;
     if (!cli_file_size(one->path, &whole))
@@ -296,8 +325,9 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
         return 0;
     }
     const unsigned long long begin = (start < whole) ? start : whole;
-    const unsigned long long wanted = to - (step * CLI_PAGE_STEP);
-    unsigned long long window = CLI_PAGE_CHUNK;
+    const unsigned long long wanted = to - first_line;
+    const unsigned long long guessed = (each != 0ull) ? ((wanted + 1ull) * each * 2ull) : CLI_PAGE_CHUNK;
+    unsigned long long window = (guessed > CLI_PAGE_HEAD) ? guessed : CLI_PAGE_HEAD;
     unsigned long long size = 0ull;
     const unsigned char *bytes = NULL;
     for (;;)
@@ -328,10 +358,10 @@ static int cli_file_lines(CliPaged *one, unsigned long long from, unsigned long 
         cli_file_let_go(bytes, size);
         window *= 2ull;
     }
-    // the lines from the step's start, those from `from` on put after the lines read
+    // the lines from the start, those from `from` on put after the lines read
     const unsigned long long first = lines->count;
     unsigned long long at = 0ull;
-    for (unsigned long long line = step * CLI_PAGE_STEP; line < to; line += 1ull)
+    for (unsigned long long line = first_line; line < to; line += 1ull)
     {
         const unsigned char *const newline =
             (at < size) ? memor.chr(&(MemoriaCfg){.src = bytes + at, .val = '\n', .bytes = size - at}) : NULL;
@@ -439,9 +469,34 @@ int cli_page_lines_of(CliPaged *one, unsigned long long from, unsigned long long
     return 1;
 }
 
-int cli_pages_read(const char *key, unsigned long long from, unsigned long long to, VerbaLinea *out,
-                   VerbaLinea *err_msg)
+// the bytes of the first `cut` letters of the `size` bytes of UTF-8 at `text`, all of them where `cut` is 0 or they hold
+// no more; and the length of all of them in UTF-16's units into `units`
+static unsigned long long pages_cut_bytes(const char *text, unsigned long long size, unsigned long long cut,
+                                          unsigned long long *units)
 {
+    unsigned long long letters = 0ull;
+    unsigned long long bytes = size;
+    unsigned long long counted = 0ull;
+    for (unsigned long long at = 0ull; at < size; at += 1ull)
+    {
+        const unsigned char byte = (unsigned char)text[at];
+        // a byte that continues a letter starts none, and a letter of four bytes is two of UTF-16's units
+        if ((byte & 0xc0u) != 0x80u)
+        {
+            bytes = ((cut != 0ull) && (letters == cut) && (bytes == size)) ? at : bytes;
+            letters += 1ull;
+            counted += (byte >= 0xf0u) ? 2ull : 1ull;
+        }
+    }
+    *units = counted;
+    return bytes;
+}
+
+int cli_pages_read(const char *key, unsigned long long from, unsigned long long to, unsigned long long *cut,
+                   VerbaLinea *out, VerbaLinea *lengths, VerbaLinea *err_msg)
+{
+    const unsigned long long letters = (cut != NULL) ? *cut : 0ull;
+    int any = 0;
     // the index read as far as `to`, or whole, the text found again each turn since it may be let go meanwhile
     for (;;)
     {
@@ -478,12 +533,33 @@ int cli_pages_read(const char *key, unsigned long long from, unsigned long long 
     if (read)
     {
         mmgr_line_ch(out, '[');
+        if (lengths != NULL)
+        {
+            mmgr_line_ch(lengths, '[');
+        }
         for (unsigned long long at = 0ull; at < lines.count; at += 1ull)
         {
+            unsigned long long units = 0ull;
+            const char *const text = lines.text + lines.start[at];
+            const unsigned long long bytes = pages_cut_bytes(text, lines.length[at], letters, &units);
+            any = any || (bytes < lines.length[at]);
             mmgr_line_put(out, (at != 0ull) ? "," : "");
-            cli_json_quoted(out, lines.text + lines.start[at], lines.length[at]);
+            cli_json_quoted(out, text, bytes);
+            if (lengths != NULL)
+            {
+                mmgr_line_put(lengths, (at != 0ull) ? "," : "");
+                mmgr_line_decimal(lengths, units, 1u);
+            }
         }
         mmgr_line_ch(out, ']');
+        if (lengths != NULL)
+        {
+            mmgr_line_ch(lengths, ']');
+        }
+        if (cut != NULL)
+        {
+            *cut = any ? letters : 0ull;
+        }
     }
     cli_lock_give(&g_cli_pages_lock);
     cli_page_lines_given(&lines);
@@ -535,6 +611,233 @@ char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned l
     *count = (text != NULL) ? taken : 0ull;
     cli_page_lines_given(&lines);
     return text;
+}
+
+// the lesser of two lines
+static unsigned long long pages_least(unsigned long long one, unsigned long long other)
+{
+    return (one < other) ? one : other;
+}
+
+// the greater of two lines
+static unsigned long long pages_most(unsigned long long one, unsigned long long other)
+{
+    return (one > other) ? one : other;
+}
+
+// the lines a step of `one`, a text of `total` lines, reads: as many as REST_BYTES reach at the text's bytes a line,
+// its size over its lines, a line cut after `cut` letters counting no more than those, from REST_LEAST to half of KEPT
+static unsigned long long pages_step(const CliPaged *one, unsigned long long total, unsigned long long cut)
+{
+    const unsigned long long whole = (total != 0ull) ? ((one->size / total) + 1ull) : 1ull;
+    const unsigned long long each = ((cut != 0ull) && ((cut + 1ull) < whole)) ? (cut + 1ull) : whole;
+    return pages_least(pages_most(CLI_PAGE_REST_BYTES / each, CLI_PAGE_REST_LEAST), CLI_PAGE_KEPT / 2ull);
+}
+
+// the rows the line `at` of `lines` takes in a view that wraps at `width` letters: as many as its UTF-16 units fill,
+// one at the least
+static unsigned long long pages_rows_of(const CliPageLines *lines, unsigned long long at, unsigned long long width)
+{
+    unsigned long long units = 0ull;
+    (void)pages_cut_bytes(lines->text + lines->start[at], lines->length[at], 0ull, &units);
+    return (units > width) ? ((units + width - 1ull) / width) : 1ull;
+}
+
+// the lines of `one` from `from` to before `to` read into `lines`, reserved for them first: 1 where every one was read
+// whole, else 0, `lines` to be given back either way; under the pages' lock
+static int pages_placed_read(CliPaged *one, unsigned long long from, unsigned long long to, CliPageLines *lines)
+{
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    const unsigned long long wanted = to - from;
+    lines->cell = NULL;
+    return cli_page_lines_reserved(lines, wanted, wanted * CLI_PAGE_LINE_GUESS, &err_msg) &&
+           cli_page_lines_of(one, from, to, lines, &err_msg) && !lines->full && (lines->count == wanted);
+}
+
+// the lines of `one` from `*from` to before `*to`, placed about the line `pivot` for a view that wraps at `width`
+// letters, trimmed to those its rows take: as many on either side of `pivot` as fill the rows placed on that side, a line
+// as many rows as its letters fill. As placed where the view does not wrap, or the lines cannot be read whole; under the
+// pages' lock
+static void pages_rows_trimmed(CliPaged *one, unsigned long long width, unsigned long long pivot,
+                               unsigned long long *from, unsigned long long *to)
+{
+    const int about = (width != 0ull) && (pivot >= *from) && (pivot < *to);
+    CliPageLines lines;
+    if (about && pages_placed_read(one, *from, *to, &lines))
+    {
+        unsigned long long first = pivot;
+        for (unsigned long long rows = 0ull; (first > *from) && (rows < (pivot - *from)); first -= 1ull)
+        {
+            rows += pages_rows_of(&lines, first - 1ull - *from, width);
+        }
+        unsigned long long end = pivot;
+        for (unsigned long long rows = 0ull; (end < *to) && (rows < (*to - pivot)); end += 1ull)
+        {
+            rows += pages_rows_of(&lines, end - *from, width);
+        }
+        *from = first;
+        *to = end;
+    }
+    if (about)
+    {
+        cli_page_lines_given(&lines);
+    }
+}
+
+// the lines of `one` from `*from` to before `*to`, a step toward the ends of the page's lines below them where `below`
+// is 1 and above where 0, trimmed to those from the page's side that CLI_PAGE_REST_BYTES of their bytes reach, a line cut
+// after `cut` letters counting no more than those, and where the view moves and wraps at `width` letters, that fill
+// the rows placed, a line as many rows as its letters fill; one line at the least. As placed where the lines cannot be
+// read whole; under the pages' lock
+static void pages_step_trimmed(CliPaged *one, int below, int moving, unsigned long long cut, unsigned long long width,
+                               unsigned long long *from, unsigned long long *to)
+{
+    CliPageLines lines;
+    const unsigned long long wanted = *to - *from;
+    if ((wanted != 0ull) && pages_placed_read(one, *from, *to, &lines))
+    {
+        const int by_rows = moving && (width != 0ull);
+        unsigned long long taken = 0ull;
+        unsigned long long bytes = 0ull;
+        unsigned long long rows = 0ull;
+        while ((taken < wanted) &&
+               ((taken == 0ull) || ((bytes < CLI_PAGE_REST_BYTES) && (!by_rows || (rows < wanted)))))
+        {
+            const unsigned long long at = below ? taken : (wanted - 1ull - taken);
+            bytes += ((cut != 0ull) && (cut < lines.length[at])) ? cut : lines.length[at];
+            rows += by_rows ? pages_rows_of(&lines, at, width) : 1ull;
+            taken += 1ull;
+        }
+        *to = below ? (*from + taken) : *to;
+        *from = below ? *from : (*to - taken);
+    }
+    if (wanted != 0ull)
+    {
+        cli_page_lines_given(&lines);
+    }
+}
+
+// a moving view of `one`, reported at `last` before, placed in a text of `total` lines, cut at its reach. Where the
+// page's lines meet the rows it needs, its rows where it stands and where it will stand a report later as far on the way
+// it went as it went since `last` where the report follows it, EDGE and a SPREADth of that step about them, no more
+// than the lines a step reads on either side: a step of lines past the page's on the side it goes once those rows come
+// within NEAR lines of their end, or past their end; else nothing. Where they do not meet, as a view that jumped away, those rows alone, only those of
+// where it will stand where it went farther than its rows. It keeps half of KEPT lines on either side of its rows and
+// every line it is answered. A view that wraps is answered the lines its rows take of those about them, and a step as
+// many lines as fill its rows and CLI_PAGE_REST_BYTES of their bytes reach
+static CliPagesPlaced pages_move_placed(CliPaged *one, const CliPagesView *view, unsigned long long last, int follows,
+                                        unsigned long long total)
+{
+    const unsigned long long top = pages_least(view->top, (total != 0ull) ? (total - 1ull) : 0ull);
+    const unsigned long long down = (follows && (top > last)) ? (top - last) : 0ull;
+    const unsigned long long up = (follows && (top < last)) ? (last - top) : 0ull;
+    const unsigned long long ahead = (down != 0ull) ? (top + down) : ((top > up) ? (top - up) : 0ull);
+    const int far = (down + up) > view->rows;
+    const unsigned long long low = (far || (ahead < top)) ? ahead : top;
+    const unsigned long long high = (far || (ahead > top)) ? ahead : top;
+    const unsigned long long step = pages_step(one, total, view->columns);
+    const unsigned long long spread = CLI_PAGE_EDGE + pages_least((down + up) / CLI_PAGE_SPREAD, step);
+    const unsigned long long first = pages_least((low > spread) ? (low - spread) : 0ull, total);
+    const unsigned long long end = pages_least(total, high + view->rows + spread);
+    const int reaches = (view->held_cut == 0ull) || (view->held_cut >= view->columns);
+    const int meets = reaches && (view->held_to > view->held_from) && (view->held_from <= end) && (view->held_to >= first);
+    const unsigned long long kept_from = (top > (CLI_PAGE_KEPT / 2ull)) ? (top - (CLI_PAGE_KEPT / 2ull)) : 0ull;
+    const unsigned long long kept_to = pages_least(total, top + view->rows + (CLI_PAGE_KEPT / 2ull));
+    CliPagesPlaced placed = {first, first, view->columns, kept_from, kept_to};
+    const int below = (up == 0ull) && (view->held_to < total) && (view->held_to < (end + CLI_PAGE_NEAR));
+    const int above = (up != 0ull) && (view->held_from > 0ull) && ((view->held_from + CLI_PAGE_NEAR) > first);
+    if (!meets)
+    {
+        placed.to = end;
+        placed.keep_from = first;
+        placed.keep_to = end;
+        pages_rows_trimmed(one, view->width, low, &placed.from, &placed.to);
+    }
+    else if (below || (view->held_to < end))
+    {
+        placed.from = view->held_to;
+        placed.to = pages_least(total, pages_most(end, view->held_to + step));
+        placed.keep_to = pages_most(kept_to, placed.to);
+        pages_step_trimmed(one, 1, 1, view->columns, view->width, &placed.from, &placed.to);
+    }
+    else if (above || (view->held_from > first))
+    {
+        placed.from = pages_least(first, (view->held_from > step) ? (view->held_from - step) : 0ull);
+        placed.to = view->held_from;
+        placed.keep_from = pages_least(kept_from, placed.from);
+        pages_step_trimmed(one, 0, 1, view->columns, view->width, &placed.from, &placed.to);
+    }
+    return placed;
+}
+
+// a resting view of `one`, a text of `total` lines, placed: its rows whole, EDGE about them, where the page does not
+// hold them whole; then the lines it wants below them, then above, a step at a time; nothing where it holds them all.
+// It wants NEAR lines about its rows and the minimap's lines, within half of KEPT on either side of its rows, and keeps
+// those and every line within half of KEPT. Its rows, where it wraps, are the lines they take of those about them; its
+// rows whole come from their first a step at a time, and each step is as many lines as CLI_PAGE_REST_BYTES of their
+// bytes reach
+static CliPagesPlaced pages_rest_placed(CliPaged *one, const CliPagesView *view, unsigned long long total)
+{
+    const unsigned long long top = pages_least(view->top, (total != 0ull) ? (total - 1ull) : 0ull);
+    const unsigned long long rows_end = pages_least(total, top + view->rows);
+    const unsigned long long kept_from = (top > (CLI_PAGE_KEPT / 2ull)) ? (top - (CLI_PAGE_KEPT / 2ull)) : 0ull;
+    const unsigned long long kept_to = pages_least(total, rows_end + (CLI_PAGE_KEPT / 2ull));
+    const unsigned long long near_from = (top > CLI_PAGE_NEAR) ? (top - CLI_PAGE_NEAR) : 0ull;
+    const unsigned long long want_from = pages_most(pages_least(near_from, view->map_from), kept_from);
+    const unsigned long long want_to = pages_least(pages_most(rows_end + CLI_PAGE_NEAR, view->map_to), kept_to);
+    unsigned long long first = (top > CLI_PAGE_EDGE) ? (top - CLI_PAGE_EDGE) : 0ull;
+    unsigned long long end = pages_least(total, rows_end + CLI_PAGE_EDGE);
+    pages_rows_trimmed(one, view->width, top, &first, &end);
+    const unsigned long long step = pages_step(one, total, 0ull);
+    CliPagesPlaced placed = {first, first, 0ull, kept_from, kept_to};
+    if ((view->held_cut != 0ull) || (view->held_from > first) || (view->held_to <= first))
+    {
+        placed.to = end;
+        pages_step_trimmed(one, 1, 0, 0ull, 0ull, &placed.from, &placed.to);
+    }
+    else if (view->held_to < end)
+    {
+        placed.from = view->held_to;
+        placed.to = end;
+        pages_step_trimmed(one, 1, 0, 0ull, 0ull, &placed.from, &placed.to);
+    }
+    else if (view->held_to < want_to)
+    {
+        placed.from = view->held_to;
+        placed.to = pages_least(want_to, view->held_to + step);
+        pages_step_trimmed(one, 1, 0, 0ull, view->width, &placed.from, &placed.to);
+    }
+    else if (view->held_from > want_from)
+    {
+        placed.from = ((view->held_from - want_from) > step) ? (view->held_from - step) : want_from;
+        placed.to = view->held_from;
+        pages_step_trimmed(one, 0, 0, 0ull, view->width, &placed.from, &placed.to);
+    }
+    return placed;
+}
+
+int cli_pages_viewed(const char *key, const CliPagesView *view, CliPagesPlaced *placed)
+{
+    char why[CLI_NAME_MAX_LEN];
+    VerbaLinea err_msg = {why, sizeof(why), 0ull};
+    cli_lock_take(&g_cli_pages_lock);
+    CliPaged *const one = cli_paged_of(key, &err_msg);
+    if (one != NULL)
+    {
+        int done = 0;
+        const unsigned long long total = pages_total(one, &done);
+        const unsigned long long now = cli_clock_milliseconds();
+        const int follows = one->viewed && ((now - one->view_at) <= CLI_PAGE_STILL);
+        const int rests = !follows || (view->top == one->view_top);
+        *placed =
+            rests ? pages_rest_placed(one, view, total) : pages_move_placed(one, view, one->view_top, follows, total);
+        one->viewed = 1;
+        one->view_top = view->top;
+        one->view_at = now;
+    }
+    cli_lock_give(&g_cli_pages_lock);
+    return one != NULL;
 }
 
 void cli_pages_release(const char *key)

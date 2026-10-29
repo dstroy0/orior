@@ -36,10 +36,7 @@
 // the most rules one state contains, its includes read in
 #define CLI_GRAMMAR_OWN 16384u
 
-// the longest part of a line that is colored, in the page's units, the rest taking no token; the most letters of a
-// line read, the most states stacked, and the most bytes the states each line ends in take
-#define CLI_HIGHLIGHT_MAX_LEN 20000u
-
+// the most letters of a line read, the most states stacked, and the most bytes the states each line ends in take
 #define CLI_HIGHLIGHT_LETTERS (1u << 20u)
 
 #define CLI_HIGHLIGHT_STACK 256u
@@ -220,7 +217,7 @@ int cli_highlight_has_word(const CliGrammar *grammar, const CliHighlightList *li
 void cli_highlight_lines(const CliGrammar *grammar, CliHighlightRoom *room, const char *state, const char *const *lines,
                          unsigned int count, VerbaLinea *out);
 void cli_highlight_leaves_of(const CliGrammar *grammar, CliHighlightRoom *room, const char *state,
-                             const char *const *lines, unsigned int count, int ends, CliLeavesEach each,
-                             void *context, VerbaLinea *ended);
+                             const char *const *lines, unsigned int count, int ends, CliLeavesEach each, void *context,
+                             VerbaLinea *ended);
 
 #endif

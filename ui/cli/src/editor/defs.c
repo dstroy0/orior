@@ -160,6 +160,57 @@ static int cli_table_written(const char *root, const char *path, const char *nam
     return written;
 }
 
+// a line's cells between tabs, from `from` before `to`, into `line`
+static void cli_cells_of(const char *from, const char *to, CliDefsLine *line)
+{
+    line->count = 0u;
+    const char *cell = from;
+    for (const char *at = from;; at += 1)
+    {
+        if ((at == to) || (at[0] == '\t'))
+        {
+            if (line->count < CLI_DEFS_CELLS)
+            {
+                line->cell[line->count] = cell;
+                // a cell lies within its line
+                line->length[line->count] = (unsigned long long)(at - cell);
+                line->count += 1u;
+            }
+            cell = at + 1;
+            if (at == to)
+            {
+                break;
+            }
+        }
+    }
+}
+
+int cli_defs_lines(const char *path, CliDefsLineEach each, void *context)
+{
+    const CliDefsFile file = cli_mapped(path);
+    if (file.text == NULL)
+    {
+        return 0;
+    }
+    const char *const end = file.text + file.size;
+    int named = 0;
+    for (const char *at = file.text; at < end;)
+    {
+        const char *stop = NULL;
+        const char *const next = cli_line(at, end, &stop);
+        if (!cli_skipped(at, stop))
+        {
+            CliDefsLine line;
+            cli_cells_of(at, stop, &line);
+            each(context, &line, !named);
+            named = 1;
+        }
+        at = next;
+    }
+    cli_unmapped(file);
+    return named;
+}
+
 // The comment lines a C header opens with, past its license line, each trimmed of its slashes and joined by a space,
 // written as one JSON string, joined in a cell of the header's size
 static void cli_header_written(const char *path, VerbaLinea *out)

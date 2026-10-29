@@ -164,8 +164,7 @@ static int report_open(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
 }
 
 const CliServeCall g_cli_window_report_calls[] = {
-    {"report_error", report_error}, {"report_bug", report_bug},
-    {"report_auto", report_auto},   {"report_auto_set", report_auto_set}, {"report_prompted", report_prompted},
-    {"report_open", report_open},
+    {"report_error", report_error},       {"report_bug", report_bug},           {"report_auto", report_auto},
+    {"report_auto_set", report_auto_set}, {"report_prompted", report_prompted}, {"report_open", report_open},
 };
 const unsigned int g_cli_window_report_count = sizeof(g_cli_window_report_calls) / sizeof(g_cli_window_report_calls[0]);

@@ -3,6 +3,7 @@
 
 import { invoke } from "../bridge.js";
 import { Session } from "../editor/session.js";
+import { hearBranches } from "../editor/tokens.js";
 import { Editor } from "../editor/view.js";
 import { openPaged } from "../paged.js";
 import { serve } from "../servers.js";
@@ -10,7 +11,7 @@ import { coloredLines } from "../screen.js";
 import { isNotebook, openNotebook } from "../notebook.js";
 import { say } from "../statusbar.js";
 import { element, show, state } from "../edit.js";
-import { holdOpened } from "./held.js";
+import { mirror } from "./held.js";
 import { backupKey, keepRecent } from "./places.js";
 import { actingPath, closeTab, dirty, drawTabs, mainTabs, markSaved, tabName, tabOf } from "./tabs.js";
 
@@ -20,10 +21,16 @@ import { actingPath, closeTab, dirty, drawTabs, mainTabs, markSaved, tabName, ta
 export const placeKey = (path) => `orior.place.${path}`;
 
 // The lines a cursor put back at its place is settled below the view's top, the lines in view a file opens with
-// colored first, and the files opened, each held under a key of its own.
+// colored first, and the files opened, each a branch under a key of its own.
 const SETTLE_ABOVE = 8;
-const VIEW_LINES = 120;
+export const VIEW_LINES = 120;
 let opens = 0;
+
+// A key of its own for a text opened from `path`.
+export function keyFor(path) {
+  opens += 1;
+  return `${path}#${opens}`;
+}
 
 // The end of `text`, as the document places it.
 function endOf(text) {
@@ -126,12 +133,16 @@ export async function load(path, as = null) {
     return tab;
   }
   if (!tabOf(path)) {
-    // The file read and held on the window's side, its grammar applied as it is read, the lines in view first.
+    // The file read and stored as a branch on the window's side, its grammar applied as it is read, the lines in view
+    // first.
     const place = placeOf(path);
     const first = Math.max(0, (place?.line ?? 0) - SETTLE_ABOVE);
-    opens += 1;
-    const key = `${path}#${opens}`;
-    const opened = await invoke("branch_open", { key, path, first, last: first + VIEW_LINES });
+    const key = keyFor(path);
+    // each line colored as far across as the editor draws it, scrolled to its left edge, every letter where it wraps
+    const reach = state.editor?.reachAt?.(0) ?? Infinity;
+    const columns = Number.isFinite(reach) ? reach : 0;
+    await hearBranches();
+    const opened = await invoke("branch_open", { key, path, first, last: first + VIEW_LINES, columns });
     const tab = { path, file: path, size: opened.size, closing: false };
     if (opened.windowed) {
       tab.session = await openPaged(path, place?.line ?? 0, state.known.languageOf(path), key, opened);
@@ -159,12 +170,7 @@ export async function load(path, as = null) {
       }
       settleAt(tab.session, place);
       if (!colored) {
-        tab.session.highlight.held(key, opened.names, changed ? [] : opened.colors);
-        const change = changed ? [{ from: { line: 0, col: 0 }, to: endOf(opened.text), text: kept }] : null;
-        if (change) {
-          tab.session.highlight.changed(change);
-        }
-        holdOpened(tab, key, change);
+        mirror(tab.session, key, opened, changed ? [{ from: { line: 0, col: 0 }, to: endOf(opened.text), text: kept }] : null);
       }
     } else {
       tab.bytes = new Uint8Array(opened.bytes);
@@ -202,19 +208,24 @@ export async function load(path, as = null) {
   }
 }
 
-// Opens a file as commit `commit` left it, read only, in a tab of its own.
+// Opens a file as commit `commit` left it, read only, in a tab of its own, a branch on the window's side as a file opened
+// is and colored there.
 export async function openCommit(path, commit) {
   const key = `${path}@${commit.id}`;
   if (!tabOf(key)) {
-    const text = await invoke("file_at", { path, id: commit.id }).catch((error) => {
+    const branch = keyFor(key);
+    await hearBranches();
+    const opened = await invoke("branch_at", { key: branch, path, at: commit.id, first: 0, last: VIEW_LINES }).catch((error) => {
       say(String(error), { failed: true });
       return null;
     });
-    if (text === null) {
+    if (opened === null) {
       return;
     }
-    const tab = { path: key, file: path, commit: commit.id, readOnly: true, size: text.length, closing: false };
+    const text = opened.text ?? "";
+    const tab = { path: key, file: path, commit: commit.id, readOnly: true, size: text.length, closing: false, key: branch };
     tab.session = new Session(text, state.known.languageOf(path), { readOnly: true });
+    mirror(tab.session, branch, opened);
     tab.saved = tab.session.doc.id;
     state.tabs.push(tab);
   }

@@ -158,8 +158,8 @@ void cli_logon_named(char *logon, size_t room)
         length -= 1ull;
     }
     session[length] = '\0';
-    const int kept = (length > 0ull) &&
-                     !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_CELLS_POOL});
+    const int kept =
+        (length > 0ull) && !cellul.eq(&(CatenaFinitaCfg){.src = session, .other = "4294967295", .cap = CLI_CELLS_POOL});
     VerbaLinea named = {logon, room, 0ull};
     if (kept)
     {

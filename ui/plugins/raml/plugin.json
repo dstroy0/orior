@@ -15,6 +15,7 @@
     ["^()(types|traits|resourceTypes|securitySchemes|annotationTypes|uses):", "class"]
   ],
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "perLine": true,
     "tokenizer": {
       "root": [

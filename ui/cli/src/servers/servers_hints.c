@@ -6,6 +6,7 @@
 // whether a space stands before it and after it. A file given its server as slices is asked of the tree alone: its
 // hints are the names of the parameters its calls' arguments are given to (symbols_hints.c)
 #include "../code/symbols.h"
+#include "../editor/document.h"
 #include "servers_internal.h"
 
 // a server's capabilities read into a tree taken to their size, under their lock
@@ -94,10 +95,12 @@ static void hints_span_written(void *context, CliSymbolPlace from, CliSymbolPlac
     spanned->written = 1;
 }
 
-int cli_servers_selection(const char *path, CliTextPlace from, CliTextPlace to, VerbaLinea *out, VerbaLinea *err_msg)
+int cli_servers_selection(const char *path, const char *key, CliTextPlace from, CliTextPlace to, VerbaLinea *out,
+                          VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    char *const text = cli_servers_text_taken(path, &size);
+    char *const branch = (key != NULL) ? cli_document_text_taken(key, &size) : NULL;
+    char *const text = (branch != NULL) ? branch : cli_servers_text_taken(path, &size);
     CliServersSpanned spanned = {out, 0};
     mmgr_line_ch(out, '[');
     const int done =

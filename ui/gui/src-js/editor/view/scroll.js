@@ -155,6 +155,9 @@ export function place(top) {
   const was = this.scroller.scrollTop;
   this.scroller.scrollTop = top + this.pad;
   this.placedTop = this.scroller.scrollTop === was ? null : this.scroller.scrollTop;
+  // where the view stands from now, before the scroll the placing makes is heard: a paged file's window moved under the
+  // view changes the padding above it, and the scroll last heard stands for another line until then
+  this.lastTop = this.scroller.scrollTop;
 }
 
 export function onScroll() {
@@ -184,8 +187,11 @@ export function onScroll() {
   // The speed the view had as it came to rest, which the idle coloring reaches ahead by.
   this.lastSpeed = speed;
   write("scroll", { speed, heading: moved ? Math.sign(moved) : status.scroll.heading });
-  // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late.
-  this.follow(top, left);
+  // The sheet and the gutter stand outside the scrolling space. They follow now and not a frame late, except into the
+  // lines a paged file's window has not read: there they stand as last drawn until the window comes to the view.
+  if (!(this.heldFrame === this.s && this.pastWindow(top))) {
+    this.follow(top, left);
+  }
   this.rest();
   this.schedule();
 }

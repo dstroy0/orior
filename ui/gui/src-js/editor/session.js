@@ -11,7 +11,7 @@
 
 import { invoke } from "../bridge.js";
 import { Doc, mapThrough, pos } from "./document.js";
-import { indentOf, opens, regionEnd, regions } from "./folding.js";
+import { indentOf } from "./folding.js";
 import { Highlight } from "./tokens.js";
 
 // Tabs where more indented lines open with a tab than with spaces, and otherwise the width that
@@ -111,15 +111,13 @@ export class Session {
     // reads its lines again while it stays folded.
     this.folded = new Map();
     this.foldings = 0;
-    this.found = new Map();
-    this.foundAt = -1;
     // The indentation read from the lines, under any a mode line of the file sets, which is kept
     // apart for what an .editorconfig sets not to go over it.
     this.indentSet = modeIndent(this.doc);
     this.indent = { ...detectIndent(this.doc), ...this.indentSet };
     this.snippet = null;
     this.view = null;
-    this.unwatch = this.doc.watch(({ edits, first }) => {
+    this.unwatch = this.doc.watch(({ edits }) => {
       // A text two sessions hold is written by one view at a time. Every session but the writer has
       // its selections carried through what was written and its view drawn again.
       const writer = this.doc.writer;
@@ -133,12 +131,19 @@ export class Session {
         }
         this.view?.schedule();
       }
-      // A twin's colors are the session's it was made from, and they take each change once.
+      // A twin's colors and folds are the session's it was made from, and they take each change once; orior's side's
+      // folds stay with their lines until it hands them on again.
       if (!this.of) {
         this.highlight.changed(edits);
-      }
-      if (this.depths && this.depths.length > first + 1) {
-        this.depths.length = first + 1;
+        const carried = new Map();
+        for (const [start, [end, shown]] of this.highlight.folds) {
+          const from = mapThrough(pos(start, 0), edits, true).line;
+          const to = mapThrough(pos(end, FAR), edits, true).line;
+          if (to > from) {
+            carried.set(from, [to, shown]);
+          }
+        }
+        this.highlight.folds = carried;
       }
       if (this.folded.size) {
         const carried = new Map();
@@ -217,6 +222,9 @@ export class Session {
     if (this.of) {
       this.of.shared = false;
     }
+    // a branch a view mirrors for itself alone let go
+    this.release?.();
+    this.release = null;
   }
 
   // Colors the text in `language` from here on, as a plugin read again asks: a text the window's side holds is
@@ -236,36 +244,39 @@ export class Session {
     return new Highlight(this.doc, this.language?.grammar ?? null, () => this.view?.schedule(), () => (this.window ? this.base : null));
   }
 
-  // Every region that folds: the parse's where the file has one, the headings' and blocks' the
-  // language marks, and those read from the indentation of the lines the others leave, which only
-  // folding everything asks for.
+  // Every region that folds, from the line it opens on to the last line its fold hides: those orior's side reads off
+  // the regions the grammar's roles open and close, the headings' and blocks' the language marks, and the parse's,
+  // each where none before it opens on the line.
   regions() {
-    const found = regions(this.doc, this.indent.size);
+    const found = new Map();
+    for (const [line, end] of this.highlight.parse?.folds ?? []) {
+      found.set(line, end);
+    }
     for (const [line, end] of this.sectionFolds() ?? []) {
       found.set(line, end);
     }
-    for (const line of this.highlight.parse?.folds?.keys() ?? []) {
-      const end = this.parseEnd(line);
-      if (end > line) {
-        found.set(line, end);
-      }
+    for (const [line, [end]] of this.highlight.folds) {
+      found.set(line, end);
     }
     return found;
   }
 
-  // The last line of the region the parse gives a line, or -1 where it gives none. A parse's region
-  // runs to the line of its closing bracket; where that line starts with the bracket at the first
-  // line's indent, the region ends on the line before it, which the fold takes in where it holds
-  // closing brackets alone, as it takes in the one after a region read from the indentation.
-  parseEnd(line) {
-    const end = this.highlight.parse?.folds?.get(line);
-    if (end === undefined) {
-      return -1;
+  // Whether the fold of the region that opens on `line` shows, after what it hides, the line it closes on: orior's
+  // side says so where the line holds closes alone and the fold hides it.
+  shows(line) {
+    const given = this.highlight.folds.get(line);
+    return Boolean(given?.[1]) && this.folded.get(line) === given[0];
+  }
+
+  // The lines the regions `line` stands inside open on, the outermost first and the `most` innermost at most.
+  openersOf(line, most) {
+    const found = [];
+    for (const [start, end] of this.regions()) {
+      if (start < line && line <= end) {
+        found.push(start);
+      }
     }
-    const text = this.doc.line(end);
-    const size = this.indent.size;
-    const own = /^\s*[\])}]/.test(text) && indentOf(text, size) === indentOf(this.doc.line(line), size) ? end - 1 : end;
-    return own > line ? own : -1;
+    return found.sort((one, other) => one - other).slice(-most);
   }
 
   // The folds of the headings and blocks the language marks, where it marks any, kept until the text
@@ -282,38 +293,20 @@ export class Session {
     return this.sections;
   }
 
-  // Whether a line opens a region: by the parse where it gives the line one, by the language's
-  // headings and blocks, and otherwise read from the lines just after it.
+  // Whether a line opens a region: by orior's side's folds, the language's headings and blocks, or the parse.
   opens(line) {
-    return this.parseEnd(line) > line || Boolean(this.sectionFolds()?.has(line)) || opens(this.doc, line, this.indent.size);
+    return this.endOf(line) > line;
   }
 
-  // The last line of the region a line opens, or -1: the kept end where the region is folded, the
-  // parse's or the language's where they give one, and otherwise read from the lines after it and
-  // kept until the text changes.
+  // The last line the fold of the region a line opens hides, or -1: the kept end where the region is folded, else
+  // orior's side's, the language's or the parse's, the first that gives one.
   endOf(line) {
     const folded = this.folded.get(line);
     if (folded !== undefined) {
       return folded;
     }
-    const parsed = this.parseEnd(line);
-    if (parsed > line) {
-      return parsed;
-    }
-    const section = this.sectionFolds()?.get(line);
-    if (section !== undefined) {
-      return section;
-    }
-    if (this.foundAt !== this.doc.id) {
-      this.found = new Map();
-      this.foundAt = this.doc.id;
-    }
-    let end = this.found.get(line);
-    if (end === undefined) {
-      end = regionEnd(this.doc, line, this.indent.size);
-      this.found.set(line, end);
-    }
-    return end;
+    const given = this.highlight.folds.get(line)?.[0] ?? this.sectionFolds()?.get(line) ?? this.highlight.parse?.folds?.get(line);
+    return given > line ? given : -1;
   }
 
   fold(start) {
@@ -342,7 +335,7 @@ export class Session {
   }
 
   // The lines `parts` put in above the window's first line, the last joined to the start of that line.
-  grownAbove(parts) {
+  grownAbove(parts, colors = null) {
     const doc = this.doc;
     const added = parts.length - 1;
     parts[added] += doc.lines[0];
@@ -357,13 +350,14 @@ export class Session {
       this.snippet.stops = this.snippet.stops.map((stop) => ({ from: down(stop.from), to: down(stop.to) }));
     }
     this.highlight.shift(added);
-    this.foundAt = -1;
+    this.highlight.given(colors);
     this.top += added * (this.view?.lineHeight ?? 0);
     this.view?.grown(this, added, parts.slice(0, added));
   }
 
-  // Whole lines of a paged file read in above the window or below it, as `grow` reads a slice in.
-  growLines(lines, above) {
+  // Whole lines of a paged file read in above the window or below it, as `grow` reads a slice in, with `colors`, the
+  // colors read with them, put before they are drawn.
+  growLines(lines, above, colors = null) {
     if (!lines.length) {
       return;
     }
@@ -372,10 +366,11 @@ export class Session {
       const last = this.doc.lines.length - 1;
       this.doc.lines.push(...lines);
       this.highlight.forget(last + 1);
+      this.highlight.given(colors);
       this.view?.grown(this, 0, lines);
       return;
     }
-    this.grownAbove(lines.concat(""));
+    this.grownAbove(lines.concat(""), colors);
   }
 
   // Lets go of `count` lines of a paged file's window, above it or below it. Neither is an edit; the
@@ -411,25 +406,33 @@ export class Session {
     this.foldings += 1;
     this.snippet = null;
     this.highlight.unshift(count);
-    this.foundAt = -1;
     this.top = Math.max(0, this.top - count * (this.view?.lineHeight ?? 0));
     this.view?.shrunk(this, count, true);
   }
 
   // Puts the window of a paged file at `base`, holding `lines`, its line `top` at the top of the
   // view, in place of the one it held: the history, the folds and the colors worked out go with the
-  // lines let go.
-  replaceWindow(lines, base, top = 0) {
+  // lines let go, and `colors`, those read with the lines, are put before they are drawn. Where `top`
+  // is null the view stays on the line it stands on, as a window put where the view went.
+  replaceWindow(lines, base, top = 0, colors = null) {
+    if (top === null) {
+      this.view?.holdLine(this);
+    }
+    // each selection carried to the same line of the file where the new window holds it, else to the window's start
+    const shift = this.base - base;
+    const last = Math.max(0, lines.length - 1);
+    const carried = (p) => (p.line + shift >= 0 && p.line + shift <= last ? pos(p.line + shift, p.col) : pos(0, 0));
+    const selections = this.selections.map((sel) => ({ anchor: carried(sel.anchor), head: carried(sel.head), goal: sel.goal }));
     this.doc.lines = lines.length ? lines : [""];
     this.doc.forgetSteps();
     this.base = base;
-    this.selections = [{ anchor: pos(0, 0), head: pos(0, 0), goal: null }];
+    this.selections = selections.map((sel) => ({ anchor: this.doc.clamp(sel.anchor), head: this.doc.clamp(sel.head), goal: sel.goal }));
     this.folded = new Map();
     this.foldings += 1;
     this.snippet = null;
     this.highlight.cleared();
-    this.foundAt = -1;
-    this.top = top;
+    this.highlight.given(colors);
+    this.top = top ?? 0;
     this.view?.replaced(this);
   }
 }

@@ -13,6 +13,7 @@ import itertools
 import json
 import os
 import queue
+import re
 import socket
 import struct
 import threading
@@ -27,6 +28,15 @@ def targets(port=9222, timeout=0.5):
             return json.load(answer)
     except OSError:
         return []
+
+
+def browser(port=9222):
+    """The DevTools address of the browser itself behind the port, which answers for every process it started."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=2) as answer:
+            return json.load(answer)["webSocketDebuggerUrl"]
+    except (OSError, KeyError, ValueError) as error:
+        raise ConnectionError(f"no browser answers on port {port}: {error}") from error
 
 
 def window_page(port=9222):
@@ -103,7 +113,23 @@ class Connection:
                 continue
             parts.append(payload)
             if first & 0x80:
-                return json.loads(b"".join(parts))
+                whole = b"".join(parts)
+                try:
+                    return json.loads(whole)
+                except ValueError as error:
+                    return self._unread(whole, error)
+
+    def _unread(self, whole, error):
+        """A message that is no JSON, kept whole under build/harness/cdp_unread.json and named by the error it raised,
+        answered as an error to the call whose id it carries. The reading goes on and that call waits no longer."""
+        kept = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "build", "harness", "cdp_unread.json")
+        os.makedirs(os.path.dirname(kept), exist_ok=True)
+        with open(kept, "wb") as out:
+            out.write(whole)
+        print(f"a message of {len(whole)} bytes read as no JSON ({error}), kept in {os.path.normpath(kept)}")
+        found = re.match(rb'\{"id":(\d+),', whole)
+        reason = {"message": f"its answer read as no JSON: {error}"}
+        return {"id": int(found.group(1)), "error": reason} if found else {"method": None}
 
     def _reading(self):
         try:

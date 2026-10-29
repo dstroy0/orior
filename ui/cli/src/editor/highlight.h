@@ -10,9 +10,11 @@
 // `[pattern, token, next]` or `[pattern, { token, next }]`, after which the state changes; `[pattern, [token, ...]]`,
 // each group of the match a token of its own; or `{ include: "@state" }`, the rules of another state. A token is a
 // name, or `{ cases: { "@<name>": token, "<word>": token, "@default": token } }`, which picks by the matched text, and
-// `@brackets` is a bracket's. A next of `@<state>` enters a state, `@pop` leaves the one entered last, and `@popall`
-// returns to root. A grammar whose `perLine` is set starts every line in root; any other carries its states from the
-// end of one line to the start of the next, written as their names joined by `/`.
+// `@brackets` is a bracket's, named by the grammar's `bracketToken`, `delimiter.bracket` where it gives none, with
+// `.open` for the first letter of one of its `brackets` and `.close` for the second. A next of `@<state>` enters a state, `@pop` leaves the one entered last, `@pop@<state>`
+// leaves it and enters `<state>` in its place, and `@popall` returns to root. A grammar whose `perLine` is set starts
+// every line in root; any other carries its states from the end of one line to the start of the next, written as
+// their names joined by `/`.
 //
 // A rule that matches nothing at a line's end and names a token puts a mark there, a token of no letters. A grammar's
 // `indent`, `{ states: { <state>: <token>, ... }, tab, skip, begins: [<state>, ...] }`, runs the states it names by
@@ -37,9 +39,9 @@ int cli_highlight_store(const char *key, const CliJson *json, unsigned int def, 
 int cli_highlight_color(const char *key, const char *state, const char *const *lines, unsigned int count,
                         VerbaLinea *out, VerbaLinea *err_msg);
 // One line's leaves as the colorer hands them over: the line, and its runs, each the column it starts at in UTF-16
-// units and its token's name, running to the next run's column or the line's end; a run's name is `text` from
-// `name_at[name[run]]`, the empty name where the grammar gives none; and the state the line ends in, as `states` writes
-// it
+// units and its token's name, running to the next run's column or the column the colored line ends at, `end`; a run's
+// name is `text` from `name_at[name[run]]`, the empty name, the first, where the grammar gives none; and the state the
+// line ends in, as `states` writes it
 typedef struct
 {
     const char *line;
@@ -49,6 +51,7 @@ typedef struct
     const unsigned int *name_at;
     const char *text;
     const char *ended;
+    unsigned int end;
 } CliLeaves;
 
 // what each line's leaves are handed to, in turn
@@ -56,13 +59,18 @@ typedef void (*CliLeavesEach)(void *context, const CliLeaves *leaves);
 
 // `count` lines colored with the grammar stored under `key`, the first starting in `state` and each after in the state
 // the one before it ends in, the last ending the text where `ends` is 1, each line's leaves handed to `each`, and the
-// state the last ends in written into `ended`: 1, or 0 with why given. `each` runs under the lock the grammars are
-// stored under, and colors and stores nothing
+// state the last ends in written into `ended`: 1, or 0 with why given. The lines are colored and `each` runs with no
+// lock held, on the calling thread, as many colorings at once as threads call for them
 int cli_highlight_leaves(const char *key, const char *state, const char *const *lines, unsigned int count, int ends,
                          CliLeavesEach each, void *context, VerbaLinea *ended, VerbaLinea *err_msg);
 // every name a token of the grammar stored under `key` can take, the empty name first, written into `out` as a JSON
-// array: 1, or 0 where no grammar is stored under `key`
+// array: 1, or 0 where no grammar is stored under `key`; each of those names handed to `each` with its place, in turn,
+// under the lock the grammars are stored under: how many, 0 where no grammar is stored under `key`; and one line's
+// runs written into `out` as `[column, name, column, name, ...]`, as the page reads a line's colors
 int cli_highlight_names_written(const char *key, VerbaLinea *out);
+typedef void (*CliNameEach)(void *context, unsigned int place, const char *name);
+unsigned int cli_highlight_names_each(const char *key, CliNameEach each, void *context);
+void cli_highlight_runs_written(const CliLeaves *leaves, VerbaLinea *out);
 // the grammars' own report, `<pool's bytes> <their mark> 0`, the most the grammars and their rooms occupied of the
 // cellblock at once, written into `out` (highlight_store.c)
 void cli_highlight_cells_usage_written(VerbaLinea *out);

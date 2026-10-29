@@ -313,20 +313,9 @@ static void cli_folder(char (*folders)[CLI_PATH_MAX_LEN], unsigned int *count, c
     *count += (mmgr_line_finish(&line) != 0ull) ? 1u : 0u;
 }
 
-void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN])
+// the folders the system keeps its fonts in, into `folders`, which is sized for four: their count
+static unsigned int cli_font_folders(char (*folders)[CLI_PATH_MAX_LEN])
 {
-    static const char *const s_families[8][4] = {
-        {"IBMPlexMono-Regular.ttf", "IBMPlexMono-Bold.ttf", "IBMPlexMono-Italic.ttf", "IBMPlexMono-BoldItalic.ttf"},
-        {"consola.ttf", "consolab.ttf", "consolai.ttf", "consolaz.ttf"},
-        {"CascadiaMono.ttf", "", "", ""},
-        {"DejaVuSansMono.ttf", "DejaVuSansMono-Bold.ttf", "DejaVuSansMono-Oblique.ttf",
-         "DejaVuSansMono-BoldOblique.ttf"},
-        {"LiberationMono-Regular.ttf", "LiberationMono-Bold.ttf", "LiberationMono-Italic.ttf",
-         "LiberationMono-BoldItalic.ttf"},
-        {"Menlo.ttc", "", "", ""},
-        {"cour.ttf", "courbd.ttf", "couri.ttf", "courbi.ttf"},
-        {"Courier New.ttf", "Courier New Bold.ttf", "Courier New Italic.ttf", "Courier New Bold Italic.ttf"}};
-    char folders[4][CLI_PATH_MAX_LEN];
     unsigned int count = 0u;
     char named[CLI_PATH_MAX_LEN];
 #if defined(_WIN32)
@@ -353,19 +342,42 @@ void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN])
         cli_folder(folders, &count, named, "/.local/share/fonts");
     }
 #endif
+    return count;
+}
+
+void cli_font_found(const char *const (*families)[4], unsigned int count, char (*paths)[CLI_PATH_MAX_LEN])
+{
+    char folders[4][CLI_PATH_MAX_LEN];
+    const unsigned int folder_count = cli_font_folders(folders);
     for (unsigned int face = 0u; face < 4u; face += 1u)
     {
         paths[face][0] = '\0';
     }
-    for (unsigned int family = 0u; family < 8u; family += 1u)
+    for (unsigned int family = 0u; family < count; family += 1u)
     {
-        if (cli_find(folders, count, s_families[family][0], paths[0]))
+        if (cli_find(folders, folder_count, families[family][0], paths[0]))
         {
             for (unsigned int face = 1u; face < 4u; face += 1u)
             {
-                cli_find(folders, count, s_families[family][face], paths[face]);
+                cli_find(folders, folder_count, families[family][face], paths[face]);
             }
             return;
         }
     }
+}
+
+void cli_font_monospace(char (*paths)[CLI_PATH_MAX_LEN])
+{
+    static const char *const s_families[8][4] = {
+        {"IBMPlexMono-Regular.ttf", "IBMPlexMono-Bold.ttf", "IBMPlexMono-Italic.ttf", "IBMPlexMono-BoldItalic.ttf"},
+        {"consola.ttf", "consolab.ttf", "consolai.ttf", "consolaz.ttf"},
+        {"CascadiaMono.ttf", "", "", ""},
+        {"DejaVuSansMono.ttf", "DejaVuSansMono-Bold.ttf", "DejaVuSansMono-Oblique.ttf",
+         "DejaVuSansMono-BoldOblique.ttf"},
+        {"LiberationMono-Regular.ttf", "LiberationMono-Bold.ttf", "LiberationMono-Italic.ttf",
+         "LiberationMono-BoldItalic.ttf"},
+        {"Menlo.ttc", "", "", ""},
+        {"cour.ttf", "courbd.ttf", "couri.ttf", "courbi.ttf"},
+        {"Courier New.ttf", "Courier New Bold.ttf", "Courier New Italic.ttf", "Courier New Bold Italic.ttf"}};
+    cli_font_found(s_families, 8u, paths);
 }

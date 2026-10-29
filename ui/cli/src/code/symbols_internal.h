@@ -98,8 +98,9 @@ unsigned long long cli_symbols_byte_at(const char *line, unsigned long long size
 #define CLI_LEAF_OTHERWISE 0x100000000ull
 // and the structure a grammar names: `open` and `close`, a bracket that opens or closes a pair; `region`, a bracket
 // whose pair encloses a region of statements; `statement`, the mark that ends a statement; `separator`, the mark
-// between the items of a list; `call`, a name a call names; `assign`, the operator that gives a name its value; and
-// `function`, with `declaration`, the name a function is declared by
+// between the items of a list; `call`, a name a call names; `assign`, the operator that gives a name its value;
+// `function`, with `declaration`, the name a function is declared by; and `depth`, a token whose `open` or `close`
+// counts the depth its pair stands at
 #define CLI_LEAF_OPEN 0x200000000ull
 #define CLI_LEAF_CLOSE 0x400000000ull
 #define CLI_LEAF_REGION 0x800000000ull
@@ -108,6 +109,7 @@ unsigned long long cli_symbols_byte_at(const char *line, unsigned long long size
 #define CLI_LEAF_CALL 0x4000000000ull
 #define CLI_LEAF_ASSIGN 0x8000000000ull
 #define CLI_LEAF_FUNCTION 0x10000000000ull
+#define CLI_LEAF_DEPTH 0x20000000000ull
 
 // the operation an operator's name names in a segment past its first, 0 for none: `not`, `complement`, `multiply`,
 // `divide`, `remainder`, `add`, `subtract`, `shiftleft`, `shiftright`, `less`, `atmost`, `greater`, `atleast`, `equal`,

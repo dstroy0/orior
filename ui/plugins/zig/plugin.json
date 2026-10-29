@@ -15,6 +15,7 @@
     ["^()(?:pub\\s+)?const\\s+([A-Za-z_]\\w*)\\s*=", "constant"]
   ],
   "grammar": {
+    "bracketToken": "delimiter.bracket.depth",
     "words": [
       "addrspace", "align", "allowzero", "and", "anyframe", "anytype", "asm", "async", "await", "break", "callconv", "catch",
       "comptime", "const", "continue", "defer", "else", "enum", "errdefer", "error", "export", "extern", "fn", "for", "if",

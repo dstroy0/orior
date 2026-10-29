@@ -5,8 +5,9 @@
 // RAM. Drawing the layer again writes only the rows whose markup changed. A key that changes one
 // row costs the page that row alone, and every other row stays as the page last drew it. A row
 // drawn and out of sight stays where the drawing keeps it, and the layer is drawn outward from what
-// is in sight by `extend`. `made` counts the rows made since the layer was made, and `writes` the
-// rows written again.
+// is in sight by `extend`. A row the drawing lets go gives its node to a row that comes in, so the
+// page makes no node while as many rows come as go. `made` counts the rows made since the layer was
+// made, and `writes` the rows written again.
 //
 // A layer that flows holds its rows in blocks of BLOCK, each block placed where its first row stands and
 // its rows one under the next in it, a row after a gap by its margin: the page paints a block as one
@@ -26,44 +27,59 @@ export class Layer {
     this.blocks = null;
   }
 
-  // `parts` gives each row on screen its class and markup. `top` places a row's node, where the
-  // layer's rows are placed one by one, and the first row's, where they flow. A row `keep` says to
-  // keep stays though `parts` does not give it.
+  // `parts` gives each row on screen its class and markup, and where it has one, the writer that puts
+  // the row into the node it is held in, in place of its markup written whole: 1 where it took the
+  // row, the node's own spans given their text and their classes, so the page parses nothing and
+  // styles only the spans whose class changed. `top` places a row's node, where the layer's rows are
+  // placed one by one, and the first row's, where they flow. A row `keep` says to keep stays though
+  // `parts` does not give it.
   draw(parts, top = null, keep = null) {
+    const spare = [];
     for (const [row, held] of this.held) {
       if (!parts.has(row) && !keep?.(row)) {
-        held.node.remove();
+        spare.push(held);
         this.held.delete(row);
       }
     }
-    this.write(parts, top);
+    this.write(parts, top, spare);
   }
 
   // Draws the rows `parts` gives and keeps every other row drawn: the layer drawn outward.
   extend(parts, top = null) {
-    this.write(parts, top);
+    this.write(parts, top, []);
   }
 
-  write(parts, top) {
-    for (const [row, [name, html]] of parts) {
+  // Writes the rows `parts` gives, a row new to the layer taking the node of a row in `spare` where one is left, and
+  // lets go of the nodes left in `spare`.
+  write(parts, top, spare) {
+    for (const [row, [name, html, inPlace]] of parts) {
       let held = this.held.get(row);
       if (!held) {
-        const node = document.createElement("div");
-        if (top && !this.flow) {
-          node.style.top = `${top(row)}px`;
+        held = spare.pop();
+        if (!held) {
+          const node = document.createElement("div");
+          if (!this.flow) {
+            this.host.append(node);
+          }
+          held = { node, name: null, html: null, gap: 0, top: null };
         }
-        if (!this.flow) {
-          this.host.append(node);
-        }
-        held = { node, name: null, html: null, gap: 0 };
         this.held.set(row, held);
+      }
+      if (top && !this.flow) {
+        const at = top(row);
+        if (held.top !== at) {
+          held.node.style.top = `${at}px`;
+          held.top = at;
+        }
       }
       if (held.name !== name) {
         held.node.className = name;
         held.name = name;
       }
       if (held.html !== html) {
-        held.node.innerHTML = html;
+        if (held.html === null || !inPlace?.(held.node)) {
+          held.node.innerHTML = html;
+        }
         if (held.html === null) {
           this.made += 1;
         } else {
@@ -71,6 +87,9 @@ export class Layer {
         }
         held.html = html;
       }
+    }
+    for (const held of spare) {
+      held.node.remove();
     }
     if (this.flow) {
       this.place(top);

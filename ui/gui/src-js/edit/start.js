@@ -6,7 +6,7 @@ import { Session } from "../editor/session.js";
 import { Editor } from "../editor/view.js";
 import { drawOutline, drawUndo, lightOutline } from "../explorer.js";
 import { follow as followPaged, readPaged } from "../paged.js";
-import { changed, hintsShown, parseShown, spansOf } from "../servers.js";
+import { changed, hintsShown, pairOf, parseShown, spansOf } from "../servers.js";
 import { moved, typed } from "../intel.js";
 import { breakpointMenu, breakpointsOf, pausedLineOf, toggleBreakpoint, valueAt } from "../debug.js";
 import { bookmarksOf, startBookmarks } from "../bookmarks.js";
@@ -23,7 +23,7 @@ import { say } from "../statusbar.js";
 import { cursorListeners, editing, editListeners, onCursorMoved, onEdit, onShown, pasteListeners, show, state } from "../edit.js";
 import { drawCrumbs, goToDefinition, problemsChanged } from "./crumbs.js";
 import { light } from "./defs.js";
-import { holdOpened, markChanges, openLineCommit } from "./held.js";
+import { markChanges, mirror, openLineCommit } from "./held.js";
 import { marginLine, vimKeys } from "./menus.js";
 import { keepPlace, splitFocused } from "./open.js";
 import { closePeek, hunkAt, showPeek } from "./peek.js";
@@ -51,7 +51,7 @@ export function hookEditor() {
     onHistory: openLineCommit,
     onGroup: undoGroup,
     onShown: (s, from, to) => {
-      s.highlight.shown(from, to);
+      s.highlight.shown(from, to, s.view?.reach?.() ?? Infinity);
       const tab = tabOfSession(s.of ?? s);
       if (tab) {
         hintsShown(tab, from, to);
@@ -61,6 +61,10 @@ export function hookEditor() {
     spansOf: (s, from, to) => {
       const tab = tabOfSession(s.of ?? s);
       return tab ? spansOf(tab, from, to) : Promise.resolve([]);
+    },
+    pairOf: (s, head) => {
+      const tab = tabOfSession(s.of ?? s);
+      return tab ? pairOf(tab, head) : Promise.resolve(null);
     },
     onEdit: (s) => {
       // The tab's server hears of the change once the frame that draws it is drawn, and not once the
@@ -296,8 +300,7 @@ export function startEditor() {
       tab.readOnly = false;
       tab.session = new Session(raw, state.known.languageOf(tab.path));
       // The window's side holds the file's text as the tab opened it; it colors it again, the names first.
-      tab.session.highlight.held(tab.key, [""], []);
-      holdOpened(tab, tab.key);
+      mirror(tab.session, tab.key);
       invoke("branch_language", { key: tab.key, id: tab.session.language?.id ?? "" }).catch(() => {});
       markSaved(tab, raw);
       show(tab.path);

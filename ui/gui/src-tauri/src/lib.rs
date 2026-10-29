@@ -70,6 +70,33 @@ fn app_exit(handle: AppHandle) {
     handle.exit(0);
 }
 
+/// The web view's memory target: low where `low`, which has it give back what it holds past what it uses as a browser
+/// does when the system says memory runs short, and normal where not. Nothing where the web view has no such target.
+#[tauri::command]
+fn memory_target(webview: tauri::Webview, low: bool) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        use webview2_com::Microsoft::Web::WebView2::Win32::{ICoreWebView2_19, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW, COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL};
+        use windows::core::Interface;
+        let level = if low { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_LOW } else { COREWEBVIEW2_MEMORY_USAGE_TARGET_LEVEL_NORMAL };
+        webview
+            .with_webview(move |platform| {
+                // SAFETY: each call is to the webview's own interfaces, on the thread that owns them.
+                unsafe {
+                    if let Ok(core) = platform.controller().CoreWebView2().and_then(|core| core.cast::<ICoreWebView2_19>()) {
+                        let _ = core.SetMemoryUsageTargetLevel(level);
+                    }
+                }
+            })
+            .map_err(|error| error.to_string())
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (webview, low);
+        Ok(())
+    }
+}
+
 /// Sets the window's zoom, 1 being none.
 #[tauri::command]
 fn zoom_set(webview: tauri::Webview, factor: f64) -> Result<(), String> {
@@ -229,6 +256,7 @@ fn open() {
             printers_list,
             print_page,
             zoom_set,
+            memory_target,
             window_act,
         ])
         .on_window_event(|window, event| {

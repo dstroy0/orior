@@ -12,7 +12,7 @@
 const bridge = () => window.__TAURI_INTERNALS__;
 
 const WINDOW = new Set([
-  "app_changes", "app_debug", "app_exit", "app_version", "call", "print_page", "printers_list", "window_act", "window_show", "zoom_set",
+  "app_changes", "app_debug", "app_exit", "app_version", "call", "memory_target", "print_page", "printers_list", "window_act", "window_show", "zoom_set",
 ]);
 
 // The window's own calls orior's side answers, each sent as a call of the tree's side is with orior-own set: by
@@ -47,7 +47,7 @@ const OWN = new Map([
   ...[
     "devcontainer_line", "commands_read", "settings_layers", "carry_send", "carry_read", "carry_take", "carry_undo", "plugin_settings_read", "plugins_catalog_read",
     "plugins_catalog_install", "plugin_request", "image_data", "report_error", "report_bug", "report_prompted", "branch_open", "branch_view",
-    "branch_language", "branch_signature", "branch_runs", "document_edit", "document_changes", "document_find", "structure_compare", "workspace_read", "inspect_languages", "code_docstring", "fill_paragraph", "code_sort",
+    "branch_language", "branch_signature", "branch_pair", "branch_runs", "branch_at", "branch_cells", "branch_new", "document_edit", "document_changes", "document_find", "structure_compare", "workspace_read", "inspect_languages", "code_docstring", "fill_paragraph", "code_sort",
     "templates_list", "project_create", "checkers_known", "parse_classes", "file_read_any", "toolchain_install", "repo_clone", "repos_folder", "plugin_code",
     "home_folder", "plugin_draft", "plugin_create", "window_open", "memory_usage", "servers_unneeded_stop", "session_key", "scrollback_open", "scrollback_keep",
     "scrollback_read", "scrollback_close", "scrollback_reset", "term_open", "term_write", "term_resize", "term_close",

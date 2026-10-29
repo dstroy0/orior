@@ -4,10 +4,10 @@
 // The claim: while the reader edits, the work takes the bar's row, the toolbar's, the strip's column
 // and the status bar's row, and keeps the frame's right gap on every side, so the editor moves inside
 // a frame of that gap; inside the work the editor's text takes the tabs row's room and the minimap's.
-// A pointer resting in the gap at an edge for RESTS brings that edge's part back: the status bar at
-// the foot, the bar, the toolbar and the tabs row at the head, the strip at the left, the minimap at
+// A pointer resting within NEAR gaps of an edge for RESTS brings that edge's part back: the status bar
+// at the foot, the bar, the toolbar and the tabs row at the head, the strip at the left, the minimap at
 // the right, and in the controls' corner the three controls alone, as a tab, a ghost of them showing
-// as the pointer nears.
+// as soon as the pointer slows in the corner and staying while it stays there.
 // A part goes back LINGER after the pointer leaves it, and one edge's part comes only once another's
 // has gone, so no two slides run at once. The claim is made as the editor takes the keys and let go as
 // they leave it. An edge held, as the foot is while a stuck plugin's Stop stands on the status bar,
@@ -26,9 +26,11 @@ const SLIDE = 300;
 // neither the gap's part nor the controls' ghost answers it.
 const CRITERION = 0.06;
 const SPAN = 50;
-// The frame's gap, as --frame-right sets it, and how many gaps out the controls' ghost shows.
+// The frame's gap, as --frame-right sets it, and how many gaps in from an edge its band reaches: a rest
+// anywhere in the band brings the edge's part, and the controls' ghost shows throughout theirs.
 const GAP = 12;
 const NEAR = 3;
+const BAND = GAP * NEAR;
 
 let zoneNow = "";
 let resting = 0;
@@ -45,30 +47,26 @@ export const revealed = () => document.body.dataset.reveal ?? "";
 
 const controlsWidth = () => document.getElementById("window-controls").offsetWidth || 120;
 
-// The edge the point stands in: the controls' corner, the head, the foot, the left, the right, or none.
+// The edge whose band the point stands in: the controls' corner, the head, the foot, the left, the right, or none.
 export function zoneAt(x, y) {
   const width = window.innerWidth;
   const height = window.innerHeight;
-  if (y < GAP && x > width - controlsWidth() - 2 * GAP) {
+  if (y < BAND && x > width - controlsWidth() - BAND) {
     return "controls";
   }
-  if (y < GAP) {
+  if (y < BAND) {
     return "top";
   }
-  if (y > height - GAP) {
+  if (y > height - BAND) {
     return "bottom";
   }
-  if (x < GAP) {
+  if (x < BAND) {
     return "left";
   }
-  if (x > width - GAP) {
+  if (x > width - BAND) {
     return "right";
   }
   return "";
-}
-
-function nearControls(x, y) {
-  return y < GAP * NEAR && x > window.innerWidth - controlsWidth() - GAP * NEAR;
 }
 
 // The parts a reveal shows, which hold it while the pointer is over them.
@@ -156,12 +154,17 @@ function moved(event) {
   pointer.x = event.clientX;
   pointer.y = event.clientY;
   const passing = paceOf(event) > CRITERION;
-  const near = !revealed() && zone !== "controls" && nearControls(event.clientX, event.clientY);
-  document.body.toggleAttribute("data-near", near && !passing);
-  // a pointer come to a stop near the corner after a fast move shows the ghost once it has settled
+  // the controls' ghost: shown as the pointer slows in their corner, kept while it stays there, as a hand holding it
+  // still moves it a little, and gone as it leaves the corner or as the controls come
+  const near = !revealed() && zone === "controls";
   window.clearTimeout(nearing);
-  if (near && passing) {
-    nearing = window.setTimeout(() => document.body.toggleAttribute("data-near", !revealed()), SPAN * 2);
+  if (!near) {
+    document.body.removeAttribute("data-near");
+  } else if (!passing) {
+    document.body.setAttribute("data-near", "");
+  } else if (!document.body.hasAttribute("data-near")) {
+    // a pointer come into the corner fast shows the ghost once it has settled
+    nearing = window.setTimeout(() => document.body.toggleAttribute("data-near", !revealed() && zoneNow === "controls"), SPAN * 2);
   }
   // a pointer passing through starts its rest again with each move, so the rest begins once it slows
   if (zone !== zoneNow || passing) {

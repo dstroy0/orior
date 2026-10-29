@@ -1,0 +1,58 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// icons_test.c: the icons' check: an icon is drawn on a square of pixels as its path says, a line's pixels covered and
+// the rest clear, a square's middle clear, the filled dots covered, an arc a ring, a curve of relative steps reaching
+// its end, the cog's teeth at its rim; an icon asked again is the one kept; and a name no icon has draws nothing
+#include "../../../../../ui/gui/src/icons.h"
+#include "../cli/cli_check.h"
+
+// the cover of the pixel at x, y of a mask of `size` a side
+static unsigned int at(const GuiMask *mask, unsigned int x, unsigned int y)
+{
+    return (mask != NULL) ? mask->cover[(y * mask->width) + x] : 0u;
+}
+
+int main(void)
+{
+    (void)cli_cells_made(CLI_CELLS_POOL);
+    GuiIcons icons;
+    gui_icons_made(&icons);
+    cli_check(gui_icon_named("folder") && gui_icon_named("gear") && !gui_icon_named("nothing"),
+              "the icons are known by their names");
+    cli_check(gui_icon(&icons, "nothing", 16u, 2.0f) == NULL, "a name no icon has draws nothing");
+
+    const GuiMask *const line = gui_icon(&icons, "minimize", 16u, 2.0f);
+    cli_check((line != NULL) && (line->width == 16u) && (line->height == 16u) && (line->left == 0) && (line->top == 0),
+              "an icon is drawn on a square of its size");
+    cli_check((at(line, 8u, 7u) == 255u) && (at(line, 8u, 8u) == 255u), "a line two pixels wide covers the two rows it runs on");
+    cli_check((at(line, 8u, 5u) == 0u) && (at(line, 8u, 10u) == 0u), "the rows away from it are clear");
+    cli_check((at(line, 0u, 7u) == 0u) && (at(line, 15u, 7u) == 0u), "the pixels past its round ends are clear");
+    cli_check((at(line, 2u, 7u) > 60u) && (at(line, 2u, 7u) < 200u), "its round end covers the pixel it ends in by a share");
+    cli_check(gui_icon(&icons, "minimize", 16u, 2.0f) == line, "the icon asked again is the one kept");
+    cli_check(gui_icon(&icons, "minimize", 32u, 2.0f) != line, "the icon at another size is drawn anew");
+
+    const GuiMask *const square = gui_icon(&icons, "maximize", 16u, 2.0f);
+    cli_check((at(square, 8u, 8u) == 0u) && (at(square, 4u, 8u) == 255u) && (at(square, 8u, 11u) == 255u),
+              "a square's middle is clear and its sides are covered");
+
+    const GuiMask *const dots = gui_icon(&icons, "more", 16u, 2.0f);
+    cli_check((at(dots, 8u, 8u) > 200u) && (at(dots, 3u, 8u) > 200u) && (at(dots, 12u, 8u) > 200u) && (at(dots, 5u, 8u) == 0u),
+              "the filled dots are covered and the gaps between them clear");
+
+    const GuiMask *const ring = gui_icon(&icons, "commit", 16u, 2.0f);
+    cli_check((at(ring, 8u, 8u) == 0u) && (at(ring, 8u, 5u) > 200u) && (at(ring, 10u, 8u) > 200u) && (at(ring, 2u, 7u) > 200u),
+              "an arc draws a ring, clear inside, with the lines each side");
+
+    const GuiMask *const wave = gui_icon(&icons, "sim", 16u, 2.0f);
+    cli_check((at(wave, 1u, 8u) > 200u) && (at(wave, 14u, 6u) > 200u), "a curve of relative steps runs from its start to its end");
+
+    const GuiMask *const cog = gui_icon(&icons, "gear", 16u, 2.0f);
+    cli_check((at(cog, 14u, 8u) > 200u) && (at(cog, 8u, 8u) < 40u) && (at(cog, 0u, 0u) == 0u),
+              "the cog's tooth stands at its rim, its hub about its middle, and its corner is clear");
+
+    const GuiMask *const large = gui_icon(&icons, "folder", 29u, 2.0f);
+    cli_check((large != NULL) && (large->width == 29u) && (at(large, 14u, 23u) > 200u) && (at(large, 14u, 2u) == 0u),
+              "an icon at the strip's size covers its folder's foot and not the space above it");
+    gui_icons_given(&icons);
+    return cli_checked();
+}

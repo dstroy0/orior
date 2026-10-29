@@ -72,5 +72,7 @@ extern const CliServeCall g_cli_window_clipboard_calls[];
 extern const unsigned int g_cli_window_clipboard_count;
 extern const CliServeCall g_cli_window_view_calls[];
 extern const unsigned int g_cli_window_view_count;
+extern const CliServeCall g_cli_window_editor_calls[];
+extern const unsigned int g_cli_window_editor_count;
 
 #endif

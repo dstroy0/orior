@@ -1,40 +1,18 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
-// What folds, read from indentation; the rows a text shows once regions fold and long lines wrap; where a long
-// line wraps; and the spans of hidden lines merged.
+// A line's indent; the rows a text shows once regions fold and long lines wrap; where a long line wraps; and the
+// spans of hidden lines merged.
 
-import { hiddenSpans, indentOf, joinSpans, openersOf, opens, regionEnd, regions, Rows, wrapBreaks } from "../../../gui/src-js/editor/folding.js";
+import { hiddenSpans, indentOf, joinSpans, Rows, wrapBreaks } from "../../../gui/src-js/editor/folding.js";
 
 const { test, assert } = window.__harness;
-
-const docOf = (text) => {
-  const lines = text.split("\n");
-  return { count: lines.length, line: (at) => lines[at] };
-};
-const CODE = docOf("def a():\n    x = 1\n\n    if x:\n        y = 2\n    return x\ndef b():\n    pass");
 
 test("a line's indent counts spaces, and a tab to its next stop; a blank line has none", () => {
   assert.equal(indentOf("    x", 4), 4);
   assert.equal(indentOf("  \tx", 4), 4);
   assert.equal(indentOf("\t\tx", 4), 8);
   assert.equal(indentOf("   ", 4), -1);
-});
-
-test("a line opens a region when the next line not blank is deeper, and the region runs to the last line deeper than it", () => {
-  assert.equal(opens(CODE, 0, 4), true);
-  assert.equal(opens(CODE, 1, 4), false);
-  assert.equal(regionEnd(CODE, 0, 4), 5, "the blank line inside is passed over");
-  assert.equal(regionEnd(CODE, 3, 4), 4);
-  assert.equal(regionEnd(CODE, 1, 4), -1);
-  assert.deepEqual([...regions(CODE, 4)], [[3, 4], [0, 5], [6, 7]]);
-});
-
-test("the lines that open the regions around a line, the outermost first, a blank line inside what follows it", () => {
-  assert.deepEqual(openersOf(CODE, 4, 4, 10), [0, 3]);
-  assert.deepEqual(openersOf(CODE, 4, 4, 1), [3], "the innermost alone");
-  assert.deepEqual(openersOf(CODE, 2, 4, 10), [0]);
-  assert.deepEqual(openersOf(CODE, 6, 4, 10), []);
 });
 
 test("rows: a folded region's lines take its opening line's row, and a wrapped line takes a row more for each break", () => {

@@ -60,11 +60,13 @@ export function setPluginOn(id, on) {
 
 const patternOf = (value) => (typeof value === "string" ? new RegExp(value) : new RegExp(value.pattern, value.flags ?? ""));
 
-// A grammar as a plugin writes it, with each rule's pattern made a pattern.
+// A grammar as a plugin writes it, with each rule's pattern made a pattern; a rule whose pattern is a word list, which
+// orior's side makes from the list's words, kept as it is written.
 function revive(grammar) {
   const tokenizer = {};
+  const revived = (pattern) => (pattern && typeof pattern === "object" && "words" in pattern ? pattern : patternOf(pattern));
   for (const [name, rules] of Object.entries(grammar.tokenizer ?? {})) {
-    tokenizer[name] = rules.map((rule) => (Array.isArray(rule) ? [patternOf(rule[0]), ...rule.slice(1)] : rule));
+    tokenizer[name] = rules.map((rule) => (Array.isArray(rule) ? [revived(rule[0]), ...rule.slice(1)] : rule));
   }
   return { ...grammar, tokenizer };
 }

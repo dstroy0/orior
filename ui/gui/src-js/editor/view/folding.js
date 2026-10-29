@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 
 import { endOf, pos } from "../document.js";
-import { hiddenSpans, indentOf } from "../folding.js";
-import { caret, CLOSER, empty, endOfSel, parseSnippet, startOf } from "../view.js";
+import { hiddenSpans } from "../folding.js";
+import { caret, empty, endOfSel, parseSnippet, startOf } from "../view.js";
 
 // Folding.
 
@@ -45,20 +45,9 @@ export function foldAll(close) {
   this.folds();
 }
 
-// The line after a folded region where it holds closing brackets alone, at the depth of the line
-// that opens the region, which the fold takes in; or the region's own last line.
-export function closedEnd(start, end) {
-  const next = end + 1;
-  if (next >= this.doc.count || !CLOSER.test(this.doc.line(next))) {
-    return end;
-  }
-  const size = this.s.indent.size;
-  return indentOf(this.doc.line(next), size) === indentOf(this.doc.line(start), size) ? next : end;
-}
-
-// The spans of lines the folds hide, each with its closing line where it takes one in.
+// The spans of lines the folds hide.
 export function foldSpans() {
-  return hiddenSpans(new Map([...this.s.folded].map(([start, end]) => [start, this.closedEnd(start, end)])));
+  return hiddenSpans(this.s.folded);
 }
 
 // After folds change: a cursor a fold hides goes to the end of the line that opens the fold.
@@ -136,6 +125,10 @@ export function escape() {
 
 export function copy(event, cut) {
   event.preventDefault();
+  // a paged file's window of lines cut at the view's reach gives no copy until the view rests and its lines come whole
+  if (this.s.window?.cut) {
+    return;
+  }
   const text = this.takeOut(cut);
   event.clipboardData.setData("text/plain", text.replace(/\n/g, this.doc.eol));
   this.note({ cut });

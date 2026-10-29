@@ -29,6 +29,8 @@ import { say } from "./statusbar.js";
 import { drawForms, drawMap, drawMarks, drawOutputs, drawSource } from "./notebook/draw.js";
 import { checkFromTop, heard, heardCheck, kernelSpecs, restartKernel, runAll, runCell, startKernel, stopKernel } from "./notebook/kernel.js";
 import { addBar, cellNode } from "./notebook/cells.js";
+import { letMirrorGo } from "./edit/held.js";
+import { mirrorCells } from "./notebook/mirror.js";
 
 // The lines an output shows of itself before the rest is a press away, and how many of its first
 // and last it shows then.
@@ -108,6 +110,7 @@ export async function openNotebook(path) {
     check: null,
   };
   book.cells = (raw.cells ?? []).map((one) => cellOf(book, one));
+  await mirrorCells(book);
   state.books.set(path, book);
   return book;
 }
@@ -151,6 +154,7 @@ export function closeNotebook(book) {
   if (book.kernel.state !== "none") {
     invoke("kernel_stop", { key: book.path }).catch(() => {});
   }
+  book.cells.forEach((cell) => letMirrorGo(cell.session));
   state.books.delete(book.path);
 }
 

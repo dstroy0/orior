@@ -1,0 +1,116 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// window.h: the window apart from the system it stands on: its frame laid out for its size, its raster drawn with the
+// parts, the glyphs and the palette they draw with, the editor showing the open file, the menu bar over the catalog
+// of commands, and the link to the CLI, each answer and event taken on the window's thread; the pointer's place read
+// as the caption, a border, a control or the client; the wheel scrolling the editor; a menu's choice run, its keys
+// sent to the editor's view; and the file opened as the launch command or a door command names it (window.c)
+#ifndef GUI_WINDOW_H
+#define GUI_WINDOW_H
+#include "frame.h"
+#include "link.h"
+#include "parts/editor.h"
+#include "parts/menubar.h"
+#include "parts/strip.h"
+#include "parts/tabs.h"
+
+// where the pointer stands: the client, the caption the system drags the window by, the borders and corners the
+// system resizes it by, and the three controls
+#define GUI_HIT_CLIENT 0u
+#define GUI_HIT_CAPTION 1u
+#define GUI_HIT_LEFT 2u
+#define GUI_HIT_RIGHT 3u
+#define GUI_HIT_TOP 4u
+#define GUI_HIT_BOTTOM 5u
+#define GUI_HIT_TOP_LEFT 6u
+#define GUI_HIT_TOP_RIGHT 7u
+#define GUI_HIT_BOTTOM_LEFT 8u
+#define GUI_HIT_BOTTOM_RIGHT 9u
+#define GUI_HIT_MINIMIZE 10u
+#define GUI_HIT_MAXIMIZE 11u
+#define GUI_HIT_CLOSE 12u
+// the resize border's width in the page's pixels
+#define GUI_BORDER 5
+
+// The window: its frame, raster, glyphs, icons, palette, editor, menu bar, strip and link; the catalog of commands
+// the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar; the files open as tabs, how many,
+// the one shown, -1 for none, and the one shown before it, -1 for none; the shown file's path and the key it is
+// stored under; whether the window is maximized; the tickets of the calls in flight, the launch command, the root,
+// the catalog, a whole path made the tree's, the open and the view's open, each 0 where none is, and the sequence of
+// the last frame taken; whether the CLI's editor view is open on the shown file, whether the pointer drags in it,
+// and the presses counted, when and where the last was; whether a frame is owed; and the control pressed, for the
+// system to act on, GUI_HIT_CLIENT where none
+typedef struct
+{
+    GuiFrame frame;
+    GuiRaster raster;
+    GuiGlyphs glyphs;
+    GuiIcons icons;
+    const GuiPalette *palette;
+    GuiEditor editor;
+    GuiMenubar menubar;
+    GuiStrip strip;
+    GuiLink link;
+    CliJson catalog;
+    int cataloged;
+    char title[CLI_NAME_MAX_LEN];
+    GuiTab tab[GUI_TABS_MOST];
+    unsigned int tabs;
+    int active;
+    int last_active;
+    char path[CLI_PATH_MAX_LEN];
+    char key[CLI_PATH_MAX_LEN];
+    int maximized;
+    unsigned long long asked_launch;
+    unsigned long long asked_root;
+    unsigned long long asked_catalog;
+    unsigned long long asked_relative;
+    unsigned long long asked_open;
+    unsigned long long asked_view;
+    unsigned long long frame_seq;
+    int viewed;
+    int dragging;
+    unsigned int clicks;
+    unsigned long long clicked_ms;
+    int clicked_x;
+    int clicked_y;
+    int owed;
+    unsigned int pressed;
+} GuiWindow;
+
+// the milliseconds within which presses count up, and the pixels a press may move and still count
+#define GUI_CLICK_WITHIN 500ull
+#define GUI_CLICK_NEAR 4
+
+// the window begun: its glyphs read, its palette the dark scheme, its editor empty and its link's workers started, the
+// window's thread woken through `woken` with `context`: 1, or 0 with why given; and ended, every cell given back
+int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, VerbaLinea *err_msg);
+void gui_window_ended(GuiWindow *window);
+// the window sized `width` by `height` at `scale`: its frame laid out and its raster made anew: 1, or 0 where the
+// raster's cell could not be taken
+int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height, float scale);
+// the first calls made as the window opens: the launch command taken and the tree's root asked
+void gui_window_started(GuiWindow *window);
+// the frame drawn into the raster, the frame owed no more
+void gui_window_drawn(GuiWindow *window);
+// where the pointer at x, y stands
+unsigned int gui_window_hit(const GuiWindow *window, int x, int y);
+// the wheel turned `rows` rows, down where positive, with the pointer at x, y; a button pressed at x, y with the
+// modifiers `mods` held, as system.h names them; the pointer moved to x, y; the button let go; a key pressed, named as
+// the page's editor names it; and `size` bytes of text typed
+void gui_window_wheel(GuiWindow *window, int x, int y, int rows);
+void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods);
+void gui_window_moved(GuiWindow *window, int x, int y);
+void gui_window_released(GuiWindow *window, int x, int y);
+void gui_window_key(GuiWindow *window, const char *name);
+void gui_window_text(GuiWindow *window, const char *text, unsigned long long size);
+// the file at `path` opened through the CLI as a tab, shown in the editor as its answers come, or shown where it is
+// open already; the tab `at` shown; and the tab `at` closed, its view and its branch let go, the tab beside it shown
+void gui_window_file_opened(GuiWindow *window, const char *path);
+void gui_window_tab_shown(GuiWindow *window, unsigned int at);
+void gui_window_tab_closed(GuiWindow *window, unsigned int at);
+// `length` bytes of a text shown whole in the editor
+int gui_window_text_put(GuiWindow *window, const char *text, unsigned long long length);
+// every answer and event waiting taken, on the window's thread
+void gui_window_drained(GuiWindow *window);
+#endif

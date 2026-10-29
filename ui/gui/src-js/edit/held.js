@@ -3,28 +3,44 @@
 
 import { onAuthors } from "../authors.js";
 import { invoke } from "../bridge.js";
-import { lineChanges } from "../editor/diff.js";
 import { state } from "../edit.js";
 import { openTouched } from "./compare.js";
 import { tabOf, tabOfSession } from "./tabs.js";
 
-// Every text the editor opens from a file is held on the window's side as it read it, under the key the tab opened
-// it with, for every piece of work on it to run there and hand back only its answer: its colors, find, and the
-// gutter's marks against the last commit. Each change the page's document writes to it goes after it, out of the
-// event that made it, and the calls about one text go one after another, each once the one before is answered.
+// Every text the editor opens from a file is a branch on the window's side as it read it, under the key the tab opened
+// it with, the session the page's mirror of it, for every piece of work on it to run there and hand back only its
+// answer: its colors, find, and the gutter's marks against the last commit. Each change the page's document writes to
+// it goes after it, out of the event that made it, and the calls about one branch go one after another, each once the
+// one before is answered.
 
-// Runs `work`, a call about a held text, once every call before it about that text is answered.
+// Runs `work`, a call about a branch, once every call before it about that branch is answered.
 export function along(held, work) {
   const next = held.chain.then(work);
   held.chain = next.catch(() => {});
   return next;
 }
 
-// The tab's text held as the window's side holds it under `key`, as it opened the tab's file: the change `change`
-// sent first where the tab's text is not the file's, and each change the document writes after it.
-export function holdOpened(tab, key, change = null) {
-  const doc = tab.session.doc;
-  const held = { key, ready: true, changes: change ? [change] : [], waiting: false, chain: Promise.resolve(), headsAge: -1 };
+// The session the page's mirror of the branch under `key`, a tab's, a view's or a notebook cell's: the names and colors
+// `opened` gave with it and how far across they color each line, the change `change` sent first where the session's
+// text is not the branch's, and each change its document writes after it, every call about it waiting for `first`
+// where one is given, the call that makes it.
+export function mirror(session, key, opened = null, change = null, first = null) {
+  session.highlight.mirrors(key, opened?.names ?? null, change ? [] : (opened?.colors ?? []), opened?.columns ?? 0);
+  if (change) {
+    session.highlight.changed(change);
+  }
+  mirrorText(session.doc, key, change, first);
+}
+
+// The session's mirror let go, and the branch under its key on the window's side with it.
+export function letMirrorGo(session) {
+  session?.highlight?.letGo();
+  letGo(session?.doc);
+}
+
+function mirrorText(doc, key, change, first) {
+  const chain = first ? Promise.resolve(first).catch(() => {}) : Promise.resolve();
+  const held = { key, ready: true, changes: change ? [change] : [], waiting: false, chain, headsAge: -1 };
   doc.held = held;
   held.unwatch = doc.watch(({ edits }) => {
     held.changes.push(edits.map(({ from, to, text }) => ({ from: { line: from.line, col: from.col }, to: { line: to.line, col: to.col }, text })));
@@ -36,7 +52,7 @@ export function holdOpened(tab, key, change = null) {
   sendChanges(doc);
 }
 
-// Sends the changes written to a held text since the last were sent.
+// Sends the changes written to a mirror since the last were sent.
 export function sendChanges(doc) {
   const held = doc?.held;
   if (!held?.ready) {
@@ -51,8 +67,8 @@ export function sendChanges(doc) {
   along(held, () => invoke("document_edit", { key: held.key, changes })).catch(() => letGo(doc));
 }
 
-// Lets go of a text held on the window's side; it is not held again.
-export function letGo(doc) {
+// Lets go of a branch on the window's side; it is not mirrored again.
+function letGo(doc) {
   const held = doc?.held;
   if (!held) {
     return;
@@ -62,12 +78,12 @@ export function letGo(doc) {
   invoke("document_release", { key: held.key }).catch(() => {});
 }
 
+// The last commit's files read afresh by each branch's next marks.
 export function forgetHeads() {
-  state.heads.clear();
   state.headsAge += 1;
 }
 
-// The gutter's marks for a held text, worked out on the window's side against its file as the last commit
+// The gutter's marks for a branch, worked out on the window's side against its file as the last commit
 // holds it; the lines each change spans there come with them, for the peek and to put back.
 async function markHeld(tab) {
   const s = tab.session;
@@ -106,42 +122,23 @@ async function markHeld(tab) {
   state.editor.setChanges(s, { added: new Set(found.added), changed: new Set(found.changed), removed: new Set(found.removed), hunks });
 }
 
-// Marks the lines of a tab's text that differ from the last commit. A file read only in part, a file
-// as a commit left it, and a file the last commit does not hold have no marks.
+// Marks the lines of a tab's text that differ from the last commit, as its branch on the window's side marks them. A
+// file read only in part, a file as a commit left it, a file the last commit does not hold, and a text with no branch
+// have no marks.
 export async function markChanges(tab) {
   const s = tab?.session;
   if (!s) {
     return;
   }
-  if (tab.commit || s.window || s.base) {
+  if (tab.commit || s.window || s.base || !s.doc.held) {
     state.editor.setChanges(s, null);
     markHistory(tab, null);
     return;
   }
-  if (s.doc.held) {
-    await along(s.doc.held, () => null).catch(() => null);
-  }
+  await along(s.doc.held, () => null).catch(() => null);
   if (s.doc.held?.ready) {
     await markHeld(tab);
-    return;
   }
-  if (!state.heads.has(tab.file)) {
-    state.heads.set(tab.file, invoke("file_head", { path: tab.file }).catch(() => null));
-  }
-  const head = await state.heads.get(tab.file);
-  if (typeof head !== "string") {
-    state.editor.setChanges(s, null);
-    markHistory(tab, null);
-    return;
-  }
-  markHistory(tab, head);
-  if (s.changesFor === s.doc.id && s.changesHead === head) {
-    return;
-  }
-  s.changesFor = s.doc.id;
-  s.changesHead = head;
-  s.changesThen = head.split(/\r?\n/);
-  state.editor.setChanges(s, lineChanges(s.changesThen, s.doc.lines));
 }
 
 // Line History: beside each line of a tab's text, the commit that last changed it, while Git, Line
