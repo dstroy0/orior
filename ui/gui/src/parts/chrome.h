@@ -1,9 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// chrome.h: the parts about the work: the bar with the tree's name and the three window controls at its right end
-// and the status bar across the foot, each tinted with the ink over the ground; and which control the pointer stands
-// on (bar.c, controls.c, statusbar.c). The menu bar's titles on the bar are the menu bar part's (menubar.h) and the
-// strip down the left is its own part (strip.h)
+// chrome.h: the parts about the work: the bar with the tree's name and the three window controls at its right end,
+// tinted with the ink over the ground; and which control the pointer stands on (bar.c, controls.c). The menu bar's
+// titles on the bar are the menu bar part's (menubar.h), the strip down the left is its own part (strip.h) and the
+// status bar across the foot its own (statusbar.h)
 #ifndef GUI_PARTS_CHROME_H
 #define GUI_PARTS_CHROME_H
 #include "../frame.h"
@@ -27,6 +27,4 @@ void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palet
 // pointer at x, y stands on, GUI_CONTROL_NONE off them all
 void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame);
 unsigned int gui_controls_hit(const GuiFrame *frame, int x, int y);
-// the status bar drawn, its tint
-void gui_statusbar_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame);
 #endif

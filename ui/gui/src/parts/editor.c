@@ -321,6 +321,12 @@ int gui_editor_frame_put(GuiEditor *editor, const CliJson *json, unsigned int fr
     }
     editor->top = gui_answer_member_whole(json, frame, "top", 0ull);
     editor->lines = gui_answer_member_whole(json, frame, "lines", 0ull);
+    // the indentation's tabs come as 1, 0 or null, null and a frame without one read as nothing set
+    const unsigned int indent = cli_json_member(json, frame, "indent");
+    const unsigned long long tabs = gui_answer_member_whole(json, indent, "tabs", 2ull);
+    editor->indent_tabs = (tabs == 1ull) ? 1 : ((tabs == 0ull) ? 0 : -1);
+    // a step is far inside what an unsigned int represents
+    editor->indent_size = (unsigned int)gui_answer_member_whole(json, indent, "size", 4ull);
     editor->cursor = editor_place_of(json, cli_json_member(json, frame, "cursor"));
     editor->anchor = editor_place_of(json, cli_json_member(json, frame, "anchor"));
     editor->has_cursor = cli_json_member(json, frame, "cursor") != CLI_JSON_NONE;

@@ -237,6 +237,7 @@ int main(void)
     cli_check(frame_has("\"top\":2,"), "the frame carries the view's top");
     cli_check(frame_has("\"from\":2,\"rows\":[\"    return 0;\",\"}\",\"\"]"), "the frame carries the rows in view");
     cli_check(frame_has("\"cursor\":{\"line\":0,\"col\":14}"), "the frame carries the cursor");
+    cli_check(frame_has("\"indent\":{\"tabs\":"), "the frame carries the indentation, tabs or spaces and the step");
     VerbaLinea same = {s_out, sizeof(s_out), 0ull};
     cli_check(given(&size) && cli_view_frame_written(s_key, &same) && (mmgr_line_finish(&same) != 0ull) &&
                   frame_has("\"top\":2,"),

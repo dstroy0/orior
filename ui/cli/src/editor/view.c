@@ -2433,6 +2433,12 @@ int cli_view_frame_written(const char *key, VerbaLinea *out)
     {
         mmgr_line_put(out, "null");
     }
+    // the indentation: 1 for tabs, 0 for spaces, null where nothing set it, and the step
+    mmgr_line_put(out, ",\"indent\":{\"tabs\":");
+    mmgr_line_put(out, (view->indent.tabs == 1) ? "1" : ((view->indent.tabs == 0) ? "0" : "null"));
+    mmgr_line_put(out, ",\"size\":");
+    mmgr_line_decimal(out, view_tab(view), 1u);
+    mmgr_line_ch(out, '}');
     // find's bar and the matches among the rows
     if (view->find_open)
     {

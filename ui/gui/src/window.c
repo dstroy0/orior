@@ -433,7 +433,20 @@ static void window_opened(GuiWindow *window, const CliJson *json, unsigned int r
     }
     const int paged = gui_answer_member_true(json, root, "windowed") &&
                       cli_json_is(json, cli_json_member(json, root, "shape"), CFG_JSON_OBJECT);
-    if (paged || (cli_json_string(json, cli_json_member(json, root, "text"), NULL) != NULL))
+    // a text read whole says how its lines end: a carriage return before a newline, as the text or as its escape
+    unsigned long long text_length = 0ull;
+    const char *const whole = cli_json_string(json, cli_json_member(json, root, "text"), &text_length);
+    if ((whole != NULL) && (window->active >= 0))
+    {
+        int crlf = 0;
+        for (unsigned long long at = 0ull; (at + 1ull < text_length) && !crlf; at += 1ull)
+        {
+            crlf = ((whole[at] == '\r') && (whole[at + 1ull] == '\n')) ||
+                   ((whole[at] == '\\') && (whole[at + 1ull] == 'r') && (at + 3ull < text_length) && (whole[at + 2ull] == '\\') && (whole[at + 3ull] == 'n'));
+        }
+        window->tab[window->active].crlf = crlf;
+    }
+    if (paged || (whole != NULL))
     {
         char text[(2u * CLI_PATH_MAX_LEN) + 128u];
         VerbaLinea args = {text, sizeof(text), 0ull};
@@ -588,6 +601,14 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
         window->asked_view = (ticket == window->asked_view) ? 0ull : window->asked_view;
         window_frame_taken(window, &json, root);
     }
+    else if ((ticket != 0ull) && (ticket == window->asked_memory))
+    {
+        window->asked_memory = 0ull;
+        if (ok && (root != CLI_JSON_NONE))
+        {
+            window->memory_bytes = gui_answer_member_whole(&json, cli_json_member(&json, root, "orior"), "working", 0ull);
+        }
+    }
     else if ((ticket != 0ull) && ok && (root != CLI_JSON_NONE) && gui_explorer_listed(&window->explorer, ticket, &json, root))
     {
         window->owed = 1;
@@ -619,9 +640,25 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     }
 }
 
+// the memory reading asked for, where none is in flight and the last came GUI_MEMORY_EVERY milliseconds ago
+static void window_memory_asked(GuiWindow *window)
+{
+    const unsigned long long now = cli_clock_milliseconds();
+    if ((window->asked_memory != 0ull) || ((window->memory_ms != 0ull) && (now - window->memory_ms < GUI_MEMORY_EVERY)))
+    {
+        return;
+    }
+    char text[8];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    mmgr_line_put(&args, "{}");
+    window->memory_ms = now;
+    window->asked_memory = window_called(window, 1, "memory_usage", &args);
+}
+
 void gui_window_drained(GuiWindow *window)
 {
     (void)gui_link_drained(&window->link, window_taken, window);
+    window_memory_asked(window);
 }
 
 void gui_window_drawn(GuiWindow *window)
@@ -638,7 +675,17 @@ void gui_window_drawn(GuiWindow *window)
     gui_bar_drawn(raster, &window->glyphs, palette, frame, window->title);
     gui_menubar_titles_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
     gui_strip_drawn(raster, &window->icons, palette, frame, &window->strip);
-    gui_statusbar_drawn(raster, palette, frame);
+    const GuiStatus status = {window->path,
+                              window->editor.has_cursor,
+                              window->editor.cursor.line,
+                              window->editor.cursor.col,
+                              window->editor.anchor.line,
+                              window->editor.anchor.col,
+                              (window->active >= 0) ? window->tab[window->active].crlf : 0,
+                              window->editor.indent_tabs,
+                              window->editor.indent_size,
+                              window->memory_bytes};
+    gui_statusbar_drawn(raster, &window->glyphs, &window->icons, palette, frame, &status);
     // the work's inside: the side where one is shown, the tabs row, the editor, and the corners cut round
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);

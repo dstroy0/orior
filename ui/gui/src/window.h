@@ -12,6 +12,7 @@
 #include "parts/editor.h"
 #include "parts/explorer.h"
 #include "parts/menubar.h"
+#include "parts/statusbar.h"
 #include "parts/strip.h"
 #include "parts/tabs.h"
 
@@ -37,8 +38,9 @@
 // commands the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar; the files open as tabs, how many,
 // the one shown, -1 for none, and the one shown before it, -1 for none; the shown file's path and the key it is
 // stored under; whether the window is maximized; the tickets of the calls in flight, the launch command, the root,
-// the catalog, a whole path made the tree's, the open and the view's open, each 0 where none is, and the sequence of
-// the last frame taken; whether the CLI's editor view is open on the shown file, whether the pointer drags in it,
+// the catalog, a whole path made the tree's, the open, the view's open and the memory reading, each 0 where none is,
+// when the memory was last asked and the bytes it answered, and the sequence of the last frame taken; whether the
+// CLI's editor view is open on the shown file, whether the pointer drags in it,
 // and the presses counted, when and where the last was; whether a frame is owed; and the control pressed, for the
 // system to act on, GUI_HIT_CLIENT where none
 typedef struct
@@ -69,6 +71,9 @@ typedef struct
     unsigned long long asked_relative;
     unsigned long long asked_open;
     unsigned long long asked_view;
+    unsigned long long asked_memory;
+    unsigned long long memory_ms;
+    unsigned long long memory_bytes;
     unsigned long long frame_seq;
     int viewed;
     int dragging;
@@ -80,9 +85,11 @@ typedef struct
     unsigned int pressed;
 } GuiWindow;
 
-// the milliseconds within which presses count up, and the pixels a press may move and still count
+// the milliseconds within which presses count up, the pixels a press may move and still count, and the milliseconds
+// between readings of the memory
 #define GUI_CLICK_WITHIN 500ull
 #define GUI_CLICK_NEAR 4
+#define GUI_MEMORY_EVERY 2000ull
 
 // the window begun: its glyphs read, its palette the dark scheme, its editor empty and its link's workers started, the
 // window's thread woken through `woken` with `context`: 1, or 0 with why given; and ended, every cell given back

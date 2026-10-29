@@ -21,13 +21,14 @@
 #define GUI_TAB_LINE 2
 #define GUI_TAB_CLOSE_PAD 5
 
-// A tab: the file's path from the tree's top, the key its branch is stored under, and whether the editor's view is
-// open on it
+// A tab: the file's path from the tree's top, the key its branch is stored under, whether the editor's view is open
+// on it, and whether its lines end in a carriage return and a newline
 typedef struct
 {
     char path[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
     int viewed;
+    int crlf;
 } GuiTab;
 
 // the name a tab shows, the last part of its path, into `name`, its length

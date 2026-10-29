@@ -79,8 +79,9 @@ typedef struct
 // them, each after the one before it among the lines shown, their texts in one cell and their runs in another; the
 // folds that open on them, in a cell, with their closers' texts in another; the grammar's names, their texts in one
 // cell and where each starts in another; the cursor and the anchor the selection runs from, where a view's frame gave
-// them; the bracket pair at the cursor, where the frame gave one; and find as the frame shows it, with the matches
-// among the lines held, each a line, a from and a to column, in a cell
+// them; the bracket pair at the cursor, where the frame gave one; find as the frame shows it, with the matches among
+// the lines held, each a line, a from and a to column, in a cell; and the indentation the frame gave, tabs 1, spaces
+// 0 or -1 where nothing set it, and its step
 typedef struct
 {
     unsigned long long top;
@@ -105,6 +106,8 @@ typedef struct
     GuiFind find;
     unsigned long long (*match)[3];
     unsigned long long matches;
+    int indent_tabs;
+    unsigned int indent_size;
 } GuiEditor;
 
 // an editor holding nothing; and every cell of its given back

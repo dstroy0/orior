@@ -303,10 +303,10 @@ static BOOL CALLBACK system_monitor_seen(HMONITOR monitor, HDC context, LPRECT r
     {
         return TRUE;
     }
-    // a monitor's sides are not negative
-    const CliWindowArea area = {info.rcMonitor.left, info.rcMonitor.top,
-                                (unsigned int)(info.rcMonitor.right - info.rcMonitor.left),
-                                (unsigned int)(info.rcMonitor.bottom - info.rcMonitor.top)};
+    // a monitor's area is the part the taskbar leaves, so a window fitted to it keeps its foot in view; its sides are
+    // not negative
+    const CliWindowArea area = {info.rcWork.left, info.rcWork.top, (unsigned int)(info.rcWork.right - info.rcWork.left),
+                                (unsigned int)(info.rcWork.bottom - info.rcWork.top)};
     if ((info.dwFlags & MONITORINFOF_PRIMARY) && (count[0] > 0u))
     {
         areas[count[0]] = areas[0];

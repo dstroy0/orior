@@ -117,13 +117,14 @@ int main(void)
 
     static const char s_frame[] = "{\"key\":\"k\",\"seq\":1,\"top\":0,\"lines\":3,\"from\":0,\"rows\":[\"int main\",\"\\treturn 0;\",\"// end\"],"
                                   "\"cursor\":{\"line\":0,\"col\":3},\"anchor\":{\"line\":0,\"col\":0},"
-                                  "\"pair\":[{\"line\":2,\"col\":2},{\"line\":0,\"col\":0}],"
+                                  "\"pair\":[{\"line\":2,\"col\":2},{\"line\":0,\"col\":0}],\"indent\":{\"tabs\":0,\"size\":2},"
                                   "\"colors\":[{\"from\":0,\"runs\":[[0,1,3,0],[1,1,7,0],[0,2]]}]}";
     root = cli_json_taken(&json, s_frame, sizeof(s_frame) - 1u, 0u, 0ull, &err_msg);
     cli_check(gui_editor_frame_put(&editor, &json, root), "a view's frame is taken whole");
     cli_json_given(&json);
     cli_check((editor.lines == 3ull) && (editor.count == 3u) && (editor.from == 0ull) && (editor.top == 0ull),
               "the frame's rows are the lines held");
+    cli_check((editor.indent_tabs == 0) && (editor.indent_size == 2u), "the frame's indentation is kept");
     cli_check(editor.has_cursor && (editor.cursor.line == 0ull) && (editor.cursor.col == 3ull) && (editor.anchor.col == 0ull),
               "the frame's cursor and anchor are kept");
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));

@@ -67,7 +67,8 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
 // where its bar is open, `{"open", "focus", "query", "at", "regex", "case", "word", "count", "current"}`, `focus` 1
 // where the keys are its own, `at` its cursor in the query's units, `count` the matches in the whole text and
 // `current` the one the last step selected, or null, else null; the matches among the rows, each `[line, from, to]`;
-// and the colors the rows' runs as the walk keeps them; every frame counted in `seq`: 1, or 0 where no view is open
+// and the colors the rows' runs as the walk keeps them; before find, the indentation, `{"tabs", "size"}`, tabs 1, 0
+// for spaces or null where nothing set it, and the step; every frame counted in `seq`: 1, or 0 where no view is open
 // under the key
 int cli_view_frame_written(const char *key, VerbaLinea *out);
 // the cursor and the anchor of the view under `key`, each where it is given: 1, or 0 where no view is open under it
