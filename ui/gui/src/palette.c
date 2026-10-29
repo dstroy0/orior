@@ -22,7 +22,8 @@ static const GuiTokenColor s_dark_tokens[] = {
 // the dark scheme: --bg, --surface, --well, --deep; --fg, --fg-2, --fg-3; --line; --signal, --link, --hover, --fail;
 // --ink and --glass-tint, the ink at --bar-opacity; --bar-fg, --bar-title, --bar-title-hover, --bar-bright,
 // --status-fg; --ed-bg, --ed-fg, --ed-num, --ed-current, --ed-sel, --ed-sel-idle, --ed-caret, --ed-guide, --ed-same,
-// --ed-widget-line, --ed-match, --ed-match-on, --plasma-dusk, --fuse-fire, --bar-signal at 18%
+// --ed-widget-line, --ed-match, --ed-match-on, --plasma-dusk, --fuse-fire, --bar-signal at 18%, --ink at 50%, --t1 to
+// --t8
 static const GuiPalette s_dark = {
     GUI_RGB(0x13u, 0x13u, 0x31u),
     GUI_RGB(0x1cu, 0x19u, 0x40u),
@@ -58,6 +59,9 @@ static const GuiPalette s_dark = {
     GUI_RGB(0x32u, 0x12u, 0x62u),
     GUI_RGB(0x94u, 0x5eu, 0xe8u),
     GUI_RGBA(0x6fu, 0xdcu, 0xb4u, 0x2eu),
+    GUI_RGBA(0x1du, 0x18u, 0x50u, 0x80u),
+    {GUI_RGB(0xffu, 0x8fu, 0xa3u), GUI_RGB(0x6fu, 0xdcu, 0xb4u), GUI_RGB(0xf2u, 0xd4u, 0x8au), GUI_RGB(0x8au, 0xb8u, 0xffu),
+     GUI_RGB(0xb4u, 0x9cu, 0xffu), GUI_RGB(0x7fu, 0xd8u, 0xe8u), GUI_RGB(0xd6u, 0xd4u, 0xeeu), GUI_RGB(0x5eu, 0x5bu, 0x8au)},
     s_dark_tokens,
     sizeof(s_dark_tokens) / sizeof(s_dark_tokens[0]),
 };

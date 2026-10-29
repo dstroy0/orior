@@ -23,6 +23,11 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
     gui_menubar_made(&window->menubar);
     gui_strip_made(&window->strip);
     gui_icons_made(&window->icons);
+    if (!gui_explorer_made(&window->explorer))
+    {
+        mmgr_line_put(err_msg, "the explorer's cells could not be taken");
+        return 0;
+    }
     if (!gui_glyphs_made(&window->glyphs, err_msg))
     {
         return 0;
@@ -48,6 +53,7 @@ void gui_window_ended(GuiWindow *window)
     }
     gui_glyphs_given(&window->glyphs);
     gui_icons_given(&window->icons);
+    gui_explorer_given(&window->explorer);
     gui_raster_given(&window->raster);
 }
 
@@ -107,9 +113,46 @@ static void window_view_sized(GuiWindow *window)
     window_view_input(window, CLI_VIEW_SIZE, more);
 }
 
+// whether the strip's tool shown has the side pane as its window
+static int window_side_shown(const GuiWindow *window)
+{
+    // the tool shown is among the tools
+    return (window->strip.shown >= 0) && gui_strip_tool((unsigned int)window->strip.shown)->side;
+}
+
+// the folder at `dir`, the top folder where empty, asked of the tree for its listing, the explorer told the ticket
+static void window_listing_asked(GuiWindow *window, const char *dir)
+{
+    char text[CLI_PATH_MAX_LEN + 32u];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    mmgr_line_put(&args, "{\"dir\":");
+    cli_json_quoted(&args, dir, cellul.len(&(CatenaFinitaCfg){.src = dir, .cap = CLI_PATH_MAX_LEN}));
+    mmgr_line_ch(&args, '}');
+    const unsigned long long ticket = window_called(window, 0, "tree_list", &args);
+    if (ticket != 0ull)
+    {
+        gui_explorer_listing(&window->explorer, dir, ticket);
+    }
+}
+
+// the work's inside laid again as the strip's tool shown has a side or not, the view told the editor's size, and the
+// top folder's listing asked for the first time the side shows
+static void window_sided(GuiWindow *window)
+{
+    const int side = window_side_shown(window);
+    gui_frame_sided(&window->frame, side);
+    window->owed = 1;
+    window_view_sized(window);
+    if (side && !gui_explorer_root_asked(&window->explorer))
+    {
+        window_listing_asked(window, "");
+    }
+}
+
 int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height, float scale)
 {
     gui_frame_laid(&window->frame, width, height, scale);
+    gui_frame_sided(&window->frame, window_side_shown(window));
     gui_raster_given(&window->raster);
     window->owed = 1;
     const int made = gui_raster_made(&window->raster, width, height);
@@ -545,6 +588,10 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
         window->asked_view = (ticket == window->asked_view) ? 0ull : window->asked_view;
         window_frame_taken(window, &json, root);
     }
+    else if ((ticket != 0ull) && ok && (root != CLI_JSON_NONE) && gui_explorer_listed(&window->explorer, ticket, &json, root))
+    {
+        window->owed = 1;
+    }
     else if ((ticket == 0ull) && (root != CLI_JSON_NONE) &&
              cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "branch-colors", .cap = 64ull}))
     {
@@ -592,11 +639,18 @@ void gui_window_drawn(GuiWindow *window)
     gui_menubar_titles_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
     gui_strip_drawn(raster, &window->icons, palette, frame, &window->strip);
     gui_statusbar_drawn(raster, palette, frame);
-    // the work's inside: the tabs row, the editor, and the corners cut round
-    const GuiRect inside = {frame->tabs.x, frame->tabs.y, frame->tabs.width, frame->tabs.height + frame->editor.height};
+    // the work's inside: the side where one is shown, the tabs row, the editor, and the corners cut round
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
-    gui_raster_corners_cut(raster, inside, frame->radius, palette->ground);
+    if (!gui_rect_empty(frame->side) && (window->strip.shown >= 0))
+    {
+        // the tool shown is among the tools
+        const GuiTool *const tool = gui_strip_tool((unsigned int)window->strip.shown);
+        gui_explorer_drawn(&window->explorer, raster, &window->glyphs, &window->icons, palette, frame, tool->label,
+                           cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ull}), window->title,
+                           window->path);
+    }
+    gui_raster_corners_cut(raster, frame->inside, frame->radius, palette->ground);
     // the menus open go over every part
     gui_menubar_menus_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
 }
@@ -647,6 +701,12 @@ unsigned int gui_window_hit(const GuiWindow *window, int x, int y)
 
 void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
 {
+    // the wheel over the side scrolls the explorer's rows
+    if (gui_rect_holds(window->frame.side, x, y))
+    {
+        window->owed = gui_explorer_wheeled(&window->explorer, &window->frame, rows) || window->owed;
+        return;
+    }
     if (!gui_rect_holds(window->frame.editor, x, y))
     {
         return;
@@ -725,7 +785,22 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
     // a press on the strip shows a tool's window or closes it
     if (gui_strip_pressed(&window->strip, &window->frame, x, y))
     {
+        window_sided(window);
+        return;
+    }
+    // a press in the side opens or closes a folder, asking for its listing the first time, or opens a file
+    GuiPick pick;
+    if (gui_explorer_pressed(&window->explorer, &window->frame, x, y, &pick))
+    {
         window->owed = 1;
+        if (pick.kind == GUI_PICK_LIST)
+        {
+            window_listing_asked(window, pick.path);
+        }
+        else if (pick.kind == GUI_PICK_OPEN)
+        {
+            gui_window_file_opened(window, pick.path);
+        }
         return;
     }
     // a press on a tab shows its file, on its close mark closes it
@@ -761,6 +836,10 @@ void gui_window_moved(GuiWindow *window, int x, int y)
         window->owed = 1;
     }
     if (gui_strip_moved(&window->strip, &window->frame, x, y))
+    {
+        window->owed = 1;
+    }
+    if (gui_explorer_moved(&window->explorer, &window->frame, x, y))
     {
         window->owed = 1;
     }
@@ -801,7 +880,7 @@ void gui_window_key(GuiWindow *window, const char *name)
     }
     if (gui_strip_keyed(&window->strip, name))
     {
-        window->owed = 1;
+        window_sided(window);
         return;
     }
     char more[96];

@@ -10,6 +10,7 @@
 #include "frame.h"
 #include "link.h"
 #include "parts/editor.h"
+#include "parts/explorer.h"
 #include "parts/menubar.h"
 #include "parts/strip.h"
 #include "parts/tabs.h"
@@ -32,8 +33,8 @@
 // the resize border's width in the page's pixels
 #define GUI_BORDER 5
 
-// The window: its frame, raster, glyphs, icons, palette, editor, menu bar, strip and link; the catalog of commands
-// the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar; the files open as tabs, how many,
+// The window: its frame, raster, glyphs, icons, palette, editor, menu bar, strip, explorer and link; the catalog of
+// commands the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar; the files open as tabs, how many,
 // the one shown, -1 for none, and the one shown before it, -1 for none; the shown file's path and the key it is
 // stored under; whether the window is maximized; the tickets of the calls in flight, the launch command, the root,
 // the catalog, a whole path made the tree's, the open and the view's open, each 0 where none is, and the sequence of
@@ -50,6 +51,7 @@ typedef struct
     GuiEditor editor;
     GuiMenubar menubar;
     GuiStrip strip;
+    GuiExplorer explorer;
     GuiLink link;
     CliJson catalog;
     int cataloged;

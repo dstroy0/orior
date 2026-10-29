@@ -28,6 +28,17 @@ int main(void)
                   (frame.controls.height == 41),
               "the controls end five pixels from the bar's right end, the bar's height tall");
     cli_check(frame.radius == 7u, "the work's corners are rounded by seven");
+    cli_check(same(frame.inside, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 920 - 41 - 27 - 3), "the work's inside is the work less its padding");
+    cli_check(gui_rect_empty(frame.side) && (frame.side.x == 44 + 1), "no side stands in the work until one is shown");
+
+    gui_frame_sided(&frame, 1);
+    cli_check(same(frame.side, 44 + 1, 41 + 2, 304, 920 - 41 - 27 - 3), "the side shown stands at the inside's left, three hundred and four wide");
+    cli_check(same(frame.tabs, 44 + 1 + 304, 41 + 2, 1440 - 44 - 12 - 3 - 304, 31), "the tabs row moves past the side");
+    cli_check((frame.editor.x == 44 + 1 + 304) && (frame.editor.width == 1440 - 44 - 12 - 3 - 304) && (frame.editor.y == 41 + 2 + 31),
+              "the editor moves past the side");
+    gui_frame_sided(&frame, 0);
+    cli_check(gui_rect_empty(frame.side) && same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
+              "the side taken away gives the tabs row its room back");
 
     gui_frame_laid(&frame, 2880u, 1840u, 2.0f);
     cli_check(same(frame.bar, 0, 0, 2880, 82), "at twice the scale the bar is twice as tall");

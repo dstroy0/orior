@@ -8,22 +8,22 @@
 
 // the tools, the top group then the foot group, as the page's strip lists them
 static const GuiTool s_tools[] = {
-    {"explorer", "folder", "Explorer", "Ctrl+Shift+E", GUI_STRIP_TOP, 0},
-    {"search", "search", "Search", "Ctrl+Shift+F", GUI_STRIP_TOP, 0},
-    {"structure", "structure", "Structure", "", GUI_STRIP_TOP, 0},
-    {"commit", "commit", "Commit", "", GUI_STRIP_TOP, 0},
-    {"more", "more", "More Tool Windows", "", GUI_STRIP_TOP, 1},
-    {"run", "run", "Run", "Ctrl+Shift+D", GUI_STRIP_FOOT, 0},
-    {"debug", "debug", "Debug", "Alt+5", GUI_STRIP_FOOT, 0},
-    {"terminal", "terminal", "Terminal", "Ctrl+`", GUI_STRIP_FOOT, 0},
-    {"profile", "profile", "Profile", "", GUI_STRIP_FOOT, 0},
-    {"containers", "containers", "Containers", "", GUI_STRIP_FOOT, 0},
-    {"database", "database", "Database", "", GUI_STRIP_FOOT, 0},
-    {"comms", "comms", "Comms", "", GUI_STRIP_FOOT, 0},
-    {"problems", "problems", "Problems", "", GUI_STRIP_FOOT, 0},
-    {"tests", "tests", "Tests", "", GUI_STRIP_FOOT, 0},
-    {"git", "git", "Git", "", GUI_STRIP_FOOT, 0},
-    {"runs", "runs", "Runs", "", GUI_STRIP_FOOT, 0},
+    {"explorer", "folder", "Explorer", "Ctrl+Shift+E", GUI_STRIP_TOP, 0, 1},
+    {"search", "search", "Search", "Ctrl+Shift+F", GUI_STRIP_TOP, 0, 1},
+    {"structure", "structure", "Structure", "", GUI_STRIP_TOP, 0, 1},
+    {"commit", "commit", "Commit", "", GUI_STRIP_TOP, 0, 1},
+    {"more", "more", "More Tool Windows", "", GUI_STRIP_TOP, 1, 0},
+    {"run", "run", "Run", "Ctrl+Shift+D", GUI_STRIP_FOOT, 0, 0},
+    {"debug", "debug", "Debug", "Alt+5", GUI_STRIP_FOOT, 0, 0},
+    {"terminal", "terminal", "Terminal", "Ctrl+`", GUI_STRIP_FOOT, 0, 0},
+    {"profile", "profile", "Profile", "", GUI_STRIP_FOOT, 0, 0},
+    {"containers", "containers", "Containers", "", GUI_STRIP_FOOT, 0, 0},
+    {"database", "database", "Database", "", GUI_STRIP_FOOT, 0, 0},
+    {"comms", "comms", "Comms", "", GUI_STRIP_FOOT, 0, 0},
+    {"problems", "problems", "Problems", "", GUI_STRIP_FOOT, 0, 1},
+    {"tests", "tests", "Tests", "", GUI_STRIP_FOOT, 0, 1},
+    {"git", "git", "Git", "", GUI_STRIP_FOOT, 0, 1},
+    {"runs", "runs", "Runs", "", GUI_STRIP_FOOT, 0, 1},
 };
 #define STRIP_TOOLS (sizeof(s_tools) / sizeof(s_tools[0]))
 

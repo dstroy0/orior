@@ -25,7 +25,8 @@
 #define GUI_STRIP_STROKE 1.1f
 
 // A tool: its name, its icon's name, its label, its keys as the page names them, empty where it has none, its
-// group, and whether it opens a menu rather than a window of its own
+// group, whether it opens a menu in place of a window of its own, and whether its window is the side pane beside the
+// editor
 typedef struct
 {
     const char *name;
@@ -34,6 +35,7 @@ typedef struct
     const char *keys;
     unsigned int group;
     int menu;
+    int side;
 } GuiTool;
 
 // The strip: the tool the pointer stands on and the tool whose window shows, each GUI_STRIP_NONE for none

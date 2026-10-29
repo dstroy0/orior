@@ -96,6 +96,38 @@ static int catalog_came(GuiWindow *window, Woken *count)
     return 0;
 }
 
+// the window's thread draining each wake until the explorer holds rows, or five seconds pass
+static int rows_came(GuiWindow *window, Woken *count)
+{
+    for (unsigned int left = 500u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        if (gui_explorer_rows(&window->explorer) > 0u)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the first row of the explorer that stands for a file, or -1
+static int file_row(const GuiExplorer *explorer)
+{
+    for (unsigned int row = 0u; row < gui_explorer_rows(explorer); row += 1u)
+    {
+        unsigned int node = 0u;
+        if (gui_explorer_row(explorer, row, &node) && !explorer->node[node].dir)
+        {
+            // the rows are fewer than an int counts
+            return (int)row;
+        }
+    }
+    return -1;
+}
+
 static int line_starts(const GuiEditor *editor, unsigned int line, const char *head)
 {
     if (line >= editor->count)
@@ -193,6 +225,31 @@ int main(void)
     gui_window_key(&window, "Mod+W");
     cli_check((window.tabs == 1u) && (window.active == 0) && lines_came(&window, &count) && line_starts(&window.editor, 2u, "// glyphs.c"),
               "Mod+W closes the tab shown, the one left shown");
+
+    // the explorer: the strip's explorer tool pressed opens the side with the tree's files, and a file pressed there
+    // opens as a tab
+    const GuiRect explorer_button = gui_strip_button(&window.frame, 0u);
+    gui_window_pressed(&window, explorer_button.x + 10, explorer_button.y + 10, 0u);
+    cli_check((window.frame.side.width > 0) && (window.frame.editor.x == window.frame.side.x + window.frame.side.width),
+              "the explorer's tool pressed opens the side beside the editor");
+    cli_check(rows_came(&window, &count) && (file_row(&window.explorer) >= 0), "the tree's top folder is listed into the side, with a file among its rows");
+    // the row is among the rows; the wheel over the side scrolls it into view where it stands past the rows shown
+    gui_window_wheel(&window, window.frame.side.x + 10, window.frame.side.y + 100, file_row(&window.explorer));
+    const unsigned int row = (unsigned int)file_row(&window.explorer);
+    const GuiRect file = gui_explorer_row_rect(&window.frame, &window.explorer, row);
+    cli_check(gui_rect_holds(window.frame.side, file.x + 40, file.y + 10), "the wheel over the side scrolls the row into view");
+    unsigned int node = 0u;
+    unsigned long long length = 0ull;
+    const char *const held = gui_explorer_row(&window.explorer, row, &node) ? gui_explorer_path(&window.explorer, node, &length) : "";
+    char picked[CLI_PATH_MAX_LEN];
+    VerbaLinea kept = {picked, sizeof(picked), 0ull};
+    mmgr_line_put_n(&kept, held, length);
+    (void)mmgr_line_finish(&kept);
+    gui_editor_made(&window.editor);
+    gui_window_pressed(&window, file.x + 40, file.y + 10, 0u);
+    cli_check((window.tabs == 2u) && lines_came(&window, &count) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = window.tab[window.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
+              "a file pressed in the tree opens as a tab");
 
     gui_window_ended(&window);
     cli_window_ended();

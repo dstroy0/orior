@@ -7,10 +7,11 @@
 #define GUI_ICONS_H
 #include "raster.h"
 
-// the icons kept drawn at once; once every slot is used every one is let go and drawn again as it is asked for; and
-// the units an icon's square is drawn on
+// the icons kept drawn at once; once every slot is used every one is let go and drawn again as it is asked for; the
+// units an icon's square is drawn on; and the width of an icon's line in those units, as the page draws them
 #define GUI_ICON_SLOTS 64u
 #define GUI_ICON_UNITS 16.0f
+#define GUI_ICON_STROKE 1.1f
 
 // An icon kept: whether its slot is used, the icon, pixel size and line width that key it, and its mask, the cover in
 // a cell of its own

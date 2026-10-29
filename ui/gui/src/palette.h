@@ -7,9 +7,10 @@
 #define GUI_PALETTE_H
 #include "raster.h"
 
-// the schemes: the dark one
+// the schemes: the dark one; and the colors a file's mark in the explorer is drawn in, --t1 to --t8
 #define GUI_SCHEME_DARK 0u
 #define GUI_SCHEMES 1u
+#define GUI_MARKS 8u
 
 // A token's color: the name its grammar gives it, and the color
 typedef struct
@@ -25,7 +26,8 @@ typedef struct
 // line, selection, the selection's ground where the keys are elsewhere, caret, indent guide, the ground of a mark
 // among the text, a fold's, the line of a widget over the text and the grounds of find's matches, the current one's
 // stronger; the shown tab's ground and the line along it; the ground of the strip's tool whose window shows, the
-// signal at a share; and its tokens, `token_count` of them
+// signal at a share; the side pane's ground, the ink at half; the eight colors a file's mark takes; and its tokens,
+// `token_count` of them
 typedef struct
 {
     GuiColor ground;
@@ -62,6 +64,8 @@ typedef struct
     GuiColor tab_ground;
     GuiColor tab_line;
     GuiColor strip_on;
+    GuiColor side_ground;
+    GuiColor mark[GUI_MARKS];
     const GuiTokenColor *token;
     unsigned int token_count;
 } GuiPalette;
