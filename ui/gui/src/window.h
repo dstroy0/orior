@@ -48,8 +48,8 @@
 // the keys, whether each panel's ask is to be made again with the server once its answer without the server comes,
 // whether the server is to be told the text as the next frame comes, an input having changed it, and the cursor's
 // place the signature was last asked at; the problems pane, the ticket of the tree's check asked for, and the place
-// the shown file's cursor is to be put at as its next frame comes, where one is wanted; when the caret's blink last
-// began, each frame of the view beginning it again, and whether the caret was hidden in the last frame drawn; when the view's rows last
+// the shown file's cursor is to be put at as its next frame comes, where one is wanted; when the caret's breath last
+// began, each frame of the view beginning it again, and the caret's ink in the last frame drawn; when the view's rows last
 // moved, 0 once the
 // server was told the view they rest at, whether it was told, and the top and rows it was told; the claim and
 // whether its slides ran at the last tick, the view told the editor's size as they stop; the
@@ -97,7 +97,7 @@ typedef struct
     GuiPlace place_wanted;
     int place_pending;
     unsigned long long caret_since_ms;
-    int caret_hidden;
+    unsigned int caret_ink;
     unsigned long long view_moved_ms;
     int view_told;
     unsigned long long view_told_top;
@@ -141,13 +141,16 @@ typedef struct
 
 // the milliseconds within which presses count up, the pixels a press may move and still count, the milliseconds
 // between readings of the memory, the milliseconds the view's rows rest before the server is told the view, its
-// slice cut for it, and the caret's blink, shown for the first half of it and hidden for the second, as the page's
-// ed-blink runs
+// slice cut for it, and the caret's breath: its period, the page's ed-blink; each slide, down from full ink and up
+// again, which the caret eases through on a cosine, the rests at full and at dim between them taking what the
+// period leaves; and the dim rest's ink, 0 to 255, where the caret rests before it rises
 #define GUI_CLICK_WITHIN 500ull
 #define GUI_CLICK_NEAR 4
 #define GUI_MEMORY_EVERY 2000ull
 #define GUI_VIEW_RESTS 250ull
-#define GUI_CARET_BLINK 1060ull
+#define GUI_CARET_BREATH 1060ull
+#define GUI_CARET_SLIDE 300ull
+#define GUI_CARET_DIM 64u
 
 // the window begun: its glyphs read, its palette the dark scheme, its editor empty and its link's workers started, the
 // window's thread woken through `woken` with `context`: 1, or 0 with why given; and ended, every cell given back

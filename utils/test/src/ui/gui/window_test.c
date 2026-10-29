@@ -144,26 +144,35 @@ int main(void)
     gui_window_drawn(&window);
     cli_check(painted(&window, (GuiRect){window.frame.editor.x + 40, window.frame.editor.y, 100, 20}, palette->editor_ground),
               "the first line is drawn in the editor");
-    // the caret blinks: shown through the first half of the blink from the frame that began it, hidden through the
-    // second, the window due at the flip
+    // the caret breathes: at full ink through the first rest from the frame that began it, the window due at the
+    // rest's end; sliding down through the next 300 ms, a frame owed at every tick; dim through the second rest; and
+    // full again as the next breath begins
     window.editor.has_cursor = 1;
     window.editor.cursor = (GuiPlace){0ull, 0ull};
     window.editor.anchor = window.editor.cursor;
+    const unsigned long long rest = (GUI_CARET_BREATH - (2ull * GUI_CARET_SLIDE)) / 2ull;
     window.caret_since_ms = cli_clock_milliseconds();
     const float cell = gui_glyphs_cell(&window.glyphs, GUI_CODE_SIZE);
     GuiRect first_cell;
     cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 0ull, 0ull, &first_cell), "the first cell is among the rows drawn");
     gui_window_drawn(&window);
-    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is drawn as the blink begins");
-    cli_check(gui_window_due(&window) <= GUI_CARET_BLINK / 2ull, "the window is due at the caret's flip");
-    window.caret_since_ms -= (GUI_CARET_BLINK / 2ull) + 50ull;
+    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is at full ink as the breath begins");
+    cli_check(gui_window_due(&window) <= rest, "the window is due at the first rest's end");
+    window.caret_since_ms = cli_clock_milliseconds() - rest - (GUI_CARET_SLIDE / 2ull);
     gui_window_ticked(&window);
-    cli_check(window.owed, "the tick past the flip owes a frame");
+    cli_check(window.owed, "a tick through the slide owes a frame");
+    cli_check(gui_window_due(&window) == 1ull, "the window is due at once through the slide");
     gui_window_drawn(&window);
-    cli_check(at(&window, first_cell.x, first_cell.y + 5) != palette->caret, "the caret is hidden through the blink's second half");
-    window.caret_since_ms -= GUI_CARET_BLINK / 2ull;
+    const GuiColor sliding = at(&window, first_cell.x, first_cell.y + 5);
+    cli_check((sliding != palette->caret) && (sliding != palette->editor_ground), "the caret is between full and dim through the slide");
+    window.caret_since_ms = cli_clock_milliseconds() - rest - GUI_CARET_SLIDE - 10ull;
     gui_window_drawn(&window);
-    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is shown again through the next blink's first half");
+    const GuiColor dim = at(&window, first_cell.x, first_cell.y + 5);
+    cli_check((dim != palette->caret) && (dim != sliding), "the caret is dimmer through the second rest");
+    cli_check((gui_window_due(&window) > 1ull) && (gui_window_due(&window) <= rest), "the window is due at the second rest's end");
+    window.caret_since_ms = cli_clock_milliseconds() - GUI_CARET_BREATH;
+    gui_window_drawn(&window);
+    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is at full ink again as the next breath begins");
     window.editor.has_cursor = 0;
     gui_window_wheel(&window, 300, 300, 1);
     cli_check(window.editor.top == 1ull, "the wheel over the editor scrolls it a line");

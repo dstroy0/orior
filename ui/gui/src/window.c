@@ -15,6 +15,8 @@
 #include "parts/chrome.h"
 #include "system.h"
 
+#include <math.h>
+
 // the head of the key a file opened is stored under; the keys orior's folder keeps a tree's session and the explorer's
 // group under, the tree's root after the session's; and the bytes the session is written in before it grows
 #define GUI_OPEN_KEY_HEAD "window:"
@@ -710,23 +712,62 @@ void gui_window_shown(GuiWindow *window, int shown)
     window->owed = shown || window->owed;
 }
 
-// whether the caret is hidden at `now`, the second half of each blink since the blink began; shown while no cursor
-// stands
-static int window_caret_hidden(const GuiWindow *window, unsigned long long now)
+// the milliseconds each rest of the caret's breath takes, at full ink and at dim ink alike
+#define GUI_CARET_REST ((GUI_CARET_BREATH - (2ull * GUI_CARET_SLIDE)) / 2ull)
+
+// the ink of a slide `through` its milliseconds, from `from` to `to`, eased on a cosine: still at both ends, moving
+// fastest in the middle
+static unsigned int window_caret_slid(unsigned long long through, unsigned int from, unsigned int to)
 {
-    return window->editor.has_cursor && ((((now - window->caret_since_ms) / (GUI_CARET_BLINK / 2ull)) % 2ull) == 1ull);
+    // the share of the slide passed, 0 to 1, is a double's
+    const double eased = (1.0 - cos(3.14159265358979323846 * ((double)through / (double)GUI_CARET_SLIDE))) / 2.0;
+    // an ink between two bytes, rounded, is a byte
+    return (unsigned int)((double)from + (((double)to - (double)from) * eased) + 0.5);
 }
 
-// the milliseconds until the caret next flips, 0 where no cursor stands
+// the caret's ink at `now`, 0 to 255, where its breath stands since it began: full through the first rest, sliding
+// down, dim through the second rest, and sliding up again; full while no cursor stands
+static unsigned int window_caret_ink(const GuiWindow *window, unsigned long long now)
+{
+    if (!window->editor.has_cursor)
+    {
+        return 255u;
+    }
+    const unsigned long long at = (now - window->caret_since_ms) % GUI_CARET_BREATH;
+    if (at < GUI_CARET_REST)
+    {
+        return 255u;
+    }
+    if (at < GUI_CARET_REST + GUI_CARET_SLIDE)
+    {
+        return window_caret_slid(at - GUI_CARET_REST, 255u, GUI_CARET_DIM);
+    }
+    if (at < (2ull * GUI_CARET_REST) + GUI_CARET_SLIDE)
+    {
+        return GUI_CARET_DIM;
+    }
+    return window_caret_slid(at - (2ull * GUI_CARET_REST) - GUI_CARET_SLIDE, GUI_CARET_DIM, 255u);
+}
+
+// the milliseconds until the caret's ink next changes: the rest's end while it rests, else 1, which the system holds
+// to the display's refresh; 0 where no cursor stands
 static unsigned long long window_caret_due(const GuiWindow *window, unsigned long long now)
 {
     if (!window->editor.has_cursor)
     {
         return 0ull;
     }
-    const unsigned long long half = GUI_CARET_BLINK / 2ull;
-    const unsigned long long passed = now - window->caret_since_ms;
-    return half - (passed % half);
+    const unsigned long long at = (now - window->caret_since_ms) % GUI_CARET_BREATH;
+    if (at < GUI_CARET_REST)
+    {
+        return GUI_CARET_REST - at;
+    }
+    const unsigned long long dim_rest_ends = (2ull * GUI_CARET_REST) + GUI_CARET_SLIDE;
+    if ((at >= GUI_CARET_REST + GUI_CARET_SLIDE) && (at < dim_rest_ends))
+    {
+        return dim_rest_ends - at;
+    }
+    return 1ull;
 }
 
 void gui_window_ticked(GuiWindow *window)
@@ -742,9 +783,9 @@ void gui_window_ticked(GuiWindow *window)
         window_map_asked(window);
     }
     window->claim_moving = moving;
-    // the ground where its loop shows a change, and the caret where its blink flips
+    // the ground where its loop shows a change, and the caret where its ink has changed
     window->owed = gui_ground_ticked(&window->ground, window->palette, now) || window->owed;
-    window->owed = (window_caret_hidden(window, now) != window->caret_hidden) || window->owed;
+    window->owed = (window_caret_ink(window, now) != window->caret_ink) || window->owed;
     // the hover's rest and linger, and the signature's wait
     int ask = 0;
     window->owed = gui_hover_ticked(&window->hover, now, &ask) || window->owed;
@@ -1240,7 +1281,7 @@ static void window_frame_taken(GuiWindow *window, const CliJson *json, unsigned 
         window->tab[window->active].viewed = 1;
     }
     (void)gui_editor_frame_put(&window->editor, json, root);
-    // the caret's blink begins again with every frame, which keeps the caret shown while the keys go
+    // the caret's breath begins again with every frame, which keeps the caret at full ink while the keys go
     window->caret_since_ms = cli_clock_milliseconds();
     window_view_moved(window);
     window_suggest_followed(window);
@@ -1668,11 +1709,11 @@ void gui_window_drawn(GuiWindow *window)
         ground = NULL;
     }
     // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it and the caret
-    // where its blink stands, the corners cut round, and the holes the parts shown over the work make in it while
-    // the claim holds
+    // at the ink its breath stands at, the corners cut round, and the holes the parts shown over the work make in it
+    // while the claim holds
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
-    window->caret_hidden = window_caret_hidden(window, cli_clock_milliseconds());
-    window->editor.caret_hidden = window->caret_hidden;
+    window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
+    window->editor.caret_ink = window->caret_ink;
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
     // the shown file's diagnostics underlined on the rows drawn
     const unsigned int code_size = (unsigned int)(((float)GUI_CODE_SIZE * frame->scale) + 0.5f);

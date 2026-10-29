@@ -79,7 +79,7 @@ typedef struct
 // them, each after the one before it among the lines shown, their texts in one cell and their runs in another; the
 // folds that open on them, in a cell, with their closers' texts in another; the grammar's names, their texts in one
 // cell and where each starts in another; the cursor and the anchor the selection runs from, where a view's frame gave
-// them, and whether the caret is hidden, the blink's second half, which the window sets before drawing; the bracket
+// them, and the caret's ink, 0 to 255 of its color, which the window sets before drawing where its breath stands; the bracket
 // pair at the cursor, where the frame gave one; find as the frame shows it, with the matches among the lines
 // stored, each a line, a from and a to column, in a cell; and the indentation the frame gave, tabs 1, spaces 0 or
 // -1 where nothing set it, and its step
@@ -102,7 +102,7 @@ typedef struct
     int has_cursor;
     GuiPlace cursor;
     GuiPlace anchor;
-    int caret_hidden;
+    unsigned int caret_ink;
     int has_pair;
     GuiPlace pair[2];
     GuiFind find;

@@ -16,6 +16,7 @@ static CellOwner s_owner = MMGR_CELL_OWNER("gui_editor");
 void gui_editor_made(GuiEditor *editor)
 {
     memor.set(&(MemoriaCfg){.dst = editor, .val = 0, .bytes = sizeof(*editor)});
+    editor->caret_ink = 255u;
 }
 
 // the lines stored freed, with the folds that open on them, find's query and the matches
@@ -906,11 +907,14 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
         {
             editor_matches_drawn(editor, held, line, raster, palette, row_rect, text_x, cell, 1, scale, text_clip);
         }
-        if (editor->has_cursor && !editor->caret_hidden && (line == editor->cursor.line) && !(editor->find.open && editor->find.focus))
+        if (editor->has_cursor && (editor->caret_ink != 0u) && (line == editor->cursor.line) && !(editor->find.open && editor->find.focus))
         {
             const int caret_x = (int)roundf(text_x + ((float)editor_cell_of(editor, held, editor->cursor.col) * cell));
+            // the caret's color at the ink's share of its alpha: a byte's share of a byte, rounded, is a byte
+            const GuiColor inked = GUI_RGBA(GUI_RED_OF(palette->caret), GUI_GREEN_OF(palette->caret), GUI_BLUE_OF(palette->caret),
+                                            ((GUI_ALPHA_OF(palette->caret) * editor->caret_ink) + 127u) / 255u);
             gui_raster_filled(raster, gui_rect_met((GuiRect){caret_x, row_rect.y, gui_scaled(2, scale), line_tall}, text_clip),
-                              palette->caret);
+                              inked);
         }
     }
     if (editor->find.open)
