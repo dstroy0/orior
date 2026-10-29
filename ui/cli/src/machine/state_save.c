@@ -87,7 +87,7 @@ static unsigned int cli_written(CliJson *json, const char *text, unsigned long l
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the tokens the entry is read through, as many as it contains; and the entry written back, which matches it only
-    // where it is as long as it, so a cell one longer fits every match
+    // where it is as long as it, which a cell one longer fits at every match
     const unsigned int tokens_most = cli_json_tokens_counted(text, length) + 1u;
     CfgJsonToken *const tokens =
         g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_state_cells);
@@ -297,6 +297,17 @@ int cli_state_save(const char *folder, const char *changes, unsigned long long l
             {
                 cli_in(folder, is_settings ? "settings.json" : "state.json", path);
                 *map = cli_state_map_read(json, path, nodes_more, text_more);
+                // a file there holding more than an empty object that reads as holding nothing was not read whole: it
+                // is too large for its cell, no cell was left for it, or its text is not a JSON object; a save over it
+                // would drop every entry it holds, and is refused
+                unsigned long long stored = 0ull;
+                if ((*map != CLI_JSON_NONE) && (json->node[*map].count == 0u) && cli_file_size(path, &stored) && (stored > 3ull))
+                {
+                    mmgr_line_put(err_msg, path);
+                    mmgr_line_put(err_msg, ": its entries could not be read whole, and a save over them would lose them");
+                    done = 0;
+                    continue;
+                }
             }
             if (*map == CLI_JSON_NONE)
             {

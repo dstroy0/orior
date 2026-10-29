@@ -99,5 +99,16 @@ int main(void)
                  .src = s_read, .cap = CLI_CELLS_POOL, .other = "\"backup.", .other_cap = CLI_CELLS_POOL}) == NULL),
         "zoom and the backup are gone");
     cli_check(!state_file_exists("themes/A_B.json"), "the theme taken out has no file");
+
+    // a stored file that cannot be read whole is not saved over: the text that is not a JSON object stands
+    cli_full(s_folder, "state.json", path);
+    (void)query_file_written(path, "not an object of entries", 24ull);
+    err_msg.at = 0ull;
+    static const char s_late[] = "{\"late\":\"x\"}";
+    cli_check(!cli_state_save(s_folder, s_late, sizeof(s_late) - 1u, &err_msg) && (err_msg.at != 0ull),
+              "a save over a stored file that cannot be read whole is refused with why");
+    const unsigned long long left = qry_member_file_read(path, (unsigned char *)s_text, sizeof(s_text) - 1u);
+    cli_check((left == 24ull) && (memor.cmp(&(MemoriaCfg){.src = s_text, .other = "not an object of entries", .bytes = 24u}) == 0),
+              "the stored file stands as it was");
     return cli_checked();
 }
