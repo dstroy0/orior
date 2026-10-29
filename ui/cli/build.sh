@@ -284,7 +284,15 @@ if [ "$WINDOW" = 1 ]; then
         esac
     done < <(find "$TOP/ui/gui/src" -name '*.c' | sort)
     compiled "$TARGET" "$OUT/window_objects" "${GUI_SOURCES[@]}"
-    listed_into "$OUT/$GUI_NAME.objects" "${OBJECTS[@]}" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}"
+    # on Windows the program's resources, its icon, compiled from ui/gui/src/orior.rc and linked with the objects
+    RESOURCES=()
+    case "$TARGET" in
+        *windows*)
+            ( cd "$TOP/ui/gui/src" && llvm-rc -no-preprocess -fo "$OUT/$GUI_NAME.res" orior.rc ) \
+                || { echo "  build failed: the window's resources did not compile"; exit 1; }
+            RESOURCES=("$OUT/$GUI_NAME.res") ;;
+    esac
+    listed_into "$OUT/$GUI_NAME.objects" "${OBJECTS[@]}" "$OUT/plugins_bundled.o" "${TARGET_OBJECTS[@]}" "${RESOURCES[@]}"
     ( cd "$TOP" && "$CC" "--target=$TARGET" "${LINK_WORDS[@]}" -o "${OUT#"$TOP/"}/$GUI_NAME$SUFFIX" \
         "@${OUT#"$TOP/"}/$GUI_NAME.objects" "${LIBRARIES[@]}" "${GUI_LIBRARIES[@]}" ) \
         || { echo "  build failed: $GUI_NAME did not link"; exit 1; }

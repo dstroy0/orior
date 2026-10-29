@@ -271,6 +271,22 @@ def cmd_bench(a):
     return harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, "frame_bench"])
 
 
+def cmd_icon(a):
+    """The program's icon file: utils/test/src/ui/gui/icon_file.c built as a check is and run, its orior.ico copied to
+    ui/gui/src beside orior.rc, which the window's build on Windows compiles into the program."""
+    import harness_cli
+    import shutil
+
+    code = harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, "icon_file"])
+    if code:
+        return code
+    written = os.path.join(ROOT, "build", "gui_test", "orior.ico")
+    kept = os.path.join(ROOT, "ui", "gui", "src", "orior.ico")
+    shutil.copyfile(written, kept)
+    print("icon: %s, %d bytes" % (os.path.relpath(kept, ROOT), os.path.getsize(kept)), flush=True)
+    return 0
+
+
 def orior_home():
     """orior's own folder, where it keeps its state: ORIOR_HOME where set, else the user's roaming folder on Windows and
     ~/.orior elsewhere."""
@@ -1206,6 +1222,8 @@ def register(sub):
     p.set_defaults(fn=cmd_check)
     p = window.add_parser("bench", help="the frame bench: a monitor-sized frame of the window drawn without a display, timed")
     p.set_defaults(fn=cmd_bench)
+    p = window.add_parser("icon", help="the program's icon file written from the eye: ui/gui/src/orior.ico, built into the window on Windows")
+    p.set_defaults(fn=cmd_icon)
     p = window.add_parser("session", help="the tree's kept session in orior's state: written from the tabs given, or printed")
     p.add_argument("tabs", nargs="*", help="the tabs' paths from the tree's top, in order")
     p.add_argument("--active", help="the tab shown; the last given where none")
