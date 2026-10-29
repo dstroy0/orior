@@ -140,6 +140,14 @@ int gui_editor_cell_at(const GuiEditor *editor, GuiRect place, float cell, float
                        unsigned long long *row, unsigned long long *column);
 int gui_editor_row_at(const GuiEditor *editor, GuiRect place, float cell, float scale, int x, int y,
                       unsigned long long *row);
+// the bytes of the stored line `line` between the units `from` and `to`, each cut to the line's end, into `text` and
+// `length`: 1, or 0 where the line is not stored
+int gui_editor_units_text(const GuiEditor *editor, unsigned long long line, unsigned long long from, unsigned long long to,
+                          const char **text, unsigned long long *length);
+// the pixels the unit at `col` of `line` takes in the editor drawn in `place` at `scale` with the code cell `cell`,
+// one cell wide and a row tall, into `rect`: 1, or 0 where the line is not among the rows drawn
+int gui_editor_place_rect(const GuiEditor *editor, GuiRect place, float cell, float scale, unsigned long long line,
+                          unsigned long long col, GuiRect *rect);
 // the view's top moved `delta` lines, no further than the file's first and last lines
 void gui_editor_scrolled(GuiEditor *editor, long long delta, unsigned int rows);
 // the gutter's width for the file's line count, at the code cell `cell` and `scale`

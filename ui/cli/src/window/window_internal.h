@@ -42,6 +42,10 @@ int cli_window_tree_call(const char *name, const char *args, unsigned long long 
 // to it, given back with cli_json_given either way: its node, or CLI_JSON_NONE with why given (window_call_text.c)
 unsigned int cli_window_tree_called(CliJson *json, const char *name, const char *path, const char *more,
                                     VerbaLinea *err_msg);
+// the tree's signature for the call at `line`, `col` of the branch under `key`, the file at `path`, written as
+// `symbols_signature` writes it: 1, or 0 with why given (window_call_branch.c)
+int cli_window_branch_signature(const char *key, const char *path, unsigned long long line, unsigned long long col,
+                                VerbaLinea *out, VerbaLinea *err_msg);
 
 // the calls of each source, each table's count beside it (window_call_*.c)
 extern const CliServeCall g_cli_window_home_calls[];

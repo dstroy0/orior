@@ -34,9 +34,10 @@ extern "C"
     void cli_window_begun(CliServeEmit emit, void *context);
     void cli_window_ended(void);
 
-    // the call `name` of `size` bytes of JSON `args` answered, the window's own where `own` is 1, else the tree's:
-    // the room it was answered in; its answer, or why it failed, at `text`, `size` bytes, 1 where it is an answer;
-    // and the room given back
+    // the call `name` of `size` bytes of JSON `args` answered: a name of the window's own here, whatever `own` is,
+    // and any other name the tree's where `own` is 0, refused where it is 1: the room it was answered in; its answer,
+    // or why it failed, at `text`, `size` bytes, 1 where it is an answer; and the room given back. `own` is the
+    // lane the window called on: its own calls run in order, the rest at once
     unsigned int cli_window_called(int own, const char *name, const char *args, unsigned long long size);
     int cli_window_answer(unsigned int room, const char **text, unsigned long long *size);
     void cli_window_given(unsigned int room);

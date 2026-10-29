@@ -281,6 +281,12 @@ static int branch_signature(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     {
         return 0;
     }
+    return cli_window_branch_signature(key, path, line, col, out, err_msg);
+}
+
+int cli_window_branch_signature(const char *key, const char *path, unsigned long long line, unsigned long long col,
+                                VerbaLinea *out, VerbaLinea *err_msg)
+{
     unsigned long long top = 0ull;
     unsigned long long bottom = 0ull;
     branch_lines_about(key, line, CLI_BRANCH_SIGNATURE_LINES - 1ull, 0ull, &top, &bottom);

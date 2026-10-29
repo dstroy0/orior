@@ -53,7 +53,7 @@ static void window_err(const VerbaLinea *err_msg)
 
 int cli_window_command_line(int *window)
 {
-    // the window runs no main of orior's and enters here first, so the pool every later call takes from is made here
+    // the window runs no main of orior's and enters here first: the pool every later call takes from is made here
     (void)cli_cells_made(CLI_CELLS_POOL);
     static const char *s_words[CLI_LAUNCH_ARGS];
     const unsigned int count = cli_arguments(0, NULL, s_words, CLI_LAUNCH_ARGS);
@@ -274,15 +274,18 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
         return at;
     }
     VerbaLinea err_line = {room->err_msg, CLI_WINDOW_ERR_MSG_MAX_LEN, 0ull};
-    if (own)
+    // a name of the window's is answered here on whichever lane the window called it on; a name not the window's
+    // is the tree's, where the window called it as the tree's
+    const CliServeAnswer answer = window_answer_of(name);
+    if (answer != NULL)
     {
-        const CliServeAnswer answer = window_answer_of(name);
-        if (answer == NULL)
-        {
-            mmgr_line_put(&err_line, name);
-            mmgr_line_put(&err_line, " is not a command of the window's");
-        }
-        room->ok = (answer != NULL) && cli_serve_answered(answer, args, size, &out, &err_line);
+        room->ok = cli_serve_answered(answer, args, size, &out, &err_line);
+    }
+    else if (own)
+    {
+        mmgr_line_put(&err_line, name);
+        mmgr_line_put(&err_line, " is not a command of the window's");
+        room->ok = 0;
     }
     else
     {

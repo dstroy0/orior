@@ -70,8 +70,9 @@ typedef struct
     unsigned long long last;
 } CliViewFold;
 
-// A view: the key of its text, the path of its file, which names its language, and whether the text is paged, its
-// lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its pattern of a
+// A view: the key of its text, the path of its file, which names its language, the whole path its language server
+// was handed, empty where none was, whether the text changed since the server was last told, and whether the text is
+// paged, its lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its pattern of a
 // line that opens a block, as its plugin names them, in units; its top, rows and columns; the cursor and the anchor;
 // the column the cursor keeps as it moves up and down, in cells; the indentation; the frames written; the steps, in a
 // cell of their own, how many are stored and how many of them are done, those past the done ones being undone; the folds
@@ -86,6 +87,8 @@ typedef struct
     int used;
     char key[CLI_NAME_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
+    char served[CLI_PATH_MAX_LEN];
+    int changed;
     int paged;
     unsigned int pair_open[CLI_VIEW_PAIRS];
     unsigned int pair_close[CLI_VIEW_PAIRS];
@@ -1294,6 +1297,7 @@ static int view_written(CliView *view, const CliEdit *const *edits, const unsign
         view_folds_edited(view, &edits[0][at]);
     }
     view->find_stale = view->find_stale || written;
+    view->changed = view->changed || written;
     return written;
 }
 
@@ -2151,6 +2155,13 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
             view_followed(view);
         }
     }
+    else if (input->kind == CLI_VIEW_COMPLETE)
+    {
+        // the completion's text written over the units before the cursor it replaces, no more than stand before it
+        const unsigned long long back = (input->column < view->cursor.col) ? input->column : view->cursor.col;
+        const CliPlace from = {view->cursor.line, view->cursor.col - back};
+        taken = view_edited(view, from, view->cursor, input->text, input->length, CLI_VIEW_KIND_NONE, err_msg);
+    }
     // a paged text's pages are told where the view stands and cache the lines about it
     if (view->paged)
     {
@@ -2757,5 +2768,268 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     g_cli_cells->persistent_buf_release(line, &s_owner);
     g_cli_cells->persistent_buf_release(room, &s_owner);
     cli_lock_give(&s_lock);
+    return 1;
+}
+
+int cli_view_path(const char *key, char *path)
+{
+    cli_lock_take(&s_lock);
+    const CliView *const view = view_of(key);
+    if (view != NULL)
+    {
+        VerbaLinea line = {path, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, view->path);
+        (void)mmgr_line_finish(&line);
+    }
+    cli_lock_give(&s_lock);
+    return view != NULL;
+}
+
+int cli_view_served_set(const char *key, const char *full)
+{
+    cli_lock_take(&s_lock);
+    CliView *const view = view_of(key);
+    if (view != NULL)
+    {
+        VerbaLinea line = {view->served, sizeof(view->served), 0ull};
+        mmgr_line_put(&line, full);
+        (void)mmgr_line_finish(&line);
+        view->changed = 0;
+    }
+    cli_lock_give(&s_lock);
+    return view != NULL;
+}
+
+int cli_view_served(const char *key, char *full)
+{
+    cli_lock_take(&s_lock);
+    const CliView *const view = view_of(key);
+    const int served = (view != NULL) && (view->served[0] != '\0');
+    if (served)
+    {
+        VerbaLinea line = {full, CLI_PATH_MAX_LEN, 0ull};
+        mmgr_line_put(&line, view->served);
+        (void)mmgr_line_finish(&line);
+    }
+    cli_lock_give(&s_lock);
+    return served;
+}
+
+int cli_view_changed_taken(const char *key)
+{
+    cli_lock_take(&s_lock);
+    CliView *const view = view_of(key);
+    const int changed = (view != NULL) && view->changed;
+    if (view != NULL)
+    {
+        view->changed = 0;
+    }
+    cli_lock_give(&s_lock);
+    return changed;
+}
+
+// the span of the word the place at `line`, `col` touches, inside it or at either end: its first unit into `from` and
+// the unit after it into `to`: 1, or 0 where no word stands there
+static int view_word_span(CliView *view, unsigned long long line, unsigned long long col, unsigned long long *from,
+                          unsigned long long *to)
+{
+    const unsigned long long length = view_length(view, line);
+    unsigned long long start = (col < length) ? col : length;
+    unsigned long long end = start;
+    while ((start > 0ull) && view_word_unit(view_unit(view, line, start - 1ull)))
+    {
+        start -= 1ull;
+    }
+    while ((end < length) && view_word_unit(view_unit(view, line, end)))
+    {
+        end += 1ull;
+    }
+    *from = start;
+    *to = end;
+    return end > start;
+}
+
+int cli_view_place_at(const char *key, unsigned long long row, unsigned long long column, unsigned long long *line,
+                      unsigned long long *col)
+{
+    cli_lock_take(&s_lock);
+    CliView *const view = view_of(key);
+    if (view != NULL)
+    {
+        *line = view_down(view, view->top, row);
+        *col = view_col_at(view, *line, column);
+    }
+    cli_lock_give(&s_lock);
+    return view != NULL;
+}
+
+int cli_view_word_at(const char *key, unsigned long long line, unsigned long long col, unsigned long long *from,
+                     unsigned long long *to, char *word, unsigned long long room)
+{
+    cli_lock_take(&s_lock);
+    CliView *const view = view_of(key);
+    const int found = (view != NULL) && view_word_span(view, line, col, from, to);
+    if (found)
+    {
+        VerbaLinea text = {word, room, 0ull};
+        cli_document_units_utf8(&text, view->line_units + *from, *to - *from);
+        (void)mmgr_line_finish(&text);
+    }
+    cli_lock_give(&s_lock);
+    return found;
+}
+
+int cli_view_prefix(const char *key, unsigned long long *from, char *prefix, unsigned long long room)
+{
+    cli_lock_take(&s_lock);
+    CliView *const view = view_of(key);
+    if (view == NULL)
+    {
+        cli_lock_give(&s_lock);
+        return 0;
+    }
+    const unsigned long long line = view->cursor.line;
+    const unsigned long long end = view->cursor.col;
+    unsigned long long start = (end < view_length(view, line)) ? end : view_length(view, line);
+    while ((start > 0ull) && view_word_unit(view_unit(view, line, start - 1ull)))
+    {
+        start -= 1ull;
+    }
+    *from = start;
+    VerbaLinea text = {prefix, room, 0ull};
+    if (end > start)
+    {
+        cli_document_units_utf8(&text, view->line_units + start, end - start);
+    }
+    (void)mmgr_line_finish(&text);
+    cli_lock_give(&s_lock);
+    return 1;
+}
+
+// whether a byte of UTF-8 is part of a word: a letter, a digit, `_`, `$`, or any byte of a letter past ASCII
+static int view_word_byte(char byte)
+{
+    const unsigned char value = (unsigned char)byte;
+    return ((value >= 'a') && (value <= 'z')) || ((value >= 'A') && (value <= 'Z')) || ((value >= '0') && (value <= '9')) ||
+           (value == '_') || (value == '$') || (value >= 0x80u);
+}
+
+// the units a byte of UTF-8 adds: one for a byte of ASCII or the lead byte of a letter in the basic plane, two for
+// the lead byte of a letter past it, none for a continuation byte
+static unsigned long long view_byte_units(char byte)
+{
+    const unsigned char value = (unsigned char)byte;
+    if (value < 0x80u)
+    {
+        return 1ull;
+    }
+    if (value >= 0xF0u)
+    {
+        return 2ull;
+    }
+    return (value >= 0xC0u) ? 1ull : 0ull;
+}
+
+// the hash table's entries, a power of two above the most words, each a word's offset in the text plus one, 0 for an
+// empty entry, and its length
+#define CLI_VIEW_WORD_TABLE 8192ull
+
+// whether `length` bytes of `word` at `text + at` are in the table, put there where not: 1 where they were already
+static int view_word_seen(const char *text, unsigned long long (*table)[2], unsigned long long at, unsigned long long length)
+{
+    unsigned long long hash = 1469598103934665603ull;
+    for (unsigned long long each = 0ull; each < length; each += 1ull)
+    {
+        hash = (hash ^ (unsigned char)text[at + each]) * 1099511628211ull;
+    }
+    unsigned long long entry = hash & (CLI_VIEW_WORD_TABLE - 1ull);
+    for (;;)
+    {
+        if (table[entry][0] == 0ull)
+        {
+            table[entry][0] = at + 1ull;
+            table[entry][1] = length;
+            return 0;
+        }
+        if ((table[entry][1] == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = text + table[entry][0] - 1ull, .other = text + at, .bytes = length}) == 0))
+        {
+            return 1;
+        }
+        entry = (entry + 1ull) & (CLI_VIEW_WORD_TABLE - 1ull);
+    }
+}
+
+int cli_view_words_written(const char *key, VerbaLinea *out)
+{
+    cli_lock_take(&s_lock);
+    const CliView *const view = view_of(key);
+    if (view == NULL)
+    {
+        cli_lock_give(&s_lock);
+        return 0;
+    }
+    const CliPlace cursor = view->cursor;
+    cli_lock_give(&s_lock);
+    unsigned long long low = 0ull;
+    unsigned long long high = 0ull;
+    (void)cli_document_bounds(key, &low, &high);
+    const unsigned long long reach = (cursor.line > CLI_VIEW_WORD_LINES) ? cursor.line - CLI_VIEW_WORD_LINES : 0ull;
+    const unsigned long long first = (reach > low) ? reach : low;
+    const unsigned long long far = cursor.line + CLI_VIEW_WORD_LINES;
+    const unsigned long long last = ((high != 0ull) && (far >= high)) ? high - 1ull : far;
+    char state[CLI_VIEW_STATE];
+    unsigned long long size = 0ull;
+    char *const text = (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state)) : NULL;
+    unsigned long long (*const table)[2] = g_cli_cells->persistent_buf_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &s_owner);
+    mmgr_line_ch(out, '[');
+    if ((text != NULL) && (table != NULL))
+    {
+        memor.set(&(MemoriaCfg){.dst = table, .val = 0, .bytes = CLI_VIEW_WORD_TABLE * sizeof(*table)});
+        unsigned int written = 0u;
+        unsigned long long line = first;
+        unsigned long long units = 0ull;
+        for (unsigned long long at = 0ull; (at < size) && (written < CLI_VIEW_WORDS);)
+        {
+            if (text[at] == '\n')
+            {
+                line += 1ull;
+                units = 0ull;
+                at += 1ull;
+                continue;
+            }
+            if (!view_word_byte(text[at]))
+            {
+                units += view_byte_units(text[at]);
+                at += 1ull;
+                continue;
+            }
+            const unsigned long long start = at;
+            const unsigned long long start_units = units;
+            unsigned long long letters = 0ull;
+            while ((at < size) && view_word_byte(text[at]))
+            {
+                const unsigned long long added = view_byte_units(text[at]);
+                letters += (added != 0ull) ? 1ull : 0ull;
+                units += added;
+                at += 1ull;
+            }
+            // the word the cursor stands in is being typed and is left out, as is any word of one letter
+            const int typed = (line == cursor.line) && (start_units <= cursor.col) && (cursor.col <= units);
+            if (typed || (letters < 2ull) || view_word_seen(text, table, start, at - start))
+            {
+                continue;
+            }
+            mmgr_line_put(out, (written > 0u) ? ",{\"label\":" : "{\"label\":");
+            cli_json_quoted(out, text + start, at - start);
+            mmgr_line_put(out, ",\"kind\":\"word\",\"insert\":");
+            cli_json_quoted(out, text + start, at - start);
+            mmgr_line_ch(out, '}');
+            written += 1u;
+        }
+    }
+    mmgr_line_ch(out, ']');
+    g_cli_cells->persistent_buf_release(table, &s_owner);
+    g_cli_cells->persistent_buf_release(text, NULL);
     return 1;
 }

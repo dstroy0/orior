@@ -4,6 +4,7 @@
 // check runs in, a file of the tree opened by its path from the tree's top and by its whole path, its lines held
 // and the first drawn; a door command to open a file, as the CLI emits one, taken the same way and answered; the
 // tabs and the one shown kept in orior's folder, the checks' own, and brought back by a window started again
+#include "../../../../../ui/cli/src/code/symbols.h"
 #include "../../../../../ui/cli/src/command_line/file_writing.h"
 #include "../../../../../ui/cli/src/machine/state.h"
 #include "../../../../../ui/cli/src/text/text.h"
@@ -166,6 +167,114 @@ static int tabs_came(GuiWindow *window, Woken *count, unsigned int tabs)
     return 0;
 }
 
+// the window's thread draining each wake until the hover is shown, the completion's list open or the signature
+// shown, or twenty seconds pass, the language server's first answers taking their time
+static int hover_came(GuiWindow *window, Woken *count)
+{
+    for (unsigned int left = 2000u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        if (window->hover.shown)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int suggest_came(GuiWindow *window, Woken *count)
+{
+    for (unsigned int left = 2000u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        if (window->suggest.open)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int signature_came(GuiWindow *window, Woken *count)
+{
+    for (unsigned int left = 2000u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        if (window->signature.shown)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the window's thread draining each wake until the shown tab's view is served, or twenty seconds pass
+static int served_came(GuiWindow *window, Woken *count)
+{
+    for (unsigned int left = 2000u; left > 0u; left -= 1u)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+        if ((window->active >= 0) && window->tab[window->active].served)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// the window's thread waiting `ms` milliseconds, draining each wake meanwhile
+static void waited(GuiWindow *window, Woken *count, unsigned long long ms)
+{
+    const unsigned long long until = cli_clock_milliseconds() + ms;
+    while (cli_clock_milliseconds() < until)
+    {
+        cli_lock_take(&count->lock);
+        (void)cli_wake_wait_for(&count->wake, &count->lock, 10ull);
+        cli_lock_give(&count->lock);
+        gui_window_drained(window);
+    }
+}
+
+// whether `length` bytes of `text` contain `needle`
+static int contains(const char *text, unsigned long long length, const char *needle)
+{
+    unsigned long long at = 0ull;
+    return cli_text_find(text, length, needle, cellul.len(&(CatenaFinitaCfg){.src = needle, .cap = 256ull}), &at);
+}
+
+// whether the editor's line `line` contains `needle`
+static int line_has(const GuiEditor *editor, unsigned int line, const char *needle)
+{
+    return (line < editor->count) && contains(editor->bytes + editor->line[line].text, editor->line[line].length, needle);
+}
+
+// whether the completion's list shows an item labeled `label`
+static int suggest_shows(const GuiSuggest *suggest, const char *label)
+{
+    const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = label, .cap = 256ull});
+    for (unsigned int at = 0u; at < suggest->count; at += 1u)
+    {
+        const GuiItem *const item = &suggest->item[suggest->shown[at]];
+        if ((item->label_length == length) && (memor.cmp(&(MemoriaCfg){.src = suggest->texts.out + item->label, .other = label, .bytes = length}) == 0))
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // the first row of the explorer that stands for a file, or -1
 static int file_row(const GuiExplorer *explorer)
 {
@@ -231,6 +340,79 @@ int main(void)
     gui_window_key(&window, "Mod+Z");
     cli_check(cursor_came_at(&window, &count, 1ull, 2ull) && line_starts(&window.editor, 1u, "// "),
               "undo takes the typing out");
+
+    // the panels over the editor through the CLI: the pointer resting on a declared name shows its declaration, a
+    // word's letters typed on a line opened inside a function open the completion's list with the file's words, and
+    // a call's bracket typed shows the signature of the call
+    const float cell = gui_glyphs_cell(&window.glyphs, GUI_CODE_SIZE);
+    // the view served, the server is told the view's rows as they rest; the keys made the claim: its slide run, the
+    // frame is laid for it before the pointer's place is read off it; and the tree's declarations are read once
+    // before a word is asked about, the first read taking its time
+    cli_check(served_came(&window, &count), "the view is handed to the file's language server as it opens");
+    waited(&window, &count, GUI_CLAIM_SLIDE + 50ull);
+    gui_window_ticked(&window);
+    cli_check(window.view_told && (window.view_told_top == window.editor.top) && (window.view_moved_ms == 0ull),
+              "the server is told the view the rows rest at");
+    {
+        static const char s_query[] = "{\"query\":\"gui_rect_empty\"}";
+        const unsigned int room = cli_window_called(0, "symbols_find", s_query, sizeof(s_query) - 1u);
+        const char *answer = NULL;
+        unsigned long long answer_size = 0ull;
+        cli_check(cli_window_answer(room, &answer, &answer_size), "a search of the tree's declarations begins their first read");
+        cli_window_given(room);
+    }
+    for (unsigned int left = 600u; (left > 0u) && cli_symbols_unread(); left -= 1u)
+    {
+        waited(&window, &count, 100ull);
+    }
+    cli_check(!cli_symbols_unread(), "the tree's declarations are read within a minute of the first search");
+    GuiRect named;
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 13ull, 6ull, &named), "the fourteenth line's seventh cell is among the rows drawn");
+    gui_window_moved(&window, named.x + 2, named.y + 5);
+    cli_check(window.hover.in_text && (window.hover.row == 13ull) && (gui_window_due(&window) <= GUI_HOVER_RESTS), "the pointer in the text begins the hover's rest");
+    waited(&window, &count, GUI_HOVER_RESTS + 20ull);
+    gui_window_ticked(&window);
+    cli_check(hover_came(&window, &count) && contains(window.hover.text, window.hover.length, "gui_rect_empty"),
+              "the rest up, the hover shows the declaration of the name under the pointer");
+    gui_window_drawn(&window);
+    cli_check((window.hover.rect.height > 0) && (window.hover.rect.y >= named.y + named.height), "the hover's box is drawn under the word's row");
+    cli_check(!window.suggest.open, "no completion stands open for the letter typed and taken back");
+    gui_window_key(&window, "Escape");
+    cli_check(!window.hover.shown, "Escape hides the hover");
+    GuiRect start;
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 15ull, 0ull, &start), "the sixteenth line's first cell is among the rows drawn");
+    gui_window_pressed(&window, start.x + 1, start.y + 5, 0u);
+    gui_window_released(&window, start.x + 1, start.y + 5);
+    cli_check(cursor_came_at(&window, &count, 15ull, 0ull), "a press in the text places the cursor at its cell");
+    gui_window_key(&window, "Enter");
+    cli_check(cursor_came_at(&window, &count, 16ull, 0ull), "Enter opens a line before the statement");
+    gui_window_key(&window, "Up");
+    cli_check(cursor_came_at(&window, &count, 15ull, 0ull), "Up stands on the line opened");
+    gui_window_text(&window, "gui_re", 6ull);
+    cli_check(cursor_came_at(&window, &count, 15ull, 6ull) && suggest_came(&window, &count), "a word's letters typed open the completion's list");
+    cli_check(suggest_shows(&window.suggest, "gui_rect_met") && suggest_shows(&window.suggest, "gui_rect_empty") &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = window.suggest.prefix, .other = "gui_re", .cap = 16ull}),
+              "the list shows the file's words that answer the prefix");
+    gui_window_key(&window, "Escape");
+    cli_check(!window.suggest.open, "Escape closes the list");
+    gui_window_text(&window, "ct_met(", 7ull);
+    cli_check(cursor_came_at(&window, &count, 15ull, 13ull) && line_has(&window.editor, 15u, "gui_rect_met("), "the call's name and its bracket are written");
+    cli_check(gui_window_due(&window) <= GUI_SIGNATURE_WAIT, "the bracket typed begins the signature's wait");
+    waited(&window, &count, GUI_SIGNATURE_WAIT + 20ull);
+    gui_window_ticked(&window);
+    cli_check(signature_came(&window, &count) && contains(window.signature.label, window.signature.length, "gui_rect_met") &&
+                  (window.signature.params == 2u) && (window.signature.active == 0),
+              "the wait up, the signature shows the call's declaration with its first parameter active");
+    gui_window_drawn(&window);
+    cli_check(window.signature.rect.height > 0, "the signature's box is drawn");
+    gui_window_key(&window, "Escape");
+    cli_check(!window.signature.shown, "Escape hides the signature");
+    // the keys made the claim, which the ticks laid: let go, as a menu opening lets it go, the tabs row and the strip
+    // stand again for the presses below
+    gui_claim_set(&window.claim, 0, cli_clock_milliseconds());
+    waited(&window, &count, GUI_CLAIM_SLIDE + 50ull);
+    gui_window_ticked(&window);
+    cli_check(window.frame.tabs.height > 0, "the claim let go, the tabs row stands again");
     gui_window_wheel(&window, window.frame.editor.x + 100, window.frame.editor.y + 100, 3);
     cli_check(top_came(&window, &count, 3ull), "the wheel scrolls the view through the CLI");
 
@@ -261,7 +443,7 @@ int main(void)
     cli_check((window.active == 0) && (window.last_active == 2), "a tab pressed shows its file, the one shown before kept");
     cli_check(lines_came(&window, &count) && top_came(&window, &count, 3ull) && line_starts(&window.editor, 0u, "// space"),
               "the frame of its view comes again, the view where the wheel left it");
-    cli_check(cursor_came_at(&window, &count, 1ull, 2ull), "the cursor stands where it was left");
+    cli_check(cursor_came_at(&window, &count, 15ull, 13ull), "the cursor stands where it was left");
     gui_window_file_opened(&window, "ui/gui/src/frame.c");
     cli_check((window.tabs == 3u) && (window.active == 2), "a file open already is shown, not opened again");
     const GuiRect close = gui_tab_close_rect(&window.glyphs, &window.frame, window.tab, window.tabs, 2u);

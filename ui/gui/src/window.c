@@ -10,6 +10,7 @@
 
 #include "../../cli/src/command_line/file_writing.h"
 #include "../../cli/src/editor/view.h"
+#include "../../cli/src/text/text.h"
 #include "answer.h"
 #include "parts/chrome.h"
 #include "system.h"
@@ -43,6 +44,15 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
         return 0;
     }
     gui_claim_made(&window->claim);
+    gui_hover_made(&window->hover);
+    gui_signature_made(&window->signature);
+    if (!gui_suggest_made(&window->suggest))
+    {
+        gui_explorer_given(&window->explorer);
+        gui_minimap_given(&window->minimap);
+        mmgr_line_put(err_msg, "the completion's cells could not be taken");
+        return 0;
+    }
     if (!gui_glyphs_made(&window->glyphs, err_msg))
     {
         return 0;
@@ -75,6 +85,9 @@ void gui_window_ended(GuiWindow *window)
     gui_icons_given(&window->icons);
     gui_explorer_given(&window->explorer);
     gui_minimap_given(&window->minimap);
+    gui_hover_given(&window->hover);
+    gui_suggest_given(&window->suggest);
+    gui_signature_given(&window->signature);
     gui_raster_given(&window->raster);
 }
 
@@ -126,6 +139,216 @@ static void window_view_input(GuiWindow *window, unsigned int kind, const char *
     mmgr_line_put(&args, more);
     mmgr_line_ch(&args, '}');
     (void)window_called(window, 1, "editor_view_input", &args);
+}
+
+// the panels over the editor hidden: the hover, the completion and the signature, and no completion wanted
+static void window_panels_hidden(GuiWindow *window)
+{
+    const int owed = window->hover.shown || window->suggest.open || window->signature.shown;
+    gui_hover_hidden(&window->hover);
+    gui_suggest_closed(&window->suggest);
+    gui_signature_hidden(&window->signature);
+    window->complete_wanted = 0;
+    window->complete_forced = 0;
+    window->owed = window->owed || owed;
+}
+
+// the shown view's key written as the one argument of a call, `{"key": ...` with `more` after it
+static void window_key_args(const GuiWindow *window, VerbaLinea *args, const char *more)
+{
+    mmgr_line_put(args, "{\"key\":");
+    cli_json_quoted(args, window->key, cellul.len(&(CatenaFinitaCfg){.src = window->key, .cap = sizeof(window->key)}));
+    mmgr_line_put(args, more);
+    mmgr_line_ch(args, '}');
+}
+
+// whether the shown tab's view is served by its language server
+static int window_served(const GuiWindow *window)
+{
+    return (window->active >= 0) && window->tab[window->active].served;
+}
+
+// the hover asked for the word at the cell `column` of the row `row` of the shown view: without the server where
+// `server` is 0, the tree's parts coming at once, the ask made again with the server as that answer comes
+static void window_hover_asked(GuiWindow *window, unsigned long long row, unsigned long long column, int server)
+{
+    if (!window->viewed)
+    {
+        return;
+    }
+    char more[128];
+    VerbaLinea line = {more, sizeof(more), 0ull};
+    mmgr_line_put(&line, ",\"row\":");
+    mmgr_line_decimal(&line, row, 1u);
+    mmgr_line_put(&line, ",\"column\":");
+    mmgr_line_decimal(&line, column, 1u);
+    mmgr_line_put(&line, server ? ",\"server\":true" : ",\"server\":false");
+    (void)mmgr_line_finish(&line);
+    char text[CLI_PATH_MAX_LEN + 160u];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    window_key_args(window, &args, more);
+    // the panels' asks wait on the tree and the language server: they run on the pool, off the inputs' lane
+    window->asked_hover = window_called(window, 0, "editor_view_hover", &args);
+    window->hover_again = !server && window_served(window);
+}
+
+// the completions asked for the word before the shown view's cursor, one ask in flight at a time: the file's words
+// first, without the server, and the server's items in an ask made again as that answer comes
+static void window_complete_asked(GuiWindow *window, int server)
+{
+    window->complete_wanted = 0;
+    if (!window->viewed || (window->asked_complete != 0ull))
+    {
+        window->complete_wanted = window->viewed;
+        return;
+    }
+    char text[CLI_PATH_MAX_LEN + 48u];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    window_key_args(window, &args, server ? ",\"server\":true" : ",\"server\":false");
+    window->asked_complete = window_called(window, 0, "editor_view_complete", &args);
+    window->complete_again = !server && window_served(window);
+}
+
+// the signature asked for the call the shown view's cursor is in, the cursor's place recorded as the one asked
+// about: the tree's first, without the server, and the server's in an ask made again as that answer comes
+static void window_signature_asked(GuiWindow *window, int server)
+{
+    if (!window->viewed)
+    {
+        return;
+    }
+    char text[CLI_PATH_MAX_LEN + 48u];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    window_key_args(window, &args, server ? ",\"server\":true" : ",\"server\":false");
+    window->signature_place = window->editor.cursor;
+    window->asked_signature = window_called(window, 0, "editor_view_signature", &args);
+    window->signature_again = !server && window_served(window);
+}
+
+// the tab `at`'s view handed to its file's language server, asked once as the view opens
+static void window_serve_asked(GuiWindow *window, unsigned int at)
+{
+    GuiTab *const tab = &window->tab[at];
+    if (tab->serve_asked)
+    {
+        return;
+    }
+    tab->serve_asked = 1;
+    char text[CLI_PATH_MAX_LEN + 32u];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    mmgr_line_put(&args, "{\"key\":");
+    cli_json_quoted(&args, tab->key, cellul.len(&(CatenaFinitaCfg){.src = tab->key, .cap = sizeof(tab->key)}));
+    mmgr_line_ch(&args, '}');
+    // the server's start waits on the server: it runs on the pool, off the inputs' lane
+    tab->asked_serve = window_called(window, 0, "editor_view_serve", &args);
+}
+
+// the server told the view the shown tab's rows rest at, its lines from the top to the last row's, where the tab is
+// served: the server's slice is cut for the view, as the page told it through the same call
+static void window_view_told(GuiWindow *window)
+{
+    window->view_moved_ms = 0ull;
+    if (!window->viewed || (window->active < 0) || !window->tab[window->active].served)
+    {
+        return;
+    }
+    const unsigned long long top = window->editor.top;
+    const unsigned int rows = window_rows(window);
+    unsigned long long last = top + ((rows > 0u) ? rows - 1u : 0u);
+    last = ((window->editor.lines > 0ull) && (last >= window->editor.lines)) ? window->editor.lines - 1ull : last;
+    char text[(2u * CLI_PATH_MAX_LEN) + 96u];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    mmgr_line_put(&args, "{\"path\":");
+    cli_json_quoted(&args, window->path, cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
+    mmgr_line_put(&args, ",\"key\":");
+    cli_json_quoted(&args, window->key, cellul.len(&(CatenaFinitaCfg){.src = window->key, .cap = sizeof(window->key)}));
+    mmgr_line_put(&args, ",\"first\":");
+    mmgr_line_decimal(&args, top, 1u);
+    mmgr_line_put(&args, ",\"last\":");
+    mmgr_line_decimal(&args, last, 1u);
+    mmgr_line_ch(&args, '}');
+    (void)window_called(window, 0, "lsp_view", &args);
+    window->view_told = 1;
+    window->view_told_top = top;
+    window->view_told_rows = rows;
+}
+
+// the view's rows moved: the server is told where they rest after GUI_VIEW_RESTS
+static void window_view_moved(GuiWindow *window)
+{
+    if (!window->view_told || (window->view_told_top != window->editor.top) || (window->view_told_rows != window_rows(window)))
+    {
+        window->view_moved_ms = cli_clock_milliseconds();
+    }
+}
+
+// the tab whose serve is in flight under `ticket`, or -1
+static int window_tab_by_serve(const GuiWindow *window, unsigned long long ticket)
+{
+    for (unsigned int at = 0u; at < window->tabs; at += 1u)
+    {
+        if (window->tab[at].asked_serve == ticket)
+        {
+            // the tabs are fewer than an int counts
+            return (int)at;
+        }
+    }
+    return -1;
+}
+
+// the completion chosen accepted: its text written over the prefix before the cursor, the list closed
+static void window_completed(GuiWindow *window)
+{
+    unsigned long long length = 0ull;
+    const char *const insert = gui_suggest_chosen(&window->suggest, &length);
+    if (insert == NULL)
+    {
+        gui_suggest_closed(&window->suggest);
+        return;
+    }
+    const GuiPlace cursor = window->editor.cursor;
+    const unsigned long long back = ((cursor.line == window->suggest.line) && (cursor.col >= window->suggest.from))
+                                        ? cursor.col - window->suggest.from
+                                        : cellul.len(&(CatenaFinitaCfg){.src = window->suggest.prefix, .cap = sizeof(window->suggest.prefix)});
+    char more[CLI_PATH_MAX_LEN];
+    VerbaLinea line = {more, sizeof(more), 0ull};
+    mmgr_line_put(&line, ",\"text\":");
+    cli_json_quoted(&line, insert, length);
+    mmgr_line_put(&line, ",\"column\":");
+    mmgr_line_decimal(&line, back, 1u);
+    const int fits = mmgr_line_finish(&line) != 0ull;
+    gui_suggest_closed(&window->suggest);
+    window->owed = 1;
+    if (fits)
+    {
+        window->minimap.stale = 1;
+        window->told_wanted = 1;
+        window_view_input(window, CLI_VIEW_COMPLETE, more);
+    }
+}
+
+// whether the completion answer `root` of `json` is for the prefix before the cursor as it stands: its `from` on the
+// cursor's line, the prefix's units ending at the cursor
+static int window_complete_current(const GuiWindow *window, const CliJson *json, unsigned int root)
+{
+    const unsigned int from = cli_json_member(json, root, "from");
+    unsigned long long length = 0ull;
+    const char *const prefix = cli_json_string(json, cli_json_member(json, root, "prefix"), &length);
+    if (!window->editor.has_cursor || (prefix == NULL) || !cli_json_is(json, from, CFG_JSON_OBJECT))
+    {
+        return 0;
+    }
+    const unsigned long long line = gui_answer_member_whole(json, from, "line", ~0ull);
+    const unsigned long long col = gui_answer_member_whole(json, from, "col", ~0ull);
+    return (line == window->editor.cursor.line) && (col + cli_text_units(prefix, length) == window->editor.cursor.col);
+}
+
+// whether a byte of UTF-8 typed is part of a word: a letter, a digit, `_`, `$`, or any byte of a letter past ASCII
+static int window_word_byte(char byte)
+{
+    const unsigned char value = (unsigned char)byte;
+    return ((value >= 'a') && (value <= 'z')) || ((value >= 'A') && (value <= 'Z')) || ((value >= '0') && (value <= '9')) ||
+           (value == '_') || (value == '$') || (value >= 0x80u);
 }
 
 // the map's lines asked for where the map placed beside the view stands for lines it does not hold or holds stale,
@@ -423,11 +646,51 @@ void gui_window_ticked(GuiWindow *window)
         window_map_asked(window);
     }
     window->claim_moving = moving;
+    // the hover's rest and linger, and the signature's wait
+    int ask = 0;
+    window->owed = gui_hover_ticked(&window->hover, now, &ask) || window->owed;
+    if (ask)
+    {
+        window_hover_asked(window, window->hover.asked_row, window->hover.asked_column, 0);
+    }
+    if (gui_signature_ticked(&window->signature, now))
+    {
+        window_signature_asked(window, 0);
+    }
+    if ((window->view_moved_ms != 0ull) && (now - window->view_moved_ms >= GUI_VIEW_RESTS))
+    {
+        window_view_told(window);
+    }
+}
+
+// the milliseconds until the view's rest is told, 0 where no telling waits
+static unsigned long long window_view_due(const GuiWindow *window, unsigned long long now)
+{
+    if (window->view_moved_ms == 0ull)
+    {
+        return 0ull;
+    }
+    const unsigned long long passed = now - window->view_moved_ms;
+    return (passed < GUI_VIEW_RESTS) ? GUI_VIEW_RESTS - passed : 1ull;
+}
+
+// the lesser of two waits, 0 standing for never
+static unsigned long long window_sooner(unsigned long long one, unsigned long long other)
+{
+    if (one == 0ull)
+    {
+        return other;
+    }
+    return ((other != 0ull) && (other < one)) ? other : one;
 }
 
 unsigned long long gui_window_due(const GuiWindow *window)
 {
-    return gui_claim_due(&window->claim, cli_clock_milliseconds());
+    const unsigned long long now = cli_clock_milliseconds();
+    unsigned long long due = gui_claim_due(&window->claim, now);
+    due = window_sooner(due, gui_hover_due(&window->hover, now));
+    due = window_sooner(due, gui_signature_due(&window->signature, now));
+    return window_sooner(due, window_view_due(window, now));
 }
 
 void gui_window_started(GuiWindow *window)
@@ -546,6 +809,9 @@ static void window_tab_taken(GuiWindow *window, unsigned int at)
     gui_editor_made(&window->editor);
     window_names_given(window, at);
     gui_minimap_cleared(&window->minimap);
+    window_panels_hidden(window);
+    window->view_told = 0;
+    window->view_moved_ms = 0ull;
     window->owed = 1;
     window_kept(window);
 }
@@ -578,7 +844,8 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
     mmgr_line_ch(&args, '}');
     if (tab->viewed)
     {
-        (void)window_called(window, 1, "editor_view_close", &args);
+        // the close waits on the server where the view is served: it runs on the pool, off the inputs' lane
+        (void)window_called(window, 0, "editor_view_close", &args);
     }
     (void)window_called(window, 1, "document_release", &args);
     g_cli_cells->persistent_buf_release(tab->names, NULL);
@@ -601,6 +868,7 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         gui_editor_given(&window->editor);
         gui_editor_made(&window->editor);
         gui_minimap_cleared(&window->minimap);
+        window_panels_hidden(window);
         window_claimed(window, 0);
         window_kept(window);
         return;
@@ -648,6 +916,9 @@ static void window_branch_opened(GuiWindow *window, const char *path, unsigned l
     tab->crlf = 0;
     tab->names = NULL;
     tab->names_size = 0ull;
+    tab->asked_serve = 0ull;
+    tab->serve_asked = 0;
+    tab->served = 0;
     window->tabs += 1u;
     window_tab_taken(window, window->tabs - 1u);
     char text[(2u * CLI_PATH_MAX_LEN) + 128u];
@@ -816,6 +1087,37 @@ static void window_restored(GuiWindow *window, const CliJson *json, unsigned int
     window->restored = 1;
 }
 
+// the completion's list, where it is open, followed to the frame's cursor: filtered again by the word between the
+// prefix's start and the cursor, read off the editor's own line, and closed where the cursor has left the line, stands
+// before the prefix's start, or has a byte between that is no word's
+static void window_suggest_followed(GuiWindow *window)
+{
+    GuiSuggest *const suggest = &window->suggest;
+    if (!suggest->open)
+    {
+        return;
+    }
+    const GuiPlace cursor = window->editor.cursor;
+    const char *text = NULL;
+    unsigned long long length = 0ull;
+    if (!window->editor.has_cursor || (cursor.line != suggest->line) || (cursor.col < suggest->from) ||
+        !gui_editor_units_text(&window->editor, cursor.line, suggest->from, cursor.col, &text, &length))
+    {
+        gui_suggest_closed(suggest);
+        return;
+    }
+    for (unsigned long long at = 0ull; at < length; at += 1ull)
+    {
+        if (!window_word_byte(text[at]))
+        {
+            gui_suggest_closed(suggest);
+            return;
+        }
+    }
+    (void)gui_suggest_prefixed(suggest, text, length);
+    window->owed = 1;
+}
+
 // a frame of the view taken, where it is the open file's and no older than the last taken
 static void window_frame_taken(GuiWindow *window, const CliJson *json, unsigned int root)
 {
@@ -834,6 +1136,8 @@ static void window_frame_taken(GuiWindow *window, const CliJson *json, unsigned 
         window->tab[window->active].viewed = 1;
     }
     (void)gui_editor_frame_put(&window->editor, json, root);
+    window_view_moved(window);
+    window_suggest_followed(window);
 }
 
 // whether an answer is a frame of the view, by what it carries
@@ -984,9 +1288,82 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
             window_map_asked(window);
         }
     }
+    else if ((ticket != 0ull) && (ticket == window->asked_hover))
+    {
+        window->asked_hover = 0ull;
+        if (ok && (root != CLI_JSON_NONE))
+        {
+            (void)gui_hover_put(&window->hover, &json, root);
+        }
+        // the answer without the server shown, the server is asked where the pointer still rests on the cell
+        if (window->hover_again && window->hover.asked && (window->hover.row == window->hover.asked_row) &&
+            (window->hover.column == window->hover.asked_column))
+        {
+            window_hover_asked(window, window->hover.asked_row, window->hover.asked_column, 1);
+        }
+    }
+    else if ((ticket != 0ull) && (ticket == window->asked_complete))
+    {
+        // an answer for a prefix the cursor has left, an edit having come between the ask and the answer, is dropped
+        window->asked_complete = 0ull;
+        const int current = ok && (root != CLI_JSON_NONE) && window_complete_current(window, &json, root);
+        if (current)
+        {
+            (void)gui_suggest_put(&window->suggest, &json, root, window->complete_forced);
+        }
+        const int again = window->complete_again && current && window->suggest.open;
+        window->complete_again = 0;
+        if (window->complete_wanted)
+        {
+            window_complete_asked(window, 0);
+        }
+        else if (again)
+        {
+            // the list open on the file's words, the server's items are asked for, the forced ask kept forced
+            const int forced = window->complete_forced;
+            window_complete_asked(window, 1);
+            window->complete_forced = forced;
+        }
+        else
+        {
+            window->complete_forced = 0;
+        }
+    }
+    else if ((ticket != 0ull) && (ticket == window->asked_signature))
+    {
+        window->asked_signature = 0ull;
+        if (ok && (root != CLI_JSON_NONE))
+        {
+            (void)gui_signature_put(&window->signature, &json, root);
+        }
+        else
+        {
+            gui_signature_hidden(&window->signature);
+        }
+        // the tree's answer shown, the server's is asked for where the cursor stands where it was asked
+        if (window->signature_again && (window->editor.cursor.line == window->signature_place.line) &&
+            (window->editor.cursor.col == window->signature_place.col))
+        {
+            window_signature_asked(window, 1);
+        }
+    }
+    else if ((ticket != 0ull) && (window_tab_by_serve(window, ticket) >= 0))
+    {
+        // the tab is among the tabs
+        GuiTab *const tab = &window->tab[(unsigned int)window_tab_by_serve(window, ticket)];
+        tab->asked_serve = 0ull;
+        tab->served = ok && (root != CLI_JSON_NONE) && gui_answer_member_true(&json, root, "served");
+        // a view served is told to the server as its rows rest
+        if (tab->served && (tab == &window->tab[window->active]))
+        {
+            window->view_told = 0;
+            window_view_moved(window);
+        }
+    }
     else if ((ticket != 0ull) && (root != CLI_JSON_NONE) && window_is_frame(&json, root))
     {
-        // a frame of any tab's view says its view is open; the shown tab's is drawn
+        // a frame of any tab's view says its view is open; the shown tab's is drawn; a view open is handed to its
+        // file's language server once
         window->asked_view = (ticket == window->asked_view) ? 0ull : window->asked_view;
         unsigned long long length = 0ull;
         const char *const key = cli_json_string(&json, cli_json_member(&json, root, "key"), &length);
@@ -994,11 +1371,34 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
         if (at >= 0)
         {
             window->tab[at].viewed = 1;
+            // the tab is among the tabs
+            window_serve_asked(window, (unsigned int)at);
         }
         if ((at >= 0) && (at == window->active))
         {
             window_frame_taken(window, &json, root);
             window_map_asked(window);
+            // the completion waits for the frame that places the cursor after the key typed; a signature shown
+            // follows the cursor, asked again as the cursor leaves the place it was asked at
+            if (window->told_wanted)
+            {
+                // the server is told the text an input changed, off the inputs' lane
+                window->told_wanted = 0;
+                char text[CLI_PATH_MAX_LEN + 32u];
+                VerbaLinea args = {text, sizeof(text), 0ull};
+                window_key_args(window, &args, "");
+                (void)window_called(window, 0, "editor_view_told", &args);
+            }
+            if (window->complete_wanted)
+            {
+                window_complete_asked(window, 0);
+            }
+            const int moved = (window->editor.cursor.line != window->signature_place.line) ||
+                              (window->editor.cursor.col != window->signature_place.col);
+            if (window->signature.shown && (window->asked_signature == 0ull) && moved)
+            {
+                window_signature_asked(window, 0);
+            }
         }
     }
     else if ((ticket != 0ull) && (ticket == window->asked_memory))
@@ -1069,6 +1469,53 @@ void gui_window_drained(GuiWindow *window)
     window_memory_asked(window);
 }
 
+// the panels over the editor drawn inside the work's inside: the hover under its word, hidden where the word's line
+// has left the rows; the completion under the prefix's first cell; and the signature over the cursor's row
+static void window_panels_drawn(GuiWindow *window)
+{
+    const GuiFrame *const frame = &window->frame;
+    const unsigned int size = (unsigned int)(((float)GUI_CODE_SIZE * frame->scale) + 0.5f);
+    const float cell = gui_glyphs_cell(&window->glyphs, size);
+    GuiRect anchor;
+    GuiRect last;
+    if (window->hover.shown)
+    {
+        const unsigned long long end = (window->hover.to > window->hover.from) ? window->hover.to - 1ull : window->hover.from;
+        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->hover.line, window->hover.from, &anchor) &&
+            gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->hover.line, end, &last))
+        {
+            gui_hover_drawn(&window->hover, &window->raster, &window->glyphs, window->palette, anchor, last, frame->inside, frame->scale);
+        }
+        else
+        {
+            gui_hover_hidden(&window->hover);
+        }
+    }
+    if (window->suggest.open)
+    {
+        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->suggest.line, window->suggest.from, &anchor))
+        {
+            gui_suggest_drawn(&window->suggest, &window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
+        }
+        else
+        {
+            gui_suggest_closed(&window->suggest);
+        }
+    }
+    if (window->signature.shown && window->editor.has_cursor)
+    {
+        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->editor.cursor.line, window->editor.cursor.col,
+                                  &anchor))
+        {
+            gui_signature_drawn(&window->signature, &window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
+        }
+        else
+        {
+            gui_signature_hidden(&window->signature);
+        }
+    }
+}
+
 void gui_window_drawn(GuiWindow *window)
 {
     const GuiFrame *const frame = &window->frame;
@@ -1100,6 +1547,7 @@ void gui_window_drawn(GuiWindow *window)
     {
         gui_raster_notched(raster, frame->inside, holes[at], frame->radius, palette->ground);
     }
+    window_panels_drawn(window);
     // the parts about the work, each on its pane: the strip with the frame's gap column, the bar with the menu bar's
     // titles and the controls, and the status bar
     gui_strip_drawn(raster, &window->icons, palette, frame, &window->strip);
@@ -1193,10 +1641,17 @@ void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
         window->owed = gui_explorer_wheeled(&window->explorer, &window->frame, rows) || window->owed;
         return;
     }
+    // the wheel over the completion's list scrolls its rows
+    if (gui_suggest_holds(&window->suggest, x, y))
+    {
+        window->owed = gui_suggest_wheeled(&window->suggest, rows) || window->owed;
+        return;
+    }
     if (!gui_rect_holds(window->frame.editor, x, y) && !gui_rect_holds(window->frame.map, x, y))
     {
         return;
     }
+    window_panels_hidden(window);
     window_scrolled(window, rows);
 }
 
@@ -1248,6 +1703,19 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
     {
         return;
     }
+    // a press on a completion's row accepts its item; a press in the hover's box or the signature's is theirs; a
+    // press anywhere else hides the panels and goes on
+    if (gui_suggest_pressed(&window->suggest, x, y) == GUI_SUGGEST_ACCEPTED)
+    {
+        window_completed(window);
+        return;
+    }
+    if (gui_suggest_holds(&window->suggest, x, y) || gui_hover_holds(&window->hover, x, y) ||
+        gui_signature_holds(&window->signature, x, y))
+    {
+        return;
+    }
+    window_panels_hidden(window);
     // the menu bar takes a press on a title or in a menu; a press outside its menus closes them and goes on; a menu
     // open takes the keys from the editor, which lets the claim go
     GuiChoice choice;
@@ -1367,7 +1835,16 @@ void gui_window_moved(GuiWindow *window, int x, int y)
     if (window->dragging)
     {
         (void)window_pointed(window, CLI_VIEW_POINTER_MOVED, x, y, window->clicks, 0);
+        return;
     }
+    // the pointer over the editor's text begins the hover's rest at its cell, where no menu is open and no drag runs
+    const unsigned int size = (unsigned int)(((float)GUI_CODE_SIZE * window->frame.scale) + 0.5f);
+    const float cell = gui_glyphs_cell(&window->glyphs, size);
+    unsigned long long row = 0ull;
+    unsigned long long column = 0ull;
+    const int in_text = window->viewed && (window->menubar.levels == 0u) &&
+                        gui_editor_cell_at(&window->editor, window->frame.editor, cell, window->frame.scale, x, y, &row, &column);
+    gui_hover_moved(&window->hover, in_text, row, column, x, y, cli_clock_milliseconds());
 }
 
 void gui_window_released(GuiWindow *window, int x, int y)
@@ -1412,12 +1889,51 @@ void gui_window_key(GuiWindow *window, const char *name)
     if (gui_strip_keyed(&window->strip, name))
     {
         window_claimed(window, 0);
+        window_panels_hidden(window);
         window_sided(window);
         return;
     }
+    // the completion's list takes its keys while it is open; Escape closes the signature and the hover; Mod+Space
+    // opens the list with nothing typed
+    const unsigned int did = gui_suggest_keyed(&window->suggest, name);
+    if (did == GUI_SUGGEST_ACCEPTED)
+    {
+        window_completed(window);
+        return;
+    }
+    if (did != GUI_SUGGEST_NONE)
+    {
+        window->owed = 1;
+        return;
+    }
+    const int escape = cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Escape", .cap = 64ull});
+    if (escape && (window->signature.shown || window->hover.shown))
+    {
+        window_panels_hidden(window);
+        return;
+    }
+    if (cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Mod+Space", .cap = 64ull}))
+    {
+        window->complete_forced = 1;
+        window_complete_asked(window, 0);
+        return;
+    }
     window_claimed(window, 1);
-    // a key may edit the text, which the map's lines then no longer show
+    gui_hover_hidden(&window->hover);
+    // a key that takes letters out keeps the list open on the prefix left; any other key closes it
+    if (window->suggest.open)
+    {
+        const int edits = cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Backspace", .cap = 64ull}) ||
+                          cellul.eq(&(CatenaFinitaCfg){.src = name, .other = "Delete", .cap = 64ull});
+        window->complete_wanted = edits;
+        if (!edits)
+        {
+            gui_suggest_closed(&window->suggest);
+        }
+    }
+    // a key may edit the text, which the map's lines then no longer show and the server is told
     window->minimap.stale = 1;
+    window->told_wanted = 1;
     char more[96];
     VerbaLinea line = {more, sizeof(more), 0ull};
     mmgr_line_put(&line, ",\"name\":");
@@ -1437,6 +1953,20 @@ void gui_window_text(GuiWindow *window, const char *text, unsigned long long siz
         return;
     }
     window_claimed(window, 1);
+    gui_hover_hidden(&window->hover);
+    // a word's letter typed opens the completion's list or filters it as the frame comes; any other letter closes
+    // it; a bracket or a comma begins the signature's wait
+    if ((size > 0ull) && window_word_byte(text[size - 1ull]))
+    {
+        window->complete_wanted = 1;
+    }
+    else if (window->suggest.open)
+    {
+        gui_suggest_closed(&window->suggest);
+        window->complete_wanted = 0;
+    }
+    (void)gui_signature_typed(&window->signature, text, size, cli_clock_milliseconds());
     window->minimap.stale = 1;
+    window->told_wanted = 1;
     window_view_input(window, CLI_VIEW_TEXT, more);
 }

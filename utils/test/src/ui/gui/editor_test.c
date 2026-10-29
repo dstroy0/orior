@@ -127,6 +127,14 @@ int main(void)
     cli_check((editor.indent_tabs == 0) && (editor.indent_size == 2u), "the frame's indentation is kept");
     cli_check(editor.has_cursor && (editor.cursor.line == 0ull) && (editor.cursor.col == 3ull) && (editor.anchor.col == 0ull),
               "the frame's cursor and anchor are kept");
+    const char *between = NULL;
+    unsigned long long between_length = 0ull;
+    cli_check(gui_editor_units_text(&editor, 1ull, 1ull, 7ull, &between, &between_length) && (between_length == 6ull) &&
+                  (memor.cmp(&(MemoriaCfg){.src = between, .other = "return", .bytes = 6u}) == 0),
+              "the bytes between two units of a stored line are read off it");
+    cli_check(gui_editor_units_text(&editor, 1ull, 8ull, 40ull, &between, &between_length) && (between_length == 2ull),
+              "units past the line's end are cut to it");
+    cli_check(!gui_editor_units_text(&editor, 5ull, 0ull, 1ull, &between, &between_length), "a line not stored has no bytes");
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     const int caret_x = text_x + (int)(3.0f * cell + 0.5f);

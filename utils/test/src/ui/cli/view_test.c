@@ -246,6 +246,58 @@ int main(void)
     cli_check(frame_has("],[[0,1,"), "a line of one letter is one bar");
     cli_check(frame_has("],[[4,6,"), "an indented line's first bar starts past the indentation");
     cli_check(frame_has(",[]]}"), "an empty line has no bar");
+
+    // the words of a second text: the word a place touches, the prefix before the cursor, the file's words as
+    // completion items, and a completion accepted written over the prefix
+    static const char s_key2[] = "check:words";
+    static const char s_text2[] = "alpha beta\nalp gamma\n";
+    CliShape shape2;
+    cli_check(cli_document_store(s_key2, s_text2, sizeof(s_text2) - 1u, &shape2) && cli_view_opened(s_key2, "check/words.txt"),
+              "a second text is stored and viewed");
+    const CliViewInput sized2 = {CLI_VIEW_SIZE, NULL, NULL, 0ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 10u, 40u, 0};
+    const CliViewInput pressed2 = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
+    const CliViewInput let_go2 = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_UP, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
+    cli_check(cli_view_input(s_key2, &sized2, &why) && cli_view_input(s_key2, &pressed2, &why) &&
+                  cli_view_input(s_key2, &let_go2, &why),
+              "a press puts the cursor after alp");
+    unsigned long long from = 0ull;
+    unsigned long long to = 0ull;
+    char word[64];
+    cli_check(cli_view_word_at(s_key2, 0ull, 7ull, &from, &to, word, sizeof(word)) && (from == 6ull) && (to == 10ull) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "beta", .cap = sizeof(word)}),
+              "the word at a place is the word the place touches");
+    cli_check(cli_view_word_at(s_key2, 0ull, 10ull, &from, &to, word, sizeof(word)) && (from == 6ull), "a place at a word's end touches it");
+    cli_check(cli_view_word_at(s_key2, 0ull, 5ull, &from, &to, word, sizeof(word)) && (from == 0ull) && (to == 5ull),
+              "a place after a word's last letter touches it");
+    cli_check(!cli_view_word_at(s_key2, 2ull, 0ull, &from, &to, word, sizeof(word)), "an empty line has no word");
+    unsigned long long placed_line = 0ull;
+    unsigned long long placed_col = 0ull;
+    cli_check(cli_view_place_at(s_key2, 1ull, 7ull, &placed_line, &placed_col) && (placed_line == 1ull) && (placed_col == 7ull),
+              "a row and a cell from the view's top place a line and a column");
+    cli_check(cli_view_place_at(s_key2, 0ull, 40ull, &placed_line, &placed_col) && (placed_line == 0ull) && (placed_col == 10ull),
+              "a cell past the line's end places its end");
+    cli_check(cli_view_prefix(s_key2, &from, word, sizeof(word)) && (from == 0ull) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "alp", .cap = sizeof(word)}),
+              "the prefix is the word before the cursor");
+    VerbaLinea words = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_view_words_written(s_key2, &words) && (mmgr_line_finish(&words) != 0ull) && frame_has("{\"label\":\"alpha\",\"kind\":\"word\",\"insert\":\"alpha\"}") &&
+                  frame_has("\"label\":\"gamma\"") && !frame_has("\"label\":\"alp\""),
+              "the file's words are items, the word at the cursor left out");
+    const CliViewInput completed = {CLI_VIEW_COMPLETE, NULL, "alphabet", 8ull, 0u, 0ull, 3ull, 0u, 0, 0ull, 0u, 0u, 0};
+    cli_check(cli_view_input(s_key2, &completed, &why), "a completion accepted is written");
+    VerbaLinea frame2 = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_view_frame_written(s_key2, &frame2) && (mmgr_line_finish(&frame2) != 0ull) && frame_has("\"alphabet gamma\"") &&
+                  frame_has("\"cursor\":{\"line\":1,\"col\":8}"),
+              "the completion's text replaces the prefix, the cursor after it");
+    cli_check(cli_view_changed_taken(s_key2) && !cli_view_changed_taken(s_key2), "the change is reported once");
+    char full[CLI_PATH_MAX_LEN];
+    cli_check(!cli_view_served(s_key2, full) && cli_view_served_set(s_key2, "/tree/check/words.txt") && cli_view_served(s_key2, full) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "/tree/check/words.txt", .cap = sizeof(full)}),
+              "a view served records the server's path");
+    cli_check(cli_view_path(s_key2, full) && cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "check/words.txt", .cap = sizeof(full)}),
+              "the view's path is the file's");
+    cli_view_closed(s_key2);
+    cli_document_release(s_key2);
     VerbaLinea same = {s_out, sizeof(s_out), 0ull};
     cli_check(given(&size) && cli_view_frame_written(s_key, &same) && (mmgr_line_finish(&same) != 0ull) &&
                   frame_has("\"top\":2,"),

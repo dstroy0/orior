@@ -22,8 +22,10 @@
 #define GUI_TAB_CLOSE_PAD 5
 
 // A tab: the file's path from the tree's top, the key its branch is stored under, whether the editor's view is open
-// on it, whether its lines end in a carriage return and a newline, the ticket of its open in flight, 0 for none, and
-// the names its grammar gives its tokens, `names_size` bytes of the array's JSON in a cell, NULL where none came
+// on it, whether its lines end in a carriage return and a newline, the ticket of its open in flight, 0 for none, the
+// names its grammar gives its tokens, `names_size` bytes of the array's JSON in a cell, NULL where none came, the
+// ticket of the ask that hands its view to the language server, 0 for none, whether that was asked, and whether the
+// server took the view
 typedef struct
 {
     char path[CLI_PATH_MAX_LEN];
@@ -33,6 +35,9 @@ typedef struct
     unsigned long long asked_open;
     char *names;
     unsigned long long names_size;
+    unsigned long long asked_serve;
+    int serve_asked;
+    int served;
 } GuiTab;
 
 // the name a tab shows, the last part of its path, into `name`, its length

@@ -12,10 +12,13 @@
 #include "link.h"
 #include "parts/editor.h"
 #include "parts/explorer.h"
+#include "parts/hover.h"
 #include "parts/menubar.h"
 #include "parts/minimap.h"
+#include "parts/signature.h"
 #include "parts/statusbar.h"
 #include "parts/strip.h"
+#include "parts/suggest.h"
 #include "parts/tabs.h"
 
 // where the pointer stands: the client, the caption the system drags the window by, the borders and corners the
@@ -37,7 +40,13 @@
 #define GUI_BORDER 5
 
 // The window: its frame, raster, glyphs, icons, palette, editor, minimap, menu bar, strip, explorer and link; the
-// claim and whether its slides ran at the last tick, the view told the editor's size as they stop; the
+// panels over the editor, the hover, the completion and the signature, with the tickets of their asks in flight, 0
+// where none is, whether the completion is to be asked for as the next frame comes, whether that ask was forced by
+// the keys, whether each panel's ask is to be made again with the server once its answer without the server comes,
+// whether the server is to be told the text as the next frame comes, an input having changed it, and the cursor's
+// place the signature was last asked at; when the view's rows last moved, 0 once the
+// server was told the view they rest at, whether it was told, and the top and rows it was told; the claim and
+// whether its slides ran at the last tick, the view told the editor's size as they stop; the
 // catalog of commands the menu bar reads, parsed into a JSON tree of its own once it came; the tree's name shown in the bar;
 // the tree's root as the CLI names it, empty where none is open; the files open as tabs, how many, the one shown, -1
 // for none, and the one shown before it, -1 for none; the shown file's path and the key it is stored under; whether
@@ -61,6 +70,23 @@ typedef struct
     GuiStrip strip;
     GuiExplorer explorer;
     GuiLink link;
+    GuiHover hover;
+    GuiSuggest suggest;
+    GuiSignature signature;
+    unsigned long long asked_hover;
+    unsigned long long asked_complete;
+    unsigned long long asked_signature;
+    int complete_wanted;
+    int complete_forced;
+    int complete_again;
+    int hover_again;
+    int signature_again;
+    int told_wanted;
+    GuiPlace signature_place;
+    unsigned long long view_moved_ms;
+    int view_told;
+    unsigned long long view_told_top;
+    unsigned int view_told_rows;
     GuiClaim claim;
     int claim_moving;
     CliJson catalog;
@@ -97,11 +123,13 @@ typedef struct
     unsigned int pressed;
 } GuiWindow;
 
-// the milliseconds within which presses count up, the pixels a press may move and still count, and the milliseconds
-// between readings of the memory
+// the milliseconds within which presses count up, the pixels a press may move and still count, the milliseconds
+// between readings of the memory, and the milliseconds the view's rows rest before the server is told the view, its
+// slice cut for it
 #define GUI_CLICK_WITHIN 500ull
 #define GUI_CLICK_NEAR 4
 #define GUI_MEMORY_EVERY 2000ull
+#define GUI_VIEW_RESTS 250ull
 
 // the window begun: its glyphs read, its palette the dark scheme, its editor empty and its link's workers started, the
 // window's thread woken through `woken` with `context`: 1, or 0 with why given; and ended, every cell given back

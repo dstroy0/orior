@@ -498,6 +498,69 @@ int gui_editor_row_at(const GuiEditor *editor, GuiRect place, float cell, float 
     return 1;
 }
 
+// the byte of the stored line `held` where its unit `col` starts, the line's length where the column is past it
+static unsigned long long editor_byte_of(const GuiEditor *editor, const GuiLine *held, unsigned long long col)
+{
+    const char *const text = editor->bytes + held->text;
+    unsigned long long at = 0ull;
+    unsigned long long units = 0ull;
+    while ((at < held->length) && (units < col))
+    {
+        unsigned long long took = 0ull;
+        const unsigned int letter = cli_text_letter(text, held->length, at, &took);
+        at += (took != 0ull) ? took : 1ull;
+        units += (letter >= 0x10000u) ? 2ull : 1ull;
+    }
+    return at;
+}
+
+int gui_editor_units_text(const GuiEditor *editor, unsigned long long line, unsigned long long from, unsigned long long to,
+                          const char **text, unsigned long long *length)
+{
+    for (unsigned int at = 0u; at < editor->count; at += 1u)
+    {
+        const GuiLine *const held = &editor->line[at];
+        if (held->number == line)
+        {
+            const unsigned long long start = editor_byte_of(editor, held, from);
+            const unsigned long long end = editor_byte_of(editor, held, (to > from) ? to : from);
+            *text = editor->bytes + held->text + start;
+            *length = end - start;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int gui_editor_place_rect(const GuiEditor *editor, GuiRect place, float cell, float scale, unsigned long long line,
+                          unsigned long long col, GuiRect *rect)
+{
+    const int line_tall = (int)(((float)GUI_CODE_LINE * scale) + 0.5f);
+    const float text_x = (float)(place.x + gui_editor_gutter(editor, cell, scale));
+    unsigned int start = 0u;
+    while ((start < editor->count) && (editor->line[start].number < editor->top))
+    {
+        start += 1u;
+    }
+    for (unsigned int at = start; at < editor->count; at += 1u)
+    {
+        if (editor->line[at].number == line)
+        {
+            // the row's count is far inside what an int represents
+            const int row = (int)(at - start);
+            const int y = place.y + (row * line_tall);
+            if (y + line_tall > place.y + place.height)
+            {
+                return 0;
+            }
+            const int x = (int)roundf(text_x + ((float)editor_cell_of(editor, &editor->line[at], col) * cell));
+            *rect = (GuiRect){x, y, (int)(cell + 0.5f), line_tall};
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // the fold that opens on `line`, or NULL
 static const GuiFold *editor_fold_on(const GuiEditor *editor, unsigned long long line)
 {
