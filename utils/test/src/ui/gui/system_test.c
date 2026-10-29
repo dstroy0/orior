@@ -111,7 +111,7 @@ int main(void)
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     static Handed handed;
     static const GuiSystemEvents s_events = {handed_sized, handed_pointer, handed_wheel, handed_key, handed_text,
-                                             handed_nothing, handed_nothing, handed_hit, handed_nothing};
+                                             handed_nothing, handed_nothing, handed_hit, handed_nothing, handed_nothing};
     const CliWindowPlace place = {20, 20, 320, 200, 0};
     GuiSystem *const system = gui_system_opened(&place, "orior check", &s_events, &handed, &why);
     cli_check(system != NULL, "a window opens on the system");

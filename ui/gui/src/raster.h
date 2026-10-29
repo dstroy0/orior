@@ -63,6 +63,12 @@ void gui_raster_rounded(GuiRaster *raster, GuiRect rect, unsigned int radius, Gu
 // the corners of `rect` cut round by `radius`: each corner pixel blended with `ground` by the share of it outside the
 // arc, what was drawn inside the rectangle left standing inside the arcs
 void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor ground);
+// `notch`, a hole in `work` reaching one or more of its edges, cut out of what was drawn in `work`: the notch filled
+// with `ground`, and the work's outline rounded by `radius` at each turn it makes round the notch, a corner of the
+// notch inside the work filleted, what was drawn left standing outside the arc, and a corner of the notch on the
+// work's edge cut, the ground laid outside the arc; a notch reaching none of the work's edges is cut as a rounded
+// hole
+void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned int radius, GuiColor ground);
 void gui_raster_line(GuiRaster *raster, int x0, int y0, int x1, int y1, GuiColor color);
 // `mask` laid with its top left at x, y, each pixel blended in `color` by its coverage and the color's alpha, no
 // further than `clip` and the raster

@@ -29,7 +29,8 @@ typedef struct GuiSystem GuiSystem;
 // held; the wheel turned `rows` rows, down where positive; a key pressed, named as the page's editor names a key,
 // `Mod+Shift+Left`, Mod the control key, Alt and Shift before the key's own name; `size` bytes of text typed as
 // UTF-8; the thread woken by another; the system asking to close; where the pointer at x, y stands, as window.h names
-// the places, for the system's own drag and resize; and the queue empty, where a frame owed is drawn and presented
+// the places, for the system's own drag and resize; the queue empty, where a frame owed is drawn and presented; and
+// the tick the window asked for come
 typedef struct
 {
     void (*sized)(void *context, unsigned int width, unsigned int height, float scale);
@@ -41,6 +42,7 @@ typedef struct
     void (*closing)(void *context);
     unsigned int (*hit)(void *context, int x, int y);
     void (*idle)(void *context);
+    void (*ticked)(void *context);
 } GuiSystemEvents;
 
 // the monitors' areas into `areas`, sized for `most`, the system's main one first: their count
@@ -59,6 +61,9 @@ void *gui_system_native(const GuiSystem *system);
 void gui_system_present(GuiSystem *system, const GuiRaster *raster);
 // the window's thread woken, from any thread
 void gui_system_wake(GuiSystem *system);
+// a tick asked for `after` milliseconds from now, on the window's thread, one at a time, the last asked the one that
+// comes; 0 asks for none
+void gui_system_tick(GuiSystem *system, unsigned long long after);
 // the window minimized, maximized or restored, or asked to close
 void gui_system_act(GuiSystem *system, unsigned int act);
 // where the window stands, in the system's own pixels, and whether it fills its monitor; and the scale the system

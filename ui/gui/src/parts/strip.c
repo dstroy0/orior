@@ -141,7 +141,10 @@ int gui_strip_keyed(GuiStrip *strip, const char *name)
 void gui_strip_drawn(GuiRaster *raster, GuiIcons *icons, const GuiPalette *palette, const GuiFrame *frame,
                      const GuiStrip *strip)
 {
-    gui_raster_filled(raster, frame->strip, palette->glass);
+    // the strip's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the
+    // radius; the frame's gap column is glass whether or not the claim holds
+    const GuiRect pane = gui_rect_met(frame->strip_slat, frame->strip);
+    gui_raster_rounded(raster, pane, frame->pane_radius, palette->glass);
     gui_raster_filled(raster, frame->gap, palette->glass);
     const float scale = frame->scale;
     const unsigned int icon = (unsigned int)gui_scaled(GUI_STRIP_ICON, scale);
@@ -150,7 +153,7 @@ void gui_strip_drawn(GuiRaster *raster, GuiIcons *icons, const GuiPalette *palet
     for (unsigned int at = 0u; at < STRIP_TOOLS; at += 1u)
     {
         const GuiRect button = gui_strip_button(frame, at);
-        const GuiRect on = gui_rect_met(button, frame->strip);
+        const GuiRect on = gui_rect_met(button, pane);
         if (gui_rect_empty(on))
         {
             continue;
@@ -160,11 +163,11 @@ void gui_strip_drawn(GuiRaster *raster, GuiIcons *icons, const GuiPalette *palet
         const int pointed = strip->pointed == (int)at;
         if (pointed)
         {
-            gui_raster_rounded(raster, button, radius, palette->bar_title_hover);
+            gui_raster_rounded(raster, on, radius, palette->bar_title_hover);
         }
         else if (shown)
         {
-            gui_raster_rounded(raster, button, radius, palette->strip_on);
+            gui_raster_rounded(raster, on, radius, palette->strip_on);
         }
         const GuiMask *const mask = gui_icon(icons, s_tools[at].glyph, icon, stroke);
         if (mask != NULL)

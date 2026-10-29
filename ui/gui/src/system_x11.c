@@ -37,6 +37,7 @@ struct GuiSystem
     const GuiRaster *shown;
     int wake_pipe[2];
     int closed;
+    unsigned long long tick_due;
     unsigned int width;
     unsigned int height;
     Atom delete_window;
@@ -367,7 +368,15 @@ void gui_system_run(GuiSystem *system)
         }
         waited[0].revents = 0;
         waited[1].revents = 0;
-        if (poll(waited, 2, -1) < 0)
+        // the wait ends at the tick asked for, where one is
+        int wait = -1;
+        if (system->tick_due != 0ull)
+        {
+            const unsigned long long now = cli_clock_milliseconds();
+            // the milliseconds to a tick are far inside what an int represents
+            wait = (system->tick_due > now) ? (int)(system->tick_due - now) : 0;
+        }
+        if (poll(waited, 2, wait) < 0)
         {
             continue;
         }
@@ -379,7 +388,17 @@ void gui_system_run(GuiSystem *system)
             }
             system->events->woken(system->context);
         }
+        if ((system->tick_due != 0ull) && (cli_clock_milliseconds() >= system->tick_due))
+        {
+            system->tick_due = 0ull;
+            system->events->ticked(system->context);
+        }
     }
+}
+
+void gui_system_tick(GuiSystem *system, unsigned long long after)
+{
+    system->tick_due = (after != 0ull) ? cli_clock_milliseconds() + after : 0ull;
 }
 
 void gui_system_pumped(GuiSystem *system)

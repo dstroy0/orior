@@ -16,9 +16,23 @@ static GuiRect controls_button(const GuiFrame *frame, unsigned int which)
     return button;
 }
 
+// `color` at `share` of its alpha
+static GuiColor controls_faded(GuiColor color, float share)
+{
+    const float alpha = (float)GUI_ALPHA_OF(color) * ((share < 0.0f) ? 0.0f : ((share > 1.0f) ? 1.0f : share));
+    // an alpha by a share from 0 to 1, rounded, is a byte
+    return (color & 0x00ffffffu) | ((GuiColor)(alpha + 0.5f) << 24u);
+}
+
 void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiFrame *frame)
 {
     const int box = gui_scaled(GUI_CONTROL_GLYPH, frame->scale);
+    // the controls' own pane of glass, with its lip, while they stand off the bar as their tab or its ghost
+    if (frame->controls_pane_share > 0.0f)
+    {
+        gui_raster_rounded(raster, frame->controls_pane, frame->radius, controls_faded(palette->glass, frame->controls_pane_share));
+    }
+    const GuiColor ink = controls_faded(palette->status_text, frame->controls_alpha);
     for (unsigned int which = GUI_CONTROL_MINIMIZE; which <= GUI_CONTROL_CLOSE; which += 1u)
     {
         const GuiRect button = controls_button(frame, which);
@@ -33,19 +47,19 @@ void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiF
         const int below = top + ((box * 12) / 16) - 1;
         if (which == GUI_CONTROL_MINIMIZE)
         {
-            gui_raster_line(raster, low, middle, high, middle, palette->status_text);
+            gui_raster_line(raster, low, middle, high, middle, ink);
         }
         else if (which == GUI_CONTROL_MAXIMIZE)
         {
-            gui_raster_line(raster, low, above, high, above, palette->status_text);
-            gui_raster_line(raster, low, below, high, below, palette->status_text);
-            gui_raster_line(raster, low, above, low, below, palette->status_text);
-            gui_raster_line(raster, high, above, high, below, palette->status_text);
+            gui_raster_line(raster, low, above, high, above, ink);
+            gui_raster_line(raster, low, below, high, below, ink);
+            gui_raster_line(raster, low, above, low, below, ink);
+            gui_raster_line(raster, high, above, high, below, ink);
         }
         else
         {
-            gui_raster_line(raster, low, above, high, below, palette->status_text);
-            gui_raster_line(raster, high, above, low, below, palette->status_text);
+            gui_raster_line(raster, low, above, high, below, ink);
+            gui_raster_line(raster, high, above, low, below, ink);
         }
     }
 }

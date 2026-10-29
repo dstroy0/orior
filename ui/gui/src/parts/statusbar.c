@@ -86,8 +86,10 @@ void gui_statusbar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons, 
                          const GuiFrame *frame, const GuiStatus *status)
 {
     const float scale = frame->scale;
-    const GuiRect bar = frame->status;
-    gui_raster_filled(raster, bar, palette->glass);
+    // the bar's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the radius;
+    // the items stand in the slat
+    const GuiRect bar = gui_rect_met(frame->status_slat, frame->status);
+    gui_raster_rounded(raster, bar, frame->pane_radius, palette->glass);
     if (gui_rect_empty(bar))
     {
         return;
@@ -137,7 +139,9 @@ void gui_statusbar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, GuiIcons *icons, 
         return;
     }
     const GuiRect room = gui_rect_met((GuiRect){bar.x, bar.y, (int)right - bar.x, bar.height}, bar);
-    float x = (float)(bar.x + frame->strip.width + gui_scaled(GUI_STATUS_PAD, scale));
+    // the crumbs start past the strip's width, which the claim takes to none
+    const int strip_room = (int)(((1.0f - frame->claim.claim) * (float)frame->strip.width) + 0.5f);
+    float x = (float)(frame->status.x + strip_room + gui_scaled(GUI_STATUS_PAD, scale));
     const float crumb_gap = (float)gui_scaled(GUI_STATUS_CRUMB_GAP, scale);
     const char *at = status->path;
     while (*at != '\0')

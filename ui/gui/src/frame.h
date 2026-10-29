@@ -30,13 +30,48 @@
 #define GUI_CONTROLS_END 5
 #define GUI_CONTROLS 3
 
-// The frame: the window's size and scale it was laid out for, and each part's rectangle, the side's of no width
-// where none is shown, the map's at the editor's right
+// the controls' tab's lip in the page's pixels, how far its glass reaches left of the controls; and how many gaps in
+// from the work's edge a part's hole snaps to the edge
+#define GUI_CONTROLS_LIP 8
+#define GUI_HOLE_SNAP 2
+
+// The claim's numbers, each 0 to 1 as the page's claim runs them: the claim, 1 while the work has taken the edges'
+// parts' room; each edge's reveal, 1 while its part is back; the controls' way down from the bar's place while the
+// bar is away; each edge's room, 1 once the work has given the part its room; each slat's grown share along its edge;
+// the controls' opacity; and the point along each edge its slat is pulled from, in pixels, -1 for the middle
+typedef struct
+{
+    float claim;
+    float reveal_top;
+    float reveal_bottom;
+    float reveal_left;
+    float reveal_right;
+    float reveal_down;
+    float room_top;
+    float room_left;
+    float room_bottom;
+    float grown_top;
+    float grown_left;
+    float grown_bottom;
+    float controls_alpha;
+    int pulled_top;
+    int pulled_left;
+    int pulled_bottom;
+} GuiClaimNumbers;
+
+// The frame: the window's size and scale it was laid out for, whether a side is shown and the claim's numbers it is
+// laid for; each part's rectangle, the side's of no width where none is shown, the map's at the editor's right, the
+// bar's, the strip's and the status bar's standing off the window while the claim holds them away; each of those
+// three as the slat its edge shows, the part's rectangle cut to its grown share; the controls' glass pane with its
+// lip and the pane's share of the glass, 0 while the controls stand in the bar; the controls' opacity; the panes'
+// corner radius; and the work's
 typedef struct
 {
     unsigned int width;
     unsigned int height;
     float scale;
+    int side_shown;
+    GuiClaimNumbers claim;
     GuiRect bar;
     GuiRect controls;
     GuiRect status;
@@ -48,14 +83,30 @@ typedef struct
     GuiRect tabs;
     GuiRect editor;
     GuiRect map;
+    GuiRect bar_slat;
+    GuiRect strip_slat;
+    GuiRect status_slat;
+    GuiRect controls_pane;
+    float controls_pane_share;
+    float controls_alpha;
+    unsigned int pane_radius;
     unsigned int radius;
 } GuiFrame;
 
 // a size in the page's pixels at `scale`, rounded to a whole pixel
 int gui_scaled(int pixels, float scale);
-// the parts laid out for a window `width` by `height` at `scale`, with no side shown
+// the parts laid out for a window `width` by `height` at `scale`, with no side shown and no claim
 void gui_frame_laid(GuiFrame *frame, unsigned int width, unsigned int height, float scale);
 // the work's inside laid again with a side shown at its left where `shown` is 1, the tabs row and the editor past it,
 // or with no side where it is 0
 void gui_frame_sided(GuiFrame *frame, int shown);
+// the parts laid again for the claim's `numbers`: the work grown to the window less the gap on every side as the
+// claim runs, the bar, the strip and the status bar slid off and back as their reveals run, each a pane standing in
+// from the window's edges by the gap, the work giving each its room as its room runs, the tabs row and the map away
+// inside the work until their edges' reveals, and the controls moved down from the bar's place as their way down runs
+void gui_frame_claimed(GuiFrame *frame, const GuiClaimNumbers *numbers);
+// the holes the parts shown make in the work while the claim holds, each a slat's rectangle grown by the claim's
+// share of the gap, cut to the work and snapped to the work's edges it comes within two gaps of, into `holes`, sized
+// for four: their count
+unsigned int gui_frame_holes(const GuiFrame *frame, GuiRect *holes);
 #endif

@@ -93,11 +93,21 @@ static unsigned int main_hit(void *context, int x, int y)
 static void main_idle(void *context)
 {
     GuiWindow *const window = (GuiWindow *)context;
-    if (window->owed && (s_system != NULL))
+    if (s_system == NULL)
+    {
+        return;
+    }
+    if (window->owed)
     {
         gui_window_drawn(window);
         gui_system_present(s_system, &window->raster);
     }
+    gui_system_tick(s_system, gui_window_due(window));
+}
+
+static void main_ticked(void *context)
+{
+    gui_window_ticked((GuiWindow *)context);
 }
 
 // a line of the errors, `orior: ` before what was written
@@ -142,7 +152,7 @@ int main(void)
         }
     }
     static const GuiSystemEvents s_events = {main_sized, main_pointer, main_wheel, main_key,  main_text,
-                                             main_woken, main_closing, main_hit,   main_idle};
+                                             main_woken, main_closing, main_hit,   main_idle, main_ticked};
     s_system = gui_system_opened(&place, "orior", &s_events, &s_window, &why);
     if (s_system == NULL)
     {

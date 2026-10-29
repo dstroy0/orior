@@ -8,7 +8,7 @@
 // (window.c)
 #ifndef GUI_WINDOW_H
 #define GUI_WINDOW_H
-#include "frame.h"
+#include "claim.h"
 #include "link.h"
 #include "parts/editor.h"
 #include "parts/explorer.h"
@@ -37,6 +37,7 @@
 #define GUI_BORDER 5
 
 // The window: its frame, raster, glyphs, icons, palette, editor, minimap, menu bar, strip, explorer and link; the
+// claim and whether its slides ran at the last tick, the view told the editor's size as they stop; the
 // catalog of commands the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar;
 // the files open as tabs, how many, the one shown, -1 for none, and the one shown before it, -1 for none; the shown
 // file's path and the key it is stored under; whether the window is maximized; the tickets of the calls in flight,
@@ -58,6 +59,8 @@ typedef struct
     GuiStrip strip;
     GuiExplorer explorer;
     GuiLink link;
+    GuiClaim claim;
+    int claim_moving;
     CliJson catalog;
     int cataloged;
     char title[CLI_NAME_MAX_LEN];
@@ -127,4 +130,8 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at);
 int gui_window_text_put(GuiWindow *window, const char *text, unsigned long long length);
 // every answer and event waiting taken, on the window's thread
 void gui_window_drained(GuiWindow *window);
+// the tick the window asked for come: the claim's timers run and its parts laid where its slides stand; and when the
+// window next wants a tick, in milliseconds, 0 for never
+void gui_window_ticked(GuiWindow *window);
+unsigned long long gui_window_due(const GuiWindow *window);
 #endif

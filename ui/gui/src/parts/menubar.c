@@ -891,6 +891,8 @@ void gui_menubar_titles_drawn(const GuiMenubar *menubar, GuiRaster *raster, GuiG
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_HEAD_SIZE, frame->scale);
     const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_HEAD, size);
     const float descent = gui_glyphs_descent(glyphs, GUI_FACE_HEAD, size);
+    // the titles stand in the bar's pane, the slat its edge shows
+    const GuiRect pane = gui_rect_met(frame->bar_slat, frame->bar);
     for (unsigned int at = 0u; at < menubar->titles; at += 1u)
     {
         const GuiTitle *const title = &menubar->title[at];
@@ -898,14 +900,14 @@ void gui_menubar_titles_drawn(const GuiMenubar *menubar, GuiRaster *raster, GuiG
         const int lit = ((int)at == menubar->open) || ((int)at == menubar->pointed);
         if (lit)
         {
-            gui_raster_rounded(raster, gui_rect_met(title->rect, frame->bar), (unsigned int)gui_scaled(GUI_TITLE_RADIUS, frame->scale),
+            gui_raster_rounded(raster, gui_rect_met(title->rect, pane), (unsigned int)gui_scaled(GUI_TITLE_RADIUS, frame->scale),
                                palette->bar_title_hover);
         }
         unsigned long long length = 0ull;
         const char *const text = menubar_title_text(menubar, title, &length);
         const int baseline = title->rect.y + (int)((((float)title->rect.height - ascent - descent) / 2.0f) + ascent + 0.5f);
         (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(title->rect.x + gui_scaled(GUI_TITLE_PAD, frame->scale)),
-                             baseline, text, length, lit ? palette->bar_bright : palette->bar_title, frame->bar);
+                             baseline, text, length, lit ? palette->bar_bright : palette->bar_title, pane);
     }
 }
 

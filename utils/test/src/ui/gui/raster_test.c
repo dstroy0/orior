@@ -71,6 +71,20 @@ int main(void)
     cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a corner cut leaves the middle");
     cli_check((raster.pixels[1u] != 0xffffffffu) && (raster.pixels[1u] != 0xff000000u), "a corner cut blends along the arc");
 
+    gui_raster_given(&raster);
+    cli_check(gui_raster_made(&raster, 40u, 30u), "a raster of forty by thirty is made for a notch");
+    const GuiRect big = {0, 0, 40, 30};
+    gui_raster_filled(&raster, big, white);
+    gui_raster_notched(&raster, big, (GuiRect){10, 0, 20, 12}, 4u, black);
+    cli_check(raster.pixels[(5u * 40u) + 20u] == 0xff000000u, "a notch at the top is cut to the ground");
+    cli_check(raster.pixels[(5u * 40u) + 5u] == 0xffffffffu, "the work beside the notch stands");
+    cli_check(raster.pixels[(20u * 40u) + 20u] == 0xffffffffu, "the work below the notch stands");
+    cli_check(red_of(raster.pixels[(11u * 40u) + 10u]) > 0x80u, "the turn into the notch's corner inside the work is filleted, the work's color left at the corner");
+    cli_check(red_of(raster.pixels[(0u * 40u) + 9u]) < 0x80u, "the turn at the work's edge beside the notch is cut round");
+    cli_check(raster.pixels[(8u * 40u) + 20u] == 0xff000000u, "the notch's middle is the ground whole");
+    gui_raster_given(&raster);
+    cli_check(gui_raster_made(&raster, 8u, 4u), "the small raster is made again");
+
     gui_raster_filled(&raster, whole, black);
     gui_raster_line(&raster, 0, 3, 7, 3, ink);
     cli_check((raster.pixels[(3u * 8u) + 0u] == 0xff102030u) && (raster.pixels[(3u * 8u) + 7u] == 0xff102030u),

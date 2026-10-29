@@ -21,6 +21,8 @@ static CellOwner s_owner = MMGR_CELL_OWNER("gui_system");
 #define GUI_WAKE_MESSAGE (WM_APP + 1u)
 // the rows one notch of the wheel scrolls
 #define GUI_WHEEL_ROWS 3
+// the timer the window's tick comes on
+#define GUI_TICK_TIMER 1u
 
 struct GuiSystem
 {
@@ -277,6 +279,13 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
     case GUI_WAKE_MESSAGE:
         system->events->woken(system->context);
         return 0;
+    case WM_TIMER:
+        if (wide == GUI_TICK_TIMER)
+        {
+            KillTimer(window, GUI_TICK_TIMER);
+            system->events->ticked(system->context);
+        }
+        return 0;
     case WM_CLOSE:
         system->events->closing(system->context);
         return 0;
@@ -451,6 +460,21 @@ void gui_system_wake(GuiSystem *system)
     {
         PostMessageW(system->window, GUI_WAKE_MESSAGE, 0u, 0);
     }
+}
+
+void gui_system_tick(GuiSystem *system, unsigned long long after)
+{
+    if (system->window == NULL)
+    {
+        return;
+    }
+    if (after == 0ull)
+    {
+        KillTimer(system->window, GUI_TICK_TIMER);
+        return;
+    }
+    // a wait is far inside what the timer's milliseconds hold
+    SetTimer(system->window, GUI_TICK_TIMER, (after > USER_TIMER_MAXIMUM) ? USER_TIMER_MAXIMUM : (UINT)after, NULL);
 }
 
 void gui_system_act(GuiSystem *system, unsigned int act)

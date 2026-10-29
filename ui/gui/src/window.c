@@ -36,6 +36,7 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
         mmgr_line_put(err_msg, "the minimap's cells could not be taken");
         return 0;
     }
+    gui_claim_made(&window->claim);
     if (!gui_glyphs_made(&window->glyphs, err_msg))
     {
         return 0;
@@ -161,6 +162,57 @@ static void window_view_sized(GuiWindow *window)
     window_view_input(window, CLI_VIEW_SIZE, more);
 }
 
+// the frame laid for the claim's numbers now, the menu bar's titles laid over the bar again, and a frame owed
+static void window_claim_laid(GuiWindow *window)
+{
+    GuiClaimNumbers numbers;
+    gui_claim_numbers(&window->claim, cli_clock_milliseconds(), &numbers);
+    gui_frame_claimed(&window->frame, &numbers);
+    gui_menubar_laid(&window->menubar, &window->glyphs, &window->frame);
+    window->owed = 1;
+}
+
+// the claim made, as the editor takes the keys while a file is shown, or let go, as they leave it
+static void window_claimed(GuiWindow *window, int on)
+{
+    if ((on && !window->viewed) || (on == window->claim.claimed))
+    {
+        return;
+    }
+    gui_claim_set(&window->claim, on, cli_clock_milliseconds());
+    window->claim_moving = 1;
+    window_claim_laid(window);
+}
+
+// whether the pointer at x, y stands over the part the claim shows
+static int window_over_parts(const GuiWindow *window, int x, int y)
+{
+    const GuiFrame *const frame = &window->frame;
+    const unsigned int shown = window->claim.shown;
+    if (shown == GUI_CLAIM_TOP)
+    {
+        return gui_rect_holds(gui_rect_met(frame->bar_slat, frame->bar), x, y) || gui_rect_holds(frame->tabs, x, y) ||
+               gui_rect_holds(frame->controls_pane, x, y);
+    }
+    if (shown == GUI_CLAIM_BOTTOM)
+    {
+        return gui_rect_holds(gui_rect_met(frame->status_slat, frame->status), x, y);
+    }
+    if (shown == GUI_CLAIM_LEFT)
+    {
+        return gui_rect_holds(gui_rect_met(frame->strip_slat, frame->strip), x, y);
+    }
+    if (shown == GUI_CLAIM_RIGHT)
+    {
+        return gui_rect_holds(frame->map, x, y);
+    }
+    if (shown == GUI_CLAIM_CONTROLS)
+    {
+        return gui_rect_holds(frame->controls_pane, x, y);
+    }
+    return 0;
+}
+
 // whether the strip's tool shown has the side pane as its window
 static int window_side_shown(const GuiWindow *window)
 {
@@ -201,12 +253,31 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
 {
     gui_frame_laid(&window->frame, width, height, scale);
     gui_frame_sided(&window->frame, window_side_shown(window));
+    window_claim_laid(window);
     gui_raster_given(&window->raster);
-    window->owed = 1;
     const int made = gui_raster_made(&window->raster, width, height);
-    gui_menubar_laid(&window->menubar, &window->glyphs, &window->frame);
     window_view_sized(window);
     return made;
+}
+
+void gui_window_ticked(GuiWindow *window)
+{
+    const unsigned long long now = cli_clock_milliseconds();
+    (void)gui_claim_stepped(&window->claim, now);
+    const int moving = gui_claim_moving(&window->claim, now);
+    window_claim_laid(window);
+    if (window->claim_moving && !moving)
+    {
+        // the slides at rest, the view is told the editor's size and the map its span
+        window_view_sized(window);
+        window_map_asked(window);
+    }
+    window->claim_moving = moving;
+}
+
+unsigned long long gui_window_due(const GuiWindow *window)
+{
+    return gui_claim_due(&window->claim, cli_clock_milliseconds());
 }
 
 void gui_window_started(GuiWindow *window)
@@ -375,6 +446,7 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         window->menubar.has_editor = 0;
         gui_editor_made(&window->editor);
         gui_minimap_cleared(&window->minimap);
+        window_claimed(window, 0);
         return;
     }
     if ((int)at == window->active)
@@ -739,22 +811,8 @@ void gui_window_drawn(GuiWindow *window)
         return;
     }
     gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
-    gui_bar_drawn(raster, &window->glyphs, palette, frame, window->title);
-    gui_menubar_titles_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
-    gui_strip_drawn(raster, &window->icons, palette, frame, &window->strip);
-    const GuiStatus status = {window->path,
-                              window->editor.has_cursor,
-                              window->editor.cursor.line,
-                              window->editor.cursor.col,
-                              window->editor.anchor.line,
-                              window->editor.anchor.col,
-                              (window->active >= 0) ? window->tab[window->active].crlf : 0,
-                              window->editor.indent_tabs,
-                              window->editor.indent_size,
-                              window->memory_bytes};
-    gui_statusbar_drawn(raster, &window->glyphs, &window->icons, palette, frame, &status);
-    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, and the corners
-    // cut round
+    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, the corners
+    // cut round, and the holes the parts shown over the work make in it while the claim holds
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
     gui_minimap_drawn(&window->minimap, raster, palette, &window->editor, frame->map, frame->scale, window_on_screen(window));
@@ -767,6 +825,28 @@ void gui_window_drawn(GuiWindow *window)
                            window->path);
     }
     gui_raster_corners_cut(raster, frame->inside, frame->radius, palette->ground);
+    GuiRect holes[4];
+    const unsigned int count = gui_frame_holes(frame, holes);
+    for (unsigned int at = 0u; at < count; at += 1u)
+    {
+        gui_raster_notched(raster, frame->inside, holes[at], frame->radius, palette->ground);
+    }
+    // the parts about the work, each on its pane: the strip with the frame's gap column, the bar with the menu bar's
+    // titles and the controls, and the status bar
+    gui_strip_drawn(raster, &window->icons, palette, frame, &window->strip);
+    gui_bar_drawn(raster, &window->glyphs, palette, frame, window->title);
+    gui_menubar_titles_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
+    const GuiStatus status = {window->path,
+                              window->editor.has_cursor,
+                              window->editor.cursor.line,
+                              window->editor.cursor.col,
+                              window->editor.anchor.line,
+                              window->editor.anchor.col,
+                              (window->active >= 0) ? window->tab[window->active].crlf : 0,
+                              window->editor.indent_tabs,
+                              window->editor.indent_size,
+                              window->memory_bytes};
+    gui_statusbar_drawn(raster, &window->glyphs, &window->icons, palette, frame, &status);
     // the menus open go over every part
     gui_menubar_menus_drawn(&window->menubar, raster, &window->glyphs, palette, frame);
 }
@@ -899,12 +979,17 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
     {
         return;
     }
-    // the menu bar takes a press on a title or in a menu; a press outside its menus closes them and goes on
+    // the menu bar takes a press on a title or in a menu; a press outside its menus closes them and goes on; a menu
+    // open takes the keys from the editor, which lets the claim go
     GuiChoice choice;
     const int menus_open = window->menubar.levels != 0u;
     if (gui_menubar_pressed(&window->menubar, &window->glyphs, &window->frame, x, y, &choice))
     {
         window->owed = 1;
+        if (window->menubar.levels != 0u)
+        {
+            window_claimed(window, 0);
+        }
         if (choice.command[0] != '\0')
         {
             window_chosen(window, &choice);
@@ -912,9 +997,10 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
         return;
     }
     window->owed = window->owed || menus_open;
-    // a press on the strip shows a tool's window or closes it
+    // a press on the strip shows a tool's window or closes it, the keys going to it
     if (gui_strip_pressed(&window->strip, &window->frame, x, y))
     {
+        window_claimed(window, 0);
         window_sided(window);
         return;
     }
@@ -923,6 +1009,7 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
     if (gui_explorer_pressed(&window->explorer, &window->frame, x, y, &pick))
     {
         window->owed = 1;
+        window_claimed(window, 0);
         if (pick.kind == GUI_PICK_LIST)
         {
             window_listing_asked(window, pick.path);
@@ -965,10 +1052,28 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
     window->clicked_x = x;
     window->clicked_y = y;
     window->dragging = window_pointed(window, CLI_VIEW_POINTER_DOWN, x, y, window->clicks, (mods & GUI_MOD_SHIFT) != 0u);
+    // a press in the editor's text gives it the keys
+    if (window->dragging)
+    {
+        window_claimed(window, 1);
+    }
 }
 
 void gui_window_moved(GuiWindow *window, int x, int y)
 {
+    if (window->claim.claimed)
+    {
+        const GuiFrame *const frame = &window->frame;
+        const unsigned long long now = cli_clock_milliseconds();
+        const int near_before = window->claim.near;
+        gui_claim_moved(&window->claim, x, y, gui_claim_zone(frame->width, frame->height, frame->scale, frame->controls.width, x, y),
+                        window_over_parts(window, x, y), now);
+        if ((window->claim.near != near_before) || gui_claim_moving(&window->claim, now))
+        {
+            window->claim_moving = 1;
+            window_claim_laid(window);
+        }
+    }
     if (gui_menubar_moved(&window->menubar, &window->glyphs, &window->frame, x, y))
     {
         window->owed = 1;
@@ -1012,11 +1117,16 @@ void gui_window_released(GuiWindow *window, int x, int y)
 
 void gui_window_key(GuiWindow *window, const char *name)
 {
-    // the menu bar takes the keys while a menu is open, and Alt with a title's letter
+    // the menu bar takes the keys while a menu is open, and Alt with a title's letter; a menu open takes the keys from
+    // the editor, which lets the claim go
     GuiChoice choice;
     if (gui_menubar_keyed(&window->menubar, &window->glyphs, &window->frame, name, &choice))
     {
         window->owed = 1;
+        if (window->menubar.levels != 0u)
+        {
+            window_claimed(window, 0);
+        }
         if (choice.command[0] != '\0')
         {
             window_chosen(window, &choice);
@@ -1024,7 +1134,7 @@ void gui_window_key(GuiWindow *window, const char *name)
         return;
     }
     // the keys of a command the window runs itself run it, a tool's keys show its window; every other key is the
-    // view's
+    // view's, which takes the keys and makes the claim
     if (gui_menubar_keys_command(&window->menubar, name, &choice) && window_runs(choice.command))
     {
         window_chosen(window, &choice);
@@ -1032,9 +1142,11 @@ void gui_window_key(GuiWindow *window, const char *name)
     }
     if (gui_strip_keyed(&window->strip, name))
     {
+        window_claimed(window, 0);
         window_sided(window);
         return;
     }
+    window_claimed(window, 1);
     // a key may edit the text, which the map's lines then no longer show
     window->minimap.stale = 1;
     char more[96];
@@ -1055,6 +1167,7 @@ void gui_window_text(GuiWindow *window, const char *text, unsigned long long siz
     {
         return;
     }
+    window_claimed(window, 1);
     window->minimap.stale = 1;
     window_view_input(window, CLI_VIEW_TEXT, more);
 }

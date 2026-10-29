@@ -181,6 +181,115 @@ void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius
     }
 }
 
+// the share of the pixel at `column`, `row` inside the arc of `reach` about `centre_x`, `centre_y`, 0 to 1 by the
+// distance left from the pixel's middle to the arc
+static float raster_arc_share(float centre_x, float centre_y, unsigned int reach, int column, int row)
+{
+    const float away = hypotf(((float)column + 0.5f) - centre_x, ((float)row + 0.5f) - centre_y);
+    const float inside = (float)reach + 0.5f - away;
+    return (inside < 0.0f) ? 0.0f : ((inside > 1.0f) ? 1.0f : inside);
+}
+
+// the turn of the work's outline out at x, y on the work's edge, rounded by `reach`: the square of that side from
+// the point, reaching `toward_x` and `toward_y` (each 1 or -1) into the work, holds the arc about its far corner, and
+// the pixels outside the arc take `ground` by their share outside it
+static void raster_turned_out(GuiRaster *raster, int x, int y, unsigned int reach, int toward_x, int toward_y, GuiColor ground)
+{
+    // the square's side is the radius, which an int holds
+    const int side = (int)reach;
+    const GuiRect square = {(toward_x < 0) ? x - side : x, (toward_y < 0) ? y - side : y, side, side};
+    const GuiRect on = gui_rect_met(square, raster_rect(raster));
+    const float centre_x = (float)(x + (toward_x * side));
+    const float centre_y = (float)(y + (toward_y * side));
+    for (int row = on.y; row < on.y + on.height; row += 1)
+    {
+        for (int column = on.x; column < on.x + on.width; column += 1)
+        {
+            const float outside = 1.0f - raster_arc_share(centre_x, centre_y, reach, column, row);
+            if (outside > 0.0f)
+            {
+                // a share of 255 by a factor from 0 to 1, rounded, is a byte
+                raster_put(raster, column, row, ground, (unsigned int)((255.0f * outside) + 0.5f));
+            }
+        }
+    }
+}
+
+void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned int radius, GuiColor ground)
+{
+    const GuiRect hole = gui_rect_met(notch, work);
+    if (gui_rect_empty(hole))
+    {
+        return;
+    }
+    // the radius is no more than half the hole's sides, where the turns would meet
+    const unsigned int most = (unsigned int)(((hole.width < hole.height) ? hole.width : hole.height) / 2);
+    const unsigned int reach = (radius > most) ? most : radius;
+    // the square's side is the radius, which an int holds
+    const int side = (int)reach;
+    // the hole's corners, each on the work's left or right edge, its top or bottom edge, both or neither
+    const int left_edge = hole.x <= work.x;
+    const int right_edge = hole.x + hole.width >= work.x + work.width;
+    const int top_edge = hole.y <= work.y;
+    const int bottom_edge = hole.y + hole.height >= work.y + work.height;
+    const int corner_x[4] = {hole.x, hole.x + hole.width, hole.x, hole.x + hole.width};
+    const int corner_y[4] = {hole.y, hole.y, hole.y + hole.height, hole.y + hole.height};
+    const int on_x[4] = {left_edge, right_edge, left_edge, right_edge};
+    const int on_y[4] = {top_edge, top_edge, bottom_edge, bottom_edge};
+    // the way into the hole from each corner
+    const int into_x[4] = {1, -1, 1, -1};
+    const int into_y[4] = {1, 1, -1, -1};
+    // the fillets: at a corner inside the work the outline turns in round the hole, and the square of the radius
+    // inside the hole at the corner takes the ground inside the arc alone, what was drawn standing outside it
+    GuiRect fillet[4];
+    float centre_x[4];
+    float centre_y[4];
+    unsigned int fillets = 0u;
+    for (unsigned int corner = 0u; (side > 0) && (corner < 4u); corner += 1u)
+    {
+        if (!on_x[corner] && !on_y[corner])
+        {
+            fillet[fillets] = (GuiRect){(into_x[corner] < 0) ? corner_x[corner] - side : corner_x[corner],
+                                        (into_y[corner] < 0) ? corner_y[corner] - side : corner_y[corner], side, side};
+            centre_x[fillets] = (float)(corner_x[corner] + (into_x[corner] * side));
+            centre_y[fillets] = (float)(corner_y[corner] + (into_y[corner] * side));
+            fillets += 1u;
+        }
+    }
+    const GuiRect on = gui_rect_met(hole, raster_rect(raster));
+    for (int row = on.y; row < on.y + on.height; row += 1)
+    {
+        for (int column = on.x; column < on.x + on.width; column += 1)
+        {
+            float share = 1.0f;
+            for (unsigned int at = 0u; at < fillets; at += 1u)
+            {
+                if (gui_rect_holds(fillet[at], column, row))
+                {
+                    share = raster_arc_share(centre_x[at], centre_y[at], reach, column, row);
+                }
+            }
+            if (share > 0.0f)
+            {
+                // a share of 255 by a factor from 0 to 1, rounded, is a byte
+                raster_put(raster, column, row, ground, (unsigned int)((255.0f * share) + 0.5f));
+            }
+        }
+    }
+    // at a corner on one of the work's edges the outline turns out, the square reaching into the work along the edge
+    // away from the hole and in from the edge; a corner on two edges is the work's own, which the hole takes whole
+    for (unsigned int corner = 0u; (side > 0) && (corner < 4u); corner += 1u)
+    {
+        if (on_x[corner] == on_y[corner])
+        {
+            continue;
+        }
+        const int toward_x = on_y[corner] ? -into_x[corner] : into_x[corner];
+        const int toward_y = on_x[corner] ? -into_y[corner] : into_y[corner];
+        raster_turned_out(raster, corner_x[corner], corner_y[corner], reach, toward_x, toward_y, ground);
+    }
+}
+
 void gui_raster_line(GuiRaster *raster, int x0, int y0, int x1, int y1, GuiColor color)
 {
     const GuiRect on = raster_rect(raster);

@@ -408,6 +408,17 @@ def pointer_sent(handle, x, y, down, up, moved=()):
         user32.PostMessageW(handle, WM_LBUTTONUP, 0, (y << 16) | (x & 0xFFFF))
 
 
+def pointer_moved(handle, places, pause):
+    """The pointer moved through `places`, each an x, y of the window's client, with no button down, `pause` seconds
+    between one and the next."""
+    import time
+
+    for at, (x, y) in enumerate(places):
+        if at:
+            time.sleep(pause)
+        user32.PostMessageW(handle, WM_MOUSEMOVE, 0, (y << 16) | (x & 0xFFFF))
+
+
 def keys_sent(handle, names):
     """The keys `names` posted to the window's own queue, each named as the page's editor names a key, Mod+Shift+Z or
     Right, the modifiers posted down before the key and up after it; one character posted as the character typed. The

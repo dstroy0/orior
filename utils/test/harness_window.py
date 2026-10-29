@@ -231,6 +231,23 @@ def cmd_click(a):
     return 0
 
 
+def cmd_move(a):
+    """The pointer moved to x, y of the window's client with no button down, through the places --via on its way, a
+    --pause between the moves; a move that ends in an edge's band and rests there reveals the edge's part."""
+    if not windows_only():
+        return 1
+    import harness_win32 as win
+
+    found = window_of(a.id)
+    if not found:
+        return 1
+    process_id, handle, _ = found
+    via = [(a.via[at], a.via[at + 1]) for at in range(0, len(a.via or []), 2)]
+    win.pointer_moved(handle, via + [(a.x, a.y)], a.pause)
+    print("window %d pointer moved to %d,%d through %d places" % (process_id, a.x, a.y, len(via)))
+    return 0
+
+
 GUI_CHECKS = os.path.join(ROOT, "utils", "test", "src", "ui", "gui", "gui_test.sh")
 
 
@@ -1136,6 +1153,13 @@ def register(sub):
     p.add_argument("--count", type=int, default=1, help="how many presses in a row, two for a word, three for a line")
     p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
     p.set_defaults(fn=cmd_click)
+    p = window.add_parser("move", help="the pointer moved to a pixel of the window's client with no button down")
+    p.add_argument("x", type=int)
+    p.add_argument("y", type=int)
+    p.add_argument("--via", type=int, nargs="+", metavar="N", help="the places passed through on the way, x y pairs")
+    p.add_argument("--pause", type=float, default=0.02, help="the seconds between one move and the next")
+    p.add_argument("--id", type=int, default=0, help="the window's process, the started one where 0")
+    p.set_defaults(fn=cmd_move)
     p = window.add_parser("check", help="the window's C checked without a display, every check where none is named")
     p.add_argument("names", nargs="*", help="checks by name, raster or glyphs, each a *_test.c under utils/test/src/ui/gui")
     p.set_defaults(fn=cmd_check)

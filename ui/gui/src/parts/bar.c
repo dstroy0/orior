@@ -14,7 +14,9 @@
 void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette, const GuiFrame *frame,
                    const char *title)
 {
-    gui_raster_filled(raster, frame->bar, palette->glass);
+    // the bar's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the radius
+    const GuiRect pane = gui_rect_met(frame->bar_slat, frame->bar);
+    gui_raster_rounded(raster, pane, frame->pane_radius, palette->glass);
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_HEAD_SIZE, frame->scale);
     const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_HEAD, size);
     const float descent = gui_glyphs_descent(glyphs, GUI_FACE_HEAD, size);
@@ -30,6 +32,6 @@ void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palet
     const int right = frame->controls.x - gui_scaled(GUI_BAR_GAP, frame->scale);
     const GuiRect clip = {right - wide, frame->bar.y, wide, frame->bar.height};
     (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(right - wide), baseline, title, length,
-                         palette->bar_text, gui_rect_met(clip, frame->bar));
+                         palette->bar_text, gui_rect_met(clip, pane));
     gui_controls_drawn(raster, palette, frame);
 }
