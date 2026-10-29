@@ -35,6 +35,32 @@ int main(void)
     gui_raster_filled(&raster, (GuiRect){0, 0, 8, 4}, GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u));
     cli_check(red_of(raster.pixels[0]) == 0x80u, "a half-clear white over black is mid gray");
 
+    // every blend is exact: each channel the color's share of 255 over the ground's rest, rounded, over every ground
+    // value, color value and share, the three channels given different values at once
+    unsigned long long wrong = 0ull;
+    for (unsigned int under = 0u; under < 256u; under += 1u)
+    {
+        for (unsigned int over = 0u; over < 256u; over += 1u)
+        {
+            for (unsigned int share = 0u; share < 256u; share += 1u)
+            {
+                const unsigned int ground_red = under;
+                const unsigned int ground_green = 255u - under;
+                const unsigned int ground_blue = (under * 7u) & 255u;
+                const unsigned int color_red = over;
+                const unsigned int color_green = (over * 3u) & 255u;
+                const unsigned int color_blue = 255u - over;
+                raster.pixels[0] = GUI_RGB(ground_red, ground_green, ground_blue);
+                gui_raster_filled(&raster, (GuiRect){0, 0, 1, 1}, GUI_RGBA(color_red, color_green, color_blue, share));
+                const GuiColor wanted = GUI_RGB(((color_red * share) + (ground_red * (255u - share)) + 127u) / 255u,
+                                                ((color_green * share) + (ground_green * (255u - share)) + 127u) / 255u,
+                                                ((color_blue * share) + (ground_blue * (255u - share)) + 127u) / 255u);
+                wrong += (raster.pixels[0] != wanted) ? 1ull : 0ull;
+            }
+        }
+    }
+    cli_check(wrong == 0ull, "every blend of every channel value by every share is the exact share of 255");
+
     unsigned char cover[4] = {255u, 0u, 128u, 64u};
     const GuiMask mask = {2u, 2u, 0, 0, cover};
     const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);

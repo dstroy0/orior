@@ -695,6 +695,25 @@ void gui_window_shown(GuiWindow *window, int shown)
     window->owed = shown || window->owed;
 }
 
+// whether the caret is hidden at `now`, the second half of each blink since the blink began; shown while no cursor
+// stands
+static int window_caret_hidden(const GuiWindow *window, unsigned long long now)
+{
+    return window->editor.has_cursor && ((((now - window->caret_since_ms) / (GUI_CARET_BLINK / 2ull)) % 2ull) == 1ull);
+}
+
+// the milliseconds until the caret next flips, 0 where no cursor stands
+static unsigned long long window_caret_due(const GuiWindow *window, unsigned long long now)
+{
+    if (!window->editor.has_cursor)
+    {
+        return 0ull;
+    }
+    const unsigned long long half = GUI_CARET_BLINK / 2ull;
+    const unsigned long long passed = now - window->caret_since_ms;
+    return half - (passed % half);
+}
+
 void gui_window_ticked(GuiWindow *window)
 {
     const unsigned long long now = cli_clock_milliseconds();
@@ -708,8 +727,9 @@ void gui_window_ticked(GuiWindow *window)
         window_map_asked(window);
     }
     window->claim_moving = moving;
-    // the ground where its loop shows a change
+    // the ground where its loop shows a change, and the caret where its blink flips
     window->owed = gui_ground_ticked(&window->ground, window->palette, now) || window->owed;
+    window->owed = (window_caret_hidden(window, now) != window->caret_hidden) || window->owed;
     // the hover's rest and linger, and the signature's wait
     int ask = 0;
     window->owed = gui_hover_ticked(&window->hover, now, &ask) || window->owed;
@@ -755,6 +775,7 @@ unsigned long long gui_window_due(const GuiWindow *window)
     due = window_sooner(due, gui_hover_due(&window->hover, now));
     due = window_sooner(due, gui_signature_due(&window->signature, now));
     due = window_sooner(due, gui_ground_due(&window->ground, now));
+    due = window_sooner(due, window_caret_due(window, now));
     return window_sooner(due, window_view_due(window, now));
 }
 
@@ -1201,6 +1222,8 @@ static void window_frame_taken(GuiWindow *window, const CliJson *json, unsigned 
         window->tab[window->active].viewed = 1;
     }
     (void)gui_editor_frame_put(&window->editor, json, root);
+    // the caret's blink begins again with every frame, which keeps the caret shown while the keys go
+    window->caret_since_ms = cli_clock_milliseconds();
     window_view_moved(window);
     window_suggest_followed(window);
 }
@@ -1626,9 +1649,12 @@ void gui_window_drawn(GuiWindow *window)
         gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
         ground = NULL;
     }
-    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, the corners
-    // cut round, and the holes the parts shown over the work make in it while the claim holds
+    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it and the caret
+    // where its blink stands, the corners cut round, and the holes the parts shown over the work make in it while
+    // the claim holds
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
+    window->caret_hidden = window_caret_hidden(window, cli_clock_milliseconds());
+    window->editor.caret_hidden = window->caret_hidden;
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
     // the shown file's diagnostics underlined on the rows drawn
     const unsigned int code_size = (unsigned int)(((float)GUI_CODE_SIZE * frame->scale) + 0.5f);

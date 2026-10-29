@@ -263,6 +263,14 @@ def cmd_check(a):
     return code or (1 if (failed or failing) else 0)
 
 
+def cmd_bench(a):
+    """The frame bench, utils/test/src/ui/gui/frame_bench.c, built as a check is and run: the milliseconds a frame of
+    the window takes at a monitor's size, and a blend of the whole raster alone."""
+    import harness_cli
+
+    return harness_cli.streamed([harness_cli.bash(), GUI_CHECKS, "frame_bench"])
+
+
 def cmd_watch(a):
     if not windows_only():
         return 1
@@ -1163,6 +1171,8 @@ def register(sub):
     p = window.add_parser("check", help="the window's C checked without a display, every check where none is named")
     p.add_argument("names", nargs="*", help="checks by name, raster or glyphs, each a *_test.c under utils/test/src/ui/gui")
     p.set_defaults(fn=cmd_check)
+    p = window.add_parser("bench", help="the frame bench: a monitor-sized frame of the window drawn without a display, timed")
+    p.set_defaults(fn=cmd_bench)
 
     p = window.add_parser("watch", help="started alone with its output kept, ended after --seconds where it still runs")
     p.add_argument("--seconds", type=int, default=25)

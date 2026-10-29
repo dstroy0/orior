@@ -4,7 +4,8 @@
 # gui_test.sh: the window's C checked without a display: the command line's library built for this machine by
 # ui/cli/build.sh, then each *_test.c here compiled against it with the window's modules that include no system header
 # and the checks' cli_check.c, and run from build/gui_test, its exit said as the harness reads it; the checks named
-# after it alone where any are. The compiler is CC where it is set, else clang.
+# after it alone where any are, and a program of its own here, the frame bench, by its name. The compiler is CC where
+# it is set, else clang.
 set -u
 # The checks are guests of the machine: they run niced, below the window and the host's own work.
 if [ -z "${ORIOR_GUEST:-}" ]; then
@@ -57,16 +58,26 @@ while IFS= read -r source; do
     esac
 done < <(find "$WINDOW" -name '*.c' | sort)
 
+# a name is a check, `<name>_test.c`, or a program of its own here, `<name>.c`, as the frame bench is
 TESTS=()
 for named in "$@"; do
-    TESTS+=("$HERE/${named}_test.c")
+    if [ -f "$HERE/$named.c" ]; then
+        TESTS+=("$HERE/$named.c")
+    else
+        TESTS+=("$HERE/${named}_test.c")
+    fi
 done
 [ "${#TESTS[@]}" -gt 0 ] || TESTS=("$HERE"/*_test.c)
 
 for test in "${TESTS[@]}"; do
     name="$(basename "$test" .c)"
     echo "== $name"
-    if ! "$CC" "--target=$HOST" -std=c11 -O1 -g "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" \
+    # a check is built lightly optimized for its build time; a program of its own, the bench, at the window's own -O2
+    case "$test" in
+        *_test.c) OPTIMIZED=-O1 ;;
+        *) OPTIMIZED=-O2 ;;
+    esac
+    if ! "$CC" "--target=$HOST" -std=c11 "$OPTIMIZED" -g "${MMGR_WORDS[@]}" -o "$RUN/$name$SUFFIX" "$test" "$CLI_CHECKS/cli_check.c" \
         "${MODULES[@]}" "$LIBRARY" "${LIBRARIES[@]}" > "$RUN/$name.log" 2>&1; then
         echo "  build failed: $name did not compile"
         tail -20 "$RUN/$name.log"

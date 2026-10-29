@@ -906,7 +906,7 @@ void gui_editor_drawn(GuiEditor *editor, GuiRaster *raster, GuiGlyphs *glyphs, c
         {
             editor_matches_drawn(editor, held, line, raster, palette, row_rect, text_x, cell, 1, scale, text_clip);
         }
-        if (editor->has_cursor && (line == editor->cursor.line) && !(editor->find.open && editor->find.focus))
+        if (editor->has_cursor && !editor->caret_hidden && (line == editor->cursor.line) && !(editor->find.open && editor->find.focus))
         {
             const int caret_x = (int)roundf(text_x + ((float)editor_cell_of(editor, held, editor->cursor.col) * cell));
             gui_raster_filled(raster, gui_rect_met((GuiRect){caret_x, row_rect.y, gui_scaled(2, scale), line_tall}, text_clip),

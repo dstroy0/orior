@@ -144,6 +144,27 @@ int main(void)
     gui_window_drawn(&window);
     cli_check(painted(&window, (GuiRect){window.frame.editor.x + 40, window.frame.editor.y, 100, 20}, palette->editor_ground),
               "the first line is drawn in the editor");
+    // the caret blinks: shown through the first half of the blink from the frame that began it, hidden through the
+    // second, the window due at the flip
+    window.editor.has_cursor = 1;
+    window.editor.cursor = (GuiPlace){0ull, 0ull};
+    window.editor.anchor = window.editor.cursor;
+    window.caret_since_ms = cli_clock_milliseconds();
+    const float cell = gui_glyphs_cell(&window.glyphs, GUI_CODE_SIZE);
+    GuiRect first_cell;
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 0ull, 0ull, &first_cell), "the first cell is among the rows drawn");
+    gui_window_drawn(&window);
+    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is drawn as the blink begins");
+    cli_check(gui_window_due(&window) <= GUI_CARET_BLINK / 2ull, "the window is due at the caret's flip");
+    window.caret_since_ms -= (GUI_CARET_BLINK / 2ull) + 50ull;
+    gui_window_ticked(&window);
+    cli_check(window.owed, "the tick past the flip owes a frame");
+    gui_window_drawn(&window);
+    cli_check(at(&window, first_cell.x, first_cell.y + 5) != palette->caret, "the caret is hidden through the blink's second half");
+    window.caret_since_ms -= GUI_CARET_BLINK / 2ull;
+    gui_window_drawn(&window);
+    cli_check(at(&window, first_cell.x, first_cell.y + 5) == palette->caret, "the caret is shown again through the next blink's first half");
+    window.editor.has_cursor = 0;
     gui_window_wheel(&window, 300, 300, 1);
     cli_check(window.editor.top == 1ull, "the wheel over the editor scrolls it a line");
     gui_window_wheel(&window, 400, 20, 1);

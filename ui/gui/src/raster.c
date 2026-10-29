@@ -1,8 +1,8 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raster.c: the pixels the window draws and all that is drawn into them. Every blend is of bytes in the colors' own
-// space, a share from 0 to 255 of the color over what is there, as the page blends its colors; a pixel drawn is left
-// opaque. A dot is put down as the page's shader puts the lattice's down: each pixel's share of it read in one step
+// space, a share from 0 to 255 of the color over what is there, as the page blends its colors, two channels at a
+// time in one word; a pixel drawn is left opaque. A dot is put down as the page's shader puts the lattice's down: each pixel's share of it read in one step
 // from how far the pixel's middle stands from the dot's edge, and the result dithered by a 4 by 4 ordered threshold
 // below one level of 255, so a share between two levels is put down as both
 #include "raster.h"
@@ -67,7 +67,10 @@ void gui_raster_given(GuiRaster *raster)
     raster->height = 0u;
 }
 
-// `color` over `ground` by `share` of 255: each channel's bytes blended, the pixel left opaque
+// `color` over `ground` by `share` of 255, the pixel left opaque: red and blue blended in one word, each in its own
+// sixteen bits, and green in another, two multiplies a pixel; each lane's sum is the color's share plus the
+// ground's rest plus half of 255, below 65536, and the lane divided by 255 exactly by adding its own high byte
+// before the shift, which the raster's check holds over every ground, color and share
 static GuiColor raster_blended(GuiColor ground, GuiColor color, unsigned int share)
 {
     if (share >= 255u)
@@ -75,11 +78,11 @@ static GuiColor raster_blended(GuiColor ground, GuiColor color, unsigned int sha
         return color | 0xff000000u;
     }
     const unsigned int rest = 255u - share;
-    // a channel's blend by shares of 255 is a byte once divided by 255
-    const unsigned int red = ((GUI_RED_OF(color) * share) + (GUI_RED_OF(ground) * rest) + 127u) / 255u;
-    const unsigned int green = ((GUI_GREEN_OF(color) * share) + (GUI_GREEN_OF(ground) * rest) + 127u) / 255u;
-    const unsigned int blue = ((GUI_BLUE_OF(color) * share) + (GUI_BLUE_OF(ground) * rest) + 127u) / 255u;
-    return GUI_RGB(red, green, blue);
+    const unsigned int red_blue = ((color & 0x00ff00ffu) * share) + ((ground & 0x00ff00ffu) * rest) + 0x00800080u;
+    const unsigned int green = (((color >> 8u) & 0xffu) * share) + (((ground >> 8u) & 0xffu) * rest) + 0x80u;
+    const unsigned int red_blue_out = ((red_blue + ((red_blue >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu;
+    const unsigned int green_out = ((green + (green >> 8u)) >> 8u) & 0xffu;
+    return 0xff000000u | red_blue_out | (green_out << 8u);
 }
 
 // the pixel at x, y of a rectangle known to lie on the raster blended with `color` by `share` of 255
@@ -98,12 +101,38 @@ void gui_raster_filled(GuiRaster *raster, GuiRect rect, GuiColor color)
     {
         return;
     }
-    for (int y = on.y; y < on.y + on.height; y += 1)
+    // the rectangle lies on the raster: its coordinates are not negative
+    GuiColor *row = &raster->pixels[((unsigned int)on.y * raster->width) + (unsigned int)on.x];
+    if (alpha >= 255u)
     {
-        for (int x = on.x; x < on.x + on.width; x += 1)
+        const GuiColor whole = color | 0xff000000u;
+        for (int y = 0; y < on.height; y += 1)
         {
-            raster_put(raster, x, y, color, alpha);
+            for (int x = 0; x < on.width; x += 1)
+            {
+                row[x] = whole;
+            }
+            row += raster->width;
         }
+        return;
+    }
+    // the color's lanes by its share, with half of 255 in each, read once for the whole fill, as raster_blended lays
+    // them; each pixel adds the ground's lanes by the rest
+    const unsigned int rest = 255u - alpha;
+    const unsigned int color_red_blue = ((color & 0x00ff00ffu) * alpha) + 0x00800080u;
+    const unsigned int color_green = (((color >> 8u) & 0xffu) * alpha) + 0x80u;
+    for (int y = 0; y < on.height; y += 1)
+    {
+        for (int x = 0; x < on.width; x += 1)
+        {
+            const GuiColor ground = row[x];
+            const unsigned int red_blue = color_red_blue + ((ground & 0x00ff00ffu) * rest);
+            const unsigned int green = color_green + (((ground >> 8u) & 0xffu) * rest);
+            const unsigned int red_blue_out = ((red_blue + ((red_blue >> 8u) & 0x00ff00ffu)) >> 8u) & 0x00ff00ffu;
+            const unsigned int green_out = ((green + (green >> 8u)) >> 8u) & 0xffu;
+            row[x] = 0xff000000u | red_blue_out | (green_out << 8u);
+        }
+        row += raster->width;
     }
 }
 
