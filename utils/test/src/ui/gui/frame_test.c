@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // frame_test.c: the frame's check: the parts laid out for a window's size stand where the page stands them, the bar
 // across the top, the status bar across the foot, the strip down the left, the frame's gap down the right, the work
-// between them with the tabs row at its head and the editor filling the rest, each scaled with the system's scale
+// between them with the tabs row at its head, the map's column at its right and the editor filling the rest, each
+// scaled with the system's scale
 #include "../../../../../ui/gui/src/frame.h"
 #include "../cli/cli_check.h"
 
@@ -21,8 +22,10 @@ int main(void)
     cli_check(same(frame.gap, 1440 - 12, 41, 12, 920 - 41 - 27), "the frame's gap runs down the right, twelve wide");
     cli_check(same(frame.work, 44, 41, 1440 - 44 - 12, 920 - 41 - 27), "the work fills what the four leave");
     cli_check(same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31), "the tabs row stands at the work's head inside its padding");
-    cli_check(same(frame.editor, 44 + 1, 41 + 2 + 31, 1440 - 44 - 12 - 3, 920 - 41 - 27 - 3 - 31),
-              "the editor fills the work under the tabs row");
+    cli_check(same(frame.editor, 44 + 1, 41 + 2 + 31, 1440 - 44 - 12 - 3 - 84, 920 - 41 - 27 - 3 - 31),
+              "the editor fills the work under the tabs row, less the map's column");
+    cli_check(same(frame.map, 1440 - 12 - 2 - 84, 41 + 2 + 31, 84, 920 - 41 - 27 - 3 - 31),
+              "the map's column stands at the editor's right, eighty-four wide, the editor's height");
     cli_check(frame.controls.width == (3 * 34) + (2 * 2), "the three controls stand at the bar's right end");
     cli_check((frame.controls.x + frame.controls.width == 1440 - 5) && (frame.controls.y == 0) &&
                   (frame.controls.height == 41),
@@ -34,8 +37,9 @@ int main(void)
     gui_frame_sided(&frame, 1);
     cli_check(same(frame.side, 44 + 1, 41 + 2, 304, 920 - 41 - 27 - 3), "the side shown stands at the inside's left, three hundred and four wide");
     cli_check(same(frame.tabs, 44 + 1 + 304, 41 + 2, 1440 - 44 - 12 - 3 - 304, 31), "the tabs row moves past the side");
-    cli_check((frame.editor.x == 44 + 1 + 304) && (frame.editor.width == 1440 - 44 - 12 - 3 - 304) && (frame.editor.y == 41 + 2 + 31),
+    cli_check((frame.editor.x == 44 + 1 + 304) && (frame.editor.width == 1440 - 44 - 12 - 3 - 304 - 84) && (frame.editor.y == 41 + 2 + 31),
               "the editor moves past the side");
+    cli_check((frame.map.x == 1440 - 12 - 2 - 84) && (frame.map.width == 84), "the map's column stays at the right");
     gui_frame_sided(&frame, 0);
     cli_check(gui_rect_empty(frame.side) && same(frame.tabs, 44 + 1, 41 + 2, 1440 - 44 - 12 - 3, 31),
               "the side taken away gives the tabs row its room back");
@@ -50,5 +54,6 @@ int main(void)
     gui_frame_laid(&frame, 100u, 50u, 1.0f);
     cli_check(!gui_rect_empty(frame.bar) && !gui_rect_empty(frame.status), "a window too small keeps its bars");
     cli_check(gui_rect_empty(frame.editor), "a window too small has an editor of none");
+    cli_check(gui_rect_empty(frame.map), "a window too small has a map of none");
     return cli_checked();
 }

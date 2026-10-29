@@ -25,9 +25,9 @@ typedef struct
 // pointed or open and its text then, a path's text on the bars, and the status bar's text; the editor's ground, text, line numbers, current
 // line, selection, the selection's ground where the keys are elsewhere, caret, indent guide, the ground of a mark
 // among the text, a fold's, the line of a widget over the text and the grounds of find's matches, the current one's
-// stronger; the shown tab's ground and the line along it; the ground of the strip's tool whose window shows, the
-// signal at a share; the side pane's ground, the ink at half; the eight colors a file's mark takes; and its tokens,
-// `token_count` of them
+// stronger; the minimap's selection, its match, its slider and the slider dragged; the shown tab's ground and the
+// line along it; the ground of the strip's tool whose window shows, the signal at a share; the side pane's ground,
+// the ink at half; the eight colors a file's mark takes; and its tokens, `token_count` of them
 typedef struct
 {
     GuiColor ground;
@@ -62,6 +62,10 @@ typedef struct
     GuiColor widget_line;
     GuiColor match;
     GuiColor match_on;
+    GuiColor map_selection;
+    GuiColor map_match;
+    GuiColor map_slider;
+    GuiColor map_slider_on;
     GuiColor tab_ground;
     GuiColor tab_line;
     GuiColor strip_on;

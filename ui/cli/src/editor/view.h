@@ -73,4 +73,9 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
 int cli_view_frame_written(const char *key, VerbaLinea *out);
 // the cursor and the anchor of the view under `key`, each where it is given: 1, or 0 where no view is open under it
 int cli_view_cursor(const char *key, CliPlace *cursor, CliPlace *anchor);
+// the minimap's lines from `first` to `last` of the view under `key` written into `out` as `{"from", "bars"}`: for
+// each line the bars its words make, each `[start, width, name]` in cells, a tab as many cells as the indentation's
+// step leaves to its stop, every run of letters that are not blanks one bar in the name of the run it stands in, as
+// the text's runs give them; a line the text does not hold is empty: 1, or 0 where no view is open under the key
+int cli_view_map_written(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out);
 #endif

@@ -144,6 +144,9 @@ int gui_editor_row_at(const GuiEditor *editor, GuiRect place, float cell, float 
 void gui_editor_scrolled(GuiEditor *editor, long long delta, unsigned int rows);
 // the gutter's width for the file's line count, at the code cell `cell` and `scale`
 int gui_editor_gutter(const GuiEditor *editor, float cell, float scale);
+// the color of the token named by the index `name` among the grammar's names, the editor's text color where no name
+// has the index
+GuiColor gui_editor_color(const GuiEditor *editor, const GuiPalette *palette, unsigned int name);
 // the editor drawn in `place` on `raster` at `scale`: the ground, then each row from the view's top a line held, the
 // current line's ground or the selection's, the matches' grounds, its number in the gutter with a mark where it opens
 // a fold closed, its runs in their colors, the folded mark and the closer's text after a line that opens a fold

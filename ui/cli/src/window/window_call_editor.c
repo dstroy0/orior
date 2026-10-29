@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window_call_editor.c: the window's calls on the editor's view of a text stored as a branch opened it: the view opened
-// on the text under a key, sized to the window's rows and columns, each input the window sends taken, and the view
-// closed; an open and every input answered with the view's frame, which the window draws
+// on the text under a key, sized to the window's rows and columns, each input the window sends taken, the minimap's
+// lines asked for, and the view closed; an open and every input answered with the view's frame, which the window
+// draws
 #include "../editor/view.h"
 #include "window_internal.h"
 
@@ -62,6 +63,25 @@ static int editor_view_input(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     return cli_view_input(key, &input, err_msg) && cli_view_frame_written(key, out);
 }
 
+// the minimap's lines from `first` to `last` of the view under `key`, answered as their bars
+static int editor_view_map(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
+{
+    const char *const key = cli_serve_string(args, "key", err_msg);
+    unsigned long long first = 0ull;
+    unsigned long long last = 0ull;
+    if ((key == NULL) || !cli_serve_whole(args, "first", &first, err_msg) ||
+        !cli_serve_whole(args, "last", &last, err_msg))
+    {
+        return 0;
+    }
+    if (!cli_view_map_written(key, first, last, out))
+    {
+        mmgr_line_put(err_msg, "no view is open under the key");
+        return 0;
+    }
+    return 1;
+}
+
 // the view under `key` closed
 static int editor_view_close(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
 {
@@ -78,6 +98,7 @@ static int editor_view_close(const CliServeArgs *args, VerbaLinea *out, VerbaLin
 const CliServeCall g_cli_window_editor_calls[] = {
     {"editor_view_open", editor_view_open},
     {"editor_view_input", editor_view_input},
+    {"editor_view_map", editor_view_map},
     {"editor_view_close", editor_view_close},
 };
 const unsigned int g_cli_window_editor_count = sizeof(g_cli_window_editor_calls) / sizeof(g_cli_window_editor_calls[0]);

@@ -11,7 +11,7 @@ int gui_scaled(int pixels, float scale)
 }
 
 // the work's inside laid out: the inside the work less its padding, the side `side_wide` pixels of it at the left,
-// and the tabs row and the editor in the rest
+// the tabs row across the rest, and under it the editor with the map's column at its right
 static void frame_inside_laid(GuiFrame *frame, int side_wide)
 {
     const float scale = frame->scale;
@@ -23,10 +23,14 @@ static void frame_inside_laid(GuiFrame *frame, int side_wide)
     const int inner_wide = frame->work.width - pad_left - pad_right;
     const int inner_tall = frame->work.height - pad_top - pad_bottom;
     const int side = (side_wide > inner_wide) ? ((inner_wide > 0) ? inner_wide : 0) : side_wide;
+    const int rest = inner_wide - side;
+    const int map_wide = gui_scaled(GUI_MAP_WIDE, scale);
+    const int map = (map_wide > rest) ? ((rest > 0) ? rest : 0) : map_wide;
     frame->inside = (GuiRect){frame->work.x + pad_left, frame->work.y + pad_top, inner_wide, inner_tall};
     frame->side = (GuiRect){frame->inside.x, frame->inside.y, side, inner_tall};
-    frame->tabs = (GuiRect){frame->inside.x + side, frame->inside.y, inner_wide - side, tabs_tall};
-    frame->editor = (GuiRect){frame->tabs.x, frame->tabs.y + tabs_tall, inner_wide - side, inner_tall - tabs_tall};
+    frame->tabs = (GuiRect){frame->inside.x + side, frame->inside.y, rest, tabs_tall};
+    frame->editor = (GuiRect){frame->tabs.x, frame->tabs.y + tabs_tall, rest - map, inner_tall - tabs_tall};
+    frame->map = (GuiRect){frame->editor.x + frame->editor.width, frame->editor.y, map, frame->editor.height};
 }
 
 void gui_frame_sided(GuiFrame *frame, int shown)

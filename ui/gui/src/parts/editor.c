@@ -556,8 +556,7 @@ static float editor_folded_drawn(const GuiEditor *editor, const GuiFold *fold, G
     return reach;
 }
 
-// the color of the token named by the index `name` among the grammar's names
-static GuiColor editor_color(const GuiEditor *editor, const GuiPalette *palette, unsigned int name)
+GuiColor gui_editor_color(const GuiEditor *editor, const GuiPalette *palette, unsigned int name)
 {
     if (name >= editor->name_count)
     {
@@ -588,7 +587,7 @@ static void editor_line_drawn(const GuiEditor *editor, const GuiLine *line, GuiR
     {
         while ((next < line->run_count) && (units >= run[2u * next]))
         {
-            color = editor_color(editor, palette, run[(2u * next) + 1u]);
+            color = gui_editor_color(editor, palette, run[(2u * next) + 1u]);
             next += 1u;
         }
         unsigned long long took = 0ull;

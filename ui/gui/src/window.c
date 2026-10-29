@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window.c: the window apart from the system. A file opens through branch_open, a text read whole and a file too large
 // to read whole alike, and is shown through the CLI's editor view, which answers each input with the frame drawn; the
-// walk's colors come as branch-colors events
+// walk's colors come as branch-colors events. The minimap's lines are asked of editor_view_map for the span the map
+// stands for, after a frame moves the span or a key, text or the walk's colors make the lines held stale, one ask in
+// flight at a time
 #include "window.h"
 
 #include "../../cli/src/editor/view.h"
@@ -26,6 +28,12 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
     if (!gui_explorer_made(&window->explorer))
     {
         mmgr_line_put(err_msg, "the explorer's cells could not be taken");
+        return 0;
+    }
+    if (!gui_minimap_made(&window->minimap))
+    {
+        gui_explorer_given(&window->explorer);
+        mmgr_line_put(err_msg, "the minimap's cells could not be taken");
         return 0;
     }
     if (!gui_glyphs_made(&window->glyphs, err_msg))
@@ -54,6 +62,7 @@ void gui_window_ended(GuiWindow *window)
     gui_glyphs_given(&window->glyphs);
     gui_icons_given(&window->icons);
     gui_explorer_given(&window->explorer);
+    gui_minimap_given(&window->minimap);
     gui_raster_given(&window->raster);
 }
 
@@ -74,6 +83,13 @@ static unsigned int window_columns(GuiWindow *window)
     const float wide = (float)(window->frame.editor.width - gutter);
     // columns are counted where there is room for them
     return ((cell > 0.0f) && (wide > 0.0f)) ? (unsigned int)(wide / cell) : 0u;
+}
+
+// the lines the editor shows, with the fraction of the last
+static float window_on_screen(const GuiWindow *window)
+{
+    const int line_tall = gui_scaled(GUI_CODE_LINE, window->frame.scale);
+    return (line_tall > 0) ? (float)window->frame.editor.height / (float)line_tall : 0.0f;
 }
 
 // a call of the window's own or the tree's made with `args`: its ticket
@@ -98,6 +114,38 @@ static void window_view_input(GuiWindow *window, unsigned int kind, const char *
     mmgr_line_put(&args, more);
     mmgr_line_ch(&args, '}');
     (void)window_called(window, 1, "editor_view_input", &args);
+}
+
+// the map's lines asked for where the map placed beside the view stands for lines it does not hold or holds stale,
+// one ask in flight at a time, the next wanted as the answer comes
+static void window_map_asked(GuiWindow *window)
+{
+    if (!window->viewed || gui_rect_empty(window->frame.map))
+    {
+        return;
+    }
+    gui_minimap_placed(&window->minimap, window->frame.map, window->frame.scale, &window->editor, window_on_screen(window));
+    unsigned long long first = 0ull;
+    unsigned long long last = 0ull;
+    if (!gui_minimap_span(&window->minimap, &first, &last) || gui_minimap_current(&window->minimap, first, last))
+    {
+        return;
+    }
+    if (window->asked_map != 0ull)
+    {
+        window->map_wanted = 1;
+        return;
+    }
+    char text[CLI_PATH_MAX_LEN + 96u];
+    VerbaLinea args = {text, sizeof(text), 0ull};
+    mmgr_line_put(&args, "{\"key\":");
+    cli_json_quoted(&args, window->key, cellul.len(&(CatenaFinitaCfg){.src = window->key, .cap = sizeof(window->key)}));
+    mmgr_line_put(&args, ",\"first\":");
+    mmgr_line_decimal(&args, first, 1u);
+    mmgr_line_put(&args, ",\"last\":");
+    mmgr_line_decimal(&args, last, 1u);
+    mmgr_line_ch(&args, '}');
+    window->asked_map = window_called(window, 1, "editor_view_map", &args);
 }
 
 // the view told the editor's size
@@ -274,6 +322,7 @@ static void window_tab_taken(GuiWindow *window, unsigned int at)
     window->frame_seq = 0ull;
     window->menubar.has_editor = 1;
     gui_editor_made(&window->editor);
+    gui_minimap_cleared(&window->minimap);
     window->owed = 1;
 }
 
@@ -325,6 +374,7 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         window->frame_seq = 0ull;
         window->menubar.has_editor = 0;
         gui_editor_made(&window->editor);
+        gui_minimap_cleared(&window->minimap);
         return;
     }
     if ((int)at == window->active)
@@ -596,10 +646,24 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
             window_opened(window, &json, root);
         }
     }
+    else if ((ticket != 0ull) && (ticket == window->asked_map))
+    {
+        window->asked_map = 0ull;
+        if (ok && (root != CLI_JSON_NONE))
+        {
+            (void)gui_minimap_put(&window->minimap, &json, root);
+        }
+        if (window->map_wanted)
+        {
+            window->map_wanted = 0;
+            window_map_asked(window);
+        }
+    }
     else if ((ticket != 0ull) && (root != CLI_JSON_NONE) && window_is_frame(&json, root))
     {
         window->asked_view = (ticket == window->asked_view) ? 0ull : window->asked_view;
         window_frame_taken(window, &json, root);
+        window_map_asked(window);
     }
     else if ((ticket != 0ull) && (ticket == window->asked_memory))
     {
@@ -627,6 +691,9 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
                 (void)gui_editor_named(&window->editor, &json, names);
             }
             (void)gui_editor_colored(&window->editor, &json, cli_json_member(&json, root, "colors"));
+            // the bars take their names from the runs, which the colors change
+            window->minimap.stale = 1;
+            window_map_asked(window);
         }
     }
     else if ((ticket == 0ull) && (root != CLI_JSON_NONE) &&
@@ -686,9 +753,11 @@ void gui_window_drawn(GuiWindow *window)
                               window->editor.indent_size,
                               window->memory_bytes};
     gui_statusbar_drawn(raster, &window->glyphs, &window->icons, palette, frame, &status);
-    // the work's inside: the side where one is shown, the tabs row, the editor, and the corners cut round
+    // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, and the corners
+    // cut round
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);
     gui_editor_drawn(&window->editor, raster, &window->glyphs, palette, frame->editor, frame->scale);
+    gui_minimap_drawn(&window->minimap, raster, palette, &window->editor, frame->map, frame->scale, window_on_screen(window));
     if (!gui_rect_empty(frame->side) && (window->strip.shown >= 0))
     {
         // the tool shown is among the tools
@@ -746,19 +815,10 @@ unsigned int gui_window_hit(const GuiWindow *window, int x, int y)
     return gui_rect_holds(frame->bar, x, y) ? GUI_HIT_CAPTION : GUI_HIT_CLIENT;
 }
 
-void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
+// the view's top moved `delta` lines, no further than the file's first and last lines, and the view told
+static void window_scrolled(GuiWindow *window, long long delta)
 {
-    // the wheel over the side scrolls the explorer's rows
-    if (gui_rect_holds(window->frame.side, x, y))
-    {
-        window->owed = gui_explorer_wheeled(&window->explorer, &window->frame, rows) || window->owed;
-        return;
-    }
-    if (!gui_rect_holds(window->frame.editor, x, y))
-    {
-        return;
-    }
-    gui_editor_scrolled(&window->editor, rows, window_rows(window));
+    gui_editor_scrolled(&window->editor, delta, window_rows(window));
     window->owed = 1;
     char more[48];
     VerbaLinea line = {more, sizeof(more), 0ull};
@@ -766,6 +826,29 @@ void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
     mmgr_line_decimal(&line, window->editor.top, 1u);
     (void)mmgr_line_finish(&line);
     window_view_input(window, CLI_VIEW_SCROLL, more);
+}
+
+// the view's top moved to `top`
+static void window_scrolled_to(GuiWindow *window, unsigned long long top)
+{
+    const unsigned long long now = window->editor.top;
+    // the lines between the tops are far inside what a long long represents
+    window_scrolled(window, (top >= now) ? (long long)(top - now) : -(long long)(now - top));
+}
+
+void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
+{
+    // the wheel over the side scrolls the explorer's rows; over the editor or the map, the text
+    if (gui_rect_holds(window->frame.side, x, y))
+    {
+        window->owed = gui_explorer_wheeled(&window->explorer, &window->frame, rows) || window->owed;
+        return;
+    }
+    if (!gui_rect_holds(window->frame.editor, x, y) && !gui_rect_holds(window->frame.map, x, y))
+    {
+        return;
+    }
+    window_scrolled(window, rows);
 }
 
 // the pointer's event at x, y sent to the view where the pixel stands in the editor's text or its gutter: 1 where it
@@ -865,6 +948,14 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
         }
         return;
     }
+    // a press on the map goes to that part of the text and may begin the slider's drag
+    unsigned long long top = 0ull;
+    if (gui_minimap_pressed(&window->minimap, window->frame.map, window->frame.scale, &window->editor,
+                            window_on_screen(window), x, y, &top))
+    {
+        window_scrolled_to(window, top);
+        return;
+    }
     // presses in a row within the time and near the place count up
     const unsigned long long now = cli_clock_milliseconds();
     const int near = ((x - window->clicked_x) <= GUI_CLICK_NEAR) && ((window->clicked_x - x) <= GUI_CLICK_NEAR) &&
@@ -890,6 +981,15 @@ void gui_window_moved(GuiWindow *window, int x, int y)
     {
         window->owed = 1;
     }
+    unsigned long long top = 0ull;
+    if (gui_minimap_dragged(&window->minimap, y, &top))
+    {
+        if (top != window->editor.top)
+        {
+            window_scrolled_to(window, top);
+        }
+        return;
+    }
     if (window->dragging)
     {
         (void)window_pointed(window, CLI_VIEW_POINTER_MOVED, x, y, window->clicks, 0);
@@ -898,6 +998,11 @@ void gui_window_moved(GuiWindow *window, int x, int y)
 
 void gui_window_released(GuiWindow *window, int x, int y)
 {
+    if (window->minimap.dragging)
+    {
+        gui_minimap_released(&window->minimap);
+        window->owed = 1;
+    }
     if (window->dragging)
     {
         window->dragging = 0;
@@ -930,6 +1035,8 @@ void gui_window_key(GuiWindow *window, const char *name)
         window_sided(window);
         return;
     }
+    // a key may edit the text, which the map's lines then no longer show
+    window->minimap.stale = 1;
     char more[96];
     VerbaLinea line = {more, sizeof(more), 0ull};
     mmgr_line_put(&line, ",\"name\":");
@@ -948,5 +1055,6 @@ void gui_window_text(GuiWindow *window, const char *text, unsigned long long siz
     {
         return;
     }
+    window->minimap.stale = 1;
     window_view_input(window, CLI_VIEW_TEXT, more);
 }

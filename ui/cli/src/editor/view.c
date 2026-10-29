@@ -2579,3 +2579,183 @@ int cli_view_cursor(const char *key, CliPlace *cursor, CliPlace *anchor)
     cli_lock_give(&s_lock);
     return 1;
 }
+
+// the bytes the runs of the minimap's lines may take as they are read for their bars
+#define CLI_VIEW_MAP_ROOM (1024ull * 1024ull)
+
+// a whole number read off the JSON node `node`, `otherwise` where it is not one
+static unsigned long long view_json_whole(const CliJson *json, unsigned int node, unsigned long long otherwise)
+{
+    if (!cli_json_is(json, node, CFG_JSON_NUMBER))
+    {
+        return otherwise;
+    }
+    const CliJsonNode *const number = &json->node[node];
+    const char *const text = json->text + number->text;
+    unsigned long long value = 0ull;
+    for (unsigned long long at = 0ull; at < number->length; at += 1ull)
+    {
+        if ((text[at] < '0') || (text[at] > '9'))
+        {
+            return otherwise;
+        }
+        // a digit's value is its distance from '0'
+        value = (value * 10ull) + (unsigned long long)(text[at] - '0');
+    }
+    return (number->length != 0ull) ? value : otherwise;
+}
+
+// the flat runs array of the line `line` among the ranges `colors`, each `{"from", "runs"}`, CLI_JSON_NONE where none
+// colors it
+static unsigned int view_map_runs_of(const CliJson *json, unsigned int colors, unsigned long long line)
+{
+    const unsigned int ranges = cli_json_is(json, colors, CFG_JSON_ARRAY) ? json->node[colors].count : 0u;
+    unsigned int found = CLI_JSON_NONE;
+    for (unsigned int range = 0u; range < ranges; range += 1u)
+    {
+        const unsigned int one = cli_json_item(json, colors, range);
+        const unsigned long long start = view_json_whole(json, cli_json_member(json, one, "from"), 0ull);
+        const unsigned int runs = cli_json_member(json, one, "runs");
+        const unsigned int lines = cli_json_is(json, runs, CFG_JSON_ARRAY) ? json->node[runs].count : 0u;
+        if ((line >= start) && (line < start + lines))
+        {
+            found = cli_json_item(json, runs, (unsigned int)(line - start));
+        }
+    }
+    return found;
+}
+
+// one bar written, `[start, width, name]`
+static void view_map_bar_written(VerbaLinea *out, int *any, unsigned long long start, unsigned long long width,
+                                 unsigned long long name)
+{
+    mmgr_line_put(out, *any ? ",[" : "[");
+    mmgr_line_decimal(out, start, 1u);
+    mmgr_line_ch(out, ',');
+    mmgr_line_decimal(out, width, 1u);
+    mmgr_line_ch(out, ',');
+    mmgr_line_decimal(out, name, 1u);
+    mmgr_line_ch(out, ']');
+    *any = 1;
+}
+
+// the bars of `length` bytes of a line's `text` written as an array: each run of letters that are not blanks, within
+// one run of `flat`, the line's runs as `[column, name, ...]`, a bar from its first cell as wide as its cells, a tab
+// the cells to its next stop of `tab`
+static void view_map_line_written(const char *text, unsigned long long length, const CliJson *json, unsigned int flat,
+                                  unsigned int tab, VerbaLinea *out)
+{
+    const unsigned int values = cli_json_is(json, flat, CFG_JSON_ARRAY) ? json->node[flat].count : 0u;
+    unsigned int run = 0u;
+    unsigned long long unit = 0ull;
+    unsigned long long cell = 0ull;
+    unsigned long long begun = 0ull;
+    unsigned long long begun_name = 0ull;
+    int open = 0;
+    int any = 0;
+    mmgr_line_ch(out, '[');
+    for (unsigned long long at = 0ull; at < length;)
+    {
+        unsigned long long took = 0ull;
+        const unsigned int letter = cli_text_letter(text, length, at, &took);
+        // the run the letter stands in: the last whose column is at or before it
+        while (((2u * (run + 1u)) + 1u < values) &&
+               (view_json_whole(json, cli_json_item(json, flat, 2u * (run + 1u)), 0ull) <= unit))
+        {
+            run += 1u;
+        }
+        const unsigned long long name = (values >= 2u) ? view_json_whole(json, cli_json_item(json, flat, (2u * run) + 1u), 0ull) : 0ull;
+        const int blank = (letter == ' ') || (letter == '\t');
+        const unsigned long long wide = (letter == '\t') ? (tab - (cell % tab)) : 1ull;
+        if (open && (blank || (name != begun_name)))
+        {
+            view_map_bar_written(out, &any, begun, cell - begun, begun_name);
+            open = 0;
+        }
+        if (!blank && !open)
+        {
+            begun = cell;
+            begun_name = name;
+            open = 1;
+        }
+        cell += wide;
+        unit += (letter >= 0x10000u) ? 2ull : 1ull;
+        at += (took != 0ull) ? took : 1ull;
+    }
+    if (open)
+    {
+        view_map_bar_written(out, &any, begun, cell - begun, begun_name);
+    }
+    mmgr_line_ch(out, ']');
+}
+
+int cli_view_map_written(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out)
+{
+    cli_lock_take(&s_lock);
+    CliView *const view = view_of(key);
+    if (view == NULL)
+    {
+        cli_lock_give(&s_lock);
+        return 0;
+    }
+    const unsigned int tab = view_tab(view);
+    const int paged = view->paged;
+    mmgr_line_put(out, "{\"from\":");
+    mmgr_line_decimal(out, first, 1u);
+    mmgr_line_put(out, ",\"bars\":[");
+    // the lines' runs read as the branch writes them, and their texts, a paged text's from its pages
+    const unsigned long long count = (last >= first) ? last - first + 1ull : 0ull;
+    char *const room = g_cli_cells->persistent_buf_alloc(CLI_VIEW_MAP_ROOM, &s_owner);
+    const char **const line = g_cli_cells->persistent_buf_alloc(((count != 0ull) ? count : 1ull) * sizeof(*line), &s_owner);
+    VerbaLinea runs = {room, CLI_VIEW_MAP_ROOM, 0ull};
+    CliJson json;
+    unsigned int colors = CLI_JSON_NONE;
+    char err_text[256];
+    VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
+    if ((room != NULL) && cli_document_runs_written(key, first, last, 0, &runs) && mmgr_line_ok(&runs))
+    {
+        colors = cli_json_taken(&json, runs.out, runs.at, 0u, 0ull, &err_msg);
+    }
+    unsigned long long size = 0ull;
+    unsigned long long read = 0ull;
+    char state[64];
+    char *const texts = (line == NULL) ? NULL
+                        : (paged ? cli_pages_lines_taken(key, first, last + 1ull, line, &read)
+                                 : cli_document_lines_taken(key, first, last, &size, state, sizeof(state)));
+    const char *rest = texts;
+    for (unsigned long long at = 0ull; at < count; at += 1ull)
+    {
+        mmgr_line_put(out, (at > 0ull) ? "," : "");
+        const char *text = "";
+        unsigned long long length = 0ull;
+        if (paged && (texts != NULL) && (at < read))
+        {
+            text = line[at];
+            length = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
+        }
+        else if (!paged && (rest != NULL))
+        {
+            // the lines come joined by newlines, each but the last followed by one
+            const char *const end = texts + size;
+            text = rest;
+            while ((rest < end) && (*rest != '\n'))
+            {
+                rest += 1;
+            }
+            length = (unsigned long long)(rest - text);
+            rest = (rest < end) ? rest + 1 : NULL;
+        }
+        view_map_line_written(text, length, &json, (colors != CLI_JSON_NONE) ? view_map_runs_of(&json, colors, first + at) : CLI_JSON_NONE,
+                              tab, out);
+    }
+    mmgr_line_put(out, "]}");
+    if (colors != CLI_JSON_NONE)
+    {
+        cli_json_given(&json);
+    }
+    g_cli_cells->persistent_buf_release(texts, &s_owner);
+    g_cli_cells->persistent_buf_release(line, &s_owner);
+    g_cli_cells->persistent_buf_release(room, &s_owner);
+    cli_lock_give(&s_lock);
+    return 1;
+}

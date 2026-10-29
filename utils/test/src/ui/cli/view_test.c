@@ -238,6 +238,14 @@ int main(void)
     cli_check(frame_has("\"from\":2,\"rows\":[\"    return 0;\",\"}\",\"\"]"), "the frame carries the rows in view");
     cli_check(frame_has("\"cursor\":{\"line\":0,\"col\":14}"), "the frame carries the cursor");
     cli_check(frame_has("\"indent\":{\"tabs\":"), "the frame carries the indentation, tabs or spaces and the step");
+    VerbaLinea mapped = {s_out, sizeof(s_out), 0ull};
+    cli_check(cli_view_map_written(s_key, 0ull, 4ull, &mapped) && (mmgr_line_finish(&mapped) != 0ull),
+              "the map of the lines is written");
+    cli_check(frame_has("{\"from\":0,\"bars\":[[[0,3,"), "the map's first line begins with a bar as wide as its first word");
+    cli_check(frame_has("],[4,4,"), "the second word's bar starts at its cell");
+    cli_check(frame_has("],[[0,1,"), "a line of one letter is one bar");
+    cli_check(frame_has("],[[4,6,"), "an indented line's first bar starts past the indentation");
+    cli_check(frame_has(",[]]}"), "an empty line has no bar");
     VerbaLinea same = {s_out, sizeof(s_out), 0ull};
     cli_check(given(&size) && cli_view_frame_written(s_key, &same) && (mmgr_line_finish(&same) != 0ull) &&
                   frame_has("\"top\":2,"),

@@ -1,10 +1,11 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // window.h: the window apart from the system it stands on: its frame laid out for its size, its raster drawn with the
-// parts, the glyphs and the palette they draw with, the editor showing the open file, the menu bar over the catalog
-// of commands, and the link to the CLI, each answer and event taken on the window's thread; the pointer's place read
-// as the caption, a border, a control or the client; the wheel scrolling the editor; a menu's choice run, its keys
-// sent to the editor's view; and the file opened as the launch command or a door command names it (window.c)
+// parts, the glyphs and the palette they draw with, the editor showing the open file with the minimap beside it, the
+// menu bar over the catalog of commands, and the link to the CLI, each answer and event taken on the window's thread;
+// the pointer's place read as the caption, a border, a control or the client; the wheel scrolling the editor; a menu's
+// choice run, its keys sent to the editor's view; and the file opened as the launch command or a door command names it
+// (window.c)
 #ifndef GUI_WINDOW_H
 #define GUI_WINDOW_H
 #include "frame.h"
@@ -12,6 +13,7 @@
 #include "parts/editor.h"
 #include "parts/explorer.h"
 #include "parts/menubar.h"
+#include "parts/minimap.h"
 #include "parts/statusbar.h"
 #include "parts/strip.h"
 #include "parts/tabs.h"
@@ -34,15 +36,15 @@
 // the resize border's width in the page's pixels
 #define GUI_BORDER 5
 
-// The window: its frame, raster, glyphs, icons, palette, editor, menu bar, strip, explorer and link; the catalog of
-// commands the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar; the files open as tabs, how many,
-// the one shown, -1 for none, and the one shown before it, -1 for none; the shown file's path and the key it is
-// stored under; whether the window is maximized; the tickets of the calls in flight, the launch command, the root,
-// the catalog, a whole path made the tree's, the open, the view's open and the memory reading, each 0 where none is,
-// when the memory was last asked and the bytes it answered, and the sequence of the last frame taken; whether the
-// CLI's editor view is open on the shown file, whether the pointer drags in it,
-// and the presses counted, when and where the last was; whether a frame is owed; and the control pressed, for the
-// system to act on, GUI_HIT_CLIENT where none
+// The window: its frame, raster, glyphs, icons, palette, editor, minimap, menu bar, strip, explorer and link; the
+// catalog of commands the menu bar reads, held as a tree of its own once it came; the tree's name shown in the bar;
+// the files open as tabs, how many, the one shown, -1 for none, and the one shown before it, -1 for none; the shown
+// file's path and the key it is stored under; whether the window is maximized; the tickets of the calls in flight,
+// the launch command, the root, the catalog, a whole path made the tree's, the open, the view's open, the memory
+// reading and the map's lines, each 0 where none is, whether the map is wanted again as its answer comes, when the
+// memory was last asked and the bytes it answered, and the sequence of the last frame taken; whether the CLI's editor
+// view is open on the shown file, whether the pointer drags in it, and the presses counted, when and where the last
+// was; whether a frame is owed; and the control pressed, for the system to act on, GUI_HIT_CLIENT where none
 typedef struct
 {
     GuiFrame frame;
@@ -51,6 +53,7 @@ typedef struct
     GuiIcons icons;
     const GuiPalette *palette;
     GuiEditor editor;
+    GuiMinimap minimap;
     GuiMenubar menubar;
     GuiStrip strip;
     GuiExplorer explorer;
@@ -72,6 +75,8 @@ typedef struct
     unsigned long long asked_open;
     unsigned long long asked_view;
     unsigned long long asked_memory;
+    unsigned long long asked_map;
+    int map_wanted;
     unsigned long long memory_ms;
     unsigned long long memory_bytes;
     unsigned long long frame_seq;
@@ -104,9 +109,9 @@ void gui_window_started(GuiWindow *window);
 void gui_window_drawn(GuiWindow *window);
 // where the pointer at x, y stands
 unsigned int gui_window_hit(const GuiWindow *window, int x, int y);
-// the wheel turned `rows` rows, down where positive, with the pointer at x, y; a button pressed at x, y with the
-// modifiers `mods` held, as system.h names them; the pointer moved to x, y; the button let go; a key pressed, named as
-// the page's editor names it; and `size` bytes of text typed
+// the wheel turned `rows` rows, down where positive, with the pointer at x, y, over the editor or the map; a button
+// pressed at x, y with the modifiers `mods` held, as system.h names them; the pointer moved to x, y; the button let go;
+// a key pressed, named as the page's editor names it; and `size` bytes of text typed
 void gui_window_wheel(GuiWindow *window, int x, int y, int rows);
 void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods);
 void gui_window_moved(GuiWindow *window, int x, int y);

@@ -3,22 +3,23 @@
 // frame.h: the parts and their rectangles for the window's size and the system's scale, as the page lays them out:
 // the bar across the top with the three controls at its right end, the status bar across the foot, the strip down the
 // left and the frame's gap down the right, and the work between them, its inside the work less its padding, a side
-// pane at the inside's left where one is shown, its tabs row at its head past the side and the editor filling the
-// rest; every size the page's pixels times the scale (frame.c)
+// pane at the inside's left where one is shown, its tabs row at its head past the side, the minimap's column at its
+// right under the tabs row and the editor filling the rest; every size the page's pixels times the scale (frame.c)
 #ifndef GUI_FRAME_H
 #define GUI_FRAME_H
 #include "raster.h"
 
 // the parts' sizes in the page's pixels: the bar's height, --bar-height; the status bar's; the strip's width,
 // --strip-width; the frame's gap at the right, --frame-right; the side pane's width, --side; the tabs row's height,
-// --tabs-tall; the work's padding, top, right, bottom and left; the work's corner radius; a window control's width,
-// the gap between the controls and how far their row ends from the bar's right end
+// --tabs-tall; the minimap's width, .ed-mini; the work's padding, top, right, bottom and left; the work's corner
+// radius; a window control's width, the gap between the controls and how far their row ends from the bar's right end
 #define GUI_BAR_TALL 41
 #define GUI_STATUS_TALL 27
 #define GUI_STRIP_WIDE 44
 #define GUI_FRAME_GAP 12
 #define GUI_SIDE_WIDE 304
 #define GUI_TABS_TALL 31
+#define GUI_MAP_WIDE 84
 #define GUI_WORK_PAD_TOP 2
 #define GUI_WORK_PAD_RIGHT 2
 #define GUI_WORK_PAD_BOTTOM 1
@@ -30,7 +31,7 @@
 #define GUI_CONTROLS 3
 
 // The frame: the window's size and scale it was laid out for, and each part's rectangle, the side's of no width
-// where none is shown
+// where none is shown, the map's at the editor's right
 typedef struct
 {
     unsigned int width;
@@ -46,6 +47,7 @@ typedef struct
     GuiRect side;
     GuiRect tabs;
     GuiRect editor;
+    GuiRect map;
     unsigned int radius;
 } GuiFrame;
 
