@@ -1616,7 +1616,7 @@ void gui_window_drawn(GuiWindow *window)
         return;
     }
     // the ground, the lattice as it stands, where its raster is the window's size, else the ground color
-    const GuiRaster *const ground = &window->ground.raster;
+    const GuiRaster *ground = &window->ground.raster;
     if ((ground->pixels != NULL) && (ground->width == raster->width) && (ground->height == raster->height))
     {
         memor.cpy(&(MemoriaCfg){.dst = raster->pixels, .src = ground->pixels, .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
@@ -1624,6 +1624,7 @@ void gui_window_drawn(GuiWindow *window)
     else
     {
         gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
+        ground = NULL;
     }
     // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, the corners
     // cut round, and the holes the parts shown over the work make in it while the claim holds
@@ -1646,12 +1647,15 @@ void gui_window_drawn(GuiWindow *window)
             gui_problems_drawn(&window->problems, raster, &window->glyphs, palette, frame);
         }
     }
-    gui_raster_corners_cut(raster, frame->inside, frame->radius, palette->ground);
+    // outside the work's corners the frame's glass lies over the lattice; a hole a part makes shows the lattice clear
+    const GuiUnder tinted = {ground, palette->glass};
+    const GuiUnder clear = {ground, 0u};
+    gui_raster_corners_cut(raster, frame->inside, frame->radius, tinted);
     GuiRect holes[4];
     const unsigned int count = gui_frame_holes(frame, holes);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
-        gui_raster_notched(raster, frame->inside, holes[at], frame->radius, palette->ground);
+        gui_raster_notched(raster, frame->inside, holes[at], frame->radius, clear);
     }
     window_panels_drawn(window);
     // the parts about the work, each on its pane: the strip with the frame's gap column, the bar with the menu bar's

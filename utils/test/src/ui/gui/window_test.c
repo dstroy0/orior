@@ -4,6 +4,7 @@
 // the bar and the status bar tinted with the ink, the three controls at the bar's right end, the work's corners
 // rounded; the pointer over the bar's empty part is the caption, over an edge a border, over a control that control,
 // inside the work the client; the wheel scrolls the editor; and a file's text put whole shows its lines
+#include "../../../../../ui/gui/src/parts/glass.h"
 #include "../../../../../ui/gui/src/window.h"
 #include "../cli/cli_check.h"
 
@@ -33,17 +34,61 @@ static int painted(const GuiWindow *window, GuiRect rect, GuiColor ground)
     return 0;
 }
 
-// the window's pixel at the first place from x, y along the row whose ground is clear of the lattice's dots, the
-// ground color itself: a part's tint read where no dot stands under it
-static GuiColor clear_at(const GuiWindow *window, int x, int y)
+// `color` over `under` by the color's alpha, as the raster blends
+static GuiColor over(GuiColor under, GuiColor color)
 {
-    const GuiRaster *const ground = &window->ground.raster;
-    int column = x;
-    while ((column + 1 < (int)ground->width) && (ground->pixels[((unsigned int)y * ground->width) + (unsigned int)column] != window->palette->ground))
+    const unsigned int share = GUI_ALPHA_OF(color);
+    const unsigned int rest = 255u - share;
+    return GUI_RGB(((GUI_RED_OF(color) * share) + (GUI_RED_OF(under) * rest) + 127u) / 255u,
+                   ((GUI_GREEN_OF(color) * share) + (GUI_GREEN_OF(under) * rest) + 127u) / 255u,
+                   ((GUI_BLUE_OF(color) * share) + (GUI_BLUE_OF(under) * rest) + 127u) / 255u);
+}
+
+// the ground's pixel at x, y, the lattice as it stands under the window
+static GuiColor ground_at(const GuiWindow *window, int x, int y)
+{
+    return window->ground.raster.pixels[((unsigned int)y * window->ground.raster.width) + (unsigned int)x];
+}
+
+// the glass over the ground at x, y: the tint over the lattice, grained as the window grains it
+static GuiColor glass_at(const GuiWindow *window, int x, int y)
+{
+    const unsigned int grain = gui_grain()[(((unsigned int)y % GUI_GRAIN_TILE) * GUI_GRAIN_TILE) + ((unsigned int)x % GUI_GRAIN_TILE)];
+    return over(over(ground_at(window, x, y), window->palette->glass), GUI_RGBA(0xffu, 0xffu, 0xffu, grain));
+}
+
+// whether any pixel of `rect` is other than the glass over the ground
+static int painted_on_glass(const GuiWindow *window, GuiRect rect)
+{
+    for (int y = rect.y; y < rect.y + rect.height; y += 1)
     {
-        column += 1;
+        for (int x = rect.x; x < rect.x + rect.width; x += 1)
+        {
+            if (at(window, x, y) != glass_at(window, x, y))
+            {
+                return 1;
+            }
+        }
     }
-    return at(window, column, y);
+    return 0;
+}
+
+// the column from x along the row y whose ground pixel differs most from the ground color: a dot of the lattice
+static int dot_column(const GuiWindow *window, int x, int y)
+{
+    int found = x;
+    unsigned int most = 0u;
+    for (int column = x; column < x + 40; column += 1)
+    {
+        const GuiColor pixel = ground_at(window, column, y);
+        const unsigned int away = GUI_RED_OF(pixel) + GUI_GREEN_OF(pixel) + GUI_BLUE_OF(pixel);
+        if (away > most)
+        {
+            most = away;
+            found = column;
+        }
+    }
+    return found;
 }
 
 int main(void)
@@ -68,17 +113,20 @@ int main(void)
     cli_check((window.ground.raster.width == 800u) && (window.ground.frames == 1u) &&
                   (window.ground.raster.pixels[(2u * 800u) + 2u] != ground) && (window.ground.raster.pixels[(499u * 800u) + 0u] == ground),
               "the ground is the lattice, a dot at the first point's origin over the ground color");
-    const GuiColor tint = clear_at(&window, 400, 20);
-    cli_check(tint != ground, "the bar is tinted over the ground");
-    cli_check(tint == clear_at(&window, 20, 250), "the strip is tinted as the bar is");
-    cli_check(clear_at(&window, 400, 490) == tint, "the status bar is tinted as the bar is");
-    cli_check(clear_at(&window, 789, 250) == tint, "the frame's gap at the right is tinted as the bar is");
-    cli_check(painted(&window, (GuiRect){800 - 5 - 34, 10, 34, 20}, tint), "the close control is drawn");
-    cli_check(painted(&window, (GuiRect){800 - 5 - 106, 10, 34, 20}, tint), "the minimize control is drawn");
-    cli_check((at(&window, 44 + 1, 41 + 2) == palette->ground) && (at(&window, 44 + 1, 41 + 2) != palette->surface),
-              "the work's top left corner is rounded off to the ground");
+    cli_check((at(&window, 400, 20) == glass_at(&window, 400, 20)) && (at(&window, 400, 20) != ground_at(&window, 400, 20)),
+              "the bar is the glass over the ground, tinted and grained");
+    cli_check(at(&window, 20, 250) == glass_at(&window, 20, 250), "the strip is glass as the bar is");
+    cli_check(at(&window, 400, 490) == glass_at(&window, 400, 490), "the status bar is glass as the bar is");
+    cli_check(at(&window, 789, 250) == over(ground_at(&window, 789, 250), palette->glass), "the frame's gap at the right is tinted over the ground, with no grain");
+    cli_check(painted_on_glass(&window, (GuiRect){800 - 5 - 34, 10, 34, 20}), "the close control is drawn");
+    cli_check(painted_on_glass(&window, (GuiRect){800 - 5 - 106, 10, 34, 20}), "the minimize control is drawn");
+    cli_check((at(&window, 44 + 1, 41 + 2) == over(ground_at(&window, 44 + 1, 41 + 2), palette->glass)) && (at(&window, 44 + 1, 41 + 2) != palette->surface),
+              "the work's top left corner is rounded off to the frame's tint over the ground");
     cli_check(at(&window, 44 + 1 + 10, 41 + 2 + 10) == palette->surface, "the tabs row is the surface color");
-    cli_check(at(&window, 300, 300) == palette->editor_ground, "the editor shows its ground");
+    const int dot = dot_column(&window, 300, 300);
+    cli_check((at(&window, dot, 300) == over(ground_at(&window, dot, 300), palette->editor_ground)) && (at(&window, dot, 300) != ground) &&
+                  (at(&window, dot, 300) != ground_at(&window, dot, 300)),
+              "the editor shows its ground at its opacity over the lattice, a dot dimmed through it");
 
     cli_check(gui_window_hit(&window, 400, 20) == GUI_HIT_CAPTION, "the bar's empty part is the caption");
     cli_check(gui_window_hit(&window, 800 - 5 - 17, 20) == GUI_HIT_CLOSE, "the rightmost control is close");

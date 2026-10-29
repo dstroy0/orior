@@ -60,15 +60,26 @@ void gui_raster_given(GuiRaster *raster);
 // x0, y0 to x1, y1 in `color`, one pixel wide
 void gui_raster_filled(GuiRaster *raster, GuiRect rect, GuiColor color);
 void gui_raster_rounded(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor color);
-// the corners of `rect` cut round by `radius`: each corner pixel blended with `ground` by the share of it outside the
-// arc, what was drawn inside the rectangle left standing inside the arcs
-void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor ground);
+// The ground a cut lays bare: the raster it is read from, pixel for pixel, with `over` blended over it by its alpha,
+// or `over` alone where the raster is NULL
+typedef struct
+{
+    const GuiRaster *raster;
+    GuiColor over;
+} GuiUnder;
+
+// the corners of `rect` cut round by `radius`: each corner pixel blended with the ground by the share of it outside
+// the arc, what was drawn inside the rectangle left standing inside the arcs
+void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiUnder ground);
 // `notch`, a hole in `work` reaching one or more of its edges, cut out of what was drawn in `work`: the notch filled
-// with `ground`, and the work's outline rounded by `radius` at each turn it makes round the notch, a corner of the
+// with the ground, and the work's outline rounded by `radius` at each turn it makes round the notch, a corner of the
 // notch inside the work filleted, what was drawn left standing outside the arc, and a corner of the notch on the
 // work's edge cut, the ground laid outside the arc; a notch reaching none of the work's edges is cut as a rounded
 // hole
-void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned int radius, GuiColor ground);
+void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned int radius, GuiUnder ground);
+// `rect` grained inside its corners rounded by `radius`: each pixel blended with white by the alpha the tile of
+// `alpha` bytes, `tile` a side, gives it, the tile laid from the raster's own top left and repeated
+void gui_raster_grained(GuiRaster *raster, GuiRect rect, unsigned int radius, const unsigned char *alpha, unsigned int tile);
 void gui_raster_line(GuiRaster *raster, int x0, int y0, int x1, int y1, GuiColor color);
 // `mask` laid with its top left at x, y, each pixel blended in `color` by its coverage and the color's alpha, no
 // further than `clip` and the raster

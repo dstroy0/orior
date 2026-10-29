@@ -22,7 +22,8 @@ typedef struct
 // A scheme's colors, named as style.css names them: the window's ground, surface, well and deep; its text at three
 // strengths; its hairline; the signal, link, hover and fail colors; the ink the bar, the strip and the status bar are
 // tinted with and the tint itself, the ink at its opacity; the bar's text, its titles' text, the ground of a title
-// pointed or open and its text then, a path's text on the bars, and the status bar's text; the editor's ground, text, line numbers, current
+// pointed or open and its text then, a path's text on the bars, and the status bar's text; the editor's ground at
+// the editor's opacity, its text, line numbers, current
 // line, selection, the selection's ground where the keys are elsewhere, caret, indent guide, the ground of a mark
 // among the text, a fold's, the line of a widget over the text and the grounds of find's matches, the current one's
 // stronger; the minimap's selection, its match, its slider and the slider dragged; the shown tab's ground and the

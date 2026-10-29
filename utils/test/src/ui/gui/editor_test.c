@@ -41,6 +41,16 @@ static int painted(const GuiRaster *raster, GuiRect rect, GuiColor ground)
     return 0;
 }
 
+// `color` over `under` by the color's alpha, as the raster blends
+static GuiColor over(GuiColor under, GuiColor color)
+{
+    const unsigned int share = GUI_ALPHA_OF(color);
+    const unsigned int rest = 255u - share;
+    return GUI_RGB(((GUI_RED_OF(color) * share) + (GUI_RED_OF(under) * rest) + 127u) / 255u,
+                   ((GUI_GREEN_OF(color) * share) + (GUI_GREEN_OF(under) * rest) + 127u) / 255u,
+                   ((GUI_BLUE_OF(color) * share) + (GUI_BLUE_OF(under) * rest) + 127u) / 255u);
+}
+
 static const char s_names[] = "[\"\",\"keyword\",\"comment\"]";
 static const char s_read[] = "{\"lines\":[\"int main\",\"\\treturn 0;\",\"// end\"],"
                              "\"colors\":[{\"from\":0,\"runs\":[[0,1,3,0],[1,1,7,0],[0,2]]}]}";
@@ -58,6 +68,8 @@ int main(void)
         return cli_checked();
     }
     const GuiPalette *const palette = gui_palette(GUI_SCHEME_DARK);
+    // the editor's ground at its opacity over the raster's black: a bare pixel's color
+    const GuiColor bare = over(GUI_RGB(0u, 0u, 0u), palette->editor_ground);
     GuiEditor editor;
     gui_editor_made(&editor);
     gui_editor_shaped(&editor, 40ull);
@@ -79,19 +91,19 @@ int main(void)
     const float cell = gui_glyphs_cell(&glyphs, GUI_CODE_SIZE);
     const int text_x = place.x + gui_editor_gutter(&editor, cell, 1.0f);
     const int line_tall = GUI_CODE_LINE;
-    cli_check(painted(&raster, (GuiRect){0, 0, text_x - 4, line_tall}, palette->editor_ground),
+    cli_check(painted(&raster, (GuiRect){0, 0, text_x - 4, line_tall}, bare),
               "the gutter shows the first line's number");
     cli_check(bluish(&raster, (GuiRect){text_x, 0, (int)(3.0f * cell), line_tall}, 0x30u),
               "the keyword int is drawn in the keyword's color");
     cli_check(!bluish(&raster, (GuiRect){text_x + (int)(4.0f * cell), 0, (int)(4.0f * cell), line_tall}, 0x30u),
               "the word main is drawn in the text's color");
-    cli_check(!painted(&raster, (GuiRect){text_x, line_tall, (int)(4.0f * cell) - 1, line_tall}, palette->editor_ground),
+    cli_check(!painted(&raster, (GuiRect){text_x, line_tall, (int)(4.0f * cell) - 1, line_tall}, bare),
               "a tab lays the second line out to the fourth cell");
     cli_check(bluish(&raster, (GuiRect){text_x + (int)(4.0f * cell), line_tall, (int)(6.0f * cell), line_tall}, 0x30u),
               "the keyword return is drawn after the tab in the keyword's color");
-    cli_check(painted(&raster, (GuiRect){text_x, 2 * line_tall, (int)(6.0f * cell), line_tall}, palette->editor_ground),
+    cli_check(painted(&raster, (GuiRect){text_x, 2 * line_tall, (int)(6.0f * cell), line_tall}, bare),
               "the third line, a comment, is drawn");
-    cli_check(!painted(&raster, (GuiRect){text_x, 3 * line_tall, 200, line_tall}, palette->editor_ground),
+    cli_check(!painted(&raster, (GuiRect){text_x, 3 * line_tall, 200, line_tall}, bare),
               "a row past the lines held is ground");
 
     gui_editor_scrolled(&editor, 3ll, 4u);
@@ -141,14 +153,13 @@ int main(void)
     cli_check(raster.pixels[(10u * 320u) + (unsigned int)caret_x] == palette->caret, "the caret stands after the third cell");
     cli_check(raster.pixels[(10u * 320u) + (unsigned int)text_x + 1u] == palette->selection,
               "the selection's ground fills the cells selected");
-    cli_check(raster.pixels[(30u * 320u) + (unsigned int)text_x + 1u] == palette->editor_ground,
-              "a row outside the selection keeps the ground");
+    cli_check(raster.pixels[(30u * 320u) + (unsigned int)text_x + 1u] == bare, "a row outside the selection keeps the ground");
     cli_check(editor.has_pair && (editor.pair[0].line == 2ull) && (editor.pair[0].col == 2ull) && (editor.pair[1].line == 0ull),
               "the frame's bracket pair is kept");
     cli_check((raster.pixels[(40u * 320u) + (unsigned int)(text_x + (int)(2.0f * cell)) + 1u] == palette->caret) &&
                   (raster.pixels[(0u * 320u) + (unsigned int)text_x + 1u] == palette->caret),
               "each bracket of the pair is boxed in the caret's color");
-    cli_check(raster.pixels[(50u * 320u) + (unsigned int)(text_x + (int)(2.0f * cell)) + 2u] == palette->editor_ground,
+    cli_check(raster.pixels[(50u * 320u) + (unsigned int)(text_x + (int)(2.0f * cell)) + 2u] == bare,
               "the box is a line around the cell, not a ground");
     unsigned long long row = 0ull;
     unsigned long long column = 0ull;
@@ -172,8 +183,8 @@ int main(void)
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     cli_check(painted(&raster, (GuiRect){text_x + (int)(2.0f * cell), 20, (int)(2.0f * cell), 20}, palette->current),
               "a closed fold's row ends in the folded mark");
-    cli_check(painted(&raster, (GuiRect){text_x - 16, 20, 12, 20}, palette->editor_ground), "the gutter marks the fold closed");
-    cli_check(!painted(&raster, (GuiRect){text_x - 16, 40, 12, 20}, palette->editor_ground), "a row that opens no fold has no mark");
+    cli_check(painted(&raster, (GuiRect){text_x - 16, 20, 12, 20}, bare), "the gutter marks the fold closed");
+    cli_check(!painted(&raster, (GuiRect){text_x - 16, 40, 12, 20}, bare), "a row that opens no fold has no mark");
     cli_check(gui_editor_row_at(&editor, place, cell, 1.0f, 2, 25, &row) && (row == 1ull), "a pixel in the gutter reads as its row");
     cli_check(!gui_editor_row_at(&editor, place, cell, 1.0f, text_x + 3, 25, &row), "a pixel in the text is not the gutter's");
 
@@ -191,9 +202,9 @@ int main(void)
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     const GuiColor under_match = raster.pixels[(1u * 320u) + (unsigned int)(text_x + (int)(4.0f * cell)) + 1u];
-    cli_check((under_match != palette->selection) && (under_match != palette->editor_ground),
+    cli_check((under_match != palette->selection) && (under_match != bare),
               "the current match is drawn in its own ground over the selection");
-    cli_check(painted(&raster, (GuiRect){place.x + place.width - 40, place.y + 2, 30, 8}, palette->editor_ground),
+    cli_check(painted(&raster, (GuiRect){place.x + place.width - 40, place.y + 2, 30, 8}, bare),
               "find's bar is drawn at the editor's top right");
 
     gui_raster_given(&raster);

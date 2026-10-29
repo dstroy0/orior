@@ -66,16 +66,40 @@ int main(void)
     cli_check(raster.pixels[3u] == 0xffffffffu, "a rounded fill colors its top edge between the corners whole");
 
     gui_raster_filled(&raster, whole, white);
-    gui_raster_corners_cut(&raster, whole, 2u, black);
+    const GuiUnder plain = {NULL, black};
+    gui_raster_corners_cut(&raster, whole, 2u, plain);
     cli_check(red_of(raster.pixels[0]) < red_of(raster.pixels[1u]), "a corner cut takes more ground at the corner pixel than beside it");
     cli_check(raster.pixels[(1u * 8u) + 3u] == 0xffffffffu, "a corner cut leaves the middle");
     cli_check((raster.pixels[1u] != 0xffffffffu) && (raster.pixels[1u] != 0xff000000u), "a corner cut blends along the arc");
+
+    // a corner cut to a ground raster takes that raster's pixel, with a color over it where one is given
+    GuiRaster under;
+    cli_check(gui_raster_made(&under, 8u, 4u), "a ground raster is made");
+    gui_raster_filled(&under, whole, GUI_RGB(0x00u, 0x80u, 0x00u));
+    gui_raster_filled(&raster, whole, white);
+    gui_raster_corners_cut(&raster, whole, 3u, (GuiUnder){&under, 0u});
+    cli_check((red_of(raster.pixels[0]) < 0x40u) && (((raster.pixels[0] >> 8u) & 0xffu) > 0x40u), "a corner cut to a ground raster lays its pixel bare");
+    gui_raster_filled(&raster, whole, white);
+    gui_raster_corners_cut(&raster, whole, 3u, (GuiUnder){&under, GUI_RGBA(0xffu, 0x00u, 0x00u, 0x80u)});
+    cli_check((red_of(raster.pixels[0]) > 0x40u) && (((raster.pixels[0] >> 8u) & 0xffu) > 0x20u), "a color over the ground raster is blended into the corner");
+    gui_raster_given(&under);
+
+    // the grain: a tile of alphas laid from the raster's top left, repeated, inside the corners
+    const unsigned char grain[4] = {0u, 255u, 0u, 0u};
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_grained(&raster, whole, 0u, grain, 2u);
+    cli_check((raster.pixels[1u] == 0xffffffffu) && (raster.pixels[0] == 0xff000000u) && (raster.pixels[3u] == 0xffffffffu) &&
+                  (raster.pixels[(1u * 8u) + 1u] == 0xff000000u),
+              "the grain lays its tile's alphas over the raster, repeated");
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_grained(&raster, whole, 3u, grain, 2u);
+    cli_check(red_of(raster.pixels[1u]) < 0xffu, "the grain is short at a rounded corner");
 
     gui_raster_given(&raster);
     cli_check(gui_raster_made(&raster, 40u, 30u), "a raster of forty by thirty is made for a notch");
     const GuiRect big = {0, 0, 40, 30};
     gui_raster_filled(&raster, big, white);
-    gui_raster_notched(&raster, big, (GuiRect){10, 0, 20, 12}, 4u, black);
+    gui_raster_notched(&raster, big, (GuiRect){10, 0, 20, 12}, 4u, plain);
     cli_check(raster.pixels[(5u * 40u) + 20u] == 0xff000000u, "a notch at the top is cut to the ground");
     cli_check(raster.pixels[(5u * 40u) + 5u] == 0xffffffffu, "the work beside the notch stands");
     cli_check(raster.pixels[(20u * 40u) + 20u] == 0xffffffffu, "the work below the notch stands");

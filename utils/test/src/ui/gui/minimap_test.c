@@ -91,7 +91,12 @@ int main(void)
     // the ground below the slider is the editor's; the slider lies over the first twenty rows
     const GuiColor ground = raster.pixels[(100u * 200u) + 150u];
     const GuiColor under_slider = raster.pixels[(30u * 200u) + 150u];
-    cli_check(ground == palette->editor_ground, "the map stands on the editor's ground");
+    // the editor's ground at its opacity over the page's ground, which in the dark scheme is the same color
+    const unsigned int share = GUI_ALPHA_OF(palette->editor_ground);
+    const GuiColor laid = GUI_RGB(((GUI_RED_OF(palette->editor_ground) * share) + (GUI_RED_OF(palette->ground) * (255u - share)) + 127u) / 255u,
+                                  ((GUI_GREEN_OF(palette->editor_ground) * share) + (GUI_GREEN_OF(palette->ground) * (255u - share)) + 127u) / 255u,
+                                  ((GUI_BLUE_OF(palette->editor_ground) * share) + (GUI_BLUE_OF(palette->ground) * (255u - share)) + 127u) / 255u);
+    cli_check(ground == laid, "the map stands on the editor's ground at its opacity");
     cli_check((under_slider != ground) && (raster.pixels[(60u * 200u) + 150u] == ground), "the slider lies over the view's rows and no further");
     cli_check(raster.pixels[(100u * 200u) + 100u] != ground, "a line runs along the map's left edge");
     cli_check(painted(&raster, (GuiRect){104, 10 + (3 * 2), 3, 1}, under_slider), "the fourth line's first bar is drawn at its cell");

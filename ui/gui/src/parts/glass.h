@@ -1,0 +1,24 @@
+// orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
+// glass.h: a pane of glass over the lattice, as the page lays the bar, the strip, the status bar and the controls'
+// pane: the ink's tint, as thick as the bar opacity, with a fine grain over it, the grain's tile anchored to the
+// window as the page's fixed attachment anchors it, and the pane's corners rounded (glass.c)
+#ifndef GUI_PARTS_GLASS_H
+#define GUI_PARTS_GLASS_H
+#include "../palette.h"
+
+// the grain's tile, its side in pixels, as the page's SVG tile is; the noise's base frequency in cells a pixel and
+// its octaves; the seed of the noise; and the most of the grain's alpha, 0.07 of white
+#define GUI_GRAIN_TILE 180u
+#define GUI_GRAIN_FREQUENCY 0.85
+#define GUI_GRAIN_OCTAVES 2u
+#define GUI_GRAIN_SEED 4099u
+#define GUI_GRAIN_ALPHA 0.07
+
+// the grain: each pixel of the tile the alpha of white laid there, 0 to GUI_GRAIN_ALPHA of 255, row after row, made
+// once from the seeded noise, the same every time
+const unsigned char *gui_grain(void);
+// a pane drawn over `rect`, its corners rounded by `radius`: `tint` blended over what stands, then the grain
+// blended over it inside the corners, the tile's pixel for each of the raster's
+void gui_glass_drawn(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor tint);
+#endif

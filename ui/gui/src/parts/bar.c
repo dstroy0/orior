@@ -5,6 +5,8 @@
 // menu bar part
 #include "chrome.h"
 
+#include "glass.h"
+
 #include <math.h>
 
 // the gap in the page's pixels between the tree's name and the controls, 0.7rem, and the name's most width, 16rem
@@ -16,7 +18,7 @@ void gui_bar_drawn(GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palet
 {
     // the bar's pane is the slat its edge shows, whole outside the claim, rounded by the claim's share of the radius
     const GuiRect pane = gui_rect_met(frame->bar_slat, frame->bar);
-    gui_raster_rounded(raster, pane, frame->pane_radius, palette->glass);
+    gui_glass_drawn(raster, pane, frame->pane_radius, palette->glass);
     const unsigned int size = (unsigned int)gui_scaled((int)GUI_HEAD_SIZE, frame->scale);
     const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_HEAD, size);
     const float descent = gui_glyphs_descent(glyphs, GUI_FACE_HEAD, size);

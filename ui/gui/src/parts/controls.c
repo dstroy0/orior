@@ -5,6 +5,8 @@
 // icons draw them
 #include "chrome.h"
 
+#include "glass.h"
+
 // the rectangle of the control `which` among the frame's controls
 static GuiRect controls_button(const GuiFrame *frame, unsigned int which)
 {
@@ -30,7 +32,7 @@ void gui_controls_drawn(GuiRaster *raster, const GuiPalette *palette, const GuiF
     // the controls' own pane of glass, with its lip, while they stand off the bar as their tab or its ghost
     if (frame->controls_pane_share > 0.0f)
     {
-        gui_raster_rounded(raster, frame->controls_pane, frame->radius, controls_faded(palette->glass, frame->controls_pane_share));
+        gui_glass_drawn(raster, frame->controls_pane, frame->radius, controls_faded(palette->glass, frame->controls_pane_share));
     }
     const GuiColor ink = controls_faded(palette->status_text, frame->controls_alpha);
     for (unsigned int which = GUI_CONTROL_MINIMIZE; which <= GUI_CONTROL_CLOSE; which += 1u)

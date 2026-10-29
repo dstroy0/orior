@@ -152,7 +152,20 @@ void gui_raster_rounded(GuiRaster *raster, GuiRect rect, unsigned int radius, Gu
     }
 }
 
-void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiColor ground)
+// the ground's color at x, y, a pixel on the raster: the ground raster's pixel there with the color over it, or the
+// color alone where no raster is the ground
+static GuiColor raster_ground_at(GuiUnder ground, int x, int y)
+{
+    if ((ground.raster == NULL) || (ground.raster->pixels == NULL) || !gui_rect_holds(raster_rect(ground.raster), x, y))
+    {
+        return ground.over;
+    }
+    // the pixel lies on the ground raster: its coordinates are not negative
+    const GuiColor under = ground.raster->pixels[((unsigned int)y * ground.raster->width) + (unsigned int)x];
+    return raster_blended(under, ground.over, GUI_ALPHA_OF(ground.over));
+}
+
+void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius, GuiUnder ground)
 {
     const GuiRect on = gui_rect_met(rect, raster_rect(raster));
     if (gui_rect_empty(on) || (radius == 0u))
@@ -176,7 +189,7 @@ void gui_raster_corners_cut(GuiRaster *raster, GuiRect rect, unsigned int radius
                 if (outside > 0.0f)
                 {
                     // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                    raster_put(raster, x, y, ground, (unsigned int)((255.0f * outside) + 0.5f));
+                    raster_put(raster, x, y, raster_ground_at(ground, x, y), (unsigned int)((255.0f * outside) + 0.5f));
                 }
             }
         }
@@ -195,7 +208,7 @@ static float raster_arc_share(float centre_x, float centre_y, unsigned int reach
 // the turn of the work's outline out at x, y on the work's edge, rounded by `reach`: the square of that side from
 // the point, reaching `toward_x` and `toward_y` (each 1 or -1) into the work, holds the arc about its far corner, and
 // the pixels outside the arc take `ground` by their share outside it
-static void raster_turned_out(GuiRaster *raster, int x, int y, unsigned int reach, int toward_x, int toward_y, GuiColor ground)
+static void raster_turned_out(GuiRaster *raster, int x, int y, unsigned int reach, int toward_x, int toward_y, GuiUnder ground)
 {
     // the square's side is the radius, which an int holds
     const int side = (int)reach;
@@ -211,13 +224,13 @@ static void raster_turned_out(GuiRaster *raster, int x, int y, unsigned int reac
             if (outside > 0.0f)
             {
                 // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                raster_put(raster, column, row, ground, (unsigned int)((255.0f * outside) + 0.5f));
+                raster_put(raster, column, row, raster_ground_at(ground, column, row), (unsigned int)((255.0f * outside) + 0.5f));
             }
         }
     }
 }
 
-void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned int radius, GuiColor ground)
+void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned int radius, GuiUnder ground)
 {
     const GuiRect hole = gui_rect_met(notch, work);
     if (gui_rect_empty(hole))
@@ -274,7 +287,7 @@ void gui_raster_notched(GuiRaster *raster, GuiRect work, GuiRect notch, unsigned
             if (share > 0.0f)
             {
                 // a share of 255 by a factor from 0 to 1, rounded, is a byte
-                raster_put(raster, column, row, ground, (unsigned int)((255.0f * share) + 0.5f));
+                raster_put(raster, column, row, raster_ground_at(ground, column, row), (unsigned int)((255.0f * share) + 0.5f));
             }
         }
     }
@@ -375,6 +388,31 @@ static unsigned int raster_dot_channel(unsigned int ground, unsigned int color, 
     const float out = within + ((float)ground * rest);
     // a channel from 0 to 255, rounded, is a byte
     return (out >= 255.0f) ? 255u : (unsigned int)(out + 0.5f);
+}
+
+void gui_raster_grained(GuiRaster *raster, GuiRect rect, unsigned int radius, const unsigned char *alpha, unsigned int tile)
+{
+    const GuiRect on = gui_rect_met(rect, raster_rect(raster));
+    if (gui_rect_empty(on) || (tile == 0u))
+    {
+        return;
+    }
+    const GuiColor white = GUI_RGB(0xffu, 0xffu, 0xffu);
+    for (int y = on.y; y < on.y + on.height; y += 1)
+    {
+        // the pixel lies on the raster: its coordinates are not negative
+        const unsigned char *const row = alpha + (((unsigned int)y % tile) * tile);
+        for (int x = on.x; x < on.x + on.width; x += 1)
+        {
+            const float share = (radius == 0u) ? 1.0f : raster_corner_share(rect, radius, x, y);
+            const unsigned int grain = row[(unsigned int)x % tile];
+            if ((share > 0.0f) && (grain != 0u))
+            {
+                // a byte by a factor from 0 to 1, rounded, is a byte
+                raster_put(raster, x, y, white, (unsigned int)(((float)grain * share) + 0.5f));
+            }
+        }
+    }
 }
 
 void gui_raster_dotted(GuiRaster *raster, float x, float y, float radius, GuiColor color)
