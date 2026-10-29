@@ -103,7 +103,7 @@ int main(void)
     cli_check(menubar.menu[0].pointed == 0, "the first row is marked as the menu opens from a press");
     cli_check((menubar.menu[0].rect.y > frame.bar.y + frame.bar.height) && (menubar.menu[0].rect.x == menubar.title[0].rect.x),
               "the menu opens under its title");
-    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, middle_x(menubar.title[1].rect), middle_y(menubar.title[1].rect)) &&
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, middle_x(menubar.title[1].rect), middle_y(menubar.title[1].rect), 0ull) &&
                   (menubar.open == 1) && (menubar.menu[0].pointed == -1),
               "the pointer on another title opens its menu, no row marked");
     cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[1].rect), middle_y(menubar.title[1].rect), &choice) &&
@@ -167,8 +167,23 @@ int main(void)
                   (menubar.levels == 1u),
               "the first menu opens again");
     const GuiRect more = {menubar.menu[0].rect.x + 10, menubar.menu[0].rect.y + 5 + 27 + 11 + 13, 10, 1};
-    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, more.y) && (menubar.levels == 2u) && (menubar.menu[0].pointed == 2),
-              "the pointer on a row with items opens them");
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, more.y, 1000ull) && (menubar.levels == 1u) &&
+                  (menubar.menu[0].pointed == 2) && (gui_menubar_due(&menubar, 1000ull) == GUI_MENU_REST),
+              "the pointer on a row with items marks it and begins the rest before they open");
+    cli_check(!gui_menubar_ticked(&menubar, &glyphs, &frame, 1100ull) && (menubar.levels == 1u), "a tick before the rest ends opens nothing");
+    cli_check(gui_menubar_ticked(&menubar, &glyphs, &frame, 1000ull + GUI_MENU_REST) && (menubar.levels == 2u) &&
+                  (menubar.menu[0].opened == 2) && (gui_menubar_due(&menubar, 1200ull) == 0ull),
+              "the rest's end opens the items beside the row");
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, menubar.menu[0].rect.y + 5 + 13, 2000ull) && (menubar.levels == 2u) &&
+                  (menubar.menu[0].pointed == 0) && (gui_menubar_due(&menubar, 2000ull) == GUI_MENU_REST),
+              "the pointer on a sibling without items keeps them open and begins the rest before they close");
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, more.y, 2050ull) && (gui_menubar_due(&menubar, 2050ull) == 0ull),
+              "the pointer back on the opened row lets the rest go");
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, menubar.menu[0].rect.y + 5 + 13, 2100ull) &&
+                  gui_menubar_ticked(&menubar, &glyphs, &frame, 2100ull + GUI_MENU_REST) && (menubar.levels == 1u) && (menubar.menu[0].opened == -1),
+              "the rest's end on the sibling closes the items");
+    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, more.x, more.y, &choice) && (menubar.levels == 2u),
+              "a press on the row opens its items at once");
     cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, menubar.menu[1].rect.x + 10, menubar.menu[1].rect.y + 5 + 13, &choice) &&
                   (menubar.levels == 0u) && cellul.eq(&(CatenaFinitaCfg){.src = choice.command, .other = "open-recent", .cap = 256ull}),
               "a press on an item beside chooses it");

@@ -783,9 +783,11 @@ void gui_window_ticked(GuiWindow *window)
         window_map_asked(window);
     }
     window->claim_moving = moving;
-    // the ground where its loop shows a change, and the caret where its ink has changed
+    // the ground where its loop shows a change, the caret where its ink has changed, and the menus where a rest has
+    // ended
     window->owed = gui_ground_ticked(&window->ground, window->palette, now) || window->owed;
     window->owed = (window_caret_ink(window, now) != window->caret_ink) || window->owed;
+    window->owed = gui_menubar_ticked(&window->menubar, &window->glyphs, &window->frame, now) || window->owed;
     // the hover's rest and linger, and the signature's wait
     int ask = 0;
     window->owed = gui_hover_ticked(&window->hover, now, &ask) || window->owed;
@@ -831,6 +833,7 @@ unsigned long long gui_window_due(const GuiWindow *window)
     due = window_sooner(due, gui_hover_due(&window->hover, now));
     due = window_sooner(due, gui_signature_due(&window->signature, now));
     due = window_sooner(due, gui_ground_due(&window->ground, now));
+    due = window_sooner(due, gui_menubar_due(&window->menubar, now));
     due = window_sooner(due, window_caret_due(window, now));
     return window_sooner(due, window_view_due(window, now));
 }
@@ -2029,7 +2032,7 @@ void gui_window_moved(GuiWindow *window, int x, int y)
             window_claim_laid(window);
         }
     }
-    if (gui_menubar_moved(&window->menubar, &window->glyphs, &window->frame, x, y))
+    if (gui_menubar_moved(&window->menubar, &window->glyphs, &window->frame, x, y, cli_clock_milliseconds()))
     {
         window->owed = 1;
     }

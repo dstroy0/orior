@@ -547,6 +547,7 @@ static void menubar_title_opened(GuiMenubar *menubar, GuiGlyphs *glyphs, const G
 {
     const GuiTitle *const title = &menubar->title[at];
     menubar->levels = 1u;
+    menubar->rest_due_ms = 0ull;
     // the titles are fewer than an int counts
     menubar->open = (int)at;
     GuiMenu *const menu = &menubar->menu[0];
@@ -569,6 +570,7 @@ static int menubar_row_opened(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiF
         return 0;
     }
     menubar->levels = level + 2u;
+    menubar->rest_due_ms = 0ull;
     // the index is among the rows, which an int counts
     menubar->menu[level].opened = (int)index;
     GuiMenu *const under = &menubar->menu[level + 1u];
@@ -586,6 +588,7 @@ static int menubar_row_opened(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiF
 // the menus from `level` on closed
 static void menubar_closed_from(GuiMenubar *menubar, unsigned int level)
 {
+    menubar->rest_due_ms = 0ull;
     if (level < menubar->levels)
     {
         menubar->levels = level;
@@ -668,7 +671,7 @@ int gui_menubar_pressed(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *
     return 0;
 }
 
-int gui_menubar_moved(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, int x, int y)
+int gui_menubar_moved(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, int x, int y, unsigned long long now)
 {
     int changed = 0;
     const int title = menubar_title_at(menubar, x, y);
@@ -702,17 +705,41 @@ int gui_menubar_moved(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *fr
             return changed;
         }
         menu->pointed = index;
-        if (row.kind == GUI_ROW_MORE)
-        {
-            (void)menubar_row_opened(menubar, glyphs, frame, level - 1u, (unsigned int)index, 0);
-        }
-        else
-        {
-            menubar_closed_from(menubar, level);
-        }
+        // the row's items open once the pointer has rested on it, unless they are open already; the items open beside
+        // a sibling close once it has rested on a row without any; a rest begun before is let go
+        const int opens = (row.kind == GUI_ROW_MORE) && (menu->opened != index);
+        const int closes = (row.kind != GUI_ROW_MORE) && (menubar->levels > level);
+        menubar->rest_level = level - 1u;
+        menubar->rest_index = opens ? index : -1;
+        menubar->rest_due_ms = (opens || closes) ? now + GUI_MENU_REST : 0ull;
         return 1;
     }
     return changed;
+}
+
+unsigned long long gui_menubar_due(const GuiMenubar *menubar, unsigned long long now)
+{
+    if (menubar->rest_due_ms == 0ull)
+    {
+        return 0ull;
+    }
+    return (menubar->rest_due_ms > now) ? menubar->rest_due_ms - now : 1ull;
+}
+
+int gui_menubar_ticked(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, unsigned long long now)
+{
+    if ((menubar->rest_due_ms == 0ull) || (now < menubar->rest_due_ms))
+    {
+        return 0;
+    }
+    menubar->rest_due_ms = 0ull;
+    if (menubar->rest_index >= 0)
+    {
+        // the index kept is a row's
+        return menubar_row_opened(menubar, glyphs, frame, menubar->rest_level, (unsigned int)menubar->rest_index, 0);
+    }
+    menubar_closed_from(menubar, menubar->rest_level + 1u);
+    return 1;
 }
 
 // a key's name parsed: whether Alt is down and the key's own name, the other modifiers left on it

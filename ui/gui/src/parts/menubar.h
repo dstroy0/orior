@@ -4,7 +4,8 @@
 // hands them: each menu with items that is neither the strip's nor a popup a title, those the window's width has room
 // for, the rest folded into a last title. A title pressed opens its menu under it, the pointer moving onto another
 // title while one is open opens that one instead, the pointer on an item marks it and opens the items under it beside
-// it, a press on an item chooses it, Up and Down step the mark, Left and Right step between the menus or out of and
+// it once it has rested there, the pointer resting on a sibling closing them again, a press on an item chooses it or
+// opens its items at once, Up and Down step the mark, Left and Right step between the menus or out of and
 // into the items under one, Enter chooses, Escape closes, a letter marks the next item it begins, and Alt with a
 // title's letter opens its menu (menubar.c)
 #ifndef GUI_PARTS_MENUBAR_H
@@ -93,7 +94,8 @@ typedef struct
 // The menu bar: the catalog and the node of its menus' array; the titles, how many, and the place among the menus
 // from which they are folded into the last title; the title whose menu is open and the one the pointer stands on,
 // each -1 for none; the menus open, one under another, and how many; and whether a file is open, which the items that
-// need one wait on
+// need one wait on; and the rest the pointer is in: when it ends, 0 for none, the level of the row it rests on, and the
+// row's index where its items are to open, -1 where the rest closes the items open beside a sibling
 typedef struct
 {
     const CliJson *json;
@@ -106,7 +108,14 @@ typedef struct
     GuiMenu menu[GUI_MENU_LEVELS];
     unsigned int levels;
     int has_editor;
+    unsigned long long rest_due_ms;
+    unsigned int rest_level;
+    int rest_index;
 } GuiMenubar;
+
+// the milliseconds the pointer rests on a row before the items under it open beside it, and before the items open
+// beside a sibling close, as the page's menu.js rests
+#define GUI_MENU_REST 180ull
 
 // a menu bar holding no catalog; and the catalog `json` given it, `menus` the node of its menus' array
 void gui_menubar_made(GuiMenubar *menubar);
@@ -121,9 +130,14 @@ int gui_menubar_holds(const GuiMenubar *menubar, int x, int y);
 // one was open
 int gui_menubar_pressed(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, int x, int y,
                         GuiChoice *choice);
-// the pointer moved to x, y: the title it stands on marked, another's menu opened where one is open, the row it
-// stands on marked and its items opened: 1 where anything changed
-int gui_menubar_moved(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, int x, int y);
+// the pointer moved to x, y at `now`: the title it stands on marked, another's menu opened where one is open, the
+// row it stands on marked and a rest begun where its items are to open or the items beside a sibling to close: 1
+// where anything changed
+int gui_menubar_moved(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, int x, int y, unsigned long long now);
+// the milliseconds from `now` until the rest the pointer is in ends, 0 where it is in none; and the tick come at
+// `now`: the rest's items opened or closed where it has ended: 1 where a menu opened or closed
+unsigned long long gui_menubar_due(const GuiMenubar *menubar, unsigned long long now);
+int gui_menubar_ticked(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, unsigned long long now);
 // a key named as the page's editor names it taken: 1 where it was the bar's, an item chosen into `choice` where one
 // was, its command empty where none
 int gui_menubar_keyed(GuiMenubar *menubar, GuiGlyphs *glyphs, const GuiFrame *frame, const char *name,
