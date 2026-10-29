@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raster.c: the pixels the window draws and all that is drawn into them. Every blend is of bytes in the colors' own
 // space, a share from 0 to 255 of the color over what is there, as the page blends its colors; a pixel drawn is left
-// opaque
+// opaque. A dot is put down as the page's shader puts the lattice's down: each pixel's share of it read in one step
+// from how far the pixel's middle stands from the dot's edge, and the result dithered by a 4 by 4 ordered threshold
+// below one level of 255, so a share between two levels is put down as both
 #include "raster.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -347,6 +349,59 @@ void gui_raster_masked(GuiRaster *raster, const GuiMask *mask, int x, int y, Gui
                 // two shares of 255 multiplied are a share of 255 once divided by 255
                 raster_put(raster, column, row, color, ((share * alpha) + 127u) / 255u);
             }
+        }
+    }
+}
+
+// the 4 by 4 ordered threshold at x, y, 0 to 15, as the page's shader orders it: the pixel's own parity across and
+// down weighs most, its pair's parity the rest
+static unsigned int raster_ordered(int x, int y)
+{
+    // a coordinate's low bits read the same whatever its sign
+    const unsigned int across = (unsigned int)x;
+    const unsigned int down = (unsigned int)y;
+    return ((across & 1u) << 3u) | ((down & 1u) << 2u) | (((across >> 1u) & 1u) << 1u) | ((down >> 1u) & 1u);
+}
+
+// a channel of `color` put down over `ground` with the dot's `share` of it from 0 to 1 and the dither's `threshold`
+// in levels of 255: the color's share and the threshold laid over the ground's rest, as the page's shader blends a
+// premultiplied dot over what stands
+static unsigned int raster_dot_channel(unsigned int ground, unsigned int color, float share, float threshold)
+{
+    const float laid = ((float)color * share) + threshold;
+    const float within = (laid < 0.0f) ? 0.0f : ((laid > 255.0f) ? 255.0f : laid);
+    const float alpha = (share * 255.0f) + threshold;
+    const float rest = (alpha < 0.0f) ? 1.0f : ((alpha > 255.0f) ? 0.0f : 1.0f - (alpha / 255.0f));
+    const float out = within + ((float)ground * rest);
+    // a channel from 0 to 255, rounded, is a byte
+    return (out >= 255.0f) ? 255u : (unsigned int)(out + 0.5f);
+}
+
+void gui_raster_dotted(GuiRaster *raster, float x, float y, float radius, GuiColor color)
+{
+    const float ink = (float)GUI_ALPHA_OF(color) / 255.0f;
+    const float reach = radius + 1.0f;
+    // the square about the dot, its sides whole pixels, is far inside what an int represents
+    const int left = (int)floorf(x - reach);
+    const int top = (int)floorf(y - reach);
+    const GuiRect square = {left, top, (int)ceilf(x + reach) - left + 1, (int)ceilf(y + reach) - top + 1};
+    const GuiRect on = gui_rect_met(square, raster_rect(raster));
+    for (int row = on.y; row < on.y + on.height; row += 1)
+    {
+        for (int column = on.x; column < on.x + on.width; column += 1)
+        {
+            const float inside = radius - hypotf(((float)column + 0.5f) - x, ((float)row + 0.5f) - y) + 0.5f;
+            if (inside <= 0.0f)
+            {
+                continue;
+            }
+            const float share = ink * ((inside < 1.0f) ? inside : 1.0f);
+            const float threshold = ((float)raster_ordered(column, row) - 7.5f) / 16.0f;
+            // the pixel lies on the raster: its coordinates are not negative
+            GuiColor *const at = &raster->pixels[((unsigned int)row * raster->width) + (unsigned int)column];
+            *at = GUI_RGB(raster_dot_channel(GUI_RED_OF(*at), GUI_RED_OF(color), share, threshold),
+                          raster_dot_channel(GUI_GREEN_OF(*at), GUI_GREEN_OF(color), share, threshold),
+                          raster_dot_channel(GUI_BLUE_OF(*at), GUI_BLUE_OF(color), share, threshold));
         }
     }
 }

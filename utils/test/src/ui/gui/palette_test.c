@@ -19,5 +19,7 @@ int main(void)
     cli_check(gui_palette_token(dark, "keywords", 8ull) == dark->editor_text, "a name no token has is the editor's text");
     cli_check(gui_palette_token(dark, "", 0ull) == dark->editor_text, "an empty name is the editor's text");
     cli_check(GUI_ALPHA_OF(dark->line) < 0xffu, "the line color is translucent");
+    cli_check((dark->lattice[0] == GUI_RGB(0x6fu, 0xdcu, 0xb4u)) && (dark->lattice[2] == GUI_RGB(0xb4u, 0x9cu, 0xffu)),
+              "the lattice's colors are the stylesheet's --lattice-1 to --lattice-3");
     return cli_checked();
 }

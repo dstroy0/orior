@@ -61,6 +61,15 @@ int gui_window_begun(GuiWindow *window, GuiLinkWoken woken, void *context, Verba
         mmgr_line_put(err_msg, "the problems' cells could not be taken");
         return 0;
     }
+    if (!gui_ground_made(&window->ground, cli_clock_milliseconds()))
+    {
+        gui_problems_given(&window->problems);
+        gui_suggest_given(&window->suggest);
+        gui_explorer_given(&window->explorer);
+        gui_minimap_given(&window->minimap);
+        mmgr_line_put(err_msg, "the lattice has no slot left for the ground");
+        return 0;
+    }
     if (!gui_glyphs_made(&window->glyphs, err_msg))
     {
         return 0;
@@ -97,6 +106,7 @@ void gui_window_ended(GuiWindow *window)
     gui_suggest_given(&window->suggest);
     gui_signature_given(&window->signature);
     gui_problems_given(&window->problems);
+    gui_ground_given(&window->ground);
     gui_raster_given(&window->raster);
 }
 
@@ -673,9 +683,16 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
     gui_frame_sided(&window->frame, window_side_shown(window));
     window_claim_laid(window);
     gui_raster_given(&window->raster);
-    const int made = gui_raster_made(&window->raster, width, height);
+    const int made = gui_raster_made(&window->raster, width, height) &&
+                     gui_ground_laid(&window->ground, width, height, scale, window->palette, cli_clock_milliseconds());
     window_view_sized(window);
     return made;
+}
+
+void gui_window_shown(GuiWindow *window, int shown)
+{
+    gui_ground_held(&window->ground, !shown, cli_clock_milliseconds());
+    window->owed = shown || window->owed;
 }
 
 void gui_window_ticked(GuiWindow *window)
@@ -691,6 +708,8 @@ void gui_window_ticked(GuiWindow *window)
         window_map_asked(window);
     }
     window->claim_moving = moving;
+    // the ground where its loop shows a change
+    window->owed = gui_ground_ticked(&window->ground, window->palette, now) || window->owed;
     // the hover's rest and linger, and the signature's wait
     int ask = 0;
     window->owed = gui_hover_ticked(&window->hover, now, &ask) || window->owed;
@@ -735,6 +754,7 @@ unsigned long long gui_window_due(const GuiWindow *window)
     unsigned long long due = gui_claim_due(&window->claim, now);
     due = window_sooner(due, gui_hover_due(&window->hover, now));
     due = window_sooner(due, gui_signature_due(&window->signature, now));
+    due = window_sooner(due, gui_ground_due(&window->ground, now));
     return window_sooner(due, window_view_due(window, now));
 }
 
@@ -1595,7 +1615,16 @@ void gui_window_drawn(GuiWindow *window)
     {
         return;
     }
-    gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
+    // the ground, the lattice as it stands, where its raster is the window's size, else the ground color
+    const GuiRaster *const ground = &window->ground.raster;
+    if ((ground->pixels != NULL) && (ground->width == raster->width) && (ground->height == raster->height))
+    {
+        memor.cpy(&(MemoriaCfg){.dst = raster->pixels, .src = ground->pixels, .bytes = (unsigned long long)raster->width * raster->height * sizeof(GuiColor)});
+    }
+    else
+    {
+        gui_raster_filled(raster, (GuiRect){0, 0, (int)raster->width, (int)raster->height}, palette->ground);
+    }
     // the work's inside: the side where one is shown, the tabs row, the editor with the map beside it, the corners
     // cut round, and the holes the parts shown over the work make in it while the claim holds
     gui_tabs_drawn(raster, &window->glyphs, palette, frame, window->tab, window->tabs, window->active);

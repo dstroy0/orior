@@ -1,17 +1,42 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// lattice.c: the lattice's computing, built to wasm32 for the page (lattice/wasm.js): each lattice's points laid out
-// in a slot of its own, seeded and the same every time; the loop of order the lattice moves through and its stage at
-// a moment; each point moved by the disorder where it stands, then shaded by it as a dot the GPU puts down as it
-// stands, or grouped by the level of its pen for a page that draws on its 2D canvas; whether the loop moved enough
-// between two moments to be seen, and the soonest moment it next will. Freestanding: the page hands in its own cos,
-// sin and remainder, so every number is the one the page's own arithmetic gives.
+// lattice.c: the lattice's computing, built into the window and, with LATTICE_WASM set, to wasm32 for the page
+// (src-js/lattice/wasm.js): each lattice's points laid out in a slot of its own, seeded and the same every time; the
+// loop of order the lattice moves through and its stage at a moment; each point moved by the disorder where it
+// stands, then shaded by it as a dot drawn where it stands, or grouped by the level of its pen for a page that draws
+// on its 2D canvas; whether the loop moved enough between two moments to be seen, and the soonest moment it next
+// will. Built to wasm32 it is freestanding: the page hands in its own cos, sin and remainder, so every number is the
+// one the page's own arithmetic gives, and its memory is the module's own; built into the window its arithmetic is
+// the C library's and its memory the cellblock's
 #include "lattice.h"
 
+#if LATTICE_WASM
 // the page's Math.cos, Math.sin and %
 LATTICE_IMPORT(cos) double lattice_cos(double angle);
 LATTICE_IMPORT(sin) double lattice_sin(double angle);
 LATTICE_IMPORT(remainder) double lattice_remainder(double value, double by);
+#else
+#include "../../cli/src/command_line/cli_internal.h"
+
+#include <math.h>
+
+static CellOwner s_owner = MMGR_CELL_OWNER("gui_lattice");
+
+static double lattice_cos(double angle)
+{
+    return cos(angle);
+}
+
+static double lattice_sin(double angle)
+{
+    return sin(angle);
+}
+
+static double lattice_remainder(double value, double by)
+{
+    return fmod(value, by);
+}
+#endif
 
 // the probes across and down at which the loop's change is read, and the least move of a point that shows
 #define LATTICE_PROBES 24u
@@ -59,13 +84,16 @@ LatticeSlot *lattice_slot(uint32_t slot)
     return &s_lattice_slots[slot];
 }
 
+#if LATTICE_WASM
 // the end of what the module has taken of its memory, from the linker's heap base up
 extern unsigned char __heap_base;
 static uintptr_t s_lattice_taken;
 
-// `bytes` of memory, 16-byte aligned, the memory grown where it must be; 0 where it cannot grow
-static void *lattice_take(uintptr_t bytes)
+// `bytes` of memory, 16-byte aligned, the memory grown where it must be, in place of `before`, which the module
+// keeps: 0 where it cannot grow
+static void *lattice_taken(void *before, uintptr_t bytes)
 {
+    (void)before;
     if (s_lattice_taken == 0u)
     {
         s_lattice_taken = (uintptr_t)&__heap_base;
@@ -84,6 +112,33 @@ static void *lattice_take(uintptr_t bytes)
     s_lattice_taken = end;
     return (void *)start;
 }
+#else
+// `bytes` of a cell in place of `before`, which is given back once the cell is taken: 0 where none can be, `before`
+// kept
+static void *lattice_taken(void *before, uintptr_t bytes)
+{
+    void *const taken = g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
+    if (taken == NULL)
+    {
+        return 0;
+    }
+    g_cli_cells->persistent_buf_release(before, &s_owner);
+    return taken;
+}
+
+void lattice_given(uint32_t slot)
+{
+    if (slot >= LATTICE_SLOTS)
+    {
+        return;
+    }
+    LatticeSlot *const held = &s_lattice_slots[slot];
+    g_cli_cells->persistent_buf_release(held->offsets, &s_owner);
+    g_cli_cells->persistent_buf_release(held->dots, &s_owner);
+    g_cli_cells->persistent_buf_release(held->placed, &s_owner);
+    *held = (LatticeSlot){0};
+}
+#endif
 
 // the seeded draw the page's lattice has always used, one step of it from `state`
 static double lattice_draw(uint32_t *state)
@@ -126,15 +181,11 @@ static int8_t lattice_offset(double share)
 // the seed of the point at `row` and `column`, the same wherever the box it is laid out over ends
 static uint32_t lattice_seed_at(uint32_t row, uint32_t column)
 {
-    // the row and the column mixed into the lattice's seed, each by an odd constant, so no two points near each other
-    // start their draws alike
+    // the row and the column mixed into the lattice's seed, each by an odd constant, which keeps two points near
+    // each other from starting their draws alike
     return LATTICE_SEED ^ (row * 0x9e3779b1u) ^ (column * 0x85ebca77u);
 }
 
-// lays out the lattice of `slot` over a box `width` by `height` pixels: the points a step apart from half a step in
-// from the top left, as many as stand inside the box, at least one each way; each point's place on its circle drawn
-// from its own seed, its way round and its share of the radius. The count of points, 0 where the slot is none or the
-// memory cannot hold them.
 LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, double height)
 {
     if (slot >= LATTICE_SLOTS)
@@ -150,7 +201,7 @@ LATTICE_EXPORT(lattice_lay) uint32_t lattice_lay(uint32_t slot, double width, do
     if (count > held->capacity)
     {
         const uint32_t room = count + count / 4u;
-        int8_t *const offsets = lattice_take((uintptr_t)room * 2u);
+        int8_t *const offsets = lattice_taken(held->offsets, (uintptr_t)room * 2u);
         if (offsets == 0)
         {
             return 0u;
@@ -200,7 +251,6 @@ LATTICE_EXPORT(lattice_dots) LatticeDot *lattice_dots(uint32_t slot)
     return slot < LATTICE_SLOTS ? s_lattice_slots[slot].dots : 0;
 }
 
-// where the loop stands at `seconds`
 LatticeStageAt *lattice_stage(double seconds)
 {
     double left = lattice_remainder(seconds, LATTICE_LOOP);
@@ -239,8 +289,39 @@ LatticeStageAt *lattice_stage(double seconds)
     return at;
 }
 
+// a channel from 0 to 1 as the byte it puts down, a share outside it taken as its end
+static uint32_t lattice_byte(double share)
+{
+    const double within = share < 0.0 ? 0.0 : (share > 1.0 ? 1.0 : share);
+    // a share from 0 to 1 is a byte from 0 to 255
+    return (uint32_t)(within * 255.0 + 0.5);
+}
+
+void lattice_shaded(const LatticePens *pens, LatticeShades *shades)
+{
+    for (uint32_t shade = 0u; shade < LATTICE_SHADES; shade += 1u)
+    {
+        const double level = (double)shade / (LATTICE_SHADES - 1u) * (LATTICE_LEVELS - 1);
+        // the lower pen is a whole level from 0 to LATTICE_LEVELS less two
+        const uint32_t low = (uint32_t)(level < LATTICE_LEVELS - 2 ? level : LATTICE_LEVELS - 2);
+        const double between = level - low;
+        uint32_t color = 0u;
+        for (uint32_t channel = 0u; channel < 4u; channel += 1u)
+        {
+            const double from = pens->color[low * 4u + channel];
+            const double to = pens->color[(low + 1u) * 4u + channel];
+            color |= lattice_byte(from + (to - from) * between) << (channel * 8u);
+        }
+        const double from = pens->radius[low];
+        const double to = pens->radius[low + 1u];
+        shades->color[shade] = color;
+        // a radius of a pixel or so, which a float holds whole
+        shades->radius[shade] = (float)((from + (to - from) * between) * LATTICE_FITS);
+    }
+}
+
 // The disorder over the lattice with the loop at one moment: a plane over the place across and down, each from 0 to 1,
-// its slope across and down and its value at the top left, held between `least` and 1
+// its slope across and down and its value at the top left, kept between `least` and 1
 typedef struct
 {
     double across;
@@ -293,7 +374,7 @@ LATTICE_EXPORT(lattice_place) void lattice_place(uint32_t slot, double width, do
     }
     if (held->placed_room < held->capacity)
     {
-        double *const placed = lattice_take((uintptr_t)held->capacity * 2u * sizeof(double));
+        double *const placed = lattice_taken(held->placed, (uintptr_t)held->capacity * 2u * sizeof(double));
         if (placed == 0)
         {
             return;
@@ -344,7 +425,7 @@ uint32_t lattice_dots_moved(LatticeSlot *held, double width, double height, doub
 {
     if (held->dots_room < held->capacity)
     {
-        LatticeDot *const dots = lattice_take((uintptr_t)held->capacity * sizeof(LatticeDot));
+        LatticeDot *const dots = lattice_taken(held->dots, (uintptr_t)held->capacity * sizeof(LatticeDot));
         if (dots == 0)
         {
             return 0u;
@@ -426,16 +507,13 @@ static uint32_t lattice_probes_moved(double now)
     return 0u;
 }
 
-// 1 where the loop moved, from `then` to `now` in seconds, enough to be seen; 0 where no point moved that far
 LATTICE_EXPORT(lattice_shows) uint32_t lattice_shows(double then, double now)
 {
     lattice_probe(then, s_lattice_loose_then);
     return lattice_probes_moved(now);
 }
 
-// the soonest moment from `from` on at which the loop has moved since `then` enough to be seen, looked for
-// LATTICE_LOOK apart and then halved to within LATTICE_LOOK_CLOSE of the first that shows: the moment a page that
-// drew the loop at `then` next draws it, and asks for no frame before; `from` and a loop past it where none shows
+// looked for LATTICE_LOOK apart and then halved to within LATTICE_LOOK_CLOSE of the first that shows
 LATTICE_EXPORT(lattice_shown_after) double lattice_shown_after(double then, double from)
 {
     lattice_probe(then, s_lattice_loose_then);

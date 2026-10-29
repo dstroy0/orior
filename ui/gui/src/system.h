@@ -29,8 +29,9 @@ typedef struct GuiSystem GuiSystem;
 // down; the wheel turned `rows` rows, down where positive; a key pressed, named as the page's editor names a key,
 // `Mod+Shift+Left`, Mod the control key, Alt and Shift before the key's own name; `size` bytes of text typed as
 // UTF-8; the thread woken by another; the system asking to close; where the pointer at x, y stands, as window.h names
-// the places, for the system's own drag and resize; the queue empty, where a frame owed is drawn and presented; and
-// the tick the window asked for come
+// the places, for the system's own drag and resize; the queue empty, where a frame owed is drawn and presented; the
+// tick the window asked for come; and the window gone off the screen, minimized or unmapped, `shown` 0, or back on
+// it, 1
 typedef struct
 {
     void (*sized)(void *context, unsigned int width, unsigned int height, float scale);
@@ -43,6 +44,7 @@ typedef struct
     unsigned int (*hit)(void *context, int x, int y);
     void (*idle)(void *context);
     void (*ticked)(void *context);
+    void (*shown)(void *context, int shown);
 } GuiSystemEvents;
 
 // the monitors' areas into `areas`, sized for `most`, the system's main one first: their count

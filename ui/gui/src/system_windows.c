@@ -209,8 +209,13 @@ static LRESULT CALLBACK system_message(HWND window, UINT message, WPARAM wide, L
         return system_hit_code(system->events->hit(system->context, at.x, at.y));
     }
     case WM_SIZE:
-        if (wide != SIZE_MINIMIZED)
+        if (wide == SIZE_MINIMIZED)
         {
+            system->events->shown(system->context, 0);
+        }
+        else
+        {
+            system->events->shown(system->context, 1);
             // the client's sides, as the message carries them, are not negative
             system->events->sized(system->context, (unsigned int)LOWORD(low), (unsigned int)HIWORD(low),
                                   system_scale_of(window));

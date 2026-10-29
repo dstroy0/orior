@@ -9,6 +9,7 @@
 #ifndef GUI_WINDOW_H
 #define GUI_WINDOW_H
 #include "claim.h"
+#include "ground.h"
 #include "link.h"
 #include "parts/editor.h"
 #include "parts/explorer.h"
@@ -40,7 +41,8 @@
 // the resize border's width in the page's pixels
 #define GUI_BORDER 5
 
-// The window: its frame, raster, glyphs, icons, palette, editor, minimap, menu bar, strip, explorer and link; the
+// The window: its frame, raster, the ground every frame starts from, glyphs, icons, palette, editor, minimap, menu
+// bar, strip, explorer and link; the
 // panels over the editor, the hover, the completion and the signature, with the tickets of their asks in flight, 0
 // where none is, whether the completion is to be asked for as the next frame comes, whether that ask was forced by
 // the keys, whether each panel's ask is to be made again with the server once its answer without the server comes,
@@ -64,6 +66,7 @@ typedef struct
 {
     GuiFrame frame;
     GuiRaster raster;
+    GuiGround ground;
     GuiGlyphs glyphs;
     GuiIcons icons;
     const GuiPalette *palette;
@@ -169,8 +172,11 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at);
 int gui_window_text_put(GuiWindow *window, const char *text, unsigned long long length);
 // every answer and event waiting taken, on the window's thread
 void gui_window_drained(GuiWindow *window);
-// the tick the window asked for come: the claim's timers run and its parts laid where its slides stand; and when the
-// window next wants a tick, in milliseconds, 0 for never
+// the tick the window asked for come: the claim's timers run and its parts laid where its slides stand, and the
+// ground drawn again where its loop shows a change; and when the window next wants a tick, in milliseconds, 0 for
+// never
 void gui_window_ticked(GuiWindow *window);
 unsigned long long gui_window_due(const GuiWindow *window);
+// the window gone off the screen, `shown` 0, its ground's clock standing still, or back on it, 1, a frame owed
+void gui_window_shown(GuiWindow *window, int shown);
 #endif

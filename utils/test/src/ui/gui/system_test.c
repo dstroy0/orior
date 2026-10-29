@@ -84,6 +84,12 @@ static unsigned int handed_hit(void *context, int x, int y)
     return 0u;
 }
 
+static void handed_shown(void *context, int shown)
+{
+    (void)context;
+    (void)shown;
+}
+
 static int same(const char *one, const char *other)
 {
     return cellul.eq(&(CatenaFinitaCfg){.src = one, .other = other, .cap = 64ull});
@@ -110,8 +116,8 @@ int main(void)
     char why_text[1024];
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     static Handed handed;
-    static const GuiSystemEvents s_events = {handed_sized, handed_pointer, handed_wheel, handed_key, handed_text,
-                                             handed_nothing, handed_nothing, handed_hit, handed_nothing, handed_nothing};
+    static const GuiSystemEvents s_events = {handed_sized,   handed_pointer, handed_wheel, handed_key,     handed_text,  handed_nothing,
+                                             handed_nothing, handed_hit,     handed_nothing, handed_nothing, handed_shown};
     const CliWindowPlace place = {20, 20, 320, 200, 0};
     GuiSystem *const system = gui_system_opened(&place, "orior check", &s_events, &handed, &why);
     cli_check(system != NULL, "a window opens on the system");

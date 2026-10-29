@@ -7,12 +7,15 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-// the page's lattice and its GL driver (ui/gui/src-wasm) built to wasm32 into ui/gui/src-js/lattice/lattice.wasm,
-// which the page loads, where clang and wasm-ld are on the PATH; a build with neither keeps the lattice.wasm the tree
-// holds
+// the page's lattice, the window's own computing (ui/gui/src/lattice.c) with its GL driver (ui/gui/src-wasm), built
+// to wasm32 into ui/gui/src-js/lattice/lattice.wasm, which the page loads, where clang and wasm-ld are on the PATH; a
+// build with neither keeps the lattice.wasm the tree holds
 fn lattice_built(top: &Path) {
     let folder = top.join("ui/gui/src-wasm");
+    let computing = top.join("ui/gui/src/lattice.c");
     println!("cargo:rerun-if-changed={}", folder.display());
+    println!("cargo:rerun-if-changed={}", computing.display());
+    println!("cargo:rerun-if-changed={}", top.join("ui/gui/src/lattice.h").display());
     let found = |program: &str| Command::new(program).arg("--version").output().is_ok_and(|out| out.status.success());
     if !found("clang") || !found("wasm-ld") {
         println!("cargo:warning=clang and wasm-ld are not both on the PATH: the page keeps the lattice.wasm the tree holds");
@@ -20,9 +23,10 @@ fn lattice_built(top: &Path) {
     }
     let status = Command::new("clang")
         .args(["--target=wasm32", "-std=c11", "-O2", "-nostdlib", "-ffreestanding", "-Wall", "-Wextra", "-Werror"])
-        .args(["-Wl,--no-entry", "-o"])
+        .args(["-DLATTICE_WASM=1", "-Wl,--no-entry", "-o"])
         .arg(top.join("ui/gui/src-js/lattice/lattice.wasm"))
-        .args(["lattice.c", "lattice_gl.c"].map(|source| folder.join(source)))
+        .arg(computing)
+        .arg(folder.join("lattice_gl.c"))
         .status()
         .expect("clang runs");
     if !status.success() {

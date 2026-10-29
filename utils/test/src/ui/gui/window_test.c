@@ -33,6 +33,19 @@ static int painted(const GuiWindow *window, GuiRect rect, GuiColor ground)
     return 0;
 }
 
+// the window's pixel at the first place from x, y along the row whose ground is clear of the lattice's dots, the
+// ground color itself: a part's tint read where no dot stands under it
+static GuiColor clear_at(const GuiWindow *window, int x, int y)
+{
+    const GuiRaster *const ground = &window->ground.raster;
+    int column = x;
+    while ((column + 1 < (int)ground->width) && (ground->pixels[((unsigned int)y * ground->width) + (unsigned int)column] != window->palette->ground))
+    {
+        column += 1;
+    }
+    return at(window, column, y);
+}
+
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
@@ -52,12 +65,16 @@ int main(void)
     gui_window_drawn(&window);
     const GuiPalette *const palette = window.palette;
     const GuiColor ground = palette->ground;
-    cli_check(at(&window, 400, 20) != ground, "the bar is tinted over the ground");
-    cli_check(at(&window, 400, 20) == at(&window, 20, 250), "the strip is tinted as the bar is");
-    cli_check(at(&window, 400, 490) == at(&window, 400, 20), "the status bar is tinted as the bar is");
-    cli_check(at(&window, 795, 250) == at(&window, 400, 20), "the frame's gap at the right is tinted as the bar is");
-    cli_check(painted(&window, (GuiRect){800 - 5 - 34, 10, 34, 20}, at(&window, 400, 20)), "the close control is drawn");
-    cli_check(painted(&window, (GuiRect){800 - 5 - 106, 10, 34, 20}, at(&window, 400, 20)), "the minimize control is drawn");
+    cli_check((window.ground.raster.width == 800u) && (window.ground.frames == 1u) &&
+                  (window.ground.raster.pixels[(2u * 800u) + 2u] != ground) && (window.ground.raster.pixels[(499u * 800u) + 0u] == ground),
+              "the ground is the lattice, a dot at the first point's origin over the ground color");
+    const GuiColor tint = clear_at(&window, 400, 20);
+    cli_check(tint != ground, "the bar is tinted over the ground");
+    cli_check(tint == clear_at(&window, 20, 250), "the strip is tinted as the bar is");
+    cli_check(clear_at(&window, 400, 490) == tint, "the status bar is tinted as the bar is");
+    cli_check(clear_at(&window, 789, 250) == tint, "the frame's gap at the right is tinted as the bar is");
+    cli_check(painted(&window, (GuiRect){800 - 5 - 34, 10, 34, 20}, tint), "the close control is drawn");
+    cli_check(painted(&window, (GuiRect){800 - 5 - 106, 10, 34, 20}, tint), "the minimize control is drawn");
     cli_check((at(&window, 44 + 1, 41 + 2) == palette->ground) && (at(&window, 44 + 1, 41 + 2) != palette->surface),
               "the work's top left corner is rounded off to the ground");
     cli_check(at(&window, 44 + 1 + 10, 41 + 2 + 10) == palette->surface, "the tabs row is the surface color");

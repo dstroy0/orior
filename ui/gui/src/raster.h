@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raster.h: the pixels the window draws and all that is drawn into them: a raster of BGRA words in a cell of the
 // cellblock, a rectangle filled, blended by its color's alpha and clipped to the raster, a rectangle filled with its
-// corners rounded, a line, and a mask of coverage bytes blended in a color inside a clip. Nothing else in the window
-// touches a pixel (raster.c)
+// corners rounded, a line, a mask of coverage bytes blended in a color inside a clip, and a soft-edged dot. Nothing
+// else in the window touches a pixel (raster.c)
 #ifndef GUI_RASTER_H
 #define GUI_RASTER_H
 #include "../../cli/src/command_line/cells.h"
@@ -73,4 +73,8 @@ void gui_raster_line(GuiRaster *raster, int x0, int y0, int x1, int y1, GuiColor
 // `mask` laid with its top left at x, y, each pixel blended in `color` by its coverage and the color's alpha, no
 // further than `clip` and the raster
 void gui_raster_masked(GuiRaster *raster, const GuiMask *mask, int x, int y, GuiColor color, GuiRect clip);
+// a dot about x, y of `radius`, each in pixels, soft-edged: each pixel takes `color` by the color's alpha and the
+// pixel's share inside the dot, a pixel-wide ramp from all of it at the dot's edge to none a pixel out, the share
+// dithered by a 4 by 4 ordered threshold below one level of 255, which puts a share between two levels down as both
+void gui_raster_dotted(GuiRaster *raster, float x, float y, float radius, GuiColor color);
 #endif

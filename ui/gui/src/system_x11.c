@@ -226,6 +226,12 @@ static void system_event(GuiSystem *system, XEvent *event)
                                   system_scale_of(system->display, system->screen));
         }
         break;
+    case MapNotify:
+        system->events->shown(system->context, 1);
+        break;
+    case UnmapNotify:
+        system->events->shown(system->context, 0);
+        break;
     case MotionNotify:
         system->events->pointer(system->context, GUI_POINTER_MOVED, event->xmotion.x, event->xmotion.y, 0u,
                                 system_mods(event->xmotion.state));

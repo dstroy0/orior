@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // raster_test.c: the raster's check: a raster made is clear, a fill colors its rectangle and nothing about it, is
 // clipped to the raster and blends by its alpha, a mask blends by its coverage inside the clip, two rectangles meet in
-// their overlap, a rounded fill leaves its corners short and a line colors its ends
+// their overlap, a rounded fill leaves its corners short, a line colors its ends and a dot is soft-edged
 #include "../../../../../ui/gui/src/raster.h"
 #include "../cli/cli_check.h"
 
@@ -92,6 +92,19 @@ int main(void)
     cli_check(raster.pixels[(2u * 8u) + 3u] == 0xff000000u, "a line colors nothing off its path");
     gui_raster_line(&raster, 0, 0, 3, 3, ink);
     cli_check(raster.pixels[(2u * 8u) + 2u] == 0xff102030u, "a diagonal colors the pixels it crosses");
+
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_dotted(&raster, 4.0f, 2.0f, 1.5f, white);
+    cli_check(red_of(raster.pixels[(2u * 8u) + 4u]) >= 254u, "a dot's middle takes the whole color, within the dither");
+    cli_check((red_of(raster.pixels[(1u * 8u) + 2u]) > 80u) && (red_of(raster.pixels[(1u * 8u) + 2u]) < 140u),
+              "a pixel on the dot's edge takes its share of the color");
+    cli_check((raster.pixels[0] == 0xff000000u) && (raster.pixels[(2u * 8u) + 7u] == 0xff000000u), "a pixel a pixel out of the dot keeps its ground");
+    gui_raster_filled(&raster, whole, black);
+    gui_raster_dotted(&raster, 4.0f, 2.0f, 1.5f, GUI_RGBA(0xffu, 0xffu, 0xffu, 0x80u));
+    cli_check((red_of(raster.pixels[(2u * 8u) + 4u]) > 120u) && (red_of(raster.pixels[(2u * 8u) + 4u]) < 136u),
+              "a dot's ink is its color's alpha");
+    gui_raster_dotted(&raster, -3.0f, 20.0f, 1.0f, white);
+    cli_check(raster.pixels[0] == 0xff000000u, "a dot off the raster draws nothing");
 
     gui_raster_given(&raster);
     cli_check(raster.pixels == NULL, "a raster given back holds no pixels");

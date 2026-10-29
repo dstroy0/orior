@@ -8,7 +8,7 @@
 // stands from the dot's edge, a pixel wide ramp from all of it to none, and the result dithered by a 4 by 4 ordered
 // threshold below one level of 255, so a shade between two levels is put down as both. The radius is taken at FITS of
 // the pen's, which puts down the ink the page's own canvas puts down for the same dots.
-#include "lattice.h"
+#include "../src/lattice.h"
 
 // the page's WebGL on the context of `slot`'s canvas, every object it makes named by a number above 0: a shader
 // compiled from `length` bytes of source, vertex where `vertex` is 1; a program linked from two shaders, 0 where it
@@ -26,8 +26,6 @@ LATTICE_IMPORT(gl_begin) void lattice_gl_begin(uint32_t slot, uint32_t program, 
 LATTICE_IMPORT(gl_uniform2f) void lattice_gl_uniform2f(uint32_t slot, uint32_t uniform, double first, double second);
 LATTICE_IMPORT(gl_uniform1f) void lattice_gl_uniform1f(uint32_t slot, uint32_t uniform, double value);
 LATTICE_IMPORT(gl_draw) void lattice_gl_draw(uint32_t slot, int32_t place, int32_t radius, int32_t shade, uint32_t count);
-
-#define LATTICE_FITS 0.955
 
 // a name's bytes and their length, for the page's WebGL to read
 #define LATTICE_NAMED(name_) name_, sizeof(name_) - 1u
@@ -72,15 +70,14 @@ static const char s_lattice_fragment[] =
     "  gl_FragColor = clamp(vec4(color.rgb * alpha, alpha) + threshold / 255.0, 0.0, 1.0);\n"
     "}\n";
 
-// the pens the dots are shaded from, each a color's red, green, blue and alpha from 0 to 1 and a radius, which the
-// page writes in its scheme's colors, and how many times it has; and the shades made of them, and for which writing
-static float s_lattice_pen_colors[LATTICE_LEVELS * 4];
-static float s_lattice_pen_radii[LATTICE_LEVELS];
+// the pens the dots are shaded from, which the page writes in its scheme's colors, and how many times it has; and the
+// shades made of them, and for which writing
+static LatticePens s_lattice_pens;
 static uint32_t s_lattice_pens_written;
 static LatticeShades s_lattice_shades;
 static uint32_t s_lattice_shades_for = UINT32_MAX;
 
-// a slot's painter: made, or found not to link, its program and buffer, where its attributes and uniforms stand
+// the painter of a `slot`: made, or found not to link, its program and buffer, where its attributes and uniforms stand
 enum LatticePainterState
 {
     LATTICE_UNMADE,
@@ -110,67 +107,39 @@ LATTICE_EXPORT(lattice_pen_levels) uint32_t lattice_pen_levels(void)
 
 LATTICE_EXPORT(lattice_pen_colors) float *lattice_pen_colors(void)
 {
-    return s_lattice_pen_colors;
+    return s_lattice_pens.color;
 }
 
 LATTICE_EXPORT(lattice_pen_radii) float *lattice_pen_radii(void)
 {
-    return s_lattice_pen_radii;
+    return s_lattice_pens.radius;
 }
 
-// the pens written anew, so the next dots made are shaded from them
+// the pens written anew: the next dots made are shaded from them
 LATTICE_EXPORT(lattice_pens_changed) void lattice_pens_changed(void)
 {
     s_lattice_pens_written += 1u;
 }
 
-// a channel from 0 to 1 as the byte it puts down, a share outside it held to its end
-static uint32_t lattice_byte(double share)
-{
-    const double held = share < 0.0 ? 0.0 : (share > 1.0 ? 1.0 : share);
-    // a share from 0 to 1 is a byte from 0 to 255
-    return (uint32_t)(held * 255.0 + 0.5);
-}
-
-// the shades made from the pens where the pens were written since: each the two pens either side of its disorder
-// blended by where it stands between them, its radius at FITS of theirs
+// the shades made from the pens where the pens were written since
 static const LatticeShades *lattice_shades(void)
 {
-    if (s_lattice_shades_for == s_lattice_pens_written)
+    if (s_lattice_shades_for != s_lattice_pens_written)
     {
-        return &s_lattice_shades;
+        lattice_shaded(&s_lattice_pens, &s_lattice_shades);
+        s_lattice_shades_for = s_lattice_pens_written;
     }
-    for (uint32_t shade = 0u; shade < LATTICE_SHADES; shade += 1u)
-    {
-        const double level = (double)shade / (LATTICE_SHADES - 1u) * (LATTICE_LEVELS - 1);
-        // the lower pen is a whole level from 0 to LATTICE_LEVELS less two
-        const uint32_t low = (uint32_t)(level < LATTICE_LEVELS - 2 ? level : LATTICE_LEVELS - 2);
-        const double between = level - low;
-        uint32_t color = 0u;
-        for (uint32_t channel = 0u; channel < 4u; channel += 1u)
-        {
-            const double from = s_lattice_pen_colors[low * 4u + channel];
-            const double to = s_lattice_pen_colors[(low + 1u) * 4u + channel];
-            color |= lattice_byte(from + (to - from) * between) << (channel * 8u);
-        }
-        const double from = s_lattice_pen_radii[low];
-        const double to = s_lattice_pen_radii[low + 1u];
-        s_lattice_shades.color[shade] = color;
-        // a radius of a pixel or so, which a float holds whole
-        s_lattice_shades.radius[shade] = (float)((from + (to - from) * between) * LATTICE_FITS);
-    }
-    s_lattice_shades_for = s_lattice_pens_written;
     return &s_lattice_shades;
 }
 
-// the slot's dots made, `width` by `height` pixels with the loop at `seconds`: every point moved, then shaded from the
-// pens the page wrote. 1, or 0 where the slot is none or the memory cannot hold them
+// the dots of `slot` made, `width` by `height` pixels with the loop at `seconds`: every point moved, then shaded from
+// the pens the page wrote. 1, or 0 where `slot` is past the last or the memory cannot hold them
 LATTICE_EXPORT(lattice_dots_made) uint32_t lattice_dots_made(uint32_t slot, double width, double height, double seconds)
 {
     return (slot < LATTICE_SLOTS) && lattice_dots_moved(lattice_slot(slot), width, height, seconds, lattice_shades());
 }
 
-// a slot's painter let go with its canvas; the next canvas the slot holds makes its own
+// the painter of `slot` let go with its canvas; the next canvas of `slot` makes its own
 LATTICE_EXPORT(lattice_forget) void lattice_forget(uint32_t slot)
 {
     if (slot < LATTICE_SLOTS)
@@ -179,7 +148,7 @@ LATTICE_EXPORT(lattice_forget) void lattice_forget(uint32_t slot)
     }
 }
 
-// the slot's painter made on its canvas's context: its shaders compiled, its program linked, its buffer and the
+// the painter of `slot` made on its canvas's context: its shaders compiled, its program linked, its buffer and the
 // places of its attributes and uniforms read; one that does not link is kept as not linking
 static void lattice_painter_made(uint32_t slot, LatticePainter *painter)
 {
@@ -204,8 +173,8 @@ static void lattice_painter_made(uint32_t slot, LatticePainter *painter)
 }
 
 // draws `slot`'s lattice, `width` by `height` pixels at `scale` device pixels to one, with the loop at `seconds`: its
-// dots made and handed over, then put down. 1 where it was drawn, 0 where the slot is none, its painter does not link
-// or the memory cannot hold its dots
+// dots made and handed over, then put down. 1 where it was drawn, 0 where `slot` is past the last, its painter does
+// not link or the memory cannot hold its dots
 LATTICE_EXPORT(lattice_paint) uint32_t lattice_paint(uint32_t slot, double width, double height, double scale, double seconds)
 {
     if (slot >= LATTICE_SLOTS)

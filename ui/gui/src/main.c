@@ -110,6 +110,11 @@ static void main_ticked(void *context)
     gui_window_ticked((GuiWindow *)context);
 }
 
+static void main_shown(void *context, int shown)
+{
+    gui_window_shown((GuiWindow *)context, shown);
+}
+
 // a line of the errors, `orior: ` before what was written
 static void main_err(const VerbaLinea *err_msg)
 {
@@ -151,8 +156,8 @@ int main(void)
             place.y = areas[0].y + (((int)areas[0].height - (int)GUI_FIRST_HEIGHT) / 2);
         }
     }
-    static const GuiSystemEvents s_events = {main_sized, main_pointer, main_wheel, main_key,  main_text,
-                                             main_woken, main_closing, main_hit,   main_idle, main_ticked};
+    static const GuiSystemEvents s_events = {main_sized, main_pointer, main_wheel, main_key,  main_text,  main_woken,
+                                             main_closing, main_hit,   main_idle,  main_ticked, main_shown};
     s_system = gui_system_opened(&place, "orior", &s_events, &s_window, &why);
     if (s_system == NULL)
     {
