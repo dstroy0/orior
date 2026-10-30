@@ -31,16 +31,14 @@ static int read_stack_room(unsigned int thread)
     }
     const unsigned int doubled = (s_rooms[thread] == 0u) ? CLI_RECORDING_STACK_FIRST : (s_rooms[thread] * 2u);
     const unsigned int room = (doubled < CLI_RECORDING_DEPTH) ? doubled : CLI_RECORDING_DEPTH;
-    unsigned int *const larger =
-        (s_depths[thread] < CLI_RECORDING_DEPTH)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(unsigned int), NULL)
-            : NULL;
+    unsigned int *const larger = (s_depths[thread] < CLI_RECORDING_DEPTH)
+                                     ? cli_cell_regrown(s_stacks[thread], s_depths[thread] * sizeof(unsigned int),
+                                                        (unsigned long long)room * sizeof(unsigned int), NULL)
+                                     : NULL;
     if (larger == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = s_stacks[thread], .bytes = s_depths[thread] * sizeof(unsigned int)});
-    cli_cell_release(s_stacks[thread], NULL);
     s_stacks[thread] = larger;
     s_rooms[thread] = room;
     return 1;

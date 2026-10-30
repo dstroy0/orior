@@ -91,13 +91,11 @@ unsigned int cli_maven_model_text_stored(CliMavenModel *model, const char *bytes
     room = (room < CLI_MAVEN_MODEL_TEXT) ? room : CLI_MAVEN_MODEL_TEXT;
     if (room != model->text_room)
     {
-        char *const larger = g_cli_cells->persistent_buf_alloc(room, &g_cli_maven_model_cells);
+        char *const larger = cli_cell_regrown(model->text, model->used, room, &g_cli_maven_model_cells);
         if (larger == NULL)
         {
             return CLI_MAVEN_MODEL_TEXT;
         }
-        memor.cpy(&(MemoriaCfg){.dst = larger, .src = model->text, .bytes = model->used});
-        cli_cell_release(model->text, &g_cli_maven_model_cells);
         model->text = larger;
         // a room no more than CLI_MAVEN_MODEL_TEXT, which an unsigned int stores
         model->text_room = (unsigned int)room;

@@ -90,22 +90,23 @@ static int cli_files_grown(void)
 {
     const unsigned int doubled = (s_file_room == 0u) ? CLI_SYMBOL_FILES_FIRST : (s_file_room * 2u);
     const unsigned int room = (doubled < CLI_SYMBOL_FILES) ? doubled : CLI_SYMBOL_FILES;
+    // the files' table grows where it stands or is moved with its entries; the buckets are made again whole over a
+    // cell of the new room, and nothing of the old ones is carried
     CliSymbolFile *const files =
         (s_file_room < CLI_SYMBOL_FILES)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliSymbolFile), NULL)
+            ? cli_cell_regrown(g_cli_symbol_files, (size_t)g_cli_symbol_file_count * sizeof(CliSymbolFile),
+                               (unsigned long long)room * sizeof(CliSymbolFile), NULL)
             : NULL;
-    unsigned int *const buckets =
-        (files != NULL) ? g_cli_cells->persistent_buf_alloc(2ull * room * sizeof(unsigned int), NULL) : NULL;
-    if (buckets == NULL)
+    if (files == NULL)
     {
-        cli_cell_release(files, NULL);
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = files, .src = g_cli_symbol_files, .bytes = (size_t)g_cli_symbol_file_count * sizeof(CliSymbolFile)});
-    cli_cell_release(g_cli_symbol_files, NULL);
-    cli_cell_release(s_buckets, NULL);
     g_cli_symbol_files = files;
+    unsigned int *const buckets = cli_cell_regrown(s_buckets, 0u, 2ull * room * sizeof(unsigned int), NULL);
+    if (buckets == NULL)
+    {
+        return 0;
+    }
     s_file_room = room;
     s_buckets = buckets;
     s_bucket_room = 2u * room;

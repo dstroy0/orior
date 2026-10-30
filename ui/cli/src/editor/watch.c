@@ -9,9 +9,9 @@
 #include "files_internal.h"
 #include "watch_internal.h"
 
-// how long a batch waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
-// most changes waiting and gathered in one batch; the changes and the bytes of their paths a list of them is begun
-// with, doubling as they come; and the bytes a batch is begun to be written in, doubling as it is
+// how long a bundle waits for another change before it goes, the longest it gathers changes for, in milliseconds; the
+// most changes waiting and gathered in one bundle; the changes and the bytes of their paths a list of them is begun
+// with, doubling as they come; and the bytes a bundle is begun to be written in, doubling as it is
 #define CLI_WATCH_QUIET 150ull
 #define CLI_WATCH_BATCH_MOST 1000ull
 #define CLI_WATCH_QUEUE 4096u
@@ -42,7 +42,7 @@ typedef struct
 } CliChanges;
 
 // The watch: the changes waiting, and whether more came than they contain; whether it is stopping, whether it reads the
-// tree itself, how many of its threads have ended; the tree, who takes the batches, and the threads
+// tree itself, how many of its threads have ended; the tree, who takes the bundles, and the threads
 typedef struct
 {
     CliChanges waiting;
@@ -59,8 +59,8 @@ typedef struct
     CliWake wake;
 } CliWatching;
 
-// One batch as it is gathered: its changes, and the folders and files it reports, lists of cells counted to the files
-// made at the batch's own size and given back as it is written; a cell the batcher owns while it runs
+// One bundle as it is gathered: its changes, and the folders and files it reports, lists of cells counted to the files
+// made at the bundle's own size and given back as it is written; a cell the batcher owns while it runs
 typedef struct
 {
     CliChanges changes;
@@ -88,16 +88,11 @@ static void *cli_watch_grown(void *cell, unsigned long long used, unsigned long 
     {
         grown *= 2ull;
     }
-    void *const larger = g_cli_cells->persistent_buf_alloc(grown, &g_cli_watch_cells);
+    void *const larger = cli_cell_regrown(cell, (size_t)used, grown, &g_cli_watch_cells);
     if (larger == NULL)
     {
         return NULL;
     }
-    if (used != 0ull)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = (size_t)used});
-    }
-    cli_cell_release(cell, &g_cli_watch_cells);
     *room = grown;
     return larger;
 }
@@ -170,7 +165,7 @@ void cli_watch_changed(void *context, const char *path, unsigned int kind)
     cli_lock_give(&s_lock);
 }
 
-// the changes waiting taken into the batch and their cells given back, the lock acquired
+// the changes waiting taken into the bundle and their cells given back, the lock acquired
 static void cli_waiting_taken(CliBatch *batch)
 {
     for (unsigned int at = 0u; at < s_watching.waiting.count; at += 1u)
@@ -186,12 +181,12 @@ static void cli_waiting_taken(CliBatch *batch)
     s_watching.overflowed = 0;
 }
 
-// the batch's changes gathered and written, less those the watching's patterns hide: 1 where any are left
+// the bundle's changes gathered and written, less those the watching's patterns hide: 1 where any are left
 static int cli_gathered(CliBatch *batch, VerbaLinea *out)
 {
     const char *const root = s_watching.root;
     cli_patterns_of(CLI_PART_WATCHING, &batch->patterns);
-    // each change puts at most its own path in one of the lists, so the batch's paths and their bytes are their size
+    // each change puts at most its own path in one of the lists, and the bundle's paths and their bytes are their size
     const unsigned int count = batch->changes.count;
     const unsigned long long bytes = batch->changes.used;
     const int made = cli_files_made(&batch->folders, count, bytes) && cli_files_made(&batch->written, count, bytes);
@@ -275,11 +270,11 @@ static int cli_gathered(CliBatch *batch, VerbaLinea *out)
     return any;
 }
 
-// the changes gathered into batches and each handed over, until the watch stops
+// the changes gathered into bundles and each handed over, until the watch stops
 static void cli_batched(void *context)
 {
     (void)context;
-    // the batch a cell for as long as the batcher runs; with no room for it the batcher ends at once
+    // the bundle a cell for as long as the batcher runs; with no room for it the batcher ends at once
     CliBatch *const batch = cli_lane_alloc(sizeof(CliBatch), &g_cli_watch_cells);
     cli_lock_take(&s_lock);
     if (batch != NULL)

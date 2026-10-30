@@ -21,17 +21,15 @@ static void *comms_grown(void *table, unsigned int *room, unsigned int most, uns
     }
     const unsigned int doubled = (*room == 0u) ? CLI_COMMS_FIRST : (2u * *room);
     const unsigned int taken = (doubled < most) ? doubled : most;
-    void *const grown = g_cli_cells->persistent_buf_alloc((unsigned long long)taken * width, &g_cli_comms_cells);
+    unsigned char *const grown = cli_cell_regrown(table, (size_t)((unsigned long long)*room * width),
+                                                  (unsigned long long)taken * width, &g_cli_comms_cells);
     if (grown == NULL)
     {
         return NULL;
     }
-    memor.set(&(MemoriaCfg){.dst = grown, .val = 0, .bytes = (size_t)((unsigned long long)taken * width)});
-    if (table != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = table, .bytes = (size_t)((unsigned long long)*room * width)});
-        cli_cell_release(table, &g_cli_comms_cells);
-    }
+    memor.set(&(MemoriaCfg){.dst = grown + ((unsigned long long)*room * width),
+                            .val = 0,
+                            .bytes = (size_t)((unsigned long long)(taken - *room) * width)});
     *room = taken;
     return grown;
 }

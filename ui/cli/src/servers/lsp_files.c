@@ -68,17 +68,16 @@ static int files_grown(void)
 {
     const unsigned int doubled = (s_files_room == 0u) ? CLI_LSP_FILES_FIRST : (s_files_room * 2u);
     const unsigned int room = (doubled < CLI_LSP_FILES) ? doubled : CLI_LSP_FILES;
-    CliLspFile *const larger =
-        (s_files_room < CLI_LSP_FILES)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(CliLspFile), &g_cli_lsp_files_cells)
-            : NULL;
+    CliLspFile *const larger = (s_files_room < CLI_LSP_FILES)
+                                   ? cli_cell_regrown(s_files, (size_t)s_files_room * sizeof(CliLspFile),
+                                                      (unsigned long long)room * sizeof(CliLspFile), &g_cli_lsp_files_cells)
+                                   : NULL;
     if (larger == NULL)
     {
         return 0;
     }
-    memor.set(&(MemoriaCfg){.dst = larger, .val = 0, .bytes = (size_t)room * sizeof(CliLspFile)});
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = s_files, .bytes = (size_t)s_files_room * sizeof(CliLspFile)});
-    cli_cell_release(s_files, &g_cli_lsp_files_cells);
+    memor.set(&(MemoriaCfg){
+        .dst = larger + s_files_room, .val = 0, .bytes = (size_t)(room - s_files_room) * sizeof(CliLspFile)});
     s_files = larger;
     s_files_room = room;
     return 1;

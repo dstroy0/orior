@@ -33,15 +33,13 @@ void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsig
     }
     const unsigned int doubled = (*room == 0u) ? CLI_COMPILE_FIRST : (*room * 2u);
     const unsigned int grown = (doubled < most) ? doubled : most;
-    void *const larger = (count < most)
-                             ? g_cli_cells->persistent_buf_alloc((unsigned long long)grown * each, &g_cli_compile_cells)
-                             : NULL;
+    void *const larger = (count < most) ? cli_cell_regrown(list, (size_t)(count * each), (unsigned long long)grown * each,
+                                                           &g_cli_compile_cells)
+                                        : NULL;
     if (larger == NULL)
     {
         return NULL;
     }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    cli_cell_release(list, &g_cli_compile_cells);
     *room = grown;
     return larger;
 }

@@ -56,20 +56,15 @@ unsigned int cli_settings_text_stored(CliLayers *layers, const char *text, unsig
     }
     if (most > layers->room)
     {
-        // twice the room, or CLI_LAYERS_TEXT_FIRST where it contains none, so texts stored one at a time take the cell
+        // twice the room, or CLI_LAYERS_TEXT_FIRST where it contains none, and texts stored one at a time take the cell
         // again seldom, up to the most the texts contain
         const unsigned long long doubled = (layers->room == 0ull) ? CLI_LAYERS_TEXT_FIRST : (2ull * layers->room);
         const unsigned long long wanted = (most > doubled) ? most : doubled;
         const unsigned long long room = (wanted < CLI_SETTINGS_TEXT) ? wanted : CLI_SETTINGS_TEXT;
-        char *const grown = g_cli_cells->persistent_buf_alloc(room, &g_cli_settings_cells);
+        char *const grown = cli_cell_regrown(layers->text, (size_t)layers->used, room, &g_cli_settings_cells);
         if (grown == NULL)
         {
             return 0u;
-        }
-        if (layers->text != NULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = layers->text, .bytes = (size_t)layers->used});
-            cli_cell_release(layers->text, &g_cli_settings_cells);
         }
         layers->text = grown;
         layers->room = room;

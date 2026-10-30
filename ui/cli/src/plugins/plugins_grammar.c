@@ -32,17 +32,12 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static int cli_grammars_grown(void)
 {
     const unsigned int room = (s_grammar_room == 0u) ? CLI_PLUGIN_GRAMMARS_FIRST : (2u * s_grammar_room);
-    CliPluginGrammar *const grown =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*grown), &g_cli_plugins_cells);
+    CliPluginGrammar *const grown = cli_cell_regrown(s_grammars, (size_t)s_grammar_count * sizeof(*grown),
+                                                     (unsigned long long)room * sizeof(*grown), &g_cli_plugins_cells);
     if (grown == NULL)
     {
         return 0;
     }
-    if (s_grammars != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_grammars, .bytes = (size_t)s_grammar_count * sizeof(*grown)});
-    }
-    cli_cell_release(s_grammars, &g_cli_plugins_cells);
     s_grammars = grown;
     s_grammar_room = room;
     return 1;

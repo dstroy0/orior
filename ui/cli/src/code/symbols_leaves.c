@@ -75,7 +75,7 @@ static void cli_leaf_of(const char *name, CliLeaf *leaf)
     unsigned long long from = 0ull;
     unsigned int segment = 0u;
     int directive = 0;
-    // the segment before this one names `binds` or `base`, so this one is a number
+    // the segment before this one names `binds` or `base`, and this one is a number
     unsigned int counts = 0u;
     while (from <= length)
     {
@@ -189,16 +189,12 @@ unsigned int cli_symbols_name_roles(const char *name)
 static int cli_leaves_grown(CliLeafRead *read)
 {
     const unsigned int room = (read->room == 0u) ? CLI_LEAVES_FIRST : (2u * read->room);
-    CliLeaf *const grown = g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*grown), NULL);
+    CliLeaf *const grown = cli_cell_regrown(read->leaf, (size_t)read->count * sizeof(*grown),
+                                            (unsigned long long)room * sizeof(*grown), NULL);
     if (grown == NULL)
     {
         return 0;
     }
-    if (read->leaf != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = read->leaf, .bytes = (size_t)read->count * sizeof(*grown)});
-    }
-    cli_cell_release(read->leaf, NULL);
     read->leaf = grown;
     read->room = room;
     return 1;

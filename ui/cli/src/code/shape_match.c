@@ -49,15 +49,10 @@ static void match_end_put(CliShapeMatcher *matcher, unsigned int end)
     if ((matcher->ends_top == matcher->ends_room) && (matcher->ends_room < CLI_SHAPE_ENDS))
     {
         const unsigned int room = (matcher->ends_room == 0u) ? CLI_SHAPE_ENDS_FIRST : (matcher->ends_room * 2u);
-        unsigned int *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &g_cli_shape_cells);
+        unsigned int *const grown = cli_cell_regrown(matcher->ends, matcher->ends_top * sizeof(*grown),
+                                                     room * sizeof(*grown), &g_cli_shape_cells);
         if (grown != NULL)
         {
-            if (matcher->ends_top != 0u)
-            {
-                memor.cpy(
-                    &(MemoriaCfg){.dst = grown, .src = matcher->ends, .bytes = matcher->ends_top * sizeof(*grown)});
-            }
-            cli_cell_release(matcher->ends, &g_cli_shape_cells);
             matcher->ends = grown;
             matcher->ends_room = room;
         }

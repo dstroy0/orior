@@ -546,13 +546,12 @@ static int view_fold_put(CliView *view, unsigned long long first, unsigned long 
     if (view->folds == view->folds_room)
     {
         const unsigned int room = (view->folds_room != 0u) ? view->folds_room * 2u : 16u;
-        CliViewFold *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &s_owner);
+        CliViewFold *const grown =
+            cli_cell_regrown(view->fold, view->folds * sizeof(*grown), room * sizeof(*grown), &s_owner);
         if (grown == NULL)
         {
             return 0;
         }
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = view->fold, .bytes = view->folds * sizeof(*grown)});
-        cli_cell_release(view->fold, &s_owner);
         view->fold = grown;
         view->folds_room = room;
     }
@@ -640,12 +639,12 @@ static int view_units_room(CliView *view, unsigned long long units)
         return 1;
     }
     const unsigned long long room = (units > 256ull) ? units : 256ull;
-    unsigned short *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &s_owner);
+    // the line's units are read anew into the cell: nothing of the old ones is carried
+    unsigned short *const grown = cli_cell_regrown(view->line_units, 0u, room * sizeof(*grown), &s_owner);
     if (grown == NULL)
     {
         return 0;
     }
-    cli_cell_release(view->line_units, &s_owner);
     view->line_units = grown;
     view->units_room = room;
     return 1;
@@ -908,13 +907,12 @@ static int view_query_room(CliView *view, unsigned long long more)
         return 1;
     }
     const unsigned long long room = (wanted > 32ull) ? wanted * 2ull : 64ull;
-    unsigned short *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &s_owner);
+    unsigned short *const grown =
+        cli_cell_regrown(view->find_query, view->find_length * sizeof(*grown), room * sizeof(*grown), &s_owner);
     if (grown == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = grown, .src = view->find_query, .bytes = view->find_length * sizeof(*grown)});
-    cli_cell_release(view->find_query, &s_owner);
     view->find_query = grown;
     view->find_room = room;
     return 1;
@@ -1373,15 +1371,14 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
         if (view->steps == view->steps_room)
         {
             const unsigned int room = (view->steps_room != 0u) ? view->steps_room * 2u : 16u;
-            CliViewStep *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &s_owner);
+            CliViewStep *const grown =
+                cli_cell_regrown(view->step, view->steps * sizeof(*grown), room * sizeof(*grown), &s_owner);
             if (grown == NULL)
             {
                 cli_cell_release(cell, &s_owner);
                 mmgr_line_put(err_msg, "the steps' cell could not be taken");
                 return 0;
             }
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = view->step, .bytes = view->steps * sizeof(*grown)});
-            cli_cell_release(view->step, &s_owner);
             view->step = grown;
             view->steps_room = room;
         }
@@ -1395,15 +1392,14 @@ static int view_edited(CliView *view, CliPlace from, CliPlace to, const char *te
     if (step->edits == step->room)
     {
         const unsigned int room = (step->room != 0u) ? step->room * 2u : 4u;
-        CliViewEdit *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &s_owner);
+        CliViewEdit *const grown =
+            cli_cell_regrown(step->edit, step->edits * sizeof(*grown), room * sizeof(*grown), &s_owner);
         if (grown == NULL)
         {
             cli_cell_release(cell, &s_owner);
             mmgr_line_put(err_msg, "a step's cell could not be taken");
             return 0;
         }
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = step->edit, .bytes = step->edits * sizeof(*grown)});
-        cli_cell_release(step->edit, &s_owner);
         step->edit = grown;
         step->room = room;
     }

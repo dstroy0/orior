@@ -22,15 +22,19 @@ static int match_end_room(CliRegexpRun *run)
         return 0;
     }
     const unsigned long long room = run->ends_room * 2ull;
-    unsigned int *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(unsigned int), NULL);
+    // a stack in a cell of its own grows where it stands; one in the caller's storage is copied into a first cell
+    unsigned int *const grown = run->ends_reserved
+                                    ? cli_cell_regrown(run->ends, (size_t)(run->ends_top * sizeof(unsigned int)),
+                                                       room * sizeof(unsigned int), NULL)
+                                    : g_cli_cells->persistent_buf_alloc(room * sizeof(unsigned int), NULL);
     if (grown == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){.dst = grown, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
-    if (run->ends_reserved)
+    if (!run->ends_reserved)
     {
-        cli_cell_release(run->ends, NULL);
+        memor.cpy(
+            &(MemoriaCfg){.dst = grown, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
     }
     run->ends = grown;
     run->ends_room = room;

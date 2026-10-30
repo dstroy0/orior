@@ -48,14 +48,13 @@ static void *cli_room(CliIppMessage *message, void *list, unsigned int count, un
         grown *= 2ull;
     }
     grown = (grown < most) ? grown : most;
-    void *const larger = (wanted <= most) ? g_cli_cells->persistent_buf_alloc(grown * each, &g_cli_ipp_cells) : NULL;
+    void *const larger =
+        (wanted <= most) ? cli_cell_regrown(list, (size_t)(count * each), grown * each, &g_cli_ipp_cells) : NULL;
     if (larger == NULL)
     {
         message->full = 1;
         return NULL;
     }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    cli_cell_release(list, &g_cli_ipp_cells);
     // a room no more than `most`, which an unsigned int stores
     *room = (unsigned int)grown;
     return larger;

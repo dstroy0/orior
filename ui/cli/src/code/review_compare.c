@@ -489,15 +489,13 @@ static int compare_call_room(void)
     const unsigned int room = (doubled < CLI_REVIEW_CALLS) ? doubled : CLI_REVIEW_CALLS;
     unsigned int *const larger =
         (g_cli_review.calls < CLI_REVIEW_CALLS)
-            ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(unsigned int), NULL)
+            ? cli_cell_regrown(g_cli_review.call, (size_t)g_cli_review.calls * sizeof(unsigned int),
+                               (unsigned long long)room * sizeof(unsigned int), NULL)
             : NULL;
     if (larger == NULL)
     {
         return 0;
     }
-    memor.cpy(&(MemoriaCfg){
-        .dst = larger, .src = g_cli_review.call, .bytes = (size_t)g_cli_review.calls * sizeof(unsigned int)});
-    cli_cell_release(g_cli_review.call, NULL);
     g_cli_review.call = larger;
     g_cli_review.call_room = room;
     return 1;

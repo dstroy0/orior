@@ -245,17 +245,12 @@ static int found_put(const char *id, const char *state, const char *program)
     if (place == s_found.most)
     {
         const unsigned int most = (s_found.most == 0u) ? CLI_FOUND_FIRST : (s_found.most * 2u);
-        CliToolFound *const grown =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(*grown), &s_found_cells);
+        CliToolFound *const grown = cli_cell_regrown(s_found.tool, s_found.count * sizeof(*grown),
+                                                     (unsigned long long)most * sizeof(*grown), &s_found_cells);
         if (grown == NULL)
         {
             return 0;
         }
-        if (s_found.tool != NULL)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_found.tool, .bytes = s_found.count * sizeof(*grown)});
-        }
-        cli_cell_release(s_found.tool, &s_found_cells);
         s_found.tool = grown;
         s_found.most = most;
     }

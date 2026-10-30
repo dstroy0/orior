@@ -88,16 +88,15 @@ static void *cli_catalog_room(CliCatalog *catalog, void *list, unsigned int coun
     {
         room *= 2u;
     }
-    void *const larger = (catalog->cells != NULL)
-                             ? g_cli_cells->persistent_buf_alloc((unsigned long long)room * each, catalog->cells)
-                             : NULL;
+    void *const larger =
+        (catalog->cells != NULL)
+            ? cli_cell_regrown(list, (size_t)(count * each), (unsigned long long)room * each, catalog->cells)
+            : NULL;
     if (larger == NULL)
     {
         catalog->full = 1;
         return NULL;
     }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    cli_cell_release(list, catalog->cells);
     *most = room;
     return larger;
 }

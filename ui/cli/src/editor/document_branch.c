@@ -29,7 +29,7 @@
 #include <stdatomic.h>
 
 // root's place among a colored text's states, the first written; the most lines a step of the walk colors in a run, and
-// again after it, and the most bytes of lines it colors, the last line it colors maybe past them, so its colors are
+// again after it, and the most bytes of lines it colors, the last line it colors maybe past them, and its colors are
 // handed on in steps, and the bytes of a coloring that colors every line asked; the lines colored at once where a
 // coloring stops at the first entered as before, and where it does not, CLI_DOC_STEP where its bytes reach no further;
 // the room a step's colors are begun in, a state's longest text, the room a text's states hold past them and the places
@@ -63,7 +63,7 @@ typedef struct
 
 // the most walkers; where the colors go, whether walkers walk them out, and how many may walk at once, the machine's
 // processors but one, one at the fewest; the walkers, and past them the walk a caller takes on its own thread; and the
-// lock the colors are handed on under, taken before the texts' lock is given back, so they go in the order they were
+// lock the colors are handed on under, taken before the texts' lock is given back, and they go in the order they were
 // put in
 #define CLI_DOC_WALKERS 8u
 static CliDocColored s_colored;
@@ -187,14 +187,14 @@ static int branch_index_grown(CliStoredText *one)
         return 1;
     }
     const unsigned long long places = (one->state_indexed != 0u) ? (2ull * one->state_indexed) : CLI_DOC_INDEX_FIRST;
+    // the index is built anew over the whole cell: nothing of the old one is carried
     unsigned int *const grown =
-        (places <= 0x80000000ull) ? g_cli_cells->persistent_buf_alloc(places * sizeof(*grown), NULL) : NULL;
+        (places <= 0x80000000ull) ? cli_cell_regrown(one->state_index, 0u, places * sizeof(*grown), NULL) : NULL;
     if (grown == NULL)
     {
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = grown, .val = 0, .bytes = places * sizeof(*grown)});
-    cli_cell_release(one->state_index, NULL);
     one->state_index = grown;
     // a count checked above to be no more than an unsigned int's half
     one->state_indexed = (unsigned int)places;
@@ -235,17 +235,13 @@ static unsigned int branch_state(CliStoredText *one, const char *text)
     {
         // the states with a share of them past those, as a runs' room holds its runs
         const unsigned long long room = needed + (needed / CLI_DOC_ROOM_SHARE) + CLI_DOC_STATES_FIRST;
-        char *const grown = (room <= 0xffffffffull) ? g_cli_cells->persistent_buf_alloc(room, NULL) : NULL;
+        char *const grown =
+            (room <= 0xffffffffull) ? cli_cell_regrown(one->state, one->state_used, room, NULL) : NULL;
         if (grown == NULL)
         {
             one->refused = 1;
             return CLI_DOC_ROOT;
         }
-        if (one->state_used != 0u)
-        {
-            memor.cpy(&(MemoriaCfg){.dst = grown, .src = one->state, .bytes = one->state_used});
-        }
-        cli_cell_release(one->state, NULL);
         one->state = grown;
         // a room checked above to be no more than an unsigned int counts
         one->state_room = (unsigned int)room;
@@ -327,7 +323,7 @@ static const char **branch_lines_copied(const CliLines *lines, unsigned int firs
 // the lines from `first` to `end` of the paged text under `key` as UTF-8, read through the pages into a cell they take
 // for them, `*taken`, to be given back with g_cli_cells->persistent_buf_release, each line's start put into the starts
 // of `work`: the starts, the line after the last read into `read`, NULL where the cells cannot meet the room or the
-// pages could not read the lines; with no lock held
+// pages could not read the lines; with no lock taken
 static const char **branch_lines_paged(const char *key, unsigned int first, unsigned int end, CliBranchWork *work,
                                        unsigned int *read, char **taken)
 {
@@ -352,7 +348,7 @@ static const char **branch_lines_paged(const char *key, unsigned int first, unsi
 // each line whose runs are handed on, 0 for every one, how many names the grammar's tokens take, the place of the
 // first a run that counts depth takes by its depth, 0 for a grammar that names none, the bytes of lines it colors yet,
 // CLI_DOC_ALL_BYTES where it colors every line asked, and the line after the last whose runs were written; whether the
-// text moved while it colored, so it colors no more; whether the lines whose runs are handed on are those it asks,
+// text moved while it colored, and it colors no more; whether the lines whose runs are handed on are those it asks,
 // from `hand_from` to before `hand_to`, else those the page holds as each is put in; and the line it colors no further
 // than as it goes on past the lines asked. Its columns read as the text's as each line is put in, where it names them
 typedef struct
@@ -399,12 +395,12 @@ typedef struct
     int moved;
 } CliBranchScope;
 
-// A batch of lines as it is colored with no lock held: the work it is written into; the scope the line colored next
+// A bundle of lines as it is colored with no lock taken: the work it is written into; the scope the line colored next
 // stands in, and whether the place among the text's states of the scope the line before it ended in is known; the names
 // the grammar's tokens take, and the roles of each, read as the lines were claimed, `roles_count` of them; the words of
 // what it found written; and whether the cells refused the room for them. What it finds on each line is a record of
 // words: how many runs, the line's regions, the bytes of the colorer's state the line ends in, and the bytes of the
-// scope it ends in, CLI_DOC_NONE for a scope of no depth, no pairs and no names, CLI_DOC_SCOPE_SAME for the one the line
+// scope it ends in, CLI_DOC_NONE for a scope with no depth, pairs or names, CLI_DOC_SCOPE_SAME for the one the line
 // before it ended in; then the runs' columns, their names as the walk names them, the colorer's state and the scope,
 // each of the two from a word of its own
 typedef struct
@@ -468,7 +464,7 @@ static void branch_runs_put(CliBranchRange *range, unsigned int line, const CliL
 #define CLI_DOC_RUNS_SPARE 4096ull
 
 // the words of the runs the lines of `one` keep, and a room the cells give them taken afresh, those runs moved into
-// it in the order of their lines, so it holds them with `more` words after them and a share of them past those: 1, or
+// it in the order of their lines, and it holds them with `more` words after them and a share of them past those: 1, or
 // 0 where the cells cannot meet it, the room as it was
 static int branch_runs_roomed(CliStoredText *one, unsigned long long more)
 {
@@ -560,7 +556,7 @@ static void branch_role_read(void *context, unsigned int place, const char *name
 }
 
 // every name of the grammar of `one` its roles read off its segments and kept among the text's roles by its place,
-// and above them one more than how many names before it count the depth of a pair, once for the grammar, so a
+// and above them one more than how many names before it count the depth of a pair, once for the grammar, and a
 // coloring copies them as it claims its lines; under the lock
 static void branch_roles_read(CliStoredText *one)
 {
@@ -571,13 +567,12 @@ static void branch_roles_read(CliStoredText *one)
     }
     if (names > one->roles_room)
     {
-        unsigned int *const grown =
-            g_cli_cells->persistent_buf_alloc((unsigned long long)names * sizeof(*grown), NULL);
+        // the roles are read anew over the whole cell: nothing of the old ones is carried
+        unsigned int *const grown = cli_cell_regrown(one->roles, 0u, (unsigned long long)names * sizeof(*grown), NULL);
         if (grown == NULL)
         {
             return;
         }
-        cli_cell_release(one->roles, NULL);
         one->roles = grown;
         one->roles_room = names;
     }
@@ -594,7 +589,7 @@ static void branch_roles_read(CliStoredText *one)
     one->roles_whole = 1;
 }
 
-// the roles the name at `name` among the names of `leaves` gives a run: those the text kept as the batch's lines were
+// the roles the name at `name` among the names of `leaves` gives a run: those the text kept as the bundle's lines were
 // claimed, else read off its segments
 static unsigned int branch_roles(const CliBranchFinding *finding, const CliLeaves *leaves, unsigned int name)
 {
@@ -604,7 +599,7 @@ static unsigned int branch_roles(const CliBranchFinding *finding, const CliLeave
 }
 
 // how many of the names of `leaves` before the name at `name` count the depth of a pair: as the text kept it as the
-// batch's lines were claimed, else counted
+// bundle's lines were claimed, else counted
 static unsigned int branch_depth_rank(const CliBranchFinding *finding, const CliLeaves *leaves, unsigned int name)
 {
     const unsigned int kept = (name < finding->roles_count) ? (finding->roles[name] >> CLI_DOC_RANK_AT) : 0u;
@@ -858,7 +853,7 @@ static void branch_scope_read(const CliStoredText *one, unsigned int place, CliB
 
 // the scope the line `finding` colored last ends in, written into `out` where its place among the text's states is to
 // be found as it is put in, written again only where it moved since the one before it was: its bytes, CLI_DOC_NONE for
-// a scope of no depth, no pairs and no names or one too large to write, and CLI_DOC_SCOPE_SAME for the one before it
+// a scope with no depth, pairs or names or one too large to write, and CLI_DOC_SCOPE_SAME for the one before it
 static unsigned int branch_scope_found(CliBranchFinding *finding, VerbaLinea *out)
 {
     CliBranchScope *const scope = &finding->scope;
@@ -974,8 +969,8 @@ static CliLeaves branch_uses_named(CliBranchFinding *finding, const CliLeaves *l
     return named;
 }
 
-// one line's leaves, colored with no lock held: its runs named through the scope, its regions read, and the state the
-// colorer leaves it in and the scope it ends in written after what the batch found on the lines before it, a record of
+// one line's leaves, colored with no lock taken: its runs named through the scope, its regions read, and the state the
+// colorer leaves it in and the scope it ends in written after what the bundle found on the lines before it, a record of
 // its own; nothing where the cells refused the room for one before it or refuse it
 static void branch_found(void *context, const CliLeaves *leaves)
 {
@@ -1045,7 +1040,7 @@ static int branch_claims_any(const CliStoredText *one)
 }
 
 // the lines from `first` to before `end` of `one` claimed by a coloring under way: the claim's place among those of the
-// text, CLI_DOC_CLAIMS where every place is taken and none is claimed
+// text, CLI_DOC_CLAIMS where every place is taken with none claimed
 static unsigned int branch_claim_put(CliStoredText *one, unsigned int first, unsigned int end)
 {
     for (unsigned int at = 0u; at < CLI_DOC_CLAIMS; at += 1u)
@@ -1150,10 +1145,10 @@ static unsigned int branch_found_put(CliStoredText *one, const CliBranchFinding 
     return line;
 }
 
-// one batch of the lines from `first` to before `to` of `one` colored from the state `*entering` the first is entered
+// one bundle of the lines from `first` to before `to` of `one` colored from the state `*entering` the first is entered
 // in: no more than CLI_DOC_BATCH lines where `stopping` is 1, else CLI_DOC_RUN, CLI_DOC_STEP where the range's bytes
 // reach no further, and of those as many as its bytes reach, one at the least, those spent taken from them. The lines
-// are claimed under the lock, read and colored in `work` with it given back, and put in under it again, the text held
+// are claimed under the lock, read and colored in `work` with it given back, and put in under it again, the text kept
 // across it by its caller; where the text moved meanwhile none is put in and the range is marked stale, and where the
 // grammar or the cells refused them none is and the text is marked refused. The line after the last put; under the lock
 static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first, unsigned int to, int stopping,
@@ -1163,7 +1158,7 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
     const unsigned int most =
         stopping ? CLI_DOC_BATCH : ((range->bytes != CLI_DOC_ALL_BYTES) ? CLI_DOC_STEP : CLI_DOC_RUN);
     const unsigned int end = ((to - first) > most) ? (first + most) : to;
-    // what the batch reads with the lock given back, copied as its lines are claimed: the text's serial, its key and
+    // what the bundle reads with the lock given back, copied as its lines are claimed: the text's serial, its key and
     // its grammar's, whether it is paged and whether its last line ends it, and how many lines it counts
     const unsigned long long serial = one->serial;
     char key[CLI_NAME_MAX_LEN];
@@ -1179,7 +1174,7 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
     finding.used = 0ull;
     finding.refused = 0;
     // the state the first line is entered in, copied out, the colorer's own handed to it and the scope at the place
-    // after the mark read into the batch
+    // after the mark read into the bundle
     char state[CLI_DOC_STATE];
     VerbaLinea entered = {state, sizeof(state), 0ull};
     mmgr_line_put(&entered, one->state + *entering);
@@ -1262,10 +1257,10 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
 
 // the lines from `from` to `to` of `one` colored, the first entered in the state the line above it ends in, root where
 // it is the first or the line above is not colored; where `stopping` is 1, stopped at the first entered in the state it
-// was entered in before, each line colored whole from left to right, and no more lines than the range's bytes reach, the
-// last maybe past them, those spent taken from them, a batch at a time in a work claimed for them. The runs of those the
+// was entered in before, each line colored whole from left to right, and the lines those the range's bytes reach, the
+// last maybe past them, those spent taken from them, a bundle at a time in a work claimed for them. The runs of those the
 // range hands on handed on in it, each line's no further than the range's columns where it names them: the line after
-// the last colored. Under the lock, which it gives back as each batch is colored, the text held across it by its caller
+// the last colored. Under the lock, which it gives back as each bundle is colored, the text kept across it by its caller
 static unsigned int branch_colored(CliStoredText *one, unsigned int from, unsigned int to, int stopping,
                                    CliBranchRange *range)
 {
@@ -1278,7 +1273,7 @@ static unsigned int branch_colored(CliStoredText *one, unsigned int from, unsign
     while (!stopped && !one->refused && !range->stale && (line < to) && (range->bytes != 0ull))
     {
         const unsigned int next = branch_batch_colored(one, line, to, stopping, &work, &entering, &stopped, range);
-        // a batch that puts no line in ends the coloring
+        // a bundle that puts no line in ends the coloring
         stopped = stopped || (next == line);
         line = next;
     }
@@ -1342,7 +1337,7 @@ static CliBranchRange branch_range_begun(const CliStoredText *one, int *any, Ver
 // the lines from `first` to `end` of `one` colored in `range` and the lines after them colored again until one is
 // entered in the state it was entered in before, no more than CLI_DOC_STEP of those and none past the range's last;
 // where its columns are not 0, the lines after them left to the walk unless `onward` is 1, as the walk's own step colors
-// them. Under the lock, which each batch gives back as it is colored, the range marked stale where the text moved
+// them. Under the lock, which each bundle gives back as it is colored, the range marked stale where the text moved
 static void branch_range_colored(CliStoredText *one, unsigned int first, unsigned int end, int onward,
                                  CliBranchRange *range)
 {
@@ -1368,7 +1363,7 @@ static void branch_colors_begun(const CliStoredText *one, VerbaLinea *out)
 
 // colors handed on ended: `,"names":` the names the text's grammar's tokens take where `any` colors go and they were not
 // handed on since it was colored by the grammar, the first colors handed on carrying them, and `}`; under the lock the
-// colors are handed on after, so no colors go before the names they are named by
+// colors are handed on after, and no colors go before the names they are named by
 static void branch_colors_ended(CliStoredText *one, int any, VerbaLinea *out)
 {
     if (any && !one->named)
@@ -1384,7 +1379,7 @@ static void branch_colors_ended(CliStoredText *one, int any, VerbaLinea *out)
 // or claimed, the first entered in a state the line above does not end in colored again, written into `out` as
 // `{"key", "seq", "colors"}`, `*handed` set where it holds the runs of a line the page holds: 1 where it colored a line,
 // else 0. A paged text's lines are counted again first, and it is walked across the lines the page holds alone. Under
-// the lock, which it gives back as it colors, the text held across it by its caller
+// the lock, which it gives back as it colors, the text kept across it by its caller
 static int branch_step(CliStoredText *one, VerbaLinea *out, int *handed)
 {
     const CliLines *const lines = &one->lines;
@@ -1610,7 +1605,7 @@ static int branch_folds_due(const CliStoredText *one)
 }
 
 // colors handed on to where they go, `colors` where `any` line's runs or folds were written into it: the lock they are
-// handed on under taken before the texts' lock is given back, so they go in the order they were put in; the texts' lock
+// handed on under taken before the texts' lock is given back, and they go in the order they were put in; the texts' lock
 // given back either way
 static void branch_handed_out(int any, VerbaLinea *colors)
 {
@@ -1629,7 +1624,7 @@ static void branch_handed_out(int any, VerbaLinea *colors)
 }
 
 // the walk taken by `walker` step by step until no text it may walk has a line to color: each step on a text no other
-// walker walks and the walk did not find colored whole since it last moved, the text held across the lock given back
+// walker walks and the walk did not find colored whole since it last moved, the text kept across the lock given back
 // as it colors, and the step's colors handed on once it is; on a walker's own thread where `own` is 1, marked as
 // walking no more as it ends
 static void branch_walked(CliBranchWalker *walker, int own)

@@ -47,11 +47,11 @@ typedef struct
     char listed[];
 } CliSymbolsReading;
 
-// the bytes past a file read in the reading's cell, zero, so a walk's word past the text reads inside the cell
+// the bytes past a file read in the reading's cell, zero, and a walk's word past the text reads inside the cell
 #define CLI_SYMBOLS_FILE_SLACK 64ull
 
 // room for a file of `size` bytes in the reading's one file cell: the cell as it is where it fits them and the slack,
-// else one taken anew of twice the cell's bytes or the file's and the slack, the cell before given back; NULL, so the
+// else one taken anew of twice the cell's bytes or the file's and the slack, the cell before given back; NULL, and the
 // file is passed over, where it is larger than the tree reads or no cell is given
 static unsigned char *cli_file_roomed(void *context, unsigned long long size)
 {
@@ -77,13 +77,7 @@ static unsigned char *cli_file_roomed(void *context, unsigned long long size)
 // where it is refused
 static void *cli_read_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
 {
-    void *const larger = g_cli_cells->persistent_buf_alloc(room, NULL);
-    if (larger != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = (size_t)used});
-        cli_cell_release(cell, NULL);
-    }
-    return larger;
+    return cli_cell_regrown(cell, (size_t)used, room, NULL);
 }
 
 static CliSymbolsReading *s_listing;
@@ -263,7 +257,7 @@ static int cli_reading_one(CliSymbolsReading *reading, const char *root, const c
         return 1;
     }
     cli_lock_give(&g_cli_symbols_lock);
-    // the file read into the reading's one cell, reused from file to file, so a reading takes a cell a growth and not
+    // the file read into the reading's one cell, reused from file to file, and a reading takes a cell a growth and not
     // one a file
     unsigned long long mapped_size = 0ull;
     const int mapped =

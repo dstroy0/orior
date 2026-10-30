@@ -69,13 +69,7 @@ static unsigned long long room_doubled(unsigned long long most, unsigned long lo
 // retained where the cells cannot meet it
 static void *room_grown(void *cell, unsigned long long used, unsigned long long bytes)
 {
-    unsigned char *const larger = g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
-    if (larger != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = (size_t)used});
-        cli_cell_release(cell, &s_owner);
-    }
-    return larger;
+    return cli_cell_regrown(cell, (size_t)used, bytes, &s_owner);
 }
 
 CliServersQueued *cli_servers_check_queued_at(const CliServersQueue *queue, unsigned int at)

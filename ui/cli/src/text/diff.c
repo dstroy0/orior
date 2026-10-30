@@ -107,19 +107,13 @@ static int diff_trace_room(long long round)
         rounds *= 2;
     }
     rounds = (rounds < (CLI_MOST_EDITS + 1)) ? rounds : (CLI_MOST_EDITS + 1);
-    // a round is at most CLI_MOST_EDITS, so the rounds squared fit an unsigned long long
-    long long *const grown =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)(rounds * rounds) * sizeof(long long), NULL);
+    // a round is at most CLI_MOST_EDITS, and the rounds squared fit an unsigned long long
+    long long *const grown = cli_cell_regrown(s_diff->trace, (unsigned long long)(round * round) * sizeof(long long),
+                                              (unsigned long long)(rounds * rounds) * sizeof(long long), NULL);
     if (grown == NULL)
     {
         return 0;
     }
-    if (s_diff->trace != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){
-            .dst = grown, .src = s_diff->trace, .bytes = (unsigned long long)(round * round) * sizeof(long long)});
-    }
-    cli_cell_release(s_diff->trace, NULL);
     s_diff->trace = grown;
     s_diff->trace_rounds = rounds;
     return 1;

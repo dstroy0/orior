@@ -13,7 +13,7 @@
 #define CLI_GRAMMARS_FIRST 16u
 
 // A grammar's cell begins with its head: how many colorings read the grammar, raised under the lock as each finds it
-// and lowered with no lock held as each ends, and above them the mark that the grammar was put out of its place by
+// and lowered with no lock taken as each ends, and above them the mark that the grammar was put out of its place by
 // another stored under its key, the cell given back by the last coloring to end, or at once where none reads it. The
 // grammar's parts follow the head, which takes a whole word
 #define CLI_GRAMMAR_PUT_OUT (1ull << 63u)
@@ -150,18 +150,14 @@ static void cli_copied(const CliGrammar *read, unsigned char *region, CliGrammar
 static int cli_grammars_grown(void)
 {
     const unsigned int room = (s_grammar_room == 0u) ? CLI_GRAMMARS_FIRST : (2u * s_grammar_room);
-    CliGrammarEntry *const grown =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*grown), &s_owner);
+    CliGrammarEntry *const grown = cli_cell_regrown(s_grammars, (size_t)s_grammar_room * sizeof(*grown),
+                                                    (unsigned long long)room * sizeof(*grown), &s_owner);
     if (grown == NULL)
     {
         return 0;
     }
-    memor.set(&(MemoriaCfg){.dst = grown, .val = 0, .bytes = (size_t)room * sizeof(*grown)});
-    if (s_grammars != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_grammars, .bytes = (size_t)s_grammar_room * sizeof(*grown)});
-    }
-    cli_cell_release(s_grammars, &s_owner);
+    memor.set(&(MemoriaCfg){
+        .dst = grown + s_grammar_room, .val = 0, .bytes = (size_t)(room - s_grammar_room) * sizeof(*grown)});
     s_grammars = grown;
     s_grammar_room = room;
     return 1;
@@ -378,8 +374,8 @@ static unsigned int cli_grammar_entry_of(const char *key)
     return entry_at;
 }
 
-// the lines colored with the grammar stored under `key`, as `colored` says where they go, the lock held to find the
-// grammar and count the coloring among its readers alone, and the lines colored in a room claimed with no lock held: 1,
+// the lines colored with the grammar stored under `key`, as `colored` says where they go, the lock taken to find the
+// grammar and count the coloring among its readers alone, and the lines colored in a room claimed with no lock taken: 1,
 // or 0 with why given
 static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *err_msg)
 {

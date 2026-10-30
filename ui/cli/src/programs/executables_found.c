@@ -19,16 +19,12 @@ int cli_executables_room(CliExecutables *found)
     }
     const unsigned int doubled = (found->room == 0u) ? CLI_EXECUTABLES_FIRST : (found->room * 2u);
     const unsigned int room = (doubled < CLI_EXECUTABLES_MOST) ? doubled : CLI_EXECUTABLES_MOST;
-    CliExecutable *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), &g_cli_executables_cells);
+    CliExecutable *const grown =
+        cli_cell_regrown(found->item, found->count * sizeof(*grown), room * sizeof(*grown), &g_cli_executables_cells);
     if (grown == NULL)
     {
         return 0;
     }
-    if (found->count != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = found->item, .bytes = found->count * sizeof(*grown)});
-    }
-    cli_cell_release(found->item, &g_cli_executables_cells);
     found->item = grown;
     found->room = room;
     return 1;

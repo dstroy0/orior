@@ -52,16 +52,12 @@ static void read_value_room(CliRecordedValues *recorded)
     }
     const unsigned int doubled = (recorded->room == 0u) ? CLI_RECORDED_VALUES_FIRST : (recorded->room * 2u);
     const unsigned int room = (doubled < recorded->most) ? doubled : recorded->most;
-    CliRecordedValue *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), NULL);
+    CliRecordedValue *const grown =
+        cli_cell_regrown(recorded->values, recorded->count * sizeof(*grown), room * sizeof(*grown), NULL);
     if (grown == NULL)
     {
         return;
     }
-    if (recorded->count != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = recorded->values, .bytes = recorded->count * sizeof(*grown)});
-    }
-    cli_cell_release(recorded->values, NULL);
     recorded->values = grown;
     recorded->room = room;
 }

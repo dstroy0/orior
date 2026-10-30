@@ -12,15 +12,10 @@ void *cli_cargo_grown(void *cell, unsigned long long *room, unsigned long long m
 {
     const unsigned long long doubled = 2ull * *room;
     const unsigned long long taken = (most > doubled) ? most : doubled;
-    void *const grown = g_cli_cells->persistent_buf_alloc(taken * width, &g_cli_cargo_cells);
+    void *const grown = cli_cell_regrown(cell, (size_t)(*room * width), taken * width, &g_cli_cargo_cells);
     if (grown == NULL)
     {
         return NULL;
-    }
-    if (cell != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = cell, .bytes = (size_t)(*room * width)});
-        cli_cell_release(cell, &g_cli_cargo_cells);
     }
     *room = taken;
     return grown;
@@ -125,7 +120,7 @@ static void scan_tokens_put(const char *text, unsigned long long size)
     g_cli_cargo_scan.token_count = 0u;
     unsigned int line = 0u;
     unsigned long long at = 0ull;
-    // a sign the passing over looks for is ASCII, which no byte of a longer letter is, so they are passed byte by byte
+    // a sign the passing over looks for is ASCII, which no byte of a longer letter is, and they are passed byte by byte
     while (at < size)
     {
         unsigned long long taken = 0ull;

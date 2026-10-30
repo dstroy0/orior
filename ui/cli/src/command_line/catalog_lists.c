@@ -66,15 +66,11 @@ static void *cli_catalog_grown(void *cell, unsigned int *room, unsigned int most
 {
     const unsigned int doubled = 2u * *room;
     const unsigned int taken = (most > doubled) ? most : doubled;
-    void *const grown = g_cli_cells->persistent_buf_alloc((unsigned long long)taken * width, &g_cli_catalog_cells);
+    void *const grown = cli_cell_regrown(cell, (size_t)((unsigned long long)*room * width),
+                                         (unsigned long long)taken * width, &g_cli_catalog_cells);
     if (grown == NULL)
     {
         return NULL;
-    }
-    if (cell != NULL)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = cell, .bytes = (size_t)((unsigned long long)*room * width)});
-        cli_cell_release(cell, &g_cli_catalog_cells);
     }
     *room = taken;
     return grown;

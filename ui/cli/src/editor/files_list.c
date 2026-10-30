@@ -65,16 +65,11 @@ static void *list_grown(void *list, unsigned long long count, unsigned long long
     {
         return list;
     }
-    void *const cell = g_cli_cells->persistent_buf_alloc(grown * size, NULL);
+    void *const cell = cli_cell_regrown(list, count * size, grown * size, NULL);
     if (cell == NULL)
     {
         return list;
     }
-    if (count != 0ull)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = cell, .src = list, .bytes = count * size});
-    }
-    cli_cell_release(list, NULL);
     *room = grown;
     return cell;
 }

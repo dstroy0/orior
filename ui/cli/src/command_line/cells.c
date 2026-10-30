@@ -137,6 +137,28 @@ void *cli_cell_grown(void *cell, size_t size, CellOwner *owner)
     return g_cli_cells->buf_grow(cell, size, owner);
 }
 
+void *cli_cell_regrown(void *cell, size_t used, size_t size, CellOwner *owner)
+{
+    void *const grown = cli_cell_grown(cell, size, owner);
+    if (grown != NULL)
+    {
+        return grown;
+    }
+    CarcerCellBlock *const lane = (cell != NULL) ? cells_lane_holding(cell) : NULL;
+    void *const larger =
+        (lane != NULL) ? mmgr_temporary_buf_alloc(lane, size, owner) : g_cli_cells->persistent_buf_alloc(size, owner);
+    if (larger == NULL)
+    {
+        return NULL;
+    }
+    if (cell != NULL)
+    {
+        memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = used});
+        cli_cell_release(cell, owner);
+    }
+    return larger;
+}
+
 // the highest temporary peak over the lanes made, 0 where none is made or the build tracks none
 static unsigned long long cells_lanes_peak(void)
 {

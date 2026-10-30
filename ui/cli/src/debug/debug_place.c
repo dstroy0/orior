@@ -14,16 +14,11 @@ void *cli_debug_grown(void *list, unsigned int count, unsigned int *room, unsign
     }
     const unsigned int doubled = (*room == 0u) ? CLI_DEBUG_LIST_FIRST : (*room * 2u);
     const unsigned int grown = (doubled < most) ? doubled : most;
-    void *const cell = g_cli_cells->persistent_buf_alloc(grown * size, &g_cli_debug_cells);
+    void *const cell = cli_cell_regrown(list, count * size, grown * size, &g_cli_debug_cells);
     if (cell == NULL)
     {
         return list;
     }
-    if (count != 0u)
-    {
-        memor.cpy(&(MemoriaCfg){.dst = cell, .src = list, .bytes = count * size});
-    }
-    cli_cell_release(list, &g_cli_debug_cells);
     *room = grown;
     return cell;
 }

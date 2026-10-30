@@ -57,17 +57,12 @@ void *cli_schema_grown(void *cells, unsigned int *most, unsigned long long neede
         grown *= 2ull;
     }
     grown = (grown < hard) ? grown : hard;
-    unsigned char *const moved = g_cli_cells->persistent_buf_alloc(grown * each, &g_cli_schema_cells);
+    // the places stored are below the list's room, which a size_t stores
+    unsigned char *const moved = cli_cell_regrown(cells, (size_t)*most * each, grown * each, &g_cli_schema_cells);
     if (moved == NULL)
     {
         return NULL;
     }
-    if (cells != NULL)
-    {
-        // the places stored are below the list's room, which a size_t stores
-        memor.cpy(&(MemoriaCfg){.dst = moved, .src = cells, .bytes = (size_t)*most * each});
-    }
-    cli_cell_release(cells, &g_cli_schema_cells);
     // no more than `hard`, an unsigned int
     *most = (unsigned int)grown;
     return moved;

@@ -40,14 +40,7 @@ typedef struct
 // is refused
 static void *processes_moved(void *cell, unsigned long long size, unsigned long long larger, const char *what)
 {
-    char *const moved = g_cli_cells->persistent_buf_alloc(larger, &g_cli_debug_processes_cells);
-    if (moved == NULL)
-    {
-        return NULL;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (size_t)size});
-    cli_cell_release(cell, &g_cli_debug_processes_cells);
-    return moved;
+    return cli_cell_regrown(cell, (size_t)size, larger, &g_cli_debug_processes_cells);
 }
 
 // a text stored in the listing's text: where it starts, or where an empty one does where it does not fit

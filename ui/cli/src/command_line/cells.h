@@ -52,6 +52,10 @@ extern "C"
     // added bytes zero; NULL with nothing changed where a cell was taken above it since or the gap cannot meet the
     // growth, and the caller takes a larger cell, copies and gives the first back
     void *cli_cell_grown(void *cell, size_t size, CellOwner *owner);
+    // `cell`, holding `used` bytes, made `size` bytes: grown where it stands, else a cell of `size` taken from where
+    // `cell` was taken, the shared cellblock for NULL, the used bytes copied into it and `cell` given back; the cell
+    // after, or NULL with `cell` as it was where no cell can be taken
+    void *cli_cell_regrown(void *cell, size_t used, size_t size, CellOwner *owner);
 
     // the pool made over a block of `bytes` taken from the system, in the place of the one before, which is given back
     // whole: 1, or 0 where a cell is still allocated or the system gives no block; every program makes one before its

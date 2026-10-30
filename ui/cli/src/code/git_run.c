@@ -64,19 +64,17 @@ unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long 
     }
     if (most > text->room)
     {
-        // twice the room, so texts stored one at a time take the cell again seldom, up to the most a list's texts
+        // twice the room, and texts stored one at a time take the cell again seldom, up to the most a list's texts
         // contain
         const unsigned long long doubled = 2ull * text->room;
         const unsigned long long wanted = (most > doubled) ? most : doubled;
         const unsigned long long room = (wanted < CLI_GIT_TEXT) ? wanted : CLI_GIT_TEXT;
-        char *const grown = g_cli_cells->persistent_buf_alloc(room, &g_cli_git_cells);
+        char *const grown = cli_cell_regrown(text->bytes, (size_t)text->used, room, &g_cli_git_cells);
         if (grown == NULL)
         {
             text->full = 1;
             return 0u;
         }
-        memor.cpy(&(MemoriaCfg){.dst = grown, .src = text->bytes, .bytes = (size_t)text->used});
-        cli_cell_release(text->bytes, &g_cli_git_cells);
         text->bytes = grown;
         text->room = room;
     }

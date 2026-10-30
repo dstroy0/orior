@@ -227,14 +227,10 @@ static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, cons
     {
         const unsigned int doubled = (reading->room == 0u) ? CLI_ELF_QUEUE_FIRST : (reading->room * 2u);
         const unsigned int room = (doubled < CLI_BINARY_LIBRARIES) ? doubled : CLI_BINARY_LIBRARIES;
-        CliElfQueued *const grown = g_cli_cells->persistent_buf_alloc(room * sizeof(*grown), NULL);
+        CliElfQueued *const grown =
+            cli_cell_regrown(reading->queue, queued * sizeof(*grown), room * sizeof(*grown), NULL);
         if (grown != NULL)
         {
-            if (queued != 0u)
-            {
-                memor.cpy(&(MemoriaCfg){.dst = grown, .src = reading->queue, .bytes = queued * sizeof(*grown)});
-            }
-            cli_cell_release(reading->queue, NULL);
             reading->queue = grown;
             reading->room = room;
         }

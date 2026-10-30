@@ -84,13 +84,11 @@ void *cli_effect_room(void *list, unsigned int count, unsigned int *room, unsign
         return list;
     }
     const unsigned int grown = (*room == 0u) ? CLI_EFFECT_ROOM_FIRST : (2u * *room);
-    void *const larger = g_cli_cells->persistent_buf_alloc((unsigned long long)grown * each, NULL);
+    void *const larger = cli_cell_regrown(list, (size_t)(count * each), (unsigned long long)grown * each, NULL);
     if (larger == NULL)
     {
         return NULL;
     }
-    memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    cli_cell_release(list, NULL);
     *room = grown;
     return larger;
 }
@@ -752,7 +750,7 @@ static void cli_effect_noted_line(CliEffect *effect, const CliLeafRead *read, un
     }
 }
 
-// the branch at `path` walked from its first line to before line `upto`, CLI_EFFECT_GIVEN for the whole of it, once in
+// the branch at `path` walked from its first line to before line `upto`, CLI_EFFECT_GIVEN for all of it, once in
 // a walk, its includes `depth` deep; for a slice's walk, its bytes and leaves stay in the walk's cell until the walk is
 // given back, and each declaration its leaves name on a line of an active region is met; for a noting walk, each leaf
 // of the name in the branch it starts from handed on as the walk passes its line; and each line of that branch handed
@@ -947,7 +945,7 @@ void cli_effect_taken(CliEffect *effect, const char *path, unsigned int line)
     // each file the branch includes before its first line walked before it, as its compiler reads them
     for (unsigned int at = 0u; at < effect->includes; at += 1u)
     {
-        // the walk puts each branch's path among the texts, which move as they grow, so the file's is copied first
+        // the walk puts each branch's path among the texts, which move as they grow, and the file's is copied first
         const char *const included = cli_effect_text(effect, effect->include[at].path);
         const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = included, .cap = CLI_CELLS_POOL});
         if ((effect->include[at].kind == CLI_INCLUDE_FORCED) && (size < CLI_PATH_MAX_LEN))

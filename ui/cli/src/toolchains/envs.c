@@ -11,14 +11,7 @@ CellOwner g_cli_envs_cells = MMGR_CELL_OWNER("cli_envs");
 
 void *cli_envs_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
 {
-    void *const moved = g_cli_cells->persistent_buf_alloc(room, &g_cli_envs_cells);
-    if (moved == NULL)
-    {
-        return NULL;
-    }
-    memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (size_t)used});
-    cli_cell_release(cell, &g_cli_envs_cells);
-    return moved;
+    return cli_cell_regrown(cell, (size_t)used, room, &g_cli_envs_cells);
 }
 
 // A span of a text: where it starts and its bytes
