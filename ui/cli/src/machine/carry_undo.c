@@ -79,7 +79,7 @@ static int cli_taking_read(const char *file, CliTaking *taking)
     cli_json_given(json);
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(json, (const char *)bytes, size, 0u, 0ull, &unread);
+    const unsigned int root = cli_json_taken(json, (const char *)bytes, size, 0u, 0ull, &unread, &g_cli_machine_cells);
     cli_file_let_go(bytes, size);
     const char *const id = cli_json_string(json, cli_json_member(json, root, "id"), NULL);
     const char *const from = cli_json_string(json, cli_json_member(json, root, "from"), NULL);

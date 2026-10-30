@@ -35,7 +35,7 @@ static CliFilesRoom *s_room;
 // the command's room taken: 1, or 0 reported on the errors
 static int files_room_made(void)
 {
-    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_command_line_cells);
     if (s_room == NULL)
     {
         cli_err("a command on files could not be taken");
@@ -46,7 +46,7 @@ static int files_room_made(void)
 // the command's room given back
 static void files_released(void)
 {
-    cli_cell_release(s_room, NULL);
+    cli_cell_release(s_room, &g_cli_command_line_cells);
     s_room = NULL;
 }
 

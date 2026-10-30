@@ -80,7 +80,8 @@ static void cli_grammar_each(void *context, const CliPlugin *plugin)
     sought->whole->at = 0ull;
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, sought->err_msg);
+    const unsigned int root =
+        cli_json_taken_laned(&json, plugin->text, plugin->size, sought->err_msg, &g_cli_plugins_cells);
     const unsigned int grammar = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "grammar") : CLI_JSON_NONE;
     const int has_grammar = cli_json_is(&json, grammar, CFG_JSON_OBJECT);
     if ((root != CLI_JSON_NONE) && !has_grammar)
@@ -93,7 +94,8 @@ static void cli_grammar_each(void *context, const CliPlugin *plugin)
         has_grammar &&
         cli_plugins_grammar_whole(&json, grammar, sought->tree, sought->name, sought->whole, sought->err_msg) &&
         mmgr_line_ok(sought->whole);
-    // the plugin's pairs written into its grammar as the brackets the grammar's `@brackets` names, before its last brace
+    // the plugin's pairs written into its grammar as the brackets the grammar's `@brackets` names, before its last
+    // brace
     const unsigned int pairs = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "pairs") : CLI_JSON_NONE;
     if (sought->made && cli_json_is(&json, pairs, CFG_JSON_ARRAY) && (sought->whole->at > 2ull) &&
         (sought->whole->out[sought->whole->at - 1ull] == '}'))
@@ -112,7 +114,7 @@ static int cli_grammar_whole_stored(const char *key, const VerbaLinea *whole, Ve
 {
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    const unsigned int grammar = cli_json_taken(&json, whole->out, whole->at, 0u, 0ull, err_msg);
+    const unsigned int grammar = cli_json_taken(&json, whole->out, whole->at, 0u, 0ull, err_msg, &g_cli_plugins_cells);
     const int stored = (grammar != CLI_JSON_NONE) && cli_highlight_store(key, &json, grammar, err_msg);
     cli_json_given(&json);
     return stored;
@@ -140,7 +142,7 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
         mmgr_line_put(err_msg, "a plugin's id is longer than orior_cli supports");
         return 0;
     }
-    if (!cli_growing_line_made(&whole, CLI_PLUGIN_GRAMMAR_FIRST))
+    if (!cli_growing_line_made(&whole, CLI_PLUGIN_GRAMMAR_FIRST, &g_cli_plugins_cells))
     {
         mmgr_line_put(err_msg, "a plugin's grammar could not be given a cell to be made whole in");
         return 0;
@@ -178,7 +180,7 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
         }
     }
     cli_lock_give(&s_lock);
-    cli_cell_release(whole.out, NULL);
+    cli_cell_release(whole.out, &g_cli_plugins_cells);
     if (!sought.found)
     {
         mmgr_line_put(err_msg, "no plugin is named ");

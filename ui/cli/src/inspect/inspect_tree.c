@@ -55,7 +55,7 @@ static void *tree_work_taken(CliTreeWork *work, const char *language, const char
         (counted.functions * sizeof(CliInspectFunction)) + (counted.findings * sizeof(CliInspectFinding)) +
         (counted.fixes * sizeof(CliInspectFix)) + (counted.edits * sizeof(CliInspectEdit)) +
         (counted.names * sizeof(CliInspectName)) + counted.used + (8ull * 8ull);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_inspect_cells);
     if (cell == NULL)
     {
         return NULL;
@@ -180,7 +180,7 @@ static unsigned long long tree_size(const CliFacts *facts, unsigned long long pa
 static void tree_taken(unsigned int file)
 {
     tree_bucket_taken(file);
-    cli_cell_release(CLI_TREE_FILE(file).cell, NULL);
+    cli_cell_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
     CLI_TREE_FILE(file).cell = NULL;
     CLI_TREE_FILE(file).used = 0;
     cli_tree_families_given();
@@ -204,7 +204,8 @@ static unsigned int tree_place(void)
     const unsigned int page = g_cli_tree_files / CLI_TREE_PAGE;
     if (g_cli_tree_page[page] == NULL)
     {
-        g_cli_tree_page[page] = g_cli_cells->persistent_buf_alloc(CLI_TREE_PAGE * sizeof(CliTreeFile), NULL);
+        g_cli_tree_page[page] =
+            g_cli_cells->persistent_buf_alloc(CLI_TREE_PAGE * sizeof(CliTreeFile), &g_cli_inspect_cells);
         if (g_cli_tree_page[page] == NULL)
         {
             return CLI_TREE_NONE;
@@ -229,7 +230,7 @@ int cli_inspect_tree_set(const char *path, const char *language, const char *tex
     const int read = cli_inspect_facts(language, text, size, facts) && !facts->full;
     const unsigned long long path_size = cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL});
     const unsigned long long needed = read ? tree_size(facts, path_size) : 0ull;
-    unsigned char *const cell = read ? g_cli_cells->persistent_buf_alloc(needed, NULL) : NULL;
+    unsigned char *const cell = read ? g_cli_cells->persistent_buf_alloc(needed, &g_cli_inspect_cells) : NULL;
     cli_lock_take(&g_cli_tree_lock);
     const unsigned int place = cli_tree_find(path, path_size);
     if (place != CLI_TREE_NONE)
@@ -240,8 +241,8 @@ int cli_inspect_tree_set(const char *path, const char *language, const char *tex
     if (file == CLI_TREE_NONE)
     {
         cli_lock_give(&g_cli_tree_lock);
-        cli_cell_release(cell, NULL);
-        cli_cell_release(work_cell, NULL);
+        cli_cell_release(cell, &g_cli_inspect_cells);
+        cli_cell_release(work_cell, &g_cli_inspect_cells);
         return 0;
     }
     CliTreeFile *const tree_file = &CLI_TREE_FILE(file);
@@ -273,7 +274,7 @@ int cli_inspect_tree_set(const char *path, const char *language, const char *tex
     tree_bucket_put(file);
     cli_tree_families_given();
     cli_lock_give(&g_cli_tree_lock);
-    cli_cell_release(work_cell, NULL);
+    cli_cell_release(work_cell, &g_cli_inspect_cells);
     return 1;
 }
 
@@ -293,13 +294,13 @@ void cli_inspect_tree_cleared(void)
     cli_lock_take(&g_cli_tree_lock);
     for (unsigned int file = 0u; file < g_cli_tree_files; file += 1u)
     {
-        cli_cell_release(CLI_TREE_FILE(file).cell, NULL);
+        cli_cell_release(CLI_TREE_FILE(file).cell, &g_cli_inspect_cells);
         CLI_TREE_FILE(file).cell = NULL;
         CLI_TREE_FILE(file).used = 0;
     }
     for (unsigned int page = 0u; page < CLI_TREE_PAGES; page += 1u)
     {
-        cli_cell_release(g_cli_tree_page[page], NULL);
+        cli_cell_release(g_cli_tree_page[page], &g_cli_inspect_cells);
         g_cli_tree_page[page] = NULL;
     }
     g_cli_tree_files = 0u;

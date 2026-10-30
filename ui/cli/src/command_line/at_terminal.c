@@ -200,10 +200,10 @@ static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int 
     unsigned long long size = 0ull;
     char *const joined = cli_pieces_joined(&found->pieces, &found->line, "the files of the tree's tests", &size);
     const char **const files =
-        (joined != NULL) ? cli_lane_alloc((found->count + 1ull) * sizeof(const char *), NULL) : NULL;
+        (joined != NULL) ? cli_lane_alloc((found->count + 1ull) * sizeof(const char *), &g_cli_git_cells) : NULL;
     if (files == NULL)
     {
-        cli_cell_release(joined, NULL);
+        cli_cell_release(joined, &g_cli_git_cells);
         mmgr_line_put(err_msg, "the cells the tests' files are allocated in could not be taken");
         return 0;
     }
@@ -214,8 +214,8 @@ static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int 
         at += cellul.len(&(CatenaFinitaCfg){.src = joined + at, .cap = CLI_CELLS_POOL}) + 1u;
     }
     const int good = cli_at_terminal_tests(root, files, found->count, cover, out, err_msg);
-    cli_cell_release(files, NULL);
-    cli_cell_release(joined, NULL);
+    cli_cell_release(files, &g_cli_git_cells);
+    cli_cell_release(joined, &g_cli_git_cells);
     return good;
 }
 
@@ -305,7 +305,7 @@ int cli_at_terminal_run(const char *root, const char *command, const char *const
         static CliTerminalFiles s_found;
         static CliLock s_found_lock = CLI_LOCK_INIT;
         cli_lock_take(&s_found_lock);
-        cli_pieces_begun(&s_found.pieces, &s_found.line, s_found.piece, sizeof(s_found.piece));
+        cli_pieces_begun(&s_found.pieces, &s_found.line, s_found.piece, sizeof(s_found.piece), &g_cli_git_cells);
         s_found.last[0] = '\0';
         s_found.count = 0u;
         cli_tests_found(root, at_terminal_test_file, &s_found);

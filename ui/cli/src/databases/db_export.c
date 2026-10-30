@@ -31,7 +31,7 @@ typedef struct
     unsigned int columns;
 } CliDbExport;
 
-// the pending bytes written to the file
+// the bytes waiting written to the file
 static void export_flushed(CliDbExport *export)
 {
     if ((export->pending_size > 0u) && !export->broke)
@@ -41,7 +41,7 @@ static void export_flushed(CliDbExport *export)
     export->pending_size = 0ull;
 }
 
-// a text written to the pending bytes, written out first where it does not fit after them
+// a text written after the bytes waiting, written out first where it does not fit after them
 static void export_put(CliDbExport *export, const char *text, unsigned long long size)
 {
     if (export->pending_size + size > CLI_DB_EXPORT_ROOM)
@@ -110,11 +110,11 @@ static void export_line(CliDbExport *export, const CliDbValue *values, unsigned 
                 continue;
             }
             VerbaLinea value;
-            (void)cli_growing_line_made(&value, values[column].size + CLI_DB_EXPORT_VALUE_FIRST);
+            (void)cli_growing_line_made(&value, values[column].size + CLI_DB_EXPORT_VALUE_FIRST, &g_cli_db_cells);
             cli_json_quoted_lossy(&value, (const unsigned char *)values[column].text, values[column].size);
             export->broke = export->broke || !mmgr_line_ok(&value);
             export_put(export, value.out, mmgr_line_ok(&value) ? value.at : 0ull);
-            cli_cell_release(value.out, NULL);
+            cli_cell_release(value.out, &g_cli_db_cells);
         }
         export_put(export, "}\n", 2ull);
         return;

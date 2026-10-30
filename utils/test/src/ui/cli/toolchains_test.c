@@ -116,13 +116,13 @@ static void toolchains_cache(void)
     cli_check(cli_toolchains_file("toolchains_found.json", found_file) && query_is_file(found_file),
               "a check stores what each tool's search found in orior's own folder");
     unsigned int count = 0u;
-    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_checks_cells);
     CliFound found;
     cli_check(cli_toolchains_found_cached("git", (const char (*)[CLI_PATH_MAX_LEN])path, count, &found),
               "and the next search of a tool takes it");
     static const char s_other[1][CLI_PATH_MAX_LEN] = {"/a/folder/put/on/the/path"};
     cli_check(!cli_toolchains_found_cached("git", s_other, 1u, &found), "and a PATH that changed searches again");
-    cli_cell_release(path, NULL);
+    cli_cell_release(path, &g_checks_cells);
 }
 
 // the manifest reads and each id is one tool, each naming a program and an install page, every page https
@@ -133,8 +133,8 @@ static void toolchains_manifest(void)
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the program's own bytes are toolchains.json's text
-    const unsigned int read =
-        cli_json_taken(&json, (const char *)g_cli_toolchains_json, g_cli_toolchains_json_size, 0u, 0ull, &err_msg);
+    const unsigned int read = cli_json_taken(&json, (const char *)g_cli_toolchains_json, g_cli_toolchains_json_size, 0u,
+                                             0ull, &err_msg, &g_checks_cells);
     const unsigned int tools = cli_json_member(&json, read, "tools");
     unsigned int count = 0u;
     int once = 1;
@@ -329,7 +329,7 @@ static void toolchains_run_path(void)
     char ahead[2][CLI_PATH_MAX_LEN];
     cli_check_folder("toolchains_ahead", ahead[0]);
     memor.cpy(&(MemoriaCfg){.dst = ahead[1], .src = ahead[0], .bytes = sizeof(ahead[0])});
-    char *const path = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, NULL);
+    char *const path = g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &g_checks_cells);
     if (path == NULL)
     {
         cli_check(0, "the PATH a step runs with has its room");
@@ -344,7 +344,7 @@ static void toolchains_run_path(void)
             .src = path + length, .cap = CLI_CELLS_POOL, .other = ahead[0], .other_cap = CLI_CELLS_POOL}) == NULL;
     cli_check(first && once && (path[length + 1u] != '\0'),
               "the PATH a step runs with begins with the folders put ahead, each once, and goes on");
-    cli_cell_release(path, NULL);
+    cli_cell_release(path, &g_checks_cells);
 }
 
 int main(void)

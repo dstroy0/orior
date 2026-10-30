@@ -381,7 +381,7 @@ static int cli_tables_rule_written(const CliJson *json, unsigned int grammar, un
     const char *const before = cli_json_string(json, cli_json_member(json, pattern, "before"), NULL);
     const char *const after = cli_json_string(json, cli_json_member(json, pattern, "after"), NULL);
     VerbaLinea source;
-    if (!cli_growing_line_made(&source, CLI_TABLES_PATTERN_FIRST))
+    if (!cli_growing_line_made(&source, CLI_TABLES_PATTERN_FIRST, &g_cli_plugins_cells))
     {
         *failed = 1;
         return 0;
@@ -399,7 +399,7 @@ static int cli_tables_rule_written(const CliJson *json, unsigned int grammar, un
         }
         mmgr_line_ch(out, ']');
     }
-    cli_cell_release(source.out, NULL);
+    cli_cell_release(source.out, &g_cli_plugins_cells);
     return taken != 0u;
 }
 
@@ -453,7 +453,7 @@ int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const c
                               VerbaLinea *out, VerbaLinea *err_msg)
 {
     VerbaLinea lists;
-    if (!cli_growing_line_made(&lists, CLI_TABLES_FIRST))
+    if (!cli_growing_line_made(&lists, CLI_TABLES_FIRST, &g_cli_plugins_cells))
     {
         mmgr_line_put(err_msg, "a grammar could not be given a cell to be made whole in");
         return 0;
@@ -462,10 +462,10 @@ int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const c
     CliJson filled;
     cli_json_begun(&filled, NULL, 0u, NULL, 0ull);
     const unsigned int filled_grammar =
-        whole ? cli_json_taken(&filled, lists.out, lists.at, 0u, 0ull, err_msg) : CLI_JSON_NONE;
+        whole ? cli_json_taken_laned(&filled, lists.out, lists.at, err_msg, &g_cli_plugins_cells) : CLI_JSON_NONE;
     whole = (filled_grammar != CLI_JSON_NONE) && cli_tables_rules_written(&filled, filled_grammar, out, err_msg);
     cli_json_given(&filled);
-    cli_cell_release(lists.out, NULL);
+    cli_cell_release(lists.out, &g_cli_plugins_cells);
     return whole;
 }
 

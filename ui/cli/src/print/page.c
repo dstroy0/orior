@@ -46,7 +46,7 @@ static void *room_grown(void *cell, unsigned int used, unsigned int *room, unsig
     const unsigned long long doubled = (*room == 0u) ? first : (2ull * *room);
     const unsigned long long more = (doubled > wanted) ? doubled : wanted;
     const unsigned long long taken = (more < most) ? more : most;
-    void *const grown = cli_cell_regrown(cell, (size_t)used * each, taken * each, NULL);
+    void *const grown = cli_cell_regrown(cell, (size_t)used * each, taken * each, &g_cli_print_cells);
     if (grown == NULL)
     {
         *full = 1;
@@ -60,7 +60,7 @@ static void *room_grown(void *cell, unsigned int used, unsigned int *room, unsig
 void cli_print_take(void)
 {
     cli_lock_take(&s_lock);
-    s_room = cli_lane_alloc(sizeof(*s_room), NULL);
+    s_room = cli_lane_alloc(sizeof(*s_room), &g_cli_print_cells);
     if (s_room != NULL)
     {
         memor.set(&(MemoriaCfg){.dst = s_room, .val = 0, .bytes = sizeof(*s_room)});
@@ -71,15 +71,15 @@ void cli_print_give(void)
 {
     if (s_room != NULL)
     {
-        cli_cell_release(s_room->listing.line, NULL);
-        cli_cell_release(s_room->listing.run, NULL);
-        cli_cell_release(s_room->listing.text, NULL);
-        cli_cell_release(s_room->laid.row, NULL);
-        cli_cell_release(s_room->laid.piece, NULL);
-        cli_cell_release(s_room->laid.text, NULL);
-        cli_cell_release(s_room->letters, NULL);
+        cli_cell_release(s_room->listing.line, &g_cli_print_cells);
+        cli_cell_release(s_room->listing.run, &g_cli_print_cells);
+        cli_cell_release(s_room->listing.text, &g_cli_print_cells);
+        cli_cell_release(s_room->laid.row, &g_cli_print_cells);
+        cli_cell_release(s_room->laid.piece, &g_cli_print_cells);
+        cli_cell_release(s_room->laid.text, &g_cli_print_cells);
+        cli_cell_release(s_room->letters, &g_cli_print_cells);
     }
-    cli_cell_release(s_room, NULL);
+    cli_cell_release(s_room, &g_cli_print_cells);
     s_room = NULL;
     cli_lock_give(&s_lock);
 }

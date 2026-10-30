@@ -141,7 +141,7 @@ int cli_debug_bytecode(const char *root, const char *path, unsigned int line, Ve
         return 0;
     }
     CliJson json;
-    const unsigned int value = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, err_msg);
+    const unsigned int value = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, err_msg, &g_cli_debug_cells);
     cli_ran_given(ran);
     if (value == CLI_JSON_NONE)
     {

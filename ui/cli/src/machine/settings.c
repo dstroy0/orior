@@ -272,7 +272,8 @@ static void cli_chain_read(CliChain *chain, const CliChainWalk *walk)
     }
     CfgJsonToken *const tokens =
         cli_lane_alloc((unsigned long long)most * sizeof(CfgJsonToken), &g_cli_settings_cells);
-    if ((tokens == NULL) || !cli_json_reserved(&chain->json, nodes, text, "a chain of settings files"))
+    if ((tokens == NULL) ||
+        !cli_json_reserved(&chain->json, nodes, text, "a chain of settings files", &g_cli_settings_cells))
     {
         cli_cell_release(tokens, &g_cli_settings_cells);
         cli_problem(chain, walk->file[0].named, ": the cells its chain is read into could not be taken");
@@ -370,9 +371,10 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
         VerbaLinea reason = {why, sizeof(why), 0ull};
         CliJson own;
         cli_json_begun(&own, NULL, 0u, NULL, 0ull);
-        const unsigned int values = ((plain_text != NULL) && mmgr_line_ok(&plain))
-                                        ? cli_json_taken(&own, plain_text, plain.at, 0u, 0ull, &reason)
-                                        : CLI_JSON_NONE;
+        const unsigned int values =
+            ((plain_text != NULL) && mmgr_line_ok(&plain))
+                ? cli_json_taken(&own, plain_text, plain.at, 0u, 0ull, &reason, &g_cli_settings_cells)
+                : CLI_JSON_NONE;
         if ((values == CLI_JSON_NONE) || !cli_json_is(&own, values, CFG_JSON_OBJECT))
         {
             mmgr_line_finish(&reason);

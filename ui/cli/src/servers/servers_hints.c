@@ -24,7 +24,8 @@ static unsigned int hints_capability(CliLsp *server, const char *name)
     cli_lock_take(&s_capable_lock);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const unsigned int root = cli_json_taken(&s_capable, capabilities, length, 0u, 0ull, &err_msg);
+    const unsigned int root =
+        cli_json_taken(&s_capable, capabilities, length, 0u, 0ull, &err_msg, &g_cli_servers_cells);
     return cli_json_member(&s_capable, root, name);
 }
 
@@ -99,7 +100,7 @@ int cli_servers_selection(const char *path, const char *key, CliTextPlace from, 
                           VerbaLinea *err_msg)
 {
     unsigned long long size = 0ull;
-    char *const branch = (key != NULL) ? cli_document_text_taken(key, &size) : NULL;
+    char *const branch = (key != NULL) ? cli_document_text_taken(key, &size, &g_cli_servers_cells) : NULL;
     char *const text = (branch != NULL) ? branch : cli_servers_text_taken(path, &size);
     CliServersSpanned spanned = {out, 0};
     mmgr_line_ch(out, '[');
@@ -107,7 +108,7 @@ int cli_servers_selection(const char *path, const char *key, CliTextPlace from, 
         (text == NULL) || cli_symbols_spans(path, text, size, (CliSymbolPlace){from.line, from.col},
                                             (CliSymbolPlace){to.line, to.col}, hints_span_written, &spanned, err_msg);
     mmgr_line_ch(out, ']');
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_servers_cells);
     return done;
 }
 
@@ -182,7 +183,7 @@ static int hints_of_tree(const char *path, unsigned int from, unsigned int to, V
     const int done =
         (text == NULL) || cli_symbols_hints(own, text, size, from, to, hints_tree_written, &hinted, err_msg);
     mmgr_line_ch(out, ']');
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_servers_cells);
     return done;
 }
 
@@ -206,7 +207,7 @@ int cli_servers_hints(const char *path, unsigned int from, unsigned int to, Verb
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea hints_line;
-    cli_pieces_begun(&pieces, &hints_line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &hints_line, piece, sizeof(piece), &g_cli_servers_cells);
     const int has = cli_lsp_text(server, path, &hints_line);
     unsigned long long joined_size = 0ull;
     char *const text = cli_pieces_joined(&pieces, &hints_line, "the text a server has", &joined_size);
@@ -225,7 +226,7 @@ int cli_servers_hints(const char *path, unsigned int from, unsigned int to, Verb
     char uri[CLI_PATH_MAX_LEN];
     cli_servers_uri_of(path, uri);
     VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
     hints_params_begun(uri, &params);
     mmgr_line_put(&params, ",\"range\":{\"start\":{\"line\":");
     mmgr_line_decimal(&params, from, 1u);
@@ -235,7 +236,7 @@ int cli_servers_hints(const char *path, unsigned int from, unsigned int to, Verb
     mmgr_line_put(&params, ",\"character\":");
     mmgr_line_decimal(&params, inside ? 0ull : cli_text_units((size > 0ull) ? text + last : "", size - last), 1u);
     mmgr_line_put(&params, "}}}");
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_servers_cells);
     VerbaLinea result;
     cli_servers_answer_begun(&s_reading, &result);
     const int requested = cli_servers_request(server, "textDocument/inlayHint", &pieces, &params,

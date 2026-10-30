@@ -33,14 +33,15 @@ static void read_changes(unsigned int step, void (*each)(void *context, const ch
 // the values a frame's are begun to be stored in, doubling as they come
 #define CLI_RECORDED_VALUES_FIRST 16u
 
-// The values stored as the steps of a frame are read: a cell of `room` of them grown as they come, the most it
-// contains, and how many there are
+// The values stored as the steps of a frame are read: a cell of `room` of them grown as they come for `owner`, the most
+// it contains, and how many there are
 typedef struct
 {
     CliRecordedValue *values;
     unsigned int room;
     unsigned int most;
     unsigned int count;
+    CellOwner *owner;
 } CliRecordedValues;
 
 // room made among the values stored for one more, below their most: the values moved into a cell of twice their room
@@ -53,7 +54,7 @@ static void read_value_room(CliRecordedValues *recorded)
     const unsigned int doubled = (recorded->room == 0u) ? CLI_RECORDED_VALUES_FIRST : (recorded->room * 2u);
     const unsigned int room = (doubled < recorded->most) ? doubled : recorded->most;
     CliRecordedValue *const grown =
-        cli_cell_regrown(recorded->values, recorded->count * sizeof(*grown), room * sizeof(*grown), NULL);
+        cli_cell_regrown(recorded->values, recorded->count * sizeof(*grown), room * sizeof(*grown), recorded->owner);
     if (grown == NULL)
     {
         return;
@@ -95,10 +96,11 @@ static void read_value_put(void *context, const char *name, const char *value)
     }
 }
 
-unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue **taken, unsigned int most)
+unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue **taken, unsigned int most,
+                                  CellOwner *owner)
 {
     const CliRecording *const recording = &g_cli_replay->recording;
-    CliRecordedValues recorded = {NULL, 0u, most, 0u};
+    CliRecordedValues recorded = {NULL, 0u, most, 0u, owner};
     *taken = NULL;
     if (serial >= recording->frame_most)
     {

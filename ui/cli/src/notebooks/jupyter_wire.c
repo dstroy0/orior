@@ -141,7 +141,8 @@ static void jupyter_signed(const char *key, const CliZmtpFrame *parts, unsigned 
 static int jupyter_shell_queued(CliKernel *kernel, const char *id, const unsigned char *message,
                                 unsigned long long size)
 {
-    if ((kernel->shell_queue.out == NULL) && !cli_growing_line_made(&kernel->shell_queue, CLI_KERNEL_QUEUE_FIRST))
+    if ((kernel->shell_queue.out == NULL) &&
+        !cli_growing_line_made(&kernel->shell_queue, CLI_KERNEL_QUEUE_FIRST, &g_cli_notebook_cells))
     {
         return 0;
     }
@@ -232,7 +233,7 @@ int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *
         (void)mmgr_line_finish(&flight);
     }
     cli_lock_give(lock);
-    cli_cell_release(message, NULL);
+    cli_cell_release(message, &g_cli_notebook_cells);
     return sent;
 }
 

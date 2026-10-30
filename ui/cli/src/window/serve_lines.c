@@ -130,12 +130,12 @@ static void lines_caller(void *context)
             cli_wake_wait(&s_wake, &s_lock);
         }
         cli_lock_give(&s_lock);
-        char *const answer = cli_lane_alloc(CLI_SERVE_ANSWER, NULL);
-        char *const why = cli_lane_alloc(CLI_SERVE_ERR_MSG_MAX_LEN, NULL);
+        char *const answer = cli_lane_alloc(CLI_SERVE_ANSWER, &g_cli_window_cells);
+        char *const why = cli_lane_alloc(CLI_SERVE_ERR_MSG_MAX_LEN, &g_cli_window_cells);
         lines_answered(caller, answer, why);
-        cli_cell_release(why, NULL);
-        cli_cell_release(answer, NULL);
-        cli_cell_release(caller->line, NULL);
+        cli_cell_release(why, &g_cli_window_cells);
+        cli_cell_release(answer, &g_cli_window_cells);
+        cli_cell_release(caller->line, &g_cli_window_cells);
         cli_lock_take(&s_lock);
         caller->size = 0ull;
         caller->busy = 0;
@@ -165,7 +165,7 @@ static void lines_handed(const char *line, unsigned long long size)
         if (at < s_started)
         {
             CliServeCaller *const caller = &s_caller[at];
-            caller->line = g_cli_cells->persistent_buf_alloc(size, NULL);
+            caller->line = g_cli_cells->persistent_buf_alloc(size, &g_cli_window_cells);
             if (caller->line == NULL)
             {
                 break;
@@ -204,9 +204,9 @@ void cli_serve(const char *root)
 void cli_serve_over(const char *root, const CliServeLink *link)
 {
     s_link = *link;
-    // a line of input is read whole or refused, so the room it is read into fits the most a line takes, a cell taken
+    // a line of input is read whole or refused, and the room it is read into fits the most a line takes, a cell taken
     // while the server serves
-    char *const input = cli_lane_alloc(CLI_SERVE_LINE, NULL);
+    char *const input = cli_lane_alloc(CLI_SERVE_LINE, &g_cli_window_cells);
     if (input == NULL)
     {
         static const char s_roomless[] = "{\"error\":\"the room a call is read in could not be taken\"}";
@@ -262,7 +262,7 @@ void cli_serve_over(const char *root, const CliServeLink *link)
             lines_handed(input + from, to - from);
         }
     }
-    cli_cell_release(input, NULL);
+    cli_cell_release(input, &g_cli_window_cells);
     // the calls made before the input ended are answered before the server ends
     cli_lock_take(&s_lock);
     for (unsigned int at = 0u; at < s_started; at += 1u)

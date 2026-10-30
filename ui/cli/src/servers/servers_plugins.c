@@ -52,7 +52,7 @@ static void plugins_found(void *context, const CliPlugin *plugin)
     cli_json_begun(&read->json, NULL, 0u, NULL, 0ull);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    read->root = cli_json_taken(&read->json, plugin->text, plugin->size, 0u, 0ull, &err_msg);
+    read->root = cli_json_taken(&read->json, plugin->text, plugin->size, 0u, 0ull, &err_msg, &g_cli_servers_cells);
 }
 
 // the place of the running server of plugin `id`, or CLI_SERVERS_PLUGINS where none runs. Under the plugins' lock
@@ -101,7 +101,7 @@ static void plugins_diagnostics(const CliPluginServer *plugin, const char *param
         return;
     }
     VerbaLinea found = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&found, all_length + CLI_PATH_MAX_LEN);
+    (void)cli_growing_line_made(&found, all_length + CLI_PATH_MAX_LEN, &g_cli_servers_cells);
     mmgr_line_put(&found, "[[");
     cli_json_quoted_lossy(&found, (const unsigned char *)path,
                           cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}));
@@ -112,16 +112,16 @@ static void plugins_diagnostics(const CliPluginServer *plugin, const char *param
     {
         cli_servers_findings_stored(plugin->id, found.out, found.at, 1, &plugin->sink);
     }
-    cli_cell_release(found.out, NULL);
+    cli_cell_release(found.out, &g_cli_servers_cells);
 }
 
 // what the server of the plugin `id` sends, `method` with `size` bytes of `params`, passed to the window where `emit`
-// sends it as `plugin-server`, `request` the id of the request pending or null
+// sends it as `plugin-server`, `request` the id of the request awaiting an answer or null
 static void plugins_msg_emitted(const char *id, const CliServersSink *sink, const char *method, const char *params,
                                 unsigned long long size, const char *request)
 {
     VerbaLinea event_json = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&event_json, size + 256ull);
+    (void)cli_growing_line_made(&event_json, size + 256ull, &g_cli_servers_cells);
     mmgr_line_put(&event_json, "{\"plugin\":");
     cli_json_quoted_lossy(&event_json, (const unsigned char *)id,
                           cellul.len(&(CatenaFinitaCfg){.src = id, .cap = CLI_NAME_MAX_LEN}));
@@ -137,11 +137,11 @@ static void plugins_msg_emitted(const char *id, const CliServersSink *sink, cons
     {
         sink->emit(sink->context, "plugin-server", event_json.out, event_json.at);
     }
-    cli_cell_release(event_json.out, NULL);
+    cli_cell_release(event_json.out, &g_cli_servers_cells);
 }
 
 // what a plugin's server sends unprompted: its diagnostics stored, and all it sends passed to the window, a request
-// pending unanswered for the plugin to answer where the window receives it, and answered with null where it does not
+// waiting unanswered for the plugin to answer where the window receives it, and answered with null where it does not
 static void plugins_recv(void *context, const char *method, const char *params, unsigned long long size,
                          VerbaLinea *answer)
 {
@@ -229,8 +229,8 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
     const unsigned int server = cli_json_member(&read.json, read.root, "server");
     char program[CLI_PATH_MAX_LEN];
     char folder[CLI_PATH_MAX_LEN];
-    CliWords *const words = cli_lane_alloc(sizeof(*words), NULL);
-    char *const path = cli_lane_alloc(CLI_PATH_TEXT, NULL);
+    CliWords *const words = cli_lane_alloc(sizeof(*words), &g_cli_servers_cells);
+    char *const path = cli_lane_alloc(CLI_PATH_TEXT, &g_cli_servers_cells);
     int started = 0;
     if (!cli_json_is(&read.json, server, CFG_JSON_OBJECT))
     {
@@ -247,7 +247,7 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
         cli_servers_plugin_args(&read.json, server, folder, words);
         // the options with each `{folder}` in them the folder the program was found in, as the arguments have it
         const unsigned long long room = length + (CLI_PATH_MAX_LEN * 16ull);
-        char *const given = cli_lane_alloc(room, NULL);
+        char *const given = cli_lane_alloc(room, &g_cli_servers_cells);
         VerbaLinea written = {given, room, 0ull};
         cli_servers_plugin_folder_put(&written, (given != NULL) ? options : "", (given != NULL) ? length : 0ull, folder,
                                       1);
@@ -288,10 +288,10 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
             cli_lock_give(&g_cli_servers_texts_lock);
             cli_plugins_languages_given(&handing.languages);
         }
-        cli_cell_release(given, NULL);
+        cli_cell_release(given, &g_cli_servers_cells);
     }
-    cli_cell_release(path, NULL);
-    cli_cell_release(words, NULL);
+    cli_cell_release(path, &g_cli_servers_cells);
+    cli_cell_release(words, &g_cli_servers_cells);
     cli_json_given(&read.json);
     return started;
 }

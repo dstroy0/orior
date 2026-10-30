@@ -30,9 +30,9 @@ int cli_test_python(char *python)
             continue;
         }
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_tests_cells);
         cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &s_found);
-        cli_cell_release(folders, NULL);
+        cli_cell_release(folders, &g_cli_tests_cells);
         found = s_found.has_program;
         if (found)
         {
@@ -341,7 +341,7 @@ int cli_python_workers_started(CliTestRun *run, const char *python, int pytest, 
             {
                 cli_words_put(&s_words, cover ? head[at] : module[at]);
             }
-            // the process starts in the run's root, and pytest is bound to it as its rootdir, so the ids its lines and
+            // the process starts in the run's root, and pytest is bound to it as its rootdir: the ids its lines and
             // its report give are the ids the run was given though a folder above contains a configuration of its own
             const char *const words[8] = {
                 "-v", "-p", "no:cacheprovider", "--tb=short", "-o", "junit_family=xunit1", "--rootdir=.", junit};

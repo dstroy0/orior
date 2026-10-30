@@ -88,7 +88,7 @@ static void launch_project_entry(void *context, const char *name, int is_folder)
 void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out)
 {
     CliServersProjects projects = {name, root, 0u, {NULL, 0ull, 0ull, NULL, NULL, 0ull}, 0u};
-    (void)cli_growing_line_made(&projects.found, CLI_SERVERS_FOUND_FIRST);
+    (void)cli_growing_line_made(&projects.found, CLI_SERVERS_FOUND_FIRST, &g_cli_servers_launch_cells);
     (void)query_folder_each(root, launch_project_entry, &projects);
     // the projects in order, each by where it starts among those found
     const unsigned int count = mmgr_line_ok(&projects.found) ? projects.count : 0u;
@@ -121,7 +121,7 @@ void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out
     }
     mmgr_line_ch(out, ']');
     cli_cell_release(found, &g_cli_servers_launch_cells);
-    cli_cell_release(projects.found.out, NULL);
+    cli_cell_release(projects.found.out, &g_cli_servers_launch_cells);
 }
 
 // the options a server starts with: the projects it is given, then what the tree adds, `null` where neither is
@@ -175,9 +175,9 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
     if ((launching != NULL) && (tool != CLI_JSON_NONE))
     {
         unsigned int count = 0u;
-        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+        char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_servers_launch_cells);
         cli_toolchains_find(&manifest_json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &launching->found);
-        cli_cell_release(folders, NULL);
+        cli_cell_release(folders, &g_cli_servers_launch_cells);
     }
     cli_json_given(&manifest_json);
     if (launching == NULL)
@@ -199,7 +199,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
         return NULL;
     }
     VerbaLinea options = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&options, CLI_SERVERS_OPTIONS_FIRST);
+    (void)cli_growing_line_made(&options, CLI_SERVERS_OPTIONS_FIRST, &g_cli_servers_launch_cells);
     launch_options(root, spec, &options);
     CliWords *const words = &launching->words;
     words->count = 0u;
@@ -268,7 +268,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
                                : NULL;
     cli_cell_release(vs_path, &g_cli_servers_launch_cells);
     cli_cell_release(setting, &g_cli_servers_launch_cells);
-    cli_cell_release(options.out, NULL);
+    cli_cell_release(options.out, &g_cli_servers_launch_cells);
     cli_cell_release(launching, &g_cli_servers_launch_cells);
     if (server == NULL)
     {

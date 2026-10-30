@@ -114,7 +114,7 @@ int cli_window_place_kept(const CliWindowArea *areas, unsigned int count, CliWin
     }
     cli_lock_take(&s_lock);
     CliJson json;
-    const unsigned int places = cli_json_file_taken(&json, path, 0u, 0ull, &err_msg);
+    const unsigned int places = cli_json_file_taken(&json, path, 0u, 0ull, &err_msg, &g_cli_window_cells);
     const CliServeArgs kept = {&json, cli_json_member(&json, places, key)};
     long long x = 0ll;
     long long y = 0ll;
@@ -152,11 +152,13 @@ static int place_written(const char *key, const char *path, const CliWindowPlace
     CliJson json;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    unsigned int places = cli_json_file_taken(&json, path, CLI_PLACE_NODES_MORE, CLI_PLACE_TEXT_MORE, &unread);
+    unsigned int places =
+        cli_json_file_taken(&json, path, CLI_PLACE_NODES_MORE, CLI_PLACE_TEXT_MORE, &unread, &g_cli_window_cells);
     if ((places == CLI_JSON_NONE) || !cli_json_is(&json, places, CFG_JSON_OBJECT))
     {
         cli_json_given(&json);
-        if (!cli_json_reserved(&json, CLI_PLACE_NODES_MORE, CLI_PLACE_TEXT_MORE, "a window's place"))
+        if (!cli_json_reserved(&json, CLI_PLACE_NODES_MORE, CLI_PLACE_TEXT_MORE, "a window's place",
+                               &g_cli_window_cells))
         {
             mmgr_line_put(err_msg, "the cells a window's place is written in could not be taken");
             return 0;
@@ -171,13 +173,13 @@ static int place_written(const char *key, const char *path, const CliWindowPlace
     cli_json_set(&json, kept, "maximized", cli_json_made(&json, place->maximized ? CFG_JSON_TRUE : CFG_JSON_FALSE));
     cli_json_set(&json, places, key, kept);
     VerbaLinea out;
-    int written = !json.full && cli_growing_line_made(&out, CLI_PLACE_WRITTEN_FIRST);
+    int written = !json.full && cli_growing_line_made(&out, CLI_PLACE_WRITTEN_FIRST, &g_cli_window_cells);
     if (written)
     {
         cli_json_sorted(&json, places);
         cli_json_write(&json, places, &out, 2u, 0);
         written = mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
-        cli_cell_release(out.out, NULL);
+        cli_cell_release(out.out, &g_cli_window_cells);
     }
     cli_json_given(&json);
     if (!written)

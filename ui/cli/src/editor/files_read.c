@@ -108,7 +108,7 @@ static int cli_archived_read(const char *root, const char *file, VerbaLinea *out
     char piece[4096];
     CliPieces pieces;
     VerbaLinea read;
-    cli_pieces_begun(&pieces, &read, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &read, piece, sizeof(piece), &g_cli_editor_cells);
     if (!cli_archive_read(root, file, &read, err_msg))
     {
         cli_pieces_given(&pieces);
@@ -145,7 +145,7 @@ static int cli_archived_read(const char *root, const char *file, VerbaLinea *out
     {
         cli_opened_written(out, path, size, NULL, bytes, (size < CLI_SHOWN_BYTES) ? size : CLI_SHOWN_BYTES, 0);
     }
-    cli_cell_release(joined, NULL);
+    cli_cell_release(joined, &g_cli_editor_cells);
     return 1;
 }
 

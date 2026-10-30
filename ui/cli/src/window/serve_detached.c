@@ -143,7 +143,7 @@ static void detached_follower(void *context)
             const unsigned long long pid_size =
                 qry_member_file_read(pid_file, (unsigned char *)pid_text, sizeof(pid_text) - 1u);
             // a run whose process has written no number of its own by CLI_SERVE_UNSTARTED_TRIES checks, and printed
-            // nothing, never started: it ends as stopped rather than being followed without end
+            // nothing, never started: it ends as stopped, never followed without end
             unstarted = (pid_size == QRY_MEMBER_UNREAD) ? unstarted + 1u : 0u;
             if ((unstarted >= CLI_SERVE_UNSTARTED_TRIES) && (at == 0ull) && (whole == 0ull))
             {
@@ -180,7 +180,7 @@ static void detached_follower(void *context)
     cli_lock_take(&s_lock);
     s_follower[one->place] = NULL;
     cli_lock_give(&s_lock);
-    cli_cell_release(one, NULL);
+    cli_cell_release(one, &g_cli_window_cells);
 }
 
 // the detached run `base` followed on a thread of its own: 1, or 0 where every follower is taken or no room for one is
@@ -198,8 +198,9 @@ static int detached_followed(const char *base)
     {
         at += 1u;
     }
-    CliServeFollower *const one =
-        (at < CLI_SERVE_FOLLOWERS) ? g_cli_cells->persistent_buf_alloc(sizeof(CliServeFollower), NULL) : NULL;
+    CliServeFollower *const one = (at < CLI_SERVE_FOLLOWERS)
+                                      ? g_cli_cells->persistent_buf_alloc(sizeof(CliServeFollower), &g_cli_window_cells)
+                                      : NULL;
     if (one != NULL)
     {
         s_follower[at] = one;
@@ -212,7 +213,7 @@ static int detached_followed(const char *base)
         if (!cli_thread_started(&one->thread))
         {
             s_follower[at] = NULL;
-            cli_cell_release(one, NULL);
+            cli_cell_release(one, &g_cli_window_cells);
         }
     }
     cli_lock_give(&s_lock);

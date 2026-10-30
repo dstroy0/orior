@@ -25,11 +25,12 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
         sizeof(CliJob) + ((unsigned long long)extent.params * sizeof(CliParam)) +
         ((unsigned long long)extent.steps * sizeof(CliStep)) + ((unsigned long long)extent.args * sizeof(CliArg)) +
         ((unsigned long long)extent.lists * sizeof(unsigned int)) + extent.text + sizeof(CliValues) + 64ull;
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
-    CliLines *const lines = (cell != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliLines), NULL) : NULL;
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_runs_cells);
+    CliLines *const lines =
+        (cell != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliLines), &g_cli_runs_cells) : NULL;
     if (lines == NULL)
     {
-        cli_cell_release(cell, NULL);
+        cli_cell_release(cell, &g_cli_runs_cells);
         mmgr_line_put(err_msg, "a run's cells could not be taken");
         return 0;
     }
@@ -46,8 +47,8 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
                       extent.lists, text, (unsigned int)extent.text);
     if (cli_catalog_copy(catalog, job, &run->catalog) == CLI_CATALOG_NONE)
     {
-        cli_cell_release(lines, NULL);
-        cli_cell_release(cell, NULL);
+        cli_cell_release(lines, &g_cli_runs_cells);
+        cli_cell_release(cell, &g_cli_runs_cells);
         mmgr_line_put(err_msg, "the job contains more than a run stores");
         return 0;
     }
@@ -58,8 +59,8 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
 
 void cli_run_cells_given(CliRun *run)
 {
-    cli_cell_release(run->job_cell, NULL);
-    cli_cell_release(run->lines, NULL);
+    cli_cell_release(run->job_cell, &g_cli_runs_cells);
+    cli_cell_release(run->lines, &g_cli_runs_cells);
     run->job_cell = NULL;
     run->lines = NULL;
 }
@@ -74,7 +75,7 @@ int cli_runs_start(CliRunSink sink, const char *root, const CliCatalog *catalog,
         return 0;
     }
     cli_lock_take(&g_cli_runs_lock);
-    // every step that runs made once now, so a step that cannot be made refuses the run before it starts
+    // every step that runs made once now: a step that cannot be made refuses the run before it starts
     const CliJob *const job_at = &catalog->job[job];
     for (unsigned int at = 0u; at < job_at->steps; at += 1u)
     {

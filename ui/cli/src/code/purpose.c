@@ -18,7 +18,7 @@ static int cli_joins(unsigned int letter)
     return cli_hit_wordy(letter);
 }
 
-// whether the span of `length` bytes at `at` of `size` bytes of `within` stands as a word: no letter, number, `_` or
+// whether the span of `length` bytes at `at` of `size` bytes of `within` is a whole word: no letter, number, `_` or
 // `-` before it, and no letter, number or `_` after it
 static int cli_word(const char *within, unsigned long long size, unsigned long long at, unsigned long long length)
 {
@@ -48,7 +48,7 @@ static int cli_word(const char *within, unsigned long long size, unsigned long l
     return 1;
 }
 
-// whether `name` stands as a word in `size` bytes of `within`, its matches read without overlapping
+// whether `name` is a whole word in `size` bytes of `within`, its matches read without overlapping
 static int cli_named_in(const char *within, unsigned long long size, const char *name)
 {
     const unsigned long long length = cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL});
@@ -320,7 +320,7 @@ static int cli_users_found(const char *root, const char *path, VerbaLinea *err_m
 static int cli_users_locked(VerbaLinea *err_msg)
 {
     cli_lock_take(&s_users_lock);
-    s_users = g_cli_cells->persistent_buf_alloc(sizeof(*s_users), NULL);
+    s_users = g_cli_cells->persistent_buf_alloc(sizeof(*s_users), &g_cli_code_cells);
     if (s_users == NULL)
     {
         cli_lock_give(&s_users_lock);
@@ -337,7 +337,7 @@ static int cli_users_locked(VerbaLinea *err_msg)
 static void cli_users_released(void)
 {
     cli_files_let(s_users->files);
-    cli_cell_release(s_users, NULL);
+    cli_cell_release(s_users, &g_cli_code_cells);
     s_users = NULL;
     cli_lock_give(&s_users_lock);
 }

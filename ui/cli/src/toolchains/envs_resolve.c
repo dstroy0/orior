@@ -74,9 +74,9 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
         .src = (shown != NULL) ? shown : id,
         .bytes = cellul.len(&(CatenaFinitaCfg){.src = (shown != NULL) ? shown : id, .cap = CLI_CELLS_POOL}) + 1u});
     unsigned int folders = 0u;
-    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders, &g_cli_toolchains_cells);
     cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])path, folders, &s_room->found);
-    cli_cell_release(path, NULL);
+    cli_cell_release(path, &g_cli_toolchains_cells);
     cli_json_given(&json);
     if (!s_room->found.has_program)
     {
@@ -135,8 +135,8 @@ static int cli_tool_output_read(const char *id, const char *folder, const char *
         cli_ran_given(ran);
         return 0;
     }
-    cli_cell_release(s_room->output, NULL);
-    s_room->output = g_cli_cells->persistent_buf_alloc(ran->out_size + 1ull, NULL);
+    cli_cell_release(s_room->output, &g_cli_toolchains_cells);
+    s_room->output = g_cli_cells->persistent_buf_alloc(ran->out_size + 1ull, &g_cli_toolchains_cells);
     s_room->output_size = (s_room->output != NULL) ? ran->out_size : 0ull;
     if (s_room->output != NULL)
     {
@@ -159,7 +159,8 @@ static int cli_nix_read(CliTreeEnvironment *environment, VerbaLinea *err_msg)
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, s_room->output, s_room->output_size, 0u, 0ull, &unread);
+    const unsigned int root =
+        cli_json_taken(&json, s_room->output, s_room->output_size, 0u, 0ull, &unread, &g_cli_toolchains_cells);
     if (root == CLI_JSON_NONE)
     {
         cli_json_given(&json);
@@ -234,7 +235,7 @@ int cli_envs_resolve(const char *root, const char *kind, const char *place, CliT
         cli_full(root, place, folder);
     }
     cli_lock_take(&s_lock);
-    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_toolchains_cells);
     if (s_room == NULL)
     {
         cli_lock_give(&s_lock);
@@ -287,8 +288,8 @@ int cli_envs_resolve(const char *root, const char *kind, const char *place, CliT
                                 .src = place,
                                 .bytes = cellul.len(&(CatenaFinitaCfg){.src = place, .cap = CLI_CELLS_POOL}) + 1u});
     }
-    cli_cell_release(s_room->output, NULL);
-    cli_cell_release(s_room, NULL);
+    cli_cell_release(s_room->output, &g_cli_toolchains_cells);
+    cli_cell_release(s_room, &g_cli_toolchains_cells);
     s_room = NULL;
     cli_lock_give(&s_lock);
     return made;
@@ -336,7 +337,7 @@ void cli_envs_missing(const CliTreeEnvironment *environment, const char *const *
         if (started)
         {
             VerbaLinea unread = {why, sizeof(why), 0ull};
-            listed = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, &unread);
+            listed = cli_json_taken(&json, ran->out, ran->out_size, 0u, 0ull, &unread, &g_cli_toolchains_cells);
         }
         cli_ran_given(ran);
     }

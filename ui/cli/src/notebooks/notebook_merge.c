@@ -6,8 +6,6 @@
 // the most lines of one cell's source two cells are compared by
 #define CLI_NOTEBOOK_LINES 4096u
 
-CellOwner g_cli_notebook_cells = MMGR_CELL_OWNER("cli_notebooks");
-
 // A merge's room, one cell sized to the cells of its three books: the cells of each side, where each base cell stands
 // on each side, CLI_JSON_NONE where it stands on none, and the table of the longest runs of the same cells, a row for
 // each base cell and one more, each as wide as the longer side and one more

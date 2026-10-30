@@ -11,7 +11,7 @@ CliLock g_cli_format_lock = CLI_LOCK_INIT;
 void cli_format_released(void)
 {
     cli_json_given(&g_cli_format.json);
-    cli_cell_release(g_cli_format.settings, NULL);
+    cli_cell_release(g_cli_format.settings, &g_cli_toolchains_cells);
     g_cli_format.settings = NULL;
     g_cli_format.settings_size = 0ull;
     cli_lock_give(&g_cli_format_lock);
@@ -52,7 +52,8 @@ static void cli_plugin_each(void *context, const CliPlugin *plugin)
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &unread);
+    const unsigned int root =
+        cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &unread, &g_cli_toolchains_cells);
     const unsigned int extensions = cli_json_member(&json, root, "extensions");
     int names = 0;
     for (unsigned int at = 0u; !names && (cli_json_item(&json, extensions, at) != CLI_JSON_NONE); at += 1u)
@@ -303,9 +304,9 @@ int cli_format(const char *path, const char *language, const char *text, unsigne
     const char *const tool_name = cli_json_string(json, cli_json_member(json, tool, "name"), NULL);
     const char *const program_name = (named != NULL) ? named : "";
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_toolchains_cells);
     cli_toolchains_find(json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &g_cli_format.found);
-    cli_cell_release(folders, NULL);
+    cli_cell_release(folders, &g_cli_toolchains_cells);
     char program[CLI_PATH_MAX_LEN];
     const char *const names[1] = {program_name};
     if ((g_cli_format.found.folder[0] == '\0') ||

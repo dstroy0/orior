@@ -427,14 +427,14 @@ int cli_debug_memory(unsigned long long id, const char *reference, long long off
     mmgr_line_put(out, ",\"bytes\":[");
     // the bytes read from memory, in a cell of the most the base64 text decodes to
     const unsigned long long most = ((length / 4ull) + 1ull) * 3ull;
-    unsigned char *const decoded = (data != NULL) ? cli_lane_alloc(most, NULL) : NULL;
+    unsigned char *const decoded = (data != NULL) ? cli_lane_alloc(most, &g_cli_debug_cells) : NULL;
     const unsigned long long bytes = (decoded != NULL) ? cli_debug_base64(data, length, decoded, most) : 0ull;
     for (unsigned long long at = 0ull; at < bytes; at += 1ull)
     {
         mmgr_line_put(out, (at > 0ull) ? "," : "");
         mmgr_line_decimal(out, decoded[at], 1u);
     }
-    cli_cell_release(decoded, NULL);
+    cli_cell_release(decoded, &g_cli_debug_cells);
     mmgr_line_put(out, "],\"unreadable\":");
     mmgr_line_decimal(out, unreadable, 1u);
     mmgr_line_ch(out, '}');

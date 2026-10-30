@@ -195,7 +195,7 @@ static void cli_dotnet_missing(const char *file, QuerySink sink)
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_file_taken(&json, config, 0u, 0ull, &reason);
+    const unsigned int root = cli_json_file_taken(&json, config, 0u, 0ull, &reason, &g_cli_executables_cells);
     const unsigned int options = cli_json_member(&json, root, "runtimeOptions");
     char (*const places)[CLI_PATH_MAX_LEN] =
         ((options != CLI_JSON_NONE) && (cli_json_member(&json, options, "includedFrameworks") == CLI_JSON_NONE))

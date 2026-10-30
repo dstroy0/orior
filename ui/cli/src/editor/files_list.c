@@ -65,7 +65,7 @@ static void *list_grown(void *list, unsigned long long count, unsigned long long
     {
         return list;
     }
-    void *const cell = cli_cell_regrown(list, count * size, grown * size, NULL);
+    void *const cell = cli_cell_regrown(list, count * size, grown * size, &g_cli_editor_cells);
     if (cell == NULL)
     {
         return list;
@@ -261,9 +261,9 @@ static void cli_listed_each(void *context, const char *name, int is_folder)
 static void list_released(void)
 {
     cli_files_emptied(&s_listing->folders);
-    cli_cell_release(s_listing->item, NULL);
-    cli_cell_release(s_listing->text, NULL);
-    cli_cell_release(s_listing, NULL);
+    cli_cell_release(s_listing->item, &g_cli_editor_cells);
+    cli_cell_release(s_listing->text, &g_cli_editor_cells);
+    cli_cell_release(s_listing, &g_cli_editor_cells);
     s_listing = NULL;
     cli_lock_give(&s_lock);
 }
@@ -271,7 +271,7 @@ static void list_released(void)
 int cli_files_list(const char *root, const char *dir, VerbaLinea *out, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
-    s_listing = g_cli_cells->persistent_buf_alloc(sizeof(*s_listing), NULL);
+    s_listing = g_cli_cells->persistent_buf_alloc(sizeof(*s_listing), &g_cli_editor_cells);
     if (s_listing == NULL)
     {
         cli_lock_give(&s_lock);

@@ -102,9 +102,10 @@ static int usages_read(const char *tree, const char *path, unsigned int line, un
                                    {NULL, 0ull, 0ull, NULL, NULL, 0ull},
                                    {NULL, 0ull, 0ull, NULL, NULL, 0ull},
                                    0u};
-    if ((mmgr_line_finish(&own_line) == 0ull) || !cli_growing_line_made(&read->usage, CLI_SERVERS_USAGES_FIRST) ||
-        !cli_growing_line_made(&read->paths, CLI_SERVERS_USAGES_FIRST) ||
-        !cli_growing_line_made(&read->texts, CLI_SERVERS_USAGES_FIRST))
+    if ((mmgr_line_finish(&own_line) == 0ull) ||
+        !cli_growing_line_made(&read->usage, CLI_SERVERS_USAGES_FIRST, &g_cli_servers_cells) ||
+        !cli_growing_line_made(&read->paths, CLI_SERVERS_USAGES_FIRST, &g_cli_servers_cells) ||
+        !cli_growing_line_made(&read->texts, CLI_SERVERS_USAGES_FIRST, &g_cli_servers_cells))
     {
         mmgr_line_put(err_msg, "the usages could not be read: the cells cannot meet them");
         return -1;
@@ -116,7 +117,8 @@ static int usages_read(const char *tree, const char *path, unsigned int line, un
         return -1;
     }
     *order = ((found == 1) && (read->count > 0u))
-                 ? g_cli_cells->persistent_buf_alloc((unsigned long long)read->count * sizeof(unsigned int), NULL)
+                 ? g_cli_cells->persistent_buf_alloc((unsigned long long)read->count * sizeof(unsigned int),
+                                                     &g_cli_servers_cells)
                  : NULL;
     if ((found == 1) && (read->count > 0u) && (*order == NULL))
     {
@@ -140,10 +142,10 @@ static int usages_read(const char *tree, const char *path, unsigned int line, un
 // the usages read and their order given back
 static void usages_given(CliServersUsagesRead *read, unsigned int *order)
 {
-    cli_cell_release(order, NULL);
-    cli_cell_release(read->usage.out, NULL);
-    cli_cell_release(read->paths.out, NULL);
-    cli_cell_release(read->texts.out, NULL);
+    cli_cell_release(order, &g_cli_servers_cells);
+    cli_cell_release(read->usage.out, &g_cli_servers_cells);
+    cli_cell_release(read->paths.out, &g_cli_servers_cells);
+    cli_cell_release(read->texts.out, &g_cli_servers_cells);
 }
 
 int cli_servers_usages_written(const char *tree, const char *path, unsigned int line, unsigned int col, VerbaLinea *out,

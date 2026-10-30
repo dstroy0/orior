@@ -46,7 +46,7 @@ static void request_answered(CliDap *dap, unsigned int message, const char *comm
     char piece[CLI_RECORDING_PIECE];
     CliPieces pieces;
     VerbaLinea reply;
-    cli_pieces_begun(&pieces, &reply, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &reply, piece, sizeof(piece), &g_cli_debug_cells);
     mmgr_line_put(&reply, "{\"seq\":");
     mmgr_line_decimal(&reply, s_seq, 1u);
     mmgr_line_put(&reply, ",\"type\":\"response\",\"request_seq\":");
@@ -76,7 +76,7 @@ static void request_answered(CliDap *dap, unsigned int message, const char *comm
     {
         (void)cli_dap_send(dap, sent, size);
     }
-    cli_cell_release(sent, NULL);
+    cli_cell_release(sent, &g_cli_debug_cells);
 }
 
 // the breakpoints of one file set, each line once, its place among the files the one its path's key had, or a new
@@ -156,7 +156,7 @@ int cli_replay_locked(void)
 {
     if (g_cli_replay == NULL)
     {
-        g_cli_replay = g_cli_cells->persistent_buf_alloc(sizeof(CliReplay), NULL);
+        g_cli_replay = g_cli_cells->persistent_buf_alloc(sizeof(CliReplay), &g_cli_debug_cells);
         if (g_cli_replay != NULL)
         {
             memor.set(&(MemoriaCfg){.dst = g_cli_replay, .val = 0, .bytes = sizeof(CliReplay)});
@@ -193,7 +193,7 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the request before this one given back with its tree, and this one read into a tree of its size
     cli_json_given(&s_json);
-    const unsigned int message = cli_json_taken(&s_json, request, size, 0u, 0ull, &err_msg);
+    const unsigned int message = cli_json_taken(&s_json, request, size, 0u, 0ull, &err_msg, &g_cli_debug_cells);
     if (message == CLI_JSON_NONE)
     {
         return 1;
@@ -215,7 +215,7 @@ int cli_recording_serve(void *context, CliDap *dap, const char *request, unsigne
     char body_piece[CLI_RECORDING_PIECE];
     CliPieces body_pieces;
     VerbaLinea body;
-    cli_pieces_begun(&body_pieces, &body, body_piece, sizeof(body_piece));
+    cli_pieces_begun(&body_pieces, &body, body_piece, sizeof(body_piece), &g_cli_debug_cells);
     int success = 1;
     if (cellul.eq(&(CatenaFinitaCfg){.src = command, .other = "initialize", .cap = CLI_CELLS_POOL}))
     {

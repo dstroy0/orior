@@ -103,7 +103,7 @@ void cli_containers_pods_listed(const char *text, unsigned long long size, int l
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, text, listed ? size : 0ull, 0u, 0ull, &unread);
+    const unsigned int root = cli_json_taken(&json, text, listed ? size : 0ull, 0u, 0ull, &unread, &g_cli_deploy_cells);
     const unsigned int items = cli_json_member(&json, root, "items");
     if (!cli_containers_locked(out, (items != CLI_JSON_NONE) ? json.node[items].count : 0u, 0ull))
     {

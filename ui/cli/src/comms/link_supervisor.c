@@ -153,7 +153,7 @@ static void link_joined(void *context)
     unsigned long long wait = 1000ull;
     int once = 0;
     // the server's line a cell for as long as the keeper runs; with no room for it the link fails at once
-    g_cli_link_line = g_cli_cells->persistent_buf_alloc(CLI_LINK_LINE, NULL);
+    g_cli_link_line = g_cli_cells->persistent_buf_alloc(CLI_LINK_LINE, &g_cli_comms_cells);
     if (g_cli_link_line == NULL)
     {
         static const char s_untaken[] = "the line the link's server writes could not be taken";
@@ -202,7 +202,7 @@ static void link_joined(void *context)
         cli_lock_give(&g_cli_link_lock);
         wait = (wait * 2u < CLI_LINK_JOIN_MOST) ? (wait * 2u) : CLI_LINK_JOIN_MOST;
     }
-    cli_cell_release(g_cli_link_line, NULL);
+    cli_cell_release(g_cli_link_line, &g_cli_comms_cells);
     g_cli_link_line = NULL;
     cli_lock_take(&g_cli_link_lock);
     g_cli_link.open = 0;

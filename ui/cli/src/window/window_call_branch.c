@@ -291,7 +291,7 @@ int cli_window_branch_signature(const char *key, const char *path, unsigned long
     unsigned long long bottom = 0ull;
     branch_lines_about(key, line, CLI_BRANCH_SIGNATURE_LINES - 1ull, 0ull, &top, &bottom);
     VerbaLinea call;
-    if (!cli_growing_line_made(&call, CLI_BRANCH_CALL_FIRST))
+    if (!cli_growing_line_made(&call, CLI_BRANCH_CALL_FIRST, &g_cli_window_cells))
     {
         mmgr_line_put(err_msg, "the signature's call could not be given a cell");
         return 0;
@@ -318,7 +318,7 @@ int cli_window_branch_signature(const char *key, const char *path, unsigned long
     {
         answered = cli_window_tree_call("symbols_signature", call.out, call.at, out, err_msg);
     }
-    cli_cell_release(call.out, NULL);
+    cli_cell_release(call.out, &g_cli_window_cells);
     return answered;
 }
 
@@ -343,7 +343,7 @@ static int branch_pair(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     branch_lines_about(key, line, CLI_BRANCH_PAIR_LINES, CLI_BRANCH_PAIR_LINES, &top, &bottom);
     char state[CLI_BRANCH_STATE];
     unsigned long long size = 0ull;
-    char *const text = cli_document_lines_taken(key, top, bottom, &size, state, sizeof(state));
+    char *const text = cli_document_lines_taken(key, top, bottom, &size, state, sizeof(state), &g_cli_window_cells);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "no branch is stored under ");
@@ -354,7 +354,7 @@ static int branch_pair(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     // a place in a text the page holds stands below 2^32 lines and columns
     const int paired = cli_symbols_pair(path, (state[0] != '\0') ? state : "root", text, size,
                                         (CliSymbolPlace){(unsigned int)(line - top), (unsigned int)col}, pair);
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_window_cells);
     if (!paired)
     {
         mmgr_line_put(out, "null");

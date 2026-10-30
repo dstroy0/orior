@@ -112,7 +112,7 @@ int query_context_handed(QueryContext *context, const QueryRun *run, const char 
     }
     // the output read to its end a piece at a time, each piece buffered, and joined into a cell of its size
     char piece[1u << 16u];
-    CliPieces pieces = {NULL, NULL, 0ull, 0};
+    CliPieces pieces = {NULL, NULL, 0ull, 0, &g_query_cells};
     for (;;)
     {
         const unsigned long long got = query_process_read(&process, piece, sizeof(piece));

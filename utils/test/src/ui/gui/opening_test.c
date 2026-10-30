@@ -134,13 +134,14 @@ static int kept_came(GuiWindow *window, Woken *count, const char *needle)
         cli_lock_give(&count->lock);
         gui_window_drained(window);
         VerbaLinea line;
-        if (!cli_growing_line_made(&line, 4096u))
+        if (!cli_growing_line_made(&line, 4096u, &g_checks_cells))
         {
             return 0;
         }
         unsigned long long at = 0ull;
-        const int found = cli_state_read(folder, &line) && mmgr_line_ok(&line) && cli_text_find(line.out, line.at, needle, wanted, &at);
-        g_cli_cells->persistent_buf_release(line.out, NULL);
+        const int found = cli_state_read(folder, &line) && mmgr_line_ok(&line) &&
+                          cli_text_find(line.out, line.at, needle, wanted, &at);
+        g_cli_cells->persistent_buf_release(line.out, &g_checks_cells);
         if (found)
         {
             return 1;
@@ -257,7 +258,8 @@ static int contains(const char *text, unsigned long long length, const char *nee
 // whether the editor's line `line` contains `needle`
 static int line_has(const GuiEditor *editor, unsigned int line, const char *needle)
 {
-    return (line < editor->count) && contains(editor->bytes + editor->line[line].text, editor->line[line].length, needle);
+    return (line < editor->count) &&
+           contains(editor->bytes + editor->line[line].text, editor->line[line].length, needle);
 }
 
 // whether the completion's list shows an item labeled `label`
@@ -267,7 +269,8 @@ static int suggest_shows(const GuiSuggest *suggest, const char *label)
     for (unsigned int at = 0u; at < suggest->count; at += 1u)
     {
         const GuiItem *const item = &suggest->item[suggest->shown[at]];
-        if ((item->label_length == length) && (memor.cmp(&(MemoriaCfg){.src = suggest->texts.out + item->label, .other = label, .bytes = length}) == 0))
+        if ((item->label_length == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = suggest->texts.out + item->label, .other = label, .bytes = length}) == 0))
         {
             return 1;
         }
@@ -331,7 +334,8 @@ int main(void)
     gui_window_drawn(&window);
     gui_window_key(&window, "Right");
     gui_window_key(&window, "Right");
-    cli_check(cursor_came(&window, &count, 2ull), "two Right keys move the cursor two letters, the view answering frames");
+    cli_check(cursor_came(&window, &count, 2ull),
+              "two Right keys move the cursor two letters, the view answering frames");
     gui_window_key(&window, "Down");
     cli_check(cursor_came_at(&window, &count, 1ull, 2ull), "Down moves the cursor a line");
     gui_window_text(&window, "x", 1ull);
@@ -358,7 +362,8 @@ int main(void)
         const unsigned int room = cli_window_called(0, "symbols_find", s_query, sizeof(s_query) - 1u);
         const char *answer = NULL;
         unsigned long long answer_size = 0ull;
-        cli_check(cli_window_answer(room, &answer, &answer_size), "a search of the tree's declarations begins their first read");
+        cli_check(cli_window_answer(room, &answer, &answer_size),
+                  "a search of the tree's declarations begins their first read");
         cli_window_given(room);
     }
     for (unsigned int left = 600u; (left > 0u) && cli_symbols_unread(); left -= 1u)
@@ -367,20 +372,24 @@ int main(void)
     }
     cli_check(!cli_symbols_unread(), "the tree's declarations are read within a minute of the first search");
     GuiRect named;
-    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 15ull, 6ull, &named), "the sixteenth line's seventh cell is among the rows drawn");
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 15ull, 6ull, &named),
+              "the sixteenth line's seventh cell is among the rows drawn");
     gui_window_moved(&window, named.x + 2, named.y + 5);
-    cli_check(window.hover.in_text && (window.hover.row == 15ull) && (gui_window_due(&window) <= GUI_HOVER_RESTS), "the pointer in the text begins the hover's rest");
+    cli_check(window.hover.in_text && (window.hover.row == 15ull) && (gui_window_due(&window) <= GUI_HOVER_RESTS),
+              "the pointer in the text begins the hover's rest");
     waited(&window, &count, GUI_HOVER_RESTS + 20ull);
     gui_window_ticked(&window);
     cli_check(hover_came(&window, &count) && contains(window.hover.text, window.hover.length, "gui_rect_empty"),
               "the rest up, the hover shows the declaration of the name under the pointer");
     gui_window_drawn(&window);
-    cli_check((window.hover.rect.height > 0) && (window.hover.rect.y >= named.y + named.height), "the hover's box is drawn under the word's row");
+    cli_check((window.hover.rect.height > 0) && (window.hover.rect.y >= named.y + named.height),
+              "the hover's box is drawn under the word's row");
     cli_check(!window.suggest.open, "no completion stands open for the letter typed and taken back");
     gui_window_key(&window, "Escape");
     cli_check(!window.hover.shown, "Escape hides the hover");
     GuiRect start;
-    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 17ull, 0ull, &start), "the eighteenth line's first cell is among the rows drawn");
+    cli_check(gui_editor_place_rect(&window.editor, window.frame.editor, cell, 1.0f, 17ull, 0ull, &start),
+              "the eighteenth line's first cell is among the rows drawn");
     gui_window_pressed(&window, start.x + 1, start.y + 5, 0u);
     gui_window_released(&window, start.x + 1, start.y + 5);
     cli_check(cursor_came_at(&window, &count, 17ull, 0ull), "a press in the text places the cursor at its cell");
@@ -389,18 +398,21 @@ int main(void)
     gui_window_key(&window, "Up");
     cli_check(cursor_came_at(&window, &count, 17ull, 0ull), "Up stands on the line opened");
     gui_window_text(&window, "gui_re", 6ull);
-    cli_check(cursor_came_at(&window, &count, 17ull, 6ull) && suggest_came(&window, &count), "a word's letters typed open the completion's list");
+    cli_check(cursor_came_at(&window, &count, 17ull, 6ull) && suggest_came(&window, &count),
+              "a word's letters typed open the completion's list");
     cli_check(suggest_shows(&window.suggest, "gui_rect_met") && suggest_shows(&window.suggest, "gui_rect_empty") &&
                   cellul.eq(&(CatenaFinitaCfg){.src = window.suggest.prefix, .other = "gui_re", .cap = 16ull}),
               "the list shows the file's words that answer the prefix");
     gui_window_key(&window, "Escape");
     cli_check(!window.suggest.open, "Escape closes the list");
     gui_window_text(&window, "ct_met(", 7ull);
-    cli_check(cursor_came_at(&window, &count, 17ull, 13ull) && line_has(&window.editor, 17u, "gui_rect_met("), "the call's name and its bracket are written");
+    cli_check(cursor_came_at(&window, &count, 17ull, 13ull) && line_has(&window.editor, 17u, "gui_rect_met("),
+              "the call's name and its bracket are written");
     cli_check(gui_window_due(&window) <= GUI_SIGNATURE_WAIT, "the bracket typed begins the signature's wait");
     waited(&window, &count, GUI_SIGNATURE_WAIT + 20ull);
     gui_window_ticked(&window);
-    cli_check(signature_came(&window, &count) && contains(window.signature.label, window.signature.length, "gui_rect_met") &&
+    cli_check(signature_came(&window, &count) &&
+                  contains(window.signature.label, window.signature.length, "gui_rect_met") &&
                   (window.signature.params == 2u) && (window.signature.active == 0),
               "the wait up, the signature shows the call's declaration with its first parameter active");
     gui_window_drawn(&window);
@@ -440,15 +452,18 @@ int main(void)
               "each file opened is a tab, the last one shown, the others' views kept open");
     const GuiRect first = gui_tab_rect(&window.glyphs, &window.frame, window.tab, window.tabs, 0u);
     gui_window_pressed(&window, first.x + 10, first.y + 10, 0u);
-    cli_check((window.active == 0) && (window.last_active == 2), "a tab pressed shows its file, the one shown before kept");
-    cli_check(lines_came(&window, &count) && top_came(&window, &count, 3ull) && line_starts(&window.editor, 0u, "// space"),
+    cli_check((window.active == 0) && (window.last_active == 2),
+              "a tab pressed shows its file, the one shown before kept");
+    cli_check(lines_came(&window, &count) && top_came(&window, &count, 3ull) &&
+                  line_starts(&window.editor, 0u, "// space"),
               "the frame of its view comes again, the view where the wheel left it");
     cli_check(cursor_came_at(&window, &count, 17ull, 13ull), "the cursor stands where it was left");
     gui_window_file_opened(&window, "ui/gui/src/frame.c");
     cli_check((window.tabs == 3u) && (window.active == 2), "a file open already is shown, not opened again");
     const GuiRect close = gui_tab_close_rect(&window.glyphs, &window.frame, window.tab, window.tabs, 2u);
     gui_window_pressed(&window, close.x + (close.width / 2), close.y + 10, 0u);
-    cli_check((window.tabs == 2u) && (window.active == 1) && lines_came(&window, &count) && line_starts(&window.editor, 2u, "// glyphs.c"),
+    cli_check((window.tabs == 2u) && (window.active == 1) && lines_came(&window, &count) &&
+                  line_starts(&window.editor, 2u, "// glyphs.c"),
               "the tab shown closed shows the one before it");
 
     // the catalog's keys for the window's own commands: Ctrl+Tab shows the tab shown before, Ctrl+W closes the shown
@@ -458,7 +473,8 @@ int main(void)
     cli_check((window.active == 0) && (window.last_active == 1), "Mod+Tab shows the tab shown before");
     gui_editor_made(&window.editor);
     gui_window_key(&window, "Mod+W");
-    cli_check((window.tabs == 1u) && (window.active == 0) && lines_came(&window, &count) && line_starts(&window.editor, 2u, "// glyphs.c"),
+    cli_check((window.tabs == 1u) && (window.active == 0) && lines_came(&window, &count) &&
+                  line_starts(&window.editor, 2u, "// glyphs.c"),
               "Mod+W closes the tab shown, the one left shown");
 
     // the explorer: the strip's explorer tool pressed opens the side with the tree's files, and a file pressed there
@@ -467,15 +483,18 @@ int main(void)
     gui_window_pressed(&window, explorer_button.x + 10, explorer_button.y + 10, 0u);
     cli_check((window.frame.side.width > 0) && (window.frame.editor.x == window.frame.side.x + window.frame.side.width),
               "the explorer's tool pressed opens the side beside the editor");
-    cli_check(rows_came(&window, &count) && (file_row(&window.explorer) >= 0), "the tree's top folder is listed into the side, with a file among its rows");
+    cli_check(rows_came(&window, &count) && (file_row(&window.explorer) >= 0),
+              "the tree's top folder is listed into the side, with a file among its rows");
     // the row is among the rows; the wheel over the side scrolls it into view where it stands past the rows shown
     gui_window_wheel(&window, window.frame.side.x + 10, window.frame.side.y + 100, file_row(&window.explorer));
     const unsigned int row = (unsigned int)file_row(&window.explorer);
     const GuiRect file = gui_explorer_row_rect(&window.frame, &window.explorer, row);
-    cli_check(gui_rect_holds(window.frame.side, file.x + 40, file.y + 10), "the wheel over the side scrolls the row into view");
+    cli_check(gui_rect_holds(window.frame.side, file.x + 40, file.y + 10),
+              "the wheel over the side scrolls the row into view");
     unsigned int node = 0u;
     unsigned long long length = 0ull;
-    const char *const held = gui_explorer_row(&window.explorer, row, &node) ? gui_explorer_path(&window.explorer, node, &length) : "";
+    const char *const held =
+        gui_explorer_row(&window.explorer, row, &node) ? gui_explorer_path(&window.explorer, node, &length) : "";
     char picked[CLI_PATH_MAX_LEN];
     VerbaLinea kept = {picked, sizeof(picked), 0ull};
     mmgr_line_put_n(&kept, held, length);
@@ -483,13 +502,15 @@ int main(void)
     gui_editor_made(&window.editor);
     gui_window_pressed(&window, file.x + 40, file.y + 10, 0u);
     cli_check((window.tabs == 2u) && lines_came(&window, &count) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = window.tab[window.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = window.tab[window.active].path, .other = picked, .cap = CLI_PATH_MAX_LEN}),
               "a file pressed in the tree opens as a tab");
 
     // the problems pane: a file's diagnostics come as an event, the strip's Problems tool is marked while an error
     // stands, the tool pressed shows the pane in the side, and a diagnostic's row pressed opens its file at its place
-    static const char s_diagnostics[] =
-        "{\"path\":\"ui/gui/src/raster.c\",\"items\":[{\"from\":{\"line\":13,\"col\":4},\"to\":{\"line\":13,\"col\":18},\"severity\":1,\"message\":\"a test's error\"}]}";
+    static const char s_diagnostics[] = "{\"path\":\"ui/gui/src/"
+                                        "raster.c\",\"items\":[{\"from\":{\"line\":13,\"col\":4},\"to\":{\"line\":13,"
+                                        "\"col\":18},\"severity\":1,\"message\":\"a test's error\"}]}";
     gui_link_emitted(&window.link, "lsp-diagnostics", s_diagnostics, sizeof(s_diagnostics) - 1u);
     waited(&window, &count, 50ull);
     cli_check((window.problems.files == 1u) && (window.problems.errors == 1u) && window.strip.problems_marked,
@@ -498,19 +519,24 @@ int main(void)
     for (unsigned int at = 0u; at < gui_strip_tools(); at += 1u)
     {
         // the tools are fewer than an int counts
-        problems_tool = cellul.eq(&(CatenaFinitaCfg){.src = gui_strip_tool(at)->name, .other = "problems", .cap = 32ull}) ? (int)at : problems_tool;
+        problems_tool =
+            cellul.eq(&(CatenaFinitaCfg){.src = gui_strip_tool(at)->name, .other = "problems", .cap = 32ull})
+                ? (int)at
+                : problems_tool;
     }
     cli_check(problems_tool >= 0, "the strip has the Problems tool");
     // the tool is among the tools
     const GuiRect problems_button = gui_strip_button(&window.frame, (unsigned int)problems_tool);
     gui_window_pressed(&window, problems_button.x + 10, problems_button.y + 10, 0u);
-    cli_check((window.strip.shown == problems_tool) && (window.frame.side.width > 0), "the Problems tool pressed shows its pane in the side");
+    cli_check((window.strip.shown == problems_tool) && (window.frame.side.width > 0),
+              "the Problems tool pressed shows its pane in the side");
     gui_window_drawn(&window);
     cli_check(gui_problems_rows(&window.problems) == 2u, "the pane lists the file and its diagnostic");
     const GuiRect problem_row = gui_problems_row_rect(&window.problems, &window.frame, 1u);
     gui_editor_made(&window.editor);
     gui_window_pressed(&window, problem_row.x + 40, problem_row.y + 5, 0u);
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = window.tab[window.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}) &&
+    cli_check(cellul.eq(&(CatenaFinitaCfg){
+                  .src = window.tab[window.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}) &&
                   cursor_came_at(&window, &count, 13ull, 4ull),
               "a diagnostic's row pressed opens its file at its place");
     gui_window_pressed(&window, explorer_button.x + 10, explorer_button.y + 10, 0u);
@@ -518,12 +544,15 @@ int main(void)
 
     // the tabs and the one shown are kept in orior's folder, the checks' own, as the page keeps them, and a window
     // started again on the tree brings them back with the one shown
-    cli_check(kept_came(&window, &count, picked) && kept_came(&window, &count, "active"), "the tabs and the one shown are kept in orior's folder");
+    cli_check(kept_came(&window, &count, picked) && kept_came(&window, &count, "active"),
+              "the tabs and the one shown are kept in orior's folder");
     static GuiWindow again;
-    cli_check(gui_window_begun(&again, woken, &count, &why) && gui_window_sized(&again, 800u, 500u, 1.0f), "a window begins again");
+    cli_check(gui_window_begun(&again, woken, &count, &why) && gui_window_sized(&again, 800u, 500u, 1.0f),
+              "a window begins again");
     gui_window_started(&again);
     cli_check(tabs_came(&again, &count, 3u) && (again.active >= 0) &&
-                  cellul.eq(&(CatenaFinitaCfg){.src = again.tab[again.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}),
+                  cellul.eq(&(CatenaFinitaCfg){
+                      .src = again.tab[again.active].path, .other = "ui/gui/src/raster.c", .cap = CLI_PATH_MAX_LEN}),
               "the window started again brings the kept tabs back and shows the one kept shown");
     cli_check(lines_came(&again, &count), "the tab brought back shows its lines");
     gui_window_ended(&again);

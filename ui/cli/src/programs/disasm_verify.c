@@ -346,10 +346,12 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
         (disassembled != NULL) ? cli_disasm_ghidra(analyzer, toolchain->loader, top, folder, program, s_symbols,
                                                    functions, ghidra_text, &ghidra_size, &err_msg)
                                : NULL;
-    CliDisasmReading one = {
-        g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), NULL), 0u, 0};
-    CliDisasmReading other = {
-        g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction), NULL), 0u, 0};
+    CliDisasmReading one = {g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction),
+                                                              &g_cli_programs_cells),
+                            0u, 0};
+    CliDisasmReading other = {g_cli_cells->persistent_buf_alloc(CLI_DISASM_INSTRUCTIONS * sizeof(CliDisasmInstruction),
+                                                                &g_cli_programs_cells),
+                              0u, 0};
     int code = 0;
     if ((ghidra == NULL) || (one.instruction == NULL) || (other.instruction == NULL))
     {
@@ -371,8 +373,8 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
         verify_row(s_symbols[each], &one, &other, same, at, other_at);
         code = same ? code : 1;
     }
-    cli_cell_release(one.instruction, NULL);
-    cli_cell_release(other.instruction, NULL);
+    cli_cell_release(one.instruction, &g_cli_programs_cells);
+    cli_cell_release(other.instruction, &g_cli_programs_cells);
     if (ghidra != NULL)
     {
         cli_file_let_go(ghidra, ghidra_size);

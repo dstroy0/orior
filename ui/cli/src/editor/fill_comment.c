@@ -74,7 +74,7 @@ static void *comment_room_taken(unsigned int lines, unsigned long long bytes, Ve
     const unsigned long long joined = bytes + lines + 1ull;
     const unsigned long long size = ((unsigned long long)lines * ((2ull * sizeof(unsigned int)) + sizeof(CliFillTag))) +
                                     joined + (3ull * CLI_FILL_LINE_ROOM) + (8ull * 8ull);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(size, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(size, &g_cli_editor_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "a comment's fill could not be taken");
@@ -496,6 +496,6 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
     cli_filled_line(filled, indent, indent_size);
     mmgr_line_put(filled->out, " */");
     cli_fill_edit_of(text, &first, &last, filled, edit);
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_editor_cells);
     return 1;
 }

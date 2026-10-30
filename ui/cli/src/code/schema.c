@@ -18,8 +18,8 @@ CliLock g_cli_schema_lock = CLI_LOCK_INIT;
 int cli_schema_locked(void)
 {
     cli_lock_take(&g_cli_schema_lock);
-    g_cli_schema_read = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_read), NULL);
-    g_cli_schema_store = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_store), NULL);
+    g_cli_schema_read = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_read), &g_cli_code_cells);
+    g_cli_schema_store = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_schema_store), &g_cli_code_cells);
     if (g_cli_schema_read != NULL)
     {
         g_cli_schema_read->node = NULL;
@@ -29,9 +29,9 @@ int cli_schema_locked(void)
         g_cli_schema_read->members_most = 0u;
         g_cli_schema_read->pool_most = 0u;
     }
-    const int grown =
-        (g_cli_schema_store != NULL) && cli_json_growing(&g_cli_schema_store->json, CLI_SCHEMA_STORE_NODES_FIRST,
-                                                         CLI_SCHEMA_STORE_TEXT_FIRST, "the schemas reached");
+    const int grown = (g_cli_schema_store != NULL) &&
+                      cli_json_growing(&g_cli_schema_store->json, CLI_SCHEMA_STORE_NODES_FIRST,
+                                       CLI_SCHEMA_STORE_TEXT_FIRST, "the schemas reached", &g_cli_code_cells);
     if ((g_cli_schema_read == NULL) || !grown)
     {
         cli_schema_released();
@@ -106,8 +106,8 @@ void cli_schema_released(void)
     {
         cli_json_given(&g_cli_schema_store->json);
     }
-    cli_cell_release(g_cli_schema_store, NULL);
-    cli_cell_release(g_cli_schema_read, NULL);
+    cli_cell_release(g_cli_schema_store, &g_cli_code_cells);
+    cli_cell_release(g_cli_schema_read, &g_cli_code_cells);
     g_cli_schema_store = NULL;
     g_cli_schema_read = NULL;
     cli_lock_give(&g_cli_schema_lock);

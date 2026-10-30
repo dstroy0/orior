@@ -82,7 +82,7 @@ static int stored_room_enter(CliLines *lines, unsigned long long units_most, uns
     // each line's start and length, then the two states it is colored from and ends in, its regions and its runs' place
     const unsigned long long bytes = unit_bytes + (2ull * (unsigned long long)count * sizeof(unsigned long long)) +
                                      (CLI_DOC_LINE_WORDS * (unsigned long long)count * sizeof(unsigned int));
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_editor_cells);
     *lines = (CliLines){NULL, 0ull, 0ull, NULL, NULL, 0u, 0u, 0};
     if (cell == NULL)
     {
@@ -101,7 +101,7 @@ static int stored_room_enter(CliLines *lines, unsigned long long units_most, uns
 // a room given back, its cell starting at its units or, for a paged text's, at its states, `lines` left empty
 static void stored_room_exit(CliLines *lines)
 {
-    cli_cell_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun, NULL);
+    cli_cell_release((lines->unit != NULL) ? (void *)lines->unit : (void *)lines->begun, &g_cli_editor_cells);
     *lines = (CliLines){NULL, 0ull, 0ull, NULL, NULL, 0u, 0u, 0};
 }
 
@@ -119,7 +119,7 @@ static int stored_states_grown(CliLines *lines, unsigned long long count)
         // the lines a room holds are counted by an unsigned int
         const unsigned int most = (room < 0xffffffffull) ? (unsigned int)room : 0xffffffffu;
         unsigned int *const begun =
-            g_cli_cells->persistent_buf_alloc(CLI_DOC_LINE_WORDS * most * sizeof(unsigned int), NULL);
+            g_cli_cells->persistent_buf_alloc(CLI_DOC_LINE_WORDS * most * sizeof(unsigned int), &g_cli_editor_cells);
         if (begun == NULL)
         {
             return 0;
@@ -197,7 +197,7 @@ static CliStoredText *cli_stored_made(const char *key)
     {
         return there;
     }
-    CliStoredText *const one = g_cli_cells->persistent_buf_alloc(sizeof(*one), NULL);
+    CliStoredText *const one = g_cli_cells->persistent_buf_alloc(sizeof(*one), &g_cli_editor_cells);
     if (one == NULL)
     {
         return NULL;
@@ -215,11 +215,11 @@ static void stored_cells_given(CliStoredText *one)
 {
     stored_room_exit(&one->lines);
     stored_room_exit(&one->head);
-    cli_cell_release(one->state, NULL);
-    cli_cell_release(one->state_index, NULL);
-    cli_cell_release(one->roles, NULL);
-    cli_cell_release(one->run, NULL);
-    cli_cell_release(one, NULL);
+    cli_cell_release(one->state, &g_cli_editor_cells);
+    cli_cell_release(one->state_index, &g_cli_editor_cells);
+    cli_cell_release(one->roles, &g_cli_editor_cells);
+    cli_cell_release(one->run, &g_cli_editor_cells);
+    cli_cell_release(one, &g_cli_editor_cells);
 }
 
 // a text stored let go: taken off the texts stored, and its cells given back, at once where nothing holds it, else as
@@ -485,7 +485,8 @@ static void cli_line_ended(CliLines *lines)
 }
 
 // `count` of a text's units moved from `from` to `to`, the way the move needs where the two overlap
-static void cli_units_moved(unsigned short *unit, unsigned long long from, unsigned long long to, unsigned long long count)
+static void cli_units_moved(unsigned short *unit, unsigned long long from, unsigned long long to,
+                            unsigned long long count)
 {
     const MemoriaCfg moving = {.dst = unit + to, .src = unit + from, .bytes = count * sizeof(unsigned short)};
     if (to < from)

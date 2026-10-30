@@ -186,7 +186,7 @@ unsigned char *cli_zmtp_message_made(const CliZmtpFrame *frames, unsigned int co
     {
         total += ((frames[at].size > 255ull) ? 9ull : 2ull) + frames[at].size;
     }
-    unsigned char *const message = g_cli_cells->persistent_buf_alloc(total, NULL);
+    unsigned char *const message = g_cli_cells->persistent_buf_alloc(total, &g_cli_notebook_cells);
     if (message == NULL)
     {
         return NULL;
@@ -208,7 +208,7 @@ int cli_zmtp_sent(const CliSocket *socket, const CliZmtpFrame *frames, unsigned 
     unsigned long long size = 0ull;
     unsigned char *const message = cli_zmtp_message_made(frames, count, &size);
     const int sent = (message != NULL) && cli_socket_written(socket, message, size);
-    cli_cell_release(message, NULL);
+    cli_cell_release(message, &g_cli_notebook_cells);
     return sent;
 }
 

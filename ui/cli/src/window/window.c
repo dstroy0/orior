@@ -266,16 +266,16 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
     const unsigned int at = window_room_taken();
     CliWindowRoom *const room = &s_room[at];
     // the call runs on the room's lane: its own cells are the lane's until the room is given back
-    room->mark = cli_lane_entered(at);
+    room->mark = cli_lane_entered(at, CLI_LANE_ROOM_MS);
     VerbaLinea out;
     // the answer and the error taken on the lane too and rewound with the room: a call leaves nothing in the shared
     // cells' persistent tier for the window's own cells to be taken after
-    (void)cli_growing_line_laned(&out, CLI_WINDOW_ANSWER_FIRST);
+    (void)cli_growing_line_laned(&out, CLI_WINDOW_ANSWER_FIRST, &g_cli_window_cells);
     room->answer = out.out;
-    room->err_msg = cli_lane_alloc(CLI_WINDOW_ERR_MSG_MAX_LEN, NULL);
+    room->err_msg = cli_lane_alloc(CLI_WINDOW_ERR_MSG_MAX_LEN, &g_cli_window_cells);
     if ((room->answer == NULL) || (room->err_msg == NULL))
     {
-        cli_cell_release(room->err_msg, NULL);
+        cli_cell_release(room->err_msg, &g_cli_window_cells);
         room->ok = 0;
         room->err_msg = s_refused;
         room->err_msg_size = sizeof(s_refused) - 1u;
@@ -330,9 +330,9 @@ void cli_window_given(unsigned int room)
     CliWindowRoom *const entry = &s_room[room];
     if (entry->err_msg != s_refused)
     {
-        cli_cell_release(entry->err_msg, NULL);
+        cli_cell_release(entry->err_msg, &g_cli_window_cells);
     }
-    cli_cell_release(entry->answer, NULL);
+    cli_cell_release(entry->answer, &g_cli_window_cells);
     entry->answer = NULL;
     entry->err_msg = NULL;
     // the call's own cells rewound with the room, whatever the call left in its lane

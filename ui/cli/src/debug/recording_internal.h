@@ -131,7 +131,8 @@ const char *cli_recording_name(unsigned int at);
 // (recording_read.c)
 const CliJson *cli_recording_record(unsigned long long at, unsigned int *record);
 unsigned int cli_recording_last_of(unsigned int serial, unsigned int at);
-unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue **taken, unsigned int most);
+unsigned int cli_recording_values(unsigned int serial, unsigned int at, CliRecordedValue **taken, unsigned int most,
+                                  CellOwner *owner);
 unsigned int cli_recording_stack(unsigned int at, unsigned int (*frames)[2], unsigned int room);
 void cli_recording_history(unsigned int serial, const char *name,
                            void (*each)(void *context, unsigned int step, unsigned int line, const char *value),

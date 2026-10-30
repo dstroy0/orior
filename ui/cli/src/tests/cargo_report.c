@@ -273,8 +273,8 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
         named += report_failure_named(out, start, length) ? 1u : 0u;
     }
     CliCargoFailure *const failures =
-        cli_lane_alloc(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), NULL);
-    char *const texts = g_cli_cells->persistent_buf_alloc(size + 1ull, NULL);
+        cli_lane_alloc(((unsigned long long)named + 1ull) * sizeof(CliCargoFailure), &g_cli_tests_cells);
+    char *const texts = g_cli_cells->persistent_buf_alloc(size + 1ull, &g_cli_tests_cells);
     VerbaLinea text = {texts, (texts != NULL) ? (size + 1ull) : 0ull, 0ull};
     unsigned int count = 0u;
     at = 0ull;
@@ -309,8 +309,8 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
                  failure->placed ? failure->path : NULL, failure->line);
         }
     }
-    cli_cell_release(texts, NULL);
-    cli_cell_release(failures, NULL);
+    cli_cell_release(texts, &g_cli_tests_cells);
+    cli_cell_release(failures, &g_cli_tests_cells);
 }
 
 int cli_cargo_build_error(const char *output, unsigned long long size, char *error, unsigned long long room,

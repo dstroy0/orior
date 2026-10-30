@@ -31,9 +31,9 @@ int cli_commands_read(VerbaLinea *err_msg)
     s_text = (const char *)g_cli_commands_json;
     s_size = g_cli_commands_json_size;
     const unsigned int tokens = cli_json_tokens_counted(s_text, s_size) + 1u;
-    s_tokens = (s_tokens != NULL)
-                   ? s_tokens
-                   : g_cli_cells->persistent_buf_alloc((unsigned long long)tokens * sizeof(*s_tokens), NULL);
+    s_tokens = (s_tokens != NULL) ? s_tokens
+                                  : g_cli_cells->persistent_buf_alloc((unsigned long long)tokens * sizeof(*s_tokens),
+                                                                      &g_cli_command_line_cells);
     if (s_tokens == NULL)
     {
         mmgr_line_put(err_msg, "commands.json: the cells cannot meet its tokens");

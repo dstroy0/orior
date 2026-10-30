@@ -18,7 +18,7 @@ void cli_servers_reading_locked(CliServersReading *reading)
 // the reading's answer given back, and its pieces
 static void reading_answer_given(CliServersReading *reading)
 {
-    cli_cell_release(reading->answer, NULL);
+    cli_cell_release(reading->answer, &g_cli_servers_cells);
     reading->answer = NULL;
     reading->answer_size = 0ull;
     cli_pieces_given(&reading->pieces);
@@ -34,7 +34,7 @@ void cli_servers_reading_released(CliServersReading *reading)
 void cli_servers_answer_begun(CliServersReading *reading, VerbaLinea *line)
 {
     reading_answer_given(reading);
-    cli_pieces_begun(&reading->pieces, line, reading->piece, sizeof(reading->piece));
+    cli_pieces_begun(&reading->pieces, line, reading->piece, sizeof(reading->piece), &g_cli_servers_cells);
 }
 
 int cli_servers_answer_joined(CliServersReading *reading, VerbaLinea *line)
@@ -49,7 +49,7 @@ unsigned int cli_servers_read(CliServersReading *reading, const char *text, unsi
     cli_json_given(&reading->json);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    return cli_json_taken(&reading->json, text, size, 0u, 0ull, &err_msg);
+    return cli_json_taken(&reading->json, text, size, 0u, 0ull, &err_msg, &g_cli_servers_cells);
 }
 
 unsigned int cli_servers_answer_read(CliServersReading *reading, VerbaLinea *line)
@@ -72,7 +72,7 @@ int cli_servers_request(CliLsp *server, const char *method, CliPieces *pieces, V
     const int requested =
         (params_json != NULL) && cli_lsp_requested(server, method, params_json, length, wait, result, err_msg);
     cli_servers_ask_ended(server);
-    cli_cell_release(params_json, NULL);
+    cli_cell_release(params_json, &g_cli_servers_cells);
     return requested;
 }
 
@@ -82,7 +82,7 @@ int cli_servers_request_at(CliLsp *server, const char *method, const char *path,
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
     cli_lsp_at(path, line, col, added, &params);
     return cli_servers_request(server, method, &pieces, &params, wait, result, err_msg);
 }
@@ -133,7 +133,7 @@ void cli_servers_markdown_of(const CliJson *json, unsigned int contents, VerbaLi
     }
     if (cli_json_is(json, contents, CFG_JSON_ARRAY))
     {
-        // a part that writes nothing is left out with the break before it, so each is measured before it is written
+        // a part that writes nothing is left out with the break before it: each is measured before it is written
         int written = 0;
         for (unsigned int part = json->node[contents].first; part != CLI_JSON_NONE; part = json->node[part].next)
         {

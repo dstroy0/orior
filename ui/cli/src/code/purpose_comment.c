@@ -105,7 +105,8 @@ static void cli_plugin_each(void *context, const CliPlugin *plugin)
     CliJson json = {0};
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &unread);
+    const unsigned int root =
+        cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &unread, &g_cli_purpose_cells);
     const unsigned int comments = cli_json_member(&json, root, "comments");
     const char *const line = cli_json_string(&json, cli_json_member(&json, comments, "line"), NULL);
     const unsigned int block = cli_json_member(&json, comments, "block");
@@ -408,7 +409,7 @@ static void cli_comment_read(const char *path, const char *text, VerbaLinea *out
             mmgr_line_put_n(&text_line, body,
                             (ended != NULL) ? (unsigned long long)(ended - body)
                                             : cellul.len(&(CatenaFinitaCfg){.src = body, .cap = CLI_CELLS_POOL}));
-            // a docstring read is passed, so a license's docstring does not stop the reading there
+            // a docstring read is passed: a license's docstring does not stop the reading there
             at += 1u;
         }
         else

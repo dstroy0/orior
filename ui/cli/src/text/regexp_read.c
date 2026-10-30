@@ -249,7 +249,7 @@ unsigned int cli_alternation(CliRegexpReader *reader)
 
 // Each alternative of every alternation given its first characters, a place whose character none of them can start
 // with passed over; each repeat whether a pass takes the text one way or none
-// the ASCII letters each one-letter node takes, as bits, so the matcher tests a letter below 128 in one step
+// the ASCII letters each one-letter node takes, as bits, and the matcher tests a letter below 128 in one step
 static void cli_ascii_known(CliRegexp *regexp)
 {
     for (unsigned int index = 0u; index < regexp->nodes; index += 1u)
@@ -355,7 +355,7 @@ static int cli_regexp_read_by(CliRegexpReader *reader, CliRegexp *regexp, const 
 int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, VerbaLinea *err_msg)
 {
     // patterns are read on many threads at once, each by a reader in a cell of its own
-    CliRegexpReader *const reader = cli_lane_alloc(sizeof(CliRegexpReader), NULL);
+    CliRegexpReader *const reader = cli_lane_alloc(sizeof(CliRegexpReader), &g_cli_text_cells);
     if (reader == NULL)
     {
         mmgr_line_put(err_msg, "the pattern could not be read: the cells cannot meet it");
@@ -363,6 +363,6 @@ int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, Ve
     }
     mmgr_zero_buf(reader, sizeof(*reader));
     const int read = cli_regexp_read_by(reader, regexp, source, flags, err_msg);
-    cli_cell_release(reader, NULL);
+    cli_cell_release(reader, &g_cli_text_cells);
     return read;
 }

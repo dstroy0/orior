@@ -12,8 +12,6 @@
 // the bytes a values' pool is begun with before it doubles, and a value written as JSON is begun in before it grows
 #define CLI_REQUESTS_POOL_FIRST (1u << 10u)
 
-CellOwner g_cli_requests_cells = MMGR_CELL_OWNER("cli_requests");
-
 // the environment file read, a tree in a cell sized to it, and the names of the environments, under the lock and
 // given back before it is
 static CliJson s_json;
@@ -79,7 +77,8 @@ static unsigned int values_read(const char *file, VerbaLinea *err_msg)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
     cli_json_given(&s_json);
-    const unsigned int object = cli_json_taken(&s_json, (const char *)bytes, size, 0u, 0ull, &read_err_msg);
+    const unsigned int object =
+        cli_json_taken(&s_json, (const char *)bytes, size, 0u, 0ull, &read_err_msg, &g_cli_requests_cells);
     cli_file_let_go(bytes, size);
     if (object == CLI_JSON_NONE)
     {
@@ -262,7 +261,7 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
                                       text, length);
     }
     VerbaLinea written;
-    if (!cli_growing_line_made(&written, CLI_REQUESTS_POOL_FIRST))
+    if (!cli_growing_line_made(&written, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
     {
         return 0;
     }
@@ -271,7 +270,7 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
         mmgr_line_ok(&written) &&
         cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
                                written.out, written.at);
-    cli_cell_release(written.out, NULL);
+    cli_cell_release(written.out, &g_cli_requests_cells);
     return put;
 }
 
@@ -374,7 +373,7 @@ static int values_ignored(const char *ignore, int *joined)
 static int values_private_written(const char *file)
 {
     VerbaLinea object;
-    if (!cli_growing_line_made(&object, CLI_REQUESTS_POOL_FIRST))
+    if (!cli_growing_line_made(&object, CLI_REQUESTS_POOL_FIRST, &g_cli_requests_cells))
     {
         return 0;
     }
@@ -391,7 +390,7 @@ static int values_private_written(const char *file)
     }
     mmgr_line_put(&object, "\n}\n");
     const int written = mmgr_line_ok(&object) && query_file_written(file, object.out, object.at);
-    cli_cell_release(object.out, NULL);
+    cli_cell_release(object.out, &g_cli_requests_cells);
     return written;
 }
 

@@ -49,7 +49,7 @@ static int s_serving;
 // a message of `size` bytes in a cell of its size, its bytes to be put in, or NULL where the cells cannot meet it
 static CliDapQueued *within_message_taken(unsigned long long size)
 {
-    CliDapQueued *const message = g_cli_cells->persistent_buf_alloc(sizeof(CliDapQueued) + size, NULL);
+    CliDapQueued *const message = g_cli_cells->persistent_buf_alloc(sizeof(CliDapQueued) + size, &g_cli_debug_cells);
     if (message != NULL)
     {
         message->next = NULL;
@@ -65,7 +65,7 @@ static int within_queued(CliDapQueue *queue, CliDapQueued *message)
     if (queue->closed)
     {
         cli_lock_give(&s_queue_lock);
-        cli_cell_release(message, NULL);
+        cli_cell_release(message, &g_cli_debug_cells);
         return 0;
     }
     if (queue->last != NULL)
@@ -131,7 +131,7 @@ static void within_emptied(CliDapQueue *queue)
     while (message != NULL)
     {
         CliDapQueued *const next = message->next;
-        cli_cell_release(message, NULL);
+        cli_cell_release(message, &g_cli_debug_cells);
         message = next;
     }
     *queue = (CliDapQueue){NULL, NULL, 0};
@@ -195,7 +195,7 @@ static int within_request_whole(void)
     s_coming = NULL;
     if (!cli_json_compacted(request->bytes, request->size, &checked))
     {
-        cli_cell_release(request, NULL);
+        cli_cell_release(request, &g_cli_debug_cells);
         return 0;
     }
     return within_queued(&s_incoming, request);
@@ -263,7 +263,7 @@ static unsigned long long within_unframed(void *source, char *piece, unsigned lo
     (void)source;
     if ((s_pending == NULL) || (s_pending_at >= s_pending_head_size + s_pending->size))
     {
-        cli_cell_release(s_pending, NULL);
+        cli_cell_release(s_pending, &g_cli_debug_cells);
         s_pending = within_popped(&s_outgoing);
         if (s_pending == NULL)
         {
@@ -297,7 +297,7 @@ static void within_served(void *context)
     while ((request = within_popped(&s_incoming)) != NULL)
     {
         const int goes_on = s_serve(s_serve_context, dap, request->bytes, request->size);
-        cli_cell_release(request, NULL);
+        cli_cell_release(request, &g_cli_debug_cells);
         if (!goes_on)
         {
             break;
@@ -337,9 +337,9 @@ CliDap *cli_dap_within(CliDapServe serve, void *serve_context, CliDapEventFn emi
     within_emptied(&s_incoming);
     within_emptied(&s_outgoing);
     s_head_size = 0ull;
-    cli_cell_release(s_coming, NULL);
+    cli_cell_release(s_coming, &g_cli_debug_cells);
     s_coming = NULL;
-    cli_cell_release(s_pending, NULL);
+    cli_cell_release(s_pending, &g_cli_debug_cells);
     s_pending = NULL;
     s_pending_head_size = 0ull;
     s_pending_at = 0ull;

@@ -51,13 +51,9 @@ const char *const g_query_mmgr[] = {"src/cu/includes/mmgr/src/ascii_persona_bito
 const char *const g_query_mmgr_includes[] = {"src/cu/includes/mmgr/include", "src/cu/includes/mmgr/src",
                                              "src/cu/includes/embedded_types/include", NULL};
 
-const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0",
-                                             "-DMMGR_ENABLE_EXTRAM=0",
-                                             "-DMMGR_ENABLE_HOST=1",
-                                             "-DMMGR_ALIGN_BYTES=32",
-                                             "-DMMGR_ENABLE_LOCK=1",
-                                             "-DMMGR_ENABLE_OWNERS=1",
-                                             NULL};
+const char *const g_query_mmgr_settings[] = {"-DMMGR_ENABLE_DMA=0",        "-DMMGR_ENABLE_EXTRAM=0",
+                                             "-DMMGR_ENABLE_HOST=1",       "-DMMGR_ALIGN_BYTES=32",
+                                             "-DMMGR_CARCER_OWNERS=1024u", NULL};
 
 // the folders the file definitions' headers stand in beyond their sources' own
 const char *const g_query_file_defs_headers[] = {"src/cu/includes/file_defs", "src/cu/includes/parsers",

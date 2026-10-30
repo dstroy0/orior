@@ -5,8 +5,8 @@ the compiler and the linker's tools.
 
     harness.py build gui                      the window's release program, every window running from it ended first
     harness.py build mmgr [--suffix S] [--flags F]
-                                              MMgr's Unity suites under build/mmgr_tests<S>, the cellblock lock and
-                                              owner lists on as orior builds MMgr, the accuracy suites run
+                                              MMgr's Unity suites under build/mmgr_tests<S>, the owner queue's room
+                                              as orior builds MMgr, the accuracy suites run
     harness.py build image                    the Linux test image, from ui/test/docker
     harness.py source tidy                    clang-tidy with the static analyzer, and cppcheck, in that image, the
                                               reports under build/sonarqube for the SonarQube scan
@@ -40,7 +40,7 @@ BUILD = os.path.join(ROOT, "build")
 OUT = os.path.join(BUILD, "harness", "out")
 MMGR = os.path.join(ROOT, "src", "cu", "includes", "mmgr")
 EMBEDDED_TYPES = os.path.join(ROOT, "src", "cu", "includes", "embedded_types")
-MMGR_FLAGS = ["-I", os.path.join(MMGR, "include"), "-I", os.path.join(MMGR, "src"), "-I", os.path.join(EMBEDDED_TYPES, "include"), "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HOST=1", "-DMMGR_ENABLE_OWNERS=1"]
+MMGR_FLAGS = ["-I", os.path.join(MMGR, "include"), "-I", os.path.join(MMGR, "src"), "-I", os.path.join(EMBEDDED_TYPES, "include"), "-DMMGR_ENABLE_DMA=0", "-DMMGR_ENABLE_EXTRAM=0", "-DMMGR_ALIGN_BYTES=32", "-DMMGR_ENABLE_HOST=1", "-DMMGR_CARCER_OWNERS=1024u"]
 RUBY = r"C:\tools\ruby34\bin"
 FRAME_LARGEST = 65536
 FRAME_JOBS = 16
@@ -83,7 +83,7 @@ def cmd_build_mmgr(a):
     build_log = tree + "_build.log"
     with open(configure_log, "wb") as out:
         configured = subprocess.run(
-            ["cmake", "-S", MMGR, "-B", tree, "-G", "Ninja", "-DMMGR_BUILD_TESTS=ON", "-DMMGR_ENABLE_OWNERS=ON", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_COMPILER=clang", "-DCMAKE_C_FLAGS=-DMMGR_ENABLE_HOST=1 " + a.flags, "-DFETCHCONTENT_SOURCE_DIR_EMBEDDED_TYPES=" + EMBEDDED_TYPES.replace("\\", "/")],
+            ["cmake", "-S", MMGR, "-B", tree, "-G", "Ninja", "-DMMGR_BUILD_TESTS=ON", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_COMPILER=clang", "-DCMAKE_C_FLAGS=-DMMGR_ENABLE_HOST=1 -DMMGR_CARCER_OWNERS=1024u " + a.flags, "-DFETCHCONTENT_SOURCE_DIR_EMBEDDED_TYPES=" + EMBEDDED_TYPES.replace("\\", "/")],
             cwd=ROOT, env=env, stdout=out, stderr=subprocess.STDOUT,
         )
     if configured.returncode != 0:
@@ -122,7 +122,7 @@ def cmd_source_tidy(a):
     inside the Linux test image with the build's own words, their reports written under build/sonarqube for the
     SonarQube scan to import."""
     os.makedirs(os.path.join(BUILD, "sonarqube"), exist_ok=True)
-    words = "-std=c11 -I src/cu/includes/mmgr/include -I src/cu/includes/mmgr/src -I src/cu/includes/embedded_types/include -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1 -DMMGR_ENABLE_OWNERS=1"
+    words = "-std=c11 -I src/cu/includes/mmgr/include -I src/cu/includes/mmgr/src -I src/cu/includes/embedded_types/include -DMMGR_ENABLE_DMA=0 -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 -DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1 -DMMGR_CARCER_OWNERS=1024u"
     inside = (
         "find ui/cli/src ui/query/src -name '*.c' -not -path '*/bundle/*' | sort > build/sonarqube/tidy_files.txt"
         " && xargs -a build/sonarqube/tidy_files.txt -P %d -I{} sh -c \"clang-tidy -quiet -checks='%s' {} -- %s 2>/dev/null\" > %s"

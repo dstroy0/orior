@@ -70,10 +70,10 @@ int cli_print_faces(VerbaLinea *err_msg)
     }
     if (s_typefaces != NULL)
     {
-        cli_cell_release(s_typefaces->cover, NULL);
+        cli_cell_release(s_typefaces->cover, &g_cli_print_cells);
     }
-    cli_cell_release(s_typefaces, NULL);
-    s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), NULL);
+    cli_cell_release(s_typefaces, &g_cli_print_cells);
+    s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), &g_cli_print_cells);
     if (s_typefaces == NULL)
     {
         mmgr_line_put(err_msg, "the faces drawn with could not be taken");
@@ -170,8 +170,8 @@ static int cli_cover_roomed(void)
         const unsigned long long more = (doubled > wanted) ? doubled : wanted;
         const unsigned long long taken = (more < CLI_COVER_CACHE) ? more : CLI_COVER_CACHE;
         const float *const before = s_typefaces->cover;
-        float *const grown =
-            cli_cell_regrown(s_typefaces->cover, s_typefaces->cover_used * sizeof(float), taken * sizeof(float), NULL);
+        float *const grown = cli_cell_regrown(s_typefaces->cover, s_typefaces->cover_used * sizeof(float),
+                                              taken * sizeof(float), &g_cli_print_cells);
         if (grown != NULL)
         {
             for (unsigned int at = 0u; (grown != before) && (at < CLI_GLYPH_CACHE); at += 1u)
@@ -318,7 +318,7 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
                       void (*each)(void *context, const CliPixels *page, unsigned int index, unsigned int count),
                       void *context)
 {
-    s_room = (s_typefaces != NULL) ? cli_lane_alloc(sizeof(*s_room), NULL) : NULL;
+    s_room = (s_typefaces != NULL) ? cli_lane_alloc(sizeof(*s_room), &g_cli_print_cells) : NULL;
     if (s_room == NULL)
     {
         return;
@@ -332,11 +332,11 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
                       layout->gray ? 1ull : 3ull, NULL};
     // the page's pixels a cell of their own, sized to the page at the resolution asked
     const unsigned long long bytes = page.width * page.height * page.channels;
-    s_room->page = (bytes <= CLI_PAGE_BYTES) ? cli_lane_alloc(bytes, NULL) : NULL;
+    s_room->page = (bytes <= CLI_PAGE_BYTES) ? cli_lane_alloc(bytes, &g_cli_print_cells) : NULL;
     page.data = s_room->page;
     if (s_room->page == NULL)
     {
-        cli_cell_release(s_room, NULL);
+        cli_cell_release(s_room, &g_cli_print_cells);
         s_room = NULL;
         return;
     }
@@ -390,8 +390,8 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
         each(context, &page, index, count);
         index += 1u;
     }
-    cli_cell_release(s_room->page, NULL);
-    cli_cell_release(s_room, NULL);
+    cli_cell_release(s_room->page, &g_cli_print_cells);
+    cli_cell_release(s_room, &g_cli_print_cells);
     s_room = NULL;
 }
 

@@ -20,14 +20,14 @@ static const unsigned char *file_taken(const char *path, unsigned long long from
     {
         return s_none;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(count + CLI_FILE_SLACK, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(count + CLI_FILE_SLACK, &g_cli_machine_cells);
     if (cell == NULL)
     {
         return NULL;
     }
     if (!cli_file_read_at(path, from, cell, count, size))
     {
-        cli_cell_release(cell, NULL);
+        cli_cell_release(cell, &g_cli_machine_cells);
         *size = 0ull;
         return NULL;
     }
@@ -40,7 +40,7 @@ static const unsigned char *file_taken(const char *path, unsigned long long from
 static unsigned char *file_roomed(void *context, unsigned long long size)
 {
     unsigned char **const cell = context;
-    *cell = (size == 0ull) ? NULL : g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, NULL);
+    *cell = (size == 0ull) ? NULL : g_cli_cells->persistent_buf_alloc(size + CLI_FILE_SLACK, &g_cli_machine_cells);
     return *cell;
 }
 
@@ -57,7 +57,7 @@ const unsigned char *cli_file_read(const char *path, unsigned long long *size)
     }
     if (!read)
     {
-        cli_cell_release(cell, NULL);
+        cli_cell_release(cell, &g_cli_machine_cells);
         *size = 0ull;
         return NULL;
     }
@@ -92,7 +92,7 @@ const unsigned char *cli_file_piece_grown(const char *path, const unsigned char 
     }
     // the cell grown where it stands and the bytes past those read put after them; a cell that cannot grow there is
     // given back for one of the count, read whole
-    unsigned char *const grown = cli_cell_grown((void *)(uintptr_t)bytes, count + CLI_FILE_SLACK, NULL);
+    unsigned char *const grown = cli_cell_grown((void *)(uintptr_t)bytes, count + CLI_FILE_SLACK, &g_cli_machine_cells);
     if (grown == NULL)
     {
         const unsigned char *const taken = file_taken(path, from, count, size);
@@ -102,7 +102,7 @@ const unsigned char *cli_file_piece_grown(const char *path, const unsigned char 
     unsigned long long more = 0ull;
     if (!cli_file_read_at(path, from + read, grown + read, count - read, &more))
     {
-        cli_cell_release(grown, NULL);
+        cli_cell_release(grown, &g_cli_machine_cells);
         *size = 0ull;
         return NULL;
     }
@@ -175,6 +175,6 @@ void cli_file_let_go(const unsigned char *bytes, unsigned long long size)
     if ((bytes != NULL) && (bytes != s_none) && (size != 0ull))
     {
         // the cell is given back as it was taken; const is the reader's view of it
-        cli_cell_release((void *)(uintptr_t)bytes, NULL);
+        cli_cell_release((void *)(uintptr_t)bytes, &g_cli_machine_cells);
     }
 }

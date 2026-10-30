@@ -74,7 +74,7 @@ static void own_job(const void *job, unsigned long long size)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&found, "[[");
     cli_json_quoted_lossy(&found, (const unsigned char *)own->path,
                           cellul.len(&(CatenaFinitaCfg){.src = own->path, .cap = CLI_CELLS_POOL}));
@@ -87,7 +87,7 @@ static void own_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(CLI_SERVERS_OWN, findings, found_size, 1, &own->sink);
     }
-    cli_cell_release(findings, NULL);
+    cli_cell_release(findings, &g_cli_servers_cells);
 }
 
 void cli_servers_check_own(const char *root, const char *path, const char *text, unsigned long long size,
@@ -102,7 +102,7 @@ void cli_servers_check_own(const char *root, const char *path, const char *text,
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea names;
-    cli_pieces_begun(&pieces, &names, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &names, piece, sizeof(piece), &g_cli_servers_cells);
     cli_build_given_names(path, text, size, own_name_put, &names);
     unsigned long long names_size = 0ull;
     char *const given = cli_pieces_joined(&pieces, &names, "the names a build tool gives", &names_size);
@@ -110,8 +110,8 @@ void cli_servers_check_own(const char *root, const char *path, const char *text,
     (void)cli_keyed_put(&g_cli_servers_given, key, "", (given != NULL) ? given : "",
                         (given != NULL) ? names_size : 0ull);
     cli_lock_give(&g_cli_servers_checks_lock);
-    cli_cell_release(given, NULL);
-    char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersOwnJob) + size, NULL);
+    cli_cell_release(given, &g_cli_servers_cells);
+    char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersOwnJob) + size, &g_cli_servers_cells);
     if (job == NULL)
     {
         return;
@@ -172,7 +172,7 @@ static void own_tree_file(const char *root, const char *path, int *written, Verb
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea items;
-    cli_pieces_begun(&pieces, &items, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &items, piece, sizeof(piece), &g_cli_servers_cells);
     own_check(root, path, (const char *)mapped, size, &items);
     cli_file_let_go(mapped, size);
     const int whole = cli_pieces_ended(&pieces, &items);
@@ -203,7 +203,7 @@ static void own_tree_job(const void *job, unsigned long long size)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_ch(&found, '[');
     int written = 0;
     unsigned long long at = sizeof(*tree);
@@ -220,7 +220,7 @@ static void own_tree_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(CLI_SERVERS_OWN, findings, found_size, 0, &tree->sink);
     }
-    cli_cell_release(findings, NULL);
+    cli_cell_release(findings, &g_cli_servers_cells);
 }
 
 void cli_servers_check_tree_own(const char *root, const char *const *files, unsigned int count,
@@ -240,7 +240,7 @@ void cli_servers_check_tree_own(const char *root, const char *const *files, unsi
     {
         return;
     }
-    char *const job = g_cli_cells->persistent_buf_alloc(used, NULL);
+    char *const job = g_cli_cells->persistent_buf_alloc(used, &g_cli_servers_cells);
     if (job == NULL)
     {
         return;

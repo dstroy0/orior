@@ -93,7 +93,8 @@ unsigned int cli_state_map_read(CliJson *json, const char *path, unsigned int no
         cli_plain_json((const char *)bytes, size, &plain);
         char why[CLI_NAME_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        root = mmgr_line_ok(&plain) ? cli_json_taken(json, plain_text, plain.at, nodes_more + 1u, text_more, &err_msg)
+        root = mmgr_line_ok(&plain) ? cli_json_taken(json, plain_text, plain.at, nodes_more + 1u, text_more, &err_msg,
+                                                     &g_cli_state_cells)
                                     : CLI_JSON_NONE;
     }
     cli_cell_release(plain_text, &g_cli_state_cells);
@@ -103,20 +104,20 @@ unsigned int cli_state_map_read(CliJson *json, const char *path, unsigned int no
     }
     if (cli_json_is(json, root, CFG_JSON_OBJECT))
     {
-        // the tree grows as entries are put, so the room over is a first size and not a bound
+        // the tree grows as entries are put: the room over is a first size and not a bound
         json->grows = 1;
         return root;
     }
     // an empty object in a tree of its own, with the room over requested to begin with
     cli_json_given(json);
-    return cli_json_growing(json, nodes_more + 1u, text_more, "an empty stored file's tree")
+    return cli_json_growing(json, nodes_more + 1u, text_more, "an empty stored file's tree", &g_cli_state_cells)
                ? cli_json_made(json, CFG_JSON_OBJECT)
                : CLI_JSON_NONE;
 }
 
 void cli_state_writing_begun(CliStateWriting *writing)
 {
-    cli_pieces_begun(&writing->pieces, &writing->line, writing->piece, sizeof(writing->piece));
+    cli_pieces_begun(&writing->pieces, &writing->line, writing->piece, sizeof(writing->piece), &g_cli_state_cells);
 }
 
 char *cli_state_writing_joined(CliStateWriting *writing, unsigned long long *size)
@@ -244,8 +245,8 @@ int cli_state_read(const char *folder, VerbaLinea *out)
     CliJsonFiles backup_files = {NULL, 0u};
     cli_state_json_files(themes_folder, &themes_files);
     cli_state_json_files(backups, &backup_files);
-    // every entry read is a key and a text of the files read, so the entries' tree contains no more nodes than their
-    // bytes, and no more text than twice them, a value written back in place of its text
+    // every entry read is a key and a text of the files read: the entries' tree contains at most as many nodes as
+    // their bytes, and at most twice them in text, a value written back in place of its text
     unsigned long long bytes =
         cli_state_files_size(themes_folder, &themes_files) + cli_state_files_size(backups, &backup_files);
     for (unsigned int file = 0u; file < 2u; file += 1u)
@@ -255,7 +256,8 @@ int cli_state_read(const char *folder, VerbaLinea *out)
     }
     bytes = (bytes < (CLI_STATE_BYTES * 4ull)) ? bytes : (CLI_STATE_BYTES * 4ull);
     CliJson entries;
-    if (!cli_json_reserved(&entries, (unsigned int)bytes + 16u, (2ull * bytes) + 64ull, "the changes stored read"))
+    if (!cli_json_reserved(&entries, (unsigned int)bytes + 16u, (2ull * bytes) + 64ull, "the changes stored read",
+                           &g_cli_state_cells))
     {
         cli_state_json_files_given(&backup_files);
         cli_state_json_files_given(&themes_files);
@@ -281,7 +283,7 @@ int cli_state_read(const char *folder, VerbaLinea *out)
             unsigned long long size = 0ull;
             char *const joined = cli_state_writing_joined(&value, &size);
             cli_entry_put(&entries, object, key, (joined != NULL) ? joined : "", size);
-            cli_cell_release(joined, NULL);
+            cli_cell_release(joined, &g_cli_state_cells);
         }
         cli_json_given(&map);
     }
@@ -297,7 +299,7 @@ int cli_state_read(const char *folder, VerbaLinea *out)
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         cli_json_begun(&map, NULL, 0u, NULL, 0ull);
         const unsigned int theme = (cli_state_size(path) <= CLI_STATE_BYTES)
-                                       ? cli_json_file_taken(&map, path, 0u, 0ull, &err_msg)
+                                       ? cli_json_file_taken(&map, path, 0u, 0ull, &err_msg, &g_cli_state_cells)
                                        : CLI_JSON_NONE;
         if (theme != CLI_JSON_NONE)
         {
@@ -314,7 +316,7 @@ int cli_state_read(const char *folder, VerbaLinea *out)
     {
         cli_entry_put(&entries, object, s_themes, (themes_text != NULL) ? themes_text : "", themes_size);
     }
-    cli_cell_release(themes_text, NULL);
+    cli_cell_release(themes_text, &g_cli_state_cells);
     // each change not saved: its key and its text
     for (unsigned int at = 0u; at < backup_files.count; at += 1u)
     {

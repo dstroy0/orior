@@ -55,13 +55,14 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
     if (s_row_count == s_row_room)
     {
         const unsigned int room = (s_row_room == 0u) ? CLI_PLUGINS_ROWS_FIRST : (s_row_room * 2u);
-        CliPluginRow *const rows = g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*rows), NULL);
+        CliPluginRow *const rows =
+            g_cli_cells->persistent_buf_alloc((unsigned long long)room * sizeof(*rows), &g_cli_command_line_cells);
         if (rows == NULL)
         {
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = rows, .src = s_rows, .bytes = (size_t)s_row_count * sizeof(*rows)});
-        cli_cell_release(s_rows, NULL);
+        cli_cell_release(s_rows, &g_cli_command_line_cells);
         s_rows = rows;
         s_row_room = room;
     }
@@ -74,7 +75,8 @@ static void tools_plugin_row(void *context, const CliPlugin *plugin)
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_json_given(&s_json);
-    const unsigned int read = cli_json_taken(&s_json, plugin->text, plugin->size, 0u, 0ull, &err_msg);
+    const unsigned int read =
+        cli_json_taken(&s_json, plugin->text, plugin->size, 0u, 0ull, &err_msg, &g_cli_command_line_cells);
     if (read == CLI_JSON_NONE)
     {
         VerbaLinea name = {row->name, sizeof(row->name), 0ull};
@@ -165,7 +167,7 @@ int cli_plugins_list(void)
         mmgr_line_put(&line, folder);
         cli_out_line(s_line, mmgr_line_ok(&line) ? line.at : 0ull);
     }
-    cli_cell_release(s_rows, NULL);
+    cli_cell_release(s_rows, &g_cli_command_line_cells);
     s_rows = NULL;
     s_row_count = 0u;
     s_row_room = 0u;
@@ -183,10 +185,11 @@ static int tools_tree_reserved(const char *const *words, unsigned int count)
     }
     cli_json_given(&s_json);
     return cli_json_reserved(&s_json, (unsigned int)bytes + (4u * count) + CLI_TOOLS_NODES_MORE,
-                             (2ull * bytes) + CLI_TOOLS_TEXT_MORE, "a tree made of a command's words");
+                             (2ull * bytes) + CLI_TOOLS_TEXT_MORE, "a tree made of a command's words",
+                             &g_cli_command_line_cells);
 }
 
-// `text` split at commas into an array of the parts, each trimmed, the empty ones left out
+// `text` split at commas into its parts, each trimmed, the empty ones left out
 static unsigned int tools_list(const char *text)
 {
     const unsigned int list = cli_json_made(&s_json, CFG_JSON_ARRAY);

@@ -155,31 +155,30 @@ void cli_document_names_written(const char *grammar, VerbaLinea *out);
 // run of lines not colored entered in the state the line above it ends in, else from root as far above it as
 // CLI_DOC_LEAD lines not colored reach, the lines after it colored again until one is entered in the state it was
 // before, a paged text's no line outside those the page holds, their runs written into `out` as a JSON array of
-// `{"from", "runs"}`, or handed to `colored` where `out` is NULL: 1, or 0 where no text is stored under `key`; and every
-// text's walk taken to its end on the calling thread
-// (document_branch.c)
+// `{"from", "runs"}`, or handed to `colored` where `out` is NULL: 1, or 0 where no text is stored under `key`; and
+// every text's walk taken to its end on the calling thread (document_branch.c)
 void cli_document_colors_to(CliDocColored colored, int threaded);
 int cli_document_colored_by(const char *key, const char *grammar, int named);
 int cli_document_viewed(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out);
 void cli_document_walked(void);
 // how many walkers walk the texts' colors out on threads of their own now (document_branch.c)
 unsigned int cli_document_walkers(void);
-// the lines from `first` to `last` of the text under `key` as UTF-8, each but the last followed by "\n", in a cell taken
-// for them, given back with g_cli_cells->persistent_buf_release, their bytes into `size`, and the state the first is
-// entered in written into `state`, `room` bytes, root where it is not colored yet, empty where it does not fit: NULL
-// where no text is stored under `key` or the cells cannot meet the lines; and the same lines written into `out` as a
-// JSON string: 1, or 0 where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
+// the lines from `first` to `last` of the text under `key` as UTF-8, each but the last followed by "\n", in a cell
+// taken for `owner`, given back with cli_cell_release, their bytes into `size`, and the state the first is entered in
+// written into `state`, `room` bytes, root where it is not colored yet, empty where it does not fit: NULL where no text
+// is stored under `key` or the cells cannot meet the lines; and the same lines written into `out` as a JSON string: 1,
+// or 0 where no text is stored under `key` or the cells cannot meet the lines (document_branch.c)
 char *cli_document_lines_taken(const char *key, unsigned long long first, unsigned long long last,
-                               unsigned long long *size, char *state, unsigned long long room);
+                               unsigned long long *size, char *state, unsigned long long room, CellOwner *owner);
 // the lines of the text under `key` read for it, from `*low` to before `*high`: a paged text's those the page holds,
 // and every line of any other: 1, or 0 where no text is stored under `key` (document_branch.c)
 int cli_document_bounds(const char *key, unsigned long long *low, unsigned long long *high);
 int cli_document_text_written(const char *key, unsigned long long first, unsigned long long last, VerbaLinea *out,
                               char *state, unsigned long long room);
 // the text read whole stored under `key` as UTF-8, its lines joined by "\n" and a NUL after the last, in a cell taken
-// for it, given back with g_cli_cells->persistent_buf_release, its bytes into `size`: NULL where no text read whole is
-// stored under `key` or the cells cannot meet it (document_branch.c)
-char *cli_document_text_taken(const char *key, unsigned long long *size);
+// for `owner`, given back with cli_cell_release, its bytes into `size`: NULL where no text read whole is stored
+// under `key` or the cells cannot meet it (document_branch.c)
+char *cli_document_text_taken(const char *key, unsigned long long *size, CellOwner *owner);
 // the lines from `from` to before `to` of the branch under `key` the page's mirror, those about its view: those it did
 // not mirror before handed on with the runs the walk kept for them, and colored again where they keep none, and lines
 // outside them colored with no runs handed on: 1, or 0 where no text is stored under `key`. A text stored hands every

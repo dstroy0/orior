@@ -285,7 +285,7 @@ void cli_servers_path_written(const char *tree, const char *path, VerbaLinea *ou
 // written (servers_edits.c)
 void cli_servers_workspace_edit_of(const CliJson *json, unsigned int edit, const char *tree, VerbaLinea *out);
 extern CellOwner g_cli_servers_edits_cells;
-// every file named `name` in the tree at `root`, outside the folders a build writes and no more than six folders down,
+// every file named `name` in the tree at `root`, outside the folders a build writes and at most six folders down,
 // sorted, written as a JSON array into `out`; and the cells a server's start occupies while it starts
 // (servers_launch.c)
 void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out);
@@ -344,11 +344,12 @@ int cli_servers_slice_out(const char *path, unsigned int *line, char *from);
 // the object `one` of `json`, about the file at `path`, written with the lines of its range moved to the slice's: 1, or
 // 0 with nothing written where the slice holds none of them; and the diagnostics `all`, `size` bytes, the server
 // published with `params`, `params_size` bytes, about the sliced file at `path`, moved to the file's own lines, those
-// on another file's lines left out: their JSON in a cell the caller gives back, its size into `mapped_size`, or NULL
-// where they are of a version given before the slice stored was or the cells cannot meet them
+// on another file's lines left out: their JSON in a cell counted to `owner` the caller gives back, its size into
+// `mapped_size`, or NULL where they are of a version given before the slice stored was or the cells cannot meet them
 int cli_servers_slice_ranged_in(const char *path, const CliJson *json, unsigned int one, VerbaLinea *out);
 char *cli_servers_slice_diagnostics(const char *path, const char *params, unsigned long long params_size,
-                                    const char *all, unsigned long long size, unsigned long long *mapped_size);
+                                    const char *all, unsigned long long size, unsigned long long *mapped_size,
+                                    CellOwner *owner);
 // A window's slice of a file the check gives its server in slices; what each window is handed to with its slice and
 // its first and last lines, 1 to cut the next, 0 to stop; the file at `path` in the tree at `root`, `size` bytes of
 // `text`, cut in one walk into the slices of its windows, a view's height each, each handed to `window` as the walk
@@ -459,7 +460,7 @@ void cli_servers_check_open_set(const char *uri, int open);
 void cli_servers_check_open_cleared(void);
 void cli_servers_reread_open(CliLsp *server);
 // each of the tree's files the check was given handed to `each`, by its path in the tree: 1, or 0 where the check is
-// off or on another tree; the files of a batch changed on the disk recorded among the tree's files, those no longer
+// off or on another tree; the files a change on the disk named recorded among the tree's files, those no longer
 // there let go, and where the check's word goes into `emit`: 1, or 0 where the check is off or on another tree; and the
 // files `paths`, `count` of them, each with its server, referenced for it, and its language, queued behind those
 // waiting, each once, the check notified it is done where none waits: `count` (servers_check.c)

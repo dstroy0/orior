@@ -333,7 +333,7 @@ static void cli_prints_written(VerbaLinea *out)
 static int prints_locked(VerbaLinea *err_msg)
 {
     cli_lock_take(&s_lock);
-    s_prints = g_cli_cells->persistent_buf_alloc(sizeof(*s_prints), NULL);
+    s_prints = g_cli_cells->persistent_buf_alloc(sizeof(*s_prints), &g_cli_code_cells);
     if (s_prints == NULL)
     {
         cli_lock_give(&s_lock);
@@ -351,7 +351,7 @@ static void prints_released(VerbaLinea *out)
 {
     cli_prints_written(out);
     cli_git_text_given(&s_prints->repositories.text);
-    cli_cell_release(s_prints, NULL);
+    cli_cell_release(s_prints, &g_cli_code_cells);
     s_prints = NULL;
     cli_lock_give(&s_lock);
 }

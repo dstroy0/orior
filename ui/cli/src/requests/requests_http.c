@@ -286,7 +286,7 @@ static int http_written(HttpConnection *connection, const char *host, VerbaLinea
 {
     CliRequestsRoom *const room = connection->room;
     VerbaLinea head = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_growing_line_made(&head, CLI_REQUESTS_BODY_FIRST))
+    if (!cli_growing_line_made(&head, CLI_REQUESTS_BODY_FIRST, &g_cli_requests_cells))
     {
         mmgr_line_put(err_msg, "the request's head could not be stored");
         return 0;
@@ -309,7 +309,7 @@ static int http_written(HttpConnection *connection, const char *host, VerbaLinea
         mmgr_line_put(err_msg, ": the request could not be sent");
         written = 0;
     }
-    cli_cell_release(head.out, NULL);
+    cli_cell_release(head.out, &g_cli_requests_cells);
     return written;
 }
 
@@ -346,7 +346,7 @@ static int http_body(HttpConnection *connection, unsigned long long *size, Verba
         read = http_to_end(connection, size, &cut, err_msg);
     }
     answer->cut = cut;
-    // the body's cell is the one it ended in: a growing line moves as it fills
+    // the body's cell is the cell it ended in: a growing line moves as it fills
     answer->body = (const unsigned char *)connection->room->raw.out;
     answer->size = *size;
     return read;

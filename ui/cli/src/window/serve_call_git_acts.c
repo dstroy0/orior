@@ -17,7 +17,7 @@ static CellOwner s_cells = MMGR_CELL_OWNER("cli_serve_git");
 // refused
 static int git_line_begun(VerbaLinea *line, unsigned long long first, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(line, first);
+    const int begun = cli_growing_line_made(line, first, &s_cells);
     if (!begun)
     {
         mmgr_line_put(err_msg, "git's words could not be given a cell");
@@ -44,7 +44,7 @@ static int git_words_given(int done, VerbaLinea *words, VerbaLinea *out)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)words->out, mmgr_line_ok(words) ? words->at : 0ull);
     }
-    cli_cell_release(words->out, NULL);
+    cli_cell_release(words->out, &s_cells);
     return done;
 }
 
@@ -142,7 +142,7 @@ static int file_head(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         mmgr_line_put(out, "null");
     }
-    cli_cell_release(text.out, NULL);
+    cli_cell_release(text.out, &s_cells);
     return 1;
 }
 
@@ -264,7 +264,7 @@ static int repo_init(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
         return 0;
     }
     const int done = cli_git_init(folder, &words, err_msg);
-    cli_cell_release(words.out, NULL);
+    cli_cell_release(words.out, &s_cells);
     if (done)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)folder,

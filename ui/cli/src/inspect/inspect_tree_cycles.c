@@ -10,7 +10,7 @@
 
 // The walk: each file's first edge and its count; each edge's import and the file it runs, counted where
 // `edge_import` is NULL; the file each was come to from, the round each was last seen in, the waiting files and the
-// way back; each import's round, so an import is reported once; and the import an edge is being gathered for
+// way back; each import's round, by which an import is reported once; and the import an edge is being gathered for
 typedef struct
 {
     unsigned int *edge_first;
@@ -132,7 +132,7 @@ static void cycles_reported(unsigned int file, unsigned int import, unsigned int
     {
         size += CLI_TREE_FILE(s_walk.way[at]).path_size + 32ull;
     }
-    char *const text = cli_lane_alloc(size, NULL);
+    char *const text = cli_lane_alloc(size, &g_cli_inspect_cells);
     if (text == NULL)
     {
         return;
@@ -149,7 +149,7 @@ static void cycles_reported(unsigned int file, unsigned int import, unsigned int
     {
         each(context, file, facts->import[import].from, facts->import[import].to, "import-cycle", &message);
     }
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_inspect_cells);
 }
 
 // the imports of the file at `file` that lead back round to it, each handed to `each`
@@ -186,8 +186,8 @@ void cli_tree_cycles(CliTreeFindingFn each, void *context)
         imports = (tree_file->used && (tree_file->facts.imports > imports)) ? tree_file->facts.imports : imports;
     }
     const unsigned long long files = g_cli_tree_files + 1ull;
-    unsigned int *const cell =
-        g_cli_cells->persistent_buf_alloc(((6ull * files) + (2ull * edges) + imports) * sizeof(unsigned int), NULL);
+    unsigned int *const cell = g_cli_cells->persistent_buf_alloc(
+        ((6ull * files) + (2ull * edges) + imports) * sizeof(unsigned int), &g_cli_inspect_cells);
     if (cell == NULL)
     {
         return;
@@ -211,6 +211,6 @@ void cli_tree_cycles(CliTreeFindingFn each, void *context)
             cycles_of(file, each, context);
         }
     }
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_inspect_cells);
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
 }

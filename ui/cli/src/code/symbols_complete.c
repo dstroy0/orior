@@ -184,7 +184,7 @@ int cli_symbols_complete(const char *path, const char *text, unsigned long long 
                             {NULL, 0ull, 0ull, NULL, NULL, 0ull},
                             each,
                             context};
-    int done = cli_growing_line_made(&complete.handed, CLI_COMPLETE_FIRST);
+    int done = cli_growing_line_made(&complete.handed, CLI_COMPLETE_FIRST, &g_cli_code_cells);
     CliEffect *const effect = done ? cli_effect_made(path, "", 1, err_msg) : NULL;
     if (effect != NULL)
     {
@@ -212,6 +212,6 @@ int cli_symbols_complete(const char *path, const char *text, unsigned long long 
         cli_symbols_leaves_given(&read);
     }
     cli_symbols_languages_given(languages);
-    cli_cell_release(complete.handed.out, NULL);
+    cli_cell_release(complete.handed.out, &g_cli_code_cells);
     return done;
 }

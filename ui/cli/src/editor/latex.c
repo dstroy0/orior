@@ -13,7 +13,7 @@ CliLock g_cli_latex_lock = CLI_LOCK_INIT;
 int cli_latex_locked(void)
 {
     cli_lock_take(&g_cli_latex_lock);
-    g_cli_latex = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_latex), NULL);
+    g_cli_latex = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_latex), &g_cli_editor_cells);
     if (g_cli_latex == NULL)
     {
         cli_lock_give(&g_cli_latex_lock);
@@ -23,7 +23,7 @@ int cli_latex_locked(void)
 
 void cli_latex_released(void)
 {
-    cli_cell_release(g_cli_latex, NULL);
+    cli_cell_release(g_cli_latex, &g_cli_editor_cells);
     g_cli_latex = NULL;
     cli_lock_give(&g_cli_latex_lock);
 }
@@ -79,7 +79,7 @@ static int latex_program(const char *name, char *program)
     CliJson manifest_json;
     CliJson *const json = &manifest_json;
     unsigned int count = 0u;
-    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_editor_cells);
     const char (*const folders)[CLI_PATH_MAX_LEN] = (const char (*)[CLI_PATH_MAX_LEN])path;
     const char *const names[1] = {name};
     const unsigned int manifest = cli_toolchains_manifest(json, 0u, 0ull);
@@ -97,7 +97,7 @@ static int latex_program(const char *name, char *program)
             cli_toolchains_program_in(g_cli_latex->found.folder, names, 1u, program))
         {
             cli_json_given(json);
-            cli_cell_release(path, NULL);
+            cli_cell_release(path, &g_cli_editor_cells);
             return 1;
         }
     }
@@ -107,7 +107,7 @@ static int latex_program(const char *name, char *program)
     {
         found = cli_toolchains_program_in(folders[at], names, 1u, program);
     }
-    cli_cell_release(path, NULL);
+    cli_cell_release(path, &g_cli_editor_cells);
     return found;
 }
 

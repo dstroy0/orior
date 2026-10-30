@@ -15,7 +15,7 @@ void gui_hover_made(GuiHover *hover)
 
 void gui_hover_given(GuiHover *hover)
 {
-    g_cli_cells->persistent_buf_release(hover->text, NULL);
+    g_cli_cells->persistent_buf_release(hover->text, &g_gui_cells);
     hover->text = NULL;
     hover->length = 0ull;
     hover->shown = 0;
@@ -125,7 +125,7 @@ int gui_hover_put(GuiHover *hover, const CliJson *json, unsigned int root)
         return 1;
     }
     VerbaLinea joined;
-    if (!cli_growing_line_made(&joined, GUI_HOVER_FIRST))
+    if (!cli_growing_line_made(&joined, GUI_HOVER_FIRST, &g_gui_cells))
     {
         return 0;
     }
@@ -145,7 +145,7 @@ int gui_hover_put(GuiHover *hover, const CliJson *json, unsigned int root)
     }
     if (!mmgr_line_ok(&joined))
     {
-        g_cli_cells->persistent_buf_release(joined.out, NULL);
+        g_cli_cells->persistent_buf_release(joined.out, &g_gui_cells);
         return 0;
     }
     gui_hover_given(hover);
@@ -182,13 +182,15 @@ void gui_hover_drawn(GuiHover *hover, GuiRaster *raster, GuiGlyphs *glyphs, cons
     int wide = gui_scaled(GUI_HOVER_WIDE, scale);
     wide = (wide > bounds.width) ? bounds.width : wide;
     const int inner = wide - (2 * pad_x);
-    const int measured = gui_panel_markdown(NULL, glyphs, palette, hover->text, hover->length, 0, 0, inner, scale, bounds);
+    const int measured =
+        gui_panel_markdown(NULL, glyphs, palette, hover->text, hover->length, 0, 0, inner, scale, bounds);
     int tall = measured + (2 * pad_y);
     const int most = gui_scaled(GUI_HOVER_TALL, scale);
     tall = (tall > most) ? most : tall;
     hover->rect = gui_panel_placed(anchor, wide, tall, 0, bounds, 0, scale);
     gui_panel_box_drawn(raster, palette, hover->rect, scale);
-    const GuiRect clip = gui_rect_met((GuiRect){hover->rect.x + pad_x, hover->rect.y + pad_y, inner, tall - (2 * pad_y)}, bounds);
-    (void)gui_panel_markdown(raster, glyphs, palette, hover->text, hover->length, hover->rect.x + pad_x, hover->rect.y + pad_y,
-                             inner, scale, clip);
+    const GuiRect clip =
+        gui_rect_met((GuiRect){hover->rect.x + pad_x, hover->rect.y + pad_y, inner, tall - (2 * pad_y)}, bounds);
+    (void)gui_panel_markdown(raster, glyphs, palette, hover->text, hover->length, hover->rect.x + pad_x,
+                             hover->rect.y + pad_y, inner, scale, clip);
 }

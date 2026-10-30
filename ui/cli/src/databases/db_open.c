@@ -8,8 +8,6 @@
 // reaches a link closed
 #include "db_internal.h"
 
-CellOwner g_cli_db_cells = MMGR_CELL_OWNER("cli_databases");
-
 static CliDbOpen *s_opens[CLI_DB_OPENS];
 static CliLock s_opens_lock = CLI_LOCK_INIT;
 
@@ -207,7 +205,7 @@ static int open_with(CliDbOpen *open, CliDbLink *link, CliLock *lock, CliDbStop 
     if (!done && (cellul.starts(&(CatenaFinitaCfg){
                      .src = failure->message, .other = "the connection broke", .cap = CLI_CELLS_POOL})))
     {
-        // the link's stop let go before it closes, so no stop reaches it closed
+        // the link's stop let go before it closes: no stop reaches it closed
         cli_lock_take(&open->stop_lock);
         *has_stop = 0;
         cli_lock_give(&open->stop_lock);

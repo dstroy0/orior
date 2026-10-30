@@ -27,10 +27,11 @@ unsigned int cli_toolchains_file_read(CliJson *json, const char *path, unsigned 
     // the empty object made where the file is none takes a node of the room over
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int read = cli_json_file_taken(json, path, nodes_more + 1u, text_more, &err_msg);
+    const unsigned int read =
+        cli_json_file_taken(json, path, nodes_more + 1u, text_more, &err_msg, &g_cli_toolchains_cells);
     if (json->node == NULL)
     {
-        (void)cli_json_reserved(json, nodes_more + 1u, text_more, "the reader's toolchains");
+        (void)cli_json_reserved(json, nodes_more + 1u, text_more, "the reader's toolchains", &g_cli_toolchains_cells);
     }
     return cli_json_is(json, read, CFG_JSON_OBJECT) ? read : cli_json_made(json, CFG_JSON_OBJECT);
 }
@@ -103,8 +104,8 @@ static unsigned int cli_bundled(CliJson *json)
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     // the program's own bytes are toolchains.json's text
-    const unsigned int read =
-        cli_json_taken(json, (const char *)g_cli_toolchains_json, g_cli_toolchains_json_size, 0u, 0ull, &err_msg);
+    const unsigned int read = cli_json_taken(json, (const char *)g_cli_toolchains_json, g_cli_toolchains_json_size, 0u,
+                                             0ull, &err_msg, &g_cli_toolchains_cells);
     return cli_json_member(json, read, "tools");
 }
 

@@ -318,14 +318,14 @@ static void cli_batched(void *context)
         }
         cli_lock_give(&s_lock);
         VerbaLinea out;
-        (void)cli_growing_line_made(&out, CLI_WATCH_JSON_FIRST);
+        (void)cli_growing_line_made(&out, CLI_WATCH_JSON_FIRST, &g_cli_watch_cells);
         const int any = cli_gathered(batch, &out);
         const int stopping = cli_watch_stopping();
         if (!stopping && any && mmgr_line_ok(&out))
         {
             s_watching.take(s_watching.context, out.out, out.at);
         }
-        cli_cell_release(out.out, NULL);
+        cli_cell_release(out.out, &g_cli_watch_cells);
         cli_lock_take(&s_lock);
         if (stopping)
         {

@@ -232,7 +232,7 @@ static int run_failed(const char *release, VerbaLinea *err_msg)
     char piece[CLI_DEPLOY_PIECE];
     CliPieces pieces;
     VerbaLinea print_buf;
-    cli_pieces_begun(&pieces, &print_buf, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &print_buf, piece, sizeof(piece), &g_cli_deploy_cells);
     mmgr_line_put(&print_buf, "no machine was turned to the new release, and each runs the release it had: ");
     for (unsigned int index = 0u; index < run->places; index += 1u)
     {
@@ -269,7 +269,7 @@ static int run_failed(const char *release, VerbaLinea *err_msg)
         const VerbaLinea whole = {joined, size, size};
         cli_deploy_print(&whole);
     }
-    cli_cell_release(joined, NULL);
+    cli_cell_release(joined, &g_cli_deploy_cells);
     mmgr_line_decimal(err_msg, failed, 1u);
     mmgr_line_put(err_msg, " of ");
     mmgr_line_decimal(err_msg, run->places, 1u);

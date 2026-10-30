@@ -1,8 +1,9 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // link_test.c: the link's check: a call queued is answered on a worker and its answer waits in the queue with its
-// ticket, the window's thread woken; an event emitted waits there with no ticket; the queue drains in order and is
-// then empty; the window's own calls are answered in the order queued; and the link ends with its workers
+// ticket in the call's room, the window's thread woken; an event emitted waits there with no ticket; the queue drains
+// in order and is then empty; the window's own calls are answered in the order queued; and the link ends with its
+// workers
 #include "../../../../../ui/gui/src/link.h"
 #include "../cli/cli_check.h"
 
@@ -80,15 +81,18 @@ int main(void)
     cli_check(waited(&count, 1u), "the window's thread is woken as the call is answered");
     cli_check(gui_link_drained(&link, each, &drained) == 1u, "the answer drains as one item");
     cli_check(drained.ticket == ticket, "the answer carries the call's ticket");
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.name, .other = "root", .cap = 64ull}), "the answer carries the call's name");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.name, .other = "root", .cap = 64ull}),
+              "the answer carries the call's name");
     cli_check(drained.text[0] != '\0', "the answer carries a text, an answer or why it failed");
 
     gui_link_emitted(&link, "tree-changed", "{\"paths\":[]}", 12ull);
     cli_check(waited(&count, 2u), "the window's thread is woken as an event comes");
     cli_check(gui_link_drained(&link, each, &drained) == 1u, "the event drains as one item");
     cli_check(drained.ticket == 0ull, "an event carries no ticket");
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.name, .other = "tree-changed", .cap = 64ull}), "an event carries its name");
-    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.text, .other = "{\"paths\":[]}", .cap = 256ull}), "an event carries its body whole");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.name, .other = "tree-changed", .cap = 64ull}),
+              "an event carries its name");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){.src = drained.text, .other = "{\"paths\":[]}", .cap = 256ull}),
+              "an event carries its body whole");
 
     const unsigned long long first = gui_link_called(&link, 1, "root", "{}", 2ull);
     const unsigned long long second = gui_link_called(&link, 1, "root_now", "{}", 2ull);
@@ -109,8 +113,16 @@ int main(void)
         queued = queued && (gui_link_called(&link, 1, "root", "{}", 2ull) != 0ull);
     }
     cli_check(queued, "forty own calls queue");
-    cli_check(waited(&count, 44u), "every own call is answered");
-    cli_check(gui_link_drained(&link, each, &drained) == 40u, "forty answers drain");
+    // an answer stays in its room until it is drained: at most as many answers wait as there are rooms, and the
+    // window's thread drains as they come
+    unsigned int answered = 0u;
+    for (unsigned int rounds = 0u; (answered < 40u) && (rounds < 400u); rounds += 1u)
+    {
+        (void)waited(&count, 4u + answered + 1u);
+        answered += gui_link_drained(&link, each, &drained);
+    }
+    cli_check(answered == 40u, "every own call is answered as the window's thread drains");
+    cli_check(drained.came == 40u, "forty answers drain");
     cli_check(drained.ordered, "the own calls' answers come in the order queued");
 
     gui_link_ended(&link);

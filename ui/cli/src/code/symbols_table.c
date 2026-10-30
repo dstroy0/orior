@@ -95,14 +95,15 @@ static int cli_files_grown(void)
     CliSymbolFile *const files =
         (s_file_room < CLI_SYMBOL_FILES)
             ? cli_cell_regrown(g_cli_symbol_files, (size_t)g_cli_symbol_file_count * sizeof(CliSymbolFile),
-                               (unsigned long long)room * sizeof(CliSymbolFile), NULL)
+                               (unsigned long long)room * sizeof(CliSymbolFile), &g_cli_code_cells)
             : NULL;
     if (files == NULL)
     {
         return 0;
     }
     g_cli_symbol_files = files;
-    unsigned int *const buckets = cli_cell_regrown(s_buckets, 0u, 2ull * room * sizeof(unsigned int), NULL);
+    unsigned int *const buckets =
+        cli_cell_regrown(s_buckets, 0u, 2ull * room * sizeof(unsigned int), &g_cli_code_cells);
     if (buckets == NULL)
     {
         return 0;
@@ -126,7 +127,7 @@ void cli_symbols_let_go(unsigned int file)
         }
         bucket = (bucket + 1u) % s_bucket_room;
     }
-    cli_cell_release(g_cli_symbol_files[file].cell, NULL);
+    cli_cell_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
     g_cli_symbol_files[file].cell = NULL;
     g_cli_symbol_files[file].used = 0;
 }
@@ -135,13 +136,13 @@ void cli_symbols_tree_cleared(void)
 {
     for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
     {
-        cli_cell_release(g_cli_symbol_files[at].cell, NULL);
+        cli_cell_release(g_cli_symbol_files[at].cell, &g_cli_code_cells);
         g_cli_symbol_files[at].cell = NULL;
         g_cli_symbol_files[at].used = 0;
     }
     g_cli_symbol_file_count = 0u;
-    cli_cell_release(g_cli_symbol_files, NULL);
-    cli_cell_release(s_buckets, NULL);
+    cli_cell_release(g_cli_symbol_files, &g_cli_code_cells);
+    cli_cell_release(s_buckets, &g_cli_code_cells);
     g_cli_symbol_files = NULL;
     s_buckets = NULL;
     s_file_room = 0u;

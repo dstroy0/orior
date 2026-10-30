@@ -428,7 +428,7 @@ void cli_executables_read(const char *root, CliExecutables *found)
 {
     cli_executables_given(found);
     cli_lock_take(&s_lock);
-    s_scripts = g_cli_cells->persistent_buf_alloc(sizeof(*s_scripts), NULL);
+    s_scripts = g_cli_cells->persistent_buf_alloc(sizeof(*s_scripts), &g_cli_executables_cells);
     if (s_scripts == NULL)
     {
         cli_lock_give(&s_lock);
@@ -449,7 +449,7 @@ void cli_executables_read(const char *root, CliExecutables *found)
         }
     }
     cli_executables_walk_given(walk);
-    cli_cell_release(s_scripts, NULL);
+    cli_cell_release(s_scripts, &g_cli_executables_cells);
     s_scripts = NULL;
     cli_lock_give(&s_lock);
     cli_executables_ordered(found);

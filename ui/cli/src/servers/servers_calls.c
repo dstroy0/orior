@@ -346,7 +346,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&params, "{\"item\":");
     cli_json_write(json, given, &params, 0u, 0);
     mmgr_line_ch(&params, '}');
@@ -374,7 +374,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
                 cli_json_is(answer, ranges, CFG_JSON_ARRAY) ? answer->node[ranges].count : 0u;
             CliTextPlace *const site =
                 (given_ranges > 0u)
-                    ? cli_lane_alloc((unsigned long long)given_ranges * sizeof(CliTextPlace), NULL)
+                    ? cli_lane_alloc((unsigned long long)given_ranges * sizeof(CliTextPlace), &g_cli_servers_cells)
                     : NULL;
             unsigned int count = 0u;
             for (unsigned int range = (site != NULL) ? answer->node[ranges].first : CLI_JSON_NONE;
@@ -389,7 +389,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
                                   ? calls_of(answer, cli_json_member(answer, one, "from"), NULL, site, count, tree, out)
                                   : calls_of(answer, cli_json_member(answer, one, "to"), has_parent ? parent : NULL,
                                              site, count, tree, out);
-            cli_cell_release(site, NULL);
+            cli_cell_release(site, &g_cli_servers_cells);
             if (!wrote)
             {
                 out->at = before;

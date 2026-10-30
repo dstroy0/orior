@@ -242,7 +242,7 @@ void cli_structure_compare(const char *then, unsigned long long then_size, const
                            VerbaLinea *out)
 {
     cli_lock_take(&s_lock);
-    g_cli_structure = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_structure), NULL);
+    g_cli_structure = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_structure), &g_cli_code_cells);
     if (g_cli_structure == NULL)
     {
         mmgr_line_put(out, "null");
@@ -271,7 +271,7 @@ void cli_structure_compare(const char *then, unsigned long long then_size, const
     if (!near)
     {
         mmgr_line_put(out, "null");
-        cli_cell_release(g_cli_structure, NULL);
+        cli_cell_release(g_cli_structure, &g_cli_code_cells);
         g_cli_structure = NULL;
         cli_lock_give(&s_lock);
         return;
@@ -282,7 +282,7 @@ void cli_structure_compare(const char *then, unsigned long long then_size, const
     qsort(g_cli_structure->left_marks, compare.left_marks, sizeof(g_cli_structure->left_marks[0]), cli_mark_order);
     qsort(g_cli_structure->right_marks, compare.right_marks, sizeof(g_cli_structure->right_marks[0]), cli_mark_order);
     cli_structure_written(&compare, renames, out);
-    cli_cell_release(g_cli_structure, NULL);
+    cli_cell_release(g_cli_structure, &g_cli_code_cells);
     g_cli_structure = NULL;
     cli_lock_give(&s_lock);
 }

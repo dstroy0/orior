@@ -40,7 +40,7 @@ static int cli_ranked_includes(void *context, const char *path)
 }
 
 // the tree's files picked into the spare room, less what the search's patterns hide, and the rooms turned where no read
-// has begun since, the room left behind let go. Readers take turns, so the spare room is one reader's while it reads
+// has begun since, the room left behind let go. Readers take turns: the spare room is one reader's while it reads
 static void cli_reader(void *context)
 {
     static CliPatterns s_patterns;
@@ -181,7 +181,7 @@ static CliRanking *s_ranking;
 // the ranking taken: 1, or 0 with no file found written, as one still reading, where no room for it is left
 static int ranking_reserved(VerbaLinea *out)
 {
-    s_ranking = g_cli_cells->persistent_buf_alloc(sizeof(*s_ranking), NULL);
+    s_ranking = g_cli_cells->persistent_buf_alloc(sizeof(*s_ranking), &g_cli_editor_cells);
     if (s_ranking == NULL)
     {
         mmgr_line_put(out, "{\"found\":[],\"reading\":true}");
@@ -192,7 +192,7 @@ static int ranking_reserved(VerbaLinea *out)
 // the ranking given back
 static void ranking_released(void)
 {
-    cli_cell_release(s_ranking, NULL);
+    cli_cell_release(s_ranking, &g_cli_editor_cells);
     s_ranking = NULL;
 }
 

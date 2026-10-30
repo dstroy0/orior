@@ -80,7 +80,7 @@ void cli_servers_reread_open(CliLsp *server)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_servers_cells);
     cli_lsp_open_each(server, check_one_open_put, &line);
     unsigned long long size = 0ull;
     char *const open = cli_pieces_joined(&pieces, &line, "the files a server has open", &size);
@@ -96,7 +96,7 @@ void cli_servers_reread_open(CliLsp *server)
             (void)cli_lsp_read_again(server, open + at, &ignored);
         }
     }
-    cli_cell_release(open, NULL);
+    cli_cell_release(open, &g_cli_servers_cells);
 }
 
 void cli_servers_let_go_cleared(const char *key)
@@ -293,14 +293,14 @@ static void check_one_request(unsigned int checker, const char *path, const char
     char params_piece[CLI_PATH_MAX_LEN];
     CliPieces params_pieces;
     VerbaLinea params;
-    cli_pieces_begun(&params_pieces, &params, params_piece, sizeof(params_piece));
+    cli_pieces_begun(&params_pieces, &params, params_piece, sizeof(params_piece), &g_cli_servers_cells);
     mmgr_line_put(&params, "{\"textDocument\":{\"uri\":");
     cli_json_quoted(&params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&params, "}}");
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea result;
-    cli_pieces_begun(&pieces, &result, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &result, piece, sizeof(piece), &g_cli_servers_cells);
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     if (!cli_servers_request(one->server, "textDocument/diagnostic", &params_pieces, &params, CLI_SERVERS_PATIENCE,
@@ -326,7 +326,7 @@ static void check_one_request(unsigned int checker, const char *path, const char
         !cli_lsp_string(answer + kind_at, kind_length, kind, sizeof(kind)) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "full", .cap = CLI_CELLS_POOL})))
     {
-        cli_cell_release(answer, NULL);
+        cli_cell_release(answer, &g_cli_servers_cells);
         return;
     }
     const int has_items = cli_lsp_member(answer, size, "items", &items_at, &items_length) &&
@@ -336,19 +336,20 @@ static void check_one_request(unsigned int checker, const char *path, const char
     if (cli_servers_sliced(path))
     {
         unsigned long long mapped_size = 0ull;
-        char *const mapped = cli_servers_slice_diagnostics(path, "{}", 2ull, items, items_size, &mapped_size);
+        char *const mapped =
+            cli_servers_slice_diagnostics(path, "{}", 2ull, items, items_size, &mapped_size, &g_cli_servers_cells);
         if (mapped != NULL)
         {
             (void)cli_servers_gathered(key, mapped, mapped_size);
         }
-        cli_cell_release(mapped, NULL);
-        cli_cell_release(answer, NULL);
+        cli_cell_release(mapped, &g_cli_servers_cells);
+        cli_cell_release(answer, &g_cli_servers_cells);
         return;
     }
     cli_lock_take(&g_cli_servers_published_lock);
     (void)cli_keyed_put(&g_cli_servers_published, key, uri, items, items_size);
     cli_lock_give(&g_cli_servers_published_lock);
-    cli_cell_release(answer, NULL);
+    cli_cell_release(answer, &g_cli_servers_cells);
     cli_servers_emit_whole(key, uri, sink);
 }
 
@@ -377,7 +378,7 @@ static void check_one_window_kept(CliServersCheckSliced *sliced, const char *gat
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    const unsigned int array = cli_json_taken(&json, gathered, size, 0u, 0ull, &ignored);
+    const unsigned int array = cli_json_taken(&json, gathered, size, 0u, 0ull, &ignored, &g_cli_servers_cells);
     for (unsigned int one = cli_json_is(&json, array, CFG_JSON_ARRAY) ? json.node[array].first : CLI_JSON_NONE;
          one != CLI_JSON_NONE; one = json.node[one].next)
     {
@@ -437,7 +438,7 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
     // the window's diagnostics taken from the wait, as the thread that reads the server may write them again
     cli_lock_take(&s_letting_lock);
     const unsigned long long size = mmgr_line_ok(&s_wait[checker].gathered) ? s_wait[checker].gathered.at : 0ull;
-    char *const gathered = (size > 0ull) ? cli_lane_alloc(size, NULL) : NULL;
+    char *const gathered = (size > 0ull) ? cli_lane_alloc(size, &g_cli_servers_cells) : NULL;
     if (gathered != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = gathered, .src = s_wait[checker].gathered.out, .bytes = (size_t)size});
@@ -447,7 +448,7 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
     {
         check_one_window_kept(sliced, gathered, size, first, last);
     }
-    cli_cell_release(gathered, NULL);
+    cli_cell_release(gathered, &g_cli_servers_cells);
     return 1;
 }
 
@@ -460,16 +461,17 @@ static void check_one_sliced(unsigned int checker, const char *path, const char 
     cli_lock_take(&s_letting_lock);
     s_wait[checker].gathering = 0;
     s_wait[checker].gathered = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    const int gathers = cli_growing_line_made(&s_wait[checker].gathered, CLI_SERVERS_GATHERED_FIRST);
+    const int gathers =
+        cli_growing_line_made(&s_wait[checker].gathered, CLI_SERVERS_GATHERED_FIRST, &g_cli_servers_cells);
     cli_lock_give(&s_letting_lock);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const int made = gathers && cli_growing_line_made(&sliced.all, CLI_SERVERS_GATHERED_FIRST);
+    const int made = gathers && cli_growing_line_made(&sliced.all, CLI_SERVERS_GATHERED_FIRST, &g_cli_servers_cells);
     mmgr_line_ch(&sliced.all, '[');
     // the server waited on while the file is sliced, from its first window to its letting go
     cli_servers_ask_begun(one->server);
     const int cut = made && cli_servers_slices_cut(sink->tree, path, text, size, check_one_window, &sliced, &err_msg);
-    // the file let go before its gathering ends, so what its server gives as it closes is the clearing let go
+    // the file let go before its gathering ends: what its server gives as it closes is the clearing let go
     cli_lock_take(&g_cli_servers_check_open_lock);
     const int ours = cli_servers_check_open(uri);
     const int editors = !ours && cli_lsp_has(one->server, path);
@@ -499,9 +501,9 @@ static void check_one_sliced(unsigned int checker, const char *path, const char 
         cli_lock_give(&g_cli_servers_published_lock);
         cli_servers_emit_whole(key, uri, sink);
     }
-    cli_cell_release(sliced.all.out, NULL);
+    cli_cell_release(sliced.all.out, &g_cli_servers_cells);
     cli_lock_take(&s_letting_lock);
-    cli_cell_release(s_wait[checker].gathered.out, NULL);
+    cli_cell_release(s_wait[checker].gathered.out, &g_cli_servers_cells);
     s_wait[checker].gathered = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     cli_lock_give(&s_letting_lock);
 }

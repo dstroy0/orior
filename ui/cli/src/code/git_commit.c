@@ -132,7 +132,7 @@ static int cli_commit_in(const char *folder, const char *const *paths, unsigned 
         }
     }
     VerbaLinea ran;
-    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP))
+    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
     {
         mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
@@ -156,7 +156,7 @@ static int cli_commit_in(const char *folder, const char *const *paths, unsigned 
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    cli_cell_release(ran.out, NULL);
+    cli_cell_release(ran.out, &g_cli_git_cells);
     return made;
 }
 
@@ -196,7 +196,7 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
     mmgr_line_put(&joined, named);
     mmgr_line_finish(&joined);
     VerbaLinea ran;
-    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP))
+    if (!cli_growing_line_made(&ran, CLI_GIT_OUTPUT_INIT_CAP, &g_cli_git_cells))
     {
         mmgr_line_put(err_msg, "a commit's room could not be taken");
         return 0;
@@ -279,7 +279,7 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    cli_cell_release(ran.out, NULL);
+    cli_cell_release(ran.out, &g_cli_git_cells);
     return made;
 }
 

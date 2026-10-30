@@ -64,18 +64,18 @@ typedef struct
 // minimap's, a step of CLI_PAGE_REST_BYTES at a time. Any other moves: its rows where it will stand a report later at
 // the step it moved since the last, and where it stands where that step is no more than its rows, CLI_PAGE_EDGE about
 // them, cut at its reach. Nothing where the page holds those already. A step of lines toward the ends of the page's is
-// no more than CLI_PAGE_REST_BYTES of their bytes reach, one at the least; and a view that wraps its lines is placed the
-// lines its rows take of those about them, each line as many rows as its letters fill at the view's width, a step as it
-// moves no more than fill the rows placed. 1, or 0 where none is stored under the key
+// no more than CLI_PAGE_REST_BYTES of their bytes reach, one at the least; and a view that wraps its lines is placed
+// the lines its rows take of those about them, each line as many rows as its letters fill at the view's width, a step
+// as it moves no more than fill the rows placed. 1, or 0 where none is stored under the key
 int cli_pages_viewed(const char *key, const CliPagesView *view, CliPagesPlaced *placed);
 // how many lines the paged text under `key` contains as far as its index has read, into `lines`, and whether the index
 // is whole, into `whole`: 1, or 0 where none is stored under the key; and its lines from `from` to before `to` as far
 // as the index has read, as the walk of its colors reads them: each written as UTF-8 and ended by a NUL into a cell
-// taken for them, its start put into `line`, room for `to` - `from` of them, and how many were read into `count`: the
-// cell, given back with g_cli_cells->persistent_buf_release, or NULL where none is stored or they could not be read
+// taken for `owner`, its start put into `line`, room for `to` - `from` of them, and how many were read into `count`:
+// the cell, given back with cli_cell_release, or NULL where none is stored or they could not be read
 int cli_pages_counted(const char *key, unsigned long long *lines, int *whole);
 char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned long long to, const char **line,
-                            unsigned long long *count);
+                            unsigned long long *count, CellOwner *owner);
 
 // the page's changes written, each as its document writes it, `edits[at]` edits of `changes[at]`, `count` changes,
 // its edits placed against the text as it stood before any of them, written from the last to the first, the text's

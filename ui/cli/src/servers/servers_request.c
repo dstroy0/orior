@@ -74,7 +74,7 @@ int cli_servers_hover(const char *path, unsigned int line, unsigned int col, Ver
         char piece[CLI_SERVERS_PIECE];
         CliPieces pieces;
         VerbaLinea markdown;
-        cli_pieces_begun(&pieces, &markdown, piece, sizeof(piece));
+        cli_pieces_begun(&pieces, &markdown, piece, sizeof(piece), &g_cli_servers_cells);
         cli_servers_markdown_of(&s_quick.json, cli_json_member(&s_quick.json, root, "contents"), &markdown);
         unsigned long long size = 0ull;
         char *const shown = cli_pieces_joined(&pieces, &markdown, "a hover's text", &size);
@@ -89,7 +89,7 @@ int cli_servers_hover(const char *path, unsigned int line, unsigned int col, Ver
         {
             mmgr_line_put(out, "null");
         }
-        cli_cell_release(shown, NULL);
+        cli_cell_release(shown, &g_cli_servers_cells);
     }
     cli_servers_reading_released(&s_quick);
     return requested;
@@ -190,7 +190,7 @@ static void request_tree_completed(const char *path, unsigned int line, unsigned
     {
         (void)cli_symbols_complete(own, text, size, line, col, request_tree_item, NULL, &err_msg);
     }
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_servers_cells);
 }
 
 int cli_servers_complete(const char *path, unsigned int line, unsigned int col, VerbaLinea *out, VerbaLinea *err_msg)
@@ -218,7 +218,7 @@ int cli_servers_complete(const char *path, unsigned int line, unsigned int col, 
         {
             cli_schema_complete(path, text, size, line, col, &s_items);
         }
-        cli_cell_release(text, NULL);
+        cli_cell_release(text, &g_cli_servers_cells);
     }
     CliLsp *const server = cli_servers_owner_answering(path);
     int requested = 1;
@@ -299,10 +299,11 @@ static unsigned int request_usages_of(unsigned int all)
     {
         paths += request_usage_path(one, path, &from, &to);
     }
-    s_usage = (paths > 0ull) ? g_cli_cells->persistent_buf_alloc(
-                                   (unsigned long long)json->node[all].count * sizeof(CliServersUsage), NULL)
-                             : NULL;
-    s_usage_paths = (s_usage != NULL) ? g_cli_cells->persistent_buf_alloc(paths, NULL) : NULL;
+    s_usage = (paths > 0ull)
+                  ? g_cli_cells->persistent_buf_alloc(
+                        (unsigned long long)json->node[all].count * sizeof(CliServersUsage), &g_cli_servers_cells)
+                  : NULL;
+    s_usage_paths = (s_usage != NULL) ? g_cli_cells->persistent_buf_alloc(paths, &g_cli_servers_cells) : NULL;
     unsigned int count = 0u;
     unsigned int used = 0u;
     for (unsigned int one = (s_usage_paths != NULL) ? first : CLI_JSON_NONE; one != CLI_JSON_NONE;
@@ -329,8 +330,8 @@ static unsigned int request_usages_of(unsigned int all)
 // the usages and their paths given back
 static void request_usages_given(void)
 {
-    cli_cell_release(s_usage, NULL);
-    cli_cell_release(s_usage_paths, NULL);
+    cli_cell_release(s_usage, &g_cli_servers_cells);
+    cli_cell_release(s_usage_paths, &g_cli_servers_cells);
     s_usage = NULL;
     s_usage_paths = NULL;
 }
@@ -528,7 +529,7 @@ int cli_servers_rename(const char *tree, const char *path, unsigned int line, un
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea added;
-    cli_pieces_begun(&pieces, &added, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &added, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&added, "\"newName\":");
     cli_json_quoted(&added, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}));
     unsigned long long added_size = 0ull;
@@ -545,7 +546,7 @@ int cli_servers_rename(const char *tree, const char *path, unsigned int line, un
         cli_lsp_unref(server);
         mmgr_line_put(err_msg, "the rename could not be written: the cells cannot meet it");
     }
-    cli_cell_release(named, NULL);
+    cli_cell_release(named, &g_cli_servers_cells);
     if (requested && cli_json_is(&s_search.json, root, CFG_JSON_NULL))
     {
         mmgr_line_put(err_msg, "the server found nothing to rename");

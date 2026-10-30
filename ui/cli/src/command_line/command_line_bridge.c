@@ -301,7 +301,7 @@ static int bridge_words(const char *root, const char *word)
 
 int cli_bridge_words(const char *root, const char *word)
 {
-    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_command_line_cells);
     if (s_room == NULL)
     {
         cli_err("a showing of the bridge could not be taken");
@@ -309,7 +309,7 @@ int cli_bridge_words(const char *root, const char *word)
     }
     const int code = bridge_words(root, word);
     cli_json_given(&s_room->json);
-    cli_cell_release(s_room, NULL);
+    cli_cell_release(s_room, &g_cli_command_line_cells);
     s_room = NULL;
     return code;
 }

@@ -183,7 +183,7 @@ void cli_shape_search(CliSymbolsLanguages *languages, const char *language, cons
     unsigned long long from = 0ull;
     unsigned long long to = 0ull;
     cli_text_trimmed(pattern, cellul.len(&(CatenaFinitaCfg){.src = pattern, .cap = CLI_CELLS_POOL}), &from, &to);
-    // a token takes a byte at the least, so the code contains no more tokens than bytes, nor the pattern; each below
+    // a token takes a byte at the least: the code contains no more tokens than bytes, nor the pattern; each below
     // its most, which an unsigned int stores
     const unsigned int code_room = (size < CLI_SHAPE_TOKENS) ? ((unsigned int)size + 1u) : CLI_SHAPE_TOKENS;
     const unsigned int part_room =
@@ -235,14 +235,14 @@ void cli_shape_search(CliSymbolsLanguages *languages, const char *language, cons
         VerbaLinea with = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
         if (template_text != NULL)
         {
-            (void)cli_growing_line_made(&with, CLI_SHAPE_WITH_FIRST);
+            (void)cli_growing_line_made(&with, CLI_SHAPE_WITH_FIRST, &g_cli_shape_cells);
             search_filled(template_text, &with);
             found.has_with = mmgr_line_ok(&with);
             found.with = with.out;
             found.with_size = with.at;
         }
         each(context, &found);
-        cli_cell_release(with.out, NULL);
+        cli_cell_release(with.out, &g_cli_shape_cells);
         at = end;
     }
     search_released();

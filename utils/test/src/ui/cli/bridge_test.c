@@ -11,7 +11,8 @@ static CliJson s_json;
 static CliJson *bridge_tree(void)
 {
     cli_json_given(&s_json);
-    cli_check(cli_json_reserved(&s_json, 1024u, 1ull << 16u, "a bridge check's tree"), "a check's tree is taken");
+    cli_check(cli_json_reserved(&s_json, 1024u, 1ull << 16u, "a bridge check's tree", &g_checks_cells),
+              "a check's tree is taken");
     return &s_json;
 }
 

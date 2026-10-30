@@ -7,8 +7,6 @@
 #include "../text/text.h"
 #include "builds.h"
 
-CellOwner g_cli_build_cells = MMGR_CELL_OWNER("cli_builds");
-
 unsigned int *cli_build_lines_taken(const char *text, unsigned long long size, CliBuildLines *lines)
 {
     unsigned long long count = 1ull;

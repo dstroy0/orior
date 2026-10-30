@@ -152,7 +152,9 @@ typedef struct
 } CliLeaf;
 
 // A text's leaves kept: the text, its leaves in a cell whose room doubles as they come, how many, the room, the lines
-// read, whether the cells refused a leaf, and where each declaration a leaf names goes as it is kept, NULL for nowhere
+// read, whether the cells refused a leaf, and where each declaration a leaf names goes as it is kept, NULL for nowhere;
+// and whether the leaves' first cell is taken on the lane the thread is on, for a read given back before the lane is
+// rewound
 typedef struct
 {
     const char *text;
@@ -164,6 +166,7 @@ typedef struct
     int refused;
     CliDeclared declared;
     void *declared_context;
+    int laned;
 } CliLeafRead;
 
 // the leaves of `size` bytes of `text` read in the language of the file at `path`, the first line starting in
@@ -177,6 +180,10 @@ int cli_symbols_language_leaves_kept(CliSymbolsLanguages *languages, const char 
                                      unsigned long long size, CliLeafRead *read);
 int cli_symbols_leaves_declared(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
                                 unsigned long long size, CliLeafRead *read, CliDeclared each, void *context);
+// the leaves read as cli_symbols_leaves_kept reads them, their cell on the lane the thread is on, for a read given back
+// before the lane is rewound
+int cli_symbols_leaves_laned(CliSymbolsLanguages *languages, const char *path, const char *state, const char *text,
+                             unsigned long long size, CliLeafRead *read);
 // the kind a token's name declares: the rest of the name past its segment `declaration`, or NULL where it has none
 // (symbols_read.c)
 const char *cli_symbols_declares(const char *name);

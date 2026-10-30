@@ -95,7 +95,7 @@ static int actions_command(CliLsp *server, const char *plugin, const CliJson *js
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&params, "{\"command\":");
     cli_servers_member_written(json, command, name, &params);
     mmgr_line_put(&params, ",\"arguments\":");
@@ -113,13 +113,13 @@ static int actions_command(CliLsp *server, const char *plugin, const CliJson *js
     {
         cli_servers_plugin_command(plugin, params_json, length);
     }
-    // what the command answers is read by nothing, so each piece of it is let go as it comes
+    // nothing reads the command's answer, and each piece of it is let go as it comes
     char ran[256];
     VerbaLinea result = {ran, sizeof(ran), 0ull, actions_dropped, NULL, 0ull};
     const int done =
         (params_json != NULL) && (passed || cli_lsp_requested(server, "workspace/executeCommand", params_json, length,
                                                               CLI_SERVERS_SEARCHING, &result, err_msg));
-    cli_cell_release(params_json, NULL);
+    cli_cell_release(params_json, &g_cli_servers_cells);
     return done;
 }
 
@@ -153,7 +153,7 @@ static int actions_by(CliLsp *server, const char *plugin, const char *tree, cons
     char piece[CLI_SERVERS_PIECE];
     CliPieces offered;
     VerbaLinea edits;
-    cli_pieces_begun(&offered, &edits, piece, sizeof(piece));
+    cli_pieces_begun(&offered, &edits, piece, sizeof(piece), &g_cli_servers_cells);
     if (done)
     {
         cli_servers_workspace_edit_of(json, cli_json_member(json, action, "edit"), tree, &edits);
@@ -191,11 +191,11 @@ static int actions_plugin_by(const char *tree, const CliJson *json, unsigned int
     // the action as the server gave it, for the server to fill in
     const unsigned int action = cli_json_member(json, wrapped, "action");
     VerbaLinea text = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&text, CLI_SERVERS_PIECE);
+    (void)cli_growing_line_made(&text, CLI_SERVERS_PIECE, &g_cli_servers_cells);
     cli_json_write(json, action, &text, 0u, 0);
     const int done =
         mmgr_line_ok(&text) && actions_by(server, plugin, tree, json, action, text.out, text.at, out, err_msg);
-    cli_cell_release(text.out, NULL);
+    cli_cell_release(text.out, &g_cli_servers_cells);
     cli_lsp_unref(server);
     return done;
 }

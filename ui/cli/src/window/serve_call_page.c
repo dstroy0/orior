@@ -117,7 +117,7 @@ static int pages_view(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         {
             mmgr_line_put(out, (cut != 0ull) ? ",\"lengths\":" : "");
             mmgr_line_put_n(out, cell, (cut != 0ull) ? lengths.at : 0ull);
-            cli_cell_release(cell, NULL);
+            cli_cell_release(cell, &g_cli_window_cells);
         }
         if (!read)
         {
@@ -209,7 +209,7 @@ static int pages_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         mmgr_line_ch(err_msg, '`');
     }
     const int done = whole && cli_document_paged_edit(key, change_list, edit_counts, count, out, err_msg);
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_window_cells);
     return done;
 }
 

@@ -45,7 +45,7 @@ static CliRan s_refused = {s_nothing, 0ull, s_nothing, 0ull, 1, -1ll, 0};
 
 CliRan *cli_ran_taken(void)
 {
-    CliRanRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), NULL);
+    CliRanRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), &g_cli_runs_cells);
     if (room == NULL)
     {
         return &s_refused;
@@ -69,11 +69,11 @@ static void cli_ran_texts_given(CliRan *ran)
 {
     if (ran->out != s_nothing)
     {
-        cli_cell_release(ran->out, NULL);
+        cli_cell_release(ran->out, &g_cli_runs_cells);
     }
     if (ran->err != s_nothing)
     {
-        cli_cell_release(ran->err, NULL);
+        cli_cell_release(ran->err, &g_cli_runs_cells);
     }
     ran->out = s_nothing;
     ran->err = s_nothing;
@@ -86,7 +86,7 @@ void cli_ran_given(CliRan *ran)
     if (ran != &s_refused)
     {
         cli_ran_texts_given(ran);
-        cli_cell_release(cli_room_of(ran), NULL);
+        cli_cell_release(cli_room_of(ran), &g_cli_runs_cells);
     }
 }
 
@@ -102,10 +102,10 @@ static void cli_pipe_read(unsigned long long pipe, char **text, unsigned long lo
     {
         if ((last == NULL) || (last->size == CLI_RAN_PIECE))
         {
-            CliRanPiece *const piece = g_cli_cells->persistent_buf_alloc(sizeof(CliRanPiece), NULL);
+            CliRanPiece *const piece = g_cli_cells->persistent_buf_alloc(sizeof(CliRanPiece), &g_cli_runs_cells);
             if (piece == NULL)
             {
-                // the pipe drained into a piece of the stack's, so the program is not blocked writing
+                // the pipe drained into a piece of the stack's, and the program is not blocked writing
                 char spare[4096];
                 *whole = 0;
                 while (cli_spawn_read(pipe, spare, sizeof(spare)) != 0ull)
@@ -133,7 +133,7 @@ static void cli_pipe_read(unsigned long long pipe, char **text, unsigned long lo
         last->size += got;
         total += got;
     }
-    char *const joined = (total != 0ull) ? g_cli_cells->persistent_buf_alloc(total + 1ull, NULL) : NULL;
+    char *const joined = (total != 0ull) ? g_cli_cells->persistent_buf_alloc(total + 1ull, &g_cli_runs_cells) : NULL;
     *whole = *whole && ((total == 0ull) || (joined != NULL));
     unsigned long long at = 0ull;
     for (CliRanPiece *piece = first; piece != NULL;)
@@ -144,7 +144,7 @@ static void cli_pipe_read(unsigned long long pipe, char **text, unsigned long lo
             memor.cpy(&(MemoriaCfg){.dst = joined + at, .src = piece->bytes, .bytes = (size_t)piece->size});
             at += piece->size;
         }
-        cli_cell_release(piece, NULL);
+        cli_cell_release(piece, &g_cli_runs_cells);
         piece = next;
     }
     if (joined != NULL)

@@ -26,7 +26,7 @@ static char *named_files(CliKeyed *keyed, unsigned long long *size)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea files;
-    cli_pieces_begun(&pieces, &files, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &files, piece, sizeof(piece), &g_cli_servers_cells);
     cli_keyed_each(keyed, named_put, &files);
     return cli_pieces_joined(&pieces, &files, "the files a naming of checkers reaches", size);
 }
@@ -60,7 +60,7 @@ static int named_dropped(const char *key, const char *uri)
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const unsigned int entry = cli_json_taken(&json, stored, size, 0u, 0ull, &err_msg);
+    const unsigned int entry = cli_json_taken(&json, stored, size, 0u, 0ull, &err_msg, &g_cli_servers_cells);
     int dropped = 0;
     unsigned int id = cli_json_is(&json, entry, CFG_JSON_OBJECT) ? json.node[entry].first : CLI_JSON_NONE;
     while (id != CLI_JSON_NONE)
@@ -79,7 +79,7 @@ static int named_dropped(const char *key, const char *uri)
         char piece[CLI_SERVERS_PIECE];
         CliPieces pieces;
         VerbaLinea written;
-        cli_pieces_begun(&pieces, &written, piece, sizeof(piece));
+        cli_pieces_begun(&pieces, &written, piece, sizeof(piece), &g_cli_servers_cells);
         cli_json_write(&json, entry, &written, 0u, 1);
         unsigned long long written_size = 0ull;
         char *const entry_written = cli_pieces_joined(&pieces, &written, "a file's findings written", &written_size);
@@ -87,7 +87,7 @@ static int named_dropped(const char *key, const char *uri)
         {
             (void)cli_keyed_put(&g_cli_servers_checked, key, uri, entry_written, written_size);
         }
-        cli_cell_release(entry_written, NULL);
+        cli_cell_release(entry_written, &g_cli_servers_cells);
     }
     cli_json_given(&json);
     return dropped;
@@ -99,7 +99,7 @@ static void named_findings_dropped(const CliServersSink *sink)
     char dropped_piece[CLI_SERVERS_PIECE];
     CliPieces dropped_pieces;
     VerbaLinea dropped;
-    cli_pieces_begun(&dropped_pieces, &dropped, dropped_piece, sizeof(dropped_piece));
+    cli_pieces_begun(&dropped_pieces, &dropped, dropped_piece, sizeof(dropped_piece), &g_cli_servers_cells);
     cli_lock_take(&g_cli_servers_checks_lock);
     unsigned long long size = 0ull;
     char *const files = named_files(&g_cli_servers_checked, &size);
@@ -116,7 +116,7 @@ static void named_findings_dropped(const CliServersSink *sink)
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
     cli_lock_give(&g_cli_servers_checks_lock);
-    cli_cell_release(files, NULL);
+    cli_cell_release(files, &g_cli_servers_cells);
     cli_lock_give(&g_cli_servers.lock);
     unsigned long long dropped_size = 0ull;
     char *const passed = cli_pieces_joined(&dropped_pieces, &dropped, "the files whose findings went", &dropped_size);
@@ -128,7 +128,7 @@ static void named_findings_dropped(const CliServersSink *sink)
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_release(passed, NULL);
+    cli_cell_release(passed, &g_cli_servers_cells);
 }
 
 int cli_servers_set_checkers(const char *const *names, unsigned int count, const char *root, const CliServersSink *sink,
@@ -193,11 +193,11 @@ int cli_servers_set_checkers(const char *const *names, unsigned int count, const
         {
             cli_servers_run_checkers(root, path, text, text_size, 1, sink);
         }
-        cli_cell_release(text, NULL);
+        cli_cell_release(text, &g_cli_servers_cells);
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_release(files_text, NULL);
+    cli_cell_release(files_text, &g_cli_servers_cells);
     if (cli_servers_check_on())
     {
         cli_servers_check_tree_with_checkers(root, sink);

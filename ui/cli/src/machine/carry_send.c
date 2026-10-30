@@ -29,7 +29,7 @@ static int cli_file_sent(const char *to, VerbaLinea *err_msg)
 {
     // the file written in a cell that grows with what travels
     VerbaLinea file;
-    if (!cli_growing_line_made(&file, CLI_CARRY_WRITTEN_FIRST))
+    if (!cli_growing_line_made(&file, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(err_msg, to);
         mmgr_line_put(err_msg, ": no cell could be taken to write it in");
@@ -46,7 +46,7 @@ static int cli_file_sent(const char *to, VerbaLinea *err_msg)
     }
     mmgr_line_put(&file, (s_send.packed.count != 0u) ? "\n  }\n}\n" : "}\n}\n");
     const int written = mmgr_line_ok(&file) && query_file_written(to, file.out, file.at);
-    cli_cell_release(file.out, NULL);
+    cli_cell_release(file.out, &g_cli_machine_cells);
     if (!written)
     {
         mmgr_line_put(err_msg, to);
@@ -75,7 +75,7 @@ static int cli_has_remote(const char *folder)
     return cli_git_run(folder, s_remote, 1u, &out, &unrun) && (out.at > 0ull);
 }
 
-// the folder `to` made to contain what travels and no more: 1, or 0 with why given
+// the folder `to` made to contain exactly what travels: 1, or 0 with why given
 static int cli_folder_laid(const char *to, VerbaLinea *err_msg)
 {
     cli_carry_files(to, &s_send.there);

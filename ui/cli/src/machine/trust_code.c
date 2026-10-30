@@ -253,7 +253,7 @@ static int cli_named(const char *name, const char *const *names, unsigned int co
 int cli_trust_looked_for(const char *tree, CliTrustCode *code)
 {
     VerbaLinea paths = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&paths, CLI_TRUST_PATHS_FIRST);
+    (void)cli_growing_line_made(&paths, CLI_TRUST_PATHS_FIRST, &g_cli_trust_cells);
     const CliFiles *const files = cli_files_view(tree);
     unsigned int found = 0u;
     for (unsigned int index = 0u; (files != NULL) && (index < files->count); index += 1u)
@@ -296,7 +296,7 @@ int cli_trust_looked_for(const char *tree, CliTrustCode *code)
     }
     cli_cell_release(config, &g_cli_trust_cells);
     const int done = mmgr_line_ok(&paths) && cli_code_copied(paths.out, paths.at, found, code);
-    cli_cell_release(paths.out, NULL);
+    cli_cell_release(paths.out, &g_cli_trust_cells);
     return done;
 }
 
@@ -316,7 +316,7 @@ int cli_trust_own_code(const char *tree, CliTrustCode *code)
         }
     }
     cli_lock_give(&s_found_lock);
-    // a tree whose code the cellblock could not meet is not cached, so it is looked through again when next requested
+    // a tree whose code the cellblock could not meet is not cached, and it is looked through again when next requested
     CliTrustCode looked = {NULL, 0ull, 0u};
     if (!cli_trust_looked_for(tree, &looked))
     {

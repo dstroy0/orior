@@ -31,7 +31,7 @@ static void recording_sample(void)
 static void recording_values(unsigned int serial, unsigned int at, const char *wanted, const char *what)
 {
     CliRecordedValue *values = NULL;
-    const unsigned int count = cli_recording_values(serial, at, &values, 8u);
+    const unsigned int count = cli_recording_values(serial, at, &values, 8u, &g_checks_cells);
     char text[256];
     VerbaLinea line = {text, sizeof(text), 0ull};
     for (unsigned int each = 0u; each < count; each += 1u)
@@ -41,7 +41,7 @@ static void recording_values(unsigned int serial, unsigned int at, const char *w
         mmgr_line_ch(&line, '=');
         mmgr_line_put(&line, values[each].value);
     }
-    cli_cell_release(values, NULL);
+    cli_cell_release(values, &g_checks_cells);
     cli_check_text(text, line.at, wanted, what);
 }
 

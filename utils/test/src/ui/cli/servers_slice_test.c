@@ -45,7 +45,8 @@ static const char s_stand_in[] =
     "        for at, line in enumerate(text.split(\"\\n\")):\n"
     "            place = line.find(\"checked_missing\")\n"
     "            if place >= 0:\n"
-    "                found.append({\"range\": {\"start\": {\"line\": at, \"character\": place}, \"end\": {\"line\": at, "
+    "                found.append({\"range\": {\"start\": {\"line\": at, \"character\": place}, \"end\": {\"line\": "
+    "at, "
     "\"character\": place + 15}}, \"severity\": 1, \"message\": \"call to undeclared function\"})\n"
     "        send({\"jsonrpc\": \"2.0\", \"method\": \"textDocument/publishDiagnostics\", \"params\": {\"uri\": "
     "document[\"uri\"], \"version\": document[\"version\"], \"diagnostics\": found}})\n"
@@ -76,14 +77,15 @@ static void slice_received(void *context, const char *method, const char *params
     (void)answer;
     unsigned long long all_at = 0ull;
     unsigned long long all_length = 0ull;
-    if (!cellul.eq(&(CatenaFinitaCfg){.src = method, .other = "textDocument/publishDiagnostics", .cap = CLI_CELLS_POOL}) ||
+    if (!cellul.eq(
+            &(CatenaFinitaCfg){.src = method, .other = "textDocument/publishDiagnostics", .cap = CLI_CELLS_POOL}) ||
         !cli_lsp_member(params, size, "diagnostics", &all_at, &all_length))
     {
         return;
     }
     unsigned long long mapped_size = 0ull;
-    char *const mapped =
-        cli_servers_slice_diagnostics(s_heard.path, params, size, params + all_at, all_length, &mapped_size);
+    char *const mapped = cli_servers_slice_diagnostics(s_heard.path, params, size, params + all_at, all_length,
+                                                       &mapped_size, &g_checks_cells);
     cli_lock_take(&s_heard.lock);
     VerbaLinea last = {s_heard.last, sizeof(s_heard.last), 0ull};
     // the diagnostics of one window are below 4 KiB here
@@ -91,7 +93,7 @@ static void slice_received(void *context, const char *method, const char *params
     s_heard.size = last.at;
     s_heard.published += 1u;
     cli_lock_give(&s_heard.lock);
-    cli_cell_release(mapped, NULL);
+    cli_cell_release(mapped, &g_checks_cells);
 }
 
 // The windows given: the server, how many, and each window's lines and what the server published of it, one a line
@@ -232,14 +234,14 @@ static void slice_check(void)
     unsigned long long older_size = 0ull;
     unsigned long long newer_size = 0ull;
     char *const older = cli_servers_slice_diagnostics(s_heard.path, "{\"version\":2}", 13ull, s_none,
-                                                      sizeof(s_none) - 1u, &older_size);
+                                                      sizeof(s_none) - 1u, &older_size, &g_checks_cells);
     char *const newer = cli_servers_slice_diagnostics(s_heard.path, "{\"version\":4}", 13ull, s_none,
-                                                      sizeof(s_none) - 1u, &newer_size);
+                                                      sizeof(s_none) - 1u, &newer_size, &g_checks_cells);
     cli_check((older == NULL) && (newer != NULL),
               "what it publishes of a version given before the slice stored is dropped, and of the same text given "
               "again moved by it");
-    cli_cell_release(older, NULL);
-    cli_cell_release(newer, NULL);
+    cli_cell_release(older, &g_checks_cells);
+    cli_cell_release(newer, &g_checks_cells);
     (void)cli_lsp_closed(server, s_heard.path, &err_msg);
     cli_servers_slice_closed(s_heard.path);
     cli_check(!cli_servers_sliced(s_heard.path), "and the file's slice is let go with it");

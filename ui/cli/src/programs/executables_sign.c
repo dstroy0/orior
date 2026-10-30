@@ -32,7 +32,7 @@ static int cli_signing(const char *key, char *out)
     CliJson json = {0};
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea reason = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_file_taken(&json, path, 0u, 0ull, &reason);
+    const unsigned int root = cli_json_file_taken(&json, path, 0u, 0ull, &reason, &g_cli_programs_cells);
     char named[CLI_NAME_MAX_LEN];
     VerbaLinea line = {named, sizeof(named), 0ull};
     mmgr_line_put(&line, "signing.");

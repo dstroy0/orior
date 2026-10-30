@@ -34,7 +34,7 @@ void cli_deploy_there_given(void)
     g_cli_deploy_last_count = 0u;
     s_pairs = NULL;
     cli_deploy_pool_given(&s_pool);
-    cli_cell_release(s_listing, NULL);
+    cli_cell_release(s_listing, &g_cli_deploy_cells);
     s_listing = NULL;
     cli_json_given(&s_record);
 }
@@ -141,8 +141,9 @@ void cli_deploy_last_read(unsigned int index)
     char path[CLI_PATH_MAX_LEN];
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea none = {why, sizeof(why), 0ull};
-    const unsigned int top =
-        cli_deploy_record_path(index, path) ? cli_json_file_taken(&s_record, path, 0u, 0ull, &none) : CLI_JSON_NONE;
+    const unsigned int top = cli_deploy_record_path(index, path)
+                                 ? cli_json_file_taken(&s_record, path, 0u, 0ull, &none, &g_cli_deploy_cells)
+                                 : CLI_JSON_NONE;
     if (!cli_json_is(&s_record, top, CFG_JSON_OBJECT))
     {
         return;
@@ -235,7 +236,7 @@ int cli_deploy_hashes(unsigned int index, const char *folder, VerbaLinea *err_ms
         char piece[CLI_DEPLOY_PIECE];
         CliPieces pieces;
         VerbaLinea listing;
-        cli_pieces_begun(&pieces, &listing, piece, sizeof(piece));
+        cli_pieces_begun(&pieces, &listing, piece, sizeof(piece), &g_cli_deploy_cells);
         const int ran = cli_deploy_remote_run(place, line, NULL, 0ull, &listing, err_msg);
         unsigned long long size = 0ull;
         s_listing = cli_pieces_joined(&pieces, &listing, "a place's hashes", &size);

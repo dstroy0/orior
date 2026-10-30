@@ -44,9 +44,9 @@ static int findings_put(const char *key, const char *uri, const char *id, unsign
     unsigned int entry = CLI_JSON_NONE;
     if (stored != NULL)
     {
-        entry = cli_json_taken(&json, stored, size, nodes_more, text_more, &err_msg);
+        entry = cli_json_taken(&json, stored, size, nodes_more, text_more, &err_msg, &g_cli_servers_cells);
     }
-    else if (!cli_json_reserved(&json, nodes_more, text_more, "a file's findings"))
+    else if (!cli_json_reserved(&json, nodes_more, text_more, "a file's findings", &g_cli_servers_cells))
     {
         return 0;
     }
@@ -62,7 +62,7 @@ static int findings_put(const char *key, const char *uri, const char *id, unsign
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea written;
-    cli_pieces_begun(&pieces, &written, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &written, piece, sizeof(piece), &g_cli_servers_cells);
     cli_json_write(&json, entry, &written, 0u, 1);
     unsigned long long written_size = 0ull;
     char *const entry_written = cli_pieces_joined(&pieces, &written, "a file's findings written", &written_size);
@@ -70,7 +70,7 @@ static int findings_put(const char *key, const char *uri, const char *id, unsign
     {
         (void)cli_keyed_put(&g_cli_servers_checked, key, uri, entry_written, written_size);
     }
-    cli_cell_release(entry_written, NULL);
+    cli_cell_release(entry_written, &g_cli_servers_cells);
     cli_json_given(&json);
     return 1;
 }
@@ -84,7 +84,7 @@ void cli_servers_findings_stored(const char *id, const char *found, unsigned lon
     // the files whose findings changed, in a cell of one place for each file the findings name
     const unsigned int files = cli_json_is(json, root, CFG_JSON_ARRAY) ? json->node[root].count : 0u;
     unsigned int *const changed_files =
-        (files > 0u) ? cli_lane_alloc((unsigned long long)files * sizeof(unsigned int), NULL) : NULL;
+        (files > 0u) ? cli_lane_alloc((unsigned long long)files * sizeof(unsigned int), &g_cli_servers_cells) : NULL;
     unsigned int changed = 0u;
     char uri[CLI_PATH_MAX_LEN];
     char key[CLI_PATH_MAX_LEN];
@@ -112,6 +112,6 @@ void cli_servers_findings_stored(const char *id, const char *found, unsigned lon
             cli_servers_emit_whole(key, uri, sink);
         }
     }
-    cli_cell_release(changed_files, NULL);
+    cli_cell_release(changed_files, &g_cli_servers_cells);
     cli_servers_reading_released(&s_found);
 }

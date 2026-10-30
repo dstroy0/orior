@@ -240,14 +240,14 @@ static int emit_given_names(const char *key, const char *uri, const char **names
     char piece[1024];
     CliPieces pieces;
     VerbaLinea given;
-    cli_pieces_begun(&pieces, &given, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &given, piece, sizeof(piece), &g_cli_servers_cells);
     cli_build_given_names(path, (const char *)build, build_size, emit_name_put, &given);
     cli_file_let_go(build, build_size);
     unsigned long long given_size = 0ull;
     char *const joined = cli_pieces_joined(&pieces, &given, "the names a build tool gives", &given_size);
     (void)cli_keyed_put(&g_cli_servers_given, key, "", (joined != NULL) ? joined : "",
                         (joined != NULL) ? given_size : 0ull);
-    cli_cell_release(joined, NULL);
+    cli_cell_release(joined, &g_cli_servers_cells);
     *names = cli_keyed_get(&g_cli_servers_given, key, &beside, size);
     return *names != NULL;
 }
@@ -308,7 +308,7 @@ void cli_servers_emit_whole(const char *key, const char *uri, const CliServersSi
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea out;
-    cli_pieces_begun(&pieces, &out, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &out, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&out, "{\"path\":");
     char shown[CLI_PATH_MAX_LEN];
     VerbaLinea where = {shown, sizeof(shown), 0ull};
@@ -335,7 +335,7 @@ void cli_servers_emit_whole(const char *key, const char *uri, const CliServersSi
     {
         sink->emit(sink->context, "lsp-diagnostics", diag_json, diag_json_size);
     }
-    cli_cell_release(diag_json, NULL);
+    cli_cell_release(diag_json, &g_cli_servers_cells);
     cli_servers_reading_released(&s_reading);
 }
 
@@ -359,7 +359,7 @@ void cli_servers_emit_reporting_attributes(const CliServersSink *sink)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_servers_cells);
     cli_lock_take(&g_cli_servers_published_lock);
     cli_keyed_each(&g_cli_servers_published, emit_reporting, &line);
     cli_lock_give(&g_cli_servers_published_lock);
@@ -373,5 +373,5 @@ void cli_servers_emit_reporting_attributes(const CliServersSink *sink)
         at += cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}) + 1u +
               cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}) + 1u;
     }
-    cli_cell_release(reporting, NULL);
+    cli_cell_release(reporting, &g_cli_servers_cells);
 }

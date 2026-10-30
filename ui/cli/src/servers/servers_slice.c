@@ -119,9 +119,9 @@ static void slice_line_put(void *context, const char *path, unsigned int line, c
 // the slicing's lines given back
 static void slice_lines_given(CliServersSlicing *slicing)
 {
-    cli_cell_release(slicing->text.out, NULL);
-    cli_cell_release(slicing->map.out, NULL);
-    cli_cell_release(slicing->paths.out, NULL);
+    cli_cell_release(slicing->text.out, &g_cli_servers_cells);
+    cli_cell_release(slicing->map.out, &g_cli_servers_cells);
+    cli_cell_release(slicing->paths.out, &g_cli_servers_cells);
 }
 
 // the slicing's lines made, each growing, none written: 1, or 0 where the cells cannot meet them, those made given back
@@ -134,9 +134,9 @@ static int slice_lines_made(CliServersSlicing *slicing)
                                    NULL,
                                    CLI_JSON_NONE,
                                    0u};
-    return cli_growing_line_made(&slicing->text, CLI_SERVERS_SLICE_FIRST_BYTES) &&
-           cli_growing_line_made(&slicing->map, CLI_SERVERS_SLICE_FIRST_BYTES) &&
-           cli_growing_line_made(&slicing->paths, CLI_SERVERS_SLICE_FIRST_BYTES);
+    return cli_growing_line_made(&slicing->text, CLI_SERVERS_SLICE_FIRST_BYTES, &g_cli_servers_cells) &&
+           cli_growing_line_made(&slicing->map, CLI_SERVERS_SLICE_FIRST_BYTES, &g_cli_servers_cells) &&
+           cli_growing_line_made(&slicing->paths, CLI_SERVERS_SLICE_FIRST_BYTES, &g_cli_servers_cells);
 }
 
 // the slice `slicing` holds stored by `key` with the view of `head`, its openers `opener`, and its map, the file at
@@ -165,7 +165,7 @@ static int slice_kept(const char *root, const char *path, const char *key, CliSe
     const unsigned long long openers_size = (unsigned long long)head->openers * sizeof(unsigned int);
     const unsigned long long stored_size =
         sizeof(*head) + openers_size + slicing->map.at + head->root_size + head->paths_size;
-    char *const stored = cli_lane_alloc(stored_size, NULL);
+    char *const stored = cli_lane_alloc(stored_size, &g_cli_servers_cells);
     if (stored != NULL)
     {
         unsigned long long at = 0ull;
@@ -182,7 +182,7 @@ static int slice_kept(const char *root, const char *path, const char *key, CliSe
     }
     const int kept = (stored != NULL) && cli_keyed_put(&s_slices, key, path, stored, stored_size);
     cli_lock_give(&s_slices_lock);
-    cli_cell_release(stored, NULL);
+    cli_cell_release(stored, &g_cli_servers_cells);
     return kept;
 }
 
@@ -219,8 +219,8 @@ static char *slice_cut(const char *root, const char *path, const char *key, CliS
         return NULL;
     }
     *slice_size = slicing.text.at;
-    cli_cell_release(slicing.map.out, NULL);
-    cli_cell_release(slicing.paths.out, NULL);
+    cli_cell_release(slicing.map.out, &g_cli_servers_cells);
+    cli_cell_release(slicing.paths.out, &g_cli_servers_cells);
     return slicing.text.out;
 }
 
@@ -304,7 +304,7 @@ int cli_servers_slice_sent(CliLsp *server, const char *root, const char *path, c
         (slice != NULL) && (!fresh || ((id != NULL) ? cli_lsp_opened(server, path, id, slice, slice_size, err_msg)
                                                     : cli_lsp_changed(server, path, slice, slice_size, err_msg)));
     cli_lock_give(&s_sending_lock);
-    cli_cell_release(slice, NULL);
+    cli_cell_release(slice, &g_cli_servers_cells);
     if (sent && fresh)
     {
         cli_servers_ask_noted(server);
@@ -362,8 +362,8 @@ static int slices_window(void *context, unsigned int first, unsigned int last, c
 int cli_servers_slices_cut(const char *root, const char *path, const char *text, unsigned long long size,
                            CliServersWindow window, void *context, VerbaLinea *err_msg)
 {
-    // a window's slice is cut and handed on where the walk reaches it, the walk's cells held while it is
-    CliServersCut *const cut = cli_lane_alloc(sizeof(CliServersCut), NULL);
+    // a window's slice is cut and handed on where the walk reaches it, the walk's cells kept while it is
+    CliServersCut *const cut = cli_lane_alloc(sizeof(CliServersCut), &g_cli_servers_cells);
     if (cut == NULL)
     {
         mmgr_line_put(err_msg, "the slices could not be cut: the cells cannot meet them");
@@ -391,7 +391,7 @@ int cli_servers_slices_cut(const char *root, const char *path, const char *text,
         mmgr_line_put(err_msg, "the slices could not be cut: the cells cannot meet them");
     }
     slice_lines_given(&cut->slicing);
-    cli_cell_release(cut, NULL);
+    cli_cell_release(cut, &g_cli_servers_cells);
     return whole;
 }
 
@@ -518,7 +518,7 @@ int cli_servers_view(const char *path, unsigned int first, unsigned int last, co
         memor.cpy(&(MemoriaCfg){.dst = root, .src = slice_root(stored, &head), .bytes = (size_t)head.root_size});
     }
     cli_lock_give(&s_slices_lock);
-    // a view whose slice is the one the server was last given leaves the server's text as it was
+    // a view whose slice is the slice the server was last given leaves the server's text as it was
     int sent = 1;
     int cut = 0;
     if (known && !same)
@@ -530,14 +530,14 @@ int cli_servers_view(const char *path, unsigned int first, unsigned int last, co
                                       0, &cut, &slice_size, err_msg);
         cut = (slice != NULL) && cut;
         sent = (slice != NULL) && (!cut || cli_lsp_changed(server, path, slice, slice_size, err_msg));
-        cli_cell_release(slice, NULL);
+        cli_cell_release(slice, &g_cli_servers_cells);
     }
     cli_lock_give(&s_sending_lock);
     if (sent && cut)
     {
         cli_servers_ask_noted(server);
     }
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_servers_cells);
     cli_lsp_unref(server);
     if (!sent)
     {
@@ -655,7 +655,8 @@ static unsigned long long slice_number(const char *text, unsigned long long leng
 }
 
 char *cli_servers_slice_diagnostics(const char *path, const char *params, unsigned long long params_size,
-                                    const char *all, unsigned long long size, unsigned long long *mapped_size)
+                                    const char *all, unsigned long long size, unsigned long long *mapped_size,
+                                    CellOwner *owner)
 {
     // diagnostics of a version given before the slice stored was are of a slice the map no longer gives; a later
     // version given with no slice stored for it is the same text given again
@@ -677,10 +678,11 @@ char *cli_servers_slice_diagnostics(const char *path, const char *params, unsign
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    const unsigned int array = (stored != NULL) ? cli_json_taken(&json, all, size, 0u, 0ull, &ignored) : CLI_JSON_NONE;
+    const unsigned int array =
+        (stored != NULL) ? cli_json_taken(&json, all, size, 0u, 0ull, &ignored, &g_cli_servers_cells) : CLI_JSON_NONE;
     VerbaLinea mapped = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
     const int made = cli_json_is(&json, array, CFG_JSON_ARRAY) &&
-                     cli_growing_line_made(&mapped, (size_t)size + CLI_SERVERS_SLICE_FIRST_BYTES);
+                     cli_growing_line_made(&mapped, (size_t)size + CLI_SERVERS_SLICE_FIRST_BYTES, owner);
     if (made)
     {
         mmgr_line_ch(&mapped, '[');
@@ -710,7 +712,7 @@ char *cli_servers_slice_diagnostics(const char *path, const char *params, unsign
     cli_json_given(&json);
     if (!made || !mmgr_line_ok(&mapped))
     {
-        cli_cell_release(mapped.out, NULL);
+        cli_cell_release(mapped.out, owner);
         return NULL;
     }
     *mapped_size = mapped.at;

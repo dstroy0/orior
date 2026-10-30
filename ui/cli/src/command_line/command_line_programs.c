@@ -104,7 +104,7 @@ static int programs_libraries(const char *const *words, unsigned int count)
         cli_err("libraries takes the program to read");
         return CLI_WRONG;
     }
-    CliProgramsReading *const reading = cli_lane_alloc(sizeof(*reading), NULL);
+    CliProgramsReading *const reading = cli_lane_alloc(sizeof(*reading), &g_cli_command_line_cells);
     if (reading == NULL)
     {
         cli_err("the cells cannot meet what a program's libraries are read with");
@@ -123,7 +123,7 @@ static int programs_libraries(const char *const *words, unsigned int count)
         most += (at[0] == between) ? 1u : 0u;
     }
     char (*const folder)[CLI_PATH_MAX_LEN] =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, NULL);
+        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, &g_cli_command_line_cells);
     unsigned int folders = 0u;
     for (const char *part = reading->path; (folder != NULL) && (part != NULL) && (folders < most);)
     {
@@ -141,10 +141,10 @@ static int programs_libraries(const char *const *words, unsigned int count)
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
     const int read =
         cli_binary_read(words[1], (const char (*)[CLI_PATH_MAX_LEN])folder, folders, &reading->report, &err_msg);
-    cli_cell_release(folder, NULL);
+    cli_cell_release(folder, &g_cli_command_line_cells);
     if (!read)
     {
-        cli_cell_release(reading, NULL);
+        cli_cell_release(reading, &g_cli_command_line_cells);
         return programs_failed(&err_msg, CLI_WRONG);
     }
     const CliBinaryReport *const report = &reading->report;
@@ -161,7 +161,7 @@ static int programs_libraries(const char *const *words, unsigned int count)
     }
     const QuerySink sink = {programs_err, NULL};
     cli_binary_report_print(report, sink);
-    cli_cell_release(reading, NULL);
+    cli_cell_release(reading, &g_cli_command_line_cells);
     return 0;
 }
 

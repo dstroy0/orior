@@ -89,7 +89,7 @@ int cli_inspect_reading_reserved(const char *language, const char *text, unsigne
     reading_counted(text, size);
     CliInspectCarve measured = {NULL, 0ull};
     reading_laid(language, &measured);
-    s_reading = g_cli_cells->persistent_buf_alloc(measured.bytes + 8ull, NULL);
+    s_reading = g_cli_cells->persistent_buf_alloc(measured.bytes + 8ull, &g_cli_inspect_cells);
     if (s_reading == NULL)
     {
         return 0;
@@ -101,6 +101,6 @@ int cli_inspect_reading_reserved(const char *language, const char *text, unsigne
 
 void cli_inspect_reading_given(void)
 {
-    cli_cell_release(s_reading, NULL);
+    cli_cell_release(s_reading, &g_cli_inspect_cells);
     s_reading = NULL;
 }

@@ -13,7 +13,7 @@ static size_t s_mark;
 
 void cli_check_begun(void)
 {
-    s_mark = cli_lane_entered(0u);
+    s_mark = cli_lane_entered(0u, CLI_LANE_COMMAND_MS);
 }
 
 // a line written to the output
@@ -73,7 +73,7 @@ const CliJson *cli_check_parsed(const char *text, unsigned long long size, unsig
     cli_json_given(&s_json);
     char why[512];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    *root = cli_json_taken(&s_json, text, size, 0u, 0ull, &err_msg);
+    *root = cli_json_taken(&s_json, text, size, 0u, 0ull, &err_msg, &g_checks_cells);
     return &s_json;
 }
 

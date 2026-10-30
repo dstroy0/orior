@@ -33,8 +33,8 @@ void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsig
     }
     const unsigned int doubled = (*room == 0u) ? CLI_COMPILE_FIRST : (*room * 2u);
     const unsigned int grown = (doubled < most) ? doubled : most;
-    void *const larger = (count < most) ? cli_cell_regrown(list, (size_t)(count * each), (unsigned long long)grown * each,
-                                                           &g_cli_compile_cells)
+    void *const larger = (count < most) ? cli_cell_regrown(list, (size_t)(count * each),
+                                                           (unsigned long long)grown * each, &g_cli_compile_cells)
                                         : NULL;
     if (larger == NULL)
     {
@@ -316,7 +316,7 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path)
     }
     const unsigned int tokens_most = cli_json_tokens_counted((const char *)bytes, size) + 1u;
     CfgJsonToken *const tokens =
-        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), NULL);
+        cli_lane_alloc((unsigned long long)tokens_most * sizeof(CfgJsonToken), &g_cli_compile_cells);
     unsigned int root = CLI_JSON_NONE;
     if ((tokens != NULL) && cli_json_room(json, tokens_most, size))
     {
@@ -324,7 +324,7 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path)
         VerbaLinea unread = {why, sizeof(why), 0ull};
         root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
     }
-    cli_cell_release(tokens, NULL);
+    cli_cell_release(tokens, &g_cli_compile_cells);
     cli_file_let_go(bytes, size);
     return root;
 }

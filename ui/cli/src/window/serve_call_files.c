@@ -26,7 +26,7 @@ CliLock g_cli_serve_write_lock = CLI_LOCK_INIT;
 // a growing line begun for a file's text: 1, or 0 with why given where the cells cannot meet it
 static int text_line_begun(VerbaLinea *text, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(text, CLI_SERVE_TEXT_FIRST);
+    const int begun = cli_growing_line_made(text, CLI_SERVE_TEXT_FIRST, &s_cells);
     if (!begun)
     {
         mmgr_line_put(err_msg, "a file's text could not be taken: the cells cannot meet it");
@@ -171,7 +171,7 @@ static int file_slice(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
         }
         mmgr_line_ch(out, '}');
     }
-    cli_cell_release(slice.out, NULL);
+    cli_cell_release(slice.out, &s_cells);
     return done;
 }
 
@@ -379,7 +379,7 @@ static int history_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     {
         cli_json_quoted_lossy(out, (const unsigned char *)text.out, mmgr_line_ok(&text) ? text.at : 0ull);
     }
-    cli_cell_release(text.out, NULL);
+    cli_cell_release(text.out, &s_cells);
     return done;
 }
 

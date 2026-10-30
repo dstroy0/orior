@@ -31,7 +31,7 @@ static char s_includes[QUERY_INCLUDES_MOST][QUERY_PATH_MAX_LEN + 2u];
 // line, its trailing blank lines left off and closed, and the process waited on: its exit code
 static long long query_build_read(QueryProcess *process, VerbaLinea *output)
 {
-    (void)cli_growing_line_made(output, QUERY_BUILD_OUTPUT_INIT_CAP);
+    (void)cli_growing_line_made(output, QUERY_BUILD_OUTPUT_INIT_CAP, &g_query_cells);
     for (;;)
     {
         char piece[4096];
@@ -64,7 +64,7 @@ static void query_build_failed(const char *name, const char *what, VerbaLinea *o
     mmgr_line_put(err_msg, what);
     mmgr_line_ch(err_msg, '\n');
     mmgr_line_put_n(err_msg, output->out, mmgr_line_ok(output) ? output->at : 0ull);
-    g_cli_cells->persistent_buf_release(output->out, NULL);
+    g_cli_cells->persistent_buf_release(output->out, &g_query_cells);
 }
 
 // Every compile of `compiles`, `count` of them, run QUERY_LAUNCHES_AT_ONCE at a time and the launch spacing between
@@ -104,7 +104,7 @@ static int query_compiled_at_once(const QueryCompile *compiles, unsigned int cou
                 whole = 0;
                 continue;
             }
-            g_cli_cells->persistent_buf_release(output.out, NULL);
+            g_cli_cells->persistent_buf_release(output.out, &g_query_cells);
         }
         if (!whole)
         {
@@ -318,7 +318,7 @@ static int query_tool_compiled(const char *root, const QueryPrograms *programs, 
     }
     else if (built)
     {
-        g_cli_cells->persistent_buf_release(output.out, NULL);
+        g_cli_cells->persistent_buf_release(output.out, &g_query_cells);
     }
     g_cli_cells->persistent_buf_release(cell, &g_query_cells);
     return built;

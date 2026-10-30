@@ -202,7 +202,7 @@ static unsigned int cli_json_of(const char *out, unsigned long long size)
 {
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    return cli_json_taken(&s_read->json, out, size, 0u, 0ull, &unread);
+    return cli_json_taken(&s_read->json, out, size, 0u, 0ull, &unread, &g_cli_toolchains_cells);
 }
 
 // a place in ruff's findings, its row and column counted from one, written counted from zero as `{"line", "col"}`

@@ -83,7 +83,7 @@ static void lsp_server_message(CliLsp *lsp, const char *body, unsigned long long
     char piece[4096];
     CliPieces pieces;
     VerbaLinea answer;
-    cli_pieces_begun(&pieces, &answer, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &answer, piece, sizeof(piece), &g_cli_servers_cells);
     unsigned long long id = 0ull;
     unsigned long long id_size = 0ull;
     const int has_id = cli_lsp_member(body, size, "id", &id, &id_size);
@@ -106,7 +106,7 @@ static void lsp_server_message(CliLsp *lsp, const char *body, unsigned long long
         VerbaLinea unsent = {why, sizeof(why), 0ull};
         (void)cli_lsp_send_parts(&lsp->input, &lsp->input_lock, parts, 5u, &unsent);
     }
-    cli_cell_release(written, NULL);
+    cli_cell_release(written, &g_cli_servers_cells);
 }
 
 // a message the server sent, `size` bytes of `body`: what it sends unprompted received, an answer handed to its request
@@ -159,7 +159,7 @@ static void lsp_read(void *context)
     while ((body = cli_lsp_message_taken(&lsp->reader, &size)) != NULL)
     {
         lsp_message(lsp, body, size);
-        cli_cell_release(body, NULL);
+        cli_cell_release(body, &g_cli_servers_cells);
     }
     cli_lock_take(&lsp->lock);
     for (unsigned int at = 0u; at < CLI_LSP_WAITERS; at += 1u)
@@ -489,6 +489,6 @@ void cli_lsp_unref(CliLsp *lsp)
         return;
     }
     cli_spawn_closed(&lsp->spawned);
-    cli_cell_release(lsp->capabilities, NULL);
-    cli_cell_release(lsp, NULL);
+    cli_cell_release(lsp->capabilities, &g_cli_servers_cells);
+    cli_cell_release(lsp, &g_cli_servers_cells);
 }

@@ -310,7 +310,7 @@ static void cli_file_compared(const CliReviewFile *file)
     const unsigned int was_lines = cli_lines_counted(was_text, was_size);
     const unsigned int now_lines = cli_lines_counted(now_text, now_size);
     unsigned char *const cell =
-        g_cli_cells->persistent_buf_alloc(cli_side_bytes(was_lines) + cli_side_bytes(now_lines), NULL);
+        g_cli_cells->persistent_buf_alloc(cli_side_bytes(was_lines) + cli_side_bytes(now_lines), &g_cli_code_cells);
     if (cell == NULL)
     {
         cli_other_put(file->path);
@@ -374,7 +374,7 @@ static void cli_file_compared(const CliReviewFile *file)
         cli_piece_put(s_compare->removed, &s_compare->removeds,
                       cli_piece(file->was_path, &was->decl[least], "removed", was->decl[least].text, empty));
     }
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_code_cells);
 }
 
 // whether a piece comes before another: by path, then line
@@ -490,7 +490,7 @@ static int compare_call_room(void)
     unsigned int *const larger =
         (g_cli_review.calls < CLI_REVIEW_CALLS)
             ? cli_cell_regrown(g_cli_review.call, (size_t)g_cli_review.calls * sizeof(unsigned int),
-                               (unsigned long long)room * sizeof(unsigned int), NULL)
+                               (unsigned long long)room * sizeof(unsigned int), &g_cli_code_cells)
             : NULL;
     if (larger == NULL)
     {

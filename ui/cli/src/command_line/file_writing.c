@@ -14,40 +14,41 @@
 #define CLI_WRITING_MAX_LEN 64u
 
 // a growing line's cell grown to twice its room where it stands, else the line moved into a cell of that room, what
-// it contains retained either way: MMGR_LINE_GROWN, or 0 where the cell is refused
+// it contains retained either way, for the owner its cell counts to: MMGR_LINE_GROWN, or 0 where the cell is refused
 static int line_grown(void *context, const char *bytes, size_t size)
 {
     VerbaLinea *const line = (VerbaLinea *)context;
     const size_t room = line->capacity * 2u;
-    char *const grown = cli_cell_grown(line->out, room, NULL);
+    CellOwner *const owner = cli_cell_owner(line->out);
+    char *const grown = cli_cell_grown(line->out, room, owner);
     if (grown != NULL)
     {
         line->out = grown;
         line->capacity = room;
         return MMGR_LINE_GROWN;
     }
-    char *const larger = g_cli_cells->persistent_buf_alloc(room, NULL);
+    char *const larger = g_cli_cells->persistent_buf_alloc(room, owner);
     if (larger == NULL)
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = bytes, .bytes = size});
-    cli_cell_release(line->out, NULL);
+    cli_cell_release(line->out, owner);
     line->out = larger;
     line->capacity = room;
     return MMGR_LINE_GROWN;
 }
 
-int cli_growing_line_made(VerbaLinea *line, size_t first)
+int cli_growing_line_made(VerbaLinea *line, size_t first, CellOwner *owner)
 {
-    char *const out = g_cli_cells->persistent_buf_alloc(first, NULL);
+    char *const out = g_cli_cells->persistent_buf_alloc(first, owner);
     *line = (VerbaLinea){out, (out != NULL) ? first : 0u, 0u, (out != NULL) ? line_grown : NULL, line, 0u};
     return out != NULL;
 }
 
-int cli_growing_line_laned(VerbaLinea *line, size_t first)
+int cli_growing_line_laned(VerbaLinea *line, size_t first, CellOwner *owner)
 {
-    char *const out = cli_lane_alloc(first, NULL);
+    char *const out = cli_lane_alloc(first, owner);
     *line = (VerbaLinea){out, (out != NULL) ? first : 0u, 0u, (out != NULL) ? line_grown : NULL, line, 0u};
     return out != NULL;
 }

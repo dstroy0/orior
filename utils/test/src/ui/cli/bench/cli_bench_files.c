@@ -132,7 +132,7 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
     char under[CLI_PATH_MAX_LEN];
     cli_full(corpus->root, "ui/cli/src", under);
     VerbaLinea out;
-    (void)cli_growing_line_made(&out, 1ull << 20u);
+    (void)cli_growing_line_made(&out, 1ull << 20u, &g_checks_cells);
     for (unsigned int round = 0u; round < corpus->repeat; round += 1u)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
@@ -149,6 +149,6 @@ BenchMeasure bench_search(const BenchCorpus *corpus, const char *needle)
         measure.bytes = corpus->whole;
         measure.least = (took < measure.least) ? took : measure.least;
     }
-    cli_cell_release(out.out, NULL);
+    cli_cell_release(out.out, &g_checks_cells);
     return measure;
 }

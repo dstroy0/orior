@@ -49,10 +49,10 @@ int main(void)
     cli_check(!lossy_read(filled, sizeof(filled) - 1u, 6ull, kept), "and one with room for the euro sign is full too");
     cli_check_text(kept, 5u, "ab\xe2\x82\xac", "it holds the euro sign whole and nothing after it");
     VerbaLinea grown;
-    cli_check(cli_growing_line_made(&grown, 4u), "a line that grows is made");
+    cli_check(cli_growing_line_made(&grown, 4u, &g_checks_cells), "a line that grows is made");
     cli_lossy(&grown, (const unsigned char *)letters, sizeof(letters) - 1u);
     cli_check(mmgr_line_ok(&grown), "a line that grows holds every letter");
     cli_check_text(grown.out, grown.at, letters, "and holds them as they were read");
-    cli_cell_release(grown.out, NULL);
+    cli_cell_release(grown.out, &g_checks_cells);
     return cli_checked();
 }

@@ -57,7 +57,7 @@ static int writing_sealed(const char *path, const char *text)
 static void writing_line_grown(void)
 {
     VerbaLinea line;
-    cli_check(cli_growing_line_made(&line, 16ull) && (line.capacity == 16ull),
+    cli_check(cli_growing_line_made(&line, 16ull, &g_checks_cells) && (line.capacity == 16ull),
               "a growing line is begun in a cell of the bytes requested");
     for (unsigned int at = 0u; at < 100u; at += 1u)
     {
@@ -75,7 +75,7 @@ static void writing_line_grown(void)
               "a rewind writes over what it contained");
     cli_check(cli_growing_line_room(&line, 5000ull) && ((line.capacity - line.at) > 5000ull) && (line.out[5] == 'x'),
               "room is made for five thousand bytes more, what it contained retained");
-    cli_cell_release(line.out, NULL);
+    cli_cell_release(line.out, &g_checks_cells);
     char fixed[8];
     VerbaLinea fixed_line = {fixed, sizeof(fixed), 0ull};
     cli_check(cli_growing_line_room(&fixed_line, 7ull) && !cli_growing_line_room(&fixed_line, 8ull),

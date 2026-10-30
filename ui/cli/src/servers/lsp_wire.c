@@ -199,11 +199,11 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
         {
             return NULL;
         }
-        // one byte past the body, so an empty body is a cell too; a body the cells cannot meet is passed over whole
-        char *const body = g_cli_cells->persistent_buf_alloc(length + 1ull, NULL);
+        // one byte past the body, and an empty body is a cell too; a body the cells cannot meet is passed over whole
+        char *const body = g_cli_cells->persistent_buf_alloc(length + 1ull, &g_cli_servers_cells);
         if (!wire_bytes(reader, body, length))
         {
-            cli_cell_release(body, NULL);
+            cli_cell_release(body, &g_cli_servers_cells);
             return NULL;
         }
         if ((body != NULL) && wire_body_whole(body, length))
@@ -212,7 +212,7 @@ char *cli_lsp_message_taken(CliLspReader *reader, unsigned long long *size)
             *size = length;
             return body;
         }
-        cli_cell_release(body, NULL);
+        cli_cell_release(body, &g_cli_servers_cells);
     }
 }
 

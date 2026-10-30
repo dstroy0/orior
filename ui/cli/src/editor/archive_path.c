@@ -24,7 +24,7 @@ static CliRoom *cli_archive_rooms(unsigned int at)
 int cli_archive_locked(VerbaLinea *err_msg)
 {
     cli_lock_take(&g_cli_archive_lock);
-    g_cli_archive_levels = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_archive_levels), NULL);
+    g_cli_archive_levels = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_archive_levels), &g_cli_editor_cells);
     if (g_cli_archive_levels == NULL)
     {
         cli_lock_give(&g_cli_archive_lock);
@@ -42,9 +42,9 @@ void cli_archive_released(void)
 {
     for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
     {
-        cli_cell_release(cli_archive_rooms(at)->bytes, NULL);
+        cli_cell_release(cli_archive_rooms(at)->bytes, &g_cli_editor_cells);
     }
-    cli_cell_release(g_cli_archive_levels, NULL);
+    cli_cell_release(g_cli_archive_levels, &g_cli_editor_cells);
     g_cli_archive_levels = NULL;
     cli_lock_give(&g_cli_archive_lock);
 }
@@ -61,14 +61,14 @@ int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, V
         mmgr_line_put(err_msg, " is larger than orior_cli supports");
         return 0;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(need, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(need, &g_cli_editor_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, what);
         mmgr_line_put(err_msg, " could not be taken");
         return 0;
     }
-    cli_cell_release(room->bytes, NULL);
+    cli_cell_release(room->bytes, &g_cli_editor_cells);
     room->bytes = cell;
     room->room = need;
     return 1;

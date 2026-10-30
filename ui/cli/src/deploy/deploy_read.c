@@ -10,7 +10,7 @@
 // a page of `room` bytes taken for `pool`, NULL with the pool marked refused where it could not be
 static CliDeployPage *read_page(CliDeployPool *pool, unsigned long long room)
 {
-    CliDeployPage *const page = g_cli_cells->persistent_buf_alloc(sizeof(CliDeployPage) + room, NULL);
+    CliDeployPage *const page = g_cli_cells->persistent_buf_alloc(sizeof(CliDeployPage) + room, &g_cli_deploy_cells);
     if (page == NULL)
     {
         pool->refused = 1;
@@ -77,7 +77,7 @@ int cli_deploy_order(const char *left, const char *right)
 {
     const size_t left_length = cellul.len(&(CatenaFinitaCfg){.src = left, .cap = CLI_CELLS_POOL});
     const size_t right_length = cellul.len(&(CatenaFinitaCfg){.src = right, .cap = CLI_CELLS_POOL});
-    // the shorter text's terminator is compared too, so a text sorts before a longer one that begins with it
+    // the shorter text's terminator is compared too: a text sorts before a longer one that begins with it
     const size_t shorter = (left_length < right_length) ? left_length : right_length;
     const embed_iword order = memor.cmp(&(MemoriaCfg){.src = left, .other = right, .bytes = shorter + 1u});
     return (order > 0) - (order < 0);
@@ -88,7 +88,7 @@ void cli_deploy_pool_given(CliDeployPool *pool)
     while (pool->page != NULL)
     {
         CliDeployPage *const before = pool->page->before;
-        cli_cell_release(pool->page, NULL);
+        cli_cell_release(pool->page, &g_cli_deploy_cells);
         pool->page = before;
     }
     pool->refused = 0;
@@ -253,7 +253,8 @@ int cli_deploy_read(const char *root, CliDeployTree *tree, const CliDeployment *
     }
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
-    const unsigned int top = cli_json_taken(&tree->json, (const char *)bytes, size, 0u, 0ull, &read_err_msg);
+    const unsigned int top =
+        cli_json_taken(&tree->json, (const char *)bytes, size, 0u, 0ull, &read_err_msg, &g_cli_deploy_cells);
     cli_file_let_go(bytes, size);
     const CliJson *const json = &tree->json;
     if (top == CLI_JSON_NONE)

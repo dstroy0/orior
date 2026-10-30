@@ -38,11 +38,11 @@ static void review_released(void)
         cli_git_text_given(&s_room->repositories.text);
         cli_git_text_given(&s_room->touched.text);
     }
-    cli_cell_release(s_room, NULL);
-    cli_cell_release(g_cli_review.compared, NULL);
-    cli_cell_release(g_cli_review.texts, NULL);
-    cli_cell_release(g_cli_review.text, NULL);
-    cli_cell_release(g_cli_review.call, NULL);
+    cli_cell_release(s_room, &g_cli_code_cells);
+    cli_cell_release(g_cli_review.compared, &g_cli_code_cells);
+    cli_cell_release(g_cli_review.texts, &g_cli_code_cells);
+    cli_cell_release(g_cli_review.text, &g_cli_code_cells);
+    cli_cell_release(g_cli_review.call, &g_cli_code_cells);
     s_room = NULL;
     g_cli_review.compared = NULL;
     g_cli_review.texts = NULL;
@@ -60,7 +60,7 @@ static void review_released(void)
 static int review_locked(void)
 {
     cli_lock_take(&s_lock);
-    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_code_cells);
     if (s_room != NULL)
     {
         s_room->repositories.text.bytes = NULL;
@@ -71,7 +71,7 @@ static int review_locked(void)
     g_cli_review.texts = NULL;
     g_cli_review.text_room = 0ull;
     g_cli_review.texts_room = 0ull;
-    g_cli_review.compared = g_cli_cells->persistent_buf_alloc(cli_review_compared_bytes(), NULL);
+    g_cli_review.compared = g_cli_cells->persistent_buf_alloc(cli_review_compared_bytes(), &g_cli_code_cells);
     if ((s_room == NULL) || (g_cli_review.compared == NULL))
     {
         review_released();

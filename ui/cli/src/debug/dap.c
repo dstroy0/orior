@@ -71,7 +71,7 @@ static void dap_answered(CliDap *dap, unsigned long long seq, const char *body, 
             else
             {
                 // the body stored in a cell of its size until the request takes it
-                waiter->body = g_cli_cells->persistent_buf_alloc(length + 1ull, NULL);
+                waiter->body = g_cli_cells->persistent_buf_alloc(length + 1ull, &g_cli_debug_cells);
                 if (waiter->body != NULL)
                 {
                     // a member of a message read whole, which a size_t counts
@@ -202,7 +202,7 @@ static void dap_read(void *context)
             refused += 1ull;
             dap_refused(dap, message, size, refused);
         }
-        cli_cell_release(message, NULL);
+        cli_cell_release(message, &g_cli_debug_cells);
     }
     cli_lock_take(&dap->lock);
     for (unsigned int at = 0u; at < CLI_DAP_WAITERS; at += 1u)
@@ -337,7 +337,7 @@ int cli_dap_sent(CliDap *dap, const char *command, const char *arguments, unsign
         waiter->seq = *seq;
         waiter->answered = 0;
         waiter->error[0] = '\0';
-        cli_cell_release(waiter->body, NULL);
+        cli_cell_release(waiter->body, &g_cli_debug_cells);
         waiter->body = NULL;
         waiter->body_size = 0ull;
     }
@@ -394,7 +394,7 @@ int cli_dap_waited(CliDap *dap, const char *command, unsigned long long seq, uns
     if (waiter != NULL)
     {
         waiter->waiting = 0;
-        cli_cell_release(waiter->body, NULL);
+        cli_cell_release(waiter->body, &g_cli_debug_cells);
         waiter->body = NULL;
         waiter->body_size = 0ull;
     }

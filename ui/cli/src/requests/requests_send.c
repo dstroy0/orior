@@ -23,18 +23,18 @@ CliRequestsRoom *cli_requests_room_taken(void)
     {
         cli_wake_wait(&s_wake, &s_lock);
     }
-    CliRequestsRoom *room = g_cli_cells->persistent_buf_alloc(sizeof(CliRequestsRoom), NULL);
+    CliRequestsRoom *room = g_cli_cells->persistent_buf_alloc(sizeof(CliRequestsRoom), &g_cli_requests_cells);
     if (room != NULL)
     {
         room->unpacked = NULL;
         room->unpacked_room = 0ull;
-        const int made = cli_growing_line_made(&room->body, CLI_REQUESTS_BODY_FIRST) &&
-                         cli_growing_line_made(&room->raw, CLI_REQUESTS_BODY_FIRST);
+        const int made = cli_growing_line_made(&room->body, CLI_REQUESTS_BODY_FIRST, &g_cli_requests_cells) &&
+                         cli_growing_line_made(&room->raw, CLI_REQUESTS_BODY_FIRST, &g_cli_requests_cells);
         if (!made)
         {
-            cli_cell_release(room->raw.out, NULL);
-            cli_cell_release(room->body.out, NULL);
-            cli_cell_release(room, NULL);
+            cli_cell_release(room->raw.out, &g_cli_requests_cells);
+            cli_cell_release(room->body.out, &g_cli_requests_cells);
+            cli_cell_release(room, &g_cli_requests_cells);
             room = NULL;
         }
     }
@@ -49,10 +49,10 @@ void cli_requests_room_given(CliRequestsRoom *room)
     {
         return;
     }
-    cli_cell_release(room->unpacked, NULL);
-    cli_cell_release(room->raw.out, NULL);
-    cli_cell_release(room->body.out, NULL);
-    cli_cell_release(room, NULL);
+    cli_cell_release(room->unpacked, &g_cli_requests_cells);
+    cli_cell_release(room->raw.out, &g_cli_requests_cells);
+    cli_cell_release(room->body.out, &g_cli_requests_cells);
+    cli_cell_release(room, &g_cli_requests_cells);
     cli_lock_take(&s_lock);
     s_rooms_used -= 1u;
     cli_wake_all(&s_wake);

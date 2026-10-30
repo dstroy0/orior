@@ -76,10 +76,10 @@ int main(void)
     CliJson json;
     char err_text[1024];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
-    unsigned int root = cli_json_taken(&json, s_names, sizeof(s_names) - 1u, 0u, 0ull, &err_msg);
+    unsigned int root = cli_json_taken(&json, s_names, sizeof(s_names) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_editor_named(&editor, &json, root), "the grammar's names are kept");
     cli_json_given(&json);
-    root = cli_json_taken(&json, s_read, sizeof(s_read) - 1u, 0u, 0ull, &err_msg);
+    root = cli_json_taken(&json, s_read, sizeof(s_read) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_editor_lines_put(&editor, &json, root, 0ull), "the lines read are kept");
     cli_json_given(&json);
     cli_check((editor.from == 0ull) && (editor.count == 3u), "the three lines are held from the first");
@@ -128,17 +128,19 @@ int main(void)
     cli_check(editor.line[3].length == 0ull, "the last line is empty");
     cli_check(gui_editor_text_put(&editor, "", 0ull) && (editor.lines == 1ull), "an empty text is one empty line");
 
-    static const char s_frame[] = "{\"key\":\"k\",\"seq\":1,\"top\":0,\"lines\":3,\"from\":0,\"rows\":[\"int main\",\"\\treturn 0;\",\"// end\"],"
-                                  "\"cursor\":{\"line\":0,\"col\":3},\"anchor\":{\"line\":0,\"col\":0},"
-                                  "\"pair\":[{\"line\":2,\"col\":2},{\"line\":0,\"col\":0}],\"indent\":{\"tabs\":0,\"size\":2},"
-                                  "\"colors\":[{\"from\":0,\"runs\":[[0,1,3,0],[1,1,7,0],[0,2]]}]}";
-    root = cli_json_taken(&json, s_frame, sizeof(s_frame) - 1u, 0u, 0ull, &err_msg);
+    static const char s_frame[] =
+        "{\"key\":\"k\",\"seq\":1,\"top\":0,\"lines\":3,\"from\":0,\"rows\":[\"int main\",\"\\treturn 0;\",\"// end\"],"
+        "\"cursor\":{\"line\":0,\"col\":3},\"anchor\":{\"line\":0,\"col\":0},"
+        "\"pair\":[{\"line\":2,\"col\":2},{\"line\":0,\"col\":0}],\"indent\":{\"tabs\":0,\"size\":2},"
+        "\"colors\":[{\"from\":0,\"runs\":[[0,1,3,0],[1,1,7,0],[0,2]]}]}";
+    root = cli_json_taken(&json, s_frame, sizeof(s_frame) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_editor_frame_put(&editor, &json, root), "a view's frame is taken whole");
     cli_json_given(&json);
     cli_check((editor.lines == 3ull) && (editor.count == 3u) && (editor.from == 0ull) && (editor.top == 0ull),
               "the frame's rows are the lines held");
     cli_check((editor.indent_tabs == 0) && (editor.indent_size == 2u), "the frame's indentation is kept");
-    cli_check(editor.has_cursor && (editor.cursor.line == 0ull) && (editor.cursor.col == 3ull) && (editor.anchor.col == 0ull),
+    cli_check(editor.has_cursor && (editor.cursor.line == 0ull) && (editor.cursor.col == 3ull) &&
+                  (editor.anchor.col == 0ull),
               "the frame's cursor and anchor are kept");
     const char *between = NULL;
     unsigned long long between_length = 0ull;
@@ -147,14 +149,16 @@ int main(void)
               "the bytes between two units of a stored line are read off it");
     cli_check(gui_editor_units_text(&editor, 1ull, 8ull, 40ull, &between, &between_length) && (between_length == 2ull),
               "units past the line's end are cut to it");
-    cli_check(!gui_editor_units_text(&editor, 5ull, 0ull, 1ull, &between, &between_length), "a line not stored has no bytes");
+    cli_check(!gui_editor_units_text(&editor, 5ull, 0ull, 1ull, &between, &between_length),
+              "a line not stored has no bytes");
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
     gui_raster_filled(&raster, place, palette->editor_ground);
     gui_editor_drawn(&editor, &raster, &glyphs, palette, place, 1.0f);
     const int caret_x = text_x + (int)(3.0f * cell + 0.5f);
     const GuiColor under_caret = raster.pixels[(10u * 320u) + (unsigned int)caret_x];
     const GuiRect caret = gui_editor_caret_rect(&editor, &glyphs, place, 1.0f);
-    cli_check((caret.x == caret_x) && (caret.width == 2) && (caret.height == GUI_CODE_LINE), "the caret's rectangle stands after the third cell");
+    cli_check((caret.x == caret_x) && (caret.width == 2) && (caret.height == GUI_CODE_LINE),
+              "the caret's rectangle stands after the third cell");
     cli_check(!gui_rect_empty(gui_editor_caret_drawn(&editor, &raster, palette, caret)) && editor.caret_kept &&
                   (raster.pixels[(10u * 320u) + (unsigned int)caret_x] == palette->caret),
               "the caret drawn stands after the third cell");
@@ -169,8 +173,10 @@ int main(void)
               "the caret drawn again at full ink stands again");
     cli_check(raster.pixels[(10u * 320u) + (unsigned int)text_x + 1u] == palette->selection,
               "the selection's ground fills the cells selected");
-    cli_check(raster.pixels[(30u * 320u) + (unsigned int)text_x + 1u] == bare, "a row outside the selection keeps the ground");
-    cli_check(editor.has_pair && (editor.pair[0].line == 2ull) && (editor.pair[0].col == 2ull) && (editor.pair[1].line == 0ull),
+    cli_check(raster.pixels[(30u * 320u) + (unsigned int)text_x + 1u] == bare,
+              "a row outside the selection keeps the ground");
+    cli_check(editor.has_pair && (editor.pair[0].line == 2ull) && (editor.pair[0].col == 2ull) &&
+                  (editor.pair[1].line == 0ull),
               "the frame's bracket pair is kept");
     cli_check((raster.pixels[(40u * 320u) + (unsigned int)(text_x + (int)(2.0f * cell)) + 1u] == palette->caret) &&
                   (raster.pixels[(0u * 320u) + (unsigned int)text_x + 1u] == palette->caret),
@@ -182,12 +188,14 @@ int main(void)
     cli_check(gui_editor_cell_at(&editor, place, cell, 1.0f, text_x + (int)(2.0f * cell) + 1, 25, &row, &column) &&
                   (row == 1ull) && (column == 2ull),
               "a pixel in the text reads as its row and cell");
-    cli_check(!gui_editor_cell_at(&editor, place, cell, 1.0f, 2, 25, &row, &column), "a pixel in the gutter is outside the text");
+    cli_check(!gui_editor_cell_at(&editor, place, cell, 1.0f, 2, 25, &row, &column),
+              "a pixel in the gutter is outside the text");
 
-    static const char s_folded[] = "{\"key\":\"k\",\"seq\":2,\"top\":0,\"lines\":6,\"from\":0,\"rows\":[\"int main\",\"{\",\"}\"],"
-                                   "\"numbers\":[0,1,5],\"folds\":[[1,4,1,1,\"}\"]],"
-                                   "\"cursor\":{\"line\":1,\"col\":1},\"anchor\":{\"line\":1,\"col\":1},\"pair\":null,\"colors\":[]}";
-    root = cli_json_taken(&json, s_folded, sizeof(s_folded) - 1u, 0u, 0ull, &err_msg);
+    static const char s_folded[] =
+        "{\"key\":\"k\",\"seq\":2,\"top\":0,\"lines\":6,\"from\":0,\"rows\":[\"int main\",\"{\",\"}\"],"
+        "\"numbers\":[0,1,5],\"folds\":[[1,4,1,1,\"}\"]],"
+        "\"cursor\":{\"line\":1,\"col\":1},\"anchor\":{\"line\":1,\"col\":1},\"pair\":null,\"colors\":[]}";
+    root = cli_json_taken(&json, s_folded, sizeof(s_folded) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_editor_frame_put(&editor, &json, root), "a frame with a fold closed is taken");
     cli_json_given(&json);
     cli_check((editor.count == 3u) && (editor.line[2].number == 5ull),
@@ -202,19 +210,23 @@ int main(void)
               "a closed fold's row ends in the folded mark");
     cli_check(painted(&raster, (GuiRect){text_x - 16, 20, 12, 20}, bare), "the gutter marks the fold closed");
     cli_check(!painted(&raster, (GuiRect){text_x - 16, 40, 12, 20}, bare), "a row that opens no fold has no mark");
-    cli_check(gui_editor_row_at(&editor, place, cell, 1.0f, 2, 25, &row) && (row == 1ull), "a pixel in the gutter reads as its row");
-    cli_check(!gui_editor_row_at(&editor, place, cell, 1.0f, text_x + 3, 25, &row), "a pixel in the text is not the gutter's");
+    cli_check(gui_editor_row_at(&editor, place, cell, 1.0f, 2, 25, &row) && (row == 1ull),
+              "a pixel in the gutter reads as its row");
+    cli_check(!gui_editor_row_at(&editor, place, cell, 1.0f, text_x + 3, 25, &row),
+              "a pixel in the text is not the gutter's");
 
-    static const char s_found[] = "{\"key\":\"k\",\"seq\":3,\"top\":0,\"lines\":3,\"from\":0,\"rows\":[\"int main\",\"\\treturn 0;\",\"// end\"],"
-                                  "\"cursor\":{\"line\":0,\"col\":6},\"anchor\":{\"line\":0,\"col\":4},\"pair\":null,"
-                                  "\"find\":{\"open\":1,\"focus\":1,\"query\":\"ma\",\"at\":2,\"regex\":0,\"case\":0,\"word\":1,\"count\":1,\"current\":0},"
-                                  "\"matches\":[[0,4,6]],\"colors\":[]}";
-    root = cli_json_taken(&json, s_found, sizeof(s_found) - 1u, 0u, 0ull, &err_msg);
+    static const char s_found[] =
+        "{\"key\":\"k\",\"seq\":3,\"top\":0,\"lines\":3,\"from\":0,\"rows\":[\"int main\",\"\\treturn 0;\",\"// end\"],"
+        "\"cursor\":{\"line\":0,\"col\":6},\"anchor\":{\"line\":0,\"col\":4},\"pair\":null,"
+        "\"find\":{\"open\":1,\"focus\":1,\"query\":\"ma\",\"at\":2,\"regex\":0,\"case\":0,\"word\":1,\"count\":1,"
+        "\"current\":0},"
+        "\"matches\":[[0,4,6]],\"colors\":[]}";
+    root = cli_json_taken(&json, s_found, sizeof(s_found) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_editor_frame_put(&editor, &json, root), "a frame with find open is taken");
     cli_json_given(&json);
     cli_check(editor.find.open && editor.find.focus && (editor.find.query_length == 2ull) && (editor.find.at == 2ull) &&
-                  editor.find.word && (editor.find.count == 1ull) && (editor.find.current == 0ll) && (editor.matches == 1ull) &&
-                  (editor.match[0][1] == 4ull),
+                  editor.find.word && (editor.find.count == 1ull) && (editor.find.current == 0ll) &&
+                  (editor.matches == 1ull) && (editor.match[0][1] == 4ull),
               "find's bar and the matches are kept");
     gui_raster_filled(&raster, (GuiRect){0, 0, 320, 80}, GUI_RGB(0u, 0u, 0u));
     gui_raster_filled(&raster, place, palette->editor_ground);

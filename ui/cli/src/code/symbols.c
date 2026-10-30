@@ -62,12 +62,12 @@ static unsigned char *cli_file_roomed(void *context, unsigned long long size)
     }
     if ((size + CLI_SYMBOLS_FILE_SLACK) > reading->file_room)
     {
-        cli_cell_release(reading->file_bytes, NULL);
+        cli_cell_release(reading->file_bytes, &g_cli_code_cells);
         unsigned long long room = (reading->file_room * 2ull > size + CLI_SYMBOLS_FILE_SLACK)
                                       ? (reading->file_room * 2ull)
                                       : (size + CLI_SYMBOLS_FILE_SLACK);
         room = (room < CLI_SYMBOL_READ_FIRST) ? CLI_SYMBOL_READ_FIRST : room;
-        reading->file_bytes = g_cli_cells->persistent_buf_alloc(room, NULL);
+        reading->file_bytes = g_cli_cells->persistent_buf_alloc(room, &g_cli_code_cells);
         reading->file_room = (reading->file_bytes != NULL) ? room : 0ull;
     }
     return reading->file_bytes;
@@ -77,7 +77,7 @@ static unsigned char *cli_file_roomed(void *context, unsigned long long size)
 // where it is refused
 static void *cli_read_moved(void *cell, unsigned long long used, unsigned long long room, const char *what)
 {
-    return cli_cell_regrown(cell, (size_t)used, room, NULL);
+    return cli_cell_regrown(cell, (size_t)used, room, &g_cli_code_cells);
 }
 
 static CliSymbolsReading *s_listing;
@@ -184,7 +184,7 @@ static int cli_symbol_file_put(const CliSymbolsReading *reading, const char *pat
         return 0;
     }
     const unsigned long long symbols_size = s_read_count * sizeof(CliSymbol);
-    char *const cell = g_cli_cells->persistent_buf_alloc(symbols_size + path_length + s_read_used, NULL);
+    char *const cell = g_cli_cells->persistent_buf_alloc(symbols_size + path_length + s_read_used, &g_cli_code_cells);
     if (cell == NULL)
     {
         return 0;
@@ -202,7 +202,7 @@ static int cli_symbol_file_put(const CliSymbolsReading *reading, const char *pat
     else
     {
         memor.cpy(&(MemoriaCfg){.dst = cell + symbols_size, .src = path, .bytes = path_length});
-        cli_cell_release(g_cli_symbol_files[file].cell, NULL);
+        cli_cell_release(g_cli_symbol_files[file].cell, &g_cli_code_cells);
         g_cli_symbol_files[file].cell = cell;
         g_cli_symbol_files[file].path = (unsigned int)symbols_size;
     }
@@ -388,11 +388,11 @@ static void cli_reading(void *context)
         s_read = 1;
         s_read_at = cli_clock_milliseconds();
     }
-    cli_cell_release(reading->read_text, NULL);
-    cli_cell_release(reading->read_symbols, NULL);
-    cli_cell_release(reading->file_bytes, NULL);
+    cli_cell_release(reading->read_text, &g_cli_code_cells);
+    cli_cell_release(reading->read_symbols, &g_cli_code_cells);
+    cli_cell_release(reading->file_bytes, &g_cli_code_cells);
     cli_symbols_languages_given(reading->languages);
-    cli_cell_release(reading, NULL);
+    cli_cell_release(reading, &g_cli_code_cells);
     s_listing = NULL;
     s_running = 0;
     cli_wake_all(&s_wake);
@@ -474,7 +474,8 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
                       ? length
                       : 0ull;
     }
-    s_listing = (languages != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(*s_listing) + listed, NULL) : NULL;
+    s_listing =
+        (languages != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(*s_listing) + listed, &g_cli_code_cells) : NULL;
     if (s_listing == NULL)
     {
         cli_symbols_languages_given(languages);
@@ -519,7 +520,7 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
     if (!s_running)
     {
         cli_symbols_languages_given(s_listing->languages);
-        cli_cell_release(s_listing, NULL);
+        cli_cell_release(s_listing, &g_cli_code_cells);
         s_listing = NULL;
     }
     g_cli_symbols_reading = s_running;

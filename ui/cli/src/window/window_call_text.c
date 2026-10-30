@@ -37,7 +37,7 @@ unsigned int cli_window_tree_called(CliJson *json, const char *name, const char 
     mmgr_line_put(&line, more);
     mmgr_line_ch(&line, '}');
     VerbaLinea answer;
-    if (!cli_growing_line_made(&answer, CLI_WINDOW_TEXT_ANSWER))
+    if (!cli_growing_line_made(&answer, CLI_WINDOW_TEXT_ANSWER, &g_cli_window_text_cells))
     {
         mmgr_line_put(err_msg, "the tree's answer on a text could not be taken");
         return CLI_JSON_NONE;
@@ -45,9 +45,10 @@ unsigned int cli_window_tree_called(CliJson *json, const char *name, const char 
     unsigned int read = CLI_JSON_NONE;
     if (mmgr_line_ok(&line) && cli_window_tree_call(name, args, line.at, &answer, err_msg))
     {
-        read = cli_json_taken(json, answer.out, mmgr_line_ok(&answer) ? answer.at : 0ull, 0u, 0ull, err_msg);
+        read = cli_json_taken(json, answer.out, mmgr_line_ok(&answer) ? answer.at : 0ull, 0u, 0ull, err_msg,
+                              &g_cli_window_text_cells);
     }
-    cli_cell_release(answer.out, NULL);
+    cli_cell_release(answer.out, &g_cli_window_text_cells);
     return read;
 }
 
@@ -330,8 +331,8 @@ static int text_workspace_read(const CliServeArgs *args, VerbaLinea *out, VerbaL
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[1024];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int value =
-        cli_json_taken(&json, plain_buf, mmgr_line_ok(&plain) ? plain.at : 0ull, 0u, 0ull, &unread);
+    const unsigned int value = cli_json_taken(&json, plain_buf, mmgr_line_ok(&plain) ? plain.at : 0ull, 0u, 0ull,
+                                              &unread, &g_cli_window_text_cells);
     cli_cell_release(plain_buf, &g_cli_window_text_cells);
     if (value == CLI_JSON_NONE)
     {

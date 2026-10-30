@@ -160,14 +160,19 @@ def browser_arguments(port):
     return ("%s --remote-debugging-port=%d" % (given, port)).strip()
 
 
+WINDOW_ERRORS = os.path.join(HARNESS_BUILD, "window_errors.txt")
+
+
 def window_started(stdout=None, stderr=None, port=0):
     """The release window started alone, from the repository's top, its id kept, its debugging port on `port` where
-    one is given."""
+    one is given. Its error stream, where the cells' log is written, goes to build/harness/window_errors.txt where the
+    caller names none."""
     windows_ended()
     env = dict(os.environ)
     if port:
         env["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = browser_arguments(port)
-    process = subprocess.Popen([program()], cwd=ROOT, env=env, stdin=subprocess.DEVNULL, stdout=stdout or subprocess.DEVNULL, stderr=stderr or subprocess.DEVNULL)
+    errors = stderr or open(WINDOW_ERRORS, "wb")
+    process = subprocess.Popen([program()], cwd=ROOT, env=env, stdin=subprocess.DEVNULL, stdout=stdout or subprocess.DEVNULL, stderr=errors)
     pid_written(process.pid)
     return process
 

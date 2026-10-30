@@ -13,8 +13,8 @@
 #include "../text/text.h"
 #include <stdlib.h>
 
-// One batch's files waiting for the servers: the batch before it, how many files, and their paths one after another,
-// each ended by a 0; a cell sized to the batch, which the thread takes off and gives back once the servers have
+// One round's files waiting for the servers: the round before it, how many files, and their paths one after another,
+// each ended by a 0; a cell sized to the round, which the thread takes off and gives back once the servers have
 // processed of its files
 typedef struct CliWatchedBatchStruct
 {
@@ -23,7 +23,7 @@ typedef struct CliWatchedBatchStruct
     char room[];
 } CliWatched;
 
-// the batches waiting and how many files they contain, their tree, and whether the thread that takes them started,
+// the rounds waiting and how many files they contain, their tree, and whether the thread that takes them started,
 // under the lock
 static CliWatched *s_waiting;
 static unsigned int s_waiting_files;
@@ -39,19 +39,19 @@ static int watch_order(const void *one, const void *other)
     return cli_text_order(*(const char *const *)one, *(const char *const *)other);
 }
 
-// a chain of batches given back
+// a chain of rounds given back
 static void watch_batches_given(CliWatched *batch)
 {
     while (batch != NULL)
     {
         CliWatched *const next = batch->next;
-        cli_cell_release(batch, NULL);
+        cli_cell_release(batch, &g_cli_window_cells);
         batch = next;
     }
 }
 
-// the batches waiting, taken as one, each file once and in order, those git leaves out passed over, handed to the
-// servers; where no cell meets the files' order, the batches are let go unheard
+// the rounds waiting, taken as one, each file once and in order, those git leaves out passed over, handed to the
+// servers; where no cell meets the files' order, the rounds are let go unheard
 static void watch_taker(void *context)
 {
     (void)context;
@@ -69,7 +69,7 @@ static void watch_taker(void *context)
         s_waiting_files = 0u;
         memor.cpy(&(MemoriaCfg){.dst = root, .src = s_tree, .bytes = sizeof(root)});
         cli_lock_give(&s_lock);
-        const char **const paths = cli_lane_alloc((files + 1ull) * sizeof(const char *), NULL);
+        const char **const paths = cli_lane_alloc((files + 1ull) * sizeof(const char *), &g_cli_window_cells);
         unsigned int count = 0u;
         for (const CliWatched *batch = taken; (paths != NULL) && (batch != NULL); batch = batch->next)
         {
@@ -101,14 +101,14 @@ static void watch_taker(void *context)
         {
             cli_servers_changed(root, paths, unique_count);
         }
-        cli_cell_release(paths, NULL);
+        cli_cell_release(paths, &g_cli_window_cells);
         watch_batches_given(taken);
     }
 }
 
-// a batch of changes sent to the page, each run it wrote noted among the tree's runs and a lost batch marked for them,
+// a round of changes sent to the page, each run it wrote noted among the tree's runs and a lost round marked for them,
 // and its files handed to the thread that takes them to the servers in a cell sized to them; where no cell meets the
-// batch's reading or its files, the page alone is notified of it
+// round's reading or its files, the page alone is notified of it
 static void watch_took(void *context, const char *batch, unsigned long long size)
 {
     (void)context;
@@ -118,7 +118,7 @@ static void watch_took(void *context, const char *batch, unsigned long long size
     CliJson json;
     char quiet[256];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
-    const unsigned int root = cli_json_taken(&json, batch, size, 0u, 0ull, &err_msg);
+    const unsigned int root = cli_json_taken(&json, batch, size, 0u, 0ull, &err_msg, &g_cli_window_cells);
     const unsigned int lost = cli_json_member(&json, root, "lost");
     if (rooted && cli_json_is(&json, lost, CFG_JSON_TRUE))
     {
@@ -143,7 +143,7 @@ static void watch_took(void *context, const char *batch, unsigned long long size
         }
     }
     CliWatched *const watched =
-        (count != 0u) ? g_cli_cells->persistent_buf_alloc(sizeof(CliWatched) + bytes, NULL) : NULL;
+        (count != 0u) ? g_cli_cells->persistent_buf_alloc(sizeof(CliWatched) + bytes, &g_cli_window_cells) : NULL;
     unsigned long long used = 0ull;
     for (unsigned int one = (watched != NULL) ? first : CLI_JSON_NONE; one != CLI_JSON_NONE; one = json.node[one].next)
     {

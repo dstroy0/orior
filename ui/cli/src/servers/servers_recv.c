@@ -58,7 +58,8 @@ static void recv_diagnostics(const CliServersSink *sink, const char *params, uns
     char path[CLI_PATH_MAX_LEN];
     const int sliced = cli_lsp_path_of(uri, uri_size, path) && cli_servers_sliced(path);
     char *const mapped =
-        sliced ? cli_servers_slice_diagnostics(path, params, size, all, all_length, &all_length) : NULL;
+        sliced ? cli_servers_slice_diagnostics(path, params, size, all, all_length, &all_length, &g_cli_servers_cells)
+               : NULL;
     if (sliced && (mapped == NULL))
     {
         return;
@@ -69,14 +70,14 @@ static void recv_diagnostics(const CliServersSink *sink, const char *params, uns
     if ((recv_empty_array(all, all_length) && cli_servers_letting_go(key)) ||
         cli_servers_gathered(key, all, all_length))
     {
-        cli_cell_release(mapped, NULL);
+        cli_cell_release(mapped, &g_cli_servers_cells);
         return;
     }
     cli_servers_woken(key);
     cli_lock_take(&g_cli_servers_published_lock);
     (void)cli_keyed_put(&g_cli_servers_published, key, uri, all, all_length);
     cli_lock_give(&g_cli_servers_published_lock);
-    cli_cell_release(mapped, NULL);
+    cli_cell_release(mapped, &g_cli_servers_cells);
     cli_servers_emit_whole(key, uri, sink);
 }
 
@@ -88,7 +89,7 @@ static void recv_edit(const CliServersSink *sink, const char *params, unsigned l
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea edits_line;
-    cli_pieces_begun(&pieces, &edits_line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &edits_line, piece, sizeof(piece), &g_cli_servers_cells);
     cli_servers_workspace_edit_of(&s_reading.json, cli_json_member(&s_reading.json, root, "edit"), sink->tree,
                                   &edits_line);
     unsigned long long edits_size = 0ull;
@@ -97,7 +98,7 @@ static void recv_edit(const CliServersSink *sink, const char *params, unsigned l
     {
         sink->emit(sink->context, "lsp-edits", edits, edits_size);
     }
-    cli_cell_release(edits, NULL);
+    cli_cell_release(edits, &g_cli_servers_cells);
     cli_servers_reading_released(&s_reading);
 }
 

@@ -126,7 +126,7 @@ int cli_toolchains_path_of_shell(const char *shell, char *path, unsigned long lo
 static void cli_shell_reading(void *context)
 {
     const char *const shell = (const char *)context;
-    char *const text = cli_lane_alloc(CLI_PATH_TEXT, NULL);
+    char *const text = cli_lane_alloc(CLI_PATH_TEXT, &g_cli_toolchains_cells);
     const int read = (text != NULL) && cli_toolchains_path_of_shell(shell, text, CLI_PATH_TEXT);
     cli_lock_take(&s_lock);
     if (read)
@@ -137,7 +137,7 @@ static void cli_shell_reading(void *context)
         s_shell_read = 1;
     }
     cli_lock_give(&s_lock);
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_toolchains_cells);
 }
 
 // the login shell's PATH into `path`: 1 once it has been read, its reading begun the first time it is requested
@@ -217,7 +217,7 @@ static unsigned int cli_split(const char *text, char (*folders)[CLI_PATH_MAX_LEN
 static unsigned int cli_registry_folders(char (*folders)[CLI_PATH_MAX_LEN], unsigned int count, unsigned int room)
 {
     // the PATH as the registry stores it and as it reads expanded, a cell of the two
-    char *const registry_buf = cli_lane_alloc(2ull * CLI_PATH_TEXT, NULL);
+    char *const registry_buf = cli_lane_alloc(2ull * CLI_PATH_TEXT, &g_cli_toolchains_cells);
     char *const expanded = (registry_buf != NULL) ? registry_buf + CLI_PATH_TEXT : NULL;
     if ((registry_buf != NULL) && cli_registry_machine_path(registry_buf, CLI_PATH_TEXT))
     {
@@ -229,13 +229,13 @@ static unsigned int cli_registry_folders(char (*folders)[CLI_PATH_MAX_LEN], unsi
         cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
         count = cli_split(expanded, folders, count, room);
     }
-    cli_cell_release(registry_buf, NULL);
+    cli_cell_release(registry_buf, &g_cli_toolchains_cells);
     return count;
 }
 
 unsigned int cli_toolchains_path_folders(char (*folders)[CLI_PATH_MAX_LEN], unsigned int room)
 {
-    char *const text = cli_lane_alloc(CLI_PATH_TEXT, NULL);
+    char *const text = cli_lane_alloc(CLI_PATH_TEXT, &g_cli_toolchains_cells);
     unsigned int count = cli_toolchains_tree_tools(folders, room);
     count = cli_registry_folders(folders, count, room);
     if ((text != NULL) && query_environment_read("PATH", text, CLI_PATH_TEXT))
@@ -246,7 +246,7 @@ unsigned int cli_toolchains_path_folders(char (*folders)[CLI_PATH_MAX_LEN], unsi
     {
         count = cli_split(text, folders, count, room);
     }
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_toolchains_cells);
     return count;
 }
 
@@ -261,10 +261,10 @@ static unsigned int cli_parts(const char *text)
     return parts;
 }
 
-char (*cli_toolchains_path_taken(unsigned int *count)) [CLI_PATH_MAX_LEN] {
+char (*cli_toolchains_path_taken(unsigned int *count, CellOwner *owner)) [CLI_PATH_MAX_LEN] {
     // the most folders the tree's tools, the registry's two paths, the PATH and the shell's PATH name, counted from
     // their texts as cli_toolchains_path_folders reads them
-    char *const text = g_cli_cells->persistent_buf_alloc(2ull * CLI_PATH_TEXT, NULL);
+    char *const text = g_cli_cells->persistent_buf_alloc(2ull * CLI_PATH_TEXT, &g_cli_toolchains_cells);
     char *const expanded = (text != NULL) ? text + CLI_PATH_TEXT : NULL;
     if (text == NULL)
     {
@@ -284,9 +284,9 @@ char (*cli_toolchains_path_taken(unsigned int *count)) [CLI_PATH_MAX_LEN] {
     }
     most += query_environment_read("PATH", text, CLI_PATH_TEXT) ? cli_parts(text) : 0u;
     most += cli_shell_path(text, CLI_PATH_TEXT) ? cli_parts(text) : 0u;
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_toolchains_cells);
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, NULL);
+        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, owner);
     *count = (folders != NULL) ? cli_toolchains_path_folders(folders, most) : 0u;
     return folders;
 }
@@ -294,13 +294,13 @@ char (*cli_toolchains_path_taken(unsigned int *count)) [CLI_PATH_MAX_LEN] {
 int cli_toolchains_on_path(const char *const *names, unsigned int count, char *program)
 {
     unsigned int folders = 0u;
-    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders, &g_cli_toolchains_cells);
     int found = 0;
     for (unsigned int at = 0u; !found && (at < folders); at += 1u)
     {
         found = cli_toolchains_program_in(path[at], names, count, program);
     }
-    cli_cell_release(path, NULL);
+    cli_cell_release(path, &g_cli_toolchains_cells);
     return found;
 }
 
@@ -309,11 +309,11 @@ unsigned int cli_toolchains_system_path(char (*folders)[CLI_PATH_MAX_LEN], unsig
 #if defined(_WIN32)
     return cli_registry_folders(folders, 0u, room);
 #else
-    char *const text = cli_lane_alloc(CLI_PATH_TEXT, NULL);
+    char *const text = cli_lane_alloc(CLI_PATH_TEXT, &g_cli_toolchains_cells);
     const unsigned int count = ((text != NULL) && query_environment_read("PATH", text, CLI_PATH_TEXT))
                                    ? cli_split(text, folders, 0u, room)
                                    : 0u;
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_toolchains_cells);
     return count;
 #endif
 }
@@ -367,7 +367,7 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
                                   unsigned long long size)
 {
     unsigned int path_count = 0u;
-    char (*const path_folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&path_count);
+    char (*const path_folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&path_count, &g_cli_toolchains_cells);
     CliTreeEnvironment environment;
     const unsigned int bins = cli_toolchains_environment(&environment) ? environment.bins : 0u;
     CliChosenFolders counted = {NULL, 0u, 0u};
@@ -376,10 +376,10 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
     // of their count
     const unsigned int most = count + bins + CLI_TREE_TOOLS + counted.count + path_count;
     char (*const folders)[CLI_PATH_MAX_LEN] =
-        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, NULL);
+        g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, &g_cli_toolchains_cells);
     if (folders == NULL)
     {
-        cli_cell_release(path_folders, NULL);
+        cli_cell_release(path_folders, &g_cli_toolchains_cells);
         query_environment_read("PATH", path, size);
         return;
     }
@@ -389,7 +389,7 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
     CliChosenFolders chosen = {folders, listed, most};
     cli_toolchains_chosen_each(cli_chosen_each, &chosen);
     listed = cli_folders_put(folders, chosen.count, most, (const char (*)[CLI_PATH_MAX_LEN])path_folders, path_count);
-    cli_cell_release(path_folders, NULL);
+    cli_cell_release(path_folders, &g_cli_toolchains_cells);
     // each folder once by its key, in order
     VerbaLinea line = {path, size, 0ull};
     unsigned int folder_count = 0u;
@@ -414,7 +414,7 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
             folder_count += 1u;
         }
     }
-    cli_cell_release(folders, NULL);
+    cli_cell_release(folders, &g_cli_toolchains_cells);
     if (mmgr_line_finish(&line) == 0ull)
     {
         query_environment_read("PATH", path, size);

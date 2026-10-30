@@ -73,7 +73,7 @@ static void cli_state_read(CliJson *json, const char *path, unsigned int *truste
 {
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_file_taken(json, path, 0u, 0ull, &err_msg);
+    const unsigned int root = cli_json_file_taken(json, path, 0u, 0ull, &err_msg, &g_cli_machine_cells);
     const int object = cli_json_is(json, root, CFG_JSON_OBJECT);
     *trusted = object ? cli_json_member(json, root, "trusted") : CLI_JSON_NONE;
     *refused = object ? cli_json_member(json, root, "refused") : CLI_JSON_NONE;
@@ -151,7 +151,7 @@ int cli_trust_set_in(const char *path, const char *folder, int trusted, VerbaLin
     // the answers stored, made in a tree of the room of those read and of the folder answered
     CliJson json = {0};
     int done = cli_json_reserved(&json, read.nodes + CLI_TRUST_NODES_MORE, read.used + key_length + CLI_TRUST_TEXT_MORE,
-                                 "the answers stored");
+                                 "the answers stored", &g_cli_machine_cells);
     const unsigned int trust_obj = cli_json_made(&json, CFG_JSON_OBJECT);
     const unsigned int yes_list = cli_json_made(&json, CFG_JSON_ARRAY);
     const unsigned int no_list = cli_json_made(&json, CFG_JSON_ARRAY);
@@ -174,7 +174,7 @@ int cli_trust_set_in(const char *path, const char *folder, int trusted, VerbaLin
         done = 0;
     }
     VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&out, CLI_TRUST_WRITTEN_FIRST);
+    (void)cli_growing_line_made(&out, CLI_TRUST_WRITTEN_FIRST, &g_cli_machine_cells);
     cli_json_write(&json, trust_obj, &out, 2u, 0);
     if (done && (!mmgr_line_ok(&out) || !query_file_written(path, out.out, out.at)))
     {
@@ -182,7 +182,7 @@ int cli_trust_set_in(const char *path, const char *folder, int trusted, VerbaLin
         mmgr_line_put(err_msg, ": it could not be written");
         done = 0;
     }
-    cli_cell_release(out.out, NULL);
+    cli_cell_release(out.out, &g_cli_machine_cells);
     cli_json_given(&json);
     cli_lock_give(&s_trust_lock);
     if (done)

@@ -214,9 +214,9 @@ static int cli_over_named(CliOver *over, const char *into, const char *name, cha
     CliJson json = {0};
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = mmgr_line_ok(&over->answer)
-                                  ? cli_json_taken(&json, over->answer.out, over->answer.at, 0u, 0ull, &unread)
-                                  : CLI_JSON_NONE;
+    const unsigned int root = mmgr_line_ok(&over->answer) ? cli_json_taken(&json, over->answer.out, over->answer.at, 0u,
+                                                                           0ull, &unread, &g_cli_editor_cells)
+                                                          : CLI_JSON_NONE;
     unsigned long long length = 0ull;
     const char *const named = (root != CLI_JSON_NONE) ? cli_json_string(&json, root, &length) : NULL;
     const int fits = (named != NULL) && (length < CLI_PATH_MAX_LEN);
@@ -278,10 +278,10 @@ int cli_files_bring_over(CliCall call, void *call_context, const char *into, con
                     context,
                     {NULL, 0ull, 0ull, NULL, NULL, 0ull},
                     {NULL, 0ull, 0ull, NULL, NULL, 0ull}};
-    (void)cli_growing_line_made(&over.arguments, CLI_OVER_ARGUMENTS_FIRST);
-    (void)cli_growing_line_made(&over.answer, CLI_OVER_ANSWER_FIRST);
+    (void)cli_growing_line_made(&over.arguments, CLI_OVER_ARGUMENTS_FIRST, &g_cli_editor_cells);
+    (void)cli_growing_line_made(&over.answer, CLI_OVER_ANSWER_FIRST, &g_cli_editor_cells);
     const int brought = cli_over_brought(&over, into, from, count, out, err_msg);
-    cli_cell_release(over.arguments.out, NULL);
-    cli_cell_release(over.answer.out, NULL);
+    cli_cell_release(over.arguments.out, &g_cli_editor_cells);
+    cli_cell_release(over.answer.out, &g_cli_editor_cells);
     return brought;
 }

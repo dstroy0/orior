@@ -90,10 +90,11 @@ static int at(unsigned long long line, unsigned long long col, unsigned long lon
 static int reads(unsigned long long first, unsigned long long last, const char *wanted)
 {
     unsigned long long size = 0ull;
-    char *const lines = cli_document_lines_taken(s_key, first, last - 1ull, &size, NULL, 0ull);
-    const int same = (lines != NULL) && (size == cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL})) &&
+    char *const lines = cli_document_lines_taken(s_key, first, last - 1ull, &size, NULL, 0ull, &g_checks_cells);
+    const int same = (lines != NULL) &&
+                     (size == cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL})) &&
                      (memor.cmp(&(MemoriaCfg){.src = lines, .other = wanted, .bytes = size}) == 0);
-    cli_cell_release(lines, NULL);
+    cli_cell_release(lines, &g_checks_cells);
     return same;
 }
 
@@ -179,7 +180,8 @@ int main(void)
     cli_check(key("PageDown") && at(2ull, 0ull, 2ull, 0ull), "PageDown moves the rows less one");
     cli_check(key("Down") && key("Down") && key("Down") && at(4ull, 0ull, 4ull, 0ull), "Down stops at the last line");
 
-    cli_check(key("Mod+Home") && key("End") && given(&(CliViewInput){CLI_VIEW_TEXT, NULL, "(void)", 6ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 0u, 0u}) &&
+    cli_check(key("Mod+Home") && key("End") &&
+                  given(&(CliViewInput){CLI_VIEW_TEXT, NULL, "(void)", 6ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 0u, 0u}) &&
                   reads(0ull, 1ull, "int main(void)") && at(0ull, 14ull, 0ull, 14ull),
               "text typed is written at the cursor, which follows it");
     cli_check(key("Backspace") && reads(0ull, 1ull, "int main(void") && at(0ull, 13ull, 0ull, 13ull),
@@ -189,7 +191,8 @@ int main(void)
     cli_check(key("Mod+Z") && reads(0ull, 1ull, "int main") && at(0ull, 8ull, 0ull, 8ull),
               "undo takes the typing out as one step");
     cli_check(key("Mod+Y") && reads(0ull, 1ull, "int main(void)"), "redo puts the typing back");
-    cli_check(key("Enter") && reads(0ull, 2ull, "int main(void)\n") && (lines_now() == 6ull) && at(1ull, 0ull, 1ull, 0ull),
+    cli_check(key("Enter") && reads(0ull, 2ull, "int main(void)\n") && (lines_now() == 6ull) &&
+                  at(1ull, 0ull, 1ull, 0ull),
               "Enter breaks the line");
     cli_check(key("Backspace") && (lines_now() == 5ull) && at(0ull, 14ull, 0ull, 14ull),
               "Backspace at a line's start joins it to the one before");
@@ -206,7 +209,8 @@ int main(void)
               "Backspace in the indentation takes a step");
     cli_check(key("Shift+Right") && key("Shift+Right") && at(2ull, 2ull, 2ull, 0ull), "Shift+Right extends");
     cli_check(key("Escape") && at(2ull, 2ull, 2ull, 2ull), "Escape collapses the selection");
-    cli_check(key("Shift+Left") && key("Shift+Left") && given(&(CliViewInput){CLI_VIEW_TEXT, NULL, "\t", 1ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 0u, 0u}) &&
+    cli_check(key("Shift+Left") && key("Shift+Left") &&
+                  given(&(CliViewInput){CLI_VIEW_TEXT, NULL, "\t", 1ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 0u, 0u}) &&
                   reads(2ull, 3ull, "\t  return 0;") && at(2ull, 1ull, 2ull, 1ull),
               "text typed replaces the selection");
     cli_check(key("Mod+Z") && reads(2ull, 3ull, "    return 0;") && at(2ull, 0ull, 2ull, 2ull),
@@ -226,7 +230,8 @@ int main(void)
     const CliViewInput twice = view_pointer(CLI_VIEW_POINTER_DOWN, 2ull, 6ull, 2u, 0);
     cli_check(given(&twice) && at(2ull, 10ull, 2ull, 4ull), "a double press takes the word");
     const CliViewInput past = view_pointer(CLI_VIEW_POINTER_DOWN, 0ull, 40ull, 1u, 0);
-    cli_check(given(&past) && at(0ull, 14ull, 0ull, 14ull), "the pointer past a line's end places the cursor at its end");
+    cli_check(given(&past) && at(0ull, 14ull, 0ull, 14ull),
+              "the pointer past a line's end places the cursor at its end");
 
     CliViewInput scroll = view_key("");
     scroll.kind = CLI_VIEW_SCROLL;
@@ -242,7 +247,8 @@ int main(void)
     VerbaLinea mapped = {s_out, sizeof(s_out), 0ull};
     cli_check(cli_view_map_written(s_key, 0ull, 4ull, &mapped) && (mmgr_line_finish(&mapped) != 0ull),
               "the map of the lines is written");
-    cli_check(frame_has("{\"from\":0,\"bars\":[[[0,3,"), "the map's first line begins with a bar as wide as its first word");
+    cli_check(frame_has("{\"from\":0,\"bars\":[[[0,3,"),
+              "the map's first line begins with a bar as wide as its first word");
     cli_check(frame_has("],[4,4,"), "the second word's bar starts at its cell");
     cli_check(frame_has("],[[0,1,"), "a line of one letter is one bar");
     cli_check(frame_has("],[[4,6,"), "an indented line's first bar starts past the indentation");
@@ -253,11 +259,14 @@ int main(void)
     static const char s_key2[] = "check:words";
     static const char s_text2[] = "alpha beta\nalp gamma\n";
     CliShape shape2;
-    cli_check(cli_document_store(s_key2, s_text2, sizeof(s_text2) - 1u, &shape2) && cli_view_opened(s_key2, "check/words.txt"),
+    cli_check(cli_document_store(s_key2, s_text2, sizeof(s_text2) - 1u, &shape2) &&
+                  cli_view_opened(s_key2, "check/words.txt"),
               "a second text is stored and viewed");
     const CliViewInput sized2 = {CLI_VIEW_SIZE, NULL, NULL, 0ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 10u, 40u, 0};
-    const CliViewInput pressed2 = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
-    const CliViewInput let_go2 = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_UP, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
+    const CliViewInput pressed2 = {
+        CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
+    const CliViewInput let_go2 = {
+        CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_UP, 1ull, 3ull, 1u, 0, 0ull, 0u, 0u, 0};
     cli_check(cli_view_input(s_key2, &sized2, &why) && cli_view_input(s_key2, &pressed2, &why) &&
                   cli_view_input(s_key2, &let_go2, &why),
               "a press puts the cursor after alp");
@@ -267,28 +276,32 @@ int main(void)
     cli_check(cli_view_word_at(s_key2, 0ull, 7ull, &from, &to, word, sizeof(word)) && (from == 6ull) && (to == 10ull) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "beta", .cap = sizeof(word)}),
               "the word at a place is the word the place touches");
-    cli_check(cli_view_word_at(s_key2, 0ull, 10ull, &from, &to, word, sizeof(word)) && (from == 6ull), "a place at a word's end touches it");
+    cli_check(cli_view_word_at(s_key2, 0ull, 10ull, &from, &to, word, sizeof(word)) && (from == 6ull),
+              "a place at a word's end touches it");
     cli_check(cli_view_word_at(s_key2, 0ull, 5ull, &from, &to, word, sizeof(word)) && (from == 0ull) && (to == 5ull),
               "a place after a word's last letter touches it");
     cli_check(!cli_view_word_at(s_key2, 2ull, 0ull, &from, &to, word, sizeof(word)), "an empty line has no word");
     unsigned long long placed_line = 0ull;
     unsigned long long placed_col = 0ull;
-    cli_check(cli_view_place_at(s_key2, 1ull, 7ull, &placed_line, &placed_col) && (placed_line == 1ull) && (placed_col == 7ull),
+    cli_check(cli_view_place_at(s_key2, 1ull, 7ull, &placed_line, &placed_col) && (placed_line == 1ull) &&
+                  (placed_col == 7ull),
               "a row and a cell from the view's top place a line and a column");
-    cli_check(cli_view_place_at(s_key2, 0ull, 40ull, &placed_line, &placed_col) && (placed_line == 0ull) && (placed_col == 10ull),
+    cli_check(cli_view_place_at(s_key2, 0ull, 40ull, &placed_line, &placed_col) && (placed_line == 0ull) &&
+                  (placed_col == 10ull),
               "a cell past the line's end places its end");
     cli_check(cli_view_prefix(s_key2, &from, word, sizeof(word)) && (from == 0ull) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = word, .other = "alp", .cap = sizeof(word)}),
               "the prefix is the word before the cursor");
     VerbaLinea words = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_view_words_written(s_key2, &words) && (mmgr_line_finish(&words) != 0ull) && frame_has("{\"label\":\"alpha\",\"kind\":\"word\",\"insert\":\"alpha\"}") &&
+    cli_check(cli_view_words_written(s_key2, &words) && (mmgr_line_finish(&words) != 0ull) &&
+                  frame_has("{\"label\":\"alpha\",\"kind\":\"word\",\"insert\":\"alpha\"}") &&
                   frame_has("\"label\":\"gamma\"") && !frame_has("\"label\":\"alp\""),
               "the file's words are items, the word at the cursor left out");
     const CliViewInput completed = {CLI_VIEW_COMPLETE, NULL, "alphabet", 8ull, 0u, 0ull, 3ull, 0u, 0, 0ull, 0u, 0u, 0};
     cli_check(cli_view_input(s_key2, &completed, &why), "a completion accepted is written");
     VerbaLinea frame2 = {s_out, sizeof(s_out), 0ull};
-    cli_check(cli_view_frame_written(s_key2, &frame2) && (mmgr_line_finish(&frame2) != 0ull) && frame_has("\"alphabet gamma\"") &&
-                  frame_has("\"cursor\":{\"line\":1,\"col\":8}"),
+    cli_check(cli_view_frame_written(s_key2, &frame2) && (mmgr_line_finish(&frame2) != 0ull) &&
+                  frame_has("\"alphabet gamma\"") && frame_has("\"cursor\":{\"line\":1,\"col\":8}"),
               "the completion's text replaces the prefix, the cursor after it");
     cli_check(cli_view_changed_taken(s_key2) && !cli_view_changed_taken(s_key2), "the change is reported once");
     const CliViewInput placed = {CLI_VIEW_PLACE, NULL, NULL, 0ull, 0u, 0ull, 7ull, 0u, 0, 0ull, 0u, 0u, 0};
@@ -302,10 +315,12 @@ int main(void)
                   (placed_cursor.line == 2ull) && (placed_cursor.col == 0ull),
               "a place past the text is cut to its last line and that line's end");
     char full[CLI_PATH_MAX_LEN];
-    cli_check(!cli_view_served(s_key2, full) && cli_view_served_set(s_key2, "/tree/check/words.txt") && cli_view_served(s_key2, full) &&
+    cli_check(!cli_view_served(s_key2, full) && cli_view_served_set(s_key2, "/tree/check/words.txt") &&
+                  cli_view_served(s_key2, full) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "/tree/check/words.txt", .cap = sizeof(full)}),
               "a view served records the server's path");
-    cli_check(cli_view_path(s_key2, full) && cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "check/words.txt", .cap = sizeof(full)}),
+    cli_check(cli_view_path(s_key2, full) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = full, .other = "check/words.txt", .cap = sizeof(full)}),
               "the view's path is the file's");
     cli_view_closed(s_key2);
     cli_document_release(s_key2);
@@ -327,7 +342,8 @@ int main(void)
                   frame_has("\"top\":1,"),
               "the view follows the cursor as it moves out of view");
     VerbaLinea paired = {s_out, sizeof(s_out), 0ull};
-    cli_check(key("Mod+Home") && key("End") && cli_view_frame_written(s_key, &paired) && (mmgr_line_finish(&paired) != 0ull) &&
+    cli_check(key("Mod+Home") && key("End") && cli_view_frame_written(s_key, &paired) &&
+                  (mmgr_line_finish(&paired) != 0ull) &&
                   frame_has("\"pair\":[{\"line\":0,\"col\":13},{\"line\":0,\"col\":8}]"),
               "the frame carries the bracket pair at the cursor, the bracket that ends there first");
     paired = (VerbaLinea){s_out, sizeof(s_out), 0ull};
@@ -348,7 +364,8 @@ int main(void)
               "the frame's rows step over the lines the fold hides, the fold carried closed with its closer's text");
     cli_check(key("Down") && at(4ull, 0ull, 4ull, 0ull), "Down steps over the lines hidden");
     cli_check(key("Up") && at(1ull, 1ull, 1ull, 1ull), "Up steps back over them");
-    cli_check(key("Right") && at(4ull, 0ull, 4ull, 0ull), "Right at the folded line's end goes to the line after the fold");
+    cli_check(key("Right") && at(4ull, 0ull, 4ull, 0ull),
+              "Right at the folded line's end goes to the line after the fold");
     cli_check(key("Left") && at(1ull, 1ull, 1ull, 1ull), "Left from there goes back to the folded line's end");
     cli_check(key("Mod+Home") &&
                   given(&(CliViewInput){CLI_VIEW_TEXT, NULL, "x\n", 2ull, 0u, 0ull, 0ull, 0u, 0, 0ull, 0u, 0u, 0}) &&
@@ -361,7 +378,8 @@ int main(void)
               "the fold moves down with the line put above it and stays closed");
     cli_check(key("Mod+Z") && at(0ull, 0ull, 0ull, 0ull), "undo takes the line out");
     cli_document_walked();
-    const CliViewInput gutter = {CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 0ull, 1u, 0, 0ull, 0u, 0u, 1};
+    const CliViewInput gutter = {
+        CLI_VIEW_POINTER, NULL, NULL, 0ull, CLI_VIEW_POINTER_DOWN, 1ull, 0ull, 1u, 0, 0ull, 0u, 0u, 1};
     folded = (VerbaLinea){s_out, sizeof(s_out), 0ull};
     cli_check(given(&gutter) && at(0ull, 0ull, 0ull, 0ull) && cli_view_frame_written(s_key, &folded) &&
                   (mmgr_line_finish(&folded) != 0ull) && frame_has("\"numbers\":[0,1,2]") &&
@@ -381,14 +399,16 @@ int main(void)
               "an opener typed brings its closer, the cursor between them");
     cli_check(typed(")") && reads(4ull, 5ull, "()") && at(4ull, 2ull, 4ull, 2ull),
               "a closer typed before itself steps over it");
-    cli_check(typed("\"") && reads(4ull, 5ull, "()\"\"") && at(4ull, 3ull, 4ull, 3ull), "a quote typed brings its mate");
-    cli_check(typed("\"") && reads(4ull, 5ull, "()\"\"") && at(4ull, 4ull, 4ull, 4ull), "a quote typed before its mate steps over it");
+    cli_check(typed("\"") && reads(4ull, 5ull, "()\"\"") && at(4ull, 3ull, 4ull, 3ull),
+              "a quote typed brings its mate");
+    cli_check(typed("\"") && reads(4ull, 5ull, "()\"\"") && at(4ull, 4ull, 4ull, 4ull),
+              "a quote typed before its mate steps over it");
     cli_check(key("Left") && key("Backspace") && reads(4ull, 5ull, "()") && at(4ull, 2ull, 4ull, 2ull),
               "Backspace between a pair takes both out");
     cli_check(key("Left") && key("Backspace") && reads(4ull, 5ull, "") && at(4ull, 0ull, 4ull, 0ull),
               "Backspace between a bracket pair takes both out");
-    cli_check(key("Shift+Home") && key("Mod+Home") && key("End") && key("Shift+Left") && key("Shift+Left") && key("Shift+Left") &&
-                  key("Shift+Left") && key("Shift+Left") && key("Shift+Left") && typed("[") &&
+    cli_check(key("Shift+Home") && key("Mod+Home") && key("End") && key("Shift+Left") && key("Shift+Left") &&
+                  key("Shift+Left") && key("Shift+Left") && key("Shift+Left") && key("Shift+Left") && typed("[") &&
                   reads(0ull, 1ull, "int main[(void)]") && at(0ull, 15ull, 0ull, 9ull),
               "an opener typed around a selection wraps it, the selection kept inside");
     cli_check(key("Mod+Z") && reads(0ull, 1ull, "int main(void)"), "undo takes the wrap out");
@@ -407,12 +427,14 @@ int main(void)
     // matches among the rows, Enter selects the next match, Escape closes the bar
     VerbaLinea found = {s_out, sizeof(s_out), 0ull};
     cli_check(key("Mod+F") && cli_view_frame_written(s_key, &found) && (mmgr_line_finish(&found) != 0ull) &&
-                  frame_has("\"find\":{\"open\":1,\"focus\":1,\"query\":\"\",\"at\":0,\"regex\":0,\"case\":0,\"word\":0,\"count\":0,\"current\":null}"),
+                  frame_has("\"find\":{\"open\":1,\"focus\":1,\"query\":\"\",\"at\":0,\"regex\":0,\"case\":0,\"word\":"
+                            "0,\"count\":0,\"current\":null}"),
               "Mod+F opens find, its query empty and the keys its own");
     found = (VerbaLinea){s_out, sizeof(s_out), 0ull};
-    cli_check(typed("r") && typed("e") && typed("t") && typed("u") && typed("r") && typed("n") && reads(9ull, 10ull, "    ") &&
-                  cli_view_frame_written(s_key, &found) && (mmgr_line_finish(&found) != 0ull) &&
-                  frame_has("\"query\":\"return\",\"at\":6,") && frame_has("\"count\":1,\"current\":0}"),
+    cli_check(typed("r") && typed("e") && typed("t") && typed("u") && typed("r") && typed("n") &&
+                  reads(9ull, 10ull, "    ") && cli_view_frame_written(s_key, &found) &&
+                  (mmgr_line_finish(&found) != 0ull) && frame_has("\"query\":\"return\",\"at\":6,") &&
+                  frame_has("\"count\":1,\"current\":0}"),
               "letters typed go to the query, not the text, and the text is searched");
     found = (VerbaLinea){s_out, sizeof(s_out), 0ull};
     cli_check(key("Enter") && at(2ull, 10ull, 2ull, 4ull) && cli_view_frame_written(s_key, &found) &&
@@ -428,7 +450,8 @@ int main(void)
                   frame_has("\"find\":null,\"matches\":[]"),
               "Escape closes find");
     cli_check(key("Mod+Home") && key("Mod+Shift+Right") && at(0ull, 3ull, 0ull, 0ull) && key("Mod+F") && key("Alt+W") &&
-                  key("Enter") && at(0ull, 3ull, 0ull, 0ull) && key("Escape") && key("End") && key("F3") && at(0ull, 3ull, 0ull, 0ull),
+                  key("Enter") && at(0ull, 3ull, 0ull, 0ull) && key("Escape") && key("End") && key("F3") &&
+                  at(0ull, 3ull, 0ull, 0ull),
               "Mod+F takes a selection on one line as the query, and F3 seeks it again with find closed");
 
     cli_view_closed(s_key);
@@ -469,7 +492,8 @@ int main(void)
     size.rows = 10u;
     cli_check(cli_view_input(s_paged, &size, &err_msg), "the paged view is sized ten rows");
     cli_check(paged_key("Mod+End") && paged_at(300ull, 0ull), "Mod+End moves to the paged text's last line");
-    cli_check(paged_key("Up") && paged_key("End") && paged_at(299ull, 13ull), "End finds the line's end through the pages");
+    cli_check(paged_key("Up") && paged_key("End") && paged_at(299ull, 13ull),
+              "End finds the line's end through the pages");
     cli_check(paged_key("Mod+Left") && paged_at(299ull, 9ull), "Mod+Left moves a word through the pages");
     VerbaLinea frame = {s_out, sizeof(s_out), 0ull};
     cli_check(cli_view_frame_written(s_paged, &frame) && (mmgr_line_finish(&frame) != 0ull) &&
@@ -499,9 +523,11 @@ int main(void)
                   (mmgr_line_finish(&frame) != 0ull) && frame_has("\"line 299 abchere\""),
               "letters typed one at a time into the paged text each land after the last");
     cli_check(paged_key("Mod+Z") && paged_at(299ull, 9ull), "undo takes the three letters out as one step");
-    cli_check(paged_key("Enter") && paged_at(300ull, 0ull) && cli_pages_counted(s_paged, &lines, &whole) && (lines == 302ull),
+    cli_check(paged_key("Enter") && paged_at(300ull, 0ull) && cli_pages_counted(s_paged, &lines, &whole) &&
+                  (lines == 302ull),
               "Enter breaks a paged line");
-    cli_check(paged_key("Backspace") && paged_at(299ull, 9ull) && cli_pages_counted(s_paged, &lines, &whole) && (lines == 301ull),
+    cli_check(paged_key("Backspace") && paged_at(299ull, 9ull) && cli_pages_counted(s_paged, &lines, &whole) &&
+                  (lines == 301ull),
               "Backspace joins it again");
     cli_view_closed(s_paged);
     cli_document_release(s_paged);

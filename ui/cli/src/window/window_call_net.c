@@ -61,7 +61,7 @@ static int net_catalog_install(const CliServeArgs *args, VerbaLinea *out, VerbaL
         return 0;
     }
     VerbaLinea entry;
-    if (!cli_growing_line_made(&entry, CLI_WINDOW_ENTRY_FIRST))
+    if (!cli_growing_line_made(&entry, CLI_WINDOW_ENTRY_FIRST, &g_cli_window_cells))
     {
         mmgr_line_put(err_msg, "the catalog's entry could not be stored");
         return 0;
@@ -75,7 +75,7 @@ static int net_catalog_install(const CliServeArgs *args, VerbaLinea *out, VerbaL
     {
         cli_window_counted(out, folder_text, mmgr_line_ok(&folder) ? folder.at : 0ull);
     }
-    cli_cell_release(entry.out, NULL);
+    cli_cell_release(entry.out, &g_cli_window_cells);
     return installed;
 }
 

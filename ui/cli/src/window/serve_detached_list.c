@@ -126,7 +126,8 @@ int cli_serve_runs_detached(const CliServeArgs *args, VerbaLinea *out, VerbaLine
         cli_json_given(&s_list_room->json);
         char quiet[256];
         VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-        const unsigned int spec = cli_json_file_taken(&s_list_room->json, path, 0u, 0ull, &ignored);
+        const unsigned int spec =
+            cli_json_file_taken(&s_list_room->json, path, 0u, 0ull, &ignored, &g_cli_window_cells);
         const char *const tree =
             cli_json_string(&s_list_room->json, cli_json_member(&s_list_room->json, spec, "root"), NULL);
         if ((tree == NULL) || (!cellul.eq(&(CatenaFinitaCfg){.src = tree, .other = root, .cap = CLI_CELLS_POOL})))
@@ -168,7 +169,7 @@ int cli_serve_runs_detached(const CliServeArgs *args, VerbaLinea *out, VerbaLine
         written = 1;
     }
     cli_json_given(&s_list_room->json);
-    cli_cell_release(s_list_room, NULL);
+    cli_cell_release(s_list_room, &g_cli_window_cells);
     s_list_room = NULL;
     cli_lock_give(&s_list_lock);
     mmgr_line_ch(out, ']');

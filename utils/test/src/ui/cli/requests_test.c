@@ -148,7 +148,8 @@ static void requests_values(void)
             (cellul.eq(&(CatenaFinitaCfg){.src = requests_value("who"), .other = "all", .cap = CLI_CELLS_POOL})),
         "the private values over the shared, $shared to every environment");
     cli_requests_values_given(&s_values);
-    cli_check((embed_atomic_usize_load(&g_cli_requests_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_requests_cells.hw) != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_requests_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_requests_cells.hw) != 0ull),
               "the environments and their values are read in cells each given back");
     cli_check(cli_requests_verifies(root, "api/v1/calls.http", "dev"), "a certificate is checked");
     requests_written(root, CLI_REQUESTS_PRIVATE,
@@ -159,7 +160,7 @@ static void requests_values(void)
     char key[256];
     VerbaLinea key_line = {key, sizeof(key), 0ull};
     VerbaLinea body = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    cli_growing_line_made(&body, 4096ull);
+    cli_growing_line_made(&body, 4096ull, &g_checks_cells);
     err_msg.at = 0ull;
     cli_check(cli_requests_ready(root, "api/v1/calls.http", s_file, sizeof(s_file) - 1u, 14ull, "dev", &s_sent, &body,
                                  &key_line, &err_msg),
@@ -176,7 +177,7 @@ static void requests_values(void)
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = why, .cap = CLI_CELLS_POOL, .other = "{{host}}", .other_cap = CLI_CELLS_POOL}) != NULL),
               "no environment, no host");
-    cli_cell_release(body.out, NULL);
+    cli_cell_release(body.out, &g_checks_cells);
     static CliRequestsValues s_none;
     static const char s_dynamic[] = "{{$uuid}} {{$timestamp}}";
     out.at = 0ull;

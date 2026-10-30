@@ -63,14 +63,14 @@ static void cli_keys_of(unsigned int mine, unsigned int theirs)
 static void cli_value_written(VerbaLinea *out, unsigned int value)
 {
     VerbaLinea line;
-    if ((value == CLI_JSON_NONE) || !cli_growing_line_made(&line, CLI_CARRY_WRITTEN_FIRST))
+    if ((value == CLI_JSON_NONE) || !cli_growing_line_made(&line, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(out, "null");
         return;
     }
     cli_json_write(&s_take.room.json, value, &line, 0u, 0);
     cli_json_quoted(out, line.out, mmgr_line_ok(&line) ? line.at : 0ull);
-    cli_cell_release(line.out, NULL);
+    cli_cell_release(line.out, &g_cli_machine_cells);
 }
 
 // the settings that differ between two settings texts written, each with its value here and there: 1 where any do
@@ -118,7 +118,7 @@ void cli_carry_differences(const char *home, const CliCarried *there, VerbaLinea
 {
     cli_lock_take(&s_lock);
     VerbaLinea settings;
-    if (!cli_growing_line_made(&settings, CLI_CARRY_WRITTEN_FIRST))
+    if (!cli_growing_line_made(&settings, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(out, "[]");
         cli_lock_give(&s_lock);
@@ -184,7 +184,7 @@ void cli_carry_differences(const char *home, const CliCarried *there, VerbaLinea
     mmgr_line_ch(out, ']');
     cli_carried_clear(&s_take.here);
     cli_carry_room_given(&s_take.room);
-    cli_cell_release(settings.out, NULL);
+    cli_cell_release(settings.out, &g_cli_machine_cells);
     cli_lock_give(&s_lock);
 }
 
@@ -244,7 +244,7 @@ static int cli_place_taken(const char *home, const char *backup_dir, const char 
                            const char *const *keys, unsigned int key_count, VerbaLinea *err_msg)
 {
     VerbaLinea settings;
-    if (!cli_growing_line_made(&settings, CLI_CARRY_WRITTEN_FIRST))
+    if (!cli_growing_line_made(&settings, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(err_msg, "the settings written could not be given a cell");
         return 0;
@@ -295,7 +295,7 @@ static int cli_place_taken(const char *home, const char *backup_dir, const char 
         s_take.taking.stood[s_take.taking.files] = stood;
         s_take.taking.files += 1u;
     }
-    cli_cell_release(settings.out, NULL);
+    cli_cell_release(settings.out, &g_cli_machine_cells);
     return taken;
 }
 
@@ -304,7 +304,7 @@ int cli_carry_take(const char *home, const char *from, const CliCarried *there, 
                    VerbaLinea *err_msg)
 {
     VerbaLinea written;
-    if (!cli_growing_line_made(&written, CLI_CARRY_WRITTEN_FIRST))
+    if (!cli_growing_line_made(&written, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
     {
         mmgr_line_put(err_msg, "a taking written could not be given a cell");
         return 0;
@@ -343,6 +343,6 @@ int cli_carry_take(const char *home, const char *from, const CliCarried *there, 
     }
     cli_carry_room_given(&s_take.room);
     cli_lock_give(&s_lock);
-    cli_cell_release(written.out, NULL);
+    cli_cell_release(written.out, &g_cli_machine_cells);
     return taken;
 }

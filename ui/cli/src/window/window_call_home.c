@@ -30,7 +30,7 @@ static CellOwner s_cells = MMGR_CELL_OWNER("cli_window_home");
 // a growing line begun for a text of orior's folder: 1, or 0 with why given where its cell is refused
 static int home_line_begun(VerbaLinea *line, VerbaLinea *err_msg)
 {
-    const int begun = cli_growing_line_made(line, CLI_HOME_TEXT_FIRST);
+    const int begun = cli_growing_line_made(line, CLI_HOME_TEXT_FIRST, &s_cells);
     if (!begun)
     {
         mmgr_line_put(err_msg, "a text of orior's folder could not be given a cell");
@@ -97,7 +97,7 @@ static int home_state_write(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     mmgr_line_ch(&state_line, '}');
     const int done = mmgr_line_ok(&state_line) && cli_state_save(folder, state_line.out, state_line.at, err_msg);
     cli_lock_give(&s_lock);
-    cli_cell_release(state_line.out, NULL);
+    cli_cell_release(state_line.out, &s_cells);
     return done;
 }
 
@@ -115,9 +115,9 @@ static unsigned int home_state_tree(CliJson *json)
         return CLI_JSON_NONE;
     }
     const unsigned int tree = (cli_state_read(folder, &state_line) && mmgr_line_ok(&state_line))
-                                  ? cli_json_taken(json, state_line.out, state_line.at, 0u, 0ull, &ignored)
+                                  ? cli_json_taken(json, state_line.out, state_line.at, 0u, 0ull, &ignored, &s_cells)
                                   : CLI_JSON_NONE;
-    cli_cell_release(state_line.out, NULL);
+    cli_cell_release(state_line.out, &s_cells);
     return cli_json_is(json, tree, CFG_JSON_OBJECT) ? tree : CLI_JSON_NONE;
 }
 
@@ -172,7 +172,7 @@ static VerbaLinea s_kept_script;
 const char *cli_window_kept_script(unsigned long long *size)
 {
     *size = 0ull;
-    if (!cli_growing_line_made(&s_kept_script, CLI_WINDOW_KEPT_SCRIPT_FIRST))
+    if (!cli_growing_line_made(&s_kept_script, CLI_WINDOW_KEPT_SCRIPT_FIRST, &s_cells))
     {
         return NULL;
     }
@@ -187,7 +187,7 @@ const char *cli_window_kept_script(unsigned long long *size)
 
 void cli_window_kept_script_given(void)
 {
-    cli_cell_release(s_kept_script.out, NULL);
+    cli_cell_release(s_kept_script.out, &s_cells);
     s_kept_script = (VerbaLinea){NULL, 0ull, 0ull};
 }
 
@@ -267,7 +267,7 @@ static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, Verba
     CliHomeSettings *const settings = cli_lane_alloc(sizeof(*settings), &s_cells);
     if (settings == NULL)
     {
-        cli_cell_release(tree.out, NULL);
+        cli_cell_release(tree.out, &s_cells);
         mmgr_line_put(err_msg, "the settings' chains and layers could not be given a cell");
         return 0;
     }
@@ -285,7 +285,7 @@ static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, Verba
     cli_settings_chain_given(&settings->tree);
     cli_lock_give(&s_lock);
     cli_cell_release(settings, &s_cells);
-    cli_cell_release(tree.out, NULL);
+    cli_cell_release(tree.out, &s_cells);
     return read;
 }
 
@@ -318,7 +318,7 @@ static int home_carry_send(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     {
         cli_window_counted(out, done.out, mmgr_line_ok(&done) ? done.at : 0ull);
     }
-    cli_cell_release(done.out, NULL);
+    cli_cell_release(done.out, &s_cells);
     return sent;
 }
 
@@ -506,7 +506,7 @@ static int home_plugin_settings_write(const CliServeArgs *args, VerbaLinea *out,
     mmgr_line_ch(&text, '\n');
     const int written = mmgr_line_ok(&text) && query_file_written(path, text.out, text.at);
     cli_lock_give(&s_lock);
-    cli_cell_release(text.out, NULL);
+    cli_cell_release(text.out, &s_cells);
     if (!written)
     {
         mmgr_line_put(err_msg, path);

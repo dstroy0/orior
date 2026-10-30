@@ -90,7 +90,7 @@ static int maven_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     static char s_head[CLI_PATH_MAX_LEN * 2u];
     cli_lock_take(&s_lock);
     VerbaLinea set;
-    const int begun = cli_growing_line_made(&set, CLI_SERVE_SET_FIRST);
+    const int begun = cli_growing_line_made(&set, CLI_SERVE_SET_FIRST, &g_cli_window_cells);
     const int done = begun && tool_pom_of(args, root, pom, &read, err_msg) &&
                      cli_maven_set(pom, read.text, read.size, key, value, &set, err_msg);
     if (done)
@@ -120,7 +120,7 @@ static int maven_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         tool_pom_let_go(&read);
     }
-    cli_cell_release(set.out, NULL);
+    cli_cell_release(set.out, &g_cli_window_cells);
     cli_lock_give(&s_lock);
     return done;
 }

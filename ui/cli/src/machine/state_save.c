@@ -74,7 +74,7 @@ static int cli_map_written(const char *path, CliJson *json, unsigned int object,
         return 0;
     }
     const int whole = cli_whole_written(path, written, size, err_msg);
-    cli_cell_release(written, NULL);
+    cli_cell_release(written, &g_cli_state_cells);
     return whole;
 }
 
@@ -174,7 +174,8 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int themes = (text != NULL) ? cli_json_taken(&json, text, length, 0u, 0ull, &unread) : CLI_JSON_NONE;
+    const unsigned int themes =
+        (text != NULL) ? cli_json_taken(&json, text, length, 0u, 0ull, &unread, &g_cli_state_cells) : CLI_JSON_NONE;
     // the files written, one a theme, in a cell of their count
     const unsigned int count = cli_json_is(&json, themes, CFG_JSON_ARRAY) ? json.node[themes].count : 0u;
     char (*const saved_names)[CLI_NAME_MAX_LEN] =
@@ -219,7 +220,7 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
         char path[CLI_PATH_MAX_LEN];
         cli_in(folder, name, path);
         const int whole = (written != NULL) && cli_whole_written(path, written, size, err_msg);
-        cli_cell_release(written, NULL);
+        cli_cell_release(written, &g_cli_state_cells);
         if (!whole)
         {
             cli_cell_release(saved_names, &g_cli_state_cells);
@@ -262,7 +263,7 @@ int cli_state_save(const char *folder, const char *changes, unsigned long long l
     cli_lock_take(&s_lock);
     CliJson given;
     cli_json_begun(&given, NULL, 0u, NULL, 0ull);
-    const unsigned int changed = cli_json_taken(&given, changes, length, 0u, 0ull, err_msg);
+    const unsigned int changed = cli_json_taken(&given, changes, length, 0u, 0ull, err_msg, &g_cli_state_cells);
     if (!cli_json_is(&given, changed, CFG_JSON_OBJECT))
     {
         cli_json_given(&given);
@@ -301,10 +302,12 @@ int cli_state_save(const char *folder, const char *changes, unsigned long long l
                 // is too large for its cell, no cell was left for it, or its text is not a JSON object; a save over it
                 // would drop every entry it holds, and is refused
                 unsigned long long stored = 0ull;
-                if ((*map != CLI_JSON_NONE) && (json->node[*map].count == 0u) && cli_file_size(path, &stored) && (stored > 3ull))
+                if ((*map != CLI_JSON_NONE) && (json->node[*map].count == 0u) && cli_file_size(path, &stored) &&
+                    (stored > 3ull))
                 {
                     mmgr_line_put(err_msg, path);
-                    mmgr_line_put(err_msg, ": its entries could not be read whole, and a save over them would lose them");
+                    mmgr_line_put(err_msg,
+                                  ": its entries could not be read whole, and a save over them would lose them");
                     done = 0;
                     continue;
                 }
@@ -342,7 +345,8 @@ int cli_state_save(const char *folder, const char *changes, unsigned long long l
                 // the backup: an object of two members, its key and its text, and their names
                 CliJson backup;
                 const unsigned long long key_length = cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL});
-                if (!cli_json_reserved(&backup, 8u, key_length + text_length + 16ull, "a change not saved"))
+                if (!cli_json_reserved(&backup, 8u, key_length + text_length + 16ull, "a change not saved",
+                                       &g_cli_state_cells))
                 {
                     mmgr_line_put(err_msg, path);
                     mmgr_line_put(err_msg, ": the cells it is written from could not be taken");

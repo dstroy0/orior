@@ -365,8 +365,8 @@ static int cli_flags_holds(const CliFlagsReading *reading, const CliDefineNode *
     return 0;
 }
 
-// the folder `path`, `length` bytes, made to hold the defines of `file` with those it held: each it held that `file`
-// holds kept, and where it is new, a copy of `file`'s; its place, or CLI_JSON_NONE where the cells cannot meet it
+// the folder `path`, `length` bytes, made to hold the defines of `file` with those it had: each it had that `file`
+// has kept, and where it is new, a copy of `file`'s; its place, or CLI_JSON_NONE where the cells cannot meet it
 static unsigned int cli_flags_folder_met(CliFlagsReading *reading, const char *path, unsigned long long length,
                                          const CliDefineNode *file)
 {
@@ -558,7 +558,7 @@ static void cli_flags_lifted(CliFlagsReading *reading)
 // the kept flags let go, their cells given back, under the lock
 static void cli_flags_let_go(void)
 {
-    cli_cell_release(s_kept.text.out, NULL);
+    cli_cell_release(s_kept.text.out, &g_cli_compile_cells);
     cli_cell_release(s_kept.word, &g_cli_compile_cells);
     cli_cell_release(s_kept.given, &g_cli_compile_cells);
     cli_cell_release(s_kept.file, &g_cli_compile_cells);
@@ -611,12 +611,13 @@ static void cli_flags_read(const char *root)
                             .src = root,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = root, .cap = CLI_CELLS_POOL}) + 1u});
     s_kept.database = stamped;
-    if (!there || !cli_growing_line_made(&s_kept.text, CLI_FLAGS_TEXT_FIRST))
+    if (!there || !cli_growing_line_made(&s_kept.text, CLI_FLAGS_TEXT_FIRST, &g_cli_compile_cells))
     {
         return;
     }
     CliJson json;
-    if (!cli_json_growing(&json, CLI_FLAGS_NODES_FIRST, CLI_FLAGS_JSON_FIRST, "the compilation database's flags"))
+    if (!cli_json_growing(&json, CLI_FLAGS_NODES_FIRST, CLI_FLAGS_JSON_FIRST, "the compilation database's flags",
+                          &g_cli_compile_cells))
     {
         return;
     }

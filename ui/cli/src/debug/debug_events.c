@@ -80,8 +80,8 @@ static int data_stop_rewritten(CliDebugSession *session, const char *body, unsig
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root =
-        cli_json_taken(&json, body, size, CLI_DEBUG_EVENT_MORE_NODES, CLI_DEBUG_EVENT_MORE_TEXT, &err_msg);
+    const unsigned int root = cli_json_taken(&json, body, size, CLI_DEBUG_EVENT_MORE_NODES, CLI_DEBUG_EVENT_MORE_TEXT,
+                                             &err_msg, &g_cli_debug_cells);
     const int written = stop_rewritten(session, &json, root, out);
     cli_json_given(&json);
     return written;
@@ -103,7 +103,7 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
         unsigned long long pid = 0ull;
-        const unsigned int root = cli_json_taken(&json, body, size, 0u, 0ull, &err_msg);
+        const unsigned int root = cli_json_taken(&json, body, size, 0u, 0ull, &err_msg, &g_cli_debug_cells);
         if (cli_debug_unsigned(&json, cli_json_member(&json, root, "systemProcessId"), &pid))
         {
             cli_lock_take(&g_cli_debug.lock);
@@ -137,12 +137,12 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     const int stopped = cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "stopped", .cap = CLI_CELLS_POOL});
     if (stopped)
     {
-        (void)cli_growing_line_made(&rewritten_body, size + CLI_DEBUG_EVENT_MORE_TEXT);
+        (void)cli_growing_line_made(&rewritten_body, size + CLI_DEBUG_EVENT_MORE_TEXT, &g_cli_debug_cells);
     }
     const int rewritten = stopped && data_stop_rewritten(session, body, size, &rewritten_body);
     session->sink.emit(session->sink.context, session->info.id, event, rewritten ? rewritten_body.out : body,
                        rewritten ? rewritten_body.at : size);
-    cli_cell_release(rewritten_body.out, NULL);
+    cli_cell_release(rewritten_body.out, &g_cli_debug_cells);
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it

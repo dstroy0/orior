@@ -115,7 +115,7 @@ CliDebugAnswer *cli_debug_answer_taken(void)
     }
     answer->taken = 1;
     cli_lock_give(&s_answers_lock);
-    cli_pieces_begun(&answer->pieces, &answer->args, answer->piece, sizeof(answer->piece));
+    cli_pieces_begun(&answer->pieces, &answer->args, answer->piece, sizeof(answer->piece), &g_cli_debug_cells);
     answer->body = NULL;
     cli_json_begun(&answer->json, NULL, 0u, NULL, 0ull);
     answer->root = CLI_JSON_NONE;
@@ -125,7 +125,7 @@ CliDebugAnswer *cli_debug_answer_taken(void)
 void cli_debug_answer_given(CliDebugAnswer *answer)
 {
     cli_pieces_given(&answer->pieces);
-    cli_cell_release(answer->body, NULL);
+    cli_cell_release(answer->body, &g_cli_debug_cells);
     answer->body = NULL;
     cli_json_given(&answer->json);
     cli_lock_take(&s_answers_lock);
@@ -148,17 +148,17 @@ int cli_debug_request(CliDebugSession *session, const char *command, CliDebugAns
     char piece[1024];
     CliPieces pieces;
     VerbaLinea body;
-    cli_pieces_begun(&pieces, &body, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &body, piece, sizeof(piece), &g_cli_debug_cells);
     const int answered = cli_dap_requested(session->dap, command, (written > 0ull) ? joined : "{}",
                                            (written > 0ull) ? written : 2ull, wait, &body, err_msg);
-    cli_cell_release(joined, NULL);
+    cli_cell_release(joined, &g_cli_debug_cells);
     unsigned long long size = 0ull;
     answer->body = cli_pieces_joined(&pieces, &body, "a debug request's answer", &size);
     if (!answered || (answer->body == NULL))
     {
         return 0;
     }
-    answer->root = cli_json_taken(&answer->json, answer->body, size, 0u, 0ull, err_msg);
+    answer->root = cli_json_taken(&answer->json, answer->body, size, 0u, 0ull, err_msg, &g_cli_debug_cells);
     return answer->root != CLI_JSON_NONE;
 }
 

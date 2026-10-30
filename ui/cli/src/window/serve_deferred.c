@@ -27,7 +27,7 @@ static unsigned int s_running;
 static void deferred_event_sent(unsigned long long request_id, int ok, const VerbaLinea *out, const VerbaLinea *err_msg)
 {
     VerbaLinea event_json;
-    if (!cli_growing_line_made(&event_json, CLI_SERVE_DEFERRED_INIT_CAP))
+    if (!cli_growing_line_made(&event_json, CLI_SERVE_DEFERRED_INIT_CAP, &g_cli_window_cells))
     {
         return;
     }
@@ -55,7 +55,7 @@ static void deferred_event_sent(unsigned long long request_id, int ok, const Ver
     {
         cli_serve_emitted("call-answered", event_json.out, event_json.at);
     }
-    cli_cell_release(event_json.out, NULL);
+    cli_cell_release(event_json.out, &g_cli_window_cells);
 }
 
 // the call run where it was requested, its answer sent, and the request's cell given back
@@ -65,7 +65,7 @@ static void deferred_run(void *context)
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     VerbaLinea out;
-    const int grown = cli_growing_line_made(&out, CLI_SERVE_DEFERRED_INIT_CAP);
+    const int grown = cli_growing_line_made(&out, CLI_SERVE_DEFERRED_INIT_CAP, &g_cli_window_cells);
     if (!grown)
     {
         mmgr_line_put(&err_msg, "the answer could not be given a cell");
@@ -80,12 +80,12 @@ static void deferred_run(void *context)
     deferred_event_sent(deferred->request_id, ok, &out, &err_msg);
     if (grown)
     {
-        cli_cell_release(out.out, NULL);
+        cli_cell_release(out.out, &g_cli_window_cells);
     }
     cli_lock_take(&s_lock);
     s_running -= 1u;
     cli_lock_give(&s_lock);
-    cli_cell_release(deferred, NULL);
+    cli_cell_release(deferred, &g_cli_window_cells);
 }
 
 int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, VerbaLinea *out, VerbaLinea *err_msg)
@@ -99,19 +99,20 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
     {
         return 0;
     }
-    // the arguments written again as text, so the thread reads them once the room they came in is given back
+    // the arguments written again as text: the thread reads them once the room they came in is given back
     VerbaLinea text;
-    if (!cli_growing_line_made(&text, CLI_SERVE_DEFERRED_INIT_CAP))
+    if (!cli_growing_line_made(&text, CLI_SERVE_DEFERRED_INIT_CAP, &g_cli_window_cells))
     {
         mmgr_line_put(err_msg, "the deferred call's arguments could not be given a cell");
         return 0;
     }
     cli_json_write(args->json, args->object, &text, 0u, 0);
     CliServeDeferred *const deferred =
-        mmgr_line_ok(&text) ? g_cli_cells->persistent_buf_alloc(sizeof(*deferred) + text.at + 1ull, NULL) : NULL;
+        mmgr_line_ok(&text) ? g_cli_cells->persistent_buf_alloc(sizeof(*deferred) + text.at + 1ull, &g_cli_window_cells)
+                            : NULL;
     if (deferred == NULL)
     {
-        cli_cell_release(text.out, NULL);
+        cli_cell_release(text.out, &g_cli_window_cells);
         mmgr_line_put(err_msg, "the deferred call could not be given a cell");
         return 0;
     }
@@ -121,14 +122,14 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
     deferred->answer = answer;
     deferred->request_id = request_id;
     deferred->thread = (CliThread){deferred_run, deferred, CLI_PRIORITY_WORK};
-    cli_cell_release(text.out, NULL);
+    cli_cell_release(text.out, &g_cli_window_cells);
     cli_lock_take(&s_lock);
     const int room = s_running < CLI_SERVE_DEFERRED_MAX;
     s_running += room ? 1u : 0u;
     cli_lock_give(&s_lock);
     if (!room)
     {
-        cli_cell_release(deferred, NULL);
+        cli_cell_release(deferred, &g_cli_window_cells);
         mmgr_line_put(err_msg, "too many calls are deferred at once");
         return 0;
     }
@@ -137,7 +138,7 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
         cli_lock_take(&s_lock);
         s_running -= 1u;
         cli_lock_give(&s_lock);
-        cli_cell_release(deferred, NULL);
+        cli_cell_release(deferred, &g_cli_window_cells);
         mmgr_line_put(err_msg, "the deferred call's thread did not start");
         return 0;
     }

@@ -261,9 +261,10 @@ static void tool_looked(void *context, const CliPlugin *plugin)
     cli_json_given(json);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_utf8_whole(plugin->text, plugin->size)
-                                  ? cli_json_taken(json, plugin->text, plugin->size, 0u, 0ull, &unread)
-                                  : CLI_JSON_NONE;
+    const unsigned int root =
+        cli_utf8_whole(plugin->text, plugin->size)
+            ? cli_json_taken(json, plugin->text, plugin->size, 0u, 0ull, &unread, &g_cli_plugins_cells)
+            : CLI_JSON_NONE;
     CliTool *const tool = &g_cli_validate->tool;
     if ((root == CLI_JSON_NONE) || !tool_read(json, root, tool))
     {

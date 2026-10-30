@@ -108,7 +108,8 @@ static unsigned int catalog_package(const char *from, const char *id, const char
     read_err_msg.at = 0ull;
     CliJson own_json;
     cli_json_begun(&own_json, NULL, 0u, NULL, 0ull);
-    const unsigned int own = cli_json_taken(&own_json, own_text, own_size, 0u, 0ull, &read_err_msg);
+    const unsigned int own =
+        cli_json_taken(&own_json, own_text, own_size, 0u, 0ull, &read_err_msg, &g_cli_plugins_cells);
     if (own == CLI_JSON_NONE)
     {
         mmgr_line_put(err_msg, from);
@@ -212,7 +213,7 @@ int cli_plugin_catalog_install_into(const char *plugins, const char *address, co
         mmgr_line_put(&version_line, cli_plugin_catalog_field(&g_cli_catalog->json, node, "version"));
         mmgr_line_put(&sha_line, cli_plugin_catalog_field(&g_cli_catalog->json, node, "sha256"));
         cli_plugin_catalog_beside(address, cli_plugin_catalog_field(&g_cli_catalog->json, node, "package"), &from_line);
-        // an entry may name no hash, so each text is accepted by whether it fit, not by its length
+        // an entry may name no hash: each text is accepted by whether it fit, not by its length
         done = mmgr_line_ok(&id_line) && mmgr_line_ok(&version_line) && mmgr_line_ok(&sha_line) &&
                mmgr_line_ok(&from_line);
         (void)mmgr_line_finish(&id_line);

@@ -100,7 +100,7 @@ int cli_containers_locked(VerbaLinea *out, unsigned int most, unsigned long long
     cli_lock_take(&s_containers_lock);
     const unsigned long long items = (unsigned long long)most * sizeof(CliContainer);
     const unsigned long long orders = (unsigned long long)most * sizeof(unsigned int);
-    char *const cell = g_cli_cells->persistent_buf_alloc(items + orders + text_most + 1ull, NULL);
+    char *const cell = g_cli_cells->persistent_buf_alloc(items + orders + text_most + 1ull, &g_cli_deploy_cells);
     if (cell == NULL)
     {
         cli_lock_give(&s_containers_lock);
@@ -122,7 +122,7 @@ int cli_containers_locked(VerbaLinea *out, unsigned int most, unsigned long long
 
 void cli_containers_released(void)
 {
-    cli_cell_release(g_cli_containers.item, NULL);
+    cli_cell_release(g_cli_containers.item, &g_cli_deploy_cells);
     g_cli_containers = (CliContainers){NULL, NULL, 0u, 0u, NULL, 0ull, 0ull};
     cli_lock_give(&s_containers_lock);
 }
@@ -179,7 +179,7 @@ static void cli_container_read(const char *line, unsigned long long size)
     CliJson json;
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int one = cli_json_taken(&json, line, size, 0u, 0ull, &unread);
+    const unsigned int one = cli_json_taken(&json, line, size, 0u, 0ull, &unread, &g_cli_deploy_cells);
     if ((one == CLI_JSON_NONE) || (g_cli_containers.count >= g_cli_containers.most))
     {
         cli_json_given(&json);

@@ -77,14 +77,14 @@ fi
 
 # MMgr's two include roots and embedded_types' headers, and the capabilities MMgr is built with: a CLI source
 # reaching a module header sees the layouts the module was compiled to; each cellblock keeps its high-water mark, in
-# the CLI's objects and in MMgr's alike, since the mark is a member of every cellblock's state, and each takes its
-# spinlock and lists its owners, as src/cu/CMakeLists.txt builds MMgr
+# the CLI's objects and in MMgr's alike, since the mark is a member of every cellblock's state, and the owner queue
+# has the room src/cu/CMakeLists.txt builds MMgr with
 MMGR="$TOP/src/cu/includes/mmgr"
 EMBEDDED_TYPES="$TOP/src/cu/includes/embedded_types"
 MMGR_HIGH_WATER=-DMMGR_ENABLE_HW_MEM_CAPACITY_CB=1
 MMGR_WORDS=(-I "$MMGR/include" -I "$MMGR/src" -I "$EMBEDDED_TYPES/include" -DMMGR_ENABLE_DMA=0
     -DMMGR_ENABLE_EXTRAM=0 -DMMGR_ENABLE_HOST=1 -DMMGR_ALIGN_BYTES=32 "$MMGR_HIGH_WATER"
-    -DMMGR_ENABLE_OWNERS=1)
+    -DMMGR_CARCER_OWNERS=1024u)
 
 case "$(uname -s)" in
     MINGW*|MSYS*|CYGWIN*) HOST="x86_64-pc-windows-msvc" ;;

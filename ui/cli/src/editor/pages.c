@@ -21,9 +21,9 @@ CliWake g_cli_index_wake = CLI_WAKE_INIT;
 // the cells cannot meet them
 static void pages_cells_given(CliPaged *one)
 {
-    cli_cell_release(one->piece, NULL);
-    cli_cell_release(one->index.start, NULL);
-    cli_cell_release(one->index.line, NULL);
+    cli_cell_release(one->piece, &g_cli_editor_cells);
+    cli_cell_release(one->index.start, &g_cli_editor_cells);
+    cli_cell_release(one->index.line, &g_cli_editor_cells);
     one->piece = NULL;
     one->index.start = NULL;
     one->index.line = NULL;
@@ -35,9 +35,11 @@ static int pages_cells_taken(CliPaged *one, unsigned long long size)
     // starts recorded by their lines, size / CLI_PAGE_SPAN by their bytes, and the first
     const unsigned long long starts = (size / CLI_PAGE_STEP) + (size / CLI_PAGE_SPAN) + 2ull;
     one->index.starts_most = (starts < CLI_PAGE_STARTS) ? starts : CLI_PAGE_STARTS;
-    one->index.start = g_cli_cells->persistent_buf_alloc(one->index.starts_most * sizeof(one->index.start[0]), NULL);
-    one->index.line = g_cli_cells->persistent_buf_alloc(one->index.starts_most * sizeof(one->index.line[0]), NULL);
-    one->piece = g_cli_cells->persistent_buf_alloc(CLI_PAGE_PIECES * sizeof(one->piece[0]), NULL);
+    one->index.start =
+        g_cli_cells->persistent_buf_alloc(one->index.starts_most * sizeof(one->index.start[0]), &g_cli_editor_cells);
+    one->index.line =
+        g_cli_cells->persistent_buf_alloc(one->index.starts_most * sizeof(one->index.line[0]), &g_cli_editor_cells);
+    one->piece = g_cli_cells->persistent_buf_alloc(CLI_PAGE_PIECES * sizeof(one->piece[0]), &g_cli_editor_cells);
     const int taken = (one->index.start != NULL) && (one->index.line != NULL) && (one->piece != NULL);
     if (!taken)
     {
@@ -71,7 +73,7 @@ static void pages_let_go(CliPaged *one)
     {
         (void)query_removed(one->shadow);
     }
-    cli_cell_release(one, NULL);
+    cli_cell_release(one, &g_cli_editor_cells);
 }
 
 CliPaged *cli_paged_of(const char *key, VerbaLinea *err_msg)
@@ -135,7 +137,8 @@ static void cli_index_read(void *context)
             at = offset + (unsigned long long)(newline - chunk) + 1ull;
             // the line starting here recorded CLI_PAGE_STEP lines or CLI_PAGE_SPAN bytes after the last recorded
             const unsigned long long last = index->starts - 1ull;
-            const int far = ((lines - index->line[last]) >= CLI_PAGE_STEP) || ((at - index->start[last]) >= CLI_PAGE_SPAN);
+            const int far =
+                ((lines - index->line[last]) >= CLI_PAGE_STEP) || ((at - index->start[last]) >= CLI_PAGE_SPAN);
             if (far && (index->starts < index->starts_most))
             {
                 index->start[index->starts] = at;
@@ -214,7 +217,7 @@ int cli_page_open_reading(const char *key, const char *path, int behind, VerbaLi
     {
         pages_let_go(one);
     }
-    one = g_cli_cells->persistent_buf_alloc(sizeof(*one), NULL);
+    one = g_cli_cells->persistent_buf_alloc(sizeof(*one), &g_cli_editor_cells);
     if (one == NULL)
     {
         mmgr_line_put(err_msg, "the paged text's cells could not be taken");
@@ -223,7 +226,7 @@ int cli_page_open_reading(const char *key, const char *path, int behind, VerbaLi
     memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
     if (!pages_cells_taken(one, size))
     {
-        cli_cell_release(one, NULL);
+        cli_cell_release(one, &g_cli_editor_cells);
         mmgr_line_put(err_msg, "the paged text's cells could not be taken");
         return 0;
     }
@@ -469,8 +472,8 @@ int cli_page_lines_of(CliPaged *one, unsigned long long from, unsigned long long
     return 1;
 }
 
-// the bytes of the first `cut` letters of the `size` bytes of UTF-8 at `text`, all of them where `cut` is 0 or they hold
-// no more; and the length of all of them in UTF-16's units into `units`
+// the bytes of the first `cut` letters of the `size` bytes of UTF-8 at `text`, all of them where `cut` is 0 or they
+// hold no more; and the length of all of them in UTF-16's units into `units`
 static unsigned long long pages_cut_bytes(const char *text, unsigned long long size, unsigned long long cut,
                                           unsigned long long *units)
 {
@@ -581,7 +584,7 @@ int cli_pages_counted(const char *key, unsigned long long *lines, int *whole)
 }
 
 char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned long long to, const char **line,
-                            unsigned long long *count)
+                            unsigned long long *count, CellOwner *owner)
 {
     *count = 0ull;
     char why[CLI_PATH_MAX_LEN];
@@ -597,7 +600,7 @@ char *cli_pages_lines_taken(const char *key, unsigned long long from, unsigned l
     const int read = (one != NULL) && cli_page_lines_of(one, from, to, &lines, &err_msg) && !lines.full;
     cli_lock_give(&g_cli_pages_lock);
     // each line's bytes and its NUL
-    char *const text = read ? cli_lane_alloc(lines.used + lines.count + 1ull, NULL) : NULL;
+    char *const text = read ? cli_lane_alloc(lines.used + lines.count + 1ull, owner) : NULL;
     const unsigned long long taken = (lines.count < wanted) ? lines.count : wanted;
     unsigned long long at = 0ull;
     for (unsigned long long each = 0ull; (text != NULL) && (each < taken); each += 1ull)
@@ -656,9 +659,9 @@ static int pages_placed_read(CliPaged *one, unsigned long long from, unsigned lo
 }
 
 // the lines of `one` from `*from` to before `*to`, placed about the line `pivot` for a view that wraps at `width`
-// letters, trimmed to those its rows take: as many on either side of `pivot` as fill the rows placed on that side, a line
-// as many rows as its letters fill. As placed where the view does not wrap, or the lines cannot be read whole; under the
-// pages' lock
+// letters, trimmed to those its rows take: as many on either side of `pivot` as fill the rows placed on that side, a
+// line as many rows as its letters fill. As placed where the view does not wrap, or the lines cannot be read whole;
+// under the pages' lock
 static void pages_rows_trimmed(CliPaged *one, unsigned long long width, unsigned long long pivot,
                                unsigned long long *from, unsigned long long *to)
 {
@@ -686,8 +689,8 @@ static void pages_rows_trimmed(CliPaged *one, unsigned long long width, unsigned
 }
 
 // the lines of `one` from `*from` to before `*to`, a step toward the ends of the page's lines below them where `below`
-// is 1 and above where 0, trimmed to those from the page's side that CLI_PAGE_REST_BYTES of their bytes reach, a line cut
-// after `cut` letters counting no more than those, and where the view moves and wraps at `width` letters, that fill
+// is 1 and above where 0, trimmed to those from the page's side that CLI_PAGE_REST_BYTES of their bytes reach, a line
+// cut after `cut` letters counting no more than those, and where the view moves and wraps at `width` letters, that fill
 // the rows placed, a line as many rows as its letters fill; one line at the least. As placed where the lines cannot be
 // read whole; under the pages' lock
 static void pages_step_trimmed(CliPaged *one, int below, int moving, unsigned long long cut, unsigned long long width,
@@ -719,13 +722,13 @@ static void pages_step_trimmed(CliPaged *one, int below, int moving, unsigned lo
 }
 
 // a moving view of `one`, reported at `last` before, placed in a text of `total` lines, cut at its reach. Where the
-// page's lines meet the rows it needs, its rows where it stands and where it will stand a report later as far on the way
-// it went as it went since `last` where the report follows it, EDGE and a SPREADth of that step about them, no more
+// page's lines meet the rows it needs, its rows where it stands and where it will stand a report later as far on the
+// way it went as it went since `last` where the report follows it, EDGE and a SPREADth of that step about them, no more
 // than the lines a step reads on either side: a step of lines past the page's on the side it goes once those rows come
-// within NEAR lines of their end, or past their end; else nothing. Where they do not meet, as a view that jumped away, those rows alone, only those of
-// where it will stand where it went farther than its rows. It keeps half of KEPT lines on either side of its rows and
-// every line it is answered. A view that wraps is answered the lines its rows take of those about them, and a step as
-// many lines as fill its rows and CLI_PAGE_REST_BYTES of their bytes reach
+// within NEAR lines of their end, or past their end; else nothing. Where they do not meet, as a view that jumped away,
+// those rows alone, only those of where it will stand where it went farther than its rows. It keeps half of KEPT lines
+// on either side of its rows and every line it is answered. A view that wraps is answered the lines its rows take of
+// those about them, and a step as many lines as fill its rows and CLI_PAGE_REST_BYTES of their bytes reach
 static CliPagesPlaced pages_move_placed(CliPaged *one, const CliPagesView *view, unsigned long long last, int follows,
                                         unsigned long long total)
 {
@@ -741,7 +744,8 @@ static CliPagesPlaced pages_move_placed(CliPaged *one, const CliPagesView *view,
     const unsigned long long first = pages_least((low > spread) ? (low - spread) : 0ull, total);
     const unsigned long long end = pages_least(total, high + view->rows + spread);
     const int reaches = (view->held_cut == 0ull) || (view->held_cut >= view->columns);
-    const int meets = reaches && (view->held_to > view->held_from) && (view->held_from <= end) && (view->held_to >= first);
+    const int meets =
+        reaches && (view->held_to > view->held_from) && (view->held_from <= end) && (view->held_to >= first);
     const unsigned long long kept_from = (top > (CLI_PAGE_KEPT / 2ull)) ? (top - (CLI_PAGE_KEPT / 2ull)) : 0ull;
     const unsigned long long kept_to = pages_least(total, top + view->rows + (CLI_PAGE_KEPT / 2ull));
     CliPagesPlaced placed = {first, first, view->columns, kept_from, kept_to};

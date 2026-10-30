@@ -86,7 +86,8 @@ static void answer_variables(const CliJson *json, unsigned int arguments, VerbaL
         serial = 0ull;
     }
     CliRecordedValue *values = NULL;
-    const unsigned int count = cli_recording_values((unsigned int)serial, g_cli_replay->at, &values, CLI_REPLAY_VALUES);
+    const unsigned int count =
+        cli_recording_values((unsigned int)serial, g_cli_replay->at, &values, CLI_REPLAY_VALUES, &g_cli_debug_cells);
     mmgr_line_put(body, "{\"variables\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -99,7 +100,7 @@ static void answer_variables(const CliJson *json, unsigned int arguments, VerbaL
         mmgr_line_put(body, ",\"type\":\"\",\"variablesReference\":0}");
     }
     mmgr_line_put(body, "]}");
-    cli_cell_release(values, NULL);
+    cli_cell_release(values, &g_cli_debug_cells);
 }
 
 // a name looked up in the frame, then in each module's frame standing, one whose caller is none
@@ -128,7 +129,8 @@ static int answer_evaluated(const CliJson *json, unsigned int arguments, VerbaLi
             continue;
         }
         CliRecordedValue *values = NULL;
-        const unsigned int value_count = cli_recording_values(one, g_cli_replay->at, &values, CLI_REPLAY_VALUES);
+        const unsigned int value_count =
+            cli_recording_values(one, g_cli_replay->at, &values, CLI_REPLAY_VALUES, &g_cli_debug_cells);
         for (unsigned int at = 0u; at < value_count; at += 1u)
         {
             if ((cellul.len(&(CatenaFinitaCfg){.src = values[at].name, .cap = CLI_CELLS_POOL}) == length) &&
@@ -138,11 +140,11 @@ static int answer_evaluated(const CliJson *json, unsigned int arguments, VerbaLi
                 cli_json_quoted_lossy(body, (const unsigned char *)values[at].value,
                                       cellul.len(&(CatenaFinitaCfg){.src = values[at].value, .cap = CLI_CELLS_POOL}));
                 mmgr_line_put(body, ",\"type\":\"\",\"variablesReference\":0}");
-                cli_cell_release(values, NULL);
+                cli_cell_release(values, &g_cli_debug_cells);
                 return 1;
             }
         }
-        cli_cell_release(values, NULL);
+        cli_cell_release(values, &g_cli_debug_cells);
     }
     mmgr_line_put(err_msg, "a recorded run reads the names its frames contained, and ");
     mmgr_line_put_n(err_msg, name, length);

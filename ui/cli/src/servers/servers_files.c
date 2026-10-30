@@ -211,7 +211,7 @@ char *cli_servers_text_taken(const char *path, unsigned long long *size)
     cli_lock_take(&g_cli_servers_texts_lock);
     const char *beside = NULL;
     const char *const text = cli_keyed_get(&g_cli_servers_texts, key, &beside, size);
-    char *const taken = (text != NULL) ? g_cli_cells->persistent_buf_alloc(*size + 1ull, NULL) : NULL;
+    char *const taken = (text != NULL) ? g_cli_cells->persistent_buf_alloc(*size + 1ull, &g_cli_servers_cells) : NULL;
     if (taken != NULL)
     {
         // a size the keeper stored fits a size_t

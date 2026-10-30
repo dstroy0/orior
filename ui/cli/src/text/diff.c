@@ -65,7 +65,7 @@ static int diff_reserved(unsigned long long then_lines, unsigned long long now_l
     const unsigned long long bytes = (8ull * (then_lines + now_lines + (2ull * most) + 3ull)) + (5ull * both) +
                                      (4ull * (now_lines * 3ull + then_lines)) + (16ull * both) + (8ull * 12ull);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
-    s_diff->cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    s_diff->cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_text_cells);
     if (s_diff->cell == NULL)
     {
         cli_lock_give(&s_lock);
@@ -87,8 +87,8 @@ static int diff_reserved(unsigned long long then_lines, unsigned long long now_l
 
 static void diff_released(void)
 {
-    cli_cell_release(s_diff->trace, NULL);
-    cli_cell_release(s_diff->cell, NULL);
+    cli_cell_release(s_diff->trace, &g_cli_text_cells);
+    cli_cell_release(s_diff->cell, &g_cli_text_cells);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     cli_lock_give(&s_lock);
 }
@@ -108,8 +108,9 @@ static int diff_trace_room(long long round)
     }
     rounds = (rounds < (CLI_MOST_EDITS + 1)) ? rounds : (CLI_MOST_EDITS + 1);
     // a round is at most CLI_MOST_EDITS, and the rounds squared fit an unsigned long long
-    long long *const grown = cli_cell_regrown(s_diff->trace, (unsigned long long)(round * round) * sizeof(long long),
-                                              (unsigned long long)(rounds * rounds) * sizeof(long long), NULL);
+    long long *const grown =
+        cli_cell_regrown(s_diff->trace, (unsigned long long)(round * round) * sizeof(long long),
+                         (unsigned long long)(rounds * rounds) * sizeof(long long), &g_cli_text_cells);
     if (grown == NULL)
     {
         return 0;

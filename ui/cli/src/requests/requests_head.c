@@ -138,13 +138,13 @@ static int head_unpacked_room(CliRequestsRoom *room, unsigned long long bytes, V
     {
         return 1;
     }
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(wanted, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(wanted, &g_cli_requests_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the answer's body undone could not be stored");
         return 0;
     }
-    cli_cell_release(room->unpacked, NULL);
+    cli_cell_release(room->unpacked, &g_cli_requests_cells);
     room->unpacked = cell;
     room->unpacked_room = wanted;
     return 1;
@@ -160,7 +160,7 @@ int cli_requests_decoded(CliRequestsRoom *room, unsigned long long size, VerbaLi
     answer->size = size;
     if (head_is(answer, encoding, "gzip") || head_is(answer, encoding, "x-gzip"))
     {
-        // a gzip ends with its unpacked size, so the room is taken once at that size
+        // a gzip ends with its unpacked size, and the room is taken once at that size
         const unsigned long long unpacked_size =
             (size >= 4ull)
                 ? ((unsigned long long)raw[size - 4ull] | ((unsigned long long)raw[size - 3ull] << 8u) |

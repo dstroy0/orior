@@ -84,7 +84,7 @@ static CliTextEdit set_element(const CliXml *xml, unsigned int holder, const cha
     return (CliTextEdit){there, there, s_edit, edit.at};
 }
 
-// the edit of the POM `pom` written as the one file's edits
+// the edit of the POM `pom` written as the edits of that file alone
 static void set_file_edit(const char *pom, const CliTextEdit *edit, VerbaLinea *out)
 {
     mmgr_line_put(out, "[{\"path\":");
@@ -208,7 +208,7 @@ static int set_user(const char *name, const char *value, VerbaLinea *out, VerbaL
     const char *const text = (mapped != NULL) ? (const char *)mapped : "";
     const unsigned long long size = (mapped != NULL) ? mapped_size : 0ull;
     VerbaLinea written;
-    (void)cli_growing_line_made(&written, size + CLI_MAVEN_SET_MORE);
+    (void)cli_growing_line_made(&written, size + CLI_MAVEN_SET_MORE, &g_cli_build_cells);
     unsigned int *starts = NULL;
     int settings = 1;
     if (cli_text_lead(text, size) == size)
@@ -239,7 +239,7 @@ static int set_user(const char *name, const char *value, VerbaLinea *out, VerbaL
                      !(cli_path_parent(path, parent) && !query_folder_made(parent)) &&
                      query_file_written(path, written.out, written.at);
     cli_cell_release(starts, &g_cli_build_cells);
-    cli_cell_release(written.out, NULL);
+    cli_cell_release(written.out, &g_cli_build_cells);
     if (mapped != NULL)
     {
         cli_file_let_go(mapped, mapped_size);

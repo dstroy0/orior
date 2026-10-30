@@ -81,7 +81,7 @@ static void cli_searched(const unsigned char *bytes, unsigned long long size, un
 }
 
 // room for a file of `size` bytes in a worker's cell: the cell as it is where it fits them, else one taken anew of
-// twice the cell's bytes or the file's and one, the cell before given back; NULL, so the file is passed over, where it
+// twice the cell's bytes or the file's and one, the cell before given back; NULL, the file passed over, where it
 // is larger than the search reads or no cell is given
 static unsigned char *cli_worker_roomed(void *context, unsigned long long size)
 {
@@ -92,10 +92,10 @@ static unsigned char *cli_worker_roomed(void *context, unsigned long long size)
     }
     if ((size + 1ull) > worker->room_size)
     {
-        cli_cell_release(worker->room, NULL);
+        cli_cell_release(worker->room, &g_cli_editor_cells);
         unsigned long long room = (worker->room_size * 2ull > size + 1ull) ? (worker->room_size * 2ull) : (size + 1ull);
         room = (room < CLI_WORKER_ROOM_FIRST) ? CLI_WORKER_ROOM_FIRST : room;
-        worker->room = g_cli_cells->persistent_buf_alloc(room, NULL);
+        worker->room = g_cli_cells->persistent_buf_alloc(room, &g_cli_editor_cells);
         worker->room_size = (worker->room != NULL) ? room : 0ull;
     }
     return worker->room;
@@ -127,7 +127,7 @@ static void cli_worker(void *context)
             cli_searched(worker->room, size, index);
         }
     }
-    cli_cell_release(worker->room, NULL);
+    cli_cell_release(worker->room, &g_cli_editor_cells);
     worker->room = NULL;
     worker->room_size = 0ull;
     cli_lock_take(&s_lock);

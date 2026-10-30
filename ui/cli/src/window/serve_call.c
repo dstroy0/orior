@@ -64,7 +64,7 @@ int cli_serve_answered(CliServeAnswer answer, const char *args, unsigned long lo
     CliJson json;
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    unsigned int object = cli_json_taken(&json, args, size, 1u, 0ull, &ignored);
+    unsigned int object = cli_json_taken(&json, args, size, 1u, 0ull, &ignored, &g_cli_window_cells);
     object = cli_json_is(&json, object, CFG_JSON_OBJECT) ? object : cli_json_made(&json, CFG_JSON_OBJECT);
     int answered = 0;
     if (object == CLI_JSON_NONE)

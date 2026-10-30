@@ -52,7 +52,7 @@ static char *processes_command_of(CliQueryProcess query, DWORD pid)
     const ULONG room = needed;
     // the room taken on a cell's boundary, aligned for the string's header
     unsigned char *const base = ((room > 2u * sizeof(void *)) && (room < CLI_PROCESS_COMMAND_MOST))
-                                    ? cli_lane_alloc(room, NULL)
+                                    ? cli_lane_alloc(room, &g_cli_platform_cells)
                                     : NULL;
     if ((base != NULL) && (query(process, CLI_PROCESS_COMMAND_LINE, base, room, &needed) >= 0))
     {
@@ -67,14 +67,14 @@ static char *processes_command_of(CliQueryProcess query, DWORD pid)
         if ((start != NULL) && ((const unsigned char *)start >= base) &&
             ((const unsigned char *)(start + length) <= end))
         {
-            command = g_cli_cells->persistent_buf_alloc((3ull * length) + 1ull, NULL);
+            command = g_cli_cells->persistent_buf_alloc((3ull * length) + 1ull, &g_cli_platform_cells);
         }
         if (command != NULL)
         {
             processes_utf8(start, (int)length, command, (int)((3u * length) + 1u));
         }
     }
-    cli_cell_release(base, NULL);
+    cli_cell_release(base, &g_cli_platform_cells);
     CloseHandle(process);
     return command;
 }
@@ -105,7 +105,7 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
         processes_utf8(entry.szExeFile, end, s_name, (int)sizeof(s_name));
         char *const command = processes_command_of(query, entry.th32ProcessID);
         each(context, (unsigned int)entry.th32ProcessID, s_name, (command != NULL) ? command : "");
-        cli_cell_release(command, NULL);
+        cli_cell_release(command, &g_cli_platform_cells);
     }
     cli_lock_give(&s_lock);
     CloseHandle(snapshot);

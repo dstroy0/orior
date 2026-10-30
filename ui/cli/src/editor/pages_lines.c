@@ -33,7 +33,7 @@ int cli_page_lines_reserved(CliPageLines *lines, unsigned long long lines_first,
 {
     const unsigned long long lines_most = (lines_first < 1ull) ? 1ull : lines_bounded(lines_first, CLI_PAGE_READ_LINES);
     const unsigned long long text_most = (text_first < 1ull) ? 1ull : lines_bounded(text_first, CLI_PAGE_READ_TEXT);
-    unsigned char *const cell = cli_lane_alloc(lines_heads(lines_most) + text_most, NULL);
+    unsigned char *const cell = cli_lane_alloc(lines_heads(lines_most) + text_most, &g_cli_editor_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the lines a reading gives could not be taken");
@@ -73,13 +73,15 @@ int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsi
     // the cell grown where it stands while the starts and lengths keep their places ahead of the text, and the text
     // alone gains room; a cell with more lines ahead is laid anew in a larger one
     unsigned char *const grown =
-        (lines_most == lines->lines_most) ? cli_cell_grown(lines->cell, lines_heads(lines_most) + text_most, NULL) : NULL;
+        (lines_most == lines->lines_most)
+            ? cli_cell_grown(lines->cell, lines_heads(lines_most) + text_most, &g_cli_editor_cells)
+            : NULL;
     if (grown != NULL)
     {
         lines_laid(lines, grown, lines_most, text_most);
         return 1;
     }
-    unsigned char *const cell = cli_lane_alloc(lines_heads(lines_most) + text_most, NULL);
+    unsigned char *const cell = cli_lane_alloc(lines_heads(lines_most) + text_most, &g_cli_editor_cells);
     if (cell == NULL)
     {
         lines->full = 1;
@@ -90,7 +92,7 @@ int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsi
     memor.cpy(&(MemoriaCfg){.dst = moved.start, .src = lines->start, .bytes = lines->count * sizeof(*moved.start)});
     memor.cpy(&(MemoriaCfg){.dst = moved.length, .src = lines->length, .bytes = lines->count * sizeof(*moved.length)});
     memor.cpy(&(MemoriaCfg){.dst = moved.text, .src = lines->text, .bytes = lines->used});
-    cli_cell_release(lines->cell, NULL);
+    cli_cell_release(lines->cell, &g_cli_editor_cells);
     lines_laid(lines, cell, lines_most, text_most);
     return 1;
 }
@@ -136,7 +138,7 @@ int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long lo
 
 void cli_page_lines_given(CliPageLines *lines)
 {
-    cli_cell_release(lines->cell, NULL);
+    cli_cell_release(lines->cell, &g_cli_editor_cells);
     lines->cell = NULL;
     lines->start = NULL;
     lines->length = NULL;

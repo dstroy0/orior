@@ -35,15 +35,17 @@ typedef struct
     unsigned long long size;
 } GuiLinkCall;
 
-// An item waiting for the window's thread: the call's ticket, 0 for an event, whether its text is an answer, and its
-// name and `size` bytes of its text in one cell
+// An item waiting for the window's thread: the call's ticket, 0 for an event, whether its text is an answer, its name,
+// and `size` bytes of its text; an answer's text lying in the room the call ran in, CLI_WINDOW_ROOMS for an event,
+// whose name and text are copied into one cell; the room given back once the window's thread has read the answer
 typedef struct
 {
     unsigned long long ticket;
     int ok;
     char *name;
-    char *text;
+    const char *text;
     unsigned long long size;
+    unsigned int room;
 } GuiLinkItem;
 
 // A ring of calls waiting: the calls in a cell, its head and count

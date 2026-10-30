@@ -52,7 +52,7 @@ int cli_tests_list(const char *root, const char *const *words, unsigned int coun
             CfgJsonToken token[1u << 17u];
             CliJson json;
         } CliTestsListRoom;
-        CliTestsListRoom *const room = cli_lane_alloc(sizeof(*room), NULL);
+        CliTestsListRoom *const room = cli_lane_alloc(sizeof(*room), &g_cli_command_line_cells);
         if (room == NULL)
         {
             cli_err("a listing of tests could not be taken");
@@ -74,7 +74,7 @@ int cli_tests_list(const char *root, const char *const *words, unsigned int coun
             cli_json_write(&room->json, tree, &pretty, 2u, 0);
         }
         cli_out_line(room->pretty, mmgr_line_ok(&pretty) ? pretty.at : 0ull);
-        cli_cell_release(room, NULL);
+        cli_cell_release(room, &g_cli_command_line_cells);
         return 0;
     }
     unsigned int listed = 0u;
@@ -224,14 +224,14 @@ void cli_job_show(const char *root, const CliCatalog *catalog, unsigned int job)
     cli_out("runs");
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliValues *const values = cli_lane_alloc(sizeof(*values), NULL);
+    CliValues *const values = cli_lane_alloc(sizeof(*values), &g_cli_command_line_cells);
     if (values == NULL)
     {
         mmgr_line_put(&err_msg, "the cells cannot meet the values a job is shown with");
     }
     const int shown = (values != NULL) && cli_job_values(catalog, job, NULL, 0u, values, &err_msg) &&
                       cli_runner_shown(root, catalog, job, values, jobs_shown, NULL, &err_msg);
-    cli_cell_release(values, NULL);
+    cli_cell_release(values, &g_cli_command_line_cells);
     if (!shown)
     {
         line.at = 0ull;
@@ -284,7 +284,7 @@ static void jobs_state_sent(VerbaLinea *state)
     {
         cli_window_channel_sent(state->out, state->at);
     }
-    cli_cell_release(state->out, NULL);
+    cli_cell_release(state->out, &g_cli_command_line_cells);
 }
 
 // a line of the errors led by `lead`
@@ -307,7 +307,7 @@ static void jobs_run_event(void *context, const CliRunEvent *event)
         return;
     }
     VerbaLinea state = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP);
+    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP, &g_cli_command_line_cells);
     if (event->kind == CLI_RUN_EVENT_LINE)
     {
         mmgr_line_put(&state, "{\"line\":");
@@ -365,19 +365,19 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
 {
     char why[4096];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    CliValues *const values = cli_lane_alloc(sizeof(*values), NULL);
+    CliValues *const values = cli_lane_alloc(sizeof(*values), &g_cli_command_line_cells);
     if ((values == NULL) || !cli_job_values(catalog, job, words, count, values, &err_msg))
     {
         mmgr_line_put(&err_msg, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");
         cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
-        cli_cell_release(values, NULL);
+        cli_cell_release(values, &g_cli_command_line_cells);
         return CLI_WRONG;
     }
     cli_window_channel_begun();
     s_run.ended = 0;
     s_run.has_code = 0;
     VerbaLinea state = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP);
+    (void)cli_growing_line_made(&state, CLI_JOBS_STATE_INIT_CAP, &g_cli_command_line_cells);
     mmgr_line_put(&state, "{\"state\":\"started\",\"job\":");
     const char *const id = cli_catalog_at(catalog, catalog->job[job].id);
     const char *const title = cli_catalog_at(catalog, catalog->job[job].title);
@@ -401,7 +401,7 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
     unsigned long long run = 0ull;
     err_msg.at = 0ull;
     const int started = cli_runs_start(sink, root, catalog, job, values, &run, &err_msg);
-    cli_cell_release(values, NULL);
+    cli_cell_release(values, &g_cli_command_line_cells);
     if (!started)
     {
         cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);

@@ -17,8 +17,8 @@ void gui_signature_made(GuiSignature *signature)
 
 void gui_signature_given(GuiSignature *signature)
 {
-    g_cli_cells->persistent_buf_release(signature->label, NULL);
-    g_cli_cells->persistent_buf_release(signature->doc, NULL);
+    g_cli_cells->persistent_buf_release(signature->label, &g_gui_cells);
+    g_cli_cells->persistent_buf_release(signature->doc, &g_gui_cells);
     signature->label = NULL;
     signature->doc = NULL;
     signature->length = 0ull;
@@ -72,7 +72,7 @@ int gui_signature_ticked(GuiSignature *signature, unsigned long long now)
 // `length` bytes of `text` copied into a cell of their own: the cell, or NULL where it could not be taken
 static char *signature_copied(const char *text, unsigned long long length)
 {
-    char *const cell = g_cli_cells->persistent_buf_alloc((length > 0ull) ? length : 1ull, NULL);
+    char *const cell = g_cli_cells->persistent_buf_alloc((length > 0ull) ? length : 1ull, &g_gui_cells);
     if (cell != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = cell, .src = text, .bytes = length});
@@ -132,7 +132,8 @@ int gui_signature_put(GuiSignature *signature, const CliJson *json, unsigned int
     const unsigned int differ_count = cli_json_is(json, differs, CFG_JSON_ARRAY) ? json->node[differs].count : 0u;
     for (unsigned int at = 0u; (at < differ_count) && (signature->differing < GUI_SIGNATURE_PARAMS); at += 1u)
     {
-        signature->differs[signature->differing] = (unsigned int)gui_answer_whole(json, cli_json_item(json, differs, at), 0ull);
+        signature->differs[signature->differing] =
+            (unsigned int)gui_answer_whole(json, cli_json_item(json, differs, at), 0ull);
         signature->differing += 1u;
     }
     unsigned long long doc_length = 0ull;
@@ -216,13 +217,15 @@ static int signature_label_laid(const GuiSignature *signature, GuiRaster *raster
         if (raster != NULL)
         {
             const GuiColor color = active ? type : palette->editor_text;
-            const float after = gui_text_drawn(raster, glyphs, active ? GUI_FACE_CODE_BOLD : GUI_FACE_CODE, size, pen, top + baseline,
-                                               signature->label + at, took, color, clip);
+            const float after = gui_text_drawn(raster, glyphs, active ? GUI_FACE_CODE_BOLD : GUI_FACE_CODE, size, pen,
+                                               top + baseline, signature->label + at, took, color, clip);
             if (active || differs)
             {
                 const int under = top + baseline + gui_scaled(3, scale);
-                gui_raster_filled(raster, gui_rect_met((GuiRect){(int)pen, under, (int)(after - pen + 0.5f), gui_scaled(1, scale)}, clip),
-                                  differs ? palette->fail : type);
+                gui_raster_filled(
+                    raster,
+                    gui_rect_met((GuiRect){(int)pen, under, (int)(after - pen + 0.5f), gui_scaled(1, scale)}, clip),
+                    differs ? palette->fail : type);
             }
             pen = after;
         }
@@ -250,19 +253,21 @@ void gui_signature_drawn(GuiSignature *signature, GuiRaster *raster, GuiGlyphs *
     const int inner = wide - (2 * pad_x);
     const int label_tall = signature_label_laid(signature, NULL, glyphs, palette, 0, 0, inner, scale, bounds);
     const int doc_tall = (signature->doc != NULL)
-                             ? gap + gui_panel_markdown(NULL, glyphs, palette, signature->doc, signature->doc_length, 0, 0, inner, scale, bounds)
+                             ? gap + gui_panel_markdown(NULL, glyphs, palette, signature->doc, signature->doc_length, 0,
+                                                        0, inner, scale, bounds)
                              : 0;
     int tall = label_tall + doc_tall + (2 * pad_y);
     const int most = gui_scaled(GUI_SIGNATURE_TALL, scale);
     tall = (tall > most) ? most : tall;
     signature->rect = gui_panel_placed(anchor, wide, tall, 0, bounds, 1, scale);
     gui_panel_box_drawn(raster, palette, signature->rect, scale);
-    const GuiRect clip = gui_rect_met((GuiRect){signature->rect.x + pad_x, signature->rect.y + pad_y, inner, tall - (2 * pad_y)}, bounds);
-    const int laid = signature_label_laid(signature, raster, glyphs, palette, signature->rect.x + pad_x, signature->rect.y + pad_y, inner,
-                                          scale, clip);
+    const GuiRect clip = gui_rect_met(
+        (GuiRect){signature->rect.x + pad_x, signature->rect.y + pad_y, inner, tall - (2 * pad_y)}, bounds);
+    const int laid = signature_label_laid(signature, raster, glyphs, palette, signature->rect.x + pad_x,
+                                          signature->rect.y + pad_y, inner, scale, clip);
     if (signature->doc != NULL)
     {
-        (void)gui_panel_markdown(raster, glyphs, palette, signature->doc, signature->doc_length, signature->rect.x + pad_x,
-                                 signature->rect.y + pad_y + laid + gap, inner, scale, clip);
+        (void)gui_panel_markdown(raster, glyphs, palette, signature->doc, signature->doc_length,
+                                 signature->rect.x + pad_x, signature->rect.y + pad_y + laid + gap, inner, scale, clip);
     }
 }

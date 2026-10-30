@@ -373,7 +373,8 @@ int cli_debug_planned(CliDebugSession *place, const char *root, const CliJson *j
     // the spec and the arguments the session starts with, made in a tree of the most they take, its cell owned by the
     // place until it is freed
     cli_json_given(to);
-    if (!cli_json_reserved(to, CLI_DEBUG_START_NODES, CLI_DEBUG_START_TEXT, "the tree a debug session starts with"))
+    if (!cli_json_reserved(to, CLI_DEBUG_START_NODES, CLI_DEBUG_START_TEXT, "the tree a debug session starts with",
+                           &g_cli_debug_cells))
     {
         mmgr_line_put(err_msg, "the cells cannot meet the tree a debug session starts with");
         return 0;

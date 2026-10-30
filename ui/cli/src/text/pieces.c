@@ -12,7 +12,7 @@
 static int pieces_put(void *context, const char *bytes, size_t size)
 {
     CliPieces *const pieces = (CliPieces *)context;
-    CliPiece *const piece = g_cli_cells->persistent_buf_alloc(sizeof(CliPiece) + size, NULL);
+    CliPiece *const piece = g_cli_cells->persistent_buf_alloc(sizeof(CliPiece) + size, pieces->owner);
     if (piece == NULL)
     {
         pieces->refused = 1;
@@ -39,9 +39,9 @@ int cli_pieces_added(CliPieces *pieces, const char *bytes, unsigned long long si
     return (size == 0ull) || pieces_put(pieces, bytes, size);
 }
 
-void cli_pieces_begun(CliPieces *pieces, VerbaLinea *line, char *piece, unsigned long long piece_size)
+void cli_pieces_begun(CliPieces *pieces, VerbaLinea *line, char *piece, unsigned long long piece_size, CellOwner *owner)
 {
-    *pieces = (CliPieces){NULL, NULL, 0ull, 0};
+    *pieces = (CliPieces){NULL, NULL, 0ull, 0, owner};
     *line = (VerbaLinea){piece, piece_size, 0ull, pieces_put, pieces, 0ull};
 }
 
@@ -75,17 +75,17 @@ void cli_pieces_given(CliPieces *pieces)
     while (piece != NULL)
     {
         CliPiece *const next = piece->next;
-        cli_cell_release(piece, NULL);
+        cli_cell_release(piece, pieces->owner);
         piece = next;
     }
-    *pieces = (CliPieces){NULL, NULL, 0ull, 0};
+    *pieces = (CliPieces){NULL, NULL, 0ull, 0, pieces->owner};
 }
 
 char *cli_pieces_joined(CliPieces *pieces, VerbaLinea *line, const char *what, unsigned long long *size)
 {
     const int whole = cli_pieces_ended(pieces, line);
     *size = pieces->size;
-    char *const joined = whole ? g_cli_cells->persistent_buf_alloc(*size + 1ull, NULL) : NULL;
+    char *const joined = whole ? g_cli_cells->persistent_buf_alloc(*size + 1ull, pieces->owner) : NULL;
     if (joined != NULL)
     {
         cli_pieces_copied(pieces, joined);

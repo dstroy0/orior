@@ -29,7 +29,7 @@ int gui_suggest_made(GuiSuggest *suggest)
 // the items' texts freed, the line left empty
 static void suggest_texts_given(GuiSuggest *suggest)
 {
-    g_cli_cells->persistent_buf_release(suggest->texts.out, NULL);
+    g_cli_cells->persistent_buf_release(suggest->texts.out, &s_owner);
     memor.set(&(MemoriaCfg){.dst = &suggest->texts, .val = 0, .bytes = sizeof(suggest->texts)});
 }
 
@@ -114,7 +114,7 @@ unsigned int gui_suggest_score(const char *label, unsigned long long length, con
 // fit: 1, or 0 where it could not grow
 static int suggest_stored(GuiSuggest *suggest, const char *text, unsigned long long length, unsigned long long *at)
 {
-    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST))
+    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &s_owner))
     {
         return 0;
     }
@@ -126,9 +126,10 @@ static int suggest_stored(GuiSuggest *suggest, const char *text, unsigned long l
 // `length` bytes of a snippet `text` stored among the items' texts as the text it inserts: a tab stop with a
 // placeholder, `${n:text}`, as its placeholder, one with choices, `${n|a,b|}`, as its first choice, a bare stop,
 // `$n` or `${n}`, as nothing, and an escaped byte as itself: where it starts, or 0 with the line full
-static int suggest_snippet_stored(GuiSuggest *suggest, const char *text, unsigned long long length, unsigned long long *at)
+static int suggest_snippet_stored(GuiSuggest *suggest, const char *text, unsigned long long length,
+                                  unsigned long long *at)
 {
-    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST))
+    if ((suggest->texts.out == NULL) && !cli_growing_line_made(&suggest->texts, GUI_SUGGEST_TEXT_FIRST, &s_owner))
     {
         return 0;
     }
@@ -239,7 +240,8 @@ static int suggest_item_put(GuiSuggest *suggest, const CliJson *json, unsigned i
     {
         const GuiItem *const other = &suggest->item[at];
         if ((other->label_length == label_length) &&
-            (memor.cmp(&(MemoriaCfg){.src = suggest->texts.out + other->label, .other = label, .bytes = label_length}) == 0))
+            (memor.cmp(
+                 &(MemoriaCfg){.src = suggest->texts.out + other->label, .other = label, .bytes = label_length}) == 0))
         {
             return 0;
         }
@@ -261,7 +263,8 @@ static int suggest_item_put(GuiSuggest *suggest, const CliJson *json, unsigned i
     item.label_length = label_length;
     item.kind_length = kind_length;
     item.detail_length = detail_length;
-    if (!suggest_stored(suggest, label, label_length, &item.label) || !suggest_stored(suggest, kind, kind_length, &item.kind) ||
+    if (!suggest_stored(suggest, label, label_length, &item.label) ||
+        !suggest_stored(suggest, kind, kind_length, &item.kind) ||
         !suggest_stored(suggest, detail, detail_length, &item.detail))
     {
         return 0;
@@ -293,7 +296,8 @@ static int suggest_order(const void *one, const void *other)
     {
         return (a->label_length < b->label_length) ? -1 : 1;
     }
-    return memor.cmp(&(MemoriaCfg){.src = s_ranking->texts.out + a->label, .other = s_ranking->texts.out + b->label, .bytes = a->label_length});
+    return memor.cmp(&(MemoriaCfg){
+        .src = s_ranking->texts.out + a->label, .other = s_ranking->texts.out + b->label, .bytes = a->label_length});
 }
 
 // the items shown ranked against the prefix, the row chosen kept on the item it was on where it is still shown
@@ -362,7 +366,8 @@ int gui_suggest_put(GuiSuggest *suggest, const CliJson *json, unsigned int root,
     suggest_ranked(suggest);
     const GuiItem *const only = (suggest->count == 1u) ? &suggest->item[suggest->shown[0]] : NULL;
     const int alone = (only != NULL) && (only->label_length == typed.at) &&
-                      (memor.cmp(&(MemoriaCfg){.src = suggest->texts.out + only->label, .other = suggest->prefix, .bytes = typed.at}) == 0);
+                      (memor.cmp(&(MemoriaCfg){
+                           .src = suggest->texts.out + only->label, .other = suggest->prefix, .bytes = typed.at}) == 0);
     // nothing typed opens no list unless the keys forced it; a list open stays open on an empty prefix
     const int empty = (typed.at == 0ull) && !forced && !was_open;
     if ((suggest->count == 0u) || (alone && !forced) || empty)
@@ -520,14 +525,16 @@ static GuiColor suggest_kind_color(const GuiPalette *palette, const char *kind, 
     {
         const char *kind;
         const char *token;
-    } s_marks[] = {{"type", "type"},         {"class", "type"},           {"state", "type"},       {"function", "predefined"},
-                   {"method", "predefined"}, {"operator", "predefined"},  {"field", "attribute"},  {"property", "attribute"},
-                   {"variable", "variable"}, {"parameter", "variable"},   {"local", "variable"},   {"constant", "number"},
-                   {"snippet", "string"},    {"module", "tag"}};
+    } s_marks[] = {{"type", "type"},           {"class", "type"},         {"state", "type"},
+                   {"function", "predefined"}, {"method", "predefined"},  {"operator", "predefined"},
+                   {"field", "attribute"},     {"property", "attribute"}, {"variable", "variable"},
+                   {"parameter", "variable"},  {"local", "variable"},     {"constant", "number"},
+                   {"snippet", "string"},      {"module", "tag"}};
     for (unsigned int at = 0u; at < sizeof(s_marks) / sizeof(s_marks[0]); at += 1u)
     {
         const unsigned long long known = cellul.len(&(CatenaFinitaCfg){.src = s_marks[at].kind, .cap = 32ull});
-        if ((known == length) && (memor.cmp(&(MemoriaCfg){.src = s_marks[at].kind, .other = kind, .bytes = length}) == 0))
+        if ((known == length) &&
+            (memor.cmp(&(MemoriaCfg){.src = s_marks[at].kind, .other = kind, .bytes = length}) == 0))
         {
             const char *const token = s_marks[at].token;
             return gui_palette_token(palette, token, cellul.len(&(CatenaFinitaCfg){.src = token, .cap = 32ull}));
@@ -559,7 +566,8 @@ void gui_suggest_drawn(GuiSuggest *suggest, GuiRaster *raster, GuiGlyphs *glyphs
         float wide = gui_text_width(glyphs, GUI_FACE_CODE, size, suggest->texts.out + item->label, item->label_length);
         if (item->detail_length > 0ull)
         {
-            wide += (float)gap + gui_text_width(glyphs, GUI_FACE_CODE, size, suggest->texts.out + item->detail, item->detail_length);
+            wide += (float)gap +
+                    gui_text_width(glyphs, GUI_FACE_CODE, size, suggest->texts.out + item->detail, item->detail_length);
         }
         widest = (wide > widest) ? wide : widest;
     }
@@ -580,7 +588,8 @@ void gui_suggest_drawn(GuiSuggest *suggest, GuiRaster *raster, GuiGlyphs *glyphs
                                : (GuiRect){0, 0, 0, 0};
     gui_panel_box_drawn(raster, palette, suggest->rect, scale);
     const GuiRect clip = gui_rect_met(suggest->rect, bounds);
-    const unsigned long long typed = cellul.len(&(CatenaFinitaCfg){.src = suggest->prefix, .cap = sizeof(suggest->prefix)});
+    const unsigned long long typed =
+        cellul.len(&(CatenaFinitaCfg){.src = suggest->prefix, .cap = sizeof(suggest->prefix)});
     const float ascent = gui_glyphs_ascent(glyphs, GUI_FACE_CODE, size);
     const float descent = gui_glyphs_descent(glyphs, GUI_FACE_CODE, size);
     const int baseline = (int)((((float)row_tall - ascent - descent) / 2.0f) + ascent + 0.5f);
@@ -603,8 +612,8 @@ void gui_suggest_drawn(GuiSuggest *suggest, GuiRaster *raster, GuiGlyphs *glyphs
                            (gui_suggest_score(label, item->label_length, suggest->prefix) >= 4u);
         if (starts)
         {
-            x = gui_text_drawn(raster, glyphs, GUI_FACE_CODE_BOLD, size, x, row_rect.y + baseline, label, typed, palette->signal,
-                               text_clip);
+            x = gui_text_drawn(raster, glyphs, GUI_FACE_CODE_BOLD, size, x, row_rect.y + baseline, label, typed,
+                               palette->signal, text_clip);
             x = gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size, x, row_rect.y + baseline, label + typed,
                                item->label_length - typed, palette->text, text_clip);
         }
@@ -615,17 +624,21 @@ void gui_suggest_drawn(GuiSuggest *suggest, GuiRaster *raster, GuiGlyphs *glyphs
         }
         if (item->detail_length > 0ull)
         {
-            const float detail_wide_text = gui_text_width(glyphs, GUI_FACE_CODE, size, suggest->texts.out + item->detail, item->detail_length);
+            const float detail_wide_text =
+                gui_text_width(glyphs, GUI_FACE_CODE, size, suggest->texts.out + item->detail, item->detail_length);
             float detail_x = (float)(row_rect.x + list_wide - pad_x) - detail_wide_text;
             detail_x = (detail_x < x + (float)gap) ? x + (float)gap : detail_x;
-            (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size, detail_x, row_rect.y + baseline, suggest->texts.out + item->detail,
-                                 item->detail_length, palette->text_3, text_clip);
+            (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, size, detail_x, row_rect.y + baseline,
+                                 suggest->texts.out + item->detail, item->detail_length, palette->text_3, text_clip);
         }
     }
     if (detailed)
     {
         const int line = gui_scaled(1, scale);
-        gui_raster_filled(raster, gui_rect_met((GuiRect){suggest->detail.x, suggest->detail.y + line, line, suggest->detail.height - (2 * line)}, clip),
+        gui_raster_filled(raster,
+                          gui_rect_met((GuiRect){suggest->detail.x, suggest->detail.y + line, line,
+                                                 suggest->detail.height - (2 * line)},
+                                       clip),
                           palette->widget_line);
         const int detail_pad_x = gui_scaled(GUI_SUGGEST_DETAIL_PAD_X, scale);
         const int detail_pad_y = gui_scaled(GUI_SUGGEST_DETAIL_PAD_Y, scale);
@@ -633,12 +646,15 @@ void gui_suggest_drawn(GuiSuggest *suggest, GuiRaster *raster, GuiGlyphs *glyphs
         char fenced[GUI_PANEL_RUN + 2u];
         VerbaLinea text = {fenced, sizeof(fenced), 0ull};
         mmgr_line_ch(&text, '`');
-        mmgr_line_put_n(&text, suggest->texts.out + chosen->detail, (chosen->detail_length < GUI_PANEL_RUN) ? chosen->detail_length : GUI_PANEL_RUN);
+        mmgr_line_put_n(&text, suggest->texts.out + chosen->detail,
+                        (chosen->detail_length < GUI_PANEL_RUN) ? chosen->detail_length : GUI_PANEL_RUN);
         mmgr_line_ch(&text, '`');
-        const GuiRect detail_clip = gui_rect_met((GuiRect){suggest->detail.x + detail_pad_x, suggest->detail.y + detail_pad_y,
-                                                           suggest->detail.width - (2 * detail_pad_x), suggest->detail.height - (2 * detail_pad_y)},
-                                                 clip);
-        (void)gui_panel_markdown(raster, glyphs, palette, fenced, mmgr_line_ok(&text) ? text.at : 0ull, suggest->detail.x + detail_pad_x,
-                                 suggest->detail.y + detail_pad_y, suggest->detail.width - (2 * detail_pad_x), scale, detail_clip);
+        const GuiRect detail_clip = gui_rect_met(
+            (GuiRect){suggest->detail.x + detail_pad_x, suggest->detail.y + detail_pad_y,
+                      suggest->detail.width - (2 * detail_pad_x), suggest->detail.height - (2 * detail_pad_y)},
+            clip);
+        (void)gui_panel_markdown(raster, glyphs, palette, fenced, mmgr_line_ok(&text) ? text.at : 0ull,
+                                 suggest->detail.x + detail_pad_x, suggest->detail.y + detail_pad_y,
+                                 suggest->detail.width - (2 * detail_pad_x), scale, detail_clip);
     }
 }

@@ -74,7 +74,8 @@ static int made_libraries_copy(const CliServeArgs *args, VerbaLinea *out, VerbaL
     }
     CliBinaryReport *const report = cli_serve_cell(sizeof(*report), "the report of what a program loads", err_msg);
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_MAX_LEN] = (report != NULL) ? cli_toolchains_path_taken(&count) : NULL;
+    char (*const folders)[CLI_PATH_MAX_LEN] =
+        (report != NULL) ? cli_toolchains_path_taken(&count, &g_cli_window_cells) : NULL;
     const unsigned long long start = out->at;
     mmgr_line_ch(out, '[');
     const int done = (report != NULL) &&
@@ -82,8 +83,8 @@ static int made_libraries_copy(const CliServeArgs *args, VerbaLinea *out, VerbaL
                      cli_binary_copy_beside(file, report, made_copied, out, err_msg);
     mmgr_line_ch(out, ']');
     out->at = done ? out->at : start;
-    cli_cell_release(folders, NULL);
-    cli_cell_release(report, NULL);
+    cli_cell_release(folders, &g_cli_window_cells);
+    cli_cell_release(report, &g_cli_window_cells);
     return done;
 }
 
@@ -329,7 +330,7 @@ static int qry_joined(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     {
         cli_json_quoted_lossy(out, (const unsigned char *)joined, mmgr_line_ok(&bytes) ? bytes.at : 0ull);
     }
-    cli_cell_release(joined, NULL);
+    cli_cell_release(joined, &g_cli_window_cells);
     return done;
 }
 

@@ -528,8 +528,9 @@ static int cli_slice_cut(CliEffect *effect, const char *path, unsigned int first
                 ? at
                 : slice.start;
     }
-    slice.written =
-        (effect->seens != 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)effect->seens, NULL) : NULL;
+    slice.written = (effect->seens != 0u)
+                        ? g_cli_cells->persistent_buf_alloc((unsigned long long)effect->seens, &g_cli_code_cells)
+                        : NULL;
     effect->refused |= (effect->seens != 0u) && (slice.written == NULL);
     if (slice.written != NULL)
     {
@@ -569,9 +570,9 @@ static int cli_slice_cut(CliEffect *effect, const char *path, unsigned int first
     {
         cli_slice_handed(&slice, each, context);
     }
-    cli_cell_release(slice.name, NULL);
-    cli_cell_release(slice.part, NULL);
-    cli_cell_release(slice.written, NULL);
+    cli_cell_release(slice.name, &g_cli_code_cells);
+    cli_cell_release(slice.part, &g_cli_code_cells);
+    cli_cell_release(slice.written, &g_cli_code_cells);
     return !effect->refused;
 }
 

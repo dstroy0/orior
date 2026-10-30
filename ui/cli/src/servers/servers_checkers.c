@@ -92,7 +92,7 @@ static void checkers_file_job(const void *job, unsigned long long size)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
     const char *const text = one->has_text ? (const char *)job + sizeof(*one) : NULL;
@@ -103,7 +103,7 @@ static void checkers_file_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(one->id, findings, found_size, 0, &one->sink);
     }
-    cli_cell_release(findings, NULL);
+    cli_cell_release(findings, &g_cli_servers_cells);
 }
 
 // the tree checked whole by one checker, its findings written through pieces into a cell of their size and stored
@@ -117,7 +117,7 @@ static void checkers_tree_job(const void *job, unsigned long long size)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea found;
-    cli_pieces_begun(&pieces, &found, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &found, piece, sizeof(piece), &g_cli_servers_cells);
     char quiet[1024];
     VerbaLinea err_msg = {quiet, sizeof(quiet), 0ull};
     const int checked = cli_checkers_check_tree(one->id, one->root, &found, &err_msg);
@@ -127,7 +127,7 @@ static void checkers_tree_job(const void *job, unsigned long long size)
     {
         cli_servers_findings_stored(one->id, findings, found_size, 0, &one->sink);
     }
-    cli_cell_release(findings, NULL);
+    cli_cell_release(findings, &g_cli_servers_cells);
 }
 
 // a path copied into what is sized for CLI_PATH_MAX_LEN
@@ -173,7 +173,8 @@ void cli_servers_run_checkers(const char *root, const char *path, const char *te
         // the job made in a cell of its size, the text after it where the checker has it
         const int has_text = (text != NULL) && (size <= CLI_SERVERS_LARGEST);
         const unsigned long long text_size = has_text ? size : 0ull;
-        char *const job = g_cli_cells->persistent_buf_alloc(sizeof(CliServersCheckerJob) + text_size, NULL);
+        char *const job =
+            g_cli_cells->persistent_buf_alloc(sizeof(CliServersCheckerJob) + text_size, &g_cli_servers_cells);
         if (job == NULL)
         {
             continue;

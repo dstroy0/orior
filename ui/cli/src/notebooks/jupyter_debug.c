@@ -164,7 +164,7 @@ static int jupyter_debug_request(CliKernel *kernel, const char *file, unsigned i
     CliJson json = {0};
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, reply.out, reply.at, 0u, 0ull, &unread);
+    const unsigned int root = cli_json_taken(&json, reply.out, reply.at, 0u, 0ull, &unread, &g_cli_notebook_cells);
     const int read = jupyter_reply_read(kernel, &json, root, port, err_msg);
     cli_json_given(&json);
     return read;

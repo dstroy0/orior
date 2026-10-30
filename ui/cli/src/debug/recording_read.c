@@ -31,10 +31,11 @@ static int read_stack_room(unsigned int thread)
     }
     const unsigned int doubled = (s_rooms[thread] == 0u) ? CLI_RECORDING_STACK_FIRST : (s_rooms[thread] * 2u);
     const unsigned int room = (doubled < CLI_RECORDING_DEPTH) ? doubled : CLI_RECORDING_DEPTH;
-    unsigned int *const larger = (s_depths[thread] < CLI_RECORDING_DEPTH)
-                                     ? cli_cell_regrown(s_stacks[thread], s_depths[thread] * sizeof(unsigned int),
-                                                        (unsigned long long)room * sizeof(unsigned int), NULL)
-                                     : NULL;
+    unsigned int *const larger =
+        (s_depths[thread] < CLI_RECORDING_DEPTH)
+            ? cli_cell_regrown(s_stacks[thread], s_depths[thread] * sizeof(unsigned int),
+                               (unsigned long long)room * sizeof(unsigned int), &g_cli_debug_cells)
+            : NULL;
     if (larger == NULL)
     {
         return 0;
@@ -49,7 +50,7 @@ static void read_stacks_given(void)
 {
     for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
     {
-        cli_cell_release(s_stacks[thread], NULL);
+        cli_cell_release(s_stacks[thread], &g_cli_debug_cells);
         s_stacks[thread] = NULL;
         s_rooms[thread] = 0u;
         s_depths[thread] = 0u;
@@ -144,7 +145,7 @@ static int read_room_taken(CliRecording *recording, const char *text, unsigned l
         ((unsigned long long)counts.files * sizeof(unsigned int)) +
         ((unsigned long long)counts.threads * (sizeof(unsigned long long) + sizeof(unsigned int))) +
         ((unsigned long long)counts.raises * sizeof(CliRecordedRaise)) + size + 1ull + (8ull * 8ull);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_debug_cells);
     if (cell == NULL)
     {
         return 0;
@@ -184,9 +185,10 @@ static unsigned int read_record(unsigned long long at)
     cli_json_given(&s_json);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = (end - at <= CLI_RECORDING_LINE_TEXT)
-                                  ? cli_json_taken(&s_json, recording->text + at, end - at, 0u, 0ull, &unread)
-                                  : CLI_JSON_NONE;
+    const unsigned int root =
+        (end - at <= CLI_RECORDING_LINE_TEXT)
+            ? cli_json_taken(&s_json, recording->text + at, end - at, 0u, 0ull, &unread, &g_cli_debug_cells)
+            : CLI_JSON_NONE;
     return cli_json_is(&s_json, root, CFG_JSON_ARRAY) ? root : CLI_JSON_NONE;
 }
 
@@ -386,7 +388,7 @@ void cli_recording_let_go(void)
         recording->path[0] = '\0';
     }
     recording->size = 0ull;
-    cli_cell_release(recording->room, NULL);
+    cli_cell_release(recording->room, &g_cli_debug_cells);
     recording->room = NULL;
     recording->steps = NULL;
     recording->step_count = 0u;

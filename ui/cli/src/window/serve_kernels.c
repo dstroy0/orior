@@ -111,7 +111,7 @@ static void kernels_recv(void *context, const char *message, unsigned long long 
 {
     const char *const key = context;
     VerbaLinea body;
-    if (!cli_growing_line_made(&body, size + CLI_SERVE_KERNEL_MORE))
+    if (!cli_growing_line_made(&body, size + CLI_SERVE_KERNEL_MORE, &g_cli_window_cells))
     {
         return;
     }
@@ -124,7 +124,7 @@ static void kernels_recv(void *context, const char *message, unsigned long long 
     {
         cli_serve_emitted("kernel-message", body.out, body.at);
     }
-    cli_cell_release(body.out, NULL);
+    cli_cell_release(body.out, &g_cli_window_cells);
 }
 
 static int kernel_specs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
@@ -310,8 +310,8 @@ static int kernels_request(const CliServeArgs *args, const char *msg_type, int d
     const unsigned long long code_length = cellul.len(&(CatenaFinitaCfg){.src = code, .cap = CLI_CELLS_POOL});
     VerbaLinea content;
     VerbaLinea reply;
-    const int content_begun = cli_growing_line_made(&content, code_length + CLI_SERVE_KERNEL_MORE);
-    const int reply_begun = cli_growing_line_made(&reply, CLI_SERVE_KERNEL_REPLY);
+    const int content_begun = cli_growing_line_made(&content, code_length + CLI_SERVE_KERNEL_MORE, &g_cli_window_cells);
+    const int reply_begun = cli_growing_line_made(&reply, CLI_SERVE_KERNEL_REPLY, &g_cli_window_cells);
     const int begun = content_begun && reply_begun;
     mmgr_line_put(&content, "{\"code\":");
     cli_json_quoted(&content, code, code_length);
@@ -322,7 +322,7 @@ static int kernels_request(const CliServeArgs *args, const char *msg_type, int d
     {
         mmgr_line_put(err_msg, "the kernel's request could not be stored");
     }
-    // the waiter writes the reply only while the request waits on it, so it is read here and given back after
+    // the waiter writes the reply only while the request waits on it: it is read here and given back after
     const int done = begun && mmgr_line_ok(&content) &&
                      cli_jupyter_requested(kernel, "shell", msg_type, content.out, content.at,
                                            CLI_SERVE_KERNEL_REQUEST_MS, &reply, err_msg);
@@ -337,8 +337,8 @@ static int kernels_request(const CliServeArgs *args, const char *msg_type, int d
     {
         mmgr_line_put(out, "null");
     }
-    cli_cell_release(content.out, NULL);
-    cli_cell_release(reply.out, NULL);
+    cli_cell_release(content.out, &g_cli_window_cells);
+    cli_cell_release(reply.out, &g_cli_window_cells);
     return done;
 }
 

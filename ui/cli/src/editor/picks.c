@@ -82,12 +82,12 @@ static int picks_room_taken(unsigned int rows)
     const unsigned long long bytes =
         ((unsigned long long)rows * (sizeof(double) + 1ull + (2ull * sizeof(unsigned int)))) +
         ((unsigned long long)parts * sizeof(CliPickPart)) + (5ull * 8ull);
-    void *const room = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    void *const room = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_editor_cells);
     if (room == NULL)
     {
         return 0;
     }
-    cli_cell_release(s_picks.room, NULL);
+    cli_cell_release(s_picks.room, &g_cli_editor_cells);
     s_picks.room = room;
     s_picks.room_rows = rows;
     s_picks.parts = parts;
@@ -108,14 +108,14 @@ unsigned long long cli_picks_store(const char *texts, unsigned long long length)
         rows += (texts[at] == '\n') ? 1ull : 0ull;
     }
     cli_lock_take(&s_lock);
-    // a row's start is an unsigned int's, so a text past one's reach is not stored
+    // a row's start is an unsigned int's, and a text past one's reach is not stored
     if ((s_picks.lists >= CLI_PICKS_LISTS) || (length >= 0xffffffffull))
     {
         cli_lock_give(&s_lock);
         return 0ull;
     }
     unsigned char *const cell =
-        g_cli_cells->persistent_buf_alloc((rows * sizeof(unsigned int)) + length + 1ull + 8ull, NULL);
+        g_cli_cells->persistent_buf_alloc((rows * sizeof(unsigned int)) + length + 1ull + 8ull, &g_cli_editor_cells);
     if (cell == NULL)
     {
         cli_lock_give(&s_lock);
@@ -123,7 +123,7 @@ unsigned long long cli_picks_store(const char *texts, unsigned long long length)
     }
     if (((s_picks.room == NULL) || (rows > s_picks.room_rows)) && !picks_room_taken((unsigned int)rows))
     {
-        cli_cell_release(cell, NULL);
+        cli_cell_release(cell, &g_cli_editor_cells);
         cli_lock_give(&s_lock);
         return 0ull;
     }
@@ -171,7 +171,7 @@ void cli_picks_forget(unsigned long long id)
         cli_lock_give(&s_lock);
         return;
     }
-    cli_cell_release(s_picks.list[at].cell, NULL);
+    cli_cell_release(s_picks.list[at].cell, &g_cli_editor_cells);
     for (unsigned int list = at + 1u; list < s_picks.lists; list += 1u)
     {
         s_picks.list[list - 1u] = s_picks.list[list];
@@ -179,7 +179,7 @@ void cli_picks_forget(unsigned long long id)
     s_picks.lists -= 1u;
     if (s_picks.lists == 0u)
     {
-        cli_cell_release(s_picks.room, NULL);
+        cli_cell_release(s_picks.room, &g_cli_editor_cells);
         s_picks.room = NULL;
         s_picks.room_rows = 0u;
     }

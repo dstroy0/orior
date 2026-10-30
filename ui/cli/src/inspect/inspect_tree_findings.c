@@ -84,7 +84,7 @@ static void *findings_taken(void)
     const unsigned long long finding_bytes = count * sizeof(CliInspectFinding);
     const unsigned long long number_bytes = ((2ull * count) + (2ull * files)) * sizeof(unsigned int);
     unsigned char *const cell =
-        g_cli_cells->persistent_buf_alloc(finding_bytes + number_bytes + s_findings.used + 16ull, NULL);
+        g_cli_cells->persistent_buf_alloc(finding_bytes + number_bytes + s_findings.used + 16ull, &g_cli_inspect_cells);
     if (cell == NULL)
     {
         return NULL;
@@ -114,7 +114,7 @@ static void findings_handed(const CliFacts *facts, unsigned int finding, const c
     cli_measure_begun(&measure, piece, sizeof(piece));
     cli_inspect_finding_written(facts, finding, &measure);
     const unsigned long long size = cli_measured(&measure) + 1ull;
-    char *const written = cli_lane_alloc(size, NULL);
+    char *const written = cli_lane_alloc(size, &g_cli_inspect_cells);
     if (written == NULL)
     {
         return;
@@ -125,7 +125,7 @@ static void findings_handed(const CliFacts *facts, unsigned int finding, const c
     {
         each(context, path, written, line.at);
     }
-    cli_cell_release(written, NULL);
+    cli_cell_release(written, &g_cli_inspect_cells);
 }
 
 void cli_inspect_tree_findings(CliInspectFound each, void *context)
@@ -153,7 +153,7 @@ void cli_inspect_tree_findings(CliInspectFound each, void *context)
             findings_handed(&tree, s_findings.order[s_findings.file_first[file] + at], tree_file->path, each, context);
         }
     }
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_inspect_cells);
     s_findings = (CliTreeFindings){0, 0u, 0ull, NULL, NULL, NULL, NULL, NULL, NULL};
     cli_lock_give(&g_cli_tree_lock);
 }

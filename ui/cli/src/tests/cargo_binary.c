@@ -50,8 +50,9 @@ static int binary_line(const CliCargoFound *one, const char *line, unsigned long
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int message =
-        (size <= CLI_CARGO_LINE_TEXT) ? cli_json_taken(&json, line, size, 0u, 0ull, &unread) : CLI_JSON_NONE;
+    const unsigned int message = (size <= CLI_CARGO_LINE_TEXT)
+                                     ? cli_json_taken(&json, line, size, 0u, 0ull, &unread, &g_cli_tests_cells)
+                                     : CLI_JSON_NONE;
     const char *const reason = cli_json_string(&json, cli_json_member(&json, message, "reason"), NULL);
     const unsigned int test = cli_json_member(&json, cli_json_member(&json, message, "profile"), "test");
     const unsigned int target = cli_json_member(&json, message, "target");

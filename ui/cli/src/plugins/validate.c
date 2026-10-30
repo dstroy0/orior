@@ -13,7 +13,7 @@ static CliLock s_validate_lock = CLI_LOCK_INIT;
 int cli_validate_locked(void)
 {
     cli_lock_take(&s_validate_lock);
-    g_cli_validate = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_validate), NULL);
+    g_cli_validate = g_cli_cells->persistent_buf_alloc(sizeof(*g_cli_validate), &g_cli_plugins_cells);
     if (g_cli_validate == NULL)
     {
         cli_lock_give(&s_validate_lock);
@@ -30,8 +30,8 @@ void cli_validate_released(void)
 {
     cli_json_given(&g_cli_validate->json);
     cli_json_given(&g_cli_validate->manifest);
-    cli_cell_release(g_cli_validate->output, NULL);
-    cli_cell_release(g_cli_validate, NULL);
+    cli_cell_release(g_cli_validate->output, &g_cli_plugins_cells);
+    cli_cell_release(g_cli_validate, &g_cli_plugins_cells);
     g_cli_validate = NULL;
     cli_lock_give(&s_validate_lock);
 }
@@ -308,9 +308,9 @@ static int validate_text(const char *path, const char *text, unsigned long long 
         return 0;
     }
     unsigned int count = 0u;
-    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
+    char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count, &g_cli_plugins_cells);
     cli_toolchains_find(json, chain, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &g_cli_validate->found);
-    cli_cell_release(folders, NULL);
+    cli_cell_release(folders, &g_cli_plugins_cells);
     if (!g_cli_validate->found.has_program)
     {
         const char *const name = cli_json_string(json, cli_json_member(json, chain, "name"), NULL);

@@ -117,7 +117,8 @@ static int config_read(const char *root, VerbaLinea *err_msg)
     VerbaLinea read_err_msg = {why, sizeof(why), 0ull};
     // the file's bytes read as the text they are
     const unsigned int root_node =
-        (bytes != NULL) ? cli_json_taken(&json, (const char *)bytes, size, 0u, 0ull, &read_err_msg) : CLI_JSON_NONE;
+        (bytes != NULL) ? cli_json_taken(&json, (const char *)bytes, size, 0u, 0ull, &read_err_msg, &g_cli_db_cells)
+                        : CLI_JSON_NONE;
     cli_file_let_go(bytes, size);
     const unsigned int connections = cli_json_member(&json, root_node, "connections");
     unsigned int named = 0u;
@@ -231,7 +232,7 @@ static int config_write(const char *root, unsigned int count, VerbaLinea *err_ms
     char path[CLI_PATH_MAX_LEN];
     cli_full(root, "databases.json", path);
     VerbaLinea out;
-    (void)cli_growing_line_made(&out, CLI_DB_CONFIG_FIRST);
+    (void)cli_growing_line_made(&out, CLI_DB_CONFIG_FIRST, &g_cli_db_cells);
     mmgr_line_put(&out, (count == 0u) ? "{\n  \"connections\": []\n}\n" : "{\n  \"connections\": [\n");
     for (unsigned int at = 0u; at < count; at += 1u)
     {
@@ -240,7 +241,7 @@ static int config_write(const char *root, unsigned int count, VerbaLinea *err_ms
         mmgr_line_put(&out, (at + 1u < count) ? ",\n" : "\n  ]\n}\n");
     }
     const int written = mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
-    cli_cell_release(out.out, NULL);
+    cli_cell_release(out.out, &g_cli_db_cells);
     if (!written)
     {
         mmgr_line_put(err_msg, "databases.json: it could not be written");

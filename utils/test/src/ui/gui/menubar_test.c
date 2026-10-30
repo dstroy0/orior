@@ -66,7 +66,8 @@ int main(void)
     CliJson json;
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
-    const unsigned int root = cli_json_taken(&json, s_catalog, sizeof(s_catalog) - 1u, 0u, 0ull, &err_msg);
+    const unsigned int root =
+        cli_json_taken(&json, s_catalog, sizeof(s_catalog) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(root != CLI_JSON_NONE, "the catalog is read");
     GuiFrame frame;
     gui_frame_laid(&frame, 1440u, 900u, 1.0f);
@@ -79,15 +80,17 @@ int main(void)
               "each title opens its own menu");
     cli_check((menubar.title[0].letter == 0u) && (menubar.title[1].letter == 0u) && (menubar.title[2].letter == 0u),
               "each title has a letter for Alt, the first no title before it took");
-    cli_check((menubar.title[0].rect.x < menubar.title[1].rect.x) && (menubar.title[1].rect.x < menubar.title[2].rect.x) &&
-                  (menubar.title[0].rect.y > frame.bar.y) && (menubar.title[0].rect.height < frame.bar.height),
+    cli_check((menubar.title[0].rect.x < menubar.title[1].rect.x) &&
+                  (menubar.title[1].rect.x < menubar.title[2].rect.x) && (menubar.title[0].rect.y > frame.bar.y) &&
+                  (menubar.title[0].rect.height < frame.bar.height),
               "the titles stand in a row inside the bar");
     cli_check(gui_menubar_holds(&menubar, middle_x(menubar.title[0].rect), middle_y(menubar.title[0].rect)) &&
                   !gui_menubar_holds(&menubar, frame.bar.x + 2, middle_y(menubar.title[0].rect)),
               "a title holds its pixels and the bar beside it does not");
 
     GuiChoice choice;
-    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[0].rect), middle_y(menubar.title[0].rect), &choice) &&
+    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[0].rect),
+                                  middle_y(menubar.title[0].rect), &choice) &&
                   (menubar.open == 0) && (menubar.levels == 1u) && (choice.command[0] == '\0'),
               "a title pressed opens its menu");
     cli_check(gui_menubar_rows(&menubar, 0u) == 4u, "the menu's rows leave the hidden and the filled items out");
@@ -101,16 +104,20 @@ int main(void)
     cli_check(gui_menubar_row(&menubar, 0u, 3u, &row) && (row.kind == GUI_ROW_ITEM) && row.disabled,
               "the item that needs an open file cannot be chosen while none is");
     cli_check(menubar.menu[0].pointed == 0, "the first row is marked as the menu opens from a press");
-    cli_check((menubar.menu[0].rect.y > frame.bar.y + frame.bar.height) && (menubar.menu[0].rect.x == menubar.title[0].rect.x),
+    cli_check((menubar.menu[0].rect.y > frame.bar.y + frame.bar.height) &&
+                  (menubar.menu[0].rect.x == menubar.title[0].rect.x),
               "the menu opens under its title");
-    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, middle_x(menubar.title[1].rect), middle_y(menubar.title[1].rect), 0ull) &&
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, middle_x(menubar.title[1].rect),
+                                middle_y(menubar.title[1].rect), 0ull) &&
                   (menubar.open == 1) && (menubar.menu[0].pointed == -1),
               "the pointer on another title opens its menu, no row marked");
-    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[1].rect), middle_y(menubar.title[1].rect), &choice) &&
+    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[1].rect),
+                                  middle_y(menubar.title[1].rect), &choice) &&
                   (menubar.open == -1) && (menubar.levels == 0u),
               "the open title pressed closes its menu");
 
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Alt+F", &choice) && (menubar.open == 0) && (menubar.menu[0].pointed == 0),
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Alt+F", &choice) && (menubar.open == 0) &&
+                  (menubar.menu[0].pointed == 0),
               "Alt with a title's letter opens its menu, the first row marked");
     cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Down", &choice) && (menubar.menu[0].pointed == 2),
               "Down steps the mark over the line");
@@ -122,26 +129,33 @@ int main(void)
                   (menubar.menu[0].opened == 2) && (menubar.menu[1].pointed == 0) &&
                   (menubar.menu[1].rect.x > menubar.menu[0].rect.x),
               "Right opens the items under the row beside it");
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Left", &choice) && (menubar.levels == 1u) && (menubar.menu[0].opened == -1),
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Left", &choice) && (menubar.levels == 1u) &&
+                  (menubar.menu[0].opened == -1),
               "Left closes them again");
     cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Enter", &choice) && (menubar.levels == 2u),
               "Enter on the row opens them too");
     cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Enter", &choice) && (menubar.levels == 0u) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = choice.command, .other = "open-recent", .cap = 256ull}),
               "Enter on an item chooses it and closes the menus");
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Alt+E", &choice) && (menubar.open == 1), "Alt+E opens the second menu");
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Right", &choice) && (menubar.open == 2), "Right in a menu opens the next title's");
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Right", &choice) && (menubar.open == 0), "Right at the last title comes around to the first");
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Alt+E", &choice) && (menubar.open == 1),
+              "Alt+E opens the second menu");
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Right", &choice) && (menubar.open == 2),
+              "Right in a menu opens the next title's");
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Right", &choice) && (menubar.open == 0),
+              "Right at the last title comes around to the first");
     cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "S", &choice) && (menubar.menu[0].pointed == 0),
               "a letter marks the next row it begins, none where only an item that cannot be chosen does");
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "R", &choice) && (menubar.menu[0].pointed == 2), "R marks Recent");
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Escape", &choice) && (menubar.levels == 0u) && (menubar.open == -1),
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "R", &choice) && (menubar.menu[0].pointed == 2),
+              "R marks Recent");
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Escape", &choice) && (menubar.levels == 0u) &&
+                  (menubar.open == -1),
               "Escape closes the menu");
-    cli_check(!gui_menubar_keyed(&menubar, &glyphs, &frame, "Down", &choice), "a key with no menu open is not the bar's");
+    cli_check(!gui_menubar_keyed(&menubar, &glyphs, &frame, "Down", &choice),
+              "a key with no menu open is not the bar's");
 
     menubar.has_editor = 1;
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Alt+F", &choice) && gui_menubar_keyed(&menubar, &glyphs, &frame, "S", &choice) &&
-                  (menubar.menu[0].pointed == 3),
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Alt+F", &choice) &&
+                  gui_menubar_keyed(&menubar, &glyphs, &frame, "S", &choice) && (menubar.menu[0].pointed == 3),
               "with a file open the item that needs one can be chosen");
     cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Enter", &choice) &&
                   cellul.eq(&(CatenaFinitaCfg){.src = choice.command, .other = "save", .cap = 256ull}) &&
@@ -159,35 +173,44 @@ int main(void)
     cli_check(!gui_menubar_keys_command(&menubar, "Mod+S", &choice) && (choice.command[0] == '\0'),
               "and not while none is");
     menubar.has_editor = 1;
-    cli_check(!gui_menubar_keys_command(&menubar, "Mod+Q", &choice) && !gui_menubar_keys_command(&menubar, "Z", &choice),
+    cli_check(!gui_menubar_keys_command(&menubar, "Mod+Q", &choice) &&
+                  !gui_menubar_keys_command(&menubar, "Z", &choice),
               "a key no item names finds nothing");
 
     // a press on a row with the pointer, and on an item of the menu beside it
-    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[0].rect), middle_y(menubar.title[0].rect), &choice) &&
+    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[0].rect),
+                                  middle_y(menubar.title[0].rect), &choice) &&
                   (menubar.levels == 1u),
               "the first menu opens again");
     const GuiRect more = {menubar.menu[0].rect.x + 10, menubar.menu[0].rect.y + 5 + 27 + 11 + 13, 10, 1};
     cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, more.y, 1000ull) && (menubar.levels == 1u) &&
                   (menubar.menu[0].pointed == 2) && (gui_menubar_due(&menubar, 1000ull) == GUI_MENU_REST),
               "the pointer on a row with items marks it and begins the rest before they open");
-    cli_check(!gui_menubar_ticked(&menubar, &glyphs, &frame, 1100ull) && (menubar.levels == 1u), "a tick before the rest ends opens nothing");
+    cli_check(!gui_menubar_ticked(&menubar, &glyphs, &frame, 1100ull) && (menubar.levels == 1u),
+              "a tick before the rest ends opens nothing");
     cli_check(gui_menubar_ticked(&menubar, &glyphs, &frame, 1000ull + GUI_MENU_REST) && (menubar.levels == 2u) &&
                   (menubar.menu[0].opened == 2) && (gui_menubar_due(&menubar, 1200ull) == 0ull),
               "the rest's end opens the items beside the row");
-    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, menubar.menu[0].rect.y + 5 + 13, 2000ull) && (menubar.levels == 2u) &&
-                  (menubar.menu[0].pointed == 0) && (gui_menubar_due(&menubar, 2000ull) == GUI_MENU_REST),
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, menubar.menu[0].rect.y + 5 + 13, 2000ull) &&
+                  (menubar.levels == 2u) && (menubar.menu[0].pointed == 0) &&
+                  (gui_menubar_due(&menubar, 2000ull) == GUI_MENU_REST),
               "the pointer on a sibling without items keeps them open and begins the rest before they close");
-    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, more.y, 2050ull) && (gui_menubar_due(&menubar, 2050ull) == 0ull),
+    cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, more.y, 2050ull) &&
+                  (gui_menubar_due(&menubar, 2050ull) == 0ull),
               "the pointer back on the opened row lets the rest go");
     cli_check(gui_menubar_moved(&menubar, &glyphs, &frame, more.x, menubar.menu[0].rect.y + 5 + 13, 2100ull) &&
-                  gui_menubar_ticked(&menubar, &glyphs, &frame, 2100ull + GUI_MENU_REST) && (menubar.levels == 1u) && (menubar.menu[0].opened == -1),
+                  gui_menubar_ticked(&menubar, &glyphs, &frame, 2100ull + GUI_MENU_REST) && (menubar.levels == 1u) &&
+                  (menubar.menu[0].opened == -1),
               "the rest's end on the sibling closes the items");
     cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, more.x, more.y, &choice) && (menubar.levels == 2u),
               "a press on the row opens its items at once");
-    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, menubar.menu[1].rect.x + 10, menubar.menu[1].rect.y + 5 + 13, &choice) &&
-                  (menubar.levels == 0u) && cellul.eq(&(CatenaFinitaCfg){.src = choice.command, .other = "open-recent", .cap = 256ull}),
+    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, menubar.menu[1].rect.x + 10,
+                                  menubar.menu[1].rect.y + 5 + 13, &choice) &&
+                  (menubar.levels == 0u) &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = choice.command, .other = "open-recent", .cap = 256ull}),
               "a press on an item beside chooses it");
-    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[2].rect), middle_y(menubar.title[2].rect), &choice) &&
+    cli_check(gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[2].rect),
+                                  middle_y(menubar.title[2].rect), &choice) &&
                   !gui_menubar_pressed(&menubar, &glyphs, &frame, 400, 400, &choice) && (menubar.levels == 0u),
               "a press outside the menus closes them and is not the bar's");
 
@@ -195,12 +218,14 @@ int main(void)
     GuiRaster raster;
     cli_check(gui_raster_made(&raster, 1440u, 300u), "a raster for the bar is made");
     gui_raster_filled(&raster, (GuiRect){0, 0, 1440, 300}, palette->ground);
-    (void)gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[0].rect), middle_y(menubar.title[0].rect), &choice);
+    (void)gui_menubar_pressed(&menubar, &glyphs, &frame, middle_x(menubar.title[0].rect),
+                              middle_y(menubar.title[0].rect), &choice);
     gui_menubar_titles_drawn(&menubar, &raster, &glyphs, palette, &frame);
     gui_menubar_menus_drawn(&menubar, &raster, &glyphs, palette, &frame);
     cli_check(painted(&raster, menubar.title[1].rect, palette->ground), "a title's text is drawn on the bar");
-    cli_check(painted(&raster, (GuiRect){menubar.menu[0].rect.x + 2, menubar.menu[0].rect.y + 2, 4, 4}, palette->ground),
-              "the open menu is drawn under the bar");
+    cli_check(
+        painted(&raster, (GuiRect){menubar.menu[0].rect.x + 2, menubar.menu[0].rect.y + 2, 4, 4}, palette->ground),
+        "the open menu is drawn under the bar");
     gui_raster_given(&raster);
 
     // a narrow window folds the titles into a last one that lists them
@@ -213,8 +238,8 @@ int main(void)
                   (gui_menubar_rows(&menubar, 0u) + menubar.titles == 4u) && gui_menubar_row(&menubar, 0u, 0u, &row) &&
                   (row.kind == GUI_ROW_MORE),
               "the last title's menu lists the folded menus, each with its items under it");
-    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Right", &choice) && (menubar.levels == 2u) && gui_menubar_row(&menubar, 1u, 0u, &row) &&
-                  (row.kind == GUI_ROW_ITEM),
+    cli_check(gui_menubar_keyed(&menubar, &glyphs, &frame, "Right", &choice) && (menubar.levels == 2u) &&
+                  gui_menubar_row(&menubar, 1u, 0u, &row) && (row.kind == GUI_ROW_ITEM),
               "a folded menu opens beside its row");
     gui_menubar_closed(&menubar);
     cli_json_given(&json);

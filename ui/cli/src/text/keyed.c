@@ -37,12 +37,12 @@ static unsigned int keyed_find(const CliKeyed *keyed, const char *key)
 // a cell of `size` bytes for `keyed`'s entry, or NULL; and a cell given back
 static char *keyed_cell_taken(const CliKeyed *keyed, unsigned long long size)
 {
-    return g_cli_cells->persistent_buf_alloc(size, NULL);
+    return g_cli_cells->persistent_buf_alloc(size, &g_cli_text_cells);
 }
 
 static void keyed_cell_given(char *cell)
 {
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_text_cells);
 }
 
 // that `key` could not be stored by `keyed`, and why, reported on the standard error

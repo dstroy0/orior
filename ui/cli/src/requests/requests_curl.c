@@ -448,7 +448,7 @@ int cli_requests_from_curl(const char *line, unsigned long long size, VerbaLinea
     const char *text = line + start;
     unsigned long long length = end - start;
     cli_lock_take(&s_lock);
-    s_curl = g_cli_cells->persistent_buf_alloc(sizeof(*s_curl), NULL);
+    s_curl = g_cli_cells->persistent_buf_alloc(sizeof(*s_curl), &g_cli_requests_cells);
     if (s_curl == NULL)
     {
         cli_lock_give(&s_lock);
@@ -490,7 +490,7 @@ int cli_requests_from_curl(const char *line, unsigned long long size, VerbaLinea
     {
         cli_json_quoted(out, s_curl->written, written.at);
     }
-    cli_cell_release(s_curl, NULL);
+    cli_cell_release(s_curl, &g_cli_requests_cells);
     s_curl = NULL;
     cli_lock_give(&s_lock);
     return read;

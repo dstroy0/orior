@@ -31,7 +31,7 @@ int cli_settings_chain_read(const char *text, unsigned long long length, CliChai
     cli_json_begun(&chain->json, NULL, 0u, NULL, 0ull);
     chain->files = 0u;
     chain->problems = 0u;
-    const unsigned int root = cli_json_taken(&chain->json, text, length, 0u, 0ull, err_msg);
+    const unsigned int root = cli_json_taken(&chain->json, text, length, 0u, 0ull, err_msg, &g_cli_machine_cells);
     if (!cli_json_is(&chain->json, root, CFG_JSON_OBJECT))
     {
         return 0;

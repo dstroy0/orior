@@ -333,8 +333,9 @@ void cli_npm_bins(const char *text, CliNames *names, int *module)
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int package = cli_json_taken(
-        &json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), 0u, 0ull, &err_msg);
+    const unsigned int package =
+        cli_json_taken(&json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}), 0u, 0ull,
+                       &err_msg, &g_cli_executables_cells);
     if ((package == CLI_JSON_NONE) || !cli_json_is(&json, package, CFG_JSON_OBJECT))
     {
         cli_json_given(&json);

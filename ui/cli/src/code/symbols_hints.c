@@ -32,7 +32,7 @@ static char *hints_held(void *context, const char *path, unsigned long long *siz
     {
         return NULL;
     }
-    char *const held = g_cli_cells->persistent_buf_alloc(hints->size + 1ull, NULL);
+    char *const held = g_cli_cells->persistent_buf_alloc(hints->size + 1ull, &g_cli_code_cells);
     if (held != NULL)
     {
         // a text the editor holds fits a size_t

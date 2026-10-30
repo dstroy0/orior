@@ -136,7 +136,8 @@ void cli_document_units_utf8(VerbaLinea *out, const unsigned short *units, unsig
     }
 }
 
-// A text's lines joined, each ended by "\n", and the unit each starts at, the units' count last, in a cell sized to them
+// A text's lines joined, each ended by "\n", and the unit each starts at, the units' count last, in a cell sized to
+// them
 typedef struct
 {
     unsigned short *unit;
@@ -157,7 +158,7 @@ static int cli_joined_of(const CliLines *lines, CliJoined *joined)
     // the units' bytes rounded up to a boundary of the starts after them
     const unsigned long long unit_bytes = ((units * sizeof(unsigned short)) + 7ull) & ~7ull;
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(
-        unit_bytes + (((unsigned long long)lines->lines + 1ull) * sizeof(unsigned long long)), NULL);
+        unit_bytes + (((unsigned long long)lines->lines + 1ull) * sizeof(unsigned long long)), &g_cli_editor_cells);
     *joined = (CliJoined){(unsigned short *)(void *)cell, 0ull, (unsigned long long *)(void *)(cell + unit_bytes), 0u};
     if (cell == NULL)
     {
@@ -181,7 +182,7 @@ static int cli_joined_of(const CliLines *lines, CliJoined *joined)
 // the cell the lines were joined in given back
 static void cli_joined_let_go(CliJoined *joined)
 {
-    cli_cell_release(joined->unit, NULL);
+    cli_cell_release(joined->unit, &g_cli_editor_cells);
     *joined = (CliJoined){NULL, 0ull, NULL, 0u};
 }
 
@@ -286,7 +287,7 @@ static int cli_found_patterned(const CliLines *lines, const CliDocSought *sought
         longest = (lines->length[line] > longest) ? lines->length[line] : longest;
     }
     const unsigned long long bytes = sizeof(CliRegexpRoom) + (2ull * (longest + 1ull) * sizeof(unsigned int));
-    unsigned char *const cell = cli_lane_alloc(bytes, NULL);
+    unsigned char *const cell = cli_lane_alloc(bytes, &g_cli_editor_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");
@@ -328,7 +329,7 @@ static int cli_found_patterned(const CliLines *lines, const CliDocSought *sought
             at += 1ull;
         }
     }
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_editor_cells);
     return read;
 }
 
@@ -363,10 +364,11 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     }
     const unsigned long long query_size = cellul.len(&(CatenaFinitaCfg){.src = sought->query, .cap = CLI_CELLS_POOL});
     // a unit of the query takes a byte of it at the least, and the unit after the last is written as a pair's second
-    CliFindRoom room = {{NULL, 0ull, NULL, 0u},
-                        g_cli_cells->persistent_buf_alloc((query_size + 1ull) * sizeof(unsigned short), NULL),
-                        NULL,
-                        0ull};
+    CliFindRoom room = {
+        {NULL, 0ull, NULL, 0u},
+        g_cli_cells->persistent_buf_alloc((query_size + 1ull) * sizeof(unsigned short), &g_cli_editor_cells),
+        NULL,
+        0ull};
     if (room.wanted == NULL)
     {
         mmgr_line_put(err_msg, "the text could not be searched: the cells cannot meet it");
@@ -406,7 +408,7 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     {
         const unsigned long long fit = (room.joined.used / size) + 1ull;
         room.match_room = (fit < CLI_FIND_MATCHES) ? fit : CLI_FIND_MATCHES;
-        room.match = g_cli_cells->persistent_buf_alloc(room.match_room * sizeof(*room.match), NULL);
+        room.match = g_cli_cells->persistent_buf_alloc(room.match_room * sizeof(*room.match), &g_cli_editor_cells);
     }
     const int roomed = !sought_any || (joined && (room.match != NULL));
     if (!roomed)
@@ -415,9 +417,9 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     }
     const int done =
         roomed && (!sought_any || cli_found_each(&room, lines, &census, size, sought, most, each, context, err_msg));
-    cli_cell_release(room.match, NULL);
+    cli_cell_release(room.match, &g_cli_editor_cells);
     cli_joined_let_go(&room.joined);
-    cli_cell_release(room.wanted, NULL);
+    cli_cell_release(room.wanted, &g_cli_editor_cells);
     return done;
 }
 
@@ -493,7 +495,7 @@ static int cli_found_each(CliFindRoom *room, const CliLines *lines, const CliCen
                           VerbaLinea *err_msg)
 {
     // a search without case folds the room's units and the needle's first, each unit to the one the page's search
-    // folds it to, so the sift reads them as they are: the units searched as their bytes, the needle's laid the same
+    // folds it to, and the sift reads them as they are: the units searched as their bytes, the needle's laid the same
     // way, a match starting on an even byte; a text within one of the sift's windows goes by Horspool's shifts and a
     // longer one by the sift's plan
     if (!sought->match_case)

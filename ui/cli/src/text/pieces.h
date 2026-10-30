@@ -14,20 +14,22 @@ typedef struct CliPieceStruct
     char bytes[];
 } CliPiece;
 
-// A text buffered in pieces: the first and the last, the bytes of all of them, and 1 in `refused` where a piece's cell
-// could not be taken and the text is not whole
+// A text buffered in pieces: the first and the last, the bytes of all of them, 1 in `refused` where a piece's cell
+// could not be taken and the text is not whole, and the owner every piece and the joined text count to
 typedef struct
 {
     CliPiece *first;
     CliPiece *last;
     unsigned long long size;
     int refused;
+    CellOwner *owner;
 } CliPieces;
 
-// `line` made over `piece`, sized for `piece_size`, a line whose every piece is buffered in `pieces`; what the line
-// contains yet put after them: 1, or 0 where the text is not whole; the pieces handed to `each` in order, or copied one
-// after another into `into`, sized for their size; and the pieces given back
-void cli_pieces_begun(CliPieces *pieces, VerbaLinea *line, char *piece, unsigned long long piece_size);
+// `line` made over `piece`, sized for `piece_size`, a line whose every piece is buffered in `pieces` and counted to
+// `owner`; what the line contains yet put after them: 1, or 0 where the text is not whole; the pieces handed to `each`
+// in order, or copied one after another into `into`, sized for their size; and the pieces given back
+void cli_pieces_begun(CliPieces *pieces, VerbaLinea *line, char *piece, unsigned long long piece_size,
+                      CellOwner *owner);
 // `size` bytes put after the pieces buffered, a piece of their own: 1, or 0 where its cell could not be taken
 int cli_pieces_added(CliPieces *pieces, const char *bytes, unsigned long long size);
 int cli_pieces_ended(CliPieces *pieces, VerbaLinea *line);

@@ -299,7 +299,7 @@ static void cli_signature_typed(CliSymbolsLanguages *languages, const CliLeafRea
 }
 
 // the heads of every declaration of the call's name, `length` bytes, in the tree's files of the call's language,
-// CLI_SYMBOLS_HEADS at most, each held against the call's arguments, and the places of those read put in order of
+// CLI_SYMBOLS_HEADS at most, each matched against the call's arguments, and the places of those read put in order of
 // fit: those whose count fits first, then those with fewer arguments that differ
 static void cli_signature_heads(CliSymbolsLanguages *languages, CliSymbolSignature *signature, const char *name,
                                 unsigned long long length)
@@ -456,7 +456,7 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_read();
     CliSymbolSignature *const signature =
-        (languages != NULL) ? cli_lane_alloc(sizeof(CliSymbolSignature), NULL) : NULL;
+        (languages != NULL) ? cli_lane_alloc(sizeof(CliSymbolSignature), &g_cli_code_cells) : NULL;
     if (signature == NULL)
     {
         cli_symbols_languages_given(languages);
@@ -490,7 +490,7 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
     }
     const int refused = read.refused;
     cli_symbols_leaves_given(&read);
-    cli_cell_release(signature, NULL);
+    cli_cell_release(signature, &g_cli_code_cells);
     cli_symbols_languages_given(languages);
     if (refused)
     {

@@ -20,10 +20,10 @@ static char *s_releases_listing;
 // a machine's releases and its listing given back
 static void send_releases_given(void)
 {
-    cli_cell_release((void *)s_releases, NULL);
+    cli_cell_release((void *)s_releases, &g_cli_deploy_cells);
     s_releases = NULL;
     s_release_count = 0u;
-    cli_cell_release(s_releases_listing, NULL);
+    cli_cell_release(s_releases_listing, &g_cli_deploy_cells);
     s_releases_listing = NULL;
 }
 
@@ -41,7 +41,7 @@ static int send_line_run(const CliDeployPlace *place, CliPieces *pieces, VerbaLi
     }
     VerbaLinea nothing = {NULL, 0ull, 0ull};
     const int ran = cli_deploy_remote_run(place, joined, NULL, 0ull, &nothing, err_msg);
-    cli_cell_release(joined, NULL);
+    cli_cell_release(joined, &g_cli_deploy_cells);
     return ran;
 }
 
@@ -131,7 +131,7 @@ static int send_carried(unsigned int index, const char *into, const CliDeployPai
     char piece[CLI_DEPLOY_PIECE];
     CliPieces pieces;
     VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_deploy_cells);
     char current[CLI_PATH_MAX_LEN + 16u];
     VerbaLinea current_line = {current, sizeof(current), 0ull};
     mmgr_line_put(&current_line, cli_deploy_place_folder(place));
@@ -245,7 +245,7 @@ static int send_releases(unsigned int index, const char **current, VerbaLinea *e
     char piece[CLI_DEPLOY_PIECE];
     CliPieces pieces;
     VerbaLinea listing;
-    cli_pieces_begun(&pieces, &listing, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &listing, piece, sizeof(piece), &g_cli_deploy_cells);
     const int ran = cli_deploy_remote_run(place, line, NULL, 0ull, &listing, err_msg);
     unsigned long long size = 0ull;
     s_releases_listing = cli_pieces_joined(&pieces, &listing, "a machine's releases", &size);
@@ -272,7 +272,8 @@ static int send_releases(unsigned int index, const char **current, VerbaLinea *e
     {
         lines += (*at == '\n') ? 1u : 0u;
     }
-    s_releases = g_cli_cells->persistent_buf_alloc((unsigned long long)lines * sizeof(s_releases[0]), NULL);
+    s_releases =
+        g_cli_cells->persistent_buf_alloc((unsigned long long)lines * sizeof(s_releases[0]), &g_cli_deploy_cells);
     if (s_releases == NULL)
     {
         send_releases_given();
@@ -341,7 +342,7 @@ void cli_deploy_prune(unsigned int index, unsigned long long retain)
     char piece[CLI_DEPLOY_PIECE];
     CliPieces pieces;
     VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_deploy_cells);
     mmgr_line_put(&line, "cd ");
     send_quoted(&line, place->address.folder, "/releases");
     mmgr_line_put(&line, " && rm -rf --");
@@ -484,7 +485,7 @@ int cli_deploy_removed(unsigned int index, VerbaLinea *err_msg)
         char piece[CLI_DEPLOY_PIECE];
         CliPieces pieces;
         VerbaLinea line;
-        cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
+        cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_deploy_cells);
         mmgr_line_put(&line, "cd ");
         cli_link_quote(place->address.folder,
                        cellul.len(&(CatenaFinitaCfg){.src = place->address.folder, .cap = CLI_CELLS_POOL}), &line);

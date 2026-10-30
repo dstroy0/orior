@@ -8,8 +8,6 @@
 #include "../text/regexp.h"
 #include "../text/text.h"
 
-CellOwner g_cli_plugins_cells = MMGR_CELL_OWNER("cli_plugins");
-
 static CliLock s_lock = CLI_LOCK_INIT;
 
 // The reader's plugins' ids in order, in a cell of `room`, `count` of them
@@ -228,7 +226,7 @@ static void cli_language_each(void *context, const CliPlugin *plugin)
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &err_msg);
+    const unsigned int root = cli_json_taken_laned(&json, plugin->text, plugin->size, &err_msg, &g_cli_plugins_cells);
     const char *const kind =
         (root != CLI_JSON_NONE) ? cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL) : NULL;
     if ((root == CLI_JSON_NONE) ||
@@ -428,8 +426,8 @@ static void plugins_code_each(void *context, const CliPlugin *plugin)
     memor.cpy(&(MemoriaCfg){.dst = code->folder,
                             .src = folder,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
-    cli_cell_release(code->text, NULL);
-    code->text = g_cli_cells->persistent_buf_alloc(plugin->size + 1ull, NULL);
+    cli_cell_release(code->text, &g_cli_plugins_cells);
+    code->text = g_cli_cells->persistent_buf_alloc(plugin->size + 1ull, &g_cli_plugins_cells);
     code->size = (code->text != NULL) ? plugin->size : 0ull;
     if (code->text != NULL)
     {
@@ -480,7 +478,7 @@ int cli_plugins_code_of(const char *id, VerbaLinea *out, VerbaLinea *err_msg)
         mmgr_line_put(err_msg, id);
         mmgr_line_put(err_msg, code.user ? ": its plugin.json does not read" : " comes with orior and runs no code");
     }
-    cli_cell_release(code.text, NULL);
+    cli_cell_release(code.text, &g_cli_plugins_cells);
     return done;
 }
 void cli_plugins_slug(const char *name, char *id)

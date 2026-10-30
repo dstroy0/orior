@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cells.h: the cells every module stores its work in: one cellblock of MMgr's host site over a block taken from the
 // system for the bytes requested, taken from and given back to through its custodia alone, each take and give one swap
-// on an atomic word, whose owner list records each module that took a cell; and the reports of the cellblock and of
-// each owner to the telemetry (cells.c)
+// on an atomic word and each naming the owner its cell counts to, registered in MMgr's owner queue the first time a
+// take names it; and the reports of the cellblock and of each owner to the telemetry (cells.c)
 #ifndef CELLS_H
 #define CELLS_H
 
@@ -20,33 +20,77 @@ extern "C"
 #define CLI_CELLS_POOL ((256ull << 20u) + (32ull << 20u))
 
 // The lanes: a cellblock of its own for each context that runs a command, the window's rooms, the terminal's one
-// command and a check's process, each over a block of CLI_CELLS_LANE_POOL bytes taken from the system at the lane's
-// first entry. A command's own cells, those it gives back before it ends, are taken from its lane's temporary tier,
-// marked as the command begins and rewound as it ends, zeroed; what outlives a command is taken from the shared
-// cellblock's persistent tier
-#define CLI_CELLS_LANES 8u
+// command and a check's process, and one for the window's own thread past the rooms', each over a block of
+// CLI_CELLS_LANE_POOL bytes taken from the system at the lane's first entry. A command's own cells, those it gives
+// back before it ends, are taken from its lane's temporary tier, marked as the command begins and rewound as it
+// ends, zeroed; the window's thread reads each answer on its lane the same way; what outlives a command is taken from
+// the shared cellblock's persistent tier
+#define CLI_CELLS_LANES 9u
+#define CLI_CELLS_LANE_WINDOW 8u
 #define CLI_CELLS_LANE_POOL (128ull << 20u)
 
+// The lifetimes a lane's cells are taken for, in milliseconds, each the longest the work its entry marks runs before
+// the rewind gives its cells back: a terminal command's, which may run as long as a run of the learn does; a window
+// room's call; and the window's reading of one answer. A cell past its lifetime is given back by MMgr's backstop and
+// logged
+#define CLI_LANE_COMMAND_MS 0x7FFFFFFFu
+#define CLI_LANE_ROOM_MS 3600000u
+#define CLI_LANE_WINDOW_MS 60000u
+
     // The shared cellblock's custodia, where what outlives a command lives. A cell is taken with
-    // persistent_buf_alloc(bytes, owner) and given back with persistent_buf_release(cell, owner), owner the module's
-    // CellOwner or NULL to count it to none. A take the cellblock cannot meet returns NULL, which the caller reports
-    // where and as it chooses. Read once the pool is made
+    // persistent_buf_alloc(bytes, owner) and given back with persistent_buf_release(cell, owner), owner the
+    // CellOwner the cell counts to: a give naming another is refused and logged. An owner is registered in MMgr's
+    // queue the first time a take, give or growth names it. A take the cellblock cannot meet returns NULL, which the
+    // caller reports where and as it chooses. Read once the pool is made
     extern const MaximumSecurityGuard *const g_cli_cells;
 
-    // this thread put on lane `lane`, below CLI_CELLS_LANES, the lane's cellblock made at its first entry, and the
-    // lane's mark taken: the mark to rewind to, or 0 with the thread on no lane where the lane's block cannot be taken
-    // from the system
-    size_t cli_lane_entered(unsigned int lane);
+    // The owners of the modules that name no owner of their own: each source folder of the command line, the window,
+    // the query tool and the checks, every cell a module's source takes or gives without one counted to its module's
+    extern CellOwner g_cli_code_cells;
+    extern CellOwner g_cli_command_line_cells;
+    extern CellOwner g_cli_deploy_cells;
+    extern CellOwner g_cli_editor_cells;
+    extern CellOwner g_cli_inspect_cells;
+    extern CellOwner g_cli_machine_cells;
+    extern CellOwner g_cli_platform_cells;
+    extern CellOwner g_cli_print_cells;
+    extern CellOwner g_cli_programs_cells;
+    extern CellOwner g_cli_runs_cells;
+    extern CellOwner g_cli_servers_cells;
+    extern CellOwner g_cli_tests_cells;
+    extern CellOwner g_cli_text_cells;
+    extern CellOwner g_cli_toolchains_cells;
+    extern CellOwner g_cli_window_cells;
+    extern CellOwner g_cli_bundle_cells;
+    extern CellOwner g_cli_build_cells;
+    extern CellOwner g_cli_comms_cells;
+    extern CellOwner g_cli_db_cells;
+    extern CellOwner g_cli_debug_cells;
+    extern CellOwner g_cli_notebook_cells;
+    extern CellOwner g_cli_plugins_cells;
+    extern CellOwner g_cli_requests_cells;
+    extern CellOwner g_gui_cells;
+    extern CellOwner g_query_cells;
+    extern CellOwner g_checks_cells;
+
+    // this thread put on lane `lane`, below CLI_CELLS_LANES, the lane's cellblock made at its first entry, the cells
+    // taken on it to live `lifetime_ms` milliseconds, and the lane's mark taken: the mark to rewind to, or 0 with the
+    // thread on no lane where the lane's block cannot be taken from the system
+    size_t cli_lane_entered(unsigned int lane, uint32_t lifetime_ms);
     // this thread taken off its lane, the lane's cells kept until its rewind
     void cli_lane_left(void);
     // lane `lane` rewound to `mark` as cli_lane_entered gave it, every cell taken since dropped and zeroed, and this
     // thread taken off the lane where it is on it
     void cli_lane_rewound(unsigned int lane, size_t mark);
-    // a command's own cell of `size` bytes for `owner`: from this thread's lane's temporary tier, or from the shared
-    // cellblock's persistent tier where the thread is on no lane; NULL where refused
+    // a command's own cell of `size` bytes for `owner`: from this thread's lane's temporary tier, for the lifetime its
+    // entry gave, or from the shared cellblock's persistent tier where the thread is on no lane; NULL where refused
     void *cli_lane_alloc(size_t size, CellOwner *owner);
-    // `cell` given back, zeroed, to the cellblock it was taken from, the shared one or a lane's; NULL gives nothing
+    // `cell` given back, zeroed, to the cellblock it was taken from, the shared one or a lane's, `owner` the owner it
+    // counts to; NULL gives nothing
     void cli_cell_release(void *cell, CellOwner *owner);
+    // the owner `cell` counts to, read off the cell in the cellblock it was taken from: the owner a holder names that
+    // grows or gives back a cell another module took for it, NULL where `cell` is NULL or no cell is taken
+    CellOwner *cli_cell_owner(const void *cell);
     // `cell` grown to `size` bytes where it stands, in the cellblock it was taken from, where it is the newest cell of
     // its tier: the cell after the growth, at a lower address where a lane's cell moved down, its bytes kept and the
     // added bytes zero; NULL with nothing changed where a cell was taken above it since or the gap cannot meet the
@@ -71,14 +115,14 @@ extern "C"
     // `<pool's bytes> <its peak> 0`
     void cli_cells_usage_written(VerbaLinea *out);
     void cli_cells_owner_usage_written(const CellOwner *owner, VerbaLinea *out);
-    // every owner on the cellblock's list, as JSON, `[{"name", "in_use", "hw"}...]`, in the order of their first
-    // takes: the audit of who owns what in the cellblock
+    // every owner in MMgr's owner queue, as JSON, `[{"name", "in_use", "hw"}...]`, in the order they registered: the
+    // audit of who owns what in the cellblock and the lanes
     void cli_cells_owners_written(VerbaLinea *out);
 
     // a report appended as the record `cells/<name>` to the run this process is a member of, and nothing where it is a
     // member of none
     void cli_cells_reported(const char *name, const VerbaLinea *report);
-    // at a command's end: the cellblock's peaks recorded as `cells/cli_cells` and each listed owner's as
+    // at a command's end: the cellblock's peaks recorded as `cells/cli_cells` and each registered owner's as
     // `cells/<name>`, to the run this process is a member of
     void cli_cells_peaks_reported(void);
 

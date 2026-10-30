@@ -78,7 +78,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
     for (unsigned int at = 0u; at < 5u; at += 1u)
     {
         VerbaLinea made;
-        if (!cli_growing_line_made(&made, 1ull << 16u))
+        if (!cli_growing_line_made(&made, 1ull << 16u, &g_checks_cells))
         {
             return;
         }
@@ -98,7 +98,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
         CliJson cut;
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea err_msg = {why, sizeof(why), 0ull};
-        const unsigned int top = cli_json_taken(&cut, made.out, made.at, 0u, 0ull, &err_msg);
+        const unsigned int top = cli_json_taken(&cut, made.out, made.at, 0u, 0ull, &err_msg, &g_checks_cells);
         if ((top != CLI_JSON_NONE) && cli_highlight_store("bench-cut", &cut, top, &err_msg))
         {
             bench_row(s_cut_down[at].name, bench_colored("bench-cut", files, count, repeat, largest));
@@ -108,7 +108,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
             printf("%s\tnot cached: %.*s\n", s_cut_down[at].name, (int)err_msg.at, why);
         }
         cli_json_given(&cut);
-        cli_cell_release(made.out, NULL);
+        cli_cell_release(made.out, &g_checks_cells);
     }
 }
 
@@ -126,11 +126,12 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
     CliJson json;
     char why[CLI_ERR_MSG_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int top = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &err_msg);
+    const unsigned int top = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &err_msg, &g_checks_cells);
     const unsigned int grammar = cli_json_member(&json, top, "grammar");
     const unsigned int rules = cli_json_member(&json, cli_json_member(&json, grammar, "tokenizer"), "root");
     const int fold = cli_json_is(&json, cli_json_member(&json, grammar, "ignoreCase"), CFG_JSON_TRUE);
-    unsigned int *const letters = g_cli_cells->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), NULL);
+    unsigned int *const letters =
+        g_cli_cells->persistent_buf_alloc((largest + 1ull) * sizeof(unsigned int), &g_checks_cells);
     for (unsigned int index = 0u; cli_json_item(&json, rules, index) != CLI_JSON_NONE; index += 1u)
     {
         const unsigned int rule = cli_json_item(&json, rules, index);
@@ -166,7 +167,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
         (void)mmgr_line_finish(&name_line);
         bench_row(name, measure);
     }
-    cli_cell_release(letters, NULL);
+    cli_cell_release(letters, &g_checks_cells);
     rules_cut_down(&json, grammar, files, count, repeat, largest);
     cli_json_given(&json);
     cli_file_let_go(text, size);

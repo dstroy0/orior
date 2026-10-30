@@ -7,7 +7,7 @@
 
 void *cli_serve_cell(unsigned long long size, const char *what, VerbaLinea *err_msg)
 {
-    void *const cell = cli_lane_alloc(size, NULL);
+    void *const cell = cli_lane_alloc(size, &g_cli_serve_strings_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, what);
@@ -45,7 +45,7 @@ void cli_serve_files_given(CliServeFiles *listed)
     if (listed != NULL)
     {
         cli_files_let(listed->files);
-        cli_cell_release(listed, NULL);
+        cli_cell_release(listed, &g_cli_serve_strings_cells);
     }
 }
 

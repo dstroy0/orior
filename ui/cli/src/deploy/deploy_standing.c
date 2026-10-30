@@ -82,8 +82,8 @@ void cli_deploy_difference(const char *old, unsigned long long old_size, const c
         return;
     }
     // each line's start and length, the old text's then the new's, in one cell of their count
-    unsigned long long *const counted =
-        g_cli_cells->persistent_buf_alloc(2ull * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), NULL);
+    unsigned long long *const counted = g_cli_cells->persistent_buf_alloc(
+        2ull * ((unsigned long long)olds + news + 1u) * sizeof(counted[0]), &g_cli_deploy_cells);
     if (counted == NULL)
     {
         return;
@@ -118,7 +118,7 @@ void cli_deploy_difference(const char *old, unsigned long long old_size, const c
     {
         standing_line_printed("+ ", new_text + news_lines.start[at], news_lines.size[at]);
     }
-    cli_cell_release(counted, NULL);
+    cli_cell_release(counted, &g_cli_deploy_cells);
 }
 
 // the copy of `path` the place at `index` has read as text into a cell of its size, that size into `size`, where it
@@ -129,7 +129,7 @@ static char *standing_theirs(unsigned int index, const char *path, unsigned long
     char piece[CLI_DEPLOY_PIECE];
     CliPieces pieces;
     VerbaLinea text;
-    cli_pieces_begun(&pieces, &text, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &text, piece, sizeof(piece), &g_cli_deploy_cells);
     int read = 0;
     if (place->here)
     {
@@ -160,7 +160,7 @@ static char *standing_theirs(unsigned int index, const char *path, unsigned long
     if (!read || (theirs == NULL) || (*size > CLI_DEPLOY_COMPARED) ||
         (memor.chr(&(MemoriaCfg){.src = theirs, .bytes = (size_t)*size, .val = 0u}) != NULL))
     {
-        cli_cell_release(theirs, NULL);
+        cli_cell_release(theirs, &g_cli_deploy_cells);
         return NULL;
     }
     return theirs;
@@ -211,7 +211,7 @@ static void standing_changed(unsigned int index, const char *folder, const char 
         }
         break;
     }
-    cli_cell_release(theirs, NULL);
+    cli_cell_release(theirs, &g_cli_deploy_cells);
 }
 
 // a file at the place at `index` that the tree no longer has printed, and what becomes of it
@@ -322,7 +322,7 @@ void cli_deploy_recorded(unsigned int index, int replace)
     char piece[CLI_DEPLOY_PIECE];
     CliPieces pieces;
     VerbaLinea record;
-    cli_pieces_begun(&pieces, &record, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &record, piece, sizeof(piece), &g_cli_deploy_cells);
     mmgr_line_ch(&record, '{');
     const CliDeployPair *const preserved = replace ? NULL : run->changed_list[index];
     const unsigned int preserved_count = replace ? 0u : run->changed[index];
@@ -348,5 +348,5 @@ void cli_deploy_recorded(unsigned int index, int replace)
     {
         (void)cli_file_appended(path, joined, size, 1);
     }
-    cli_cell_release(joined, NULL);
+    cli_cell_release(joined, &g_cli_deploy_cells);
 }

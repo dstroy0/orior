@@ -28,17 +28,20 @@ static char *link_copied(const char *name, const char *text, unsigned long long 
     return cell;
 }
 
-// an item put at the ring's tail, under the lock, waiting for room where the ring is full, and the window woken; an
-// item coming once the link ends, as the CLI's threads still emit, is dropped
-static void link_done_put(GuiLink *link, unsigned long long ticket, int ok, const char *name, const char *text,
-                          unsigned long long size)
+// an item given back: its room, where it has one, and its name's cell
+static void link_item_given(const GuiLinkItem *item)
 {
-    char *text_at = NULL;
-    char *const cell = link_copied(name, text, size, &text_at);
-    if (cell == NULL)
+    if (item->room < CLI_WINDOW_ROOMS)
     {
-        return;
+        cli_window_given(item->room);
     }
+    g_cli_cells->persistent_buf_release(item->name, &s_owner);
+}
+
+// an item put at the ring's tail, under the lock, waiting for room where the ring is full, and the window woken; an
+// item coming once the link ends, as the CLI's threads still emit, is given back at once
+static void link_done_put(GuiLink *link, const GuiLinkItem *put)
+{
     cli_lock_take(&link->lock);
     while ((link->done_count == GUI_LINK_DONE) && !link->ending)
     {
@@ -47,15 +50,10 @@ static void link_done_put(GuiLink *link, unsigned long long ticket, int ok, cons
     if (link->ending || (link->done == NULL))
     {
         cli_lock_give(&link->lock);
-        g_cli_cells->persistent_buf_release(cell, &s_owner);
+        link_item_given(put);
         return;
     }
-    GuiLinkItem *const item = &link->done[(link->done_head + link->done_count) % GUI_LINK_DONE];
-    item->ticket = ticket;
-    item->ok = ok;
-    item->name = cell;
-    item->text = text_at;
-    item->size = size;
+    link->done[(link->done_head + link->done_count) % GUI_LINK_DONE] = *put;
     link->done_count += 1u;
     cli_lock_give(&link->lock);
     link->woken(link->context);
@@ -80,13 +78,15 @@ static void link_ring_worked(GuiLink *link, GuiLinkRing *ring)
         ring->head = (ring->head + 1u) % GUI_LINK_PENDING;
         ring->count -= 1u;
         cli_lock_give(&link->lock);
+        // the answer stays in the call's room, read where it lies by the window's thread, which gives the room back
+        // with the call's cell once it has read it
         const unsigned int room = cli_window_called(call.own, call.name, call.args, call.size);
         const char *text = NULL;
         unsigned long long size = 0ull;
         const int ok = cli_window_answer(room, &text, &size);
-        link_done_put(link, call.ticket, ok, call.name, (text != NULL) ? text : "", (text != NULL) ? size : 0ull);
-        cli_window_given(room);
-        g_cli_cells->persistent_buf_release(call.name, &s_owner);
+        const GuiLinkItem put = {call.ticket, ok, call.name, (text != NULL) ? text : "", (text != NULL) ? size : 0ull,
+                                 room};
+        link_done_put(link, &put);
         cli_lock_take(&link->lock);
     }
     link->workers -= 1u;
@@ -174,7 +174,7 @@ void gui_link_ended(GuiLink *link)
     {
         for (unsigned int at = 0u; at < link->done_count; at += 1u)
         {
-            g_cli_cells->persistent_buf_release(link->done[(link->done_head + at) % GUI_LINK_DONE].name, &s_owner);
+            link_item_given(&link->done[(link->done_head + at) % GUI_LINK_DONE]);
         }
     }
     g_cli_cells->persistent_buf_release(link->done, &s_owner);
@@ -215,7 +215,14 @@ unsigned long long gui_link_called(GuiLink *link, int own, const char *name, con
 
 void gui_link_emitted(void *context, const char *event, const char *body, unsigned long long size)
 {
-    link_done_put((GuiLink *)context, 0ull, 1, event, body, size);
+    char *text_at = NULL;
+    char *const cell = link_copied(event, body, size, &text_at);
+    if (cell == NULL)
+    {
+        return;
+    }
+    const GuiLinkItem put = {0ull, 1, cell, text_at, size, CLI_WINDOW_ROOMS};
+    link_done_put((GuiLink *)context, &put);
 }
 
 unsigned int gui_link_drained(GuiLink *link, GuiLinkEach each, void *context)
@@ -235,7 +242,7 @@ unsigned int gui_link_drained(GuiLink *link, GuiLinkEach each, void *context)
         cli_wake_all(&link->room);
         cli_lock_give(&link->lock);
         each(context, item.ticket, item.name, item.ok, item.text, item.size);
-        g_cli_cells->persistent_buf_release(item.name, &s_owner);
+        link_item_given(&item);
         count += 1u;
     }
 }

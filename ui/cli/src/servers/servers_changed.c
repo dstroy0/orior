@@ -9,12 +9,12 @@
 #include "../plugins/plugins.h"
 #include "servers_internal.h"
 
-// the toolchain of a file no server of the batch serves
+// the toolchain of a file no server of the round serves
 #define CLI_SERVERS_CHANGED_NONE 0xffffffffu
 
-// The batch, under its lock, each part in a cell of its size given back as the batch ends: the tree's files one after
+// The round, under its lock, each part in a cell of its size given back as the round ends: the tree's files one after
 // another, each ended by a 0, and a place for each; the files to check again; each changed file's toolchain; the
-// toolchains the batch is of, the language each serves, and how many there are and may be; and the languages known
+// toolchains the round is of, the language each serves, and how many there are and may be; and the languages known
 typedef struct
 {
     char *tree_paths;
@@ -34,7 +34,7 @@ static CliServersChanged s_batch;
 static CliServerSpec s_spec;
 static CliLock s_lock = CLI_LOCK_INIT;
 
-// What the servers receive of a batch: the line it is written on, whether a change is written on it yet, and the line
+// What the servers receive of a round: the line it is written on, whether a change is written on it yet, and the line
 // the URIs of the files gone are put on, each ended by a 0
 typedef struct
 {
@@ -50,7 +50,7 @@ static void changed_tree_file(void *context, const char *file)
                     cellul.len(&(CatenaFinitaCfg){.src = file, .cap = CLI_CELLS_POOL}) + 1ull);
 }
 
-// the toolchain whose server serves the language `file` opens as: its place among the batch's, or
+// the toolchain whose server serves the language `file` opens as: its place among the round's, or
 // CLI_SERVERS_CHANGED_NONE where none does
 static unsigned int changed_tool_of(const char *file)
 {
@@ -211,7 +211,7 @@ static void changed_gone_found(void *context, const char *key, const char *besid
     }
 }
 
-// each server notified of the batch, and a server that checks a file at a time given again each file the editor has
+// each server notified of the round, and a server that checks a file at a time given again each file the editor has
 // open
 static void changed_servers_sent(const char *events, unsigned long long size)
 {
@@ -257,7 +257,7 @@ static void changed_gone_emitted(const char *uri, const CliServersSink *sink)
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea event_json;
-    cli_pieces_begun(&pieces, &event_json, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &event_json, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&event_json, "{\"path\":");
     char shown[CLI_PATH_MAX_LEN];
     VerbaLinea where = {shown, sizeof(shown), 0ull};
@@ -270,7 +270,7 @@ static void changed_gone_emitted(const char *uri, const CliServersSink *sink)
     {
         sink->emit(sink->context, "lsp-diagnostics", cleared, size);
     }
-    cli_cell_release(cleared, NULL);
+    cli_cell_release(cleared, &g_cli_servers_cells);
 }
 
 // the servers notified of the files changed under `root` and of each file gone, and each gone reported to have no
@@ -280,11 +280,11 @@ static void changed_emitted(const char *root, const char *const *files, unsigned
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_servers_cells);
     char gone_piece[CLI_SERVERS_PIECE];
     CliPieces gone_pieces;
     VerbaLinea gone;
-    cli_pieces_begun(&gone_pieces, &gone, gone_piece, sizeof(gone_piece));
+    cli_pieces_begun(&gone_pieces, &gone, gone_piece, sizeof(gone_piece), &g_cli_servers_cells);
     CliServersEvents events = {&line, 0, &gone};
     mmgr_line_put(&line, "{\"changes\":[");
     for (unsigned int at = 0u; at < count; at += 1u)
@@ -308,7 +308,7 @@ static void changed_emitted(const char *root, const char *const *files, unsigned
     {
         changed_servers_sent(changes_json, size);
     }
-    cli_cell_release(changes_json, NULL);
+    cli_cell_release(changes_json, &g_cli_servers_cells);
     unsigned long long gone_size = 0ull;
     char *const uris = cli_pieces_joined(&gone_pieces, &gone, "the files gone", &gone_size);
     for (unsigned long long at = 0ull; (uris != NULL) && (at < gone_size);
@@ -316,34 +316,34 @@ static void changed_emitted(const char *root, const char *const *files, unsigned
     {
         changed_gone_emitted(uris + at, sink);
     }
-    cli_cell_release(uris, NULL);
+    cli_cell_release(uris, &g_cli_servers_cells);
 }
 
-// the batch's parts given back
+// the round's parts given back
 static void changed_given(void)
 {
-    cli_cell_release(s_batch.tree_paths, NULL);
-    cli_cell_release(s_batch.tree, NULL);
-    cli_cell_release(s_batch.again, NULL);
-    cli_cell_release(s_batch.file_tool, NULL);
-    cli_cell_release(s_batch.tool, NULL);
-    cli_cell_release(s_batch.tool_language, NULL);
+    cli_cell_release(s_batch.tree_paths, &g_cli_servers_cells);
+    cli_cell_release(s_batch.tree, &g_cli_servers_cells);
+    cli_cell_release(s_batch.again, &g_cli_servers_cells);
+    cli_cell_release(s_batch.file_tool, &g_cli_servers_cells);
+    cli_cell_release(s_batch.tool, &g_cli_servers_cells);
+    cli_cell_release(s_batch.tool_language, &g_cli_servers_cells);
     if (s_batch.languages != NULL)
     {
         cli_plugins_languages_given(s_batch.languages);
     }
-    cli_cell_release(s_batch.languages, NULL);
+    cli_cell_release(s_batch.languages, &g_cli_servers_cells);
     memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
 }
 
-// the tree's files under `root` listed and the batch's parts taken for `count` files changed: 1, or 0 where the cells
+// the tree's files under `root` listed and the round's parts taken for `count` files changed: 1, or 0 where the cells
 // cannot meet them
 static int changed_taken(const char *root, unsigned int count)
 {
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea line;
-    cli_pieces_begun(&pieces, &line, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &line, piece, sizeof(piece), &g_cli_servers_cells);
     (void)cli_servers_check_tree_files(root, changed_tree_file, &line);
     unsigned long long size = 0ull;
     s_batch.tree_paths = cli_pieces_joined(&pieces, &line, "the tree's files", &size);
@@ -352,16 +352,19 @@ static int changed_taken(const char *root, unsigned int count)
         s_batch.trees += (s_batch.tree_paths[at] == '\0') ? 1u : 0u;
     }
     const unsigned long long places = (unsigned long long)s_batch.trees + 1ull;
-    s_batch.tree =
-        (s_batch.tree_paths != NULL) ? g_cli_cells->persistent_buf_alloc(places * sizeof(char *), NULL) : NULL;
-    s_batch.again =
-        (s_batch.tree != NULL) ? g_cli_cells->persistent_buf_alloc((places + count) * sizeof(char *), NULL) : NULL;
-    s_batch.file_tool =
-        (s_batch.again != NULL)
-            ? g_cli_cells->persistent_buf_alloc(((unsigned long long)count + 1ull) * sizeof(unsigned int), NULL)
-            : NULL;
-    s_batch.languages =
-        (s_batch.file_tool != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliLanguages), NULL) : NULL;
+    s_batch.tree = (s_batch.tree_paths != NULL)
+                       ? g_cli_cells->persistent_buf_alloc(places * sizeof(char *), &g_cli_servers_cells)
+                       : NULL;
+    s_batch.again = (s_batch.tree != NULL)
+                        ? g_cli_cells->persistent_buf_alloc((places + count) * sizeof(char *), &g_cli_servers_cells)
+                        : NULL;
+    s_batch.file_tool = (s_batch.again != NULL)
+                            ? g_cli_cells->persistent_buf_alloc(
+                                  ((unsigned long long)count + 1ull) * sizeof(unsigned int), &g_cli_servers_cells)
+                            : NULL;
+    s_batch.languages = (s_batch.file_tool != NULL)
+                            ? g_cli_cells->persistent_buf_alloc(sizeof(CliLanguages), &g_cli_servers_cells)
+                            : NULL;
     if (s_batch.languages == NULL)
     {
         return 0;
@@ -369,8 +372,9 @@ static int changed_taken(const char *root, unsigned int count)
     cli_plugins_languages(s_batch.languages);
     s_batch.tools_most = s_batch.languages->count;
     const unsigned long long names = ((unsigned long long)s_batch.tools_most + 1ull) * CLI_NAME_MAX_LEN;
-    s_batch.tool = g_cli_cells->persistent_buf_alloc(names, NULL);
-    s_batch.tool_language = (s_batch.tool != NULL) ? g_cli_cells->persistent_buf_alloc(names, NULL) : NULL;
+    s_batch.tool = g_cli_cells->persistent_buf_alloc(names, &g_cli_servers_cells);
+    s_batch.tool_language =
+        (s_batch.tool != NULL) ? g_cli_cells->persistent_buf_alloc(names, &g_cli_servers_cells) : NULL;
     unsigned long long at = 0ull;
     for (unsigned int file = 0u; file < s_batch.trees; file += 1u)
     {

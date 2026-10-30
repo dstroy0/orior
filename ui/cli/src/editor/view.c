@@ -72,16 +72,16 @@ typedef struct
 
 // A view: the key of its text, the path of its file, which names its language, the whole path its language server
 // was handed, empty where none was, whether the text changed since the server was last told, and whether the text is
-// paged, its lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its pattern of a
-// line that opens a block, as its plugin names them, in units; its top, rows and columns; the cursor and the anchor;
-// the column the cursor keeps as it moves up and down, in cells; the indentation; the frames written; the steps, in a
-// cell of their own, how many are stored and how many of them are done, those past the done ones being undone; the folds
-// closed, in a cell of their own in the order of their first lines, how many and the room; find: whether its bar is
-// open and whether the keys are its own, its query in a cell of its own, in units, its length, the room and where its
-// cursor stands, whether it seeks a pattern, with case and whole words, whether the matches are to be found anew, the
-// matches, each a line, a from and a to column, in a cell of their own, how many and the room, and the current one, -1
-// for none; and the line read last, its units in a cell of the view's own, the room it has, which line it is and
-// whether it is known: a line's units are read once for the moves along it
+// paged, its lines read through the pages; the language's pairs, each an opener and its closer, its quotes, and its
+// pattern of a line that opens a block, as its plugin names them, in units; its top, rows and columns; the cursor and
+// the anchor; the column the cursor keeps as it moves up and down, in cells; the indentation; the frames written; the
+// steps, in a cell of their own, how many are stored and how many of them are done, those past the done ones being
+// undone; the folds closed, in a cell of their own in the order of their first lines, how many and the room; find:
+// whether its bar is open and whether the keys are its own, its query in a cell of its own, in units, its length, the
+// room and where its cursor stands, whether it seeks a pattern, with case and whole words, whether the matches are to
+// be found anew, the matches, each a line, a from and a to column, in a cell of their own, how many and the room, and
+// the current one, -1 for none; and the line read last, its units in a cell of the view's own, the room it has, which
+// line it is and whether it is known: a line's units are read once for the moves along it
 typedef struct
 {
     int used;
@@ -146,7 +146,8 @@ static CliView *view_of(const char *key)
     }
     for (unsigned int at = 0u; at < CLI_VIEWS; at += 1u)
     {
-        if (s_views[at].used && cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].key, .other = key, .cap = CLI_NAME_MAX_LEN}))
+        if (s_views[at].used &&
+            cellul.eq(&(CatenaFinitaCfg){.src = s_views[at].key, .other = key, .cap = CLI_NAME_MAX_LEN}))
         {
             return &s_views[at];
         }
@@ -206,7 +207,7 @@ static void view_plugin_read(void *context, const CliPlugin *plugin)
     VerbaLinea why = {why_text, sizeof(why_text), 0ull};
     CliJson json;
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
-    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &why);
+    const unsigned int root = cli_json_taken(&json, plugin->text, plugin->size, 0u, 0ull, &why, &s_owner);
     if (root == CLI_JSON_NONE)
     {
         return;
@@ -223,8 +224,10 @@ static void view_plugin_read(void *context, const CliPlugin *plugin)
             unsigned long long length = 0ull;
             const char *const text = cli_json_string(&json, cli_json_item(&json, pairs, at), &length);
             unsigned long long took = 0ull;
-            const unsigned int open = ((text != NULL) && (length != 0ull)) ? cli_text_letter(text, length, 0ull, &took) : 0u;
-            const unsigned int close = ((open != 0u) && (took < length)) ? cli_text_letter(text, length, took, &took) : 0u;
+            const unsigned int open =
+                ((text != NULL) && (length != 0ull)) ? cli_text_letter(text, length, 0ull, &took) : 0u;
+            const unsigned int close =
+                ((open != 0u) && (took < length)) ? cli_text_letter(text, length, took, &took) : 0u;
             if ((open != 0u) && (close != 0u))
             {
                 view->pair_open[view->pairs] = open;
@@ -665,7 +668,7 @@ static void view_line_read(CliView *view, unsigned long long line)
     {
         const char *text = NULL;
         unsigned long long count = 0ull;
-        char *const cell = cli_pages_lines_taken(view->key, line, line + 1ull, &text, &count);
+        char *const cell = cli_pages_lines_taken(view->key, line, line + 1ull, &text, &count, &s_owner);
         if ((cell != NULL) && (count != 0ull))
         {
             const unsigned long long size = cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL});
@@ -1596,7 +1599,8 @@ static int view_opens_block(CliView *view, unsigned long long line, unsigned lon
     }
     const unsigned long long length = view_length(view, line);
     const unsigned long long count = (col < length) ? col : length;
-    unsigned char *const cell = cli_lane_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &s_owner);
+    unsigned char *const cell =
+        cli_lane_alloc(sizeof(CliRegexpRoom) + ((count + 1ull) * sizeof(unsigned int)), &s_owner);
     if (cell == NULL)
     {
         return 0;
@@ -1679,7 +1683,8 @@ static int view_newline(CliView *view, VerbaLinea *err_msg)
         gap += 1ull;
     }
     const unsigned int next = (to.col + gap < rest_length) ? view_unit(view, to.line, to.col + gap) : 0u;
-    const int paired = ((prev != 0u) && (next != 0u) && view_paired(view, prev, next, 0)) || ((open != 0u) && (next == open));
+    const int paired =
+        ((prev != 0u) && (next != 0u) && view_paired(view, prev, next, 0)) || ((open != 0u) && (next == open));
     char text[CLI_PATH_MAX_LEN];
     VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_ch(&line, '\n');
@@ -1720,7 +1725,8 @@ static int view_backspace(CliView *view, VerbaLinea *err_msg)
     const CliPlace at = view->cursor;
     if (at.col == 0ull)
     {
-        return (at.line == 0ull) ? 1 : view_edited(view, view_left(view, at), at, "", 0ull, CLI_VIEW_KIND_DELETE, err_msg);
+        return (at.line == 0ull) ? 1
+                                 : view_edited(view, view_left(view, at), at, "", 0ull, CLI_VIEW_KIND_DELETE, err_msg);
     }
     if ((at.col < view_length(view, at.line)) &&
         view_paired(view, view_unit(view, at.line, at.col - 1ull), view_unit(view, at.line, at.col), 1))
@@ -1787,7 +1793,8 @@ static void view_span_written(CliView *view, CliPlace from, CliPlace to, VerbaLi
     {
         const unsigned long long line_length = view_length(view, line);
         const unsigned long long start = (line == from.line) ? from.col : 0ull;
-        const unsigned long long end = (line == to.line) ? ((to.col < line_length) ? to.col : line_length) : line_length;
+        const unsigned long long end =
+            (line == to.line) ? ((to.col < line_length) ? to.col : line_length) : line_length;
         if (start < end)
         {
             cli_document_units_utf8(out, view->line_units + start, end - start);
@@ -1851,7 +1858,8 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
         const int quote = close == letter;
         const int next_ok = (next == 0u) || view_blank_unit(next) || (next == ';') || (next == ',') || (next == '.') ||
                             (next == ')') || (next == ']') || (next == '}') || (next == '>');
-        const int prev_ok = !quote || ((prev != 0u) ? (!view_word_unit(prev) && (prev != '\\') && (prev != letter)) : 1);
+        const int prev_ok =
+            !quote || ((prev != 0u) ? (!view_word_unit(prev) && (prev != '\\') && (prev != letter)) : 1);
         if (next_ok && prev_ok)
         {
             char both[16];
@@ -1868,7 +1876,8 @@ static int view_letter_typed(CliView *view, const char *text, unsigned long long
             return 1;
         }
     }
-    if (view_closes_bracket(view, letter) && empty && (from.col > 0ull) && (view_first_letter(view, from.line) >= from.col))
+    if (view_closes_bracket(view, letter) && empty && (from.col > 0ull) &&
+        (view_first_letter(view, from.line) >= from.col))
     {
         // the lead less a step: a tab, the step's spaces where the lead ends in them, else the run of blanks it ends in
         unsigned long long less = from.col;
@@ -2106,9 +2115,10 @@ int cli_view_input(const char *key, const CliViewInput *input, VerbaLinea *err_m
     else if (input->kind == CLI_VIEW_TEXT)
     {
         const int one = (input->length != 0ull) && (cli_text_letters(input->text, input->length) == 1ull);
-        const int blank = (input->length != 0ull) && ((input->text[0] == ' ') || (input->text[0] == '\t') ||
-                                                      (input->text[0] == '\n'));
-        const unsigned int kind = (one && !blank) ? CLI_VIEW_KIND_TYPE : (one ? CLI_VIEW_KIND_SPACE : CLI_VIEW_KIND_NONE);
+        const int blank = (input->length != 0ull) &&
+                          ((input->text[0] == ' ') || (input->text[0] == '\t') || (input->text[0] == '\n'));
+        const unsigned int kind =
+            (one && !blank) ? CLI_VIEW_KIND_TYPE : (one ? CLI_VIEW_KIND_SPACE : CLI_VIEW_KIND_NONE);
         unsigned long long took = 0ull;
         const unsigned int letter = one ? cli_text_letter(input->text, input->length, 0ull, &took) : 0u;
         if (view->find_open && view->find_focus)
@@ -2200,22 +2210,23 @@ static int view_pair(const CliView *view, CliPlace *pair)
     const unsigned long long line = view->cursor.line;
     const unsigned long long reach = (line > CLI_VIEW_PAIR_LINES) ? (line - CLI_VIEW_PAIR_LINES) : 0ull;
     const unsigned long long start = (reach > low) ? reach : low;
-    const unsigned long long end = ((high != 0ull) && ((line + CLI_VIEW_PAIR_LINES) >= high)) ? (high - 1ull)
-                                                                                               : (line + CLI_VIEW_PAIR_LINES);
+    const unsigned long long end =
+        ((high != 0ull) && ((line + CLI_VIEW_PAIR_LINES) >= high)) ? (high - 1ull) : (line + CLI_VIEW_PAIR_LINES);
     const unsigned long long first = (start < line) ? start : line;
     const unsigned long long last = (end > line) ? end : line;
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ull;
-    char *const text = cli_document_lines_taken(view->key, first, last, &size, state, sizeof(state));
+    char *const text = cli_document_lines_taken(view->key, first, last, &size, state, sizeof(state), &s_owner);
     if (text == NULL)
     {
         return 0;
     }
     CliSymbolPlace found[2] = {{0u, 0u}, {0u, 0u}};
     // a place in a text a view shows stands below 2^32 lines and columns
-    const int paired = cli_symbols_pair(view->path, (state[0] != '\0') ? state : "root", text, size,
-                                        (CliSymbolPlace){(unsigned int)(line - first), (unsigned int)view->cursor.col}, found);
-    cli_cell_release(text, NULL);
+    const int paired =
+        cli_symbols_pair(view->path, (state[0] != '\0') ? state : "root", text, size,
+                         (CliSymbolPlace){(unsigned int)(line - first), (unsigned int)view->cursor.col}, found);
+    cli_cell_release(text, &s_owner);
     for (unsigned int at = 0u; paired && (at < 2u); at += 1u)
     {
         pair[at].line = first + found[at].line;
@@ -2245,7 +2256,7 @@ static void view_paged_rows_written(const CliView *view, const CliViewRows *show
         }
         unsigned long long count = 0ull;
         char *const cell = cli_pages_lines_taken(view->key, shown->number[at], shown->number[end] + 1ull,
-                                                 shown->text + at, &count);
+                                                 shown->text + at, &count, &s_owner);
         for (unsigned long long each = at; each <= end; each += 1ull)
         {
             mmgr_line_put(out, (each > 0ull) ? "," : "");
@@ -2679,7 +2690,8 @@ static void view_map_line_written(const char *text, unsigned long long length, c
         {
             run += 1u;
         }
-        const unsigned long long name = (values >= 2u) ? view_json_whole(json, cli_json_item(json, flat, (2u * run) + 1u), 0ull) : 0ull;
+        const unsigned long long name =
+            (values >= 2u) ? view_json_whole(json, cli_json_item(json, flat, (2u * run) + 1u), 0ull) : 0ull;
         const int blank = (letter == ' ') || (letter == '\t');
         const unsigned long long wide = (letter == '\t') ? (tab - (cell % tab)) : 1ull;
         if (open && (blank || (name != begun_name)))
@@ -2729,14 +2741,15 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     if ((room != NULL) && cli_document_runs_written(key, first, last, 0, &runs) && mmgr_line_ok(&runs))
     {
-        colors = cli_json_taken(&json, runs.out, runs.at, 0u, 0ull, &err_msg);
+        colors = cli_json_taken_laned(&json, runs.out, runs.at, &err_msg, &s_owner);
     }
     unsigned long long size = 0ull;
     unsigned long long read = 0ull;
     char state[64];
-    char *const texts = (line == NULL) ? NULL
-                        : (paged ? cli_pages_lines_taken(key, first, last + 1ull, line, &read)
-                                 : cli_document_lines_taken(key, first, last, &size, state, sizeof(state)));
+    char *const texts =
+        (line == NULL) ? NULL
+                       : (paged ? cli_pages_lines_taken(key, first, last + 1ull, line, &read, &s_owner)
+                                : cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &s_owner));
     const char *rest = texts;
     for (unsigned long long at = 0ull; at < count; at += 1ull)
     {
@@ -2760,7 +2773,8 @@ int cli_view_map_written(const char *key, unsigned long long first, unsigned lon
             length = (unsigned long long)(rest - text);
             rest = (rest < end) ? rest + 1 : NULL;
         }
-        view_map_line_written(text, length, &json, (colors != CLI_JSON_NONE) ? view_map_runs_of(&json, colors, first + at) : CLI_JSON_NONE,
+        view_map_line_written(text, length, &json,
+                              (colors != CLI_JSON_NONE) ? view_map_runs_of(&json, colors, first + at) : CLI_JSON_NONE,
                               tab, out);
     }
     mmgr_line_put(out, "]}");
@@ -2914,8 +2928,8 @@ int cli_view_prefix(const char *key, unsigned long long *from, char *prefix, uns
 static int view_word_byte(char byte)
 {
     const unsigned char value = (unsigned char)byte;
-    return ((value >= 'a') && (value <= 'z')) || ((value >= 'A') && (value <= 'Z')) || ((value >= '0') && (value <= '9')) ||
-           (value == '_') || (value == '$') || (value >= 0x80u);
+    return ((value >= 'a') && (value <= 'z')) || ((value >= 'A') && (value <= 'Z')) ||
+           ((value >= '0') && (value <= '9')) || (value == '_') || (value == '$') || (value >= 0x80u);
 }
 
 // the units a byte of UTF-8 adds: one for a byte of ASCII or the lead byte of a letter in the basic plane, two for
@@ -2939,7 +2953,8 @@ static unsigned long long view_byte_units(char byte)
 #define CLI_VIEW_WORD_TABLE 8192ull
 
 // whether `length` bytes of `word` at `text + at` are in the table, put there where not: 1 where they were already
-static int view_word_seen(const char *text, unsigned long long (*table)[2], unsigned long long at, unsigned long long length)
+static int view_word_seen(const char *text, unsigned long long (*table)[2], unsigned long long at,
+                          unsigned long long length)
 {
     unsigned long long hash = 1469598103934665603ull;
     for (unsigned long long each = 0ull; each < length; each += 1ull)
@@ -2984,7 +2999,8 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
     const unsigned long long last = ((high != 0ull) && (far >= high)) ? high - 1ull : far;
     char state[CLI_VIEW_STATE];
     unsigned long long size = 0ull;
-    char *const text = (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state)) : NULL;
+    char *const text =
+        (last >= first) ? cli_document_lines_taken(key, first, last, &size, state, sizeof(state), &s_owner) : NULL;
     unsigned long long (*const table)[2] = cli_lane_alloc(CLI_VIEW_WORD_TABLE * sizeof(*table), &s_owner);
     mmgr_line_ch(out, '[');
     if ((text != NULL) && (table != NULL))
@@ -3034,6 +3050,6 @@ int cli_view_words_written(const char *key, VerbaLinea *out)
     }
     mmgr_line_ch(out, ']');
     cli_cell_release(table, &s_owner);
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &s_owner);
     return 1;
 }

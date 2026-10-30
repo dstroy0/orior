@@ -50,7 +50,7 @@ static int cli_script(const unsigned char *text, unsigned long long size)
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &err_msg);
+    const unsigned int root = cli_json_taken(&json, (const char *)text, size, 0u, 0ull, &err_msg, &g_cli_bundle_cells);
     const char *const kind =
         (root != CLI_JSON_NONE) ? cli_json_string(&json, cli_json_member(&json, root, "kind"), NULL) : NULL;
     const int script =

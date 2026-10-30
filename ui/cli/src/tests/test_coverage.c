@@ -136,7 +136,7 @@ static int cover_room_taken(const CliCoverCounts *counts)
     const unsigned long long lines = counts->numbers + 1ull;
     const unsigned long long bytes = (files * (sizeof(unsigned long long) + sizeof(unsigned int))) +
                                      (lines * sizeof(CliCoverLine)) + counts->bytes + 1ull + (4ull * 8ull);
-    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, NULL);
+    unsigned char *const cell = g_cli_cells->persistent_buf_alloc(bytes, &g_cli_tests_cells);
     if (cell == NULL)
     {
         return 0;
@@ -284,7 +284,7 @@ static void cover_skipped(CliCoverRead *read)
     }
 }
 
-// an array of a file's lines that ran, or could run, at the reading: each whole number in it marked, a line counted
+// a file's lines that ran, or could run, at the reading: each whole number in it marked, a line counted
 // from 1 marked from 0 and cut to 32 bits as Rust's `as u32` cuts it, and any other value passed over
 static void cover_lines(CliCoverRead *read, unsigned int file, unsigned int could)
 {
@@ -505,7 +505,7 @@ void cli_test_coverage_emitted(CliTestRun *run)
         cli_test_file_let_go(text, size);
     }
     VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if ((s_cover->files > 0u) && cli_growing_line_made(&out, CLI_COVER_EVENT_INIT_CAP))
+    if ((s_cover->files > 0u) && cli_growing_line_made(&out, CLI_COVER_EVENT_INIT_CAP, &g_cli_tests_cells))
     {
         qsort(s_cover->lines, s_cover->line_count, sizeof(s_cover->lines[0]), cover_line_order);
         for (unsigned int file = 0u; file < s_cover->files; file += 1u)
@@ -541,8 +541,8 @@ void cli_test_coverage_emitted(CliTestRun *run)
             run->sink.emit(run->sink.context, out.out, out.at);
         }
     }
-    cli_cell_release(out.out, NULL);
-    cli_cell_release(s_cover->room, NULL);
+    cli_cell_release(out.out, &g_cli_tests_cells);
+    cli_cell_release(s_cover->room, &g_cli_tests_cells);
     s_cover->room = NULL;
     s_cover = NULL;
     cli_lock_give(&s_cover_lock);

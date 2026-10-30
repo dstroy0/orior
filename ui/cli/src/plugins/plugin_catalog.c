@@ -48,7 +48,7 @@ int cli_plugin_catalog_locked(VerbaLinea *err_msg)
 void cli_plugin_catalog_released(void)
 {
     cli_json_given(&g_cli_catalog->json);
-    cli_cell_release(g_cli_catalog->bytes, NULL);
+    cli_cell_release(g_cli_catalog->bytes, &g_cli_plugins_cells);
     g_cli_catalog->bytes = NULL;
     g_cli_catalog = NULL;
     cli_lock_give(&s_catalog_lock);
@@ -57,7 +57,7 @@ void cli_plugin_catalog_released(void)
 unsigned int cli_plugin_catalog_tree(const char *text, unsigned long long size, VerbaLinea *err_msg)
 {
     cli_json_given(&g_cli_catalog->json);
-    return cli_json_taken(&g_cli_catalog->json, text, size, 0u, 0ull, err_msg);
+    return cli_json_taken(&g_cli_catalog->json, text, size, 0u, 0ull, err_msg, &g_cli_plugins_cells);
 }
 
 // whether `text` begins with `prefix`
@@ -70,7 +70,7 @@ static int catalog_begins(const char *text, const char *prefix)
 // g_cli_catalog->bytes, their count into `size`: 1, or 0 with why given
 int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned long long *size, VerbaLinea *err_msg)
 {
-    cli_cell_release(g_cli_catalog->bytes, NULL);
+    cli_cell_release(g_cli_catalog->bytes, &g_cli_plugins_cells);
     g_cli_catalog->bytes = NULL;
     if (catalog_begins(address, "http://") || catalog_begins(address, "https://"))
     {
@@ -85,7 +85,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         CliPieces pieces;
         VerbaLinea body;
         char piece[CLI_PLUGIN_CATALOG_PIECE];
-        cli_pieces_begun(&pieces, &body, piece, sizeof(piece));
+        cli_pieces_begun(&pieces, &body, piece, sizeof(piece), &g_cli_plugins_cells);
         unsigned int status = 0u;
         int cut = 0;
         const int got = cli_requests_get(address, &status, &reason_line, &cut, &body, &failed);
@@ -95,7 +95,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
             (unsigned char *)cli_pieces_joined(&pieces, &body, "the bytes a plugin catalog fetched", &joined_size);
         if (!got)
         {
-            cli_cell_release(joined, NULL);
+            cli_cell_release(joined, &g_cli_plugins_cells);
             mmgr_line_put(err_msg, address);
             mmgr_line_put(err_msg, ": ");
             mmgr_line_put_n(err_msg, why, failed.at);
@@ -103,7 +103,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         }
         if ((status < 200u) || (status >= 300u))
         {
-            cli_cell_release(joined, NULL);
+            cli_cell_release(joined, &g_cli_plugins_cells);
             mmgr_line_put(err_msg, address);
             mmgr_line_put(err_msg, ": ");
             mmgr_line_decimal(err_msg, status, 1u);
@@ -113,7 +113,7 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
         }
         if (cut || (joined == NULL) || (joined_size > CLI_CATALOG_BYTES))
         {
-            cli_cell_release(joined, NULL);
+            cli_cell_release(joined, &g_cli_plugins_cells);
             mmgr_line_put(err_msg, address);
             mmgr_line_put(err_msg, " is larger than orior_cli reads");
             return 0;
@@ -125,10 +125,10 @@ int cli_plugin_catalog_fetch(const char *address, const char *purpose, unsigned 
     const char *const path = catalog_begins(address, "file://") ? (address + 7) : address;
     unsigned long long mapped_size = 0ull;
     const unsigned char *const mapped = cli_file_read(path, &mapped_size);
-    // a file of no bytes is stored in a cell of one, so every read has a cell
+    // a file of no bytes is stored in a cell of one, and every read has a cell
     unsigned char *const bytes =
         ((mapped != NULL) && (mapped_size <= CLI_CATALOG_BYTES))
-            ? g_cli_cells->persistent_buf_alloc((mapped_size != 0ull) ? mapped_size : 1ull, NULL)
+            ? g_cli_cells->persistent_buf_alloc((mapped_size != 0ull) ? mapped_size : 1ull, &g_cli_plugins_cells)
             : NULL;
     if (bytes != NULL)
     {

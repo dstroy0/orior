@@ -4,9 +4,10 @@
 // on the text under a key, sized to the window's rows and columns, each input the window sends taken, the minimap's
 // lines asked for, and the view closed; an open and every input answered with the view's frame, which the window
 // draws. The view is handed to its file's language server from the branch's own text and the server told each change
-// as the window asks after the frame that shows it; the hover at a place, the completions at the cursor and the signature of the call the
-// cursor is in are answered from the tree's declarations and, where the view is served and the call's `server` is not
-// false, the server, whose answer waits on it: the window asks without the server first and with it after
+// as the window asks after the frame that shows it; the hover at a place, the completions at the cursor and the
+// signature of the call the cursor is in are answered from the tree's declarations and, where the view is served and
+// the call's `server` is not false, the server, whose answer waits on it: the window asks without the server first and
+// with it after
 #include "../command_line/file_writing.h"
 #include "../editor/view.h"
 #include "../plugins/plugins.h"
@@ -30,13 +31,13 @@ static void editor_server_told(const char *key)
         return;
     }
     unsigned long long size = 0ull;
-    char *const text = cli_document_text_taken(key, &size);
+    char *const text = cli_document_text_taken(key, &size, &g_cli_window_cells);
     if (text != NULL)
     {
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea ignored = {why, sizeof(why), 0ull};
         (void)cli_servers_change(full, text, size, &ignored);
-        cli_cell_release(text, NULL);
+        cli_cell_release(text, &g_cli_window_cells);
     }
 }
 
@@ -142,7 +143,7 @@ static int editor_view_serve(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     const int known = cli_plugins_language_for(&languages, path, id);
     cli_plugins_languages_given(&languages);
     unsigned long long size = 0ull;
-    char *const text = known ? cli_document_text_taken(key, &size) : NULL;
+    char *const text = known ? cli_document_text_taken(key, &size, &g_cli_window_cells) : NULL;
     int served = 0;
     if (text != NULL)
     {
@@ -153,7 +154,7 @@ static int editor_view_serve(const CliServeArgs *args, VerbaLinea *out, VerbaLin
         const CliServersSink sink = cli_serve_emitter(root);
         served = cli_servers_open(root, full, id, text, size, &sink, &said, &refused) && mmgr_line_ok(&said) &&
                  (said.at == 4ull) && (memor.cmp(&(MemoriaCfg){.src = said.out, .other = "true", .bytes = 4u}) == 0);
-        cli_cell_release(text, NULL);
+        cli_cell_release(text, &g_cli_window_cells);
     }
     if (served)
     {
@@ -172,7 +173,8 @@ static int editor_view_hover(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     const char *const key = cli_serve_string(args, "key", err_msg);
     unsigned long long row = 0ull;
     unsigned long long column = 0ull;
-    if ((key == NULL) || !cli_serve_whole(args, "row", &row, err_msg) || !cli_serve_whole(args, "column", &column, err_msg))
+    if ((key == NULL) || !cli_serve_whole(args, "row", &row, err_msg) ||
+        !cli_serve_whole(args, "column", &column, err_msg))
     {
         return 0;
     }
@@ -210,14 +212,17 @@ static int editor_view_hover(const CliServeArgs *args, VerbaLinea *out, VerbaLin
     cli_window_quoted(&query, word);
     mmgr_line_ch(&query, '}');
     VerbaLinea found;
-    if (cli_growing_line_made(&found, CLI_EDITOR_ANSWER_FIRST))
+    if (cli_growing_line_made(&found, CLI_EDITOR_ANSWER_FIRST, &g_cli_window_cells))
     {
         CliJson json;
-        const unsigned int root = (mmgr_line_ok(&query) && cli_window_tree_call("symbols_find", query.out, query.at, &found, &ignored) && mmgr_line_ok(&found))
-                                      ? cli_json_taken(&json, found.out, found.at, 0u, 0ull, &ignored)
-                                      : CLI_JSON_NONE;
+        const unsigned int root =
+            (mmgr_line_ok(&query) && cli_window_tree_call("symbols_find", query.out, query.at, &found, &ignored) &&
+             mmgr_line_ok(&found))
+                ? cli_json_taken(&json, found.out, found.at, 0u, 0ull, &ignored, &g_cli_window_cells)
+                : CLI_JSON_NONE;
         const unsigned int symbols = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "symbols") : CLI_JSON_NONE;
-        const unsigned int count = ((symbols != CLI_JSON_NONE) && cli_json_is(&json, symbols, CFG_JSON_ARRAY)) ? json.node[symbols].count : 0u;
+        const unsigned int count =
+            ((symbols != CLI_JSON_NONE) && cli_json_is(&json, symbols, CFG_JSON_ARRAY)) ? json.node[symbols].count : 0u;
         for (unsigned int at = 0u; (at < count) && (parts < CLI_EDITOR_HOVER_MOST); at += 1u)
         {
             const unsigned int one = cli_json_item(&json, symbols, at);
@@ -236,7 +241,7 @@ static int editor_view_hover(const CliServeArgs *args, VerbaLinea *out, VerbaLin
             const char *const path = cli_json_string(&json, cli_json_member(&json, one, "path"), &path_length);
             const unsigned long long declared = cli_servers_whole(&json, cli_json_member(&json, one, "line"), 0ull);
             VerbaLinea part;
-            if (!cli_growing_line_made(&part, CLI_EDITOR_ANSWER_FIRST))
+            if (!cli_growing_line_made(&part, CLI_EDITOR_ANSWER_FIRST, &g_cli_window_cells))
             {
                 break;
             }
@@ -258,18 +263,19 @@ static int editor_view_hover(const CliServeArgs *args, VerbaLinea *out, VerbaLin
                 cli_json_quoted(out, part.out, part.at);
                 parts += 1u;
             }
-            cli_cell_release(part.out, NULL);
+            cli_cell_release(part.out, &g_cli_window_cells);
         }
         if (root != CLI_JSON_NONE)
         {
             cli_json_given(&json);
         }
-        cli_cell_release(found.out, NULL);
+        cli_cell_release(found.out, &g_cli_window_cells);
     }
     // the server's hover, a Markdown string, where the view is served and the server is asked
     char full[CLI_PATH_MAX_LEN];
     VerbaLinea said;
-    if (cli_serve_bool_or(args, "server", 1) && cli_view_served(key, full) && cli_growing_line_made(&said, CLI_EDITOR_ANSWER_FIRST))
+    if (cli_serve_bool_or(args, "server", 1) && cli_view_served(key, full) &&
+        cli_growing_line_made(&said, CLI_EDITOR_ANSWER_FIRST, &g_cli_window_cells))
     {
         // a place in a text a view shows stands below 2^32 lines and columns
         if (cli_servers_hover(full, (unsigned int)line, (unsigned int)col, &said, &ignored) && mmgr_line_ok(&said) &&
@@ -279,7 +285,7 @@ static int editor_view_hover(const CliServeArgs *args, VerbaLinea *out, VerbaLin
             mmgr_line_put_n(out, said.out, said.at);
             parts += 1u;
         }
-        cli_cell_release(said.out, NULL);
+        cli_cell_release(said.out, &g_cli_window_cells);
     }
     mmgr_line_put(out, "]}");
     return 1;
@@ -314,7 +320,8 @@ static int editor_view_complete(const CliServeArgs *args, VerbaLinea *out, Verba
     char full[CLI_PATH_MAX_LEN];
     VerbaLinea said;
     int answered = 0;
-    if (cli_serve_bool_or(args, "server", 1) && cli_view_served(key, full) && cli_growing_line_made(&said, CLI_EDITOR_ANSWER_FIRST))
+    if (cli_serve_bool_or(args, "server", 1) && cli_view_served(key, full) &&
+        cli_growing_line_made(&said, CLI_EDITOR_ANSWER_FIRST, &g_cli_window_cells))
     {
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea ignored = {why, sizeof(why), 0ull};
@@ -325,7 +332,7 @@ static int editor_view_complete(const CliServeArgs *args, VerbaLinea *out, Verba
             mmgr_line_put_n(out, said.out, said.at);
             answered = 1;
         }
-        cli_cell_release(said.out, NULL);
+        cli_cell_release(said.out, &g_cli_window_cells);
     }
     mmgr_line_put(out, answered ? ",\"words\":" : "[],\"words\":");
     (void)cli_view_words_written(key, out);
@@ -355,20 +362,22 @@ static int editor_view_signature(const CliServeArgs *args, VerbaLinea *out, Verb
     mmgr_line_put(out, "{\"own\":");
     VerbaLinea own;
     int answered = 0;
-    if (cli_growing_line_made(&own, CLI_EDITOR_ANSWER_FIRST))
+    if (cli_growing_line_made(&own, CLI_EDITOR_ANSWER_FIRST, &g_cli_window_cells))
     {
-        if (cli_window_branch_signature(key, path, cursor.line, cursor.col, &own, &ignored) && mmgr_line_ok(&own) && (own.at > 0ull))
+        if (cli_window_branch_signature(key, path, cursor.line, cursor.col, &own, &ignored) && mmgr_line_ok(&own) &&
+            (own.at > 0ull))
         {
             mmgr_line_put_n(out, own.out, own.at);
             answered = 1;
         }
-        cli_cell_release(own.out, NULL);
+        cli_cell_release(own.out, &g_cli_window_cells);
     }
     mmgr_line_put(out, answered ? ",\"server\":" : "null,\"server\":");
     char full[CLI_PATH_MAX_LEN];
     VerbaLinea said;
     answered = 0;
-    if (cli_serve_bool_or(args, "server", 1) && cli_view_served(key, full) && cli_growing_line_made(&said, CLI_EDITOR_ANSWER_FIRST))
+    if (cli_serve_bool_or(args, "server", 1) && cli_view_served(key, full) &&
+        cli_growing_line_made(&said, CLI_EDITOR_ANSWER_FIRST, &g_cli_window_cells))
     {
         // a place in a text a view shows stands below 2^32 lines and columns
         if (cli_servers_signature(full, (unsigned int)cursor.line, (unsigned int)cursor.col, &said, &ignored) &&
@@ -377,7 +386,7 @@ static int editor_view_signature(const CliServeArgs *args, VerbaLinea *out, Verb
             mmgr_line_put_n(out, said.out, said.at);
             answered = 1;
         }
-        cli_cell_release(said.out, NULL);
+        cli_cell_release(said.out, &g_cli_window_cells);
     }
     mmgr_line_put(out, answered ? "}" : "null}");
     return 1;

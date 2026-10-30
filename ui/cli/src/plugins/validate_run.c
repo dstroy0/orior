@@ -135,9 +135,9 @@ int cli_validate_checked(const CliWords *words, const char *dir, double *seconds
     const unsigned long long out = cli_utf8_whole(ran->out, ran->out_size) ? ran->out_size : 0ull;
     const unsigned long long err = cli_utf8_whole(ran->err, ran->err_size) ? ran->err_size : 0ull;
     // the output stored in a cell of its size, the one stored before given back
-    cli_cell_release(g_cli_validate->output, NULL);
+    cli_cell_release(g_cli_validate->output, &g_cli_plugins_cells);
     g_cli_validate->output_size = 0ull;
-    g_cli_validate->output = g_cli_cells->persistent_buf_alloc(out + err + 2ull, NULL);
+    g_cli_validate->output = g_cli_cells->persistent_buf_alloc(out + err + 2ull, &g_cli_plugins_cells);
     if (g_cli_validate->output == NULL)
     {
         cli_ran_given(ran);

@@ -81,7 +81,7 @@ static void document_found_in_little_room(void)
     unsigned int taken = 0u;
     while (taken < DOCUMENT_TAKEN_MOST)
     {
-        s_taken[taken] = g_cli_cells->persistent_buf_alloc(DOCUMENT_TAKEN_CELL, NULL);
+        s_taken[taken] = g_cli_cells->persistent_buf_alloc(DOCUMENT_TAKEN_CELL, &g_checks_cells);
         if (s_taken[taken] == NULL)
         {
             break;
@@ -91,15 +91,16 @@ static void document_found_in_little_room(void)
     if (taken != 0u)
     {
         taken -= 1u;
-        cli_cell_release(s_taken[taken], NULL);
+        cli_cell_release(s_taken[taken], &g_checks_cells);
     }
     CliShape shape;
     (void)cli_document_store("little", "one line\ntwo lines", 18ull, &shape);
-    document_stored_found("little", "line", "[[0,4,8],[1,4,8]]", "a small text is searched while the pool holds little room");
+    document_stored_found("little", "line", "[[0,4,8],[1,4,8]]",
+                          "a small text is searched while the pool holds little room");
     cli_document_release("little");
     for (unsigned int at = 0u; at < taken; at += 1u)
     {
-        cli_cell_release(s_taken[at], NULL);
+        cli_cell_release(s_taken[at], &g_checks_cells);
     }
 }
 
@@ -140,7 +141,7 @@ static void document_edits_in_place(void)
     // 100000 lines of 12 letters, in a cell given back once the text is stored
     const unsigned long long lines = 100000ull;
     const unsigned long long size = lines * 13ull;
-    char *const text = g_cli_cells->persistent_buf_alloc(size, NULL);
+    char *const text = g_cli_cells->persistent_buf_alloc(size, &g_checks_cells);
     cli_check(text != NULL, "the large text's cell is taken");
     if (text == NULL)
     {
@@ -152,7 +153,7 @@ static void document_edits_in_place(void)
     }
     CliShape shape;
     (void)cli_document_store("large", text, size, &shape);
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_checks_cells);
     unsigned long long pool = 0ull;
     unsigned long long before = 0ull;
     unsigned long long temporary = 0ull;
@@ -262,7 +263,8 @@ static void document_signature_lines(const char *key, const char *what)
     const int written = cli_document_text_written(key, 349ull, 351ull, &text, state, sizeof(state));
     (void)mmgr_line_finish(&text);
     cli_check(written && cellul.eq(&(CatenaFinitaCfg){.src = s_out, .other = "\"b\\nb\\nb\"", .cap = CLI_CELLS_POOL}) &&
-                  (state[0] != '\0') && !cellul.eq(&(CatenaFinitaCfg){.src = state, .other = "root", .cap = CLI_CELLS_POOL}),
+                  (state[0] != '\0') &&
+                  !cellul.eq(&(CatenaFinitaCfg){.src = state, .other = "root", .cap = CLI_CELLS_POOL}),
               what);
 }
 
@@ -346,7 +348,8 @@ static void document_branch(void)
                   cellul.eq(&(CatenaFinitaCfg){
                       .src = s_runs_of[DOCUMENT_BRANCH_LINES - 1u], .other = "[0,2]", .cap = CLI_CELLS_POOL}),
               "the walk out to the first line colors the view again as the comment above it leaves it");
-    document_signature_lines("branch", "the lines handed for a call's signature, with the state the first is entered in");
+    document_signature_lines("branch",
+                             "the lines handed for a call's signature, with the state the first is entered in");
     static const CliEdit s_opened[1] = {{{0u, 0u}, {0u, 2u}, "x", 1u}};
     const CliEdit *const changes[1] = {s_opened};
     const unsigned int counts[1] = {1u};
@@ -705,7 +708,7 @@ static void document_walk_onward(void)
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check(cli_plugins_grammar_stored("python", key, &err_msg), "the Python plugin's grammar is stored");
-    char *const text = g_cli_cells->persistent_buf_alloc(DOCUMENT_ONWARD_ROOM, NULL);
+    char *const text = g_cli_cells->persistent_buf_alloc(DOCUMENT_ONWARD_ROOM, &g_checks_cells);
     VerbaLinea out = {text, DOCUMENT_ONWARD_ROOM, 0ull};
     for (unsigned long long line = 0ull; line < DOCUMENT_ONWARD_LINES; line += 1ull)
     {
@@ -733,13 +736,13 @@ static void document_walk_onward(void)
     cli_check((walked_again - walked) <= ((2ull * (walked - began)) + 100ull),
               "an edit that moves the state of every line after it is walked many lines to a step");
     cli_document_release("onward");
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_checks_cells);
 }
 
-// a paged text's lines viewed far from its first: colored at once from root at the first line the page holds, only those
-// lines handed on; the walk colors the lines the page holds alone, the comment above them unread;
-// a read's lines colored with it and mirrored from then on, the walk handing them on no second time; the lines the page
-// comes to hold handed on as the walk colors them again; and an edit the pages write colors the lines after it again
+// a paged text's lines viewed far from its first: colored at once from root at the first line the page holds, only
+// those lines handed on; the walk colors the lines the page holds alone, the comment above them unread; a read's lines
+// colored with it and mirrored from then on, the walk handing them on no second time; the lines the page comes to hold
+// handed on as the walk colors them again; and an edit the pages write colors the lines after it again
 static void document_paged(void)
 {
     const unsigned long long size = document_branch_text();
@@ -936,7 +939,8 @@ static void document_at_once(void)
         same = same && document_printed(s_keys[text], s_printed[text + 1u], sizeof(s_printed[0])) &&
                cellul.eq(&(CatenaFinitaCfg){.src = s_printed[text + 1u], .other = s_printed[0], .cap = CLI_CELLS_POOL});
     }
-    cli_check(same, "texts colored at once by walkers, views and an edit beside them, each printed as one walked alone");
+    cli_check(same,
+              "texts colored at once by walkers, views and an edit beside them, each printed as one walked alone");
     const int ended = document_walkers_ended();
     cli_lock_take(&s_counted_lock);
     const unsigned int counted = s_counted;

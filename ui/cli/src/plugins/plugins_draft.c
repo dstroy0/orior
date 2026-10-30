@@ -95,7 +95,7 @@ static unsigned int cli_text_made(CliJson *json, const char *text)
     return cli_json_string_made(json, text, cellul.len(&(CatenaFinitaCfg){.src = text, .cap = CLI_CELLS_POOL}));
 }
 
-// an array of the strings given, NULL after the last, the node `extra` after them where it is not none
+// the strings given, NULL after the last, made a JSON array, the node `extra` after them where it is not none
 static unsigned int cli_array(CliJson *json, const char *const *texts, unsigned int extra)
 {
     const unsigned int array = cli_json_made(json, CFG_JSON_ARRAY);
@@ -307,7 +307,7 @@ unsigned int cli_plugins_draft_tree(CliJson *draft, const CliJson *json, unsigne
     // the answers twice over, as the draft copies their words, the plugin started from, and the members, patterns and
     // lists the draft makes besides
     if (!cli_json_reserved(draft, (2u * nodes) + room.nodes + CLI_DRAFT_NODES_MORE,
-                           (2ull * text) + room.text + CLI_DRAFT_TEXT_MORE, "a plugin's draft"))
+                           (2ull * text) + room.text + CLI_DRAFT_TEXT_MORE, "a plugin's draft", &g_cli_plugins_cells))
     {
         mmgr_line_put(err_msg, "the cells cannot meet a plugin's draft");
         return CLI_JSON_NONE;

@@ -40,7 +40,7 @@ static void debug_event(void *context, unsigned long long session, const char *e
     // name is quoted longer
     const unsigned long long named = cellul.len(&(CatenaFinitaCfg){.src = event, .cap = CLI_CELLS_POOL});
     VerbaLinea line;
-    (void)cli_growing_line_made(&line, size + named + 64ull);
+    (void)cli_growing_line_made(&line, size + named + 64ull, &g_cli_window_cells);
     mmgr_line_put(&line, "{\"session\":");
     mmgr_line_decimal(&line, session, 1u);
     mmgr_line_put(&line, ",\"event\":");
@@ -52,7 +52,7 @@ static void debug_event(void *context, unsigned long long session, const char *e
     {
         cli_serve_emitted("debug-event", line.out, line.at);
     }
-    cli_cell_release(line.out, NULL);
+    cli_cell_release(line.out, &g_cli_window_cells);
 }
 
 // a path an adapter named written as it stands in the tree, the tree its context

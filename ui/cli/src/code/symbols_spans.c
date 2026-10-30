@@ -291,7 +291,7 @@ int cli_symbols_spans(const char *path, const char *text, unsigned long long siz
                       CliSymbolPlace to, CliSpanned each, void *context, VerbaLinea *err_msg)
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL};
+    CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 0};
     const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, "root", text, size, &read);
     if (leaved && (read.count > 0u))
     {
@@ -371,8 +371,8 @@ int cli_symbols_pair(const char *path, const char *state, const char *text, unsi
                      CliSymbolPlace *pair)
 {
     CliSymbolsLanguages *const languages = cli_symbols_languages_read();
-    CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL};
-    const int leaved = (languages != NULL) && cli_symbols_leaves_kept(languages, path, state, text, size, &read);
+    CliLeafRead read = {text, NULL, 0u, 0u, 0u, NULL, 0, NULL, NULL, 1};
+    const int leaved = (languages != NULL) && cli_symbols_leaves_laned(languages, path, state, text, size, &read);
     const unsigned int bracket = leaved ? spans_bracket_at(&read, spans_byte_of(text, size, at)) : read.count;
     const int opens = (bracket < read.count) && cli_leaf_has(&read, bracket, CLI_LEAF_OPEN);
     const unsigned int mate = (bracket >= read.count) ? read.count

@@ -101,15 +101,15 @@ void cli_git_text_given(CliGitText *text)
 
 CliGitGave *cli_git_taken(void)
 {
-    CliGitRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), NULL);
+    CliGitRoom *const room = g_cli_cells->persistent_buf_alloc(sizeof(*room), &g_cli_git_cells);
     if (room == NULL)
     {
         return &s_refused;
     }
-    room->out = g_cli_cells->persistent_buf_alloc(CLI_GIT_OUT_FIRST, NULL);
+    room->out = g_cli_cells->persistent_buf_alloc(CLI_GIT_OUT_FIRST, &g_cli_git_cells);
     if (room->out == NULL)
     {
-        cli_cell_release(room, NULL);
+        cli_cell_release(room, &g_cli_git_cells);
         return &s_refused;
     }
     room->out_room = CLI_GIT_OUT_FIRST;
@@ -133,8 +133,8 @@ void cli_git_given(CliGitGave *gave)
 {
     if (gave != &s_refused)
     {
-        cli_cell_release(cli_room_of(gave)->out, NULL);
-        cli_cell_release(cli_room_of(gave), NULL);
+        cli_cell_release(cli_room_of(gave)->out, &g_cli_git_cells);
+        cli_cell_release(cli_room_of(gave), &g_cli_git_cells);
     }
 }
 
@@ -162,13 +162,13 @@ static int cli_output_room(CliGitRoom *room)
     }
     const unsigned long long doubled = room->out_room * 2ull;
     const unsigned long long grown = (doubled < CLI_GIT_OUT) ? doubled : CLI_GIT_OUT;
-    char *const cell = g_cli_cells->persistent_buf_alloc(grown, NULL);
+    char *const cell = g_cli_cells->persistent_buf_alloc(grown, &g_cli_git_cells);
     if (cell == NULL)
     {
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = room->out, .bytes = gave->out_size});
-    cli_cell_release(room->out, NULL);
+    cli_cell_release(room->out, &g_cli_git_cells);
     room->out = cell;
     room->out_room = grown;
     gave->out = cell;
@@ -336,7 +336,7 @@ int cli_git_ran(const char *root, const char *const *args, unsigned int count, c
     }
     // what it wrote and reported joined, in a cell of their size
     VerbaLinea joined;
-    if (!cli_growing_line_made(&joined, gave->out_size + gave->err_size + 1ull))
+    if (!cli_growing_line_made(&joined, gave->out_size + gave->err_size + 1ull, &g_cli_git_cells))
     {
         mmgr_line_put(err_msg, "git: what it wrote and reported could not be joined: the cells cannot meet it");
         cli_git_given(gave);
@@ -362,7 +362,7 @@ int cli_git_ran(const char *root, const char *const *args, unsigned int count, c
     {
         mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
     }
-    cli_cell_release(joined.out, NULL);
+    cli_cell_release(joined.out, &g_cli_git_cells);
     cli_git_given(gave);
     return ok;
 }

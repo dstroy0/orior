@@ -22,7 +22,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static CfgJsonToken *cli_net_tokens(const char *text, unsigned long long size, unsigned int *count)
 {
     *count = cli_json_tokens_counted(text, size) + 1u;
-    return g_cli_cells->persistent_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken), NULL);
+    return g_cli_cells->persistent_buf_alloc((unsigned long long)*count * sizeof(CfgJsonToken), &g_cli_machine_cells);
 }
 
 void cli_net_disable(int off)
@@ -51,7 +51,7 @@ static int cli_settings_off(void)
         return 0;
     }
     // a text made plain is never longer than the text, as it only leaves comments and commas out
-    char *const plain_text = cli_lane_alloc(size + 1ull, NULL);
+    char *const plain_text = cli_lane_alloc(size + 1ull, &g_cli_machine_cells);
     VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_text != NULL)
     {
@@ -68,8 +68,8 @@ static int cli_settings_off(void)
                                      : 0u;
     const int off = (network != 0u) && cfg_json_string(plain_text, &tokens[network], value, sizeof(value)) &&
                     (cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_CELLS_POOL}));
-    cli_cell_release(tokens, NULL);
-    cli_cell_release(plain_text, NULL);
+    cli_cell_release(tokens, &g_cli_machine_cells);
+    cli_cell_release(plain_text, &g_cli_machine_cells);
     return off;
 }
 
@@ -183,7 +183,7 @@ static void net_logged(const char *address, const char *purpose)
     unsigned long long log_size = 0ull;
     (void)cli_file_size(path, &log_size);
     VerbaLinea line;
-    if (!cli_growing_line_made(&line, log_size + CLI_NET_LINE_MORE))
+    if (!cli_growing_line_made(&line, log_size + CLI_NET_LINE_MORE, &g_cli_machine_cells))
     {
         return;
     }
@@ -198,7 +198,7 @@ static void net_logged(const char *address, const char *purpose)
     mmgr_line_put(&line, "}\n");
     if (!mmgr_line_ok(&line))
     {
-        cli_cell_release(line.out, NULL);
+        cli_cell_release(line.out, &g_cli_machine_cells);
         return;
     }
     // the lines counted from the end, the file cut from the CLI_NET_LOG_MAX_LINES-th last where it contains more than
@@ -216,7 +216,7 @@ static void net_logged(const char *address, const char *purpose)
     lines += 1u;
     query_file_written(path, line.out + ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ull),
                        line.at - ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ull));
-    cli_cell_release(line.out, NULL);
+    cli_cell_release(line.out, &g_cli_machine_cells);
 }
 
 int cli_net_reach(const char *address, const char *purpose, VerbaLinea *err_msg)
@@ -256,7 +256,7 @@ void cli_net_reached(unsigned int most, VerbaLinea *out)
     const unsigned char *const bytes =
         (homed && (mmgr_line_finish(&named) != 0ull)) ? cli_file_read(path, &size) : NULL;
     const char *const log_text = (const char *)bytes;
-    // every line's tokens are no more than the file's, so one cell of the file's fits any line's
+    // every line's tokens are at most the file's, and one cell of the file's fits any line's
     unsigned int count = 0u;
     CfgJsonToken *const tokens = (bytes != NULL) ? cli_net_tokens(log_text, size, &count) : NULL;
     unsigned int written = 0u;
@@ -303,7 +303,7 @@ void cli_net_reached(unsigned int most, VerbaLinea *out)
         // the line before ends at this one's start, its line end left off
         end = start - 1ull;
     }
-    cli_cell_release(tokens, NULL);
+    cli_cell_release(tokens, &g_cli_machine_cells);
     cli_file_let_go(bytes, size);
     cli_lock_give(&s_lock);
     mmgr_line_ch(out, ']');

@@ -13,7 +13,7 @@ int main(void)
     CliJson json;
     char err_text[1024];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
-    const unsigned int root = cli_json_taken(&json, s_text, sizeof(s_text) - 1u, 0u, 0ull, &err_msg);
+    const unsigned int root = cli_json_taken(&json, s_text, sizeof(s_text) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(root != CLI_JSON_NONE, "the text is read as JSON");
     cli_check(gui_answer_member_whole(&json, root, "lines", 9ull) == 1234ull, "a whole number is read off its member");
     cli_check(gui_answer_member_whole(&json, root, "zero", 9ull) == 0ull, "zero is read as zero");

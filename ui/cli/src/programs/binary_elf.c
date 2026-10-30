@@ -228,7 +228,7 @@ static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, cons
         const unsigned int doubled = (reading->room == 0u) ? CLI_ELF_QUEUE_FIRST : (reading->room * 2u);
         const unsigned int room = (doubled < CLI_BINARY_LIBRARIES) ? doubled : CLI_BINARY_LIBRARIES;
         CliElfQueued *const grown =
-            cli_cell_regrown(reading->queue, queued * sizeof(*grown), room * sizeof(*grown), NULL);
+            cli_cell_regrown(reading->queue, queued * sizeof(*grown), room * sizeof(*grown), &g_cli_programs_cells);
         if (grown != NULL)
         {
             reading->queue = grown;
@@ -468,8 +468,8 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
 {
     // the two dynamic sections on the cell's boundary, then the folders
     const unsigned long long dynamics = 2ull * sizeof(CliDynamic);
-    char *const cell = cli_lane_alloc(
-        dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN), NULL);
+    char *const cell = cli_lane_alloc(dynamics + ((unsigned long long)CLI_BINARY_LINUX_FOLDERS * CLI_PATH_MAX_LEN),
+                                      &g_cli_programs_cells);
     if (cell == NULL)
     {
         mmgr_line_put(err_msg, "a reading of a program's libraries could not be given a cell");
@@ -478,7 +478,7 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
     CliElfReading reading = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
                              (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + dynamics), NULL, 0u};
     const int read = cli_elf_read(&reading, bytes, size, path, report, err_msg);
-    cli_cell_release(reading.queue, NULL);
-    cli_cell_release(cell, NULL);
+    cli_cell_release(reading.queue, &g_cli_programs_cells);
+    cli_cell_release(cell, &g_cli_programs_cells);
     return read;
 }

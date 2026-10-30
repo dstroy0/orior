@@ -23,7 +23,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static void find_released(CliJson *manifest)
 {
     cli_json_given(manifest);
-    cli_cell_release(s_folders, NULL);
+    cli_cell_release(s_folders, &g_cli_debug_cells);
     s_folders = NULL;
     cli_lock_give(&s_lock);
 }
@@ -114,7 +114,7 @@ int cli_debug_adapter(const char *language, const char *ahead, CliJson *json, un
     }
     find_ahead_first(&manifest_json, named, specs, count, ahead);
     unsigned int folders = 0u;
-    s_folders = cli_toolchains_path_taken(&folders);
+    s_folders = cli_toolchains_path_taken(&folders, &g_cli_debug_cells);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         cli_toolchains_find(&manifest_json, named[at], (const char (*)[CLI_PATH_MAX_LEN])s_folders, folders, &s_found);
@@ -216,7 +216,7 @@ int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *e
     if (ran->code != 0ll)
     {
         // what the build wrote to its output, then to its errors, as one text, a cell of their size
-        char *const both = cli_lane_alloc(ran->out_size + ran->err_size + 1ull, NULL);
+        char *const both = cli_lane_alloc(ran->out_size + ran->err_size + 1ull, &g_cli_debug_cells);
         mmgr_line_put(err_msg, "The build of ");
         mmgr_line_put(err_msg, made->target);
         mmgr_line_put(err_msg, " failed");
@@ -227,7 +227,7 @@ int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *e
             mmgr_line_put(err_msg, ":\n");
             find_tail(both, ran->out_size + ran->err_size, CLI_DEBUG_TAIL, err_msg);
         }
-        cli_cell_release(both, NULL);
+        cli_cell_release(both, &g_cli_debug_cells);
         cli_ran_given(ran);
         return 0;
     }
@@ -363,7 +363,7 @@ int cli_debug_build(const char *root, const char *path, const char *language, co
     }
     find_ahead_first(&json, named, words_of, count, ahead);
     unsigned int folders = 0u;
-    s_folders = cli_toolchains_path_taken(&folders);
+    s_folders = cli_toolchains_path_taken(&folders, &g_cli_debug_cells);
     unsigned int chosen = count;
     char compiler[CLI_PATH_MAX_LEN];
     for (unsigned int at = 0u; (at < count) && (chosen == count); at += 1u)

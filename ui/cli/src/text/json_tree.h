@@ -54,30 +54,36 @@ unsigned int cli_json_read(CliJson *json, const char *text, unsigned long long s
 // where it is not, a count the read then refuses (json_taken.c)
 unsigned int cli_json_tokens_counted(const char *text, unsigned long long size);
 // a tree made empty in a cell of its own sized for `nodes_most` nodes and `text_most` bytes of texts: 1, or 0 with the
-// cell refused and reported and the tree containing nothing
-int cli_json_reserved(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what);
+// cell refused and reported and the tree containing nothing. Every take below counts the tree's cell to `owner`, and
+// the tree grows and is given back for the owner its cell counts to
+int cli_json_reserved(CliJson *json, unsigned int nodes_most, unsigned long long text_most, const char *what,
+                      CellOwner *owner);
 // a tree made empty in a cell of its own that grows: `nodes_first` nodes and `text_first` bytes to begin with, and a
 // cell of twice the room taken, what it contains retained, as a node or a text does not fit: 1, or 0 with the cell
 // refused; room on the tree for `nodes` nodes and `text` bytes more, a tree that grows moved into a larger cell where
 // they do not fit: 1, or 0 with the tree full; and a tree emptied, its room retained. Every node is an index and every
-// text a place, so a tree moves whole: a pointer into a growing tree's texts is valid only until the next node or text
+// text a place, and a tree moves whole: a pointer into a growing tree's texts is valid only until the next node or text
 // is made
-int cli_json_growing(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what);
+int cli_json_growing(CliJson *json, unsigned int nodes_first, unsigned long long text_first, const char *what,
+                     CellOwner *owner);
 int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text);
 void cli_json_emptied(CliJson *json);
 // `size` bytes of `text` read into a tree in a cell of its own, sized to the tokens they contain and to their bytes,
 // with `nodes_more` nodes and `text_more` bytes over for what is made after: its root, or CLI_JSON_NONE with why given;
 // and the tree's cell given back, the tree left containing nothing, where it contains one or none
 unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long size, unsigned int nodes_more,
-                            unsigned long long text_more, VerbaLinea *err_msg);
+                            unsigned long long text_more, VerbaLinea *err_msg, CellOwner *owner);
 void cli_json_given(CliJson *json);
+// the same read with the tree's cell on the lane the thread is on, for a tree given back before the lane is rewound
+unsigned int cli_json_taken_laned(CliJson *json, const char *text, unsigned long long size, VerbaLinea *err_msg,
+                                  CellOwner *owner);
 // the nodes a node and all under it take, and the bytes of their texts and keys, added to `nodes` and `text`, the room
 // a copy of it takes in another tree
 void cli_json_extent(const CliJson *json, unsigned int node, unsigned int *nodes, unsigned long long *text);
 // the file at `path` read mapped into a tree as cli_json_taken reads one, the file let go as the read ends: its root,
 // or CLI_JSON_NONE with why given, the tree containing nothing where the file could not be read
 unsigned int cli_json_file_taken(CliJson *json, const char *path, unsigned int nodes_more, unsigned long long text_more,
-                                 VerbaLinea *err_msg);
+                                 VerbaLinea *err_msg, CellOwner *owner);
 // a node made of `kind` with no children; a string made of `length` bytes of `text`; a number made as `text` writes it
 unsigned int cli_json_made(CliJson *json, CfgJsonKind kind);
 unsigned int cli_json_string_made(CliJson *json, const char *text, unsigned long long length);
@@ -125,7 +131,7 @@ typedef struct
 void cli_json_quoting_begun(CliJsonQuoting *quoting, VerbaLinea *out, VerbaLinea *line, char *piece,
                             unsigned long long piece_size);
 void cli_json_quoting_ended(CliJsonQuoting *quoting, VerbaLinea *line);
-// the same written with no quotes about it, so texts read apart join in one string
+// the same written with no quotes about it, and texts read apart join in one string
 void cli_json_escaped_lossy(VerbaLinea *out, const unsigned char *text, unsigned long long length);
 // `length` bytes written as cli_json_quoted_lossy reads them, with no quotes and nothing escaped
 void cli_lossy(VerbaLinea *out, const unsigned char *text, unsigned long long length);

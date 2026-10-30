@@ -4,8 +4,6 @@
 // tree it starts with given back as the place is freed
 #include "debug_internal.h"
 
-CellOwner g_cli_debug_cells = MMGR_CELL_OWNER("cli_debug");
-
 void *cli_debug_grown(void *list, unsigned int count, unsigned int *room, unsigned long long size, unsigned int most)
 {
     if ((count < *room) || (*room >= most))

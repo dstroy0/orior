@@ -16,8 +16,8 @@ CliLock g_cli_toolchains_find_lock = CLI_LOCK_INIT;
 unsigned int cli_toolchains_find_path(void)
 {
     unsigned int count = 0u;
-    cli_cell_release(g_cli_toolchains_path, NULL);
-    g_cli_toolchains_path = cli_toolchains_path_taken(&count);
+    cli_cell_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
+    g_cli_toolchains_path = cli_toolchains_path_taken(&count, &g_cli_toolchains_cells);
     return count;
 }
 
@@ -27,7 +27,7 @@ void cli_toolchains_find_released(CliJson *json)
     {
         cli_json_given(json);
     }
-    cli_cell_release(g_cli_toolchains_path, NULL);
+    cli_cell_release(g_cli_toolchains_path, &g_cli_toolchains_cells);
     g_cli_toolchains_path = NULL;
     cli_lock_give(&g_cli_toolchains_find_lock);
 }

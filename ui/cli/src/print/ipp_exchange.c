@@ -179,14 +179,14 @@ static int cli_sent(const CliSocket *socket, const char *host, unsigned int port
                     const CliIppMessage *request, const unsigned char *document, unsigned long long size)
 {
     VerbaLinea body;
-    if (!cli_growing_line_made(&body, CLI_IPP_FIRST))
+    if (!cli_growing_line_made(&body, CLI_IPP_FIRST, &g_cli_print_cells))
     {
         return 0;
     }
     cli_ipp_encode(request, &body);
     if (!mmgr_line_ok(&body))
     {
-        cli_cell_release(body.out, NULL);
+        cli_cell_release(body.out, &g_cli_print_cells);
         return 0;
     }
     char head[CLI_PATH_MAX_LEN * 3u];
@@ -205,7 +205,7 @@ static int cli_sent(const CliSocket *socket, const char *host, unsigned int port
     const int sent = mmgr_line_ok(&line) && cli_socket_written(socket, head, line.at) &&
                      cli_socket_written(socket, body.out, body.at) &&
                      ((size == 0ull) || cli_socket_written(socket, document, size));
-    cli_cell_release(body.out, NULL);
+    cli_cell_release(body.out, &g_cli_print_cells);
     return sent;
 }
 
@@ -247,7 +247,7 @@ static int cli_body(const char *host, unsigned long long at, unsigned long long 
             mmgr_line_put(err_msg, "the printer's answer is cut short");
             return 0;
         }
-        // a chunk's bytes follow its size's line, so where they go is at or below where they are
+        // a chunk's bytes follow its size's line: where they go is at or below where they are
         memor.move_down(&(MemoriaCfg){.dst = s_answer + body + put, .src = s_answer + next, .bytes = chunk});
         put += chunk;
         at = cli_line(s_answer, read, next + chunk, &stop);
@@ -281,7 +281,7 @@ static int cli_exchanged(const char *uri, const CliIppMessage *request, const un
     }
     unsigned long long read = 0ull;
     VerbaLinea answer_line;
-    int reading = cli_growing_line_made(&answer_line, CLI_IPP_FIRST);
+    int reading = cli_growing_line_made(&answer_line, CLI_IPP_FIRST, &g_cli_print_cells);
     while (reading && (read < CLI_IPP_ANSWER) && cli_growing_line_room(&answer_line, CLI_IPP_READ))
     {
         const unsigned long long room = answer_line.capacity - read - 1ull;
@@ -395,7 +395,7 @@ int cli_ipp_exchange(const char *uri, const CliIppMessage *request, const unsign
     // the answer's own texts are in its bytes; a document after them lay in the answer read, which is given back
     answer->data = NULL;
     answer->data_length = 0ull;
-    cli_cell_release(s_answer, NULL);
+    cli_cell_release(s_answer, &g_cli_print_cells);
     s_answer = NULL;
     cli_lock_give(&s_lock);
     return done;

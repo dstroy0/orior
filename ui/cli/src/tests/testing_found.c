@@ -83,7 +83,7 @@ static void *found_part_taken(const char *text, unsigned long long size)
         (counted.names * sizeof(CliInspectName)) + counted.used + ((unsigned long long)lines * sizeof(unsigned int)) +
         ((unsigned long long)counted.classes * sizeof(unsigned int)) +
         (2ull * counted.functions * sizeof(unsigned int)) + (12ull * 8ull);
-    unsigned char *const cell = cli_lane_alloc(bytes, NULL);
+    unsigned char *const cell = cli_lane_alloc(bytes, &g_cli_tests_cells);
     if (cell == NULL)
     {
         return NULL;
@@ -288,7 +288,7 @@ static void found_in(const char *file, const char *text, unsigned long long size
     }
     if (!cli_inspect_facts("python", text, size, &s_room->facts))
     {
-        cli_cell_release(part, NULL);
+        cli_cell_release(part, &g_cli_tests_cells);
         return;
     }
     found_bodies(text, size);
@@ -317,7 +317,7 @@ static void found_in(const char *file, const char *text, unsigned long long size
                         found_text(function->name), function->from.line};
         each(context, &test);
     }
-    cli_cell_release(part, NULL);
+    cli_cell_release(part, &g_cli_tests_cells);
 }
 
 // whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as
@@ -388,7 +388,7 @@ static void found_python(const char *root, CliTestEach each, void *context)
         {
             continue;
         }
-        unsigned char *const bytes = cli_lane_alloc(size + 1ull, NULL);
+        unsigned char *const bytes = cli_lane_alloc(size + 1ull, &g_cli_tests_cells);
         if (bytes == NULL)
         {
             continue;
@@ -399,7 +399,7 @@ static void found_python(const char *root, CliTestEach each, void *context)
         {
             found_in(file, text, read, &s_room->rules, each, context);
         }
-        cli_cell_release(bytes, NULL);
+        cli_cell_release(bytes, &g_cli_tests_cells);
     }
     cli_files_let(files);
 }

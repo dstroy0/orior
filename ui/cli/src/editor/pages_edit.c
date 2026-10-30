@@ -68,8 +68,9 @@ static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long lo
                         VerbaLinea *err_msg)
 {
     const unsigned int most = ((one->pieces + 2u) < CLI_PAGE_PIECES) ? (one->pieces + 2u) : CLI_PAGE_PIECES;
-    CliPagePieces pieces = {g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CliPagePiece), NULL),
-                            most, 0u};
+    CliPagePieces pieces = {
+        g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CliPagePiece), &g_cli_editor_cells), most,
+        0u};
     if (pieces.piece == NULL)
     {
         mmgr_line_put(err_msg, "the pieces a replace retains could not be taken");
@@ -117,7 +118,7 @@ static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long lo
     }
     memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = pieces.piece, .bytes = pieces.count * sizeof(CliPagePiece)});
     one->pieces = pieces.count;
-    cli_cell_release(pieces.piece, NULL);
+    cli_cell_release(pieces.piece, &g_cli_editor_cells);
     return 1;
 }
 
@@ -197,7 +198,7 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
         mmgr_line_put(err_msg, " are more than are retained");
         return 0;
     }
-    char *const text = cli_lane_alloc(size, NULL);
+    char *const text = cli_lane_alloc(size, &g_cli_editor_cells);
     if (text == NULL)
     {
         mmgr_line_put(err_msg, "an edit's lines as written could not be taken");
@@ -210,12 +211,12 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
     mmgr_line_ch(&written, '\n');
     if (!mmgr_line_ok(&written))
     {
-        cli_cell_release(text, NULL);
+        cli_cell_release(text, &g_cli_editor_cells);
         mmgr_line_put(err_msg, "an edit's lines as written do not fit the cell sized to them");
         return 0;
     }
     const CliPagePiece put = cli_written_put(one, text, written.at, err_msg);
-    cli_cell_release(text, NULL);
+    cli_cell_release(text, &g_cli_editor_cells);
     return (put.lines != 0ull) && cli_replaced(one, edit->from.line, reach, put, err_msg);
 }
 
@@ -360,7 +361,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
 {
     cli_lock_take(&g_cli_pages_lock);
     CliPaged *const one = cli_paged_of(key, err_msg);
-    char *const found_text = (one != NULL) ? cli_lane_alloc(CLI_PAGE_FOUND, NULL) : NULL;
+    char *const found_text = (one != NULL) ? cli_lane_alloc(CLI_PAGE_FOUND, &g_cli_editor_cells) : NULL;
     if ((one != NULL) && (found_text == NULL))
     {
         mmgr_line_put(err_msg, "the matches find writes could not be taken");
@@ -384,7 +385,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
         }
         // the block's units and lines a cell sized to the lines read, given back as the block is searched; a block
         // whose units the cells cannot meet is read again as half as many lines
-        unsigned char *const storage = read ? cli_lane_alloc(cli_block_bytes(&lines), NULL) : NULL;
+        unsigned char *const storage = read ? cli_lane_alloc(cli_block_bytes(&lines), &g_cli_editor_cells) : NULL;
         if (read && (storage == NULL) && (block_most > 1ull))
         {
             block_most /= 2ull;
@@ -401,7 +402,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
             found.from = from;
             read = cli_document_find_each(&block, sought, most - found.found, cli_page_match, &found, err_msg);
         }
-        cli_cell_release(storage, NULL);
+        cli_cell_release(storage, &g_cli_editor_cells);
         from = to;
     }
     if (read)
@@ -414,7 +415,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
     {
         cli_page_lines_given(&lines);
     }
-    cli_cell_release(found_text, NULL);
+    cli_cell_release(found_text, &g_cli_editor_cells);
     cli_lock_give(&g_cli_pages_lock);
     return read;
 }
@@ -454,7 +455,7 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
     }
     // the lines go to the file through a stage of CLI_PAGE_SAVE_STAGE bytes, written whenever the next line would
     // not fit, and a line wider than the stage is written as it lies in the reading
-    char *const stage = cli_lane_alloc(CLI_PAGE_SAVE_STAGE, NULL);
+    char *const stage = cli_lane_alloc(CLI_PAGE_SAVE_STAGE, &g_cli_editor_cells);
     int written = (stage != NULL) && cli_file_appended(beside, "", 0ull, 1);
     if (stage == NULL)
     {
@@ -489,7 +490,7 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
         from = to;
     }
     written = written && save_staged(beside, &block, err_msg);
-    cli_cell_release(stage, NULL);
+    cli_cell_release(stage, &g_cli_editor_cells);
     cli_page_lines_given(&lines);
     if (!written)
     {

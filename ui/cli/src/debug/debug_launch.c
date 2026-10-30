@@ -274,14 +274,14 @@ int cli_debug_start(const char *root, const CliJson *json, unsigned int start, u
     char piece[1024];
     CliPieces pieces;
     VerbaLinea arguments;
-    cli_pieces_begun(&pieces, &arguments, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &arguments, piece, sizeof(piece), &g_cli_debug_cells);
     cli_json_write(&place->start, plan.arguments, &arguments, 0u, 0);
     unsigned long long arguments_size = 0ull;
     char *const written = cli_pieces_joined(&pieces, &arguments, "a launch's arguments", &arguments_size);
     unsigned long long seq = 0ull;
     const int sent =
         (written != NULL) && cli_dap_sent(place->dap, plan.request, written, arguments_size, &seq, err_msg);
-    cli_cell_release(written, NULL);
+    cli_cell_release(written, &g_cli_debug_cells);
     if (!sent)
     {
         return launch_failed(place, &plan, err_msg);

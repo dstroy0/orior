@@ -23,8 +23,8 @@ void cli_carried_clear(CliCarried *carried)
 {
     for (unsigned int at = 0u; at < carried->count; at += 1u)
     {
-        cli_cell_release(carried->value[at], NULL);
-        cli_cell_release(carried->place[at], NULL);
+        cli_cell_release(carried->value[at], &g_cli_machine_cells);
+        cli_cell_release(carried->place[at], &g_cli_machine_cells);
         carried->value[at] = NULL;
         carried->place[at] = NULL;
     }
@@ -74,7 +74,7 @@ static void carry_released(CliCarried *paths, CliCarryRoom *room, CliLock *lock)
 // `size` bytes of `text` in a cell of their own, a 0 after them: the cell, or NULL where none could be taken
 static char *cli_carried_cell(const char *text, unsigned long long size, const char *what)
 {
-    char *const cell = (size < CLI_CARRIED_TEXT) ? cli_lane_alloc(size + 1ull, NULL) : NULL;
+    char *const cell = (size < CLI_CARRIED_TEXT) ? cli_lane_alloc(size + 1ull, &g_cli_machine_cells) : NULL;
     if (cell != NULL)
     {
         // a size below CLI_CARRIED_TEXT fits a size_t
@@ -104,16 +104,16 @@ int cli_carried_put(CliCarried *carried, const char *place, const char *value, u
                                  "a carried place");
     if ((pooled_place == NULL) || (pooled_value == NULL))
     {
-        cli_cell_release(pooled_value, NULL);
+        cli_cell_release(pooled_value, &g_cli_machine_cells);
         if (!there)
         {
-            cli_cell_release(pooled_place, NULL);
+            cli_cell_release(pooled_place, &g_cli_machine_cells);
         }
         return 0;
     }
     if (there)
     {
-        cli_cell_release(carried->value[at], NULL);
+        cli_cell_release(carried->value[at], &g_cli_machine_cells);
     }
     else
     {
@@ -151,7 +151,7 @@ int cli_carry_machine(const char *key)
 static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsigned long long size, int fresh,
                                      unsigned int nodes_more, unsigned long long text_more)
 {
-    char *const plain_text = cli_lane_alloc(size + 1ull, NULL);
+    char *const plain_text = cli_lane_alloc(size + 1ull, &g_cli_machine_cells);
     VerbaLinea plain = {plain_text, (plain_text != NULL) ? (size + 1ull) : 0ull, 0ull};
     if (plain_text != NULL)
     {
@@ -163,23 +163,24 @@ static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsig
     if (fresh)
     {
         cli_json_given(&room->json);
-        root = (plain_text != NULL) ? cli_json_taken(&room->json, plain_text, plain.at, nodes_more, text_more, &unread)
+        root = (plain_text != NULL) ? cli_json_taken(&room->json, plain_text, plain.at, nodes_more, text_more, &unread,
+                                                     &g_cli_machine_cells)
                                     : CLI_JSON_NONE;
         if (room->json.node == NULL)
         {
-            (void)cli_json_reserved(&room->json, nodes_more, text_more, "a settings tree");
+            (void)cli_json_reserved(&room->json, nodes_more, text_more, "a settings tree", &g_cli_machine_cells);
         }
     }
     else if (plain_text != NULL)
     {
         const unsigned int tokens_most = cli_json_tokens_counted(plain_text, plain.at) + 1u;
         CfgJsonToken *const tokens =
-            cli_lane_alloc((unsigned long long)tokens_most * sizeof(*tokens), NULL);
+            cli_lane_alloc((unsigned long long)tokens_most * sizeof(*tokens), &g_cli_machine_cells);
         root = (tokens != NULL) ? cli_json_read(&room->json, plain_text, plain.at, tokens, tokens_most, &unread)
                                 : CLI_JSON_NONE;
-        cli_cell_release(tokens, NULL);
+        cli_cell_release(tokens, &g_cli_machine_cells);
     }
-    cli_cell_release(plain_text, NULL);
+    cli_cell_release(plain_text, &g_cli_machine_cells);
     if (room->json.node == NULL)
     {
         return CLI_JSON_NONE;
@@ -190,7 +191,7 @@ static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsig
 unsigned int cli_carry_settings_of(CliCarryRoom *room, const char *text, unsigned long long size,
                                    unsigned long long beside)
 {
-    // a text read beside makes no more nodes than its bytes, and no more text than twice them with a 0 after each,
+    // a text read beside makes at most as many nodes as its bytes, and at most twice them in text with a 0 after each,
     // and a copy of what it read takes as much again; the four over are the empty objects either side may be made
     return carry_plain_read(room, text, size, 1, (unsigned int)((2ull * beside) + 4ull), (4ull * beside) + 64ull);
 }
@@ -348,14 +349,15 @@ int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg)
                 member = next;
             }
             VerbaLinea written;
-            if ((object != CLI_JSON_NONE) && cli_growing_line_made(&written, CLI_CARRY_WRITTEN_FIRST))
+            if ((object != CLI_JSON_NONE) &&
+                cli_growing_line_made(&written, CLI_CARRY_WRITTEN_FIRST, &g_cli_machine_cells))
             {
                 cli_carry_settings_written(&s_room, object, &written);
                 if (mmgr_line_ok(&written))
                 {
                     cli_carried_put(packed, place, written.out, written.at);
                 }
-                cli_cell_release(written.out, NULL);
+                cli_cell_release(written.out, &g_cli_machine_cells);
             }
         }
         else
@@ -424,7 +426,8 @@ int cli_carry_read(const char *from, CliCarried *there, VerbaLinea *err_msg)
     }
     char why[CLI_NAME_MAX_LEN];
     VerbaLinea unread = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&s_room.json, (const char *)bytes, size, 0u, 0ull, &unread);
+    const unsigned int root =
+        cli_json_taken(&s_room.json, (const char *)bytes, size, 0u, 0ull, &unread, &g_cli_machine_cells);
     cli_file_let_go(bytes, size);
     const char *const mark = cli_json_string(&s_room.json, cli_json_member(&s_room.json, root, "orior"), NULL);
     const unsigned int files = cli_json_member(&s_room.json, root, "files");

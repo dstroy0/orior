@@ -89,7 +89,7 @@ static char *actions_params(unsigned int all, const char *path, const char *uri,
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&params, "{\"textDocument\":{\"uri\":");
     cli_json_quoted(&params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&params, "},\"range\":{\"start\":{\"line\":");
@@ -142,7 +142,7 @@ static void actions_offered(unsigned int all, const char *plugin, int *written, 
     const CliJson *const json = &s_reading.json;
     const unsigned int offered = cli_json_is(json, all, CFG_JSON_ARRAY) ? json->node[all].count : 0u;
     unsigned int *const action =
-        (offered > 0u) ? cli_lane_alloc((unsigned long long)offered * sizeof(unsigned int), NULL)
+        (offered > 0u) ? cli_lane_alloc((unsigned long long)offered * sizeof(unsigned int), &g_cli_servers_cells)
                        : NULL;
     unsigned int count = 0u;
     for (unsigned int one = (action != NULL) ? json->node[all].first : CLI_JSON_NONE; one != CLI_JSON_NONE;
@@ -178,7 +178,7 @@ static void actions_offered(unsigned int all, const char *plugin, int *written, 
             }
         }
     }
-    cli_cell_release(action, NULL);
+    cli_cell_release(action, &g_cli_servers_cells);
 }
 
 // `server`, the server of the plugin `plugin` where that is not NULL, queried for its actions on `from` to `to` of the
@@ -204,7 +204,7 @@ static int actions_request(CliLsp *server, const char *plugin, unsigned int all,
     cli_servers_answer_begun(&s_reading, &result);
     const int requested = (params != NULL) && cli_lsp_requested(server, "textDocument/codeAction", params, length,
                                                                 CLI_SERVERS_REQUEST_TIMEOUT_MS, &result, err_msg);
-    cli_cell_release(params, NULL);
+    cli_cell_release(params, &g_cli_servers_cells);
     if (requested)
     {
         actions_offered(cli_servers_answer_read(&s_reading, &result), plugin, written, out);

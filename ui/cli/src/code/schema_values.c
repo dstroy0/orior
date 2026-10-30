@@ -274,10 +274,10 @@ static void values_cut(const char *text, unsigned long long size, VerbaLinea *ou
 void cli_schema_shown(const CliJson *json, unsigned int value, VerbaLinea *out)
 {
     VerbaLinea written;
-    (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST);
+    (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST, &g_cli_schema_cells);
     cli_json_write(json, value, &written, 0u, 1);
     values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
-    cli_cell_release(written.out, NULL);
+    cli_cell_release(written.out, &g_cli_schema_cells);
 }
 
 // a file's value written as serde_json writes the value it reads it as, an object's keys in order, the last of a key
@@ -351,10 +351,10 @@ static void values_written(const CliSchemaRead *read, unsigned int node, VerbaLi
 void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, VerbaLinea *out)
 {
     VerbaLinea written;
-    (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST);
+    (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST, &g_cli_schema_cells);
     values_written(read, node, &written);
     values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
-    cli_cell_release(written.out, NULL);
+    cli_cell_release(written.out, &g_cli_schema_cells);
 }
 
 void cli_schema_number_shown(double value, VerbaLinea *out)

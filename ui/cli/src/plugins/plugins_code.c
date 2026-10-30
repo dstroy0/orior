@@ -35,14 +35,14 @@ static int code_mains_read(const char *text, unsigned long long size, CliCodeMai
     cli_json_begun(&json, NULL, 0u, NULL, 0ull);
     char why[CLI_PATH_MAX_LEN];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int root = cli_json_taken(&json, text, size, 0u, 0ull, &err_msg);
+    const unsigned int root = cli_json_taken(&json, text, size, 0u, 0ull, &err_msg, &g_cli_plugins_cells);
     mains->mains = 0u;
     const unsigned int main = (root != CLI_JSON_NONE) ? cli_json_member(&json, root, "main") : CLI_JSON_NONE;
     for (unsigned int item = cli_json_is(&json, main, CFG_JSON_ARRAY) ? json.node[main].first : CLI_JSON_NONE;
          item != CLI_JSON_NONE; item = json.node[item].next)
     {
         const char *const name = cli_json_string(&json, item, NULL);
-        // a name that is no string is recorded empty, so it is refused as no file of the folder's
+        // a name that is no string is recorded empty and refused as no file of the folder's
         code_main_put(mains, (name != NULL) ? name : "");
     }
     const char *const one = cli_json_string(&json, main, NULL);

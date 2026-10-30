@@ -223,7 +223,7 @@ static int fill_in_comment(const char *text, const CliFillLine *line, unsigned i
     return 1;
 }
 
-// the paragraph of a comment a line around `here`, whose mark is the one at `mark`
+// the paragraph of a comment a line around `here`, whose mark is that at `mark`
 static int fill_comment_lines(const char *text, unsigned long long size, const CliFillLine *here, unsigned int mark,
                               unsigned int width, CliFilled *filled, CliTextEdit *edit, VerbaLinea *err_msg)
 {
@@ -323,7 +323,7 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
         cli_lock_give(&s_fill_lock);
         return 0;
     }
-    // a slice is a line of the text, and one place is left after the lines, so its newlines and two fit them
+    // a slice is a line of the text, and one place is left after the lines: its newlines and two fit them
     unsigned long long slices = 2ull;
     for (unsigned long long at = 0ull; (at < size) && (slices < CLI_FILL_SLICES); at += 1ull)
     {
@@ -331,8 +331,8 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
     }
     // the slices are under CLI_FILL_SLICES, which an unsigned int stores
     g_cli_fill_slices = (unsigned int)slices;
-    g_cli_fill_slice =
-        g_cli_cells->persistent_buf_alloc(slices * (sizeof(const char *) + sizeof(unsigned long long)), NULL);
+    g_cli_fill_slice = g_cli_cells->persistent_buf_alloc(slices * (sizeof(const char *) + sizeof(unsigned long long)),
+                                                         &g_cli_editor_cells);
     if (g_cli_fill_slice == NULL)
     {
         cli_fill_comment_released();
@@ -371,7 +371,7 @@ int cli_fill(const char *text, unsigned long long size, unsigned int line, unsig
         }
     }
     done = done && mmgr_line_ok(written);
-    cli_cell_release(g_cli_fill_slice, NULL);
+    cli_cell_release(g_cli_fill_slice, &g_cli_editor_cells);
     g_cli_fill_slice = NULL;
     g_cli_fill_slice_size = NULL;
     g_cli_fill_slices = 0u;

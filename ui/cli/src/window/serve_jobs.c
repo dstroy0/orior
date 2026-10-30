@@ -60,7 +60,7 @@ CliCatalog *cli_serve_catalog_taken(const char *root, VerbaLinea *err_msg)
 {
     cli_lock_take(&s_catalog_lock);
     // the catalog outlives the call that reads it: its cell is the shared cellblock's, never a lane's
-    s_catalog = g_cli_cells->persistent_buf_alloc(sizeof(*s_catalog), NULL);
+    s_catalog = g_cli_cells->persistent_buf_alloc(sizeof(*s_catalog), &g_cli_serve_gathering_cells);
     if (s_catalog == NULL)
     {
         mmgr_line_put(err_msg, "the tree's catalog: the cells cannot meet it");
@@ -77,7 +77,7 @@ CliCatalog *cli_serve_catalog_taken(const char *root, VerbaLinea *err_msg)
 
 void cli_serve_catalog_given(void)
 {
-    cli_cell_release(s_catalog, NULL);
+    cli_cell_release(s_catalog, &g_cli_serve_gathering_cells);
     s_catalog = NULL;
     cli_lock_give(&s_catalog_lock);
 }
@@ -160,7 +160,7 @@ static void jobs_run_event(void *context, const CliRunEvent *event)
     }
     // the line printed written after an array's opening, which a line printed where it has no gathering goes in alone
     VerbaLinea line = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    (void)cli_growing_line_made(&line, CLI_SERVE_EVENT_INIT_CAP);
+    (void)cli_growing_line_made(&line, CLI_SERVE_EVENT_INIT_CAP, &g_cli_serve_gathering_cells);
     mmgr_line_ch(&line, '[');
     cli_run_event_written(event, &line);
     if (event->kind == CLI_RUN_EVENT_LINE)
@@ -182,13 +182,13 @@ static void jobs_run_event(void *context, const CliRunEvent *event)
         {
             jobs_flushed(one);
             s_gathering[one->place] = NULL;
-            cli_cell_release(one->lines.out, NULL);
+            cli_cell_release(one->lines.out, &g_cli_serve_gathering_cells);
             cli_cell_release(one, &g_cli_serve_gathering_cells);
         }
         cli_serve_emitted("run-end", fits ? line.out + 1u : "", fits ? line.at - 1u : 0ull);
     }
     cli_lock_give(&s_gathering_lock);
-    cli_cell_release(line.out, NULL);
+    cli_cell_release(line.out, &g_cli_serve_gathering_cells);
 }
 
 // a run's gathering given back where its run did not start, NULL given back as nothing
@@ -199,7 +199,7 @@ static void jobs_gathering_given(CliServeGathering *one)
         cli_lock_take(&s_gathering_lock);
         s_gathering[one->place] = NULL;
         cli_lock_give(&s_gathering_lock);
-        cli_cell_release(one->lines.out, NULL);
+        cli_cell_release(one->lines.out, &g_cli_serve_gathering_cells);
         cli_cell_release(one, &g_cli_serve_gathering_cells);
     }
 }
@@ -227,7 +227,7 @@ int cli_serve_job_start(const char *job, const CliServeArgs *args, VerbaLinea *o
     {
         one->place = place;
         one->lines = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-        if (cli_growing_line_made(&one->lines, CLI_SERVE_GATHERED_FIRST))
+        if (cli_growing_line_made(&one->lines, CLI_SERVE_GATHERED_FIRST, &g_cli_serve_gathering_cells))
         {
             mmgr_line_ch(&one->lines, '[');
             s_gathering[place] = one;

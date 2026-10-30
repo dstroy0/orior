@@ -398,7 +398,7 @@ int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryPrompter pr
             char piece[QUERY_SHOWN_PIECE];
             CliPieces pieces;
             VerbaLinea shown;
-            cli_pieces_begun(&pieces, &shown, piece, sizeof(piece));
+            cli_pieces_begun(&pieces, &shown, piece, sizeof(piece), &g_query_cells);
             query_leaf_shown(path, (tree != NULL) ? tree : (const unsigned char *)"", tree_size, stored, stored_size,
                              &shown);
             unsigned long long shown_size = 0ull;
@@ -407,7 +407,7 @@ int query_leaves_settled(const QueryRun *run, QueryLeave leave, QueryPrompter pr
             {
                 query_print(context, text);
             }
-            g_cli_cells->persistent_buf_release(text, NULL);
+            g_cli_cells->persistent_buf_release(text, &g_query_cells);
             const QueryAnswer answer = (standing == QUERY_LEAVE_ALL)    ? QUERY_ANSWER_YES
                                        : (standing == QUERY_LEAVE_NONE) ? QUERY_ANSWER_NO
                                                                         : prompter.prompt(prompter.context, path);

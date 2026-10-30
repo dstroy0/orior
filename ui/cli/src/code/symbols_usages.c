@@ -320,7 +320,7 @@ static void usages_text_given(char *text, unsigned long long size, int mapped)
     }
     else
     {
-        cli_cell_release(text, NULL);
+        cli_cell_release(text, &g_cli_code_cells);
     }
 }
 
@@ -400,7 +400,7 @@ static int usages_across(CliUsages *usages, const char *path, const char *define
                          void *held_context, CliUsage each, void *context, VerbaLinea *err_msg)
 {
     VerbaLinea paths = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_growing_line_made(&paths, CLI_USAGES_FIRST))
+    if (!cli_growing_line_made(&paths, CLI_USAGES_FIRST, &g_cli_code_cells))
     {
         mmgr_line_put(err_msg, "the cells cannot meet the usages' walk");
         return 0;
@@ -423,7 +423,7 @@ static int usages_across(CliUsages *usages, const char *path, const char *define
         }
         usages_text_given(text, size, mapped);
     }
-    cli_cell_release(paths.out, NULL);
+    cli_cell_release(paths.out, &g_cli_code_cells);
     return walked;
 }
 
@@ -529,10 +529,10 @@ static int usages_asked(const char *path, unsigned int line, unsigned int col, i
                         0u,
                         0u,
                         0};
-    const int made = (length != 0ull) && cli_growing_line_made(&usages.notes, CLI_USAGES_FIRST) &&
-                     cli_growing_line_made(&usages.texts, CLI_USAGES_FIRST) &&
-                     cli_growing_line_made(&usages.paths, CLI_USAGES_FIRST) &&
-                     cli_growing_line_made(&usages.regions, CLI_USAGES_FIRST);
+    const int made = (length != 0ull) && cli_growing_line_made(&usages.notes, CLI_USAGES_FIRST, &g_cli_code_cells) &&
+                     cli_growing_line_made(&usages.texts, CLI_USAGES_FIRST, &g_cli_code_cells) &&
+                     cli_growing_line_made(&usages.paths, CLI_USAGES_FIRST, &g_cli_code_cells) &&
+                     cli_growing_line_made(&usages.regions, CLI_USAGES_FIRST, &g_cli_code_cells);
     int read = 0;
     if (made)
     {
@@ -544,10 +544,10 @@ static int usages_asked(const char *path, unsigned int line, unsigned int col, i
         mmgr_line_put(err_msg, "the cells cannot meet the usages' walk");
         read = -1;
     }
-    cli_cell_release(usages.notes.out, NULL);
-    cli_cell_release(usages.texts.out, NULL);
-    cli_cell_release(usages.paths.out, NULL);
-    cli_cell_release(usages.regions.out, NULL);
+    cli_cell_release(usages.notes.out, &g_cli_code_cells);
+    cli_cell_release(usages.texts.out, &g_cli_code_cells);
+    cli_cell_release(usages.paths.out, &g_cli_code_cells);
+    cli_cell_release(usages.regions.out, &g_cli_code_cells);
     usages_text_given(text, size, mapped);
     return read;
 }

@@ -131,8 +131,8 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
     }
     // the bytes first on the cell's boundary, then the places, then the order
     const unsigned long long places = 2ull * count;
-    char *const cell = cli_lane_alloc(
-        (places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)), NULL);
+    char *const cell =
+        cli_lane_alloc((places + 1ull) * (sizeof(*s_byte) + sizeof(*s_place) + sizeof(*s_order)), &g_cli_text_cells);
     if (cell == NULL)
     {
         return 0;
@@ -167,6 +167,6 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
     s_place = NULL;
     s_order = NULL;
     cli_lock_give(&s_edits_lock);
-    cli_cell_release(cell, NULL);
+    cli_cell_release(cell, &g_cli_text_cells);
     return 1;
 }

@@ -57,7 +57,7 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
         char piece[CLI_DEPLOY_PIECE];
         CliPieces pieces;
         VerbaLinea about;
-        cli_pieces_begun(&pieces, &about, piece, sizeof(piece));
+        cli_pieces_begun(&pieces, &about, piece, sizeof(piece), &g_cli_deploy_cells);
         mmgr_line_put(&id, "deploy/");
         mmgr_line_put(&id, deployment->name);
         mmgr_line_put(&about, "sends the files of ");
@@ -74,7 +74,7 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
         const int listed =
             (mmgr_line_finish(&id) != 0ull) && (joined != NULL) &&
             (cli_catalog_job(catalog, s_id, "deploy", deployment->name, "deploy.json", joined, "") != CLI_CATALOG_NONE);
-        cli_cell_release(joined, NULL);
+        cli_cell_release(joined, &g_cli_deploy_cells);
         if (!listed)
         {
             continue;

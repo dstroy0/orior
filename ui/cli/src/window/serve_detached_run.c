@@ -113,7 +113,7 @@ int cli_serve_detached_run(const char *base)
     cli_serve_detached_file(base, "job", job_file);
     char why[1024];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
-    const unsigned int spec = cli_json_file_taken(&s_json, job_file, 0u, 0ull, &err_msg);
+    const unsigned int spec = cli_json_file_taken(&s_json, job_file, 0u, 0ull, &err_msg, &g_cli_window_cells);
     if (spec == CLI_JSON_NONE)
     {
         (void)mmgr_line_finish(&err_msg);

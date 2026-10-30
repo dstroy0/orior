@@ -25,7 +25,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static int checkers_locked(void)
 {
     cli_lock_take(&s_lock);
-    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), NULL);
+    s_room = g_cli_cells->persistent_buf_alloc(sizeof(*s_room), &g_cli_toolchains_cells);
     if (s_room == NULL)
     {
         cli_lock_give(&s_lock);
@@ -39,7 +39,7 @@ static int checkers_locked(void)
 static void checkers_released(void)
 {
     cli_json_given(&s_room->json);
-    cli_cell_release(s_room, NULL);
+    cli_cell_release(s_room, &g_cli_toolchains_cells);
     s_room = NULL;
     cli_lock_give(&s_lock);
 }
@@ -270,9 +270,9 @@ static int cli_checked(unsigned int tool, const char *args_key, const char *file
         return 0;
     }
     unsigned int folders = 0u;
-    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders);
+    char (*const path)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&folders, &g_cli_toolchains_cells);
     cli_toolchains_find(json, tool, (const char (*)[CLI_PATH_MAX_LEN])path, folders, &s_room->found);
-    cli_cell_release(path, NULL);
+    cli_cell_release(path, &g_cli_toolchains_cells);
     char program[CLI_PATH_MAX_LEN];
     const char *const names[1] = {program_name};
     if ((s_room->found.folder[0] == '\0') || !cli_toolchains_program_in(s_room->found.folder, names, 1u, program))

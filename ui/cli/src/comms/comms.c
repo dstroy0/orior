@@ -8,7 +8,6 @@
 #include "../text/text.h"
 
 CliCommsRoom g_cli_comms = {.lock = CLI_LOCK_INIT};
-CellOwner g_cli_comms_cells = MMGR_CELL_OWNER("cli_comms");
 
 // a table of `*room` places of `width` bytes grown to twice as many, or to CLI_COMMS_FIRST where it contains none, up
 // to `most`, the places added empty and `table` given back: the table, or NULL where it contains `most` or the cell is

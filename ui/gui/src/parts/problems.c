@@ -32,7 +32,7 @@ void gui_problems_given(GuiProblems *problems)
 {
     g_cli_cells->persistent_buf_release(problems->file, &s_owner);
     g_cli_cells->persistent_buf_release(problems->item, &s_owner);
-    g_cli_cells->persistent_buf_release(problems->texts.out, NULL);
+    g_cli_cells->persistent_buf_release(problems->texts.out, &s_owner);
     problems->file = NULL;
     problems->item = NULL;
     memor.set(&(MemoriaCfg){.dst = &problems->texts, .val = 0, .bytes = sizeof(problems->texts)});
@@ -47,7 +47,7 @@ static void problems_packed(GuiProblems *problems)
 {
     const VerbaLinea old = problems->texts;
     const unsigned long long live = (old.at > problems->dead) ? old.at - problems->dead : 0ull;
-    if (!cli_growing_line_made(&problems->texts, live + GUI_PROBLEMS_TEXT_FIRST))
+    if (!cli_growing_line_made(&problems->texts, live + GUI_PROBLEMS_TEXT_FIRST, &s_owner))
     {
         problems->texts = old;
         return;
@@ -66,14 +66,14 @@ static void problems_packed(GuiProblems *problems)
         mmgr_line_put_n(&problems->texts, old.out + item->message, item->message_length);
         item->message = start;
     }
-    g_cli_cells->persistent_buf_release(old.out, NULL);
+    g_cli_cells->persistent_buf_release(old.out, &s_owner);
     problems->dead = 0ull;
 }
 
 // `length` bytes of `text` stored among the texts: where they start into `at`: 1, or 0 where the line is full
 static int problems_stored(GuiProblems *problems, const char *text, unsigned long long length, unsigned long long *at)
 {
-    if ((problems->texts.out == NULL) && !cli_growing_line_made(&problems->texts, GUI_PROBLEMS_TEXT_FIRST))
+    if ((problems->texts.out == NULL) && !cli_growing_line_made(&problems->texts, GUI_PROBLEMS_TEXT_FIRST, &s_owner))
     {
         return 0;
     }
@@ -177,7 +177,8 @@ int gui_problems_put(GuiProblems *problems, const CliJson *json, unsigned int ro
         problems_counted(problems);
         return 0;
     }
-    if ((problems->texts.out != NULL) && (problems->dead > GUI_PROBLEMS_TEXT_FIRST) && (problems->dead * 2ull > problems->texts.at))
+    if ((problems->texts.out != NULL) && (problems->dead > GUI_PROBLEMS_TEXT_FIRST) &&
+        (problems->dead * 2ull > problems->texts.at))
     {
         problems_packed(problems);
     }
@@ -240,7 +241,8 @@ void gui_problems_checking(GuiProblems *problems, unsigned long long done, unsig
 
 unsigned int gui_problems_of(const GuiProblems *problems, const char *path, unsigned int *first)
 {
-    const int at = problems_file_of(problems, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}));
+    const int at =
+        problems_file_of(problems, path, cellul.len(&(CatenaFinitaCfg){.src = path, .cap = CLI_PATH_MAX_LEN}));
     if (at < 0)
     {
         return 0u;
@@ -310,7 +312,8 @@ GuiRect gui_problems_row_rect(const GuiProblems *problems, const GuiFrame *frame
     {
         y -= problems_row_tall(problems, frame, each);
     }
-    return (GuiRect){frame->side.x, y, frame->side.width - gui_scaled(1, frame->scale), problems_row_tall(problems, frame, row)};
+    return (GuiRect){frame->side.x, y, frame->side.width - gui_scaled(1, frame->scale),
+                     problems_row_tall(problems, frame, row)};
 }
 
 int gui_problems_hit(const GuiProblems *problems, const GuiFrame *frame, int x, int y, unsigned int *row)
@@ -348,7 +351,8 @@ int gui_problems_moved(GuiProblems *problems, const GuiFrame *frame, int x, int 
 static GuiRect problems_head_rect(const GuiFrame *frame)
 {
     const int top = frame->side.y + gui_scaled(GUI_EXPLORER_HEAD + GUI_EXPLORER_PANE_LINE, frame->scale);
-    return (GuiRect){frame->side.x, top, frame->side.width - gui_scaled(1, frame->scale), gui_scaled(GUI_PROBLEMS_HEAD, frame->scale)};
+    return (GuiRect){frame->side.x, top, frame->side.width - gui_scaled(1, frame->scale),
+                     gui_scaled(GUI_PROBLEMS_HEAD, frame->scale)};
 }
 
 int gui_problems_pressed(GuiProblems *problems, const GuiFrame *frame, int x, int y, GuiProblemPick *pick)
@@ -445,8 +449,8 @@ static GuiColor problems_color(const GuiPalette *palette, unsigned int severity)
 
 // the pane's head drawn: the check's progress and Stop while it runs, else the problems and files counted and the
 // check offered
-static void problems_head_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette,
-                                const GuiFrame *frame, GuiRect inside)
+static void problems_head_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyphs *glyphs,
+                                const GuiPalette *palette, const GuiFrame *frame, GuiRect inside)
 {
     const float scale = frame->scale;
     const GuiRect head = problems_head_rect(frame);
@@ -476,12 +480,13 @@ static void problems_head_drawn(const GuiProblems *problems, GuiRaster *raster, 
         mmgr_line_put(&line, "No problems in the tree");
     }
     (void)mmgr_line_finish(&line);
-    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(head.x + pad), baseline, text, line.at, palette->text_2, inside);
+    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(head.x + pad), baseline, text, line.at,
+                         palette->text_2, inside);
     const char *const action = running ? "Stop" : "Check the tree";
     const unsigned long long action_length = cellul.len(&(CatenaFinitaCfg){.src = action, .cap = 32ull});
     const float action_wide = gui_text_width(glyphs, GUI_FACE_HEAD, size, action, action_length);
-    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(head.x + head.width - pad) - action_wide, baseline, action,
-                         action_length, palette->link, inside);
+    (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, size, (float)(head.x + head.width - pad) - action_wide,
+                         baseline, action, action_length, palette->link, inside);
 }
 
 void gui_problems_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyphs *glyphs, const GuiPalette *palette,
@@ -499,7 +504,8 @@ void gui_problems_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyph
     gui_raster_filled(raster, gui_rect_met((GuiRect){side.x, line_y, inside.width, one}, inside), palette->line);
     problems_head_drawn(problems, raster, glyphs, palette, frame, inside);
     const int rows_top = gui_problems_rows_top(frame);
-    const GuiRect body = gui_rect_met((GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, inside);
+    const GuiRect body =
+        gui_rect_met((GuiRect){side.x, rows_top, inside.width, side.y + side.height - rows_top}, inside);
     if (gui_rect_empty(body))
     {
         return;
@@ -538,35 +544,41 @@ void gui_problems_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyph
         if (item == GUI_PROBLEMS_NONE)
         {
             // a file's row: the arrow, the name, the folder after it quieter, and the count at the right
-            problems_arrow_drawn(raster, rect.x + pad, rect.y + ((rect.height - arrow) / 2), arrow, !file->closed, palette->text);
+            problems_arrow_drawn(raster, rect.x + pad, rect.y + ((rect.height - arrow) / 2), arrow, !file->closed,
+                                 palette->text);
             const int baseline = problems_baseline(glyphs, GUI_FACE_HEAD, name_size, rect.y, rect.height);
             char digits[24];
             VerbaLinea count = {digits, sizeof(digits), 0ull};
             mmgr_line_decimal(&count, file->count, 1u);
             const int count_pad = gui_scaled(GUI_PROBLEMS_COUNT_PAD, scale);
-            const int count_wide = (int)(gui_text_width(glyphs, GUI_FACE_CODE, count_size, digits, count.at) + 0.5f) + (2 * count_pad);
+            const int count_wide =
+                (int)(gui_text_width(glyphs, GUI_FACE_CODE, count_size, digits, count.at) + 0.5f) + (2 * count_pad);
             const int count_tall = gui_scaled(GUI_PROBLEMS_FILE_ROW - 8, scale);
-            const GuiRect badge = {rect.x + rect.width - pad - count_wide, rect.y + ((rect.height - count_tall) / 2), count_wide, count_tall};
-            gui_raster_rounded(raster, gui_rect_met(badge, on), (unsigned int)gui_scaled(GUI_PROBLEMS_COUNT_RADIUS, scale), palette->line);
+            const GuiRect badge = {rect.x + rect.width - pad - count_wide, rect.y + ((rect.height - count_tall) / 2),
+                                   count_wide, count_tall};
+            gui_raster_rounded(raster, gui_rect_met(badge, on),
+                               (unsigned int)gui_scaled(GUI_PROBLEMS_COUNT_RADIUS, scale), palette->line);
             (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, count_size, (float)(badge.x + count_pad),
-                                 problems_baseline(glyphs, GUI_FACE_CODE, count_size, badge.y, badge.height), digits, count.at,
-                                 palette->text_2, on);
+                                 problems_baseline(glyphs, GUI_FACE_CODE, count_size, badge.y, badge.height), digits,
+                                 count.at, palette->text_2, on);
             const GuiRect text_clip = gui_rect_met((GuiRect){rect.x, rect.y, badge.x - gap - rect.x, rect.height}, on);
             const char *const path = problems->texts.out + file->path;
             float x = (float)(rect.x + pad + arrow + gap);
-            x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, name_size, x, baseline, path + file->name, file->length - file->name,
-                               palette->text, text_clip);
+            x = gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, name_size, x, baseline, path + file->name,
+                               file->length - file->name, palette->text, text_clip);
             if (file->name > 1u)
             {
-                (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, where_size, x + (float)gap, baseline, path, file->name - 1u,
-                                     palette->text_3, text_clip);
+                (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, where_size, x + (float)gap, baseline, path,
+                                     file->name - 1u, palette->text_3, text_clip);
             }
             continue;
         }
         // a diagnostic's row: the guide, the mark in its severity's color, the message and its place at the right
         // the diagnostic is among the diagnostics
         const GuiProblem *const one = &problems->item[(unsigned int)item];
-        gui_raster_filled(raster, gui_rect_met((GuiRect){rect.x + pad + (arrow / 2), rect.y, gui_scaled(1, scale), rect.height}, on), palette->line);
+        gui_raster_filled(
+            raster, gui_rect_met((GuiRect){rect.x + pad + (arrow / 2), rect.y, gui_scaled(1, scale), rect.height}, on),
+            palette->line);
         const int mark_x = rect.x + pad + guide;
         gui_raster_rounded(raster, gui_rect_met((GuiRect){mark_x, rect.y + ((rect.height - mark) / 2), mark, mark}, on),
                            (unsigned int)(mark / 2), problems_color(palette, one->severity));
@@ -578,7 +590,8 @@ void gui_problems_drawn(const GuiProblems *problems, GuiRaster *raster, GuiGlyph
         const float where_wide = gui_text_width(glyphs, GUI_FACE_CODE, where_size, where_text, where.at);
         const int baseline = problems_baseline(glyphs, GUI_FACE_HEAD, message_size, rect.y, rect.height);
         const float where_x = (float)(rect.x + rect.width - pad) - where_wide;
-        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, where_size, where_x, baseline, where_text, where.at, palette->text_3, on);
+        (void)gui_text_drawn(raster, glyphs, GUI_FACE_CODE, where_size, where_x, baseline, where_text, where.at,
+                             palette->text_3, on);
         const GuiRect text_clip = gui_rect_met((GuiRect){rect.x, rect.y, (int)where_x - gap - rect.x, rect.height}, on);
         (void)gui_text_drawn(raster, glyphs, GUI_FACE_HEAD, message_size, (float)(mark_x + mark + gap), baseline,
                              problems->texts.out + one->message, one->message_length, palette->text, text_clip);

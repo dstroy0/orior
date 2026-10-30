@@ -487,8 +487,9 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
     CliBridgeFiles files = {NULL, 0u, 0u};
     query_folder_each(folder, cli_file_each, &files);
-    files = (CliBridgeFiles){g_cli_cells->persistent_buf_alloc((files.count + 1ull) * sizeof(CliBridgeFile), NULL), 0u,
-                             files.count};
+    files = (CliBridgeFiles){
+        g_cli_cells->persistent_buf_alloc((files.count + 1ull) * sizeof(CliBridgeFile), &g_cli_editor_cells), 0u,
+        files.count};
     if (files.file == NULL)
     {
         return CLI_JSON_NONE;
@@ -525,8 +526,9 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         nodes += (one->bytes != NULL) ? ((CLI_BRIDGE_LINE_NODES * lines) + CLI_BRIDGE_FILE_NODES) : 0ull;
         text += (one->bytes != NULL) ? ((2ull * one->size) + (CLI_BRIDGE_LINE_TEXT * lines) + CLI_PATH_MAX_LEN) : 0ull;
     }
-    // a tree's node count is an unsigned int's, so a bridge past it reads as full
-    const int swap = (nodes < CLI_JSON_NONE) && cli_json_reserved(json, (unsigned int)nodes, text, "the bridge read");
+    // a tree's node count is an unsigned int's, and a bridge past it reads as full
+    const int swap = (nodes < CLI_JSON_NONE) &&
+                     cli_json_reserved(json, (unsigned int)nodes, text, "the bridge read", &g_cli_editor_cells);
     const unsigned int bridge = swap ? cli_json_made(json, CFG_JSON_OBJECT) : CLI_JSON_NONE;
     cli_json_set(json, bridge, "dir",
                  cli_json_string_made(json, CLI_BRIDGE_DIR,
@@ -564,7 +566,7 @@ unsigned int cli_bridge_read(CliJson *json, const char *root)
         }
         cli_file_let_go(one->bytes, one->size);
     }
-    cli_cell_release(files.file, NULL);
+    cli_cell_release(files.file, &g_cli_editor_cells);
     cli_json_set(json, bridge, "maps", maps);
     cli_json_set(json, bridge, "rulesets", rulesets);
     return json->full ? CLI_JSON_NONE : bridge;

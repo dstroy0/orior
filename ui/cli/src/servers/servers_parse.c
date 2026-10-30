@@ -36,12 +36,12 @@ static CliServersReading s_reading = {CLI_LOCK_INIT};
 // the parse's storage given back
 static void parse_storage_given(void)
 {
-    cli_cell_release(s_room.run, NULL);
-    cli_cell_release(s_room.line_first, NULL);
-    cli_cell_release(s_room.line_runs, NULL);
-    cli_cell_release(s_room.fold_first, NULL);
-    cli_cell_release(s_room.fold_last, NULL);
-    cli_cell_release(s_room.range, NULL);
+    cli_cell_release(s_room.run, &g_cli_servers_cells);
+    cli_cell_release(s_room.line_first, &g_cli_servers_cells);
+    cli_cell_release(s_room.line_runs, &g_cli_servers_cells);
+    cli_cell_release(s_room.fold_first, &g_cli_servers_cells);
+    cli_cell_release(s_room.fold_last, &g_cli_servers_cells);
+    cli_cell_release(s_room.range, &g_cli_servers_cells);
     memor.set(&(MemoriaCfg){.dst = &s_room, .val = 0, .bytes = sizeof(s_room)});
 }
 
@@ -49,7 +49,7 @@ static void parse_storage_given(void)
 static void parse_released(void)
 {
     parse_storage_given();
-    cli_cell_release(s_text, NULL);
+    cli_cell_release(s_text, &g_cli_servers_cells);
     s_text = NULL;
     cli_servers_reading_released(&s_reading);
 }
@@ -57,7 +57,8 @@ static void parse_released(void)
 // `count` items of `size` bytes each in a cell of their own, NULL where none are or the cells cannot meet them
 static void *parse_part_taken(unsigned int count, size_t size, const char *what)
 {
-    return (count > 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)count * size, NULL) : NULL;
+    return (count > 0u) ? g_cli_cells->persistent_buf_alloc((unsigned long long)count * size, &g_cli_servers_cells)
+                        : NULL;
 }
 
 // the parse's storage taken for `runs` runs, `lines` lines, `folds` folds and `ranges` spans, and the parse made empty
@@ -115,7 +116,7 @@ static void parse_copied_out(void *into, const char *stored, unsigned long long 
 {
     if (count > 0u)
     {
-        // the cached parse's size was checked against its head, so every part lies inside it
+        // the cached parse's size was checked against its head, and every part lies inside it
         memor.cpy(&(MemoriaCfg){.dst = into, .src = stored + *at, .bytes = (size_t)((unsigned long long)count * size)});
     }
     *at += (unsigned long long)count * size;
@@ -160,7 +161,7 @@ static void parse_put(char *stored, unsigned long long *at, const void *from, un
 {
     if (count > 0u)
     {
-        // the cell was taken to the size the head gives, so every part fits
+        // the cell was taken to the size the head gives, and every part fits
         memor.cpy(&(MemoriaCfg){.dst = stored + *at, .src = from, .bytes = (size_t)((unsigned long long)count * size)});
     }
     *at += (unsigned long long)count * size;
@@ -172,7 +173,7 @@ static void parse_stored(const char *key, const char *path, unsigned long long h
     const CliServersParseHead head = {hash,          (unsigned int)s_whole, s_parsed.lines,
                                       s_parsed.runs, s_parsed.folds,        s_parsed.ranges};
     const unsigned long long size = parse_stored_size(&head);
-    char *const stored = cli_lane_alloc(size, NULL);
+    char *const stored = cli_lane_alloc(size, &g_cli_servers_cells);
     if (stored == NULL)
     {
         return;
@@ -188,7 +189,7 @@ static void parse_stored(const char *key, const char *path, unsigned long long h
     cli_lock_take(&g_cli_servers_texts_lock);
     (void)cli_keyed_put(&g_cli_servers_parses, key, path, stored, size);
     cli_lock_give(&g_cli_servers_texts_lock);
-    cli_cell_release(stored, NULL);
+    cli_cell_release(stored, &g_cli_servers_cells);
 }
 
 // the class a server's semantic token of a type takes, by the type's name, CLI_INSPECT_CLASSES where it takes none
@@ -240,7 +241,7 @@ static int parse_request(CliLsp *server, const char *method, const char *uri, un
     char piece[CLI_SERVERS_PIECE];
     CliPieces pieces;
     VerbaLinea params;
-    cli_pieces_begun(&pieces, &params, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &params, piece, sizeof(piece), &g_cli_servers_cells);
     mmgr_line_put(&params, "{\"textDocument\":{\"uri\":");
     cli_json_quoted(&params, uri, cellul.len(&(CatenaFinitaCfg){.src = uri, .cap = CLI_CELLS_POOL}));
     mmgr_line_put(&params, "}}");
@@ -541,7 +542,7 @@ int cli_servers_spans(const char *path, const char *key, CliTextPlace from, CliT
             (spans != NULL) ? cli_inspect_ranges_at(s_room.range, s_parsed.ranges, start, end, spans, s_parsed.ranges)
                             : 0u;
         parse_spans_written(spans, count, out);
-        cli_cell_release(spans, NULL);
+        cli_cell_release(spans, &g_cli_servers_cells);
         parse_released();
         return 1;
     }

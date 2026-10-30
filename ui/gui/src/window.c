@@ -92,7 +92,7 @@ void gui_window_ended(GuiWindow *window)
     gui_link_ended(&window->link);
     for (unsigned int at = 0u; at < window->tabs; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(window->tab[at].names, NULL);
+        g_cli_cells->persistent_buf_release(window->tab[at].names, &g_gui_cells);
         window->tab[at].names = NULL;
     }
     gui_editor_given(&window->editor);
@@ -119,7 +119,8 @@ static int window_tool_named(const GuiWindow *window, const char *name)
 {
     // the tool shown is among the tools
     return (window->strip.shown >= 0) &&
-           cellul.eq(&(CatenaFinitaCfg){.src = gui_strip_tool((unsigned int)window->strip.shown)->name, .other = name, .cap = 32ull});
+           cellul.eq(&(CatenaFinitaCfg){
+               .src = gui_strip_tool((unsigned int)window->strip.shown)->name, .other = name, .cap = 32ull});
 }
 
 // the rows the editor shows, and the columns
@@ -290,7 +291,8 @@ static void window_view_told(GuiWindow *window)
     char text[(2u * CLI_PATH_MAX_LEN) + 96u];
     VerbaLinea args = {text, sizeof(text), 0ull};
     mmgr_line_put(&args, "{\"path\":");
-    cli_json_quoted(&args, window->path, cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
+    cli_json_quoted(&args, window->path,
+                    cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
     mmgr_line_put(&args, ",\"key\":");
     cli_json_quoted(&args, window->key, cellul.len(&(CatenaFinitaCfg){.src = window->key, .cap = sizeof(window->key)}));
     mmgr_line_put(&args, ",\"first\":");
@@ -307,7 +309,8 @@ static void window_view_told(GuiWindow *window)
 // the view's rows moved: the server is told where they rest after GUI_VIEW_RESTS
 static void window_view_moved(GuiWindow *window)
 {
-    if (!window->view_told || (window->view_told_top != window->editor.top) || (window->view_told_rows != window_rows(window)))
+    if (!window->view_told || (window->view_told_top != window->editor.top) ||
+        (window->view_told_rows != window_rows(window)))
     {
         window->view_moved_ms = cli_clock_milliseconds();
     }
@@ -366,9 +369,10 @@ static void window_completed(GuiWindow *window)
         return;
     }
     const GuiPlace cursor = window->editor.cursor;
-    const unsigned long long back = ((cursor.line == window->suggest.line) && (cursor.col >= window->suggest.from))
-                                        ? cursor.col - window->suggest.from
-                                        : cellul.len(&(CatenaFinitaCfg){.src = window->suggest.prefix, .cap = sizeof(window->suggest.prefix)});
+    const unsigned long long back =
+        ((cursor.line == window->suggest.line) && (cursor.col >= window->suggest.from))
+            ? cursor.col - window->suggest.from
+            : cellul.len(&(CatenaFinitaCfg){.src = window->suggest.prefix, .cap = sizeof(window->suggest.prefix)});
     char more[CLI_PATH_MAX_LEN];
     VerbaLinea line = {more, sizeof(more), 0ull};
     mmgr_line_put(&line, ",\"text\":");
@@ -406,8 +410,8 @@ static int window_complete_current(const GuiWindow *window, const CliJson *json,
 static int window_word_byte(char byte)
 {
     const unsigned char value = (unsigned char)byte;
-    return ((value >= 'a') && (value <= 'z')) || ((value >= 'A') && (value <= 'Z')) || ((value >= '0') && (value <= '9')) ||
-           (value == '_') || (value == '$') || (value >= 0x80u);
+    return ((value >= 'a') && (value <= 'z')) || ((value >= 'A') && (value <= 'Z')) ||
+           ((value >= '0') && (value <= '9')) || (value == '_') || (value == '$') || (value >= 0x80u);
 }
 
 // the map's lines asked for where the map placed beside the view stands for lines it does not hold or holds stale,
@@ -418,7 +422,8 @@ static void window_map_asked(GuiWindow *window)
     {
         return;
     }
-    gui_minimap_placed(&window->minimap, window->frame.map, window->frame.scale, &window->editor, window_on_screen(window));
+    gui_minimap_placed(&window->minimap, window->frame.map, window->frame.scale, &window->editor,
+                       window_on_screen(window));
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
     if (!gui_minimap_span(&window->minimap, &first, &last) || gui_minimap_current(&window->minimap, first, last))
@@ -563,18 +568,18 @@ static int window_tab_by_key(const GuiWindow *window, const char *key, unsigned 
 static void window_names_kept(GuiWindow *window, unsigned int at, const CliJson *json, unsigned int names)
 {
     GuiTab *const tab = &window->tab[at];
-    g_cli_cells->persistent_buf_release(tab->names, NULL);
+    g_cli_cells->persistent_buf_release(tab->names, &g_gui_cells);
     tab->names = NULL;
     tab->names_size = 0ull;
     VerbaLinea line;
-    if (!cli_growing_line_made(&line, GUI_KEPT_FIRST))
+    if (!cli_growing_line_made(&line, GUI_KEPT_FIRST, &g_gui_cells))
     {
         return;
     }
     cli_json_write(json, names, &line, 0u, 0);
     if (!mmgr_line_ok(&line))
     {
-        g_cli_cells->persistent_buf_release(line.out, NULL);
+        g_cli_cells->persistent_buf_release(line.out, &g_gui_cells);
         return;
     }
     tab->names = line.out;
@@ -592,7 +597,7 @@ static void window_names_given(GuiWindow *window, unsigned int at)
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     CliJson json;
-    const unsigned int names = cli_json_taken(&json, tab->names, tab->names_size, 0u, 0ull, &err_msg);
+    const unsigned int names = cli_json_taken(&json, tab->names, tab->names_size, 0u, 0ull, &err_msg, &g_gui_cells);
     if (names != CLI_JSON_NONE)
     {
         (void)gui_editor_named(&window->editor, &json, names);
@@ -612,13 +617,13 @@ static void window_kept(GuiWindow *window)
     }
     VerbaLinea session;
     VerbaLinea args;
-    if (!cli_growing_line_made(&session, GUI_KEPT_FIRST))
+    if (!cli_growing_line_made(&session, GUI_KEPT_FIRST, &g_gui_cells))
     {
         return;
     }
-    if (!cli_growing_line_made(&args, GUI_KEPT_FIRST))
+    if (!cli_growing_line_made(&args, GUI_KEPT_FIRST, &g_gui_cells))
     {
-        g_cli_cells->persistent_buf_release(session.out, NULL);
+        g_cli_cells->persistent_buf_release(session.out, &g_gui_cells);
         return;
     }
     // the session as the page keeps it: the tabs, the same as the main side's, the one shown, no split and no groups
@@ -626,18 +631,21 @@ static void window_kept(GuiWindow *window)
     for (unsigned int at = 0u; at < window->tabs; at += 1u)
     {
         mmgr_line_put(&session, (at > 0u) ? "," : "");
-        cli_json_quoted(&session, window->tab[at].path, cellul.len(&(CatenaFinitaCfg){.src = window->tab[at].path, .cap = CLI_PATH_MAX_LEN}));
+        cli_json_quoted(&session, window->tab[at].path,
+                        cellul.len(&(CatenaFinitaCfg){.src = window->tab[at].path, .cap = CLI_PATH_MAX_LEN}));
     }
     mmgr_line_put(&session, "],\"main\":[");
     for (unsigned int at = 0u; at < window->tabs; at += 1u)
     {
         mmgr_line_put(&session, (at > 0u) ? "," : "");
-        cli_json_quoted(&session, window->tab[at].path, cellul.len(&(CatenaFinitaCfg){.src = window->tab[at].path, .cap = CLI_PATH_MAX_LEN}));
+        cli_json_quoted(&session, window->tab[at].path,
+                        cellul.len(&(CatenaFinitaCfg){.src = window->tab[at].path, .cap = CLI_PATH_MAX_LEN}));
     }
     mmgr_line_put(&session, "],\"active\":");
     if (window->active >= 0)
     {
-        cli_json_quoted(&session, window->path, cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
+        cli_json_quoted(&session, window->path,
+                        cellul.len(&(CatenaFinitaCfg){.src = window->path, .cap = sizeof(window->path)}));
     }
     else
     {
@@ -664,8 +672,8 @@ static void window_kept(GuiWindow *window)
     {
         (void)window_called(window, 1, "state_write", &args);
     }
-    g_cli_cells->persistent_buf_release(session.out, NULL);
-    g_cli_cells->persistent_buf_release(args.out, NULL);
+    g_cli_cells->persistent_buf_release(session.out, &g_gui_cells);
+    g_cli_cells->persistent_buf_release(args.out, &g_gui_cells);
 }
 
 // the work's inside laid again as the strip's tool shown has a side or not, the view told the editor's size, the top
@@ -713,8 +721,8 @@ int gui_window_sized(GuiWindow *window, unsigned int width, unsigned int height,
     (void)gui_framebuffer_fitted(&window->framebuffer, width, height);
     window->shown = NULL;
     gui_base_sized(&window->base, gui_raster_pitch(width), height);
-    const int laid = gui_ground_laid(&window->ground, &window->framebuffer.raster[GUI_FRAMEBUFFER_GROUND], width, height, scale,
-                                     window->palette, cli_clock_milliseconds());
+    const int laid = gui_ground_laid(&window->ground, &window->framebuffer.raster[GUI_FRAMEBUFFER_GROUND], width,
+                                     height, scale, window->palette, cli_clock_milliseconds());
     gui_frame_laid(&window->frame, width, height, scale);
     gui_frame_sided(&window->frame, window_side_shown(window));
     window_claim_laid(window);
@@ -869,7 +877,8 @@ static int window_caret_covered(const GuiWindow *window, GuiRect caret)
 void gui_window_flipped(GuiWindow *window)
 {
     window->shown = window->raster;
-    window->raster = (window->raster == &window->framebuffer.raster[0]) ? &window->framebuffer.raster[1] : &window->framebuffer.raster[0];
+    window->raster = (window->raster == &window->framebuffer.raster[0]) ? &window->framebuffer.raster[1]
+                                                                        : &window->framebuffer.raster[0];
 }
 
 GuiRect gui_window_caret_drawn(GuiWindow *window)
@@ -878,7 +887,8 @@ GuiRect gui_window_caret_drawn(GuiWindow *window)
     window->caret_alone = 0;
     window->caret_ink = window_caret_ink(window, cli_clock_milliseconds());
     window->editor.caret_ink = window->caret_ink;
-    return gui_editor_caret_redrawn(&window->editor, (window->shown != NULL) ? window->shown : window->raster, window->palette);
+    return gui_editor_caret_redrawn(&window->editor, (window->shown != NULL) ? window->shown : window->raster,
+                                    window->palette);
 }
 
 // the milliseconds until the view's rest is told, 0 where no telling waits
@@ -937,10 +947,12 @@ static void window_cataloged(GuiWindow *window, const char *text, unsigned long 
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
     CliJson quoted;
-    const unsigned int string = cli_json_taken(&quoted, text, size, 0u, 0ull, &err_msg);
+    const unsigned int string = cli_json_taken(&quoted, text, size, 0u, 0ull, &err_msg, &g_gui_cells);
     unsigned long long inner_size = 0ull;
     const char *const inner = cli_json_string(&quoted, string, &inner_size);
-    const unsigned int root = (inner != NULL) ? cli_json_taken(&window->catalog, inner, inner_size, 0u, 0ull, &err_msg) : CLI_JSON_NONE;
+    const unsigned int root =
+        (inner != NULL) ? cli_json_taken(&window->catalog, inner, inner_size, 0u, 0ull, &err_msg, &g_gui_cells)
+                        : CLI_JSON_NONE;
     if (string != CLI_JSON_NONE)
     {
         cli_json_given(&quoted);
@@ -1069,14 +1081,16 @@ void gui_window_tab_closed(GuiWindow *window, unsigned int at)
         (void)window_called(window, 0, "editor_view_close", &args);
     }
     (void)window_called(window, 1, "document_release", &args);
-    g_cli_cells->persistent_buf_release(tab->names, NULL);
+    g_cli_cells->persistent_buf_release(tab->names, &g_gui_cells);
     for (unsigned int after = at + 1u; after < window->tabs; after += 1u)
     {
         window->tab[after - 1u] = window->tab[after];
     }
     window->tabs -= 1u;
     // the tabs are fewer than an int counts
-    window->last_active = ((window->last_active > (int)at) ? window->last_active - 1 : (window->last_active == (int)at) ? -1 : window->last_active);
+    window->last_active = ((window->last_active > (int)at)    ? window->last_active - 1
+                           : (window->last_active == (int)at) ? -1
+                                                              : window->last_active);
     window->owed = 1;
     if (window->tabs == 0u)
     {
@@ -1227,7 +1241,8 @@ static void window_opened(GuiWindow *window, const CliJson *json, unsigned int r
         for (unsigned long long each = 0ull; (each + 1ull < text_length) && !crlf; each += 1ull)
         {
             crlf = ((whole[each] == '\r') && (whole[each + 1ull] == '\n')) ||
-                   ((whole[each] == '\\') && (whole[each + 1ull] == 'r') && (each + 3ull < text_length) && (whole[each + 2ull] == '\\') && (whole[each + 3ull] == 'n'));
+                   ((whole[each] == '\\') && (whole[each + 1ull] == 'r') && (each + 3ull < text_length) &&
+                    (whole[each + 2ull] == '\\') && (whole[each + 3ull] == 'n'));
         }
         tab->crlf = crlf;
     }
@@ -1272,14 +1287,15 @@ static void window_restored(GuiWindow *window, const CliJson *json, unsigned int
     mmgr_line_put(&keyed, GUI_KEPT_SESSION);
     mmgr_line_put(&keyed, window->root);
     unsigned long long size = 0ull;
-    const char *const session = (mmgr_line_finish(&keyed) != 0ull) ? cli_json_string(json, cli_json_member(json, root, key), &size) : NULL;
+    const char *const session =
+        (mmgr_line_finish(&keyed) != 0ull) ? cli_json_string(json, cli_json_member(json, root, key), &size) : NULL;
     window->session_known = (session != NULL);
     if (session != NULL)
     {
         char err_text[256];
         VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
         CliJson kept;
-        const unsigned int object = cli_json_taken(&kept, session, size, 0u, 0ull, &err_msg);
+        const unsigned int object = cli_json_taken(&kept, session, size, 0u, 0ull, &err_msg, &g_gui_cells);
         if (object != CLI_JSON_NONE)
         {
             const unsigned int tabs = cli_json_member(&kept, object, "tabs");
@@ -1369,7 +1385,8 @@ static void window_frame_taken(GuiWindow *window, const CliJson *json, unsigned 
 // whether an answer is a frame of the view, by what it carries
 static int window_is_frame(const CliJson *json, unsigned int root)
 {
-    return (cli_json_member(json, root, "rows") != CLI_JSON_NONE) && (cli_json_member(json, root, "cursor") != CLI_JSON_NONE) &&
+    return (cli_json_member(json, root, "rows") != CLI_JSON_NONE) &&
+           (cli_json_member(json, root, "cursor") != CLI_JSON_NONE) &&
            (cli_json_member(json, root, "seq") != CLI_JSON_NONE);
 }
 
@@ -1388,7 +1405,8 @@ static void window_commanded(GuiWindow *window, const CliJson *json, unsigned in
     unsigned long long path_length = 0ull;
     const char *const path = cli_json_string(json, cli_json_item(json, args, 0u), &path_length);
     const int opening = (name_length == 9ull) &&
-                        (memor.cmp(&(MemoriaCfg){.src = name, .other = "open-file", .bytes = 9u}) == 0) && (path != NULL);
+                        (memor.cmp(&(MemoriaCfg){.src = name, .other = "open-file", .bytes = 9u}) == 0) &&
+                        (path != NULL);
     if (opening)
     {
         char copied[CLI_PATH_MAX_LEN];
@@ -1401,7 +1419,8 @@ static void window_commanded(GuiWindow *window, const CliJson *json, unsigned in
     VerbaLinea answer = {text, sizeof(text), 0ull};
     mmgr_line_put(&answer, "{\"id\":");
     cli_json_quoted(&answer, id, id_length);
-    mmgr_line_put(&answer, opening ? ",\"done\":true,\"message\":\"\"}" : ",\"done\":false,\"message\":\"the window has no command ");
+    mmgr_line_put(&answer, opening ? ",\"done\":true,\"message\":\"\"}"
+                                   : ",\"done\":false,\"message\":\"the window has no command ");
     if (!opening)
     {
         mmgr_line_put_n(&answer, name, name_length);
@@ -1417,8 +1436,13 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     GuiWindow *const window = (GuiWindow *)context;
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
+    // the answer's tree read on the window thread's lane against a mark, the lane left before the answer is handled:
+    // what the handling keeps is taken where it is kept, and the lane rewound to the mark once the tree is given
+    // back
     CliJson json;
-    const unsigned int root = ok ? cli_json_taken(&json, text, size, 0u, 0ull, &err_msg) : CLI_JSON_NONE;
+    const size_t mark = cli_lane_entered(CLI_CELLS_LANE_WINDOW, CLI_LANE_WINDOW_MS);
+    const unsigned int root = ok ? cli_json_taken_laned(&json, text, size, &err_msg, &g_gui_cells) : CLI_JSON_NONE;
+    cli_lane_left();
     window->owed = 1;
     if ((ticket != 0ull) && (ticket == window->asked_launch))
     {
@@ -1638,10 +1662,12 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
         window->asked_memory = 0ull;
         if (ok && (root != CLI_JSON_NONE))
         {
-            window->memory_bytes = gui_answer_member_whole(&json, cli_json_member(&json, root, "orior"), "working", 0ull);
+            window->memory_bytes =
+                gui_answer_member_whole(&json, cli_json_member(&json, root, "orior"), "working", 0ull);
         }
     }
-    else if ((ticket != 0ull) && ok && (root != CLI_JSON_NONE) && gui_explorer_listed(&window->explorer, ticket, &json, root))
+    else if ((ticket != 0ull) && ok && (root != CLI_JSON_NONE) &&
+             gui_explorer_listed(&window->explorer, ticket, &json, root))
     {
         window->owed = 1;
     }
@@ -1696,6 +1722,7 @@ static void window_taken(void *context, unsigned long long ticket, const char *n
     {
         cli_json_given(&json);
     }
+    cli_lane_rewound(CLI_CELLS_LANE_WINDOW, mark);
 }
 
 // the memory reading asked for, where none is in flight and the last came GUI_MEMORY_EVERY milliseconds ago
@@ -1730,11 +1757,14 @@ static void window_panels_drawn(GuiWindow *window)
     GuiRect last;
     if (window->hover.shown)
     {
-        const unsigned long long end = (window->hover.to > window->hover.from) ? window->hover.to - 1ull : window->hover.from;
-        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->hover.line, window->hover.from, &anchor) &&
+        const unsigned long long end =
+            (window->hover.to > window->hover.from) ? window->hover.to - 1ull : window->hover.from;
+        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->hover.line,
+                                  window->hover.from, &anchor) &&
             gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->hover.line, end, &last))
         {
-            gui_hover_drawn(&window->hover, window->raster, &window->glyphs, window->palette, anchor, last, frame->inside, frame->scale);
+            gui_hover_drawn(&window->hover, window->raster, &window->glyphs, window->palette, anchor, last,
+                            frame->inside, frame->scale);
         }
         else
         {
@@ -1743,9 +1773,11 @@ static void window_panels_drawn(GuiWindow *window)
     }
     if (window->suggest.open)
     {
-        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->suggest.line, window->suggest.from, &anchor))
+        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->suggest.line,
+                                  window->suggest.from, &anchor))
         {
-            gui_suggest_drawn(&window->suggest, window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
+            gui_suggest_drawn(&window->suggest, window->raster, &window->glyphs, window->palette, anchor, frame->inside,
+                              frame->scale);
         }
         else
         {
@@ -1754,10 +1786,11 @@ static void window_panels_drawn(GuiWindow *window)
     }
     if (window->signature.shown && window->editor.has_cursor)
     {
-        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->editor.cursor.line, window->editor.cursor.col,
-                                  &anchor))
+        if (gui_editor_place_rect(&window->editor, frame->editor, cell, frame->scale, window->editor.cursor.line,
+                                  window->editor.cursor.col, &anchor))
         {
-            gui_signature_drawn(&window->signature, window->raster, &window->glyphs, window->palette, anchor, frame->inside, frame->scale);
+            gui_signature_drawn(&window->signature, window->raster, &window->glyphs, window->palette, anchor,
+                                frame->inside, frame->scale);
         }
         else
         {
@@ -1796,8 +1829,9 @@ void gui_window_drawn(GuiWindow *window)
     // the work's outline: the lines it stands in, as the page draws them, the signal along its head, a thin line of
     // it down its left, the link darkened down its right and along its foot, bent round its corners and round the
     // holes the parts shown over the work make in it while the claim holds
-    const GuiColor right_line = GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
-                                        (GUI_BLUE_OF(palette->link) * 65u) / 100u);
+    const GuiColor right_line =
+        GUI_RGB((GUI_RED_OF(palette->link) * 65u) / 100u, (GUI_GREEN_OF(palette->link) * 65u) / 100u,
+                (GUI_BLUE_OF(palette->link) * 65u) / 100u);
     const GuiOutline lines = {palette->signal,
                               right_line,
                               right_line,
@@ -1818,14 +1852,15 @@ void gui_window_drawn(GuiWindow *window)
     const unsigned int code_size = (unsigned int)(((float)GUI_CODE_SIZE * frame->scale) + 0.5f);
     gui_problems_underlined(&window->problems, window->path, &window->editor, raster, palette, frame->editor,
                             gui_glyphs_cell(&window->glyphs, code_size), frame->scale);
-    gui_minimap_drawn(&window->minimap, raster, palette, &window->editor, frame->map, frame->scale, window_on_screen(window));
+    gui_minimap_drawn(&window->minimap, raster, palette, &window->editor, frame->map, frame->scale,
+                      window_on_screen(window));
     if (!gui_rect_empty(frame->side) && (window->strip.shown >= 0))
     {
         // the tool shown is among the tools
         const GuiTool *const tool = gui_strip_tool((unsigned int)window->strip.shown);
         gui_explorer_drawn(&window->explorer, raster, &window->glyphs, &window->icons, palette, frame, tool->label,
-                           cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ull}), window->title,
-                           window->path);
+                           cellul.eq(&(CatenaFinitaCfg){.src = tool->name, .other = "explorer", .cap = 32ull}),
+                           window->title, window->path);
         if (window_tool_named(window, "problems"))
         {
             gui_problems_drawn(&window->problems, raster, &window->glyphs, palette, frame);
@@ -1935,8 +1970,9 @@ void gui_window_wheel(GuiWindow *window, int x, int y, int rows)
     // the wheel over the side scrolls the explorer's rows; over the editor or the map, the text
     if (gui_rect_holds(window->frame.side, x, y))
     {
-        const int moved = window_tool_named(window, "problems") ? gui_problems_wheeled(&window->problems, &window->frame, rows)
-                                                                : gui_explorer_wheeled(&window->explorer, &window->frame, rows);
+        const int moved = window_tool_named(window, "problems")
+                              ? gui_problems_wheeled(&window->problems, &window->frame, rows)
+                              : gui_explorer_wheeled(&window->explorer, &window->frame, rows);
         window->owed = moved || window->owed;
         return;
     }
@@ -2043,7 +2079,8 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
     // a press in the problems pane starts or stops the tree's check, closes or opens a file's rows, or opens a file
     // at a diagnostic's place
     GuiProblemPick problem;
-    if (window_tool_named(window, "problems") && gui_problems_pressed(&window->problems, &window->frame, x, y, &problem))
+    if (window_tool_named(window, "problems") &&
+        gui_problems_pressed(&window->problems, &window->frame, x, y, &problem))
     {
         window->owed = 1;
         window_claimed(window, 0);
@@ -2052,8 +2089,8 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
             char args_text[8];
             VerbaLinea args = {args_text, sizeof(args_text), 0ull};
             mmgr_line_put(&args, "{}");
-            window->asked_check =
-                window_called(window, 0, (problem.kind == GUI_PROBLEMS_PICK_CHECK) ? "problems_check" : "problems_check_stop", &args);
+            window->asked_check = window_called(
+                window, 0, (problem.kind == GUI_PROBLEMS_PICK_CHECK) ? "problems_check" : "problems_check_stop", &args);
         }
         else if (problem.kind == GUI_PROBLEMS_PICK_OPEN)
         {
@@ -2108,7 +2145,8 @@ void gui_window_pressed(GuiWindow *window, int x, int y, unsigned int mods)
     window->clicked_ms = now;
     window->clicked_x = x;
     window->clicked_y = y;
-    window->dragging = window_pointed(window, CLI_VIEW_POINTER_DOWN, x, y, window->clicks, (mods & GUI_MOD_SHIFT) != 0u);
+    window->dragging =
+        window_pointed(window, CLI_VIEW_POINTER_DOWN, x, y, window->clicks, (mods & GUI_MOD_SHIFT) != 0u);
     // a press in the editor's text gives it the keys
     if (window->dragging)
     {
@@ -2123,7 +2161,8 @@ void gui_window_moved(GuiWindow *window, int x, int y)
         const GuiFrame *const frame = &window->frame;
         const unsigned long long now = cli_clock_milliseconds();
         const int near_before = window->claim.near;
-        gui_claim_moved(&window->claim, x, y, gui_claim_zone(frame->width, frame->height, frame->scale, frame->controls.width, x, y),
+        gui_claim_moved(&window->claim, x, y,
+                        gui_claim_zone(frame->width, frame->height, frame->scale, frame->controls.width, x, y),
                         window_over_parts(window, x, y), now);
         if ((window->claim.near != near_before) || gui_claim_moving(&window->claim, now))
         {
@@ -2163,8 +2202,9 @@ void gui_window_moved(GuiWindow *window, int x, int y)
     const float cell = gui_glyphs_cell(&window->glyphs, size);
     unsigned long long row = 0ull;
     unsigned long long column = 0ull;
-    const int in_text = window->viewed && (window->menubar.levels == 0u) &&
-                        gui_editor_cell_at(&window->editor, window->frame.editor, cell, window->frame.scale, x, y, &row, &column);
+    const int in_text =
+        window->viewed && (window->menubar.levels == 0u) &&
+        gui_editor_cell_at(&window->editor, window->frame.editor, cell, window->frame.scale, x, y, &row, &column);
     gui_hover_moved(&window->hover, in_text, row, column, x, y, cli_clock_milliseconds());
 }
 

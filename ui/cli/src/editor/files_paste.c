@@ -138,7 +138,7 @@ typedef struct
     int full;
 } CliPending;
 
-// the walk's pending pairs, a cell taken with the walk's lock and given back with it
+// the walk's pairs waiting, a cell taken with the walk's lock and given back with it
 static CliPending *s_pending;
 
 // a pair put to go to: 1, or 0 where the walk has room for no more
@@ -219,7 +219,7 @@ int cli_paste_walked(const char *source, const char *target, CliPasteEach each, 
 {
     static CliLock s_lock = CLI_LOCK_INIT;
     cli_lock_take(&s_lock);
-    s_pending = g_cli_cells->persistent_buf_alloc(sizeof(*s_pending), NULL);
+    s_pending = g_cli_cells->persistent_buf_alloc(sizeof(*s_pending), &g_cli_editor_cells);
     if (s_pending == NULL)
     {
         cli_lock_give(&s_lock);
@@ -250,7 +250,7 @@ int cli_paste_walked(const char *source, const char *target, CliPasteEach each, 
         const int folder = query_is_folder(from);
         walked = each(context, from, to, folder, err_msg) && (!folder || cli_pending_entries(from, to, err_msg));
     }
-    cli_cell_release(s_pending, NULL);
+    cli_cell_release(s_pending, &g_cli_editor_cells);
     s_pending = NULL;
     cli_lock_give(&s_lock);
     return walked;

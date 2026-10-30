@@ -37,16 +37,18 @@ int main(void)
     CliJson json;
     char err_text[256];
     VerbaLinea err_msg = {err_text, sizeof(err_text), 0ull};
-    unsigned int root = cli_json_taken(&json, s_names, sizeof(s_names) - 1u, 0u, 0ull, &err_msg);
+    unsigned int root = cli_json_taken(&json, s_names, sizeof(s_names) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_editor_named(&editor, &json, root), "the grammar's names are kept");
     cli_json_given(&json);
-    root = cli_json_taken(&json, s_map, sizeof(s_map) - 1u, 0u, 0ull, &err_msg);
+    root = cli_json_taken(&json, s_map, sizeof(s_map) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     cli_check(gui_minimap_put(&map, &json, root), "the answer's lines are kept");
     cli_json_given(&json);
-    cli_check((map.from == 3ull) && (map.count == 3u) && (map.bars == 3u), "three lines from the fourth, three bars among them");
+    cli_check((map.from == 3ull) && (map.count == 3u) && (map.bars == 3u),
+              "three lines from the fourth, three bars among them");
     cli_check((map.line_at[0] == 0u) && (map.line_at[1] == 2u) && (map.line_at[2] == 2u) && (map.line_at[3] == 3u),
               "the first line has two bars, the second none, the third one");
-    cli_check((map.bar[1].start == 4u) && (map.bar[1].width == 4u) && (map.bar[1].name == 0u), "a bar is its start, width and name");
+    cli_check((map.bar[1].start == 4u) && (map.bar[1].width == 4u) && (map.bar[1].name == 0u),
+              "a bar is its start, width and name");
     cli_check(!map.stale, "the map is stale no more");
 
     // a short text: every line fits, the map begins at the first
@@ -55,10 +57,12 @@ int main(void)
     editor.top = 2ull;
     gui_minimap_placed(&map, place, 1.0f, &editor, 20.0f);
     cli_check((map.place.fit == 100u) && (map.place.start == 0ull), "a short text's map begins at the first line");
-    cli_check((map.place.slider_top == 4) && (map.place.slider_tall == 40), "the slider stands over the view's rows, two pixels a row");
+    cli_check((map.place.slider_top == 4) && (map.place.slider_tall == 40),
+              "the slider stands over the view's rows, two pixels a row");
     unsigned long long first = 0ull;
     unsigned long long last = 0ull;
-    cli_check(gui_minimap_span(&map, &first, &last) && (first == 0ull) && (last == 9ull), "the map stands for the whole short text");
+    cli_check(gui_minimap_span(&map, &first, &last) && (first == 0ull) && (last == 9ull),
+              "the map stands for the whole short text");
     cli_check(!gui_minimap_current(&map, 0ull, 9ull), "the lines held are not the whole text");
     cli_check(gui_minimap_current(&map, 3ull, 5ull), "the lines held are the fourth to the sixth");
 
@@ -68,14 +72,17 @@ int main(void)
     gui_minimap_placed(&map, place, 1.0f, &editor, 20.0f);
     cli_check(map.place.start == 450ull, "halfway through the text the map begins halfway through its lines");
     cli_check(map.place.slider_top == 80, "the slider stands where the view's top stands among the map's rows");
-    cli_check(gui_minimap_span(&map, &first, &last) && (first == 450ull) && (last == 549ull), "the map stands for a hundred lines from its first");
+    cli_check(gui_minimap_span(&map, &first, &last) && (first == 450ull) && (last == 549ull),
+              "the map stands for a hundred lines from its first");
     const long long offset = map.held_offset;
     gui_editor_shaped(&editor, 1200ull);
     gui_minimap_placed(&map, place, 1.0f, &editor, 20.0f);
-    cli_check((map.place.start == 450ull) && (map.held_offset == offset), "lines added while the view stands still leave the map where it stood");
+    cli_check((map.place.start == 450ull) && (map.held_offset == offset),
+              "lines added while the view stands still leave the map where it stood");
     editor.top = 1199ull;
     gui_minimap_placed(&map, place, 1.0f, &editor, 20.0f);
-    cli_check(map.place.start == 1100ull, "the view moved places the map by its top again, no further than its last lines");
+    cli_check(map.place.start == 1100ull,
+              "the view moved places the map by its top again, no further than its last lines");
 
     // drawn: the bars in their colors, the slider, the strip
     gui_editor_shaped(&editor, 10ull);
@@ -93,18 +100,27 @@ int main(void)
     const GuiColor under_slider = raster.pixels[(30u * 200u) + 150u];
     // the editor's ground at its opacity over the page's ground, which in the dark scheme is the same color
     const unsigned int share = GUI_ALPHA_OF(palette->editor_ground);
-    const GuiColor laid = GUI_RGB(((GUI_RED_OF(palette->editor_ground) * share) + (GUI_RED_OF(palette->ground) * (255u - share)) + 127u) / 255u,
-                                  ((GUI_GREEN_OF(palette->editor_ground) * share) + (GUI_GREEN_OF(palette->ground) * (255u - share)) + 127u) / 255u,
-                                  ((GUI_BLUE_OF(palette->editor_ground) * share) + (GUI_BLUE_OF(palette->ground) * (255u - share)) + 127u) / 255u);
+    const GuiColor laid = GUI_RGB(
+        ((GUI_RED_OF(palette->editor_ground) * share) + (GUI_RED_OF(palette->ground) * (255u - share)) + 127u) / 255u,
+        ((GUI_GREEN_OF(palette->editor_ground) * share) + (GUI_GREEN_OF(palette->ground) * (255u - share)) + 127u) /
+            255u,
+        ((GUI_BLUE_OF(palette->editor_ground) * share) + (GUI_BLUE_OF(palette->ground) * (255u - share)) + 127u) /
+            255u);
     cli_check(ground == laid, "the map stands on the editor's ground at its opacity");
-    cli_check((under_slider != ground) && (raster.pixels[(60u * 200u) + 150u] == ground), "the slider lies over the view's rows and no further");
+    cli_check((under_slider != ground) && (raster.pixels[(60u * 200u) + 150u] == ground),
+              "the slider lies over the view's rows and no further");
     cli_check(raster.pixels[(100u * 200u) + 100u] != ground, "a line runs along the map's left edge");
-    cli_check(painted(&raster, (GuiRect){104, 10 + (3 * 2), 3, 1}, under_slider), "the fourth line's first bar is drawn at its cell");
-    cli_check(!painted(&raster, (GuiRect){104, 10 + (4 * 2), 60, 1}, under_slider), "the fifth line, empty, is left as ground");
-    cli_check(painted(&raster, (GuiRect){106, 10 + (5 * 2), 1, 1}, under_slider), "the sixth line's bar is drawn at its cell");
-    cli_check(!painted(&raster, (GuiRect){104, 10 + (7 * 2), 60, 1}, under_slider), "a line the map does not hold is left as ground");
+    cli_check(painted(&raster, (GuiRect){104, 10 + (3 * 2), 3, 1}, under_slider),
+              "the fourth line's first bar is drawn at its cell");
+    cli_check(!painted(&raster, (GuiRect){104, 10 + (4 * 2), 60, 1}, under_slider),
+              "the fifth line, empty, is left as ground");
+    cli_check(painted(&raster, (GuiRect){106, 10 + (5 * 2), 1, 1}, under_slider),
+              "the sixth line's bar is drawn at its cell");
+    cli_check(!painted(&raster, (GuiRect){104, 10 + (7 * 2), 60, 1}, under_slider),
+              "a line the map does not hold is left as ground");
     const GuiColor strip_ground = raster.pixels[(150u * 200u) + 182u];
-    cli_check((strip_ground == ground) && (raster.pixels[(150u * 200u) + 176u] != ground), "the strip's line runs down the map's right");
+    cli_check((strip_ground == ground) && (raster.pixels[(150u * 200u) + 176u] != ground),
+              "the strip's line runs down the map's right");
     cli_check(raster.pixels[((10u + 80u) * 200u) + 182u] != strip_ground, "the caret's line is marked on the strip");
     const GuiColor fourth = raster.pixels[(16u * 200u) + 104u];
     cli_check(GUI_BLUE_OF(fourth) > GUI_RED_OF(fourth) + 0x20u, "the fourth line's first bar is the keyword's color");
@@ -113,14 +129,17 @@ int main(void)
     gui_editor_shaped(&editor, 1000ull);
     editor.top = 0ull;
     unsigned long long top = 0ull;
-    cli_check(!gui_minimap_pressed(&map, place, 1.0f, &editor, 20.0f, 50, 50, &top), "a press outside the map is not the map's");
+    cli_check(!gui_minimap_pressed(&map, place, 1.0f, &editor, 20.0f, 50, 50, &top),
+              "a press outside the map is not the map's");
     cli_check(gui_minimap_pressed(&map, place, 1.0f, &editor, 20.0f, 120, 10 + 100, &top) && (top == 40ull),
               "a press below the slider centers the row's line in the view");
     cli_check(map.dragging, "the press begins a drag");
-    cli_check(gui_minimap_dragged(&map, 10 + 100 + 80, &top) && (top > 40ull), "the pointer moved down moves the view down");
+    cli_check(gui_minimap_dragged(&map, 10 + 100 + 80, &top) && (top > 40ull),
+              "the pointer moved down moves the view down");
     gui_minimap_released(&map);
     cli_check(!map.dragging && !gui_minimap_dragged(&map, 0, &top), "the drag ends as the button is let go");
-    cli_check(gui_minimap_pressed(&map, place, 1.0f, &editor, 20.0f, 100 + 84 - 2, 10 + 100, &top) && (top == 490ull) && !map.dragging,
+    cli_check(gui_minimap_pressed(&map, place, 1.0f, &editor, 20.0f, 100 + 84 - 2, 10 + 100, &top) && (top == 490ull) &&
+                  !map.dragging,
               "a press on the strip goes to that part of the text, no drag begun");
     gui_minimap_cleared(&map);
     cli_check((map.count == 0u) && map.stale && !map.held, "the map cleared holds nothing, stale, its hold let go");

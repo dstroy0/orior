@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
 // cells.c: the cells every module stores its work in: one cellblock over one pool, a block taken from the system for
 // the bytes requested as a program starts and made anew for another request while no cell is allocated. Every take and
-// give goes through the cellblock's custodia, each one swap on an atomic word, and counts the cell to the owner named;
-// the cellblock lists each owner at its first take. The reports read the cellblock's peaks and its owner list off their
-// atomic words, and are written at a command's end
+// give goes through the cellblock's custodia, each one swap on an atomic word, and counts the cell to the owner named,
+// registered in MMgr's owner queue the first time a take, give or growth names it. MMgr's clock is the CLI's, and its
+// reports of a cell given back at the end of its lifetime and of a give naming the wrong owner are logged. The reports
+// read the cellblock's peaks and the owner queue off their atomic words, and are written at a command's end
 #include "cells.h"
 
 #include "cli_internal.h"
 
-_Static_assert(MMGR_ENABLE_OWNERS, "the command line lists every owner of a cell off the cellblock");
+#include <stdio.h>
 
 // The pool: MMgr's host site, one block taken from the system for the bytes requested, zero as the system hands it out,
 // the cellblock's record at its start; made anew for another request, the block before given back whole, while no cell
@@ -17,10 +18,154 @@ _Static_assert(MMGR_ENABLE_OWNERS, "the command line lists every owner of a cell
 // host block's bytes being zero from the start, and no room reads the bytes of the one that occupied its cell before it
 LocusCarcerumHospes(cli_cells_site, MMGR_MAXIMUM_SECURITY(cli_cells_pool));
 
-const MaximumSecurityGuard *const g_cli_cells = &cli_cells_site.cli_cells_pool;
-
 // the cellblock's record, as the site declares it
 #define CLI_CELLS_RECORD cli_cells_site_cli_cells_pool_ctx
+
+CellOwner g_cli_code_cells = MMGR_CELL_OWNER("cli_code");
+CellOwner g_cli_command_line_cells = MMGR_CELL_OWNER("cli_command_line");
+CellOwner g_cli_deploy_cells = MMGR_CELL_OWNER("cli_deploy");
+CellOwner g_cli_editor_cells = MMGR_CELL_OWNER("cli_editor");
+CellOwner g_cli_inspect_cells = MMGR_CELL_OWNER("cli_inspect");
+CellOwner g_cli_machine_cells = MMGR_CELL_OWNER("cli_machine");
+CellOwner g_cli_platform_cells = MMGR_CELL_OWNER("cli_platform");
+CellOwner g_cli_print_cells = MMGR_CELL_OWNER("cli_print");
+CellOwner g_cli_programs_cells = MMGR_CELL_OWNER("cli_programs");
+CellOwner g_cli_runs_cells = MMGR_CELL_OWNER("cli_runs");
+CellOwner g_cli_servers_cells = MMGR_CELL_OWNER("cli_servers");
+CellOwner g_cli_tests_cells = MMGR_CELL_OWNER("cli_tests");
+CellOwner g_cli_text_cells = MMGR_CELL_OWNER("cli_text");
+CellOwner g_cli_toolchains_cells = MMGR_CELL_OWNER("cli_toolchains");
+CellOwner g_cli_window_cells = MMGR_CELL_OWNER("cli_window");
+CellOwner g_cli_bundle_cells = MMGR_CELL_OWNER("cli_bundle");
+CellOwner g_cli_build_cells = MMGR_CELL_OWNER("cli_builds");
+CellOwner g_cli_comms_cells = MMGR_CELL_OWNER("cli_comms");
+CellOwner g_cli_db_cells = MMGR_CELL_OWNER("cli_databases");
+CellOwner g_cli_debug_cells = MMGR_CELL_OWNER("cli_debug");
+CellOwner g_cli_notebook_cells = MMGR_CELL_OWNER("cli_notebooks");
+CellOwner g_cli_plugins_cells = MMGR_CELL_OWNER("cli_plugins");
+CellOwner g_cli_requests_cells = MMGR_CELL_OWNER("cli_requests");
+CellOwner g_gui_cells = MMGR_CELL_OWNER("gui");
+CellOwner g_checks_cells = MMGR_CELL_OWNER("checks");
+
+// A line of the cells' log: written to the run this process is a member of as the record `cells/<kind>`, and to the
+// process's error stream, where the harness keeps the window's
+static void cells_logged(const char *kind, const VerbaLinea *line)
+{
+    cli_cells_reported(kind, line);
+    if (mmgr_line_ok(line))
+    {
+        (void)fprintf(stderr, "cells %s %.*s\n", kind, (int)line->at, line->out);
+    }
+}
+
+// An owner registered in MMgr's queue the first time a take, give or growth names it. Two threads naming it at once
+// both ask, and MMgr registers it once and refuses the second, whose owner then stands registered. A refusal that
+// leaves the owner unregistered, an owner of a name already registered or a queue past its room, is logged: every take
+// for that owner is refused
+static void cells_owner_ready(CellOwner *owner)
+{
+    if ((owner == NULL) || (embed_atomic_usize_load(&owner->place) != 0u) || mmgr_owner_register(owner) ||
+        (embed_atomic_usize_load(&owner->place) != 0u))
+    {
+        return;
+    }
+    char text[160];
+    VerbaLinea line = {text, sizeof(text), 0u, NULL, NULL, 0u};
+    mmgr_line_put(&line, (owner->name != NULL) ? owner->name : "(no name)");
+    mmgr_line_put(&line, " not registered: its name is registered already, or the queue holds ");
+    mmgr_line_decimal(&line, (unsigned long long)mmgr_owner_count(), 1u);
+    mmgr_line_put(&line, " owners");
+    cells_logged("refused", &line);
+}
+
+uint32_t mmgr_carcer_hw_clock_ms(void)
+{
+    // the clock read as MMgr reads it, a count of milliseconds that wraps at 2^32
+    return (uint32_t)cli_clock_milliseconds();
+}
+
+void mmgr_carcer_hw_expired(const CellOwner *owner, size_t bytes, uint32_t overdue_ms)
+{
+    char text[160];
+    VerbaLinea line = {text, sizeof(text), 0u, NULL, NULL, 0u};
+    mmgr_line_put(&line, owner->name);
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, (unsigned long long)bytes, 1u);
+    mmgr_line_put(&line, " bytes given back ");
+    mmgr_line_decimal(&line, (unsigned long long)overdue_ms, 1u);
+    mmgr_line_put(&line, " ms past their lifetime");
+    cells_logged("expired", &line);
+}
+
+void mmgr_carcer_hw_misnamed(const CellOwner *named, const CellOwner *cell_owner, size_t bytes)
+{
+    char text[200];
+    VerbaLinea line = {text, sizeof(text), 0u, NULL, NULL, 0u};
+    mmgr_line_put(&line, named->name);
+    mmgr_line_put(&line, " named for a cell of ");
+    mmgr_line_put(&line, (cell_owner != NULL) ? cell_owner->name : "no registered owner");
+    mmgr_line_ch(&line, ' ');
+    mmgr_line_decimal(&line, (unsigned long long)bytes, 1u);
+    mmgr_line_put(&line, " bytes: refused");
+    cells_logged("misnamed", &line);
+}
+
+// The shared cellblock's entries, each registering the owner it is handed before the site's own entry runs
+static void *cells_persistent_buf_alloc(size_t size, CellOwner *owner)
+{
+    cells_owner_ready(owner);
+    return cli_cells_site.cli_cells_pool.persistent_buf_alloc(size, owner);
+}
+
+static void cells_persistent_buf_release(void *prisoner, CellOwner *owner)
+{
+    cells_owner_ready(owner);
+    cli_cells_site.cli_cells_pool.persistent_buf_release(prisoner, owner);
+}
+
+static void *cells_temporary_buf_alloc(size_t size, CellOwner *owner, uint32_t lifetime_ms)
+{
+    cells_owner_ready(owner);
+    return cli_cells_site.cli_cells_pool.temporary_buf_alloc(size, owner, lifetime_ms);
+}
+
+static size_t cells_temporary_buf_mark(void)
+{
+    return cli_cells_site.cli_cells_pool.temporary_buf_mark();
+}
+
+static void cells_temporary_buf_release(size_t mark)
+{
+    cli_cells_site.cli_cells_pool.temporary_buf_release(mark);
+}
+
+static void cells_temporary_buf_reset(void)
+{
+    cli_cells_site.cli_cells_pool.temporary_buf_reset();
+}
+
+static embed_bool cells_who_owns_buf(const void *at)
+{
+    return cli_cells_site.cli_cells_pool.who_owns_buf(at);
+}
+
+static size_t cells_buf_available(void)
+{
+    return cli_cells_site.cli_cells_pool.buf_available();
+}
+
+static void *cells_buf_grow(void *prisoner, size_t size, CellOwner *owner)
+{
+    cells_owner_ready(owner);
+    return cli_cells_site.cli_cells_pool.buf_grow(prisoner, size, owner);
+}
+
+static const MaximumSecurityGuard s_cells_guard = {
+    cells_persistent_buf_alloc, cells_persistent_buf_release, cells_temporary_buf_alloc,
+    cells_temporary_buf_mark,   cells_temporary_buf_release,  cells_temporary_buf_reset,
+    cells_who_owns_buf,         cells_buf_available,          cells_buf_grow};
+
+const MaximumSecurityGuard *const g_cli_cells = &s_cells_guard;
 
 // a peak read off the cellblock's state, `member_` persistent_hw or temporary_hw, 0 where the build tracks none
 #if defined(MMGR_ENABLE_HW_MEM_CAPACITY_CB) && MMGR_ENABLE_HW_MEM_CAPACITY_CB
@@ -51,7 +196,10 @@ static unsigned long long cells_pool_bytes(void)
 static CarcerCellBlock *s_lane[CLI_CELLS_LANES];
 static _Thread_local unsigned int t_lane = CLI_CELLS_LANES;
 
-size_t cli_lane_entered(unsigned int lane)
+// each lane's lifetime for the cells taken on it, as its entry gave it, written by the lane's one context
+static uint32_t s_lane_lifetime_ms[CLI_CELLS_LANES];
+
+size_t cli_lane_entered(unsigned int lane, uint32_t lifetime_ms)
 {
     if ((lane >= CLI_CELLS_LANES) ||
         ((s_lane[lane] == NULL) && !mmgr_host_cellblock_made(&s_lane[lane], (size_t)CLI_CELLS_LANE_POOL)))
@@ -60,6 +208,7 @@ size_t cli_lane_entered(unsigned int lane)
         return 0u;
     }
     t_lane = lane;
+    s_lane_lifetime_ms[lane] = lifetime_ms;
     return mmgr_temporary_buf_mark(s_lane[lane]);
 }
 
@@ -84,28 +233,41 @@ void *cli_lane_alloc(size_t size, CellOwner *owner)
 {
     if (t_lane < CLI_CELLS_LANES)
     {
-        return mmgr_temporary_buf_alloc(s_lane[t_lane], size, owner);
+        cells_owner_ready(owner);
+        return mmgr_temporary_max_security_buf_alloc(s_lane[t_lane], size, owner, s_lane_lifetime_ms[t_lane]);
     }
     return g_cli_cells->persistent_buf_alloc(size, owner);
 }
 
-// the lane's cellblock whose bytes hold `cell`, NULL where none does
-static CarcerCellBlock *cells_lane_of(const void *cell)
+// the lane whose cellblock's bytes hold `cell`, CLI_CELLS_LANES where the shared cellblock's do or none does
+static unsigned int cells_lane_holding(const void *cell)
 {
+    if ((CLI_CELLS_RECORD != NULL) && mmgr_who_owns_buf(CLI_CELLS_RECORD, cell))
+    {
+        return CLI_CELLS_LANES;
+    }
     for (unsigned int at = 0u; at < CLI_CELLS_LANES; at += 1u)
     {
         if ((s_lane[at] != NULL) && mmgr_who_owns_buf(s_lane[at], cell))
         {
-            return s_lane[at];
+            return at;
         }
     }
-    return NULL;
+    return CLI_CELLS_LANES;
 }
 
-// the lane's cellblock holding `cell`, NULL where the shared cellblock or none does
-static CarcerCellBlock *cells_lane_holding(const void *cell)
+CellOwner *cli_cell_owner(const void *cell)
 {
-    return ((CLI_CELLS_RECORD != NULL) && mmgr_who_owns_buf(CLI_CELLS_RECORD, cell)) ? NULL : cells_lane_of(cell);
+    if (cell == NULL)
+    {
+        return NULL;
+    }
+    const unsigned int lane = cells_lane_holding(cell);
+    if (lane < CLI_CELLS_LANES)
+    {
+        return mmgr_owner_of_buf(s_lane[lane], cell);
+    }
+    return (CLI_CELLS_RECORD != NULL) ? mmgr_owner_of_buf(CLI_CELLS_RECORD, cell) : NULL;
 }
 
 void cli_cell_release(void *cell, CellOwner *owner)
@@ -114,10 +276,11 @@ void cli_cell_release(void *cell, CellOwner *owner)
     {
         return;
     }
-    CarcerCellBlock *const lane = cells_lane_holding(cell);
-    if (lane != NULL)
+    const unsigned int lane = cells_lane_holding(cell);
+    if (lane < CLI_CELLS_LANES)
     {
-        mmgr_persistent_max_security_buf_release(lane, cell, owner);
+        cells_owner_ready(owner);
+        mmgr_persistent_max_security_buf_release(s_lane[lane], cell, owner);
         return;
     }
     g_cli_cells->persistent_buf_release(cell, owner);
@@ -129,10 +292,11 @@ void *cli_cell_grown(void *cell, size_t size, CellOwner *owner)
     {
         return NULL;
     }
-    CarcerCellBlock *const lane = cells_lane_holding(cell);
-    if (lane != NULL)
+    const unsigned int lane = cells_lane_holding(cell);
+    if (lane < CLI_CELLS_LANES)
     {
-        return mmgr_max_security_buf_grow(lane, cell, size, owner);
+        cells_owner_ready(owner);
+        return mmgr_max_security_buf_grow(s_lane[lane], cell, size, owner);
     }
     return g_cli_cells->buf_grow(cell, size, owner);
 }
@@ -144,9 +308,10 @@ void *cli_cell_regrown(void *cell, size_t used, size_t size, CellOwner *owner)
     {
         return grown;
     }
-    CarcerCellBlock *const lane = (cell != NULL) ? cells_lane_holding(cell) : NULL;
-    void *const larger =
-        (lane != NULL) ? mmgr_temporary_buf_alloc(lane, size, owner) : g_cli_cells->persistent_buf_alloc(size, owner);
+    const unsigned int lane = (cell != NULL) ? cells_lane_holding(cell) : CLI_CELLS_LANES;
+    void *const larger = (lane < CLI_CELLS_LANES) ? mmgr_temporary_max_security_buf_alloc(s_lane[lane], size, owner,
+                                                                                          s_lane_lifetime_ms[lane])
+                                                  : g_cli_cells->persistent_buf_alloc(size, owner);
     if (larger == NULL)
     {
         return NULL;
@@ -174,23 +339,20 @@ static unsigned long long cells_lanes_peak(void)
     return peak;
 }
 
-// the owners on the cellblock's list copied into `owners`, sized for MMGR_CARCER_OWNERS: their count. An entry the
-// list counts and has not written yet is passed over
+// the owners in MMgr's owner queue copied into `owners`, sized for MMGR_CARCER_OWNERS: their count. An entry the queue
+// counts and has not written yet is passed over
 static unsigned int cells_owners_read(CliCellsOwnerRead *owners)
 {
-    if (CLI_CELLS_RECORD == NULL)
-    {
-        return 0u;
-    }
-    const size_t listed = mmgr_cellblock_owner_count(CLI_CELLS_RECORD);
+    const size_t listed = mmgr_owner_count();
     unsigned int count = 0u;
     for (size_t at = 0u; at < listed; at += 1u)
     {
-        const CellOwner *const owner = mmgr_cellblock_owner(CLI_CELLS_RECORD, at);
+        const CellOwner *const owner = mmgr_owner_at(at);
         if (owner != NULL)
         {
-            owners[count] = (CliCellsOwnerRead){owner->name, (unsigned long long)embed_atomic_usize_load(&owner->in_use),
-                                                (unsigned long long)embed_atomic_usize_load(&owner->hw)};
+            owners[count] =
+                (CliCellsOwnerRead){owner->name, (unsigned long long)embed_atomic_usize_load(&owner->in_use),
+                                    (unsigned long long)embed_atomic_usize_load(&owner->hw)};
             count += 1u;
         }
     }
@@ -227,8 +389,9 @@ int cli_cells_made(unsigned long long bytes)
 {
     // a program makes its pool before any thread takes a cell, and makes it anew only while no cell is allocated: the
     // idle test reads both tiers off one word, and nothing takes between the test and the making
-    const int idle = (CLI_CELLS_RECORD == NULL) || ((mmgr_cellblock_persistent_end(CLI_CELLS_RECORD) == 0u) &&
-                                                    (mmgr_cellblock_temporary_top(CLI_CELLS_RECORD) == CLI_CELLS_RECORD->size));
+    const int idle =
+        (CLI_CELLS_RECORD == NULL) || ((mmgr_cellblock_persistent_end(CLI_CELLS_RECORD) == 0u) &&
+                                       (mmgr_cellblock_temporary_top(CLI_CELLS_RECORD) == CLI_CELLS_RECORD->size));
     // the block's bytes are what the system can hand out at once, which a size_t counts
     return idle && mmgr_host_cellblock_made(&CLI_CELLS_RECORD, (size_t)bytes);
 }

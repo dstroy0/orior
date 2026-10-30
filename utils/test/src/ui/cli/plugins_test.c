@@ -199,7 +199,8 @@ static void plugins_creating(void)
     // answers read into a tree of their own size, starting from a plugin many times the room they take
     static const char s_from[] = "{\"name\": \"Snake\", \"extensions\": [\"snk\"], \"from\": \"python\"}";
     CliJson tight = {0};
-    const unsigned int answers = cli_json_taken(&tight, s_from, sizeof(s_from) - 1u, 0u, 0ull, &err_msg);
+    const unsigned int answers =
+        cli_json_taken(&tight, s_from, sizeof(s_from) - 1u, 0u, 0ull, &err_msg, &g_checks_cells);
     err_msg.at = 0ull;
     cli_check(cli_plugins_create_in(dir, &tight, answers, 0, folder, &err_msg),
               "a plugin starts from another larger than the answers' own tree contains");
@@ -313,7 +314,8 @@ static void plugins_tables(void)
                     "# the words of the check\nword\tkind\tarrow\nalpha\ttype\t->\nbeta\tplain\t-\ngamma-x\ttype\tx>\n"
                     "\tplain\t\n");
     static const char s_grammar[] =
-        "{\"types\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], \"rows\": {\"column\": \"kind\", \"match\": "
+        "{\"types\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], \"rows\": {\"column\": \"kind\", "
+        "\"match\": "
         "\"^type$\"}, \"match\": \"^[a-z]+\"}, \"others\": {\"table\": \"lng/words.tsv\", \"columns\": [\"word\"], "
         "\"rows\": {\"column\": \"kind\", \"skip\": \"^type$\"}}, \"arrows\": {\"table\": \"lng/{name}.tsv\", "
         "\"columns\": [\"arrow\"], \"skip\": \"^(?:[a-z]+|-)?$\"}, \"none\": {\"table\": \"lng/missing.tsv\", "
@@ -355,9 +357,9 @@ static void plugins_folders(void)
     query_folder_made(empty);
     cli_plugins_set_tree(tree);
     cli_plugins_languages(&s_languages);
-    cli_check(
-        cellul.eq(&(CatenaFinitaCfg){.src = plugins_of("x/one.alpha"), .other = "folders:alpha", .cap = CLI_CELLS_POOL}),
-        "a plugin stands for a folder holding its table, the folder's name its extension");
+    cli_check(cellul.eq(&(CatenaFinitaCfg){
+                  .src = plugins_of("x/one.alpha"), .other = "folders:alpha", .cap = CLI_CELLS_POOL}),
+              "a plugin stands for a folder holding its table, the folder's name its extension");
     cli_check((plugins_of("x/one.beta")[0] == '\0') && (plugins_of("x/one.gamma")[0] == '\0') &&
                   (plugins_of("x/one.delta")[0] == '\0'),
               "and for none whose rows `unless` matches, none `except` names and none holding no table");
@@ -366,7 +368,8 @@ static void plugins_folders(void)
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     const int stored = cli_plugins_grammar_stored("folders:alpha", key, &err_msg);
-    cli_check(stored && cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "plugin:folders:alpha", .cap = CLI_CELLS_POOL}),
+    cli_check(stored &&
+                  cellul.eq(&(CatenaFinitaCfg){.src = key, .other = "plugin:folders:alpha", .cap = CLI_CELLS_POOL}),
               "its language's grammar is stored under the plugin and the folder");
     const char *const lines[1] = {"go x"};
     VerbaLinea out = {s_out, sizeof(s_out), 0ull};
@@ -406,7 +409,8 @@ int main(void)
                   (s_languages.room <= (2u * s_languages.count) + CLI_LANGUAGE_PAIRS_FIRST),
               "the languages' keys are stored in a room that grew to them and no further than twice");
     cli_plugins_languages_given(&s_languages);
-    cli_check((embed_atomic_usize_load(&g_cli_plugins_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_plugins_cells.hw) != 0ull),
+    cli_check((embed_atomic_usize_load(&g_cli_plugins_cells.in_use) == 0ull) &&
+                  (embed_atomic_usize_load(&g_cli_plugins_cells.hw) != 0ull),
               "the plugins are read in cells each given back");
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = plugins_slug("Toy Lang"), .other = "toy-lang", .cap = CLI_CELLS_POOL}),

@@ -14,8 +14,8 @@ CliGathering g_cli_gather;
 static void gather_cells_given(void)
 {
     cli_json_given(&g_cli_gather.json);
-    cli_cell_release(g_cli_gather.flags_text.out, NULL);
-    cli_cell_release(g_cli_gather.fragment_text.out, NULL);
+    cli_cell_release(g_cli_gather.flags_text.out, &g_cli_build_cells);
+    cli_cell_release(g_cli_gather.fragment_text.out, &g_cli_build_cells);
     g_cli_gather.flags_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
 }
@@ -23,11 +23,11 @@ static void gather_cells_given(void)
 static int gather_cells_taken(void)
 {
     const int entries = cli_json_growing(&g_cli_gather.json, CLI_GATHER_NODES_FIRST, CLI_GATHER_TEXT_FIRST,
-                                         "the compile entries gathered");
+                                         "the compile entries gathered", &g_cli_build_cells);
     g_cli_gather.flags_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    const int flags = cli_growing_line_made(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST);
-    const int fragment = cli_growing_line_made(&g_cli_gather.fragment_text, CLI_GATHER_FLAGS_FIRST);
+    const int flags = cli_growing_line_made(&g_cli_gather.flags_text, CLI_GATHER_FLAGS_FIRST, &g_cli_build_cells);
+    const int fragment = cli_growing_line_made(&g_cli_gather.fragment_text, CLI_GATHER_FLAGS_FIRST, &g_cli_build_cells);
     const int taken = entries && flags && fragment;
     if (!taken)
     {
@@ -136,7 +136,7 @@ static void cli_project_put(const char *project, unsigned long long time, unsign
 static void cli_written(const char *path, unsigned int entries)
 {
     VerbaLinea out = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
-    if (!cli_growing_line_made(&out, CLI_GATHER_WRITTEN_FIRST))
+    if (!cli_growing_line_made(&out, CLI_GATHER_WRITTEN_FIRST, &g_cli_build_cells))
     {
         return;
     }
@@ -158,7 +158,7 @@ static void cli_written(const char *path, unsigned int entries)
             query_file_written(path, out.out, out.at);
         }
     }
-    cli_cell_release(out.out, NULL);
+    cli_cell_release(out.out, &g_cli_build_cells);
 }
 
 // the gathering itself, its cells taken: the database's compilers and folder

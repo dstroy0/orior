@@ -145,7 +145,7 @@ static void tests_event(void *context, const char *body, unsigned long long size
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    const unsigned int root = cli_json_taken(json, body, size, 0u, 0ull, &ignored);
+    const unsigned int root = cli_json_taken(json, body, size, 0u, 0ull, &ignored, &g_cli_command_line_cells);
     const char *const kind = cli_json_string(json, cli_json_member(json, root, "kind"), NULL);
     const char *const what = (kind != NULL) ? kind : "";
     if (cellul.eq(&(CatenaFinitaCfg){.src = what, .other = "result", .cap = CLI_CELLS_POOL}))
@@ -210,8 +210,10 @@ int cli_at_terminal_tests(const char *root, const char *const *given, unsigned i
     static CliLock s_running = CLI_LOCK_INIT;
     cli_lock_take(&s_running);
     cli_lock_take(&s_lock);
-    cli_pieces_begun(&s_failed.pieces, &s_failed.line, s_failed.piece, sizeof(s_failed.piece));
-    cli_pieces_begun(&s_covered.pieces, &s_covered.line, s_covered.piece, sizeof(s_covered.piece));
+    cli_pieces_begun(&s_failed.pieces, &s_failed.line, s_failed.piece, sizeof(s_failed.piece),
+                     &g_cli_command_line_cells);
+    cli_pieces_begun(&s_covered.pieces, &s_covered.line, s_covered.piece, sizeof(s_covered.piece),
+                     &g_cli_command_line_cells);
     s_failed.lines = 0ull;
     s_covered.lines = 0ull;
     s_counts_used = 0ull;
@@ -249,8 +251,10 @@ static unsigned int tests_tree_of(CliJson *json, CliPieces *pieces, VerbaLinea *
     char *const joined = cli_pieces_joined(pieces, line, what, &size);
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
-    const unsigned int root = (joined != NULL) ? cli_json_taken(json, joined, size, 0u, 0ull, &ignored) : CLI_JSON_NONE;
-    cli_cell_release(joined, NULL);
+    const unsigned int root = (joined != NULL)
+                                  ? cli_json_taken(json, joined, size, 0u, 0ull, &ignored, &g_cli_command_line_cells)
+                                  : CLI_JSON_NONE;
+    cli_cell_release(joined, &g_cli_command_line_cells);
     return root;
 }
 
@@ -268,14 +272,14 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
     char piece[CLI_AT_TERMINAL_PIECE];
     CliPieces pieces;
     VerbaLinea differences;
-    cli_pieces_begun(&pieces, &differences, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &differences, piece, sizeof(piece), &g_cli_command_line_cells);
     cli_carry_differences(home, &s_there, &differences);
     CliJson tree;
     CliJson *const json = &tree;
     const unsigned int all = tests_tree_of(json, &pieces, &differences, "the differences of what is carried");
-    // a place and a key are each a node of the differences, so as many as their nodes, and settings.json, contain them
+    // a place and a key are each a node of the differences: as many as their nodes, and settings.json, contain them
     const unsigned int room = ((json->nodes + 1u) < CLI_AT_TERMINAL_TAKEN) ? (json->nodes + 1u) : CLI_AT_TERMINAL_TAKEN;
-    const char **const chosen_places = cli_lane_alloc(2ull * room * sizeof(const char *), NULL);
+    const char **const chosen_places = cli_lane_alloc(2ull * room * sizeof(const char *), &g_cli_command_line_cells);
     if (chosen_places == NULL)
     {
         cli_json_given(json);
@@ -336,7 +340,7 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
     else
     {
         VerbaLinea taking;
-        cli_pieces_begun(&pieces, &taking, piece, sizeof(piece));
+        cli_pieces_begun(&pieces, &taking, piece, sizeof(piece), &g_cli_command_line_cells);
         done = cli_carry_take(home, from, &s_there, chosen_places, places, chosen_keys, keys, &taking, err_msg);
         CliJson took_tree;
         const unsigned int took = tests_tree_of(&took_tree, &pieces, &taking, "a taking");
@@ -357,7 +361,7 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
         }
         cli_json_given(&took_tree);
     }
-    cli_cell_release(chosen_places, NULL);
+    cli_cell_release(chosen_places, &g_cli_command_line_cells);
     cli_json_given(json);
     cli_lock_give(&s_take_lock);
     return done;
@@ -368,7 +372,7 @@ int cli_at_terminal_undo(const char *home, const char *id, VerbaLinea *out, Verb
     char piece[CLI_AT_TERMINAL_PIECE];
     CliPieces pieces;
     VerbaLinea taking;
-    cli_pieces_begun(&pieces, &taking, piece, sizeof(piece));
+    cli_pieces_begun(&pieces, &taking, piece, sizeof(piece), &g_cli_command_line_cells);
     const int done = cli_carry_undo(home, id, &taking, err_msg);
     CliJson tree;
     const unsigned int took = tests_tree_of(&tree, &pieces, &taking, "a taking undone");
