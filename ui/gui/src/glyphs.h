@@ -19,6 +19,13 @@
 #define GUI_FACES 6u
 // the glyphs kept drawn at once; past three quarters of them every one is let go and drawn again as it is asked for
 #define GUI_GLYPH_SLOTS 4096u
+// the stem darkening: how far a stroke's side is pushed out, most at the small sizes and least at the large, in pixels;
+// and the gamma the coverage is lifted through as a glyph is laid for the blend
+#define GUI_DARKEN_MOST 0.2f
+#define GUI_DARKEN_LEAST 0.06f
+#define GUI_DARKEN_SMALL 12u
+#define GUI_DARKEN_LARGE 32u
+#define GUI_TEXT_GAMMA 1.6f
 
 // A cache entry: whether it is in use, its key (the face, the glyph and the pixel size), the glyph's advance in
 // pixels, and the coverage mask, allocated in a cell of its own, NULL where the glyph has no pixels

@@ -196,6 +196,92 @@ static GuiCachedGlyph *glyphs_slot(GuiGlyphs *glyphs, unsigned int face, unsigne
     return &glyphs->slot[at];
 }
 
+// the stem darkening at `size` pixels an em: how far each side of a stroke is pushed out, in pixels, GUI_DARKEN_MOST
+// at GUI_DARKEN_SMALL pixels and below, falling straight to GUI_DARKEN_LEAST at GUI_DARKEN_LARGE and above, as a
+// small glyph's thin stems need the most to read at full weight
+static float glyphs_darkening(unsigned int size)
+{
+    if (size <= GUI_DARKEN_SMALL)
+    {
+        return GUI_DARKEN_MOST;
+    }
+    if (size >= GUI_DARKEN_LARGE)
+    {
+        return GUI_DARKEN_LEAST;
+    }
+    const float along = (float)(size - GUI_DARKEN_SMALL) / (float)(GUI_DARKEN_LARGE - GUI_DARKEN_SMALL);
+    return GUI_DARKEN_MOST + ((GUI_DARKEN_LEAST - GUI_DARKEN_MOST) * along);
+}
+
+// to the side away from the ink, the ink lying to the right of a contour's travel as TrueType winds it with y up: an
+// outer contour grows and a counter shrinks, both widening the stroke; the miter kept to twice the reach at a sharp
+// an outer contour grows and a counter shrinks, both widening the stroke; the miter held to twice the reach at a sharp
+// turn
+static void glyphs_darkened(CliContours *contours, float reach)
+{
+    unsigned int first = 0u;
+    for (unsigned int contour = 0u; contour < contours->contours; contour += 1u)
+    {
+        const unsigned int end = contours->end[contour];
+        const unsigned int count = (end > first) ? end - first : 0u;
+        if (count < 3u)
+        {
+            first = end;
+            continue;
+        }
+        float moved_x[CLI_OUTLINE_POINTS];
+        float moved_y[CLI_OUTLINE_POINTS];
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            const unsigned int here = first + at;
+            const unsigned int before = first + ((at + count - 1u) % count);
+            const unsigned int after = first + ((at + 1u) % count);
+            float in_x = contours->x[here] - contours->x[before];
+            float in_y = contours->y[here] - contours->y[before];
+            float out_x = contours->x[after] - contours->x[here];
+            float out_y = contours->y[after] - contours->y[here];
+            const float in_length = sqrtf((in_x * in_x) + (in_y * in_y));
+            const float out_length = sqrtf((out_x * out_x) + (out_y * out_y));
+            in_x = (in_length > 0.0f) ? in_x / in_length : 0.0f;
+            in_y = (in_length > 0.0f) ? in_y / in_length : 0.0f;
+            out_x = (out_length > 0.0f) ? out_x / out_length : 0.0f;
+            out_y = (out_length > 0.0f) ? out_y / out_length : 0.0f;
+            // each edge's normal to the left of its travel, away from the ink, and their miter
+            const float normal_x = -(in_y + out_y);
+            const float normal_y = in_x + out_x;
+            const float dot = 1.0f + (in_x * out_x) + (in_y * out_y);
+            const float scale = (dot > 0.5f) ? (2.0f * reach) / dot : 4.0f * reach;
+            moved_x[at] = contours->x[here] + (normal_x * scale * 0.5f);
+            moved_y[at] = contours->y[here] + (normal_y * scale * 0.5f);
+        }
+        for (unsigned int at = 0u; at < count; at += 1u)
+        {
+            contours->x[first + at] = moved_x[at];
+            contours->y[first + at] = moved_y[at];
+        }
+        first = end;
+    }
+}
+
+// the coverage lifted through the blend's gamma: each share of 255 raised to one over GUI_TEXT_GAMMA, made once,
+// which brings a stroke's partly covered edge pixels up toward its whole ones and reads crisper and bolder
+static unsigned char s_lifted[256];
+static int s_lifted_made;
+
+static unsigned int glyphs_lifted(unsigned int cover)
+{
+    if (!s_lifted_made)
+    {
+        for (unsigned int at = 0u; at < 256u; at += 1u)
+        {
+            // a share from 0 to 1 raised and scaled to 255, rounded, is a byte
+            s_lifted[at] = (unsigned char)((powf((float)at / 255.0f, 1.0f / GUI_TEXT_GAMMA) * 255.0f) + 0.5f);
+        }
+        s_lifted_made = 1;
+    }
+    return s_lifted[cover & 0xffu];
+}
+
 // the outline in the glyphs' contours drawn as coverage bytes into `mask`, its cover a cell of its own: 1, or 0 where
 // a cell could not be taken; a glyph of no pixels is a mask of none
 static int glyphs_rasterized(const GuiGlyphs *glyphs, GuiMask *mask)
@@ -253,6 +339,7 @@ const GuiMask *gui_glyph(GuiGlyphs *glyphs, unsigned int face, unsigned int lett
     glyphs->contours->contours = 0u;
     const float matrix[6] = {scale, 0.0f, 0.0f, scale, 0.0f, 0.0f};
     cli_font_outline(font, glyph, matrix, 0u, glyphs->contours);
+    glyphs_darkened(glyphs->contours, glyphs_darkening(size));
     if (!glyphs_rasterized(glyphs, &slot->mask))
     {
         return NULL;
@@ -355,7 +442,7 @@ const GuiGlyphCell *gui_glyph_cell(GuiGlyphs *glyphs, unsigned int face, unsigne
         const unsigned int alpha = GUI_ALPHA_OF(color);
         for (unsigned long long at = 0ull; at < pixels; at += 1ull)
         {
-            const unsigned int share = ((mask->cover[at] * alpha) + 127u) / 255u;
+            const unsigned int share = ((glyphs_lifted(mask->cover[at]) * alpha) + 127u) / 255u;
             cell->red_blue[at] = ((color & 0x00ff00ffu) * share) + 0x00800080u;
             cell->green[at] = (((color >> 8u) & 0xffu) * share) + 0x80u;
             cell->rest[at] = 255u - share;
