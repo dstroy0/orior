@@ -77,7 +77,7 @@ static int cli_committing_taken(const char *message, unsigned int count, VerbaLi
 // the commit's room given back
 static void cli_committing_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_committing.own_parts, &g_cli_git_cells);
+    cli_cell_release(s_committing.own_parts, &g_cli_git_cells);
     s_committing = (CliCommitting){0};
 }
 
@@ -156,7 +156,7 @@ static int cli_commit_in(const char *folder, const char *const *paths, unsigned 
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    g_cli_cells->persistent_buf_release(ran.out, NULL);
+    cli_cell_release(ran.out, NULL);
     return made;
 }
 
@@ -279,7 +279,7 @@ static int cli_commit_parts_in(const char *folder, const char *const *whole, uns
     {
         cli_git_commit_line(ran.out, ran.at, out);
     }
-    g_cli_cells->persistent_buf_release(ran.out, NULL);
+    cli_cell_release(ran.out, NULL);
     return made;
 }
 

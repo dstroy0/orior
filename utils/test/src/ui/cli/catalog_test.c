@@ -151,6 +151,7 @@ static void catalog_tree(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char names[8][CLI_NAME_MAX_LEN];
     const unsigned int count =
         cli_catalog_case_names("case \"$SIM\" in\n    a|b_c|d) ;;\n    *) exit 2 ;;\nesac\n", "SIM", names, 8u);

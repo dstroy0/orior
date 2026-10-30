@@ -46,6 +46,7 @@ static int pdf_read(const char *layout_text, const CliPrintListing **listing, Cl
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static CliPrintLayout s_layout;
     const CliPrintListing *listing = NULL;
     cli_print_take();

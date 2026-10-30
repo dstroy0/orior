@@ -309,7 +309,7 @@ static int http_written(HttpConnection *connection, const char *host, VerbaLinea
         mmgr_line_put(err_msg, ": the request could not be sent");
         written = 0;
     }
-    g_cli_cells->persistent_buf_release(head.out, NULL);
+    cli_cell_release(head.out, NULL);
     return written;
 }
 

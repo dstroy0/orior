@@ -434,7 +434,7 @@ int cli_debug_memory(unsigned long long id, const char *reference, long long off
         mmgr_line_put(out, (at > 0ull) ? "," : "");
         mmgr_line_decimal(out, decoded[at], 1u);
     }
-    g_cli_cells->persistent_buf_release(decoded, NULL);
+    cli_cell_release(decoded, NULL);
     mmgr_line_put(out, "],\"unreadable\":");
     mmgr_line_decimal(out, unreadable, 1u);
     mmgr_line_ch(out, '}');

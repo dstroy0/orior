@@ -22,6 +22,7 @@ static void envs_written(const char *name, const char *text)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check_folder("envs", s_root);
     envs_written(".venv/pyvenv.cfg", "home = x\n");
     envs_written(".venv/Lib/site-packages/pyvenv.cfg", "not searched\n");

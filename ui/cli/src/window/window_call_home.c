@@ -39,7 +39,7 @@ static int home_line_begun(VerbaLinea *line, VerbaLinea *err_msg)
 }
 
 // the strings of the argument `key` into a cell of their count, `*items`, given back with
-// g_cli_cells->persistent_buf_release(&s_cells,
+// cli_cell_release(&s_cells,
 // ...) either way, their count into `count`: 1, or 0 with why given
 static int home_strings(const CliServeArgs *args, const char *key, const char ***items, unsigned int *count,
                         VerbaLinea *err_msg)
@@ -97,7 +97,7 @@ static int home_state_write(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     mmgr_line_ch(&state_line, '}');
     const int done = mmgr_line_ok(&state_line) && cli_state_save(folder, state_line.out, state_line.at, err_msg);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(state_line.out, NULL);
+    cli_cell_release(state_line.out, NULL);
     return done;
 }
 
@@ -117,7 +117,7 @@ static unsigned int home_state_tree(CliJson *json)
     const unsigned int tree = (cli_state_read(folder, &state_line) && mmgr_line_ok(&state_line))
                                   ? cli_json_taken(json, state_line.out, state_line.at, 0u, 0ull, &ignored)
                                   : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(state_line.out, NULL);
+    cli_cell_release(state_line.out, NULL);
     return cli_json_is(json, tree, CFG_JSON_OBJECT) ? tree : CLI_JSON_NONE;
 }
 
@@ -187,7 +187,7 @@ const char *cli_window_kept_script(unsigned long long *size)
 
 void cli_window_kept_script_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_kept_script.out, NULL);
+    cli_cell_release(s_kept_script.out, NULL);
     s_kept_script = (VerbaLinea){NULL, 0ull, 0ull};
 }
 
@@ -212,7 +212,7 @@ static int home_state_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     const char **keys = NULL;
     if (!home_strings(args, "keys", &keys, &count, err_msg))
     {
-        g_cli_cells->persistent_buf_release(keys, &s_cells);
+        cli_cell_release(keys, &s_cells);
         return 0;
     }
     CliJson json;
@@ -251,7 +251,7 @@ static int home_state_now(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
     mmgr_line_put(out, "]}");
     cli_json_given(&json);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(keys, &s_cells);
+    cli_cell_release(keys, &s_cells);
     return 1;
 }
 
@@ -267,7 +267,7 @@ static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, Verba
     CliHomeSettings *const settings = g_cli_cells->persistent_buf_alloc(sizeof(*settings), &s_cells);
     if (settings == NULL)
     {
-        g_cli_cells->persistent_buf_release(tree.out, NULL);
+        cli_cell_release(tree.out, NULL);
         mmgr_line_put(err_msg, "the settings' chains and layers could not be given a cell");
         return 0;
     }
@@ -284,8 +284,8 @@ static int home_settings_layers(const CliServeArgs *args, VerbaLinea *out, Verba
     }
     cli_settings_chain_given(&settings->tree);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(settings, &s_cells);
-    g_cli_cells->persistent_buf_release(tree.out, NULL);
+    cli_cell_release(settings, &s_cells);
+    cli_cell_release(tree.out, NULL);
     return read;
 }
 
@@ -318,7 +318,7 @@ static int home_carry_send(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     {
         cli_window_counted(out, done.out, mmgr_line_ok(&done) ? done.at : 0ull);
     }
-    g_cli_cells->persistent_buf_release(done.out, NULL);
+    cli_cell_release(done.out, NULL);
     return sent;
 }
 
@@ -350,7 +350,7 @@ static int home_carry_read(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     }
     cli_carried_clear(carried);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(carried, &s_cells);
+    cli_cell_release(carried, &s_cells);
     return read;
 }
 
@@ -375,9 +375,9 @@ static int home_carry_take(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
         {
             mmgr_line_put(err_msg, "the files a carry contains could not be given a cell");
         }
-        g_cli_cells->persistent_buf_release(key_of, &s_cells);
-        g_cli_cells->persistent_buf_release(place_of, &s_cells);
-        g_cli_cells->persistent_buf_release(carried, &s_cells);
+        cli_cell_release(key_of, &s_cells);
+        cli_cell_release(place_of, &s_cells);
+        cli_cell_release(carried, &s_cells);
         return 0;
     }
     carried->count = 0u;
@@ -397,9 +397,9 @@ static int home_carry_take(const CliServeArgs *args, VerbaLinea *out, VerbaLinea
     const int taken = cli_carry_take(home, from, carried, place_of, places, key_of, keys, out, err_msg);
     cli_carried_clear(carried);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(key_of, &s_cells);
-    g_cli_cells->persistent_buf_release(place_of, &s_cells);
-    g_cli_cells->persistent_buf_release(carried, &s_cells);
+    cli_cell_release(key_of, &s_cells);
+    cli_cell_release(place_of, &s_cells);
+    cli_cell_release(carried, &s_cells);
     return taken;
 }
 
@@ -506,7 +506,7 @@ static int home_plugin_settings_write(const CliServeArgs *args, VerbaLinea *out,
     mmgr_line_ch(&text, '\n');
     const int written = mmgr_line_ok(&text) && query_file_written(path, text.out, text.at);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(text.out, NULL);
+    cli_cell_release(text.out, NULL);
     if (!written)
     {
         mmgr_line_put(err_msg, path);

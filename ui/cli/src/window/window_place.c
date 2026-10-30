@@ -177,7 +177,7 @@ static int place_written(const char *key, const char *path, const CliWindowPlace
         cli_json_sorted(&json, places);
         cli_json_write(&json, places, &out, 2u, 0);
         written = mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
-        g_cli_cells->persistent_buf_release(out.out, NULL);
+        cli_cell_release(out.out, NULL);
     }
     cli_json_given(&json);
     if (!written)

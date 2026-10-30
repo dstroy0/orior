@@ -41,20 +41,20 @@ void *cli_compile_room(void *list, unsigned int count, unsigned int *room, unsig
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    g_cli_cells->persistent_buf_release(list, &g_cli_compile_cells);
+    cli_cell_release(list, &g_cli_compile_cells);
     *room = grown;
     return larger;
 }
 
 void cli_compile_inputs_given(CliInputs *inputs)
 {
-    g_cli_cells->persistent_buf_release(inputs->file, &g_cli_compile_cells);
+    cli_cell_release(inputs->file, &g_cli_compile_cells);
     *inputs = (CliInputs){0, NULL, 0u, 0u};
 }
 
 void cli_compile_found_given(CliFoundFolders *found)
 {
-    g_cli_cells->persistent_buf_release(found->path, &g_cli_compile_cells);
+    cli_cell_release(found->path, &g_cli_compile_cells);
     *found = (CliFoundFolders){NULL, 0u, 0u};
 }
 
@@ -123,7 +123,7 @@ static void cli_walked_below(const char *top, int (*each)(void *context, const c
         below.folder_depth = depth;
         query_folder_each(folder, cli_below_each, &below);
     }
-    g_cli_cells->persistent_buf_release(below.pending, &g_cli_compile_cells);
+    cli_cell_release(below.pending, &g_cli_compile_cells);
 }
 
 // A search for folders ending in a tail, or for files of a name
@@ -326,7 +326,7 @@ unsigned int cli_compile_json_read(CliJson *json, const char *path)
         VerbaLinea unread = {why, sizeof(why), 0ull};
         root = cli_json_read(json, (const char *)bytes, size, tokens, tokens_most, &unread);
     }
-    g_cli_cells->persistent_buf_release(tokens, NULL);
+    cli_cell_release(tokens, NULL);
     cli_file_let_go(bytes, size);
     return root;
 }

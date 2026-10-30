@@ -108,7 +108,7 @@ static void cli_each_locked(void (*each)(void *context, const CliPlugin *plugin)
         each(context, &plugin);
         cli_file_let_go(bytes, size);
     }
-    g_cli_cells->persistent_buf_release(user.name, &g_cli_plugins_cells);
+    cli_cell_release(user.name, &g_cli_plugins_cells);
 }
 
 void cli_plugins_each(void (*each)(void *context, const CliPlugin *plugin), void *context)
@@ -149,7 +149,7 @@ static void cli_mapped(CliLanguages *languages, const char *key, unsigned long l
             return;
         }
         memor.cpy(&(MemoriaCfg){.dst = pair, .src = languages->pair, .bytes = languages->count * sizeof(*pair)});
-        g_cli_cells->persistent_buf_release(languages->pair, &g_cli_plugins_cells);
+        cli_cell_release(languages->pair, &g_cli_plugins_cells);
         languages->pair = pair;
         languages->room = room;
     }
@@ -305,7 +305,7 @@ void cli_plugins_languages(CliLanguages *languages)
 
 void cli_plugins_languages_given(CliLanguages *languages)
 {
-    g_cli_cells->persistent_buf_release(languages->pair, &g_cli_plugins_cells);
+    cli_cell_release(languages->pair, &g_cli_plugins_cells);
     *languages = (CliLanguages){NULL, 0u, 0u};
 }
 
@@ -376,8 +376,8 @@ int cli_plugins_language_for(const CliLanguages *languages, const char *path, ch
             }
         }
     }
-    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
-    g_cli_cells->persistent_buf_release(slashed, &g_cli_plugins_cells);
+    cli_cell_release(room, &g_cli_plugins_cells);
+    cli_cell_release(slashed, &g_cli_plugins_cells);
     if (matched)
     {
         return 1;
@@ -428,7 +428,7 @@ static void plugins_code_each(void *context, const CliPlugin *plugin)
     memor.cpy(&(MemoriaCfg){.dst = code->folder,
                             .src = folder,
                             .bytes = cellul.len(&(CatenaFinitaCfg){.src = folder, .cap = CLI_CELLS_POOL}) + 1u});
-    g_cli_cells->persistent_buf_release(code->text, NULL);
+    cli_cell_release(code->text, NULL);
     code->text = g_cli_cells->persistent_buf_alloc(plugin->size + 1ull, NULL);
     code->size = (code->text != NULL) ? plugin->size : 0ull;
     if (code->text != NULL)
@@ -480,7 +480,7 @@ int cli_plugins_code_of(const char *id, VerbaLinea *out, VerbaLinea *err_msg)
         mmgr_line_put(err_msg, id);
         mmgr_line_put(err_msg, code.user ? ": its plugin.json does not read" : " comes with orior and runs no code");
     }
-    g_cli_cells->persistent_buf_release(code.text, NULL);
+    cli_cell_release(code.text, NULL);
     return done;
 }
 void cli_plugins_slug(const char *name, char *id)

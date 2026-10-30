@@ -78,6 +78,7 @@ static void trust_answers(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check(cli_trust_names_a_hook("[core]\n\tfsmonitor = .git/hooks/watch\n"), "a hook is a program");
     cli_check(!cli_trust_names_a_hook("[core]\n\tfsmonitor = true\n"), "and not git's own monitor");
     cli_check(!cli_trust_names_a_hook("[remote \"origin\"]\n\tfsmonitor = run\n"), "nor a key of another section");

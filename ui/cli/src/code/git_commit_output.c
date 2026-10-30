@@ -54,5 +54,5 @@ void cli_git_failed_after(const VerbaLinea *out, unsigned long long from, const 
     cli_git_trimmed(&start, &stop);
     // the trimmed text's length, a difference of two places in it, `stop` never before `start`
     mmgr_line_put_n(err_msg, start, (unsigned long long)(stop - start));
-    g_cli_cells->persistent_buf_release(joined.out, NULL);
+    cli_cell_release(joined.out, NULL);
 }

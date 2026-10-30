@@ -344,7 +344,7 @@ int cli_sea_build(const char *node, const char *main, const char *output, int mo
     cli_file_let_go(mapped, script_size);
     cli_lock_take(&s_lock);
     const unsigned int wanted = cli_sea_outside(script, s_wanted, CLI_SEA_WANTED);
-    g_cli_cells->persistent_buf_release(script, &g_cli_sea_cells);
+    cli_cell_release(script, &g_cli_sea_cells);
     if (wanted != 0u)
     {
         mmgr_line_put(err_msg, main);

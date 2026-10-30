@@ -84,7 +84,7 @@ static void complete_names(const char *text, unsigned long long size, const char
                                about_text, about.at);
         }
     }
-    g_cli_cells->persistent_buf_release(about_text, &g_cli_versions_cells);
+    cli_cell_release(about_text, &g_cli_versions_cells);
     cli_versions_released();
     cli_lock_give(&g_cli_versions_lock);
 }

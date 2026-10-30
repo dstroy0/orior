@@ -60,6 +60,7 @@ static void shape_replaced(const char *language, const char *src, const char *pa
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     s_languages = cli_symbols_languages_read();
     static const char s_calls[] = "x = len( items ) + len(other(1, 2))\nprint(len(z))\n";
     const unsigned int count = shape_search("python", s_calls, "len($a$)", NULL);

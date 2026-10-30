@@ -36,7 +36,7 @@ static void editor_server_told(const char *key)
         char why[CLI_ERR_MSG_MAX_LEN];
         VerbaLinea ignored = {why, sizeof(why), 0ull};
         (void)cli_servers_change(full, text, size, &ignored);
-        g_cli_cells->persistent_buf_release(text, NULL);
+        cli_cell_release(text, NULL);
     }
 }
 
@@ -153,7 +153,7 @@ static int editor_view_serve(const CliServeArgs *args, VerbaLinea *out, VerbaLin
         const CliServersSink sink = cli_serve_emitter(root);
         served = cli_servers_open(root, full, id, text, size, &sink, &said, &refused) && mmgr_line_ok(&said) &&
                  (said.at == 4ull) && (memor.cmp(&(MemoriaCfg){.src = said.out, .other = "true", .bytes = 4u}) == 0);
-        g_cli_cells->persistent_buf_release(text, NULL);
+        cli_cell_release(text, NULL);
     }
     if (served)
     {
@@ -258,13 +258,13 @@ static int editor_view_hover(const CliServeArgs *args, VerbaLinea *out, VerbaLin
                 cli_json_quoted(out, part.out, part.at);
                 parts += 1u;
             }
-            g_cli_cells->persistent_buf_release(part.out, NULL);
+            cli_cell_release(part.out, NULL);
         }
         if (root != CLI_JSON_NONE)
         {
             cli_json_given(&json);
         }
-        g_cli_cells->persistent_buf_release(found.out, NULL);
+        cli_cell_release(found.out, NULL);
     }
     // the server's hover, a Markdown string, where the view is served and the server is asked
     char full[CLI_PATH_MAX_LEN];
@@ -279,7 +279,7 @@ static int editor_view_hover(const CliServeArgs *args, VerbaLinea *out, VerbaLin
             mmgr_line_put_n(out, said.out, said.at);
             parts += 1u;
         }
-        g_cli_cells->persistent_buf_release(said.out, NULL);
+        cli_cell_release(said.out, NULL);
     }
     mmgr_line_put(out, "]}");
     return 1;
@@ -325,7 +325,7 @@ static int editor_view_complete(const CliServeArgs *args, VerbaLinea *out, Verba
             mmgr_line_put_n(out, said.out, said.at);
             answered = 1;
         }
-        g_cli_cells->persistent_buf_release(said.out, NULL);
+        cli_cell_release(said.out, NULL);
     }
     mmgr_line_put(out, answered ? ",\"words\":" : "[],\"words\":");
     (void)cli_view_words_written(key, out);
@@ -362,7 +362,7 @@ static int editor_view_signature(const CliServeArgs *args, VerbaLinea *out, Verb
             mmgr_line_put_n(out, own.out, own.at);
             answered = 1;
         }
-        g_cli_cells->persistent_buf_release(own.out, NULL);
+        cli_cell_release(own.out, NULL);
     }
     mmgr_line_put(out, answered ? ",\"server\":" : "null,\"server\":");
     char full[CLI_PATH_MAX_LEN];
@@ -377,7 +377,7 @@ static int editor_view_signature(const CliServeArgs *args, VerbaLinea *out, Verb
             mmgr_line_put_n(out, said.out, said.at);
             answered = 1;
         }
-        g_cli_cells->persistent_buf_release(said.out, NULL);
+        cli_cell_release(said.out, NULL);
     }
     mmgr_line_put(out, answered ? "}" : "null}");
     return 1;

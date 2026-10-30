@@ -23,7 +23,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 static void find_released(CliJson *manifest)
 {
     cli_json_given(manifest);
-    g_cli_cells->persistent_buf_release(s_folders, NULL);
+    cli_cell_release(s_folders, NULL);
     s_folders = NULL;
     cli_lock_give(&s_lock);
 }
@@ -227,7 +227,7 @@ int cli_debug_build_program(const CliProgram *made, char *program, VerbaLinea *e
             mmgr_line_put(err_msg, ":\n");
             find_tail(both, ran->out_size + ran->err_size, CLI_DEBUG_TAIL, err_msg);
         }
-        g_cli_cells->persistent_buf_release(both, NULL);
+        cli_cell_release(both, NULL);
         cli_ran_given(ran);
         return 0;
     }

@@ -39,7 +39,7 @@ static void search_hit_written(const CliJson *hits, unsigned int hit)
     cli_text_trimmed((text != NULL) ? text : "", (text != NULL) ? length : 0ull, &from, &to);
     mmgr_line_put_n(&line, (text != NULL) ? text + from : "", to - from);
     cli_out_line(line.out, mmgr_line_ok(&line) ? line.at : 0ull);
-    g_cli_cells->persistent_buf_release(line.out, NULL);
+    cli_cell_release(line.out, NULL);
 }
 
 int cli_console_search(const char *named, const char *const *words, unsigned int count)
@@ -82,7 +82,7 @@ int cli_console_search(const char *named, const char *const *words, unsigned int
     }
     if (!cli_files_search(s_root, s_query, how, &s_none, &found, &err_msg))
     {
-        g_cli_cells->persistent_buf_release(found.out, NULL);
+        cli_cell_release(found.out, NULL);
         cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
         return CLI_WRONG;
     }
@@ -91,7 +91,7 @@ int cli_console_search(const char *named, const char *const *words, unsigned int
     err_msg.at = 0ull;
     const unsigned int list =
         cli_json_taken(&hits, found.out, mmgr_line_ok(&found) ? found.at : 0ull, 0u, 0ull, &err_msg);
-    g_cli_cells->persistent_buf_release(found.out, NULL);
+    cli_cell_release(found.out, NULL);
     const int any = cli_json_is(&hits, list, CFG_JSON_ARRAY) && (hits.node[list].count != 0u);
     for (unsigned int hit = any ? hits.node[list].first : CLI_JSON_NONE; hit != CLI_JSON_NONE;
          hit = hits.node[hit].next)

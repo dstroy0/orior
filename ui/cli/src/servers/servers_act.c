@@ -119,7 +119,7 @@ static int actions_command(CliLsp *server, const char *plugin, const CliJson *js
     const int done =
         (params_json != NULL) && (passed || cli_lsp_requested(server, "workspace/executeCommand", params_json, length,
                                                               CLI_SERVERS_SEARCHING, &result, err_msg));
-    g_cli_cells->persistent_buf_release(params_json, NULL);
+    cli_cell_release(params_json, NULL);
     return done;
 }
 
@@ -195,7 +195,7 @@ static int actions_plugin_by(const char *tree, const CliJson *json, unsigned int
     cli_json_write(json, action, &text, 0u, 0);
     const int done =
         mmgr_line_ok(&text) && actions_by(server, plugin, tree, json, action, text.out, text.at, out, err_msg);
-    g_cli_cells->persistent_buf_release(text.out, NULL);
+    cli_cell_release(text.out, NULL);
     cli_lsp_unref(server);
     return done;
 }

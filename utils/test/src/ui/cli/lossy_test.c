@@ -20,6 +20,7 @@ static int lossy_read(const char *text, unsigned long long size, unsigned long l
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char kept[64];
     const char ascii[] = "plain text, every byte a letter";
     cli_check(lossy_read(ascii, sizeof(ascii) - 1u, sizeof(kept), kept), "a text that fits is held");
@@ -52,6 +53,6 @@ int main(void)
     cli_lossy(&grown, (const unsigned char *)letters, sizeof(letters) - 1u);
     cli_check(mmgr_line_ok(&grown), "a line that grows holds every letter");
     cli_check_text(grown.out, grown.at, letters, "and holds them as they were read");
-    g_cli_cells->persistent_buf_release(grown.out, NULL);
+    cli_cell_release(grown.out, NULL);
     return cli_checked();
 }

@@ -408,6 +408,7 @@ static void history_fresh(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     history_graph();
     history_lines();
     history_repositories();

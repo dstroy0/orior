@@ -12,9 +12,9 @@ CellOwner g_cli_maven_model_cells = MMGR_CELL_OWNER("cli_maven_model");
 
 void cli_maven_model_given(CliMavenModel *model)
 {
-    g_cli_cells->persistent_buf_release(model->name_at, &g_cli_maven_model_cells);
-    g_cli_cells->persistent_buf_release(model->managed_at, &g_cli_maven_model_cells);
-    g_cli_cells->persistent_buf_release(model->text, &g_cli_maven_model_cells);
+    cli_cell_release(model->name_at, &g_cli_maven_model_cells);
+    cli_cell_release(model->managed_at, &g_cli_maven_model_cells);
+    cli_cell_release(model->text, &g_cli_maven_model_cells);
     *model = (CliMavenModel){NULL, NULL, NULL, NULL, 0u, 0u, NULL, NULL, 0u, 0u, 0, 0, NULL, 0u, 0u};
 }
 
@@ -43,7 +43,7 @@ static unsigned int *model_lists_grown(unsigned int *cell, unsigned int lists, u
         memor.cpy(&(MemoriaCfg){
             .dst = larger + (list * grown), .src = cell + (list * *room), .bytes = count * sizeof(unsigned int)});
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_maven_model_cells);
+    cli_cell_release(cell, &g_cli_maven_model_cells);
     *room = grown;
     return larger;
 }
@@ -97,7 +97,7 @@ unsigned int cli_maven_model_text_stored(CliMavenModel *model, const char *bytes
             return CLI_MAVEN_MODEL_TEXT;
         }
         memor.cpy(&(MemoriaCfg){.dst = larger, .src = model->text, .bytes = model->used});
-        g_cli_cells->persistent_buf_release(model->text, &g_cli_maven_model_cells);
+        cli_cell_release(model->text, &g_cli_maven_model_cells);
         model->text = larger;
         // a room no more than CLI_MAVEN_MODEL_TEXT, which an unsigned int stores
         model->text_room = (unsigned int)room;

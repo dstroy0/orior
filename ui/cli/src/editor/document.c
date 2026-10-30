@@ -181,7 +181,7 @@ static int cli_joined_of(const CliLines *lines, CliJoined *joined)
 // the cell the lines were joined in given back
 static void cli_joined_let_go(CliJoined *joined)
 {
-    g_cli_cells->persistent_buf_release(joined->unit, NULL);
+    cli_cell_release(joined->unit, NULL);
     *joined = (CliJoined){NULL, 0ull, NULL, 0u};
 }
 
@@ -328,7 +328,7 @@ static int cli_found_patterned(const CliLines *lines, const CliDocSought *sought
             at += 1ull;
         }
     }
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
     return read;
 }
 
@@ -415,9 +415,9 @@ int cli_document_find_each(const CliLines *lines, const CliDocSought *sought, un
     }
     const int done =
         roomed && (!sought_any || cli_found_each(&room, lines, &census, size, sought, most, each, context, err_msg));
-    g_cli_cells->persistent_buf_release(room.match, NULL);
+    cli_cell_release(room.match, NULL);
     cli_joined_let_go(&room.joined);
-    g_cli_cells->persistent_buf_release(room.wanted, NULL);
+    cli_cell_release(room.wanted, NULL);
     return done;
 }
 

@@ -100,7 +100,7 @@ static int cli_replaced(CliPaged *one, unsigned long long from, unsigned long lo
     }
     memor.cpy(&(MemoriaCfg){.dst = one->piece, .src = pieces.piece, .bytes = pieces.count * sizeof(CliPagePiece)});
     one->pieces = pieces.count;
-    g_cli_cells->persistent_buf_release(pieces.piece, NULL);
+    cli_cell_release(pieces.piece, NULL);
     return 1;
 }
 
@@ -193,12 +193,12 @@ static int cli_edit_written(CliPaged *one, const CliEdit *edit, CliPageLines *li
     mmgr_line_ch(&written, '\n');
     if (!mmgr_line_ok(&written))
     {
-        g_cli_cells->persistent_buf_release(text, NULL);
+        cli_cell_release(text, NULL);
         mmgr_line_put(err_msg, "an edit's lines as written do not fit the cell sized to them");
         return 0;
     }
     const CliPagePiece put = cli_written_put(one, text, written.at, err_msg);
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     return (put.lines != 0ull) && cli_replaced(one, edit->from.line, reach, put, err_msg);
 }
 
@@ -384,7 +384,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
             found.from = from;
             read = cli_document_find_each(&block, sought, most - found.found, cli_page_match, &found, err_msg);
         }
-        g_cli_cells->persistent_buf_release(storage, NULL);
+        cli_cell_release(storage, NULL);
         from = to;
     }
     if (read)
@@ -397,7 +397,7 @@ int cli_pages_find(const char *key, const CliDocSought *sought, unsigned long lo
     {
         cli_page_lines_given(&lines);
     }
-    g_cli_cells->persistent_buf_release(found_text, NULL);
+    cli_cell_release(found_text, NULL);
     cli_lock_give(&g_cli_pages_lock);
     return read;
 }
@@ -459,7 +459,7 @@ int cli_pages_save(const char *key, VerbaLinea *out, VerbaLinea *err_msg)
             mmgr_line_put_n(&block, lines.text + lines.start[at], lines.length[at]);
         }
         written = written && mmgr_line_ok(&block) && cli_file_appended(beside, text, block.at, 0);
-        g_cli_cells->persistent_buf_release(text, NULL);
+        cli_cell_release(text, NULL);
         from = to;
     }
     cli_page_lines_given(&lines);

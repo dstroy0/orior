@@ -137,7 +137,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
     }
     cli_gradle_classes(text, at, before);
     const int open = (at > 0u) && (before[at - 1u] != CLI_GRADLE_CODE) && (text[at - 1u] != '\n');
-    g_cli_cells->persistent_buf_release(before, &g_cli_gradle_cells);
+    cli_cell_release(before, &g_cli_gradle_cells);
     const unsigned long long token = cli_build_run_before(text, at, complete_chain_letter);
     const char *const dot = memor.chr(&(MemoriaCfg){.src = text + token, .val = '.', .bytes = (size_t)(at - token)});
     if (open)
@@ -206,7 +206,7 @@ void cli_gradle_complete(const char *root, const char *path, const char *text, u
             cli_gradle_declared(&lines);
             complete_declared(items);
         }
-        g_cli_cells->persistent_buf_release(starts, &g_cli_gradle_cells);
+        cli_cell_release(starts, &g_cli_gradle_cells);
     }
     else
     {

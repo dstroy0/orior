@@ -137,7 +137,7 @@ static void search_filled(const char *template_text, VerbaLinea *out)
 static void search_released(void)
 {
     cli_shape_ends_given(&s_room->matcher);
-    g_cli_cells->persistent_buf_release(s_room, &g_cli_shape_cells);
+    cli_cell_release(s_room, &g_cli_shape_cells);
     s_room = NULL;
     cli_lock_give(&s_search_lock);
 }
@@ -242,7 +242,7 @@ void cli_shape_search(CliSymbolsLanguages *languages, const char *language, cons
             found.with_size = with.at;
         }
         each(context, &found);
-        g_cli_cells->persistent_buf_release(with.out, NULL);
+        cli_cell_release(with.out, NULL);
         at = end;
     }
     search_released();

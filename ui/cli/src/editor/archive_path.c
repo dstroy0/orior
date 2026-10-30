@@ -42,9 +42,9 @@ void cli_archive_released(void)
 {
     for (unsigned int at = 0u; at < CLI_ARCHIVE_ROOMS; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(cli_archive_rooms(at)->bytes, NULL);
+        cli_cell_release(cli_archive_rooms(at)->bytes, NULL);
     }
-    g_cli_cells->persistent_buf_release(g_cli_archive_levels, NULL);
+    cli_cell_release(g_cli_archive_levels, NULL);
     g_cli_archive_levels = NULL;
     cli_lock_give(&g_cli_archive_lock);
 }
@@ -68,7 +68,7 @@ int cli_archive_room(CliRoom *room, unsigned long long need, const char *what, V
         mmgr_line_put(err_msg, " could not be taken");
         return 0;
     }
-    g_cli_cells->persistent_buf_release(room->bytes, NULL);
+    cli_cell_release(room->bytes, NULL);
     room->bytes = cell;
     room->room = need;
     return 1;

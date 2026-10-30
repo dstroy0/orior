@@ -33,7 +33,7 @@ static void *found_grown(void *list, unsigned int count, unsigned int *room, uns
     {
         memor.cpy(&(MemoriaCfg){.dst = cell, .src = list, .bytes = count * size});
     }
-    g_cli_cells->persistent_buf_release(list, &g_cli_cargo_cells);
+    cli_cell_release(list, &g_cli_cargo_cells);
     *room = grown;
     return cell;
 }
@@ -180,7 +180,7 @@ static CliCargoTargets s_targets;
 
 void cli_cargo_firsts_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_targets.firsts, &g_cli_cargo_cells);
+    cli_cell_release(s_targets.firsts, &g_cli_cargo_cells);
     s_targets.firsts = NULL;
     s_targets.count = 0u;
     s_targets.room = 0u;
@@ -453,8 +453,8 @@ const CliCargoFirst *cli_cargo_targets(const char *folder, const char *text, uns
     {
         found_auto("tests", CLI_CARGO_TEST, listed_first, taken);
     }
-    g_cli_cells->persistent_buf_release(tables, &g_cli_cargo_cells);
-    g_cli_cells->persistent_buf_release(s_targets.entries, &g_cli_cargo_cells);
+    cli_cell_release(tables, &g_cli_cargo_cells);
+    cli_cell_release(s_targets.entries, &g_cli_cargo_cells);
     s_targets.entries = NULL;
     s_targets.entry_count = 0u;
     s_targets.entry_room = 0u;

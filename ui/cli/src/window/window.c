@@ -14,7 +14,8 @@
 #include "window_internal.h"
 
 // A room a call is answered in: whether it is taken, whether its call was answered, and its answer and why it failed,
-// cells given back with the room, why it failed a text of this file's own where no cell could be taken for it
+// cells given back with the room, why it failed a text of this file's own where no cell could be taken for it; and the
+// mark of the room's lane, the call's own cells rewound to it as the room is given back
 typedef struct
 {
     int taken;
@@ -23,7 +24,10 @@ typedef struct
     unsigned long long answer_size;
     char *err_msg;
     unsigned long long err_msg_size;
+    size_t mark;
 } CliWindowRoom;
+
+_Static_assert(CLI_WINDOW_ROOMS <= CLI_CELLS_LANES, "each room runs its call on a lane of its own");
 
 // why a call failed where its cells could not be taken, which is no cell
 static char s_refused[] = "the call's cells could not be taken";
@@ -261,16 +265,19 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
 {
     const unsigned int at = window_room_taken();
     CliWindowRoom *const room = &s_room[at];
+    // the call runs on the room's lane: its own cells are the lane's until the room is given back
+    room->mark = cli_lane_entered(at);
     VerbaLinea out;
     (void)cli_growing_line_made(&out, CLI_WINDOW_ANSWER_FIRST);
     room->answer = out.out;
     room->err_msg = g_cli_cells->persistent_buf_alloc(CLI_WINDOW_ERR_MSG_MAX_LEN, NULL);
     if ((room->answer == NULL) || (room->err_msg == NULL))
     {
-        g_cli_cells->persistent_buf_release(room->err_msg, NULL);
+        cli_cell_release(room->err_msg, NULL);
         room->ok = 0;
         room->err_msg = s_refused;
         room->err_msg_size = sizeof(s_refused) - 1u;
+        cli_lane_left();
         return at;
     }
     VerbaLinea err_line = {room->err_msg, CLI_WINDOW_ERR_MSG_MAX_LEN, 0ull};
@@ -304,6 +311,7 @@ unsigned int cli_window_called(int own, const char *name, const char *args, unsi
     room->answer = out.out;
     room->answer_size = out.at;
     room->err_msg_size = mmgr_line_ok(&err_line) ? err_line.at : 0ull;
+    cli_lane_left();
     return at;
 }
 
@@ -320,11 +328,13 @@ void cli_window_given(unsigned int room)
     CliWindowRoom *const entry = &s_room[room];
     if (entry->err_msg != s_refused)
     {
-        g_cli_cells->persistent_buf_release(entry->err_msg, NULL);
+        cli_cell_release(entry->err_msg, NULL);
     }
-    g_cli_cells->persistent_buf_release(entry->answer, NULL);
+    cli_cell_release(entry->answer, NULL);
     entry->answer = NULL;
     entry->err_msg = NULL;
+    // the call's own cells rewound with the room, whatever the call left in its lane
+    cli_lane_rewound(room, entry->mark);
     cli_lock_take(&s_lock);
     s_room[room].taken = 0;
     cli_wake_all(&s_wake);

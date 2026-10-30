@@ -141,10 +141,10 @@ static int programs_libraries(const char *const *words, unsigned int count)
     VerbaLinea err_msg = {s_err_buf, sizeof(s_err_buf), 0ull};
     const int read =
         cli_binary_read(words[1], (const char (*)[CLI_PATH_MAX_LEN])folder, folders, &reading->report, &err_msg);
-    g_cli_cells->persistent_buf_release(folder, NULL);
+    cli_cell_release(folder, NULL);
     if (!read)
     {
-        g_cli_cells->persistent_buf_release(reading, NULL);
+        cli_cell_release(reading, NULL);
         return programs_failed(&err_msg, CLI_WRONG);
     }
     const CliBinaryReport *const report = &reading->report;
@@ -161,7 +161,7 @@ static int programs_libraries(const char *const *words, unsigned int count)
     }
     const QuerySink sink = {programs_err, NULL};
     cli_binary_report_print(report, sink);
-    g_cli_cells->persistent_buf_release(reading, NULL);
+    cli_cell_release(reading, NULL);
     return 0;
 }
 

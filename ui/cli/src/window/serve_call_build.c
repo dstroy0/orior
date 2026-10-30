@@ -120,7 +120,7 @@ static int maven_set(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         tool_pom_let_go(&read);
     }
-    g_cli_cells->persistent_buf_release(set.out, NULL);
+    cli_cell_release(set.out, NULL);
     cli_lock_give(&s_lock);
     return done;
 }

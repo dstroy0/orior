@@ -233,6 +233,7 @@ static void plugins_folder(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     plugins_folder();
     plugins_server();
     return cli_checked();

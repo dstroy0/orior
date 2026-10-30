@@ -30,8 +30,8 @@ void cli_validate_released(void)
 {
     cli_json_given(&g_cli_validate->json);
     cli_json_given(&g_cli_validate->manifest);
-    g_cli_cells->persistent_buf_release(g_cli_validate->output, NULL);
-    g_cli_cells->persistent_buf_release(g_cli_validate, NULL);
+    cli_cell_release(g_cli_validate->output, NULL);
+    cli_cell_release(g_cli_validate, NULL);
     g_cli_validate = NULL;
     cli_lock_give(&s_validate_lock);
 }
@@ -310,7 +310,7 @@ static int validate_text(const char *path, const char *text, unsigned long long 
     unsigned int count = 0u;
     char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
     cli_toolchains_find(json, chain, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &g_cli_validate->found);
-    g_cli_cells->persistent_buf_release(folders, NULL);
+    cli_cell_release(folders, NULL);
     if (!g_cli_validate->found.has_program)
     {
         const char *const name = cli_json_string(json, cli_json_member(json, chain, "name"), NULL);

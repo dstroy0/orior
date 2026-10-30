@@ -7,6 +7,7 @@
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static char s_text[8192];
     VerbaLinea line = {s_text, sizeof(s_text) - 1u, 0ull};
     cli_stand_in("cargo", &line);

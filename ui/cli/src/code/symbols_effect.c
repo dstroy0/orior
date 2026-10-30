@@ -90,7 +90,7 @@ void *cli_effect_room(void *list, unsigned int count, unsigned int *room, unsign
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    g_cli_cells->persistent_buf_release(list, NULL);
+    cli_cell_release(list, NULL);
     *room = grown;
     return larger;
 }
@@ -577,7 +577,7 @@ static long long cli_effect_judged(CliEffect *effect, const CliLeafRead *read, u
         }
     }
     const long long value = cli_effect_value(effect, token, count, 0u);
-    g_cli_cells->persistent_buf_release(token, NULL);
+    cli_cell_release(token, NULL);
     return value;
 }
 
@@ -777,7 +777,7 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
     if (bytes == NULL)
     {
         effect->refused |= branch == NULL;
-        g_cli_cells->persistent_buf_release(branch, NULL);
+        cli_cell_release(branch, NULL);
         return;
     }
     branch->open = 0u;
@@ -885,8 +885,8 @@ static void cli_effect_walk(CliEffect *effect, const char *path, unsigned int up
             cli_file_let_go(bytes, size);
         }
     }
-    g_cli_cells->persistent_buf_release(branch->declared, NULL);
-    g_cli_cells->persistent_buf_release(branch, NULL);
+    cli_cell_release(branch->declared, NULL);
+    cli_cell_release(branch, NULL);
 }
 
 CliEffect *cli_effect_made(const char *path, const char *name, int slicing, VerbaLinea *err_msg)
@@ -896,7 +896,7 @@ CliEffect *cli_effect_made(const char *path, const char *name, int slicing, Verb
     if ((languages == NULL) || !cli_growing_line_made(&effect->text, CLI_EFFECT_TEXT_FIRST))
     {
         cli_symbols_languages_given(languages);
-        g_cli_cells->persistent_buf_release(effect, NULL);
+        cli_cell_release(effect, NULL);
         mmgr_line_put(err_msg, "the cells cannot meet the walk");
         return NULL;
     }
@@ -970,15 +970,15 @@ void cli_effect_given_back(CliEffect *effect)
             cli_file_let_go(effect->branch_read[at].bytes, effect->branch_read[at].size);
         }
     }
-    g_cli_cells->persistent_buf_release(effect->branch_read, NULL);
-    g_cli_cells->persistent_buf_release(effect->seen, NULL);
-    g_cli_cells->persistent_buf_release(effect->text.out, NULL);
-    g_cli_cells->persistent_buf_release(effect->macro, NULL);
-    g_cli_cells->persistent_buf_release(effect->value_leaf, NULL);
-    g_cli_cells->persistent_buf_release(effect->walked, NULL);
-    g_cli_cells->persistent_buf_release(effect->include, NULL);
+    cli_cell_release(effect->branch_read, NULL);
+    cli_cell_release(effect->seen, NULL);
+    cli_cell_release(effect->text.out, NULL);
+    cli_cell_release(effect->macro, NULL);
+    cli_cell_release(effect->value_leaf, NULL);
+    cli_cell_release(effect->walked, NULL);
+    cli_cell_release(effect->include, NULL);
     cli_symbols_languages_given(effect->languages);
-    g_cli_cells->persistent_buf_release(effect, NULL);
+    cli_cell_release(effect, NULL);
 }
 
 int cli_symbols_effect(const char *path, unsigned int line, const char *name, VerbaLinea *out, VerbaLinea *err_msg)

@@ -178,7 +178,7 @@ static void actions_offered(unsigned int all, const char *plugin, int *written, 
             }
         }
     }
-    g_cli_cells->persistent_buf_release(action, NULL);
+    cli_cell_release(action, NULL);
 }
 
 // `server`, the server of the plugin `plugin` where that is not NULL, queried for its actions on `from` to `to` of the
@@ -204,7 +204,7 @@ static int actions_request(CliLsp *server, const char *plugin, unsigned int all,
     cli_servers_answer_begun(&s_reading, &result);
     const int requested = (params != NULL) && cli_lsp_requested(server, "textDocument/codeAction", params, length,
                                                                 CLI_SERVERS_REQUEST_TIMEOUT_MS, &result, err_msg);
-    g_cli_cells->persistent_buf_release(params, NULL);
+    cli_cell_release(params, NULL);
     if (requested)
     {
         actions_offered(cli_servers_answer_read(&s_reading, &result), plugin, written, out);

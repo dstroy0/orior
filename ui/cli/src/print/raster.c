@@ -58,7 +58,7 @@ static CliRenderRoom *s_room;
 
 int cli_print_faces(VerbaLinea *err_msg)
 {
-    g_cli_cells->persistent_buf_release(s_typefaces, NULL);
+    cli_cell_release(s_typefaces, NULL);
     s_typefaces = g_cli_cells->persistent_buf_alloc(sizeof(*s_typefaces), NULL);
     if (s_typefaces == NULL)
     {
@@ -262,7 +262,7 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
                       layout->gray ? 1ull : 3ull, s_room->page};
     if ((page.width * page.height * page.channels) > CLI_PAGE_BYTES)
     {
-        g_cli_cells->persistent_buf_release(s_room, NULL);
+        cli_cell_release(s_room, NULL);
         s_room = NULL;
         return;
     }
@@ -316,7 +316,7 @@ void cli_print_render(const CliPrintListing *listing, const CliPrintLayout *layo
         each(context, &page, index, count);
         index += 1u;
     }
-    g_cli_cells->persistent_buf_release(s_room, NULL);
+    cli_cell_release(s_room, NULL);
     s_room = NULL;
 }
 

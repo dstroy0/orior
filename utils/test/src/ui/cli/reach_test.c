@@ -132,6 +132,7 @@ static void reach_gone(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     reach_answers();
     reach_gone();
 #if !defined(_WIN32)

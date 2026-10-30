@@ -417,7 +417,7 @@ static int settings_tree(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     cli_settings_tree(root, chain);
     cli_settings_chain_written(chain, out);
     cli_settings_chain_given(chain);
-    g_cli_cells->persistent_buf_release(chain, &g_cli_settings_cells);
+    cli_cell_release(chain, &g_cli_settings_cells);
     return 1;
 }
 

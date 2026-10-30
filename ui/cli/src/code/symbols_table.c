@@ -98,13 +98,13 @@ static int cli_files_grown(void)
         (files != NULL) ? g_cli_cells->persistent_buf_alloc(2ull * room * sizeof(unsigned int), NULL) : NULL;
     if (buckets == NULL)
     {
-        g_cli_cells->persistent_buf_release(files, NULL);
+        cli_cell_release(files, NULL);
         return 0;
     }
     memor.cpy(&(MemoriaCfg){
         .dst = files, .src = g_cli_symbol_files, .bytes = (size_t)g_cli_symbol_file_count * sizeof(CliSymbolFile)});
-    g_cli_cells->persistent_buf_release(g_cli_symbol_files, NULL);
-    g_cli_cells->persistent_buf_release(s_buckets, NULL);
+    cli_cell_release(g_cli_symbol_files, NULL);
+    cli_cell_release(s_buckets, NULL);
     g_cli_symbol_files = files;
     s_file_room = room;
     s_buckets = buckets;
@@ -125,7 +125,7 @@ void cli_symbols_let_go(unsigned int file)
         }
         bucket = (bucket + 1u) % s_bucket_room;
     }
-    g_cli_cells->persistent_buf_release(g_cli_symbol_files[file].cell, NULL);
+    cli_cell_release(g_cli_symbol_files[file].cell, NULL);
     g_cli_symbol_files[file].cell = NULL;
     g_cli_symbol_files[file].used = 0;
 }
@@ -134,13 +134,13 @@ void cli_symbols_tree_cleared(void)
 {
     for (unsigned int at = 0u; at < g_cli_symbol_file_count; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(g_cli_symbol_files[at].cell, NULL);
+        cli_cell_release(g_cli_symbol_files[at].cell, NULL);
         g_cli_symbol_files[at].cell = NULL;
         g_cli_symbol_files[at].used = 0;
     }
     g_cli_symbol_file_count = 0u;
-    g_cli_cells->persistent_buf_release(g_cli_symbol_files, NULL);
-    g_cli_cells->persistent_buf_release(s_buckets, NULL);
+    cli_cell_release(g_cli_symbol_files, NULL);
+    cli_cell_release(s_buckets, NULL);
     g_cli_symbol_files = NULL;
     s_buckets = NULL;
     s_file_room = 0u;

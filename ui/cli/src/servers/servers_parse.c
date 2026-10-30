@@ -36,12 +36,12 @@ static CliServersReading s_reading = {CLI_LOCK_INIT};
 // the parse's storage given back
 static void parse_storage_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_room.run, NULL);
-    g_cli_cells->persistent_buf_release(s_room.line_first, NULL);
-    g_cli_cells->persistent_buf_release(s_room.line_runs, NULL);
-    g_cli_cells->persistent_buf_release(s_room.fold_first, NULL);
-    g_cli_cells->persistent_buf_release(s_room.fold_last, NULL);
-    g_cli_cells->persistent_buf_release(s_room.range, NULL);
+    cli_cell_release(s_room.run, NULL);
+    cli_cell_release(s_room.line_first, NULL);
+    cli_cell_release(s_room.line_runs, NULL);
+    cli_cell_release(s_room.fold_first, NULL);
+    cli_cell_release(s_room.fold_last, NULL);
+    cli_cell_release(s_room.range, NULL);
     memor.set(&(MemoriaCfg){.dst = &s_room, .val = 0, .bytes = sizeof(s_room)});
 }
 
@@ -49,7 +49,7 @@ static void parse_storage_given(void)
 static void parse_released(void)
 {
     parse_storage_given();
-    g_cli_cells->persistent_buf_release(s_text, NULL);
+    cli_cell_release(s_text, NULL);
     s_text = NULL;
     cli_servers_reading_released(&s_reading);
 }
@@ -188,7 +188,7 @@ static void parse_stored(const char *key, const char *path, unsigned long long h
     cli_lock_take(&g_cli_servers_texts_lock);
     (void)cli_keyed_put(&g_cli_servers_parses, key, path, stored, size);
     cli_lock_give(&g_cli_servers_texts_lock);
-    g_cli_cells->persistent_buf_release(stored, NULL);
+    cli_cell_release(stored, NULL);
 }
 
 // the class a server's semantic token of a type takes, by the type's name, CLI_INSPECT_CLASSES where it takes none
@@ -541,7 +541,7 @@ int cli_servers_spans(const char *path, const char *key, CliTextPlace from, CliT
             (spans != NULL) ? cli_inspect_ranges_at(s_room.range, s_parsed.ranges, start, end, spans, s_parsed.ranges)
                             : 0u;
         parse_spans_written(spans, count, out);
-        g_cli_cells->persistent_buf_release(spans, NULL);
+        cli_cell_release(spans, NULL);
         parse_released();
         return 1;
     }

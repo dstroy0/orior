@@ -29,7 +29,7 @@ void cli_print_take(void)
 
 void cli_print_give(void)
 {
-    g_cli_cells->persistent_buf_release(s_room, NULL);
+    cli_cell_release(s_room, NULL);
     s_room = NULL;
     cli_lock_give(&s_lock);
 }

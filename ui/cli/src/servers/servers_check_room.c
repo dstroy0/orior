@@ -27,10 +27,10 @@ static const CliServersQueue *s_ordering;
 
 void cli_servers_check_room_given(CliServersQueue *queue)
 {
-    g_cli_cells->persistent_buf_release(queue->files, &s_owner);
-    g_cli_cells->persistent_buf_release(queue->file_at, &s_owner);
-    g_cli_cells->persistent_buf_release(queue->waiting, &s_owner);
-    g_cli_cells->persistent_buf_release(queue->room, &s_owner);
+    cli_cell_release(queue->files, &s_owner);
+    cli_cell_release(queue->file_at, &s_owner);
+    cli_cell_release(queue->waiting, &s_owner);
+    cli_cell_release(queue->room, &s_owner);
     queue->files = NULL;
     queue->file_at = NULL;
     queue->waiting = NULL;
@@ -73,7 +73,7 @@ static void *room_grown(void *cell, unsigned long long used, unsigned long long 
     if (larger != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = (size_t)used});
-        g_cli_cells->persistent_buf_release(cell, &s_owner);
+        cli_cell_release(cell, &s_owner);
     }
     return larger;
 }
@@ -99,7 +99,7 @@ static int room_waiting_grown(CliServersQueue *queue)
     {
         larger[at] = *cli_servers_check_queued_at(queue, at);
     }
-    g_cli_cells->persistent_buf_release(queue->waiting, &s_owner);
+    cli_cell_release(queue->waiting, &s_owner);
     queue->waiting = larger;
     queue->waiting_most = most;
     queue->head = 0u;

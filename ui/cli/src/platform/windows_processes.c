@@ -74,7 +74,7 @@ static char *processes_command_of(CliQueryProcess query, DWORD pid)
             processes_utf8(start, (int)length, command, (int)((3u * length) + 1u));
         }
     }
-    g_cli_cells->persistent_buf_release(base, NULL);
+    cli_cell_release(base, NULL);
     CloseHandle(process);
     return command;
 }
@@ -105,7 +105,7 @@ void cli_processes_each(void (*each)(void *context, unsigned int pid, const char
         processes_utf8(entry.szExeFile, end, s_name, (int)sizeof(s_name));
         char *const command = processes_command_of(query, entry.th32ProcessID);
         each(context, (unsigned int)entry.th32ProcessID, s_name, (command != NULL) ? command : "");
-        g_cli_cells->persistent_buf_release(command, NULL);
+        cli_cell_release(command, NULL);
     }
     cli_lock_give(&s_lock);
     CloseHandle(snapshot);

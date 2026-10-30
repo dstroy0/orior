@@ -33,7 +33,7 @@ int cli_review_room(char **room, unsigned long long *size, unsigned long long us
         // the bytes taken are below the room's size, which a size_t stores
         memor.cpy(&(MemoriaCfg){.dst = moved, .src = *room, .bytes = (size_t)used});
     }
-    g_cli_cells->persistent_buf_release(*room, NULL);
+    cli_cell_release(*room, NULL);
     *room = moved;
     *size = grown;
     return 1;
@@ -64,7 +64,7 @@ int cli_review_text_added(VerbaLinea *line, int written, unsigned int *at, unsig
     }
     const int added = g_cli_review.used != was;
     *size = added ? line->at : 0ull;
-    g_cli_cells->persistent_buf_release(line->out, NULL);
+    cli_cell_release(line->out, NULL);
     return added;
 }
 

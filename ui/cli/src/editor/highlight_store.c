@@ -60,7 +60,7 @@ static void cli_grammar_put_out(unsigned char *region)
         atomic_fetch_or_explicit(&cli_grammar_head(region)->readers, CLI_GRAMMAR_PUT_OUT, memory_order_acq_rel);
     if (readers == 0ull)
     {
-        g_cli_cells->persistent_buf_release(region, &s_owner);
+        cli_cell_release(region, &s_owner);
     }
 }
 
@@ -72,7 +72,7 @@ static void cli_grammar_let_go(unsigned char *region)
         atomic_fetch_sub_explicit(&cli_grammar_head(region)->readers, 1ull, memory_order_acq_rel);
     if (readers == (CLI_GRAMMAR_PUT_OUT | 1ull))
     {
-        g_cli_cells->persistent_buf_release(region, &s_owner);
+        cli_cell_release(region, &s_owner);
     }
 }
 
@@ -161,7 +161,7 @@ static int cli_grammars_grown(void)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_grammars, .bytes = (size_t)s_grammar_room * sizeof(*grown)});
     }
-    g_cli_cells->persistent_buf_release(s_grammars, &s_owner);
+    cli_cell_release(s_grammars, &s_owner);
     s_grammars = grown;
     s_grammar_room = room;
     return 1;
@@ -341,7 +341,7 @@ int cli_highlight_store(const char *key, const CliJson *json, unsigned int def, 
     CliGrammarRoom room;
     unsigned char *const cell = cli_grammar_roomed(&room, json);
     const int stored = (cell != NULL) && cli_grammar_stored(key, json, def, &room, err_msg);
-    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    cli_cell_release(cell, &s_owner);
     cli_lock_give(&s_lock);
     if (cell == NULL)
     {
@@ -412,7 +412,7 @@ static int cli_colored(const char *key, const CliColored *colored, VerbaLinea *e
     {
         cli_highlight_lines(&grammar, room, colored->state, colored->lines, colored->count, colored->out);
     }
-    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    cli_cell_release(cell, &s_owner);
     cli_grammar_let_go(region);
     if (room == NULL)
     {

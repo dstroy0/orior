@@ -142,7 +142,7 @@ void cli_debug_event(void *context, const char *event, const char *body, unsigne
     const int rewritten = stopped && data_stop_rewritten(session, body, size, &rewritten_body);
     session->sink.emit(session->sink.context, session->info.id, event, rewritten ? rewritten_body.out : body,
                        rewritten ? rewritten_body.at : size);
-    g_cli_cells->persistent_buf_release(rewritten_body.out, NULL);
+    cli_cell_release(rewritten_body.out, NULL);
     if (cellul.eq(&(CatenaFinitaCfg){.src = event, .other = "adapterStopped", .cap = CLI_CELLS_POOL}))
     {
         // the adapter's last event: its place may be freed once nothing else uses it

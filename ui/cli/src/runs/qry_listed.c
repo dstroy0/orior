@@ -86,7 +86,7 @@ static void *cli_listed_grown(void *list, unsigned int *room, unsigned int most,
     if (list != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = list, .bytes = (size_t)((unsigned long long)*room * width)});
-        g_cli_cells->persistent_buf_release(list, &g_cli_qry_listed_cells);
+        cli_cell_release(list, &g_cli_qry_listed_cells);
     }
     *room = taken;
     return grown;
@@ -212,7 +212,7 @@ static void cli_walked(const char *root, CliWalk *walk)
         CliWalking walking = {walk, folder, &pending};
         query_folder_each(full, cli_walk_each, &walking);
     }
-    g_cli_cells->persistent_buf_release(pending.folder, &g_cli_qry_listed_cells);
+    cli_cell_release(pending.folder, &g_cli_qry_listed_cells);
 }
 
 // the walk of the tree at `root`, or CLI_WALKS_MOST where none is cached; under the lock
@@ -478,7 +478,7 @@ void cli_qry_listed(const char *root, VerbaLinea *out)
         mmgr_line_decimal(out, listed->panicked, 1u);
         mmgr_line_ch(out, '}');
     }
-    g_cli_cells->persistent_buf_release(runs.run, &g_cli_qry_listed_cells);
+    cli_cell_release(runs.run, &g_cli_qry_listed_cells);
     mmgr_line_put(out, "],\"folders\":[");
     for (unsigned int index = 0u; index < walk->count; index += 1u)
     {

@@ -205,6 +205,7 @@ static void pg_passwords(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     pg_scram();
     cli_check_server("PG", 5432u, s_host, &s_port);
     if (!query_environment_read("ORIOR_PG_PASSWORD", s_password, sizeof(s_password)))

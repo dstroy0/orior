@@ -45,6 +45,94 @@ static unsigned long long cells_pool_bytes(void)
     return (CLI_CELLS_RECORD != NULL) ? (unsigned long long)CLI_CELLS_RECORD->size : 0ull;
 }
 
+// The lanes' cellblocks, each made at its lane's first entry and kept, and the lane this thread is on, CLI_CELLS_LANES
+// while it is on none. A lane is one context's at a time, the room's while the room is taken, and its entry and rewind
+// are that context's alone
+static CarcerCellBlock *s_lane[CLI_CELLS_LANES];
+static _Thread_local unsigned int t_lane = CLI_CELLS_LANES;
+
+size_t cli_lane_entered(unsigned int lane)
+{
+    if ((lane >= CLI_CELLS_LANES) ||
+        ((s_lane[lane] == NULL) && !mmgr_host_cellblock_made(&s_lane[lane], (size_t)CLI_CELLS_LANE_POOL)))
+    {
+        t_lane = CLI_CELLS_LANES;
+        return 0u;
+    }
+    t_lane = lane;
+    return mmgr_temporary_buf_mark(s_lane[lane]);
+}
+
+void cli_lane_left(void)
+{
+    t_lane = CLI_CELLS_LANES;
+}
+
+void cli_lane_rewound(unsigned int lane, size_t mark)
+{
+    if ((lane < CLI_CELLS_LANES) && (s_lane[lane] != NULL) && (mark != 0u))
+    {
+        mmgr_max_security_buf_return(s_lane[lane], mark);
+    }
+    if (t_lane == lane)
+    {
+        t_lane = CLI_CELLS_LANES;
+    }
+}
+
+void *cli_lane_alloc(size_t size, CellOwner *owner)
+{
+    if (t_lane < CLI_CELLS_LANES)
+    {
+        return mmgr_temporary_buf_alloc(s_lane[t_lane], size, owner);
+    }
+    return g_cli_cells->persistent_buf_alloc(size, owner);
+}
+
+// the lane's cellblock whose bytes hold `cell`, NULL where none does
+static CarcerCellBlock *cells_lane_of(const void *cell)
+{
+    for (unsigned int at = 0u; at < CLI_CELLS_LANES; at += 1u)
+    {
+        if ((s_lane[at] != NULL) && mmgr_who_owns_buf(s_lane[at], cell))
+        {
+            return s_lane[at];
+        }
+    }
+    return NULL;
+}
+
+void cli_cell_release(void *cell, CellOwner *owner)
+{
+    if (cell == NULL)
+    {
+        return;
+    }
+    CarcerCellBlock *const lane =
+        ((CLI_CELLS_RECORD != NULL) && mmgr_who_owns_buf(CLI_CELLS_RECORD, cell)) ? NULL : cells_lane_of(cell);
+    if (lane != NULL)
+    {
+        mmgr_persistent_max_security_buf_release(lane, cell, owner);
+        return;
+    }
+    g_cli_cells->persistent_buf_release(cell, owner);
+}
+
+// the highest temporary peak over the lanes made, 0 where none is made or the build tracks none
+static unsigned long long cells_lanes_peak(void)
+{
+    unsigned long long peak = 0ull;
+#if defined(MMGR_ENABLE_HW_MEM_CAPACITY_CB) && MMGR_ENABLE_HW_MEM_CAPACITY_CB
+    for (unsigned int at = 0u; at < CLI_CELLS_LANES; at += 1u)
+    {
+        const unsigned long long one =
+            (s_lane[at] != NULL) ? (unsigned long long)embed_atomic_usize_load(&s_lane[at]->temporary_hw) : 0ull;
+        peak = (one > peak) ? one : peak;
+    }
+#endif
+    return peak;
+}
+
 // the owners on the cellblock's list copied into `owners`, sized for MMGR_CARCER_OWNERS: their count. An entry the
 // list counts and has not written yet is passed over
 static unsigned int cells_owners_read(CliCellsOwnerRead *owners)
@@ -113,7 +201,12 @@ void cli_cells_report(unsigned long long *pool, unsigned long long *persistent, 
 
 int cli_cells_zero(void)
 {
-    return mmgr_host_cellblock_zero(CLI_CELLS_RECORD);
+    int zero = mmgr_host_cellblock_zero(CLI_CELLS_RECORD);
+    for (unsigned int at = 0u; zero && (at < CLI_CELLS_LANES); at += 1u)
+    {
+        zero = (s_lane[at] == NULL) || mmgr_host_cellblock_zero(s_lane[at]);
+    }
+    return zero;
 }
 
 void cli_cells_usage_written(VerbaLinea *out)
@@ -123,6 +216,8 @@ void cli_cells_usage_written(VerbaLinea *out)
     unsigned long long temporary = 0ull;
     cli_cells_report(&pool, &persistent, &temporary);
     cells_written(out, persistent, temporary);
+    mmgr_line_put(out, " lanes ");
+    mmgr_line_decimal(out, cells_lanes_peak(), 1u);
 }
 
 void cli_cells_owner_usage_written(const CellOwner *owner, VerbaLinea *out)

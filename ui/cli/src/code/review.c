@@ -38,11 +38,11 @@ static void review_released(void)
         cli_git_text_given(&s_room->repositories.text);
         cli_git_text_given(&s_room->touched.text);
     }
-    g_cli_cells->persistent_buf_release(s_room, NULL);
-    g_cli_cells->persistent_buf_release(g_cli_review.compared, NULL);
-    g_cli_cells->persistent_buf_release(g_cli_review.texts, NULL);
-    g_cli_cells->persistent_buf_release(g_cli_review.text, NULL);
-    g_cli_cells->persistent_buf_release(g_cli_review.call, NULL);
+    cli_cell_release(s_room, NULL);
+    cli_cell_release(g_cli_review.compared, NULL);
+    cli_cell_release(g_cli_review.texts, NULL);
+    cli_cell_release(g_cli_review.text, NULL);
+    cli_cell_release(g_cli_review.call, NULL);
     s_room = NULL;
     g_cli_review.compared = NULL;
     g_cli_review.texts = NULL;

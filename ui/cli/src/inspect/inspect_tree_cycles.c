@@ -149,7 +149,7 @@ static void cycles_reported(unsigned int file, unsigned int import, unsigned int
     {
         each(context, file, facts->import[import].from, facts->import[import].to, "import-cycle", &message);
     }
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
 }
 
 // the imports of the file at `file` that lead back round to it, each handed to `each`
@@ -211,6 +211,6 @@ void cli_tree_cycles(CliTreeFindingFn each, void *context)
             cycles_of(file, each, context);
         }
     }
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
     memor.set(&(MemoriaCfg){.dst = &s_walk, .val = 0, .bytes = sizeof(s_walk)});
 }

@@ -161,6 +161,7 @@ static void vector_compares(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     s_path_count = cli_vector_paths(s_paths);
     vector_units();
     vector_runs();

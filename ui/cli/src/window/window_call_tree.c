@@ -70,7 +70,7 @@ static int tree_inside(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
         }
         mmgr_line_ch(out, ']');
     }
-    g_cli_cells->persistent_buf_release(full, NULL);
+    cli_cell_release(full, NULL);
     cli_serve_strings_given(paths);
     return whole;
 }

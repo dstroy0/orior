@@ -41,7 +41,7 @@ static void recording_values(unsigned int serial, unsigned int at, const char *w
         mmgr_line_ch(&line, '=');
         mmgr_line_put(&line, values[each].value);
     }
-    g_cli_cells->persistent_buf_release(values, NULL);
+    cli_cell_release(values, NULL);
     cli_check_text(text, line.at, wanted, what);
 }
 
@@ -113,6 +113,7 @@ static void recording_go(unsigned int at, const char *how, unsigned int step, co
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     recording_sample();
     recording_steps();
     recording_stack(3u, "2:3|1:1", "a stack stands each caller at its line then");

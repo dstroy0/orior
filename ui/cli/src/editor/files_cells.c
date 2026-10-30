@@ -23,7 +23,7 @@ void *cli_files_cell_taken(unsigned long long bytes)
 
 void cli_files_cell_given(void *cell)
 {
-    g_cli_cells->persistent_buf_release(cell, &s_owner);
+    cli_cell_release(cell, &s_owner);
 }
 
 const char *cli_files_at(const CliFiles *files, unsigned int index)

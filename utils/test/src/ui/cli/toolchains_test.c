@@ -122,7 +122,7 @@ static void toolchains_cache(void)
               "and the next search of a tool takes it");
     static const char s_other[1][CLI_PATH_MAX_LEN] = {"/a/folder/put/on/the/path"};
     cli_check(!cli_toolchains_found_cached("git", s_other, 1u, &found), "and a PATH that changed searches again");
-    g_cli_cells->persistent_buf_release(path, NULL);
+    cli_cell_release(path, NULL);
 }
 
 // the manifest reads and each id is one tool, each naming a program and an install page, every page https
@@ -344,12 +344,13 @@ static void toolchains_run_path(void)
             .src = path + length, .cap = CLI_CELLS_POOL, .other = ahead[0], .other_cap = CLI_CELLS_POOL}) == NULL;
     cli_check(first && once && (path[length + 1u] != '\0'),
               "the PATH a step runs with begins with the folders put ahead, each once, and goes on");
-    g_cli_cells->persistent_buf_release(path, NULL);
+    cli_cell_release(path, NULL);
 }
 
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char home[CLI_PATH_MAX_LEN];
     cli_check_folder("toolchains_home", home);
     (void)query_environment_set("ORIOR_HOME", home);

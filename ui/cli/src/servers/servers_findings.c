@@ -70,7 +70,7 @@ static int findings_put(const char *key, const char *uri, const char *id, unsign
     {
         (void)cli_keyed_put(&g_cli_servers_checked, key, uri, entry_written, written_size);
     }
-    g_cli_cells->persistent_buf_release(entry_written, NULL);
+    cli_cell_release(entry_written, NULL);
     cli_json_given(&json);
     return 1;
 }
@@ -112,6 +112,6 @@ void cli_servers_findings_stored(const char *id, const char *found, unsigned lon
             cli_servers_emit_whole(key, uri, sink);
         }
     }
-    g_cli_cells->persistent_buf_release(changed_files, NULL);
+    cli_cell_release(changed_files, NULL);
     cli_servers_reading_released(&s_found);
 }

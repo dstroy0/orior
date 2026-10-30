@@ -337,7 +337,7 @@ static int cli_users_locked(VerbaLinea *err_msg)
 static void cli_users_released(void)
 {
     cli_files_let(s_users->files);
-    g_cli_cells->persistent_buf_release(s_users, NULL);
+    cli_cell_release(s_users, NULL);
     s_users = NULL;
     cli_lock_give(&s_users_lock);
 }

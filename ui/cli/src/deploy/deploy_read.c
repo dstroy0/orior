@@ -88,7 +88,7 @@ void cli_deploy_pool_given(CliDeployPool *pool)
     while (pool->page != NULL)
     {
         CliDeployPage *const before = pool->page->before;
-        g_cli_cells->persistent_buf_release(pool->page, NULL);
+        cli_cell_release(pool->page, NULL);
         pool->page = before;
     }
     pool->refused = 0;

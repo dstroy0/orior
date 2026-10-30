@@ -74,7 +74,7 @@ int cli_tests_list(const char *root, const char *const *words, unsigned int coun
             cli_json_write(&room->json, tree, &pretty, 2u, 0);
         }
         cli_out_line(room->pretty, mmgr_line_ok(&pretty) ? pretty.at : 0ull);
-        g_cli_cells->persistent_buf_release(room, NULL);
+        cli_cell_release(room, NULL);
         return 0;
     }
     unsigned int listed = 0u;
@@ -231,7 +231,7 @@ void cli_job_show(const char *root, const CliCatalog *catalog, unsigned int job)
     }
     const int shown = (values != NULL) && cli_job_values(catalog, job, NULL, 0u, values, &err_msg) &&
                       cli_runner_shown(root, catalog, job, values, jobs_shown, NULL, &err_msg);
-    g_cli_cells->persistent_buf_release(values, NULL);
+    cli_cell_release(values, NULL);
     if (!shown)
     {
         line.at = 0ull;
@@ -284,7 +284,7 @@ static void jobs_state_sent(VerbaLinea *state)
     {
         cli_window_channel_sent(state->out, state->at);
     }
-    g_cli_cells->persistent_buf_release(state->out, NULL);
+    cli_cell_release(state->out, NULL);
 }
 
 // a line of the errors led by `lead`
@@ -370,7 +370,7 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
     {
         mmgr_line_put(&err_msg, (values == NULL) ? "the cells cannot meet the values a job is run with" : "");
         cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);
-        g_cli_cells->persistent_buf_release(values, NULL);
+        cli_cell_release(values, NULL);
         return CLI_WRONG;
     }
     cli_window_channel_begun();
@@ -401,7 +401,7 @@ int cli_job_run(const char *root, const CliCatalog *catalog, unsigned int job, c
     unsigned long long run = 0ull;
     err_msg.at = 0ull;
     const int started = cli_runs_start(sink, root, catalog, job, values, &run, &err_msg);
-    g_cli_cells->persistent_buf_release(values, NULL);
+    cli_cell_release(values, NULL);
     if (!started)
     {
         cli_err_line(why, mmgr_line_ok(&err_msg) ? err_msg.at : 0ull);

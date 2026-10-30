@@ -176,7 +176,7 @@ static void requests_values(void)
                   (cellul.find(&(CatenaFinitaCfg){
                        .src = why, .cap = CLI_CELLS_POOL, .other = "{{host}}", .other_cap = CLI_CELLS_POOL}) != NULL),
               "no environment, no host");
-    g_cli_cells->persistent_buf_release(body.out, NULL);
+    cli_cell_release(body.out, NULL);
     static CliRequestsValues s_none;
     static const char s_dynamic[] = "{{$uuid}} {{$timestamp}}";
     out.at = 0ull;
@@ -391,6 +391,7 @@ static void requests_history(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char home[CLI_PATH_MAX_LEN];
     cli_check_folder("requests_home", home);
     (void)query_environment_set("ORIOR_HOME", home);

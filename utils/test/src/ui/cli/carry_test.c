@@ -266,6 +266,7 @@ static void carry_by_repository(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     carry_by_file();
     carry_by_repository();
     return cli_checked();

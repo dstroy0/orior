@@ -232,7 +232,7 @@ int cli_kernel_frames_sent(CliKernel *kernel, const CliSocket *socket, CliLock *
         (void)mmgr_line_finish(&flight);
     }
     cli_lock_give(lock);
-    g_cli_cells->persistent_buf_release(message, NULL);
+    cli_cell_release(message, NULL);
     return sent;
 }
 

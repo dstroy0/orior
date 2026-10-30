@@ -81,7 +81,7 @@ int cli_page_lines_room(CliPageLines *lines, unsigned long long lines_more, unsi
     memor.cpy(&(MemoriaCfg){.dst = moved.start, .src = lines->start, .bytes = lines->count * sizeof(*moved.start)});
     memor.cpy(&(MemoriaCfg){.dst = moved.length, .src = lines->length, .bytes = lines->count * sizeof(*moved.length)});
     memor.cpy(&(MemoriaCfg){.dst = moved.text, .src = lines->text, .bytes = lines->used});
-    g_cli_cells->persistent_buf_release(lines->cell, NULL);
+    cli_cell_release(lines->cell, NULL);
     lines_laid(lines, cell, lines_most, text_most);
     return 1;
 }
@@ -127,7 +127,7 @@ int cli_page_block_read(CliPaged *one, unsigned long long from, unsigned long lo
 
 void cli_page_lines_given(CliPageLines *lines)
 {
-    g_cli_cells->persistent_buf_release(lines->cell, NULL);
+    cli_cell_release(lines->cell, NULL);
     lines->cell = NULL;
     lines->start = NULL;
     lines->length = NULL;

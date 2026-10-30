@@ -45,7 +45,7 @@ static void watch_batches_given(CliWatched *batch)
     while (batch != NULL)
     {
         CliWatched *const next = batch->next;
-        g_cli_cells->persistent_buf_release(batch, NULL);
+        cli_cell_release(batch, NULL);
         batch = next;
     }
 }
@@ -101,7 +101,7 @@ static void watch_taker(void *context)
         {
             cli_servers_changed(root, paths, unique_count);
         }
-        g_cli_cells->persistent_buf_release(paths, NULL);
+        cli_cell_release(paths, NULL);
         watch_batches_given(taken);
     }
 }

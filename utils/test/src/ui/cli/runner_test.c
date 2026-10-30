@@ -152,6 +152,7 @@ static int runner_split(const char *text, char *out)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char bash[CLI_PATH_MAX_LEN];
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};

@@ -56,6 +56,7 @@ static void diff_member(unsigned long long size, const char *name, const char *w
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     unsigned long long size = diff_changes("a\nb\nc\nd\ne", 9ull, "a\nB\nc\nnew\nd", 11ull);
     diff_member(size, "changed", "[1]", "a line changed is marked changed");
     diff_member(size, "added", "[3]", "a line put in is marked added");

@@ -41,7 +41,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 
 void cli_settings_layers_given(CliLayers *layers)
 {
-    g_cli_cells->persistent_buf_release(layers->text, &g_cli_settings_cells);
+    cli_cell_release(layers->text, &g_cli_settings_cells);
     layers->text = NULL;
     layers->used = 0ull;
     layers->room = 0ull;
@@ -69,7 +69,7 @@ unsigned int cli_settings_text_stored(CliLayers *layers, const char *text, unsig
         if (layers->text != NULL)
         {
             memor.cpy(&(MemoriaCfg){.dst = grown, .src = layers->text, .bytes = (size_t)layers->used});
-            g_cli_cells->persistent_buf_release(layers->text, &g_cli_settings_cells);
+            cli_cell_release(layers->text, &g_cli_settings_cells);
         }
         layers->text = grown;
         layers->room = room;

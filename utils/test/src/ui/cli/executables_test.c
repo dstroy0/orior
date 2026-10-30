@@ -387,6 +387,7 @@ static void executables_trace(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     // the check's folders sit inside the tree's repository, whose commit would date every step; a date already given
     // is retained; the steps are therefore shown as they are outside any repository
     (void)query_environment_set("SOURCE_DATE_EPOCH", "0");

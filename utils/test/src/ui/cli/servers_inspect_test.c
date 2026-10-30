@@ -132,6 +132,7 @@ static const char *inspect_applied(const char *text, const char *edits_json, uns
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static const char s_text[] = "export function f() {\n  const unused = 1;\n  return 2;\n}\n";
     char dir[CLI_PATH_MAX_LEN];
     char file[CLI_PATH_MAX_LEN];

@@ -26,8 +26,11 @@ int main(int count, char **given)
     // every process a command starts stands under this one, and ends with it
     (void)cli_container_made();
     const unsigned int words = cli_arguments(count, given, s_given, CLI_LAUNCH_ARGS);
+    // the one command this process runs is one lane's: its own cells are the lane's and are rewound as it ends
+    const size_t mark = cli_lane_entered(0u);
     cli_command_line_run(s_given, words, &s_outcome);
     cli_cells_peaks_reported();
+    cli_lane_rewound(0u, mark);
     if (!s_outcome.window)
     {
         return s_outcome.code;

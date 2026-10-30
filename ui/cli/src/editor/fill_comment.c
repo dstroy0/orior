@@ -496,6 +496,6 @@ int cli_fill_comment(const char *text, unsigned long long size, const CliFillLin
     cli_filled_line(filled, indent, indent_size);
     mmgr_line_put(filled->out, " */");
     cli_fill_edit_of(text, &first, &last, filled, edit);
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
     return 1;
 }

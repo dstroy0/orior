@@ -78,7 +78,7 @@ static int files_grown(void)
     }
     memor.set(&(MemoriaCfg){.dst = larger, .val = 0, .bytes = (size_t)room * sizeof(CliLspFile)});
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = s_files, .bytes = (size_t)s_files_room * sizeof(CliLspFile)});
-    g_cli_cells->persistent_buf_release(s_files, &g_cli_lsp_files_cells);
+    cli_cell_release(s_files, &g_cli_lsp_files_cells);
     s_files = larger;
     s_files_room = room;
     return 1;
@@ -91,7 +91,7 @@ static void files_let_go(unsigned int at)
     char saved_path[CLI_PATH_MAX_LEN];
     files_saved_path(at, saved_path);
     (void)query_removed(saved_path);
-    g_cli_cells->persistent_buf_release(s_files[at].uri, &g_cli_lsp_files_cells);
+    cli_cell_release(s_files[at].uri, &g_cli_lsp_files_cells);
     s_files[at].uri = NULL;
     s_files[at].taken = 0;
 }
@@ -362,8 +362,8 @@ void cli_lsp_open_each(CliLsp *lsp,
             cli_file_let_go(bytes, size);
         }
     }
-    g_cli_cells->persistent_buf_release(uris, &g_cli_lsp_files_cells);
-    g_cli_cells->persistent_buf_release(places, &g_cli_lsp_files_cells);
+    cli_cell_release(uris, &g_cli_lsp_files_cells);
+    cli_cell_release(places, &g_cli_lsp_files_cells);
 }
 
 void cli_lsp_files_let_go(const CliLsp *lsp)

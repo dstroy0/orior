@@ -17,6 +17,7 @@ static int state_file_exists(const char *name)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static const char *const s_entries[10][2] = {
         {"scheme", "dark"},
         {"zoom", "1.1"},

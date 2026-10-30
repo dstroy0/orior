@@ -225,7 +225,7 @@ static void test_ended(void *context)
     s_runs[run->place] = NULL;
     cli_wake_all(&s_runs_wake);
     cli_lock_give(&g_cli_test_lock);
-    g_cli_cells->persistent_buf_release(run, NULL);
+    cli_cell_release(run, NULL);
 }
 
 void cli_test_runs_stop(void)

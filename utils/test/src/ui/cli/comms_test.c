@@ -307,6 +307,7 @@ static void comms_leave(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     comms_grants();
     comms_keys();
     comms_channels();

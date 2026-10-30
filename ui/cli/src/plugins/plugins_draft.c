@@ -272,7 +272,7 @@ static void cli_template_each(void *context, const CliPlugin *plugin)
     template_of->found = (tokens != NULL)
                              ? cli_json_read(template_of->json, plugin->text, plugin->size, tokens, count, &err_msg)
                              : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_plugins_cells);
+    cli_cell_release(tokens, &g_cli_plugins_cells);
 }
 
 // The room the plugin of `id` takes, the last found of that id: its tokens and its bytes

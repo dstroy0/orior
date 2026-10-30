@@ -198,7 +198,7 @@ static int cli_leaves_grown(CliLeafRead *read)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = read->leaf, .bytes = (size_t)read->count * sizeof(*grown)});
     }
-    g_cli_cells->persistent_buf_release(read->leaf, NULL);
+    cli_cell_release(read->leaf, NULL);
     read->leaf = grown;
     read->room = room;
     return 1;
@@ -284,7 +284,7 @@ int cli_leaf_has(const CliLeafRead *read, unsigned int leaf, unsigned long long 
 
 void cli_symbols_leaves_given(CliLeafRead *read)
 {
-    g_cli_cells->persistent_buf_release(read->leaf, NULL);
+    cli_cell_release(read->leaf, NULL);
     read->leaf = NULL;
     read->count = 0u;
     read->room = 0u;

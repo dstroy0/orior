@@ -25,7 +25,7 @@ static int line_grown(void *context, const char *bytes, size_t size)
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = bytes, .bytes = size});
-    g_cli_cells->persistent_buf_release(line->out, NULL);
+    cli_cell_release(line->out, NULL);
     line->out = larger;
     line->capacity = room;
     return MMGR_LINE_GROWN;

@@ -167,6 +167,6 @@ int cli_text_applied(const char *text, unsigned long long size, const CliTextEdi
     s_place = NULL;
     s_order = NULL;
     cli_lock_give(&s_edits_lock);
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
     return 1;
 }

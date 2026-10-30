@@ -14,6 +14,7 @@ static void root_read_checked(const char *path, const char *wanted, const char *
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char base[CLI_PATH_MAX_LEN];
     char tree[CLI_PATH_MAX_LEN];
     char other[CLI_PATH_MAX_LEN];

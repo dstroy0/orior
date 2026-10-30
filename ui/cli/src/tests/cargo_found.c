@@ -71,10 +71,10 @@ void cli_cargo_tests_given(CliCargoTests *tests)
     while (piece != NULL)
     {
         CliCargoPiece *const next = piece->next;
-        g_cli_cells->persistent_buf_release(piece, &g_cli_cargo_cells);
+        cli_cell_release(piece, &g_cli_cargo_cells);
         piece = next;
     }
-    g_cli_cells->persistent_buf_release(tests->found, &g_cli_cargo_cells);
+    cli_cell_release(tests->found, &g_cli_cargo_cells);
     *tests = (CliCargoTests){NULL, 0u, 0u, NULL, 0ull, 0};
 }
 
@@ -355,8 +355,8 @@ void cli_cargo_found(const char *root, CliCargoTests *tests)
     }
     cli_cargo_firsts_given();
     cli_files_let(files);
-    g_cli_cells->persistent_buf_release(walk.seen, &g_cli_cargo_cells);
-    g_cli_cells->persistent_buf_release(walk.seen_text, &g_cli_cargo_cells);
+    cli_cell_release(walk.seen, &g_cli_cargo_cells);
+    cli_cell_release(walk.seen_text, &g_cli_cargo_cells);
     cli_cargo_scan_given();
     cli_lock_give(&s_found_lock);
 }

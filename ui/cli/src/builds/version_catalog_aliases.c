@@ -157,8 +157,8 @@ static int aliases_taken(CliVersionsAliases *aliases)
 
 void cli_versions_aliases_given(CliVersionsAliases *aliases)
 {
-    g_cli_cells->persistent_buf_release(aliases->text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(aliases->alias, &g_cli_versions_cells);
+    cli_cell_release(aliases->text, &g_cli_versions_cells);
+    cli_cell_release(aliases->alias, &g_cli_versions_cells);
     aliases->alias = NULL;
     aliases->text = NULL;
     aliases->count = 0u;

@@ -118,7 +118,7 @@ static int branch_room_made(void **cell, unsigned long long *room, unsigned long
     {
         memor.cpy(&(MemoriaCfg){.dst = made, .src = *cell, .bytes = kept});
     }
-    g_cli_cells->persistent_buf_release(*cell, NULL);
+    cli_cell_release(*cell, NULL);
     *cell = made;
     *room = grown;
     return 1;
@@ -142,11 +142,11 @@ static void branch_work_emptied(CliBranchWork *work)
 // a work's rooms given back, as its coloring ends
 static void branch_work_given(CliBranchWork *work)
 {
-    g_cli_cells->persistent_buf_release(work->text, NULL);
-    g_cli_cells->persistent_buf_release(work->starts, NULL);
-    g_cli_cells->persistent_buf_release(work->named, NULL);
-    g_cli_cells->persistent_buf_release(work->roles, NULL);
-    g_cli_cells->persistent_buf_release(work->found, NULL);
+    cli_cell_release(work->text, NULL);
+    cli_cell_release(work->starts, NULL);
+    cli_cell_release(work->named, NULL);
+    cli_cell_release(work->roles, NULL);
+    cli_cell_release(work->found, NULL);
 }
 
 // the hash of `length` bytes of `text`, FNV-1a over its bytes
@@ -194,7 +194,7 @@ static int branch_index_grown(CliStoredText *one)
         return 0;
     }
     memor.set(&(MemoriaCfg){.dst = grown, .val = 0, .bytes = places * sizeof(*grown)});
-    g_cli_cells->persistent_buf_release(one->state_index, NULL);
+    cli_cell_release(one->state_index, NULL);
     one->state_index = grown;
     // a count checked above to be no more than an unsigned int's half
     one->state_indexed = (unsigned int)places;
@@ -245,7 +245,7 @@ static unsigned int branch_state(CliStoredText *one, const char *text)
         {
             memor.cpy(&(MemoriaCfg){.dst = grown, .src = one->state, .bytes = one->state_used});
         }
-        g_cli_cells->persistent_buf_release(one->state, NULL);
+        cli_cell_release(one->state, NULL);
         one->state = grown;
         // a room checked above to be no more than an unsigned int counts
         one->state_room = (unsigned int)room;
@@ -499,7 +499,7 @@ static int branch_runs_roomed(CliStoredText *one, unsigned long long more)
             used += words;
         }
     }
-    g_cli_cells->persistent_buf_release(one->run, NULL);
+    cli_cell_release(one->run, NULL);
     one->run = moved;
     // a room checked above to be no more than an unsigned int counts
     one->run_room = (unsigned int)room;
@@ -577,7 +577,7 @@ static void branch_roles_read(CliStoredText *one)
         {
             return;
         }
-        g_cli_cells->persistent_buf_release(one->roles, NULL);
+        cli_cell_release(one->roles, NULL);
         one->roles = grown;
         one->roles_room = names;
     }
@@ -1241,7 +1241,7 @@ static unsigned int branch_batch_colored(CliStoredText *one, unsigned int first,
         colored = cli_highlight_leaves(grammar, stated ? state : "root", line, spend,
                                        ((first + spend) == count) && whole, branch_found, &finding, &last, &err_msg);
     }
-    g_cli_cells->persistent_buf_release(taken, NULL);
+    cli_cell_release(taken, NULL);
     cli_document_lock_take();
     branch_claim_dropped(one, claim);
     if (one->let_go || (one->serial != serial))
@@ -1666,7 +1666,7 @@ static void branch_walked(CliBranchWalker *walker, int own)
         if (one == NULL)
         {
             // the step's line given back as the walk ends, before the walker is marked free to walk again
-            g_cli_cells->persistent_buf_release(walker->step.out, NULL);
+            cli_cell_release(walker->step.out, NULL);
             walker->step.out = NULL;
             walker->walking = own ? 0 : walker->walking;
             cli_document_lock_give();
@@ -1821,7 +1821,7 @@ int cli_document_viewed(const char *key, unsigned long long first, unsigned long
     branch_handed_out(any && (out == NULL), &colors);
     if (made)
     {
-        g_cli_cells->persistent_buf_release(colors.out, NULL);
+        cli_cell_release(colors.out, NULL);
     }
     return found;
 }
@@ -1871,7 +1871,7 @@ static void branch_rehanded_sent(int any, VerbaLinea *colors, int made)
     branch_handed_out(any, colors);
     if (made)
     {
-        g_cli_cells->persistent_buf_release(colors->out, NULL);
+        cli_cell_release(colors->out, NULL);
     }
 }
 
@@ -2093,7 +2093,7 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
             mmgr_line_put(text, line[at - from]);
             mmgr_line_put(text, (at < to) ? "\n" : "");
         }
-        g_cli_cells->persistent_buf_release(taken, NULL);
+        cli_cell_release(taken, NULL);
         branch_work_given(&work);
     }
     if ((mmgr_line_finish(&entered) == 0ull) && (room != 0ull))
@@ -2103,7 +2103,7 @@ char *cli_document_lines_taken(const char *key, unsigned long long first, unsign
     const int taken = made && found && mmgr_line_ok(text);
     if (made && !taken)
     {
-        g_cli_cells->persistent_buf_release(written.out, NULL);
+        cli_cell_release(written.out, NULL);
     }
     *size = taken ? text->at : 0ull;
     return taken ? written.out : NULL;
@@ -2133,7 +2133,7 @@ int cli_document_text_written(const char *key, unsigned long long first, unsigne
     if (text != NULL)
     {
         cli_json_quoted(out, text, size);
-        g_cli_cells->persistent_buf_release(text, NULL);
+        cli_cell_release(text, NULL);
     }
     return text != NULL;
 }

@@ -152,7 +152,7 @@ void cli_symbols_languages_given(CliSymbolsLanguages *read)
     {
         cli_plugins_languages_given(&read->languages);
     }
-    g_cli_cells->persistent_buf_release(read, NULL);
+    cli_cell_release(read, NULL);
 }
 
 // the place among `read`'s grammars of the language `id`, CLI_SYMBOLS_GRAMMARS where it is none whose grammar is read
@@ -279,7 +279,7 @@ static int cli_symbols_leaves_at(CliSymbolsLanguages *read, unsigned int place, 
                                 .src = (length != 0ull) ? ended_text : "root",
                                 .bytes = (length != 0ull) ? (length + 1u) : 5u});
     }
-    g_cli_cells->persistent_buf_release(lines, NULL);
+    cli_cell_release(lines, NULL);
     return colored;
 }
 

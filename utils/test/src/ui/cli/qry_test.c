@@ -191,6 +191,7 @@ static void run_watched(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     run_finished();
     run_members();
     run_listed();

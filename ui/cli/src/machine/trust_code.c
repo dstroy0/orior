@@ -38,7 +38,7 @@ static CliLock s_found_lock = CLI_LOCK_INIT;
 
 void cli_trust_code_given(CliTrustCode *code)
 {
-    g_cli_cells->persistent_buf_release(code->paths, &g_cli_trust_cells);
+    cli_cell_release(code->paths, &g_cli_trust_cells);
     *code = (CliTrustCode){NULL, 0ull, 0u};
 }
 
@@ -275,7 +275,7 @@ int cli_trust_looked_for(const char *tree, CliTrustCode *code)
         {
             char *const text = cli_read_in(tree, file);
             is_code = (text != NULL) && cli_proc_macro(text);
-            g_cli_cells->persistent_buf_release(text, &g_cli_trust_cells);
+            cli_cell_release(text, &g_cli_trust_cells);
         }
         else
         {
@@ -294,9 +294,9 @@ int cli_trust_looked_for(const char *tree, CliTrustCode *code)
         mmgr_line_put_n(&paths, ".git/config", sizeof(".git/config"));
         found += 1u;
     }
-    g_cli_cells->persistent_buf_release(config, &g_cli_trust_cells);
+    cli_cell_release(config, &g_cli_trust_cells);
     const int done = mmgr_line_ok(&paths) && cli_code_copied(paths.out, paths.at, found, code);
-    g_cli_cells->persistent_buf_release(paths.out, NULL);
+    cli_cell_release(paths.out, NULL);
     return done;
 }
 
@@ -408,7 +408,7 @@ unsigned int cli_trust_git_words(const char *tree, const char **words)
         {
             char *const config = cli_read_in(folder, ".git/config");
             hook = (config != NULL) && cli_trust_names_a_hook(config);
-            g_cli_cells->persistent_buf_release(config, &g_cli_trust_cells);
+            cli_cell_release(config, &g_cli_trust_cells);
             break;
         }
         char above[CLI_PATH_MAX_LEN];

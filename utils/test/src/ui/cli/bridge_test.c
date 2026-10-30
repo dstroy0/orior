@@ -131,6 +131,7 @@ static void bridge_tree_read(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     bridge_pair();
     bridge_map();
     bridge_tree_read();

@@ -33,6 +33,7 @@ static float font_off(float one, float other)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     CliMask mask;
     font_square(0.0f, 0.0f, 4.0f, 4.0f);
     cli_font_rasterize(&s_contours, &mask, s_cover, sizeof(s_cover) / sizeof(s_cover[0]));

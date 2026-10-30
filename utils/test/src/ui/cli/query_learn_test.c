@@ -183,6 +183,7 @@ static void learn_stick(const char *root)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     learn_files();
     learn_carrier();
     learn_steps();

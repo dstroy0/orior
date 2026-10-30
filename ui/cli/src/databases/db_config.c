@@ -18,7 +18,7 @@ static CliLock s_lock = CLI_LOCK_INIT;
 // the connections read given back, and the lock with them
 static void config_released(void)
 {
-    g_cli_cells->persistent_buf_release(s_connections, &g_cli_db_cells);
+    cli_cell_release(s_connections, &g_cli_db_cells);
     s_connections = NULL;
     cli_lock_give(&s_lock);
 }
@@ -240,7 +240,7 @@ static int config_write(const char *root, unsigned int count, VerbaLinea *err_ms
         mmgr_line_put(&out, (at + 1u < count) ? ",\n" : "\n  ]\n}\n");
     }
     const int written = mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
-    g_cli_cells->persistent_buf_release(out.out, NULL);
+    cli_cell_release(out.out, NULL);
     if (!written)
     {
         mmgr_line_put(err_msg, "databases.json: it could not be written");

@@ -222,6 +222,7 @@ static void ipp_cups(const char *host, unsigned int port)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     ipp_message();
     ipp_addresses();
     char host[CLI_NAME_MAX_LEN];

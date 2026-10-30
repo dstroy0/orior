@@ -74,7 +74,7 @@ static void *cli_catalog_grown(void *cell, unsigned int *room, unsigned int most
     if (cell != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = cell, .bytes = (size_t)((unsigned long long)*room * width)});
-        g_cli_cells->persistent_buf_release(cell, &g_cli_catalog_cells);
+        cli_cell_release(cell, &g_cli_catalog_cells);
     }
     *room = taken;
     return grown;
@@ -104,7 +104,7 @@ int cli_catalog_paths_room(CliPaths *paths, unsigned int most)
 
 void cli_catalog_entries_given(CliEntries *entries)
 {
-    g_cli_cells->persistent_buf_release(entries->name, &g_cli_catalog_cells);
+    cli_cell_release(entries->name, &g_cli_catalog_cells);
     entries->name = NULL;
     entries->count = 0u;
     entries->room = 0u;
@@ -112,12 +112,12 @@ void cli_catalog_entries_given(CliEntries *entries)
 
 void cli_catalog_paths_given(CliPaths *paths)
 {
-    g_cli_cells->persistent_buf_release(paths->path, &g_cli_catalog_cells);
+    cli_cell_release(paths->path, &g_cli_catalog_cells);
     paths->path = NULL;
     paths->room = 0u;
 }
 
 void cli_catalog_text_given(char *text)
 {
-    g_cli_cells->persistent_buf_release(text, &g_cli_catalog_cells);
+    cli_cell_release(text, &g_cli_catalog_cells);
 }

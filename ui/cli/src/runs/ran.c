@@ -69,11 +69,11 @@ static void cli_ran_texts_given(CliRan *ran)
 {
     if (ran->out != s_nothing)
     {
-        g_cli_cells->persistent_buf_release(ran->out, NULL);
+        cli_cell_release(ran->out, NULL);
     }
     if (ran->err != s_nothing)
     {
-        g_cli_cells->persistent_buf_release(ran->err, NULL);
+        cli_cell_release(ran->err, NULL);
     }
     ran->out = s_nothing;
     ran->err = s_nothing;
@@ -86,7 +86,7 @@ void cli_ran_given(CliRan *ran)
     if (ran != &s_refused)
     {
         cli_ran_texts_given(ran);
-        g_cli_cells->persistent_buf_release(cli_room_of(ran), NULL);
+        cli_cell_release(cli_room_of(ran), NULL);
     }
 }
 
@@ -144,7 +144,7 @@ static void cli_pipe_read(unsigned long long pipe, char **text, unsigned long lo
             memor.cpy(&(MemoriaCfg){.dst = joined + at, .src = piece->bytes, .bytes = (size_t)piece->size});
             at += piece->size;
         }
-        g_cli_cells->persistent_buf_release(piece, NULL);
+        cli_cell_release(piece, NULL);
         piece = next;
     }
     if (joined != NULL)

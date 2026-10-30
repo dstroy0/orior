@@ -178,8 +178,8 @@ static void view_linked_served(const char *path, const char *media_type, CliWind
         }
         view_refused(served, context, 404u, &err_msg);
     }
-    g_cli_cells->persistent_buf_release(bytes, NULL);
-    g_cli_cells->persistent_buf_release(read.out, NULL);
+    cli_cell_release(bytes, NULL);
+    cli_cell_release(read.out, NULL);
 }
 
 void cli_window_view_served(const char *path, unsigned long long size, CliWindowServed served, void *context)

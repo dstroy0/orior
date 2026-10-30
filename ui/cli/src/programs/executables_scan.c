@@ -272,8 +272,8 @@ void cli_cmake_targets(const char *text, const char *project, CliNames *names)
             cli_names_put(names, name, length, NULL);
         }
     }
-    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
+    cli_cell_release(calls, &g_cli_executables_cells);
+    cli_cell_release(code, &g_cli_executables_cells);
 }
 
 int cli_cmake_project(const char *text, char *out)
@@ -286,8 +286,8 @@ int cli_cmake_project(const char *text, char *out)
     {
         found = cli_cmake_word(&calls[at], 0u, out);
     }
-    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
+    cli_cell_release(calls, &g_cli_executables_cells);
+    cli_cell_release(code, &g_cli_executables_cells);
     return found;
 }
 
@@ -323,8 +323,8 @@ void cli_meson_targets(const char *text, CliNames *names)
             cli_names_put(names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), NULL);
         }
     }
-    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
+    cli_cell_release(calls, &g_cli_executables_cells);
+    cli_cell_release(code, &g_cli_executables_cells);
 }
 
 int cli_meson_project(const char *text, char *out)
@@ -337,7 +337,7 @@ int cli_meson_project(const char *text, char *out)
     {
         found = cli_meson_first(&calls[at], out);
     }
-    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
+    cli_cell_release(calls, &g_cli_executables_cells);
+    cli_cell_release(code, &g_cli_executables_cells);
     return found;
 }

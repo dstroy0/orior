@@ -27,7 +27,7 @@ static const unsigned char *file_taken(const char *path, unsigned long long from
     }
     if (!cli_file_read_at(path, from, cell, count, size))
     {
-        g_cli_cells->persistent_buf_release(cell, NULL);
+        cli_cell_release(cell, NULL);
         *size = 0ull;
         return NULL;
     }
@@ -57,7 +57,7 @@ const unsigned char *cli_file_read(const char *path, unsigned long long *size)
     }
     if (!read)
     {
-        g_cli_cells->persistent_buf_release(cell, NULL);
+        cli_cell_release(cell, NULL);
         *size = 0ull;
         return NULL;
     }
@@ -146,6 +146,6 @@ void cli_file_let_go(const unsigned char *bytes, unsigned long long size)
     if ((bytes != NULL) && (bytes != s_none) && (size != 0ull))
     {
         // the cell is given back as it was taken; const is the reader's view of it
-        g_cli_cells->persistent_buf_release((void *)(uintptr_t)bytes, NULL);
+        cli_cell_release((void *)(uintptr_t)bytes, NULL);
     }
 }

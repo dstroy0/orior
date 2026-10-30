@@ -101,7 +101,7 @@ unsigned int cli_cores_reserved(void)
     }
     cli_settings_layers_given(&read->layers);
     cli_settings_chain_given(&read->reader);
-    g_cli_cells->persistent_buf_release(read, &g_cli_settings_cells);
+    cli_cell_release(read, &g_cli_settings_cells);
     s_reserved = (reserved > CLI_CORES_RESERVED_MIN) ? reserved : CLI_CORES_RESERVED_MIN;
     reserved = s_reserved;
     cli_lock_give(&s_lock);

@@ -196,6 +196,7 @@ static void raster_listing_drawn(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     raster_compression();
     raster_listing_drawn();
     return cli_checked();

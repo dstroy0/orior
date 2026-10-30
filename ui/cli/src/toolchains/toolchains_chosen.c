@@ -255,7 +255,7 @@ static int found_put(const char *id, const char *state, const char *program)
         {
             memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_found.tool, .bytes = s_found.count * sizeof(*grown)});
         }
-        g_cli_cells->persistent_buf_release(s_found.tool, &s_found_cells);
+        cli_cell_release(s_found.tool, &s_found_cells);
         s_found.tool = grown;
         s_found.most = most;
     }

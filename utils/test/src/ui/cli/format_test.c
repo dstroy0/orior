@@ -107,6 +107,7 @@ static const char *format_language(const char *path)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     format_formatters();
     format_widths();
     cli_check(cellul.eq(&(CatenaFinitaCfg){.src = format_language("a/b.py"), .other = "python", .cap = CLI_CELLS_POOL}),

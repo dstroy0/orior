@@ -22,6 +22,7 @@ static void net_host_checked(const char *address, const char *wanted)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     net_host_checked("https://api.example.com:8443/v1/items?x=1", "api.example.com");
     net_host_checked("git@github.com:dstroy0/orior.git", "github.com");
     net_host_checked("ssh://me@build.example.org:2222/srv", "build.example.org");

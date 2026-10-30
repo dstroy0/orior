@@ -165,7 +165,7 @@ static int calls_file_read(CliCallsFile *file, const char *path, CliHeld held, v
 // a file read given back
 static void calls_file_given(CliCallsFile *file)
 {
-    g_cli_cells->persistent_buf_release(file->functions.out, NULL);
+    cli_cell_release(file->functions.out, NULL);
     if (file->leaved)
     {
         cli_symbols_leaves_given(&file->read);
@@ -177,7 +177,7 @@ static void calls_file_given(CliCallsFile *file)
     }
     else
     {
-        g_cli_cells->persistent_buf_release(file->text, NULL);
+        cli_cell_release(file->text, NULL);
     }
 }
 
@@ -280,8 +280,8 @@ static int calls_found_begun(CliCallsFound *calls)
 
 static void calls_found_given(CliCallsFound *calls)
 {
-    g_cli_cells->persistent_buf_release(calls->found.out, NULL);
-    g_cli_cells->persistent_buf_release(calls->paths.out, NULL);
+    cli_cell_release(calls->found.out, NULL);
+    cli_cell_release(calls->paths.out, NULL);
 }
 
 // the leaf of `file` at `line`, `col` in UTF-16 units, `file->read.count` where none starts there

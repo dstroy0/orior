@@ -235,7 +235,7 @@ static void calls_callees_handed(unsigned int file, unsigned int at, unsigned lo
         each(context, tree_file->path, &tree_file->facts, s_callee_at[callee], s_grouped + s_callee_first[callee],
              s_callee_sites[callee]);
     }
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
 }
 
 void cli_inspect_tree_callees(const char *path, unsigned int at, CliInspectReached each, void *context)
@@ -259,7 +259,7 @@ void cli_inspect_tree_callees(const char *path, unsigned int at, CliInspectReach
         }
         calls_callees_handed(file, at, sites, each, context);
     }
-    g_cli_cells->persistent_buf_release(reached, NULL);
+    cli_cell_release(reached, NULL);
     cli_lock_give(&g_cli_tree_lock);
 }
 
@@ -339,6 +339,6 @@ void cli_inspect_tree_callers(const char *path, unsigned int at, CliInspectReach
             }
         }
     }
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
     cli_lock_give(&g_cli_tree_lock);
 }

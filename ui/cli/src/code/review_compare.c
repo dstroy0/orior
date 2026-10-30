@@ -374,7 +374,7 @@ static void cli_file_compared(const CliReviewFile *file)
         cli_piece_put(s_compare->removed, &s_compare->removeds,
                       cli_piece(file->was_path, &was->decl[least], "removed", was->decl[least].text, empty));
     }
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
 }
 
 // whether a piece comes before another: by path, then line
@@ -497,7 +497,7 @@ static int compare_call_room(void)
     }
     memor.cpy(&(MemoriaCfg){
         .dst = larger, .src = g_cli_review.call, .bytes = (size_t)g_cli_review.calls * sizeof(unsigned int)});
-    g_cli_cells->persistent_buf_release(g_cli_review.call, NULL);
+    cli_cell_release(g_cli_review.call, NULL);
     g_cli_review.call = larger;
     g_cli_review.call_room = room;
     return 1;

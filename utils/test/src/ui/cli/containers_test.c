@@ -80,6 +80,7 @@ static void containers_pods(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     containers_docker();
     containers_pods();
     char why[256];

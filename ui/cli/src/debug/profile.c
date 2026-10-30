@@ -43,8 +43,8 @@ static CliWake s_wake = CLI_WAKE_INIT;
 // a profile's cells given back, under the profiles' lock
 static void profile_cells_given(CliProfile *profile)
 {
-    g_cli_cells->persistent_buf_release(profile->words, &s_cells);
-    g_cli_cells->persistent_buf_release(profile->path, &s_cells);
+    cli_cell_release(profile->words, &s_cells);
+    cli_cell_release(profile->path, &s_cells);
     profile->words = NULL;
     profile->path = NULL;
 }
@@ -81,7 +81,7 @@ static void profile_output_emitted(CliProfile *profile, const char *line, unsign
     {
         profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
+    cli_cell_release(json_buf, &s_cells);
 }
 
 // a line of the program's output received: the counts so far where it starts with the mark, the code the program ended
@@ -134,7 +134,7 @@ static void profile_line(CliProfile *profile, const char *line, unsigned long lo
     {
         profile->sink.emit(profile->sink.context, out.out, out.at);
     }
-    g_cli_cells->persistent_buf_release(json_buf, &s_cells);
+    cli_cell_release(json_buf, &s_cells);
 }
 
 // the lines of a pipe read until it ends, each in a cell grown as it fills, handed on with its "\r" before "\n" taken
@@ -163,7 +163,7 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
                 if (grown != NULL)
                 {
                     memor.cpy(&(MemoriaCfg){.dst = grown, .src = line, .bytes = (size_t)used});
-                    g_cli_cells->persistent_buf_release(line, &s_cells);
+                    cli_cell_release(line, &s_cells);
                     line = grown;
                     room = wanted;
                 }
@@ -185,7 +185,7 @@ static void profile_lines(CliProfile *profile, unsigned long long pipe,
     {
         each_line(profile, line, used);
     }
-    g_cli_cells->persistent_buf_release(line, &s_cells);
+    cli_cell_release(line, &s_cells);
 }
 
 // a line the program wrote to its errors reported as output

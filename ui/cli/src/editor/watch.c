@@ -97,7 +97,7 @@ static void *cli_watch_grown(void *cell, unsigned long long used, unsigned long 
     {
         memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = (size_t)used});
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_watch_cells);
+    cli_cell_release(cell, &g_cli_watch_cells);
     *room = grown;
     return larger;
 }
@@ -142,8 +142,8 @@ static const char *cli_change_path(const CliChanges *changes, unsigned int index
 // a list's cells given back, the list containing none
 static void cli_changes_given(CliChanges *changes)
 {
-    g_cli_cells->persistent_buf_release(changes->change, &g_cli_watch_cells);
-    g_cli_cells->persistent_buf_release(changes->text, &g_cli_watch_cells);
+    cli_cell_release(changes->change, &g_cli_watch_cells);
+    cli_cell_release(changes->text, &g_cli_watch_cells);
     *changes = (CliChanges){NULL, 0u, 0ull, NULL, 0ull, 0ull};
 }
 
@@ -330,7 +330,7 @@ static void cli_batched(void *context)
         {
             s_watching.take(s_watching.context, out.out, out.at);
         }
-        g_cli_cells->persistent_buf_release(out.out, NULL);
+        cli_cell_release(out.out, NULL);
         cli_lock_take(&s_lock);
         if (stopping)
         {
@@ -341,7 +341,7 @@ static void cli_batched(void *context)
     s_watching.ended += 1u;
     cli_wake_all(&s_watching.wake);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
+    cli_cell_release(batch, &g_cli_watch_cells);
 }
 
 void cli_watch_stop(void)
@@ -429,6 +429,6 @@ int cli_watch_gathered_of(const char *root, const char *const *paths, const unsi
         batch->lost = batch->lost || !cli_change_put(&batch->changes, paths[at], kinds[at], CLI_WATCH_GATHERED);
     }
     const int any = cli_gathered(batch, out);
-    g_cli_cells->persistent_buf_release(batch, &g_cli_watch_cells);
+    cli_cell_release(batch, &g_cli_watch_cells);
     return any;
 }

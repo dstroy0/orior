@@ -23,8 +23,8 @@ void cli_carried_clear(CliCarried *carried)
 {
     for (unsigned int at = 0u; at < carried->count; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(carried->value[at], NULL);
-        g_cli_cells->persistent_buf_release(carried->place[at], NULL);
+        cli_cell_release(carried->value[at], NULL);
+        cli_cell_release(carried->place[at], NULL);
         carried->value[at] = NULL;
         carried->place[at] = NULL;
     }
@@ -104,16 +104,16 @@ int cli_carried_put(CliCarried *carried, const char *place, const char *value, u
                                  "a carried place");
     if ((pooled_place == NULL) || (pooled_value == NULL))
     {
-        g_cli_cells->persistent_buf_release(pooled_value, NULL);
+        cli_cell_release(pooled_value, NULL);
         if (!there)
         {
-            g_cli_cells->persistent_buf_release(pooled_place, NULL);
+            cli_cell_release(pooled_place, NULL);
         }
         return 0;
     }
     if (there)
     {
-        g_cli_cells->persistent_buf_release(carried->value[at], NULL);
+        cli_cell_release(carried->value[at], NULL);
     }
     else
     {
@@ -177,9 +177,9 @@ static unsigned int carry_plain_read(CliCarryRoom *room, const char *text, unsig
             g_cli_cells->persistent_buf_alloc((unsigned long long)tokens_most * sizeof(*tokens), NULL);
         root = (tokens != NULL) ? cli_json_read(&room->json, plain_text, plain.at, tokens, tokens_most, &unread)
                                 : CLI_JSON_NONE;
-        g_cli_cells->persistent_buf_release(tokens, NULL);
+        cli_cell_release(tokens, NULL);
     }
-    g_cli_cells->persistent_buf_release(plain_text, NULL);
+    cli_cell_release(plain_text, NULL);
     if (room->json.node == NULL)
     {
         return CLI_JSON_NONE;
@@ -355,7 +355,7 @@ int cli_carry_pack(const char *home, CliCarried *packed, VerbaLinea *err_msg)
                 {
                     cli_carried_put(packed, place, written.out, written.at);
                 }
-                g_cli_cells->persistent_buf_release(written.out, NULL);
+                cli_cell_release(written.out, NULL);
             }
         }
         else

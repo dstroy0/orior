@@ -152,6 +152,7 @@ static void sea_note(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     sea_outside();
     sea_refused();
     sea_fuse();

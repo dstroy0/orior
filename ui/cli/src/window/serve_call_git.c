@@ -29,13 +29,13 @@ static int git_branches(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     CliBranches *const found = cli_serve_cell(sizeof(*found), "what git finds", err_msg);
     if ((found == NULL) || !cli_serve_git_repo_of(args, folder, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     cli_git_branches(folder, found);
     cli_git_branches_written(found, out);
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return 1;
 }
 
@@ -53,14 +53,14 @@ static int tree_changed(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         !cli_serve_strings_or(args, "repos", s_repos, CLI_GIT_REPOSITORIES, &count, err_msg))
     {
         cli_lock_give(&s_lock);
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     cli_git_changed(root, s_repos, count, named, found);
     cli_lock_give(&s_lock);
     cli_git_changed_written(found, out);
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return 1;
 }
 
@@ -71,13 +71,13 @@ static int git_repositories(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     CliRepositories *const found = cli_serve_cell(sizeof(*found), "what git finds", err_msg);
     if ((found == NULL) || !cli_serve_tree(root, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     cli_git_repositories(root, found);
     cli_git_repositories_written(found, out);
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return 1;
 }
 
@@ -108,7 +108,7 @@ static int file_commits(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     CliCommits *const found = (path != NULL) ? cli_serve_cell(sizeof(*found), "what git finds", err_msg) : NULL;
     if ((found == NULL) || !cli_serve_tree(root, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     const int done = cli_git_commits(root, path, found, err_msg);
@@ -117,7 +117,7 @@ static int file_commits(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         cli_git_commits_written(found, out);
     }
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return done;
 }
 
@@ -149,13 +149,13 @@ static int git_graph(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     CliGraph *const found = cli_serve_cell(sizeof(*found), "what git finds", err_msg);
     if ((found == NULL) || !cli_serve_git_repo_of(args, folder, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     cli_git_graph(folder, cli_serve_string_or(args, "query", ""), cli_serve_bool_or(args, "authors", 0), found);
     cli_git_graph_written(found, out);
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return 1;
 }
 
@@ -166,7 +166,7 @@ static int git_touched(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     CliTouchedList *const found = (id != NULL) ? cli_serve_cell(sizeof(*found), "what git finds", err_msg) : NULL;
     if ((found == NULL) || !cli_serve_git_repo_of(args, folder, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     const int done = cli_git_touched(folder, id, found, err_msg);
@@ -175,7 +175,7 @@ static int git_touched(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
         cli_git_touched_written(found, cli_serve_string_or(args, "repo", ""), out);
     }
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return done;
 }
 
@@ -185,13 +185,13 @@ static int git_stashes(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     CliStashes *const found = cli_serve_cell(sizeof(*found), "what git finds", err_msg);
     if ((found == NULL) || !cli_serve_git_repo_of(args, folder, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     cli_git_stashes(folder, found);
     cli_git_stashes_written(found, out);
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return 1;
 }
 
@@ -201,13 +201,13 @@ static int git_elsewhere(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *
     CliCommits *const found = cli_serve_cell(sizeof(*found), "what git finds", err_msg);
     if ((found == NULL) || !cli_serve_git_repo_of(args, folder, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     cli_git_elsewhere(folder, found);
     cli_git_commits_written(found, out);
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return 1;
 }
 
@@ -220,7 +220,7 @@ static int git_line_history(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     CliLineHistory *const found = (text != NULL) ? cli_serve_cell(sizeof(*found), "what git finds", err_msg) : NULL;
     if ((found == NULL) || !cli_serve_tree(root, err_msg))
     {
-        g_cli_cells->persistent_buf_release(found, NULL);
+        cli_cell_release(found, NULL);
         return 0;
     }
     (void)cli_json_string(args->json, cli_serve_arg(args, "text"), &length);
@@ -230,7 +230,7 @@ static int git_line_history(const CliServeArgs *args, VerbaLinea *out, VerbaLine
         cli_git_line_history_written(found, out);
     }
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, NULL);
+    cli_cell_release(found, NULL);
     return done;
 }
 

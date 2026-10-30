@@ -75,7 +75,7 @@ static void writing_line_grown(void)
               "a rewind writes over what it contained");
     cli_check(cli_growing_line_room(&line, 5000ull) && ((line.capacity - line.at) > 5000ull) && (line.out[5] == 'x'),
               "room is made for five thousand bytes more, what it contained retained");
-    g_cli_cells->persistent_buf_release(line.out, NULL);
+    cli_cell_release(line.out, NULL);
     char fixed[8];
     VerbaLinea fixed_line = {fixed, sizeof(fixed), 0ull};
     cli_check(cli_growing_line_room(&fixed_line, 7ull) && !cli_growing_line_room(&fixed_line, 8ull),
@@ -85,6 +85,7 @@ static void writing_line_grown(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char root[CLI_PATH_MAX_LEN];
     char gsm[CLI_PATH_MAX_LEN];
     char md[CLI_PATH_MAX_LEN];

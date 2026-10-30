@@ -255,6 +255,7 @@ static void latex_make(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     latex_engine("% !TEX program = xelatex\n\\documentclass{article}", "xelatex", "the engine the file names");
     latex_engine("%!TeX TS-program = LuaLaTeX\n", "lualatex", "in either way it is written");
     latex_engine("\\documentclass{article}\n\\usepackage[no-math]{fontspec}", "lualatex", "fontspec needs LuaLaTeX");

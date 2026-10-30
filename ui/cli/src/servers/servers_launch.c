@@ -120,8 +120,8 @@ void cli_servers_projects_in(const char *root, const char *name, VerbaLinea *out
                               cellul.len(&(CatenaFinitaCfg){.src = found[at], .cap = CLI_CELLS_POOL}));
     }
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(found, &g_cli_servers_launch_cells);
-    g_cli_cells->persistent_buf_release(projects.found.out, NULL);
+    cli_cell_release(found, &g_cli_servers_launch_cells);
+    cli_cell_release(projects.found.out, NULL);
 }
 
 // the options a server starts with: the projects it is given, then what the tree adds, `null` where neither is
@@ -177,7 +177,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
         unsigned int count = 0u;
         char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
         cli_toolchains_find(&manifest_json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &launching->found);
-        g_cli_cells->persistent_buf_release(folders, NULL);
+        cli_cell_release(folders, NULL);
     }
     cli_json_given(&manifest_json);
     if (launching == NULL)
@@ -195,7 +195,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
         mmgr_line_put(err_msg, " is not found: File, Toolchains opens ");
         mmgr_line_put(err_msg, spec->name);
         mmgr_line_put(err_msg, "'s install page or takes its folder");
-        g_cli_cells->persistent_buf_release(launching, &g_cli_servers_launch_cells);
+        cli_cell_release(launching, &g_cli_servers_launch_cells);
         return NULL;
     }
     VerbaLinea options = {NULL, 0ull, 0ull, NULL, NULL, 0ull};
@@ -241,7 +241,7 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
             const unsigned long long joined_size =
                 cellul.len(&(CatenaFinitaCfg){.src = vs->value[at], .cap = CLI_CELLS_POOL}) +
                 cellul.len(&(CatenaFinitaCfg){.src = launching->path, .cap = CLI_CELLS_POOL}) + 2ull;
-            g_cli_cells->persistent_buf_release(vs_path, &g_cli_servers_launch_cells);
+            cli_cell_release(vs_path, &g_cli_servers_launch_cells);
             vs_path = g_cli_cells->persistent_buf_alloc(joined_size, &g_cli_servers_launch_cells);
             VerbaLinea joined = {vs_path, (vs_path != NULL) ? joined_size : 0ull, 0ull};
             mmgr_line_put(&joined, vs->value[at]);
@@ -266,10 +266,10 @@ CliLsp *cli_servers_launch(const char *root, const CliServerSpec *spec, const Cl
                                ? cli_lsp_started(program, words->word, words->count, root, options.out, options.at,
                                                  setting, settings, cli_servers_recv, server_sink, &reason)
                                : NULL;
-    g_cli_cells->persistent_buf_release(vs_path, &g_cli_servers_launch_cells);
-    g_cli_cells->persistent_buf_release(setting, &g_cli_servers_launch_cells);
-    g_cli_cells->persistent_buf_release(options.out, NULL);
-    g_cli_cells->persistent_buf_release(launching, &g_cli_servers_launch_cells);
+    cli_cell_release(vs_path, &g_cli_servers_launch_cells);
+    cli_cell_release(setting, &g_cli_servers_launch_cells);
+    cli_cell_release(options.out, NULL);
+    cli_cell_release(launching, &g_cli_servers_launch_cells);
     if (server == NULL)
     {
         mmgr_line_put(err_msg, spec->program);

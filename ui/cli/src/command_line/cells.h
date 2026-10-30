@@ -19,10 +19,34 @@ extern "C"
 // give them, taken up to the next 32 MiB
 #define CLI_CELLS_POOL ((256ull << 20u) + (32ull << 20u))
 
-    // The cellblock's custodia. A cell is taken with persistent_buf_alloc(bytes, owner) and given back with
-    // persistent_buf_release(cell, owner), owner the module's CellOwner or NULL to count it to none. A take the
-    // cellblock cannot meet returns NULL, which the caller reports where and as it chooses. Read once the pool is made
+// The lanes: a cellblock of its own for each context that runs a command, the window's rooms, the terminal's one
+// command and a check's process, each over a block of CLI_CELLS_LANE_POOL bytes taken from the system at the lane's
+// first entry. A command's own cells, those it gives back before it ends, are taken from its lane's temporary tier,
+// marked as the command begins and rewound as it ends, zeroed; what outlives a command is taken from the shared
+// cellblock's persistent tier
+#define CLI_CELLS_LANES 8u
+#define CLI_CELLS_LANE_POOL (64ull << 20u)
+
+    // The shared cellblock's custodia, where what outlives a command lives. A cell is taken with
+    // persistent_buf_alloc(bytes, owner) and given back with persistent_buf_release(cell, owner), owner the module's
+    // CellOwner or NULL to count it to none. A take the cellblock cannot meet returns NULL, which the caller reports
+    // where and as it chooses. Read once the pool is made
     extern const MaximumSecurityGuard *const g_cli_cells;
+
+    // this thread put on lane `lane`, below CLI_CELLS_LANES, the lane's cellblock made at its first entry, and the
+    // lane's mark taken: the mark to rewind to, or 0 with the thread on no lane where the lane's block cannot be taken
+    // from the system
+    size_t cli_lane_entered(unsigned int lane);
+    // this thread taken off its lane, the lane's cells kept until its rewind
+    void cli_lane_left(void);
+    // lane `lane` rewound to `mark` as cli_lane_entered gave it, every cell taken since dropped and zeroed, and this
+    // thread taken off the lane where it is on it
+    void cli_lane_rewound(unsigned int lane, size_t mark);
+    // a command's own cell of `size` bytes for `owner`: from this thread's lane's temporary tier, or from the shared
+    // cellblock's persistent tier where the thread is on no lane; NULL where refused
+    void *cli_lane_alloc(size_t size, CellOwner *owner);
+    // `cell` given back, zeroed, to the cellblock it was taken from, the shared one or a lane's; NULL gives nothing
+    void cli_cell_release(void *cell, CellOwner *owner);
 
     // the pool made over a block of `bytes` taken from the system, in the place of the one before, which is given back
     // whole: 1, or 0 where a cell is still allocated or the system gives no block; every program makes one before its

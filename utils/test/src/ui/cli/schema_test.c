@@ -233,6 +233,7 @@ static void schema_completes(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check_folder("schema", s_dir);
     schema_json();
     schema_file();

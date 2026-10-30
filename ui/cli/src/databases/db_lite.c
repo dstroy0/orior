@@ -188,7 +188,7 @@ CliDbLite *cli_db_lite_open(const char *file, int read_only, CliDbFailure *failu
         cli_lock_take(&s_lites_lock);
         s_lites[entry_at] = NULL;
         cli_lock_give(&s_lites_lock);
-        g_cli_cells->persistent_buf_release(lite, &g_cli_db_cells);
+        cli_cell_release(lite, &g_cli_db_cells);
         return NULL;
     }
     char request[CLI_PATH_MAX_LEN * 2u];
@@ -224,7 +224,7 @@ void cli_db_lite_closed(CliDbLite *lite)
         s_lites[entry_at] = (s_lites[entry_at] == lite) ? NULL : s_lites[entry_at];
     }
     cli_lock_give(&s_lites_lock);
-    g_cli_cells->persistent_buf_release(lite, &g_cli_db_cells);
+    cli_cell_release(lite, &g_cli_db_cells);
 }
 
 int cli_db_lite_interrupted(CliDbLite *lite, VerbaLinea *err_msg)
@@ -352,7 +352,7 @@ int cli_db_lite_start(CliDbLite *lite, const char *statement, unsigned long long
     mmgr_line_ch(&query, '}');
     const int fits = mmgr_line_ok(&query);
     const int answered = fits && lite_query(lite, query.out, query.at, failure);
-    g_cli_cells->persistent_buf_release(request, &g_cli_db_cells);
+    cli_cell_release(request, &g_cli_db_cells);
     if (!fits)
     {
         cli_db_failure_set(failure, (request != NULL) ? "the statement is longer than orior_cli sends SQLite's process"

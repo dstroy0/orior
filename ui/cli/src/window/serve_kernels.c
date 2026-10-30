@@ -124,7 +124,7 @@ static void kernels_recv(void *context, const char *message, unsigned long long 
     {
         cli_serve_emitted("kernel-message", body.out, body.at);
     }
-    g_cli_cells->persistent_buf_release(body.out, NULL);
+    cli_cell_release(body.out, NULL);
 }
 
 static int kernel_specs(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_msg)
@@ -337,8 +337,8 @@ static int kernels_request(const CliServeArgs *args, const char *msg_type, int d
     {
         mmgr_line_put(out, "null");
     }
-    g_cli_cells->persistent_buf_release(content.out, NULL);
-    g_cli_cells->persistent_buf_release(reply.out, NULL);
+    cli_cell_release(content.out, NULL);
+    cli_cell_release(reply.out, NULL);
     return done;
 }
 

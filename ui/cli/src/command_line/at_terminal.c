@@ -81,7 +81,7 @@ static void at_terminal_branches(const char *root, VerbaLinea *out)
         }
     }
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
+    cli_cell_release(found, &g_cli_git_cells);
 }
 
 // every stash with its line, a line each
@@ -101,7 +101,7 @@ static void at_terminal_stashes(const char *root, VerbaLinea *out)
         mmgr_line_put(out, cli_git_text_of(&found->text, found->item[at].subject));
     }
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
+    cli_cell_release(found, &g_cli_git_cells);
 }
 
 // the commits of the other branches the branch open does not contain, each by its short id with its subject, a line
@@ -124,7 +124,7 @@ static void at_terminal_elsewhere(const char *root, VerbaLinea *out)
         mmgr_line_put(out, cli_git_text_of(&found->text, found->item[at].subject));
     }
     cli_git_text_given(&found->text);
-    g_cli_cells->persistent_buf_release(found, &g_cli_git_cells);
+    cli_cell_release(found, &g_cli_git_cells);
 }
 
 // a branch deleted, with --force where it is given, a branch whose commits no other branch contains refused with how to
@@ -203,7 +203,7 @@ static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int 
         (joined != NULL) ? g_cli_cells->persistent_buf_alloc((found->count + 1ull) * sizeof(const char *), NULL) : NULL;
     if (files == NULL)
     {
-        g_cli_cells->persistent_buf_release(joined, NULL);
+        cli_cell_release(joined, NULL);
         mmgr_line_put(err_msg, "the cells the tests' files are allocated in could not be taken");
         return 0;
     }
@@ -214,8 +214,8 @@ static int at_terminal_files_run(const char *root, CliTerminalFiles *found, int 
         at += cellul.len(&(CatenaFinitaCfg){.src = joined + at, .cap = CLI_CELLS_POOL}) + 1u;
     }
     const int good = cli_at_terminal_tests(root, files, found->count, cover, out, err_msg);
-    g_cli_cells->persistent_buf_release(files, NULL);
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(files, NULL);
+    cli_cell_release(joined, NULL);
     return good;
 }
 

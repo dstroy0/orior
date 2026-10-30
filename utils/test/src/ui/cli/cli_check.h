@@ -9,6 +9,8 @@
 #include "../../../../../ui/cli/src/command_line/cli_internal.h"
 #include "../../../../../ui/cli/src/text/json_tree.h"
 
+// the checks begun: this process put on a lane as the one command it runs, the lane's cells rewound by cli_checked
+void cli_check_begun(void);
 // a check made: whether it passed, and what it checks
 void cli_check(int passed, const char *what);
 // a check that `size` bytes of `text` are `wanted`, printed with what it checks and, where it failed, what came

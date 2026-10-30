@@ -67,6 +67,7 @@ static int scons_completes(const char *text, const char *label)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static const char s_top[] = "env = Environment(CPPPATH=['include'])\nExport('env')\nSConscript('src/SConscript')\n"
                                 "SConscript(['lib/SConscript'], exports='libs')\nSConscript(dirs=['gone'])\n"
                                 "# SConscript('commented')\n";

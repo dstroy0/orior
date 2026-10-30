@@ -107,7 +107,7 @@ int cli_servers_selection(const char *path, const char *key, CliTextPlace from, 
         (text == NULL) || cli_symbols_spans(path, text, size, (CliSymbolPlace){from.line, from.col},
                                             (CliSymbolPlace){to.line, to.col}, hints_span_written, &spanned, err_msg);
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     return done;
 }
 
@@ -182,7 +182,7 @@ static int hints_of_tree(const char *path, unsigned int from, unsigned int to, V
     const int done =
         (text == NULL) || cli_symbols_hints(own, text, size, from, to, hints_tree_written, &hinted, err_msg);
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     return done;
 }
 
@@ -235,7 +235,7 @@ int cli_servers_hints(const char *path, unsigned int from, unsigned int to, Verb
     mmgr_line_put(&params, ",\"character\":");
     mmgr_line_decimal(&params, inside ? 0ull : cli_text_units((size > 0ull) ? text + last : "", size - last), 1u);
     mmgr_line_put(&params, "}}}");
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     VerbaLinea result;
     cli_servers_answer_begun(&s_reading, &result);
     const int requested = cli_servers_request(server, "textDocument/inlayHint", &pieces, &params,

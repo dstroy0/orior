@@ -178,6 +178,7 @@ static void patterns_with_git(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     patterns_hiding();
     patterns_include();
     static const char *const s_set[4] = {"src/**", "!src/gen/**", "", "# a note"};

@@ -250,7 +250,7 @@ static unsigned int tests_tree_of(CliJson *json, CliPieces *pieces, VerbaLinea *
     char quiet[256];
     VerbaLinea ignored = {quiet, sizeof(quiet), 0ull};
     const unsigned int root = (joined != NULL) ? cli_json_taken(json, joined, size, 0u, 0ull, &ignored) : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(joined, NULL);
     return root;
 }
 
@@ -357,7 +357,7 @@ int cli_at_terminal_take(const char *home, const char *from, const char *const *
         }
         cli_json_given(&took_tree);
     }
-    g_cli_cells->persistent_buf_release(chosen_places, NULL);
+    cli_cell_release(chosen_places, NULL);
     cli_json_given(json);
     cli_lock_give(&s_take_lock);
     return done;

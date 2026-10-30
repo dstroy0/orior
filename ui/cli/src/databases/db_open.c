@@ -176,7 +176,7 @@ void cli_db_close(CliDbOpen *open)
         s_opens[entry_at] = (s_opens[entry_at] == open) ? NULL : s_opens[entry_at];
     }
     cli_lock_give(&s_opens_lock);
-    g_cli_cells->persistent_buf_release(open, &g_cli_db_cells);
+    cli_cell_release(open, &g_cli_db_cells);
 }
 
 // a link acquired and handed to `work`, made first where it is none, and let go where its connection broke, the next

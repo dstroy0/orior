@@ -302,6 +302,7 @@ static void run_read(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char found[CLI_PATH_MAX_LEN];
     if (!cli_tree_found(found))
     {

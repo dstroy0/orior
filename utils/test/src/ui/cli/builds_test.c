@@ -68,6 +68,7 @@ static const char *builds_near(const char *name, const char *const *known, unsig
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check(cli_build_kind_of("a/build.gradle.kts") == CLI_BUILD_GRADLE, "a Gradle script is Gradle's");
     cli_check(cli_build_kind_of("settings.gradle") == CLI_BUILD_GRADLE, "and its settings script");
     cli_check(cli_build_kind_of("gradle/libs.versions.toml") == CLI_BUILD_CATALOG, "a version catalog is a catalog");

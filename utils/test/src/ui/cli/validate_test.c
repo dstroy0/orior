@@ -189,6 +189,7 @@ static void validate_copy(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check(cli_validate_tool_for("lean", s_lean),
               "the tool for a language is found with no validation's room allocated");
     if (!cli_validate_locked())

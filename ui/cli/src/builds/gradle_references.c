@@ -179,7 +179,7 @@ static void references_one(const CliBuildLines *lines, CliBuildFindings *found, 
         cli_build_edit_fix(found, finding, &title, lines, from[path_from], to[count - 1u], near.near[at],
                            near.near_size[at]);
     }
-    g_cli_cells->persistent_buf_release(accessors, &g_cli_gradle_cells);
+    cli_cell_release(accessors, &g_cli_gradle_cells);
 }
 
 void cli_gradle_references(const CliBuildLines *lines, CliBuildFindings *found, const char *name, const char *shown,

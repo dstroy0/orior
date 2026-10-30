@@ -326,6 +326,7 @@ static void debug_manifest(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     debug_bytecode();
     debug_processes();
     debug_arguments();

@@ -226,5 +226,5 @@ void cli_servers_workspace_edit_of(const CliJson *json, unsigned int edit, const
         mmgr_line_put(out, "]}");
     }
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(cell, &g_cli_servers_edits_cells);
+    cli_cell_release(cell, &g_cli_servers_edits_cells);
 }

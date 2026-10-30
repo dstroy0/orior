@@ -32,9 +32,9 @@ CliRequestsRoom *cli_requests_room_taken(void)
                          cli_growing_line_made(&room->raw, CLI_REQUESTS_BODY_FIRST);
         if (!made)
         {
-            g_cli_cells->persistent_buf_release(room->raw.out, NULL);
-            g_cli_cells->persistent_buf_release(room->body.out, NULL);
-            g_cli_cells->persistent_buf_release(room, NULL);
+            cli_cell_release(room->raw.out, NULL);
+            cli_cell_release(room->body.out, NULL);
+            cli_cell_release(room, NULL);
             room = NULL;
         }
     }
@@ -49,10 +49,10 @@ void cli_requests_room_given(CliRequestsRoom *room)
     {
         return;
     }
-    g_cli_cells->persistent_buf_release(room->unpacked, NULL);
-    g_cli_cells->persistent_buf_release(room->raw.out, NULL);
-    g_cli_cells->persistent_buf_release(room->body.out, NULL);
-    g_cli_cells->persistent_buf_release(room, NULL);
+    cli_cell_release(room->unpacked, NULL);
+    cli_cell_release(room->raw.out, NULL);
+    cli_cell_release(room->body.out, NULL);
+    cli_cell_release(room, NULL);
     cli_lock_take(&s_lock);
     s_rooms_used -= 1u;
     cli_wake_all(&s_wake);

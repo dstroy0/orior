@@ -79,6 +79,7 @@ static void structure_tokens(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     structure_tokens();
     unsigned int found = structure_compared("f(a, b);\nreturn x;\n", "f(\n    a,\n    b\n);\n\nreturn   x;\n");
     structure_member(found, "left_marks", "[]", "layout alone marks no token on the left");

@@ -91,7 +91,7 @@ static void slice_received(void *context, const char *method, const char *params
     s_heard.size = last.at;
     s_heard.published += 1u;
     cli_lock_give(&s_heard.lock);
-    g_cli_cells->persistent_buf_release(mapped, NULL);
+    cli_cell_release(mapped, NULL);
 }
 
 // The windows given: the server, how many, and each window's lines and what the server published of it, one a line
@@ -238,8 +238,8 @@ static void slice_check(void)
     cli_check((older == NULL) && (newer != NULL),
               "what it publishes of a version given before the slice stored is dropped, and of the same text given "
               "again moved by it");
-    g_cli_cells->persistent_buf_release(older, NULL);
-    g_cli_cells->persistent_buf_release(newer, NULL);
+    cli_cell_release(older, NULL);
+    cli_cell_release(newer, NULL);
     (void)cli_lsp_closed(server, s_heard.path, &err_msg);
     cli_servers_slice_closed(s_heard.path);
     cli_check(!cli_servers_sliced(s_heard.path), "and the file's slice is let go with it");
@@ -250,6 +250,7 @@ static void slice_check(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     slice_check();
     return cli_checked();
 }

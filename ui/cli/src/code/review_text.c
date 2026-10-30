@@ -106,7 +106,7 @@ int cli_review_share(const char *one, const char *other, unsigned long long *sam
             }
         }
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_review_cells);
+    cli_cell_release(cell, &g_cli_review_cells);
     // two texts of no lines contain all alike
     if (*longest == 0ull)
     {

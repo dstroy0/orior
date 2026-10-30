@@ -205,6 +205,7 @@ static void sift_census(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     sift_paths();
     sift_case();
     sift_seam();

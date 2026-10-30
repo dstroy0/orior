@@ -76,7 +76,7 @@ static void request_answered(CliDap *dap, unsigned int message, const char *comm
     {
         (void)cli_dap_send(dap, sent, size);
     }
-    g_cli_cells->persistent_buf_release(sent, NULL);
+    cli_cell_release(sent, NULL);
 }
 
 // the breakpoints of one file set, each line once, its place among the files the one its path's key had, or a new

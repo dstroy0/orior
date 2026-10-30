@@ -119,8 +119,8 @@ static int report_bug(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     cli_report_file(&given, has_root ? root : NULL, &s_filed);
     report_filed_written(&s_filed, out);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(logs.out, NULL);
-    g_cli_cells->persistent_buf_release(recent.out, NULL);
+    cli_cell_release(logs.out, NULL);
+    cli_cell_release(recent.out, NULL);
     return 1;
 }
 

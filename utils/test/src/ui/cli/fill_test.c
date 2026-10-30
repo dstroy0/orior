@@ -29,6 +29,7 @@ static void fill_checked(const char *text, unsigned int line, unsigned int width
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     fill_checked("x = 1\n    # one two three four five six seven\n    # eight nine\n    #\n    # ten\ny = 2\n", 2u, 24u,
                  "x = 1\n    # one two three four\n    # five six seven\n    # eight nine\n    #\n    # ten\ny = 2\n",
                  "a comment's paragraph is filled to the margin and its neighbours left");

@@ -175,7 +175,7 @@ int cli_report_set_auto(int on, VerbaLinea *err_msg)
     const int begun = cli_growing_line_made(&out, CLI_REPORT_WRITTEN_FIRST);
     cli_json_write(&json, made, &out, 2u, 0);
     const int written = begun && !json.full && mmgr_line_ok(&out) && query_file_written(path, out.out, out.at);
-    g_cli_cells->persistent_buf_release(out.out, NULL);
+    cli_cell_release(out.out, NULL);
     cli_json_given(&json);
     cli_lock_give(&s_settings_lock);
     if (!written)
@@ -244,11 +244,11 @@ static void cli_strike(char **struck, const char *found, const char *put)
         {
             cli_replaced(text, forms[form], put, &out);
         }
-        g_cli_cells->persistent_buf_release(*struck, NULL);
+        cli_cell_release(*struck, NULL);
         *struck = (begun && mmgr_line_ok(&out)) ? out.out : NULL;
         if (begun && (*struck == NULL))
         {
-            g_cli_cells->persistent_buf_release(out.out, NULL);
+            cli_cell_release(out.out, NULL);
         }
     }
 }
@@ -301,7 +301,7 @@ void cli_report_scrub(const char *text, const char *root, VerbaLinea *out)
         }
     }
     mmgr_line_put(out, (struck != NULL) ? struck : "");
-    g_cli_cells->persistent_buf_release(struck, NULL);
+    cli_cell_release(struck, NULL);
 }
 
 void cli_report_fingerprint(const char *category, const char *text, char *out)
@@ -336,7 +336,7 @@ void cli_report_saved(const char *text, const char *root)
     line.out[(line.at < line.capacity) ? line.at : (line.capacity - 1u)] = '\0';
     cli_lock_take(&s_errors_lock);
     const unsigned int place = (s_first + s_count) % CLI_REPORT_RETAIN_MAX;
-    g_cli_cells->persistent_buf_release(s_errors[place], NULL);
+    cli_cell_release(s_errors[place], NULL);
     s_errors[place] = line.out;
     if (s_count < CLI_REPORT_RETAIN_MAX)
     {

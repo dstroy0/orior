@@ -21,7 +21,7 @@
 static CellOwner s_cells = MMGR_CELL_OWNER("cli_serve_shape");
 
 // the edits of a file as the page gives them, `[{"from", "to", "text"}]`, read into `edit_of`, a cell of their count
-// taken here and given back with g_cli_cells->persistent_buf_release(..., owner) either way: their count, or
+// taken here and given back with cli_cell_release(..., owner) either way: their count, or
 // CLI_SERVE_EDITS_REFUSED with why given where one is no edit or the cell is refused
 static unsigned int lsp_edits_of(const CliJson *json, unsigned int edits, CliTextEdit **edit_of, VerbaLinea *err_msg)
 {
@@ -119,8 +119,8 @@ static int edits_write(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
             mmgr_line_put(err_msg, path);
             mmgr_line_put(err_msg, ": it could not be written");
         }
-        g_cli_cells->persistent_buf_release(text.out, NULL);
-        g_cli_cells->persistent_buf_release(edit, &s_cells);
+        cli_cell_release(text.out, NULL);
+        cli_cell_release(edit, &s_cells);
         written += done ? 1ull : 0ull;
     }
     if (done)
@@ -175,19 +175,19 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
         (begun && (one == NULL)) ? g_cli_cells->persistent_buf_alloc(sizeof(*languages), &s_cells) : NULL;
     if (!begun || ((one == NULL) && (languages == NULL)))
     {
-        g_cli_cells->persistent_buf_release(edits.out, NULL);
-        g_cli_cells->persistent_buf_release(files.out, NULL);
-        g_cli_cells->persistent_buf_release(found.out, NULL);
+        cli_cell_release(edits.out, NULL);
+        cli_cell_release(files.out, NULL);
+        cli_cell_release(found.out, NULL);
         mmgr_line_put(err_msg, "the search's cells could not be taken");
         return 0;
     }
     CliServeFiles *const listed = (one == NULL) ? cli_serve_files_listed(root, err_msg) : NULL;
     if ((one == NULL) && (listed == NULL))
     {
-        g_cli_cells->persistent_buf_release(languages, &s_cells);
-        g_cli_cells->persistent_buf_release(edits.out, NULL);
-        g_cli_cells->persistent_buf_release(files.out, NULL);
-        g_cli_cells->persistent_buf_release(found.out, NULL);
+        cli_cell_release(languages, &s_cells);
+        cli_cell_release(edits.out, NULL);
+        cli_cell_release(files.out, NULL);
+        cli_cell_release(found.out, NULL);
         return 0;
     }
     if (one == NULL)
@@ -231,7 +231,7 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
             }
         }
         cli_file_let_go(mapped, size);
-        g_cli_cells->persistent_buf_release(editor_text, NULL);
+        cli_cell_release(editor_text, NULL);
     }
     mmgr_line_ch(&found, ']');
     mmgr_line_ch(&files, ']');
@@ -246,10 +246,10 @@ static int shape_search(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *e
     {
         cli_plugins_languages_given(languages);
     }
-    g_cli_cells->persistent_buf_release(languages, &s_cells);
-    g_cli_cells->persistent_buf_release(edits.out, NULL);
-    g_cli_cells->persistent_buf_release(files.out, NULL);
-    g_cli_cells->persistent_buf_release(found.out, NULL);
+    cli_cell_release(languages, &s_cells);
+    cli_cell_release(edits.out, NULL);
+    cli_cell_release(files.out, NULL);
+    cli_cell_release(found.out, NULL);
     return 1;
 }
 

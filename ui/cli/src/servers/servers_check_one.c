@@ -96,7 +96,7 @@ void cli_servers_reread_open(CliLsp *server)
             (void)cli_lsp_read_again(server, open + at, &ignored);
         }
     }
-    g_cli_cells->persistent_buf_release(open, NULL);
+    cli_cell_release(open, NULL);
 }
 
 void cli_servers_let_go_cleared(const char *key)
@@ -326,7 +326,7 @@ static void check_one_request(unsigned int checker, const char *path, const char
         !cli_lsp_string(answer + kind_at, kind_length, kind, sizeof(kind)) ||
         (!cellul.eq(&(CatenaFinitaCfg){.src = kind, .other = "full", .cap = CLI_CELLS_POOL})))
     {
-        g_cli_cells->persistent_buf_release(answer, NULL);
+        cli_cell_release(answer, NULL);
         return;
     }
     const int has_items = cli_lsp_member(answer, size, "items", &items_at, &items_length) &&
@@ -341,14 +341,14 @@ static void check_one_request(unsigned int checker, const char *path, const char
         {
             (void)cli_servers_gathered(key, mapped, mapped_size);
         }
-        g_cli_cells->persistent_buf_release(mapped, NULL);
-        g_cli_cells->persistent_buf_release(answer, NULL);
+        cli_cell_release(mapped, NULL);
+        cli_cell_release(answer, NULL);
         return;
     }
     cli_lock_take(&g_cli_servers_published_lock);
     (void)cli_keyed_put(&g_cli_servers_published, key, uri, items, items_size);
     cli_lock_give(&g_cli_servers_published_lock);
-    g_cli_cells->persistent_buf_release(answer, NULL);
+    cli_cell_release(answer, NULL);
     cli_servers_emit_whole(key, uri, sink);
 }
 
@@ -447,7 +447,7 @@ static int check_one_window(void *context, const CliServersCut *cut, unsigned in
     {
         check_one_window_kept(sliced, gathered, size, first, last);
     }
-    g_cli_cells->persistent_buf_release(gathered, NULL);
+    cli_cell_release(gathered, NULL);
     return 1;
 }
 
@@ -499,9 +499,9 @@ static void check_one_sliced(unsigned int checker, const char *path, const char 
         cli_lock_give(&g_cli_servers_published_lock);
         cli_servers_emit_whole(key, uri, sink);
     }
-    g_cli_cells->persistent_buf_release(sliced.all.out, NULL);
+    cli_cell_release(sliced.all.out, NULL);
     cli_lock_take(&s_letting_lock);
-    g_cli_cells->persistent_buf_release(s_wait[checker].gathered.out, NULL);
+    cli_cell_release(s_wait[checker].gathered.out, NULL);
     s_wait[checker].gathered = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     cli_lock_give(&s_letting_lock);
 }

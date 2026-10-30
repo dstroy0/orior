@@ -63,12 +63,12 @@ void cli_catalog_given(CliCatalog *catalog)
     CellOwner *const cells = catalog->cells;
     if (cells != NULL)
     {
-        g_cli_cells->persistent_buf_release(catalog->job, cells);
-        g_cli_cells->persistent_buf_release(catalog->param, cells);
-        g_cli_cells->persistent_buf_release(catalog->step, cells);
-        g_cli_cells->persistent_buf_release(catalog->arg, cells);
-        g_cli_cells->persistent_buf_release(catalog->list, cells);
-        g_cli_cells->persistent_buf_release(catalog->text, cells);
+        cli_cell_release(catalog->job, cells);
+        cli_cell_release(catalog->param, cells);
+        cli_cell_release(catalog->step, cells);
+        cli_cell_release(catalog->arg, cells);
+        cli_cell_release(catalog->list, cells);
+        cli_cell_release(catalog->text, cells);
     }
     cli_catalog_begun(catalog, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u, NULL, 0u);
 }
@@ -97,7 +97,7 @@ static void *cli_catalog_room(CliCatalog *catalog, void *list, unsigned int coun
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    g_cli_cells->persistent_buf_release(list, catalog->cells);
+    cli_cell_release(list, catalog->cells);
     *most = room;
     return larger;
 }

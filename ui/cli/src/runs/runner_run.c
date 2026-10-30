@@ -417,7 +417,7 @@ void cli_run_steps(void *context)
             break;
         }
     }
-    g_cli_cells->persistent_buf_release(run_command, NULL);
+    cli_cell_release(run_command, NULL);
     char (*const pages_found)[CLI_PATH_MAX_LEN] =
         views ? g_cli_cells->persistent_buf_alloc((unsigned long long)CLI_VIEWS_MOST * CLI_PATH_MAX_LEN, NULL) : NULL;
     const unsigned int pages = (pages_found != NULL) ? cli_run_pages(run->root, view_out, run->lines, pages_found) : 0u;
@@ -447,5 +447,5 @@ void cli_run_steps(void *context)
     }
     cli_run_ended(run, has_code, code, (const char (*)[CLI_PATH_MAX_LEN])pages_found, pages,
                   has_made ? made_text : NULL);
-    g_cli_cells->persistent_buf_release(pages_found, NULL);
+    cli_cell_release(pages_found, NULL);
 }

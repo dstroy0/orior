@@ -61,7 +61,7 @@ static void read_value_room(CliRecordedValues *recorded)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = recorded->values, .bytes = recorded->count * sizeof(*grown)});
     }
-    g_cli_cells->persistent_buf_release(recorded->values, NULL);
+    cli_cell_release(recorded->values, NULL);
     recorded->values = grown;
     recorded->room = room;
 }

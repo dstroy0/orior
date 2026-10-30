@@ -21,9 +21,9 @@ CliWake g_cli_index_wake = CLI_WAKE_INIT;
 // the cells cannot meet them
 static void pages_cells_given(CliPaged *one)
 {
-    g_cli_cells->persistent_buf_release(one->piece, NULL);
-    g_cli_cells->persistent_buf_release(one->index.start, NULL);
-    g_cli_cells->persistent_buf_release(one->index.line, NULL);
+    cli_cell_release(one->piece, NULL);
+    cli_cell_release(one->index.start, NULL);
+    cli_cell_release(one->index.line, NULL);
     one->piece = NULL;
     one->index.start = NULL;
     one->index.line = NULL;
@@ -71,7 +71,7 @@ static void pages_let_go(CliPaged *one)
     {
         (void)query_removed(one->shadow);
     }
-    g_cli_cells->persistent_buf_release(one, NULL);
+    cli_cell_release(one, NULL);
 }
 
 CliPaged *cli_paged_of(const char *key, VerbaLinea *err_msg)
@@ -223,7 +223,7 @@ int cli_page_open_reading(const char *key, const char *path, int behind, VerbaLi
     memor.set(&(MemoriaCfg){.dst = one, .val = 0, .bytes = sizeof(*one)});
     if (!pages_cells_taken(one, size))
     {
-        g_cli_cells->persistent_buf_release(one, NULL);
+        cli_cell_release(one, NULL);
         mmgr_line_put(err_msg, "the paged text's cells could not be taken");
         return 0;
     }

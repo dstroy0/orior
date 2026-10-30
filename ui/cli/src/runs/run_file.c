@@ -289,7 +289,7 @@ int cli_run_file_line(const char *root, const char *path, const char *language, 
         char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
         done = run_file_found(root, path, language, &json, ways, named, (const char (*)[CLI_PATH_MAX_LEN])folders,
                               count, out, err_msg);
-        g_cli_cells->persistent_buf_release(folders, NULL);
+        cli_cell_release(folders, NULL);
     }
     cli_json_given(&json);
     return done;

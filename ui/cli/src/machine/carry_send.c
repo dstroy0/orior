@@ -46,7 +46,7 @@ static int cli_file_sent(const char *to, VerbaLinea *err_msg)
     }
     mmgr_line_put(&file, (s_send.packed.count != 0u) ? "\n  }\n}\n" : "}\n}\n");
     const int written = mmgr_line_ok(&file) && query_file_written(to, file.out, file.at);
-    g_cli_cells->persistent_buf_release(file.out, NULL);
+    cli_cell_release(file.out, NULL);
     if (!written)
     {
         mmgr_line_put(err_msg, to);

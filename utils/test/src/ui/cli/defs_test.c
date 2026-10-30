@@ -8,6 +8,7 @@
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static char s_read[1u << 22u];
     static const char *const s_exts[4] = {"g", "gsm", "krs", "kcr"};
     static const char *const s_columns[5] = {"where", "who", "kind", "form", "gloss"};

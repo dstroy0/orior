@@ -74,7 +74,7 @@ void cli_deploy_jobs(const char *root, CliCatalog *catalog)
         const int listed =
             (mmgr_line_finish(&id) != 0ull) && (joined != NULL) &&
             (cli_catalog_job(catalog, s_id, "deploy", deployment->name, "deploy.json", joined, "") != CLI_CATALOG_NONE);
-        g_cli_cells->persistent_buf_release(joined, NULL);
+        cli_cell_release(joined, NULL);
         if (!listed)
         {
             continue;

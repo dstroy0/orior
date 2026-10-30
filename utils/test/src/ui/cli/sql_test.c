@@ -124,6 +124,7 @@ static void sql_shaped(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     sql_texts("select ';' -- a; comment\n; /* x; /* y; */ z; */ select $f$ a; b $f$ ; select E'it\\'s; ok'",
               CLI_SQL_POSTGRES, "select ';'|select $f$ a; b $f$|select E'it\\'s; ok'",
               "a semicolon in a string, a comment or a dollar quote ends no statement");

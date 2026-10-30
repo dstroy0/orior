@@ -508,6 +508,7 @@ static void archive_split(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     archive_deflate();
     cli_check((cli_crc32((const unsigned char *)"123456789", 9ull) == 0xCBF43926u) &&
                   (cli_crc32((const unsigned char *)"", 0ull) == 0u),

@@ -213,6 +213,7 @@ static void writer_tee(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char found[CLI_PATH_MAX_LEN];
     s_programs = query_on_path();
     writer_roles();

@@ -16,7 +16,7 @@
 
 void cli_shape_ends_given(CliShapeMatcher *matcher)
 {
-    g_cli_cells->persistent_buf_release(matcher->ends, &g_cli_shape_cells);
+    cli_cell_release(matcher->ends, &g_cli_shape_cells);
     matcher->ends = NULL;
     matcher->ends_top = 0u;
     matcher->ends_room = 0u;
@@ -57,7 +57,7 @@ static void match_end_put(CliShapeMatcher *matcher, unsigned int end)
                 memor.cpy(
                     &(MemoriaCfg){.dst = grown, .src = matcher->ends, .bytes = matcher->ends_top * sizeof(*grown)});
             }
-            g_cli_cells->persistent_buf_release(matcher->ends, &g_cli_shape_cells);
+            cli_cell_release(matcher->ends, &g_cli_shape_cells);
             matcher->ends = grown;
             matcher->ends_room = room;
         }

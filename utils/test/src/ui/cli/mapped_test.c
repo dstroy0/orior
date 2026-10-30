@@ -7,6 +7,7 @@
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static unsigned char s_bytes[(1u << 20u) + 4099u];
     static const unsigned long long s_lengths[2] = {70000ull, (1ull << 20u) + 4099ull};
     char folder[CLI_PATH_MAX_LEN];

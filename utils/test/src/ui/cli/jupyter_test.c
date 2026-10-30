@@ -301,6 +301,7 @@ static void jupyter_debugged(const CliKernelSpec *spec)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     jupyter_signed_read();
     static CliKernelSpec s_spec;
     if (!jupyter_python(&s_spec))

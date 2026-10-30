@@ -44,7 +44,7 @@ static int git_words_given(int done, VerbaLinea *words, VerbaLinea *out)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)words->out, mmgr_line_ok(words) ? words->at : 0ull);
     }
-    g_cli_cells->persistent_buf_release(words->out, NULL);
+    cli_cell_release(words->out, NULL);
     return done;
 }
 
@@ -108,8 +108,8 @@ static int git_commit_parts(const CliServeArgs *args, VerbaLinea *out, VerbaLine
     {
         done = 0;
     }
-    g_cli_cells->persistent_buf_release(part_of, &s_cells);
-    g_cli_cells->persistent_buf_release(whole_of, &s_cells);
+    cli_cell_release(part_of, &s_cells);
+    cli_cell_release(whole_of, &s_cells);
     return done;
 }
 
@@ -142,7 +142,7 @@ static int file_head(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         mmgr_line_put(out, "null");
     }
-    g_cli_cells->persistent_buf_release(text.out, NULL);
+    cli_cell_release(text.out, NULL);
     return 1;
 }
 
@@ -164,7 +164,7 @@ static int git_commit(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err
     {
         done = git_words_given(cli_git_commit(root, message, paths, count, &words, err_msg), &words, out);
     }
-    g_cli_cells->persistent_buf_release(paths, &s_cells);
+    cli_cell_release(paths, &s_cells);
     return done;
 }
 
@@ -264,7 +264,7 @@ static int repo_init(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
         return 0;
     }
     const int done = cli_git_init(folder, &words, err_msg);
-    g_cli_cells->persistent_buf_release(words.out, NULL);
+    cli_cell_release(words.out, NULL);
     if (done)
     {
         cli_json_quoted_lossy(out, (const unsigned char *)folder,

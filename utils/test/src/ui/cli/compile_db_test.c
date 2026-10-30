@@ -199,6 +199,7 @@ static void compile_word(void *context, const char *word, unsigned long long siz
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     compile_cmake();
     compile_own();
     static const char s_line[] = "\"C:/Program Files/LLVM/bin/clang.exe\" -I \"a b\" -c x.c";

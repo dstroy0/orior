@@ -163,7 +163,7 @@ static int cli_alike(const CliJson *json, unsigned int one, unsigned int other)
             }
         }
     }
-    g_cli_cells->persistent_buf_release(lines, &g_cli_notebook_cells);
+    cli_cell_release(lines, &g_cli_notebook_cells);
     // twice the lines in common over all the lines of both at least a half
     return (4ull * shared) >= ((unsigned long long)left + right);
 }
@@ -423,7 +423,7 @@ unsigned int cli_notebook_merge(CliJson *json, unsigned int base, unsigned int o
         cli_base_entry(json, entries, room.base[index], mine, yours);
         cli_added_put(json, &room, entries, index, bases, our_count, their_count);
     }
-    g_cli_cells->persistent_buf_release(cell, &g_cli_notebook_cells);
+    cli_cell_release(cell, &g_cli_notebook_cells);
     const unsigned int book = cli_json_copy(json, ours);
     cli_json_set(json, book, "cells", cli_json_made(json, CFG_JSON_ARRAY));
     const unsigned int merged = cli_json_made(json, CFG_JSON_OBJECT);

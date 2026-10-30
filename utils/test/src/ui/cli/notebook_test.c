@@ -207,6 +207,7 @@ static void notebook_merge(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     notebook_book();
     notebook_script();
     notebook_merge();

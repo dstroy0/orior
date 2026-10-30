@@ -40,7 +40,7 @@ static int read_stack_room(unsigned int thread)
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = s_stacks[thread], .bytes = s_depths[thread] * sizeof(unsigned int)});
-    g_cli_cells->persistent_buf_release(s_stacks[thread], NULL);
+    cli_cell_release(s_stacks[thread], NULL);
     s_stacks[thread] = larger;
     s_rooms[thread] = room;
     return 1;
@@ -51,7 +51,7 @@ static void read_stacks_given(void)
 {
     for (unsigned int thread = 0u; thread < CLI_RECORDING_THREADS; thread += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_stacks[thread], NULL);
+        cli_cell_release(s_stacks[thread], NULL);
         s_stacks[thread] = NULL;
         s_rooms[thread] = 0u;
         s_depths[thread] = 0u;
@@ -388,7 +388,7 @@ void cli_recording_let_go(void)
         recording->path[0] = '\0';
     }
     recording->size = 0ull;
-    g_cli_cells->persistent_buf_release(recording->room, NULL);
+    cli_cell_release(recording->room, NULL);
     recording->room = NULL;
     recording->steps = NULL;
     recording->step_count = 0u;

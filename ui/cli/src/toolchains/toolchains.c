@@ -64,7 +64,7 @@ unsigned int cli_toolchains_manifest(CliJson *json, unsigned int nodes_more, uns
         (cli_json_is(json, tools, CFG_JSON_ARRAY) && (added_text != NULL))
             ? cli_json_read(json, (const char *)added_text, added_size, tokens, tokens_most, &err_msg)
             : CLI_JSON_NONE;
-    g_cli_cells->persistent_buf_release(tokens, NULL);
+    cli_cell_release(tokens, NULL);
     if (added_text != NULL)
     {
         cli_file_let_go(added_text, added_size);

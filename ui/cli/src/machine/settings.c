@@ -274,7 +274,7 @@ static void cli_chain_read(CliChain *chain, const CliChainWalk *walk)
         g_cli_cells->persistent_buf_alloc((unsigned long long)most * sizeof(CfgJsonToken), &g_cli_settings_cells);
     if ((tokens == NULL) || !cli_json_reserved(&chain->json, nodes, text, "a chain of settings files"))
     {
-        g_cli_cells->persistent_buf_release(tokens, &g_cli_settings_cells);
+        cli_cell_release(tokens, &g_cli_settings_cells);
         cli_problem(chain, walk->file[0].named, ": the cells its chain is read into could not be taken");
         return;
     }
@@ -295,7 +295,7 @@ static void cli_chain_read(CliChain *chain, const CliChainWalk *walk)
         chain->values[chain->files] = values;
         chain->files += 1u;
     }
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_settings_cells);
+    cli_cell_release(tokens, &g_cli_settings_cells);
 }
 
 void cli_settings_chain(const char *path, const char *root, CliChain *chain)
@@ -383,7 +383,7 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
             mmgr_line_finish(&msg);
             cli_problem(chain, named, (values == CLI_JSON_NONE) ? msg_buf : " is not an object of settings");
             cli_json_given(&own);
-            g_cli_cells->persistent_buf_release(plain_text, &g_cli_settings_cells);
+            cli_cell_release(plain_text, &g_cli_settings_cells);
             break;
         }
         CliChainFile *const walked = &walk->file[walk->count];
@@ -428,9 +428,9 @@ void cli_settings_chain(const char *path, const char *root, CliChain *chain)
     cli_chain_read(chain, walk);
     for (unsigned int at = 0u; at < walk->count; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(walk->file[at].plain, &g_cli_settings_cells);
+        cli_cell_release(walk->file[at].plain, &g_cli_settings_cells);
     }
-    g_cli_cells->persistent_buf_release(walk, &g_cli_settings_cells);
+    cli_cell_release(walk, &g_cli_settings_cells);
     // the files in the order they are taken, the one taken first
     for (unsigned int at = 0u; at < (chain->files / 2u); at += 1u)
     {

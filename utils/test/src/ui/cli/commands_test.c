@@ -9,6 +9,7 @@
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static CliItem s_items[CLI_ITEMS_MOST];
     static char s_words[CLI_MENUS_MOST][CLI_LABEL_MAX_LEN];
     char why[512];

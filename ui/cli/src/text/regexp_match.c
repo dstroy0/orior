@@ -30,7 +30,7 @@ static int match_end_room(CliRegexpRun *run)
     memor.cpy(&(MemoriaCfg){.dst = grown, .src = run->ends, .bytes = (size_t)(run->ends_top * sizeof(unsigned int))});
     if (run->ends_reserved)
     {
-        g_cli_cells->persistent_buf_release(run->ends, NULL);
+        cli_cell_release(run->ends, NULL);
     }
     run->ends = grown;
     run->ends_room = room;

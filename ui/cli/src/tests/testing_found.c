@@ -288,7 +288,7 @@ static void found_in(const char *file, const char *text, unsigned long long size
     }
     if (!cli_inspect_facts("python", text, size, &s_room->facts))
     {
-        g_cli_cells->persistent_buf_release(part, NULL);
+        cli_cell_release(part, NULL);
         return;
     }
     found_bodies(text, size);
@@ -317,7 +317,7 @@ static void found_in(const char *file, const char *text, unsigned long long size
                         found_text(function->name), function->from.line};
         each(context, &test);
     }
-    g_cli_cells->persistent_buf_release(part, NULL);
+    cli_cell_release(part, NULL);
 }
 
 // whether the path `file` is one the rules search for tests: a Python file outside the folders not searched, named as
@@ -399,7 +399,7 @@ static void found_python(const char *root, CliTestEach each, void *context)
         {
             found_in(file, text, read, &s_room->rules, each, context);
         }
-        g_cli_cells->persistent_buf_release(bytes, NULL);
+        cli_cell_release(bytes, NULL);
     }
     cli_files_let(files);
 }

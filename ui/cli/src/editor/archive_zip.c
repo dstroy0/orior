@@ -438,6 +438,6 @@ int cli_zip_with(const unsigned char *bytes, unsigned long long size, const CliM
         used += tail;
         *out_size = used;
     }
-    g_cli_cells->persistent_buf_release(writing, NULL);
+    cli_cell_release(writing, NULL);
     return done;
 }

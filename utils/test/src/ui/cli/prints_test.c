@@ -66,6 +66,7 @@ static void prints_added(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check(prints_line("a.py", "    print(total)"), "Python's print prints");
     cli_check(!prints_line("a.py", "    printer(total)"), "a longer name is no print");
     cli_check(!prints_line("a.py", "    # print(total)"), "a comment is no print");

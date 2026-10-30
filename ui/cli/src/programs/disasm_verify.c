@@ -371,8 +371,8 @@ int cli_disasm_verify_words(const char *const *words, unsigned int count)
         verify_row(s_symbols[each], &one, &other, same, at, other_at);
         code = same ? code : 1;
     }
-    g_cli_cells->persistent_buf_release(one.instruction, NULL);
-    g_cli_cells->persistent_buf_release(other.instruction, NULL);
+    cli_cell_release(one.instruction, NULL);
+    cli_cell_release(other.instruction, NULL);
     if (ghidra != NULL)
     {
         cli_file_let_go(ghidra, ghidra_size);

@@ -434,6 +434,7 @@ static void highlight_declarations(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char runs[1024];
     highlight_long();
     cli_check(highlight_grammar_store("test", s_grammar, sizeof(s_grammar) - 1u, NULL), "a grammar is stored");

@@ -103,6 +103,7 @@ static void checkers_ruff(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     checkers_lines();
     checkers_ruff();
     static const char s_eslint[] =

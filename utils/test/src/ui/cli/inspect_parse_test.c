@@ -24,7 +24,7 @@ static int parse_read(const char *language, const char *text)
 }
 
 // the class the parse gives each word of line `line` of `text`, `word=class` joined by `|`, the delimiters and
-// operators left out where `plain`; the text is ASCII, so a column is a byte
+// operators left out where `plain`; the text is ASCII, and a column is a byte
 static const char *parse_classes(const char *text, unsigned int line, int plain)
 {
     const char *start = text;
@@ -225,6 +225,7 @@ static void parse_javascript(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     parse_python();
     parse_javascript();
     return cli_checked();

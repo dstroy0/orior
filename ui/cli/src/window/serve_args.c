@@ -45,7 +45,7 @@ void cli_serve_files_given(CliServeFiles *listed)
     if (listed != NULL)
     {
         cli_files_let(listed->files);
-        g_cli_cells->persistent_buf_release(listed, NULL);
+        cli_cell_release(listed, NULL);
     }
 }
 
@@ -253,7 +253,7 @@ int cli_serve_strings_taken(const CliServeArgs *args, const char *key, unsigned 
 
 void cli_serve_strings_given(const char **items)
 {
-    g_cli_cells->persistent_buf_release(items, &g_cli_serve_strings_cells);
+    cli_cell_release(items, &g_cli_serve_strings_cells);
 }
 
 int cli_serve_tree(char *root, VerbaLinea *err_msg)

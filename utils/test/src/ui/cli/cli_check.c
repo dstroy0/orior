@@ -8,6 +8,13 @@
 
 static unsigned long long s_checks;
 static unsigned long long s_failed;
+// the mark of the lane this process runs its checks on, 0 while it is on none
+static size_t s_mark;
+
+void cli_check_begun(void)
+{
+    s_mark = cli_lane_entered(0u);
+}
 
 // a line written to the output
 static void check_line(const VerbaLinea *line)
@@ -180,8 +187,9 @@ void cli_check_server(const char *name, unsigned int port, char *host, unsigned 
 
 int cli_checked(void)
 {
-    g_cli_cells->persistent_buf_release(s_tree, NULL);
+    cli_cell_release(s_tree, NULL);
     s_tree = NULL;
+    cli_lane_rewound(0u, s_mark);
     char text[128];
     VerbaLinea line = {text, sizeof(text), 0ull};
     mmgr_line_decimal(&line, s_checks, 1u);

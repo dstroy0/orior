@@ -234,7 +234,7 @@ static unsigned int cli_queued(CliElfReading *reading, unsigned int queued, cons
             {
                 memor.cpy(&(MemoriaCfg){.dst = grown, .src = reading->queue, .bytes = queued * sizeof(*grown)});
             }
-            g_cli_cells->persistent_buf_release(reading->queue, NULL);
+            cli_cell_release(reading->queue, NULL);
             reading->queue = grown;
             reading->room = room;
         }
@@ -482,7 +482,7 @@ int cli_binary_elf_read(const unsigned char *bytes, unsigned long long size, con
     CliElfReading reading = {(CliDynamic *)(void *)cell, ((CliDynamic *)(void *)cell) + 1,
                              (char (*)[CLI_PATH_MAX_LEN])(void *)(cell + dynamics), NULL, 0u};
     const int read = cli_elf_read(&reading, bytes, size, path, report, err_msg);
-    g_cli_cells->persistent_buf_release(reading.queue, NULL);
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(reading.queue, NULL);
+    cli_cell_release(cell, NULL);
     return read;
 }

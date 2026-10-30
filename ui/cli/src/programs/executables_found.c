@@ -28,7 +28,7 @@ int cli_executables_room(CliExecutables *found)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = found->item, .bytes = found->count * sizeof(*grown)});
     }
-    g_cli_cells->persistent_buf_release(found->item, &g_cli_executables_cells);
+    cli_cell_release(found->item, &g_cli_executables_cells);
     found->item = grown;
     found->room = room;
     return 1;
@@ -36,7 +36,7 @@ int cli_executables_room(CliExecutables *found)
 
 void cli_executables_ordered(CliExecutables *found)
 {
-    g_cli_cells->persistent_buf_release(found->order, &g_cli_executables_cells);
+    cli_cell_release(found->order, &g_cli_executables_cells);
     found->order = (found->count != 0u) ? g_cli_cells->persistent_buf_alloc(found->count * sizeof(*found->order),
                                                                             &g_cli_executables_cells)
                                         : NULL;
@@ -67,7 +67,7 @@ void cli_executables_ordered(CliExecutables *found)
 
 void cli_executables_given(CliExecutables *found)
 {
-    g_cli_cells->persistent_buf_release(found->item, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(found->order, &g_cli_executables_cells);
+    cli_cell_release(found->item, &g_cli_executables_cells);
+    cli_cell_release(found->order, &g_cli_executables_cells);
     *found = (CliExecutables){NULL, 0u, 0u, NULL};
 }

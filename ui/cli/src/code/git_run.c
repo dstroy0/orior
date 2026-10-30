@@ -76,7 +76,7 @@ unsigned int cli_git_text_put(CliGitText *text, const char *from, unsigned long 
             return 0u;
         }
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = text->bytes, .bytes = (size_t)text->used});
-        g_cli_cells->persistent_buf_release(text->bytes, &g_cli_git_cells);
+        cli_cell_release(text->bytes, &g_cli_git_cells);
         text->bytes = grown;
         text->room = room;
     }
@@ -95,7 +95,7 @@ const char *cli_git_text_of(const CliGitText *text, unsigned int at)
 
 void cli_git_text_given(CliGitText *text)
 {
-    g_cli_cells->persistent_buf_release(text->bytes, &g_cli_git_cells);
+    cli_cell_release(text->bytes, &g_cli_git_cells);
     text->bytes = NULL;
     text->used = 0ull;
     text->room = 0ull;
@@ -111,7 +111,7 @@ CliGitGave *cli_git_taken(void)
     room->out = g_cli_cells->persistent_buf_alloc(CLI_GIT_OUT_FIRST, NULL);
     if (room->out == NULL)
     {
-        g_cli_cells->persistent_buf_release(room, NULL);
+        cli_cell_release(room, NULL);
         return &s_refused;
     }
     room->out_room = CLI_GIT_OUT_FIRST;
@@ -135,8 +135,8 @@ void cli_git_given(CliGitGave *gave)
 {
     if (gave != &s_refused)
     {
-        g_cli_cells->persistent_buf_release(cli_room_of(gave)->out, NULL);
-        g_cli_cells->persistent_buf_release(cli_room_of(gave), NULL);
+        cli_cell_release(cli_room_of(gave)->out, NULL);
+        cli_cell_release(cli_room_of(gave), NULL);
     }
 }
 
@@ -170,7 +170,7 @@ static int cli_output_room(CliGitRoom *room)
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = room->out, .bytes = gave->out_size});
-    g_cli_cells->persistent_buf_release(room->out, NULL);
+    cli_cell_release(room->out, NULL);
     room->out = cell;
     room->out_room = grown;
     gave->out = cell;
@@ -364,7 +364,7 @@ int cli_git_ran(const char *root, const char *const *args, unsigned int count, c
     {
         mmgr_line_put_n(err_msg, from, (unsigned long long)(to - from));
     }
-    g_cli_cells->persistent_buf_release(joined.out, NULL);
+    cli_cell_release(joined.out, NULL);
     cli_git_given(gave);
     return ok;
 }

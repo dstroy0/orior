@@ -261,6 +261,7 @@ static int rank_fuzzy(const char *query, const char *text, unsigned long long fr
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     rank_going();
     rank_reading();
     rank_windows();

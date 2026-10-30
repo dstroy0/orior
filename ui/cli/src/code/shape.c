@@ -216,6 +216,6 @@ int cli_shape_tokens(CliSymbolsLanguages *languages, const char *language, const
         shape_leaves_put(tokens, src, size, &read, holes, places);
     }
     cli_symbols_leaves_given(&read);
-    g_cli_cells->persistent_buf_release(blank, &g_cli_shape_cells);
+    cli_cell_release(blank, &g_cli_shape_cells);
     return leaved;
 }

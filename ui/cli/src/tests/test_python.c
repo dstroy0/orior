@@ -32,7 +32,7 @@ int cli_test_python(char *python)
         unsigned int count = 0u;
         char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
         cli_toolchains_find(&json, tool, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &s_found);
-        g_cli_cells->persistent_buf_release(folders, NULL);
+        cli_cell_release(folders, NULL);
         found = s_found.has_program;
         if (found)
         {

@@ -389,7 +389,7 @@ int cli_servers_calls(const char *tree, const char *path, const char *item, unsi
                                   ? calls_of(answer, cli_json_member(answer, one, "from"), NULL, site, count, tree, out)
                                   : calls_of(answer, cli_json_member(answer, one, "to"), has_parent ? parent : NULL,
                                              site, count, tree, out);
-            g_cli_cells->persistent_buf_release(site, NULL);
+            cli_cell_release(site, NULL);
             if (!wrote)
             {
                 out->at = before;

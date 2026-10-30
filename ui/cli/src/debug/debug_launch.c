@@ -281,7 +281,7 @@ int cli_debug_start(const char *root, const CliJson *json, unsigned int start, u
     unsigned long long seq = 0ull;
     const int sent =
         (written != NULL) && cli_dap_sent(place->dap, plan.request, written, arguments_size, &seq, err_msg);
-    g_cli_cells->persistent_buf_release(written, NULL);
+    cli_cell_release(written, NULL);
     if (!sent)
     {
         return launch_failed(place, &plan, err_msg);

@@ -182,7 +182,7 @@ int cli_trust_set_in(const char *path, const char *folder, int trusted, VerbaLin
         mmgr_line_put(err_msg, ": it could not be written");
         done = 0;
     }
-    g_cli_cells->persistent_buf_release(out.out, NULL);
+    cli_cell_release(out.out, NULL);
     cli_json_given(&json);
     cli_lock_give(&s_trust_lock);
     if (done)

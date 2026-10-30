@@ -144,7 +144,7 @@ static int head_unpacked_room(CliRequestsRoom *room, unsigned long long bytes, V
         mmgr_line_put(err_msg, "the answer's body undone could not be stored");
         return 0;
     }
-    g_cli_cells->persistent_buf_release(room->unpacked, NULL);
+    cli_cell_release(room->unpacked, NULL);
     room->unpacked = cell;
     room->unpacked_room = wanted;
     return 1;

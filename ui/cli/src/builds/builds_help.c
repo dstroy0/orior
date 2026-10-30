@@ -111,9 +111,9 @@ void cli_build_findings_begun(CliBuildFindings *found)
 
 void cli_build_findings_given(CliBuildFindings *found)
 {
-    g_cli_cells->persistent_buf_release(found->finding, &g_cli_build_cells);
-    g_cli_cells->persistent_buf_release(found->fix, &g_cli_build_cells);
-    g_cli_cells->persistent_buf_release(found->text, &g_cli_build_cells);
+    cli_cell_release(found->finding, &g_cli_build_cells);
+    cli_cell_release(found->fix, &g_cli_build_cells);
+    cli_cell_release(found->text, &g_cli_build_cells);
     *found = (CliBuildFindings){NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, 0};
 }
 
@@ -140,7 +140,7 @@ static void *help_room(CliBuildFindings *found, void *list, unsigned int count, 
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    g_cli_cells->persistent_buf_release(list, &g_cli_build_cells);
+    cli_cell_release(list, &g_cli_build_cells);
     // a room no more than `most`, which an unsigned int stores
     *room = (unsigned int)grown;
     return larger;

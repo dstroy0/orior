@@ -187,6 +187,7 @@ static void review_commit(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     review_change();
     review_added();
     review_commit();

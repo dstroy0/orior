@@ -107,6 +107,7 @@ static void deploy_tar(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check(
         cellul.eq(&(CatenaFinitaCfg){.src = deploy_left_out("app.js.map"), .other = "*.map", .cap = CLI_CELLS_POOL}),
         "a pattern leaves out a name");

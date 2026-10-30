@@ -101,6 +101,6 @@ int cli_inspect_reading_reserved(const char *language, const char *text, unsigne
 
 void cli_inspect_reading_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_reading, NULL);
+    cli_cell_release(s_reading, NULL);
     s_reading = NULL;
 }

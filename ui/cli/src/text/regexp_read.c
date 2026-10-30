@@ -363,6 +363,6 @@ int cli_regexp_read(CliRegexp *regexp, const char *source, const char *flags, Ve
     }
     mmgr_zero_buf(reader, sizeof(*reader));
     const int read = cli_regexp_read_by(reader, regexp, source, flags, err_msg);
-    g_cli_cells->persistent_buf_release(reader, NULL);
+    cli_cell_release(reader, NULL);
     return read;
 }

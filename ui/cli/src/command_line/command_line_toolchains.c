@@ -28,7 +28,7 @@ static void toolchains_line_out(CliPieces *pieces, VerbaLinea *line)
     unsigned long long size = 0ull;
     char *const joined = cli_pieces_joined(pieces, line, "a line of the toolchains", &size);
     cli_out_line((joined != NULL) ? joined : "", (joined != NULL) ? size : 0ull);
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(joined, NULL);
 }
 
 // What the listing is writing: the toolchains found, and the widest id among them
@@ -143,7 +143,7 @@ static int toolchains_listed(void)
     VerbaLinea unread = {why, sizeof(why), 0ull};
     CliToolchainsListed listed = {
         (joined != NULL) ? cli_json_taken(&s_json, joined, size, 0u, 0ull, &unread) : CLI_JSON_NONE, 0ull};
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(joined, NULL);
     if (cli_json_is(&s_json, listed.found, CFG_JSON_ARRAY))
     {
         for (unsigned int tool = s_json.node[listed.found].first; tool != CLI_JSON_NONE; tool = s_json.node[tool].next)
@@ -198,7 +198,7 @@ static int toolchains_install(const char *id, VerbaLinea *out, VerbaLinea *err_m
     char *const setup_line = cli_pieces_joined(&pieces, &setup, "a tool's setup line", &setup_size);
     if (!has_setup || (setup_line == NULL) || (setup_size == 0ull))
     {
-        g_cli_cells->persistent_buf_release(setup_line, NULL);
+        cli_cell_release(setup_line, NULL);
         err_msg->at = 0ull;
         char url_text[CLI_PATH_MAX_LEN * 4u];
         VerbaLinea url = {url_text, sizeof(url_text), 0ull};
@@ -216,7 +216,7 @@ static int toolchains_install(const char *id, VerbaLinea *out, VerbaLinea *err_m
         cli_runner_bash(bash, err_msg) ? g_cli_cells->persistent_buf_alloc(CLI_PATH_TEXT, &s_cells) : NULL;
     if (path == NULL)
     {
-        g_cli_cells->persistent_buf_release(setup_line, NULL);
+        cli_cell_release(setup_line, NULL);
         return toolchains_done(0, out, err_msg);
     }
     VerbaLinea line;
@@ -226,14 +226,14 @@ static int toolchains_install(const char *id, VerbaLinea *out, VerbaLinea *err_m
     unsigned long long shown_size = 0ull;
     char *const shown = cli_pieces_joined(&pieces, &line, "a setup line shown", &shown_size);
     cli_err_line((shown != NULL) ? shown : "", (shown != NULL) ? shown_size : 0ull);
-    g_cli_cells->persistent_buf_release(shown, NULL);
+    cli_cell_release(shown, NULL);
     cli_toolchains_run_path(path, CLI_PATH_TEXT);
     const CliSetting setting = {"PATH", path};
     const char *const words[4] = {bash, "-c", setup_line, NULL};
     long long code = 0ll;
     const int spawned = cli_spawn_shared(words, &setting, 1u, &code, err_msg);
-    g_cli_cells->persistent_buf_release(path, &s_cells);
-    g_cli_cells->persistent_buf_release(setup_line, NULL);
+    cli_cell_release(path, &s_cells);
+    cli_cell_release(setup_line, NULL);
     if (!spawned)
     {
         return toolchains_done(0, out, err_msg);

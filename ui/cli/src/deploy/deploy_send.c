@@ -20,10 +20,10 @@ static char *s_releases_listing;
 // a machine's releases and its listing given back
 static void send_releases_given(void)
 {
-    g_cli_cells->persistent_buf_release((void *)s_releases, NULL);
+    cli_cell_release((void *)s_releases, NULL);
     s_releases = NULL;
     s_release_count = 0u;
-    g_cli_cells->persistent_buf_release(s_releases_listing, NULL);
+    cli_cell_release(s_releases_listing, NULL);
     s_releases_listing = NULL;
 }
 
@@ -41,7 +41,7 @@ static int send_line_run(const CliDeployPlace *place, CliPieces *pieces, VerbaLi
     }
     VerbaLinea nothing = {NULL, 0ull, 0ull};
     const int ran = cli_deploy_remote_run(place, joined, NULL, 0ull, &nothing, err_msg);
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(joined, NULL);
     return ran;
 }
 

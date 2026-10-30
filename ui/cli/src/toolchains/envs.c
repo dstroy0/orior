@@ -17,7 +17,7 @@ void *cli_envs_moved(void *cell, unsigned long long used, unsigned long long roo
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (size_t)used});
-    g_cli_cells->persistent_buf_release(cell, &g_cli_envs_cells);
+    cli_cell_release(cell, &g_cli_envs_cells);
     return moved;
 }
 
@@ -324,8 +324,8 @@ void cli_required_written(const CliRequired *required, VerbaLinea *out)
 
 void cli_required_given(CliRequired *required)
 {
-    g_cli_cells->persistent_buf_release(required->name, &g_cli_envs_cells);
-    g_cli_cells->persistent_buf_release(required->text, &g_cli_envs_cells);
+    cli_cell_release(required->name, &g_cli_envs_cells);
+    cli_cell_release(required->text, &g_cli_envs_cells);
     *required = (CliRequired){NULL, 0u, 0u, NULL, 0u, 0u};
 }
 

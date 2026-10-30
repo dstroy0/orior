@@ -25,12 +25,13 @@ static unsigned long long cells_whole(const CliJson *json, unsigned int node, co
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check(cli_cells_made(64ull << 20u), "the pool is made anew for a request of 64 MiB while no cell is taken");
     cli_check(cli_cells_zero(), "the pool made stands zero with no cell taken");
     unsigned char *const cell = g_cli_cells->persistent_buf_alloc(1000ull, NULL);
     cli_check(cell != NULL, "a cell is taken from the pool made");
     cli_check(!cli_cells_made(32ull << 20u), "the pool is not made anew while a cell is taken");
-    g_cli_cells->persistent_buf_release(cell, NULL);
+    cli_cell_release(cell, NULL);
     cli_check(cli_cells_made(32ull << 20u), "the pool is made anew once the cell is given back");
     // a cell counted to an owner, listed in the cellblock's audit while it is taken, and taken off as it is given back;
     // the pool made anew at its full size first, which the audit's parsed tree takes from
@@ -54,7 +55,7 @@ int main(void)
         }
     }
     cli_check(listed_count == embed_atomic_usize_load(&s_checked.in_use), "the cellblock's audit lists the owner with the bytes it has taken");
-    g_cli_cells->persistent_buf_release(counted, &s_checked);
+    cli_cell_release(counted, &s_checked);
     cli_check(embed_atomic_usize_load(&s_checked.in_use) == 0ull, "and the bytes come off the owner as the cell is given back");
     cli_check(g_cli_cells->persistent_buf_alloc((size_t)CLI_CELLS_POOL, &s_checked) == NULL,
               "a take past the pool is refused with NULL, and nothing is counted");

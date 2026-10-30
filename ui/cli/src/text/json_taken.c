@@ -95,7 +95,7 @@ int cli_json_room(CliJson *json, unsigned int nodes, unsigned long long text)
     }
     memor.cpy(&(MemoriaCfg){.dst = cell, .src = json->node, .bytes = (size_t)json->nodes * sizeof(CliJsonNode)});
     memor.cpy(&(MemoriaCfg){.dst = cell + nodes_bytes, .src = json->text, .bytes = (size_t)json->used});
-    g_cli_cells->persistent_buf_release(json->node, NULL);
+    cli_cell_release(json->node, NULL);
     json->node = (CliJsonNode *)cell;
     json->nodes_most = nodes_most;
     json->text = (char *)(cell + nodes_bytes);
@@ -119,12 +119,12 @@ unsigned int cli_json_taken(CliJson *json, const char *text, unsigned long long 
     if ((tokens == NULL) ||
         !cli_json_reserved(json, tokens_most + nodes_more, size + text_more, "a tree's nodes and texts"))
     {
-        g_cli_cells->persistent_buf_release(tokens, NULL);
+        cli_cell_release(tokens, NULL);
         mmgr_line_put(err_msg, "the cells a tree is read into could not be taken");
         return CLI_JSON_NONE;
     }
     const unsigned int root = cli_json_read(json, text, size, tokens, tokens_most, err_msg);
-    g_cli_cells->persistent_buf_release(tokens, NULL);
+    cli_cell_release(tokens, NULL);
     return root;
 }
 
@@ -170,6 +170,6 @@ unsigned int cli_json_file_taken(CliJson *json, const char *path, unsigned int n
 
 void cli_json_given(CliJson *json)
 {
-    g_cli_cells->persistent_buf_release(json->node, NULL);
+    cli_cell_release(json->node, NULL);
     cli_json_begun(json, NULL, 0u, NULL, 0ull);
 }

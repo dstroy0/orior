@@ -309,8 +309,8 @@ void cli_cargo_failures_each(const char *out, unsigned long long size,
                  failure->placed ? failure->path : NULL, failure->line);
         }
     }
-    g_cli_cells->persistent_buf_release(texts, NULL);
-    g_cli_cells->persistent_buf_release(failures, NULL);
+    cli_cell_release(texts, NULL);
+    cli_cell_release(failures, NULL);
 }
 
 int cli_cargo_build_error(const char *output, unsigned long long size, char *error, unsigned long long room,

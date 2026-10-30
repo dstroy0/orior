@@ -259,6 +259,7 @@ static void servers_mysql(const char *password)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char password[256];
     if (query_environment_read("ORIOR_PG_PASSWORD", password, sizeof(password)))
     {

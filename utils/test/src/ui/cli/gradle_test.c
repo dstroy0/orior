@@ -117,6 +117,7 @@ static void gradle_completes(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     gradle_script();
     gradle_braces();
     gradle_completes();

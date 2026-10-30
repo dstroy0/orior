@@ -13,6 +13,7 @@ static unsigned int cores_left(unsigned int count, unsigned int less)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     const unsigned int machine = cli_cores_machine();
     cli_cores_reserve(0u);
     cli_check(cli_cores_reserved() == 1u, "none requested reserves one");

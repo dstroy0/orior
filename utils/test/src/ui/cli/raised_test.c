@@ -8,6 +8,7 @@
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_check(cli_raised_is_refused("a.txt: Access is denied. (os error 5)"), "Windows' access denied is a refusal");
     cli_check(cli_raised_is_refused("a.txt: Permission denied (os error 13)"), "permission denied is a refusal");
     cli_check(cli_raised_is_refused("a.txt: Read-only file system (os error 30)"), "a read-only file system is one");

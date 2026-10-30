@@ -38,6 +38,7 @@ static int catalog_installed(const char *address, const char *version, const cha
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static const char s_package[] =
         "{\"orior\":\"plugin\",\"files\":{\"plugin.json\":\"{\\\"id\\\": \\\"counts\\\", "
         "\\\"version\\\": \\\"1.1.0\\\", \\\"kind\\\": \\\"script\\\", \\\"api\\\": 3, "

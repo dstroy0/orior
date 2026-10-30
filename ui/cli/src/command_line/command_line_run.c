@@ -151,7 +151,7 @@ static void run_window(CliOutcome *outcome, const char *named, const char *remot
         {
             cli_out_line(out.out, out.at);
         }
-        g_cli_cells->persistent_buf_release(out.out, NULL);
+        cli_cell_release(out.out, NULL);
         run_exit(outcome, ran ? 0 : CLI_WRONG);
         return;
     }
@@ -174,7 +174,7 @@ static void run_help(void)
     cli_help(&help);
     const unsigned long long size = mmgr_line_ok(&help) ? help.at : 0ull;
     cli_out_line(help.out, (help.out != NULL) ? cli_text_trimmed_end(help.out, size) : 0ull);
-    g_cli_cells->persistent_buf_release(help.out, NULL);
+    cli_cell_release(help.out, NULL);
 }
 
 // the words run as the menus run them, a command that acts in the window opened on the tree `remote` names where it

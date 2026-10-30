@@ -79,8 +79,8 @@ int cli_plan_description_read(const char *file, VerbaLinea *err_msg)
 
 void cli_plan_description_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_tokens, &g_cli_devcontainer_cells);
-    g_cli_cells->persistent_buf_release(s_plain, &g_cli_devcontainer_cells);
+    cli_cell_release(s_tokens, &g_cli_devcontainer_cells);
+    cli_cell_release(s_plain, &g_cli_devcontainer_cells);
     s_tokens = NULL;
     s_plain = NULL;
 }

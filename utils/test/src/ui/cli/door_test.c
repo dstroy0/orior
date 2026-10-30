@@ -411,6 +411,7 @@ static void door_frame_back(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char why[256];
     VerbaLinea err_msg = {why, sizeof(why), 0ull};
     cli_check(cli_door_open(s_address, &err_msg), "the door opens");

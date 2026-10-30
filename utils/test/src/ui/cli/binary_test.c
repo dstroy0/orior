@@ -236,6 +236,7 @@ static void binary_linux_needs(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     binary_windows_imports();
     binary_orior_path();
     binary_linux_needs();

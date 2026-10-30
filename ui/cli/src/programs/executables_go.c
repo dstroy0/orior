@@ -36,7 +36,7 @@ static void cli_go_each(void *context, const char *name, int is_folder)
         char *const text = cli_text_taken(path);
         walk->main = (text != NULL) && cli_go_package(text, package) &&
                      (cellul.eq(&(CatenaFinitaCfg){.src = package, .other = "main", .cap = CLI_CELLS_POOL}));
-        g_cli_cells->persistent_buf_release(text, &g_cli_executables_cells);
+        cli_cell_release(text, &g_cli_executables_cells);
     }
 }
 

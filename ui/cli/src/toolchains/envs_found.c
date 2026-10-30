@@ -233,7 +233,7 @@ void cli_envs_found(const char *root, VerbaLinea *out)
     }
     mmgr_line_ch(out, ']');
     cli_required_given(&search.required);
-    g_cli_cells->persistent_buf_release(search.order, &g_cli_envs_cells);
-    g_cli_cells->persistent_buf_release(search.found, &g_cli_envs_cells);
-    g_cli_cells->persistent_buf_release(search.pending, &g_cli_envs_cells);
+    cli_cell_release(search.order, &g_cli_envs_cells);
+    cli_cell_release(search.found, &g_cli_envs_cells);
+    cli_cell_release(search.pending, &g_cli_envs_cells);
 }

@@ -22,6 +22,7 @@ static int home_called(const char *name, const char *args, unsigned long long si
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char home[CLI_PATH_MAX_LEN];
     cli_check_folder("home_home", home);
     (void)query_environment_set("ORIOR_HOME", home);

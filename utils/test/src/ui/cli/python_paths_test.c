@@ -56,6 +56,7 @@ static void parent_checked(const char *path, const char *wanted)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     static const char *const s_folders[6] = {"src/python/pkg",    "examples/art/measure", "examples/proofing",
                                              "tools/plugins/one", "tools/plugins/two",    "shared"};
     cli_check_folder("python_paths", s_dir);

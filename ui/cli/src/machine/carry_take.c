@@ -70,7 +70,7 @@ static void cli_value_written(VerbaLinea *out, unsigned int value)
     }
     cli_json_write(&s_take.room.json, value, &line, 0u, 0);
     cli_json_quoted(out, line.out, mmgr_line_ok(&line) ? line.at : 0ull);
-    g_cli_cells->persistent_buf_release(line.out, NULL);
+    cli_cell_release(line.out, NULL);
 }
 
 // the settings that differ between two settings texts written, each with its value here and there: 1 where any do
@@ -184,7 +184,7 @@ void cli_carry_differences(const char *home, const CliCarried *there, VerbaLinea
     mmgr_line_ch(out, ']');
     cli_carried_clear(&s_take.here);
     cli_carry_room_given(&s_take.room);
-    g_cli_cells->persistent_buf_release(settings.out, NULL);
+    cli_cell_release(settings.out, NULL);
     cli_lock_give(&s_lock);
 }
 
@@ -295,7 +295,7 @@ static int cli_place_taken(const char *home, const char *backup_dir, const char 
         s_take.taking.stood[s_take.taking.files] = stood;
         s_take.taking.files += 1u;
     }
-    g_cli_cells->persistent_buf_release(settings.out, NULL);
+    cli_cell_release(settings.out, NULL);
     return taken;
 }
 
@@ -343,6 +343,6 @@ int cli_carry_take(const char *home, const char *from, const CliCarried *there, 
     }
     cli_carry_room_given(&s_take.room);
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(written.out, NULL);
+    cli_cell_release(written.out, NULL);
     return taken;
 }

@@ -208,7 +208,7 @@ int cli_zmtp_sent(const CliSocket *socket, const CliZmtpFrame *frames, unsigned 
     unsigned long long size = 0ull;
     unsigned char *const message = cli_zmtp_message_made(frames, count, &size);
     const int sent = (message != NULL) && cli_socket_written(socket, message, size);
-    g_cli_cells->persistent_buf_release(message, NULL);
+    cli_cell_release(message, NULL);
     return sent;
 }
 

@@ -87,10 +87,10 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
         g_cli_cells->persistent_buf_alloc(((unsigned long long)most + 1ull) * sizeof(*waiting_on), &s_cells);
     if ((s_batch == NULL) || (text == NULL) || (paths == NULL) || (waiting_on == NULL))
     {
-        g_cli_cells->persistent_buf_release(waiting_on, &s_cells);
-        g_cli_cells->persistent_buf_release(paths, &s_cells);
-        g_cli_cells->persistent_buf_release(text, &s_cells);
-        g_cli_cells->persistent_buf_release(s_batch, &s_cells);
+        cli_cell_release(waiting_on, &s_cells);
+        cli_cell_release(paths, &s_cells);
+        cli_cell_release(text, &s_cells);
+        cli_cell_release(s_batch, &s_cells);
         s_batch = NULL;
         cli_lock_give(&s_lock);
         return 0u;
@@ -152,10 +152,10 @@ unsigned int cli_servers_check_files(const char *root, const char *const *files,
     }
     cli_plugins_languages_given(&s_batch->known);
     const unsigned int queued = cli_servers_check_queued(paths, waiting_on, waiting, sink);
-    g_cli_cells->persistent_buf_release(waiting_on, &s_cells);
-    g_cli_cells->persistent_buf_release(paths, &s_cells);
-    g_cli_cells->persistent_buf_release(text, &s_cells);
-    g_cli_cells->persistent_buf_release(s_batch, &s_cells);
+    cli_cell_release(waiting_on, &s_cells);
+    cli_cell_release(paths, &s_cells);
+    cli_cell_release(text, &s_cells);
+    cli_cell_release(s_batch, &s_cells);
     s_batch = NULL;
     cli_lock_give(&s_lock);
     return queued;

@@ -14,8 +14,8 @@ CliGathering g_cli_gather;
 static void gather_cells_given(void)
 {
     cli_json_given(&g_cli_gather.json);
-    g_cli_cells->persistent_buf_release(g_cli_gather.flags_text.out, NULL);
-    g_cli_cells->persistent_buf_release(g_cli_gather.fragment_text.out, NULL);
+    cli_cell_release(g_cli_gather.flags_text.out, NULL);
+    cli_cell_release(g_cli_gather.fragment_text.out, NULL);
     g_cli_gather.flags_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
     g_cli_gather.fragment_text = (VerbaLinea){NULL, 0ull, 0ull, NULL, NULL, 0ull};
 }
@@ -158,7 +158,7 @@ static void cli_written(const char *path, unsigned int entries)
             query_file_written(path, out.out, out.at);
         }
     }
-    g_cli_cells->persistent_buf_release(out.out, NULL);
+    cli_cell_release(out.out, NULL);
 }
 
 // the gathering itself, its cells taken: the database's compilers and folder

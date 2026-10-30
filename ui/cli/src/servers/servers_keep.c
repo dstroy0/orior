@@ -223,8 +223,8 @@ CliLsp *cli_servers_owner_started(const char *path)
             cli_lsp_unref(server);
             server = NULL;
         }
-        g_cli_cells->persistent_buf_release(text, NULL);
-        g_cli_cells->persistent_buf_release(spec, NULL);
+        cli_cell_release(text, NULL);
+        cli_cell_release(spec, NULL);
     }
     cli_lock_give(&s_starting_lock);
     return server;

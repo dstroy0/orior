@@ -87,8 +87,8 @@ static int diff_reserved(unsigned long long then_lines, unsigned long long now_l
 
 static void diff_released(void)
 {
-    g_cli_cells->persistent_buf_release(s_diff->trace, NULL);
-    g_cli_cells->persistent_buf_release(s_diff->cell, NULL);
+    cli_cell_release(s_diff->trace, NULL);
+    cli_cell_release(s_diff->cell, NULL);
     memor.set(&(MemoriaCfg){.dst = s_diff, .val = 0, .bytes = sizeof(*s_diff)});
     cli_lock_give(&s_lock);
 }
@@ -119,7 +119,7 @@ static int diff_trace_room(long long round)
         memor.cpy(&(MemoriaCfg){
             .dst = grown, .src = s_diff->trace, .bytes = (unsigned long long)(round * round) * sizeof(long long)});
     }
-    g_cli_cells->persistent_buf_release(s_diff->trace, NULL);
+    cli_cell_release(s_diff->trace, NULL);
     s_diff->trace = grown;
     s_diff->trace_rounds = rounds;
     return 1;

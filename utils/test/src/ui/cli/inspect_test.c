@@ -368,6 +368,7 @@ static void inspect_sort(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     inspect_python_unread();
     inspect_python_shape();
     inspect_javascript();

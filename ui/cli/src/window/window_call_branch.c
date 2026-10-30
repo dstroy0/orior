@@ -318,7 +318,7 @@ int cli_window_branch_signature(const char *key, const char *path, unsigned long
     {
         answered = cli_window_tree_call("symbols_signature", call.out, call.at, out, err_msg);
     }
-    g_cli_cells->persistent_buf_release(call.out, NULL);
+    cli_cell_release(call.out, NULL);
     return answered;
 }
 
@@ -354,7 +354,7 @@ static int branch_pair(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *er
     // a place in a text the page holds stands below 2^32 lines and columns
     const int paired = cli_symbols_pair(path, (state[0] != '\0') ? state : "root", text, size,
                                         (CliSymbolPlace){(unsigned int)(line - top), (unsigned int)col}, pair);
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     if (!paired)
     {
         mmgr_line_put(out, "null");

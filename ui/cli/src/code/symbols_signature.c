@@ -490,7 +490,7 @@ int cli_symbols_signature(const char *path, const char *state, const char *text,
     }
     const int refused = read.refused;
     cli_symbols_leaves_given(&read);
-    g_cli_cells->persistent_buf_release(signature, NULL);
+    cli_cell_release(signature, NULL);
     cli_symbols_languages_given(languages);
     if (refused)
     {

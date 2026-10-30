@@ -108,7 +108,7 @@ static void rules_cut_down(const CliJson *json, unsigned int grammar, const Benc
             printf("%s\tnot cached: %.*s\n", s_cut_down[at].name, (int)err_msg.at, why);
         }
         cli_json_given(&cut);
-        g_cli_cells->persistent_buf_release(made.out, NULL);
+        cli_cell_release(made.out, NULL);
     }
 }
 
@@ -166,7 +166,7 @@ void bench_rules(const char *root, const BenchFile *files, unsigned int count, u
         (void)mmgr_line_finish(&name_line);
         bench_row(name, measure);
     }
-    g_cli_cells->persistent_buf_release(letters, NULL);
+    cli_cell_release(letters, NULL);
     rules_cut_down(&json, grammar, files, count, repeat, largest);
     cli_json_given(&json);
     cli_file_let_go(text, size);

@@ -68,8 +68,8 @@ static int cli_settings_off(void)
                                      : 0u;
     const int off = (network != 0u) && cfg_json_string(plain_text, &tokens[network], value, sizeof(value)) &&
                     (cellul.eq(&(CatenaFinitaCfg){.src = value, .other = "off", .cap = CLI_CELLS_POOL}));
-    g_cli_cells->persistent_buf_release(tokens, NULL);
-    g_cli_cells->persistent_buf_release(plain_text, NULL);
+    cli_cell_release(tokens, NULL);
+    cli_cell_release(plain_text, NULL);
     return off;
 }
 
@@ -198,7 +198,7 @@ static void net_logged(const char *address, const char *purpose)
     mmgr_line_put(&line, "}\n");
     if (!mmgr_line_ok(&line))
     {
-        g_cli_cells->persistent_buf_release(line.out, NULL);
+        cli_cell_release(line.out, NULL);
         return;
     }
     // the lines counted from the end, the file cut from the CLI_NET_LOG_MAX_LINES-th last where it contains more than
@@ -216,7 +216,7 @@ static void net_logged(const char *address, const char *purpose)
     lines += 1u;
     query_file_written(path, line.out + ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ull),
                        line.at - ((lines > (2u * CLI_NET_LOG_MAX_LINES)) ? from : 0ull));
-    g_cli_cells->persistent_buf_release(line.out, NULL);
+    cli_cell_release(line.out, NULL);
 }
 
 int cli_net_reach(const char *address, const char *purpose, VerbaLinea *err_msg)
@@ -303,7 +303,7 @@ void cli_net_reached(unsigned int most, VerbaLinea *out)
         // the line before ends at this one's start, its line end left off
         end = start - 1ull;
     }
-    g_cli_cells->persistent_buf_release(tokens, NULL);
+    cli_cell_release(tokens, NULL);
     cli_file_let_go(bytes, size);
     cli_lock_give(&s_lock);
     mmgr_line_ch(out, ']');

@@ -230,6 +230,7 @@ static void regexp_run(unsigned int count, const char *after)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     regexp_characters();
     regexp_sticky();
     regexp_alternation();

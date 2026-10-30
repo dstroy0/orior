@@ -230,6 +230,7 @@ static void maven_settings(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     maven_pom();
     maven_completes();
     maven_settings();

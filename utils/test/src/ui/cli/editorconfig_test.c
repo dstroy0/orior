@@ -38,6 +38,7 @@ static void editorconfig_checked(const char *name, int tabs, unsigned int size)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char deep[CLI_PATH_MAX_LEN];
     cli_check_folder("editorconfig", s_root);
     cli_full(s_root, "src/deep", deep);

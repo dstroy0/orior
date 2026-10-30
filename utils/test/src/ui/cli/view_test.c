@@ -93,7 +93,7 @@ static int reads(unsigned long long first, unsigned long long last, const char *
     char *const lines = cli_document_lines_taken(s_key, first, last - 1ull, &size, NULL, 0ull);
     const int same = (lines != NULL) && (size == cellul.len(&(CatenaFinitaCfg){.src = wanted, .cap = CLI_CELLS_POOL})) &&
                      (memor.cmp(&(MemoriaCfg){.src = lines, .other = wanted, .bytes = size}) == 0);
-    g_cli_cells->persistent_buf_release(lines, NULL);
+    cli_cell_release(lines, NULL);
     return same;
 }
 
@@ -137,6 +137,7 @@ static int frame_has(const char *wanted)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     CliShape shape;
     static const char s_text[] = "int main\n{\n    return 0;\n}\n";
     cli_check(cli_document_store(s_key, s_text, sizeof(s_text) - 1u, &shape), "the text is stored");

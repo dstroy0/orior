@@ -133,9 +133,9 @@ static void lines_caller(void *context)
         char *const answer = g_cli_cells->persistent_buf_alloc(CLI_SERVE_ANSWER, NULL);
         char *const why = g_cli_cells->persistent_buf_alloc(CLI_SERVE_ERR_MSG_MAX_LEN, NULL);
         lines_answered(caller, answer, why);
-        g_cli_cells->persistent_buf_release(why, NULL);
-        g_cli_cells->persistent_buf_release(answer, NULL);
-        g_cli_cells->persistent_buf_release(caller->line, NULL);
+        cli_cell_release(why, NULL);
+        cli_cell_release(answer, NULL);
+        cli_cell_release(caller->line, NULL);
         cli_lock_take(&s_lock);
         caller->size = 0ull;
         caller->busy = 0;
@@ -262,7 +262,7 @@ void cli_serve_over(const char *root, const CliServeLink *link)
             lines_handed(input + from, to - from);
         }
     }
-    g_cli_cells->persistent_buf_release(input, NULL);
+    cli_cell_release(input, NULL);
     // the calls made before the input ended are answered before the server ends
     cli_lock_take(&s_lock);
     for (unsigned int at = 0u; at < s_started; at += 1u)

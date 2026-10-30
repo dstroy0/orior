@@ -75,6 +75,7 @@ static unsigned long long check_in_use(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char root[CLI_PATH_MAX_LEN];
     cli_check_folder("servers_check", root);
     for (unsigned int at = 0u; at < CHECK_FILES; at += 1u)

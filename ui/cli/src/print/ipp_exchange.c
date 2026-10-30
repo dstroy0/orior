@@ -186,7 +186,7 @@ static int cli_sent(const CliSocket *socket, const char *host, unsigned int port
     cli_ipp_encode(request, &body);
     if (!mmgr_line_ok(&body))
     {
-        g_cli_cells->persistent_buf_release(body.out, NULL);
+        cli_cell_release(body.out, NULL);
         return 0;
     }
     char head[CLI_PATH_MAX_LEN * 3u];
@@ -205,7 +205,7 @@ static int cli_sent(const CliSocket *socket, const char *host, unsigned int port
     const int sent = mmgr_line_ok(&line) && cli_socket_written(socket, head, line.at) &&
                      cli_socket_written(socket, body.out, body.at) &&
                      ((size == 0ull) || cli_socket_written(socket, document, size));
-    g_cli_cells->persistent_buf_release(body.out, NULL);
+    cli_cell_release(body.out, NULL);
     return sent;
 }
 
@@ -395,7 +395,7 @@ int cli_ipp_exchange(const char *uri, const CliIppMessage *request, const unsign
     // the answer's own texts are in its bytes; a document after them lay in the answer read, which is given back
     answer->data = NULL;
     answer->data_length = 0ull;
-    g_cli_cells->persistent_buf_release(s_answer, NULL);
+    cli_cell_release(s_answer, NULL);
     s_answer = NULL;
     cli_lock_give(&s_lock);
     return done;

@@ -257,6 +257,7 @@ static void git_owner_is(const char *const *repos, unsigned int count, const cha
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     git_clone_is("https://github.com/dstroy0/orior.git", 1);
     git_clone_is("https://github.com/dstroy0/orior/", 1);
     git_clone_is("git@github.com:dstroy0/orior.git", 1);

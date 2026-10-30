@@ -400,7 +400,7 @@ unsigned int cli_catalog_driver_parts(const char *source, char (*parts)[CLI_NAME
             from = cut + 1ull;
         }
     }
-    g_cli_cells->persistent_buf_release(joined, &g_cli_catalog_cells);
+    cli_cell_release(joined, &g_cli_catalog_cells);
     return count;
 }
 

@@ -273,6 +273,7 @@ static void lsp_framed(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     lsp_uri();
     lsp_ended();
     lsp_answered_later();

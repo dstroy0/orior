@@ -269,6 +269,7 @@ static void serve_jobs(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     serve_base64();
     serve_names();
     serve_strings();

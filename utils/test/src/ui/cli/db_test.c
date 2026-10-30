@@ -403,6 +403,7 @@ static void db_slow(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     db_json();
     db_keychain();
     db_sqlite();

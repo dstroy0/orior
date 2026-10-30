@@ -62,7 +62,7 @@ static unsigned char *cli_file_roomed(void *context, unsigned long long size)
     }
     if ((size + CLI_SYMBOLS_FILE_SLACK) > reading->file_room)
     {
-        g_cli_cells->persistent_buf_release(reading->file_bytes, NULL);
+        cli_cell_release(reading->file_bytes, NULL);
         unsigned long long room = (reading->file_room * 2ull > size + CLI_SYMBOLS_FILE_SLACK)
                                       ? (reading->file_room * 2ull)
                                       : (size + CLI_SYMBOLS_FILE_SLACK);
@@ -81,7 +81,7 @@ static void *cli_read_moved(void *cell, unsigned long long used, unsigned long l
     if (larger != NULL)
     {
         memor.cpy(&(MemoriaCfg){.dst = larger, .src = cell, .bytes = (size_t)used});
-        g_cli_cells->persistent_buf_release(cell, NULL);
+        cli_cell_release(cell, NULL);
     }
     return larger;
 }
@@ -208,7 +208,7 @@ static int cli_symbol_file_put(const CliSymbolsReading *reading, const char *pat
     else
     {
         memor.cpy(&(MemoriaCfg){.dst = cell + symbols_size, .src = path, .bytes = path_length});
-        g_cli_cells->persistent_buf_release(g_cli_symbol_files[file].cell, NULL);
+        cli_cell_release(g_cli_symbol_files[file].cell, NULL);
         g_cli_symbol_files[file].cell = cell;
         g_cli_symbol_files[file].path = (unsigned int)symbols_size;
     }
@@ -394,11 +394,11 @@ static void cli_reading(void *context)
         s_read = 1;
         s_read_at = cli_clock_milliseconds();
     }
-    g_cli_cells->persistent_buf_release(reading->read_text, NULL);
-    g_cli_cells->persistent_buf_release(reading->read_symbols, NULL);
-    g_cli_cells->persistent_buf_release(reading->file_bytes, NULL);
+    cli_cell_release(reading->read_text, NULL);
+    cli_cell_release(reading->read_symbols, NULL);
+    cli_cell_release(reading->file_bytes, NULL);
     cli_symbols_languages_given(reading->languages);
-    g_cli_cells->persistent_buf_release(reading, NULL);
+    cli_cell_release(reading, NULL);
     s_listing = NULL;
     s_running = 0;
     cli_wake_all(&s_wake);
@@ -525,7 +525,7 @@ void cli_symbols_refresh(const char *root, const char *const *paths, unsigned in
     if (!s_running)
     {
         cli_symbols_languages_given(s_listing->languages);
-        g_cli_cells->persistent_buf_release(s_listing, NULL);
+        cli_cell_release(s_listing, NULL);
         s_listing = NULL;
     }
     g_cli_symbols_reading = s_running;

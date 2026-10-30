@@ -9,6 +9,7 @@
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char quoted[256];
     VerbaLinea line = {quoted, sizeof(quoted), 0ull};
     cli_run_file_quoted(&line, "a b/it's.py");

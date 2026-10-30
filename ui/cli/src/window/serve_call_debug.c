@@ -52,7 +52,7 @@ static void debug_event(void *context, unsigned long long session, const char *e
     {
         cli_serve_emitted("debug-event", line.out, line.at);
     }
-    g_cli_cells->persistent_buf_release(line.out, NULL);
+    cli_cell_release(line.out, NULL);
 }
 
 // a path an adapter named written as it stands in the tree, the tree its context

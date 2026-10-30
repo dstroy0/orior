@@ -24,10 +24,10 @@ CellOwner g_cli_ipp_cells = MMGR_CELL_OWNER("cli_ipp");
 
 void cli_ipp_given(CliIppMessage *message)
 {
-    g_cli_cells->persistent_buf_release(message->group, &g_cli_ipp_cells);
-    g_cli_cells->persistent_buf_release(message->attribute, &g_cli_ipp_cells);
-    g_cli_cells->persistent_buf_release(message->value, &g_cli_ipp_cells);
-    g_cli_cells->persistent_buf_release(message->bytes, &g_cli_ipp_cells);
+    cli_cell_release(message->group, &g_cli_ipp_cells);
+    cli_cell_release(message->attribute, &g_cli_ipp_cells);
+    cli_cell_release(message->value, &g_cli_ipp_cells);
+    cli_cell_release(message->bytes, &g_cli_ipp_cells);
     *message = (CliIppMessage){0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0u, 0u, NULL, 0ull, 0};
 }
 
@@ -55,7 +55,7 @@ static void *cli_room(CliIppMessage *message, void *list, unsigned int count, un
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = larger, .src = list, .bytes = (size_t)(count * each)});
-    g_cli_cells->persistent_buf_release(list, &g_cli_ipp_cells);
+    cli_cell_release(list, &g_cli_ipp_cells);
     // a room no more than `most`, which an unsigned int stores
     *room = (unsigned int)grown;
     return larger;

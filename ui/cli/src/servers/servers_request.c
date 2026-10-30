@@ -89,7 +89,7 @@ int cli_servers_hover(const char *path, unsigned int line, unsigned int col, Ver
         {
             mmgr_line_put(out, "null");
         }
-        g_cli_cells->persistent_buf_release(shown, NULL);
+        cli_cell_release(shown, NULL);
     }
     cli_servers_reading_released(&s_quick);
     return requested;
@@ -190,7 +190,7 @@ static void request_tree_completed(const char *path, unsigned int line, unsigned
     {
         (void)cli_symbols_complete(own, text, size, line, col, request_tree_item, NULL, &err_msg);
     }
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
 }
 
 int cli_servers_complete(const char *path, unsigned int line, unsigned int col, VerbaLinea *out, VerbaLinea *err_msg)
@@ -218,7 +218,7 @@ int cli_servers_complete(const char *path, unsigned int line, unsigned int col, 
         {
             cli_schema_complete(path, text, size, line, col, &s_items);
         }
-        g_cli_cells->persistent_buf_release(text, NULL);
+        cli_cell_release(text, NULL);
     }
     CliLsp *const server = cli_servers_owner_answering(path);
     int requested = 1;
@@ -329,8 +329,8 @@ static unsigned int request_usages_of(unsigned int all)
 // the usages and their paths given back
 static void request_usages_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_usage, NULL);
-    g_cli_cells->persistent_buf_release(s_usage_paths, NULL);
+    cli_cell_release(s_usage, NULL);
+    cli_cell_release(s_usage_paths, NULL);
     s_usage = NULL;
     s_usage_paths = NULL;
 }
@@ -545,7 +545,7 @@ int cli_servers_rename(const char *tree, const char *path, unsigned int line, un
         cli_lsp_unref(server);
         mmgr_line_put(err_msg, "the rename could not be written: the cells cannot meet it");
     }
-    g_cli_cells->persistent_buf_release(named, NULL);
+    cli_cell_release(named, NULL);
     if (requested && cli_json_is(&s_search.json, root, CFG_JSON_NULL))
     {
         mmgr_line_put(err_msg, "the server found nothing to rename");

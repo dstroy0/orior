@@ -57,6 +57,7 @@ static void digest_sha256(const void *bytes, unsigned long long size, const char
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     digest_sha1("", "da39a3ee5e6b4b0d3255bfef95601890afd80709");
     digest_sha1("abc", "a9993e364706816aba3e25717850c26c9cd0d89d");
     digest_sha1("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", "84983e441c3bd26ebaae4aa1f95129e5e54670f1");

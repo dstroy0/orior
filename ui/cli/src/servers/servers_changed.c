@@ -270,7 +270,7 @@ static void changed_gone_emitted(const char *uri, const CliServersSink *sink)
     {
         sink->emit(sink->context, "lsp-diagnostics", cleared, size);
     }
-    g_cli_cells->persistent_buf_release(cleared, NULL);
+    cli_cell_release(cleared, NULL);
 }
 
 // the servers notified of the files changed under `root` and of each file gone, and each gone reported to have no
@@ -308,7 +308,7 @@ static void changed_emitted(const char *root, const char *const *files, unsigned
     {
         changed_servers_sent(changes_json, size);
     }
-    g_cli_cells->persistent_buf_release(changes_json, NULL);
+    cli_cell_release(changes_json, NULL);
     unsigned long long gone_size = 0ull;
     char *const uris = cli_pieces_joined(&gone_pieces, &gone, "the files gone", &gone_size);
     for (unsigned long long at = 0ull; (uris != NULL) && (at < gone_size);
@@ -316,23 +316,23 @@ static void changed_emitted(const char *root, const char *const *files, unsigned
     {
         changed_gone_emitted(uris + at, sink);
     }
-    g_cli_cells->persistent_buf_release(uris, NULL);
+    cli_cell_release(uris, NULL);
 }
 
 // the batch's parts given back
 static void changed_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_batch.tree_paths, NULL);
-    g_cli_cells->persistent_buf_release(s_batch.tree, NULL);
-    g_cli_cells->persistent_buf_release(s_batch.again, NULL);
-    g_cli_cells->persistent_buf_release(s_batch.file_tool, NULL);
-    g_cli_cells->persistent_buf_release(s_batch.tool, NULL);
-    g_cli_cells->persistent_buf_release(s_batch.tool_language, NULL);
+    cli_cell_release(s_batch.tree_paths, NULL);
+    cli_cell_release(s_batch.tree, NULL);
+    cli_cell_release(s_batch.again, NULL);
+    cli_cell_release(s_batch.file_tool, NULL);
+    cli_cell_release(s_batch.tool, NULL);
+    cli_cell_release(s_batch.tool_language, NULL);
     if (s_batch.languages != NULL)
     {
         cli_plugins_languages_given(s_batch.languages);
     }
-    g_cli_cells->persistent_buf_release(s_batch.languages, NULL);
+    cli_cell_release(s_batch.languages, NULL);
     memor.set(&(MemoriaCfg){.dst = &s_batch, .val = 0, .bytes = sizeof(s_batch)});
 }
 

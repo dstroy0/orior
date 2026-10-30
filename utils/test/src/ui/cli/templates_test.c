@@ -7,6 +7,7 @@
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char home[CLI_PATH_MAX_LEN];
     char path[CLI_PATH_MAX_LEN];
     char parent[CLI_PATH_MAX_LEN];

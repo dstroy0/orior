@@ -46,7 +46,7 @@ static void *processes_moved(void *cell, unsigned long long size, unsigned long 
         return NULL;
     }
     memor.cpy(&(MemoriaCfg){.dst = moved, .src = cell, .bytes = (size_t)size});
-    g_cli_cells->persistent_buf_release(cell, &g_cli_debug_processes_cells);
+    cli_cell_release(cell, &g_cli_debug_processes_cells);
     return moved;
 }
 
@@ -175,7 +175,7 @@ void cli_debug_processes(VerbaLinea *out)
         mmgr_line_ch(out, '}');
     }
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(listing.sorted, &g_cli_debug_processes_cells);
-    g_cli_cells->persistent_buf_release(listing.text, &g_cli_debug_processes_cells);
-    g_cli_cells->persistent_buf_release(listing.process, &g_cli_debug_processes_cells);
+    cli_cell_release(listing.sorted, &g_cli_debug_processes_cells);
+    cli_cell_release(listing.text, &g_cli_debug_processes_cells);
+    cli_cell_release(listing.process, &g_cli_debug_processes_cells);
 }

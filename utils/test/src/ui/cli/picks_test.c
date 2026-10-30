@@ -139,6 +139,7 @@ static void picks_many(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     picks_few();
     picks_many();
     return cli_checked();

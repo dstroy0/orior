@@ -212,6 +212,6 @@ int cli_symbols_complete(const char *path, const char *text, unsigned long long 
         cli_symbols_leaves_given(&read);
     }
     cli_symbols_languages_given(languages);
-    g_cli_cells->persistent_buf_release(complete.handed.out, NULL);
+    cli_cell_release(complete.handed.out, NULL);
     return done;
 }

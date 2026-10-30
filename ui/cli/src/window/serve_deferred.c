@@ -55,7 +55,7 @@ static void deferred_event_sent(unsigned long long request_id, int ok, const Ver
     {
         cli_serve_emitted("call-answered", event_json.out, event_json.at);
     }
-    g_cli_cells->persistent_buf_release(event_json.out, NULL);
+    cli_cell_release(event_json.out, NULL);
 }
 
 // the call run where it was requested, its answer sent, and the request's cell given back
@@ -80,12 +80,12 @@ static void deferred_run(void *context)
     deferred_event_sent(deferred->request_id, ok, &out, &err_msg);
     if (grown)
     {
-        g_cli_cells->persistent_buf_release(out.out, NULL);
+        cli_cell_release(out.out, NULL);
     }
     cli_lock_take(&s_lock);
     s_running -= 1u;
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(deferred, NULL);
+    cli_cell_release(deferred, NULL);
 }
 
 int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, VerbaLinea *out, VerbaLinea *err_msg)
@@ -111,7 +111,7 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
         mmgr_line_ok(&text) ? g_cli_cells->persistent_buf_alloc(sizeof(*deferred) + text.at + 1ull, NULL) : NULL;
     if (deferred == NULL)
     {
-        g_cli_cells->persistent_buf_release(text.out, NULL);
+        cli_cell_release(text.out, NULL);
         mmgr_line_put(err_msg, "the deferred call could not be given a cell");
         return 0;
     }
@@ -121,14 +121,14 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
     deferred->answer = answer;
     deferred->request_id = request_id;
     deferred->thread = (CliThread){deferred_run, deferred, CLI_PRIORITY_WORK};
-    g_cli_cells->persistent_buf_release(text.out, NULL);
+    cli_cell_release(text.out, NULL);
     cli_lock_take(&s_lock);
     const int room = s_running < CLI_SERVE_DEFERRED_MAX;
     s_running += room ? 1u : 0u;
     cli_lock_give(&s_lock);
     if (!room)
     {
-        g_cli_cells->persistent_buf_release(deferred, NULL);
+        cli_cell_release(deferred, NULL);
         mmgr_line_put(err_msg, "too many calls are deferred at once");
         return 0;
     }
@@ -137,7 +137,7 @@ int cli_serve_deferred_or(const CliServeArgs *args, CliServeAnswer answer, Verba
         cli_lock_take(&s_lock);
         s_running -= 1u;
         cli_lock_give(&s_lock);
-        g_cli_cells->persistent_buf_release(deferred, NULL);
+        cli_cell_release(deferred, NULL);
         mmgr_line_put(err_msg, "the deferred call's thread did not start");
         return 0;
     }

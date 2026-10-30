@@ -223,9 +223,9 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     if ((printed == NULL) || (offsets == NULL) || !begun)
     {
         // with no room to write it in, nothing is written
-        g_cli_cells->persistent_buf_release(printed, NULL);
-        g_cli_cells->persistent_buf_release(offsets, NULL);
-        g_cli_cells->persistent_buf_release(content.out, NULL);
+        cli_cell_release(printed, NULL);
+        cli_cell_release(offsets, NULL);
+        cli_cell_release(content.out, NULL);
         return;
     }
     unsigned int count = 0u;
@@ -302,7 +302,7 @@ void cli_print_pdf(const CliPrintListing *listing, const CliPrintLayout *layout,
     mmgr_line_decimal(out, xref, 1u);
     mmgr_line_put(out, "\n%%EOF\n");
     *pages = count;
-    g_cli_cells->persistent_buf_release(printed, NULL);
-    g_cli_cells->persistent_buf_release(offsets, NULL);
-    g_cli_cells->persistent_buf_release(content.out, NULL);
+    cli_cell_release(printed, NULL);
+    cli_cell_release(offsets, NULL);
+    cli_cell_release(content.out, NULL);
 }

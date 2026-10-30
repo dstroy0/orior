@@ -282,7 +282,7 @@ static int cli_tables_list_written(const CliJson *json, unsigned int list, const
         (void)cli_defs_lines(path, cli_tables_line, &read);
     }
     mmgr_line_ch(out, ']');
-    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
+    cli_cell_release(room, &g_cli_plugins_cells);
     return read_whole;
 }
 
@@ -399,7 +399,7 @@ static int cli_tables_rule_written(const CliJson *json, unsigned int grammar, un
         }
         mmgr_line_ch(out, ']');
     }
-    g_cli_cells->persistent_buf_release(source.out, NULL);
+    cli_cell_release(source.out, NULL);
     return taken != 0u;
 }
 
@@ -465,7 +465,7 @@ int cli_plugins_grammar_whole(const CliJson *json, unsigned int grammar, const c
         whole ? cli_json_taken(&filled, lists.out, lists.at, 0u, 0ull, err_msg) : CLI_JSON_NONE;
     whole = (filled_grammar != CLI_JSON_NONE) && cli_tables_rules_written(&filled, filled_grammar, out, err_msg);
     cli_json_given(&filled);
-    g_cli_cells->persistent_buf_release(lists.out, NULL);
+    cli_cell_release(lists.out, NULL);
     return whole;
 }
 
@@ -526,6 +526,6 @@ int cli_plugins_folder_stands(const CliJson *json, unsigned int each, const char
     CliTablesUnless matched = {json, unless, CLI_DEFS_CELLS, read ? &pattern : NULL, 0};
     const int stands =
         ((source == NULL) || read) && cli_defs_lines(path, cli_tables_unless_line, &matched) && !matched.matched;
-    g_cli_cells->persistent_buf_release(room, &g_cli_plugins_cells);
+    cli_cell_release(room, &g_cli_plugins_cells);
     return stands;
 }

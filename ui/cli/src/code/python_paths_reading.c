@@ -85,7 +85,7 @@ int cli_py_reading_taken(unsigned long long size)
 
 void cli_py_reading_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_reading, &g_cli_python_cells);
+    cli_cell_release(s_reading, &g_cli_python_cells);
     s_reading = NULL;
     memor.set(&(MemoriaCfg){.dst = &g_cli_py, .val = 0, .bytes = sizeof(g_cli_py)});
     cli_py_lines_placed(NULL, 0u, NULL, NULL, 0u);

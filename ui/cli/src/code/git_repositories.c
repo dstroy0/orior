@@ -57,7 +57,7 @@ static void *cli_search_grown(void *list, unsigned int count, unsigned int *room
     {
         memor.cpy(&(MemoriaCfg){.dst = cell, .src = list, .bytes = count * size});
     }
-    g_cli_cells->persistent_buf_release(list, &g_cli_git_cells);
+    cli_cell_release(list, &g_cli_git_cells);
     *room = grown;
     return cell;
 }
@@ -210,6 +210,6 @@ void cli_git_repositories(const char *root, CliRepositories *found)
         cli_relative(root, search->nested[at], relative);
         cli_repository_put(found, relative, search->nested[at]);
     }
-    g_cli_cells->persistent_buf_release(search->pending, &g_cli_git_cells);
-    g_cli_cells->persistent_buf_release(search->nested, &g_cli_git_cells);
+    cli_cell_release(search->pending, &g_cli_git_cells);
+    cli_cell_release(search->nested, &g_cli_git_cells);
 }

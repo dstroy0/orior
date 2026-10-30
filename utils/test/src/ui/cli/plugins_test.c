@@ -380,6 +380,7 @@ static void plugins_folders(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     plugins_bundled();
     plugins_reader();
     plugins_code();

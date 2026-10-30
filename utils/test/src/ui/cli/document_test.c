@@ -91,7 +91,7 @@ static void document_found_in_little_room(void)
     if (taken != 0u)
     {
         taken -= 1u;
-        g_cli_cells->persistent_buf_release(s_taken[taken], NULL);
+        cli_cell_release(s_taken[taken], NULL);
     }
     CliShape shape;
     (void)cli_document_store("little", "one line\ntwo lines", 18ull, &shape);
@@ -99,7 +99,7 @@ static void document_found_in_little_room(void)
     cli_document_release("little");
     for (unsigned int at = 0u; at < taken; at += 1u)
     {
-        g_cli_cells->persistent_buf_release(s_taken[at], NULL);
+        cli_cell_release(s_taken[at], NULL);
     }
 }
 
@@ -152,7 +152,7 @@ static void document_edits_in_place(void)
     }
     CliShape shape;
     (void)cli_document_store("large", text, size, &shape);
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     unsigned long long pool = 0ull;
     unsigned long long before = 0ull;
     unsigned long long temporary = 0ull;
@@ -733,7 +733,7 @@ static void document_walk_onward(void)
     cli_check((walked_again - walked) <= ((2ull * (walked - began)) + 100ull),
               "an edit that moves the state of every line after it is walked many lines to a step");
     cli_document_release("onward");
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
 }
 
 // a paged text's lines viewed far from its first: colored at once from root at the first line the page holds, only those
@@ -956,6 +956,7 @@ static void document_at_once(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     const CliLines *const lines = document_lines("one\r\ntwo\nthree\r\r\n\xF0\x9F\x98\x80");
     cli_check((lines->lines == 4u) && (lines->length[2] == 6ull) && (lines->unit[lines->start[2] + 5u] == '\r') &&
                   (lines->length[3] == 2ull),

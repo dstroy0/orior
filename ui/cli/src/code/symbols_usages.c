@@ -320,7 +320,7 @@ static void usages_text_given(char *text, unsigned long long size, int mapped)
     }
     else
     {
-        g_cli_cells->persistent_buf_release(text, NULL);
+        cli_cell_release(text, NULL);
     }
 }
 
@@ -423,7 +423,7 @@ static int usages_across(CliUsages *usages, const char *path, const char *define
         }
         usages_text_given(text, size, mapped);
     }
-    g_cli_cells->persistent_buf_release(paths.out, NULL);
+    cli_cell_release(paths.out, NULL);
     return walked;
 }
 
@@ -544,10 +544,10 @@ static int usages_asked(const char *path, unsigned int line, unsigned int col, i
         mmgr_line_put(err_msg, "the cells cannot meet the usages' walk");
         read = -1;
     }
-    g_cli_cells->persistent_buf_release(usages.notes.out, NULL);
-    g_cli_cells->persistent_buf_release(usages.texts.out, NULL);
-    g_cli_cells->persistent_buf_release(usages.paths.out, NULL);
-    g_cli_cells->persistent_buf_release(usages.regions.out, NULL);
+    cli_cell_release(usages.notes.out, NULL);
+    cli_cell_release(usages.texts.out, NULL);
+    cli_cell_release(usages.paths.out, NULL);
+    cli_cell_release(usages.regions.out, NULL);
     usages_text_given(text, size, mapped);
     return read;
 }

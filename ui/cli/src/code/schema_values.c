@@ -277,7 +277,7 @@ void cli_schema_shown(const CliJson *json, unsigned int value, VerbaLinea *out)
     (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST);
     cli_json_write(json, value, &written, 0u, 1);
     values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
-    g_cli_cells->persistent_buf_release(written.out, NULL);
+    cli_cell_release(written.out, NULL);
 }
 
 // a file's value written as serde_json writes the value it reads it as, an object's keys in order, the last of a key
@@ -354,7 +354,7 @@ void cli_schema_shown_value(const CliSchemaRead *read, unsigned int node, VerbaL
     (void)cli_growing_line_made(&written, CLI_SCHEMA_SHOWN_FIRST);
     values_written(read, node, &written);
     values_cut(written.out, mmgr_line_ok(&written) ? written.at : 0u, out);
-    g_cli_cells->persistent_buf_release(written.out, NULL);
+    cli_cell_release(written.out, NULL);
 }
 
 void cli_schema_number_shown(double value, VerbaLinea *out)
@@ -419,7 +419,7 @@ int cli_schema_matches(const char *pattern, unsigned long long pattern_size, con
         }
         cli_lock_give(&s_matches_lock);
     }
-    g_cli_cells->persistent_buf_release(source, &g_cli_schema_cells);
-    g_cli_cells->persistent_buf_release(letters, &g_cli_schema_cells);
+    cli_cell_release(source, &g_cli_schema_cells);
+    cli_cell_release(letters, &g_cli_schema_cells);
     return found;
 }

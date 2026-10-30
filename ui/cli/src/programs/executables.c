@@ -26,7 +26,7 @@ int cli_executables_program(const char *tool, const char *name, char *path, Verb
     unsigned int count = 0u;
     char (*const folders)[CLI_PATH_MAX_LEN] = cli_toolchains_path_taken(&count);
     cli_toolchains_find(&json, one, (const char (*)[CLI_PATH_MAX_LEN])folders, count, &found_tool);
-    g_cli_cells->persistent_buf_release(folders, NULL);
+    cli_cell_release(folders, NULL);
     char folder[CLI_PATH_MAX_LEN];
     const char *const names[1] = {name};
     const int found = found_tool.has_program && cli_path_parent(found_tool.program, folder) &&
@@ -353,7 +353,7 @@ int cli_executables_made(const char *root, const char *id, const CliValues *valu
             return 0;
         }
         found = cli_spec_made(spec, exe, under);
-        g_cli_cells->persistent_buf_release(spec, &g_cli_executables_cells);
+        cli_cell_release(spec, &g_cli_executables_cells);
         if (!found)
         {
             mmgr_line_put(err_msg, script);

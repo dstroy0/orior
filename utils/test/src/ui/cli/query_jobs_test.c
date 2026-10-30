@@ -159,6 +159,7 @@ static void protocol_protocol(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     protocol_protocol();
     const QueryPrograms programs = cli_protocol_programs();
     char path[CLI_PATH_MAX_LEN];

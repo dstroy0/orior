@@ -245,7 +245,7 @@ static void mysql_mysql(const char *password)
         return;
     }
     mysql_all(my, s_users, 4u);
-    // the first sign-in after the flush takes the password whole, sealed by the server's key; the second is answered
+    // the first sign-in after the cache is cleared takes the password whole, sealed by the server's key; the second is answered
     // from the server's cache
     for (int sealed = 1; sealed >= 0; sealed -= 1)
     {
@@ -381,6 +381,7 @@ static void mysql_mariadb(const char *password)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     mysql_power();
     mysql_oaep();
     mysql_scrambles();

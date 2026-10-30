@@ -94,7 +94,7 @@ static void cli_line_emitted(CliCarrier *carrier, const char *bytes, unsigned lo
     }
     mmgr_line_finish(&line);
     cli_run_line(carrier->run, carrier->stream, text);
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
 }
 
 // the line buffered, with `size` bytes of `bytes` after it, printed: from the bytes where none is buffered, else joined
@@ -114,7 +114,7 @@ static void cli_pending_emitted(CliCarrier *carrier, const char *bytes, unsigned
         memor.cpy(&(MemoriaCfg){.dst = joined + carrier->pending.size, .src = bytes, .bytes = (size_t)size});
         cli_line_emitted(carrier, joined, whole);
     }
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(joined, NULL);
     cli_pieces_given(&carrier->pending);
 }
 

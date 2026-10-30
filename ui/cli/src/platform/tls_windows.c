@@ -159,7 +159,7 @@ static int cli_records_reserved(CliTls *tls)
         return 0;
     }
     memor.cpy(&(MemoriaCfg){.dst = sealed, .src = tls->sealed, .bytes = tls->sealed_size});
-    g_cli_cells->persistent_buf_release(tls->sealed, &g_cli_tls_cells);
+    cli_cell_release(tls->sealed, &g_cli_tls_cells);
     tls->sealed = sealed;
     tls->sealed_room = sealed_room;
     return (tls->plain != NULL) && (tls->message != NULL);
@@ -348,9 +348,9 @@ void cli_tls_closed(CliTls *tls)
 {
     DeleteSecurityContext(&tls->context);
     FreeCredentialsHandle(&tls->credential);
-    g_cli_cells->persistent_buf_release(tls->sealed, &g_cli_tls_cells);
-    g_cli_cells->persistent_buf_release(tls->plain, &g_cli_tls_cells);
-    g_cli_cells->persistent_buf_release(tls->message, &g_cli_tls_cells);
+    cli_cell_release(tls->sealed, &g_cli_tls_cells);
+    cli_cell_release(tls->plain, &g_cli_tls_cells);
+    cli_cell_release(tls->message, &g_cli_tls_cells);
     tls->sealed = NULL;
     tls->plain = NULL;
     tls->message = NULL;

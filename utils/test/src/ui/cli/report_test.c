@@ -11,6 +11,7 @@ static char s_page[1u << 16u];
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     char struck[256];
     VerbaLinea line = {struck, sizeof(struck), 0ull};
     cli_report_scrub("at D:\\Git\\Tree\\x.rs", "d:\\git\\tree", &line);

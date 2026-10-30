@@ -70,6 +70,7 @@ static const char GHIDRA[] = "== cells_release\n"
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     const unsigned int defined = cli_disasm_functions_defined(IR, sizeof(IR) - 1u, s_names, CLI_DISASM_FUNCTIONS);
     cli_check(defined == 2u, "the IR defines two functions, its declaration left out");
     cli_check_text(s_names[0], 11ull, "cells_taken", "the first defined is cells_taken");

@@ -89,7 +89,7 @@ static int cli_room_taken(const char *text, unsigned long long size)
 // the room's cell given back
 static void cli_room_given(void)
 {
-    g_cli_cells->persistent_buf_release(s_room.line, &g_cli_purpose_cells);
+    cli_cell_release(s_room.line, &g_cli_purpose_cells);
     s_room.line = NULL;
     s_room.body = NULL;
     s_room.lines = 0u;

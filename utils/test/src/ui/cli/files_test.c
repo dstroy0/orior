@@ -503,6 +503,7 @@ static void files_large(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     files_refused();
     files_found();
     files_searched();

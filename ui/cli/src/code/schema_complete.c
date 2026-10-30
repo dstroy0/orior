@@ -187,7 +187,7 @@ static void complete_schemas_at(const char *text, unsigned int schema, const cha
             complete_schemas_at(text, target, doc, at, depth + 1u);
         }
     }
-    g_cli_cells->persistent_buf_release(doc, &g_cli_schema_cells);
+    cli_cell_release(doc, &g_cli_schema_cells);
     static const char *const s_words[5] = {"allOf", "anyOf", "oneOf", "then", "else"};
     for (unsigned int word = 0u; word < 5u; word += 1u)
     {

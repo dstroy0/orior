@@ -75,7 +75,7 @@ static int net_catalog_install(const CliServeArgs *args, VerbaLinea *out, VerbaL
     {
         cli_window_counted(out, folder_text, mmgr_line_ok(&folder) ? folder.at : 0ull);
     }
-    g_cli_cells->persistent_buf_release(entry.out, NULL);
+    cli_cell_release(entry.out, NULL);
     return installed;
 }
 

@@ -118,7 +118,7 @@ void cli_deploy_difference(const char *old, unsigned long long old_size, const c
     {
         standing_line_printed("+ ", new_text + news_lines.start[at], news_lines.size[at]);
     }
-    g_cli_cells->persistent_buf_release(counted, NULL);
+    cli_cell_release(counted, NULL);
 }
 
 // the copy of `path` the place at `index` has read as text into a cell of its size, that size into `size`, where it
@@ -160,7 +160,7 @@ static char *standing_theirs(unsigned int index, const char *path, unsigned long
     if (!read || (theirs == NULL) || (*size > CLI_DEPLOY_COMPARED) ||
         (memor.chr(&(MemoriaCfg){.src = theirs, .bytes = (size_t)*size, .val = 0u}) != NULL))
     {
-        g_cli_cells->persistent_buf_release(theirs, NULL);
+        cli_cell_release(theirs, NULL);
         return NULL;
     }
     return theirs;
@@ -211,7 +211,7 @@ static void standing_changed(unsigned int index, const char *folder, const char 
         }
         break;
     }
-    g_cli_cells->persistent_buf_release(theirs, NULL);
+    cli_cell_release(theirs, NULL);
 }
 
 // a file at the place at `index` that the tree no longer has printed, and what becomes of it
@@ -348,5 +348,5 @@ void cli_deploy_recorded(unsigned int index, int replace)
     {
         (void)cli_file_appended(path, joined, size, 1);
     }
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(joined, NULL);
 }

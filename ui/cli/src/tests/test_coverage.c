@@ -541,8 +541,8 @@ void cli_test_coverage_emitted(CliTestRun *run)
             run->sink.emit(run->sink.context, out.out, out.at);
         }
     }
-    g_cli_cells->persistent_buf_release(out.out, NULL);
-    g_cli_cells->persistent_buf_release(s_cover->room, NULL);
+    cli_cell_release(out.out, NULL);
+    cli_cell_release(s_cover->room, NULL);
     s_cover->room = NULL;
     s_cover = NULL;
     cli_lock_give(&s_cover_lock);

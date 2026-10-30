@@ -128,7 +128,7 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
             return 0;
         }
         memor.cpy(&(MemoriaCfg){.dst = pool, .src = values->text, .bytes = (size_t)values->used});
-        g_cli_cells->persistent_buf_release(values->text, &g_cli_requests_cells);
+        cli_cell_release(values->text, &g_cli_requests_cells);
         values->text = pool;
         values->room = room;
     }
@@ -151,7 +151,7 @@ int cli_requests_value_put(CliRequestsValues *values, const char *name, unsigned
 
 void cli_requests_values_given(CliRequestsValues *values)
 {
-    g_cli_cells->persistent_buf_release(values->text, &g_cli_requests_cells);
+    cli_cell_release(values->text, &g_cli_requests_cells);
     values->text = NULL;
     values->room = 0ull;
     values->used = 0ull;
@@ -271,7 +271,7 @@ static int values_member_put(CliRequestsValues *values, unsigned int member)
         mmgr_line_ok(&written) &&
         cli_requests_value_put(values, key, cellul.len(&(CatenaFinitaCfg){.src = key, .cap = CLI_CELLS_POOL}),
                                written.out, written.at);
-    g_cli_cells->persistent_buf_release(written.out, NULL);
+    cli_cell_release(written.out, NULL);
     return put;
 }
 
@@ -391,7 +391,7 @@ static int values_private_written(const char *file)
     }
     mmgr_line_put(&object, "\n}\n");
     const int written = mmgr_line_ok(&object) && query_file_written(file, object.out, object.at);
-    g_cli_cells->persistent_buf_release(object.out, NULL);
+    cli_cell_release(object.out, NULL);
     return written;
 }
 

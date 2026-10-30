@@ -89,10 +89,10 @@ static void bring_run(void *context)
     }
     mmgr_line_ch(&line, '}');
     cli_serve_emitted("bring-done", line.out, mmgr_line_ok(&line) ? line.at : 0ull);
-    g_cli_cells->persistent_buf_release(line.out, NULL);
-    g_cli_cells->persistent_buf_release(brought.out, NULL);
+    cli_cell_release(line.out, NULL);
+    cli_cell_release(brought.out, NULL);
     cli_lock_take(&s_bring_lock);
-    g_cli_cells->persistent_buf_release(bring->from, &g_cli_serve_strings_cells);
+    cli_cell_release(bring->from, &g_cli_serve_strings_cells);
     bring->from = NULL;
     bring->count = 0u;
     bring->busy = 0;

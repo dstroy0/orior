@@ -187,6 +187,7 @@ static void pairs_words(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     pairs_targets_of();
     pairs_carrier();
     pairs_words();

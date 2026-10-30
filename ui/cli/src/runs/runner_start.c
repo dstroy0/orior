@@ -29,7 +29,7 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
     CliLines *const lines = (cell != NULL) ? g_cli_cells->persistent_buf_alloc(sizeof(CliLines), NULL) : NULL;
     if (lines == NULL)
     {
-        g_cli_cells->persistent_buf_release(cell, NULL);
+        cli_cell_release(cell, NULL);
         mmgr_line_put(err_msg, "a run's cells could not be taken");
         return 0;
     }
@@ -46,8 +46,8 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
                       extent.lists, text, (unsigned int)extent.text);
     if (cli_catalog_copy(catalog, job, &run->catalog) == CLI_CATALOG_NONE)
     {
-        g_cli_cells->persistent_buf_release(lines, NULL);
-        g_cli_cells->persistent_buf_release(cell, NULL);
+        cli_cell_release(lines, NULL);
+        cli_cell_release(cell, NULL);
         mmgr_line_put(err_msg, "the job contains more than a run stores");
         return 0;
     }
@@ -58,8 +58,8 @@ int cli_run_cells_taken(CliRun *run, const CliCatalog *catalog, unsigned int job
 
 void cli_run_cells_given(CliRun *run)
 {
-    g_cli_cells->persistent_buf_release(run->job_cell, NULL);
-    g_cli_cells->persistent_buf_release(run->lines, NULL);
+    cli_cell_release(run->job_cell, NULL);
+    cli_cell_release(run->lines, NULL);
     run->job_cell = NULL;
     run->lines = NULL;
 }

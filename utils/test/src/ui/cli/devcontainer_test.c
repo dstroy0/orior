@@ -229,6 +229,7 @@ static void devcontainer_compose(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     devcontainer_image();
     devcontainer_build();
     devcontainer_compose();

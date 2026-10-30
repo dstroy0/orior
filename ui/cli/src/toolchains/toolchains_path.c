@@ -137,7 +137,7 @@ static void cli_shell_reading(void *context)
         s_shell_read = 1;
     }
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
 }
 
 // the login shell's PATH into `path`: 1 once it has been read, its reading begun the first time it is requested
@@ -229,7 +229,7 @@ static unsigned int cli_registry_folders(char (*folders)[CLI_PATH_MAX_LEN], unsi
         cli_registry_expand(registry_buf, expanded, CLI_PATH_TEXT);
         count = cli_split(expanded, folders, count, room);
     }
-    g_cli_cells->persistent_buf_release(registry_buf, NULL);
+    cli_cell_release(registry_buf, NULL);
     return count;
 }
 
@@ -246,7 +246,7 @@ unsigned int cli_toolchains_path_folders(char (*folders)[CLI_PATH_MAX_LEN], unsi
     {
         count = cli_split(text, folders, count, room);
     }
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     return count;
 }
 
@@ -284,7 +284,7 @@ char (*cli_toolchains_path_taken(unsigned int *count)) [CLI_PATH_MAX_LEN] {
     }
     most += query_environment_read("PATH", text, CLI_PATH_TEXT) ? cli_parts(text) : 0u;
     most += cli_shell_path(text, CLI_PATH_TEXT) ? cli_parts(text) : 0u;
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     char (*const folders)[CLI_PATH_MAX_LEN] =
         g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, NULL);
     *count = (folders != NULL) ? cli_toolchains_path_folders(folders, most) : 0u;
@@ -300,7 +300,7 @@ int cli_toolchains_on_path(const char *const *names, unsigned int count, char *p
     {
         found = cli_toolchains_program_in(path[at], names, count, program);
     }
-    g_cli_cells->persistent_buf_release(path, NULL);
+    cli_cell_release(path, NULL);
     return found;
 }
 
@@ -313,7 +313,7 @@ unsigned int cli_toolchains_system_path(char (*folders)[CLI_PATH_MAX_LEN], unsig
     const unsigned int count = ((text != NULL) && query_environment_read("PATH", text, CLI_PATH_TEXT))
                                    ? cli_split(text, folders, 0u, room)
                                    : 0u;
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     return count;
 #endif
 }
@@ -379,7 +379,7 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
         g_cli_cells->persistent_buf_alloc((unsigned long long)most * CLI_PATH_MAX_LEN, NULL);
     if (folders == NULL)
     {
-        g_cli_cells->persistent_buf_release(path_folders, NULL);
+        cli_cell_release(path_folders, NULL);
         query_environment_read("PATH", path, size);
         return;
     }
@@ -389,7 +389,7 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
     CliChosenFolders chosen = {folders, listed, most};
     cli_toolchains_chosen_each(cli_chosen_each, &chosen);
     listed = cli_folders_put(folders, chosen.count, most, (const char (*)[CLI_PATH_MAX_LEN])path_folders, path_count);
-    g_cli_cells->persistent_buf_release(path_folders, NULL);
+    cli_cell_release(path_folders, NULL);
     // each folder once by its key, in order
     VerbaLinea line = {path, size, 0ull};
     unsigned int folder_count = 0u;
@@ -414,7 +414,7 @@ void cli_toolchains_run_path_with(const char (*ahead)[CLI_PATH_MAX_LEN], unsigne
             folder_count += 1u;
         }
     }
-    g_cli_cells->persistent_buf_release(folders, NULL);
+    cli_cell_release(folders, NULL);
     if (mmgr_line_finish(&line) == 0ull)
     {
         query_environment_read("PATH", path, size);

@@ -192,7 +192,7 @@ static int ranking_reserved(VerbaLinea *out)
 // the ranking given back
 static void ranking_released(void)
 {
-    g_cli_cells->persistent_buf_release(s_ranking, NULL);
+    cli_cell_release(s_ranking, NULL);
     s_ranking = NULL;
 }
 

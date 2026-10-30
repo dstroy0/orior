@@ -125,7 +125,7 @@ CliDebugAnswer *cli_debug_answer_taken(void)
 void cli_debug_answer_given(CliDebugAnswer *answer)
 {
     cli_pieces_given(&answer->pieces);
-    g_cli_cells->persistent_buf_release(answer->body, NULL);
+    cli_cell_release(answer->body, NULL);
     answer->body = NULL;
     cli_json_given(&answer->json);
     cli_lock_take(&s_answers_lock);
@@ -151,7 +151,7 @@ int cli_debug_request(CliDebugSession *session, const char *command, CliDebugAns
     cli_pieces_begun(&pieces, &body, piece, sizeof(piece));
     const int answered = cli_dap_requested(session->dap, command, (written > 0ull) ? joined : "{}",
                                            (written > 0ull) ? written : 2ull, wait, &body, err_msg);
-    g_cli_cells->persistent_buf_release(joined, NULL);
+    cli_cell_release(joined, NULL);
     unsigned long long size = 0ull;
     answer->body = cli_pieces_joined(&pieces, &body, "a debug request's answer", &size);
     if (!answered || (answer->body == NULL))

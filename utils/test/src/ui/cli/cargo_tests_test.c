@@ -206,6 +206,7 @@ static void cargo_report(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cargo_scanned();
     cargo_found();
     cargo_report();

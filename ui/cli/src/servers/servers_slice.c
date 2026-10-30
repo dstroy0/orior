@@ -119,9 +119,9 @@ static void slice_line_put(void *context, const char *path, unsigned int line, c
 // the slicing's lines given back
 static void slice_lines_given(CliServersSlicing *slicing)
 {
-    g_cli_cells->persistent_buf_release(slicing->text.out, NULL);
-    g_cli_cells->persistent_buf_release(slicing->map.out, NULL);
-    g_cli_cells->persistent_buf_release(slicing->paths.out, NULL);
+    cli_cell_release(slicing->text.out, NULL);
+    cli_cell_release(slicing->map.out, NULL);
+    cli_cell_release(slicing->paths.out, NULL);
 }
 
 // the slicing's lines made, each growing, none written: 1, or 0 where the cells cannot meet them, those made given back
@@ -182,7 +182,7 @@ static int slice_kept(const char *root, const char *path, const char *key, CliSe
     }
     const int kept = (stored != NULL) && cli_keyed_put(&s_slices, key, path, stored, stored_size);
     cli_lock_give(&s_slices_lock);
-    g_cli_cells->persistent_buf_release(stored, NULL);
+    cli_cell_release(stored, NULL);
     return kept;
 }
 
@@ -219,8 +219,8 @@ static char *slice_cut(const char *root, const char *path, const char *key, CliS
         return NULL;
     }
     *slice_size = slicing.text.at;
-    g_cli_cells->persistent_buf_release(slicing.map.out, NULL);
-    g_cli_cells->persistent_buf_release(slicing.paths.out, NULL);
+    cli_cell_release(slicing.map.out, NULL);
+    cli_cell_release(slicing.paths.out, NULL);
     return slicing.text.out;
 }
 
@@ -304,7 +304,7 @@ int cli_servers_slice_sent(CliLsp *server, const char *root, const char *path, c
         (slice != NULL) && (!fresh || ((id != NULL) ? cli_lsp_opened(server, path, id, slice, slice_size, err_msg)
                                                     : cli_lsp_changed(server, path, slice, slice_size, err_msg)));
     cli_lock_give(&s_sending_lock);
-    g_cli_cells->persistent_buf_release(slice, NULL);
+    cli_cell_release(slice, NULL);
     if (sent && fresh)
     {
         cli_servers_ask_noted(server);
@@ -391,7 +391,7 @@ int cli_servers_slices_cut(const char *root, const char *path, const char *text,
         mmgr_line_put(err_msg, "the slices could not be cut: the cells cannot meet them");
     }
     slice_lines_given(&cut->slicing);
-    g_cli_cells->persistent_buf_release(cut, NULL);
+    cli_cell_release(cut, NULL);
     return whole;
 }
 
@@ -530,14 +530,14 @@ int cli_servers_view(const char *path, unsigned int first, unsigned int last, co
                                       0, &cut, &slice_size, err_msg);
         cut = (slice != NULL) && cut;
         sent = (slice != NULL) && (!cut || cli_lsp_changed(server, path, slice, slice_size, err_msg));
-        g_cli_cells->persistent_buf_release(slice, NULL);
+        cli_cell_release(slice, NULL);
     }
     cli_lock_give(&s_sending_lock);
     if (sent && cut)
     {
         cli_servers_ask_noted(server);
     }
-    g_cli_cells->persistent_buf_release(text, NULL);
+    cli_cell_release(text, NULL);
     cli_lsp_unref(server);
     if (!sent)
     {
@@ -710,7 +710,7 @@ char *cli_servers_slice_diagnostics(const char *path, const char *params, unsign
     cli_json_given(&json);
     if (!made || !mmgr_line_ok(&mapped))
     {
-        g_cli_cells->persistent_buf_release(mapped.out, NULL);
+        cli_cell_release(mapped.out, NULL);
         return NULL;
     }
     *mapped_size = mapped.at;

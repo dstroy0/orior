@@ -54,6 +54,7 @@ static void link_addresses(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     link_addresses();
     char quoted[64];
     VerbaLinea line = {quoted, sizeof(quoted), 0ull};

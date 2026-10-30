@@ -74,7 +74,7 @@ static int cli_map_written(const char *path, CliJson *json, unsigned int object,
         return 0;
     }
     const int whole = cli_whole_written(path, written, size, err_msg);
-    g_cli_cells->persistent_buf_release(written, NULL);
+    cli_cell_release(written, NULL);
     return whole;
 }
 
@@ -103,8 +103,8 @@ static unsigned int cli_written(CliJson *json, const char *text, unsigned long l
         same = mmgr_line_ok(&back) && (back.at == length) &&
                (memor.cmp(&(MemoriaCfg){.src = back_text, .other = text, .bytes = length}) == 0);
     }
-    g_cli_cells->persistent_buf_release(back_text, &g_cli_state_cells);
-    g_cli_cells->persistent_buf_release(tokens, &g_cli_state_cells);
+    cli_cell_release(back_text, &g_cli_state_cells);
+    cli_cell_release(tokens, &g_cli_state_cells);
     if (same)
     {
         return value;
@@ -219,10 +219,10 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
         char path[CLI_PATH_MAX_LEN];
         cli_in(folder, name, path);
         const int whole = (written != NULL) && cli_whole_written(path, written, size, err_msg);
-        g_cli_cells->persistent_buf_release(written, NULL);
+        cli_cell_release(written, NULL);
         if (!whole)
         {
-            g_cli_cells->persistent_buf_release(saved_names, &g_cli_state_cells);
+            cli_cell_release(saved_names, &g_cli_state_cells);
             cli_json_given(&json);
             return 0;
         }
@@ -252,7 +252,7 @@ static int cli_themes_saved(const char *folder, const char *text, unsigned long 
         }
     }
     cli_state_json_files_given(&files);
-    g_cli_cells->persistent_buf_release(saved_names, &g_cli_state_cells);
+    cli_cell_release(saved_names, &g_cli_state_cells);
     cli_json_given(&json);
     return 1;
 }

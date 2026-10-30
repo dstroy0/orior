@@ -346,8 +346,8 @@ static int parse_request(CliRequestsParsed *parsed, CliRequest *request, const c
 
 void cli_requests_parsed_given(CliRequestsParsed *parsed)
 {
-    g_cli_cells->persistent_buf_release(parsed->requests, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(parsed->text, &g_cli_requests_cells);
+    cli_cell_release(parsed->requests, &g_cli_requests_cells);
+    cli_cell_release(parsed->text, &g_cli_requests_cells);
     parsed->requests = NULL;
     parsed->requests_room = 0u;
     parsed->text = NULL;
@@ -450,8 +450,8 @@ int cli_requests_parse(const char *text, unsigned long long size, CliRequestsPar
                      : NULL;
     const int read = (s_line_end != NULL) && parse_read(text, size, parsed);
     parsed->full = parsed->full || (s_line_end == NULL);
-    g_cli_cells->persistent_buf_release(s_line_end, &g_cli_requests_cells);
-    g_cli_cells->persistent_buf_release(s_line_start, &g_cli_requests_cells);
+    cli_cell_release(s_line_end, &g_cli_requests_cells);
+    cli_cell_release(s_line_start, &g_cli_requests_cells);
     s_line_end = NULL;
     s_line_start = NULL;
     return read;

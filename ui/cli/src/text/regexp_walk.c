@@ -342,7 +342,7 @@ int cli_regexp_match_into(const CliRegexp *regexp, const unsigned int *text, uns
     const int found = cli_regexp_walk(regexp, regexp->root, at, &run, &end);
     if (run.ends_reserved)
     {
-        g_cli_cells->persistent_buf_release(run.ends, NULL);
+        cli_cell_release(run.ends, NULL);
     }
     if (found)
     {

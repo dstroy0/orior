@@ -42,7 +42,7 @@ static int cli_grammars_grown(void)
     {
         memor.cpy(&(MemoriaCfg){.dst = grown, .src = s_grammars, .bytes = (size_t)s_grammar_count * sizeof(*grown)});
     }
-    g_cli_cells->persistent_buf_release(s_grammars, &g_cli_plugins_cells);
+    cli_cell_release(s_grammars, &g_cli_plugins_cells);
     s_grammars = grown;
     s_grammar_room = room;
     return 1;
@@ -183,7 +183,7 @@ int cli_plugins_grammar_stored(const char *id, char *key, VerbaLinea *err_msg)
         }
     }
     cli_lock_give(&s_lock);
-    g_cli_cells->persistent_buf_release(whole.out, NULL);
+    cli_cell_release(whole.out, NULL);
     if (!sought.found)
     {
         mmgr_line_put(err_msg, "no plugin is named ");

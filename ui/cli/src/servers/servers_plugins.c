@@ -112,7 +112,7 @@ static void plugins_diagnostics(const CliPluginServer *plugin, const char *param
     {
         cli_servers_findings_stored(plugin->id, found.out, found.at, 1, &plugin->sink);
     }
-    g_cli_cells->persistent_buf_release(found.out, NULL);
+    cli_cell_release(found.out, NULL);
 }
 
 // what the server of the plugin `id` sends, `method` with `size` bytes of `params`, passed to the window where `emit`
@@ -137,7 +137,7 @@ static void plugins_msg_emitted(const char *id, const CliServersSink *sink, cons
     {
         sink->emit(sink->context, "plugin-server", event_json.out, event_json.at);
     }
-    g_cli_cells->persistent_buf_release(event_json.out, NULL);
+    cli_cell_release(event_json.out, NULL);
 }
 
 // what a plugin's server sends unprompted: its diagnostics stored, and all it sends passed to the window, a request
@@ -288,10 +288,10 @@ int cli_servers_plugin_start(const char *root, const char *id, const char *optio
             cli_lock_give(&g_cli_servers_texts_lock);
             cli_plugins_languages_given(&handing.languages);
         }
-        g_cli_cells->persistent_buf_release(given, NULL);
+        cli_cell_release(given, NULL);
     }
-    g_cli_cells->persistent_buf_release(path, NULL);
-    g_cli_cells->persistent_buf_release(words, NULL);
+    cli_cell_release(path, NULL);
+    cli_cell_release(words, NULL);
     cli_json_given(&read.json);
     return started;
 }

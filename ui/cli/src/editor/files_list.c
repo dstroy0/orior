@@ -74,7 +74,7 @@ static void *list_grown(void *list, unsigned long long count, unsigned long long
     {
         memor.cpy(&(MemoriaCfg){.dst = cell, .src = list, .bytes = count * size});
     }
-    g_cli_cells->persistent_buf_release(list, NULL);
+    cli_cell_release(list, NULL);
     *room = grown;
     return cell;
 }
@@ -266,9 +266,9 @@ static void cli_listed_each(void *context, const char *name, int is_folder)
 static void list_released(void)
 {
     cli_files_emptied(&s_listing->folders);
-    g_cli_cells->persistent_buf_release(s_listing->item, NULL);
-    g_cli_cells->persistent_buf_release(s_listing->text, NULL);
-    g_cli_cells->persistent_buf_release(s_listing, NULL);
+    cli_cell_release(s_listing->item, NULL);
+    cli_cell_release(s_listing->text, NULL);
+    cli_cell_release(s_listing, NULL);
     s_listing = NULL;
     cli_lock_give(&s_lock);
 }

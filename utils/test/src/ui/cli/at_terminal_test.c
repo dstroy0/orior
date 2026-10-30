@@ -307,6 +307,7 @@ static void terminal_unmerged(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     terminal_refused();
     terminal_branches();
     terminal_tests();

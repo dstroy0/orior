@@ -78,8 +78,8 @@ int cli_versions_taken(const char *text, unsigned long long size)
 // a section's accessors given back
 static void cells_names_given(CliVersionsNames *names)
 {
-    g_cli_cells->persistent_buf_release(names->text, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(names->at, &g_cli_versions_cells);
+    cli_cell_release(names->text, &g_cli_versions_cells);
+    cli_cell_release(names->at, &g_cli_versions_cells);
     names->at = NULL;
     names->size = NULL;
     names->text = NULL;
@@ -94,12 +94,12 @@ void cli_versions_released(void)
     cells_names_given(&g_cli_versions_libraries);
     cells_names_given(&g_cli_versions_known);
     CliVersionsParsed *const parsed = &g_cli_versions;
-    g_cli_cells->persistent_buf_release(parsed->line, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->pool, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->error, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->item, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->field, &g_cli_versions_cells);
-    g_cli_cells->persistent_buf_release(parsed->section, &g_cli_versions_cells);
+    cli_cell_release(parsed->line, &g_cli_versions_cells);
+    cli_cell_release(parsed->pool, &g_cli_versions_cells);
+    cli_cell_release(parsed->error, &g_cli_versions_cells);
+    cli_cell_release(parsed->item, &g_cli_versions_cells);
+    cli_cell_release(parsed->field, &g_cli_versions_cells);
+    cli_cell_release(parsed->section, &g_cli_versions_cells);
     parsed->line = NULL;
     parsed->pool = NULL;
     parsed->error = NULL;

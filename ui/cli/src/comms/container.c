@@ -31,7 +31,7 @@ CliProcess *cli_processes_taken(CellOwner *owner, unsigned int *count)
         {
             return processes;
         }
-        g_cli_cells->persistent_buf_release(processes, owner);
+        cli_cell_release(processes, owner);
     }
 }
 

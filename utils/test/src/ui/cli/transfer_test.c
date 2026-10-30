@@ -80,6 +80,7 @@ static void transfer_refused(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     transfer_handed();
     transfer_refused();
     char why[512];

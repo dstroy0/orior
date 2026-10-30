@@ -47,7 +47,7 @@ unsigned int cli_window_tree_called(CliJson *json, const char *name, const char 
     {
         read = cli_json_taken(json, answer.out, mmgr_line_ok(&answer) ? answer.at : 0ull, 0u, 0ull, err_msg);
     }
-    g_cli_cells->persistent_buf_release(answer.out, NULL);
+    cli_cell_release(answer.out, NULL);
     return read;
 }
 
@@ -154,9 +154,9 @@ static int text_document_edit(const CliServeArgs *args, VerbaLinea *out, VerbaLi
             text_shape_written(&shape, out);
         }
     }
-    g_cli_cells->persistent_buf_release(edits_of, &g_cli_window_text_cells);
-    g_cli_cells->persistent_buf_release(change_of, &g_cli_window_text_cells);
-    g_cli_cells->persistent_buf_release(edit_of, &g_cli_window_text_cells);
+    cli_cell_release(edits_of, &g_cli_window_text_cells);
+    cli_cell_release(change_of, &g_cli_window_text_cells);
+    cli_cell_release(edit_of, &g_cli_window_text_cells);
     return edited;
 }
 
@@ -332,7 +332,7 @@ static int text_workspace_read(const CliServeArgs *args, VerbaLinea *out, VerbaL
     VerbaLinea unread = {why, sizeof(why), 0ull};
     const unsigned int value =
         cli_json_taken(&json, plain_buf, mmgr_line_ok(&plain) ? plain.at : 0ull, 0u, 0ull, &unread);
-    g_cli_cells->persistent_buf_release(plain_buf, &g_cli_window_text_cells);
+    cli_cell_release(plain_buf, &g_cli_window_text_cells);
     if (value == CLI_JSON_NONE)
     {
         cli_json_given(&json);

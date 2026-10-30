@@ -23,8 +23,8 @@ const char *cli_jupyter_display_name(const CliKernel *kernel)
 // the kernel's cell given back, where no reader of its reads on
 static void jupyter_place_given(CliKernel *kernel)
 {
-    g_cli_cells->persistent_buf_release(kernel->shell_queue.out, NULL);
-    g_cli_cells->persistent_buf_release(kernel, NULL);
+    cli_cell_release(kernel->shell_queue.out, NULL);
+    cli_cell_release(kernel, NULL);
 }
 
 // a kernel let go with its last reference: its process ended where it runs, its sockets ended, its readers waited for,

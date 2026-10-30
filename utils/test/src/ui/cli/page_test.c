@@ -63,6 +63,7 @@ static CliPrintLayout page_layout(int landscape)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     cli_print_take();
     const CliPrintLayout upright = page_layout(0);
     const CliPrintLaid *laid = cli_print_lay_out(page_listing(3u, page_three), &upright);

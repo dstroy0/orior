@@ -270,8 +270,8 @@ void cli_zig_exes(const char *text, CliNames *names)
             cli_names_put(names, name, cellul.len(&(CatenaFinitaCfg){.src = name, .cap = CLI_CELLS_POOL}), NULL);
         }
     }
-    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(code_cell, &g_cli_executables_cells);
+    cli_cell_release(calls, &g_cli_executables_cells);
+    cli_cell_release(code_cell, &g_cli_executables_cells);
 }
 
 int cli_spec_made(const char *text, char *exe, char *path)
@@ -289,7 +289,7 @@ int cli_spec_made(const char *text, char *exe, char *path)
     {
         named = cli_keyword(calls[at].text, calls[at].length, "name", exe);
     }
-    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
+    cli_cell_release(calls, &g_cli_executables_cells);
     calls = NULL;
     found = found && named;
     char folder[CLI_NAME_MAX_LEN];
@@ -299,8 +299,8 @@ int cli_spec_made(const char *text, char *exe, char *path)
     {
         collected = cli_keyword(calls[at].text, calls[at].length, "name", folder);
     }
-    g_cli_cells->persistent_buf_release(calls, &g_cli_executables_cells);
-    g_cli_cells->persistent_buf_release(code, &g_cli_executables_cells);
+    cli_cell_release(calls, &g_cli_executables_cells);
+    cli_cell_release(code, &g_cli_executables_cells);
     if (!found)
     {
         return 0;

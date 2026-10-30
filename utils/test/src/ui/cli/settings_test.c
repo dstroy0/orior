@@ -231,6 +231,7 @@ static void settings_layers_checked(void)
 int main(void)
 {
     (void)cli_cells_made(CLI_CELLS_POOL);
+    cli_check_begun();
     settings_chain_checked();
     settings_layers_checked();
     cli_check((embed_atomic_usize_load(&g_cli_settings_cells.in_use) == 0ull) && (embed_atomic_usize_load(&g_cli_settings_cells.hw) != 0ull),

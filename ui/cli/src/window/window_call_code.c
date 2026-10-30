@@ -110,7 +110,7 @@ static int code_docstring(const CliServeArgs *args, VerbaLinea *out, VerbaLinea 
         cli_text_place_written(place, out);
         mmgr_line_ch(out, ']');
     }
-    g_cli_cells->persistent_buf_release(room, NULL);
+    cli_cell_release(room, NULL);
     return drawn;
 }
 
@@ -137,7 +137,7 @@ static int code_sort(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         code_edit_written(&edit, &written, out);
     }
-    g_cli_cells->persistent_buf_release(room, NULL);
+    cli_cell_release(room, NULL);
     return sorted;
 }
 
@@ -165,7 +165,7 @@ static int code_fill(const CliServeArgs *args, VerbaLinea *out, VerbaLinea *err_
     {
         cli_text_edit_written(&edit, out);
     }
-    g_cli_cells->persistent_buf_release(room, NULL);
+    cli_cell_release(room, NULL);
     return filled;
 }
 
@@ -411,7 +411,7 @@ static int code_devcontainer_line(const CliServeArgs *args, VerbaLinea *out, Ver
     }
     CliPlan *const plan = g_cli_cells->persistent_buf_alloc(sizeof(*plan), NULL);
     const int planned = (plan != NULL) && cli_devcontainer_plan(root, plan, err_msg);
-    g_cli_cells->persistent_buf_release(plan, NULL);
+    cli_cell_release(plan, NULL);
     if (!planned)
     {
         return 0;
