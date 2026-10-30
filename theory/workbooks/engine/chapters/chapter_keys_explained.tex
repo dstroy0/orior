@@ -1,7 +1,7 @@
 \chapter{\texorpdfstring{Keys, explained from the ground up}{Keys, explained from the ground up}}
 \label{chap:keys-explained}
 
-\textbf{Purpose:} Explain, from first principles and with this engine's own numbers, the ideas a programmer's defaults push against hardest: that a whole program becomes one small exact object, that applying it is AND and add, that any number of operations can fit in a key of fixed size, that a check costs no pass of its own, and that exact arithmetic has no floor. Each was resisted in this project before it was built, and each held once built. They are explained here thoroughly so the next reader does not have to be argued into them.
+\textbf{Purpose:} Explain, from first principles and with this engine's own numbers, the ideas a programmer's defaults push against hardest: that a whole program becomes one small exact object, that applying it is AND and add, that any number of operations can fit in a key of fixed size, that a check costs no pass of its own, and that exact arithmetic has no floor. Each was resisted in this project before it was built, and each worked once built. They are explained here thoroughly so the next reader does not have to be argued into them.
 
 \textbf{Scope:} orior's \texttt{src/\allowbreak{}cu/\allowbreak{}engine/\allowbreak{}analysis/\allowbreak{}keymath/\allowbreak{}}, \texttt{src/\allowbreak{}cu/\allowbreak{}engine/\allowbreak{}analysis/\allowbreak{}key\_\allowbreak{}schedule/\allowbreak{}}, \texttt{src/\allowbreak{}cu/\allowbreak{}engine/\allowbreak{}analysis/\allowbreak{}cycle/\allowbreak{}}, \texttt{src/\allowbreak{}cu/\allowbreak{}includes/\allowbreak{}codecs/\allowbreak{}crc/\allowbreak{}}, every place a key is folded into a pass, and the hand-offs between modules: the plain structs in \texttt{src/\allowbreak{}cu/\allowbreak{}engine/\allowbreak{}engine\_\allowbreak{}config.\allowbreak{}h} and their composition in the entry, \texttt{src/\allowbreak{}engine/\allowbreak{}engine\_\allowbreak{}*.\allowbreak{}cu}. The ledger's statuses (\hyperref[chap:readme]{README.md}) apply to every claim.
 
@@ -63,7 +63,7 @@ This is the claim that meets the most doubt on sight. Here it is exactly, with t
 
 \textbf{The CRC key: 2\textasciicircum{}48 steps in 24 KiB.} A CRC is linear over GF(2). Its advance across 2\textasciicircum{}k zero bytes is a 64 × 64 bit matrix, and squaring the matrix doubles the distance. The key holds 48 of them: 48 × 64 columns × 8 bytes = 24,576 bytes. With them the register is carried across any run of up to 2\textasciicircum{}48 bytes (about 281 trillion byte steps) in at most 48 matrix applications. How the tower folds it, segment by segment and joined one operator a level, is in \hyperref[chap:compression-tower]{compression\_\allowbreak{}tower.md} §3. \textbf{Proved:} the folded CRC of 44b6\_\allowbreak{}0113de3b equals the CRC taken byte by byte, 363bf8bdffac8f29.
 
-\textbf{Periodic operations: infinitely many steps in one period.} Anything that repeats is known entirely from one period. Modulo is a wave. The mirror fold at a frame's edges repeats with period twice the line, and the cycle lays one period down once as a table and reads every tap from it. The two's complement expansion of 1/d, for odd d, is eventually periodic with period the order of 2 modulo d. Division by d is one period of limbs, repeated. In each case the operation applied without end is held completely in one period.
+\textbf{Periodic operations: infinitely many steps in one period.} Anything that repeats is known entirely from one period. Modulo is a wave. The mirror fold at a frame's edges repeats with period twice the line, and the cycle lays one period down once as a table and reads every tap from it. The two's complement expansion of 1/d, for odd d, is eventually periodic with period the order of 2 modulo d. Division by d is one period of limbs, repeated. In each case the operation applied without end is contained completely in one period.
 
 \textbf{Where it does not hold, stated plainly.} A key cannot be smaller than the program's reach. Smoothing of order n has a row of n + 1 taps, and a longer smoothing has a longer row. The reach sets the size of the key. How many times the key is applied, and how many steps it stands for, have no limit.
 
@@ -105,7 +105,7 @@ Two consequences follow, and both are used.
 
 \section{\texorpdfstring{7. The noise is read, never modeled}{7. The noise is read, never modeled}}
 
-The residue left after the bodies are subtracted is the sample's own field noise. It is deterministic, constant for that sample, and unique to it. It is held whole in the .kcr, never bounded, fitted, thresholded or thrown away. Where the engine needs a background to stand a body against, it reads one. The null draws climb the same body toward frames far off in time, where only the field noise can answer. A body is real where it stands above that reading. No distribution is assumed, and no random number is drawn anywhere in the tracker.
+The residue left after the bodies are subtracted is the sample's own field noise. It is deterministic, constant for that sample, and unique to it. It is stored whole in the .kcr, never bounded, fitted, thresholded or thrown away. Where the engine needs a background to stand a body against, it reads one. The null draws climb the same body toward frames far off in time, where only the field noise can answer. A body is real where it stands above that reading. No distribution is assumed, and no random number is drawn anywhere in the tracker.
 
 \textbf{Measured:} across the 25 44b6 samples, the low five bit planes are set in about 46\% of frames at nearly every voxel, with no anchor anywhere. That is the floor, read directly from the data, and it is the same test the entropy section of \hyperref[chap:noise-sieve-tower]{noise\_\allowbreak{}sieve\_\allowbreak{}tower.md} states.
 
@@ -113,15 +113,15 @@ The residue left after the bodies are subtracted is the sample's own field noise
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2340\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2545\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5116\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2335\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2541\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5124\linewidth-2\tabcolsep\relax}}
 \toprule
 step & module & what it holds \\
 \midrule
 \endhead
 the math & \texttt{keymath} & the program's vocabulary, the impulse, the imprint; exact integers as wide as they grow; no device \\
 the schedule & \texttt{key\_\allowbreak{}schedule} & the key laid out for the machine: sweep order, every lane width proved, scratch, columns, weights \\
-the run & \texttt{cycle} & the laid out key held on the device and run over a set of atoms in one cooperative launch \\
-a key over GF(2) & \texttt{crc} & the CRC's byte table and advance operators, generated and held at compile time to the published check value \\
+the run & \texttt{cycle} & the laid out key stored on the device and run over a set of atoms in one cooperative launch \\
+a key over GF(2) & \texttt{crc} & the CRC's byte table and advance operators, generated and checked at compile time against the published check value \\
 a fold into a pass & \texttt{tower} & the CRC taken in the widen and the narrow, costing no pass of its own \\
 the composition & the entry & where stages meet: \texttt{engine\_\allowbreak{}key\_\allowbreak{}encode} composes the three above, and the codec is composed the same way (\hyperref[chap:compression-tower]{compression\_\allowbreak{}tower.md}); §9 says why nowhere else \\
 \bottomrule
@@ -153,14 +153,14 @@ stage3(stage2(stage1(x)))  =  (stage3 ∘ stage2 ∘ stage1)(x)
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3675\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2709\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3617\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3671\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2707\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3622\linewidth-2\tabcolsep\relax}}
 \toprule
 stage & takes & hands on \\
 \midrule
 \endhead
 \texttt{keymath\_\allowbreak{}encode}  the program, a vector of \texttt{Engine\allowbreak{}Step}  \texttt{Engine\allowbreak{}Key}: the impulse pushed through the program once, exact integers as wide as they grow &  &  \\
 \texttt{key\_\allowbreak{}schedule\_\allowbreak{}layout} & \texttt{Engine\allowbreak{}Key} & \texttt{Engine\allowbreak{}Key\allowbreak{}Layout}: the key laid out for the machine, every lane width proved from its own bounds \\
-\texttt{cycle\_\allowbreak{}key\_\allowbreak{}load} & \texttt{Engine\allowbreak{}Key\allowbreak{}Layout} & \texttt{Cycle\allowbreak{}Key}: the layout held on the device, a type only \texttt{cycle} sees inside \\
+\texttt{cycle\_\allowbreak{}key\_\allowbreak{}load} & \texttt{Engine\allowbreak{}Key\allowbreak{}Layout} & \texttt{Cycle\allowbreak{}Key}: the layout stored on the device, a type only \texttt{cycle} sees inside \\
 \bottomrule
 \end{longtable}
 }
@@ -171,7 +171,7 @@ Each producer releases what it made (\texttt{keymath\_\allowbreak{}key\_\allowbr
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3266\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2834\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3901\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.3263\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2841\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3896\linewidth-2\tabcolsep\relax}}
 \toprule
 stage & takes & hands on \\
 \midrule
@@ -180,20 +180,20 @@ stage & takes & hands on \\
 \texttt{compression\_\allowbreak{}encode} & the coefficients and their count & \texttt{Engine\allowbreak{}Stream}: the chunks, the bits, each chunk's first bit and the stream's limbs \\
 \texttt{krep\_\allowbreak{}crystal\_\allowbreak{}write} / \texttt{krep\_\allowbreak{}crystal\_\allowbreak{}read} & \texttt{Engine\allowbreak{}Stream} & the .kcr file / \texttt{Engine\allowbreak{}Stream} again \\
 \texttt{compression\_\allowbreak{}decode} & \texttt{Engine\allowbreak{}Stream} & the coefficients, written into the capacity \texttt{tower\_\allowbreak{}capacity} hands out \\
-\texttt{tower\_\allowbreak{}lower} & the held coefficients & the rebuilt sample, its CRC-64, and the voxels that differ \\
+\texttt{tower\_\allowbreak{}lower} & the stored coefficients & the rebuilt sample, its CRC-64, and the voxels that differ \\
 \bottomrule
 \end{longtable}
 }
 
 None of these stages knows another exists. The tower does not know its coefficients are Rice coded, and the coder does not know they came from a tower. That let the compression step be split out of the tower with the .kcr coming out byte identical, and keymath and key\_\allowbreak{}schedule be split out of the cycle with the tracker's edges identical (\hyperref[chap:ledger]{ledger.md}). Each split was a regrouping of the chain in the entry, and every module stayed as it was.
 
-\textbf{Why \texttt{crc} is not a reach.} \texttt{crc/\allowbreak{}} is a key instead of a stage. It holds a constant (the byte table and 48 advance operators, generated by \texttt{maint/\allowbreak{}engine/\allowbreak{}emit\_\allowbreak{}crc\_\allowbreak{}key.\allowbreak{}py} and held to CRC-64/XZ's published check value by a \texttt{static\_\allowbreak{}assert} at compile time) and pure inline functions over it. It keeps no state, takes no hand-off and hands nothing on. Including it is including a constant, the way every module includes \texttt{engine\_\allowbreak{}config.\allowbreak{}h}. A key that any pass may fold in is what §5 asks for, and \texttt{crc/\allowbreak{}} is where that key lives, callable by anything.
+\textbf{Why \texttt{crc} is not a reach.} \texttt{crc/\allowbreak{}} is a key instead of a stage. It holds a constant (the byte table and 48 advance operators, generated by \texttt{maint/\allowbreak{}engine/\allowbreak{}emit\_\allowbreak{}crc\_\allowbreak{}key.\allowbreak{}py} and checked against CRC-64/XZ's published check value by a \texttt{static\_\allowbreak{}assert} at compile time) and pure inline functions over it. It keeps no state, takes no hand-off and hands nothing on. Including it is including a constant, the way every module includes \texttt{engine\_\allowbreak{}config.\allowbreak{}h}. A key that any pass may fold in is what §5 asks for, and \texttt{crc/\allowbreak{}} is where that key lives, callable by anything.
 
 \textbf{How it was checked.} \texttt{python maint/\allowbreak{}audit\_\allowbreak{}reaching.\allowbreak{}py}, read every module's includes and named each one that reaches.
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4459\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5541\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.4451\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.5549\linewidth-2\tabcolsep\relax}}
 \toprule
 claim & status \\
 \midrule
@@ -202,7 +202,7 @@ no module reaches another; hand-offs are plain structs in \texttt{engine\_\allow
 the key chain (\texttt{keymath}, \texttt{key\_\allowbreak{}schedule}, \texttt{cycle}) reaches nothing & proved: \texttt{audit\_\allowbreak{}reaching.\allowbreak{}py} \\
 the codec (\texttt{tower}, \texttt{compression}, \texttt{krep}, \texttt{entropy\_\allowbreak{}history}) reaches nothing but \texttt{crc} & proved: \texttt{audit\_\allowbreak{}reaching.\allowbreak{}py}; \texttt{iapx} is gone, composed in the entry \\
 a split that regroups the chain in the entry changes no output & proved for three splits: compression from the tower (.kcr byte identical, set CRC 091daa41e1aceb7e), keymath and key\_\allowbreak{}schedule from the cycle (edges identical), the driver split (edges and score rows identical) \\
-\texttt{crc} is a root & by the rule; it is a compile-time constant and pure functions, held to the published check value \\
+\texttt{crc} is a root & by the rule; it is a compile-time constant and pure functions, checked against the published check value \\
 the tracker's modules reach nothing & \textbf{not so yet}: 19 modules still reach and 18 reach nothing. \texttt{score\_\allowbreak{}sample} reaches 14 modules; \texttt{binomial\_\allowbreak{}basins}, \texttt{flatten} and \texttt{score\_\allowbreak{}sample} reach up into \texttt{entry}; the rest reach \texttt{track} and one another. They are being split next, and each stays listed here until the audit clears it \\
 \bottomrule
 \end{longtable}

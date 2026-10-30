@@ -5,7 +5,7 @@
 
 An OpenQASM program, in the language Cross et al.~\cite{src:OpenQASM-3} define, describes a circuit of gates and measurements on \(n\) qubits. A classical simulator holds the state as \(2^n\) complex amplitudes. A gate on one or two qubits updates every amplitude, in pairs or in groups of four, and costs \(O(2^n)\) operations. A measurement returns an outcome with probability equal to the squared magnitude of its amplitude, and a simulator samples it with a random draw.
 
-The exponential cost has exceptions. Circuits of Clifford gates are simulated in polynomial time in the stabilizer formalism, by the method of Aaronson and Gottesman~\cite{src:Aaronson-Gottesman-2004}. States of little entanglement are held as matrix product states whose bond dimension is bounded by the entanglement across each cut, as Vidal~\cite{src:Vidal-2003} showed. Neither reaches a general circuit.
+The exponential cost has exceptions. Circuits of Clifford gates are simulated in polynomial time in the stabilizer formalism, by the method of Aaronson and Gottesman~\cite{src:Aaronson-Gottesman-2004}. States of little entanglement are stored as matrix product states whose bond dimension is bounded by the entanglement across each cut, as Vidal~\cite{src:Vidal-2003} showed. Neither reaches a general circuit.
 
 \section{\texorpdfstring{A deterministic interpretation leaves the cost where it is}{A deterministic interpretation leaves the cost where it is}}
 

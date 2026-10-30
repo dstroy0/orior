@@ -243,14 +243,14 @@ Doug's “increase the scheduler steps to n” and “implement the lut”, buil
 
 {\footnotesize
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1862\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2819\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.1967\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3352\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1861\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2818\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.1967\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3354\linewidth-2\tabcolsep\relax}}
 \toprule
 what & samples & result & settles \\
 \midrule
 \endhead
 a table filled by running the ops over the whole alphabet, against the ops & x²; |x − 30000| + 100 & the table and the ops agree word for word, device and host & a pointwise step is exactly its table (proved on these two) \\
 a table read through a table & f(x) = 65535 − x, g(y) = |y − 30000|, against the ops for |35535 − x| & the two tables, one table composed on the host, and the ops all agree; f read through g differs & composition keeps program order: it regroups, it does not reorder \\
-register reuse, on against off & a 21-step additive chain (a field, then ten constant-and-sum stages) & the same output, from 3 limbs reused against 21 kept & a chain needs only its live registers, and the step count n (1,024) is held apart from the 256-limb file \\
+register reuse, on against off & a 21-step additive chain (a field, then ten constant-and-sum stages) & the same output, from 3 limbs reused against 21 kept & a chain needs only its live registers, and the step count n (1,024) is stored apart from the 256-limb file \\
 the refusals & a 17-bit index on a 16-bit field; a table step naming a table that is not there & both refused at layout & a table cannot read past its source or outside the program's tables \\
 all of it & the above & 15 checks, 0 failed & the table step and register reuse are proved; which functions to tabulate is open (item 3 of \hyperref[chap:kolmogorov-arnold]{kolmogorov\_\allowbreak{}arnold.md}) \\
 \bottomrule
@@ -263,7 +263,7 @@ The tower with reversible lookup edges between its floors (M20 and A14 of \hyper
 
 {\footnotesize
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2540\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2310\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2932\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2218\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2544\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2309\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2930\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2216\linewidth-2\tabcolsep\relax}}
 \toprule
 what & samples & result & settles \\
 \midrule
@@ -358,7 +358,7 @@ the width & 1, 8 and 64 limbs compiled with declared floors of 9, 76 and 616 dig
 the ladder: long multiplication, Karatsuba from 32 limbs, the Schönhage–Strassen transform from 8,192 & \texttt{test/\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test} (\texttt{build/\allowbreak{}20260923\_\allowbreak{}234836\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test}, 4 checks, 0 failed at each width, 165 s): 24, 54 and 63 products, balanced and unbalanced, keyed and all ones, across every rung boundary up to half the width & the ladder, and the transform alone, equal a long multiplication kept in the test on every product & the product is exact on every rung (proved on the trials) \\
 products divide back & the same products & each product divides back to its factors, exactly and with remainder, and the gcd holds a factor & (proved on the trials) \\
 Newton's division: the reciprocal grown at half precision, one Newton step, corrected exactly & 24, 54 and 63 divisions, divisors to half the width & numerator = quotient · divisor + remainder, the remainder below the divisor and signed as the numerator, equal to the dispatched division & Newton's rung gives what long division gives (proved on the trials) \\
-the rungs held apart & the same test with the transform, and then also Newton, raised past every size (\texttt{build/\allowbreak{}20260923\_\allowbreak{}235121\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test} and \texttt{build/\allowbreak{}20260923\_\allowbreak{}235548\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test}) & 4 checks, 0 failed at each width, both builds & Karatsuba alone and long division alone are exact too (proved on the trials) \\
+the rungs kept apart & the same test with the transform, and then also Newton, raised past every size (\texttt{build/\allowbreak{}20260923\_\allowbreak{}235121\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test} and \texttt{build/\allowbreak{}20260923\_\allowbreak{}235548\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test}) & 4 checks, 0 failed at each width, both builds & Karatsuba alone and long division alone are exact too (proved on the trials) \\
 long division, Knuth's algorithm D in base 2\textasciicircum{}32 & \texttt{test/\allowbreak{}exact\_\allowbreak{}divide\_\allowbreak{}test} (\texttt{build/\allowbreak{}20260923\_\allowbreak{}234731\_\allowbreak{}exact\_\allowbreak{}divide\_\allowbreak{}test}, 9 checks, 0 failed, at 128 limbs, 7 s): 200,000 trials of edge-shaped limbs (0, 1, 2\textasciicircum{}31 − 1, 2\textasciicircum{}31, 2\textasciicircum{}32 − 1 and 2\textasciicircum{}32 − 2 three times in four, a keyed draw otherwise), numerators up to 8 limbs; 4,000 trials at widths drawn up to 127 limbs & numerator = quotient · divisor + remainder, |remainder| < |divisor|, the remainder signed as the numerator, on every trial & the division is exact, rounding toward zero (proved on the trials) \\
 the add-back step & a numerator and divisor built so the top-limb estimate runs one high & holds; an instrumented copy confirmed the branch runs & the rare branch is right (proved on the case) \\
 exact division: the odd part's inverse by Newton's step x(2 − dx), a multiply and a mask & 20,000 products of drawn quotients and divisors up to 64 limbs, half the divisors with at least eight twos & the quotient returned on every product; one past each product refused as \texttt{ORIOR\_\allowbreak{}EXACT\_\allowbreak{}NOT\_\allowbreak{}EXACT} & (proved on the trials) \\
@@ -370,7 +370,7 @@ the sims on lowest terms & \texttt{sim\_\allowbreak{}rational.\allowbreak{}h} re
 \end{longtable}
 }
 
-The rungs' timings at 4,194,304 bits, seconds per call on balanced operands, on this host (x86-64, MSVC -O2), one reading each (\textbf{measured}). “A” is \texttt{build/\allowbreak{}20260923\_\allowbreak{}235121\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test}, with the transform held off the ladder so the ladder is Karatsuba alone. “B” is \texttt{build/\allowbreak{}20260923\_\allowbreak{}235548\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test}, with the transform and Newton both held off. At this width a call on small operands costs about 1e-4 s for a product and 4e-4 s for a division, because each call touches the whole width.
+The rungs' timings at 4,194,304 bits, seconds per call on balanced operands, on this host (x86-64, MSVC -O2), one reading each (\textbf{measured}). “A” is \texttt{build/\allowbreak{}20260923\_\allowbreak{}235121\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test}, with the transform kept off the ladder so the ladder is Karatsuba alone. “B” is \texttt{build/\allowbreak{}20260923\_\allowbreak{}235548\_\allowbreak{}exact\_\allowbreak{}transform\_\allowbreak{}test}, with the transform and Newton both kept off. At this width a call on small operands costs about 1e-4 s for a product and 4e-4 s for a division, because each call touches the whole width.
 
 {\scriptsize
 \setlength{\tabcolsep}{4pt}
@@ -455,14 +455,14 @@ A cut anywhere before the last field leaves too few fields and is not kept. The 
 
 {\footnotesize
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1755\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2383\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3199\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2664\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1754\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2382\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3201\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2663\linewidth-2\tabcolsep\relax}}
 \toprule
 what & samples & result & settles \\
 \midrule
 \endhead
 the enumeration & every closed term through L bits, unranked from exact counts & the counts equal a parse of every code through 22 bits; every unranked term through 16 bits is one term of its length & the terms run are all the closed terms (proved against the parse through 22 bits; from there to L, the counts' recurrence) \\
 the device against the host & every term through 30 bits run by both on each device run & the same fates and busy beavers, record holders included, on every device run here & the device's fates are the host's (proved through 30 bits by the check; past 30, theory: a deterministic run that the budgets only stop, and every budget reached handed back) \\
-the fates & 647,463 closed terms, run by normal-order reduction & 645,942 reach a normal form (a halt, proved); 934 return to a state they held under Brent's watcher (a loop, proved); 213 grow forever (proved); 374 stay open, 86 out of steps and 288 past the space at 2,048 steps and tokens, 47 and 327 at 200,000 steps and 16,384 tokens & 647,089 of 647,463 settled, 99.94\% (measured); the larger budget settles no more \\
+the fates & 647,463 closed terms, run by normal-order reduction & 645,942 reach a normal form (a halt, proved); 934 return to a state they were in before under Brent's watcher (a loop, proved); 213 grow forever (proved); 374 stay open, 86 out of steps and 288 past the space at 2,048 steps and tokens, 47 and 327 at 200,000 steps and 16,384 tokens & 647,089 of 647,463 settled, 99.94\% (measured); the larger budget settles no more \\
 the typed fate & every open and outgrown term, and every loop and growth term, tried for a simple type & 0 typed at L = 30, 33 and 36; 1 at L = 44; no loop or growth term types & the typing adds nothing to the bracket through 36 bits (proved: Hindley's algorithm finds a type whenever one exists) \\
 the fates at L = 33 & 3,910,730 closed terms, 2,048 steps and tokens & 3,900,966 halt; 5,663 loop; 1,180 grow forever; 2,921 stay open, 663 out of steps and 2,258 past the space; the device and the host alike & 3,907,809 of 3,910,730 settled, 99.93\% (measured) \\
 the fates at L = 36 & 24,325,850 closed terms, 2,048 steps and tokens, then 256 and 256 & at 2,048: 24,253,187 halt, 39,216 loop, 9,594 grow forever, 23,853 open (5,112 out of steps, 18,741 past the space); at 256: 24,253,078, 39,201, 9,070 and 24,501 (4,767 and 19,734) & 99.90\% settled at 2,048 (measured); the smaller budgets leave 648 more open \\
@@ -578,13 +578,13 @@ Finding x in a for less than half of a (“say we want to find x and x is on flo
 
 {\footnotesize
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1539\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2121\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3530\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2810\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.1538\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2121\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3533\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.2809\linewidth-2\tabcolsep\relax}}
 \toprule
 what & samples & result & settles \\
 \midrule
 \endhead
 floor 2 & m = 4,096 = n/64 values, 147 distinct & equal to the host's two-level lifting at 4,096 of 4,096; every value inside the 16-bit lane & the engine's floor 2 is the lifting's (proved) \\
-the planes & 16 × 128 words & every bit of every floor-2 value held & (proved) \\
+the planes & 16 × 128 words & every bit of every floor-2 value stored & (proved) \\
 values on floor 2 & 1,024 drawn at keyed positions & 1,024 of 1,024 match sets equal the host's scan; 56.78 positions found a query on average, 83 at most; 1,173.85 plane words read on average, 1,340 at most & every occurrence found and no other (proved on the queries) \\
 values not on floor 2 & 1,024 drawn over the lane & 1,024 of 1,024 found nowhere; 806.20 plane words read on average, 1,184 at most & (proved on the queries) \\
 the reads & the 2,048 queries & at most 1,340 plane words, 5,360 bytes, against half of a, 131,072 samples, 262,144 bytes; without the early stop 2,048 words, n/128 & a query reads about 1\% of half of a (measured); the lift reads all of a once to build the index \\

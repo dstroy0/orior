@@ -198,7 +198,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{position\_\allowbreak{}predictor.\allowbreak{}\_\allowbreak{}split\_\allowbreak{}into\_\allowbreak{}patches} (the division and link predictors do the same)
 \item[{what it does there}] Per frame, the readings are mapped onto [0, 1] between the 1\% and 99\% quantiles taken over the network's time window, then clipped. An optional top-hat (a Gaussian blur, then a minimum and a maximum filter of \texttt{tophat\_\allowbreak{}mask}) is subtracted.
-\item[{ours: exact, nothing chosen}] Taken, for contrast, once the set is ingested. Every sample is read once, and the set's readings are counted into one exact histogram, one count per 16-bit value. The bounds lo and hi are its quantiles: each is the least value whose cumulative count reaches its share of the set, exactly. Their clip is not built, because it cannot be walked back: every reading past a bound becomes the bound. What is built comes in two parts, both walked back exactly. (a) \textbf{The footing:} each sample's own affine map, (reading − lo) over (hi − lo), is held as that pair and never divided. E1 is linear and cancels a constant, and this map moves no peak. It puts samples of different brightness on one footing for the set's readings (S4). The pairs are per sample. One pair for the whole set would change nothing, since every sample already shares the raw scale. They are read once the set is ingested. (b) \textbf{The contrast:} the set's cumulative count, v ↦ \#\{readings of the set ≤ v\}, is exact histogram equalization. It rises strictly on every value the set holds, and its inverse is the table of those values. It needs no levels, and it changes the scan's peaks the way the clip meant to. It carries the contrast (“cumulative count sound like more information”). For (a), the levels are not written in (“we can let the numbers converge on them”). They start at theirs, 1\% and 99\%, and iterate to a fixed point on the set. The rule (built; 6 to 16 steps on the 25) is that each bound is the two-means split of its half of the set: the readings below the median for lo, and those above it for hi. Each is iterated from its seed until it stops moving. The class sums and counts are exact integers, a reading is compared against the midpoint by cross-multiplying, and a one-dimensional two-means stops in finitely many steps. The top-hat is not taken: the residual subtracts the medium (E1).
+\item[{ours: exact, nothing chosen}] Taken, for contrast, once the set is ingested. Every sample is read once, and the set's readings are counted into one exact histogram, one count per 16-bit value. The bounds lo and hi are its quantiles: each is the least value whose cumulative count reaches its share of the set, exactly. Their clip is not built, because it cannot be walked back: every reading past a bound becomes the bound. What is built comes in two parts, both walked back exactly. (a) \textbf{The footing:} each sample's own affine map, (reading − lo) over (hi − lo), is stored as that pair and never divided. E1 is linear and cancels a constant, and this map moves no peak. It puts samples of different brightness on one footing for the set's readings (S4). The pairs are per sample. One pair for the whole set would change nothing, since every sample already shares the raw scale. They are read once the set is ingested. (b) \textbf{The contrast:} the set's cumulative count, v ↦ \#\{readings of the set ≤ v\}, is exact histogram equalization. It rises strictly on every value the set holds, and its inverse is the table of those values. It needs no levels, and it changes the scan's peaks the way the clip meant to. It carries the contrast (“cumulative count sound like more information”). For (a), the levels are not written in (“we can let the numbers converge on them”). They start at theirs, 1\% and 99\%, and iterate to a fixed point on the set. The rule (built; 6 to 16 steps on the 25) is that each bound is the two-means split of its half of the set: the readings below the median for lo, and those above it for hi. Each is iterated from its seed until it stops moving. The class sums and counts are exact integers, a reading is compared against the midpoint by cross-multiplying, and a one-dimensional two-means stops in finitely many steps. The top-hat is not taken: the residual subtracts the medium (E1).
 \item[{stage}] S0
 \item[{status}] built
 \end{description}
@@ -306,7 +306,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \begin{description}
 \item[{OrganoidTracker (where)}] \texttt{links\_\allowbreak{}postprocessor.\allowbreak{}bridge\_\allowbreak{}gaps}
 \item[{what it does there}] A loose end at t and a loose start at t+2, each among the other's 6 nearest within 10 µm and neither with a nearer loose partner. If 2 < disappearance + appearance, a point goes in at t+1, at their midpoint. A point with a strong division score and one future counts as a loose end too.
-\item[{ours: exact, nothing chosen}] S6's gap bridge: the end's prediction is carried across any number of frames; the pair is mutual nearest; and the inserted point is the exact midpoint, held as a sum and a count and written as a half voxel where odd. No distance or count is chosen.
+\item[{ours: exact, nothing chosen}] S6's gap bridge: the end's prediction is carried across any number of frames; the pair is mutual nearest; and the inserted point is the exact midpoint, stored as a sum and a count and written as a half voxel where odd. No distance or count is chosen.
 \item[{stage}] S6
 \item[{status}] theory
 \end{description}
@@ -362,7 +362,7 @@ Each technique is listed with its chosen numbers, then our form of it: exact, no
 \item[{what it does there}] Each point is checked for: a track end before the last frame; no past after the first; more than two daughters; a merge (two pasts); a low division or link score; a short cell cycle; a missed division (a high score, one future, and not high in the next two frames); moving too fast.
 \item[{ours: exact, nothing chosen}] The graph's own invariants, checked before the output: in-degree ≤ 1; out-degree ≤ 2, and 2 only with a division verdict; every end a death, a leaving or the last frame; every start an entering, a daughter or the first frame. They are truthy records, counted per sample. A speed or cycle limit written in would be a chosen number. Both are read from the set's distributions.
 \item[{stage}] S11
-\item[{status}] built in part in S11: in-degree ≤ 1 and out-degree ≤ 1 checked (nothing divides yet), the ends and starts counted per frame, H4 held on 297 of 297 frame pairs; explaining an end or a start waits on S7 to S9
+\item[{status}] built in part in S11: in-degree ≤ 1 and out-degree ≤ 1 checked (nothing divides yet), the ends and starts counted per frame, H4 confirmed on 297 of 297 frame pairs; explaining an end or a start waits on S7 to S9
 \end{description}
 
 \tablerecord{\textbf{O21. Local flow}}
@@ -461,7 +461,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \item[{the physics we hold it to}] The field moves as a whole (drift) and each body moves on top of it; the whole moves first. Mitosis and lysis change the fluidics for a great distance around them: a division or a lysis sends a hydrodynamic disturbance through the surrounding tissue. Oblate bodies shed predictable dipole waves when they deform, snap or throw out a pseudopod.
 \item[{does}] Bulk drift only: the machine's drift (M5, \texttt{shift\_\allowbreak{}agreement}) gives the one lag that best carries this frame's set bits onto the next frame's, \texttt{lag\_\allowbreak{}to\_\allowbreak{}next} (the demon's eyes). Nothing reads a local flow, a disturbance or a wave.
 \item[{wants}] The disturbance field around each event read from the residual, which lets an event far off be felt where it arrives. Overlapping disturbances untangled by their harmonic coefficients, each traced back to its origin, retrograde.
-\item[{tried, and what it gave}] \texttt{motion\_\allowbreak{}check} (drift run twice, every count compared): built, no disagreement recorded. \texttt{keep\_\allowbreak{}view} (no drift removed): no run in the ledger.
+\item[{tried, and what it gave}] \texttt{motion\_\allowbreak{}check} (drift run twice, every count compared): built, no disagreement recorded. \texttt{retain\_\allowbreak{}view} (no drift removed): no run in the ledger.
 \item[{status}] drift built; flow theory
 \item[{next}] Build plan C3: each body's departure from the drift (v*\_\allowbreak{}b − d\_\allowbreak{}t), summed over its contacts and weighted by mass, then traced back toward the division and lysis events it came from.
 \end{description}
@@ -482,7 +482,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \item[{does}] \textbf{No two bodies touch on the current engine.} The bodies are the separate components of the cut at ℓ*, and two components cannot share a face without being one. So \texttt{grow\_\allowbreak{}leaves} holds no touching pairs (\texttt{joined\_\allowbreak{}count} = 0), and \texttt{group\_\allowbreak{}objects}, \texttt{sticky}, \texttt{web} and \texttt{-\allowbreak{}-\allowbreak{}contact-\allowbreak{}side} have nothing to read. The joined leaf pairs came from the older basin engine. The volume faces each body touches (\texttt{touches}) are recorded. \texttt{voxel\_\allowbreak{}pm} is read by the print, \texttt{division} and \texttt{contact\_\allowbreak{}side}. \texttt{membrane\_\allowbreak{}pm} and \texttt{species} are read into the \texttt{.\allowbreak{}cfg} and written back out, \textbf{with no reader}.
 \item[{wants}] Contact as a force-free constraint: bodies adhered in one frame stay adhered unless the data parts them. The membrane scale in place of any voxel count. Membership never by touch alone (row 9).
 \item[{tried, and what it gave}] \texttt{sticky}, \texttt{web}: built, no run in the ledger. Grouping by touch: \textbf{measured} on the older basin engine to chain up to 2,256 pieces into one object at the widest; on the current engine every object is one body. \texttt{-\allowbreak{}-\allowbreak{}contact-\allowbreak{}side} on 44b6\_\allowbreak{}0113de3b and three 6bba: \textbf{measured}, 0 touching pairs on every sample, because there are none.
-\item[{status}] contacts not held on the current bodies; adhesion theory
+\item[{status}] contacts not stored on the current bodies; adhesion theory
 \item[{next}] What “touching” is for components of a cut is Doug's to define: for example, the component tree's next level down, where two bodies first join, or a gap of the membrane's width. The tree gives the first of these exactly: two bodies first join at the level of their LCA (M3). Until then the no-crossing verdict (built, \texttt{-\allowbreak{}-\allowbreak{}contact-\allowbreak{}side}) has no pairs. B3's deformation waits on C1: the membrane deforms, and a body and its match overlap only in part. What stays inside the match under every jitter is the body's internal constituents, and their shift is the velocity and vector.
 \end{description}
 
@@ -562,7 +562,7 @@ What it gives the tracker is physics, with none of its numbers written in:
 \item[{does}] The machine holds the field (M9: \texttt{.\allowbreak{}kcr}, \texttt{.\allowbreak{}knf}, \texttt{flatten}, \texttt{.\allowbreak{}bapx}). No file holds the bodies' fingerprints.
 \item[{wants}] A file kind for the bodies and their ℓ ≤ 2 fingerprints, written once, for linking to read bodies and not voxels.
 \item[{tried, and what it gave}] See M9, and \texttt{flatten}'s numbers on 44b6\_\allowbreak{}0113de3b in \hyperref[chap:on-the-engine]{on\_\allowbreak{}the\_\allowbreak{}engine.md}.
-\item[{status}] field held by the machine; bodies' prints not held
+\item[{status}] field stored by the machine; bodies' prints not stored
 \item[{next}] With row 2.
 \end{description}
 
@@ -659,7 +659,7 @@ These are written for every body, pair or triple in one sweep each, device equal
 \item \textbf{Velocity} (row 5, \texttt{velocity}), per body and its forward, and per axis:
 
 \begin{itemize}
-\item Δ\_\allowbreak{}a = (S′\_\allowbreak{}a m − S\_\allowbreak{}a m′) / (m m′), held as the pair (numerator, m m′)
+\item Δ\_\allowbreak{}a = (S′\_\allowbreak{}a m − S\_\allowbreak{}a m′) / (m m′), stored as the pair (numerator, m m′)
 \item R\_\allowbreak{}a = L\_\allowbreak{}a · m m′ − (S′\_\allowbreak{}a m − S\_\allowbreak{}a m′)
 \item c\_\allowbreak{}a = COMPARE(m m′, |R\_\allowbreak{}a|), and the verdict V\_\allowbreak{}a = c\_\allowbreak{}a (c\_\allowbreak{}a + 1). It is nonzero exactly when |Δ\_\allowbreak{}a − L\_\allowbreak{}a| < 1, the climbed lag standing on a lattice point beside the dipole's change.
 \item V = V\_\allowbreak{}z V\_\allowbreak{}y V\_\allowbreak{}x.
@@ -761,7 +761,7 @@ Each item is algebra on the equation above, exact, \textbf{theory until built}. 
 
 {\small
 \setlength{\tabcolsep}{6pt}
-\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2078\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4543\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3380\linewidth-2\tabcolsep\relax}}
+\begin{longtable}{>{\RaggedRight\arraybackslash}p{\dimexpr0.2077\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.4545\linewidth-2\tabcolsep\relax}>{\RaggedRight\arraybackslash}p{\dimexpr0.3378\linewidth-2\tabcolsep\relax}}
 \toprule
 where & what & in code \\
 \midrule
@@ -772,7 +772,7 @@ w = (16, 1, 1) & equals σ∘σ with σ = voxel\_\allowbreak{}pm / gcd(voxel\_\a
 κ's magnitude & kept mod 2⁴⁰; it wraps silently above 2⁴⁰ & \texttt{LINK\_\allowbreak{}MAGNITUDE\_\allowbreak{}BITS} 40 \\
 s & the jitter steps stop at 12, a chosen number & \texttt{LINK\_\allowbreak{}SWEEP\_\allowbreak{}STEPS} 12 \\
 the marginal's set & one frame step and one hop; the exact marginal needs the whole support component (low fruit 2). Every target is taken once. A division is not an arrangement yet (low fruit 3). The bound of 2¹⁶ arrangements is OrganoidTracker's, not measured here & \texttt{MARGINAL\_\allowbreak{}ARRANGEMENTS\_\allowbreak{}MOST} \\
-the null in the marginal & ω(b, none) is the best null draw's held count, a count of the body's voxels like T, but T is counted at the drift and h⁰ at the climbed null lag & \texttt{score\_\allowbreak{}best\_\allowbreak{}null}, score\_\allowbreak{}sample.cu \\
+the null in the marginal & ω(b, none) is the best null draw's retained count, a count of the body's voxels like T, but T is counted at the drift and h⁰ at the climbed null lag & \texttt{score\_\allowbreak{}best\_\allowbreak{}null}, score\_\allowbreak{}sample.cu \\
 \texttt{cohere} (off in base.cfg) & a mean motion is divided by truncating division & group\_\allowbreak{}objects.cu \\
 the cut & one level (the most components) for the whole frame & \texttt{max\_\allowbreak{}tree\_\allowbreak{}objects} as the program calls it \\
 \bottomrule

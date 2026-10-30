@@ -283,7 +283,7 @@ def main():
         if lowered:
             ratchet_write(ratchet, ceilings)
         print(
-            "  ratchet: %d file(s) held to their ceiling, %d lowered, %d risen"
+            "  ratchet: %d file(s) kept at their ceiling, %d lowered, %d risen"
             % (len([one for one in scope if one in counts]), lowered, len(risen))
         )
         for name, count, ceiling in risen:

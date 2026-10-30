@@ -49,7 +49,7 @@ The key does not depend on the atom, and imprinting fixes every lane width befor
 
 \begin{itemize}
 \item One launch covers every lane of every atom in a slab.
-\item The grid is held at a barrier between the sweeps.
+\item The grid is synchronized at a barrier between the sweeps.
 \item The last sweep folds every term into each output lane in two's complement.
 \end{itemize}
 
@@ -64,7 +64,7 @@ The wide background term is the medium's own scattering, its turbidity. Nephelom
 \section{\texorpdfstring{What a proof holds}{What a proof holds}}
 
 \begin{itemize}
-\item \textbf{Imprint.} The residual imprints once to two terms. Its lanes need 286 bits and are held in 9 limbs (288).
+\item \textbf{Imprint.} The residual imprints once to two terms. Its lanes need 286 bits and are stored in 9 limbs (288).
 \item \textbf{Exact against the old residual.} Over all 25 samples, every lane of every frame was compared with the residual the smoothing passes and the transform computed. 0 of 10,485,760,000 lanes differ, over 2,500 frames. The passes and the transform are gone, and \texttt{engine\_\allowbreak{}residual} now runs the same key.
 \item \textbf{Speed.} 31 ms a frame, against 24.5 ms for the passes it replaced. The next saving is the scheduler's: keep the binomial key factored as [1 1]\textasciicircum{}n. A sweep is then neighbor additions with no multiplies, and the shared factor B\_\allowbreak{}narrow is computed once for both terms.
 \item \textbf{Built: the table step.} A pointwise step imprints on its alphabet: every value a lane can hold, pushed through once, and the table holds the results (M10 and A13 of \hyperref[chap:engine-table]{engine\_\allowbreak{}table.md}). The request carries the table (\texttt{Engine\allowbreak{}Record\allowbreak{}Table}, an index of 1 to 32 bits); keymath refuses a table wider than its source (\texttt{keymath.\allowbreak{}cu}), the scheduler places it (\texttt{key\_\allowbreak{}schedule.\allowbreak{}cu}) and the cycle reads it (\texttt{cycle.\allowbreak{}cu}, \texttt{ENGINE\_\allowbreak{}RECORD\_\allowbreak{}TABLE}). \texttt{test/\allowbreak{}engine/\allowbreak{}record\_\allowbreak{}table\_\allowbreak{}test} proves x² and |x − 30000| + 100 as tables, on 4,096 lanes of the 16-bit alphabet, device and host (\texttt{build/\allowbreak{}20260923\_\allowbreak{}204007\_\allowbreak{}record\_\allowbreak{}table\_\allowbreak{}test}, 15 checks, 0 failed). Division is built as exact record operations instead of as a table: quotient, remainder, gcd and exact quotient, operations 11 to 14 (\texttt{test/\allowbreak{}engine/\allowbreak{}record\_\allowbreak{}divide\_\allowbreak{}test}, \texttt{test/\allowbreak{}engine/\allowbreak{}exact\_\allowbreak{}divide\_\allowbreak{}test}). Division as a table is untested. Square root is not in the engine and is untested. No mask generator is built: the caller fills the table.
