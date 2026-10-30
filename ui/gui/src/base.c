@@ -1,14 +1,17 @@
 // orior - Copyright (C) 2026 Douglas Quigg (dstroy0) <dquigg123@gmail.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Commercial OR LicenseRef-Educational
-// base.c: the frame's base composed through the map. The map holds a layer a pixel; a row is drawn run by run of one
-// layer, a run of a part's ground blended with the layer's one entry, which the compiler lays across the lanes, and a
-// run of the sheet or a pane blended pixel by pixel with the entry of the grain's level there, read from the tile.
-// An entry at a grain level folds the layer's tint and the grain's white into one blend: the lattice keeps
-// (255 - tint) * (255 - grain) / 255 of itself, and takes the tint's color by its alpha and the grain's rest, and
-// white by the grain; a layer with no grain is the fill's own blend to the bit. The map's glass sheet lies everywhere
-// outside the work; the work's inside is its parts' grounds, its lines' ring and the map's column the lattice; a hole
-// a part makes in the work is the sheet, its fillets' squares kept the part's ground for the outline to round; and a
-// pane that has slid in is its thinner tint, square-cornered here, its corners the pane's own drawing
+// base.c: the frame's base composed through the map. The map is a list of rectangles, each of one layer, the later
+// laid over the earlier; the rectangles' top and bottom edges cut the rows into bands, and in a band the rectangles
+// covering it have their left and right edges in order, each span between two edges a run of the layer of the last
+// rectangle laid over it. A row is drawn run by run from its band's runs, a run of a part's ground blended with the
+// layer's one entry, which the compiler lays across the lanes, and a run of the sheet or a pane blended pixel by
+// pixel with the entry of the grain's level there, read straight along the tile tables. An entry at a grain level
+// folds the layer's tint and the grain's white into one blend: the lattice keeps (255 - tint) * (255 - grain) / 255
+// of itself, and takes the tint's color by its alpha and the grain's rest, and white by the grain; a layer with no
+// grain is the fill's own blend to the bit. The map's glass sheet lies everywhere outside the work; the work's inside
+// is its parts' grounds, its lines' ring and the map's column the lattice; a hole a part makes in the work is the
+// sheet, its fillets' squares kept the part's ground for the outline to round; and a pane that has slid in is its
+// thinner tint, square-cornered here, its corners the pane's own drawing
 #include "base.h"
 
 #include "../../cli/src/command_line/cli_internal.h"
@@ -21,38 +24,25 @@ static CellOwner s_owner = MMGR_CELL_OWNER("gui_base");
 
 int gui_base_made(GuiBase *base, unsigned int width, unsigned int height)
 {
-    const unsigned long long bytes = (unsigned long long)width * height;
     memor.set(&(MemoriaCfg){.dst = base, .val = 0, .bytes = sizeof(*base)});
     base->width = width;
     base->height = height;
-    base->map = g_cli_cells->persistent_buf_alloc(bytes, &s_owner);
     base->tile_red_blue = g_cli_cells->persistent_buf_alloc(3ull * BASE_TILE_WORDS * sizeof(unsigned int), &s_owner);
-    base->run = g_cli_cells->persistent_buf_alloc((unsigned long long)height * GUI_BASE_RUNS * sizeof(GuiBaseRun), &s_owner);
-    base->runs = g_cli_cells->persistent_buf_alloc((unsigned long long)height * sizeof(unsigned int), &s_owner);
-    if ((base->map == NULL) || (base->tile_red_blue == NULL) || (base->run == NULL) || (base->runs == NULL))
+    if (base->tile_red_blue == NULL)
     {
-        gui_base_given(base);
         return 0;
     }
     base->tile_green = base->tile_red_blue + BASE_TILE_WORDS;
     base->tile_rest = base->tile_green + BASE_TILE_WORDS;
-    memor.set(&(MemoriaCfg){.dst = base->map, .val = 0, .bytes = bytes});
-    memor.set(&(MemoriaCfg){.dst = base->runs, .val = 0, .bytes = (unsigned long long)height * sizeof(unsigned int)});
     return 1;
 }
 
 void gui_base_given(GuiBase *base)
 {
-    g_cli_cells->persistent_buf_release(base->map, &s_owner);
     g_cli_cells->persistent_buf_release(base->tile_red_blue, &s_owner);
-    g_cli_cells->persistent_buf_release(base->run, &s_owner);
-    g_cli_cells->persistent_buf_release(base->runs, &s_owner);
-    base->map = NULL;
     base->tile_red_blue = NULL;
     base->tile_green = NULL;
     base->tile_rest = NULL;
-    base->run = NULL;
-    base->runs = NULL;
     base->width = 0u;
     base->height = 0u;
     base->laid = 0;
@@ -74,37 +64,103 @@ static void base_entry_set(GuiBaseEntry *entry, GuiColor color, unsigned int gra
     entry->rest = (((255u - alpha) * grain_rest) + 127u) / 255u;
 }
 
-// `rect` of the map set to `layer`, no further than the map, less the `count` squares of `kept`, which keep what
-// they hold
-static void base_rect_set(GuiBase *base, GuiRect rect, unsigned int layer, const GuiRect *kept, unsigned int count)
+// `rect` of `layer` laid on the map, over everything laid before, no further than the map; a rectangle past the
+// room for them is not laid
+static void base_laid(GuiBase *base, GuiRect rect, unsigned int layer)
 {
     // the map's sides are far inside what an int represents
     const GuiRect on = gui_rect_met(rect, (GuiRect){0, 0, (int)base->width, (int)base->height});
-    if (gui_rect_empty(on))
+    if (gui_rect_empty(on) || (base->layers >= GUI_BASE_LAYERS))
     {
         return;
     }
-    for (int y = on.y; y < on.y + on.height; y += 1)
+    base->layer[base->layers] = (GuiBaseLayer){on, layer};
+    base->layers += 1u;
+}
+
+unsigned int gui_base_layer_at(const GuiBase *base, int x, int y)
+{
+    for (unsigned int at = base->layers; at > 0u; at -= 1u)
     {
-        // the rectangle lies on the map: its coordinates are not negative; a layer is a byte
-        unsigned char *const row = base->map + ((unsigned int)y * base->width);
-        if (count == 0u)
+        if (gui_rect_holds(base->layer[at - 1u].rect, x, y))
         {
-            memor.set(&(MemoriaCfg){.dst = row + (unsigned int)on.x, .val = (int)layer, .bytes = (unsigned long long)on.width});
-            continue;
+            return base->layer[at - 1u].layer;
         }
-        for (int x = on.x; x < on.x + on.width; x += 1)
+    }
+    return GUI_BASE_CLEAR;
+}
+
+// `value` put among `edges`, `count` of them in rising order, where it is not among them: the count after
+static unsigned int base_edge_put(unsigned int *edges, unsigned int count, unsigned int value)
+{
+    unsigned int at = 0u;
+    while ((at < count) && (edges[at] < value))
+    {
+        at += 1u;
+    }
+    if ((at < count) && (edges[at] == value))
+    {
+        return count;
+    }
+    for (unsigned int back = count; back > at; back -= 1u)
+    {
+        edges[back] = edges[back - 1u];
+    }
+    edges[at] = value;
+    return count + 1u;
+}
+
+// the bands and their runs read from the rectangles laid: the bands cut at every rectangle's top and bottom, and a
+// band's runs cut at the left and right of every rectangle covering it, each run the layer of the last rectangle
+// laid over its start, runs of one layer joined
+static void base_bands_read(GuiBase *base)
+{
+    unsigned int rows[GUI_BASE_BANDS + 1u];
+    unsigned int cuts = 0u;
+    cuts = base_edge_put(rows, cuts, 0u);
+    cuts = base_edge_put(rows, cuts, base->height);
+    for (unsigned int at = 0u; at < base->layers; at += 1u)
+    {
+        // a rectangle laid lies on the map: its edges are not negative
+        const GuiRect rect = base->layer[at].rect;
+        cuts = base_edge_put(rows, cuts, (unsigned int)rect.y);
+        cuts = base_edge_put(rows, cuts, (unsigned int)(rect.y + rect.height));
+    }
+    base->bands = cuts - 1u;
+    for (unsigned int band = 0u; band < cuts; band += 1u)
+    {
+        base->band_from[band] = rows[band];
+    }
+    for (unsigned int band = 0u; band < base->bands; band += 1u)
+    {
+        // the band's row and width are far inside what an int represents
+        const int y = (int)base->band_from[band];
+        unsigned int columns[GUI_BASE_RUNS + 1u];
+        unsigned int edges = 0u;
+        edges = base_edge_put(columns, edges, 0u);
+        edges = base_edge_put(columns, edges, base->width);
+        for (unsigned int at = 0u; at < base->layers; at += 1u)
         {
-            int held = 0;
-            for (unsigned int at = 0u; at < count; at += 1u)
+            const GuiRect rect = base->layer[at].rect;
+            if ((y >= rect.y) && (y < rect.y + rect.height))
             {
-                held = held || gui_rect_holds(kept[at], x, y);
-            }
-            if (!held)
-            {
-                row[(unsigned int)x] = (unsigned char)layer;
+                edges = base_edge_put(columns, edges, (unsigned int)rect.x);
+                edges = base_edge_put(columns, edges, (unsigned int)(rect.x + rect.width));
             }
         }
+        unsigned int runs = 0u;
+        for (unsigned int edge = 0u; edge + 1u < edges; edge += 1u)
+        {
+            const unsigned int layer = gui_base_layer_at(base, (int)columns[edge], y);
+            if ((runs > 0u) && (base->run[band][runs - 1u].layer == layer))
+            {
+                base->run[band][runs - 1u].count += columns[edge + 1u] - columns[edge];
+                continue;
+            }
+            base->run[band][runs] = (GuiBaseRun){columns[edge], columns[edge + 1u] - columns[edge], layer};
+            runs += 1u;
+        }
+        base->runs[band] = runs;
     }
 }
 
@@ -113,7 +169,7 @@ int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palett
     const int same = base->laid && (memor.cmp(&(MemoriaCfg){.src = &base->frame, .other = frame, .bytes = sizeof(*frame)}) == 0) &&
                      (base->editor_ground == palette->editor_ground) && (base->side_ground == palette->side_ground) &&
                      (base->surface == palette->surface) && (base->glass == palette->glass) && (base->controls_steady == controls_steady);
-    if (same || (base->map == NULL))
+    if (same || (base->tile_red_blue == NULL))
     {
         return 0;
     }
@@ -148,49 +204,39 @@ int gui_base_laid(GuiBase *base, const GuiFrame *frame, const GuiPalette *palett
     }
     // the sheet everywhere, the work's inside its parts' grounds, the map's column and the lines' ring the lattice
     // the map's sides are far inside what an int represents
-    base_rect_set(base, (GuiRect){0, 0, (int)base->width, (int)base->height}, GUI_BASE_GLASS, NULL, 0u);
-    base_rect_set(base, frame->work, GUI_BASE_CLEAR, NULL, 0u);
-    base_rect_set(base, frame->side, GUI_BASE_SIDE, NULL, 0u);
-    base_rect_set(base, frame->tabs, GUI_BASE_TABS, NULL, 0u);
-    base_rect_set(base, frame->editor, GUI_BASE_EDITOR, NULL, 0u);
-    // each hole the sheet, its fillets' squares kept
+    base->layers = 0u;
+    base_laid(base, (GuiRect){0, 0, (int)base->width, (int)base->height}, GUI_BASE_GLASS);
+    base_laid(base, frame->work, GUI_BASE_CLEAR);
+    base_laid(base, frame->side, GUI_BASE_SIDE);
+    base_laid(base, frame->tabs, GUI_BASE_TABS);
+    base_laid(base, frame->editor, GUI_BASE_EDITOR);
+    // each hole the sheet, its fillets' squares kept what lay there
     GuiRect holes[4];
     const unsigned int count = gui_frame_holes(frame, holes);
     for (unsigned int at = 0u; at < count; at += 1u)
     {
         GuiRect kept[4];
+        unsigned int under[4];
         const unsigned int fillets = gui_raster_notch_fillets(frame->work, holes[at], frame->radius, kept);
-        base_rect_set(base, holes[at], GUI_BASE_GLASS, kept, fillets);
+        for (unsigned int fillet = 0u; fillet < fillets; fillet += 1u)
+        {
+            under[fillet] = gui_base_layer_at(base, kept[fillet].x, kept[fillet].y);
+        }
+        base_laid(base, holes[at], GUI_BASE_GLASS);
+        for (unsigned int fillet = 0u; fillet < fillets; fillet += 1u)
+        {
+            base_laid(base, kept[fillet], under[fillet]);
+        }
     }
     // the panes that have slid in, each the slat its edge shows, and the controls' pane where it stands
-    base_rect_set(base, gui_rect_met(frame->bar_slat, frame->bar), GUI_BASE_PANE, NULL, 0u);
-    base_rect_set(base, gui_rect_met(frame->strip_slat, frame->strip), GUI_BASE_PANE, NULL, 0u);
-    base_rect_set(base, gui_rect_met(frame->status_slat, frame->status), GUI_BASE_PANE, NULL, 0u);
+    base_laid(base, gui_rect_met(frame->bar_slat, frame->bar), GUI_BASE_PANE);
+    base_laid(base, gui_rect_met(frame->strip_slat, frame->strip), GUI_BASE_PANE);
+    base_laid(base, gui_rect_met(frame->status_slat, frame->status), GUI_BASE_PANE);
     if (controls_steady)
     {
-        base_rect_set(base, frame->controls_pane, GUI_BASE_PANE, NULL, 0u);
+        base_laid(base, frame->controls_pane, GUI_BASE_PANE);
     }
-    // each row's runs read from the map, a row of more than the room is read pixel by pixel as it is drawn
-    for (unsigned int y = 0u; y < base->height; y += 1u)
-    {
-        const unsigned char *const map_row = base->map + (y * base->width);
-        GuiBaseRun *const row = base->run + (y * GUI_BASE_RUNS);
-        unsigned int runs = 0u;
-        unsigned int x = 0u;
-        while ((x < base->width) && (runs < GUI_BASE_RUNS))
-        {
-            const unsigned int layer = map_row[x];
-            unsigned int run = x + 1u;
-            while ((run < base->width) && (map_row[run] == layer))
-            {
-                run += 1u;
-            }
-            row[runs] = (GuiBaseRun){x, run - x, layer};
-            runs += 1u;
-            x = run;
-        }
-        base->runs[y] = (x < base->width) ? 0u : runs;
-    }
+    base_bands_read(base);
     base->laid = 1;
     base->laid_count += 1u;
     return 1;
@@ -289,39 +335,25 @@ static void base_run_drawn(const GuiBase *base, GuiColor *out, const GuiColor *u
 
 void gui_base_drawn(const GuiBase *base, GuiRaster *raster, const GuiRaster *ground, GuiColor color)
 {
-    if ((base->map == NULL) || (raster->pixels == NULL) || (raster->width != base->width) || (raster->height != base->height))
+    if (!base->laid || (raster->pixels == NULL) || (raster->width != base->width) || (raster->height != base->height))
     {
         return;
     }
     const int from_ground = (ground != NULL) && (ground->pixels != NULL) && (ground->width == base->width) && (ground->height == base->height);
-    for (unsigned int y = 0u; y < base->height; y += 1u)
+    for (unsigned int band = 0u; band < base->bands; band += 1u)
     {
-        const unsigned char *const map_row = base->map + (y * base->width);
-        GuiColor *const out = raster->pixels + (y * base->width);
-        const GuiColor *const under = from_ground ? ground->pixels + (y * base->width) : NULL;
-        const unsigned int runs = base->runs[y];
-        if (runs != 0u)
+        const GuiBaseRun *const runs = base->run[band];
+        const unsigned int count = base->runs[band];
+        for (unsigned int y = base->band_from[band]; y < base->band_from[band + 1u]; y += 1u)
         {
-            const GuiBaseRun *const row = base->run + (y * GUI_BASE_RUNS);
-            for (unsigned int at = 0u; at < runs; at += 1u)
+            GuiColor *const out = raster->pixels + (y * base->width);
+            const GuiColor *const under = from_ground ? ground->pixels + (y * base->width) : NULL;
+            for (unsigned int at = 0u; at < count; at += 1u)
             {
-                const GuiBaseRun *const one = &row[at];
+                const GuiBaseRun *const one = &runs[at];
                 base_run_drawn(base, out + one->from, (under != NULL) ? under + one->from : NULL, color, one->count, one->layer,
                                y % GUI_GRAIN_TILE, one->from % GUI_GRAIN_TILE);
             }
-            continue;
-        }
-        unsigned int x = 0u;
-        while (x < base->width)
-        {
-            const unsigned int layer = map_row[x];
-            unsigned int run = x + 1u;
-            while ((run < base->width) && (map_row[run] == layer))
-            {
-                run += 1u;
-            }
-            base_run_drawn(base, out + x, (under != NULL) ? under + x : NULL, color, run - x, layer, y % GUI_GRAIN_TILE, x % GUI_GRAIN_TILE);
-            x = run;
         }
     }
 }

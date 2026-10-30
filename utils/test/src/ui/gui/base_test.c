@@ -117,6 +117,6 @@ int main(void)
     gui_raster_given(&ground);
     gui_raster_given(&raster);
     gui_base_given(&base);
-    cli_check((base.map == NULL) && !base.laid, "a base given back holds no map");
+    cli_check((base.tile_red_blue == NULL) && !base.laid, "a base given back holds no tables");
     return cli_checked();
 }
